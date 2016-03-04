@@ -382,7 +382,7 @@ class Router(SCIONElement):
                         return
                     mgmt_pkt.addrs.dst.host = ps
                     self.send(mgmt_pkt)
-        if not from_local_as and mgmt_pkt.path.is_last_path_hof():
+        if not from_local_as:
             self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
             self.forward_packet(mgmt_pkt, from_local_as)
@@ -412,7 +412,7 @@ class Router(SCIONElement):
         rev_pkt.set_payload(rev_info)
         rev_pkt.addrs.src.host = PT.PATH_MGMT
         logging.debug("Revocation Packet:\n%s", rev_pkt)
-        self.forward_packet(rev_pkt, True)
+        self.handle_data(rev_pkt, True)
 
     def _revoke_if_down(self, if_id, spkt):
         """
@@ -422,23 +422,25 @@ class Router(SCIONElement):
             self.send_revocation(spkt, if_id)
             raise SCIONInterfaceDownException(if_id)
 
-    def deliver(self, spkt, ptype):
+    def deliver(self, spkt, ptype, force=True):
         """
         Forwards the packet to the end destination within the current AS.
 
         :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
         :param int ptype: The packet type.
+        :param bool force:
+            If set, allow packets to be delivered locally that would otherwise
+            be disallowed.
         """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        # Not all valid packets have a path (e.g. most SIBRA packets don't) so
-        # only do this check if the packet contains a path.
-        if len(path) and (not path.is_last_path_hof() or
-                          (curr_hof.ingress_if and curr_hof.egress_if)):
-            logging.error("Trying to deliver packet that is not at the " +
-                          "end of a segment:\n%s", spkt)
+        if not force and spkt.addrs.dst.isd_as != self.addr.isd_as:
+            logging.error("Tried to deliver a non-local packet:\n%s", spkt)
             return
+        if len(spkt.path):
+            hof = spkt.path.get_hof()
+            if not force:
+                assert not hof.forward_only
+            assert not hof.verify_only
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
         if ptype == PT.PATH_MGMT:
@@ -458,17 +460,7 @@ class Router(SCIONElement):
         self.send(spkt, addr)
 
     def verify_hof(self, path, ingress=True):
-        """
-        Verify freshness and authentication of an opaque field.
-
-        :param hof: the hop opaque field that is verified.
-        :type hof: :class:`lib.packet.opaque_field.HopOpaqueField`
-        :param prev_hof: previous hop opaque field (according to order of PCB
-                         propagation) required for verification.
-        :type prev_hof: :class:`lib.packet.opaque_field.HopOpaqueField` or None
-        :param ts: timestamp against which the opaque field is verified.
-        :type ts: int
-        """
+        """Verify freshness and authentication of an opaque field."""
         ts = path.get_iof().timestamp
         hof = path.get_hof()
         prev_hof = path.get_hof_ver(ingress=ingress)
@@ -478,199 +470,21 @@ class Router(SCIONElement):
         else:
             raise SCIONOFExpiredError(hof)
 
-    def handle_ingress_xovr(self, spkt):
-        """
-        Main entry for crossover points at the ingress router.
-        """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_hof.xover
-
-        if not curr_iof.shortcut:
-            self.ingress_core_xovr(spkt)
-            return
-        if not curr_iof.peer:
-            self.ingress_shortcut_xovr(spkt)
-        else:
-            self.ingress_peer_xovr(spkt)
-
-    def ingress_shortcut_xovr(self, spkt):
-        """
-        Handles the crossover point for shortcut paths at the ingress router.
-        """
-        path = spkt.path
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_iof.shortcut and not curr_iof.peer
-        if not path.is_on_up_path():
-            raise SCIONPacketHeaderCorruptedError
-
-        self.verify_hof(path)
-        path.next_segment()
-        # Handle on-path shortcut case.
-        curr_iof = path.get_iof()
-        curr_hof = path.get_hof()
-        self._revoke_if_down(curr_hof.egress_if, spkt)
-        if not curr_hof.egress_if and path.is_last_path_hof():
-            self.verify_hof(path)
-            self.deliver(spkt, PT.DATA)
-        else:
-            self.send(spkt, self.ifid2addr[curr_hof.egress_if])
-
-    def ingress_peer_xovr(self, spkt):
-        """
-        Handles the crossover point for peer paths at the ingress router.
-        """
-        path = spkt.path
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_iof.peer
-
-        self.verify_hof(path)
-        path.inc_hof_idx()
-        fwd_if = path.get_fwd_if()
-        # Check interface availability.
-        self._revoke_if_down(fwd_if, spkt)
-        if path.is_last_path_hof():
-            self.deliver(spkt, PT.DATA)
-        else:
-            self.send(spkt, self.ifid2addr[path.get_fwd_if()])
-
-    def ingress_core_xovr(self, spkt):
-        """
-        Handles the crossover point for core paths at the ingress router.
-        """
-        path = spkt.path
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert not curr_iof.shortcut
-
-        self.verify_hof(path)
-        if path.is_last_path_hof():
-            self.deliver(spkt, PT.DATA)
-        else:
-            path.next_segment()
-            fwd_if = path.get_fwd_if()
-            # Check interface availability.
-            self._revoke_if_down(fwd_if, spkt)
-            self.send(spkt, self.ifid2addr[fwd_if])
-
-    def ingress_normal_forward(self, spkt):
-        """
-        Handles normal forwarding of packets at the ingress router.
-        """
-        path = spkt.path
-        self.verify_hof(path)
-        fwd_if = path.get_fwd_if()
-        # Check interface availability.
-        self._revoke_if_down(fwd_if, spkt)
-        if not fwd_if and path.is_last_path_hof():
-            self.deliver(spkt, PT.DATA)
-        else:
-            self.send(spkt, self.ifid2addr[fwd_if])
-
-    def handle_egress_xovr(self, spkt):
-        """
-        Main entry for crossover points at the egress router.
-        """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_hof.xover
-
-        if not curr_iof.shortcut:
-            self.egress_core_xovr(spkt)
-            return
-        if not curr_iof.peer:
-            self.egress_shortcut_xovr(spkt)
-        else:
-            self.egress_peer_xovr(spkt)
-
-    def egress_shortcut_xovr(self, spkt):
-        """
-        Handles the crossover point for shortcut paths at the egress router.
-        """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_hof.xover
-        assert curr_iof.shortcut and not curr_iof.peer
-        if path.is_on_up_path():
-            raise SCIONPacketHeaderCorruptedError
-        self.egress_normal_forward(spkt)
-
-    def egress_peer_xovr(self, spkt):
-        """
-        Handles the crossover point for peer paths at the egress router.
-        """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_hof.xover
-        assert curr_iof.peer
-
-        self.verify_hof(path, ingress=False)
-        if path.is_on_up_path():
-            path.next_segment()
-        else:
-            path.inc_hof_idx()
-        self._egress_forward(spkt)
-
-    def egress_core_xovr(self, spkt):
-        """
-        Handles the crossover point for core paths at the egress router.
-        """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        curr_iof = path.get_iof()
-        # Preconditions
-        assert curr_hof.xover
-        assert not curr_iof.shortcut
-
-        self.verify_hof(path, ingress=False)
-        path.inc_hof_idx()
-        self._egress_forward(spkt)
-
-    def egress_normal_forward(self, spkt):
-        """
-        Handles normal forwarding of packets at the egress router.
-        """
-        path = spkt.path
-        self.verify_hof(path, ingress=False)
-        path.inc_hof_idx()
-        self._egress_forward(spkt)
-
     def _egress_forward(self, spkt):
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
-    def forward_packet(self, spkt, from_local_as):
+    def handle_data(self, spkt, from_local_as):
         """
-        Main entry point for data packet forwarding.
+        Main entry point for data packet handling.
 
-        :param spkt: The SCION Packet to forward.
+        :param spkt: The SCION Packet to process.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
         :param from_local_as:
             Whether or not the packet is from the local AS.
         """
-        curr_hof = spkt.path.get_hof()
+        ingress = not from_local_as
         try:
-            # Ingress entry point.
-            if not from_local_as:
-                if curr_hof.xover:
-                    self.handle_ingress_xovr(spkt)
-                else:
-                    self.ingress_normal_forward(spkt)
-            # Egress entry point.
-            else:
-                if curr_hof.xover:
-                    self.handle_egress_xovr(spkt)
-                else:
-                    self.egress_normal_forward(spkt)
+            self._process_data(spkt, ingress)
         except SCIONOFVerificationError as e:
             logging.error("Dropping packet due to incorrect MAC.\n"
                           "Header:\n%s\nInvalid OF: %s\nPrev OF: %s",
@@ -684,6 +498,33 @@ class Router(SCIONElement):
                           "Header:\n%s", spkt)
         except SCIONInterfaceDownException:
             pass
+
+    def _process_data(self, spkt, ingress):
+        path = spkt.path
+        self.verify_hof(path, ingress=ingress)
+        if spkt.addrs.dst.isd_as == self.addr.isd_as:
+            self.deliver(spkt, PT.DATA)
+            return
+        if not ingress:
+            path.inc_hof_idx()
+            self._egress_forward(spkt)
+            return
+        fwd_if = self._calc_fwding_ingress(spkt)
+        if fwd_if == 0:
+            # So that the error message will show the current state of the
+            # packet.
+            spkt.update()
+            logging.error("Cannot forward packet, fwd_if is 0:\n%s", spkt)
+            return
+        self._revoke_if_down(fwd_if, spkt)
+        self.send(spkt, self.ifid2addr[fwd_if])
+
+    def _calc_fwding_ingress(self, spkt):
+        path = spkt.path
+        hof = path.get_hof()
+        if hof.xover:
+            path.inc_hof_idx()
+        return path.get_fwd_if()
 
     def _needs_local_processing(self, pkt):
         if len(pkt.path) == 0 and pkt.addrs.dst.host.TYPE == AddrType.SVC:
@@ -781,9 +622,10 @@ class Router(SCIONElement):
             handler = self._get_handler(pkt)
         else:
             # It's a normal packet, just forward it.
-            handler = self.forward_packet
-        logging.debug("handle_request:\n  %s\n  %s\n  handler: %s",
-                      pkt.cmn_hdr, pkt.addrs, handler)
+            handler = self.handle_data
+        logging.debug("handle_request (from_local_as? %s):"
+                      "\n  %s\n  %s\n  handler: %s",
+                      from_local_as, pkt.cmn_hdr, pkt.addrs, handler)
         if not handler:
             return
         try:

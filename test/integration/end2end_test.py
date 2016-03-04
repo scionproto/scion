@@ -37,9 +37,8 @@ from lib.packet.host_addr import (
     haddr_parse,
     haddr_parse_interface,
 )
-from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
+from lib.packet.path import SCIONPath, EmptyPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
@@ -81,14 +80,7 @@ def get_paths_via_api(addr):
         path_len = data.pop(1) * 8
         if not path_len:
             return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))], [[]]
-        iof = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
-        if not iof.shortcut:
-            path = CorePath(data.pop(path_len))
-        else:
-            if not iof.peer:
-                path = CrossOverPath(data.pop(path_len))
-            else:
-                path = PeerPath(data.pop(path_len))
+        path = SCIONPath(data.pop(path_len))
         haddr_type = haddr_get_type("IPV4")
         hop = haddr_type(data.get(haddr_type.LEN))
         data.pop(len(hop))

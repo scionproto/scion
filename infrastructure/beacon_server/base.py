@@ -321,8 +321,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
-        if prev_hof is None:
-            hof.xover = True
         hof.set_mac(self.of_gen_key, ts, prev_hof)
         pcbm = PCBMarking.from_values(
             self.addr.isd_as, hof, self._get_if_rev_token(ingress_if))

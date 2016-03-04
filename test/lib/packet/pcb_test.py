@@ -24,7 +24,6 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONParseError
-from lib.packet.path import CorePath
 from lib.packet.pcb import (
     ASMarking,
     PCBMarking,
@@ -336,8 +335,8 @@ class TestPathSegmentGetPath(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_path
     """
-    @patch("lib.packet.pcb.CorePath.from_values", spec_set=CorePath.from_values)
-    def test_basic(self, core_path):
+    @patch("lib.packet.pcb.SCIONPath", autospec=True)
+    def test_basic(self, scion_path):
         inst = PathSegment()
         inst.iof = 1
         ases = [create_mock(['pcbm']) for i in range(3)]
@@ -345,20 +344,23 @@ class TestPathSegmentGetPath(object):
             asm.pcbm = create_mock(['hof'])
             asm.pcbm.hof = i
         inst.ases = ases
-        core_path.return_value = 'core_path'
-        ntools.eq_(inst.get_path(), 'core_path')
-        core_path.assert_called_once_with(1, [0, 1, 2])
+        # Call
+        ntools.eq_(inst.get_path(), scion_path.from_values.return_value)
+        # Tests
+        scion_path.from_values.assert_called_once_with(1, [0, 1, 2])
 
-    @patch("lib.packet.pcb.CorePath.from_values", spec_set=CorePath.from_values)
-    def _check_reverse(self, flag, core_path):
+    @patch("lib.packet.pcb.SCIONPath", autospec=True)
+    def _check_reverse(self, flag, scion_path):
         inst = PathSegment()
         inst.iof = create_mock(['up_flag'])
         type(inst.iof).__copy__ = lambda self: self
         inst.iof.up_flag = flag
-        core_path.return_value = 'core_path'
-        ntools.eq_(inst.get_path(reverse_direction=True), 'core_path')
+        # Call
+        ntools.eq_(inst.get_path(reverse_direction=True),
+                   scion_path.from_values.return_value)
+        # Tests
         ntools.eq_(inst.iof.up_flag, not flag)
-        core_path.assert_called_once_with(inst.iof, [])
+        scion_path.from_values.assert_called_once_with(inst.iof, [])
 
     def test_reverse(self):
         for flag in True, False:

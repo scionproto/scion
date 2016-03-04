@@ -30,7 +30,7 @@ from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import SCIONPayloadBase
-from lib.packet.path import CorePath
+from lib.packet.path import SCIONPath
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
@@ -385,8 +385,7 @@ class PathSegment(SCIONPayloadBase):
             iof.up_flag = self.iof.up_flag ^ True
         for asm in ases:
             hofs.append(asm.pcbm.hof)
-        core_path = CorePath.from_values(iof, hofs)
-        return core_path
+        return SCIONPath.from_values(iof, hofs)
 
     def get_isd(self):  # pragma: no cover
         """
