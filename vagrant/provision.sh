@@ -18,7 +18,8 @@ sudo mount -t hugetlbfs nodev ${HUGEPAGE_MOUNT}
 
 # Install dependencies
 sudo apt-get update
-sudo apt-get -y -q install git clang doxygen hugepages build-essential linux-headers-`uname -r` yasm wget
+sudo apt-get -y -q install git clang doxygen hugepages build-essential linux-headers-`uname -r` yasm wget python3-pip
+sudo pip3 install pyyaml
  
 # Get code from Git repo
 #git clone http://dpdk.org/git/dpdk

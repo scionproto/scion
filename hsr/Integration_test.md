@@ -6,6 +6,11 @@ Default packages of Ubuntu 14.04 are a bit old, so you need to install them manu
 * Virtual Box version 5.0 (https://www.virtualbox.org/). Note that version 4.x does not support AES-NI, thus version 5.x is required.
 * Vagrant (https://www.vagrantup.com/downloads.html) for building a VM with DPDK
 
+Install Docker (for some reason needed to make integration work fully)
+```
+sudo apt-get install docker.io
+```
+
 Download base ubuntu image.
 ```
 vagrant box add bento/ubuntu-14.04
@@ -26,12 +31,6 @@ vagrant up
 Open a console.
 ```
 vagrant ssh
-```
-
-Install pyyaml (for some reason is not installed by default)
-```
-sudo apt-get install python3-pip
-sudo pip3 install pyyaml
 ```
 
 Build HSR
