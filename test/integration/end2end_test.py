@@ -46,7 +46,13 @@ from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType, OpaqueFieldType as OFT
-from lib.util import Raw, handle_signals, load_yaml_file
+from lib.util import (
+    Raw,
+    handle_signals,
+    load_yaml_file,
+    reg_dispatcher,
+    trim_dispatcher_packet,
+)
 
 TOUT = 10  # How long wait for response.
 
@@ -121,6 +127,7 @@ class Ping(object):
         self.get_path()
         self.sock = UDPSocket(bind=(str(self.src.host), 0, "Ping App"),
                               addr_type=AddrType.IPV4)
+        reg_dispatcher(self.sock, self.src.host, self.sock.port)
 
     def get_path(self):
         logging.info("Sending PATH request for %s", self.dst)
@@ -153,6 +160,7 @@ class Ping(object):
 
     def recv(self):
         packet = self.sock.recv()[0]
+        packet = trim_dispatcher_packet(packet)
         spkt = SCIONL4Packet(packet)
         payload = spkt.get_payload()
         pong = PayloadRaw(b"pong " + self.token)
@@ -181,12 +189,11 @@ class Pong(object):
         self.sd = SCIONDaemon.start(conf_dir, self.dst.host)
         self.sock = UDPSocket(bind=(str(self.dst.host), 0, "Pong App"),
                               addr_type=AddrType.IPV4)
-
-    def get_local_port(self):
-        return self.sock.get_port()
+        reg_dispatcher(self.sock, self.dst.host, self.sock.port)
 
     def run(self):
         packet = self.sock.recv()[0]
+        packet = trim_dispatcher_packet(packet)
         spkt = SCIONL4Packet(packet)
         payload = spkt.get_payload()
         ping = PayloadRaw(b"ping " + self.token)

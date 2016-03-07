@@ -322,6 +322,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
     SSPEntry se;
     se.flowID = mFlowID;
     se.port = 0;
+    memcpy(&se.addr, mConnectionManager->localAddress()->host.addr, SCION_HOST_ADDR_LEN);
     registerFlow(SCION_PROTO_SSP, &se, sock, 1);
     DEBUG("start protocol for flow %lu\n", mFlowID);
     if (packet && buf)
@@ -919,6 +920,15 @@ bool SUDPProtocol::claimPacket(SCIONPacket *packet, uint8_t *buf)
 
 void SUDPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 {
+}
+
+void SUDPProtocol::registerDispatcher(uint16_t port, int sock)
+{
+    SCIONAddr *addr = mConnectionManager->localAddress();
+    SUDPEntry se;
+    se.port = port;
+    se.addr = *(uint32_t *)(addr->host.addr);
+    registerFlow(SCION_PROTO_UDP, &se, sock, 1);
 }
 
 void SUDPProtocol::getStats(SCIONStats *stats)

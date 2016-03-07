@@ -211,15 +211,9 @@ bool Path::isValid()
 
 void Path::setFirstHop(int len, uint8_t *addr)
 {
-#ifdef BYPASS_ROUTERS
     mFirstHop.addrLen = len;
     memcpy(mFirstHop.addr, addr, len);
     mFirstHop.port = SCION_UDP_EH_DATA_PORT;
-#else
-    mFirstHop.addrLen = len;
-    memcpy(mFirstHop.addr, addr, len);
-    mFirstHop.port = SCION_UDP_PORT;
-#endif
 }
 
 bool Path::didTimeout(struct timeval *current)

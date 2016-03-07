@@ -20,6 +20,7 @@ public:
     int getSocket();
     int getPathCount();
     int maxPayloadSize();
+    SCIONAddr * localAddress();
 
     void getLocalAddress();
     void getPaths();

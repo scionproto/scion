@@ -42,11 +42,9 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
-    L4_UDP,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SCION_UDP_PORT,
     SIBRA_SERVICE,
 )
 from lib.errors import (
@@ -145,6 +143,17 @@ class Router(SCIONElement):
         self._socks.add(self._remote_sock)
         logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
 
+    def _setup_socket(self):
+        """
+        Setup incoming socket
+        """
+        self._local_sock = UDPSocket(
+            bind=(str(self.addr.host), SCION_UDP_EH_DATA_PORT, self.id),
+            addr_type=self.addr.host.TYPE,
+        )
+        self._port = self._local_sock.port
+        self._socks.add(self._local_sock)
+
     def run(self):
         """
         Run the router threads.
@@ -157,7 +166,7 @@ class Router(SCIONElement):
             name="ER.request_ifstates", daemon=True).start()
         SCIONElement.run(self)
 
-    def send(self, spkt, addr=None, port=SCION_UDP_PORT):
+    def send(self, spkt, addr=None, port=SCION_UDP_EH_DATA_PORT):
         """
         Send a spkt to addr (class of that object must implement
         __str__ which returns IPv4 addr) using port and local or remote
@@ -325,7 +334,7 @@ class Router(SCIONElement):
                 logging.error("Unable to deliver cert packet: %s", e)
                 return
             spkt.addrs.dst.host = addr
-            port = SCION_UDP_PORT
+            port = SCION_UDP_EH_DATA_PORT
         self.send(spkt, addr, port)
 
     def fwd_sibra_service_pkt(self, spkt, _):
@@ -445,15 +454,10 @@ class Router(SCIONElement):
                     logging.error("Unable to deliver path mgmt packet: %s", e)
                     return
                 spkt.addrs.dst.host = addr
-            port = SCION_UDP_PORT
         elif addr == PT.SB_PKT:
             self.fwd_sibra_service_pkt(spkt, None)
             return
-        elif spkt._l4_proto == L4_UDP:
-            port = spkt.l4_hdr.dst_port
-        else:
-            port = SCION_UDP_EH_DATA_PORT
-        self.send(spkt, addr, port)
+        self.send(spkt, addr)
 
     def verify_hof(self, path, ingress=True):
         """

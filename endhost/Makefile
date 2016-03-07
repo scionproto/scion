@@ -1,20 +1,22 @@
 CC=gcc
 CFLAGS +=-Wall -g
-INC += -I./ssp
-LDFLAGS += -lpthread -lrt
+INC += -I./ssp -I../lib/libscion
+LIB=-L../lib/libscion
+LDFLAGS += -lpthread -lscion
+LIBFILE=../lib/libscion/libscion.a
 
 HDRS=$(wildcard *.h)
 
-all: client_dispatcher server_dispatcher
-
-client_dispatcher: dispatcher.c
-	$(CC) $(CFLAGS) $(INC) -DSCION_DISPATCHER_HOST='"127.255.255.254"' $^ -o $@ $(LDFLAGS)
-
-server_dispatcher: dispatcher.c
-	$(CC) $(CFLAGS) $(INC) -DSCION_DISPATCHER_HOST='"127.255.255.253"' $^ -o $@ $(LDFLAGS)
+all: dispatcher
 
 dispatcher: dispatcher.c
-	$(CC) $(CFLAGS) $(INC) -DSCION_DISPATCHER_HOST='"127.255.255.254"' $^ -o $@ $(LDFLAGS)
+ifeq ($(wildcard $(LIBFILE)),)
+	cd ../lib/libscion && $(MAKE)
+endif
+	$(CC) $(CFLAGS) $(INC) $^ -o $@ $(LDFLAGS) $(LIB)
+
+install:
+	cp dispatcher ../bin
 
 clean:
-	-rm -f dispatcher client_dispatcher server_dispatcher
+	-rm -f dispatcher

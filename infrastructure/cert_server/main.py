@@ -162,16 +162,15 @@ class CertServer(SCIONElement):
         if src.isd_as == self.addr.isd_as:
             # Local request
             next_hop = src.host
-            port = src_port
+            dst_addr = next_hop
         else:
             # Remote request
             next_hop = self._get_next_hop(src.isd_as, False, True, True)
-            port = SCION_UDP_PORT
-
+            dst_addr = PT.CERT_MGMT
         if next_hop:
             rep_pkt = self._build_packet(
-                PT.CERT_MGMT, dst_ia=src.isd_as, payload=payload)
-            self.send(rep_pkt, next_hop, port)
+                dst_addr, dst_ia=src.isd_as, payload=payload, dst_port=src_port)
+            self.send(rep_pkt, next_hop)
         else:
             logging.warning("Reply not sent: no destination found")
 

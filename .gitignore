@@ -61,15 +61,16 @@ topology/mininet/*.pyc
 /.coverage
 /htmlcov/
 
-# Socket library files
+# C library binaries
 ##########################
-endhost/ssp/*.so
-endhost/ssp/*.o
+*.a
+*.o
+*.so
 
 # Socket binaries
 ##########################
-endhost/*dispatcher
-endhost/ssp/test/*.o
+bin/dispatcher
+endhost/dispatcher
 endhost/ssp/test/*client
 endhost/ssp/test/*server
 endhost/ssp/test/*file

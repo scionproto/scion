@@ -106,175 +106,6 @@ void destroySUDPPacket(void *p)
     free(packet);
 }
 
-int reverseCorePath(uint8_t *original, uint8_t *reverse, int len)
-{
-    int offset = 0;
-    uint8_t *upIOF = original;
-    uint8_t upHops = *(upIOF + 7);
-    uint8_t *coreIOF = upIOF + (upHops + 1) * 8;
-    uint8_t coreHops = *(coreIOF + 7);
-    uint8_t *downIOF = coreIOF + (coreHops + 1) * 8;
-    uint8_t downHops = *(downIOF + 7);
-
-    if (downIOF >= original + len) {
-        downIOF = coreIOF;
-        downHops = coreHops;
-        coreIOF = NULL;
-        coreHops = 0;
-        if (downIOF >= original + len) {
-            // still out of bounds, only one segment in path
-            downIOF = NULL;
-            downHops = 0;
-        }
-    } else {
-        downHops = *(downIOF + 7);
-    }
-    DEBUG("%d up hops, %d core hops, %d down hops\n", upHops, coreHops, downHops);
-
-    // up segment = reversed down segment
-    uint8_t *iof = downIOF;
-    if (!iof)
-        iof = upIOF;
-    int hops = downHops;
-    if (!hops)
-        hops = upHops;
-    *(uint64_t *)reverse = *(uint64_t *)iof;
-    *reverse ^= 1;
-    offset = 8;
-    for (int i = hops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(iof + i * 8);
-        offset += 8;
-    }
-    DEBUG("offset after up segment = %d\n", offset);
-
-    // reverse core hops
-    if (coreHops > 0) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)coreIOF;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        for (int i = coreHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(coreIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after core segment = %d\n", offset);
-    }
-
-    // down segment = reversed up segment
-    if (downHops > 0) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        for (int i = upHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after down segment = %d\n", offset);
-    }
-    return offset;
-}
-
-int reverseCrossoverPath(uint8_t *original, uint8_t *reverse, int len)
-{
-    int offset = 0;
-    uint8_t *upIOF = original;
-    uint8_t upHops = *(upIOF + 7);
-    uint8_t *downIOF = upIOF + (upHops + 2) * 8;
-    uint8_t downHops = *(downIOF + 7);
-
-    // up segment = reversed down segment
-    *(uint64_t *)reverse = *(uint64_t *)downIOF;
-    *reverse ^= 1;
-    offset = 8;
-    for (int i = downHops + 1; i > 1; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
-        offset += 8;
-    }
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 8);
-    offset += 8;
-    DEBUG("offset after up segment = %d\n", offset);
-
-    // down segment = reversed up segment
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-    *(reverse + offset) ^= 1;
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 1) * 8);
-    offset += 8;
-    for (int i = upHops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
-        offset += 8;
-    }
-    DEBUG("offset after down segment = %d\n", offset);
-    return offset;
-}
-
-int reversePeerPath(uint8_t *original, uint8_t *reverse, int len)
-{
-    int offset = 0;
-    uint8_t *upIOF = original;
-    uint8_t upHops = *(upIOF + 7);
-    uint8_t *downIOF = upIOF + (upHops + 3) * 8;
-    uint8_t downHops = *(downIOF + 7);
-    DEBUG("%d up hops, %d down hops\n", upHops, downHops);
-
-    // up segment = reversed down segment
-    *(uint64_t *)reverse = *(uint64_t *)downIOF;
-    *reverse ^= 1;
-    offset = 8;
-    for (int i = downHops + 2; i > 2; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
-        offset += 8;
-    }
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 16);
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 8);
-    offset += 8;
-    DEBUG("offset after up segment = %d\n", offset);
-
-    // down segment = reversed up segment
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-    *(reverse + offset) ^= 1;
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 2) * 8);
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 1) * 8);
-    offset += 8;
-    for (int i = upHops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
-        offset += 8;
-    }
-    DEBUG("offset after down segment = %d\n", offset);
-    return offset;
-}
-
-int reversePath(uint8_t *original, uint8_t *reverse, int len)
-{
-    if (len == 0)
-        return 0;
-
-    if (IS_HOP_OF(*original)) {
-        DEBUG("No leading Info OF in path (%#x)\n", *original);
-        return -1;
-    }
-
-    DEBUG("reverse a path of length %d\n", len);
-
-    int offset = 0;
-    uint8_t type = *original >> 1;
-    if (type == TDC_XOVR)
-        offset = reverseCorePath(original, reverse, len);
-    else if (type == NON_TDC_XOVR || type == INPATH_XOVR)
-        offset = reverseCrossoverPath(original, reverse, len);
-    else
-        offset = reversePeerPath(original, reverse, len);
-
-    if (offset != len) {
-        DEBUG("Size mismatch reversing core path\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 uint64_t createRandom(int bits)
 {
     // Eventually use better randomness
@@ -286,6 +117,24 @@ uint64_t createRandom(int bits)
     return r & ((1 << bits) - 1);
 }
 
+uint32_t getLocalHostAddr()
+{
+    int sock = socket(PF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in addr;
+    char buf[32];
+    
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
+    addr.sin_port = htons(SCIOND_API_PORT);
+
+    buf[0] = 1;
+    sendto(sock, buf, 1, 0, (struct sockaddr *)&addr, sizeof(addr));
+    recvfrom(sock, buf, 32, 0, NULL, NULL);
+    close(sock);
+    return *(uint32_t *)(buf + SCION_HOST_OFFSET);
+}
+
 int registerFlow(int proto, void *data, int sock, uint8_t reg)
 {
     DEBUG("register flow via socket %d\n", sock);
@@ -293,8 +142,8 @@ int registerFlow(int proto, void *data, int sock, uint8_t reg)
     struct sockaddr_in addr;
     socklen_t addrLen = sizeof(addr);
     memset(&addr, 0, addrLen);
-    addr.sin_port = htons(SCIOND_DISPATCHER_PORT);
-    addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
+    addr.sin_port = htons(SCION_DISPATCHER_PORT);
+    addr.sin_addr.s_addr = inet_addr(SCION_DISPATCHER_HOST);
 
     int len;
     char buf[32];
@@ -303,15 +152,17 @@ int registerFlow(int proto, void *data, int sock, uint8_t reg)
     switch (proto) {
         case SCION_PROTO_SSP: {
             SSPEntry *se = (SSPEntry *)data;
-            memcpy(buf + 2, &se->flowID, sizeof(se->flowID));
-            memcpy(buf + 10, &se->port, sizeof(se->port));
-            len = 12;
+            memcpy(buf + 2, &se->port, sizeof(se->port));
+            memcpy(buf + 4, &se->flowID, sizeof(se->flowID));
+            memcpy(buf + 12, &se->addr, sizeof(se->addr));
+            len = 16;
             break;
         }
         case SCION_PROTO_UDP: {
             SUDPEntry *se = (SUDPEntry *)data;
             memcpy(buf + 2, &se->port, sizeof(se->port));
-            len = 4;
+            memcpy(buf + 4, &se->addr, sizeof(se->addr));
+            len = 8;
             break;
         }
         default:

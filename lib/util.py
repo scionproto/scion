@@ -23,6 +23,7 @@ import logging
 import os
 import shutil
 import signal
+import struct
 import sys
 import time
 from binascii import hexlify
@@ -34,6 +35,13 @@ import yaml
 from external.stacktracer import trace_start
 
 # SCION
+from lib.defines import (
+    DISPATCHER_TIMEOUT,
+    DISPATCHER_SENDER,
+    L4_UDP,
+    SCION_DISPATCHER_ADDR,
+    SCION_DISPATCHER_PORT,
+)
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
@@ -290,6 +298,34 @@ def iso_timestamp(ts):  # pragma: no cover
 def hex_str(raw):
     """Format a byte string as hex characters."""
     return hexlify(raw).decode("ascii")
+
+
+def reg_dispatcher(sock, addr, port):
+    """
+    Helper function for registering app with dispatcher
+    """
+    sock.settimeout(1.0)
+    buf = b"".join([struct.pack("BBH", 1, L4_UDP, port), addr.pack()])
+    for i in range(DISPATCHER_TIMEOUT):
+        sock.send(buf, (SCION_DISPATCHER_ADDR, SCION_DISPATCHER_PORT))
+        try:
+            if sock.recv():
+                logging.info("dispatcher registration successful")
+                break
+        except OSError:
+            logging.debug("timed out registering, retry")
+    else:
+        logging.critical("Failed to register with dispatcher")
+        sys.exit(1)
+    sock.settimeout(None)
+
+
+def trim_dispatcher_packet(packet):
+    """
+    Strip sender info off the end of packet from dispatcher
+    """
+    assert len(packet) > DISPATCHER_SENDER
+    return packet[:-DISPATCHER_SENDER]
 
 
 class SCIONTime(object):

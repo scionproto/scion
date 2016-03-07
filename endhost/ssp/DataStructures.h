@@ -80,8 +80,9 @@ public:
 };
 
 typedef struct {
-    uint64_t flowID;
     uint16_t port;
+    uint32_t addr;
+    uint64_t flowID;
 } SSPEntry;
 
 typedef enum {
@@ -164,6 +165,7 @@ typedef struct {
 
 typedef struct {
     uint16_t port;
+    uint32_t addr;
 } SUDPEntry;
 
 typedef struct {

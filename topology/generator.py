@@ -502,6 +502,7 @@ class SupervisorGenerator(object):
         self.mininet = mininet
 
     def generate(self):
+        self._write_dispatcher_conf()
         for topo_id, topo in self.topo_dicts.items():
             self._as_conf(topo_id, topo)
 
@@ -557,6 +558,10 @@ class SupervisorGenerator(object):
     def _write_elem_conf(self, elem, entry, conf_path):
         config = configparser.ConfigParser(interpolation=None)
         config["program:%s" % elem] = self._common_entry(elem, entry)
+        if self.mininet and not elem.startswith("er"):
+            disp = "dp-" + elem
+            config["program:%s" % disp] =\
+                self._common_entry(disp, ["bin/dispatcher"])
         text = StringIO()
         config.write(text)
         write_file(conf_path, text.getvalue())
@@ -569,6 +574,11 @@ class SupervisorGenerator(object):
         write_file(mn_conf_path,
                    tmpl.substitute(elem=elem, conf_path=rel_conf_path,
                                    user=getpass.getuser()))
+
+    def _write_dispatcher_conf(self):
+        elem = "dispatcher"
+        conf_path = os.path.join(self.out_dir, elem, SUPERVISOR_CONF)
+        self._write_elem_conf(elem, ["bin/dispatcher"], conf_path)
 
     def _get_base_path(self, topo_id):
         return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())

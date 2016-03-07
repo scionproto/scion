@@ -30,6 +30,8 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
     PATH_SERVICE,
+    SCION_DISPATCHER_PORT,
+    SCION_UDP_EH_DATA_PORT,
     SCION_UDP_PORT,
     SERVICE_TYPES,
     SIBRA_SERVICE,
@@ -49,6 +51,10 @@ from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
 from lib.types import PayloadClass
 from lib.topology import Topology
+from lib.util import reg_dispatcher, trim_dispatcher_packet
+
+
+MAX_QUEUE = 30
 
 
 class SCIONElement(object):
@@ -102,13 +108,20 @@ class SCIONElement(object):
         self.run_flag = threading.Event()
         self.stopped_flag = threading.Event()
         self.stopped_flag.set()
-        self._in_buf = queue.Queue(30)
+        self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = UDPSocketMgr()
+        self._setup_socket()
+
+    def _setup_socket(self):
+        """
+        Setup incoming socket and register with dispatcher
+        """
         self._local_sock = UDPSocket(
-            bind=(str(self.addr.host), port, self.id),
+            bind=(str(self.addr.host), self._port, self.id),
             addr_type=self.addr.host.TYPE,
         )
         self._port = self._local_sock.port
+        reg_dispatcher(self._local_sock, self.addr.host, self._port)
         self._socks.add(self._local_sock)
 
     def construct_ifid2addr_map(self):
@@ -181,7 +194,7 @@ class SCIONElement(object):
                 return self._empty_first_hop(spkt)
             if_id = spkt.path.get_fwd_if()
         if if_id in self.ifid2addr:
-            return self.ifid2addr[if_id], SCION_UDP_PORT
+            return self.ifid2addr[if_id], SCION_UDP_EH_DATA_PORT
         logging.error("Unable to find first hop")
         return None, None
 
@@ -195,11 +208,7 @@ class SCIONElement(object):
         if spkt.addrs.src.isd_as != spkt.addrs.dst.isd_as:
             logging.error("Packet has no path but different src/dst ASes")
             return None, None
-        if isinstance(spkt, SCIONL4Packet):
-            # FIXME(PSz): this should be removed when we have a dispatcher
-            return spkt.addrs.dst.host, spkt.l4_hdr.dst_port
-        else:
-            return spkt.addrs.dst.host, SCION_UDP_PORT
+        return spkt.addrs.dst.host, SCION_UDP_EH_DATA_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(),
                       dst_ia=None, payload=None, dst_port=SCION_UDP_PORT):
@@ -218,7 +227,7 @@ class SCIONElement(object):
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 
-    def send(self, packet, dst, dst_port=SCION_UDP_PORT):
+    def send(self, packet, dst, dst_port=SCION_UDP_EH_DATA_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*) using the local socket.
         Calling ``packet.pack()`` should return :class:`bytes`, and
@@ -246,12 +255,14 @@ class SCIONElement(object):
 
         self._packet_process()
 
-    def packet_put(self, packet, addr, from_local_as):
+    def packet_put(self, packet, addr, from_local_as, dispatcher):
         """
         Try to put incoming packet in queue
         If queue is full, drop oldest packet in queue
         """
         dropped = 0
+        if dispatcher:
+            packet = trim_dispatcher_packet(packet)
         while True:
             try:
                 self._in_buf.put((packet, addr, from_local_as), block=False)
@@ -278,7 +289,9 @@ class SCIONElement(object):
                     except BlockingIOError:
                         break
                     else:
-                        self.packet_put(packet, addr, sock == self._local_sock)
+                        dispatcher = addr[1] == SCION_DISPATCHER_PORT
+                        self.packet_put(packet, addr, sock == self._local_sock,
+                                        dispatcher)
 
         self.stopped_flag.set()
 
