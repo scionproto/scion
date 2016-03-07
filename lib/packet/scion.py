@@ -23,6 +23,7 @@ import struct
 from lib.defines import L4_DEFAULT, L4_NONE
 from lib.errors import SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
+from lib.opt.drkey import parse_drkey_payload
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import parse_extensions
 from lib.packet.host_addr import HostAddrSVC, haddr_get_type
@@ -509,6 +510,7 @@ class SCIONL4Packet(SCIONExtPacket):
             PayloadClass.CERT: parse_certmgmt_payload,
             PayloadClass.PATH: parse_pathmgmt_payload,
             PayloadClass.SIBRA: parse_sibra_payload,
+            PayloadClass.DRKEY: parse_drkey_payload,
         }
         handler = class_map.get(pld_class)
         if not handler:

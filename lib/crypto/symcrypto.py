@@ -75,3 +75,17 @@ def verify_of_mac(key, hof, prev_hof, ts):
     Verifies MAC of OF.
     """
     return hof.mac == gen_of_mac(key, hof, prev_hof, ts)
+
+
+def compute_session_key(secret_value, session_id):
+    """
+    Compute the DRKey for a given host used in OPT
+
+    :param secret_value: secret value of the host (16 B)
+    :type secret_value: bytes
+    :param session_id: session id given by the flow (16 B)
+    :type session_id: bytes
+    :returns: session key (16 B)
+    :rtype: bytes
+    """
+    return cbcmac(secret_value, session_id)

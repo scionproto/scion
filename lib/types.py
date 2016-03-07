@@ -50,6 +50,7 @@ class ExtensionClass(TypeBase):
 class ExtHopByHopType(TypeBase):
     TRACEROUTE = 0
     SIBRA = 1
+    OPT = 2
 
 
 class ExtEndToEndType(TypeBase):
@@ -81,6 +82,7 @@ class PayloadClass(TypeBase):
     CERT = 2
     PATH = 3
     SIBRA = 4
+    DRKEY = 5
 
 
 class CertMgmtType(TypeBase):
@@ -119,6 +121,18 @@ class PCBType(TypeBase):
 
 class IFIDType(object):
     PAYLOAD = 0
+
+
+class DRKeyType(TypeBase):
+    """
+    Enum of drkey packet types.
+    """
+    REQUEST_KEY = 0
+    REPLY_KEY = 1
+    SEND_KEYS = 2
+    ACKNOWLEDGE_KEYS = 3
+    REQUEST_CERT_CHAIN = 4
+    REPLY_CERT_CHAIN = 5
 
 
 class SIBRAPayloadType(TypeBase):
