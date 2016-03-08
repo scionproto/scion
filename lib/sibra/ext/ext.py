@@ -290,8 +290,8 @@ class SibraExtBase(HopByHopExtension):
         block = self.active_blocks[self.block_idx]
         sof = block.sofs[self.rel_sof_idx]
         if self.fwd == block.info.fwd_dir:
-            return sof.egress
-        return sof.ingress
+            return sof.egress_if
+        return sof.ingress_if
 
     def process(self, state, spkt, from_local_as, key):
         """Process an extension header on a packet."""
@@ -442,7 +442,7 @@ class SibraExtBase(HopByHopExtension):
         """
         sof = self.active_blocks[self.block_idx].sofs[self.rel_sof_idx]
         prev_raw = self._get_prev_raw(req=True)
-        self.req_block.add_hop(sof.ingress, sof.egress, prev_raw, key,
+        self.req_block.add_hop(sof.ingress_if, sof.egress_if, prev_raw, key,
                                self.path_ids)
 
     def _get_prev_raw(self, req=False):

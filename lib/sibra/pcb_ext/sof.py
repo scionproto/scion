@@ -16,7 +16,7 @@
 ================================================
 """
 # SCION
-from lib.sibra.ext.sof import SibraOpaqueField
+from lib.sibra.ext.sof import SibraHopOpaqueField
 from lib.packet.pcb_ext import BeaconExtType, BeaconExtension
 
 
@@ -27,19 +27,19 @@ class SibraSegSOF(BeaconExtension):  # pragma: no cover
     """
     EXT_TYPE_STR = "SibraSegSOF"
     EXT_TYPE = BeaconExtType.SIBRA_SEG_SOF
-    LEN = SibraOpaqueField.LEN
+    LEN = SibraHopOpaqueField.LEN
 
     def __init__(self, raw=None):
         self.sof = None
         super().__init__(raw)
 
     def _parse(self, raw):
-        self.sof = SibraOpaqueField(raw)
+        self.sof = SibraHopOpaqueField(raw)
 
     @classmethod
     def from_values(cls, sof):
         inst = cls()
-        assert isinstance(sof, SibraOpaqueField)
+        assert isinstance(sof, SibraHopOpaqueField)
         inst.sof = sof
         return inst
 

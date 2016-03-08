@@ -15,20 +15,17 @@
 :mod:`sof` --- SIBRA Opaque Field
 =================================
 """
-# Stdlib
-import struct
-
 # SCION
 from lib.crypto.symcrypto import cbcmac
 from lib.defines import (
     SIBRA_STEADY_ID_LEN,
     SIBRA_EPHEMERAL_ID_LEN,
 )
+from lib.packet.opaque_field import HopOpaqueField
 from lib.sibra.ext.info import ResvInfoBase
-from lib.util import Raw, hex_str
 
 
-class SibraOpaqueField(object):
+class SibraHopOpaqueField(HopOpaqueField):
     """
     SIBRA Opqaue Field. This is used for routing SIBRA packets. It describes the
     ingress/egress interfaces, and has a MAC to authenticate that it was issued
@@ -39,42 +36,20 @@ class SibraOpaqueField(object):
      | Ingress IF      | Egress IF       | MAC(IFs, res info, pathID, prev)  |
      +--------+--------+--------+--------+--------+--------+--------+--------+
     """
-    NAME = "SibraOpaqueField"
-    MAC_LEN = 4
-    IF_LEN = 2
-    LEN = IF_LEN * 2 + MAC_LEN
-    # Steady + ephemeral path:
+    NAME = "SibraHopOpaqueField"
+    IFS_LEN = 3
     MAX_PATH_IDS_LEN = SIBRA_EPHEMERAL_ID_LEN + 3 * SIBRA_STEADY_ID_LEN
-    MAC_DATA_LEN = IF_LEN * 2 + ResvInfoBase.LEN + MAX_PATH_IDS_LEN + LEN
+    MAC_DATA_LEN = (1 + IFS_LEN + ResvInfoBase.LEN + MAX_PATH_IDS_LEN +
+                    HopOpaqueField.LEN - 1)
     MAC_BLOCK_SIZE = 16
     MAC_BLOCK_PADDING = MAC_BLOCK_SIZE - (MAC_DATA_LEN % MAC_BLOCK_SIZE)
-
-    def __init__(self, raw=None):  # pragma: no cover
-        self.ingress = None
-        self.egress = None
-        self.mac = bytes(self.MAC_LEN)
-
-        if raw:
-            self._parse(raw)
-
-    def _parse(self, raw):
-        data = Raw(raw, self.NAME, self.LEN)
-        self.ingress, self.egress = struct.unpack(
-            "!HH", data.pop(self.IF_LEN * 2))
-        self.mac = data.pop(self.MAC_LEN)
 
     @classmethod
     def from_values(cls, ingress, egress):  # pragma: no cover
         inst = cls()
-        inst.ingress = ingress
-        inst.egress = egress
+        inst.ingress_if = ingress
+        inst.egress_if = egress
         return inst
-
-    def pack(self):
-        raw = []
-        raw.append(struct.pack("!HH", self.ingress, self.egress))
-        raw.append(self.mac)
-        return b"".join(raw)
 
     def calc_mac(self, info, key, path_ids, prev_raw=None):
         """
@@ -83,7 +58,8 @@ class SibraOpaqueField(object):
         constant input size.
         """
         raw = []
-        raw.append(struct.pack("!HH", self.ingress, self.egress))
+        # Drop info field (as it changes) and MAC field (empty).
+        raw.append(self.pack()[1:-self.MAC_LEN])
         raw.append(info.pack(mac=True))
         ids_len = 0
         for id_ in path_ids:
@@ -91,20 +67,14 @@ class SibraOpaqueField(object):
             raw.append(id_)
         # Pad path IDs with 0's to give constant length
         raw.append(bytes(self.MAX_PATH_IDS_LEN - ids_len))
-        raw.append(prev_raw or bytes(self.LEN))
+        if prev_raw:
+            # Drop the info field from the previous SOF too.
+            raw.append(prev_raw[1:])
+        else:
+            raw.append(bytes(self.LEN - 1))
         # Pad to multiple of block size
         raw.append(bytes(self.MAC_BLOCK_PADDING))
         to_mac = b"".join(raw)
         assert len(to_mac) == self.MAC_DATA_LEN + self.MAC_BLOCK_PADDING
         assert len(to_mac) % self.MAC_BLOCK_SIZE == 0
         return cbcmac(key, to_mac)[:self.MAC_LEN]
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
-
-    def __str__(self):
-        tmp = ["%s(%dB):" % (self.NAME, len(self))]
-        tmp.append("Ingress: %s" % self.ingress)
-        tmp.append("Egress: %s" % self.egress)
-        tmp.append("Mac: %s" % hex_str(self.mac))
-        return " ".join(tmp)

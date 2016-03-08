@@ -36,7 +36,6 @@ class OpaqueField(object, metaclass=ABCMeta):
         Initialize an instance of the class OpaqueField.
         """
         self.info = 0  # TODO verify path.PathType in that context
-        self.raw = None
 
     @abstractmethod
     def parse(self, raw):
@@ -77,11 +76,6 @@ class OpaqueField(object, metaclass=ABCMeta):
     def __str__(self):
         raise NotImplementedError
 
-    def __eq__(self, other):  # pragma: no cover
-        if type(other) is not type(self):
-            return False
-        return self.raw == other.raw
-
     def __ne__(self, other):  # pragma: no cover
         return not self.__eq__(other)
 
@@ -100,16 +94,13 @@ class HopOpaqueField(OpaqueField):
     def __init__(self, raw=None):
         """
         Initialize an instance of the class HopOpaqueField.
-
-        :param raw:
-        :type raw:
         """
         super().__init__()
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = bytes(self.MAC_LEN)
-        if raw is not None:
+        if raw:
             self.parse(raw)
 
     def parse(self, raw):
@@ -164,9 +155,9 @@ class HopOpaqueField(OpaqueField):
                 self.mac == other.mac)
 
     def __str__(self):
-        return ("Hop OF info(%dB): %s, exp_time: %d, ingress if: %d, "
-                "egress if: %d, mac: %s" %
-                (len(self), OFT.to_str(self.info), self.exp_time,
+        return ("%s(%dB): info: %s, exp_time: %d, "
+                "ingress: %d, egress: %d, mac: %s" %
+                (self.NAME, len(self), OFT.to_str(self.info), self.exp_time,
                  self.ingress_if, self.egress_if, hex_str(self.mac)))
 
 
@@ -186,15 +177,13 @@ class InfoOpaqueField(OpaqueField):
         self.isd = 0
         self.hops = 0
         self.up_flag = False
-        self.raw = raw
-        if raw is not None:
+        if raw:
             self.parse(raw)
 
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
         """
-        self.raw = raw
         data = Raw(raw, self.NAME, self.LEN)
         self.info, self.timestamp, self.isd, self.hops = \
             struct.unpack("!BIHB", data.pop(self.LEN))
@@ -229,14 +218,11 @@ class InfoOpaqueField(OpaqueField):
         return data
 
     def __eq__(self, other):  # pragma: no cover
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.up_flag == other.up_flag and
-                    self.timestamp == other.timestamp and
-                    self.isd == other.isd and
-                    self.hops == other.hops)
-        else:
+        if type(other) is not type(self):
             return False
+        return (self.info == other.info and self.up_flag == other.up_flag and
+                self.timestamp == other.timestamp and self.isd == other.isd and
+                self.hops == other.hops)
 
     def __str__(self):
         return ("[Info OF info(%sB): %s, up: %s, TS: %s, ISD: %s, hops: %s]"

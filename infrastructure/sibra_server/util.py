@@ -45,6 +45,6 @@ def find_last_ifid(pkt, ext):
             return hof.ingress_if
     sof = ext.active_blocks[0].sofs[ext.curr_hop]
     if ext.fwd:
-        return sof.ingress
+        return sof.ingress_if
     else:
-        return sof.egress
+        return sof.egress_if
