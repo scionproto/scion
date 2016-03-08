@@ -32,6 +32,7 @@ cmd_run() {
     # breaks the detection logic in supervisor.sh
     sleep 1
     bash gen/zk_datalog_dirs.sh || exit 1
+    supervisor/supervisor.sh quickstart dispatcher:dispatcher
     supervisor/supervisor.sh quickstart all
 }
 

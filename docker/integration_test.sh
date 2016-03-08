@@ -48,7 +48,7 @@ else
 fi
 
 log "C2S_extn starting:"
-test/integration/cli_srv_ext_test.py
+test/integration/cli_srv_ext_test.py 1-19 2-26
 result=$?
 if [ $result -eq 0 ]; then
     log "C2S_extn: success"
