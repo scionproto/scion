@@ -99,13 +99,15 @@ class PathSegmentDB(object):
             recs = self._db(id=seg_id)
         return len(recs) > 0
 
-    def update(self, pcb):
+    def update(self, pcb, reverse=False):
         """
         Insert path into database.
         Return the result of the operation.
         """
         first_ia = pcb.get_first_pcbm().isd_as
         last_ia = pcb.get_last_pcbm().isd_as
+        if reverse:
+            first_ia, last_ia = last_ia, first_ia
         if self._segment_ttl:
             now = int(SCIONTime.get_time())
             record = PathSegmentDBRecord(pcb, now + self._segment_ttl)
@@ -118,6 +120,8 @@ class PathSegmentDB(object):
                 self._db.insert(
                     record, record.id, first_ia[0], first_ia[1],
                     last_ia[0], last_ia[1], pcb.is_sibra())
+                logging.debug("Added segment from %s to %s: %s",
+                              first_ia, last_ia, pcb.short_desc())
                 return DBResult.ENTRY_ADDED
             cur_rec = recs[0]['record']
             if pcb.get_expiration_time() < cur_rec.pcb.get_expiration_time():

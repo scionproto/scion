@@ -556,13 +556,15 @@ class PathSegment(SCIONPayloadBase):
             hops.append(str(asm.pcbm.isd_as))
             for ext in asm.ext:
                 ext_desc = ext.short_desc()
-                if ext_desc:
-                    exts.append(ext_desc)
+                if not ext_desc:
+                    continue
+                for line in ext_desc.splitlines():
+                    exts.append("  %s" % line)
         desc.append(" > ".join(hops))
         desc.append(", Flags: %s, MTU: %sB" %
                     (PSF.to_str(self.flags), self.mtu))
         if exts:
-            return "%s\n  %s" % ("".join(desc), "\n  ".join(exts))
+            return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
 
     def __eq__(self, other):  # pragma: no cover

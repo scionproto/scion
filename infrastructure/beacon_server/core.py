@@ -22,7 +22,7 @@ from _collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import PATH_SERVICE
+from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt import PathRecordsReg
@@ -132,6 +132,9 @@ class CoreBeaconServer(BeaconServer):
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
         pkt = self._build_packet(ps_addr, payload=records)
         self.send(pkt, ps_addr)
+        sb_host = self.dns_query_topo(SIBRA_SERVICE)[0]
+        pkt = self._build_packet(sb_host, payload=records)
+        self.send(pkt, sb_host)
 
     def process_pcbs(self, pcbs, raw=True):
         """

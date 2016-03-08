@@ -136,8 +136,10 @@ class Router(SCIONElement):
             SibraExtBase.EXT_TYPE: False, TracerouteExt.EXT_TYPE: False,
             ExtHopByHopType.SCMP: False,
         }
-        self.sibra_state = SibraState(self.interface.bandwidth,
-                                      self.addr.isd_as)
+        self.sibra_state = SibraState(
+            self.interface.bandwidth,
+            "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
+                             self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
             PayloadClass.IFID: {IFIDType.PAYLOAD: self.process_ifid_request},
@@ -181,6 +183,9 @@ class Router(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.request_ifstates,),
             name="ER.request_ifstates", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self.sibra_worker,),
+            name="ER.sibra_worker", daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, spkt, addr=None, port=SCION_UDP_EH_DATA_PORT):
@@ -284,6 +289,12 @@ class Router(SCIONElement):
                 self.send(req_pkt)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
                            "request_ifstates")
+
+    def sibra_worker(self):
+        while True:
+            start_time = SCIONTime.get_time()
+            self.sibra_state.update_tick()
+            sleep_interval(start_time, 1.0, "sibra_worker")
 
     def process_ifid_request(self, pkt, from_local):
         """
@@ -533,6 +544,7 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to invalid header state.\n"
                           "Header:\n%s", spkt)
         except SCIONInterfaceDownException:
+            logging.debug("Dropping packet due to interface being down")
             pass
 
     def _process_data(self, spkt, ingress, drop_on_error):

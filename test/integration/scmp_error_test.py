@@ -328,7 +328,7 @@ GEN_LIST = (
 
 class SCMPErrorTest(TestClientServerBase):
     def __init__(self, client, server, sources, destinations):
-        super().__init__(client, server, sources, destinations)
+        super().__init__(client, server, sources, destinations, local=False)
         self.src = client
         self.dst = server
         self.thread_name = "SCMPErr.MainThread"

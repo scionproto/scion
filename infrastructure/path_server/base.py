@@ -161,8 +161,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _handle_core_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
 
-    def _add_segment(self, pcb, seg_db, name):
-        res = seg_db.update(pcb)
+    def _add_segment(self, pcb, seg_db, name, reverse=False):
+        res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
             self._add_if_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_desc())
@@ -310,11 +310,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _handle_waiting_targets(self, pcb):
+    def _handle_waiting_targets(self, pcb, reverse=False):
         """
         Handle any queries that are waiting for a path to any core AS in an ISD.
         """
         dst_ia = pcb.get_first_pcbm().isd_as
+        if reverse:
+            dst_ia = pcb.get_last_pcbm().isd_as
         if not self.is_core_as(dst_ia):
             logging.warning("Invalid waiting target, not a core AS: %s", dst_ia)
             return

@@ -32,9 +32,9 @@ class SibraState(object):
     """
     Track bandwidth usage and all reservations that traverse a link.
     """
-    def __init__(self, bw, isd_as):  # pragma: no cover
+    def __init__(self, bw, link_name):  # pragma: no cover
         self.curr_tick = current_tick()
-        self.link = LinkBandwidth(isd_as, BWSnapshot(bw * 1024, bw * 1024))
+        self.link = LinkBandwidth(link_name, BWSnapshot(bw * 1024, bw * 1024))
         self.steady = {}
         self.pend_steady = {}
         self.ephemeral = {}
@@ -42,7 +42,7 @@ class SibraState(object):
         self.pending = {}
         logging.info("Initialized SibraState: %s", self.link)
 
-    def _update_tick(self):
+    def update_tick(self):
         """
         Perform the tick update steps until the state is updated to the current
         tick.
@@ -72,7 +72,7 @@ class SibraState(object):
         Add a new steady path, or renew an existing one, returning a bandwidth
         suggestion if the request is not allowed.
         """
-        self._update_tick()
+        self.update_tick()
         if setup:
             resv = self._create_steady(path_id)
         else:
@@ -92,7 +92,7 @@ class SibraState(object):
         Add a new ephemeral path, or renew an existing one, returning a
         bandwidth suggestion if the request is not allowed.
         """
-        self._update_tick()
+        self.update_tick()
         if setup:
             resv = self._create_ephemeral(path_id, steady_id)
         else:
@@ -103,6 +103,7 @@ class SibraState(object):
         if setup:
             # The setup request has been accepted, so add the reservation to the
             # list of ephemeral paths, and flag it as pending.
+            self.steady[steady_id].add_child(path_id)
             self.ephemeral[path_id] = resv
             self.pend_ephemeral[path_id] = True
 
@@ -128,10 +129,8 @@ class SibraState(object):
         assert path_id not in self.pend_ephemeral
         assert path_id not in self.ephemeral
         assert steady_id in self.steady
-        steady = self.steady[steady_id]
-        steady.add_child(path_id)
         owner = ISD_AS(path_id[:ISD_AS.LEN])
-        return EphemeralReservation(path_id, owner, steady)
+        return EphemeralReservation(path_id, owner, self.steady[steady_id])
 
     def _get_resv(self, path_id, steady):  # pragma: no cover
         if steady:
@@ -142,7 +141,7 @@ class SibraState(object):
         """
         Update state when a packet uses a reservation
         """
-        self._update_tick()
+        self.update_tick()
         resv = self._get_resv(path_id, steady)
         if not resv:
             return False
@@ -152,7 +151,7 @@ class SibraState(object):
         """
         Remove a reservation index.
         """
-        self._update_tick()
+        self.update_tick()
         resv = self._get_resv(path_id, steady)
         # FIXME(kormat): switch to exception
         assert resv
@@ -162,7 +161,7 @@ class SibraState(object):
         """
         Confirm a pending path, meaning that it has been used.
         """
-        self._update_tick()
+        self.update_tick()
         if steady:
             self.pend_steady.pop(path_id, None)
         else:
@@ -173,7 +172,7 @@ class SibraState(object):
         Remove a pending path, as it has either been denied by a later
         hop, or timed out.
         """
-        self._update_tick()
+        self.update_tick()
         pend = self.pend_steady
         paths = self.steady
         if not steady:
@@ -181,10 +180,11 @@ class SibraState(object):
             paths = self.ephemeral
         if pend.pop(path_id, None):
             paths[path_id].remove_all(self.curr_tick)
+            del paths[path_id]
 
     def remove(self, path_id, steady):  # pragma: no cover
         """Remove an active path."""
-        self._update_tick()
+        self.update_tick()
         resv = self._get_resv(path_id, steady)
         if not resv:
             return False

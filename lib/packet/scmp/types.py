@@ -67,6 +67,7 @@ class SCMPClass(TypeBase):
     CMNHDR = 2
     PATH = 3
     EXT = 4
+    SIBRA = 5
 
 
 class SCMPGeneralClass(TypeBase):
@@ -208,6 +209,16 @@ class SCMPExtClass(TypeBase):
     # Info: ext idx
     # Payload: basic, exts
     BAD_END2END = 3
+
+
+class SCMPSibraClass(TypeBase):
+    """SIBRA errors."""
+    #: Unsupported SIBRA version
+    # Payload: basic, sibra ext header
+    SIBRA_BAD_VERSION = 0
+    #: Request flag not set in setup packet
+    # Payload: basic, sibra ext header
+    SIBRA_SETUP_NO_REQ = 1
 
 
 class SCMPIncParts(TypeBase):

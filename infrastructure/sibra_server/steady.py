@@ -19,10 +19,13 @@
 import copy
 import logging
 import threading
+import time
 
 # SCION
 from lib.crypto.asymcrypto import sign
 from lib.defines import (
+    LINK_PARENT,
+    LINK_ROUTING,
     SCION_UDP_PORT,
     SIBRA_MAX_IDX,
     SIBRA_MAX_STEADY_TICKS,
@@ -47,8 +50,7 @@ from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime, hex_str
 
 RESV_LEN = SIBRA_MAX_STEADY_TICKS - 1
-STATE_SETUP = 0
-STATE_RUNNING = 1
+TIMEOUT = 1.0
 
 
 class SteadyPathErrorNoReservation(SCIONBaseError):
@@ -59,19 +61,23 @@ class SteadyPath(object):
     """
     Class to manage a single steady path
     """
-    def __init__(self, addr, sendq, signing_key, seg, bwsnap):
+    def __init__(self, addr, sendq, signing_key, link_type, state, seg, bwsnap):
         """
         :param ScionAddr addr: the address of this sibra server
         :param queue.Queue sendq:
             packets written to this queue will be sent by the sibra server
             thread.
         :param bytes signing_key: AS signing key.
+        :param str link_type: Type of link (PARENT/ROUTING/etc)
+        :param SibraState state: SibraState object for the local interface.
         :param PathSegment seg: path segment to use.
         :param BWSnapshot bwsnap: initial bandwidth to request.
         """
         self.addr = addr
         self.sendq = sendq
         self.signing_key = signing_key
+        self.link_type = link_type
+        self.state = state
         self.seg = seg
         self.bw = bwsnap.to_classes().ceil()
         self.id = SibraExtSteady.mk_path_id(self.addr.isd_as)
@@ -80,7 +86,7 @@ class SteadyPath(object):
         first = self.seg.get_first_pcbm()
         self.remote = first.isd_as
         self._lock = threading.RLock()
-        self.state = STATE_SETUP
+        self._stamp = None
 
     def setup(self):
         with self._lock:
@@ -88,8 +94,10 @@ class SteadyPath(object):
 
     def _setup(self):
         ext = self._create_ext_setup()
-        logging.info("Sending setup request:\n%s", ext)
+        logging.info("Sending setup request using %s:\n%s",
+                     self.seg.short_desc(), ext)
         pkt = self._create_scion_pkt(ext)
+        self._stamp = time.time()
         self.sendq.put(pkt)
 
     def renew(self):
@@ -100,7 +108,8 @@ class SteadyPath(object):
         """
         Renew the steady path, if needed.
         """
-        if self.state == STATE_SETUP:
+        self._check_timeout()
+        if self._stamp:
             return
         self._expire_blocks()
         latest = self.blocks[-1]
@@ -112,7 +121,17 @@ class SteadyPath(object):
         ext.renew(self._create_info(inc=True))
         logging.debug("Sending renewal request:\n%s", ext)
         pkt = self._create_sibra_pkt(ext)
+        self._stamp = time.time()
         self.sendq.put(pkt)
+
+    def _check_timeout(self):
+        if not self._stamp:
+            return
+        now = time.time()
+        if self._stamp - now > TIMEOUT:
+            logging.error("No response received within %0.2f seconds",
+                          self.TIMEOUT)
+            raise SteadyPathErrorNoReservation
 
     def update_seg(self, new_seg):
         with self._lock:
@@ -136,10 +155,10 @@ class SteadyPath(object):
             self.blocks.append(ext.req_block)
             if ext.setup:
                 logging.info("Setup successful: %s", ext.req_block.info)
-                self.state = STATE_RUNNING
             else:
                 logging.debug("Renewal successful: %s", ext.req_block.info)
             self._register_path()
+            self._stamp = None
             return
         req_bw = ext.req_block.info.bw
         self.bw = ext.get_min_offer()
@@ -233,26 +252,27 @@ class SteadyPath(object):
             cmn_hdr, addr_hdr, SCIONPath(), [ext], udp_hdr, payload)
 
     def _register_path(self):
+        link_types = {
+            LINK_ROUTING: (PST.CORE, PST.CORE),
+            LINK_PARENT: (PST.UP, PST.DOWN),
+        }
+        local_type, remote_type = link_types[self.link_type]
         logging.debug("Registering path with local path server")
-        pkt = self._create_reg_pkt()
+        pkt = self._create_reg_pkt(local_type)
         self.sendq.put(pkt)
-        logging.debug("Registering path with core path server in %s",
+        logging.debug("Registering path with remote path server in %s",
                       self.remote)
-        pkt = self._create_reg_pkt(core=True)
+        pkt = self._create_reg_pkt(remote_type, remote=True)
         self.sendq.put(pkt)
 
-    def _create_reg_pkt(self, core=False):
-        if core:
+    def _create_reg_pkt(self, type_, remote=False):
+        if remote:
             dst_ia = self.remote
             path = self.seg.get_path(True)
-            type_ = PST.DOWN
-            fwd_dir = False
         else:
             dst_ia = self.addr.isd_as
             path = SCIONPath()
-            type_ = PST.UP
-            fwd_dir = True
-        pcb = self._create_reg_pcb(fwd_dir=fwd_dir)
+        pcb = self._create_reg_pcb(remote)
         pld = PathRecordsReg.from_values({type_: [pcb]})
         dest = SCIONAddr.from_values(dst_ia, SVCType.PS)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
@@ -261,7 +281,7 @@ class SteadyPath(object):
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [], udp_hdr, pld)
 
-    def _create_reg_pcb(self, fwd_dir):
+    def _create_reg_pcb(self, remote):
         pcb = copy.deepcopy(self.seg)
         # TODO(kormat): It might make sense to remove peer markings also, but
         # they might also be needed for sibra steady paths that traverse peer
@@ -271,11 +291,17 @@ class SteadyPath(object):
         latest = self.blocks[-1]
         assert latest.num_hops == len(latest.sofs)
         info = copy.deepcopy(latest.info)
-        info.fwd_dir = fwd_dir
+        info.fwd_dir = not remote
         for asm, sof in zip(reversed(pcb.ases), latest.sofs):
             asm.add_ext(SibraSegSOF.from_values(sof))
+        if remote and self.link_type == LINK_ROUTING:
+            pcb.ases.reverse()
+        sofs_fwd = False
+        if remote and self.link_type == LINK_PARENT:
+            sofs_fwd = True
         last_asm = pcb.ases[-1]
-        last_asm.add_ext(SibraSegInfo.from_values(self.id, info))
+        last_asm.add_ext(SibraSegInfo.from_values(
+            self.id, info, sofs_fwd=sofs_fwd))
         last_asm.sig = sign(pcb.pack(), self.signing_key)
         return pcb
 

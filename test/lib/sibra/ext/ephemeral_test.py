@@ -64,7 +64,7 @@ class TestSibraExtEphemeralParseActiveBlocks(object):
         inst = SibraExtEphemeral()
         inst._parse_block = create_mock()
         inst.setup = False
-        inst.path_lens = [9, 0, 0]
+        inst.total_hops = 9
         # Call
         ntools.eq_(inst._parse_active_blocks("data"),
                    [inst._parse_block.return_value])
@@ -89,10 +89,12 @@ class TestSibraExtEphemeralSetupFromValues(object):
     Unit tests for lib.sibra.ext.ephemeral.SibraExtEphemeral.setup_from_values
     """
     @patch("lib.sibra.ext.ephemeral.SibraExtEphemeral._set_size", autospec=True)
+    @patch("lib.sibra.ext.ephemeral.SibraExtEphemeral._parse_src_ia",
+           autospec=True)
     @patch("lib.sibra.ext.ephemeral.SibraExtEphemeral._calc_total_hops",
            autospec=True)
     @patch("lib.sibra.ext.ephemeral.ResvBlockEphemeral", autospec=True)
-    def test(self, resvblk, total_hops, set_size):
+    def test(self, resvblk, total_hops, parse_src_ia, set_size):
         steady_blocks = []
         for i in 3, 4, 1:
             b = create_mock(["num_hops"])
@@ -112,6 +114,7 @@ class TestSibraExtEphemeralSetupFromValues(object):
         ntools.eq_(inst.active_blocks, steady_blocks)
         resvblk.from_values.assert_called_once_with("req info", 0)
         ntools.eq_(inst.req_block, resvblk.from_values.return_value)
+        parse_src_ia.assert_called_once_with(inst)
         set_size.assert_called_once_with(inst)
 
 
@@ -119,17 +122,7 @@ class TestSibraExtEphemeralCalcTotalHops(object):
     """
     Unit tests for lib.sibra.ext.ephemeral.SibraExtEphemeral._calc_total_hops
     """
-    @patch("lib.sibra.ext.ephemeral.SibraExtBase._calc_total_hops",
-           autospec=True)
-    def test_not_setup(self, super_calc):
-        inst = SibraExtEphemeral()
-        inst.setup = False
-        # Call
-        inst._calc_total_hops()
-        # Tests
-        super_calc.assert_called_once_with(inst)
-
-    def _check_setup(self, path_lens, expected):
+    def _check(self, path_lens, expected):
         inst = SibraExtEphemeral()
         inst.setup = True
         inst.path_lens = path_lens
@@ -138,11 +131,11 @@ class TestSibraExtEphemeralCalcTotalHops(object):
         # Tests
         ntools.eq_(inst.total_hops, expected)
 
-    def test_setup(self):
+    def test(self):
         for path_lens, expected in (
             ([2, 0, 0], 2), ([2, 2, 0], 3), ([2, 3, 4], 7),
         ):
-            yield self._check_setup, path_lens, expected
+            yield self._check, path_lens, expected
 
 
 class TestSibraExtEphemeralUpdateIdxes(object):

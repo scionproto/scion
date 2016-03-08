@@ -122,7 +122,11 @@ class CorePathServer(PathServer):
                                     from_zk=False):
         """Handle registration of a core segment."""
         first_ia = pcb.get_first_pcbm().isd_as
-        added = self._add_segment(pcb, self.core_segments, "Core")
+        reverse = False
+        if pcb.is_sibra() and first_ia == self.addr.isd_as:
+            reverse = True
+        added = self._add_segment(pcb, self.core_segments, "Core",
+                                  reverse=reverse)
         if not from_zk and not from_master:
             if first_ia[0] == self.addr.isd_as[0]:
                 # Local core segment, share via ZK
@@ -134,7 +138,7 @@ class CorePathServer(PathServer):
             return set()
         # Send pending requests that couldn't be processed due to the lack of
         # a core segment to the destination PS.
-        self._handle_waiting_targets(pcb)
+        self._handle_waiting_targets(pcb, reverse=reverse)
         ret = set([(first_ia, pcb.is_sibra())])
         if first_ia[0] != self.addr.isd_as[0]:
             # Remote core segment, signal the entire ISD

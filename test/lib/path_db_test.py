@@ -156,7 +156,7 @@ class TestPathSegmentDBUpdate(object):
     """
     def _mk_pcb(self, exp=0):
         pcb = create_mock(["get_expiration_time", "get_first_pcbm",
-                           "get_last_pcbm", "is_sibra"])
+                           "get_last_pcbm", "is_sibra", "short_desc"])
         pcb.get_expiration_time.return_value = exp
         pcb.get_first_pcbm.return_value = self._mk_pcbm(1, 2)
         pcb.get_last_pcbm.return_value = self._mk_pcbm(3, 4)
