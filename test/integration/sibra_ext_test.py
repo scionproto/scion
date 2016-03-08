@@ -42,7 +42,12 @@ from lib.sibra.util import BWSnapshot
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import ExtensionClass
-from lib.util import SCIONTime, handle_signals
+from lib.util import (
+    SCIONTime,
+    handle_signals,
+    reg_dispatcher,
+    trim_dispatcher_packet,
+)
 
 TOUT = 10  # How long wait for response.
 RESV_LEN = SIBRA_TICK
@@ -74,6 +79,7 @@ class _Base(object):
             bind=(str(self.addr.host), 0, self.NAME),
             addr_type=self.addr.host.TYPE)
         self.sock.settimeout(5)
+        reg_dispatcher(self.sock, addr.host, self.sock.port)
 
     def listen(self):
         try:
@@ -81,6 +87,7 @@ class _Base(object):
         except socket.timeout:
             logging.error("Listen timeout")
             return None
+        packet = trim_dispatcher_packet(packet)
         spkt = SCIONL4Packet(packet)
         logging.debug("Received:\n%s", spkt)
         return spkt
