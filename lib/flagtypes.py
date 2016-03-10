@@ -31,11 +31,27 @@ class FlagBase(object):  # pragma: no cover
         for val in sorted(self._rev):
             if flags & val:
                 ret.append(self._rev[val])
-        if not ret:
-            return "None"
-        return "|".join(ret)
+        return "|".join(ret) or "None"
 
 
 PathSegFlags = FlagBase((
     ("SIBRA", 1),
+))
+
+InfoOFFlags = FlagBase((
+    ("UP", 1),
+    ("SHORTCUT", 2),
+    ("PEER_SHORTCUT", 4),
+))
+
+HopOFFlags = FlagBase((
+    # Used to signal that this HOF is at a cross-over point between segments,
+    # and needs special provcessing. Set by the endhost.
+    ("XOVER", 1),
+    # Used by an AS to disallow local delivery of packets (AKA a forward-only
+    # AS).
+    ("FORWARD_ONLY", 2),
+    # Flag used with an SVC address to redirect a packet to the local service at
+    # a given hop. Set by the endhost.
+    ("RECURSE", 4),
 ))
