@@ -17,11 +17,11 @@
 """
 # SCION
 from lib.types import ExtensionClass
-from lib.packet.packet_base import HeaderBase
+from lib.packet.packet_base import Serializable
 from lib.util import hex_str
 
 
-class ExtensionHeader(HeaderBase):
+class ExtensionHeader(Serializable):
     """
     Base class for extension headers.
     """
@@ -35,10 +35,8 @@ class ExtensionHeader(HeaderBase):
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self._hdr_len = 0
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
         self._hdr_len = self.bytes_to_hdr_len(len(raw))

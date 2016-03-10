@@ -29,7 +29,6 @@ from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.path import PathBase
 from lib.packet.packet_base import L4HeaderBase
 from lib.packet.scion import (
-    IFIDPayload,
     IFIDType,
     SCIONAddrHdr,
     SCIONBasePacket,
@@ -531,29 +530,6 @@ class TestSCIONBasePacketLen(object):
         ntools.eq_(len(inst), 1 + 2 + 4 + 8)
 
 
-class TestSCIONExtPacketInit(object):
-    """
-    Unit tests for lib.packet.scion.SCIONExtPacket.__init__
-    """
-    @patch("lib.packet.scion.SCIONExtPacket._parse", autospec=True)
-    @patch("lib.packet.scion.SCIONBasePacket.__init__", autospec=True,
-           return_value=None)
-    def test_basic(self, super_init, parse):
-        inst = SCIONExtPacket()
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.eq_(inst.ext_hdrs, [])
-        ntools.assert_false(parse.called)
-
-    @patch("lib.packet.scion.SCIONExtPacket._parse", autospec=True)
-    @patch("lib.packet.scion.SCIONBasePacket.__init__", autospec=True,
-           return_value=None)
-    def test_raw(self, super_init, parse):
-        inst = SCIONExtPacket(b"raw")
-        # Tests
-        parse.assert_called_once_with(inst, b"raw")
-
-
 class TestSCIONExtPacketInnerParse(object):
     """
     Unit tests for lib.packet.scion.SCIONExtPacket._inner_parse
@@ -674,29 +650,6 @@ class TestSCIONExtPacketGetNextHdr(object):
         inst.ext_hdrs = [create_mock(["EXT_CLASS"]), 0]
         # Call
         ntools.eq_(inst._get_next_hdr(), inst.ext_hdrs[0].EXT_CLASS)
-
-
-class TestSCIONL4PacketInit(object):
-    """
-    Unit tests for lib.packet.scion.SCIONL4Packet.__init__
-    """
-    @patch("lib.packet.scion.SCIONL4Packet._parse", autospec=True)
-    @patch("lib.packet.scion.SCIONBasePacket.__init__", autospec=True,
-           return_value=None)
-    def test_basic(self, super_init, parse):
-        inst = SCIONL4Packet()
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.assert_is_none(inst.l4_hdr)
-        ntools.assert_false(parse.called)
-
-    @patch("lib.packet.scion.SCIONExtPacket._parse", autospec=True)
-    @patch("lib.packet.scion.SCIONBasePacket.__init__", autospec=True,
-           return_value=None)
-    def test_raw(self, super_init, parse):
-        inst = SCIONL4Packet(b"raw")
-        # Tests
-        parse.assert_called_once_with(inst, b"raw")
 
 
 class TestSCIONL4PacketInnerParse(object):
@@ -863,63 +816,6 @@ class TestSCIONL4PacketGetOffsetLen(object):
         super_offset.return_value = 42
         # Call
         ntools.eq_(inst._get_offset_len(), 54)
-
-
-class TestIFIDPayloadInit(object):
-    """
-    Unit tests for lib.packet.scion.IFIDPayload.__init__
-    """
-    @patch("lib.packet.scion.IFIDPayload._parse", autospec=True)
-    @patch("lib.packet.scion.SCIONPayloadBase.__init__", autospec=True)
-    def test_full(self, super_init, parse):
-        inst = IFIDPayload("data")
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.eq_(inst.reply_id, 0)
-        ntools.assert_is_none(inst.request_id)
-        parse.assert_called_once_with(inst, "data")
-
-
-class TestIFIDPayloadParse(object):
-    """
-    Unit tests for lib.packet.scion.IFIDPayload._parse
-    """
-    @patch("lib.packet.scion.Raw", autospec=True)
-    def test(self, raw):
-        inst = IFIDPayload()
-        data = create_mock(["pop"])
-        data.pop.return_value = bytes.fromhex('0102 0304')
-        raw.return_value = data
-        # Call
-        inst._parse("data")
-        # Tests
-        raw.assert_called_once_with("data", "IFIDPayload", inst.LEN)
-        ntools.eq_(inst.reply_id, 0x0102)
-        ntools.eq_(inst.request_id, 0x0304)
-
-
-class TestIFIDPayloadFromValues(object):
-    """
-    Unit tests for lib.packet.scion.IFIDPayload.from_values
-    """
-    def test(self):
-        inst = IFIDPayload.from_values(42)
-        # Tests
-        ntools.assert_is_instance(inst, IFIDPayload)
-        ntools.eq_(inst.request_id, 42)
-
-
-class TestIFIDPayloadPack(object):
-    """
-    Unit tests for lib.packet.scion.IFIDPayload.pack
-    """
-    def test(self):
-        inst = IFIDPayload()
-        inst.reply_id = 0x0102
-        inst.request_id = 0x0304
-        expected = bytes.fromhex('0102 0304')
-        # Call
-        ntools.eq_(inst.pack(), expected)
 
 
 class TestBuildBaseHdrs(object):

@@ -25,7 +25,7 @@ from collections import defaultdict
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
-from lib.packet.packet_base import PathMgmtPayloadBase
+from lib.packet.packet_base import Serializable, PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.rev_info import RevocationInfo
@@ -39,12 +39,10 @@ class PathSegmentReq(PathMgmtPayloadBase):
     LEN = 1 + 2 * ISD_AS.LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.flags = 0
         self.src_ia = None
         self.dst_ia = None
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
@@ -100,10 +98,8 @@ class PathSegmentRecords(PathMgmtPayloadBase):
     MIN_LEN = 1 + PathSegment.MIN_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.pcbs = defaultdict(list)
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
@@ -165,7 +161,7 @@ class PathRecordsSync(PathSegmentRecords):
     PAYLOAD_TYPE = PMT.SYNC
 
 
-class IFStateInfo(object):
+class IFStateInfo(Serializable):
     """
     StateInfo is used by the beacon server to inform edge routers about any
     state changes of other edge routers. It contains the ID of the router, the
@@ -178,8 +174,7 @@ class IFStateInfo(object):
         self.if_id = 0
         self.state = 0
         self.rev_info = None
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)
@@ -228,10 +223,8 @@ class IFStatePayload(PathMgmtPayloadBase):
     MIN_LEN = IFStateInfo.LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.ifstate_infos = []
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
@@ -285,10 +278,8 @@ class IFStateRequest(PathMgmtPayloadBase):
     ALL_INTERFACES = 0
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.if_id = self.ALL_INTERFACES
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)

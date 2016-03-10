@@ -350,7 +350,8 @@ class SCIONTime(object):
 
 class Raw(object):
     """A class to wrap raw bytes objects."""
-    def __init__(self, data, desc="", len_=None, min_=False):
+    def __init__(self, data, desc="", len_=None,
+                 min_=False):  # pragma: no cover
         self._data = data
         self._desc = desc
         self._len = len_
@@ -435,7 +436,7 @@ class Raw(object):
             self._offset = dlen
         return ret
 
-    def offset(self):
+    def offset(self):  # pragma: no cover
         return self._offset
 
     def __len__(self):

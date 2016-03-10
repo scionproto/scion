@@ -27,40 +27,6 @@ from lib.packet.ext.traceroute import TracerouteExt
 from test.testcommon import assert_these_calls, create_mock
 
 
-class TestTracerouteExtInit(object):
-    """
-    Unit tests for lib.packet.ext.traceroute.TracerouteExt.__init__
-    """
-    @patch("lib.packet.ext.traceroute.TracerouteExt._parse", autospec=True)
-    @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
-           autospec=True)
-    def test_basic(self, super_init, set_payload):
-        inst = TracerouteExt()
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.eq_(inst.hops, [])
-
-    @patch("lib.packet.ext.traceroute.TracerouteExt._parse", autospec=True)
-    @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
-           autospec=True)
-    def test_raw(self, super_init, parse):
-        inst = TracerouteExt('data')
-        # Tests
-        parse.assert_called_once_with(inst, 'data')
-
-
-class TestTracerouteExtFromValues(object):
-    """
-    Unit tests for lib.packet.ext.traceroute.TracerouteExt.from_values
-    """
-    @patch("lib.packet.ext.traceroute.TracerouteExt._init_size", autospec=True)
-    def test(self, init_size):
-        inst = TracerouteExt.from_values(24)
-        # Tests
-        ntools.assert_is_instance(inst, TracerouteExt)
-        init_size.assert_called_once_with(inst, 24)
-
-
 class TestTracerouteExtParse(object):
     """
     Unit tests for lib.packet.ext.traceroute.TracerouteExt._parse

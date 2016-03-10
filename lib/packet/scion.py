@@ -28,7 +28,7 @@ from lib.packet.ext_util import parse_extensions
 from lib.packet.host_addr import HostAddrSVC, haddr_get_type
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import (
-    HeaderBase,
+    Serializable,
     L4HeaderBase,
     PacketBase,
     PayloadRaw,
@@ -62,7 +62,7 @@ class PacketType(object):
     SB_PKT = HostAddrSVC(5, raw=False)
 
 
-class SCIONCommonHdr(HeaderBase):
+class SCIONCommonHdr(Serializable):
     """
     Encapsulates the common header for SCION packets.
     """
@@ -70,7 +70,6 @@ class SCIONCommonHdr(HeaderBase):
     LEN = 8
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.version = 0  # Version of SCION packet.
         self.src_addr_type = None  # Type of the src address.
         self.dst_addr_type = None  # Length of the dst address.
@@ -80,8 +79,7 @@ class SCIONCommonHdr(HeaderBase):
         self._hof_idx = None  # Index of the current Hop Opaque Field
         self.next_hdr = None  # Type of the next hdr field (IP protocol numbers)
         self.hdr_len = None  # Header length including the path.
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
@@ -160,7 +158,7 @@ class SCIONCommonHdr(HeaderBase):
             "next hdr: %(next_hdr)s, hdr len: %(hdr_len)sB" % values)
 
 
-class SCIONAddrHdr(HeaderBase):
+class SCIONAddrHdr(Serializable):
     """SCION Address header."""
     NAME = "SCIONAddrHdr"
     BLK_SIZE = 8
@@ -249,14 +247,12 @@ class SCIONBasePacket(PacketBase):
     MIN_LEN = SCIONCommonHdr.LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.cmn_hdr = None
         self.addrs = None
         self.path = None
         self._l4_proto = L4_NONE
         self._payload = b""
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
@@ -380,11 +376,9 @@ class SCIONExtPacket(SCIONBasePacket):
     """
     NAME = "SCIONExtPacket"
 
-    def __init__(self, raw=None):
-        super().__init__()
+    def __init__(self, raw=None):  # pragma: no cover
         self.ext_hdrs = []
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _inner_parse(self, data):
         super()._inner_parse(data)
@@ -452,11 +446,9 @@ class SCIONL4Packet(SCIONExtPacket):
     """
     NAME = "SCIONL4Packet"
 
-    def __init__(self, raw=None):
-        super().__init__()
+    def __init__(self, raw=None):  # pragma: no cover
         self.l4_hdr = None
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _inner_parse(self, data):
         super()._inner_parse(data)
@@ -538,31 +530,29 @@ class IFIDPayload(SCIONPayloadBase):
     NAME = "IFIDPayload"
     LEN = 4
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class IFIDPacket.
 
         :param raw:
         :type raw:
         """
-        super().__init__()
         self.reply_id = 0  # Always 0 for initial request.
         self.request_id = None
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
-    def _parse(self, raw):
+    def _parse(self, raw):  # pragma: no cover
         data = Raw(raw, self.NAME, self.LEN)
         self.reply_id, self.request_id = struct.unpack(
             "!HH", data.pop(self.LEN))
 
     @classmethod
-    def from_values(cls, request_id):
+    def from_values(cls, request_id):  # pragma: no cover
         inst = cls()
         inst.request_id = request_id
         return inst
 
-    def pack(self):
+    def pack(self):  # pragma: no cover
         return struct.pack("!HH", self.reply_id, self.request_id)
 
     def __len__(self):  # pragma: no cover

@@ -43,11 +43,9 @@ class PathProbeExt(EndToEndExtension):
         """
         :param bytes raw: Raw data containing IS_ACK and PROBE_ID
         """
-        super().__init__()
         self.is_ack = False
         self.probe_id = 0
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """

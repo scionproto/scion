@@ -25,11 +25,12 @@ from lib.sibra.ext.info import (
     ResvInfoSteady,
 )
 from lib.packet.ext_hdr import HopByHopExtension
+from lib.packet.packet_base import Serializable
 from lib.sibra.util import BWClass
 from lib.util import Raw, calc_padding
 
 
-class OfferBlockBase(object):
+class OfferBlockBase(Serializable):
     """
     Base class for a SIBRA offer block. This carries the bandwidth suggestions
     from all hops a rejected request passes through, starting with the first hop
@@ -58,8 +59,7 @@ class OfferBlockBase(object):
         self.info = None
         self.offers = []
         self.offer_hops = None
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)

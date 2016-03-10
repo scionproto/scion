@@ -19,30 +19,29 @@
 import struct
 
 # SCION
+from lib.packet.packet_base import Serializable
 from lib.packet.path_mgmt import RevocationInfo
 from lib.util import Raw
 
 
-class RevocationObject(object):
+class RevocationObject(Serializable):
     """
     Revocation object that gets stored to Zookeeper.
     """
-
+    NAME = "RevocationObject"
     LEN = 8 + RevocationInfo.LEN
 
     def __init__(self, raw=None):
         self.if_id = 0
         self.hash_chain_idx = -1
         self.rev_info = None
-
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
         Parses raw bytes and populates the fields.
         """
-        data = Raw(raw, "RevocationObject", self.LEN)
+        data = Raw(raw, self.NAME, self.LEN)
         self.if_id, self.hash_chain_idx = struct.unpack("!II", data.pop(8))
         self.rev_info = RevocationInfo(data.pop(RevocationInfo.LEN))
 
@@ -67,3 +66,11 @@ class RevocationObject(object):
         """
         return (struct.pack("!II", self.if_id, self.hash_chain_idx) +
                 self.rev_info.pack())
+
+    def __len__(self):
+        return self.LEN
+
+    def __str__(self):
+        return "%s(%sB): IF id: %s Idx: %s Rev info: %s" % (
+            self.NAME, self.LEN, self.if_id, self.hash_chain_idx,
+            self.rev_info)

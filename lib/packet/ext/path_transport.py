@@ -23,7 +23,7 @@ import struct
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import EndToEndExtension
 from lib.packet.opaque_field import OpaqueField
-from lib.packet.packet_base import HeaderBase
+from lib.packet.packet_base import Serializable
 from lib.packet.path import parse_path
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import SCIONAddr
@@ -31,7 +31,7 @@ from lib.types import ExtEndToEndType, TypeBase
 from lib.util import calc_padding, Raw
 
 
-class PathTransOFPath(HeaderBase):
+class PathTransOFPath(Serializable):
     """
     Class used by PathTransportExt to encapsulate a path in data-plane format.
     """
@@ -48,8 +48,7 @@ class PathTransOFPath(HeaderBase):
         self.src = None
         self.dst = None
         self.path = None
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
@@ -117,11 +116,9 @@ class PathTransportExt(EndToEndExtension):
     EXT_TYPE = ExtEndToEndType.PATH_TRANSPORT
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.path_type = None
         self.path = None
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     @classmethod
     def from_values(cls, path_type, path):

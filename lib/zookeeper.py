@@ -506,7 +506,7 @@ class ZkParty(object):
 
 class ZkSharedCache(object):
     """Class for handling ZK shared caches."""
-    def __init__(self, zk, path, handler):
+    def __init__(self, zk, path, handler):  # pragma: no cover
         """
         :param Zookeeper zk: A Zookeeper instance.
         :param str path: The path of the shared cache.

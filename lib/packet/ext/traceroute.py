@@ -40,17 +40,9 @@ class TracerouteExt(HopByHopExtension):
     MIN_LEN = 1 + PADDING_LEN
     HOP_LEN = HopByHopExtension.LINE_LEN  # Size of every hop information.
 
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class TracerouteExt
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
+    def __init__(self, raw=None):  # pragma: no cover
         self.hops = []
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
@@ -69,7 +61,7 @@ class TracerouteExt(HopByHopExtension):
             self.append_hop(isd_as, if_id, timestamp)
 
     @classmethod
-    def from_values(cls, max_hops_no):
+    def from_values(cls, max_hops_no):  # pragma: no cover
         """
         Construct extension with allocated space for `max_hops_no`.
         """

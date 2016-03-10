@@ -21,7 +21,6 @@ import base64
 # External packages
 import nose
 import nose.tools as ntools
-from unittest.mock import patch
 
 # SCION
 from lib.config import Config
@@ -39,38 +38,6 @@ class BaseLibConfig(object):
         'mtu': 'MTU',
         'cert_ver': 'CertChainVersion',
     }
-
-
-class TestConfigInit(BaseLibConfig):
-    """
-    Unit tests for lib.config.Config.__init__
-    """
-    def test_basic(self):
-        config = Config()
-        for attr in self.ATTRS_TO_KEYS.keys():
-            ntools.eq_(getattr(config, attr), 0)
-
-
-class TestConfigFromFile(BaseLibConfig):
-    """
-    Unit tests for lib.config.Config.from_file
-    """
-    @patch("lib.config.Config.from_dict")
-    @patch("lib.config.load_yaml_file")
-    def test_success(self, load, from_dict):
-        from_dict.return_value = "All ok"
-        ntools.eq_(Config.from_file("path"), "All ok")
-        load.assert_called_once_with("path")
-
-
-class TestConfigFromDict(BaseLibConfig):
-    """
-    Unit tests for lib.config.Config.from_dict
-    """
-    @patch("lib.config.Config.parse_dict")
-    def test_basic(self, parse_dict):
-        ntools.assert_is_instance(Config.from_dict("dict"), Config)
-        parse_dict.assert_called_once_with("dict")
 
 
 class TestConfigParseDict(BaseLibConfig):

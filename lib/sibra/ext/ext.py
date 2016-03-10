@@ -91,7 +91,6 @@ class SibraExtBase(HopByHopExtension):
     RESV_BLOCK = None
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         # Flags (except request flag):
         self.setup = None
         self.accepted = True
@@ -112,8 +111,7 @@ class SibraExtBase(HopByHopExtension):
         self.block_idx = 0
         self.rel_sof_idx = 0
 
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse_start(self, raw):
         """

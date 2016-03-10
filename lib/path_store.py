@@ -33,7 +33,7 @@ from lib.util import SCIONTime, load_yaml_file
 
 class PathPolicy(object):
     """Stores a path policy."""
-    def __init__(self):
+    def __init__(self):  # pragma: no cover
         self.best_set_size = 5
         self.candidates_set_size = 20
         self.history_limit = 0
@@ -43,7 +43,7 @@ class PathPolicy(object):
         self.property_ranges = {}
         self.property_weights = {}
 
-    def get_path_policy_dict(self):
+    def get_path_policy_dict(self):  # pragma: no cover
         """Return path policy info in a dictionary."""
         return {
             'best_set_size': self.best_set_size,
@@ -117,7 +117,7 @@ class PathPolicy(object):
         return reasons
 
     @classmethod
-    def from_file(cls, policy_file):
+    def from_file(cls, policy_file):  # pragma: no cover
         """
         Create a PathPolicy instance from the file.
 
@@ -126,7 +126,7 @@ class PathPolicy(object):
         return cls.from_dict(load_yaml_file(policy_file))
 
     @classmethod
-    def from_dict(cls, policy_dict):
+    def from_dict(cls, policy_dict):  # pragma: no cover
         """
         Create a PathPolicy instance from the dictionary.
 
@@ -271,7 +271,7 @@ class PathStoreRecord(object):
 
 class PathStore(object):
     """Path Store class."""
-    def __init__(self, path_policy):
+    def __init__(self, path_policy):  # pragma: no cover
         """
         :param dict path_policy: path policy.
         """

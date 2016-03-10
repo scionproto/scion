@@ -20,6 +20,7 @@ import struct
 
 # SCION
 from lib.errors import SCIONIndexError, SCIONParseError
+from lib.packet.packet_base import Serializable
 from lib.packet.host_addr import (
     HostAddrBase,
     haddr_get_type,
@@ -27,7 +28,7 @@ from lib.packet.host_addr import (
 from lib.util import Raw
 
 
-class ISD_AS(object):
+class ISD_AS(Serializable):
     """
     Class for representing isd-as pair.
     """
@@ -37,8 +38,7 @@ class ISD_AS(object):
     def __init__(self, raw=None):
         self._isd = None
         self._as = None
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
         if isinstance(raw, bytes):

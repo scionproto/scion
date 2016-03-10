@@ -124,23 +124,6 @@ class TestHopOpaqueFieldCalcMac(object):
         cbcmac.assert_called_once_with("key", expected)
 
 
-class TestOpaqueFieldListInit(object):
-    """
-    Unit tests for lib.packet.opaque_field.OpaqueFieldList.__init__
-    """
-    def test(self):
-        order = ["up", "down", "core"]
-        # Call
-        inst = OpaqueFieldList(order)
-        # Tests
-        ntools.eq_(inst._order, order)
-        ntools.eq_(inst._labels, {
-            "up": [],
-            "down": [],
-            "core": [],
-        })
-
-
 def _of_list_setup():
     order = ["up", "down", "core"]
     inst = OpaqueFieldList(order)

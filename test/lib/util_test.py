@@ -364,36 +364,6 @@ class TestSCIONTimeSetTimeMethod(object):
         ntools.eq_(self.MockSCIONTime._custom_time, 'time_method')
 
 
-class TestRawInit(object):
-    """
-    Unit tests for lib.util.Raw.__init__
-    """
-    @patch("lib.util.Raw.check_len", autospec=True)
-    @patch("lib.util.Raw.check_type", autospec=True)
-    def test_basic(self, check_type, check_len):
-        # Call
-        r = Raw(b"data")
-        # Tests
-        ntools.eq_(r._data, b"data")
-        ntools.eq_(r._desc, "")
-        ntools.eq_(r._len, None)
-        ntools.eq_(r._min, False)
-        ntools.eq_(r._offset, 0)
-        check_type.assert_called_once_with(r)
-        check_len.assert_called_once_with(r)
-
-    @patch("lib.util.Raw.check_len", autospec=True)
-    @patch("lib.util.Raw.check_type", autospec=True)
-    def test_full(self, check_type, check_len):
-        # Call
-        r = Raw(b"data", "Test data", len_=45, min_=True)
-        # Tests
-        ntools.eq_(r._data, b"data")
-        ntools.eq_(r._desc, "Test data")
-        ntools.eq_(r._len, 45)
-        ntools.eq_(r._min, True)
-
-
 class TestRawCheckType(object):
     """
     Unit tests for lib.util.Raw.check_type
@@ -507,18 +477,6 @@ class TestRawPop(object):
             (3, 2, 4),
         ):
             yield self._check, pop, start_off, end_off
-
-
-class TestRawOffset(object):
-    """
-    Unit tests for lib.util.Raw.offset
-    """
-    def test(self):
-        # Setup
-        r = Raw(b"data")
-        r._offset = 3
-        # Call
-        ntools.eq_(r.offset(), 3)
 
 
 class TestRawLen(object):

@@ -29,7 +29,7 @@ class ZoneResolver(BaseResolver):
     Handle DNS queries.
     """
 
-    def __init__(self, lock, domain):
+    def __init__(self, lock, domain):  # pragma: no cover
         """
         Initialize an instance of the class ZoneResolver.
 
