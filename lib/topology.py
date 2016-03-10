@@ -56,7 +56,7 @@ class Element(object):
 
 class ServerElement(Element):
     """The ServerElement class represents one of the servers in the AS."""
-    def __init__(self, server_dict, name=None):
+    def __init__(self, server_dict, name=None):  # pragma: no cover
         """
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
@@ -97,7 +97,7 @@ class RouterElement(Element):
     """
     The RouterElement class represents one of the edge routers.
     """
-    def __init__(self, router_dict, name=None):
+    def __init__(self, router_dict, name=None):  # pragma: no cover
         """
         :param dict router_dict: contains information about an edge router.
         :param str name: router element name or id
@@ -143,7 +143,7 @@ class Topology(object):
         self.zookeepers = []
 
     @classmethod
-    def from_file(cls, topology_file):
+    def from_file(cls, topology_file):  # pragma: no cover
         """
         Create a Topology instance from the file.
 
@@ -152,7 +152,7 @@ class Topology(object):
         return cls.from_dict(load_yaml_file(topology_file))
 
     @classmethod
-    def from_dict(cls, topology_dict):
+    def from_dict(cls, topology_dict):  # pragma: no cover
         """
         Create a Topology instance from the dictionary.
 

@@ -23,10 +23,11 @@ from lib.sibra.ext.info import (
 )
 from lib.sibra.ext.sof import SibraOpaqueField
 from lib.packet.ext_hdr import HopByHopExtension
+from lib.packet.packet_base import Serializable
 from lib.util import Raw
 
 
-class ResvBlockBase(object):
+class ResvBlockBase(Serializable):
     """
     Base class for a SIBRA reservation block. This can either be an active
     block, in which case it's used for routing the packet; or a request block,
@@ -53,9 +54,7 @@ class ResvBlockBase(object):
         self.info = None
         self.sofs = []
         self.num_hops = 0
-
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)

@@ -34,8 +34,6 @@ from lib.dnsclient import (
     DNSLibNoServersError,
     DNSLibNxDomain,
     DNSLibTimeout,
-    DNS_CACHE_MAX_AGE,
-    DNS_CACHE_MAX_SIZE,
 )
 from test.testcommon import create_mock
 
@@ -141,23 +139,6 @@ class TestDNSClientParseAnswer(object):
         # Tests
         ntools.eq_(debug.call_count, 1)
         shuffle.assert_called_once_with(results)
-
-
-class TestDNSCachingClientInit(object):
-    """
-    Unit tests for lib.dnsclient.DNSCachingClient.__init__
-    """
-    @patch("lib.dnsclient.ExpiringDict", autospec=True)
-    @patch("lib.dnsclient.DNSClient.__init__", autospec=True, return_value=None)
-    def test(self, client_init, exp_dict):
-        # Call
-        client = DNSCachingClient("servers", "domain", "lifetime")
-        # Tests
-        client_init.assert_called_once_with(client, "servers", "domain",
-                                            "lifetime")
-        exp_dict.assert_called_once_with(max_len=DNS_CACHE_MAX_SIZE,
-                                         max_age_seconds=DNS_CACHE_MAX_AGE)
-        ntools.eq_(client.cache, exp_dict.return_value)
 
 
 class TestDNSCachingClientQuery(object):

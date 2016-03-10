@@ -909,25 +909,6 @@ class TestZkPartyList(object):
             yield self._check_error, excp
 
 
-class TestZkSharedCacheInit(object):
-    """
-    Unit tests for lib.zookeeper.ZkSharedCache.__init__
-    """
-    @patch("lib.zookeeper.deque", autospec=True)
-    def test(self, deque):
-        zk = create_mock(["kazoo", "prefix"])
-        zk.prefix = "/prefix"
-        # Call
-        inst = ZkSharedCache(zk, "path", "handler")
-        # Tests
-        ntools.eq_(inst._zk, zk)
-        ntools.eq_(inst._kazoo, zk.kazoo)
-        ntools.eq_(inst._path, "/prefix/path")
-        ntools.eq_(inst._handler, "handler")
-        ntools.eq_(inst._entries, {})
-        ntools.eq_(inst._incoming_entries, deque.return_value)
-
-
 class TestZkSharedCacheStore(object):
     """
     Unit tests for lib.zookeeper.ZkSharedCache.store

@@ -21,12 +21,13 @@ import struct
 # SCION
 from lib.crypto.symcrypto import cbcmac
 from lib.defines import OPAQUE_FIELD_LEN
-from lib.flagtypes import HopOFFlags, InfoOFFlags
 from lib.errors import SCIONIndexError, SCIONKeyError
+from lib.flagtypes import HopOFFlags, InfoOFFlags
+from lib.packet.packet_base import Serializable
 from lib.util import Raw, hex_str, iso_timestamp
 
 
-class OpaqueField(object):
+class OpaqueField(Serializable):
     LEN = OPAQUE_FIELD_LEN
 
     def __len__(self):  # pragma: no cover
@@ -56,8 +57,7 @@ class HopOpaqueField(OpaqueField):
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = bytes(self.MAC_LEN)
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)
@@ -167,8 +167,7 @@ class InfoOpaqueField(OpaqueField):
         self.timestamp = 0
         self.isd = 0
         self.hops = 0
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
         data = Raw(raw, self.NAME, self.LEN)
@@ -232,7 +231,7 @@ class OpaqueFieldList(object):
     of the list. Some label will only ever have 1 entry, such as an up segment
     IOF. Others can have many, such as a down segment HOF list.
     """
-    def __init__(self, order):
+    def __init__(self, order):  # pragma: no cover
         """
         :param list order:
             A list of tokens that define the order of the opaque field labels.

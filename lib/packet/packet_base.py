@@ -24,12 +24,12 @@ from lib.types import PayloadClass
 from lib.util import hex_str
 
 
-class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
+class Serializable(object, metaclass=ABCMeta):  # pragma: no cover
     """
-    Base class for headers.
+    Base class for all objects which serialize into raw bytes.
     """
     def __init__(self, raw=None):
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     @abstractmethod
@@ -53,14 +53,14 @@ class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError
 
 
-class L4HeaderBase(HeaderBase):
+class L4HeaderBase(Serializable):
     """
     Base class for L4 headers.
     """
     TYPE = None
 
 
-class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
+class PacketBase(Serializable):  # pragma: no cover
     """
     Base class for packets.
     """
@@ -69,20 +69,7 @@ class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
         Initialize an instance of the class PacketBase.
         """
         self._payload = b""
-        if raw is not None:
-            self._parse(raw)
-
-    @abstractmethod
-    def _parse(self, raw):
-        raise NotImplementedError
-
-    @abstractmethod
-    def from_values(self, raw):
-        raise NotImplementedError
-
-    @abstractmethod
-    def pack(self):
-        raise NotImplementedError
+        super().__init__(raw)
 
     def get_payload(self):
         return self._payload
@@ -91,36 +78,12 @@ class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
         assert isinstance(new_payload, PayloadBase)
         self._payload = new_payload
 
-    @abstractmethod
-    def __len__(self):
-        raise NotImplementedError
 
-    @abstractmethod
-    def __str__(self):
-        raise NotImplementedError
-
-
-class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
+class PayloadBase(Serializable):  # pragma: no cover
     """
     Interface that payloads of packets must implement.
     """
     METADATA_LEN = 0
-
-    def __init__(self, raw=None):
-        if raw is not None:
-            self._parse(raw)
-
-    @abstractmethod
-    def _parse(self, raw):
-        raise NotImplementedError
-
-    @abstractmethod
-    def from_values(self, raw):
-        raise NotImplementedError
-
-    @abstractmethod
-    def pack(self):
-        raise NotImplementedError
 
     def pack_meta(self):
         return b""
@@ -130,14 +93,6 @@ class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
 
     def total_len(self):
         return self.METADATA_LEN + len(self)
-
-    @abstractmethod
-    def __len__(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def __str__(self):
-        raise NotImplementedError
 
 
 class PayloadRaw(PayloadBase):  # pragma: no cover

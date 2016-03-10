@@ -152,7 +152,7 @@ class DNSCachingClient(DNSClient):
     """
     Caching variant of the DNS client.
     """
-    def __init__(self, dns_servers, domain, lifetime=5.0):
+    def __init__(self, dns_servers, domain, lifetime=5.0):  # pragma: no cover
         """
         :param list dns_servers:
             DNS server IP addresses as strings. E.g. ``["127.0.0.1",

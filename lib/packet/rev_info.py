@@ -35,10 +35,8 @@ class RevocationInfo(PathMgmtPayloadBase):
     LEN = 32
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.rev_token = b""
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)

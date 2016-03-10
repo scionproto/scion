@@ -16,7 +16,7 @@
 ====================================
 """
 # SCION
-from lib.packet.packet_base import HeaderBase
+from lib.packet.packet_base import Serializable
 from lib.types import TypeBase
 
 
@@ -31,7 +31,7 @@ class BeaconExtType(TypeBase):
     SIBRA_SEG_SOF = 4
 
 
-class BeaconExtension(HeaderBase):
+class BeaconExtension(Serializable):
     """
     Base class for beacon extensions.
     """

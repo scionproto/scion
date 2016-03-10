@@ -26,17 +26,18 @@ from lib.packet.opaque_field import (
     OpaqueField,
     OpaqueFieldList,
 )
-from lib.packet.packet_base import HeaderBase
+from lib.packet.packet_base import Serializable
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.util import Raw
 
 
-class PathBase(HeaderBase):
-    def __init__(self):
+class PathBase(Serializable):
+    def __init__(self, raw=None):
         self._iof_idx = None
         self._hof_idx = None
         self.interfaces = []
         self.mtu = 0
+        super().__init__(raw)
 
     def get_of_idxs(self):  # pragma: no cover
         """
@@ -65,10 +66,8 @@ class SCIONPath(PathBase):
     HOF_LABELS = A_HOFS, B_HOFS, C_HOFS
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self._ofs = OpaqueFieldList(self.OF_ORDER)
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME)

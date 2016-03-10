@@ -39,11 +39,9 @@ class CertMgmtRequest(CertMgmtBase):
         """
         :param bytes raw: packed packet.
         """
-        super().__init__()
         self.isd_as = None
         self.version = None
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)
@@ -93,10 +91,8 @@ class CertChainReply(CertMgmtBase):
         """
         :param bytes raw: packed packet.
         """
-        super().__init__()
         self.cert_chain = CertificateChain()
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
         data = Raw(raw, self.NAME)
@@ -152,10 +148,8 @@ class TRCReply(CertMgmtBase):
         """
         :param bytes raw: packed packet.
         """
-        super().__init__()
         self.trc = TRC()
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
         data = Raw(raw, self.NAME)

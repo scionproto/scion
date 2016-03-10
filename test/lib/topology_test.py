@@ -17,7 +17,7 @@
 """
 # Stdlib
 from collections import defaultdict
-from unittest.mock import call, patch, MagicMock
+from unittest.mock import call, patch
 
 # External packages
 import nose
@@ -28,8 +28,6 @@ from lib.errors import SCIONKeyError
 from lib.topology import (
     Element,
     InterfaceElement,
-    RouterElement,
-    ServerElement,
     Topology
 )
 from test.testcommon import assert_these_calls, create_mock
@@ -59,17 +57,6 @@ class TestElementInit(object):
         ntools.assert_equal(inst.name, "hostname")
 
 
-class TestServerElementInit(object):
-    """
-    Unit tests for lib.topology.ServerElement.__init__
-    """
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_full(self, element_init):
-        inst = ServerElement({'Addr': 123}, 'name')
-        # Tests
-        element_init.assert_called_once_with(inst, 123, 'name')
-
-
 class TestInterfaceElementInit(object):
     """
     Unit tests for lib.topology.InterfaceElement.__init__
@@ -96,48 +83,6 @@ class TestInterfaceElementInit(object):
         ntools.eq_(inst.bandwidth, 1001)
         parse.assert_called_once_with("toaddr")
         ntools.eq_(inst.to_addr, parse.return_value)
-
-
-class TestRouterElementInit(object):
-    """
-    Unit tests for lib.topology.RouterElement.__init__
-    """
-    @patch("lib.topology.InterfaceElement", autospec=True)
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_full(self, super_init, interface):
-        router_dict = {'Addr': 'addr', 'Interface': 2}
-        # Call
-        inst = RouterElement(router_dict, 'name')
-        # Tests
-        super_init.assert_called_once_with(inst, 'addr', 'name')
-        interface.assert_called_once_with(2)
-        ntools.eq_(inst.interface, interface.return_value)
-
-
-class TestTopologyFromFile(object):
-    """
-    Unit tests for lib.topology.Topology.from_file
-    """
-    @patch("lib.topology.Topology.from_dict", spec_set=[],
-           new_callable=MagicMock)
-    @patch("lib.topology.load_yaml_file", autospec=True)
-    def test(self, load, from_dict):
-        load.return_value = 'topo_dict'
-        from_dict.return_value = 'topology'
-        ntools.eq_(Topology.from_file('filename'), 'topology')
-        load.assert_called_once_with('filename')
-        from_dict.assert_called_once_with('topo_dict')
-
-
-class TestTopologyFromDict(object):
-    """
-    Unit tests for lib.topology.Topology.from_dict
-    """
-    @patch("lib.topology.Topology.parse_dict", autospec=True)
-    def test(self, parse_dict):
-        topology = Topology.from_dict('dict')
-        parse_dict.assert_called_once_with(topology, 'dict')
-        ntools.assert_is_instance(topology, Topology)
 
 
 class TestTopologyParseDict(object):

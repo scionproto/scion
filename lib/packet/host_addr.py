@@ -18,7 +18,6 @@
 
 # Stdlib
 import struct
-from abc import ABCMeta, abstractmethod
 from ipaddress import (
     AddressValueError,
     IPV4LENGTH,
@@ -29,6 +28,7 @@ from ipaddress import (
 
 # SCION
 from lib.errors import SCIONBaseError, SCIONParseError
+from lib.packet.packet_base import Serializable
 from lib.types import AddrType
 from lib.util import Raw
 
@@ -47,14 +47,14 @@ class HostAddrInvalidType(SCIONBaseError):
     pass
 
 
-class HostAddrBase(object, metaclass=ABCMeta):
+class HostAddrBase(Serializable):
     """
     Base HostAddr class. Should not be used directly.
     """
     TYPE = None
     LEN = None
 
-    def __init__(self, addr, raw=True):
+    def __init__(self, addr, raw=True):  # pragma: no cover
         """
         :param addr: Address to parse/store.
         :param bool raw: Does the address need to be parsed?
@@ -65,36 +65,27 @@ class HostAddrBase(object, metaclass=ABCMeta):
         else:
             self.addr = addr
 
-    @abstractmethod
-    def _parse(self, raw):
-        raise NotImplementedError
-
-    @abstractmethod
-    def pack(self):
-        """
-        :return: a packed representation of the host address
-        :rtype: bytes
-        """
+    def from_values(self, *args, **kwargs):
         raise NotImplementedError
 
     @classmethod
     def name(cls):
         return AddrType.to_str(cls.TYPE)
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         return str(self.addr)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # pragma: no cover
         return (self.TYPE == other.TYPE) and (self.addr == other.addr)
 
     def __lt__(self, other):  # pragma: no cover
         return str(self) < str(other)
 
 
-class HostAddrNone(HostAddrBase):
+class HostAddrNone(HostAddrBase):  # pragma: no cover
     """
     Host "None" address. Used to indicate there's no address.
     """
@@ -131,7 +122,7 @@ class HostAddrIPv4(HostAddrBase):
                                   (self.name(), e)) from None
         self.addr = intf.ip
 
-    def pack(self):
+    def pack(self):  # pragma: no cover
         return self.addr.packed
 
 
@@ -155,7 +146,7 @@ class HostAddrIPv6(HostAddrBase):
                                   (self.name(), e)) from None
         self.addr = intf.ip
 
-    def pack(self):
+    def pack(self):  # pragma: no cover
         return self.addr.packed
 
 
@@ -176,7 +167,7 @@ class HostAddrSVC(HostAddrBase):
         data = Raw(raw, self.NAME, self.LEN)
         self.addr = struct.unpack("!H", data.pop(self.LEN))[0]
 
-    def pack(self):
+    def pack(self):  # pragma: no cover
         return struct.pack("!H", self.addr)
 
 
@@ -194,7 +185,7 @@ _map = {
 }
 
 
-def haddr_get_type(type_):
+def haddr_get_type(type_):  # pragma: no cover
     """
     Look up host address class by type.
 
@@ -208,7 +199,7 @@ def haddr_get_type(type_):
                                   type_) from None
 
 
-def haddr_parse(type_, *args, **kwargs):
+def haddr_parse(type_, *args, **kwargs):  # pragma: no cover
     """
     Parse host address and return object.
 

@@ -21,6 +21,7 @@ import struct
 # SCION
 from lib.defines import SIBRA_MAX_IDX
 from lib.packet.ext_hdr import HopByHopExtension
+from lib.packet.packet_base import Serializable
 from lib.sibra.util import (
     BWClass,
     tick_to_time,
@@ -30,7 +31,7 @@ from lib.types import SIBRAPathType
 from lib.util import Raw, iso_timestamp
 
 
-class ResvInfoBase(object):
+class ResvInfoBase(Serializable):
     """
     Base class for SIBRA reservation info fields. This stores information about
     a (requested or active) reservation.
@@ -64,8 +65,7 @@ class ResvInfoBase(object):
         self.index = None  # Reservation index
         self.fail_hop = None  # Which hop rejected a request, if any.
         self.fwd_dir = None  # Which direction is the reservation traversed in
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)

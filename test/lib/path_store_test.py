@@ -33,39 +33,6 @@ from lib.path_store import (
 from test.testcommon import create_mock
 
 
-class TestPathPolicyInit(object):
-    """
-    Unit tests for lib.path_store.PathPolicy.__init__
-    """
-    def test_basic(self):
-        pth_pol = PathPolicy()
-        ntools.eq_(pth_pol.best_set_size, 5)
-        ntools.eq_(pth_pol.candidates_set_size, 20)
-        ntools.eq_(pth_pol.history_limit, 0)
-        ntools.eq_(pth_pol.update_after_number, 0)
-        ntools.eq_(pth_pol.update_after_time, 0)
-        ntools.eq_(pth_pol.unwanted_ases, [])
-        ntools.eq_(pth_pol.property_ranges, {})
-        ntools.eq_(pth_pol.property_weights, {})
-
-
-class TestPathPolicyGetPathPolicyDict(object):
-    """
-    Unit tests for lib.path_store.PathPolicy.get_path_policy_dict
-    """
-    def test_basic(self):
-        keys = ["best_set_size", "candidates_set_size", "history_limit",
-                "update_after_number", "update_after_time", "unwanted_ases",
-                "property_ranges", "property_weights"]
-        pth_pol = PathPolicy()
-        target = {}
-        for key in keys:
-            setattr(pth_pol, key, key)
-            target[key] = key
-        dict_ = pth_pol.get_path_policy_dict()
-        ntools.eq_(dict_, target)
-
-
 class TestPathPolicyCheckFilters(object):
     """
     Unit tests for lib.path_store.PathPolicy.check_filters
@@ -163,32 +130,6 @@ class TestPathPolicyCheckPropertyRanges(object):
         pcb.get_timestamp.return_value = -0.1
         # Call
         ntools.eq_(inst._check_property_ranges(pcb), [])
-
-
-class TestPathPolicyFromFile(object):
-    """
-    Unit tests for lib.path_store.PathPolicy.from_file
-    """
-    @patch("lib.path_store.PathPolicy.from_dict", spec_set=[],
-           new_callable=MagicMock)
-    @patch("lib.path_store.load_yaml_file", autospec=True)
-    def test_basic(self, load, from_dict):
-        load.return_value = "policy_dict"
-        from_dict.return_value = "from_dict"
-        ntools.eq_(PathPolicy.from_file("policy_file"), "from_dict")
-        load.assert_called_once_with("policy_file")
-        from_dict.assert_called_once_with("policy_dict")
-
-
-class TestPathPolicyFromDict(object):
-    """
-    Unit tests for lib.path_store.PathPolicy.from_dict
-    """
-    @patch("lib.path_store.PathPolicy.parse_dict", autospec=True)
-    def test_basic(self, parse_dict):
-        pth_pol = PathPolicy.from_dict("policy_dict")
-        parse_dict.assert_called_once_with(pth_pol, "policy_dict")
-        ntools.assert_is_instance(pth_pol, PathPolicy)
 
 
 class TestPathPolicyParseDict(object):
@@ -299,25 +240,6 @@ class TestPathStoreRecordUpdateFidelity(object):
         time_.return_value = 1
         pth_str_rec.update_fidelity(path_policy)
         ntools.assert_almost_equal(pth_str_rec.fidelity, 1012345.6789)
-
-
-class TestPathStoreInit(object):
-    """
-    Unit tests for lib.path_store.PathStore.__init__
-    """
-    @patch("lib.path_store.defaultdict", autospec=True)
-    @patch("lib.path_store.deque", autospec=True)
-    def test_basic(self, deque_, defaultdict_):
-        path_policy = MagicMock(spec_set=['history_limit'])
-        path_policy.history_limit = 3
-        deque_.return_value = "best_paths_history"
-        pth_str = PathStore(path_policy)
-        ntools.eq_(pth_str.path_policy, path_policy)
-        ntools.eq_(pth_str.candidates, [])
-        deque_.assert_called_once_with(maxlen=3)
-        ntools.eq_(pth_str.best_paths_history, "best_paths_history")
-        defaultdict_.assert_called_once_with(float)
-        ntools.eq_(pth_str.last_dj_update, 0)
 
 
 class TestPathStoreAddSegment(object):

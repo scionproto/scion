@@ -19,7 +19,6 @@
 import copy
 import logging
 import struct
-from abc import ABCMeta, abstractmethod
 
 # External packages
 from Crypto.Hash import SHA256
@@ -29,7 +28,7 @@ from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
-from lib.packet.packet_base import SCIONPayloadBase
+from lib.packet.packet_base import Serializable, SCIONPayloadBase
 from lib.packet.path import SCIONPath
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
@@ -53,24 +52,7 @@ PCB_EXTENSION_MAP = {
 }
 
 
-class MarkingBase(object, metaclass=ABCMeta):
-    """
-    Base class for all marking objects.
-    """
-    @abstractmethod
-    def _parse(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def from_values(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def pack(self):
-        raise NotImplementedError
-
-
-class PCBMarking(MarkingBase):
+class PCBMarking(Serializable):
     """
     Pack all fields for a specific PCB marking, which include: ISD and AS
     numbers, the HopOpaqueField, and the revocation token for the ingress
@@ -81,12 +63,10 @@ class PCBMarking(MarkingBase):
     LEN = 12 + REV_TOKEN_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.isd_as = None
         self.hof = None
         self.ig_rev_token = bytes(REV_TOKEN_LEN)
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
@@ -140,7 +120,7 @@ class PCBMarking(MarkingBase):
         return "\n".join(s)
 
 
-class ASMarking(MarkingBase):
+class ASMarking(Serializable):
     """
     Packs all fields for a specific Autonomous System.
     """
@@ -151,7 +131,6 @@ class ASMarking(MarkingBase):
     MIN_LEN = METADATA_LEN + PCBMarking.LEN + REV_TOKEN_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.pcbm = None
         self.pms = []
         self.sig = b''
@@ -159,8 +138,7 @@ class ASMarking(MarkingBase):
         self.eg_rev_token = bytes(REV_TOKEN_LEN)
         self.cert_ver = 0
         self.block_len = 0
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
@@ -309,15 +287,13 @@ class PathSegment(SCIONPayloadBase):
     MIN_LEN = InfoOpaqueField.LEN + 4 + 2 + 1
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
         self.iof = None
         self.trc_ver = 0
         self.if_id = 0
         self.flags = 0
         self.ases = []
         self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         """
@@ -326,8 +302,8 @@ class PathSegment(SCIONPayloadBase):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self.iof = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
         # 4B for trc_ver, 2B for if_id, 1B for flags.
-        self.trc_ver, self.if_id, self.flags = struct.unpack("!IHB",
-                                                             data.pop(7))
+        self.trc_ver, self.if_id, self.flags = struct.unpack(
+            "!IHB", data.pop(7))
         self._parse_hops(data)
         return data.offset()
 

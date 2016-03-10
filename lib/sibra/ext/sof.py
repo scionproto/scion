@@ -25,10 +25,11 @@ from lib.defines import (
     SIBRA_EPHEMERAL_ID_LEN,
 )
 from lib.sibra.ext.info import ResvInfoBase
+from lib.packet.packet_base import Serializable
 from lib.util import Raw, hex_str
 
 
-class SibraOpaqueField(object):
+class SibraOpaqueField(Serializable):
     """
     SIBRA Opqaue Field. This is used for routing SIBRA packets. It describes the
     ingress/egress interfaces, and has a MAC to authenticate that it was issued
@@ -53,9 +54,7 @@ class SibraOpaqueField(object):
         self.ingress = None
         self.egress = None
         self.mac = bytes(self.MAC_LEN)
-
-        if raw:
-            self._parse(raw)
+        super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)

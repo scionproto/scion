@@ -39,19 +39,6 @@ class BaseDNSServer(object):
         return ZoneResolver(self.lock, self.DOMAIN)
 
 
-class TestZoneResolverInit(BaseDNSServer):
-    """
-    Unit tests for infrastructure.dns_server.resolver.ZoneResolver.__init__
-    """
-    def test(self):
-        # Call
-        inst = ZoneResolver("lock", "domain")
-        # Tests
-        ntools.eq_(inst.lock, "lock")
-        ntools.eq_(inst.domain, "domain")
-        ntools.eq_(inst.services, {})
-
-
 class TestZoneResolverResolve(BaseDNSServer):
     """
     Unit tests for infrastructure.dns_server.resolver.ZoneResolver.resolve
