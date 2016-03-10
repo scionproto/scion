@@ -26,4 +26,11 @@ typedef struct {
 #define SRC_TYPE(sch) ((ntohs(sch->versionSrcDst) & 0xfc0) >> 6)
 #define DST_TYPE(sch) (ntohs(sch->versionSrcDst) & 0x3f)
 
+void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr);
+void build_addr_hdr(uint8_t *buf, uint8_t *src, uint8_t *dst);
+void init_of_idx(uint8_t *buf);
+void inc_hof_idx(uint8_t *buf);
+int is_known_proto(uint8_t type);
+uint8_t get_l4_proto(uint8_t **l4ptr);
+
 #endif

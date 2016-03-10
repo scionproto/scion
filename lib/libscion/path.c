@@ -7,165 +7,51 @@
 
 #include "scion.h"
 
-int reverse_core_path(uint8_t *original, uint8_t *reverse, int len)
+int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len)
 {
-    int i;
-    int offset = 0;
-    uint8_t *up_iof = original;
-    uint8_t up_hops = *(up_iof + 7);
-    uint8_t *core_iof = up_iof + (up_hops + 1) * 8;
-    uint8_t core_hops = *(core_iof + 7);
-    uint8_t *down_iof = core_iof + (core_hops + 1) * 8;
-    uint8_t down_hops = *(down_iof + 7);
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    uint8_t *iof[] = {NULL, NULL, NULL};
+    uint8_t hops[] = {0, 0, 0};
+    uint8_t *ptr = original;
+    int i, j;
+    int segments;
 
-    if (down_iof >= original + len) {
-        down_iof = core_iof;
-        down_hops = core_hops;
-        core_iof = NULL;
-        core_hops = 0;
-        if (down_iof >= original + len) {
-            // still out of bounds, only one segment in path
-            down_iof = NULL;
-            down_hops = 0;
-        }
-    } else {
-        down_hops = *(down_iof + 7);
-    }
-
-    // up segment = reversed down segment
-    uint8_t *iof = down_iof;
-    if (!iof)
-        iof = up_iof;
-    int hops = down_hops;
-    if (!hops)
-        hops = up_hops;
-    *(uint64_t *)reverse = *(uint64_t *)iof;
-    *reverse ^= 1;
-    offset = 8;
-    for (i = hops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(iof + i * 8);
-        offset += 8;
-    }
-
-    // reverse core hops
-    if (core_hops > 0) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)core_iof;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        for (i = core_hops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(core_iof + i * 8);
-            offset += 8;
-        }
-    }
-
-    // down segment = reversed up segment
-    if (down_hops > 0) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)up_iof;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        for (i = up_hops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(up_iof + i * 8);
-            offset += 8;
-        }
-    }
-    return offset;
-}
-
-int reverse_crossover_path(uint8_t *original, uint8_t *reverse, int len)
-{
-    int i;
-    int offset = 0;
-    uint8_t *up_iof = original;
-    uint8_t up_hops = *(up_iof + 7);
-    uint8_t *down_iof = up_iof + (up_hops + 2) * 8;
-    uint8_t down_hops = *(down_iof + 7);
-
-    // up segment = reversed down segment
-    *(uint64_t *)reverse = *(uint64_t *)down_iof;
-    *reverse ^= 1;
-    offset = 8;
-    for (i = down_hops + 1; i > 1; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(down_iof + i * 8);
-        offset += 8;
-    }
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(down_iof + 8);
-    offset += 8;
-
-    // down segment = reversed up segment
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)up_iof;
-    *(reverse + offset) ^= 1;
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(up_iof + (up_hops + 1) * 8);
-    offset += 8;
-    for (i = up_hops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(up_iof + i * 8);
-        offset += 8;
-    }
-    return offset;
-}
-
-int reverse_peer_path(uint8_t *original, uint8_t *reverse, int len)
-{
-    int i;
-    int offset = 0;
-    uint8_t *up_iof = original;
-    uint8_t up_hops = *(up_iof + 7);
-    uint8_t *down_iof = up_iof + (up_hops + 3) * 8;
-    uint8_t down_hops = *(down_iof + 7);
-
-    // up segment = reversed down segment
-    *(uint64_t *)reverse = *(uint64_t *)down_iof;
-    *reverse ^= 1;
-    offset = 8;
-    for (i = down_hops + 2; i > 2; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(down_iof + i * 8);
-        offset += 8;
-    }
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(down_iof + 16);
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(down_iof + 8);
-    offset += 8;
-
-    // down segment = reversed up segment
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)up_iof;
-    *(reverse + offset) ^= 1;
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(up_iof + (up_hops + 2) * 8);
-    offset += 8;
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)(up_iof + (up_hops + 1) * 8);
-    offset += 8;
-    for (i = up_hops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(up_iof + i * 8);
-        offset += 8;
-    }
-    return offset;
-}
-
-int reverse_path(uint8_t *original, uint8_t *reverse, int len)
-{
     if (len == 0)
         return 0;
 
-    if (IS_HOP_OF(*original)) {
-        //printf("No leading Info OF in path (%#x)\n", *original);
-        return -1;
+    for (i = 0; i < 3; i++) {
+        segments = i + 1;
+        iof[i] = ptr;
+        hops[i] = *(uint8_t *)(ptr + SCION_OF_LEN - 1);
+        ptr = iof[i] + ((hops[i] + 1) * SCION_OF_LEN);
+        if (ptr - original >= len)
+            break;
     }
 
-
-    int offset = 0;
-    uint8_t type = *original >> 1;
-    if (type == OFT_CORE)
-        offset = reverse_core_path(original, reverse, len);
-    else if (type == OFT_SHORTCUT)
-        offset = reverse_crossover_path(original, reverse, len);
-    else
-        offset = reverse_peer_path(original, reverse, len);
-
-    if (offset != len) {
-        //printf("Size mismatch reversing core path\n");
-        return -1;
+    ptr = reverse;
+    for (i = segments - 1; i >= 0; i--) {
+        *(uint64_t *)ptr = *(uint64_t *)iof[i];
+        *ptr ^= IOF_FLAG_UPDOWN;
+        ptr += SCION_OF_LEN;
+        for (j = hops[i]; j >= 1; j--) {
+            *(uint64_t *)ptr = *(uint64_t *)(iof[i] + (SCION_OF_LEN * j));
+            ptr += SCION_OF_LEN;
+        }
     }
+
+    int of_offset = sizeof(SCIONCommonHeader);
+    uint8_t *current_iof = sch->currentIOF + of_offset + buf;
+    if (current_iof == iof[0])
+        sch->currentIOF = iof[segments - 1] - buf + of_offset;
+    else if (current_iof == iof[segments - 1])
+        sch->currentIOF = iof[0] - buf + of_offset;
+
+    int of_count = segments;
+    for (i = 0; i < segments; i++)
+        of_count += hops[i];
+    int hof_index = (sch->currentOF + of_offset + buf - original) / SCION_OF_LEN;
+    hof_index = of_count - hof_index;
+    sch->currentOF = original + hof_index * SCION_OF_LEN - buf - of_offset;
 
     return 0;
 }
-

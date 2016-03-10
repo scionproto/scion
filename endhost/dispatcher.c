@@ -44,8 +44,6 @@ Entry * parse_request(char *buf, int proto, sockaddr_in *addr);
 void reply(char code, sockaddr_in *addr);
 
 void handle_data();
-int is_known_proto(uint8_t type);
-uint8_t get_l4_proto(uint8_t **l4ptr);
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, sockaddr_in *addr);
 void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *key);
 
