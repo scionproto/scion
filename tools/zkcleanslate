@@ -5,6 +5,7 @@
 # regenerated. Please do not run this routinely, as it will hide errors that we
 # should be handling properly.
 
+sudo /bin/true || exit 1  # Handle ctrl-c at sudo prompt
 sudo service zookeeper stop
 find /run/shm/*-zk/ -type f | sudo xargs -r rm -v
 rm -v gen/ISD*/AS*/zk*/data/version-2/*

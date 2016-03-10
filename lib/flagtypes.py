@@ -20,38 +20,43 @@ For all flags types that are used in multiple parts of the infrastructure.
 
 
 class FlagBase(object):  # pragma: no cover
-    def __init__(self, name_vals):
+    def __init__(self, val_names):
         self._rev = {}
-        for name, val in name_vals:
-            setattr(self, name, val)
-            self._rev[val] = name
+        for val, *names in val_names:
+            setattr(self, names[0], val)
+            self._rev[val] = names
 
     def to_str(self, flags):
         ret = []
         for val in sorted(self._rev):
+            true, false = self._rev[val]
             if flags & val:
-                ret.append(self._rev[val])
+                ret.append(true)
+            elif false:
+                ret.append(false)
         return "|".join(ret) or "None"
 
 
 PathSegFlags = FlagBase((
-    ("SIBRA", 1),
+    (1, "SIBRA", "SCION"),
 ))
 
 InfoOFFlags = FlagBase((
-    ("UP", 1),
-    ("SHORTCUT", 2),
-    ("PEER_SHORTCUT", 4),
+    (1, "UP", "DOWN"),
+    (2, "SHORTCUT", ""),
+    (4, "PEER_SHORTCUT", ""),
 ))
 
 HopOFFlags = FlagBase((
     # Used to signal that this HOF is at a cross-over point between segments,
     # and needs special provcessing. Set by the endhost.
-    ("XOVER", 1),
+    (1, "XOVER", ""),
+    # Marks HOFs that aren't used for routing, just for mac verification.
+    (2, "VERIFY_ONLY", ""),
     # Used by an AS to disallow local delivery of packets (AKA a forward-only
     # AS).
-    ("FORWARD_ONLY", 2),
+    (4, "FORWARD_ONLY", ""),
     # Flag used with an SVC address to redirect a packet to the local service at
     # a given hop. Set by the endhost.
-    ("RECURSE", 4),
+    (8, "RECURSE", ""),
 ))
