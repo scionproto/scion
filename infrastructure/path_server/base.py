@@ -98,7 +98,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         worker_cycle = 1.0
         start = SCIONTime.get_time()
         while True:
-            sleep_interval(start, worker_cycle, "cPS.worker cycle")
+            sleep_interval(start, worker_cycle, "cPS.worker cycle",
+                           self._quiet_startup())
             start = SCIONTime.get_time()
             try:
                 self.zk.wait_connected()

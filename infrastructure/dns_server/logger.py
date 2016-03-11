@@ -17,11 +17,15 @@
 """
 # Stdlib
 import logging
+import time
 
 # External packages
 from dnslib import QTYPE, RCODE
 from dnslib.server import DNSLogger
 from lib.util import hex_str
+
+# SCION
+from lib.defines import STARTUP_QUIET_PERIOD
 
 
 class SCIONDnsLogger(DNSLogger):  # pragma: no cover
@@ -36,6 +40,7 @@ class SCIONDnsLogger(DNSLogger):  # pragma: no cover
     """
 
     def __init__(self, *args, level=logging.DEBUG, **kwargs):
+        self._startup = time.time()
         self.level = level
         super().__init__(*args, **kwargs)
 
@@ -76,6 +81,8 @@ class SCIONDnsLogger(DNSLogger):  # pragma: no cover
         if reply.header.rcode == RCODE.NOERROR:
             output.append(self._format_rrs(reply))
         else:
+            if (time.time() - self._startup) <= STARTUP_QUIET_PERIOD:
+                return
             level = logging.WARNING
             output.append(RCODE[reply.header.rcode])
         logging.log(level, " ".join(output))

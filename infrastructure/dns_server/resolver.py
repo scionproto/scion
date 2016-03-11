@@ -18,10 +18,14 @@
 
 # Stdlib
 import logging
+import time
 
 # External packages
 from dnslib import A, QTYPE, RCODE, RR
 from dnslib.server import BaseResolver
+
+# SCION
+from lib.defines import STARTUP_QUIET_PERIOD
 
 
 class ZoneResolver(BaseResolver):
@@ -41,6 +45,7 @@ class ZoneResolver(BaseResolver):
         self.lock = lock
         self.domain = domain
         self.services = {}
+        self._startup = time.time()
 
     def resolve(self, request, _):
         """
@@ -82,8 +87,9 @@ class ZoneResolver(BaseResolver):
             for srv_domain, addrs in self.services.items():
                 if qname.matchSuffix(srv_domain):
                     if not addrs:
-                        logging.warning("No instances found, returning "
-                                        "SERVFAIL for %s", qname)
+                        if (time.time() - self._startup > STARTUP_QUIET_PERIOD):
+                            logging.warning("No instances found, returning "
+                                            "SERVFAIL for %s", qname)
                         # If there are no instances, we are unable to read from
                         # ZK (or else the relevant service is down), so return
                         # SERVFAIL

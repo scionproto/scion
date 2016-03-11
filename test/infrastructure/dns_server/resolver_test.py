@@ -121,6 +121,7 @@ class TestZoneResolverResolveForward(BaseDNSServer):
         reply.header = create_mock(["rcode"])
         srvalias = self.DOMAIN.add(BEACON_SERVICE)
         inst.services[srvalias] = []
+        inst._startup = 0
         # Call
         inst.resolve_forward(srvalias, "A", reply)
         # Tests

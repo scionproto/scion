@@ -47,7 +47,6 @@ from lib.util import (
     load_yaml_file,
     read_file,
     sleep_interval,
-    timed,
     trace,
     update_dict,
     write_file,
@@ -252,29 +251,6 @@ class TestTrace(object):
         trace(3)
         join.assert_any_call(TRACE_DIR, "3.trace.html")
         trace_start.assert_called_once_with("Path")
-
-
-class TestTimed(object):
-    """
-    Unit tests for lib.util.timed
-    """
-    @timed(1.0)
-    def wrapped(self):
-        pass
-
-    @patch("lib.util.logging.warning", autospec=True)
-    @patch("lib.util.time.time", autospec=True)
-    def test_basic(self, time_, warning):
-        time_.side_effect = [0, 0.1]
-        self.wrapped()
-        ntools.eq_(warning.call_count, 0)
-
-    @patch("lib.util.logging.warning", autospec=True)
-    @patch("lib.util.time.time", autospec=True)
-    def test_limit_exceeded(self, time_, warning):
-        time_.side_effect = [0, 2.0]
-        self.wrapped()
-        ntools.eq_(warning.call_count, 1)
 
 
 @patch("lib.util.time.sleep", autospec=True)

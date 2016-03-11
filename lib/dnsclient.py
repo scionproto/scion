@@ -165,7 +165,7 @@ class DNSCachingClient(DNSClient):
         self.cache = ExpiringDict(max_len=DNS_CACHE_MAX_SIZE,
                                   max_age_seconds=DNS_CACHE_MAX_AGE)
 
-    def query(self, qname, fallback=None):
+    def query(self, qname, fallback=None, quiet=False):
         """
         Check if the answer is already in the cache. If not, pass it along to
         the DNS client and cache the result.
@@ -174,6 +174,7 @@ class DNSCachingClient(DNSClient):
         :param list fallback:
             If provided, and the DNS query fails, use this as the answer
             instead.
+        :param bool quiet: If set, don't log warnings/errors.
         :returns: A list of `Host address <HostAddrBase>`_ objects.
         :raises:
             DNSLibTimeout: No responses received.
@@ -192,9 +193,10 @@ class DNSCachingClient(DNSClient):
                     level = logging.WARN
                 else:
                     level = logging.ERROR
-                logging.log(
-                    level, "DNS failure, using fallback value for %s: %s",
-                    qname, e)
+                if not quiet:
+                    logging.log(
+                        level, "DNS failure, using fallback value for %s: %s",
+                        qname, e)
             self.cache[qname] = answer
         shuffle(answer)
         return answer

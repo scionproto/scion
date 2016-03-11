@@ -178,4 +178,4 @@ class SibraServerBase(SCIONElement):
             if link.steadies:
                 link.steady_renew()
             else:
-                link.steady_add()
+                link.steady_add(self._quiet_startup())
