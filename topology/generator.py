@@ -595,6 +595,8 @@ class SupervisorGenerator(object):
             'startsecs': 5,
             'command': " ".join(['"%s"' % arg for arg in cmd_args]),
         }
+        if name == "dispatcher":
+            entry['startsecs'] = 1
         if self.mininet:
             entry['autostart'] = 'true'
         return entry
