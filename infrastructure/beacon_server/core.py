@@ -151,10 +151,14 @@ class CoreBeaconServer(BeaconServer):
                 except SCIONParseError as e:
                     logging.error("Unable to parse raw pcb: %s", e)
                     continue
+            local_isd = pcb.get_first_pcbm().isd_as[0] == self.addr.isd_as[0]
             # Before we append the PCB for further processing we need to check
-            # that it hasn't been received before.
+            # that it hasn't been received before. Also check that it didn't
+            # originate in this ISD and propagate through other ISDs on the way.
             for asm in pcb.ases:
-                if asm.pcbm.isd_as == self.topology.isd_as:
+                if ((asm.pcbm.isd_as == self.addr.isd_as) or
+                    ((asm.pcbm.isd_as[0] != self.addr.isd_as[0]) and
+                     local_isd)):
                     count += 1
                     break
             else:
