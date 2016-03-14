@@ -1,12 +1,10 @@
 #ifndef _PACKET_H_
 #define _PACKET_H_
 
-#include <arpa/inet.h>
-
-#include "defines.h"
-
 #pragma pack(push)
 #pragma pack(1)
+
+#include <arpa/inet.h>
 
 typedef struct {
     /** Packet Type of the packet (version, srcType, dstType) */

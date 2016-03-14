@@ -19,7 +19,7 @@ NETWORKS_CONF = "gen/networks.conf"
 
 HSR = "er1_11er1_13"
 HSR_EGRESS_IP = "100.64.0.3"
-HSR_LOCAL_IP = "100.64.0.28"
+HSR_LOCAL_IP = "100.64.0.36"
 
 
 class ScionTopo(Topo):
@@ -121,7 +121,7 @@ def main():
         # count += 1
         if switch.name == "s2":
             Intf('eth10', node=switch)
-        if switch.name == "s3":
+        if switch.name == "s4":
             Intf('eth11', node=switch)
 
     net.start()
@@ -142,7 +142,7 @@ def main():
         print("Starting supervisord on %s" % elem_name)
         host.cmd("%s -c gen/mininet/%s.conf" % (supervisord, elem_name))
 
-        os.system('sudo ifconfig s3 hw ether 0:0:0:0:1:03')  # HSR MAC address
+        os.system('sudo ifconfig s4 hw ether 0:0:0:0:1:03')  # HSR MAC address
     os.system("arp -s %s 1:2:3:4:5:6" % HSR_LOCAL_IP)  # HSR MAC address
 
     CLI(net)

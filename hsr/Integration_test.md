@@ -1,7 +1,7 @@
 # Build a VM
 HSR requires hardware intel NIC supported by DPDK.
 To emulate the NIC, Virtual Box is required.
-Before building a VM, the following two software need to be installed.  
+Before building a VM, the following two software need to be installed.
 Default packages of Ubuntu 14.04 are a bit old, so you need to install them manually.
 * Virtual Box version 5.0 (https://www.virtualbox.org/). Note that version 4.x does not support AES-NI, thus version 5.x is required.
 * Vagrant (https://www.vagrantup.com/downloads.html) for building a VM with DPDK
@@ -16,7 +16,7 @@ Download base ubuntu image.
 vagrant box add bento/ubuntu-14.04
 ```
 
-Create two taps.  The VM uses eth10 and eth11 to communicate with mininet.  
+Create two taps.  The VM uses eth10 and eth11 to communicate with mininet.
 ```
 sudo ip tuntap add dev eth10 mode tap
 sudo ip tuntap add dev eth11 mode tap
@@ -45,14 +45,14 @@ cd ~/scion/hsr
 make
 ```
 
-# Run mininet and HSR  
-Here we assume a tiny topology.  
+# Run mininet and HSR
+Here we assume a tiny topology.
 ```
 [AD 13 servers]-[Mininet switch for AD13]-[tap]-[HSR in virtual box(AD 13 edge router)]-[tap]-[switch]-[AD 11 edge router]-[AD 11]-[AD 12]
 ```
 
 ## Run mininet
-In the host,  
+In the host,
 ```
 ./scion.sh topology -m -c topology/tiny.json
 topology/mininet/setup.sh (one time step for initial setup)
@@ -60,34 +60,34 @@ topology/mininet/run_hsr.sh
 ```
 
 ## Run HSR
-In Virtual box,  
+In Virtual box,
 ```
 cd scion/hsr
 ```
 
-Setup DPDK environment.  
+Setup DPDK environment.
 ```
 ./setup_dpdk.sh
 ```
 
-Start HSR.  
+Start HSR.
 ```
 sudo exec.sh
-``` 
+```
 
 
 
-<!-- 
+<!--
 
 # Modification of topology.py
-In the mininet/topology_hsr.py eth10 and eth11 are connected with virtual switch s4 and s1, respectively.
+In the mininet/topology_hsr.py eth10 and eth11 are connected with virtual switch s2 and s4, respectively (subject to change - refer to Troubleshooting section).
 ```
     for switch in net.switches:
         # switch.setMac("0:0:0:0:1:%x"%count)
         # count += 1
-        if switch.name == "s4":
+        if switch.name == "s2":
             Intf('eth10', node=switch)
-        if switch.name == "s1":
+        if switch.name == "s4":
             Intf('eth11', node=switch)
 
 ```
@@ -100,7 +100,7 @@ To disable the Python router (ER13), topology_hsr.py does not add link from/to e
             return
 ```
 
-HSR does not support ARP, so hosts need to have static ARP entries.  
+HSR does not support ARP, so hosts need to have static ARP entries.
 topology_hsr.py executes arp command to insert the ARP entries. In the following case, HSR_EGRESS_IP and HSR_LOCAL_IP are IP addresses of HSR.
 ```
     for host in net.hosts:
@@ -113,8 +113,8 @@ topology_hsr.py executes arp command to insert the ARP entries. In the following
 ```
 
 
-Moreover, topology_hsr.py executes following two commands.  
-```sudo  arp -s 100.64.0.25  1:2:3:4:5:6``` (for sending ping packet to HSR)  
+Moreover, topology_hsr.py executes following two commands.
+```sudo  arp -s 100.64.0.25  1:2:3:4:5:6``` (for sending ping packet to HSR)
 ```sudo ifconfig s1 hw ether 0:0:0:0:1:03``` (to fix the MAC address of switch s1. HSR uses this MAC address to send packet to end2end.py)
 Note that mininet may change switch assignment, so please check which switch is for AD 13.
 -->
@@ -128,7 +128,7 @@ $ which pox
 /home/[your ID]/.local/bin/pox
 ```
 
-* Start mininet first. Then start virtual box.  
+* Start mininet first. Then start virtual box.
 Sometimes, HSR in the VM can not send packet. In this case, please start mininet first, then start Virtual Box (vagrant).
 * Check IP address setting in topology/mininet/topology_hsr.py
 ```
@@ -148,13 +148,13 @@ You can see these IPs in gen/ISD1/AD13/er1-13er1-11/topology.conf.
 You can get these MAC address from mininet console. For example,
 ```
 mininet> bs1_13_1 ifconfig
-bs1_13_1-0 Link encap:Ethernet  HWaddr 00:00:00:00:00:08  
+bs1_13_1-0 Link encap:Ethernet  HWaddr 00:00:00:00:00:08
           inet addr:100.64.0.19  Bcast:100.64.0.23  Mask:255.255.255.248
           inet6 addr: fe80::200:ff:fe00:8/64 Scope:Link
           UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
           RX packets:258 errors:0 dropped:0 overruns:0 frame:0
           TX packets:319 errors:0 dropped:0 overruns:0 carrier:0
-          collisions:0 txqueuelen:1000 
+          collisions:0 txqueuelen:1000
           RX bytes:90179 (90.1 KB)  TX bytes:28036 (28.0 KB)
 ```
 
@@ -189,10 +189,10 @@ ps1_11_1 ps1_11_1-0:s3-eth3
 ps1_12_1 ps1_12_1-0:s0-eth5
 ps1_13_1 ps1_13_1-0:s1-eth3
 s0 lo:  s0-eth1:bs1_12_1-0 s0-eth2:er1_12er1_11-0 s0-eth3:cs1_12_1-0 s0-eth4:ds1_12_1-0 s0-eth5:ps1_12_1-0
-s1 lo:  s1-eth1:cs1_13_1-0 s1-eth2:bs1_13_1-0 s1-eth3:ps1_13_1-0 s1-eth4:ds1_13_1-0 eth11: 
+s1 lo:  s1-eth1:cs1_13_1-0 s1-eth2:bs1_13_1-0 s1-eth3:ps1_13_1-0 s1-eth4:ds1_13_1-0 eth11:
 s2 lo:  s2-eth1:er1_12er1_11-1 s2-eth2:er1_11er1_12-1
 s3 lo:  s3-eth1:er1_11er1_12-0 s3-eth2:cs1_11_1-0 s3-eth3:ps1_11_1-0 s3-eth4:bs1_11_1-0 s3-eth5:ds1_11_1-0 s3-eth6:er1_11er1_13-0
-s4 lo:  s4-eth1:er1_11er1_13-1 eth10: 
+s4 lo:  s4-eth1:er1_11er1_13-1 eth10:
 c0
 ```
 

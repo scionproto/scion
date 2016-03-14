@@ -43,6 +43,8 @@
 #include <rte_udp.h>
 #include <rte_string_fns.h>
 
+#include <rte_icmp.h>
+
 #include "cJSON/cJSON.h"
 #include "scion.h"
 #include "libdpdk.h"
@@ -155,6 +157,31 @@ uint32_t parse_ip(cJSON *addr_obj)
             IPv4(addr_ints[0], addr_ints[1], addr_ints[2], addr_ints[3]));
 }
 
+uint32_t parse_isd(cJSON *addr_obj)
+{
+    char *addr;
+    int i;
+    long isd;
+
+    addr = addr_obj->valuestring;
+    isd = strtol(addr, NULL, 10);
+
+    return isd;
+}
+
+uint32_t parse_as(cJSON *addr_obj)
+{
+    char *addr;
+    int i;
+    long as;
+    char * p;
+
+    addr = addr_obj->valuestring;
+    as = strtol(addr, &p, 10);
+    as = strtol(p + 1, NULL, 10);
+    return as;
+}
+
 int get_servers(cJSON *root, char *name, uint32_t *arr)
 {
     cJSON *server_root, *server;
@@ -259,18 +286,13 @@ int scion_init(int argc, char **argv)
                 goto JSON;
             }
             neighbor_ip[1] = neighbor_ip[0];
-            addr_obj = cJSON_GetObjectItem(interface, "NeighborISD");
+            addr_obj = cJSON_GetObjectItem(interface, "ISD_AS");
             if (addr_obj == NULL) {
                 fprintf(stderr, "no ISD specified for neighbor\n");
                 goto JSON;
             }
-            neighbor_isd = addr_obj->valueint;
-            addr_obj = cJSON_GetObjectItem(interface, "NeighborAD");
-            if (addr_obj == NULL) {
-                fprintf(stderr, "no AD specified for neighbor\n");
-                goto JSON;
-            }
-            neighbor_ad = addr_obj->valueint;
+            neighbor_isd = parse_isd(addr_obj);
+            neighbor_ad = parse_as(addr_obj);
 
             /* Get IFID */
             ifid_obj = cJSON_GetObjectItem(interface, "IFID");
@@ -307,18 +329,13 @@ int scion_init(int argc, char **argv)
     path_server_count = get_servers(root, "PathServers", path_servers);
 
     /* Get ISD/AD */
-    addr_obj = cJSON_GetObjectItem(root, "ISDID");
+    addr_obj = cJSON_GetObjectItem(root, "ISD_AS");
     if (addr_obj == NULL) {
         fprintf(stderr, "no ISD info\n");
         goto JSON;
     }
-    my_isd = addr_obj->valueint;
-    addr_obj = cJSON_GetObjectItem(root, "ADID");
-    if (addr_obj == NULL) {
-        fprintf(stderr, "no AD info\n");
-        goto JSON;
-    }
-    my_ad = addr_obj->valueint;
+    my_isd = parse_isd(addr_obj);
+    my_ad = parse_as(addr_obj);
 
     /* Done with topology file */
     cJSON_Delete(root);
@@ -352,7 +369,7 @@ int scion_init(int argc, char **argv)
         fprintf(stderr, "failed to parse config file\n");
         goto UNMAP;
     }
-    key_obj = cJSON_GetObjectItem(root, "MasterADKey");
+    key_obj = cJSON_GetObjectItem(root, "MasterASKey");
     if (key_obj == NULL) {
         fprintf(stderr, "no master key in config file\n");
         goto JSON;
@@ -909,7 +926,7 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
         uint8_t host_addr[] = {0x0, 0x0, 0x0, 0x0, 0x1, 0x3};
         ether_addr_copy(host_addr, &eth_hdr->d_addr);
 #endif
-        udp_hdr->dst_port = htons(SCION_UDP_EH_DATA_PORT);
+        udp_hdr->dst_port = htons(SCION_UDP_PORT);
 
         // FIXME
         // get scion udp port number
@@ -1345,13 +1362,22 @@ int needs_local_processing(SCIONCommonHeader *sch)
 void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
 {
     struct ether_hdr *eth_hdr;
-    struct udp_hdr *udp_hdr;
+    struct ipv4_hdr *ip_hdr;
+    struct icmp_hdr *icmp_hdr;
+    struct udp_hdr *udp_hdr, *inner_udp;
     SCIONCommonHeader *sch;
     RTE_LOG(DEBUG, HSR, "==============\n");
     RTE_LOG(DEBUG, HSR, "packet recieved, dpdk_port=%d\n", dpdk_rx_port);
 
     eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
+    ip_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *) + sizeof(struct ether_hdr));
     udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                struct ether_hdr) +
+            sizeof(struct ipv4_hdr));
+    inner_udp = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                struct ether_hdr) +
+            sizeof(struct ipv4_hdr) * 2 + sizeof(struct icmp_hdr));
+    icmp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
                 struct ether_hdr) +
             sizeof(struct ipv4_hdr));
     // RTE_LOG(DEBUG, HSR, "type=%x\n", eth_hdr->ether_type);
@@ -1407,6 +1433,11 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
     } else {
         RTE_LOG(DEBUG, HSR, "Non SCION packet: ether_type=%x\n",
                 ntohs(eth_hdr->ether_type));
-        RTE_LOG(DEBUG, HSR, "destinaton port=%d\n", ntohs(udp_hdr->dst_port));
+        RTE_LOG(DEBUG, HSR, "l4 = %d\n", ip_hdr->next_proto_id);
+        RTE_LOG(DEBUG, HSR, "type = %d, code = %d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code);
+        RTE_LOG(DEBUG, HSR, "src addr = %#x, src port = %d, destinaton port=%d\n",
+                ip_hdr->src_addr, ntohs(udp_hdr->src_port), ntohs(udp_hdr->dst_port));
+        RTE_LOG(DEBUG, HSR, "inner udp src/dst ports = %d/%d\n",
+                ntohs(inner_udp->src_port), ntohs(inner_udp->dst_port));
     }
 }
