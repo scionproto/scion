@@ -79,13 +79,14 @@ class Link(object):
         for steady in self.steadies.values():
             steady.update_seg(pcb)
 
-    def steady_add(self):
+    def steady_add(self, quiet=False):
         """
         Set up a new steady path using this interface
         """
         if not self.segments:
-            logging.warning(
-                "Link.setup: no segments for this interface. %s", self)
+            if not quiet:
+                logging.warning(
+                    "Link.setup: no segments for this interface. %s", self)
             return
         # FIXME(kormat): un-hardcode these bandwidths
         bwsnap = BWSnapshot(25 * 1024, 15 * 1024)

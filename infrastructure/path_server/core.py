@@ -74,7 +74,7 @@ class CorePathServer(PathServer):
         """
         # TODO(PSz): consider mechanism for avoiding a registration storm.
         master = self._master_id
-        if not master or self._is_master():
+        if (not master or self._is_master()) and not self._quiet_startup():
             logging.warning('Sync abandoned: master not set or I am a master')
             return
         core_segs = []

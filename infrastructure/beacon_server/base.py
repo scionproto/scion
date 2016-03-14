@@ -327,7 +327,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         peer_markings = []
         for router_peer in sorted(self.topology.peer_edge_routers):
             if_id = router_peer.interface.if_id
-            if not self.ifid_state[if_id].is_active():
+            if (not self.ifid_state[if_id].is_active() and
+                    not self._quiet_startup()):
                 logging.warning('Peer ifid:%d inactive (not added).', if_id)
                 continue
             peer_hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
@@ -426,7 +427,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         was_master = False
         start = SCIONTime.get_time()
         while True:
-            sleep_interval(start, worker_cycle, "BS.worker cycle")
+            sleep_interval(start, worker_cycle, "BS.worker cycle",
+                           self._quiet_startup())
             start = SCIONTime.get_time()
             try:
                 self.process_pcb_queue()
@@ -811,7 +813,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             info = IFStateInfo.from_values(ifid, state.is_active(),
                                            chain.next_element())
             infos.append(info)
-        if not infos:
+        if not infos and not self._quiet_startup():
             logging.warning("No IF state info to put in response.")
             return
 

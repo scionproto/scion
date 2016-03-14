@@ -98,7 +98,8 @@ class CertServer(SCIONElement):
         worker_cycle = 1.0
         start = SCIONTime.get_time()
         while True:
-            sleep_interval(start, worker_cycle, "CS.worker cycle")
+            sleep_interval(start, worker_cycle, "CS.worker cycle",
+                           self._quiet_startup())
             start = SCIONTime.get_time()
             try:
                 self.zk.wait_connected()

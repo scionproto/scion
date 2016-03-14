@@ -28,7 +28,6 @@ import sys
 import time
 from binascii import hexlify
 from datetime import datetime, timezone
-from functools import wraps
 
 # External packages
 import yaml
@@ -223,32 +222,7 @@ def trace(id_):
     trace_start(path)
 
 
-def timed(limit):
-    """
-    Decorator to measure to execution time of a function, and log a warning if
-    it takes too long. The wrapped function takes an optional `timed_desc`
-    string parameter which is printed as part of the warning. If `timed_desc`
-    isn't passed in, then the wrapped function's path is printed instead.
-
-    :param float limit:
-        If the wrapped function takes more than `limit` seconds, log a warning.
-    """
-    def wrap(f):
-        @wraps(f)
-        def wrapper(*args, timed_desc=None, **kwargs):
-            start = SCIONTime.get_time()
-            ret = f(*args, **kwargs)
-            elapsed = SCIONTime.get_time() - start
-            if elapsed > limit:
-                if not timed_desc:
-                    timed_desc = "Call to %s.%s" % (f.__module__, f.__name__)
-                logging.warning("%s took too long: %.3fs", timed_desc, elapsed)
-            return ret
-        return wrapper
-    return wrap
-
-
-def sleep_interval(start, interval, desc):
+def sleep_interval(start, interval, desc, quiet=False):
     """
     Sleep until the `interval` seconds have elapsed since `start`.
 
@@ -258,12 +232,15 @@ def sleep_interval(start, interval, desc):
         Time (in seconds since the Epoch) the current interval started.
     :param float interval: Length (in seconds) of an interval.
     :param str desc: Description of the operation.
+    :param bool quiet: If set, don't log warnings.
     """
     now = SCIONTime.get_time()
     delay = start + interval - now
     if delay < 0:
-        logging.warning("%s took too long: %.3fs (should have been <= %.3fs)",
-                        desc, now - start, interval)
+        if not quiet:
+            logging.warning(
+                "%s took too long: %.3fs (should have been <= %.3fs)",
+                desc, now - start, interval)
         delay = 0
     time.sleep(delay)
 

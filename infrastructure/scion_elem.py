@@ -20,6 +20,7 @@ import logging
 import os
 import queue
 import threading
+import time
 from collections import defaultdict
 
 # SCION
@@ -35,6 +36,7 @@ from lib.defines import (
     SCION_UDP_PORT,
     SERVICE_TYPES,
     SIBRA_SERVICE,
+    STARTUP_QUIET_PERIOD,
     TOPO_FILE,
 )
 from lib.dnsclient import DNSCachingClient
@@ -71,6 +73,7 @@ class SCIONElement(object):
     :ivar `SCIONAddr` addr: the server's address.
     """
     SERVICE_TYPE = None
+    STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
 
     def __init__(self, server_id, conf_dir, host_addr=None,
                  port=SCION_UDP_PORT):
@@ -111,6 +114,7 @@ class SCIONElement(object):
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = UDPSocketMgr()
         self._setup_socket()
+        self._startup = time.time()
 
     def _setup_socket(self):
         """
@@ -315,6 +319,9 @@ class SCIONElement(object):
         self.stopped_flag.wait()
         self._socks.close()
 
+    def _quiet_startup(self):
+        return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD
+
     def dns_query_topo(self, qname):
         """
         Query dns for an answer. If the answer is empty, or an error occurs then
@@ -332,7 +339,7 @@ class SCIONElement(object):
         }
         # Generate fallback from local topology
         fallback = [srv.addr for srv in service_map[qname]]
-        results = self._dns.query(qname, fallback)
+        results = self._dns.query(qname, fallback, self._quiet_startup())
         if not results:
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)

@@ -94,6 +94,8 @@ IFID_PKT_TOUT = 1
 SCION_MIN_MTU = 1280
 #: Length of opaque fields
 OPAQUE_FIELD_LEN = 8
+#: How long certain warnings should be suppresed after startup
+STARTUP_QUIET_PERIOD = 30
 
 #: Number of seconds per sibra tick
 SIBRA_TICK = 4
