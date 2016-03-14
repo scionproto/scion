@@ -18,14 +18,10 @@ cmd_topology() {
 }
 
 cmd_run() {
-    echo "Building dispatcher..."
-    make -C endhost
-    result=$?
-    if [ $result -ne 0 ]; then
-        echo "Dispatcher build failed"
-        exit $result
+    if ! [ -x bin/dispatcher ]; then
+        echo "Dispatcher not built - please run the \"build\" command first"
+        exit -1
     fi
-    make install -C endhost
     echo "Running the network..."
     supervisor/supervisor.sh reload
     # Supervisor reload causes the domain socket to briefly disappear, which
@@ -73,11 +69,13 @@ cmd_version() {
 	_EOF
 }
 
-cmd_sock_bld() {
-    make -C lib/libscion
-    make -C endhost
-    make -C endhost/ssp
-    make -C endhost/ssp/test
+cmd_build() {
+    make dispatcher
+    make install
+}
+
+cmd_clean() {
+    make clean
 }
 
 SOCKDIR=endhost/ssp
@@ -153,7 +151,7 @@ shift
 
 case "$COMMAND" in
     coverage|help|lint|run|stop|status|test|topology|version|\
-    sock_cli|sock_ser|sock_bld|run_cli|run_ser)
+    sock_cli|sock_ser|build|clean|run_cli|run_ser)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

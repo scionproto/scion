@@ -1,8 +1,10 @@
 CC=g++
 CFLAGS=-Wall -g -std=c++11 -fPIC
 LDFLAGS=-shared -lpthread -lscion
-INC=-I../../lib/libscion
-LIB=-L../../lib/libscion
+LIBDIR=../../lib/libscion
+INC=-I$(LIBDIR)
+LIBFLAG=-L$(LIBDIR)
+LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
 
 HDRS=$(wildcard *.h) ../../lib/libscion/libscion_api.h
 
@@ -27,11 +29,13 @@ all: $(CLIENT_LIB) $(SERVER_LIB)
 %.o: %.cpp $(HDRS)
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
-$(CLIENT_LIB): $(COMMON_OBJS) $(CLIENT_OBJS) $(HDRS)
-	$(CC) -o $@ $(COMMON_OBJS) $(CLIENT_OBJS) $(LDFLAGS) $(LIB)
+$(CLIENT_LIB): $(COMMON_OBJS) $(CLIENT_OBJS) $(HDRS) $(LIBHSRC)
+	$(MAKE) -C $(LIBDIR)
+	$(CC) -o $@ $(COMMON_OBJS) $(CLIENT_OBJS) $(LDFLAGS) $(LIBFLAG)
 
-$(SERVER_LIB): $(COMMON_OBJS) $(SERVER_OBJS) $(HDRS)
-	$(CC) -o $@ $(COMMON_OBJS) $(SERVER_OBJS) $(LDFLAGS) $(LIB)
+$(SERVER_LIB): $(COMMON_OBJS) $(SERVER_OBJS) $(HDRS) $(LIBHSRC)
+	$(MAKE) -C $(LIBDIR)
+	$(CC) -o $@ $(COMMON_OBJS) $(SERVER_OBJS) $(LDFLAGS) $(LIBFLAG)
 
 clean:
 	-rm -f $(SOCKET_OBJS) $(CLIENT_LIB) $(SERVER_LIB)

@@ -32,6 +32,8 @@ shutdown() {
 
 export PYTHONPATH=.
 
+log "Building dispatcher"
+./scion.sh build
 log "Starting scion"
 ./scion.sh run | grep -v "RUNNING"
 log "Scion status:"

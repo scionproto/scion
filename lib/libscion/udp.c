@@ -91,3 +91,11 @@ void update_scion_udp_checksum(uint8_t *buf)
     scion_udp_hdr->checksum = htons(scion_udp_checksum(buf));
     //printf("SCION UDP checksum=%x\n",scion_udp_hdr->dgram_cksum);
 }
+
+void reverse_udp_header(uint8_t *l4ptr)
+{
+    SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
+    uint16_t src = udp->src_port;
+    udp->src_port = udp->dst_port;
+    udp->dst_port = src;
+}
