@@ -6,6 +6,8 @@
 
 #include <arpa/inet.h>
 
+#include "defines.h"
+
 typedef struct {
     /** Packet Type of the packet (version, srcType, dstType) */
     uint16_t versionSrcDst;
