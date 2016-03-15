@@ -79,7 +79,7 @@ class TestClientBase(object):
             self._get_path_direct()
         self.sock = UDPSocket(bind=(str(self.src.host), 0, "Test Client App"),
                               addr_type=AddrType.IPV4)
-        reg_dispatcher(self.sock, self.src.host, self.sock.port)
+        reg_dispatcher(self.sock, self.src, self.sock.port)
 
     def _get_path_via_api(self):
         """
@@ -185,7 +185,7 @@ class TestServerBase(object):
         self.sd = SCIONDaemon.start(conf_dir, self.dst.host)
         self.sock = UDPSocket(bind=(str(self.dst.host), 0, "Test Server App"),
                               addr_type=AddrType.IPV4)
-        reg_dispatcher(self.sock, self.dst.host, self.sock.port)
+        reg_dispatcher(self.sock, self.dst, self.sock.port)
 
     def run(self):
         packet = self.sock.recv()[0]

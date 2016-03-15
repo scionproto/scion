@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "ProtocolConfigs.h"
 #include "Utils.h"
 
 int comparePacketNum(void *p1, void *p2)
@@ -117,25 +118,27 @@ uint64_t createRandom(int bits)
     return r & ((1 << bits) - 1);
 }
 
-uint32_t getLocalHostAddr()
+uint32_t getLocalHostAddr(uint8_t *addr)
 {
     int sock = socket(PF_INET, SOCK_DGRAM, 0);
-    struct sockaddr_in addr;
-    char buf[32];
+    struct sockaddr_in sa;
+    char buf[MAX_HOST_ADDR_LEN + SCION_ISD_AD_LEN];
+    memset(buf, 0, sizeof(buf));
     
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
-    addr.sin_port = htons(SCIOND_API_PORT);
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
+    sa.sin_port = htons(SCIOND_API_PORT);
 
     buf[0] = 1;
-    sendto(sock, buf, 1, 0, (struct sockaddr *)&addr, sizeof(addr));
+    sendto(sock, buf, 1, 0, (struct sockaddr *)&sa, sizeof(sa));
     recvfrom(sock, buf, 32, 0, NULL, NULL);
     close(sock);
-    return *(uint32_t *)(buf + SCION_HOST_OFFSET);
+    memcpy(addr, buf + SCION_ISD_AD_LEN, MAX_HOST_ADDR_LEN);
+    return *(uint32_t *)buf;
 }
 
-int registerFlow(int proto, void *data, int sock, uint8_t reg)
+int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg)
 {
     DEBUG("register flow via socket %d\n", sock);
 
@@ -146,23 +149,24 @@ int registerFlow(int proto, void *data, int sock, uint8_t reg)
     addr.sin_addr.s_addr = inet_addr(SCION_DISPATCHER_HOST);
 
     int len;
+    int addr_len = e->addr_type == ADDR_TYPE_IPV4 ? 4 : 16;
+    int common = 2 + SCION_ISD_AD_LEN + 2 + 1;
     char buf[32];
     buf[0] = reg;
     buf[1] = proto;
+    memcpy(buf + 2, &e->isd_as, SCION_ISD_AD_LEN);
+    *(uint16_t *)(buf + 2 + SCION_ISD_AD_LEN) = ntohs(e->port);
+    buf[2 + SCION_ISD_AD_LEN + 2] = e->addr_type;
     switch (proto) {
         case SCION_PROTO_SSP: {
-            SSPEntry *se = (SSPEntry *)data;
-            memcpy(buf + 2, &se->port, sizeof(se->port));
-            memcpy(buf + 4, &se->flowID, sizeof(se->flowID));
-            memcpy(buf + 12, &se->addr, sizeof(se->addr));
-            len = 16;
+            memcpy(buf + common, &e->flow_id, SSP_FID_LEN);
+            memcpy(buf + common + SSP_FID_LEN, e->addr, addr_len);
+            len = common + SSP_FID_LEN + addr_len;
             break;
         }
         case SCION_PROTO_UDP: {
-            SUDPEntry *se = (SUDPEntry *)data;
-            memcpy(buf + 2, &se->port, sizeof(se->port));
-            memcpy(buf + 4, &se->addr, sizeof(se->addr));
-            len = 8;
+            memcpy(buf + common, e->addr, addr_len);
+            len = common + addr_len;
             break;
         }
         default:

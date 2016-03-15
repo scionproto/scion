@@ -272,8 +272,7 @@ class Router(SCIONElement):
             logging.error("Unable to deliver ifid packet: %s", e)
             return
         for bs_addr in bs_addrs:
-            pkt.addrs.dst.host = bs_addr
-            self.send(pkt)
+            self.send(pkt, bs_addr)
 
     def get_srv_addr(self, service, pkt):
         """
@@ -310,8 +309,7 @@ class Router(SCIONElement):
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver PCB: %s", e)
                 return
-            pkt.addrs.dst.host = bs_addr
-            self.send(pkt)
+            self.send(pkt, bs_addr)
 
     def relay_cert_server_packet(self, spkt, from_local_as):
         """
@@ -331,7 +329,6 @@ class Router(SCIONElement):
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver cert packet: %s", e)
                 return
-            spkt.addrs.dst.host = addr
             port = SCION_UDP_EH_DATA_PORT
         self.send(spkt, addr, port)
 
@@ -347,8 +344,7 @@ class Router(SCIONElement):
         except SCIONServiceLookupError as e:
             logging.error("Unable to deliver sibra service packet: %s", e)
             return
-        spkt.addrs.dst.host = addr
-        self.send(spkt)
+        self.send(spkt, addr)
 
     def process_path_mgmt_packet(self, mgmt_pkt, from_local_as):
         """
@@ -380,8 +376,7 @@ class Router(SCIONElement):
                     except SCIONServiceLookupError:
                         logging.error("No local PS to forward revocation to.")
                         return
-                    mgmt_pkt.addrs.dst.host = ps
-                    self.send(mgmt_pkt)
+                    self.send(mgmt_pkt, ps)
         if not from_local_as:
             self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
@@ -422,7 +417,7 @@ class Router(SCIONElement):
             self.send_revocation(spkt, if_id)
             raise SCIONInterfaceDownException(if_id)
 
-    def deliver(self, spkt, ptype, force=True):
+    def deliver(self, spkt, ptype=None, force=True):
         """
         Forwards the packet to the end destination within the current AS.
 
@@ -453,7 +448,6 @@ class Router(SCIONElement):
                 except SCIONServiceLookupError as e:
                     logging.error("Unable to deliver path mgmt packet: %s", e)
                     return
-                spkt.addrs.dst.host = addr
         elif addr == PT.SB_PKT:
             self.fwd_sibra_service_pkt(spkt, None)
             return
@@ -503,7 +497,7 @@ class Router(SCIONElement):
         path = spkt.path
         self.verify_hof(path, ingress=ingress)
         if spkt.addrs.dst.isd_as == self.addr.isd_as:
-            self.deliver(spkt, PT.DATA)
+            self.deliver(spkt)
             return
         if not ingress:
             path.inc_hof_idx()
@@ -588,7 +582,7 @@ class Router(SCIONElement):
                           "is not the destination ISD-AS:\n%s", pkt)
             return
         logging.debug("Packet delivered by extension")
-        self.deliver(pkt, PT.DATA)
+        self.deliver(pkt)
 
     def handle_request(self, packet, _, from_local_socket=True):
         """

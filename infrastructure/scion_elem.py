@@ -45,7 +45,12 @@ from lib.log import log_exception
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import EmptyPath
-from lib.packet.scion import SCIONBasePacket, SCIONL4Packet, build_base_hdrs
+from lib.packet.scion import (
+    build_base_hdrs,
+    PacketType,
+    SCIONBasePacket,
+    SCIONL4Packet,
+)
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket, UDPSocketMgr
@@ -57,6 +62,12 @@ from lib.util import reg_dispatcher, trim_dispatcher_packet
 
 
 MAX_QUEUE = 30
+SVC_TYPE_MAP = {
+    BEACON_SERVICE: PacketType.BEACON,
+    CERTIFICATE_SERVICE: PacketType.CERT_MGMT,
+    PATH_SERVICE: PacketType.PATH_MGMT,
+    SIBRA_SERVICE: PacketType.SB_PKT
+}
 
 
 class SCIONElement(object):
@@ -125,7 +136,8 @@ class SCIONElement(object):
             addr_type=self.addr.host.TYPE,
         )
         self._port = self._local_sock.port
-        reg_dispatcher(self._local_sock, self.addr.host, self._port)
+        svc = SVC_TYPE_MAP.get(self.SERVICE_TYPE)
+        reg_dispatcher(self._local_sock, self.addr, self._port, svc)
         self._socks.add(self._local_sock)
 
     def construct_ifid2addr_map(self):

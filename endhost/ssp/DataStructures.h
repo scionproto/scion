@@ -79,12 +79,6 @@ public:
     uint8_t *interfaces;
 };
 
-typedef struct {
-    uint16_t port;
-    uint32_t addr;
-    uint64_t flowID;
-} SSPEntry;
-
 typedef enum {
     SSP_METRIC_BANDWIDTH,
     SSP_METRIC_LATENCY,
@@ -164,9 +158,12 @@ typedef struct {
 } SUDPPacket;
 
 typedef struct {
+    uint32_t isd_as;
     uint16_t port;
-    uint32_t addr;
-} SUDPEntry;
+    uint8_t addr_type;
+    uint64_t flow_id;
+    uint8_t addr[MAX_HOST_ADDR_LEN];
+} DispatcherEntry;
 
 typedef struct {
     pthread_cond_t *cond;

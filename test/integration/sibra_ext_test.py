@@ -79,7 +79,7 @@ class _Base(object):
             bind=(str(self.addr.host), 0, self.NAME),
             addr_type=self.addr.host.TYPE)
         self.sock.settimeout(5)
-        reg_dispatcher(self.sock, addr.host, self.sock.port)
+        reg_dispatcher(self.sock, addr, self.sock.port)
 
     def listen(self):
         try:

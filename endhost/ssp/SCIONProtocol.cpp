@@ -319,10 +319,15 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
     if (buf)
         mFlowID = be64toh(*(uint64_t *)buf);
     DEBUG("%lu created\n", mFlowID);
-    SSPEntry se;
-    se.flowID = mFlowID;
+
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
+    DispatcherEntry se;
+    memset(&se, 0, sizeof(se));
+    se.flow_id = mFlowID;
     se.port = 0;
-    memcpy(&se.addr, mConnectionManager->localAddress()->host.addr, SCION_HOST_ADDR_LEN);
+    se.isd_as = htonl(localAddr->isd_ad);
+    se.addr_type = ADDR_TYPE_IPV4;
+    memcpy(se.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
     registerFlow(SCION_PROTO_SSP, &se, sock, 1);
     DEBUG("start protocol for flow %lu\n", mFlowID);
     if (packet && buf)
@@ -396,7 +401,8 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
         }
     }
 
-    if (payloadLen > 0 || sp->header.flags & SSP_FIN) {
+    if (payloadLen > 0 ||
+            ((sp->header.flags & SSP_FIN) && !(sp->header.flags & SSP_ACK))) {
         if (payloadLen > 0) {
             sp->data = std::shared_ptr<uint8_t>((uint8_t *)malloc(payloadLen), free);
             memcpy(sp->data.get(), ptr, payloadLen);
@@ -777,9 +783,15 @@ void SSPProtocol::notifyFinAck()
 
 void SSPProtocol::removeDispatcher(int sock)
 {
-    SSPEntry se;
-    se.flowID = mFlowID;
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
+
+    DispatcherEntry se;
+    memset(&se, 0, sizeof(se));
+    se.flow_id = mFlowID;
     se.port = 0;
+    se.isd_as = htonl(localAddr->isd_ad);
+    se.addr_type = ADDR_TYPE_IPV4;
+    memcpy(se.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
     registerFlow(SCION_PROTO_SSP, &se, sock, 0);
 }
 
@@ -925,9 +937,12 @@ void SUDPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 void SUDPProtocol::registerDispatcher(uint16_t port, int sock)
 {
     SCIONAddr *addr = mConnectionManager->localAddress();
-    SUDPEntry se;
+
+    DispatcherEntry se;
     se.port = port;
-    se.addr = *(uint32_t *)(addr->host.addr);
+    se.addr_type = ADDR_TYPE_IPV4;
+    se.isd_as = htonl(addr->isd_ad);
+    memcpy(se.addr, addr->host.addr, MAX_HOST_ADDR_LEN);
     registerFlow(SCION_PROTO_UDP, &se, sock, 1);
 }
 

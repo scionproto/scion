@@ -45,8 +45,8 @@ void destroySUDPPacket(void *p);
 
 int reversePath(uint8_t *original, uint8_t *reverse, int len);
 uint64_t createRandom(int bits);
-uint32_t getLocalHostAddr();
-int registerFlow(int proto, void *data, int sock, uint8_t reg);
+uint32_t getLocalHostAddr(uint8_t *addr);
+int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg);
 void destroyStats(SCIONStats *stats);
 
 int isL4(uint8_t type);

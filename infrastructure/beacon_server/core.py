@@ -88,7 +88,8 @@ class CoreBeaconServer(BeaconServer):
 
             new_pcb.add_as(as_marking)
             self._sign_beacon(new_pcb)
-            beacon = self._build_packet(PT.BEACON, payload=new_pcb)
+            beacon = self._build_packet(
+                PT.BEACON, dst_ia=core_router.interface.isd_as, payload=new_pcb)
             self.send(beacon, core_router.addr)
             count += 1
         return count

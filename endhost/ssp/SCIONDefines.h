@@ -17,6 +17,14 @@
 
 #define SCION_ADDR_LEN 8 // ISD + AD = 4, ADDR = 4
 
+#define ADDR_TYPE_IPV4 1
+#define ADDR_TYPE_IPV6 2
+#define ADDR_TYPE_SVC  3
+
+#define ADDR_LEN_IPV4 4
+#define ADDR_LEN_IPV6 16
+#define ADDR_LEN_SVC  2
+
 #define SCION_PROTO_ICMP 1
 #define SCION_PROTO_TCP 6
 #define SCION_PROTO_UDP 17
@@ -28,7 +36,7 @@
 #define SCION_ISD_AD_LEN 4
 #define SCION_HOST_ADDR_LEN 4
 #define SCION_HOST_OFFSET 4
-#define MAX_HOST_ADDR_LEN 8
+#define MAX_HOST_ADDR_LEN 16
 
 #define NORMAL_OF    0x0
 #define LAST_OF      0x10
@@ -95,6 +103,9 @@ typedef struct {
     uint8_t nextHeader;
     uint8_t headerLen;
 } SCIONCommonHeader;
+
+#define SRC_TYPE(sch) ((ntohs(sch->versionAddrs) & 0xfc0) >> 6)
+#define DST_TYPE(sch) (ntohs(sch->versionAddrs) & 0x3f)
 
 typedef struct SCIONExtension {
     uint8_t nextHeader;

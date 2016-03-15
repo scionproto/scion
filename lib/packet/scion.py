@@ -48,18 +48,14 @@ class PacketType(object):
     """
     Defines constants for the SCION packet types.
     """
-    # Data packet
-    DATA = HostAddrSVC(0, raw=False)
     # Path Construction Beacon
-    BEACON = HostAddrSVC(1, raw=False)
+    BEACON = HostAddrSVC(0, raw=False)
     # Path management packet from/to PS
-    PATH_MGMT = HostAddrSVC(2, raw=False)
+    PATH_MGMT = HostAddrSVC(1, raw=False)
     # TRC file request to parent AS
-    CERT_MGMT = HostAddrSVC(3, raw=False)
-    # IF ID packet to the peer router
-    IFID_PKT = HostAddrSVC(4, raw=False)
+    CERT_MGMT = HostAddrSVC(2, raw=False)
     # SIBRA service
-    SB_PKT = HostAddrSVC(5, raw=False)
+    SB_PKT = HostAddrSVC(3, raw=False)
 
 
 class SCIONCommonHdr(Serializable):

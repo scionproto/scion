@@ -79,6 +79,8 @@ class HostAddrBase(Serializable):
         return self.LEN
 
     def __eq__(self, other):  # pragma: no cover
+        if other is None:
+            return False
         return (self.TYPE == other.TYPE) and (self.addr == other.addr)
 
     def __lt__(self, other):  # pragma: no cover

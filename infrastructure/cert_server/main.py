@@ -221,8 +221,9 @@ class CertServer(SCIONElement):
     def _fetch_cc(self, key, _):
         isd_as, ver = key
         cc_req = CertChainRequest.from_values(isd_as, ver)
-        req_pkt = self._build_packet(PT.CERT_MGMT, payload=cc_req)
         dst_addr = self._get_next_hop(isd_as, True)
+        req_pkt = self._build_packet(PT.CERT_MGMT, dst_ia=isd_as,
+                                     payload=cc_req)
         if dst_addr:
             self.send(req_pkt, dst_addr)
             logging.info("Cert chain request sent for %s", cc_req.short_desc())

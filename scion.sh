@@ -70,7 +70,7 @@ cmd_version() {
 }
 
 cmd_build() {
-    make dispatcher
+    make
     make install
 }
 

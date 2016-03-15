@@ -76,11 +76,12 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
                 }
             } else {
                 mProtocol = NULL;
-                SSPEntry se;
-                se.flowID = 0;
+                DispatcherEntry se;
+                se.flow_id = 0;
                 se.port = mSrcPort;
                 // FIXME: stopgap measure until big refactoring
-                se.addr = getLocalHostAddr();
+                se.isd_as = getLocalHostAddr(se.addr);
+                se.addr_type = ADDR_TYPE_IPV4;
                 registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 1);
                 mRegistered = true;
             }
@@ -122,14 +123,18 @@ SCIONSocket::~SCIONSocket()
         delete mProtocol;
         mProtocol = NULL;
     } else if (mProtocolID == SCION_PROTO_SSP) {
-        SSPEntry se;
-        se.flowID = 0;
+        DispatcherEntry se;
+        se.flow_id = 0;
         se.port = mSrcPort;
+        se.isd_as = getLocalHostAddr(se.addr);
+        se.addr_type = ADDR_TYPE_IPV4;
         registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 0);
     }
     if (mProtocolID == SCION_PROTO_UDP) {
-        SUDPEntry se;
+        DispatcherEntry se;
         se.port = mSrcPort;
+        se.addr_type = ADDR_TYPE_IPV4;
+        se.isd_as = getLocalHostAddr(se.addr);
         registerFlow(SCION_PROTO_UDP, &se, mDispatcherSocket, 0);
     }
     close(mDispatcherSocket);
