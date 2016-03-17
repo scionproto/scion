@@ -27,7 +27,7 @@ from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.pcb import PathSegment
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import SVCType
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime
@@ -89,7 +89,8 @@ class CoreBeaconServer(BeaconServer):
             new_pcb.add_as(as_marking)
             self._sign_beacon(new_pcb)
             beacon = self._build_packet(
-                PT.BEACON, dst_ia=core_router.interface.isd_as, payload=new_pcb)
+                SVCType.BS, dst_ia=core_router.interface.isd_as,
+                payload=new_pcb)
             self.send(beacon, core_router.addr)
             count += 1
         return count

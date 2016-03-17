@@ -44,18 +44,18 @@ from lib.types import PayloadClass, IFIDType
 from lib.util import Raw, calc_padding
 
 
-class PacketType(object):
+class SVCType(object):
     """
-    Defines constants for the SCION packet types.
+    Defines the recognised SVC addresses.
     """
-    # Path Construction Beacon
-    BEACON = HostAddrSVC(0, raw=False)
-    # Path management packet from/to PS
-    PATH_MGMT = HostAddrSVC(1, raw=False)
-    # TRC file request to parent AS
-    CERT_MGMT = HostAddrSVC(2, raw=False)
+    # Beacon service
+    BS = HostAddrSVC(0, raw=False)
+    # Path service
+    PS = HostAddrSVC(1, raw=False)
+    # Certificate service
+    CS = HostAddrSVC(2, raw=False)
     # SIBRA service
-    SB_PKT = HostAddrSVC(3, raw=False)
+    SB = HostAddrSVC(3, raw=False)
 
 
 class SCIONCommonHdr(Serializable):
