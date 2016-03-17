@@ -277,12 +277,19 @@ def hex_str(raw):
     return hexlify(raw).decode("ascii")
 
 
-def reg_dispatcher(sock, addr, port):
+def reg_dispatcher(sock, addr, port, svc=None):
     """
     Helper function for registering app with dispatcher
     """
     sock.settimeout(1.0)
-    buf = b"".join([struct.pack("BBH", 1, L4_UDP, port), addr.pack()])
+    data = [
+        struct.pack("!BBIHB", 1, L4_UDP, addr.isd_as.int(), port,
+                    addr.host.TYPE),
+        addr.host.pack()
+    ]
+    if svc is not None:
+        data.append(svc.pack())
+    buf = b"".join(data)
     for i in range(DISPATCHER_TIMEOUT):
         sock.send(buf, (SCION_DISPATCHER_ADDR, SCION_DISPATCHER_PORT))
         try:

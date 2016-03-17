@@ -43,10 +43,12 @@ import threading
 import time
 
 # SCION
+from endhost.sciond import SCIONDaemon
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.defines import L4_SSP
 from lib.log import init_logging
 from lib.main import main_wrapper
+from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.scion_addr import ISD_AS
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
@@ -54,6 +56,10 @@ from lib.util import handle_signals
 SERVER_PORT = 8080
 SERVER_LOG_BASE = 'logs/scion_test_app'
 SERVER_IP = "127.2.26.254"
+SERVER_SCIOND_IP = "127.255.255.253"
+SERVER_CONF = "gen/ISD2/AS26/endhost"
+CLIENT_IP = "127.1.19.254"
+CLIENT_CONF = "gen/ISD1/AS19/endhost"
 # TODO(ercanucan): Increase this value as the library matures.
 DATA_SIZE = 200 * 1024
 DIGEST_LEN = 16
@@ -66,8 +72,12 @@ def main():
     handle_signals()
     server_thread = threading.Thread(target=thread_safety_net, args=(server,),
                                      name="server", daemon=True)
+    server_sd = SCIONDaemon.start(SERVER_CONF, HostAddrIPv4(SERVER_IP),
+                                  SERVER_SCIOND_IP, run_local_api=True)
     client_thread = threading.Thread(target=thread_safety_net, args=(client,),
                                      name="client", daemon=True)
+    client_sd = SCIONDaemon.start(CLIENT_CONF, HostAddrIPv4(CLIENT_IP),
+                                  run_local_api=True)
     server_thread.start()
     client_thread.start()
 
@@ -77,6 +87,8 @@ def main():
             break
     else:
         logging.error("Test timed out.")
+    server_sd.stop()
+    client_sd.stop()
 
 
 def server():
@@ -92,6 +104,12 @@ def server():
     logging.info("Server starts the send protocol.")
     # secondly, act as a sender
     _run_send_protocol(server_sock)
+    logging.info("shutdown server socket")
+    server_sock.shutdown(0)
+    while server_sock.recv(1):
+        pass
+    server_sock.close()
+    sock.close()
 
 
 def client():
@@ -117,6 +135,10 @@ def client():
     logging.info("Client starts the receive protocol.")
     # secondly, act as a receiver
     _run_receive_protocol(client_sock)
+    client_sock.shutdown(0)
+    while client_sock.recv(1):
+        pass
+    client_sock.close()
 
 
 def _run_send_protocol(sock):
@@ -132,10 +154,6 @@ def _run_send_protocol(sock):
     digest = m.digest()
     logging.info("Digest = %s" % digest)
     _send_data(sock, digest)
-
-    # wait for the ack to finish transfer
-    ack = sock.recv(1)
-    logging.debug("Ack received = %s" % ack.decode('ascii'))
     logging.info("Finished send protocol successfully.")
 
 
@@ -151,9 +169,6 @@ def _run_receive_protocol(sock):
     # read the digest (assume DIGEST_LEN)
     rcvd_digest = _receive_data(sock, DIGEST_LEN)
     logging.info("Received the digest.")
-
-    logging.info("Marking the receive protocol, sending ACK.")
-    sock.send(bytes("F", 'ascii'))
 
     _verify_test_data(rcvd_data, rcvd_digest)
 
@@ -177,7 +192,8 @@ def _receive_data(sock, size):
     num_bytes_rcvd = 0
     while num_bytes_rcvd < size:
         data = sock.recv(size - num_bytes_rcvd)
-        assert(data is not None)
+        if not data:
+            break
         num_bytes_rcvd += len(data)
         data_lst.append(data)
 
