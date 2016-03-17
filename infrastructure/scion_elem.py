@@ -47,9 +47,9 @@ from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import EmptyPath
 from lib.packet.scion import (
     build_base_hdrs,
-    PacketType,
     SCIONBasePacket,
     SCIONL4Packet,
+    SVCType
 )
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
@@ -63,10 +63,10 @@ from lib.util import reg_dispatcher, trim_dispatcher_packet
 
 MAX_QUEUE = 30
 SVC_TYPE_MAP = {
-    BEACON_SERVICE: PacketType.BEACON,
-    CERTIFICATE_SERVICE: PacketType.CERT_MGMT,
-    PATH_SERVICE: PacketType.PATH_MGMT,
-    SIBRA_SERVICE: PacketType.SB_PKT
+    BEACON_SERVICE: SVCType.BS,
+    CERTIFICATE_SERVICE: SVCType.CS,
+    PATH_SERVICE: SVCType.PS,
+    SIBRA_SERVICE: SVCType.SB
 }
 
 

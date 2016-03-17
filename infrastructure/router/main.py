@@ -56,8 +56,8 @@ from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.path_mgmt import RevocationInfo, IFStateRequest
 from lib.packet.scion import (
     IFIDPayload,
-    PacketType as PT,
     SCIONL4Packet,
+    SVCType,
 )
 from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
@@ -230,7 +230,7 @@ class Router(SCIONElement):
         neighboring router.
         """
         ifid_pld = IFIDPayload.from_values(self.interface.if_id)
-        pkt = self._build_packet(PT.BEACON, dst_ia=self.interface.isd_as,
+        pkt = self._build_packet(SVCType.BS, dst_ia=self.interface.isd_as,
                                  payload=ifid_pld)
         while True:
             self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
@@ -378,7 +378,7 @@ class Router(SCIONElement):
                         return
                     self.send(mgmt_pkt, ps)
         if not from_local_as:
-            self.deliver(mgmt_pkt, PT.PATH_MGMT)
+            self.deliver(mgmt_pkt, SVCType.PS)
         else:
             self.forward_packet(mgmt_pkt, from_local_as)
 
@@ -386,11 +386,6 @@ class Router(SCIONElement):
         """
         Sends an interface revocation for 'if_id' along the path in 'spkt'.
         """
-        # Only issue revocations in response to data packets.
-        # TODO(shitz): Extend this to all packets containing a path
-        # (i.e., path_req).
-        # if get_type(spkt) != PT.DATA:
-        #    return
         logging.info("Interface %d is down. Issuing revocation.", if_id)
         # Check that the interface is really down.
         if_state = self.if_states[if_id]
@@ -405,7 +400,7 @@ class Router(SCIONElement):
         rev_pkt = copy.deepcopy(spkt)
         rev_pkt.reverse()
         rev_pkt.set_payload(rev_info)
-        rev_pkt.addrs.src.host = PT.PATH_MGMT
+        rev_pkt.addrs.src.host = SVCType.PS
         logging.debug("Revocation Packet:\n%s", rev_pkt)
         self.handle_data(rev_pkt, True)
 
@@ -438,7 +433,7 @@ class Router(SCIONElement):
             assert not hof.verify_only
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if ptype == PT.PATH_MGMT:
+        if ptype == SVCType.PS:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
             if addr.TYPE == AddrType.SVC:
@@ -448,7 +443,7 @@ class Router(SCIONElement):
                 except SCIONServiceLookupError as e:
                     logging.error("Unable to deliver path mgmt packet: %s", e)
                     return
-        elif addr == PT.SB_PKT:
+        elif addr == SVCType.SB:
             self.fwd_sibra_service_pkt(spkt, None)
             return
         self.send(spkt, addr)
@@ -524,7 +519,7 @@ class Router(SCIONElement):
         if len(pkt.path) == 0 and pkt.addrs.dst.host.TYPE == AddrType.SVC:
             # Always process packets with SVC destinations and no path
             return True
-        if pkt.addrs.src.host == PT.PATH_MGMT:
+        if pkt.addrs.src.host == SVCType.PS:
             # FIXME(kormat): temporary hack until revocations are handled
             # by SCMP
             return True

@@ -65,7 +65,7 @@ from lib.packet.pcb_ext import BeaconExtType
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import SVCType
 from lib.path_store import PathPolicy
 from lib.thread import thread_safety_net
 from lib.types import (
@@ -220,7 +220,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             new_pcb.add_as(as_marking)
             self._sign_beacon(new_pcb)
             beacon = self._build_packet(
-                PT.BEACON, dst_ia=router_child.interface.isd_as,
+                SVCType.BS, dst_ia=router_child.interface.isd_as,
                 payload=new_pcb)
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")

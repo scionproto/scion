@@ -35,7 +35,7 @@ from lib.packet.cert_mgmt import (
     TRCReply,
     TRCRequest,
 )
-from lib.packet.scion import PacketType as PT, SCIONL4Packet
+from lib.packet.scion import SCIONL4Packet, SVCType
 from lib.packet.scion_addr import ISD_AS
 from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
@@ -167,7 +167,7 @@ class CertServer(SCIONElement):
         else:
             # Remote request
             next_hop = self._get_next_hop(src.isd_as, False, True, True)
-            dst_addr = PT.CERT_MGMT
+            dst_addr = SVCType.CS
         if next_hop:
             rep_pkt = self._build_packet(
                 dst_addr, dst_ia=src.isd_as, payload=payload, dst_port=src_port)
@@ -222,7 +222,7 @@ class CertServer(SCIONElement):
         isd_as, ver = key
         cc_req = CertChainRequest.from_values(isd_as, ver)
         dst_addr = self._get_next_hop(isd_as, True)
-        req_pkt = self._build_packet(PT.CERT_MGMT, dst_ia=isd_as,
+        req_pkt = self._build_packet(SVCType.CS, dst_ia=isd_as,
                                      payload=cc_req)
         if dst_addr:
             self.send(req_pkt, dst_addr)
@@ -289,7 +289,7 @@ class CertServer(SCIONElement):
         isd, ver = key
         isd_as = ISD_AS.from_values(isd, info[2])
         trc_req = TRCRequest.from_values(isd_as, ver)
-        req_pkt = self._build_packet(PT.CERT_MGMT, payload=trc_req)
+        req_pkt = self._build_packet(SVCType.CS, payload=trc_req)
         next_hop = self._get_next_hop(isd_as, True, False, True)
         if next_hop:
             self.send(req_pkt, next_hop)

@@ -27,7 +27,7 @@ from lib.packet.path_mgmt import (
     PathRecordsReply,
     PathSegmentReq,
 )
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zookeeper import ZkNoConnection
 
@@ -212,7 +212,7 @@ class CorePathServer(PathServer):
                 logging.warning("Segment to AS %s not found.", isd_as)
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
-            pkt = self._build_packet(PT.PATH_MGMT, dst_ia=isd_as, path=cseg,
+            pkt = self._build_packet(SVCType.PS, dst_ia=isd_as, path=cseg,
                                      payload=rep_recs)
             self._send_to_next_hop(pkt, cseg.get_fwd_if())
 
@@ -327,7 +327,7 @@ class CorePathServer(PathServer):
             cseg = csegs[0]
             path = cseg.get_path(reverse_direction=True)
             dst_ia = cseg.get_first_pcbm().isd_as
-            req_pkt = self._build_packet(PT.PATH_MGMT, dst_ia=dst_ia,
+            req_pkt = self._build_packet(SVCType.PS, dst_ia=dst_ia,
                                          path=path, payload=seg_req)
             logging.info("Down-Segment request for different ISD, "
                          "forwarding request to CPS in %s via %s",

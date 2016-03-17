@@ -28,7 +28,7 @@ from infrastructure.sibra_server.util import find_last_ifid
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT, SIBRA_SERVICE
 from lib.errors import SCIONServiceLookupError
 from lib.packet.ext_util import find_ext_hdr
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import SVCType
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.thread import thread_safety_net
 from lib.types import (
@@ -136,7 +136,7 @@ class SibraServerBase(SCIONElement):
         return self.get_first_hop(spkt)
 
     def _svc_lookup(self, addr):
-        if addr.host == PT.PATH_MGMT:
+        if addr.host == SVCType.PS:
             return self.dns_query_topo(PATH_SERVICE)[0]
 
     def handle_path_reg(self, pkt):

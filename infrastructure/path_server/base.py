@@ -35,7 +35,7 @@ from lib.packet.path_mgmt import (
     RevocationInfo,
 )
 from lib.packet.pcb import PathSegment
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import SVCType
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
@@ -329,7 +329,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         while targets:
             seg_req = targets.pop(0)
             req_pkt = self._build_packet(
-                PT.PATH_MGMT, dst_ia=src_ia, path=path, payload=seg_req)
+                SVCType.PS, dst_ia=src_ia, path=path, payload=seg_req)
             self._send_to_next_hop(req_pkt, path.get_fwd_if())
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())
