@@ -119,6 +119,7 @@ class LocalBeaconServer(BeaconServer):
         dst_ia = pcb.get_first_pcbm().isd_as
         pkt = self._build_packet(SVCType.PS, dst_ia=dst_ia, path=core_path,
                                  payload=records)
+        logging.debug("Register down segment:\n%s", pkt)
         fwd_if = core_path.get_fwd_if()
         if fwd_if not in self.ifid2addr:
             raise SCIONKeyError(

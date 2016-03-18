@@ -92,6 +92,7 @@ class CoreBeaconServer(BeaconServer):
         Generate a new beacon or gets ready to forward the one received.
         """
         timestamp = int(SCIONTime.get_time())
+        logging.debug("timestamp = %d", timestamp)
         # Create beacon for downstream ASes.
         down_iof = InfoOpaqueField.from_values(timestamp, self.addr.isd_as[0])
         downstream_pcb = PathSegment.from_values(down_iof)

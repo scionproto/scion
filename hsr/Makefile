@@ -44,12 +44,13 @@ APP = hsr
 # all source are stored in SRCS-y
 SRCS-y := main.c scion.c libdpdk.c
 
+LIB_DIR = $(S)/../lib/libscion
+
 #CFLAGS += -O3 -w
-CFLAGS += -O9 -w -I$(S)/../lib/libscion
+CFLAGS += -O9 -w -I$(LIB_DIR)
 #CFLAGS += $(WERROR_FLAGS)
 
-LDLIBS += -L$(S)/lib -L$(S)/cJSON -L$(S)/../lib/libscion
+LDLIBS += -L$(S)/lib -L$(S)/cJSON -L$(LIB_DIR)
 EXTRA_LDFLAGS += -laesni -lcJSON -lscion
-
 
 include $(RTE_SDK)/mk/rte.extapp.mk

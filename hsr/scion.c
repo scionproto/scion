@@ -74,21 +74,6 @@ static inline void deliver(struct rte_mbuf *m, uint32_t pclass,
                            uint8_t dpdk_rx_port);
 static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
                                   uint8_t dpdk_rx_port);
-static inline void egress_normal_forward(struct rte_mbuf *m,
-                                         uint8_t dpdk_rx_port);
-
-static inline void handle_ingress_xovr(struct rte_mbuf *m,
-                                       uint8_t dpdk_rx_port);
-static inline void ingress_shortcut_xovr(struct rte_mbuf *m,
-                                         uint8_t dpdk_rx_port);
-static inline void ingress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
-static inline void ingress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
-
-static inline void handle_egress_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
-static inline void egress_shortcut_xovr(struct rte_mbuf *m,
-                                        uint8_t dpdk_rx_port);
-static inline void egress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
-static inline void egress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
 int beacon_server_count;
@@ -510,7 +495,6 @@ static inline int send_ingress(struct rte_mbuf *m, uint32_t next_ifid,
         // Update destination IP address and UDP port number
         //ipv4_hdr->dst_addr = GET_EDGE_ROUTER_IPADDR(next_ifid);
         ipv4_hdr->dst_addr = ntohl(ifid2addr[next_ifid]);
-        printf("dst ip=%x\n",ipv4_hdr->dst_addr);
         udp_hdr->dst_port = htons(SCION_UDP_PORT);
 
         ether_addr_copy(
@@ -746,18 +730,9 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs,
 
     if (from_bs) { // from local beacon server to neighbor router
         RTE_LOG(DEBUG, HSR, "from local bs to neighbor bs\n");
-        uint8_t last_pcbm_index = sizeof(pcb->payload.ads) / sizeof(ADMarking) - 1;
 
-        //FIXME
-        /*
-           HopOpaqueField *last_hof = &(pcb->payload).ads[last_pcbm_index].pcbm.hof;
+        //TODO: Check for "Wrong interface set by BS" error
 
-           if (my_ifid != EGRESS_IF(last_hof)) {
-        // Wrong interface set by BS.
-        RTE_LOG(DEBUG, HSR, "Wrong Interface\n");
-        return;
-        }
-        */
         // Update source IP address
         ipv4_hdr->src_addr = interface_ip[port_map[dpdk_rx_port].egress];
 
@@ -901,15 +876,11 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
 
     // TODO support IPv6
     if (ptype == PATH_MGMT_PACKET) {
-        printf("to path server\n");
         ipv4_hdr->dst_addr = path_servers[0];
 #ifdef SERVER_MAC_ADDRESS
         ether_addr_copy(ether_addr_path_servers[0].addr_bytes, &eth_hdr->d_addr);
 #endif
     } else {
-
-        printf("to end host\n");
-
         // update destination IP address to the end host adress
         // rte_memcpy((void *)&ipv4_hdr->dst_addr,
         //           (void *)&scion_hdr->dst_Addr + SCION_ISD_AD_LEN,
@@ -932,15 +903,13 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
         // get scion udp port number
         struct udp_hdr *scion_udp_hdr =
             (struct udp_hdr *)((uint8_t *)sch + sch->headerLen);
-        udp_hdr->dst_port = scion_udp_hdr->dst_port;
-        printf("udp dport=%d\n", ntohs(udp_hdr->dst_port));
+        udp_hdr->dst_port = htons(SCION_UDP_EH_DATA_PORT);
     }
 
     send_packet(m, port_map[dpdk_rx_port].local);
 }
 
-static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
-        uint32_t ts)
+static inline uint8_t verify_of(uint8_t *buf, int ingress)
 {
 #ifndef VERIFY_OF
     return 1;
@@ -948,10 +917,23 @@ static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
 
 #define MAC_LEN 3
 
+    RTE_LOG(DEBUG, HSR, "verify_of\n");
+
     unsigned char input[16];
     unsigned char mac[16];
 
-    RTE_LOG(DEBUG, HSR, "verify_of\n");
+    uint8_t *iof = get_current_iof(buf);
+    uint8_t *hof = get_current_hof(buf);
+    uint8_t *prev_hof = get_hof_ver(buf, ingress);
+
+    uint32_t ts = IOF_TS(iof);
+
+    time_t current = time(NULL);
+    if (current > ts + HOF_EXP_TIME(hof) * EXP_TIME_UNIT) {
+        RTE_LOG(DEBUG, HSR, "OF Expired: %ld / (%d + %d * %d)\n",
+                current, ts, HOF_EXP_TIME(hof), EXP_TIME_UNIT);
+        return 0;
+    }
 
     // setup input vector
     // rte_mov32 ((void*)input, (void *)hof+1); //copy exp_type and
@@ -960,14 +942,14 @@ static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
     // info field (7bytes)
     // rte_mov32 ((void*)input+11, (void*)&ts);
 
-    rte_memcpy((void *)input, (void *)hof + 1,
-            4); // copy exp_type and  ingress/egress IF (4bytes)
+    // copy exp_type and  ingress/egress IF (4bytes)
+    rte_memcpy(input, hof + 1, 4);
     if(prev_hof != 0)
-        rte_memcpy((void *)input + 4, (void *)prev_hof + 1,
-                7); // copy previous OF except info field (7bytes)
+        // copy previous OF except info field (7bytes)
+        rte_memcpy(input + 4, prev_hof + 1, 7);
     else
-        memset((void *)input + 4, 0, sizeof(HopOpaqueField) -1);
-    rte_memcpy((void *)input + 11, (void *)&ts, 4);
+        memset(input + 4, 0, SCION_OF_LEN - 1);
+    rte_memcpy(input + 11, &ts, 4);
 
     // pkcs7_padding
     input[15] = 1;
@@ -982,8 +964,7 @@ static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
     //  printf("%02x", mac[i]);
     // printf("\n");
 
-    if (memcmp((void *)hof + 5, &mac,
-                MAC_LEN)) { // (void *)hof + 5 is address of mac.
+    if (memcmp(hof + 5, &mac, MAC_LEN)) { // hof + 5 is address of mac.
         return 1;
     } else {
         RTE_LOG(WARNING, HSR, "invalid MAC\n");
@@ -991,316 +972,6 @@ static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
         // TODO DEBUG, currently disable MAC check
         return 1;
     }
-}
-
-static inline void handle_ingress_xovr(struct rte_mbuf *m,
-        uint8_t dpdk_rx_port)
-{
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "handle ingress xovr\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-    RTE_LOG(DEBUG, HSR, "iof->info %d\n", iof->info);
-
-    if (iof->info >> 1 == OFT_SHORTCUT) {
-        ingress_shortcut_xovr(m, dpdk_rx_port);
-    } else if (iof->info >> 1 == OFT_INTRA_ISD_PEER ||
-            iof->info >> 1 == OFT_INTER_ISD_PEER) {
-        ingress_peer_xovr(m, dpdk_rx_port);
-    } else if (iof->info >> 1 == OFT_CORE) {
-        ingress_core_xovr(m, dpdk_rx_port);
-    } else {
-        RTE_LOG(DEBUG, HSR, "Invalid iof->info %d\n", iof->info);
-    }
-}
-
-static inline void ingress_shortcut_xovr(struct rte_mbuf *m,
-        uint8_t dpdk_rx_port)
-{
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "ingress shortcut xovr\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    prev_hof = hof + 1;
-    if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-        return;
-    }
-
-    // switch to next segment
-    sch->currentIOF = sch->currentOF + sizeof(HopOpaqueField) * 2;
-    sch->currentOF += sizeof(HopOpaqueField) * 4;
-
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    if (INGRESS_IF(hof) == 0 && is_last_path_of(sch)) {
-        prev_hof = hof - 1;
-        if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-            return;
-        }
-
-        deliver(m, DATA_PACKET, dpdk_rx_port);
-    } else {
-        send_ingress(m, EGRESS_IF(hof), dpdk_rx_port);
-    }
-}
-static inline void ingress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port)
-{
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "ingress peer xovr\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    uint16_t fwd_if;
-    if (is_on_up_path(iof)) {
-        prev_hof = hof + 2;
-        fwd_if = INGRESS_IF(hof + 1);
-    } else {
-        prev_hof = hof + 1;
-        fwd_if = EGRESS_IF(hof + 1);
-    }
-
-    if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-        return;
-    }
-
-    sch->currentOF += sizeof(HopOpaqueField);
-
-    if (is_last_path_of(sch))
-        deliver(m, DATA_PACKET, dpdk_rx_port);
-    else
-        send_ingress(m, fwd_if, dpdk_rx_port);
-}
-static inline void ingress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port)
-{
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "ingress core xovr\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    uint32_t fwd_if;
-    if (is_on_up_path(iof)) {
-        prev_hof = NULL;
-    } else {
-        prev_hof = hof - 1;
-    }
-
-    if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-        return;
-    }
-
-    if (is_last_path_of(sch))
-        deliver(m, DATA_PACKET, dpdk_rx_port);
-    else {
-        // Switch to next path segment
-        sch->currentIOF = sch->currentOF + sizeof(HopOpaqueField);
-        sch->currentOF += sizeof(HopOpaqueField) * 2;
-        iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-        hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-
-        if (is_on_up_path(iof)) {
-            send_ingress(m, INGRESS_IF(hof), dpdk_rx_port);
-        } else {
-            send_ingress(m, EGRESS_IF(hof), dpdk_rx_port);
-        }
-    }
-}
-
-static inline void ingress_normal_forward(struct rte_mbuf *m,
-        uint8_t dpdk_rx_port)
-{
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "ingress normal forward\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    printf("Ingress %d, Egress %d\n", INGRESS_IF(hof), EGRESS_IF(hof));
-    uint16_t next_ifid;
-    if (is_on_up_path(iof)) {
-        next_ifid = INGRESS_IF(hof);
-        prev_hof = hof + 1;
-    } else {
-        next_ifid = EGRESS_IF(hof);
-        prev_hof = hof - 1;
-    }
-
-    printf("Next ifid %d\n", next_ifid);
-
-    if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-        return;
-    }
-
-    if (next_ifid == 0 && is_last_path_of(sch)) {
-        deliver(m, DATA_PACKET, dpdk_rx_port);
-    } else {
-        send_ingress(m, next_ifid, dpdk_rx_port);
-    }
-}
-
-static inline void handle_egress_xovr(struct rte_mbuf *m,
-        uint8_t dpdk_rx_port)
-{
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "handle egress xovr\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    if (iof->info >>1 == OFT_SHORTCUT) {
-        egress_shortcut_xovr(m, dpdk_rx_port);
-    } else if (iof->info >>1 == OFT_INTRA_ISD_PEER ||
-            iof->info  >>1== OFT_INTER_ISD_PEER) {
-        egress_peer_xovr(m, dpdk_rx_port);
-    } else if (iof->info  >>1== OFT_CORE) {
-        egress_core_xovr(m, dpdk_rx_port);
-    } else {
-        // invalid OF
-        RTE_LOG(DEBUG, HSR, "Invalid iof->info %d\n", iof->info);
-    }
-}
-
-static inline void egress_shortcut_xovr(struct rte_mbuf *m,
-        uint8_t dpdk_rx_port)
-{
-    RTE_LOG(DEBUG, HSR, "egress_shortcut_xovr\n");
-    egress_normal_forward(m, dpdk_rx_port);
-}
-
-static inline void egress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port)
-{
-    struct ether_hdr *eth_hdr;
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "egress_peer_xovr \n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    if (is_on_up_path(iof)) {
-        prev_hof = hof - 1;
-        if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-            return;
-        }
-
-        // Switch to next segment
-        sch->currentIOF = sch->currentOF + sizeof(HopOpaqueField) * 2;
-        sch->currentOF += sizeof(HopOpaqueField) * 4;
-    } else {
-        prev_hof = hof - 2;
-        if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-            return;
-        }
-        sch->currentOF += sizeof(HopOpaqueField);
-    }
-
-    send_egress(m, dpdk_rx_port);
-}
-
-static inline void egress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port)
-{
-    struct ether_hdr *eth_hdr;
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "egress core xovr\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    if (is_on_up_path(iof)) {
-        prev_hof = NULL;
-    } else {
-        prev_hof = hof + 1;
-    }
-
-    if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-        return;
-    }
-
-    sch->currentOF += sizeof(HopOpaqueField);
-    send_egress(m, dpdk_rx_port);
-}
-
-static inline void egress_normal_forward(struct rte_mbuf *m,
-        uint8_t dpdk_rx_port)
-{
-    struct ether_hdr *eth_hdr;
-    SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    HopOpaqueField *prev_hof;
-    InfoOpaqueField *iof;
-
-    RTE_LOG(DEBUG, HSR, "egress normal forward\n");
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
-    hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-    iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
-
-    // printf("Ingress %d, Egress %d\n", INGRESS_IF(hof), EGRESS_IF(hof));
-    if (is_on_up_path(iof)) {
-        prev_hof = hof + 1;
-    } else {
-        prev_hof = hof - 1;
-    }
-
-    // TODO  verify MAC
-    if (verify_of(hof, prev_hof, iof->timestamp) == 0) {
-        return;
-    }
-
-    sch->currentOF += sizeof(HopOpaqueField);
-
-    // send packet to neighbor AD's router
-    send_egress(m, dpdk_rx_port);
 }
 
 static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
@@ -1313,25 +984,52 @@ static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
     sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
                 struct ether_hdr) +
             sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    uint8_t *buf = (uint8_t *)sch;
     hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
 
     RTE_LOG(DEBUG, HSR, "forward_packet: hof->info=%#x\n", hof->info);
 
-    if (from_local_ad == 0) {
-        // Ingress entry point
-        if (hof->info == OFT_XOVR_POINT) {
-            handle_ingress_xovr(m, dpdk_rx_port);
-        } else {
-            ingress_normal_forward(m, dpdk_rx_port);
-        }
-    } else {
-        // Egress entry point
-        if (hof->info == OFT_XOVR_POINT) {
-            handle_egress_xovr(m, dpdk_rx_port);
-        } else {
-            egress_normal_forward(m, dpdk_rx_port);
-        }
+    uint32_t dst_isd_as = get_dst_isd_as(buf);
+    uint16_t dst_isd = ISD(dst_isd_as);
+    uint32_t dst_as = AD(dst_isd_as);
+
+    // TODO: verify_of()
+
+    if (!verify_of(buf, !from_local_ad)) {
+        RTE_LOG(DEBUG, HSR, "Dropping packet %x->%x due to incorrect OF\n",
+                *(uint32_t *)get_src_addr(buf), *(uint32_t *)get_dst_addr(buf));
+        return;
     }
+
+    if (dst_isd == my_isd && dst_as == my_ad) {
+        RTE_LOG(DEBUG, HSR, "Destination AS, deliver to endhost\n");
+        deliver(m, DATA_PACKET, dpdk_rx_port);
+        return;
+    }
+
+    if (from_local_ad) {
+        RTE_LOG(DEBUG, HSR, "Originated within AS, send on egress\n");
+        inc_hof_idx(buf);
+        send_egress(m, dpdk_rx_port);
+        return;
+    }
+
+    int fwd_if = calc_fwding_ingress(sch);
+    if (fwd_if == 0) {
+        RTE_LOG(DEBUG, HSR, "Cannot forward packet, fwd_if is 0\n");
+        return;
+    }
+    // TODO: revoke_if_down()
+    send_ingress(m, fwd_if, dpdk_rx_port);
+}
+
+int calc_fwding_ingress(SCIONCommonHeader *sch)
+{
+    uint8_t *iof = (uint8_t *)sch + sizeof(*sch) + sch->currentIOF;
+    uint8_t *hof = (uint8_t *)sch + sizeof(*sch) + sch->currentOF;
+    if (*hof & HOF_FLAG_XOVER)
+        inc_hof_idx((uint8_t *)sch);
+    return get_fwd_if((uint8_t *)sch);
 }
 
 int needs_local_processing(SCIONCommonHeader *sch)
@@ -1388,7 +1086,7 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
 
     // if (m->ol_flags & PKT_RX_IPV4_HDR )
     if ((m->ol_flags & PKT_RX_IPV4_HDR || eth_hdr->ether_type == ntohs(0x0800)) &&
-            (udp_hdr->dst_port == htons(SCION_UDP_PORT) ||
+            (udp_hdr->dst_port == htons(SCION_UDP_EH_DATA_PORT) ||
              udp_hdr->dst_port == htons(SCION_ROUTER_PORT))) {
 
         // from local socket?
@@ -1399,22 +1097,24 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
                         struct ether_hdr) +
                     sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
 
+        /*
         // FIXME: sample code to show extension finding works, should be deleted
         uint8_t *ptr = find_extension(sch, END_TO_END, PATH_TRANSPORT);
         if (ptr)
             printf(">>>> path transport extension found <<<<\n");
+        */
 
         if (needs_local_processing(sch)) {
             uint8_t pclass = get_payload_class(sch);
             switch (pclass) {
+            case PCB_CLASS:
+                process_pcb(m, from_local_socket, dpdk_rx_port);
+                break;
             case IFID_CLASS:
                 if (!from_local_socket)
                     process_ifid_request(m, dpdk_rx_port);
                 else
                     RTE_LOG(WARNING, HSR, "IFID packet from local socket\n");
-                break;
-            case PCB_CLASS:
-                process_pcb(m, from_local_socket, dpdk_rx_port);
                 break;
             case CERT_CLASS:
                 relay_cert_server_packet(m, from_local_socket, dpdk_rx_port);

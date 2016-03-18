@@ -218,9 +218,9 @@ class InfoOpaqueField(OpaqueField):
 
     def __str__(self):
         flags = self._pack_flags()
-        return ("%s(%sB): flags: %s, TS: %s, ISD: %s, hops: %s" %
+        return ("%s(%sB): flags: %s, TS: %s(%d), ISD: %s, hops: %s" %
                 (self.NAME, self.LEN, InfoOFFlags.to_str(flags),
-                 iso_timestamp(self.timestamp), self.isd, self.hops))
+                 iso_timestamp(self.timestamp), self.timestamp, self.isd, self.hops))
 
 
 class OpaqueFieldList(object):
