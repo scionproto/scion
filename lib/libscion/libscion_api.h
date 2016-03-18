@@ -10,7 +10,7 @@ void reverse_packet(uint8_t *buf);
 
 uint8_t * get_src_addr(uint8_t *buf);
 uint8_t get_src_len(uint8_t *buf);
-void * get_dst_addr(uint8_t *buf);
+uint8_t * get_dst_addr(uint8_t *buf);
 uint8_t get_dst_len(uint8_t *buf);
 
 void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr);

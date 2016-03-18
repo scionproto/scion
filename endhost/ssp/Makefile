@@ -21,13 +21,13 @@ SERVER_LIB=libserver.so
 all: $(CLIENT_LIB) $(SERVER_LIB)
 
 %._client.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.254"'
+	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.254"'
 
 %._server.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.253"'
+	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.253"'
 
 %.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $<
 
 $(CLIENT_LIB): $(COMMON_OBJS) $(CLIENT_OBJS) $(HDRS) $(LIBHSRC)
 	$(MAKE) -C $(LIBDIR)

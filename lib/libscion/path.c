@@ -7,49 +7,70 @@
 
 #include "scion.h"
 
+/*
+ * Reverse path
+ * buf: Pointer to start of SCION packet
+ * original: Pointer to start of path in SCION packet
+ * reverse: Buffer to store reversed path
+ * len: Length of SCION Packet
+ * return value: 0 on success, -1 on failure
+ */
 int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    /* Pointers to IOF fields in original path */
     uint8_t *iof[] = {NULL, NULL, NULL};
+    /* Number of hops in each segment of original path */
     uint8_t hops[] = {0, 0, 0};
     uint8_t *ptr = original;
     int i, j;
+    /* Number of segments in original path */
     int segments;
 
-    if (len == 0)
-        return 0;
+    if (!buf || !original || !reverse || len <= 0)
+        return -1;
 
+    /* Scan the original path */
     for (i = 0; i < 3; i++) {
         segments = i + 1;
         iof[i] = ptr;
-        hops[i] = *(uint8_t *)(ptr + SCION_OF_LEN - 1);
+        hops[i] = *(ptr + SCION_OF_LEN - 1);
         ptr = iof[i] + ((hops[i] + 1) * SCION_OF_LEN);
         if (ptr - original >= len)
             break;
     }
 
     ptr = reverse;
+    /* Fill in the reversed path, last segment first */
     for (i = segments - 1; i >= 0; i--) {
+        /* Copy IOF */
         *(uint64_t *)ptr = *(uint64_t *)iof[i];
+        /* Reverse up flag */
         *ptr ^= IOF_FLAG_UPDOWN;
         ptr += SCION_OF_LEN;
+        /* Copy HOFs in reverse order */
         for (j = hops[i]; j >= 1; j--) {
             *(uint64_t *)ptr = *(uint64_t *)(iof[i] + (SCION_OF_LEN * j));
             ptr += SCION_OF_LEN;
         }
     }
 
+    /* Update currentIOF pointer to reversed location */
     uint8_t *current_iof = sch->currentIOF + buf;
+    /* Original currentIOF pointer was at first IOF -> set to last */
     if (current_iof == iof[0])
         sch->currentIOF = iof[segments - 1] - buf;
+    /* Original currentIOF pointer was at last IOF -> set to first */
     else if (current_iof == iof[segments - 1])
         sch->currentIOF = iof[0] - buf;
 
     int of_count = segments;
     for (i = 0; i < segments; i++)
         of_count += hops[i];
+    /* Get index of current HOF in OF list */
     int hof_index = (sch->currentOF + buf - original) / SCION_OF_LEN;
     hof_index = of_count - hof_index;
+    /* Update currentOF pointer to reversed location */
     sch->currentOF = original + hof_index * SCION_OF_LEN - buf;
 
     return 0;
