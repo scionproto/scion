@@ -43,6 +43,7 @@ public:
     virtual void deregisterSelect(int index);
 
     int setStayISD(uint16_t isd);
+    int setISDWhitelist(void *data, size_t len);
 
     virtual int shutdown();
     virtual void removeDispatcher(int sock);
@@ -61,6 +62,7 @@ protected:
     pthread_cond_t         mReadCond;
     SCIONState             mState;
     std::vector<SCIONAddr> &mDstAddrs;
+    uint64_t               mNextSendByte;
 
     // dead path probing
     uint32_t               mProbeInterval;
@@ -134,7 +136,6 @@ protected:
     int                    mAckVectorOffset;
 
     // sending packets
-    uint64_t               mNextSendByte;
     PacketList             mSentPackets;
 
     // recv'ing packets

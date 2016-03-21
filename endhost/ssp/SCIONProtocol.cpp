@@ -25,6 +25,7 @@ SCIONProtocol::SCIONProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, sh
     mBlocking(true),
     mState(SCION_RUNNING),
     mDstAddrs(dstAddrs),
+    mNextSendByte(0),
     mProbeNum(0)
 {
     gettimeofday(&mLastProbeTime, NULL);
@@ -126,7 +127,20 @@ int SCIONProtocol::setStayISD(uint16_t isd)
 {
     if (!mPathManager)
         return -EPERM;
+    // Disallow chaning policy if connection is already active
+    if (mNextSendByte != 0)
+        return -EPERM;
     return mPathManager->setStayISD(isd);
+}
+
+int SCIONProtocol::setISDWhitelist(void *data, size_t len)
+{
+    if (!mPathManager)
+        return -EPERM;
+    // Disallow chaning policy if connection is already active
+    if (mNextSendByte != 0)
+        return -EPERM;
+    return mPathManager->setISDWhitelist(data, len);
 }
 
 int SCIONProtocol::shutdown()
@@ -148,7 +162,6 @@ SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short 
     mLowestPending(0),
     mHighestReceived(0),
     mAckVectorOffset(0),
-    mNextSendByte(0),
     mTotalReceived(0),
     mNextPacket(0),
     mSelectCount(0)

@@ -176,17 +176,17 @@ int SCIONSocket::setSocketOption(SCIONOption *option)
 {
     if (!option)
         return -EINVAL;
+    if (!mProtocol)
+        return -EPERM;
 
     switch (option->type) {
     case SCION_OPTION_BLOCKING:
-        if (!mProtocol)
-            return -EPERM;
         mProtocol->setBlocking(option->val);
         return 0;
     case SCION_OPTION_STAY_ISD:
-        if (!mProtocol)
-            return -EPERM;
         return mProtocol->setStayISD(option->val);
+    case SCION_OPTION_ISD_WLIST:
+        return mProtocol->setISDWhitelist(option->data, option->len);
     default:
         break;
     }

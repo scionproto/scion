@@ -38,6 +38,8 @@
 #define SCION_HOST_OFFSET 4
 #define MAX_HOST_ADDR_LEN 16
 
+#define MAX_OPTION_LEN 20
+
 #define NORMAL_OF    0x0
 #define LAST_OF      0x10
 #define PEER_XOVR    0x8
@@ -131,6 +133,7 @@ typedef struct {
 typedef enum {
     SCION_OPTION_BLOCKING = 0,
     SCION_OPTION_STAY_ISD,
+    SCION_OPTION_ISD_WLIST,
     SCION_OPTION_AVOID_ISD,
     SCION_OPTION_AVOID_AD,
 } SCIONOptionType;
@@ -138,7 +141,7 @@ typedef enum {
 typedef struct {
     SCIONOptionType type;
     int val;
-    void *data; // if int is not enough
+    char data[MAX_OPTION_LEN]; // if int is not enough
     size_t len; // len of data
 } SCIONOption;
 

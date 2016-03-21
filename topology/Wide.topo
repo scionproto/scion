@@ -28,6 +28,7 @@ links:
   - {a: 1-1, b: 1-2, ltype: ROUTING}
   - {a: 1-1, b: 2-1, ltype: ROUTING}
   - {a: 1-1, b: 2-2, ltype: ROUTING}
+  - {a: 1-1, b: 3-1, ltype: ROUTING}
   - {a: 1-1, b: 1-3, ltype: PARENT}
   - {a: 1-2, b: 2-1, ltype: ROUTING}
   - {a: 1-2, b: 1-4, ltype: PARENT}

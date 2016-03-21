@@ -15,23 +15,46 @@ void PathPolicy::setStayISD(uint16_t isd)
     mStayISD = isd;
 }
 
-bool PathPolicy::validate(Path *p)
+void PathPolicy::setISDWhitelist(std::vector<uint16_t> &isds)
 {
-    if (!mStayISD)
-        return true;
+    if (isds.empty())
+        mWhitelist.clear();
 
-    bool valid = true;
-    valid = checkStayISD(p);
-    DEBUG("path %d valid? %d\n", p->getIndex(), valid);
-    return valid;
+    for (size_t i = 0; i < isds.size(); i++)
+        mWhitelist.insert(isds[i]);
 }
 
-bool PathPolicy::checkStayISD(Path *p)
+bool PathPolicy::validate(Path *p)
+{
+    if (mStayISD && !isInISD(p))
+        goto FAIL;
+
+    if (!mWhitelist.empty() && !isWhitelisted(p))
+        goto FAIL;
+
+    return true;
+FAIL:
+    DEBUG("path %d invalid\n", p->getIndex());
+    return false;
+}
+
+bool PathPolicy::isInISD(Path *p)
 {
     std::vector<SCIONInterface> &ifs = p->getInterfaces();
     for (size_t i = 0; i < ifs.size(); i++) {
         SCIONInterface sif = ifs[i];
         if (sif.isd != mStayISD)
+            return false;
+    }
+    return true;
+}
+
+bool PathPolicy::isWhitelisted(Path *p)
+{
+    std::vector<SCIONInterface> &ifs = p->getInterfaces();
+    for (size_t i = 0; i < ifs.size(); i++) {
+        SCIONInterface sif = ifs[i];
+        if (mWhitelist.find(sif.isd) == mWhitelist.end())
             return false;
     }
     return true;
