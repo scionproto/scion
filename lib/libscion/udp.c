@@ -7,8 +7,16 @@
 
 #include "scion.h"
 
+/* 
+ * Initialize SCION UDP header
+ * buf: Pointer to start of SCION packet
+ * payload_len: Length of payload data
+ */
 void build_scion_udp(uint8_t *buf, uint16_t payload_len)
 {
+    if (buf)
+        return;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *ptr = (uint8_t *)sch + sch->headerLen;
     *(uint16_t *)ptr = htons(SCION_UDP_PORT);
@@ -21,27 +29,50 @@ void build_scion_udp(uint8_t *buf, uint16_t payload_len)
     ptr += 2;
 }
 
+/*
+ * Get payload class of SCION UDP packet
+ * buf: Pointer to start of SCION packet
+ * return value: Payload class, 0xFF on error
+ */
 uint8_t get_payload_class(uint8_t *buf)
 {
+    if (!buf)
+        return 0xFF;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return *(uint8_t *)((void *)sch + sch->headerLen + sizeof(SCIONUDPHeader));
+    return *(uint8_t *)((uint8_t *)sch + sch->headerLen + sizeof(SCIONUDPHeader));
 }
 
+/*
+ * Get payload type of SCION UDP packet
+ * buf: Pointer to start of SCION packet
+ * return value: Payload type, 0xFF on error
+ */
 uint8_t get_payload_type(uint8_t *buf)
 {
+    if (!buf)
+        return 0xFF;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return *(uint8_t *)((uint8_t *)sch + sch->headerLen + sizeof(SCIONUDPHeader) + 1);
 }
 
+/*
+ * Calculate UDP checksum
+ * Same as regular IP/UDP checksum but IP addrs replaced with SCION addrs
+ * buf: Pointer to start of SCION packet
+ * return value: Checksum value, 0 on error
+ */
 uint16_t scion_udp_checksum(uint8_t *buf)
 {
+    if (!buf)
+        return 0;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint32_t sum = 0;
     int i;
     int src_len = get_src_len(buf);
     int dst_len = get_dst_len(buf);
-    uint8_t phdr[ntohs(sch->totalLen)]; // UDP packet + pseudoheader < totalLen
-    uint8_t *ptr = phdr;
     uint16_t payload_len;
     int total;
     SCIONUDPHeader *udp_hdr;
@@ -52,15 +83,30 @@ uint16_t scion_udp_checksum(uint8_t *buf)
     // Length in UDP header includes header size, so subtract it.
     payload_len -= sizeof(SCIONUDPHeader);
 
-    memcpy(ptr, sch + 1, src_len + dst_len + 8);
-    ptr += src_len + dst_len + 8;
+    int phdr_len = src_len + dst_len + 2 * SCION_ISD_AD_LEN + 1 + 6 + payload_len;
+    if (phdr_len % 2 != 0)
+        phdr_len++;
+    uint8_t phdr[phdr_len];
+    uint8_t *ptr = phdr;
+
+    /* 
+     * Build pseudoheader:
+     * src SCION addr
+     * dst SCION addr
+     * protocol number
+     * src port, dst port, len of UDP header
+     * payload
+     */
+    memcpy(ptr, sch + 1, src_len + dst_len + 2 * SCION_ISD_AD_LEN);
+    ptr += src_len + dst_len + 2 * SCION_ISD_AD_LEN;
     *ptr = L4_UDP;
     ptr++;
-    memcpy(ptr, (uint8_t *)sch + sch->headerLen, 6);
+    memcpy(ptr, (uint8_t *)sch + sch->headerLen, 6); // src port, dst port, len
     ptr += 6;
-    memcpy(ptr, (uint8_t *)sch + sch->headerLen + 8, payload_len);
+    memcpy(ptr, (uint8_t *)sch + sch->headerLen + sizeof(SCIONUDPHeader), payload_len);
     ptr += payload_len;
 
+    /* Pad to even bytes */
     total = ptr - phdr;
     if (total % 2 != 0) {
         *ptr = 0;
@@ -68,6 +114,7 @@ uint16_t scion_udp_checksum(uint8_t *buf)
         total++;
     }
 
+    /* Calculate checksum */
     for (i = 0; i < total; i += 2)
         sum += *(uint16_t *)(phdr + i);
     sum = (sum >> 16) + (sum & 0xffff);
@@ -83,17 +130,30 @@ uint16_t scion_udp_checksum(uint8_t *buf)
     }
 }
 
+/*
+ * Calculate and update checksum field of SCION UDP header
+ * buf: Pointer to start of SCION packet
+ */
 void update_scion_udp_checksum(uint8_t *buf)
 {
+    if (!buf)
+        return;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     SCIONUDPHeader *scion_udp_hdr =
         (SCIONUDPHeader *)((uint8_t *)sch + sch->headerLen);
     scion_udp_hdr->checksum = htons(scion_udp_checksum(buf));
-    //printf("SCION UDP checksum=%x\n",scion_udp_hdr->dgram_cksum);
 }
 
+/*
+ * Reverse SCION UDP header
+ * l4ptr: Pointer to start of UDP header
+ */
 void reverse_udp_header(uint8_t *l4ptr)
 {
+    if (!l4ptr)
+        return;
+
     SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
     uint16_t src = udp->src_port;
     udp->src_port = udp->dst_port;
