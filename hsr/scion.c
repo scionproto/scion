@@ -1097,12 +1097,11 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
                         struct ether_hdr) +
                     sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
 
-        /*
-        // FIXME: sample code to show extension finding works, should be deleted
-        uint8_t *ptr = find_extension(sch, END_TO_END, PATH_TRANSPORT);
-        if (ptr)
-            printf(">>>> path transport extension found <<<<\n");
-        */
+        uint8_t *ptr = find_extension(sch, HOP_BY_HOP, SIBRA);
+        if (ptr) {
+            RTE_LOG(DEBUG, HSR, "SIBRA extension not yet supported, drop packet\n");
+            return;
+        }
 
         if (needs_local_processing(sch)) {
             uint8_t pclass = get_payload_class(sch);

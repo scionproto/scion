@@ -29,6 +29,11 @@ void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
     sch->nextHeader = next_hdr;
     sch->headerLen = sizeof(*sch);
     sch->totalLen = htons(sch->headerLen);
+
+    int addr_len = get_src_len(buf) + get_dst_len(buf) + 2 * SCION_ISD_AD_LEN;
+    addr_len = (addr_len + SCION_ADDR_PAD - 1) & ~(SCION_ADDR_PAD - 1);
+    sch->currentIOF = sizeof(SCIONCommonHeader) + addr_len;
+    sch->currentOF = sch->currentIOF;
 }
 
 /*
@@ -70,10 +75,6 @@ void init_of_idx(uint8_t *buf)
         return;
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    int addr_len = get_src_len(buf) + get_dst_len(buf) + 2 * SCION_ISD_AD_LEN;
-    addr_len = (addr_len + SCION_ADDR_PAD - 1) & ~(SCION_ADDR_PAD - 1);
-    sch->currentIOF = sizeof(SCIONCommonHeader) + addr_len;
-    sch->currentOF = sch->currentIOF;
 
     uint8_t *iof = buf + sch->currentIOF;
     uint8_t *hof = buf + sch->currentIOF + SCION_OF_LEN;
