@@ -66,14 +66,8 @@ class CoreBeaconServer(BeaconServer):
         ingress_if = pcb.if_id
         count = 0
         for core_router in self.topology.routing_edge_routers:
-            skip = False
-            for asm in pcb.ases:
-                if asm.pcbm.isd_as == core_router.interface.isd_as:
-                    # Don't propagate a Core PCB back to an AS we know has
-                    # already seen it.
-                    skip = True
-                    break
-            if skip:
+            dst_ia = core_router.interface.isd_as
+            if not self._filter_pcb(pcb, dst_ia=dst_ia):
                 continue
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
@@ -85,12 +79,10 @@ class CoreBeaconServer(BeaconServer):
             else:
                 as_marking = self._create_as_marking(ingress_if, egress_if,
                                                      new_pcb.get_timestamp())
-
             new_pcb.add_as(as_marking)
             self._sign_beacon(new_pcb)
-            beacon = self._build_packet(
-                SVCType.BS, dst_ia=core_router.interface.isd_as,
-                payload=new_pcb)
+            beacon = self._build_packet(SVCType.BS, dst_ia=dst_ia,
+                                        payload=new_pcb)
             self.send(beacon, core_router.addr)
             count += 1
         return count
@@ -153,21 +145,45 @@ class CoreBeaconServer(BeaconServer):
                 except SCIONParseError as e:
                     logging.error("Unable to parse raw pcb: %s", e)
                     continue
-            local_isd = pcb.get_first_pcbm().isd_as[0] == self.addr.isd_as[0]
-            # Before we append the PCB for further processing we need to check
-            # that it hasn't been received before. Also check that it didn't
-            # originate in this ISD and propagate through other ISDs on the way.
-            for asm in pcb.ases:
-                if ((asm.pcbm.isd_as == self.addr.isd_as) or
-                    ((asm.pcbm.isd_as[0] != self.addr.isd_as[0]) and
-                     local_isd)):
-                    count += 1
-                    break
-            else:
-                self._try_to_verify_beacon(pcb)
-                self.handle_ext(pcb)
+            if not self._filter_pcb(pcb):
+                count += 1
+                continue
+            self._try_to_verify_beacon(pcb)
+            self.handle_ext(pcb)
         if count:
-            logging.debug("Dropped %d previously seen Core Segment PCBs", count)
+            logging.debug("Dropped %d looping Core Segment PCBs", count)
+
+    def _filter_pcb(self, pcb, dst_ia=None):
+        """
+        Check that there are no AS- or ISD-level loops in the PCB.
+
+        An AS-level loop is where a beacon passes through any AS more than once.
+        An ISD-level loop is where a beacon passes through any ISD more than
+        once.
+        """
+        # Add the current ISD-AS to the end, to look for loops in the final list
+        # of hops.
+        isd_ases = [asm.pcbm.isd_as for asm in pcb.ases] + [self.addr.isd_as]
+        # If a destination ISD-AS is specified, add that as well. Used to decide
+        # when to propagate.
+        if dst_ia:
+            isd_ases.append(dst_ia)
+        isds = set()
+        last_isd = 0
+        for isd_as in isd_ases:
+            if isd_ases.count(isd_as) > 1:
+                # This ISD-AS has been seen before
+                return False
+            curr_isd = isd_as[0]
+            if curr_isd == last_isd:
+                continue
+            # Switched to a new ISD
+            last_isd = curr_isd
+            if curr_isd in isds:
+                # This ISD has been seen before
+                return False
+            isds.add(curr_isd)
+        return True
 
     def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
         """
