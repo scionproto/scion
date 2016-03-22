@@ -73,7 +73,7 @@ typedef struct {
 
 uint8_t * get_current_iof(uint8_t *buf);
 uint8_t * get_current_hof(uint8_t *buf);
-uint32_t get_fwd_if(uint8_t *buf);
+uint16_t get_fwd_if(uint8_t *buf);
 uint32_t get_ingress_egress(uint8_t *hof);
 uint16_t get_ingress_if(uint8_t *hof);
 uint16_t get_egress_if(uint8_t *hof);

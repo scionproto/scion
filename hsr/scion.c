@@ -626,13 +626,13 @@ void create_ifreq_packet(struct ether_addr *eth_addrs)
     build_scion_udp(sch, 12);
 
     /* Fill in IFStateRequest */
-    ptr = (uint8_t *)sch + sch->headerLen + 8;
+    ptr = (uint8_t *)sch + sch->headerLen + sizeof(struct udp_hdr);
     *ptr = PATH_CLASS;
     ptr++;
     *ptr = PMT_IFSTATE_REQ_TYPE;
     ptr++;
     *(uint16_t *)ptr = 0; // IFID
-    sch->totalLen = htons(sch->headerLen + 12);
+    sch->totalLen = htons(sch->headerLen + sizeof(struct udp_hdr) + 4);
 
     /* Calculate SCION UDP checksum */
     update_scion_udp_checksum(sch);
@@ -791,18 +791,8 @@ static inline void process_path_mgmt_packet(struct rte_mbuf *m,
     RTE_LOG(DEBUG, HSR, "process_path_mgmt_packet()\n");
 
     SCIONCommonHeader *sch;
-    HopOpaqueField *hof;
-    InfoOpaqueField *iof;
 
     sch = CMN_HDR(m);
-    hof = (HopOpaqueField *)((unsigned char *)sch +
-            sch->currentOF); // currentOF is an offset
-    // from
-    // common header
-    iof = (InfoOpaqueField *)((unsigned char *)sch +
-            sch->currentIOF); // currentOF is an offset
-    // from
-    // common header
 
     uint8_t payload_type = get_payload_type(sch);
     if (payload_type == PMT_IFSTATE_INFO_TYPE) {
@@ -822,7 +812,7 @@ static inline void process_path_mgmt_packet(struct rte_mbuf *m,
         return;
     }
 
-    if (from_local_ad == 0 && is_last_path_of(sch)) {
+    if (from_local_ad == 0 && sch->currentOF + SCION_OF_LEN == sch->headerLen) {
         deliver(m, PATH_MGMT_PACKET, dpdk_rx_port);
     } else {
         forward_packet(m, from_local_ad, dpdk_rx_port);

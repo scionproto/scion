@@ -7,56 +7,44 @@
 
 #include "scion.h"
 
-uint8_t is_on_up_path(InfoOpaqueField *currOF)
-{
-    // low bit of type field is used for uppath/downpath flag
-    if ((currOF->info & 0x1) == 1)
-        return 1;
-    return 0;
-}
-
-uint8_t is_last_path_of(SCIONCommonHeader *sch)
-{
-    uint8_t offset = sch->headerLen -  sizeof(HopOpaqueField);
-    //printf("is_last_path_of %d %d\n",sch->currentOF, offset);
-    return sch->currentOF == offset;
-}
-
-uint8_t is_regular(HopOpaqueField *currOF)
-{
-    if ((currOF->info & (1 << 6)) == 0)
-        return 0;
-    return 1;
-}
-
-uint8_t is_continue(HopOpaqueField *currOF)
-{
-    if ((currOF->info & (1 << 5)) == 0)
-        return 0;
-    return 1;
-}
-
-uint8_t is_xovr(HopOpaqueField *currOF)
-{
-    if ((currOF->info & (1 << 4)) == 0)
-        return 0;
-    return 1;
-}
-
+/*
+ * Get current IOF
+ * buf: Pointer to start of SCION packet
+ * return value: Pointer to current IOF, NULL on error
+ */
 uint8_t * get_current_iof(uint8_t *buf)
 {
+    if (!buf)
+        return NULL;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return buf + sch->currentIOF;
 }
 
+/*
+ * Get current HOF
+ * buf: Pointer to start of SCION packet
+ * return value: Pointer to current HOF, NULL on error
+ */
 uint8_t * get_current_hof(uint8_t *buf)
 {
+    if (!buf)
+        return NULL;
+
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return buf + sch->currentOF;
 }
 
-uint32_t get_fwd_if(uint8_t *buf)
+/*
+ * Get forwarding interface
+ * buf: Pointer to start of SCION packet
+ * return value: IFID of next hop interface, 0 on error
+ */
+uint16_t get_fwd_if(uint8_t *buf)
 {
+    if (!buf)
+        return 0;
+
     uint8_t *iof = get_current_iof(buf);
     uint8_t *hof = get_current_hof(buf);
     if (*iof & IOF_FLAG_UPDOWN)
@@ -64,8 +52,16 @@ uint32_t get_fwd_if(uint8_t *buf)
     return get_egress_if(hof);
 }
 
+/*
+ * Get ingress/egress IFIDs from HOF
+ * hof: Pointer to HOF
+ * return value: Combined ingress/egress IFIDs in hof, 0 on error
+ */
 uint32_t get_ingress_egress(uint8_t *hof)
 {
+    if (!hof)
+        return 0;
+
     uint8_t in_eg_bytes[4];
     int i;
     for (i = 0; i < 3; i++)
@@ -74,12 +70,26 @@ uint32_t get_ingress_egress(uint8_t *hof)
     return ntohl(*(uint32_t *)(in_eg_bytes));
 }
 
+/*
+ * Get ingress IFID from HOF
+ * hof: Pointer to HOF
+ * return value: Ingress IFID in hof, 0 on error
+ */
 uint16_t get_ingress_if(uint8_t *hof)
 {
+    if (!hof)
+        return 0;
     return get_ingress_egress(hof) >> 12;
 }
 
+/*
+ * Get egress IFID from HOF
+ * hof: Pointer to HOF
+ * return value: Egress IFID in hof, 0 on error
+ */
 uint16_t get_egress_if(uint8_t *hof)
 {
+    if (!hof)
+        return 0;
     return get_ingress_egress(hof) & 0xfff;
 }

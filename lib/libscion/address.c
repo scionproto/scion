@@ -10,6 +10,16 @@
 /* Host addr lengths by type */
 const int ADDR_LENS[] = {0, 4, 16, 2};
 
+/*
+ * Get src ISD_AS
+ * buf: Pointer to start of SCION packet
+ * return value: src ISD_AS value, 0 on error
+ */
+uint32_t get_src_isd_as(uint8_t *buf)
+{
+    return ntohl(*(uint32_t *)(buf + sizeof(SCIONCommonHeader)));
+}
+
 /* 
  * Get src host addr
  * buf: Pointer to start of SCION packet
@@ -36,6 +46,30 @@ uint8_t get_src_len(uint8_t *buf)
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return ADDR_LENS[SRC_TYPE(sch)];
+}
+
+/*
+ * Get dst ISD_AS
+ * buf: Pointer to start of SCION packet
+ * return value: dst ISD_AS value, 0 on error
+ */
+uint32_t get_dst_isd_as(uint8_t *buf)
+{
+    if (!buf)
+        return 0;
+
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+
+    uint8_t src_len;
+    uint8_t src_type = SRC_TYPE(sch);
+
+    if (src_type < ADDR_NONE_TYPE || src_type > ADDR_SVC_TYPE) {
+        printf("invalid src addr type: %d\n", src_type);
+        return 0;
+    }
+
+    src_len = ADDR_LENS[src_type];
+    return ntohl(*(uint32_t *)(buf + sizeof(SCIONCommonHeader) + SCION_ISD_AD_LEN + src_len));
 }
 
 /* 

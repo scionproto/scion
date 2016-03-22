@@ -14,7 +14,7 @@
  */
 void build_scion_udp(uint8_t *buf, uint16_t payload_len)
 {
-    if (buf)
+    if (!buf)
         return;
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
