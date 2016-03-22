@@ -11,7 +11,6 @@
 #define L4_TCP      6
 #define L4_UDP      17
 #define L4_SSP      152
-#define L4_RESERVED 255
 
 #define REV_TOKEN_LEN 32
 #define AD_MARKING_METADATA_LEN 8
