@@ -111,3 +111,8 @@ SIBRA_EPHEMERAL_ID_LEN = 16
 SIBRA_BW_FACTOR = 16 * 1024
 #: SIBRA max reservation index
 SIBRA_MAX_IDX = 16
+
+#: HSR addr file
+HSR_ADDR_FILE = "topology/mininet/hsr_addr.txt"
+#: HSR ID
+HSR_ID = "er1-13er1-11"

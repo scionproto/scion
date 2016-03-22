@@ -54,9 +54,9 @@ Here we assume a tiny topology.
 ## Run mininet
 In the host,
 ```
-./scion.sh topology -m -c topology/tiny.json
+./scion.sh topology -m -r -c topology/tiny.json
 topology/mininet/setup.sh (one time step for initial setup)
-topology/mininet/run_hsr.sh
+topology/mininet/run.sh -r
 ```
 
 ## Run HSR

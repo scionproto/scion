@@ -34,7 +34,7 @@ Thumbs.db
 # Python generated files #
 #########################
 __pycache__
-topology/mininet/*.pyc
+*.pyc
 
 
 # vim generated files #
@@ -79,8 +79,9 @@ endhost/ssp/test/*file
 ##########################
 tags
 
-# HSR binaries
+# HSR
 ##########################
 hsr/build
 hsr/*.json
+topology/mininet/hsr_addr.txt
 vagrant/.vagrant
