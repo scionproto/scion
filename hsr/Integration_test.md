@@ -48,15 +48,15 @@ make
 # Run mininet and HSR
 Here we assume a tiny topology.
 ```
-[AD 13 servers]-[Mininet switch for AD13]-[tap]-[HSR in virtual box(AD 13 edge router)]-[tap]-[switch]-[AD 11 edge router]-[AD 11]-[AD 12]
+[AS 13 servers]-[Mininet switch for AS13]-[tap]-[HSR in virtual box(AS 13 edge router)]-[tap]-[switch]-[AS 11 edge router]-[AS 11]-[AS 12]
 ```
 
 ## Run mininet
 In the host,
 ```
-./scion.sh topology -m -r -c topology/tiny.json
+./scion.sh topology -m -r -c topology/Tiny.topo
 topology/mininet/setup.sh (one time step for initial setup)
-topology/mininet/run.sh -r
+topology/mininet/run.sh -r (-r option specifies running with HSR)
 ```
 
 ## Run HSR
@@ -80,7 +80,7 @@ sudo exec.sh
 <!--
 
 # Modification of topology.py
-In the mininet/topology_hsr.py eth10 and eth11 are connected with virtual switch s2 and s4, respectively (subject to change - refer to Troubleshooting section).
+In the mininet/topology.py eth10 and eth11 are connected with virtual switch s2 and s4, respectively (subject to change - refer to Troubleshooting section).
 ```
     for switch in net.switches:
         # switch.setMac("0:0:0:0:1:%x"%count)
@@ -92,7 +92,7 @@ In the mininet/topology_hsr.py eth10 and eth11 are connected with virtual switch
 
 ```
 
-To disable the Python router (ER13), topology_hsr.py does not add link from/to er13.
+To disable the Python router (ER13), topology.py does not add link from/to er13.
 ```
     def addLink(self, node1, node2, params=None, intfName=None):
         #sasaki disable er13, as HSR transfers packet instead of er13
@@ -101,25 +101,25 @@ To disable the Python router (ER13), topology_hsr.py does not add link from/to e
 ```
 
 HSR does not support ARP, so hosts need to have static ARP entries.
-topology_hsr.py executes arp command to insert the ARP entries. In the following case, HSR_EGRESS_IP and HSR_LOCAL_IP are IP addresses of HSR.
+topology.py executes arp command to insert the ARP entries. In the following case, HSR_EGRESS_IP and HSR_LOCAL_IP are IP addresses of HSR.
 ```
     for host in net.hosts:
         SNIP..
         if host.name == "er1_11er1_13":
             host.setMAC("0:0:0:0:0:CC", "er1_11er1_13-1")
-        host.cmd("arp -s %s 1:2:3:4:5:6" % HSR_EGRESS_IP)
-        host.cmd("arp -s %s 1:2:3:4:5:7" % HSR_LOCAL_IP)
+        host.cmd("arp -s %s 1:2:3:4:5:6" % hsr_external_ip)
+        host.cmd("arp -s %s 1:2:3:4:5:7" % hsr_internal_ip)
 
 ```
 
 
-Moreover, topology_hsr.py executes following two commands.
-```sudo  arp -s 100.64.0.25  1:2:3:4:5:6``` (for sending ping packet to HSR)
-```sudo ifconfig s1 hw ether 0:0:0:0:1:03``` (to fix the MAC address of switch s1. HSR uses this MAC address to send packet to end2end.py)
-Note that mininet may change switch assignment, so please check which switch is for AD 13.
+Moreover, topology.py executes following two commands.
+```sudo  arp -s [hsr_internal_ip] 1:2:3:4:5:6``` (for sending ping packet to HSR)
+```sudo ifconfig s4 hw ether 0:0:0:0:1:03``` (to fix the MAC address of switch s4. HSR uses this MAC address to send packet to end2end.py)
+Note that mininet may change switch assignment, so please check which switch is for AS 13.
 -->
 Finally, do end2end test.
-```PYTHONPATH=. python3 test/integration/end2end_test.py -m 1,13 1,12```
+```PYTHONPATH=. python3 test/integration/end2end_test.py -m 1-13 1-12```
 
 # Trouble shooting
 * Check that pox controller is installed in .local/bin.
@@ -130,12 +130,6 @@ $ which pox
 
 * Start mininet first. Then start virtual box.
 Sometimes, HSR in the VM can not send packet. In this case, please start mininet first, then start Virtual Box (vagrant).
-* Check IP address setting in topology/mininet/topology_hsr.py
-```
-HSR_EGRESS_IP = "100.64.0.8"
-HSR_LOCAL_IP = "100.64.0.18"
-```
-You can see these IPs in gen/ISD1/AD13/er1-13er1-11/topology.conf.
 
 * Check MAC addresses of servers that are hardcoded in scion.c
 ```
@@ -160,15 +154,15 @@ bs1_13_1-0 Link encap:Ethernet  HWaddr 00:00:00:00:00:08
 
 
 * Check static ARP entries of mininet hosts (HSR local/egress interfaces in topology.py)
-* Check a AD 13 switch MAC address in topology_hsr.py.
+* Check a AS 13 switch MAC address in topology.py.
 ```
-os.system('sudo ifconfig s1 hw ether 0:0:0:0:1:03')  # HSR MAC address
+os.system('sudo ifconfig s4 hw ether 0:0:0:0:1:03')  # HSR MAC address
 ```
-Mininet sometimes changes switch assignment, so it may not be s1.
+Mininet sometimes changes switch assignment, so it may not be s4.
 
 * Check NICs(eth10 and eth11) are connected with mininet switch.
-In below case the switch of AD 13 is s1, thus eth11 is connected with s1.
-Moreover, s4 is the switch between edge routers of AD11/AD13, thus eth10 is connected with s4.
+In below case the switch of AS 13 is s1, thus eth11 is connected with s1.
+Moreover, s4 is the switch between edge routers of AS11/AS13, thus eth10 is connected with s4.
 ```
 *** Starting CLI:
 mininet> net
@@ -196,7 +190,7 @@ s4 lo:  s4-eth1:er1_11er1_13-1 eth10:
 c0
 ```
 
-In case that switch assignment is different, you may need to modify the following line in topology_hsr.py
+In case that switch assignment is different, you may need to modify the following line in topology.py
 ```
         if switch.name == "s4":
             Intf('eth10', node=switch)
