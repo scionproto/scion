@@ -66,7 +66,21 @@
 #define MAX_NUM_DNS_SERVERS 10
 #define MAX_IFID (2 << 12)
 
+#define DPDK_EGRESS 0
+#define DPDK_LOCAL 1
+
 /// definition of functions
+int scion_init(int argc, char **argv);
+cJSON * parse_file(char *file);
+int parse_internal_addr(cJSON *router);
+int parse_interface(cJSON *router);
+int get_servers(cJSON *root);
+int get_servers_by_type(cJSON *root, char *name, uint32_t *arr);
+uint32_t parse_ip(cJSON *addr_obj);
+uint32_t parse_isd(cJSON *addr_obj);
+uint32_t parse_as(cJSON *addr_obj);
+void setup_mac_addrs();
+
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
 static inline int send_packet(struct rte_mbuf *m, uint8_t port);
 
@@ -74,6 +88,11 @@ static inline void deliver(struct rte_mbuf *m, uint32_t pclass,
                            uint8_t dpdk_rx_port);
 static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
                                   uint8_t dpdk_rx_port);
+
+#define ETH_HDR(m) (struct ether_hdr *)(rte_pktmbuf_mtod((m), uint8_t *))
+#define IPV4_HDR(m) (struct ipv4_hdr *)(ETH_HDR(m) + 1)
+#define UDP_HDR(m) (struct udp_hdr *)(IPV4_HDR(m) + 1)
+#define CMN_HDR(m) (struct SCIONCommonHeader *)(UDP_HDR(m) + 1)
 
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
 int beacon_server_count;
@@ -119,6 +138,240 @@ uint32_t ifid2addr[MAX_IFID];
 InterfaceState if_states[MAX_IFID];
 
 struct keystruct rk; // AES-NI key structure
+
+/* Begin router initialization code */
+// TODO configurations of destination MAC addresses
+int scion_init(int argc, char **argv)
+{
+    cJSON *root;
+    cJSON *router_root, *router;
+    cJSON *addr_obj;
+    cJSON *key_obj;
+    int ret = -1;
+
+    root = parse_file(argv[1]);
+    if (root == NULL) {
+        fprintf(stderr, "failed to parse topology file\n");
+        return -1;
+    }
+    /* Get own interface info */
+    router_root = cJSON_GetObjectItem(root, "EdgeRouters");
+    if (router_root == NULL) {
+        fprintf(stderr, "no edge routers specified in topology file\n");
+        goto JSON;
+    }
+    for (router = router_root->child; router != NULL; router = router->next) {
+        if (strcmp(router->string, argv[0]) != 0)
+            continue;
+        /* Get internal address */
+        ret = parse_internal_addr(router);
+        if (ret < 0) {
+            fprintf(stderr, "failed to parse internal addr\n");
+            goto JSON;
+        }
+        /* Get external interface address, IFID, and neighbor info */
+        ret = parse_interface(router);
+        if (ret < 0) {
+            fprintf(stderr, "failed to parse interface addrs\n");
+            goto JSON;
+        }
+        break;
+    }
+    if (router == NULL) {
+        /* Went through loop without finding entry for this router */
+        fprintf(stderr, "router not found in topology file\n");
+        goto JSON;
+    }
+
+    ret = get_servers(root);
+    if (ret < 0) {
+        fprintf(stderr, "no DNS servers available\n");
+        goto JSON;
+    }
+
+    /* Get ISD/AD */
+    addr_obj = cJSON_GetObjectItem(root, "ISD_AS");
+    if (addr_obj == NULL) {
+        fprintf(stderr, "no ISD info\n");
+        goto JSON;
+    }
+    my_isd = parse_isd(addr_obj);
+    my_ad = parse_as(addr_obj);
+
+    /* Done with topology file */
+    cJSON_Delete(root);
+
+    /* Parse config file */
+    root = parse_file(argv[2]);
+    if (!root) {
+        fprintf(stderr, "failed to parse config file\n");
+        return -1;
+    }
+    key_obj = cJSON_GetObjectItem(root, "MasterASKey");
+    if (key_obj == NULL) {
+        fprintf(stderr, "no master key in config file\n");
+        goto JSON;
+    }
+    unsigned char *key = key_obj->valuestring;
+    if (key == NULL) {
+        fprintf(stderr, "invalid master key\n");
+        goto JSON;
+    }
+    // AES-NI key setup
+    rk.roundkey = aes_assembly_init(key);
+    rk.iv = malloc(16 * sizeof(char));
+
+    //TODO: Parse IFID-addr info of other routers in AS
+    ifid2addr[1]=IPv4(100,64,0,12);
+
+    setup_mac_addrs();
+
+    // DPDK setting
+    port_map[0].egress = DPDK_EGRESS;
+    port_map[0].local = DPDK_LOCAL;
+    port_map[1].egress = DPDK_EGRESS;
+    port_map[1].local = DPDK_LOCAL;
+
+    memset(if_states, 0, sizeof(if_states));
+
+    return 0;
+JSON:
+    cJSON_Delete(root);
+    return -1;
+}
+
+cJSON * parse_file(char *file)
+{
+    /* Parse topology file */
+    /* TODO: YML parser? */
+    int pagesize = getpagesize();
+    int fd = open(file, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "failed to open topology file\n");
+        return NULL;
+    }
+    char *map = (char *)mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        fprintf(stderr, "failed to map topology file\n");
+        close(fd);
+        return NULL;
+    }
+    cJSON *root = cJSON_Parse(map);
+    printf("parsed file %s: %p\n", file, root);
+
+    munmap(map, pagesize);
+    close(fd);
+
+    return root;
+}
+
+int parse_internal_addr(cJSON *router)
+{
+    /* Get internal address */
+    cJSON *addr_obj = cJSON_GetObjectItem(router, "Addr");
+    if (!addr_obj) {
+        fprintf(stderr, "no address for router\n");
+        return -1;
+    }
+    internal_ip[0] = parse_ip(addr_obj);
+    internal_ip[1] = internal_ip[0];
+    if (internal_ip[0] == 0)
+        return -1;
+    return 0;
+}
+
+int parse_interface(cJSON *router)
+{
+    /* Get outgoing interface address */
+    cJSON *interface = cJSON_GetObjectItem(router, "Interface");
+    if (interface == NULL) {
+        fprintf(stderr, "no interface for router\n");
+        return -1;
+    }
+    cJSON *addr_obj = cJSON_GetObjectItem(interface, "Addr");
+    if (addr_obj == NULL) {
+        fprintf(stderr, "no address for interface\n");
+        return -1;
+    }
+    interface_ip[0] = parse_ip(addr_obj);
+    interface_ip[1] = interface_ip[0];
+    if (interface_ip[0] == 0)
+        return -1;
+
+    /* Get neighbor interface */
+    addr_obj = cJSON_GetObjectItem(interface, "ToAddr");
+    if (addr_obj == NULL) {
+        fprintf(stderr, "no neighbor address\n");
+        return -1;
+    }
+    neighbor_ip[0] = parse_ip(addr_obj);
+    if (neighbor_ip[0] == 0) {
+        fprintf(stderr, "invalid neighbor address\n");
+        return -1;
+    }
+    neighbor_ip[1] = neighbor_ip[0];
+    addr_obj = cJSON_GetObjectItem(interface, "ISD_AS");
+    if (addr_obj == NULL) {
+        fprintf(stderr, "no ISD_AS specified for neighbor\n");
+        return -1;
+    }
+    neighbor_isd = parse_isd(addr_obj);
+    neighbor_ad = parse_as(addr_obj);
+
+    /* Get IFID */
+    cJSON *ifid_obj = cJSON_GetObjectItem(interface, "IFID");
+    if (ifid_obj == NULL) {
+        fprintf(stderr, "no IFID specified\n");
+        return -1;
+    }
+    printf("MY IFID %d\n", ifid_obj->valueint);
+    my_ifid[0] = ifid_obj->valueint;
+    my_ifid[1] = my_ifid[0];
+
+    return 0;
+}
+
+int get_servers(cJSON *root)
+{
+    /* Get DNS servers */
+    dns_server_count = get_servers_by_type(root, "DNSServers", dns_servers);
+    if (dns_server_count == 0) {
+        fprintf(stderr, "no valid DNS servers");
+        return -1;
+    }
+
+    /* Get Beacon servers */
+    beacon_server_count = get_servers_by_type(root, "BeaconServers", beacon_servers);
+
+    /* Get Certificate servers */
+    cert_server_count = get_servers_by_type(root, "CertificateServers", certificate_servers);
+
+    /* Get Path servers */
+    path_server_count = get_servers_by_type(root, "PathServers", path_servers);
+
+    return 0;
+}
+
+int get_servers_by_type(cJSON *root, char *name, uint32_t *arr)
+{
+    cJSON *server_root, *server;
+    cJSON *addr_obj;
+    int i = 0;
+
+    server_root = cJSON_GetObjectItem(root, name);
+    if (server_root) {
+        for (server = server_root->child; server != NULL; server = server->next) {
+            addr_obj = cJSON_GetObjectItem(server, "Addr");
+            if (addr_obj == NULL)
+                continue;
+            arr[i] = parse_ip(addr_obj);
+            if (arr[i] == 0)
+                continue;
+            i++;
+        }
+    }
+    return i;
+}
 
 /* TODO: Handle IPv6 */
 uint32_t parse_ip(cJSON *addr_obj)
@@ -167,220 +420,22 @@ uint32_t parse_as(cJSON *addr_obj)
     return as;
 }
 
-int get_servers(cJSON *root, char *name, uint32_t *arr)
+void setup_mac_addrs()
 {
-    cJSON *server_root, *server;
-    cJSON *addr_obj;
-    int i = 0;
-
-    server_root = cJSON_GetObjectItem(root, name);
-    if (server_root) {
-        for (server = server_root->child; server != NULL; server = server->next) {
-            addr_obj = cJSON_GetObjectItem(server, "Addr");
-            if (addr_obj == NULL)
-                continue;
-            arr[i] = parse_ip(addr_obj);
-            if (arr[i] == 0)
-                continue;
-            i++;
-        }
-    }
-    return i;
-}
-
-// TODO configurations of destination MAC addresses
-int scion_init(int argc, char **argv)
-{
-    int router_id;
-    char *map;
-    int fd;
-    int pagesize;
-    cJSON *root;
-    cJSON *router_root, *router;
-    cJSON *server_rott, *server;
-    cJSON *addr_obj;
-    cJSON *key_obj;
-    int i;
-    int ret = -1;
-
-    pagesize = getpagesize();
-
-    /* Parse topology file */
-
-    fd = open(argv[1], O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "failed to open topology file\n");
-        goto FAIL;
-    }
-    map = (char *)mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
-    if (map == MAP_FAILED) {
-        fprintf(stderr, "failed to map topology file\n");
-        goto CLOSE_FD;
-    }
-    root = cJSON_Parse(map);
-    if (root == NULL) {
-        fprintf(stderr, "failed to parse topology file\n");
-        goto UNMAP;
-    }
-    /* Get own interface info */
-    router_root = cJSON_GetObjectItem(root, "EdgeRouters");
-    if (router_root == NULL) {
-        fprintf(stderr, "no edge routers specified in topology file\n");
-        goto JSON;
-    }
-    for (router = router_root->child; router != NULL; router = router->next) {
-        if (!strcmp(router->string, argv[0])) {
-            cJSON *interface, *ifid_obj;
-            char *ifid;
-            /* Get internal address */
-            addr_obj = cJSON_GetObjectItem(router, "Addr");
-            if (!addr_obj) {
-                fprintf(stderr, "no address for router\n");
-                goto JSON;
-            }
-            internal_ip[0] = parse_ip(addr_obj);
-            internal_ip[1] = internal_ip[0];
-            if (internal_ip[0] == 0)
-                goto JSON;
-
-            /* Get outgoing interface address */
-            interface = cJSON_GetObjectItem(router, "Interface");
-            if (interface == NULL) {
-                fprintf(stderr, "no interface for router\n");
-                goto JSON;
-            }
-            addr_obj = cJSON_GetObjectItem(interface, "Addr");
-            if (addr_obj == NULL) {
-                fprintf(stderr, "no address for interface\n");
-                goto JSON;
-            }
-            interface_ip[0] = parse_ip(addr_obj);
-            interface_ip[1] = interface_ip[0];
-            if (interface_ip[0] == 0)
-                goto JSON;
-
-            /* Get neighbor interface */
-            addr_obj = cJSON_GetObjectItem(interface, "ToAddr");
-            if (addr_obj == NULL) {
-                fprintf(stderr, "no neighbor address\n");
-                goto JSON;
-            }
-            neighbor_ip[0] = parse_ip(addr_obj);
-            if (neighbor_ip[0] == 0) {
-                fprintf(stderr, "invalid neighbor address\n");
-                goto JSON;
-            }
-            neighbor_ip[1] = neighbor_ip[0];
-            addr_obj = cJSON_GetObjectItem(interface, "ISD_AS");
-            if (addr_obj == NULL) {
-                fprintf(stderr, "no ISD specified for neighbor\n");
-                goto JSON;
-            }
-            neighbor_isd = parse_isd(addr_obj);
-            neighbor_ad = parse_as(addr_obj);
-
-            /* Get IFID */
-            ifid_obj = cJSON_GetObjectItem(interface, "IFID");
-            if (ifid_obj == NULL) {
-                fprintf(stderr, "no IFID specified\n");
-                goto JSON;
-            }
-            printf("MY IFID %d\n", ifid_obj->valueint);
-            my_ifid[0] = ifid_obj->valueint;
-            my_ifid[1] = my_ifid[0];
-            break;
-        }
-    }
-    if (router == NULL) {
-        fprintf(stderr, "router not found in topology file\n");
-        goto JSON;
-    }
-
-    /* Get DNS servers */
-    dns_server_count = get_servers(root, "DNSServers", dns_servers);
-    if (dns_server_count == 0) {
-        fprintf(stderr, "no valid DNS servers");
-        goto JSON;
-    }
-
-    /* Get Beacon servers */
-    beacon_server_count = get_servers(root, "BeaconServers", beacon_servers);
-
-    /* Get Certificate servers */
-    cert_server_count =
-        get_servers(root, "CertificateServers", certificate_servers);
-
-    /* Get Path servers */
-    path_server_count = get_servers(root, "PathServers", path_servers);
-
-    /* Get ISD/AD */
-    addr_obj = cJSON_GetObjectItem(root, "ISD_AS");
-    if (addr_obj == NULL) {
-        fprintf(stderr, "no ISD info\n");
-        goto JSON;
-    }
-    my_isd = parse_isd(addr_obj);
-    my_ad = parse_as(addr_obj);
-
-    /* Done with topology file */
-    cJSON_Delete(root);
-    munmap(map, pagesize);
-    close(fd);
-
-    // second router
-    /*
-       neighbor_ip[2] = neighbor_ip[3] =
-       rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
-       port_map[2].egress = 2;
-       port_map[2].local = 3;
-       port_map[3].egress = 2;
-       port_map[3].local = 3;
-       my_ifid[2] = my_ifid[3] = 345; // ifid of NIC 2 and NIC 3 is 345
-       */
-
-    /* Parse config file */
-    fd = open(argv[2], O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "failed to open config file\n");
-        goto FAIL;
-    }
-    map = (char *)mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
-    if (map == MAP_FAILED) {
-        fprintf(stderr, "failed to map config file\n");
-        goto CLOSE_FD;
-    }
-    root = cJSON_Parse(map);
-    if (root == NULL) {
-        fprintf(stderr, "failed to parse config file\n");
-        goto UNMAP;
-    }
-    key_obj = cJSON_GetObjectItem(root, "MasterASKey");
-    if (key_obj == NULL) {
-        fprintf(stderr, "no master key in config file\n");
-        goto JSON;
-    }
-    unsigned char *key = key_obj->valuestring;
-    if (key == NULL) {
-        fprintf(stderr, "invalid master key\n");
-        goto JSON;
-    }
-
-    //FIXME
-    ifid2addr[1]=IPv4(100,64,0,12);
-
     // FIXME hardcoded MAC addresses
     // for integration test
     // unsigned char mac_egress[]={0x5a,0xf9,0x47,0x5a,0x67,0xb4};
     unsigned char mac_egress[] = {0x00, 0x00, 0x00,
         0x00, 0x00, 0xcc}; // mac address of er11-13
     unsigned char mac_ingress[] = {0x0a, 0x00, 0x27, 0x00, 0x00, 0x02};
+    int i;
     for (i = 0; i < MAX_DPDK_PORT; i++) {
         ether_addr_copy(mac_egress, neighbor_mac[i].addr_bytes);
         ether_addr_copy(mac_ingress, internal_router_mac[i].addr_bytes);
     }
 
-#ifdef SERVER_MAC_ADDRESS // in case that this router is directly connected with
-    // servers.
+#ifdef SERVER_MAC_ADDRESS
+    // in case that this router is directly connected with servers
     unsigned char mac_beacon[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x8};
     unsigned char mac_cert[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x6};
     unsigned char mac_path[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x9};
@@ -401,40 +456,16 @@ int scion_init(int argc, char **argv)
             neighbor_mac[0].addr_bytes[3], neighbor_mac[0].addr_bytes[4],
             neighbor_mac[0].addr_bytes[5]);
 
-    // AES-NI key setup
-    rk.roundkey = aes_assembly_init(key);
-    rk.iv = malloc(16 * sizeof(char));
-
-    // DPDK setting
-
-    port_map[0].egress = 0;
-    port_map[0].local = 1;
-    port_map[1].egress = 0;
-    port_map[1].local = 1;
-
-    memset(if_states, 0, sizeof(if_states));
-
-    ret = 0;
-
-JSON:
-    cJSON_Delete(root);
-UNMAP:
-    munmap(map, pagesize);
-CLOSE_FD:
-    close(fd);
-FAIL:
-    return ret;
 }
+
+/* End router initialization code */
 
 static inline int send_packet(struct rte_mbuf *m, uint8_t port)
 {
     struct ipv4_hdr *ipv4_hdr;
     struct udp_hdr *udp_hdr;
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
+    ipv4_hdr = IPV4_HDR(m);
+    udp_hdr = UDP_HDR(m);
 
     // update checksum
     // TODO hardware offloading
@@ -450,15 +481,9 @@ static inline int send_packet(struct rte_mbuf *m, uint8_t port)
 // send a packet to neighbor AD router
 static inline int send_egress(struct rte_mbuf *m, uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr;
-    struct ipv4_hdr *ipv4_hdr;
-    struct udp_hdr *udp_hdr;
-    eth_hdr = (struct eth_hdr *)(rte_pktmbuf_mtod(m, unsigned char *));
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
 
     // Update source IP address
     ipv4_hdr->src_addr = interface_ip[port_map[dpdk_rx_port].egress];
@@ -478,15 +503,9 @@ static inline int send_egress(struct rte_mbuf *m, uint8_t dpdk_rx_port)
 static inline int send_ingress(struct rte_mbuf *m, uint32_t next_ifid,
         uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr;
-    struct ipv4_hdr *ipv4_hdr;
-    struct udp_hdr *udp_hdr;
-    eth_hdr = (struct eth_hdr *)(rte_pktmbuf_mtod(m, unsigned char *));
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
 
     if (next_ifid != 0) {
         // Update source IP address
@@ -540,10 +559,7 @@ void create_ifid_packet(struct ether_addr *eth_addrs)
     build_lower_layers(ifid_pkt, eth_addrs, &dst_mac, neighbor_ip[0], size);
 
     /* Fill in SCION common header */
-    sch =
-        (SCIONCommonHeader *)(rte_pktmbuf_mtod(ifid_pkt, unsigned char *)+sizeof(
-                    struct ether_hdr) +
-                sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    sch = CMN_HDR(ifid_pkt);
     build_cmn_hdr(sch, ADDR_IPV4_TYPE, ADDR_SVC_TYPE, L4_UDP);
 
     /* Fill in SCION addresses */
@@ -595,10 +611,7 @@ void create_ifreq_packet(struct ether_addr *eth_addrs)
     build_lower_layers(ifreq_pkt, eth_addrs, &dst_mac, 0, size);
 
     /* Fill in SCION common header */
-    sch =
-        (SCIONCommonHeader *)(rte_pktmbuf_mtod(ifreq_pkt, unsigned char *)+sizeof(
-                    struct ether_hdr) +
-                sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    sch = CMN_HDR(ifreq_pkt);
     build_cmn_hdr(sch, ADDR_IPV4_TYPE, ADDR_SVC_TYPE, L4_UDP);
 
     /* Fill in SCION addresses */
@@ -628,9 +641,8 @@ void create_ifreq_packet(struct ether_addr *eth_addrs)
 void request_ifstates()
 {
     int i;
-    struct ether_hdr *eth_hdr = rte_pktmbuf_mtod(ifreq_pkt, struct ether_hdr *);
-    struct ipv4_hdr *ip = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
-                ifreq_pkt, unsigned char *)+sizeof(struct ether_hdr));
+    struct ether_hdr *eth_hdr = ETH_HDR(ifreq_pkt);
+    struct ipv4_hdr *ip = IPV4_HDR(ifreq_pkt);
 
     // Update source IP address
     ip->src_addr = internal_ip[port_map[0].local]; // FIXME
@@ -651,24 +663,14 @@ void request_ifstates()
 static inline void process_ifid_request(struct rte_mbuf *m,
         uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr;
-    struct ipv4_hdr *ipv4_hdr;
-    struct udp_hdr *udp_hdr;
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
     IFIDHeader *ifid_hdr;
 
     RTE_LOG(DEBUG, HSR, "process ifid request\n");
 
-    eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
-
-    SCIONCommonHeader *sch =
-        (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                    struct ether_hdr) +
-                sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    SCIONCommonHeader *sch = CMN_HDR(m);
 
     ifid_hdr = (IFIDHeader *)((void *)sch + sch->headerLen +
             sizeof(struct udp_hdr) + 2); //+2 for class type
@@ -700,33 +702,17 @@ static inline void process_ifid_request(struct rte_mbuf *m,
 static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs,
         uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr;
-    struct ipv4_hdr *ipv4_hdr;
-    struct udp_hdr *udp_hdr;
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
     PathConstructionBeacon *pcb;
 
     RTE_LOG(DEBUG, HSR, "process pcb\n");
 
-    eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
-    //  pcb = (PathConstructionBeacon *)(rte_pktmbuf_mtod(m, unsigned char
-    //  *)+sizeof(
-    //                                       struct ether_hdr) +
-    //                                   sizeof(struct ipv4_hdr) +
-    //                                   sizeof(struct udp_hdr));
-
     // now PCB is on the SCION UDP
-    SCIONCommonHeader *sch =
-        (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                    struct ether_hdr) +
-                sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    SCIONCommonHeader *sch = CMN_HDR(m);
     pcb = (PathConstructionBeacon *)((void *)sch + sch->headerLen +
-            sizeof(struct udp_hdr) +
-            2); //+2 for class type
+            sizeof(struct udp_hdr) + 2); //+2 for class type
 
     if (from_bs) { // from local beacon server to neighbor router
         RTE_LOG(DEBUG, HSR, "from local bs to neighbor bs\n");
@@ -769,13 +755,9 @@ static inline void relay_cert_server_packet(struct rte_mbuf *m,
         uint8_t from_local_socket,
         uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
-    struct ipv4_hdr *ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
-                m, unsigned char *)+sizeof(struct ether_hdr));
-    struct udp_hdr *udp_hdr;
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
 
     if (from_local_socket) {
         ipv4_hdr->src_addr = interface_ip[port_map[dpdk_rx_port].egress];
@@ -812,9 +794,7 @@ static inline void process_path_mgmt_packet(struct rte_mbuf *m,
     HopOpaqueField *hof;
     InfoOpaqueField *iof;
 
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    sch = CMN_HDR(m);
     hof = (HopOpaqueField *)((unsigned char *)sch +
             sch->currentOF); // currentOF is an offset
     // from
@@ -852,22 +832,12 @@ static inline void process_path_mgmt_packet(struct rte_mbuf *m,
 static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
         uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr;
-    struct ipv4_hdr *ipv4_hdr;
-    struct udp_hdr *udp_hdr;
-    SCIONCommonHeader *sch;
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
+    SCIONCommonHeader *sch = CMN_HDR(m);
 
     RTE_LOG(DEBUG, HSR, "deliver\n");
-    eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
-
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
 
     ether_addr_copy(internal_router_mac[port_map[dpdk_rx_port].local].addr_bytes,
             &eth_hdr->d_addr);
@@ -981,9 +951,7 @@ static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
     HopOpaqueField *hof;
     InfoOpaqueField *iof;
 
-    sch = (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+    sch = CMN_HDR(m);
     uint8_t *buf = (uint8_t *)sch;
     hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
 
@@ -1059,25 +1027,13 @@ int needs_local_processing(SCIONCommonHeader *sch)
 
 void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
 {
-    struct ether_hdr *eth_hdr;
-    struct ipv4_hdr *ip_hdr;
-    struct icmp_hdr *icmp_hdr;
-    struct udp_hdr *udp_hdr, *inner_udp;
-    SCIONCommonHeader *sch;
+    struct ether_hdr *eth_hdr = ETH_HDR(m);
+    struct ipv4_hdr *ipv4_hdr = IPV4_HDR(m);
+    struct udp_hdr *udp_hdr = UDP_HDR(m);
+    SCIONCommonHeader *sch = CMN_HDR(m);
     RTE_LOG(DEBUG, HSR, "==============\n");
     RTE_LOG(DEBUG, HSR, "packet recieved, dpdk_port=%d\n", dpdk_rx_port);
 
-    eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
-    ip_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *) + sizeof(struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
-    inner_udp = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr) * 2 + sizeof(struct icmp_hdr));
-    icmp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                struct ether_hdr) +
-            sizeof(struct ipv4_hdr));
     // RTE_LOG(DEBUG, HSR, "type=%x\n", eth_hdr->ether_type);
 
     uint64_t src, dst;
@@ -1132,11 +1088,15 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
     } else {
         RTE_LOG(DEBUG, HSR, "Non SCION packet: ether_type=%x\n",
                 ntohs(eth_hdr->ether_type));
-        RTE_LOG(DEBUG, HSR, "l4 = %d\n", ip_hdr->next_proto_id);
-        RTE_LOG(DEBUG, HSR, "type = %d, code = %d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code);
-        RTE_LOG(DEBUG, HSR, "src addr = %#x, src port = %d, destinaton port=%d\n",
-                ip_hdr->src_addr, ntohs(udp_hdr->src_port), ntohs(udp_hdr->dst_port));
-        RTE_LOG(DEBUG, HSR, "inner udp src/dst ports = %d/%d\n",
-                ntohs(inner_udp->src_port), ntohs(inner_udp->dst_port));
+        RTE_LOG(DEBUG, HSR, "l4 = %d\n", ipv4_hdr->next_proto_id);
+        if (ipv4_hdr->next_proto_id == 1) {
+            struct icmp_hdr *icmp_hdr = (struct icmp_hdr *)(ipv4_hdr + 1);
+            struct udp_hdr *inner_udp = (struct inner_udp *)((uint8_t *)(icmp_hdr + 1) + sizeof(struct ipv4_hdr));
+            RTE_LOG(DEBUG, HSR, "type = %d, code = %d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code);
+            RTE_LOG(DEBUG, HSR, "src addr = %#x, src port = %d, destinaton port=%d\n",
+                    ipv4_hdr->src_addr, ntohs(udp_hdr->src_port), ntohs(udp_hdr->dst_port));
+            RTE_LOG(DEBUG, HSR, "inner udp src/dst ports = %d/%d\n",
+                    ntohs(inner_udp->src_port), ntohs(inner_udp->dst_port));
+        }
     }
 }
