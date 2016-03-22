@@ -63,7 +63,6 @@ class L4Proto(TypeBase):
     TCP = 6
     UDP = 17
     SSP = 152
-    RESERVED = 255
     L4 = SCMP, TCP, UDP, SSP
 
 
