@@ -25,7 +25,7 @@
 #define ADDR_LEN_IPV6 16
 #define ADDR_LEN_SVC  2
 
-#define SCION_PROTO_ICMP 1
+#define SCION_PROTO_SCMP 1
 #define SCION_PROTO_TCP 6
 #define SCION_PROTO_UDP 17
 #define SCION_PROTO_SSP 152

@@ -20,14 +20,13 @@ import logging
 import struct
 
 # SCION
-from lib.defines import L4_PROTOS
 from lib.errors import SCIONParseError
 from lib.packet.ext.path_probe import PathProbeExt
 from lib.packet.ext.path_transport import PathTransportExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.sibra.ext.util import parse_sibra_ext
-from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType
+from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType, L4Proto
 
 # Dictionary of supported extensions
 EXTENSION_MAP = {
@@ -46,7 +45,7 @@ def parse_extensions(data, next_hdr):
     """
     cur_hdr_type = next_hdr
     ext_hdrs = []
-    while cur_hdr_type not in L4_PROTOS:
+    while cur_hdr_type not in L4Proto.L4:
         next_hdr_type, hdr_len, ext_no = struct.unpack(
             "!BBB", data.pop(ExtensionHeader.SUBHDR_LEN))
         # Calculate correct hdr_len in bytes

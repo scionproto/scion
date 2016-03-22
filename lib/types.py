@@ -57,6 +57,16 @@ class ExtEndToEndType(TypeBase):
     PATH_PROBE = 1
 
 
+class L4Proto(TypeBase):
+    NONE = 0
+    SCMP = 1
+    TCP = 6
+    UDP = 17
+    SSP = 152
+    RESERVED = 255
+    L4 = SCMP, TCP, UDP, SSP
+
+
 ############################
 # Payload class/types
 ############################

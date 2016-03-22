@@ -20,7 +20,6 @@ import copy
 import struct
 
 # SCION
-from lib.defines import L4_DEFAULT, L4_NONE
 from lib.errors import SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
 from lib.packet.ext_hdr import ExtensionHeader
@@ -40,7 +39,7 @@ from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
 from lib.sibra.payload import parse_sibra_payload
-from lib.types import PayloadClass, IFIDType
+from lib.types import IFIDType, L4Proto, PayloadClass
 from lib.util import Raw, calc_padding
 
 
@@ -96,7 +95,7 @@ class SCIONCommonHdr(Serializable):
         self._hof_idx = (curr_hof_p - first_of_offset) // OpaqueField.LEN
 
     @classmethod
-    def from_values(cls, src_type, dst_type, next_hdr=L4_NONE):
+    def from_values(cls, src_type, dst_type, next_hdr):
         """
         Returns a SCIONCommonHdr object with the values specified.
 
@@ -108,7 +107,7 @@ class SCIONCommonHdr(Serializable):
         inst.src_addr_type = src_type
         inst.dst_addr_type = dst_type
         inst.addrs_len, _ = SCIONAddrHdr.calc_lens(src_type, dst_type)
-        inst.next_hdr = next_hdr or L4_DEFAULT
+        inst.next_hdr = next_hdr
         inst.total_len = inst.hdr_len = cls.LEN + inst.addrs_len
         inst._iof_idx = inst._hof_idx = 0
         return inst
@@ -246,7 +245,7 @@ class SCIONBasePacket(PacketBase):
         self.cmn_hdr = None
         self.addrs = None
         self.path = None
-        self._l4_proto = L4_NONE
+        self._l4_proto = L4Proto.NONE
         self._payload = b""
         super().__init__(raw)
 
@@ -559,8 +558,8 @@ class IFIDPayload(SCIONPayloadBase):
             self.LEN, self.reply_id, self.request_id)
 
 
-def build_base_hdrs(src, dst):
-    cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE)
+def build_base_hdrs(src, dst, l4=L4Proto.UDP):
+    cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE, l4)
     addr_hdr = SCIONAddrHdr.from_values(src, dst)
     return cmn_hdr, addr_hdr
 

@@ -24,7 +24,6 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONParseError
-from lib.defines import L4_NONE
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.path import PathBase
 from lib.packet.packet_base import L4HeaderBase
@@ -38,7 +37,7 @@ from lib.packet.scion import (
     build_base_hdrs,
     parse_ifid_payload,
 )
-from lib.types import PayloadClass
+from lib.types import L4Proto, PayloadClass
 from test.testcommon import assert_these_calls, create_mock
 
 
@@ -77,7 +76,7 @@ class TestSCIONCommonHdrFromValues(object):
     Unit tests for lib.packet.scion.SCIONCommonHdr.from_values
     """
     @patch("lib.packet.scion.SCIONAddrHdr.calc_lens", new_callable=create_mock)
-    def test_full(self, calc_lens):
+    def test(self, calc_lens):
         # Setup
         src_type = 1
         dst_type = 2
@@ -94,15 +93,6 @@ class TestSCIONCommonHdrFromValues(object):
         ntools.eq_(inst.next_hdr, 3)
         ntools.eq_(inst.hdr_len, hdr_len)
         ntools.eq_(inst.total_len, hdr_len)
-
-    @patch("lib.packet.scion.SCIONAddrHdr.calc_lens", new_callable=create_mock)
-    def test_min(self, calc_lens):
-        # Setup
-        calc_lens.return_value = 44, 0
-        # Call
-        inst = SCIONCommonHdr.from_values(0, 1)
-        # Tests
-        ntools.eq_(inst.next_hdr, L4_NONE)
 
 
 class TestSCIONCommonHdrPack(object):
@@ -835,7 +825,8 @@ class TestBuildBaseHdrs(object):
         ntools.eq_(build_base_hdrs(src, dst),
                    (cmn_hdr.return_value, addr_hdr.return_value))
         # Tests
-        cmn_hdr.assert_called_once_with(src.host.TYPE, dst.host.TYPE)
+        cmn_hdr.assert_called_once_with(src.host.TYPE, dst.host.TYPE,
+                                        L4Proto.UDP)
         addr_hdr.assert_called_once_with(src, dst)
 
 

@@ -195,7 +195,7 @@ void destroyStats(SCIONStats *stats)
 int isL4(uint8_t headerType)
 {
     switch (headerType) {
-    case SCION_PROTO_ICMP:
+    case SCION_PROTO_SCMP:
     case SCION_PROTO_TCP:
     case SCION_PROTO_UDP:
     case SCION_PROTO_SSP:

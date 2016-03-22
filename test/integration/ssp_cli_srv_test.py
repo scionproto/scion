@@ -45,12 +45,12 @@ import time
 # SCION
 from endhost.sciond import SCIONDaemon
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
-from lib.defines import L4_SSP
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.scion_addr import ISD_AS
 from lib.thread import thread_safety_net
+from lib.types import L4Proto
 from lib.util import handle_signals
 
 SERVER_PORT = 8080
@@ -93,7 +93,7 @@ def main():
 
 def server():
     logging.info("Starting SCION test server application.")
-    sock = ScionServerSocket(L4_SSP, SERVER_PORT)
+    sock = ScionServerSocket(L4Proto.SSP, SERVER_PORT)
 
     (server_sock, _) = sock.accept()
 
@@ -118,7 +118,7 @@ def client():
     isd_as = ISD_AS.from_values(2, 26)
 
     target_addr = SERVER_IP, SERVER_PORT
-    client_sock = ScionClientSocket(L4_SSP, isd_as, target_addr)
+    client_sock = ScionClientSocket(L4Proto.SSP, isd_as, target_addr)
 
     logging.info("Client starts the send protocol.")
     # firstly, act as a sender
