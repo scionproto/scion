@@ -15,12 +15,10 @@ from mininet.net import Mininet
 from mininet.node import RemoteController
 from mininet.topo import Topo
 
-# SCION
-from lib.defines import HSR_ADDR_FILE
-
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
 LINKS_CONF = "topology/mininet/links.conf"
+HSR_ADDR_FILE = "gen/hsr_addr.txt"
 
 
 class ScionTopo(Topo):
