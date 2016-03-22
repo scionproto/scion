@@ -76,8 +76,17 @@ int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len)
     return 0;
 }
 
+/*
+ * Get HOF used to verify current HOF
+ * buf: Pointer to start of SCION packet
+ * ingress: True if packet is from neighbor AS
+ * return value: Pointer to HOF used to verify current HOF, NULL on error
+ */
 uint8_t * get_hof_ver(uint8_t *buf, int ingress)
 {
+    if (!buf)
+        return NULL;
+
     uint8_t *iof = get_current_iof(buf);
     uint8_t *hof = get_current_hof(buf);
 
@@ -105,8 +114,16 @@ uint8_t * get_hof_ver(uint8_t *buf, int ingress)
     return hof + offset * SCION_OF_LEN;
 }
 
+/*
+ * Get HOF used to verify current HOF in non-crossover case
+ * buf: Pointer to start of SCION packet
+ * return value: Pointer to HOF used to verify current HOF, NULL on error
+ */
 uint8_t * get_hof_ver_normal(uint8_t *buf)
 {
+    if (!buf)
+        return NULL;
+
     uint8_t *iof = get_current_iof(buf);
     uint8_t *hof = get_current_hof(buf);
 
