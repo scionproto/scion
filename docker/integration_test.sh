@@ -35,7 +35,7 @@ export PYTHONPATH=.
 log "Building dispatcher"
 ./scion.sh build
 log "Starting scion"
-./scion.sh run | grep -v "RUNNING"
+./scion.sh run nobuild | grep -v "RUNNING"
 log "Scion status:"
 ./scion.sh status || exit 1
 

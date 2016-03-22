@@ -18,9 +18,9 @@ cmd_topology() {
 }
 
 cmd_run() {
-    if ! [ -x bin/dispatcher ]; then
-        echo "Dispatcher not built - please run the \"build\" command first"
-        exit -1
+    if [ "$1" != "nobuild" ]; then
+        echo "Compiling C code..."
+        cmd_build || exit 1
     fi
     echo "Running the network..."
     supervisor/supervisor.sh reload
@@ -71,11 +71,10 @@ cmd_version() {
 
 cmd_build() {
     if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make
+        USER_OPTS=-DBYPASS_ROUTERS make all install
     else
-        make
+        make all install
     fi
-    make install
 }
 
 cmd_clean() {
