@@ -97,10 +97,10 @@ from urllib.parse import urlparse, urlunparse
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from endhost.scion_socket import SCION_OPTION_STAY_ISD
 from endhost.socket_kbase import SocketKnowledgeBase
-from lib.defines import L4_SSP
 from lib.log import init_logging, log_exception
 from lib.packet.scion_addr import ISD_AS
 from lib.thread import thread_safety_net
+from lib.types import L4Proto
 from lib.util import handle_signals, hex_str
 
 VERSION = '0.1.0'
@@ -385,7 +385,7 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         """
         if self.scion_mode:
             logging.info("Opening a SCION-socket")
-            soc = ScionClientSocket(L4_SSP, self.isd_as,
+            soc = ScionClientSocket(L4Proto.SSP, self.isd_as,
                                     self.scion_target_proxy)
             if self.socket_kbase is not None:
                 # set socket options if there is any provided
@@ -448,7 +448,7 @@ def serve_forever(soc, bridge_mode, scion_mode, kbase):
 
 def scion_server_socket(server_address):
     logging.info("Starting SCION test server application.")
-    soc = ScionServerSocket(L4_SSP, server_address[1])
+    soc = ScionServerSocket(L4Proto.SSP, server_address[1])
     return soc
 
 

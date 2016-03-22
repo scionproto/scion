@@ -54,19 +54,6 @@ SCION_DISPATCHER_ADDR = "127.255.255.254"
 #: Default SCION dispatcher port
 SCION_DISPATCHER_PORT = 3334
 
-#: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
-L4_ICMP = 1
-L4_TCP = 6
-L4_UDP = 17
-L4_SUDP = 151  # FIXME(kormat): might not be necessary
-L4_SSP = 152
-L4_NONE = 254
-L4_RESERVED = 255
-L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_NONE, L4_RESERVED,
-             L4_SUDP, L4_SSP]
-#: Default layer-4 protocol.
-L4_DEFAULT = L4_RESERVED
-
 BEACON_SERVICE = "bs"
 CERTIFICATE_SERVICE = "cs"
 DNS_SERVICE = "ds"

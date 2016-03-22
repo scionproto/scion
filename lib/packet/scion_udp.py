@@ -22,11 +22,11 @@ import struct
 import scapy.utils
 
 # SCION
-from lib.defines import L4_UDP
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import L4HeaderBase
 from lib.packet.scion_addr import SCIONAddr
 from lib.util import Raw, hex_str
+from lib.types import L4Proto
 
 
 class SCIONUDPHeader(L4HeaderBase):
@@ -34,7 +34,7 @@ class SCIONUDPHeader(L4HeaderBase):
     Encapsulates the UDP header for UDP/SCION packets.
     """
     LEN = 8
-    TYPE = L4_UDP
+    TYPE = L4Proto.UDP
     NAME = "UDP"
     CHKSUM_LEN = 2
 
@@ -122,7 +122,7 @@ class SCIONUDPHeader(L4HeaderBase):
         assert isinstance(self._dst, SCIONAddr)
         pseudo_header = b"".join([
             self._src.pack(), self._dst.pack(),
-            struct.pack("!BHHH", L4_UDP, self.src_port, self.dst_port,
+            struct.pack("!BHHH", L4Proto.UDP, self.src_port, self.dst_port,
                         self._length),
             payload.pack_full(),
         ])

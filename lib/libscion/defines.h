@@ -6,11 +6,11 @@
 #define SCION_ROUTER_PORT      50000
 
 // L4 Protocols
-#define L4_ICMP     1
+#define L4_NONE     0
+#define L4_SCMP     1
 #define L4_TCP      6
 #define L4_UDP      17
 #define L4_SSP      152
-#define L4_NONE     254
 #define L4_RESERVED 255
 
 #define REV_TOKEN_LEN 32

@@ -36,7 +36,7 @@ class TestParseExtensions(object):
     Unit tests for lib.packet.ext_util.parse_extensions
     """
     @patch("lib.packet.ext_util.EXTENSION_MAP", new_callable=dict)
-    @patch("lib.packet.ext_util.L4_PROTOS", new_callable=list)
+    @patch("lib.packet.ext_util.L4Proto.L4", new_callable=list)
     def test_success(self, l4_protos, ext_map):
         data = create_mock(["pop"])
         data.pop.side_effect = (

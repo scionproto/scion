@@ -37,7 +37,6 @@ from external.stacktracer import trace_start
 from lib.defines import (
     DISPATCHER_TIMEOUT,
     DISPATCHER_SENDER,
-    L4_UDP,
     SCION_DISPATCHER_ADDR,
     SCION_DISPATCHER_PORT,
 )
@@ -49,6 +48,7 @@ from lib.errors import (
     SCIONTypeError,
     SCIONYAMLError,
 )
+from lib.types import L4Proto
 
 CERT_DIR = 'certs'
 KEYS_DIR = 'keys'
@@ -283,7 +283,7 @@ def reg_dispatcher(sock, addr, port, svc=None):
     """
     sock.settimeout(1.0)
     data = [
-        struct.pack("!BBIHB", 1, L4_UDP, addr.isd_as.int(), port,
+        struct.pack("!BBIHB", 1, L4Proto.UDP, addr.isd_as.int(), port,
                     addr.host.TYPE),
         addr.host.pack()
     ]

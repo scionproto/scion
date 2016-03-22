@@ -7,7 +7,7 @@
 
 #include "scion.h"
 
-uint8_t L4PROTOCOLS[] = {L4_ICMP, L4_TCP, L4_UDP, L4_SSP};
+uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
 
 /*
  * Initialize common header fields
