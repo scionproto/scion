@@ -27,13 +27,16 @@ int main(int argc, char **argv)
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = saddr;
     SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
-    /*
+
     SCIONOption option;
     memset(&option, 0, sizeof(option));
-    option.type = SCION_OPTION_STAY_ISD;
-    option.val = 1;
+    option.type = SCION_OPTION_ISD_WLIST;
+    option.val = 0;
+    option.len = 4;
+    *(uint16_t *)(option.data) = 1;
+    *(uint16_t *)(option.data + 2) = 3;
     s.setSocketOption(&option);
-    */
+
     int count = 0;
     char buf[BUFSIZE];
     memset(buf, 0, BUFSIZE);

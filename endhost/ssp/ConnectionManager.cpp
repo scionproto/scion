@@ -253,6 +253,45 @@ int PathManager::setStayISD(uint16_t isd)
     return 0;
 }
 
+int PathManager::setISDWhitelist(void *data, size_t len)
+{
+    if (len % 2 != 0) {
+        DEBUG("List of ISDs should have an even total length\n");
+        return -EINVAL;
+    }
+
+    if (mLocalAddr.isd_ad == 0) {
+        getLocalAddress();
+    }
+
+    std::vector<uint16_t> isds;
+    bool foundSelf = false;
+    bool foundDst = false;
+    for (size_t i = 0; i < len / 2; i ++) {
+        uint16_t isd = *((uint16_t *)data + i);
+        if (isd == GET_ISD(mLocalAddr.isd_ad))
+            foundSelf = true;
+        if (isd == GET_ISD(mDstAddrs[0].isd_ad))
+            foundDst = true;
+        isds.push_back(isd);
+    }
+
+    if (len > 0) {
+        if (!foundSelf) {
+            DEBUG("Own ISD not whitelisted\n");
+            return -EINVAL;
+        }
+        if (!foundDst) {
+            DEBUG("Destination ISD not whitelisted\n");
+            return -EINVAL;
+        }
+    }
+
+    mPolicy.setISDWhitelist(isds);
+    getPaths();
+    return 0;
+}
+
 // SUDP
 
 SUDPConnectionManager::SUDPConnectionManager(std::vector<SCIONAddr> &addrs, int sock)

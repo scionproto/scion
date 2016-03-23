@@ -44,7 +44,11 @@ import time
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from endhost.scion_socket import ScionServerSocket, ScionClientSocket
+from endhost.scion_socket import (
+    SCION_OPTION_ISD_WLIST,
+    ScionClientSocket,
+    ScionServerSocket,
+)
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import HostAddrIPv4
@@ -57,9 +61,9 @@ SERVER_PORT = 8080
 SERVER_LOG_BASE = 'logs/scion_test_app'
 SERVER_IP = "127.2.26.254"
 SERVER_SCIOND_IP = "127.255.255.253"
-SERVER_CONF = "gen/ISD2/AS26/endhost"
+SERVER_CONF = "gen/ISD3/AS3/endhost"
 CLIENT_IP = "127.1.19.254"
-CLIENT_CONF = "gen/ISD1/AS19/endhost"
+CLIENT_CONF = "gen/ISD1/AS4/endhost"
 # TODO(ercanucan): Increase this value as the library matures.
 DATA_SIZE = 200 * 1024
 DIGEST_LEN = 16
@@ -115,26 +119,31 @@ def server():
 def client():
     logging.info("Starting SCION test client application.")
 
-    isd_as = ISD_AS.from_values(2, 26)
+    isd_as = ISD_AS.from_values(3, 3)
 
     target_addr = SERVER_IP, SERVER_PORT
     client_sock = ScionClientSocket(L4Proto.SSP, isd_as, target_addr)
+
+    isds = struct.pack("HH", 1, 3)
+    client_sock.setopt(SCION_OPTION_ISD_WLIST, 0, isds)
 
     logging.info("Client starts the send protocol.")
     # firstly, act as a sender
     _run_send_protocol(client_sock)
 
+    logging.info("Client starts the receive protocol.")
+    # secondly, act as a receiver
+    _run_receive_protocol(client_sock)
+
     # sanity check on get_stats function
     stats = client_sock.get_stats()
+    logging.debug("get_stats returned %s", stats)
     if stats:
         logging.info("interfaces for path 0:")
         for i in range(stats.if_counts[0]):
             ifinfo = stats.if_lists[0][i]
             logging.info("%s %d", ifinfo.isd_as, ifinfo.ifid)
 
-    logging.info("Client starts the receive protocol.")
-    # secondly, act as a receiver
-    _run_receive_protocol(client_sock)
     client_sock.shutdown(0)
     while client_sock.recv(1):
         pass

@@ -30,6 +30,7 @@ public:
     virtual void getStats(SCIONStats *stats);
 
     int setStayISD(uint16_t isd);
+    int setISDWhitelist(void *data, size_t len);
 
 protected:
     int checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> &candidates);

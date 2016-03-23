@@ -18,6 +18,7 @@
 """
 
 # Stdlib
+import errno
 import ipaddress
 import logging
 import os
@@ -31,6 +32,7 @@ from lib.util import Raw
 
 ByteArray16 = c_ubyte * 16
 MAX_PATHS = 20
+MAX_OPTION_LEN = 20
 
 
 class C_HostAddr(Structure):
@@ -101,7 +103,7 @@ class SCIONInterface(object):
 class C_SCIONOption(Structure):
     _fields_ = [("type", c_int),
                 ("val", c_int),
-                ("data", c_void_p),
+                ("data", c_ubyte * MAX_OPTION_LEN),
                 ("len", c_size_t)]
 
 
@@ -216,6 +218,7 @@ MAX_STATS_BUFFER = 3072
 # Socket Option codes
 SCION_OPTION_BLOCKING = 0
 SCION_OPTION_STAY_ISD = 1
+SCION_OPTION_ISD_WLIST = 2
 
 
 class ScionBaseSocket(object):
@@ -223,7 +226,9 @@ class ScionBaseSocket(object):
     Base class of the SCION Multi-Path Socket Python Wrapper.
     """
 
-    LONG_OPTIONS = {}  # socket options that require long data arg
+    # socket options that require long data arg
+    # map option to minimum data length for that option
+    LONG_OPTIONS = {SCION_OPTION_ISD_WLIST: 2}
 
     def __init__(self, fd, libsock):
         """
@@ -333,8 +338,12 @@ class ScionBaseSocket(object):
         opt = C_SCIONOption()
         opt.type = opttype
         if data:
-            opt.data = data
+            for i, x in enumerate(data):
+                opt.data[i] = x
             opt.len = len(data)
+            if (opttype not in self.LONG_OPTIONS or
+                    (opt.len != 0 and opt.len < self.LONG_OPTIONS[opttype])):
+                return -errno.EINVAL
         else:
             assert opttype not in self.LONG_OPTIONS
             opt.data = 0
