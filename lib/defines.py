@@ -113,6 +113,6 @@ SIBRA_BW_FACTOR = 16 * 1024
 SIBRA_MAX_IDX = 16
 
 #: HSR addr file
-HSR_ADDR_FILE = "gen/hsr_addr.txt"
+HSR_ADDR_FILE = "gen/hsr/hsr_addr.txt"
 #: HSR ID
 HSR_ID = "er1-13er1-11"

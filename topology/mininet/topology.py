@@ -18,7 +18,7 @@ from mininet.topo import Topo
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
 LINKS_CONF = "topology/mininet/links.conf"
-HSR_ADDR_FILE = "gen/hsr_addr.txt"
+HSR_ADDR_FILE = "gen/hsr/hsr_addr.txt"
 
 
 class ScionTopo(Topo):
