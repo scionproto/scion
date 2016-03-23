@@ -1,12 +1,34 @@
-# Build a VM
-HSR requires hardware intel NIC supported by DPDK.
-To emulate the NIC, Virtual Box is required.
-Before building a VM, the following two software need to be installed.
+# Running mininet
+Here we assume a tiny topology.
+```
+[AS 13 servers]-[Mininet switch for AS13]-[tap]-[HSR in virtual box(AS 13 edge router)]-[tap]-[switch]-[AS 11 edge router]-[AS 11]-[AS 12]
+```
+
+## Install Mininet and dependencies
+```
+topology/mininet/setup.sh
+```
+
+## Run Mininet
+```
+./scion.sh topology -m -r -c topology/Tiny.topo
+tools/zkcleanstate
+topology/mininet/run.sh -r
+```
+
+# Running HSR
+
+
+## Install dependencies
+HSR requires Intel NICs supported by DPDK.
+For testing we will use VirtualBox to emulate these NICs.
+
+Before building a VM, the following software needs to be installed.
 Default packages of Ubuntu 14.04 are a bit old, so you need to install them manually.
 * Virtual Box version 5.0 (https://www.virtualbox.org/). Note that version 4.x does not support AES-NI, thus version 5.x is required.
 * Vagrant (https://www.vagrantup.com/downloads.html) for building a VM with DPDK
 
-Install Docker (for some reason needed to make integration work fully)
+Install Docker (for some reason needed to make communication between HSR and Mininet work fully)
 ```
 sudo apt-get install docker.io
 ```
@@ -15,6 +37,8 @@ Download base ubuntu image.
 ```
 vagrant box add bento/ubuntu-14.04
 ```
+
+## Run VM
 
 Create two taps.  The VM uses eth10 and eth11 to communicate with mininet.
 ```
@@ -35,46 +59,29 @@ vagrant ssh
 
 Build HSR
 ```
-cd ~/scion/lib/libscion
-make
-cd ~/scion/hsr/lib
-./mk_lnx_lib.sh
-cd ~/scion/hsr/cJSON
-make
-cd ~/scion/hsr
-make
-```
-
-# Run mininet and HSR
-Here we assume a tiny topology.
-```
-[AS 13 servers]-[Mininet switch for AS13]-[tap]-[HSR in virtual box(AS 13 edge router)]-[tap]-[switch]-[AS 11 edge router]-[AS 11]-[AS 12]
-```
-
-## Run mininet
-In the host,
-```
-./scion.sh topology -m -r -c topology/Tiny.topo
-topology/mininet/setup.sh (one time step for initial setup)
-topology/mininet/run.sh -r (-r option specifies running with HSR)
-```
-
-## Run HSR
-In Virtual box,
-```
-cd scion/hsr
+cd scion
+./scion.sh build
 ```
 
 Setup DPDK environment.
 ```
+cd hsr
 ./setup_dpdk.sh
 ```
 
-Start HSR.
+## Run HSR
+Inside the VM scion/hsr directory,
+
 ```
 sudo exec.sh
 ```
 
+
+## Test
+In the host, run end2end_test
+```
+PYTHONPATH=. python3 test/integration/end2end_test.py -m 1-13 1-12
+```
 
 
 <!--
@@ -95,9 +102,9 @@ In the mininet/topology.py eth10 and eth11 are connected with virtual switch s2 
 To disable the Python router (ER13), topology.py does not add link from/to er13.
 ```
     def addLink(self, node1, node2, params=None, intfName=None):
-        #sasaki disable er13, as HSR transfers packet instead of er13
-        if node1 == "er1_13er1_11" or node2 == "er1_13er1_11":
-            return
+        if self.hsr:
+            if node1 == "er1_13er1_11" or node2 == "er1_13er1_11":
+                return
 ```
 
 HSR does not support ARP, so hosts need to have static ARP entries.
@@ -118,18 +125,17 @@ Moreover, topology.py executes following two commands.
 ```sudo ifconfig s4 hw ether 0:0:0:0:1:03``` (to fix the MAC address of switch s4. HSR uses this MAC address to send packet to end2end.py)
 Note that mininet may change switch assignment, so please check which switch is for AS 13.
 -->
-Finally, do end2end test.
-```PYTHONPATH=. python3 test/integration/end2end_test.py -m 1-13 1-12```
 
-# Trouble shooting
+
+# Troubleshooting
 * Check that pox controller is installed in .local/bin.
 ```
 $ which pox
 /home/[your ID]/.local/bin/pox
 ```
 
-* Start mininet first. Then start virtual box.
-Sometimes, HSR in the VM can not send packet. In this case, please start mininet first, then start Virtual Box (vagrant).
+* Start mininet before running the VM.
+Sometimes packets from HSR are not delivered to Mininet hosts. In this case, please start Mininet first, then start the VM.
 
 * Check MAC addresses of servers that are hardcoded in scion.c
 ```
@@ -154,14 +160,14 @@ bs1_13_1-0 Link encap:Ethernet  HWaddr 00:00:00:00:00:08
 
 
 * Check static ARP entries of mininet hosts (HSR local/egress interfaces in topology.py)
-* Check a AS 13 switch MAC address in topology.py.
+* Check the MAC address of the AS 13 switch in topology.py.
 ```
 os.system('sudo ifconfig s4 hw ether 0:0:0:0:1:03')  # HSR MAC address
 ```
 Mininet sometimes changes switch assignment, so it may not be s4.
 
-* Check NICs(eth10 and eth11) are connected with mininet switch.
-In below case the switch of AS 13 is s1, thus eth11 is connected with s1.
+* Check that the emulated NICs(eth10 and eth11) are connected with mininet switch.
+In the case below the switch of AS 13 is s1, thus eth11 is connected with s1.
 Moreover, s4 is the switch between edge routers of AS11/AS13, thus eth10 is connected with s4.
 ```
 *** Starting CLI:
