@@ -37,6 +37,7 @@ Download base ubuntu image.
 ```
 vagrant box add bento/ubuntu-14.04
 ```
+When asked, select the "virtualbox" option
 
 ## Run VM
 
@@ -48,7 +49,7 @@ sudo ip tuntap add dev eth11 mode tap
 
 Build and start VM.
 ```
-cd vagrant
+cd hsr/vagrant
 vagrant up
 ```
 
@@ -73,7 +74,7 @@ cd hsr
 Inside the VM scion/hsr directory,
 
 ```
-sudo exec.sh
+./exec.sh
 ```
 
 
@@ -173,7 +174,7 @@ Moreover, s4 is the switch between edge routers of AS11/AS13, thus eth10 is conn
 *** Starting CLI:
 mininet> net
 bs1_11_1 bs1_11_1-0:s3-eth4
-bs1_12_1 bs1_12_1-0:s0-eth1
+bs1_12_1 bs1_12_1-0:s0-eth1./de
 bs1_13_1 bs1_13_1-0:s1-eth2
 cs1_11_1 cs1_11_1-0:s3-eth2
 cs1_12_1 cs1_12_1-0:s0-eth3
