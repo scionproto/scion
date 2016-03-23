@@ -22,8 +22,8 @@ done
 if [ -n "$pkgs" ]; then
     log "Installing missing necessary packages: $pkgs"
     sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
-    log "Starting the openvswitch-switch service"
-    sudo service openvswitch-switch start
+    log "Checking status of openvswitch-switch service"
+    sudo service openvswitch-switch status | grep -q running || { log "Service not running"; exit 1; }
 fi
 
 log "Installing any necessary python packages via pip"
