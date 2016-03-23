@@ -12,8 +12,13 @@
 #define L4_UDP      17
 #define L4_SSP      152
 
+#define SCION_HOST_ADDR_MAX 16
+
 #define REV_TOKEN_LEN 32
 #define AD_MARKING_METADATA_LEN 8
 #define PCB_MARKING_LEN (12 + REV_TOKEN_LEN)
+
+#define MAX_SEGMENT_TTL (24 * 60 * 60)
+#define EXP_TIME_UNIT (MAX_SEGMENT_TTL >> 8)
 
 #endif

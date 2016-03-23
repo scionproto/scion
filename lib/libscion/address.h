@@ -39,10 +39,10 @@ typedef struct {
 #define ADDR_SVC_LEN    2
 
 // SVC addresses
-#define SVC_BEACON 1
-#define SVC_PATH_MGMT 2
-#define SVC_CERT_MGMT 3
-#define SVC_IFID 4
+#define SVC_BEACON 0
+#define SVC_PATH_MGMT 1
+#define SVC_CERT_MGMT 2
+#define SVC_SIBRA 3
 
 uint8_t * get_src_addr(uint8_t *buf);
 uint8_t get_src_len(uint8_t *buf);

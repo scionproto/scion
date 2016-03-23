@@ -6,6 +6,8 @@
 
 #include <arpa/inet.h>
 
+#include "defines.h"
+
 typedef struct {
     /** Packet Type of the packet (version, srcType, dstType) */
     uint16_t versionSrcDst;
@@ -32,5 +34,24 @@ void init_of_idx(uint8_t *buf);
 void inc_hof_idx(uint8_t *buf);
 int is_known_proto(uint8_t type);
 uint8_t get_l4_proto(uint8_t **l4ptr);
+
+typedef struct SCIONExtension {
+    uint8_t nextHeader;
+    uint8_t headerLen;
+    uint8_t type;
+    uint8_t extClass;
+    void *data;
+    struct SCIONExtension *nextExt;
+} SCIONExtension;
+
+typedef struct {
+    SCIONCommonHeader commonHeader;
+    uint8_t srcAddr[SCION_HOST_ADDR_MAX];
+    uint8_t dstAddr[SCION_HOST_ADDR_MAX];
+    uint8_t *path;
+    size_t pathLen;
+    SCIONExtension *extensions;
+    size_t numExtensions;
+} SCIONHeader;
 
 #endif

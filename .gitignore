@@ -78,3 +78,9 @@ endhost/ssp/test/*file
 # CTags
 ##########################
 tags
+
+# HSR
+##########################
+hsr/build
+hsr/*.json
+vagrant/.vagrant

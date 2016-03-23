@@ -63,4 +63,19 @@ typedef struct {
 
 #pragma pack(pop)
 
+#define IOF_UP(x) ((*x) & IOF_FLAG_UPDOWN)
+#define IOF_SHORTCUT(x) ((*x) & IOF_FLAG_SHORTCUT)
+#define IOF_PEER(x) ((*x) & IOF_FLAG_PEER)
+#define IOF_TS(x) ntohl(*(uint32_t *)((uint8_t *)(x) + 1))
+#define IOF_HOPS(x) (*((uint8_t *)(x) + SCION_OF_LEN - 1))
+
+#define HOF_EXP_TIME(x) (*((uint8_t *)(x) + 1))
+
+uint8_t * get_current_iof(uint8_t *buf);
+uint8_t * get_current_hof(uint8_t *buf);
+uint16_t get_fwd_if(uint8_t *buf);
+uint32_t get_ingress_egress(uint8_t *hof);
+uint16_t get_ingress_if(uint8_t *hof);
+uint16_t get_egress_if(uint8_t *hof);
+
 #endif

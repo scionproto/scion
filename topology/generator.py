@@ -46,6 +46,8 @@ from lib.defines import (
     AS_CONF_FILE,
     AS_LIST_FILE,
     GEN_PATH,
+    HSR_ADDR_FILE,
+    HSR_ID,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     SCION_ROUTER_PORT,
@@ -111,7 +113,7 @@ class ConfigGenerator(object):
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False):
+                 use_mininet=False, use_hsr=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -128,6 +130,7 @@ class ConfigGenerator(object):
         self.zk_config = load_yaml_file(zk_config_file)
         self.path_policy_file = path_policy_file
         self.mininet = use_mininet
+        self.hsr = use_hsr
         self.default_zookeepers = {}
         self._read_defaults(network)
 
@@ -170,7 +173,7 @@ class ConfigGenerator(object):
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self.topo_config, self.out_dir,
-                                 self.subnet_gen, self.zk_config)
+                                 self.subnet_gen, self.zk_config, self.hsr)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
@@ -329,11 +332,12 @@ class CertGenerator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, zk_config):
+    def __init__(self, topo_config, out_dir, subnet_gen, zk_config, hsr=False):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.zk_config = zk_config
+        self.hsr = hsr
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -480,6 +484,13 @@ class TopoGenerator(object):
             write_file(path, contents)
             # Test if topo file parses cleanly
             Topology.from_file(path)
+            if self.hsr:
+                router = self.topo_dicts[topo_id]["EdgeRouters"].get(HSR_ID)
+                if not router:
+                    continue
+                contents = (str(router["Addr"].ip) + "\n" +
+                            str(router["Interface"]["Addr"].ip))
+                write_file(HSR_ADDR_FILE, contents)
 
     def _write_as_list(self):
         list_path = os.path.join(self.out_dir, AS_LIST_FILE)
@@ -825,6 +836,7 @@ def main():
                         help='Path policy file')
     parser.add_argument('-m', '--mininet', action='store_true',
                         help='Use Mininet to create a virtual network topology')
+    parser.add_argument('-r', '--hsr', action='store_true', help='Use HSR')
     parser.add_argument('-n', '--network',
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
@@ -834,7 +846,7 @@ def main():
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet)
+        args.network, args.mininet, args.hsr)
     confgen.generate_all()
 
 
