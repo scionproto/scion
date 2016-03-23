@@ -11,15 +11,27 @@
 # You can later check if this change was successful with "cat /proc/meminfo"
 # Hugepages setup should be done as early as possible after boot
 # Note: hugepages setup does not persist across reboots
-HUGEPAGE_MOUNT=/mnt/huge
-echo 256 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
-sudo mkdir ${HUGEPAGE_MOUNT}
-sudo mount -t hugetlbfs nodev ${HUGEPAGE_MOUNT}
+
+# Use local Ubuntu mirror
+sudo bash -c 'cat << EOF > /etc/apt/sources.list
+deb mirror://mirrors.ubuntu.com/mirrors.txt trusty main restricted universe multiverse
+deb mirror://mirrors.ubuntu.com/mirrors.txt trusty-updates main restricted universe multiverse
+deb mirror://mirrors.ubuntu.com/mirrors.txt trusty-backports main restricted universe multiverse
+deb mirror://mirrors.ubuntu.com/mirrors.txt trusty-security main restricted universe multiverse
+EOF'
 
 # Install dependencies
 sudo apt-get update
-sudo apt-get -y -q install git clang doxygen hugepages build-essential linux-headers-`uname -r` yasm wget python3-pip
+sudo apt-get -y -q install git clang doxygen hugepages build-essential\
+    linux-headers-`uname -r` yasm wget python3-pip sysfsutils libcurl4-openssl-dev
 sudo pip3 install pyyaml
+
+sudo bash -c 'echo "kernel/mm/hugepages/hugepages-2048kB/nr_hugepages = 256" > /etc/sysfs.d/hugepages.conf'
+sudo service sysfsutils restart
+sudo bash -c 'echo "nodev /mnt/huge hugetlbfs defaults 0 0" >> /etc/fstab'
+HUGEPAGE_MOUNT=/mnt/huge
+sudo mkdir ${HUGEPAGE_MOUNT}
+sudo mount ${HUGEPAGE_MOUNT}
  
 # Get code from Git repo
 #git clone http://dpdk.org/git/dpdk
@@ -50,16 +62,6 @@ sudo ln -s ${RTE_SDK}/build/kmod/igb_uio.ko /lib/modules/`uname -r`
 sudo depmod -a
 echo "uio" | sudo tee -a /etc/modules
 echo "igb_uio" | sudo tee -a /etc/modules
- 
-
- 
-# Bind secondary network adapter
-# I need to set a second adapter in Vagrantfile
-# Note: NIC setup does not persist across reboots
-sudo ifconfig eth1 down
-sudo ifconfig eth2 down
-sudo ${RTE_SDK}/tools/dpdk_nic_bind.py --bind=igb_uio eth1
-sudo ${RTE_SDK}/tools/dpdk_nic_bind.py --bind=igb_uio eth2
 
 # Add env variables setting to .profile file so that they are set at each login
 echo "export RTE_SDK=${RTE_SDK}" >> ${HOME}/.profile

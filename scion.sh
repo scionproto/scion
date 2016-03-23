@@ -76,6 +76,11 @@ cmd_build() {
         make
     fi
     make install
+    cd hsr/lib
+    ./mk_lnx_lib.sh
+    cd ../..
+    make -C hsr/cJSON
+    make -C hsr
 }
 
 cmd_clean() {
