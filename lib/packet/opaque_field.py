@@ -72,7 +72,7 @@ class HopOpaqueField(OpaqueField):
         self.xover = bool(flags & HopOFFlags.XOVER)
         self.verify_only = bool(flags & HopOFFlags.VERIFY_ONLY)
         self.forward_only = bool(flags & HopOFFlags.FORWARD_ONLY)
-        self.rescurse = bool(flags & HopOFFlags.RECURSE)
+        self.recurse = bool(flags & HopOFFlags.RECURSE)
 
     @classmethod
     def from_values(cls, exp_time, ingress_if=0, egress_if=0,
