@@ -72,15 +72,18 @@ cmd_version() {
 cmd_build() {
     if [ "$1" == "bypass" ]; then
         USER_OPTS=-DBYPASS_ROUTERS make
+    elif [ "$1" == "router" ]; then
+        make -C lib/libscion
+        cd hsr/lib
+        ./mk_lnx_lib.sh
+        cd ../..
+        make -C hsr/cJSON
+        make -C hsr
+        return
     else
         make
     fi
     make install
-    cd hsr/lib
-    ./mk_lnx_lib.sh
-    cd ../..
-    make -C hsr/cJSON
-    make -C hsr
 }
 
 cmd_clean() {

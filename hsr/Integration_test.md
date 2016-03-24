@@ -46,6 +46,7 @@ Create two taps.  The VM uses eth10 and eth11 to communicate with mininet.
 sudo ip tuntap add dev eth10 mode tap
 sudo ip tuntap add dev eth11 mode tap
 ```
+To remove these devices later, replace "add" with "del" in the above commands.
 
 Build and start VM.
 ```
@@ -61,7 +62,7 @@ vagrant ssh
 Build HSR
 ```
 cd scion
-./scion.sh build
+./scion.sh build router
 ```
 
 Setup DPDK environment.
