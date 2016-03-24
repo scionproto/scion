@@ -55,12 +55,12 @@ class LocalPathServer(PathServer):
             return set([(pcb.get_first_pcbm().isd_as, pcb.is_sibra())])
         return set()
 
-    def _handle_down_segment_record(self, pcb):
+    def _handle_down_segment_record(self, pcb, from_zk=None):
         if self._add_segment(pcb, self.down_segments, "Down"):
             return set([(pcb.get_last_pcbm().isd_as, pcb.is_sibra())])
         return set()
 
-    def _handle_core_segment_record(self, pcb):
+    def _handle_core_segment_record(self, pcb, from_zk=None):
         if self._add_segment(pcb, self.core_segments, "Core"):
             return set([(pcb.get_first_pcbm().isd_as, pcb.is_sibra())])
         return set()
