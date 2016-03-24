@@ -42,7 +42,6 @@ public:
     virtual int registerSelect(Notification *n, int mode);
     virtual void deregisterSelect(int index);
 
-    int setStayISD(uint16_t isd);
     int setISDWhitelist(void *data, size_t len);
 
     virtual int shutdown();

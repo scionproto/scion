@@ -44,7 +44,8 @@ def main():
     test_lookup()
     test_topology_lookup()
     test_locations_lookup()
-    test_stay_ISD()
+    test_set_ISD_whitelist()
+    test_clear_ISD_whitelist()
 
 
 def test_list():
@@ -112,18 +113,34 @@ def test_locations_lookup():
     send_req_and_read_resp(sock, req)
 
 
-def test_stay_ISD():
+def test_set_ISD_whitelist():
     """
-    Creates a stay ISD request, sends it to the UDP server.
+    Creates a ISD whitelist request, sends it to the UDP server.
     """
 
-    logging.info('Starting the stay ISD request test')
+    logging.info('Starting the ISD whitelist test')
     # Create a UDP socket
     sock = UDPSocket(None, AddrType.IPV4)
 
     req = {"version": "0.1",
-           "command": "STAY_ISD",
-           "isd": 1}
+           "command": "ISD_WHITELIST",
+           "isds": [1, 3]}
+
+    send_req_and_read_resp(sock, req)
+
+
+def test_clear_ISD_whitelist():
+    """
+    Creates a ISD whitelist request, sends it to the UDP server.
+    """
+
+    logging.info('Starting the ISD whitelist test')
+    # Create a UDP socket
+    sock = UDPSocket(None, AddrType.IPV4)
+
+    req = {"version": "0.1",
+           "command": "ISD_WHITELIST",
+           "isds": []}
 
     send_req_and_read_resp(sock, req)
 
