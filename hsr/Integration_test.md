@@ -20,6 +20,8 @@ topology/mininet/run.sh -r
 
 
 ## Install dependencies
+This section explains the steps needed to setup a virtual machine environment. Once this is complete, you can start at the "Run VM" section for subsequent runs.
+
 HSR requires Intel NICs supported by DPDK.
 For testing we will use VirtualBox to emulate these NICs.
 
@@ -41,12 +43,12 @@ When asked, select the "virtualbox" option
 
 ## Run VM
 
-Create two taps.  The VM uses eth10 and eth11 to communicate with mininet.
+Create two taps. The VM uses eth10 and eth11 to communicate with mininet.
 ```
 sudo ip tuntap add dev eth10 mode tap
 sudo ip tuntap add dev eth11 mode tap
 ```
-To remove these devices later, replace "add" with "del" in the above commands.
+These devices will persist until the host is rebooted. To remove them manually, replace "add" with "del" in the above commands.
 
 Build and start VM.
 ```
