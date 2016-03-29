@@ -16,7 +16,6 @@
 ===========================================
 """
 # Stdlib
-import copy
 import logging
 import threading
 import time
@@ -377,12 +376,9 @@ class Router(SCIONElement):
                         logging.error("No local PS to forward revocation to.")
                         return
                     self.send(mgmt_pkt, ps)
-        if not from_local_as:
-            self.deliver(mgmt_pkt, SVCType.PS)
-        else:
-            self.forward_packet(mgmt_pkt, from_local_as)
+        self.handle_data(mgmt_pkt, from_local_as)
 
-    def send_revocation(self, spkt, if_id):
+    def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
         Sends an interface revocation for 'if_id' along the path in 'spkt'.
         """
@@ -397,28 +393,21 @@ class Router(SCIONElement):
         assert if_state.rev_token, "Revocation token missing."
 
         rev_info = RevocationInfo.from_values(if_state.rev_token)
-        rev_pkt = copy.deepcopy(spkt)
-        rev_pkt.reverse()
+        rev_pkt = spkt.reversed_copy()
+        if path_incd:
+            rev_pkt.path.inc_hof_idx()
         rev_pkt.set_payload(rev_info)
         rev_pkt.addrs.src.host = SVCType.PS
+        rev_pkt.update()
         logging.debug("Revocation Packet:\n%s", rev_pkt)
-        self.handle_data(rev_pkt, True)
+        self.handle_data(rev_pkt, ingress, drop_on_error=True)
 
-    def _revoke_if_down(self, if_id, spkt):
-        """
-        Checks if an interface is down and if yes issues a revocation.
-        """
-        if not self.if_states[if_id].is_active:
-            self.send_revocation(spkt, if_id)
-            raise SCIONInterfaceDownException(if_id)
-
-    def deliver(self, spkt, ptype=None, force=True):
+    def deliver(self, spkt, force=True):
         """
         Forwards the packet to the end destination within the current AS.
 
         :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param int ptype: The packet type.
         :param bool force:
             If set, allow packets to be delivered locally that would otherwise
             be disallowed.
@@ -433,16 +422,15 @@ class Router(SCIONElement):
             assert not hof.verify_only
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if ptype == SVCType.PS:
+        if addr == SVCType.PS:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
-            if addr.TYPE == AddrType.SVC:
-                # Send request to any path server.
-                try:
-                    addr = self.get_srv_addr(PATH_SERVICE, spkt)
-                except SCIONServiceLookupError as e:
-                    logging.error("Unable to deliver path mgmt packet: %s", e)
-                    return
+            # Send request to any path server.
+            try:
+                addr = self.get_srv_addr(PATH_SERVICE, spkt)
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver path mgmt packet: %s", e)
+                return
         elif addr == SVCType.SB:
             self.fwd_sibra_service_pkt(spkt, None)
             return
@@ -460,9 +448,11 @@ class Router(SCIONElement):
             raise SCIONOFExpiredError(hof)
 
     def _egress_forward(self, spkt):
+        logging.debug("Forwarding to remote interface: %s:%s",
+                      self.interface.to_addr, self.interface.to_udp_port)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
-    def handle_data(self, spkt, from_local_as):
+    def handle_data(self, spkt, from_local_as, drop_on_error=False):
         """
         Main entry point for data packet handling.
 
@@ -473,7 +463,7 @@ class Router(SCIONElement):
         """
         ingress = not from_local_as
         try:
-            self._process_data(spkt, ingress)
+            self._process_data(spkt, ingress, drop_on_error)
         except SCIONOFVerificationError as e:
             logging.error("Dropping packet due to incorrect MAC.\n"
                           "Header:\n%s\nInvalid OF: %s\nPrev OF: %s",
@@ -488,32 +478,45 @@ class Router(SCIONElement):
         except SCIONInterfaceDownException:
             pass
 
-    def _process_data(self, spkt, ingress):
+    def _process_data(self, spkt, ingress, drop_on_error):
         path = spkt.path
         self.verify_hof(path, ingress=ingress)
         if spkt.addrs.dst.isd_as == self.addr.isd_as:
             self.deliver(spkt)
             return
-        if not ingress:
-            path.inc_hof_idx()
-            self._egress_forward(spkt)
-            return
-        fwd_if = self._calc_fwding_ingress(spkt)
+        if ingress:
+            fwd_if, path_incd = self._calc_fwding_ingress(spkt)
+        else:
+            fwd_if = path.get_fwd_if()
+            path_incd = False
         if fwd_if == 0:
             # So that the error message will show the current state of the
             # packet.
             spkt.update()
             logging.error("Cannot forward packet, fwd_if is 0:\n%s", spkt)
             return
-        self._revoke_if_down(fwd_if, spkt)
-        self.send(spkt, self.ifid2addr[fwd_if])
+        if not self.if_states[fwd_if].is_active:
+            if drop_on_error:
+                logging.debug("IF is down, but drop_on_error is set, dropping")
+                return
+            self.send_revocation(spkt, fwd_if, ingress, path_incd)
+            raise SCIONInterfaceDownException(fwd_if)
+        if ingress:
+            logging.debug("Sending to IF %s (%s)", fwd_if,
+                          self.ifid2addr[fwd_if])
+            self.send(spkt, self.ifid2addr[fwd_if])
+        else:
+            path.inc_hof_idx()
+            self._egress_forward(spkt)
 
     def _calc_fwding_ingress(self, spkt):
         path = spkt.path
         hof = path.get_hof()
+        incd = False
         if hof.xover:
             path.inc_hof_idx()
-        return path.get_fwd_if()
+            incd = True
+        return path.get_fwd_if(), incd
 
     def _needs_local_processing(self, pkt):
         if len(pkt.path) == 0 and pkt.addrs.dst.host.TYPE == AddrType.SVC:
