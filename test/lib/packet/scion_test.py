@@ -25,7 +25,7 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionHeader
-from lib.packet.path import PathBase
+from lib.packet.path import SCIONPath
 from lib.packet.packet_base import L4HeaderBase
 from lib.packet.scion import (
     IFIDType,
@@ -406,7 +406,7 @@ class TestSCIONBasePacketInnerFromValues(object):
         inst = SCIONBasePacket()
         cmn_hdr = MagicMock(spec_set=SCIONCommonHdr)
         addr_hdr = MagicMock(spec_set=SCIONAddrHdr)
-        path_hdr = MagicMock(spec_set=PathBase)
+        path_hdr = MagicMock(spec_set=SCIONPath)
         # Call
         inst._inner_from_values(cmn_hdr, addr_hdr, path_hdr)
 

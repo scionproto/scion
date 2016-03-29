@@ -37,7 +37,7 @@ from lib.packet.host_addr import (
     haddr_parse_interface,
 )
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path import EmptyPath, SCIONPath
+from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
@@ -88,7 +88,7 @@ class TestClientBase(object):
         data = self._try_sciond_api()
         path_len = data.pop(1) * 8
         if not path_len:
-            self.path = EmptyPath()
+            self.path = SCIONPath()
             return
         self.path = SCIONPath(data.pop(path_len))
         haddr_type = haddr_get_type("IPV4")

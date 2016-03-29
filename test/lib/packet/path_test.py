@@ -124,14 +124,14 @@ class TestSCIONPathInitOfIdxs(object):
     """
     Unit tests for lib.packet.path.SCIONPath._init_of_idxs
     """
-    def test_none(self):
+    def test_empty(self):
         inst = SCIONPath()
         inst._ofs = []
         # Call
         inst._init_of_idxs()
         # Tests
-        ntools.eq_(inst._iof_idx, None)
-        ntools.eq_(inst._hof_idx, None)
+        ntools.eq_(inst._iof_idx, 0)
+        ntools.eq_(inst._hof_idx, 0)
 
     def test_non_peer(self):
         inst = SCIONPath()

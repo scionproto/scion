@@ -32,7 +32,7 @@ from lib.main import main_wrapper
 from lib.packet.ext_util import find_ext_hdr
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path import EmptyPath
+from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
@@ -186,7 +186,7 @@ class Client(_Base):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, s_addr)
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, self.sock.port, s_addr, port)
-        return SCIONL4Packet.from_values(cmn_hdr, addr_hdr, EmptyPath(),
+        return SCIONL4Packet.from_values(cmn_hdr, addr_hdr, SCIONPath(),
                                          [ext], udp_hdr)
 
     def get_ext(self, spkt):

@@ -31,29 +31,7 @@ from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.util import Raw
 
 
-class PathBase(Serializable):
-    def __init__(self, raw=None):
-        self._iof_idx = None
-        self._hof_idx = None
-        self.interfaces = []
-        self.mtu = 0
-        super().__init__(raw)
-
-    def get_of_idxs(self):  # pragma: no cover
-        """
-        Get current InfoOpaqueField and HopOpaqueField indexes.
-
-        :return: Tuple (int, int) of IOF index and HOF index, respectively.
-        """
-        return self._iof_idx, self._hof_idx
-
-    def set_of_idxs(self, iof_idx, hof_idx):  # pragma: no cover
-        """Set current InfoOpaqueField and HopOpaqueField indexes."""
-        self._iof_idx = iof_idx
-        self._hof_idx = hof_idx
-
-
-class SCIONPath(PathBase):
+class SCIONPath(Serializable):
     NAME = "SCIONPath"
     A_IOF = "A_segment_iof"
     A_HOFS = "A_segment_hofs"
@@ -67,13 +45,18 @@ class SCIONPath(PathBase):
 
     def __init__(self, raw=None):  # pragma: no cover
         self._ofs = OpaqueFieldList(self.OF_ORDER)
+        self._iof_idx = None
+        self._hof_idx = None
+        self.interfaces = []
+        self.mtu = 0
         super().__init__(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME)
-        # Parse first segment
-        a_iof = self._parse_iof(data, self.A_IOF)
-        self._parse_hofs(data, self.A_HOFS, a_iof.hops)
+        if data:
+            # Parse first segment
+            a_iof = self._parse_iof(data, self.A_IOF)
+            self._parse_hofs(data, self.A_HOFS, a_iof.hops)
         if data:
             # Parse second segment
             b_iof = self._parse_iof(data, self.B_IOF)
@@ -144,10 +127,10 @@ class SCIONPath(PathBase):
         self._ofs.set(label, data)
 
     def _init_of_idxs(self):
-        if not len(self._ofs):
-            return
         self._iof_idx = 0
         self._hof_idx = 0
+        if not len(self._ofs):
+            return
         iof = self.get_iof()
         if iof.peer:
             hof = self._ofs.get_by_idx(1)
@@ -155,8 +138,24 @@ class SCIONPath(PathBase):
                 self._hof_idx += 1
         self.inc_hof_idx()
 
+    def get_of_idxs(self):  # pragma: no cover
+        """
+        Get current InfoOpaqueField and HopOpaqueField indexes.
+
+        :return: Tuple (int, int) of IOF index and HOF index, respectively.
+        """
+        return self._iof_idx, self._hof_idx
+
+    def set_of_idxs(self, iof_idx, hof_idx):  # pragma: no cover
+        """Set current InfoOpaqueField and HopOpaqueField indexes."""
+        self._iof_idx = iof_idx
+        self._hof_idx = hof_idx
+
     def reverse(self):
         """Reverse the direction of the path."""
+        if not len(self._ofs):
+            # Empty path doesn't need reversal.
+            return
         iof_label = self._ofs.get_label_by_idx(self._iof_idx)
         swap_iof, swap_hof = None, None
         # Determine which IOF/HOFs need to be swapped, if any.
@@ -262,6 +261,8 @@ class SCIONPath(PathBase):
 
     def get_fwd_if(self):  # pragma: no cover
         """Return the interface to forward the current packet to."""
+        if not len(self._ofs):
+            return 0
         iof = self.get_iof()
         hof = self.get_hof()
         if iof.up_flag:
@@ -312,47 +313,6 @@ class SCIONPath(PathBase):
             s.append("  </%s-Segment>" % name)
         s.append("</SCION-Path>")
         return "\n".join(s)
-
-
-class EmptyPath(PathBase):  # pragma: no cover
-    """
-    Represents an empty path.
-
-    This is currently needed for intra AS communication, which doesn't need a
-    SCION path but still uses SCION packets for communication.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._iof_idx = 0
-        self._hof_idx = 0
-
-    def _parse(self, raw):
-        raise NotImplementedError
-
-    def from_values(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def pack(self):
-        return b""
-
-    def get_hof(self):
-        return None
-
-    def reverse(self):
-        pass
-
-    def get_as_hops(self):
-        return 0
-
-    def get_fwd_if(self):
-        return 0
-
-    def __len__(self):
-        return 0
-
-    def __str__(self):
-        return "<Empty-Path></Empty-Path>"
 
 
 def valid_mtu(mtu):
@@ -748,6 +708,4 @@ class PathCombinator(object):
 
 
 def parse_path(raw):  # pragma: no cover
-    if len(raw) == 0:
-        return EmptyPath()
     return SCIONPath(raw)

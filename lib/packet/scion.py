@@ -33,7 +33,7 @@ from lib.packet.packet_base import (
     PayloadRaw,
     SCIONPayloadBase,
 )
-from lib.packet.path import PathBase, parse_path
+from lib.packet.path import SCIONPath, parse_path
 from lib.packet.path_mgmt import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import SCIONAddr
@@ -295,7 +295,7 @@ class SCIONBasePacket(PacketBase):
         self.cmn_hdr = cmn_hdr
         assert isinstance(addr_hdr, SCIONAddrHdr)
         self.addrs = addr_hdr
-        assert isinstance(path_hdr, PathBase)
+        assert isinstance(path_hdr, SCIONPath)
         self.path = path_hdr
 
     def pack(self):
