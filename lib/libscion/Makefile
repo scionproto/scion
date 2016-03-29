@@ -16,4 +16,4 @@ $(LIB): $(OBJS)
 	ar rcs $@ $(OBJS)
 
 clean:
-	-rm -f $(OBJS) $(LIB)
+	-rm -f *.o $(LIB)

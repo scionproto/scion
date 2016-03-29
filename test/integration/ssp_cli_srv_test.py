@@ -52,7 +52,7 @@ from endhost.scion_socket import (
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import HostAddrIPv4
-from lib.packet.scion_addr import ISD_AS
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.types import L4Proto
 from lib.util import handle_signals
@@ -97,7 +97,9 @@ def main():
 
 def server():
     logging.info("Starting SCION test server application.")
-    sock = ScionServerSocket(L4Proto.SSP, SERVER_PORT)
+    sock = ScionServerSocket(L4Proto.SSP)
+    sock.bind(SERVER_PORT)
+    sock.listen()
 
     (server_sock, _) = sock.accept()
 
@@ -120,9 +122,11 @@ def client():
     logging.info("Starting SCION test client application.")
 
     isd_as = ISD_AS.from_values(3, 3)
+    host = HostAddrIPv4(SERVER_IP)
+    saddr = SCIONAddr.from_values(isd_as, host)
 
-    target_addr = SERVER_IP, SERVER_PORT
-    client_sock = ScionClientSocket(L4Proto.SSP, isd_as, target_addr)
+    client_sock = ScionClientSocket(L4Proto.SSP)
+    client_sock.connect(saddr, SERVER_PORT)
 
     isds = struct.pack("HH", 1, 3)
     client_sock.setopt(SCION_OPTION_ISD_WLIST, 0, isds)

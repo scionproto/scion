@@ -23,23 +23,23 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
         if (mPathLen == 0) {
             // empty path
             mPath = NULL;
-            mFirstHop.addrLen = dstAddr.host.addrLen;
-            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addrLen);
+            mFirstHop.addr_len = dstAddr.host.addr_len;
+            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addr_len);
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
             mMTU = SCION_DEFAULT_MTU;
         } else {
             mPath = (uint8_t *)malloc(mPathLen);
             memcpy(mPath, ptr, mPathLen);
             ptr += mPathLen;
-            // TODO: Don't assume IPv4
-            mFirstHop.addrLen = SCION_HOST_ADDR_LEN;
-            memcpy(mFirstHop.addr, ptr, SCION_HOST_ADDR_LEN);
-            ptr += mFirstHop.addrLen;
+            // TODO: IPv6?
+            mFirstHop.addr_len = ADDR_IPV4_LEN;
+            memcpy(mFirstHop.addr, ptr, ADDR_IPV4_LEN);
+            ptr += mFirstHop.addr_len;
             mFirstHop.port = ntohs(*(uint16_t *)ptr);
             ptr += 2;
 #ifdef BYPASS_ROUTERS
-            mFirstHop.addrLen = dstAddr.host.addrLen;
-            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addrLen);
+            mFirstHop.addr_len = dstAddr.host.addr_len;
+            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addr_len);
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
 #endif
             mMTU = ntohs(*(uint16_t *)ptr);
@@ -50,10 +50,10 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
             ptr++;
             for (int i = 0; i < interfaces; i++) {
                 SCIONInterface sif;
-                uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
+                uint32_t isd_as = ntohl(*(uint32_t *)ptr);
                 ptr += 4;
-                sif.isd = isd_ad >> 20;
-                sif.ad = isd_ad & 0xfffff;
+                sif.isd = isd_as >> 20;
+                sif.as = isd_as & 0xfffff;
                 sif.interface = ntohs(*(uint16_t *)ptr);
                 ptr += 2;
                 mInterfaces.push_back(sif);
@@ -151,11 +151,11 @@ void Path::setInterfaces(uint8_t *interfaces, size_t count)
     uint8_t *ptr;
     mInterfaces.clear();
     for (size_t i = 0; i < count; i++) {
-        ptr = interfaces + SCION_IF_SIZE * i;
+        ptr = interfaces + IF_TOTAL_LEN * i;
         SCIONInterface sif;
-        uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
-        sif.isd = isd_ad >> 20;
-        sif.ad = isd_ad & 0xfffff;
+        uint32_t isd_as = ntohl(*(uint32_t *)ptr);
+        sif.isd = isd_as >> 20;
+        sif.as = isd_as & 0xfffff;
         sif.interface = ntohs(*(uint16_t *)(ptr + 4));
         mInterfaces.push_back(sif);
     }
@@ -211,7 +211,7 @@ bool Path::isValid()
 
 void Path::setFirstHop(int len, uint8_t *addr)
 {
-    mFirstHop.addrLen = len;
+    mFirstHop.addr_len = len;
     memcpy(mFirstHop.addr, addr, len);
     mFirstHop.port = SCION_UDP_EH_DATA_PORT;
 }
@@ -230,10 +230,10 @@ bool Path::usesSameInterfaces(uint8_t *interfaces, size_t count)
         return false;
     for (size_t i = 0; i < count; i++) {
         SCIONInterface sif = mInterfaces[i];
-        uint8_t *ptr = interfaces + i * SCION_IF_SIZE;
-        uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
+        uint8_t *ptr = interfaces + i * IF_TOTAL_LEN;
+        uint32_t isd_as = ntohl(*(uint32_t *)ptr);
         uint16_t interface = ntohs(*(uint16_t *)(ptr + 4));
-        if ((isd_ad >> 20) != sif.isd || (isd_ad & 0xfffff) != sif.ad ||
+        if ((isd_as >> 20) != sif.isd || (isd_as & 0xfffff) != sif.as ||
                 interface != sif.interface)
             return false;
     }
@@ -261,21 +261,21 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh)
 {
     SCIONCommonHeader *sch = &sh->commonHeader;
     uint8_t *start = bufptr;
-    uint8_t srcLen = SCION_ISD_AD_LEN + mLocalAddr.host.addrLen;
-    uint8_t dstLen = SCION_ISD_AD_LEN + mDstAddr.host.addrLen;
+    uint8_t srcLen = ISD_AS_LEN + mLocalAddr.host.addr_len;
+    uint8_t dstLen = ISD_AS_LEN + mDstAddr.host.addr_len;
     // SCION common header
     memcpy(bufptr, sch, sizeof(*sch));
     bufptr += sizeof(*sch);
     // src/dst SCION addresses
-    *(uint32_t *)bufptr = htonl(mLocalAddr.isd_ad);
-    bufptr += SCION_ISD_AD_LEN;
-    memcpy(bufptr, mLocalAddr.host.addr, mLocalAddr.host.addrLen);
-    bufptr += mLocalAddr.host.addrLen;
+    *(uint32_t *)bufptr = htonl(mLocalAddr.isd_as);
+    bufptr += ISD_AS_LEN;
+    memcpy(bufptr, mLocalAddr.host.addr, mLocalAddr.host.addr_len);
+    bufptr += mLocalAddr.host.addr_len;
     memcpy(sh->srcAddr, bufptr - srcLen, srcLen);
-    *(uint32_t *)bufptr = htonl(mDstAddr.isd_ad);
-    bufptr += SCION_ISD_AD_LEN;
-    memcpy(bufptr, mDstAddr.host.addr, mDstAddr.host.addrLen);
-    bufptr += mDstAddr.host.addrLen;
+    *(uint32_t *)bufptr = htonl(mDstAddr.isd_as);
+    bufptr += ISD_AS_LEN;
+    memcpy(bufptr, mDstAddr.host.addr, mDstAddr.host.addr_len);
+    bufptr += mDstAddr.host.addr_len;
     memcpy(sh->dstAddr, bufptr - dstLen, dstLen);
 
     if (mPathLen == 0)
@@ -285,9 +285,7 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh)
     memcpy(bufptr, mPath, mPathLen);
     bufptr += mPathLen;
 
-    uint8_t *hof = start + sch->currentOF;
-    if (*hof == XOVR_POINT)
-        ((SCIONCommonHeader *)(start))->currentOF += 8;
+    init_of_idx(start);
 }
 
 // SSP
@@ -342,12 +340,12 @@ uint8_t * SSPPath::copySSPPacket(SSPPacket *sp, uint8_t *bufptr, bool probe)
         DEBUG("path %d: %lu interfaces\n", mIndex, count);
         for (size_t i = 0; i < count; i++) {
             SCIONInterface sif = mInterfaces[count - 1 - i];
-            uint32_t isd_ad = (sif.isd << 20) | (sif.ad & 0xfffff);
-            *(uint32_t *)bufptr = htonl(isd_ad);
+            uint32_t isd_as = (sif.isd << 20) | (sif.as & 0xfffff);
+            *(uint32_t *)bufptr = htonl(isd_as);
             bufptr += 4;
             *(uint16_t *)bufptr = htons(sif.interface);
             bufptr += 2;
-            DEBUG("(%d,%d):%d\n", sif.isd, sif.ad, sif.interface);
+            DEBUG("(%d,%d):%d\n", sif.isd, sif.as, sif.interface);
         }
     }
     // payload
@@ -398,28 +396,30 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     SSPHeader &sh = sp->header;
     if (acked == 0 && !(sh.flags & SSP_ACK)) {
         DEBUG("no packets sent on this path yet\n");
-        DEBUG("interface list: %lu bytes\n", mInterfaces.size() * SCION_IF_SIZE + 1);
+        DEBUG("interface list: %lu bytes\n", mInterfaces.size() * IF_TOTAL_LEN + 1);
         sh.flags |= SSP_NEW_PATH;
-        sh.headerLen += mInterfaces.size() * SCION_IF_SIZE + 1;
+        sh.headerLen += mInterfaces.size() * IF_TOTAL_LEN + 1;
         sendInterfaces = true;
     }
 
     bool probe = findProbeExtension(&packet->header) != NULL;
 
-    SCIONCommonHeader &ch = packet->header.commonHeader;
-    ch.headerLen = sizeof(ch) + 2 * SCION_ADDR_LEN + mPathLen;
-    uint16_t totalLen = ch.headerLen + sh.headerLen + sp->len;
+    SCIONCommonHeader &sch = packet->header.commonHeader;
+    int src_len = get_src_len((uint8_t *)&sch) + ISD_AS_LEN;
+    int dst_len = get_dst_len((uint8_t *)&sch) + ISD_AS_LEN;
+    sch.header_len = sizeof(sch) + src_len + dst_len + mPathLen;
+    uint16_t total_len = sch.header_len + sh.headerLen + sp->len;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
-        totalLen += getHeaderLen(ext);
+        total_len += getHeaderLen(ext);
         ext = ext->nextExt;
     }
-    ch.totalLen = htons(totalLen);
+    sch.total_len = htons(total_len);
 
-    uint8_t *buf = (uint8_t *)malloc(totalLen);
+    uint8_t *buf = (uint8_t *)malloc(total_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &packet->header);
-    bufptr += ch.headerLen;
+    bufptr += sch.header_len;
     bufptr = packExtensions(&packet->header, bufptr);
     bufptr = copySSPPacket(sp, bufptr, probe);
 
@@ -427,14 +427,14 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     memset(&sa, 0, sizeof(sa));
     sa.sin_family = AF_INET;
     sa.sin_port = htons(mFirstHop.port);
-    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addrLen);
-    sendto(sock, buf, totalLen, 0, (struct sockaddr *)&sa, sizeof(sa));
+    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addr_len);
+    sendto(sock, buf, total_len, 0, (struct sockaddr *)&sa, sizeof(sa));
     free(buf);
     DEBUG("sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
 
     if (sendInterfaces) {
         sh.flags &= ~SSP_NEW_PATH;
-        sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
+        sh.headerLen -= mInterfaces.size() * IF_TOTAL_LEN + 1;
     }
 
     postProcessing(packet, probe);
@@ -530,7 +530,7 @@ int SSPPath::timeUntilReady()
 int SSPPath::getPayloadLen(bool ack)
 {
     int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
-    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
+    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * (ISD_AS_LEN + MAX_HOST_ADDR_LEN) + mPathLen + hlen);
 }
 
 void SSPPath::setIndex(int index)
@@ -587,34 +587,37 @@ int SUDPPath::send(SCIONPacket *packet, int sock)
     SCIONHeader &sh = packet->header;
     SCIONCommonHeader &sch = packet->header.commonHeader;
     SUDPPacket *sp = (SUDPPacket *)(packet->payload);
-    sch.headerLen = sizeof(sch) + 2 * SCION_ADDR_LEN + mPathLen;
+    int src_len = get_src_len((uint8_t *)&sch) + ISD_AS_LEN;
+    int dst_len = get_dst_len((uint8_t *)&sch) + ISD_AS_LEN;
+    sch.header_len = sizeof(sch) + src_len + dst_len + mPathLen;
 
-    uint16_t totalLen = sch.headerLen + sizeof(SUDPHeader) + sp->payloadLen;
+    uint16_t total_len = sch.header_len + sizeof(SUDPHeader) + sp->payloadLen;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
-        totalLen += getHeaderLen(ext);
+        total_len += getHeaderLen(ext);
         ext = ext->nextExt;
     }
-    sch.totalLen = htons(totalLen);
+    sch.total_len = htons(total_len);
 
-    uint8_t *buf = (uint8_t *)malloc(totalLen);
+    uint8_t *buf = (uint8_t *)malloc(total_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &sh);
-    bufptr += sch.headerLen;
+    bufptr += sch.header_len;
     bufptr = packExtensions(&packet->header, bufptr);
-    sp->header.checksum = htons(checksum(packet));
     // SUDP header
     memcpy(bufptr, &(sp->header), sizeof(SUDPHeader));
     bufptr += sizeof(SUDPHeader);
     // SUDP payload
     memcpy(bufptr, sp->payload, sp->payloadLen);
+    // Calculate checksum
+    update_scion_udp_checksum(buf);
 
     struct sockaddr_in sa;
     memset(&sa, 0, sizeof(sa));
     sa.sin_family = AF_INET;
     sa.sin_port = htons(mFirstHop.port);
-    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addrLen);
-    res = sendto(sock, buf, ntohs(sch.totalLen), 0, (struct sockaddr *)&sa, sizeof(sa));
+    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addr_len);
+    res = sendto(sock, buf, ntohs(sch.total_len), 0, (struct sockaddr *)&sa, sizeof(sa));
     DEBUG("packet sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
     free(buf);
 
@@ -624,8 +627,8 @@ int SUDPPath::send(SCIONPacket *packet, int sock)
 int SUDPPath::getPayloadLen(bool ack)
 {
     return mMTU -
-        (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN
-         + mPathLen + sizeof(SUDPHeader));
+        (28 + sizeof(SCIONCommonHeader) + 2 * (ISD_AS_LEN + MAX_HOST_ADDR_LEN) +
+         mPathLen + sizeof(SUDPHeader));
 }
 
 void SUDPPath::handleTimeout(struct timeval *current)

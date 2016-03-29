@@ -19,7 +19,6 @@
 
 # Stdlib
 import errno
-import ipaddress
 import logging
 import os
 import struct
@@ -36,7 +35,7 @@ MAX_OPTION_LEN = 20
 
 
 class C_HostAddr(Structure):
-    _fields_ = [("addrLen", c_int),
+    _fields_ = [("addr_len", c_int),
                 ("addr", ByteArray16),
                 ("port", c_short)]
 
@@ -220,6 +219,33 @@ SCION_OPTION_BLOCKING = 0
 SCION_OPTION_ISD_WLIST = 1
 
 
+def addr_py2c(saddr=None, port=None):
+    """
+    Helper function to convert SCIONAddr to C_SCIONAddr
+    :param saddr: SCIONAddr to convert
+    :type saddr: SCIONAddr
+    :param port: Port number to use for connection
+    :type port: int
+    :returns: Converted struct
+    :rtype: C_SCIONAddr
+    """
+    sa = C_SCIONAddr()
+    if saddr:
+        sa.isd_as = c_uint(saddr.isd_as.int())
+        ip_bytes = saddr.host.pack()
+        sa.host.addr_len = len(ip_bytes)
+        sa.host.addr = ByteArray16(*ip_bytes)
+    else:
+        sa.isd_as = 0
+        sa.host_addr_len = 0
+        sa.host.addr = ByteArray16(0)
+    if port:
+        sa.host.port = port
+    else:
+        sa.host.port = 0
+    return sa
+
+
 class ScionBaseSocket(object):
     """
     Base class of the SCION Multi-Path Socket Python Wrapper.
@@ -229,18 +255,38 @@ class ScionBaseSocket(object):
     # map option to minimum data length for that option
     LONG_OPTIONS = {SCION_OPTION_ISD_WLIST: 0}
 
-    def __init__(self, fd, libsock):
+    def __init__(self, proto, libsock, fd=None):
         """
         This class can be used if the fd and libsock are known in
         advance. See accept() in ScionServerSocket for an example
         usage.
-        :param fd: Underlying file descriptor of the socket.
-        :type fd: int
+        :param proto: Protocol number to use for socket
+        :type proto: int
         :param libsock: The relevant SCION Multi-Path Socket library.
         :type: Dynamically loaded shared library (.so).
+        :param fd: Underlying file descriptor of the socket.
+        :type fd: int
         """
-        self.fd = fd
+        self.proto = proto
         self.libsock = libsock
+        if fd:
+            self.fd = fd
+        else:
+            self.fd = self.libsock.newSCIONSocket(self.proto)
+
+    def bind(self, port, saddr=None):
+        """
+        Bind socket to SCION address. Bind to any available address by calling
+        without saddr argument.
+        :param port: Port number to bind
+        :type port: int
+        :param saddr: SCION address to bind
+        :type saddr: SCIONAddr
+        :returns: 0 on success, -1 on failure
+        :rtype: int
+        """
+        sa = addr_py2c(saddr, port)
+        return self.libsock.SCIONBind(self.fd, sa)
 
     def send(self, msg):
         """
@@ -406,7 +452,7 @@ class ScionServerSocket(ScionBaseSocket):
     Server side wrapper of the SCION Multi-Path Socket.
     """
 
-    def __init__(self, proto, server_port, fd=None):
+    def __init__(self, proto):
         """
         :param proto: The type of SCION socket protocol to be used
         (see lib/defines).
@@ -414,17 +460,17 @@ class ScionServerSocket(ScionBaseSocket):
         :param server_port: The port number that the server will listen on.
         :type server_port: int
         """
-        self.proto = proto
-        self.server_port = server_port
-        self.libsock = CDLL(os.path.join(SHARED_LIB_LOCATION,
-                                         SHARED_LIB_SERVER))
-        if fd is None:
-            self.fd = self.libsock.newSCIONSocket(proto, None,
-                                                  1, server_port, 0)
-        else:
-            self.fd = fd
-
+        super().__init__(proto, CDLL(os.path.join(SHARED_LIB_LOCATION,
+                                                  SHARED_LIB_SERVER)))
         logging.info("ScionServerSocket fd = %d" % self.fd)
+
+    def listen(self):
+        """
+        Setup the socket to receive incoming connection requests.
+        :returns: 0 on success, -1 on failure
+        :rtype: int
+        """
+        return self.libsock.SCIONListen(self.fd)
 
     def accept(self):
         """
@@ -439,14 +485,14 @@ class ScionServerSocket(ScionBaseSocket):
         """
         newfd = self.libsock.SCIONAccept(self.fd)
         logging.info("Accepted socket %d" % newfd)
-        return ScionBaseSocket(newfd, self.libsock), None
+        return ScionBaseSocket(self.proto, self.libsock, newfd), None
 
 
 class ScionClientSocket(ScionBaseSocket):
     """
     Client side wrapper of the SCION Multi-Path Socket.
     """
-    def __init__(self, proto, isd_as, target_address):
+    def __init__(self, proto):
         """
         :param proto: The type of SCION socket protocol to be used
         (see lib/defines).
@@ -455,16 +501,19 @@ class ScionClientSocket(ScionBaseSocket):
         :param target_address: The address of the server to connect to.
         :type target_address: (string, int) tuple
         """
-        self.proto = proto
-        self.isd_as = isd_as
-        self.target_IP, self.target_port = target_address
-        self.libsock = CDLL(os.path.join(SHARED_LIB_LOCATION,
-                                         SHARED_LIB_CLIENT))
-        sa = C_SCIONAddr()
-        sa.isd_as = c_uint(self.isd_as.int())
-        ip_bytes = ipaddress.ip_interface(self.target_IP).ip.packed
-        sa.host.addrLen = len(ip_bytes)
-        sa.host.addr = ByteArray16(*ip_bytes)
-        self.fd = self.libsock.newSCIONSocket(proto, byref(sa), 1,
-                                              0, self.target_port)
+        super().__init__(proto, CDLL(os.path.join(SHARED_LIB_LOCATION,
+                                                  SHARED_LIB_CLIENT)))
         logging.info("ScionClientSocket fd = %d" % self.fd)
+
+    def connect(self, saddr, port):
+        """
+        Connect to remote server using SCION address and port number.
+        :param saddr: SCION address of remote server
+        :type saddr: SCIONAddr
+        :param port: Port number used by remote server
+        :type port: int
+        :returns: 0 on success, -1 on failure
+        :rtype: int
+        """
+        sa = addr_py2c(saddr, port)
+        return self.libsock.SCIONConnect(self.fd, sa)

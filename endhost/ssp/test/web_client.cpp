@@ -13,25 +13,25 @@ size_t dummy(void *buffer, size_t size, size_t nmemb, void *userp)
 
 int main(int argc, char **argv)
 {
-    SCIONAddr addrs[1];
     SCIONAddr saddr;
-    int isd, ad;
+    int isd, as;
     char str[20];
     if (argc == 3) {
         isd = atoi(argv[1]);
-        ad = atoi(argv[2]);
+        as = atoi(argv[2]);
     } else {
         isd = 2;
-        ad = 26;
+        as = 26;
     }
-    saddr.isd_ad = ISD_AD(isd, ad);
-    saddr.host.addrLen = 4;
-    sprintf(str, "127.%d.%d.254", isd, ad);
-    printf("connect to (%d, %d):%s\n", isd, ad, str);
+    saddr.isd_as = ISD_AS(isd, as);
+    saddr.host.addr_len = 4;
+    sprintf(str, "127.%d.%d.254", isd, as);
+    printf("connect to (%d, %d):%s\n", isd, as, str);
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
-    addrs[0] = saddr;
-    SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
+    SCIONSocket s(L4_SSP);
+    s.connect(saddr);
+
     int count = 0;
     char curldata[1024];
     char buf[BUFSIZE];

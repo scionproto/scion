@@ -85,5 +85,4 @@ void OrderedList<T>::clean()
 }
 
 template class OrderedList<SCIONPacket *>;
-template class OrderedList<L4Packet *>;
 template class OrderedList<SSPPacket *>;

@@ -1,26 +1,32 @@
 #ifndef _ADDRESS_H_
 #define _ADDRESS_H_
 
-#include "packet.h"
+#include "defines.h"
 
-#define SCION_ISD_AD_LEN 4
+#define ISD_AS_LEN 4
+
+typedef struct {
+    int addr_len;
+    uint8_t addr[MAX_HOST_ADDR_LEN];
+    uint16_t port;
+} HostAddr;
 
 /*
  * Struct for SCION Addresses:
  * 12 bits ISD ID
- * 20 bits AD ID
+ * 20 bits AS ID
  * (4 bytes IPv4 Addr OR
  *  16 bytes IPv6 Addr OR
  *  2 bytes SVC addr)
  */
 typedef struct {
-    uint32_t isd_ad;
-    uint8_t host_addr[16];
+    uint32_t isd_as;
+    HostAddr host;
 } SCIONAddr;
 
-#define ISD(isd_ad) (isd_ad >> 20)
-#define AD(isd_ad) (isd_ad & 0xfffff)
-#define ISD_AD(isd, ad) ((isd) << 20 | (ad))
+#define ISD(isd_as) (isd_as >> 20)
+#define AS(isd_as) (isd_as & 0xfffff)
+#define ISD_AS(isd, as) ((isd) << 20 | (as))
 
 #define SCION_ADDR_PAD 8
 
@@ -39,10 +45,10 @@ typedef struct {
 #define ADDR_SVC_LEN    2
 
 // SVC addresses
-#define SVC_BEACON 1
-#define SVC_PATH_MGMT 2
-#define SVC_CERT_MGMT 3
-#define SVC_IFID 4
+#define SVC_BEACON 0
+#define SVC_PATH_MGMT 1
+#define SVC_CERT_MGMT 2
+#define SVC_SIBRA 3
 
 uint8_t * get_src_addr(uint8_t *buf);
 uint8_t get_src_len(uint8_t *buf);

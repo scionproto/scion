@@ -8,9 +8,8 @@
 #include "SCIONProtocol.h"
 #include "Utils.h"
 
-PathManager::PathManager(std::vector<SCIONAddr> &addrs, int sock)
+PathManager::PathManager(int sock)
     : mSendSocket(sock),
-    mDstAddrs(addrs),
     mInvalid(0)
 {
     struct sockaddr_in addr;
@@ -60,7 +59,7 @@ SCIONAddr * PathManager::localAddress()
     return &mLocalAddr;
 }
 
-void PathManager::getLocalAddress()
+void PathManager::queryLocalAddress()
 {
     struct sockaddr_in addr;
     char buf[32];
@@ -73,25 +72,62 @@ void PathManager::getLocalAddress()
     buf[0] = 1;
     sendto(mDaemonSocket, buf, 1, 0, (struct sockaddr *)&addr, sizeof(addr));
     recvfrom(mDaemonSocket, buf, 32, 0, NULL, NULL);
-    mLocalAddr.isd_ad = ntohl(*(uint32_t *)buf);
-    mLocalAddr.host.addrLen = SCION_HOST_ADDR_LEN;
-    memcpy(mLocalAddr.host.addr, buf + SCION_HOST_OFFSET, SCION_HOST_ADDR_LEN);
+    mLocalAddr.isd_as = ntohl(*(uint32_t *)buf);
+    // TODO: IPv6?
+    mLocalAddr.host.addr_len = ADDR_IPV4_LEN;
+    memcpy(mLocalAddr.host.addr, buf + ISD_AS_LEN, ADDR_IPV4_LEN);
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    memcpy(&addr.sin_addr, mLocalAddr.host.addr, mLocalAddr.host.addrLen);
+    memcpy(&addr.sin_addr, mLocalAddr.host.addr, mLocalAddr.host.addr_len);
     bind(mSendSocket, (struct sockaddr *)&addr, sizeof(addr));
 }
 
-int PathManager::checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> &candidates)
+int PathManager::setLocalAddress(SCIONAddr addr)
+{
+    if (mLocalAddr.isd_as == 0)
+        queryLocalAddress();
+
+    if (addr.isd_as == 0) /* bind to any address */
+        return 0;
+
+    if (mLocalAddr.isd_as != addr.isd_as ||
+            mLocalAddr.host.addr_len != addr.host.addr_len)
+        return -1;
+
+    for (int i = 0; i < MAX_HOST_ADDR_LEN; i++) {
+        if (mLocalAddr.host.addr[i] != addr.host.addr[i])
+            return -1;
+    }
+
+    return 0;
+}
+
+void PathManager::setRemoteAddress(SCIONAddr addr)
+{
+    if (addr.isd_as == mDstAddr.isd_as)
+        return;
+
+    mDstAddr = addr;
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        Path *p = mPaths[i];
+        if (p)
+            delete p;
+    }
+    mPaths.clear();
+    getPaths();
+}
+
+int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidates)
 {
     bool add = true;
     int pathLen = *ptr * 8;
     if (pathLen > len)
         return -1;
-    int interfaceOffset = 1 + pathLen + SCION_HOST_ADDR_LEN + 2 + 2;
+    // TODO: IPv6?
+    int interfaceOffset = 1 + pathLen + ADDR_IPV4_LEN + 2 + 2;
     int interfaceCount = *(ptr + interfaceOffset);
-    if (interfaceOffset + 1 + interfaceCount * SCION_IF_SIZE > len)
+    if (interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN > len)
         return -1;
     for (size_t j = 0; j < mPaths.size(); j++) {
         if (mPaths[j] &&
@@ -107,13 +143,13 @@ int PathManager::checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> 
         }
     }
     if (add) {
-        Path *p = createPath(mDstAddrs[addr], ptr, 0);
+        Path *p = createPath(mDstAddr, ptr, 0);
         if (mPolicy.validate(p))
             candidates.push_back(p);
         else
             delete p;
     }
-    return interfaceOffset + 1 + interfaceCount * SCION_IF_SIZE;
+    return interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN;
 }
 
 void PathManager::getPaths()
@@ -132,8 +168,8 @@ void PathManager::getPaths()
     memset(buf, 0, buflen);
 
     // Get local address first
-    if (mLocalAddr.isd_ad == 0) {
-        getLocalAddress();
+    if (mLocalAddr.isd_as == 0) {
+        queryLocalAddress();
     }
 
     pthread_mutex_lock(&mPathMutex);
@@ -143,24 +179,20 @@ void PathManager::getPaths()
 
     // Now get paths for remote address(es)
     std::vector<Path *> candidates;
-    for (size_t i = 0; i < mDstAddrs.size(); i++) {
-        memset(buf, 0, buflen);
-        *(uint32_t *)(buf + 1) = htonl(mDstAddrs[i].isd_ad);
-        sendto(mDaemonSocket, buf, 5, 0, (struct sockaddr *)&addr, addrlen);
+    memset(buf, 0, buflen);
+    *(uint32_t *)(buf + 1) = htonl(mDstAddr.isd_as);
+    sendto(mDaemonSocket, buf, 5, 0, (struct sockaddr *)&addr, addrlen);
 
-        memset(buf, 0, buflen);
-        recvlen = recvfrom(mDaemonSocket, buf, buflen, 0, NULL, NULL);
-        if (recvlen > 0) {
-            DEBUG("%d byte response from daemon\n", recvlen);
-            int offset = 0;
-            while (offset < recvlen &&
-                    numPaths + candidates.size() < MAX_TOTAL_PATHS) {
-                uint8_t *ptr = buf + offset;
-                offset += checkPath(ptr, buflen - offset, i, candidates);
-            }
+    memset(buf, 0, buflen);
+    recvlen = recvfrom(mDaemonSocket, buf, buflen, 0, NULL, NULL);
+    if (recvlen > 0) {
+        DEBUG("%d byte response from daemon\n", recvlen);
+        int offset = 0;
+        while (offset < recvlen &&
+                numPaths + candidates.size() < MAX_TOTAL_PATHS) {
+            uint8_t *ptr = buf + offset;
+            offset += checkPath(ptr, buflen - offset, candidates);
         }
-        if (numPaths + candidates.size() == MAX_TOTAL_PATHS)
-            break;
     }
     insertPaths(candidates);
     DEBUG("total %lu paths\n", mPaths.size() - mInvalid);
@@ -240,8 +272,8 @@ int PathManager::setISDWhitelist(void *data, size_t len)
         return -EINVAL;
     }
 
-    if (mLocalAddr.isd_ad == 0) {
-        getLocalAddress();
+    if (mLocalAddr.isd_as == 0) {
+        queryLocalAddress();
     }
 
     std::vector<uint16_t> isds;
@@ -249,9 +281,9 @@ int PathManager::setISDWhitelist(void *data, size_t len)
     bool foundDst = false;
     for (size_t i = 0; i < len / 2; i ++) {
         uint16_t isd = *((uint16_t *)data + i);
-        if (isd == GET_ISD(mLocalAddr.isd_ad))
+        if (isd == ISD(mLocalAddr.isd_as))
             foundSelf = true;
-        if (isd == GET_ISD(mDstAddrs[0].isd_ad))
+        if (isd == ISD(mDstAddr.isd_as))
             foundDst = true;
         isds.push_back(isd);
     }
@@ -272,155 +304,15 @@ int PathManager::setISDWhitelist(void *data, size_t len)
     return 0;
 }
 
-// SUDP
-
-SUDPConnectionManager::SUDPConnectionManager(std::vector<SCIONAddr> &addrs, int sock)
-    : PathManager(addrs, sock)
-{
-    memset(&mLastProbeTime, 0, sizeof(struct timeval));
-    getPaths();
-    pthread_mutex_lock(&mPathMutex);
-    mLastProbeAcked.resize(mPaths.size());
-    for (size_t i = 0; i < mPaths.size(); i++) {
-        if (!mPaths[i])
-            continue;
-        mLastProbeAcked[i] = 0;
-        mPaths[i]->setUp();
-    }
-    pthread_mutex_unlock(&mPathMutex);
-}
-
-SUDPConnectionManager::~SUDPConnectionManager()
-{
-}
-
-int SUDPConnectionManager::send(SCIONPacket *packet)
-{
-    Path *p = NULL;
-    // TODO: Choose optimal path?
-    pthread_mutex_lock(&mPathMutex);
-    for (size_t i = 0; i < mPaths.size(); i++) {
-        if (mPaths[i] && mPaths[i]->isUp()) {
-            p = mPaths[i];
-            break;
-        }
-    }
-    int ret = -1;
-    if (p)
-        ret = p->send(packet, mSendSocket);
-    pthread_mutex_unlock(&mPathMutex);
-    return ret;
-}
-
-void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort)
-{
-    DEBUG("send probes to dst port %d\n", dstPort);
-    int ret = 0;
-    pthread_mutex_lock(&mPathMutex);
-    for (size_t i = 0; i < mPaths.size(); i++) {
-        if (!mPaths[i])
-            continue;
-        DEBUG("send probe on path %lu\n", i);
-        SCIONPacket p;
-        memset(&p, 0, sizeof(p));
-        buildCommonHeader(p.header.commonHeader, SCION_PROTO_UDP);
-        addProbeExtension(&p.header, probeNum, 0);
-        SUDPPacket sp;
-        memset(&sp, 0, sizeof(sp));
-        p.payload = &sp;
-        SUDPHeader &sh = sp.header;
-        sh.srcPort = htons(srcPort);
-        sh.dstPort = htons(dstPort);
-        sh.len = htons(sizeof(SUDPHeader));
-        ret |= mPaths[i]->send(&p, mSendSocket);
-        free(p.header.extensions);
-        if (mLastProbeAcked[i] < probeNum - 3) {
-            struct timeval t;
-            gettimeofday(&t, NULL);
-            mPaths[i]->handleTimeout(&t);
-        }
-    }
-    bool refresh = (mPaths.size() - mInvalid == 0);
-    pthread_mutex_unlock(&mPathMutex);
-    if (refresh) {
-        DEBUG("no valid paths, periodically try fetching\n");
-        getPaths();
-    }
-}
-
-void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index)
-{
-    uint32_t probeNum = getProbeNum(ext);
-    DEBUG("contains probe extension with ID %u\n", probeNum);
-    if (isProbeAck(ext)) {
-        mLastProbeAcked[index] = probeNum;
-        DEBUG("probe %u acked on path %d\n", mLastProbeAcked[index], index);
-    } else {
-        SCIONPacket p;
-        memset(&p, 0, sizeof(p));
-        buildCommonHeader(p.header.commonHeader, SCION_PROTO_UDP);
-        addProbeExtension(&p.header, probeNum, 1);
-        SUDPPacket ack;
-        p.payload = &ack;
-        memset(&ack, 0, sizeof(ack));
-        SUDPHeader &sh = ack.header;
-        sh.srcPort = htons(sp->header.dstPort);
-        sh.dstPort = htons(sp->header.srcPort);
-        sh.len = htons(sizeof(sh));
-        mPaths[index]->send(&p, mSendSocket);
-        DEBUG("sending probe ack back to dst port %d\n", sp->header.srcPort);
-    }
-}
-
-void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
-{
-    bool found = false;
-    int index;
-    pthread_mutex_lock(&mPathMutex);
-    for (size_t i = 0; i < mPaths.size(); i++) {
-        if (mPaths[i] &&
-                mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
-            found = true;
-            index = i;
-            break;
-        }
-    }
-    if (!found) {
-        SCIONAddr saddr;
-        saddr.isd_ad = ntohl(*(uint32_t *)(packet->header.srcAddr));
-        saddr.host.addrLen = SCION_HOST_ADDR_LEN;
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + SCION_HOST_OFFSET, SCION_HOST_ADDR_LEN);
-
-        SUDPPath *p = new SUDPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
-        p->setFirstHop(SCION_HOST_ADDR_LEN, (uint8_t *)&(packet->firstHop));
-        index = insertOnePath(p);
-        mLastProbeAcked.resize(mPaths.size());
-    }
-    packet->pathIndex = index;
-
-    DEBUG("packet came on path %d\n", index);
-    mPaths[index]->setUp();
-    SUDPPacket *sp = (SUDPPacket *)(packet->payload);
-    SCIONExtension *ext = findProbeExtension(&packet->header);
-    if (ext != NULL)
-        handleProbe(sp, ext, index);
-    pthread_mutex_unlock(&mPathMutex);
-}
-
-Path * SUDPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
-{
-    return new SUDPPath(this, mLocalAddr, dstAddr, rawPath, pathLen);
-}
-
 // SSP
 
-SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int sock)
-    : PathManager(addrs, sock)
+SSPConnectionManager::SSPConnectionManager(int sock)
+    : PathManager(sock)
 {
 }
 
-SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int sock, SSPProtocol *protocol)
-    : PathManager(addrs, sock),
+SSPConnectionManager::SSPConnectionManager(int sock, SSPProtocol *protocol)
+    : PathManager(sock),
     mInitSends(0),
     mRunning(true),
     mFinAcked(false),
@@ -443,6 +335,8 @@ SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int so
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mPacketCond, &ca);
     pthread_cond_init(&mPathCond, &ca);
+
+    pthread_create(&mWorker, NULL, &SSPConnectionManager::workerHelper, this);
 }
 
 SSPConnectionManager::~SSPConnectionManager()
@@ -544,7 +438,8 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
         DEBUG("send probe %u on path %lu\n", probeNum, i);
         SCIONPacket packet;
         memset(&packet, 0, sizeof(packet));
-        buildCommonHeader(packet.header.commonHeader, SCION_PROTO_SSP);
+        build_cmn_hdr((uint8_t *)&packet.header.commonHeader,
+                ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP);
         addProbeExtension(&packet.header, probeNum, 0);
         SSPPacket sp;
         packet.payload = &sp;
@@ -572,7 +467,7 @@ int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
     int res = 0;
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     if ((sp->header.flags & SSP_FIN) && !(sp->header.flags & SSP_ACK)) {
-        DEBUG("%lu: send FIN packet on all paths\n", mProtocol->mFlowID);
+        DEBUG("send FIN packet on all paths\n");
         mFinAttempts++;
     }
     pthread_mutex_lock(&mPathMutex);
@@ -636,12 +531,13 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet)
     }
     if (!found) {
         SCIONAddr saddr;
-        saddr.isd_ad = ntohl(*(uint32_t *)(packet->header.srcAddr));
-        saddr.host.addrLen = SCION_HOST_ADDR_LEN;
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + SCION_HOST_OFFSET, SCION_HOST_ADDR_LEN);
+        saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
+        // TODO: IPv6?
+        saddr.host.addr_len = ADDR_IPV4_LEN;
+        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
 
         SSPPath *p = new SSPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
-        p->setFirstHop(SCION_HOST_ADDR_LEN, (uint8_t *)&(packet->firstHop));
+        p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
         p->setInterfaces(sp->interfaces, sp->interfaceCount);
         if (mPolicy.validate(p)) {
             index = insertOnePath(p);
@@ -685,12 +581,14 @@ void SSPConnectionManager::handlePacketAcked(bool found, SCIONPacket *ack, SCION
     DEBUG("notify scheduler: successful ack\n");
     pthread_cond_broadcast(&mPathCond);
     if (sh.flags & SSP_FIN) {
-        DEBUG("%lu: FIN packet (%lu) acked, %lu more sent packets\n",
-                mProtocol->mFlowID, be64toh(sp->header.offset), mSentPackets.size());
+        DEBUG("FIN packet (%lu) acked, %lu more sent packets\n",
+                be64toh(sp->header.offset), mSentPackets.size());
         mFinAcked = true;
     }
-    if (sp->data.use_count() == 1)
+    if (sp->data.use_count() == 1) {
         mTotalSize -= sp->len;
+        mProtocol->signalSelect();
+    }
     destroySSPPacket(sp);
     destroySCIONPacket(sent);
 }
@@ -765,10 +663,10 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         uint64_t pn = be64toh(sh.offset);
         bool found = ackNums.find(pn) != ackNums.end();
         if (found || pn < ack.L) {
-            handlePacketAcked(found, packet, p);
             i = mSentPackets.erase(i);
-            DEBUG("%lu: removed packet %lu (path %d) from sent list\n",
-                    mProtocol->mFlowID, pn, p->pathIndex);
+            handlePacketAcked(found, packet, p);
+            DEBUG("removed packet %lu (path %d) from sent list\n",
+                    pn, p->pathIndex);
             ackNums.erase(pn);
             if (ackNums.empty())
                 break;
@@ -805,7 +703,7 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
     retriesLeft = !mRetryPackets->empty();
     pthread_mutex_unlock(&mRetryMutex);
     if (mFinAcked && mSentPackets.empty() && !retriesLeft) {
-        DEBUG("%lu: everything acked\n", mProtocol->mFlowID);
+        DEBUG("everything acked\n");
         mProtocol->notifyFinAck();
         mRunning = false;
     }
@@ -922,7 +820,7 @@ void SSPConnectionManager::handleTimeout()
     retriesLeft = !mRetryPackets->empty();
     pthread_mutex_unlock(&mRetryMutex);
     if (mFinAcked && mSentPackets.empty() && !retriesLeft) {
-        DEBUG("%lu: everything acked\n", mProtocol->mFlowID);
+        DEBUG("everything acked\n");
         mProtocol->notifyFinAck();
         mRunning = false;
     }
@@ -997,6 +895,7 @@ void SSPConnectionManager::schedule()
         while (!readyToSend()) {
             DEBUG("wait until there is stuff to send\n");
             pthread_cond_wait(&mPacketCond, &mPacketMutex);
+            DEBUG("scheduler woken up\n");
             if (!mRunning) {
                 pthread_mutex_unlock(&mPacketMutex);
                 return;
@@ -1037,8 +936,7 @@ void SSPConnectionManager::schedule()
             DEBUG("%p: send packet %lu on path %d\n", this,
                     offset, p->getIndex());
             if (sp->header.flags & SSP_FIN) {
-                DEBUG("%lu: sending FIN packet (%lu)\n",
-                        mProtocol->mFlowID, offset);
+                DEBUG("sending FIN packet (%lu)\n", offset);
                 mFinAttempts++;
             }
             p->send(packet, mSendSocket);
@@ -1117,4 +1015,150 @@ void SSPConnectionManager::didSend(SCIONPacket *packet)
     }
     mSentPackets.push_back(packet);
     pthread_mutex_unlock(&mSentMutex);
+}
+
+// SUDP
+
+SUDPConnectionManager::SUDPConnectionManager(int sock)
+    : PathManager(sock)
+{
+    memset(&mLastProbeTime, 0, sizeof(struct timeval));
+}
+
+SUDPConnectionManager::~SUDPConnectionManager()
+{
+}
+
+int SUDPConnectionManager::send(SCIONPacket *packet)
+{
+    Path *p = NULL;
+    // TODO: Choose optimal path?
+    pthread_mutex_lock(&mPathMutex);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i] && mPaths[i]->isUp()) {
+            p = mPaths[i];
+            break;
+        }
+    }
+    int ret = -1;
+    if (p)
+        ret = p->send(packet, mSendSocket);
+    pthread_mutex_unlock(&mPathMutex);
+    return ret;
+}
+
+void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort)
+{
+    DEBUG("send probes to dst port %d\n", dstPort);
+    int ret = 0;
+    pthread_mutex_lock(&mPathMutex);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (!mPaths[i])
+            continue;
+        DEBUG("send probe on path %lu\n", i);
+        SCIONPacket p;
+        memset(&p, 0, sizeof(p));
+        build_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_UDP);
+        addProbeExtension(&p.header, probeNum, 0);
+        SUDPPacket sp;
+        memset(&sp, 0, sizeof(sp));
+        p.payload = &sp;
+        SUDPHeader &sh = sp.header;
+        sh.srcPort = htons(srcPort);
+        sh.dstPort = htons(dstPort);
+        sh.len = htons(sizeof(SUDPHeader));
+        ret |= mPaths[i]->send(&p, mSendSocket);
+        free(p.header.extensions);
+        if (probeNum > SUDP_PROBE_WINDOW && mLastProbeAcked[i] < probeNum - SUDP_PROBE_WINDOW) {
+            DEBUG("last probe acked on path %lu was %d, now %d\n", i, mLastProbeAcked[i], probeNum);
+            struct timeval t;
+            gettimeofday(&t, NULL);
+            mPaths[i]->handleTimeout(&t);
+        }
+    }
+    bool refresh = (mPaths.size() - mInvalid == 0);
+    pthread_mutex_unlock(&mPathMutex);
+    if (refresh) {
+        DEBUG("no valid paths, periodically try fetching\n");
+        getPaths();
+    }
+}
+
+void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index)
+{
+    uint32_t probeNum = getProbeNum(ext);
+    DEBUG("contains probe extension with ID %u\n", probeNum);
+    if (isProbeAck(ext)) {
+        mLastProbeAcked[index] = probeNum;
+        DEBUG("probe %u acked on path %d\n", mLastProbeAcked[index], index);
+    } else {
+        SCIONPacket p;
+        memset(&p, 0, sizeof(p));
+        build_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_UDP);
+        addProbeExtension(&p.header, probeNum, 1);
+        SUDPPacket ack;
+        p.payload = &ack;
+        memset(&ack, 0, sizeof(ack));
+        SUDPHeader &sh = ack.header;
+        sh.srcPort = htons(sp->header.dstPort);
+        sh.dstPort = htons(sp->header.srcPort);
+        sh.len = htons(sizeof(sh));
+        mPaths[index]->send(&p, mSendSocket);
+        DEBUG("sending probe ack back to dst port %d\n", sp->header.srcPort);
+    }
+}
+
+void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
+{
+    bool found = false;
+    int index;
+    pthread_mutex_lock(&mPathMutex);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i] &&
+                mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
+            found = true;
+            index = i;
+            break;
+        }
+    }
+    if (!found) {
+        SCIONAddr saddr;
+        saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
+        // TODO: IPv6?
+        saddr.host.addr_len = ADDR_IPV4_LEN;
+        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
+
+        SUDPPath *p = new SUDPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
+        p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
+        index = insertOnePath(p);
+        mLastProbeAcked.resize(mPaths.size());
+    }
+    packet->pathIndex = index;
+
+    DEBUG("packet came on path %d\n", index);
+    mPaths[index]->setUp();
+    SUDPPacket *sp = (SUDPPacket *)(packet->payload);
+    SCIONExtension *ext = findProbeExtension(&packet->header);
+    if (ext != NULL)
+        handleProbe(sp, ext, index);
+    pthread_mutex_unlock(&mPathMutex);
+}
+
+void SUDPConnectionManager::setRemoteAddress(SCIONAddr addr)
+{
+    PathManager::setRemoteAddress(addr);
+    pthread_mutex_lock(&mPathMutex);
+    mLastProbeAcked.resize(mPaths.size());
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (!mPaths[i])
+            continue;
+        mLastProbeAcked[i] = 0;
+        mPaths[i]->setUp();
+    }
+    pthread_mutex_unlock(&mPathMutex);
+}
+
+Path * SUDPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
+{
+    return new SUDPPath(this, mLocalAddr, dstAddr, rawPath, pathLen);
 }

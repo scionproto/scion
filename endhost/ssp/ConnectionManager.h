@@ -14,7 +14,7 @@ class PathState;
 
 class PathManager {
 public:
-    PathManager(std::vector<SCIONAddr> &addrs, int sock);
+    PathManager(int sock);
     virtual ~PathManager();
 
     int getSocket();
@@ -22,7 +22,9 @@ public:
     int maxPayloadSize();
     SCIONAddr * localAddress();
 
-    void getLocalAddress();
+    void queryLocalAddress();
+    int setLocalAddress(SCIONAddr addr);
+    virtual void setRemoteAddress(SCIONAddr addr);
     void getPaths();
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
@@ -32,7 +34,7 @@ public:
     int setISDWhitelist(void *data, size_t len);
 
 protected:
-    int checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> &candidates);
+    int checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidates);
     void prunePaths();
     void insertPaths(std::vector<Path *> &candidates);
     int insertOnePath(Path *p);
@@ -40,7 +42,7 @@ protected:
     int                          mDaemonSocket;
     int                          mSendSocket;
     SCIONAddr                    mLocalAddr;
-    std::vector<SCIONAddr>      &mDstAddrs;
+    SCIONAddr                    mDstAddr;
 
     std::vector<Path *>          mPaths;
     pthread_mutex_t              mPathMutex;
@@ -48,32 +50,12 @@ protected:
     PathPolicy                   mPolicy;
 };
 
-// SUDP
-
-class SUDPConnectionManager : public PathManager {
-public:
-    SUDPConnectionManager(std::vector<SCIONAddr> &addrs, int sock);
-    ~SUDPConnectionManager();
-
-    int send(SCIONPacket *packet);
-
-    void sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort);
-    void handlePacket(SCIONPacket *packet);
-
-    Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
-protected:
-    void handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index);
-
-    struct timeval mLastProbeTime;
-    std::vector<uint32_t> mLastProbeAcked;
-};
-
 // SSP
 
 class SSPConnectionManager : public PathManager {
 public:
-    SSPConnectionManager(std::vector<SCIONAddr> &addrs, int sock);
-    SSPConnectionManager(std::vector<SCIONAddr> &addrs, int sock, SSPProtocol *protocol);
+    SSPConnectionManager(int sock);
+    SSPConnectionManager(int sock, SSPProtocol *protocol);
     virtual ~SSPConnectionManager();
 
     void setRemoteWindow(uint32_t window);
@@ -141,6 +123,28 @@ protected:
     pthread_t                    mWorker;
 
     SSPProtocol               *mProtocol;
+};
+
+// SUDP
+
+class SUDPConnectionManager : public PathManager {
+public:
+    SUDPConnectionManager(int sock);
+    ~SUDPConnectionManager();
+
+    int send(SCIONPacket *packet);
+
+    void sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort);
+    void handlePacket(SCIONPacket *packet);
+
+    void setRemoteAddress(SCIONAddr addr);
+
+    Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
+protected:
+    void handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index);
+
+    struct timeval mLastProbeTime;
+    std::vector<uint32_t> mLastProbeAcked;
 };
 
 #endif // PATH_MANAGER_H

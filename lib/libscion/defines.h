@@ -1,6 +1,11 @@
 #ifndef _DEFINES_H_
 #define _DEFINES_H_
 
+#define SCIOND_API_PORT 3333
+#define SCION_DISPATCHER_HOST "127.255.255.254"
+#define SCION_DISPATCHER_PORT 3334
+#define DISPATCHER_BUF_SIZE 65535
+
 #define SCION_UDP_PORT         30040
 #define SCION_UDP_EH_DATA_PORT 30041
 #define SCION_ROUTER_PORT      50000
@@ -12,8 +17,13 @@
 #define L4_UDP      17
 #define L4_SSP      152
 
+#define MAX_HOST_ADDR_LEN 16
+
 #define REV_TOKEN_LEN 32
 #define AD_MARKING_METADATA_LEN 8
 #define PCB_MARKING_LEN (12 + REV_TOKEN_LEN)
+
+#define MAX_SEGMENT_TTL (24 * 60 * 60)
+#define EXP_TIME_UNIT (MAX_SEGMENT_TTL >> 8)
 
 #endif

@@ -8,7 +8,21 @@
 
 int main()
 {
-    int sock = newSCIONSocket(SCION_PROTO_SSP, NULL, 0, 8080, 0);
+    int sock = newSCIONSocket(L4_SSP);
+    SCIONAddr addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.host.port = 8080;
+    int ret = SCIONBind(sock, addr);
+    if (ret < 0) {
+        printf("bind failed\n");
+        return 1;
+    }
+    ret = SCIONListen(sock);
+    if (ret < 0) {
+        printf("listen failed\n");
+        return 1;
+    }
+
     char buf[BUFSIZE];
     int size = 0;
     struct timeval start, end;

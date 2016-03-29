@@ -5,10 +5,9 @@ PP = g++
 CFLAGS += -g
 PFLAGS += $(CFLAGS) -std=c++11
 LIB = -L..
-INC = -I..
+INC = -I.. -I../../../lib/libscion
 HDRS=$(wildcard ../*.h)
-BINARIES = client server hash_client hash_server web_client web_server
-WRAPPED = wrapper_client wrapper_server
+BINARIES = client server hash_client hash_server web_client web_server wrapper_client wrapper_server
 
 all: $(BINARIES)
 

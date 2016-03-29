@@ -12,13 +12,13 @@
 
 class SCIONProtocol {
 public:
-    SCIONProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
-    SCIONProtocol(const SCIONProtocol &p);
+    SCIONProtocol();
     virtual ~SCIONProtocol();
 
-    SCIONProtocol & operator=(const SCIONProtocol &p);
-
-    virtual int send(uint8_t *buf, size_t len, DataProfile profile);
+    virtual int bind(SCIONAddr addr, int sock);
+    virtual int connect(SCIONAddr addr);
+    virtual int listen(int sock);
+    virtual int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
     virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
@@ -30,7 +30,6 @@ public:
     bool isBlocking();
 
     virtual bool claimPacket(SCIONPacket *packet, uint8_t *buf);
-    virtual void createManager(std::vector<SCIONAddr> &dstAddrs, bool paths);
     virtual void start(SCIONPacket *packet, uint8_t *buf, int sock);
 
     bool isRunning();
@@ -52,6 +51,7 @@ protected:
 
     int                    mSocket;
     uint16_t               mSrcPort;
+    SCIONAddr              mDstAddr;
     uint16_t               mDstPort;
     int                    mProtocolID;
     bool                   mIsReceiver;
@@ -60,7 +60,6 @@ protected:
     pthread_mutex_t        mReadMutex;
     pthread_cond_t         mReadCond;
     SCIONState             mState;
-    std::vector<SCIONAddr> &mDstAddrs;
     uint64_t               mNextSendByte;
 
     // dead path probing
@@ -74,14 +73,15 @@ protected:
 
 class SSPProtocol: public SCIONProtocol {
 public:
-    SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
+    SSPProtocol();
     ~SSPProtocol();
 
-    int send(uint8_t *buf, size_t len, DataProfile profile);
+    int connect(SCIONAddr addr);
+    int listen(int sock);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
-    void createManager(std::vector<SCIONAddr> &dstAddrs, bool paths);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
 
@@ -95,6 +95,7 @@ public:
     bool readyToWrite();
     int registerSelect(Notification *n, int mode);
     void deregisterSelect(int index);
+    void signalSelect();
 
     void notifySender();
 
@@ -103,21 +104,16 @@ public:
     void registerDispatcher(uint64_t flowID, uint16_t port, int sock);
     void removeDispatcher(int sock);
 
-    uint64_t               mFlowID;
 protected:
     void getWindowSize();
     int getDeadlineFromProfile(DataProfile profile);
 
     void handleProbe(SCIONPacket *packet);
     SSPPacket * checkOutOfOrderQueue(SSPPacket *sp);
-    void signalSelect();
     void handleInOrder(SSPPacket *sp, int pathIndex);
     void handleOutOfOrder(SSPPacket *sp, int pathIndex);
     void handleData(SSPPacket *packet, int pathIndex);
     void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
-
-    bool isFirstPacket();
-    void didRead(L4Packet *packet);
 
     // path manager
     SSPConnectionManager *mConnectionManager;
@@ -128,6 +124,7 @@ protected:
     uint32_t               mLocalSendWindow;
     uint32_t               mRemoteWindow;
     int                    mInitAckCount;
+    uint64_t               mFlowID;
 
     // ack bookkeeping
     uint64_t               mLowestPending;
@@ -143,6 +140,7 @@ protected:
     OrderedList<SSPPacket *> *mReadyPackets;
     OrderedList<SSPPacket *> *mOOPackets;
 
+    // select
     pthread_mutex_t        mSelectMutex;
     std::map<int, Notification> mSelectRead;
     std::map<int, Notification> mSelectWrite;
@@ -151,12 +149,11 @@ protected:
 
 class SUDPProtocol : public SCIONProtocol {
 public:
-    SUDPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
+    SUDPProtocol();
     ~SUDPProtocol();
 
-    void createManager(std::vector<SCIONAddr> &dstAddrs, bool paths);
-
-    int send(uint8_t *buf, size_t len, DataProfile profile);
+    int bind(SCIONAddr addr, int sock);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
@@ -164,13 +161,15 @@ public:
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
-    void registerDispatcher(uint16_t port, int sock);
+    void registerDispatcher(uint16_t port, int sock, int reg);
+    void removeDispatcher(int sock);
 
     void getStats(SCIONStats *stats);
 
 protected:
     SUDPConnectionManager *mConnectionManager;
     std::list<SUDPPacket *> mReceivedPackets;
+    SCIONAddr mRemoteAddr;
     size_t mTotalReceived;
 };
 
