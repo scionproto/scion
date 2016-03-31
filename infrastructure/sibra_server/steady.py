@@ -31,7 +31,7 @@ from lib.defines import (
 from infrastructure.sibra_server.util import seg_to_hops
 from lib.errors import SCIONBaseError
 from lib.flagtypes import PathSegFlags as PSF
-from lib.packet.path import EmptyPath
+from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.scion import SVCType
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
@@ -230,7 +230,7 @@ class SteadyPath(object):
         ext.active_blocks = self.blocks[:1]
         cmn_hdr, addr_hdr, udp_hdr, payload = self._create_hdrs()
         return SCIONL4Packet.from_values(
-            cmn_hdr, addr_hdr, EmptyPath(), [ext], udp_hdr, payload)
+            cmn_hdr, addr_hdr, SCIONPath(), [ext], udp_hdr, payload)
 
     def _register_path(self):
         logging.debug("Registering path with local path server")
@@ -249,7 +249,7 @@ class SteadyPath(object):
             fwd_dir = False
         else:
             dst_ia = self.addr.isd_as
-            path = EmptyPath()
+            path = SCIONPath()
             type_ = PST.UP
             fwd_dir = True
         pcb = self._create_reg_pcb(fwd_dir=fwd_dir)

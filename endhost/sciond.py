@@ -33,7 +33,7 @@ from lib.errors import SCIONServiceLookupError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
-from lib.packet.path import EmptyPath, PathCombinator
+from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt import PathSegmentReq
 from lib.packet.pcb_ext import BeaconExtType
 from lib.packet.scion_addr import ISD_AS
@@ -217,7 +217,7 @@ class SCIONDaemon(SCIONElement):
             raw_path = path.pack()
             # assumed IPv4 addr
             fwd_if = path.get_fwd_if()
-            # Set dummy host addr if path is EmptyPath.
+            # Set dummy host addr if path is empty.
             # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
             haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPV4", "0.0.0.0"))
             path_len = len(raw_path) // 8
@@ -283,7 +283,7 @@ class SCIONDaemon(SCIONElement):
                 self.topology.is_core_as):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
-            return [EmptyPath()]
+            return [SCIONPath()]
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))

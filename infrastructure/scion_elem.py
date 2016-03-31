@@ -44,7 +44,7 @@ from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path import EmptyPath
+from lib.packet.path import SCIONPath
 from lib.packet.scion import (
     build_base_hdrs,
     SCIONBasePacket,
@@ -233,7 +233,7 @@ class SCIONElement(object):
         if dst_ia is None:
             dst_ia = self.addr.isd_as
         if path is None:
-            path = EmptyPath()
+            path = SCIONPath()
         if payload is None:
             payload = PayloadRaw()
         dst_addr = SCIONAddr.from_values(dst_ia, dst_host)
