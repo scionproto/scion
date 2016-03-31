@@ -38,13 +38,13 @@ class SocketKnowledgeBase(object):
     recording the stats in a dictionary.
     """
 
-    def __init__(self):
+    def __init__(self, topo_file, loc_file):
         """
         Creates an instance of the knowledge base class.
         """
         self.active_sockets = set()
         self.kbase = {}  # HTTP Req (method, path) to stats (ScionStats)
-        self.stay_ISD = 0  # ISD to enforce. 0 means do not enforce any.
+        self.isd_whitelist = []  # ISDs to whitelist.
         self.lock = threading.Lock()
         self.gatherer = threading.Thread(
             target=thread_safety_net,
@@ -52,7 +52,8 @@ class SocketKnowledgeBase(object):
             name="stats",
             daemon=True)
         self.gatherer.start()
-        self.lookup_service = KnowledgeBaseLookupService(self)
+        self.lookup_service = KnowledgeBaseLookupService(
+            self, topo_file, loc_file)
 
     def add_socket(self, soc, method, path):
         """
@@ -108,27 +109,26 @@ class SocketKnowledgeBase(object):
         """
         return list(self.kbase.keys())
 
-    def set_stay_ISD(self, isd):
+    def set_ISD_whitelist(self, isds):
         """
-        Setter function for stay_ISD class member.
-        :param isd: ISD number (positive integer)
-        :type isd: int
+        Setter function for the ISD_whitelist class member.
+        :param isds: List of ISDs to be whitelisted.
+        :type isd: list
         """
-        if isd < 0:
-            logging.error("Invalid value to set_stay_ISD. Ignoring: %d", isd)
-            return {'STATUS': 'INVALID_ISD'}
-        else:
-            self.stay_ISD = isd
-            logging.info("Stay ISD set: %d", self.stay_ISD)
-            return {'STATUS': 'OK'}
+        if len(isds) > 10:
+            logging.error("Invalid arg to set_ISD_whitelist.: %s", isds)
+            return {'STATUS': 'INVALID_ISD_WHITELIST'}
+        self.isd_whitelist = isds
+        logging.info("ISD whitelist set: %s", self.isd_whitelist)
+        return {'STATUS': 'OK'}
 
-    def get_stay_ISD(self):
+    def get_ISD_whitelist(self):
         """
-        Getter function for stay_ISD class member.
-        :returns ISD to enforce.
-        :type isd: int
+        Getter function for isd_whitelist class member.
+        :returns Whitelisted ISDs.
+        :type isd: list
         """
-        return self.stay_ISD
+        return self.isd_whitelist
 
     def update_single_stat(self, soc):
         """

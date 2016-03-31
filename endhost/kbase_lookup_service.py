@@ -29,10 +29,8 @@ import yaml
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import AddrType
-from topology.generator import DEFAULT_TOPOLOGY_FILE
 
 SERVER_ADDRESS = "127.0.0.1", 7777
-DEFAULT_LOCATIONS_FILE = "topology/Default.locations"
 
 
 class KnowledgeBaseLookupService(object):
@@ -43,13 +41,15 @@ class KnowledgeBaseLookupService(object):
     the creator of this object.
     """
 
-    def __init__(self, kbase):
+    def __init__(self, kbase, topo_file, loc_file):
         """
         Creates and initializes an instance of the lookup service.
         :param kbase: Socket knowledge-base object.
         :type kbase: SocketKnowledgeBase
         """
         self.kbase = kbase
+        self.topology_file = topo_file
+        self.locations_file = loc_file
         # Create a UDP socket
         self.sock = UDPSocket(SERVER_ADDRESS, AddrType.IPV4)
         # Bind the socket to the port
@@ -119,14 +119,14 @@ class KnowledgeBaseLookupService(object):
             resp = self._get_topology()
         elif cmd == 'LOCATIONS':
             resp = self._get_locations()
-        elif cmd == 'STAY_ISD':
+        elif cmd == 'ISD_WHITELIST':
             try:
-                isd = request['isd']
+                isds = request['isds']
             except KeyError as e:
-                logging.error('Key error while parsing STAY_ISD req: %s' % e)
+                logging.error('Key error in parsing ISD_WHITELIST req: %s' % e)
                 return
-            assert(isinstance(isd, int))
-            resp = self._handle_stay_ISD(isd)
+            assert(isinstance(isds, list))
+            resp = self._handle_ISD_whitelist(isds)
         else:
             logging.error('Unsupported command: %s')
             return
@@ -187,7 +187,7 @@ class KnowledgeBaseLookupService(object):
         :returns: A list of links extracted from the topology file.
         :rtype: list
         """
-        with open(DEFAULT_TOPOLOGY_FILE, 'r') as stream:
+        with open(self.topology_file, 'r') as stream:
             try:
                 topo_dict = yaml.load(stream)
                 logging.debug('Topology: %s' % topo_dict)
@@ -203,7 +203,7 @@ class KnowledgeBaseLookupService(object):
         :returns: A dictionary of AS Name to Country Code matching.
         :rtype: dict
         """
-        with open(DEFAULT_LOCATIONS_FILE, 'r') as stream:
+        with open(self.locations_file, 'r') as stream:
             try:
                 locations_dict = yaml.load(stream)
                 logging.debug('Locations: %s' % locations_dict)
@@ -212,12 +212,12 @@ class KnowledgeBaseLookupService(object):
                 logging.error('Error while reading the locations YAML: %s' % e)
                 return {}
 
-    def _handle_stay_ISD(self, isd):
+    def _handle_ISD_whitelist(self, isds):
         """
-        Lets the kbase know of which ISD should be enforced.
-        :param isd: ISD number
-        :type isd: int
+        Lets the kbase know of which ISDs should be whitelisted.
+        :param isds: List of ISDs (numbers)
+        :type isds: list
         :returns: A dictionary indicating the result.
         :rtype: dict
         """
-        return self.kbase.set_stay_ISD(isd)
+        return self.kbase.set_ISD_whitelist(isds)

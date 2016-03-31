@@ -123,16 +123,6 @@ void SCIONProtocol::deregisterSelect(int index)
 {
 }
 
-int SCIONProtocol::setStayISD(uint16_t isd)
-{
-    if (!mPathManager)
-        return -EPERM;
-    // Disallow chaning policy if connection is already active
-    if (mNextSendByte != 0)
-        return -EPERM;
-    return mPathManager->setStayISD(isd);
-}
-
 int SCIONProtocol::setISDWhitelist(void *data, size_t len)
 {
     if (!mPathManager)

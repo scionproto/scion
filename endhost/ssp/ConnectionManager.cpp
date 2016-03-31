@@ -64,7 +64,7 @@ void PathManager::getLocalAddress()
 {
     struct sockaddr_in addr;
     char buf[32];
-    
+
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
@@ -123,7 +123,7 @@ void PathManager::getPaths()
     int buflen = (MAX_PATH_LEN + 15) * MAX_TOTAL_PATHS;
     int recvlen;
     uint8_t buf[buflen];
-    
+
     memset(&addr, 0, addrlen);
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
@@ -231,26 +231,6 @@ void PathManager::handleTimeout()
 
 void PathManager::getStats(SCIONStats *stats)
 {
-}
-
-int PathManager::setStayISD(uint16_t isd)
-{
-    if (mLocalAddr.isd_ad == 0) {
-        getLocalAddress();
-    }
-
-    if (isd != GET_ISD(mLocalAddr.isd_ad)) {
-        DEBUG("Request to stay in non-local ISD\n");
-        return -EINVAL;
-    }
-    if (isd != GET_ISD(mDstAddrs[0].isd_ad)) {
-        DEBUG("Remote host in different ISD\n");
-        return -EINVAL;
-    }
-
-    mPolicy.setStayISD(isd);
-    getPaths();
-    return 0;
 }
 
 int PathManager::setISDWhitelist(void *data, size_t len)

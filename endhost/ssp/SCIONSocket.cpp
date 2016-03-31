@@ -183,8 +183,6 @@ int SCIONSocket::setSocketOption(SCIONOption *option)
     case SCION_OPTION_BLOCKING:
         mProtocol->setBlocking(option->val);
         return 0;
-    case SCION_OPTION_STAY_ISD:
-        return mProtocol->setStayISD(option->val);
     case SCION_OPTION_ISD_WLIST:
         return mProtocol->setISDWhitelist(option->data, option->len);
     default:

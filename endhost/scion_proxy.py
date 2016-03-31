@@ -85,17 +85,17 @@ endhost/scion_proxy.py -f
 
 # Stdlib
 import argparse
-import errno
 import logging
 import os
 import socket
+import struct
 import threading
 from http.client import HTTPMessage
 from urllib.parse import urlparse, urlunparse
 
 # SCION
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
-from endhost.scion_socket import SCION_OPTION_STAY_ISD
+from endhost.scion_socket import SCION_OPTION_ISD_WLIST
 from endhost.socket_kbase import SocketKnowledgeBase
 from lib.log import init_logging, log_exception
 from lib.packet.scion_addr import ISD_AS
@@ -336,10 +336,10 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
     """
     server_version = "SCION HTTP Bridge Proxy/" + VERSION
     unix_target_proxy = '127.0.0.1', 9090
-    scion_target_proxy = '127.1.18.254', 9090
-    isd_as = ISD_AS.from_values(1, 18)
+    target_proxy = '127.%s.%s.254', 9090
 
-    def __init__(self, connection, address, conn_id, scion_mode, kbase):
+    def __init__(self, connection, address, conn_id,
+                 scion_mode, kbase, target_isd_as):
         """
         Create a ConnectionHandler class to handle the incoming
         HTTP(S) request.
@@ -350,6 +350,9 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         """
         self.scion_mode = scion_mode
         self.socket_kbase = kbase
+        self.isd_as = ISD_AS(target_isd_as)
+        self.scion_target_proxy = self.target_proxy[0] % \
+            (self.isd_as[0], self.isd_as[1]), self.target_proxy[1]
         super().__init__(connection, address, conn_id)
 
     def handle_request(self):
@@ -387,18 +390,29 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
             logging.info("Opening a SCION-socket")
             soc = ScionClientSocket(L4Proto.SSP, self.isd_as,
                                     self.scion_target_proxy)
-            if self.socket_kbase is not None:
-                # set socket options if there is any provided
-                stay_ISD = self.socket_kbase.get_stay_ISD()
-                if stay_ISD > 0:
-                    r = soc.setopt(SCION_OPTION_STAY_ISD, stay_ISD)
-                    if r != 0:
-                        logging.error("Set Stay ISD on SCION socket failed: %s",
-                                      errno.errorcode[r])
+            if self.socket_kbase:
+                self._handle_socket_options(soc)
                 self.socket_kbase.add_socket(soc, self.method, self.path)
         else:
             soc = self._unix_client_socket()
         return soc
+
+    def _handle_socket_options(self, soc):
+        """
+        Sets the given socket options if they are provided.
+        """
+        # ISD whitelist
+        isd_list = self.socket_kbase.get_ISD_whitelist()
+        l = len(isd_list)
+        if l <= 10:
+            isds = struct.pack("H" * l, *isd_list)
+            err = soc.setopt(SCION_OPTION_ISD_WLIST, 0, isds)
+            if err != 0:
+                logging.error("Set ISD whitelist on SCION socket failed: %s",
+                              os.strerror(err))
+        else:
+            logging.error("ISD whitelist too long, ignoring: Len=%s, List=%s",
+                          l, isds)
 
     def _unix_client_socket(self):
         soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -422,7 +436,7 @@ def cleanup(sock):
         pass
 
 
-def serve_forever(soc, bridge_mode, scion_mode, kbase):
+def serve_forever(soc, bridge_mode, scion_mode, kbase, target_isd_as):
     """
     Serve incoming HTTP requests until a KeyboardInterrupt is received.
     :param soc: Socket object that belongs to the server.
@@ -438,7 +452,7 @@ def serve_forever(soc, bridge_mode, scion_mode, kbase):
         conn_id = hex_str(os.urandom(CONN_ID_BYTES))
         if bridge_mode:
             params = (ForwardingProxyConnectionHandler, con, addr, conn_id,
-                      scion_mode, kbase)
+                      scion_mode, kbase, target_isd_as)
         else:
             params = ConnectionHandler, con, addr, conn_id
 
@@ -477,6 +491,15 @@ def main():
                         action="store_true")
     parser.add_argument("-k", "--kbase", help='Enable SCION knowledge-base',
                         action="store_true")
+    parser.add_argument("-t", "--topo",
+                        help='Topology file SCION knowledge-base should use',
+                        default='topology/Wide.topo')
+    parser.add_argument("-l", "--loc",
+                        help='Locations file SCION knowledge-base should use',
+                        default='topology/Wide.locations')
+    parser.add_argument("--target_isd_as",
+                        help='ISD-AS of the target SCION Proxy',
+                        default='3-3')
     args = parser.parse_args()
 
     server_address = DEFAULT_SERVER_IP, args.port
@@ -496,7 +519,7 @@ def main():
         if args.kbase:
             if args.forward:
                 logging.info("SCION-socket knowledge-base is enabled.")
-                kbase = SocketKnowledgeBase()
+                kbase = SocketKnowledgeBase(args.topo, args.loc)
             else:
                 logging.info("SCION-socket knowledge-base is supported "
                              "only in forwarding mode.")
@@ -509,7 +532,8 @@ def main():
         soc = unix_server_socket(server_address)
 
     try:
-        serve_forever(soc, args.forward, args.scion, kbase)
+        serve_forever(soc, args.forward, args.scion, kbase,
+                      args.target_isd_as)
     except KeyboardInterrupt:
         logging.info("Exiting")
         soc.close()

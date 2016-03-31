@@ -217,8 +217,7 @@ SHARED_LIB_CLIENT = "libclient.so"
 MAX_STATS_BUFFER = 3072
 # Socket Option codes
 SCION_OPTION_BLOCKING = 0
-SCION_OPTION_STAY_ISD = 1
-SCION_OPTION_ISD_WLIST = 2
+SCION_OPTION_ISD_WLIST = 1
 
 
 class ScionBaseSocket(object):
@@ -228,7 +227,7 @@ class ScionBaseSocket(object):
 
     # socket options that require long data arg
     # map option to minimum data length for that option
-    LONG_OPTIONS = {SCION_OPTION_ISD_WLIST: 2}
+    LONG_OPTIONS = {SCION_OPTION_ISD_WLIST: 0}
 
     def __init__(self, fd, libsock):
         """
@@ -337,7 +336,7 @@ class ScionBaseSocket(object):
         self.libsock.SCIONSetOption.argtypes = (c_int, c_void_p,)
         opt = C_SCIONOption()
         opt.type = opttype
-        if data:
+        if data is not None:
             for i, x in enumerate(data):
                 opt.data[i] = x
             opt.len = len(data)
