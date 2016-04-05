@@ -35,12 +35,9 @@ SocketEntry * findSocket(int sock)
     return e;
 }
 
-int newSCIONSocket(int protocol,
-                   SCIONAddr *dstAddrs, int numAddrs,
-                   short srcPort, short dstPort)
+int newSCIONSocket(int protocol)
 {
-    SCIONSocket *s =
-        new SCIONSocket(protocol, dstAddrs, numAddrs, srcPort, dstPort);
+    SCIONSocket *s = new SCIONSocket(protocol);
     SocketEntry *e;
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
     e->fd = s->getDispatcherSocket();
@@ -71,6 +68,30 @@ int SCIONAccept(int sock)
     return e->fd;
 }
 
+int SCIONBind(int sock, SCIONAddr addr)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return -1;
+    return e->sock->bind(addr);
+}
+
+int SCIONConnect(int sock, SCIONAddr addr)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return -1;
+    return e->sock->connect(addr);
+}
+
+int SCIONListen(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return -1;
+    return e->sock->listen();
+}
+
 int SCIONSend(int sock, uint8_t *buf, size_t len)
 {
     SocketEntry *e = findSocket(sock);
@@ -80,12 +101,12 @@ int SCIONSend(int sock, uint8_t *buf, size_t len)
 }
 
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
-                     int profile)
+                     SCIONAddr *dstAddr)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->send(buf, len, (DataProfile)profile);
+    return e->sock->send(buf, len, dstAddr);
 }
 
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
@@ -115,7 +136,7 @@ int SCIONSetOption(int fd, SCIONOption *option)
 {
     SocketEntry *e = findSocket(fd);
     if (!e)
-        return -1;
+        return -EINVAL;
     return e->sock->setSocketOption(option);
 }
 
@@ -123,7 +144,7 @@ int SCIONGetOption(int fd, SCIONOption *option)
 {
     SocketEntry *e = findSocket(fd);
     if (!e)
-        return -1;
+        return -EINVAL;
     return e->sock->getSocketOption(option);
 }
 
@@ -133,7 +154,6 @@ int checkReadWrite(fd_set *fdset, int mode, int fd, Notification *n)
     int ready = 0;
     if ((mode == SCION_SELECT_READ && e->sock->readyToRead()) ||
         (mode == SCION_SELECT_WRITE && e->sock->readyToWrite())) {
-        DEBUG("fd %d is ready\n", fd);
         FD_SET(fd, fdset);
         ready = 1;
     } else {

@@ -5,7 +5,7 @@
 #define SSP_PROBE_ATTEMPTS (2 * 20)
 #define SSP_SEND_INTERVAL 100000 // us
 #define SSP_MAX_SEND_INTERVAL 3000000 // us
-#define SSP_DEFAULT_WINDOW_SIZE (1 << 20)
+#define SSP_DEFAULT_WINDOW_SIZE (1 << 16)
 #define SSP_MAX_RTO 3000000 // us
 #define SSP_MAX_RETRIES 1
 #define SSP_CONNECT_ATTEMPTS 3
@@ -33,6 +33,7 @@ typedef enum {
 
 #define SUDP_PROBE_INTERVAL 1000000
 #define SUDP_RECV_BUFFER (1 << 16)
+#define SUDP_PROBE_WINDOW 3
 
 #define SUDP_PROBE 0x1
 #define SUDP_PROBE_ACK 0x2

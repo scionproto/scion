@@ -6,13 +6,13 @@ INC=-I$(LIBDIR)
 LIBFLAG=-L$(LIBDIR)
 LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
 
-HDRS=$(wildcard *.h) ../../lib/libscion/libscion_api.h
+HDRS=$(wildcard *.h) $(wildcard ../../lib/libscion/*.h)
 
 SCIOND_DEP=ConnectionManager.cpp Utils.cpp
 CLIENT_OBJS=$(SCIOND_DEP:.cpp=._client.o)
 SERVER_OBJS=$(SCIOND_DEP:.cpp=._server.o)
 COMMON=SCIONSocket.cpp SCIONProtocol.cpp Path.cpp PathState.cpp\
-	   OrderedList.cpp SCIONWrapper.cpp Extensions.cpp PathPolicy.cpp
+	   OrderedList.cpp Extensions.cpp PathPolicy.cpp SCIONWrapper.cpp
 COMMON_OBJS=$(COMMON:.cpp=.o)
 SOCKET_OBJS=$(COMMON_OBJS) $(CLIENT_OBJS) $(SERVER_OBJS)
 CLIENT_LIB=libclient.so

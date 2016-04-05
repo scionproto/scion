@@ -5,8 +5,6 @@
 #include "Extensions.h"
 #include "SCIONSocket.h"
 
-#include "libscion_api.h"
-
 void signalHandler(int signum)
 {
     switch (signum) {
@@ -32,78 +30,52 @@ void *dispatcherThread(void *arg)
                             (struct sockaddr *)&addr, &addrLen);
         if (len > 0) {
             DEBUG("received %d bytes from dispatcher\n", len);
-            if (!ss->bypassDispatcher())
-                addr = *(struct sockaddr_in *)(buf + len - sizeof(addr));
+            addr = *(struct sockaddr_in *)(buf + len - sizeof(addr));
             ss->handlePacket((uint8_t *)buf, len - sizeof(addr), &addr);
         }
     }
     return NULL;
 }
 
-SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
-                         short srcPort, short dstPort)
-    : mSrcPort(srcPort),
-    mDstPort(dstPort),
-    mProtocolID(protocol),
+int setupSocket()
+{
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = INADDR_ANY;
+    bind(sock, (struct sockaddr *)&sa, sizeof(sa));
+    return sock;
+}
+
+SCIONSocket::SCIONSocket(int protocol)
+    : mProtocolID(protocol),
     mRegistered(false),
     mState(SCION_RUNNING),
     mLastAccept(-1),
+    mIsListener(false),
     mParent(NULL),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
     signal(SIGINT, signalHandler);
 
+    // init pthread variables
     pthread_mutex_init(&mAcceptMutex, NULL);
     pthread_cond_init(&mAcceptCond, NULL);
     pthread_mutex_init(&mRegisterMutex, NULL);
     pthread_cond_init(&mRegisterCond, NULL);
     pthread_mutex_init(&mSelectMutex, NULL);
 
-    if (dstAddrs)
-        for (int i = 0; i < numAddrs; i++)
-            mDstAddrs.push_back(dstAddrs[i]);
-
-    mDispatcherSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    // open dispatcher socket
+    mDispatcherSocket = setupSocket();
 
     switch (protocol) {
-        case SCION_PROTO_SSP: {
-            if (!mDstAddrs.empty()) {
-                mProtocol = new SSPProtocol(mDstAddrs, mSrcPort, mDstPort);
-                if (srcPort != -1) {
-                    mProtocol->createManager(mDstAddrs, true);
-                    mProtocol->start(NULL, NULL, mDispatcherSocket);
-                    mRegistered = true;
-                }
-            } else {
-                mProtocol = NULL;
-                DispatcherEntry se;
-                se.flow_id = 0;
-                se.port = mSrcPort;
-                // FIXME: stopgap measure until big refactoring
-                se.isd_as = getLocalHostAddr(se.addr);
-                se.addr_type = ADDR_TYPE_IPV4;
-                registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 1);
-                mRegistered = true;
-            }
+        case L4_SSP: {
+            mProtocol = new SSPProtocol();
             break;
         }
-        case SCION_PROTO_UDP: {
-            struct sockaddr_in addr;
-            socklen_t addrLen = sizeof(addr);
-            memset(&addr, 0, addrLen);
-            addr.sin_family = AF_INET;
-            addr.sin_addr.s_addr = INADDR_ANY;
-            addr.sin_port = htons(mSrcPort);
-            bind(mDispatcherSocket, (struct sockaddr *)&addr, addrLen);
-            if (!mSrcPort) {
-                getsockname(mDispatcherSocket, (struct sockaddr *)&addr, &addrLen);
-                mSrcPort = ntohs(addr.sin_port);
-            }
-            mProtocol = new SUDPProtocol(mDstAddrs, mSrcPort, mDstPort);
-            mProtocol->createManager(mDstAddrs, true);
-            ((SUDPProtocol *)mProtocol)->registerDispatcher(mSrcPort, mDispatcherSocket);
-            mRegistered = true;
-            DEBUG("Registered to receive SUDP packets on port %d\n", mSrcPort);
+        case L4_UDP: {
+            mProtocol = new SUDPProtocol();
             break;
         }
         default:
@@ -118,25 +90,9 @@ SCIONSocket::~SCIONSocket()
     mState = SCION_CLOSED;
     pthread_cancel(mReceiverThread);
     pthread_join(mReceiverThread, NULL);
-    if (mProtocol) {
-        mProtocol->removeDispatcher(mDispatcherSocket);
-        delete mProtocol;
-        mProtocol = NULL;
-    } else if (mProtocolID == SCION_PROTO_SSP) {
-        DispatcherEntry se;
-        se.flow_id = 0;
-        se.port = mSrcPort;
-        se.isd_as = getLocalHostAddr(se.addr);
-        se.addr_type = ADDR_TYPE_IPV4;
-        registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 0);
-    }
-    if (mProtocolID == SCION_PROTO_UDP) {
-        DispatcherEntry se;
-        se.port = mSrcPort;
-        se.addr_type = ADDR_TYPE_IPV4;
-        se.isd_as = getLocalHostAddr(se.addr);
-        registerFlow(SCION_PROTO_UDP, &se, mDispatcherSocket, 0);
-    }
+    mProtocol->removeDispatcher(mDispatcherSocket);
+    delete mProtocol;
+    mProtocol = NULL;
     close(mDispatcherSocket);
     pthread_mutex_destroy(&mAcceptMutex);
     pthread_cond_destroy(&mAcceptCond);
@@ -157,14 +113,50 @@ SCIONSocket * SCIONSocket::accept()
     return s;
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len)
+/*
+ * Used to send/receive on subset of host's SCION addresses
+ * Since we don't support multiple addresses yet, does pretty much nothing ATM
+ * Still needs to be called before listen() and accept()
+ */
+int SCIONSocket::bind(SCIONAddr addr)
 {
-    return send(buf, len, mDataProfile);
+    if (addr.isd_as == 0 && addr.host.port == 0) {
+        struct sockaddr_in sa;
+        socklen_t len = sizeof(sa);
+        getsockname(mDispatcherSocket, (struct sockaddr *)&sa, &len);
+        addr.host.port = ntohs(sa.sin_port);
+    }
+    int ret = mProtocol->bind(addr, mDispatcherSocket);
+    if (mProtocolID == L4_UDP) {
+        pthread_mutex_lock(&mRegisterMutex);
+        mRegistered = true;
+        pthread_cond_signal(&mRegisterCond);
+        pthread_mutex_unlock(&mRegisterMutex);
+    }
+    return ret;
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len, DataProfile profile)
+int SCIONSocket::connect(SCIONAddr addr)
 {
-    return mProtocol->send(buf, len, profile);
+    mProtocol->start(NULL, NULL, mDispatcherSocket);
+    pthread_mutex_lock(&mRegisterMutex);
+    mRegistered = true;
+    pthread_cond_signal(&mRegisterCond);
+    pthread_mutex_unlock(&mRegisterMutex);
+    return mProtocol->connect(addr);
+}
+
+int SCIONSocket::listen()
+{
+    int ret = mProtocol->listen(mDispatcherSocket);
+    if (ret < 0)
+        return ret;
+    mIsListener = true;
+    pthread_mutex_lock(&mRegisterMutex);
+    mRegistered = true;
+    pthread_cond_signal(&mRegisterCond);
+    pthread_mutex_unlock(&mRegisterMutex);
+    return 0;
 }
 
 int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
@@ -172,12 +164,20 @@ int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
     return mProtocol->recv(buf, len, srcAddr);
 }
 
+int SCIONSocket::send(uint8_t *buf, size_t len)
+{
+    return send(buf, len, NULL);
+}
+
+int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+{
+    return mProtocol->send(buf, len, dstAddr);
+}
+
 int SCIONSocket::setSocketOption(SCIONOption *option)
 {
     if (!option)
         return -EINVAL;
-    if (!mProtocol)
-        return -EPERM;
 
     switch (option->type) {
     case SCION_OPTION_BLOCKING:
@@ -198,8 +198,6 @@ int SCIONSocket::getSocketOption(SCIONOption *option)
 
     switch (option->type) {
     case SCION_OPTION_BLOCKING:
-        if (!mProtocol)
-            return -1;
         option->val = mProtocol->isBlocking();
         return 0;
     default:
@@ -252,25 +250,33 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     gettimeofday(&(packet->arrivalTime), NULL);
     SCIONHeader &sh = packet->header;
     SCIONCommonHeader &sch = sh.commonHeader;
-    memcpy(&sh, buf, sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN);
-    sch.totalLen = ntohs(sch.totalLen);
-    DEBUG("SCION header len = %d bytes\n", sch.headerLen);
-    DEBUG("total packet len = %d bytes\n", sch.totalLen);
+    memcpy(&sh, buf, sizeof(SCIONCommonHeader));
+    sch.total_len = ntohs(sch.total_len);
+
+    int src_len = get_src_len(buf);
+    int dst_len = get_dst_len(buf);
+    memcpy(sh.srcAddr, buf + sizeof(SCIONCommonHeader), ISD_AS_LEN);
+    memcpy(sh.srcAddr + ISD_AS_LEN, get_src_addr(buf), get_src_len(buf));
+    memcpy(sh.dstAddr, get_dst_addr(buf) - ISD_AS_LEN, ISD_AS_LEN);
+    memcpy(sh.dstAddr + ISD_AS_LEN, get_dst_addr(buf), get_dst_len(buf));
+    DEBUG("SCION header len = %d bytes\n", sch.header_len);
+    DEBUG("total packet len = %d bytes\n", sch.total_len);
 
     // address
     SCIONAddr srcAddr;
     memset(&srcAddr, 0, sizeof(srcAddr));
-    srcAddr.isd_ad = ntohl(*(uint32_t *)(sh.srcAddr));
-    srcAddr.host.addrLen = SCION_HOST_ADDR_LEN;
-    memcpy(srcAddr.host.addr, sh.srcAddr + SCION_HOST_OFFSET, SCION_HOST_ADDR_LEN);
+    srcAddr.isd_as = ntohl(*(uint32_t *)(sh.srcAddr));
+    // TODO: IPv6?
+    srcAddr.host.addr_len = ADDR_IPV4_LEN;
+    memcpy(srcAddr.host.addr, sh.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
 
     // path
-    sh.pathLen = sch.headerLen - sizeof(sch) - 2 * SCION_ADDR_LEN;
+    sh.pathLen = sch.header_len - sizeof(sch) - 2 * ISD_AS_LEN - src_len - dst_len;
     sh.path = (uint8_t *)malloc(sh.pathLen);
 #ifdef SIMULATOR
-    memcpy(sh.path, buf + sch.headerLen - sh.pathLen, sh.pathLen);
+    memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
 #else
-    int res = reverse_path(buf, buf + sch.headerLen - sh.pathLen, sh.path, sh.pathLen);
+    int res = reverse_path(buf, buf + sch.header_len - sh.pathLen, sh.path, sh.pathLen);
     if (res < 0) {
         DEBUG("reverse_path failed\n");
         free(packet);
@@ -279,26 +285,23 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
 #endif
     packet->firstHop = (uint32_t)(addr->sin_addr.s_addr);
 
-    uint8_t *ptr = parseExtensions(&packet->header, buf + sch.headerLen);
+    uint8_t *ptr = parseExtensions(&packet->header, buf + sch.header_len);
 
-    if (!mProtocol) {
+    if (mIsListener) {
         bool claimed = checkChildren(packet, ptr);
         if (!claimed) {
             // accept: create new socket to handle connection
-            SCIONAddr addrs[1];
-            addrs[0] = srcAddr;
             DEBUG("create new socket to handle incoming flow\n");
-            SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr *)addrs, 1, -1, mDstPort);
+            SCIONSocket *s = new SCIONSocket(mProtocolID);
             s->mParent = this;
-            s->mProtocol->setReceiver(true);
-            s->mProtocol->createManager(s->mDstAddrs, false);
-            s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
+            s->mProtocol->start(packet, buf + sch.header_len, s->mDispatcherSocket);
             s->mRegistered = true;
             pthread_cond_signal(&s->mRegisterCond);
             pthread_mutex_lock(&mAcceptMutex);
             mAcceptedSockets.push_back(s);
             pthread_mutex_unlock(&mAcceptMutex);
             pthread_cond_signal(&mAcceptCond);
+            signalSelect();
         }
         return;
     }
@@ -315,7 +318,7 @@ void SCIONSocket::setDataProfile(DataProfile profile)
 
 bool SCIONSocket::isListener()
 {
-    return mProtocol == NULL;
+    return mIsListener;
 }
 
 bool SCIONSocket::isRunning()
@@ -338,14 +341,9 @@ int SCIONSocket::getDispatcherSocket()
     return mDispatcherSocket;
 }
 
-bool SCIONSocket::bypassDispatcher()
-{
-    return mProtocolID == SCION_PROTO_UDP;
-}
-
 void * SCIONSocket::getStats(void *buf, int len)
 {
-    if (!mProtocol)
+    if (mIsListener)
         return NULL;
 
     SCIONStats *stats = (SCIONStats *)malloc(sizeof(SCIONStats));
@@ -362,7 +360,7 @@ void * SCIONSocket::getStats(void *buf, int len)
             continue;
         int offset = ptr - (uint8_t *)buf;
         pathLen = sizeof(int) * SERIAL_INT_FIELDS + sizeof(double);
-        pathLen +=  (SCION_ISD_AD_LEN + SCION_IFID_LEN) * stats->ifCounts[i];
+        pathLen +=  (ISD_AS_LEN + IFID_LEN) * stats->ifCounts[i];
         if (pathLen + offset > len) {
             free(stats);
             return NULL;
@@ -381,8 +379,8 @@ void * SCIONSocket::getStats(void *buf, int len)
         ptr += sizeof(int);
         for (int j = 0; j < stats->ifCounts[i]; j++) {
             SCIONInterface sif = stats->ifLists[i][j];
-            /* Python ISD_AD class expects network byte order */
-            *(uint32_t *)ptr = htonl(ISD_AD(sif.isd, sif.ad));
+            /* Python ISD_AS class expects network byte order */
+            *(uint32_t *)ptr = htonl(ISD_AS(sif.isd, sif.as));
             ptr += 4;
             *(uint16_t *)ptr = htons(sif.interface);
             ptr += 2;
@@ -394,7 +392,7 @@ void * SCIONSocket::getStats(void *buf, int len)
 
 bool SCIONSocket::readyToRead()
 {
-    if (!mProtocol) {
+    if (mIsListener) {
         bool ready = false;
         pthread_mutex_lock(&mAcceptMutex);
         ready = mLastAccept < (int)mAcceptedSockets.size() - 1;
@@ -407,16 +405,16 @@ bool SCIONSocket::readyToRead()
 
 bool SCIONSocket::readyToWrite()
 {
-    if (!mProtocol)
+    if (mIsListener)
         return false;
     return mProtocol->readyToWrite();
 }
 
 int SCIONSocket::registerSelect(Notification *n, int mode)
 {
-    if (!mProtocol && mode == SCION_SELECT_WRITE)
+    if (mIsListener && mode == SCION_SELECT_WRITE)
         return -1;
-    if (!mProtocol && mode == SCION_SELECT_READ) {
+    if (mIsListener && mode == SCION_SELECT_READ) {
         pthread_mutex_lock(&mSelectMutex);
         mSelectRead[++mSelectCount] = *n;
         pthread_mutex_unlock(&mSelectMutex);
@@ -430,7 +428,7 @@ void SCIONSocket::deregisterSelect(int index)
     if (index == 0)
         return;
     pthread_mutex_lock(&mSelectMutex);
-    if (!mProtocol) {
+    if (mIsListener) {
         if (mSelectRead.find(index) != mSelectRead.end())
             mSelectRead.erase(index);
     } else {
@@ -442,7 +440,7 @@ void SCIONSocket::deregisterSelect(int index)
 int SCIONSocket::shutdown()
 {
     int ret = 0;
-    if (!mProtocol) {
+    if (mIsListener) {
         mState = SCION_CLOSED;
     } else {
         mState = SCION_SHUTDOWN;

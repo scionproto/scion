@@ -7,11 +7,11 @@
 uint8_t * parseExtensions(SCIONHeader *sh, uint8_t *ptr)
 {
     SCIONCommonHeader *sch = &sh->commonHeader;
-    uint8_t nextHeader = sch->nextHeader;
+    uint8_t nextHeader = sch->next_header;
     uint8_t currHeader = nextHeader;
-    uint8_t headerLen = sch->headerLen;
+    uint8_t headerLen = sch->header_len;
     uint8_t type = 0;
-    while (!isL4(currHeader)) {
+    while (!is_known_proto(currHeader)) {
         nextHeader = *ptr++;
         headerLen = *ptr++;
         type = *ptr++;
@@ -80,8 +80,8 @@ void addProbeExtension(SCIONHeader *sh, uint32_t probeNum, uint8_t ack)
     SCIONExtension *se = sh->extensions;
     if (se == NULL) {
         sh->extensions = ext;
-        ext->nextHeader = sch->nextHeader;
-        sch->nextHeader = ext->extClass;
+        ext->nextHeader = sch->next_header;
+        sch->next_header = ext->extClass;
     } else {
         while (se->nextExt != NULL)
             se = se->nextExt;

@@ -13,14 +13,17 @@
 
 class SCIONSocket {
 public:
-    SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs, short srcPort, short dstPort);
+    SCIONSocket(int protocol);
     ~SCIONSocket();
 
     // traditional socket functionality
     SCIONSocket * accept();
-    int send(uint8_t *buf, size_t len);
-    int send(uint8_t *buf, size_t len, DataProfile profile);
+    int bind(SCIONAddr addr);
+    int connect(SCIONAddr addr);
+    int listen();
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr);
     int setSocketOption(SCIONOption *option);
     int getSocketOption(SCIONOption *option);
 
@@ -54,13 +57,12 @@ private:
     bool checkChildren(SCIONPacket *packet, uint8_t *ptr);
     void signalSelect();
 
-    uint16_t                   mSrcPort;
-    uint16_t                   mDstPort;
     int                        mProtocolID;
     int                        mDispatcherSocket;
     bool                       mRegistered;
     SCIONState                 mState;
     int                        mLastAccept;
+    bool                       mIsListener;
 
     SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;

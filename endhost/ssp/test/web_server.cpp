@@ -10,9 +10,16 @@ size_t dummy(void *buffer, size_t size, size_t nmemb, void *userp)
     return size * nmemb;
 }
 
-int main()
+int main(int argc, char **argv)
 {
-    SCIONSocket s(SCION_PROTO_SSP, NULL, 0, 8080, 0);
+    SCIONAddr saddr;
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.host.port = 8080;
+
+    SCIONSocket s(L4_SSP);
+    s.bind(saddr);
+    s.listen();
+
     SCIONSocket *newSocket = s.accept();
     char buf[BUFSIZE];
     char curldata[1024];

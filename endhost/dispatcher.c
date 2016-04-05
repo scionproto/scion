@@ -9,8 +9,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-#include "libscion_api.h"
-#include "SCIONDefines.h"
+#include "scion.h"
 #include "uthash.h"
 
 #define APP_BUFSIZE 32
@@ -169,10 +168,10 @@ void handle_app()
         unsigned char protocol = buf[1];
         fprintf(stderr, "received registration for proto: %d (%d bytes)\n", protocol, len);
         switch (protocol) {
-            case SCION_PROTO_SSP:
+            case L4_SSP:
                 register_ssp(buf, len, &addr);
                 break;
-            case SCION_PROTO_UDP:
+            case L4_UDP:
                 register_udp(buf, len, &addr);
                 break;
         }
@@ -183,7 +182,7 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr)
 {
     fprintf(stderr, "SSP registration request\n");
     uint8_t reg = *buf; /* 0 = unregister, 1 = register */
-    Entry *e = parse_request(buf, len, SCION_PROTO_SSP, addr);
+    Entry *e = parse_request(buf, len, L4_SSP, addr);
     if (!e)
         return;
     Entry *old = NULL;
@@ -224,7 +223,7 @@ void register_udp(uint8_t *buf, int len, sockaddr_in *addr)
     fprintf(stderr, "UDP registration request\n");
 
     uint8_t reg = *buf; /* 0 = unregister, 1 = register */
-    Entry *e = parse_request(buf, len, SCION_PROTO_UDP, addr);
+    Entry *e = parse_request(buf, len, L4_UDP, addr);
     if (!e)
         return;
     Entry *old = NULL;
@@ -246,7 +245,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
     uint16_t port = ntohs(*(uint16_t *)(buf + 6));
     int common = 9; // start of (protocol/addrtype)-dependent data
 
-    fprintf(stderr, "registration for isd_as %x(%d,%d)\n", isd_as, GET_ISD(isd_as), GET_AD(isd_as));
+    fprintf(stderr, "registration for isd_as %x(%d,%d)\n", isd_as, ISD(isd_as), AS(isd_as));
 
     Entry *e = (Entry *)malloc(sizeof(Entry));
     if (!e) {
@@ -257,7 +256,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
     e->addr = *addr;
 
     uint8_t type = *(uint8_t *)(buf + 8);
-    if (type < ADDR_TYPE_IPV4 || type > ADDR_TYPE_IPV6) {
+    if (type < ADDR_IPV4_TYPE || type > ADDR_IPV6_TYPE) {
         fprintf(stderr, "Invalid address type: %d\n", type);
         return NULL;
     }
@@ -269,14 +268,14 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
     int addr_len = ADDR_LENS[type - 1];
     int end;
 
-    if (proto == SCION_PROTO_SSP) {
+    if (proto == L4_SSP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | flow ID (8B) | addr (?B) | SVC (2B, optional) */
         e->ssp_key.flow_id = *(uint64_t *)(buf + common);
         e->ssp_key.port = port;
         e->ssp_key.isd_as = isd_as;
         memcpy(e->ssp_key.host, buf + common + 8, addr_len);
         end = addr_len + common + 8;
-    } else if (proto == SCION_PROTO_UDP) {
+    } else if (proto == L4_UDP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
         e->udp_key.port = port;
         e->udp_key.isd_as = isd_as;
@@ -355,17 +354,17 @@ void handle_data()
     }
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    if (sch->headerLen > len || ntohs(sch->totalLen) > len) {
+    if (sch->header_len > len || ntohs(sch->total_len) > len) {
         fprintf(stderr, "invalid SCION packet\n");
         return;
     }
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
     switch (l4) {
-        case SCION_PROTO_SSP:
+        case L4_SSP:
             deliver_ssp(buf, l4ptr, len, &from);
             break;
-        case SCION_PROTO_UDP:
+        case L4_UDP:
             deliver_udp(buf, len, &from, &dst);
             break;
     }
@@ -380,7 +379,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, sockaddr_in *addr)
     memset(&key, 0, sizeof(key));
     key.flow_id = be64toh(*(uint64_t *)l4ptr);
     key.port = 0;
-    key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - SCION_ISD_AD_LEN));
+    key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
     memcpy(key.host, dst_ptr, dst_len);
     HASH_FIND(hh, SSPFlows, &key, sizeof(key), e);
     if (!e) {
@@ -404,11 +403,11 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
 {
     sockaddr_in addr;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    if (DST_TYPE(sch) == ADDR_TYPE_SVC) {
+    if (DST_TYPE(sch) == ADDR_SVC_TYPE) {
         SVCKey svc_key;
         memset(&svc_key, 0, sizeof(SVCKey));
         svc_key.addr = ntohs(*(uint16_t *)get_dst_addr(buf));
-        svc_key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - SCION_ISD_AD_LEN));
+        svc_key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
         /* TODO: IPv6? */
         memcpy(svc_key.host, &dst->sin_addr.s_addr, 4);
         SVCEntry *se;
@@ -426,7 +425,7 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
         memset(&key, 0, sizeof(key));
         /* Find dst info in packet */
         key.port = ntohs(*(uint16_t *)(l4ptr + 2));
-        key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - SCION_ISD_AD_LEN));
+        key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
         memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
 
         Entry *e;

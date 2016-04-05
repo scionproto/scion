@@ -6,24 +6,6 @@
 #include "DataStructures.h"
 #include "SCIONDefines.h"
 
-inline int isd(SCIONAddr &addr)
-{
-    return addr.isd_ad >> 20;
-}
-
-inline int ad(SCIONAddr &addr)
-{
-    return addr.isd_ad & 0xfffff;
-}
-
-inline void buildCommonHeader(SCIONCommonHeader &header, int protocol)
-{
-    header.versionAddrs = 0x4100; // version = 0, src = 8, dst = 8
-    header.currentIOF = 2 * SCION_ADDR_LEN + sizeof(header);
-    header.currentOF = 2 * SCION_ADDR_LEN + 8 + sizeof(header);
-    header.nextHeader = protocol;
-}
-
 // elapsed time in ms
 inline long elapsedTime(struct timeval *old, struct timeval *current)
 {
@@ -45,11 +27,7 @@ void destroySUDPPacket(void *p);
 
 int reversePath(uint8_t *original, uint8_t *reverse, int len);
 uint64_t createRandom(int bits);
-uint32_t getLocalHostAddr(uint8_t *addr);
 int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg);
 void destroyStats(SCIONStats *stats);
-
-int isL4(uint8_t type);
-uint16_t checksum(SCIONPacket *packet);
 
 #endif

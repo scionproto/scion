@@ -6,11 +6,38 @@
 #include <list>
 #include <memory>
 
-#include "SocketConfigs.h"
 #include "SCIONDefines.h"
+#include "SocketConfigs.h"
 
 // Socket-related SCION layer stuff
 // fields stored in host byte order for incoming, network order for outgoing
+
+enum DataProfile {
+    SCION_PROFILE_DEFAULT = 0,
+    SCION_PROFILE_VOIP,
+    SCION_PROFILE_AUDIO,
+    SCION_PROFILE_VIDEO,
+    SCION_PROFILE_MAX,
+};
+
+typedef struct SCIONExtension {
+    uint8_t nextHeader;
+    uint8_t headerLen;
+    uint8_t type;
+    uint8_t extClass;
+    void *data;
+    struct SCIONExtension *nextExt;
+} SCIONExtension;
+
+typedef struct {
+    SCIONCommonHeader commonHeader;
+    uint8_t srcAddr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
+    uint8_t dstAddr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
+    uint8_t *path;
+    size_t pathLen;
+    SCIONExtension *extensions;
+    size_t numExtensions;
+} SCIONHeader;
 
 typedef struct {
     SCIONHeader header;
@@ -22,68 +49,6 @@ typedef struct {
     uint32_t rto;
     int pathIndex;
 } SCIONPacket;
-
-enum DataProfile {
-    SCION_PROFILE_DEFAULT = 0,
-    SCION_PROFILE_VOIP,
-    SCION_PROFILE_AUDIO,
-    SCION_PROFILE_VIDEO,
-    SCION_PROFILE_MAX,
-};
-
-class L4Packet {
-public:
-    L4Packet()
-        : len(0),
-        dataOffset(0),
-        windowSize(0),
-        skipCount(0),
-        retryAttempts(0),
-        interfaceCount(0),
-        interfaces(NULL)
-    {}
-
-    L4Packet(L4Packet &other)
-        : len(other.len),
-        dataOffset(other.dataOffset),
-        windowSize(other.windowSize),
-        skipCount(other.skipCount),
-        retryAttempts(other.retryAttempts),
-        interfaceCount(other.interfaceCount)
-    {
-        data = other.data;
-        if (interfaceCount) {
-            size_t len = interfaceCount * SCION_IF_SIZE;
-            interfaces = (uint8_t *)malloc(len);
-            memcpy(interfaces, other.interfaces, len);
-        } else {
-            interfaces = NULL;
-        }
-    }
-
-    virtual ~L4Packet()
-    {
-        if (interfaces)
-            free(interfaces);
-    }
-
-    virtual uint64_t number() { return 0; }
-
-    std::shared_ptr<uint8_t> data;
-    size_t len;
-    size_t dataOffset;
-    size_t windowSize;
-    uint32_t skipCount;
-    uint8_t retryAttempts;
-    size_t interfaceCount;
-    uint8_t *interfaces;
-};
-
-typedef enum {
-    SSP_METRIC_BANDWIDTH,
-    SSP_METRIC_LATENCY,
-    SSP_METRIC_DEADLINE,
-} SSPMetric;
 
 #pragma pack(push)
 #pragma pack(1)
@@ -105,39 +70,67 @@ typedef struct {
     uint32_t V;
 } SSPAck;
 
+typedef enum {
+    SSP_METRIC_BANDWIDTH,
+    SSP_METRIC_LATENCY,
+    SSP_METRIC_DEADLINE,
+} SSPMetric;
+
 #pragma pack(pop)
 
-class SSPPacket : public L4Packet {
-public:
+struct SSPPacket {
     SSPPacket()
-        : L4Packet()
+        : data(NULL),
+        len(0),
+        dataOffset(0),
+        windowSize(0),
+        skipCount(0),
+        retryAttempts(0),
+        interfaceCount(0),
+        interfaces(NULL)
     {
         memset(&header, 0, sizeof(header));
         memset(&ack, 0, sizeof(ack));
     }
 
     SSPPacket(SSPPacket &other)
-        : L4Packet(other)
+        : len(other.len),
+        dataOffset(other.dataOffset),
+        windowSize(other.windowSize),
+        skipCount(other.skipCount),
+        retryAttempts(other.retryAttempts),
+        interfaceCount(other.interfaceCount)
     {
+        data = other.data;
+        if (interfaceCount) {
+            size_t len = interfaceCount * IF_TOTAL_LEN;
+            interfaces = (uint8_t *)malloc(len);
+            memcpy(interfaces, other.interfaces, len);
+        } else {
+            interfaces = NULL;
+        }
         header = other.header;
         ack = other.ack;
     }
 
-    ~SSPPacket() {}
+    ~SSPPacket()
+    {
+        if (interfaces)
+            free(interfaces);
+    }
 
-    uint64_t number() { return header.offset; }
+    std::shared_ptr<uint8_t> data;
+    size_t len;
+    size_t dataOffset;
+    size_t windowSize;
+    uint32_t skipCount;
+    uint8_t retryAttempts;
+    size_t interfaceCount;
+    uint8_t *interfaces;
 
     SSPHeader header;
     SSPAck ack;
 };
-
-typedef struct {
-    uint8_t *data;
-    int len;
-    uint32_t deadline;
-    int refs;
-    pthread_mutex_t mutex;
-} SSPData;
 
 #pragma pack(push)
 #pragma pack(1)

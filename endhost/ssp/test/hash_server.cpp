@@ -3,7 +3,7 @@
 
 #define BUFSIZE (1024 * 200)
 
-int main()
+int main(int argc, char **argv)
 {
     system("dd if=/dev/urandom of=randomfile bs=1024 count=1024");
 
@@ -12,15 +12,18 @@ int main()
     sha.HashFile("randomfile");
     sha.Final();
     sha.GetHash(hash);
-
     printf("random data + hash ready\n");
-    SCIONSocket s(SCION_PROTO_SSP, NULL, 0, 8080, 0);
+
+    SCIONAddr saddr;
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.host.port = 8080;
+
+    SCIONSocket s(L4_SSP);
+    s.bind(saddr);
+    s.listen();
+
     SCIONSocket *newSocket = s.accept();
     printf("got new socket\n");
-    uint8_t buf[10];
-    memset(buf, 0, 10);
-    newSocket->recv(buf, 1, NULL);
-    printf("read 1 byte\n");
 
     newSocket->send((uint8_t *)hash, 20);
     printf("hash sent: ");

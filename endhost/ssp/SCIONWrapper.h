@@ -9,14 +9,15 @@ extern "C" {
 
 typedef struct SCIONSocket SCIONSocket;
 
-int newSCIONSocket(int protocol,
-                   SCIONAddr *dstAddrs, int numAddrs,
-                   short srcPort, short dstPort);
+int newSCIONSocket(int protocol);
 void deleteSCIONSocket(int sock);
 int SCIONAccept(int sock);
+int SCIONBind(int sock, SCIONAddr addr);
+int SCIONConnect(int sock, SCIONAddr addr);
+int SCIONListen(int sock);
 int SCIONSend(int sock, uint8_t *buf, size_t len);
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
-                     int profile);
+                     SCIONAddr *dstAddr);
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
               SCIONAddr *srcAddr);
 int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,

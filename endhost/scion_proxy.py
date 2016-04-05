@@ -98,7 +98,8 @@ from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from endhost.scion_socket import SCION_OPTION_ISD_WLIST
 from endhost.socket_kbase import SocketKnowledgeBase
 from lib.log import init_logging, log_exception
-from lib.packet.scion_addr import ISD_AS
+from lib.packet.host_addr import HostAddrIPv4
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.types import L4Proto
 from lib.util import handle_signals, hex_str
@@ -350,9 +351,10 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         """
         self.scion_mode = scion_mode
         self.socket_kbase = kbase
-        self.isd_as = ISD_AS(target_isd_as)
-        self.scion_target_proxy = self.target_proxy[0] % \
-            (self.isd_as[0], self.isd_as[1]), self.target_proxy[1]
+        isd_as = ISD_AS(target_isd_as)
+        host = HostAddrIPv4(self.target_proxy[0] % (isd_as[0], isd_as[1]))
+        self.scion_target_proxy = SCIONAddr.from_values(isd_as, host)
+        self.scion_target_port = self.target_proxy[1]
         super().__init__(connection, address, conn_id)
 
     def handle_request(self):
@@ -388,8 +390,8 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         """
         if self.scion_mode:
             logging.info("Opening a SCION-socket")
-            soc = ScionClientSocket(L4Proto.SSP, self.isd_as,
-                                    self.scion_target_proxy)
+            soc = ScionClientSocket(L4Proto.SSP)
+            soc.connect(self.scion_target_proxy, self.scion_target_port)
             if self.socket_kbase:
                 self._handle_socket_options(soc)
                 self.socket_kbase.add_socket(soc, self.method, self.path)
@@ -462,7 +464,9 @@ def serve_forever(soc, bridge_mode, scion_mode, kbase, target_isd_as):
 
 def scion_server_socket(server_address):
     logging.info("Starting SCION test server application.")
-    soc = ScionServerSocket(L4Proto.SSP, server_address[1])
+    soc = ScionServerSocket(L4Proto.SSP)
+    soc.bind(server_address[1])
+    soc.listen()
     return soc
 
 

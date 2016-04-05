@@ -8,14 +8,14 @@
 
 int main()
 {
-    SCIONAddr addrs[1];
-    SCIONAddr saddr;
-    saddr.isd_ad = ISD_AD(2, 26);
-    saddr.host.addrLen = 4;
+    SCIONAddr addr;
+    addr.isd_as = ISD_AS(2, 26);
+    addr.host.addr_len = 4;
+    addr.host.port = 8080;
     in_addr_t in = inet_addr("127.2.26.254");
-    memcpy(saddr.host.addr, &in, 4);
-    addrs[0] = saddr;
-    int sock = newSCIONSocket(SCION_PROTO_SSP, addrs, 1, 0, 8080);
+    memcpy(addr.host.addr, &in, 4);
+    int sock = newSCIONSocket(L4_SSP);
+    SCIONConnect(sock, addr);
     int count = 0;
     char buf[BUFSIZE];
     while (1) {
