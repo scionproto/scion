@@ -93,7 +93,7 @@ class CorePathServer(PathServer):
                 if not pcb.is_sibra() and key in seen_ases:
                     continue
                 seen_ases.add(key)
-                self._segs_to_prop.append((seg_type, pcb))
+                self._segs_to_master.append((seg_type, pcb))
 
     def _is_master(self):
         return self._master_id == str(self.addr.host)
