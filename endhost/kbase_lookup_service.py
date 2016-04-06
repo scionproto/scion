@@ -126,9 +126,11 @@ class KnowledgeBaseLookupService(object):
                 logging.error('Key error in parsing ISD_WHITELIST req: %s' % e)
                 return
             assert(isinstance(isds, list))
-            resp = self._handle_ISD_whitelist(isds)
+            resp = self._handle_set_ISD_whitelist(isds)
+        elif cmd == 'GET_ISD_WHITELIST':
+            resp = self._handle_get_ISD_whitelist()
         else:
-            logging.error('Unsupported command: %s')
+            logging.error('Unsupported command: %s', cmd)
             return
 
         assert((isinstance(resp, dict) or isinstance(resp, list)))
@@ -212,7 +214,7 @@ class KnowledgeBaseLookupService(object):
                 logging.error('Error while reading the locations YAML: %s' % e)
                 return {}
 
-    def _handle_ISD_whitelist(self, isds):
+    def _handle_set_ISD_whitelist(self, isds):
         """
         Lets the kbase know of which ISDs should be whitelisted.
         :param isds: List of ISDs (numbers)
@@ -221,3 +223,11 @@ class KnowledgeBaseLookupService(object):
         :rtype: dict
         """
         return self.kbase.set_ISD_whitelist(isds)
+
+    def _handle_get_ISD_whitelist(self):
+        """
+        Queries the kbase and return which ISDs are whitelisted.
+        :returns: A list (potentially empty) containing the whitelisted ISDs.
+        :rtype: list
+        """
+        return self.kbase.get_ISD_whitelist()
