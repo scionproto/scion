@@ -127,6 +127,9 @@ def test_set_ISD_whitelist():
            "isds": [1, 3]}
 
     send_req_and_read_resp(sock, req)
+    raw_resp = get_ISD_whitelist()
+    res = extract_from_json(raw_resp)
+    assert(res == [1, 3])
 
 
 def test_clear_ISD_whitelist():
@@ -143,6 +146,41 @@ def test_clear_ISD_whitelist():
            "isds": []}
 
     send_req_and_read_resp(sock, req)
+    raw_resp = get_ISD_whitelist()
+    res = extract_from_json(raw_resp)
+    assert(res == [])
+
+
+def get_ISD_whitelist():
+    """
+    Creates an ISD whitelist request, sends it to the UDP server.
+    """
+
+    logging.info('Starting the Get ISD whitelist test')
+    # Create a UDP socket
+    sock = UDPSocket(None, AddrType.IPV4)
+
+    req = {"version": "0.1",
+           "command": "GET_ISD_WHITELIST"}
+
+    return send_req_and_read_resp(sock, req)
+
+
+def extract_from_json(req_raw):
+    """
+    Extract a Python object from a raw JSON and return it.
+    :param req_raw: Encoded JSON string
+    :type req_raw: bytes
+    :returns: A python object.
+    :rtype: object
+    """
+    try:
+        req_str = req_raw.decode("utf-8")
+        obj = json.loads(req_str)
+        return obj
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        logging.error('Error decoding request: %s' % e)
+        return None
 
 
 def send_req_and_read_resp(sock, req):
@@ -170,6 +208,8 @@ def send_req_and_read_resp(sock, req):
     finally:
         logging.debug('Closing socket')
         sock.close()
+
+    return data_raw[4:4+data_len]
 
 
 def send(sock, req):
