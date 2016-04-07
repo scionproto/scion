@@ -77,6 +77,7 @@ class TestClientBase(object):
             self._get_path_via_api()
         else:
             self._get_path_direct()
+        assert self.path.mtu
         self.sock = UDPSocket(bind=(str(self.src.host), 0, "Test Client App"),
                               addr_type=AddrType.IPV4)
         reg_dispatcher(self.sock, self.src, self.sock.port)
@@ -87,14 +88,11 @@ class TestClientBase(object):
         """
         data = self._try_sciond_api()
         path_len = data.pop(1) * 8
-        if not path_len:
-            self.path = SCIONPath()
-            return
         self.path = SCIONPath(data.pop(path_len))
         haddr_type = haddr_get_type("IPV4")
         data.pop(haddr_type.LEN)  # first hop, unused here
         data.pop(2)  # port number, unused here
-        data.pop(2)  # MTU, unused here
+        self.path.mtu = struct.unpack("!H", data.pop(2))[0]
         ifcount = data.pop(1)
         for i in range(ifcount):
             isd_as = ISD_AS(data.pop(ISD_AS.LEN))
@@ -136,11 +134,11 @@ class TestClientBase(object):
 
     def _send(self):
         cmn_hdr, addr_hdr = build_base_hdrs(self.src, self.dst)
-        payload = self._create_payload()
-        l4_hdr = self._create_l4_hdr(payload)
+        l4_hdr = self._create_l4_hdr()
         extensions = self._create_extensions()
         spkt = SCIONL4Packet.from_values(
-            cmn_hdr, addr_hdr, self.path, extensions, l4_hdr, payload)
+            cmn_hdr, addr_hdr, self.path, extensions, l4_hdr)
+        spkt.set_payload(self._create_payload(spkt))
         next_hop, port = self.sd.get_first_hop(spkt)
         assert next_hop is not None
         logging.info("Sending packet via (%s:%s):\n%s", next_hop, port, spkt)
@@ -149,12 +147,12 @@ class TestClientBase(object):
                 ["%s:%s" % ifentry for ifentry in self.iflist]))
         self.sd.send(spkt, next_hop, port)
 
-    def _create_payload(self):
+    def _create_payload(self, _):
         return PayloadRaw(self.data)
 
-    def _create_l4_hdr(self, payload):
+    def _create_l4_hdr(self):
         return SCIONUDPHeader.from_values(
-            self.src, self.sock.port, self.dst, self.dport, payload)
+            self.src, self.sock.port, self.dst, self.dport)
 
     def _create_extensions(self):
         return []
@@ -195,6 +193,9 @@ class TestServerBase(object):
         if self._verify_request(payload):
             self._handle_request(spkt)
             self.done = True
+        else:
+            logging.error("Request can't be verified:\n%s", spkt)
+            kill_self()
         self.sock.close()
         self.sd.stop()
 

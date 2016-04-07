@@ -35,18 +35,30 @@ class E2EClient(TestClientBase):
     """
     Simple ping app.
     """
-    def _create_payload(self):
-        return PayloadRaw(b"ping " + self.data)
+    def _create_payload(self, spkt):
+        data = b"ping " + self.data
+        pld_len = self.path.mtu - len(spkt)
+        return self._gen_max_pld(data, pld_len)
+
+    def _gen_max_pld(self, data, pld_len):
+        padding = pld_len - len(data)
+        return PayloadRaw(data + bytes(padding))
 
     def _handle_response(self, spkt):
+        if len(spkt) != self.path.mtu:
+            logging.error("Packet length (%sB) != MTU (%sB)",
+                          len(spkt), self.path.mtu)
+            kill_self()
+            return
         payload = spkt.get_payload()
-        pong = PayloadRaw(b"pong " + self.data)
+        pong = self._gen_max_pld(b"pong " + self.data, len(payload))
         if payload == pong:
             logging.info('%s:%d: pong received.', self.src.host, self.sock.port)
             self.done = True
         else:
-            logging.error("Unexpected payload received: %s (expected: %s)",
-                          payload, pong)
+            logging.error(
+                "Unexpected payload:\n  Received (%dB): %s\n  "
+                "Expected (%dB): %s", len(payload), payload, len(pong), pong)
             kill_self()
 
 
@@ -55,7 +67,8 @@ class E2EServer(TestServerBase):
     Simple pong app.
     """
     def _verify_request(self, payload):
-        return payload == PayloadRaw(b"ping " + self.data)
+        expected = b"ping " + self.data
+        return payload.pack().startswith(expected)
 
     def _handle_request(self, spkt):
         # Reverse the packet and send "pong".
@@ -63,11 +76,17 @@ class E2EServer(TestServerBase):
                      self.dst.host, self.sock.port)
         self.ping_received = True
         spkt.reverse()
-        spkt.set_payload(PayloadRaw(b"pong " + self.data))
+        spkt.set_payload(self._create_payload(spkt))
         next_hop, port = self.sd.get_first_hop(spkt)
         assert next_hop is not None
         logging.info("Replying with (via %s:%s):\n%s", next_hop, port, spkt)
         self.sd.send(spkt, next_hop, port)
+
+    def _create_payload(self, spkt):
+        old_pld = spkt.get_payload()
+        data = b"pong " + self.data
+        padding = len(old_pld) - len(data)
+        return PayloadRaw(data + bytes(padding))
 
 
 class TestEnd2End(TestClientServerBase):
