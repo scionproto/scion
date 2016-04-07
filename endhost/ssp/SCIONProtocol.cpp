@@ -727,7 +727,7 @@ void SSPProtocol::handleTimerEvent()
     struct timeval current;
     gettimeofday(&current, NULL);
     mConnectionManager->handleTimeout();
-    if (elapsedTime(&mLastProbeTime, &current) >= mProbeInterval) {
+    if (elapsedTime(&mLastProbeTime, &current) >= (int32_t)mProbeInterval) {
         mConnectionManager->sendProbes(++mProbeNum, mFlowID);
         mLastProbeTime = current;
     }

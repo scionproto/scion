@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -193,12 +194,12 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr)
             /* Delete obsolete entry - this also serves as unregister */
             HASH_DELETE(hh, SSPFlows, old);
             free(old);
-            fprintf(stderr, "entry for flow %lu deleted\n", e->ssp_key.flow_id);
+            fprintf(stderr, "entry for flow %" PRIu64 " deleted\n", e->ssp_key.flow_id);
         }
         /* If command is "register", add new entry */
         if (reg) {
             HASH_ADD(hh, SSPFlows, ssp_key, sizeof(SSPKey), e);
-            fprintf(stderr, "flow registration success: %lu\n", e->ssp_key.flow_id);
+            fprintf(stderr, "flow registration success: %" PRIu64 "\n", e->ssp_key.flow_id);
         }
     } else {
         /* Find registered wildcard port */
@@ -383,7 +384,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, sockaddr_in *addr)
     memcpy(key.host, dst_ptr, dst_len);
     HASH_FIND(hh, SSPFlows, &key, sizeof(key), e);
     if (!e) {
-        fprintf(stderr, "no flow entry found for %lu\n", key.flow_id);
+        fprintf(stderr, "no flow entry found for %" PRIu64 "\n", key.flow_id);
         key.flow_id = 0;
         key.port = ntohs(*(uint16_t *)(l4ptr + 8));
         HASH_FIND(hh, SSPWildcards, &key, sizeof(key), e);
