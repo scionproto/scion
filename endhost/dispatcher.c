@@ -403,6 +403,16 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
 {
     sockaddr_in addr;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    uint8_t *l4ptr = buf;
+    get_l4_proto(&l4ptr);
+    SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
+
+    uint16_t checksum = scion_udp_checksum(buf);
+    if (checksum != ntohs(udp->checksum)) {
+        fprintf(stderr, "Bad UDP checksum\n");
+        return;
+    }
+
     if (DST_TYPE(sch) == ADDR_SVC_TYPE) {
         SVCKey svc_key;
         memset(&svc_key, 0, sizeof(SVCKey));
@@ -418,9 +428,6 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
         }
         addr = se->addrs[random() % se->count];
     } else {
-        uint8_t *l4ptr = buf;
-        get_l4_proto(&l4ptr);
-
         UDPKey key;
         memset(&key, 0, sizeof(key));
         /* Find dst info in packet */
