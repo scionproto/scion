@@ -45,10 +45,12 @@ from lib.crypto.certificate import Certificate, CertificateChain, TRC
 from lib.defines import (
     AS_CONF_FILE,
     AS_LIST_FILE,
+    DEFAULT_MTU,
     GEN_PATH,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     SCION_ROUTER_PORT,
+    SCION_MIN_MTU,
     TOPO_FILE,
 )
 from lib.path_store import PathPolicy
@@ -129,6 +131,7 @@ class ConfigGenerator(object):
         self.path_policy_file = path_policy_file
         self.mininet = use_mininet
         self.default_zookeepers = {}
+        self.default_mtu = None
         self._read_defaults(network)
 
     def _read_defaults(self, network):
@@ -150,6 +153,7 @@ class ConfigGenerator(object):
                 val['addr'] = "169.254.0.1"
             self.default_zookeepers[key] = ZKTopo(
                 val, self.zk_config)
+        self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
 
     def generate_all(self):
         """
@@ -169,8 +173,9 @@ class ConfigGenerator(object):
         return certgen.generate()
 
     def _generate_topology(self):
-        topo_gen = TopoGenerator(self.topo_config, self.out_dir,
-                                 self.subnet_gen, self.zk_config)
+        topo_gen = TopoGenerator(
+            self.topo_config, self.out_dir, self.subnet_gen, self.zk_config,
+            self.default_mtu)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
@@ -195,8 +200,8 @@ class ConfigGenerator(object):
         as_confs = {}
         for topo_id, as_topo, base in _srv_iter(
                 topo_dicts, self.out_dir, common=True):
-            as_confs.setdefault(topo_id, "%s\n" % yaml.dump(
-                self._gen_as_conf(as_topo)))
+            as_confs.setdefault(topo_id, yaml.dump(
+                self._gen_as_conf(as_topo), default_flow_style=False))
             conf_file = os.path.join(base, AS_CONF_FILE)
             write_file(conf_file, as_confs[topo_id])
             # Confirm that config parses cleanly.
@@ -212,7 +217,7 @@ class ConfigGenerator(object):
             'MasterASKey': master_as_key.decode("utf-8"),
             'RegisterTime': 5,
             'PropagateTime': 5,
-            'MTU': 1500,
+            'MTU': as_topo["MTU"],
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathServers"] else False,
@@ -329,11 +334,13 @@ class CertGenerator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, zk_config):
+    def __init__(self, topo_config, out_dir, subnet_gen, zk_config,
+                 default_mtu):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.zk_config = zk_config
+        self.default_mtu = default_mtu
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -383,9 +390,12 @@ class TopoGenerator(object):
         dns_domain = DNSLabel(as_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
         dns_domain = dns_domain.add(
             "isd%s" % topo_id[0]).add("as%s" % topo_id[1])
+        mtu = as_conf.get('mtu', self.default_mtu)
+        assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
             'DnsDomain': str(dns_domain), 'Zookeepers': {},
+            'MTU': mtu,
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
@@ -476,7 +486,8 @@ class TopoGenerator(object):
         for topo_id, as_topo, base in _srv_iter(
                 self.topo_dicts, self.out_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
-            contents = yaml.dump(self.topo_dicts[topo_id])
+            contents = yaml.dump(self.topo_dicts[topo_id],
+                                 default_flow_style=False)
             write_file(path, contents)
             # Test if topo file parses cleanly
             Topology.from_file(path)

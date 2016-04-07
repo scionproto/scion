@@ -45,6 +45,7 @@ ASes:
     cert_issuer: 1-13
   1-17:
     cert_issuer: 1-14
+    mtu: 1450
   1-18:
     cert_issuer: 1-15
   1-19:
@@ -55,6 +56,7 @@ ASes:
     cert_issuer: 1-19
   2-21:
     core: true
+    mtu: 1280
   2-22:
     core: true
   2-23:
