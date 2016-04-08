@@ -180,7 +180,7 @@ class SibraState(object):
             pend = self.pend_ephemeral
             paths = self.ephemeral
         if pend.pop(path_id, None):
-            paths[path_id].remove_all()
+            paths[path_id].remove_all(self.curr_tick)
 
     def remove(self, path_id, steady):  # pragma: no cover
         """Remove an active path."""
@@ -188,7 +188,7 @@ class SibraState(object):
         resv = self._get_resv(path_id, steady)
         if not resv:
             return False
-        return resv.remove_all()
+        return resv.remove_all(self.curr_tick)
 
     def __str__(self):
         tmp = ["SibraState:"]
