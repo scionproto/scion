@@ -503,7 +503,7 @@ int SSPConnectionManager::sendAlternatePath(SCIONPacket *packet, size_t exclude)
     return ret;
 }
 
-int SSPConnectionManager::handlePacket(SCIONPacket *packet)
+int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
 {
     bool found = false;
     int index;
@@ -531,6 +531,11 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet)
         }
     }
     if (!found) {
+        if (!receiver) {
+            DEBUG("sender should not add paths from remote end\n");
+            pthread_mutex_unlock(&mPathMutex);
+            return -1;
+        }
         SCIONAddr saddr;
         saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
         // TODO: IPv6?

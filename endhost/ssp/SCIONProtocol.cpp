@@ -412,7 +412,7 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     }
 
     packet->payload = sp;
-    mConnectionManager->handlePacket(packet);
+    mConnectionManager->handlePacket(packet, mIsReceiver);
 
     if (sp->header.flags & SSP_ACK) {
         DEBUG("incoming packet is ACK\n");
