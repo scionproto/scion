@@ -283,7 +283,9 @@ class SCIONDaemon(SCIONElement):
                 self.topology.is_core_as):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
-            return [SCIONPath()]
+            empty = SCIONPath()
+            empty.mtu = self.config.mtu
+            return [empty]
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))

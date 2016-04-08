@@ -239,6 +239,7 @@ class TestPathSegmentParse(object):
     def test(self, raw, iof):
         inst = PathSegment()
         inst._parse_hops = create_mock()
+        inst._set_mtu = create_mock()
         data = create_mock(["pop", "offset"])
         data.pop.side_effect = "pop iof", bytes(range(7)), "pop seg id"
         raw.return_value = data
@@ -253,6 +254,7 @@ class TestPathSegmentParse(object):
         ntools.eq_(inst.if_id, 0x0405)
         ntools.eq_(inst.flags, 0x06)
         inst._parse_hops.assert_called_once_with(data)
+        inst._set_mtu.assert_called_once_with()
 
 
 class TestPathSegmentParseHops(object):
@@ -283,6 +285,7 @@ class TestPathSegmentPack(object):
     """
     def test(self):
         inst = PathSegment()
+        inst._set_mtu = create_mock()
         inst.iof = create_mock(['pack'])
         inst.iof.pack.return_value = b'packed_iof'
         inst.trc_ver, inst.if_id, inst.flags = 1, 2, 3
@@ -296,6 +299,7 @@ class TestPathSegmentPack(object):
         ])
         # Call
         ntools.eq_(inst.pack(), expected)
+        inst._set_mtu.assert_called_once_with()
 
 
 class TestPathSegmentAddAs(object):
@@ -306,6 +310,7 @@ class TestPathSegmentAddAs(object):
         inst = PathSegment()
         inst.iof = create_mock(['hops'])
         inst.ases = ["as0"]
+        inst._set_mtu = create_mock()
         asm = create_mock(['pcbm'])
         asm.pcbm = create_mock(['hof'])
         asm.pcbm.hof = create_mock(['exp_time'])
@@ -316,10 +321,12 @@ class TestPathSegmentAddAs(object):
         ntools.eq_(inst.min_exp_time, asm.pcbm.hof.exp_time)
         ntools.eq_(inst.ases, ["as0", asm])
         ntools.eq_(inst.iof.hops, 2)
+        inst._set_mtu.assert_called_once_with()
 
     def test_higher_exp_time(self):
         inst = PathSegment()
         inst.iof = create_mock(['hops'])
+        inst._set_mtu = create_mock()
         initial_exp_time = inst.min_exp_time
         asm = create_mock(['pcbm'])
         asm.pcbm = create_mock(['hof'])

@@ -29,7 +29,7 @@ from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Serializable, SCIONPayloadBase
-from lib.packet.path import SCIONPath
+from lib.packet.path import SCIONPath, min_mtu
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
@@ -293,6 +293,7 @@ class PathSegment(SCIONPayloadBase):
         self.flags = 0
         self.ases = []
         self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
+        self.mtu = None
         super().__init__(raw)
 
     def _parse(self, raw):
@@ -305,6 +306,7 @@ class PathSegment(SCIONPayloadBase):
         self.trc_ver, self.if_id, self.flags = struct.unpack(
             "!IHB", data.pop(7))
         self._parse_hops(data)
+        self._set_mtu()
         return data.offset()
 
     def is_sibra(self):  # pragma: no cover
@@ -326,12 +328,20 @@ class PathSegment(SCIONPayloadBase):
         return inst
 
     def pack(self):
+        self._set_mtu()
         packed = []
         packed.append(self.iof.pack())
         packed.append(struct.pack("!IHB", self.trc_ver, self.if_id, self.flags))
         for asm in self.ases:
             packed.append(asm.pack())
         return b"".join(packed)
+
+    def _set_mtu(self):  # pragma: no cover
+        self.mtu = None
+        for asm in self.ases:
+            for ext in asm.ext:
+                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
+                    self.mtu = min_mtu(self.mtu, ext.mtu)
 
     def add_as(self, asm):
         """
@@ -341,6 +351,7 @@ class PathSegment(SCIONPayloadBase):
             self.min_exp_time = asm.pcbm.hof.exp_time
         self.ases.append(asm)
         self.iof.hops = len(self.ases)
+        self._set_mtu()
 
     def remove_signatures(self):  # pragma: no cover
         """
@@ -520,7 +531,8 @@ class PathSegment(SCIONPayloadBase):
                 if ext_desc:
                     exts.append(ext_desc)
         desc.append(" > ".join(hops))
-        desc.append(" Flags: %s" % PSF.to_str(self.flags))
+        desc.append(", Flags: %s, MTU: %sB" %
+                    (PSF.to_str(self.flags), self.mtu))
         if exts:
             return "%s\n  %s" % ("".join(desc), "\n  ".join(exts))
         return "".join(desc)

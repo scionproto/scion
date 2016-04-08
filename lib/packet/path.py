@@ -48,7 +48,7 @@ class SCIONPath(Serializable):
         self._iof_idx = None
         self._hof_idx = None
         self.interfaces = []
-        self.mtu = 0
+        self.mtu = None
         super().__init__(raw)
 
     def _parse(self, raw):
