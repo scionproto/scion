@@ -77,7 +77,7 @@ public:
     void sendAck(SCIONPacket *packet);
     void sendProbes(uint32_t probeNum, uint64_t flowID);
 
-    int handlePacket(SCIONPacket *packet);
+    int handlePacket(SCIONPacket *packet, bool receiver);
     void handleAck(SCIONPacket *packet, size_t initCount, bool receiver);
     void handleProbeAck(SCIONPacket *packet);
     void handleTimeout();
