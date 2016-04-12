@@ -12,7 +12,7 @@
  * buf: Pointer to start of SCION packet
  * return value: Pointer to current IOF, NULL on error
  */
-uint8_t * get_current_iof(uint8_t *buf)
+uint8_t * get_current_iof(void *buf)
 {
     if (!buf)
         return NULL;
@@ -26,7 +26,7 @@ uint8_t * get_current_iof(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: Pointer to current HOF, NULL on error
  */
-uint8_t * get_current_hof(uint8_t *buf)
+uint8_t * get_current_hof(void *buf)
 {
     if (!buf)
         return NULL;
@@ -40,7 +40,7 @@ uint8_t * get_current_hof(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: IFID of next hop interface, 0 on error
  */
-uint16_t get_fwd_if(uint8_t *buf)
+uint16_t get_fwd_if(void *buf)
 {
     if (!buf)
         return 0;

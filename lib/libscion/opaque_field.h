@@ -75,9 +75,9 @@ typedef struct {
 #define HOF_RECURSE(x) ((*x) & HOF_FLAG_RECURSE)
 #define HOF_EXP_TIME(x) (*((uint8_t *)(x) + 1))
 
-uint8_t * get_current_iof(uint8_t *buf);
-uint8_t * get_current_hof(uint8_t *buf);
-uint16_t get_fwd_if(uint8_t *buf);
+uint8_t * get_current_iof(void *buf);
+uint8_t * get_current_hof(void *buf);
+uint16_t get_fwd_if(void *buf);
 uint32_t get_ingress_egress(uint8_t *hof);
 uint16_t get_ingress_if(uint8_t *hof);
 uint16_t get_egress_if(uint8_t *hof);

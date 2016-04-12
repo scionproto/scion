@@ -12,7 +12,7 @@
  * buf: Pointer to start of SCION packet
  * payload_len: Length of payload data
  */
-void build_scion_udp(uint8_t *buf, uint16_t payload_len)
+void build_scion_udp(void *buf, uint16_t payload_len)
 {
     if (!buf)
         return;
@@ -34,7 +34,7 @@ void build_scion_udp(uint8_t *buf, uint16_t payload_len)
  * buf: Pointer to start of SCION packet
  * return value: Payload class, 0xFF on error
  */
-uint8_t get_payload_class(uint8_t *buf)
+uint8_t get_payload_class(void *buf)
 {
     if (!buf)
         return 0xFF;
@@ -48,7 +48,7 @@ uint8_t get_payload_class(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: Payload type, 0xFF on error
  */
-uint8_t get_payload_type(uint8_t *buf)
+uint8_t get_payload_type(void *buf)
 {
     if (!buf)
         return 0xFF;
@@ -63,7 +63,7 @@ uint8_t get_payload_type(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: Checksum value, 0 on error
  */
-uint16_t scion_udp_checksum(uint8_t *buf)
+uint16_t scion_udp_checksum(void *buf)
 {
     if (!buf)
         return 0;
@@ -136,7 +136,7 @@ uint16_t scion_udp_checksum(uint8_t *buf)
  * Calculate and update checksum field of SCION UDP header
  * buf: Pointer to start of SCION packet
  */
-void update_scion_udp_checksum(uint8_t *buf)
+void update_scion_udp_checksum(void *buf)
 {
     if (!buf)
         return;

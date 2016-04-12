@@ -14,6 +14,7 @@
 #define PATH_TRANSPORT 0
 #define PATH_PROBE 1
 
-uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type);
+uint8_t * find_extension(void *buf, uint8_t ext_class, uint8_t ext_type);
+int get_total_ext_len(void *buf);
 
 #endif
