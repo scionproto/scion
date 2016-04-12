@@ -283,7 +283,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
 #ifdef SIMULATOR
     memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
 #else
-    int res = reverse_path(buf, buf + sch.header_len - sh.pathLen, sh.path, sh.pathLen);
+    int res = reverse_path(buf, sh.path);
     if (res < 0) {
         DEBUG("reverse_path failed\n");
         free(packet);

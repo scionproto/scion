@@ -10,14 +10,14 @@
 /*
  * Reverse path
  * buf: Pointer to start of SCION packet
- * original: Pointer to start of path in SCION packet
  * reverse: Buffer to store reversed path
- * len: Length of SCION Packet
  * return value: 0 on success, -1 on failure
  */
-int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len)
+int reverse_path(void *buf, uint8_t *reverse)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    uint8_t *original = get_path(buf);
+    int len = get_path_len(buf);
     /* Pointers to IOF fields in original path */
     uint8_t *iof[] = {NULL, NULL, NULL};
     /* Number of hops in each segment of original path */
@@ -56,22 +56,23 @@ int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len)
     }
 
     /* Update current_iof pointer to reversed location */
-    uint8_t *current_iof = sch->current_iof + buf;
+    uint8_t *start = (uint8_t *)buf;
+    uint8_t *current_iof = sch->current_iof + start;
     /* Original current_iof pointer was at first IOF -> set to last */
     if (current_iof == iof[0])
-        sch->current_iof = iof[segments - 1] - buf;
+        sch->current_iof = iof[segments - 1] - start;
     /* Original current_iof pointer was at last IOF -> set to first */
     else if (current_iof == iof[segments - 1])
-        sch->current_iof = iof[0] - buf;
+        sch->current_iof = iof[0] - start;
 
     int of_count = segments;
     for (i = 0; i < segments; i++)
         of_count += hops[i];
     /* Get index of current HOF in OF list */
-    int hof_index = (sch->current_hof + buf - original) / SCION_OF_LEN;
+    int hof_index = (sch->current_hof + start - original) / SCION_OF_LEN;
     hof_index = of_count - hof_index;
     /* Update current_hof pointer to reversed location */
-    sch->current_hof = original + hof_index * SCION_OF_LEN - buf;
+    sch->current_hof = original + hof_index * SCION_OF_LEN - start;
 
     return 0;
 }
@@ -82,7 +83,7 @@ int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len)
  * ingress: True if packet is from neighbor AS
  * return value: Pointer to HOF used to verify current HOF, NULL on error
  */
-uint8_t * get_hof_ver(uint8_t *buf, int ingress)
+uint8_t * get_hof_ver(void *buf, int ingress)
 {
     if (!buf)
         return NULL;
@@ -119,7 +120,7 @@ uint8_t * get_hof_ver(uint8_t *buf, int ingress)
  * buf: Pointer to start of SCION packet
  * return value: Pointer to HOF used to verify current HOF, NULL on error
  */
-uint8_t * get_hof_ver_normal(uint8_t *buf)
+uint8_t * get_hof_ver_normal(void *buf)
 {
     if (!buf)
         return NULL;

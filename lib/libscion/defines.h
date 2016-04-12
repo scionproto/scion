@@ -19,6 +19,8 @@
 
 #define MAX_HOST_ADDR_LEN 16
 
+#define IFID_LEN 2
+
 #define REV_TOKEN_LEN 32
 #define AD_MARKING_METADATA_LEN 8
 #define PCB_MARKING_LEN (12 + REV_TOKEN_LEN)
