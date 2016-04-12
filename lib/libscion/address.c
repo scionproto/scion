@@ -15,7 +15,7 @@ const int ADDR_LENS[] = {0, 4, 16, 2};
  * buf: Pointer to start of SCION packet
  * return value: src ISD_AS value, 0 on error
  */
-uint32_t get_src_isd_as(uint8_t *buf)
+uint32_t get_src_isd_as(void *buf)
 {
     return ntohl(*(uint32_t *)(buf + sizeof(SCIONCommonHeader)));
 }
@@ -25,7 +25,7 @@ uint32_t get_src_isd_as(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: pointer to start of src host addr, NULL on error
  * */
-uint8_t * get_src_addr(uint8_t *buf)
+uint8_t * get_src_addr(void *buf)
 {
     if (!buf)
         return NULL;
@@ -39,7 +39,7 @@ uint8_t * get_src_addr(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: Length of src host addr, 0 on error
  * */
-uint8_t get_src_len(uint8_t *buf)
+uint8_t get_src_len(void *buf)
 {
     if (!buf)
         return 0;
@@ -53,7 +53,7 @@ uint8_t get_src_len(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: dst ISD_AS value, 0 on error
  */
-uint32_t get_dst_isd_as(uint8_t *buf)
+uint32_t get_dst_isd_as(void *buf)
 {
     if (!buf)
         return 0;
@@ -77,7 +77,7 @@ uint32_t get_dst_isd_as(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: Pointer to start of dst host addr, NULL on error
  * */
-uint8_t * get_dst_addr(uint8_t *buf)
+uint8_t * get_dst_addr(void *buf)
 {
     if (!buf)
         return NULL;
@@ -102,7 +102,7 @@ uint8_t * get_dst_addr(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: Length of dst host addr, 0 on error
  * */
-uint8_t get_dst_len(uint8_t *buf)
+uint8_t get_dst_len(void *buf)
 {
     if (!buf)
         return 0;
