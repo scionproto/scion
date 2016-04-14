@@ -16,6 +16,7 @@ extern "C" {
 #include "opaque_field.h"
 #include "packet.h"
 #include "path.h"
+#include "scmp.h"
 #include "types.h"
 #include "udp.h"
 #include "checksum.h"

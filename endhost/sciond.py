@@ -86,7 +86,7 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         self.daemon_thread = None
 
-        self.PLD_CLASS_MAP = {
+        self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REPLY: self.handle_path_reply,
                 PMT.REVOCATION: self.handle_revocation,

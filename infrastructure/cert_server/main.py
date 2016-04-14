@@ -70,7 +70,7 @@ class CertServer(SCIONElement):
             "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
         )
 
-        self.PLD_CLASS_MAP = {
+        self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.CERT: {
                 CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
                 CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,

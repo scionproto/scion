@@ -21,11 +21,13 @@ For all type classes that are used in multiple parts of the infrastructure.
 
 class TypeBase(object):  # pragma: no cover
     @classmethod
-    def to_str(cls, type_):
+    def to_str(cls, type_, error=False):
         for attr in dir(cls):
             if getattr(cls, attr) == type_:
                 return attr
-        return "UNKNOWN"
+        if not error:
+            return "UNKNOWN (%s)" % type_
+        raise IndexError
 
 
 ############################
@@ -50,6 +52,7 @@ class ExtensionClass(TypeBase):
 class ExtHopByHopType(TypeBase):
     TRACEROUTE = 0
     SIBRA = 1
+    SCMP = 2
 
 
 class ExtEndToEndType(TypeBase):
@@ -125,12 +128,14 @@ class SIBRAPayloadType(TypeBase):
 class RouterFlag(TypeBase):
     ERROR = 0
     NO_PROCESS = 1
+    # Process this locally
+    PROCESS_LOCAL = 2
     # Forward packet to supplied IFID
-    FORWARD = 2
+    FORWARD = 3
     # Packet has reached its destination ISD-AS
-    DELIVER = 3
+    DELIVER = 4
     # Deliver packet even if it hasn't reached its destination ISD-AS
-    FORCE_DELIVER = 4
+    FORCE_DELIVER = 5
 
 
 ############################

@@ -23,6 +23,7 @@ import logging
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.thread import kill_self
+from lib.types import L4Proto
 from test.integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -45,6 +46,13 @@ class E2EClient(TestClientBase):
         return PayloadRaw(data + bytes(padding))
 
     def _handle_response(self, spkt):
+        if spkt.l4_hdr.TYPE == L4Proto.SCMP:
+            spkt.parse_payload()
+        logging.debug("Received:\n%s", spkt)
+        if spkt.l4_hdr.TYPE == L4Proto.SCMP:
+            logging.error("Received SCMP error")
+            kill_self()
+            return
         if len(spkt) != self.path.mtu:
             logging.error("Packet length (%sB) != MTU (%sB)",
                           len(spkt), self.path.mtu)

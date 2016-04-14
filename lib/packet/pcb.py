@@ -381,7 +381,7 @@ class PathSegment(SCIONPayloadBase):
         for asm in self.ases:
             asm._remove_cert()
 
-    def remove_crypto(self):  # pragram: no cover
+    def remove_crypto(self):  # pragma: no cover
         """
         Remover the signatures and certificates from each AS block.
         """

@@ -23,7 +23,6 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import (
     parse_extensions,
@@ -37,11 +36,12 @@ class TestParseExtensions(object):
     """
     @patch("lib.packet.ext_util.EXTENSION_MAP", new_callable=dict)
     @patch("lib.packet.ext_util.L4Proto.L4", new_callable=list)
-    def test_success(self, l4_protos, ext_map):
+    def test(self, l4_protos, ext_map):
         data = create_mock(["pop"])
         data.pop.side_effect = (
-            bytes.fromhex("011003"), "ext0 data",
-            bytes.fromhex("FF1506"), "ext1 data",
+            bytes.fromhex("881003"), "ext0 data",
+            bytes.fromhex("011599"), "ext1 data",
+            bytes.fromhex("FF0706"), "ext1 data",
         )
         l4_protos.append(0xFF)
         ext0 = create_mock()
@@ -49,22 +49,19 @@ class TestParseExtensions(object):
         ext_map[(7, 3)] = ext0
         ext_map[(1, 6)] = ext1
         # Call
-        ext_hdrs, hdr_type = parse_extensions(data, 7)
+        ext_hdrs, hdr_type, unknown = parse_extensions(data, 7)
         # Tests
         assert_these_calls(data.pop, (
             call(ExtensionHeader.SUBHDR_LEN),
             call(0x11 * ExtensionHeader.LINE_LEN - ExtensionHeader.SUBHDR_LEN),
             call(ExtensionHeader.SUBHDR_LEN),
             call(0x16 * ExtensionHeader.LINE_LEN - ExtensionHeader.SUBHDR_LEN),
+            call(ExtensionHeader.SUBHDR_LEN),
+            call(0x08 * ExtensionHeader.LINE_LEN - ExtensionHeader.SUBHDR_LEN),
         ))
         ntools.eq_(ext_hdrs, [ext0.return_value, ext1.return_value])
         ntools.eq_(hdr_type, 0xFF)
-
-    def test_unknown(self):
-        data = create_mock(["pop"])
-        data.pop.return_value = bytes(3)
-        # Call
-        ntools.assert_raises(SCIONParseError, parse_extensions, data, 99)
+        ntools.eq_(unknown, {0x88: [1]})
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

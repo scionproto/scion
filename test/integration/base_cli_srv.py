@@ -130,24 +130,37 @@ class TestClientBase(object):
 
     def run(self):
         self._send()
-        self._recv()
+        spkt = self._recv()
+        self._handle_response(spkt)
+        self._shutdown()
 
     def _send(self):
+        spkt = self._build_pkt()
+        next_hop, port = self._get_first_hop(spkt)
+        assert next_hop is not None
+        logging.info("Sending packet via (%s:%s):\n%s", next_hop, port, spkt)
+        if self.iflist:
+            logging.info("Interfaces: %s", ", ".join(
+                ["%s:%s" % ifentry for ifentry in self.iflist]))
+        self._send_pkt(spkt, next_hop, port)
+
+    def _build_pkt(self):
         cmn_hdr, addr_hdr = build_base_hdrs(self.src, self.dst)
         l4_hdr = self._create_l4_hdr()
         extensions = self._create_extensions()
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, self.path, extensions, l4_hdr)
         spkt.set_payload(self._create_payload(spkt))
-        next_hop, port = self.sd.get_first_hop(spkt)
-        assert next_hop is not None
-        logging.info("Sending packet via (%s:%s):\n%s", next_hop, port, spkt)
-        if self.iflist:
-            logging.info("Interfaces: %s", ", ".join(
-                ["%s:%s" % ifentry for ifentry in self.iflist]))
-        self.sd.send(spkt, next_hop, port)
+        spkt.update()
+        return spkt
 
-    def _create_payload(self, _):
+    def _get_first_hop(self, spkt):
+        return self.sd.get_first_hop(spkt)
+
+    def _send_pkt(self, spkt, next_hop, port):
+        self.sock.send(spkt.pack(), (str(next_hop), port))
+
+    def _create_payload(self, spkt):
         return PayloadRaw(self.data)
 
     def _create_l4_hdr(self):
@@ -160,13 +173,15 @@ class TestClientBase(object):
     def _recv(self):
         packet = self.sock.recv()[0]
         packet = trim_dispatcher_packet(packet)
-        spkt = SCIONL4Packet(packet)
-        self._handle_response(spkt)
-        self.sock.close()
-        self.sd.stop()
+        return SCIONL4Packet(packet)
 
     def _handle_response(self, spkt):
         pass
+
+    def _shutdown(self):
+        reg_dispatcher(self.sock, self.src, self.sock.port, reg=False)
+        self.sock.close()
+        self.sd.stop()
 
 
 class TestServerBase(object):

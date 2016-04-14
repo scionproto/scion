@@ -19,10 +19,17 @@ Contains constant definitions used throughout the codebase.
 # Stdlib
 import os
 
+#: SCION protocol version
+SCION_PROTO_VERSION = 0
+
 #: Max TTL of a PathSegment in realtime seconds.
 MAX_SEGMENT_TTL = 24 * 60 * 60
 #: Time unit for HOF expiration.
 EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
+#: Max number of supported HopByHop extensions (does not include SCMP)
+MAX_HOPBYHOP_EXT = 3
+#: Number of bytes per 'line'. Used for padding in many places.
+LINE_LEN = 8
 
 #: Base path of project
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

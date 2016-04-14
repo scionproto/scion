@@ -133,7 +133,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for ifid in self.ifid2addr:
             self.ifid_state[ifid] = InterfaceState()
 
-        self.PLD_CLASS_MAP = {
+        self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {PCBType.SEGMENT: self.handle_pcb},
             PayloadClass.IFID: {IFIDType.PAYLOAD: self.handle_ifid_packet},
             PayloadClass.CERT: {

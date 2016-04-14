@@ -17,6 +17,7 @@
 """
 # Stdlib
 import socket
+from errno import EACCES, EHOSTUNREACH, ENETUNREACH
 from unittest.mock import patch
 
 # External
@@ -25,6 +26,7 @@ from nose import tools as ntools
 
 # SCION
 from lib.defines import SCION_BUFLEN
+from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.socket import (
     UDPSocket,
     UDPSocketMgr,
@@ -124,14 +126,24 @@ class TestUDPSocketSend(object):
 
     @patch("lib.socket.logging.error", autospec=True)
     @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
-    def test_error(self, init, logging):
+    def _check_error(self, errno, excp, init, logging):
         inst = UDPSocket()
         inst.sock = create_mock(["sendto"])
-        inst.sock.sendto.side_effect = OSError
+        inst.sock.sendto.side_effect = OSError(errno)
         # Call
-        inst.send("data", "dst")
+        if excp:
+            ntools.assert_raises(excp, inst.send, "data", "dst")
+        else:
+            inst.send("data", "dst")
         # Tests
         ntools.ok_(logging.called)
+
+    def test_error(self):
+        for errno, excp in (
+            (EACCES, None), (ENETUNREACH, SCMPUnreachNet),
+            (EHOSTUNREACH, SCMPUnreachHost),
+        ):
+            yield self._check_error, errno, excp
 
 
 class TestUDPSocketRecv(object):

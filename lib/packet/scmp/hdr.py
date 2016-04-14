@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`scion_udp` --- UDP/SCION packets
+:mod:`hdr` --- SCMP Header
 ======================================
 """
 # Stdlib
 import struct
+import time
 
 # External
 import scapy.utils
@@ -26,33 +27,38 @@ from lib.errors import SCIONChecksumFailed
 from lib.packet.packet_base import L4HeaderBase
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scmp.errors import SCMPBadPktLen
-from lib.util import Raw, hex_str
+from lib.packet.scmp.types import SCMPClass
+from lib.packet.scmp.util import scmp_type_name
 from lib.types import L4Proto
+from lib.util import Raw, hex_str, iso_timestamp
 
 
-class SCIONUDPHeader(L4HeaderBase):
+class SCMPHeader(L4HeaderBase):
     """
-    Encapsulates the UDP header for UDP/SCION packets.
+    Encapsulates the SCMP Header for SCMP packets.
     """
-    LEN = 8
-    TYPE = L4Proto.UDP
-    NAME = "SCIONUDPHeader"
-    CHKSUM_LEN = 2
+    NAME = "SCMPHeader"
+    # Class(2B), Type(2B), Len(2B), Checksum(2B), Timestamp(8B)
+    STRUCT_FMT = "!HHH2sQ"
+    LEN = struct.calcsize(STRUCT_FMT)
+    TYPE = L4Proto.SCMP
 
     def __init__(self, raw=None):  # pragma: no cover
         """
         :param tuple raw:
             Tuple of (`SCIONAddr`, `SCIONAddr`, bytes) for the source
-            address, destination address, and raw UDP header respectively.
+            address, destination address, and raw SCMP header respectively.
         """
         super().__init__()
-        self._src = None
-        self.src_port = None
-        self._dst = None
-        self.dst_port = None
+        # Header fields
+        self.class_ = None
+        self.type = None
         self._length = self.LEN
         self._checksum = b""
-
+        self.timestamp = 0
+        # Meta-data
+        self._src = None
+        self._dst = None
         if raw:
             src, dst, raw_hdr = raw
             self._parse(src, dst, raw_hdr)
@@ -61,39 +67,44 @@ class SCIONUDPHeader(L4HeaderBase):
         data = Raw(raw, self.NAME, self.LEN)
         self._src = src
         self._dst = dst
-        self.src_port, self.dst_port, self._length, self._checksum = \
-            struct.unpack("!HHH2s", data.pop(self.LEN))
+        (self.class_, self.type, self._length, self._checksum,
+         self.timestamp) = struct.unpack(self.STRUCT_FMT, data.pop())
 
     @classmethod
-    def from_values(cls, src, src_port, dst, dst_port,
+    def from_values(cls, src, dst, class_, type_,
                     payload=None):  # pragma: no cover
-        """Returns an SCIONUDPHeader with the values specified."""
+        """
+        Returns an SCMPHeader with the values specified.
+        """
         inst = cls()
-        inst.update(src, src_port, dst, dst_port, payload)
+        inst.timestamp = int(time.time() * 1000000)
+        inst.update(src, dst, class_, type_, payload)
         return inst
 
-    def update(self, src=None, src_port=None, dst=None, dst_port=None,
-               payload=None):
+    def update(self, src=None, dst=None, class_=None, type_=None, payload=None):
         if src is not None:
             self._src = src
-        if src_port is not None:
-            self.src_port = src_port
         if dst is not None:
             self._dst = dst
-        if dst_port is not None:
-            self.dst_port = dst_port
+        if class_ is not None:
+            self.class_ = class_
+        if type_ is not None:
+            self.type = type_
         if payload is not None:
-            self._length = self.LEN + payload.total_len()
+            self._length = self.LEN + len(payload)
             self._checksum = self._calc_checksum(payload)
 
     def pack(self, checksum=None):  # pragma: no cover
         if checksum is None:
             checksum = self._checksum
-        return struct.pack("!HHH2s", self.src_port, self.dst_port, self._length,
-                           checksum)
+        return struct.pack(self.STRUCT_FMT, self.class_, self.type,
+                           self._length, checksum, self.timestamp)
+
+    def reverse(self):  # pragma: no cover
+        pass
 
     def validate(self, payload):
-        # Strip off udp header size.
+        # Strip off header size.
         payload_len = self._length - self.LEN
         if payload_len != len(payload):
             raise SCMPBadPktLen(
@@ -112,27 +123,26 @@ class SCIONUDPHeader(L4HeaderBase):
         Using a Pseudoheader of:
             - Source address
             - Destination address
-            - L4 protocol type (UDP)
-            - UDP header, excluding checksum
+            - L4 protocol type (SCMP)
+            - SCMP header, excluding checksum
         """
         assert isinstance(self._src, SCIONAddr)
         assert isinstance(self._dst, SCIONAddr)
         pseudo_header = b"".join([
-            self._src.pack(), self._dst.pack(), struct.pack("!B", L4Proto.UDP),
-            self.pack(checksum=bytes(2)), payload.pack_full(),
+            self._src.pack(), self._dst.pack(), struct.pack("!B", L4Proto.SCMP),
+            self.pack(checksum=bytes(2)), payload.pack(),
         ])
         chk_int = scapy.utils.checksum(pseudo_header)
         # scapy's checksum always outputs in network-byte-order.
         return struct.pack("H", chk_int)
 
-    def reverse(self):
-        self._src, self._dst = self._dst, self._src
-        self.src_port, self.dst_port = self.dst_port, self.src_port
-
     def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
-        return "UDP hdr (%sB): sport: %s dport: %s length: %sB checksum: %s" \
-            % (self.LEN, self.src_port, self.dst_port,
-               self._length, hex_str(self._checksum))
+        return ("%s(%sB): class: %s type: %s "
+                "length: %sB checksum: %s timestamp: %s" % (
+                    self.NAME, self.LEN, SCMPClass.to_str(self.class_),
+                    scmp_type_name(self.class_, self.type),
+                    self._length, hex_str(self._checksum),
+                    iso_timestamp(self.timestamp / 1000000)))

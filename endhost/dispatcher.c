@@ -21,7 +21,10 @@
 #define MAX_SVCS_PER_ADDR 10
 
 #define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in_pktinfo)))
-#define DSTADDR(x) (((struct in_pktinfo *)(CMSG_DATA(x)))->ipi_addr)
+#define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
+
+#define IS_REG_CMD(x) ((x) & 1)
+#define IS_SCMP_REQ(x) (((x) >> 1) & 1)
 
 typedef struct sockaddr_in sockaddr_in;
 
@@ -49,6 +52,7 @@ typedef struct {
     UDPKey udp_key;
     SSPKey ssp_key;
     UT_hash_handle hh;
+    uint8_t scmp;
 } Entry;
 
 typedef struct {
@@ -80,6 +84,10 @@ void reply(char code, sockaddr_in *addr);
 void handle_data();
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, sockaddr_in *addr);
 void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst);
+
+void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, sockaddr_in *from);
+void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, sockaddr_in *from);
+void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, sockaddr_in *from);
 
 int main(int argc, char **argv)
 {
@@ -203,7 +211,7 @@ void handle_app()
 void register_ssp(uint8_t *buf, int len, sockaddr_in *addr)
 {
     zlog_info(zc, "SSP registration request");
-    uint8_t reg = *buf; /* 0 = unregister, 1 = register */
+    uint8_t cmd = *buf; /* 0 = unregister, 1 = register */
     Entry *e = parse_request(buf, len, L4_SSP, addr);
     if (!e)
         return;
@@ -218,7 +226,7 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr)
             zlog_debug(zc, "entry for flow %" PRIu64 " deleted", e->ssp_key.flow_id);
         }
         /* If command is "register", add new entry */
-        if (reg) {
+        if (IS_REG_CMD(cmd)) {
             HASH_ADD(hh, SSPFlows, ssp_key, sizeof(SSPKey), e);
             zlog_info(zc, "flow registration success: %" PRIu64, e->ssp_key.flow_id);
         }
@@ -232,7 +240,7 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr)
             zlog_debug(zc, "entry for port %d deleted", e->ssp_key.port);
         }
         /* If command is "register", add new entry */
-        if (reg) {
+        if (IS_REG_CMD(cmd)) {
             HASH_ADD(hh, SSPWildcards, ssp_key, sizeof(SSPKey), e);
             zlog_info(zc, "wildcard registration success: %d", e->ssp_key.port);
         }
@@ -244,7 +252,7 @@ void register_udp(uint8_t *buf, int len, sockaddr_in *addr)
 {
     zlog_info(zc, "UDP registration request");
 
-    uint8_t reg = *buf; /* 0 = unregister, 1 = register */
+    uint8_t cmd = *buf; /* 0 = unregister, 1 = register */
     Entry *e = parse_request(buf, len, L4_UDP, addr);
     if (!e)
         return;
@@ -256,7 +264,7 @@ void register_udp(uint8_t *buf, int len, sockaddr_in *addr)
         free(old);
     }
     /* If command is "register", add new entry */
-    if (reg)
+    if (IS_REG_CMD(cmd))
         HASH_ADD(hh, UDPPorts, udp_key, sizeof(UDPKey), e);
     reply(1, addr);
 }
@@ -307,6 +315,8 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
         memcpy(&reg_addr.sin_addr, e->udp_key.host, addr_len);
         zlog_info(zc, "registration for %s:%d", inet_ntoa(reg_addr.sin_addr), e->udp_key.port);
     }
+    if (IS_SCMP_REQ(*buf))
+        e->scmp = 1;
 
     if (len > end) {
         memcpy(svc_key.host, buf + end - addr_len, addr_len);
@@ -383,6 +393,10 @@ void handle_data()
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
     switch (l4) {
+        case L4_SCMP:
+            fprintf(stderr, "incoming scmp packet for %s\n", inet_ntoa(dst.sin_addr));
+            process_scmp(buf, (SCMPL4Header *)l4ptr, len, &from);
+            break;
         case L4_SSP:
             deliver_ssp(buf, l4ptr, len, &from);
             break;
@@ -446,7 +460,9 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
         SVCEntry *se;
         HASH_FIND(hh, SVCEntries, &svc_key, sizeof(SVCKey), se);
         if (!se) {
-            zlog_warn(zc, "SVC entry not found");
+            zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %d IP: %s",
+                    ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
+                    inet_ntoa(dst->sin_addr));
             return;
         }
         addr = se->addrs[random() % se->count];
@@ -461,11 +477,79 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
         Entry *e;
         HASH_FIND(hh, UDPPorts, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "entry not found");
+            zlog_warn(zc, "entry for %s:%d not found\n",
+                    inet_ntoa(*(struct in_addr *)(key.host)), key.port);
             return;
         }
         addr = e->addr;
     }
+    socklen_t addrLen = sizeof(sockaddr_in);
+    /* Append real first hop sender addr to end of message (needed by socket) */
+    memcpy(buf + len, from, addrLen);
+    sendto(app_socket, buf, len + addrLen, 0,
+            (struct sockaddr *)&addr, addrLen);
+}
+
+void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
+{
+    int calc_chk = scmp_checksum(buf);
+    if (calc_chk != scmp->checksum) {
+        fprintf(stderr, "SCMP header checksum (%x) doesn't match computed checksum (%x)\n",
+                scmp->checksum, calc_chk);
+        return;
+    }
+    if (htons(scmp->class_) == SCMP_GENERAL_CLASS && htons(scmp->type) == SCMP_ECHO_REQUEST) {
+        send_scmp_echo_reply(buf, scmp, from);
+    } else {
+        deliver_scmp(buf, scmp, len, from);
+    }
+}
+
+void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, sockaddr_in *from)
+{
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    reverse_packet(buf);
+    scmp->type = htons(SCMP_ECHO_REPLY);
+    update_scmp_checksum(buf);
+    from->sin_port = htons(SCION_UDP_EH_DATA_PORT);
+    fprintf(stderr, "send echo reply to %s:%d\n", inet_ntoa(from->sin_addr), ntohs(from->sin_port));
+    sendto(data_socket, buf, ntohs(sch->total_len), 0,
+            (struct sockaddr *)from, sizeof(sockaddr_in));
+}
+
+void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
+{
+    int addrlen = sizeof(sockaddr_in);
+    memcpy(buf + len, from, addrlen);
+    SCMPPayload *pld;
+    pld = scmp_parse_payload(scmp);
+    if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_NONE) {
+        fprintf(stderr, "SCMP not supported for protocol %d\n", pld->meta->l4_proto);
+        return;
+    }
+    SCIONCommonHeader *sch = pld->cmnhdr;
+    if (SRC_TYPE(sch) == ADDR_SVC_TYPE) {
+        fprintf(stderr, "SCMP does not support SVC source.\n");
+        return;
+    }
+    UDPKey key;
+    memset(&key, 0, sizeof(key));
+    /* Find src info in payload */
+    key.port = ntohs(*(uint16_t *)(pld->l4hdr));
+    key.isd_as = ntohl(*(uint32_t *)(pld->addr));
+    memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
+
+    Entry *e;
+    HASH_FIND(hh, UDPPorts, &key, sizeof(key), e);
+    if (!e) {
+        fprintf(stderr, "entry for %s:%d not found\n",
+                inet_ntoa(*(struct in_addr *)(key.host)), key.port);
+        return;
+    }
+    fprintf(stderr, "entry for %s:%d found\n",
+            inet_ntoa(*(struct in_addr *)(key.host)), key.port);
+    sockaddr_in addr;
+    addr = e->addr;
     socklen_t addrLen = sizeof(sockaddr_in);
     /* Append real first hop sender addr to end of message (needed by socket) */
     memcpy(buf + len, from, addrLen);

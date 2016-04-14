@@ -6,3 +6,4 @@ SCION Packet Library
   :glob:
 
   *
+  scmp/index
