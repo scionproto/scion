@@ -353,29 +353,6 @@ class PathCombinator(object):
         return paths
 
     @classmethod
-    def build_core_paths(cls, up_segment, down_segment, core_segments):
-        """
-        Returns list of all paths that can be built as combination of the
-        supplied segments.
-
-        :param list up_segments: List of `up` :any:`PathSegment`\s
-        :param list core_segments: List of `core` :any:`PathSegment`\s
-        :param list down_segments: List of `down` :any:`PathSegment`\s
-        :returns: List of paths.
-        """
-        paths = []
-        path = cls._build_core_path(up_segment, [], down_segment)
-        if path:
-            paths.append(path)
-        if core_segments:
-            for core_segment in core_segments:
-                path = cls._build_core_path(up_segment, core_segment,
-                                            down_segment)
-                if path and path not in paths:
-                    paths.append(path)
-        return paths
-
-    @classmethod
     def _build_shortcut_path(cls, up_segment, down_segment):
         """
         Takes :any:`PathSegment`\s and tries to combine them into short path via
@@ -407,41 +384,6 @@ class PathCombinator(object):
         else:
             # Xovr is best
             return cls._join_shortcuts(up_segment, down_segment, xovr, False)
-
-    @classmethod
-    def _build_core_path(cls, up_segment, core_segment, down_segment):
-        """
-        Joins the supplied segments into a core fullpath.
-
-        :param list up_segment: `up` :any:`PathSegment`.
-        :param list core_segment:
-            `core` :any:`PathSegment` (must have down-segment orientation), or
-            ``None``.
-        :param list down_segment: `down` :any:`PathSegment`.
-        :returns: a SCIONPath if a path is found, otherwise None.
-        """
-        if (not up_segment or not down_segment or
-                not up_segment.ases or not down_segment.ases):
-            return None
-
-        if not cls._check_connected(up_segment, core_segment, down_segment):
-            return None
-
-        up_iof, up_hofs, up_mtu = cls._copy_segment(
-            up_segment, False, bool(core_segment or down_segment))
-        core_iof, core_hofs, core_mtu = cls._copy_segment(
-            core_segment, bool(up_segment), bool(down_segment))
-        down_iof, down_hofs, down_mtu = cls._copy_segment(
-            down_segment, bool(up_segment or core_segment), False, up=False)
-        path = SCIONPath.from_values(up_iof, up_hofs, core_iof, core_hofs,
-                                     down_iof, down_hofs)
-        path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
-        up_core = list(reversed(up_segment.ases))
-        if core_segment:
-            up_core += list(reversed(core_segment.ases))
-        cls._add_interfaces(path, up_core)
-        cls._add_interfaces(path, down_segment.ases, up=False)
-        return path
 
     @classmethod
     def _add_interfaces(cls, path, segment_ases, up=True):
@@ -589,6 +531,8 @@ class PathCombinator(object):
         Check if the supplied segments are connected in sequence. If the `core`
         segment is not specified, it is ignored.
         """
+        if not up_segment or not down_segment:
+            return True
         up_first_ia = up_segment.get_first_pcbm().isd_as
         down_first_ia = down_segment.get_first_pcbm().isd_as
         if core_segment:
@@ -672,10 +616,12 @@ class PathCombinator(object):
         (up_seg, core_seg, down_seg)], return a list of fullpaths.
 
         """
-        # TODO(PSz): eventually this should replace _build_core_paths.
         res = []
         for up_segment, core_segment, down_segment in tuples:
             if not up_segment and not core_segment and not down_segment:
+                continue
+            if not cls._check_connected(up_segment, core_segment,
+                                        down_segment):
                 continue
 
             up_iof, up_hofs, up_mtu = cls._copy_segment(

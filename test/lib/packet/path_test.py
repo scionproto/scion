@@ -473,36 +473,6 @@ class TestPathCombinatorBuildShortcutPaths(object):
         assert_these_calls(build_path, calls)
 
 
-class TestPathCombinatorBuildCorePaths(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator.build_core_paths
-    """
-    @patch("lib.packet.path.PathCombinator._build_core_path",
-           new_callable=create_mock)
-    def test_without_core(self, build_path):
-        build_path.return_value = 'path0'
-        ntools.eq_(PathCombinator.build_core_paths('up', 'down', None),
-                   ['path0'])
-        build_path.assert_called_once_with('up', [], 'down')
-
-    @patch("lib.packet.path.PathCombinator._build_core_path",
-           new_callable=create_mock)
-    def test_without_core_empty(self, build_path):
-        build_path.return_value = None
-        ntools.eq_(PathCombinator.build_core_paths('up', 'down', None), [])
-
-    @patch("lib.packet.path.PathCombinator._build_core_path",
-           new_callable=create_mock)
-    def test_with_core(self, build_path):
-        core_segments = ['core0', 'core1', 'core2', 'core3']
-        build_path.side_effect = [None, 'path0', 'path1', None, 'path1']
-        ntools.eq_(PathCombinator.build_core_paths('up', 'down', core_segments),
-                   ['path0', 'path1'])
-        calls = [call('up', [], 'down')]
-        calls += [call('up', cs, 'down') for cs in core_segments]
-        assert_these_calls(build_path, calls)
-
-
 class TestPathCombinatorBuildShortcutPath(PathCombinatorBase):
     """
     Unit tests for lib.packet.path.PathCombinator._build_shortcut_path
@@ -555,75 +525,6 @@ class TestPathCombinatorBuildShortcutPath(PathCombinatorBase):
 
     def test_with_only_peer(self):
         yield self._check_xovrs_peers, None, (1, 2), True
-
-
-class TestPathCombinatorBuildCorePath(PathCombinatorBase):
-    """
-    Unit tests for lib.packet.path.PathCombinator._build_core_path
-    """
-    def _check_none(self, up_seg, down_seg):
-        ntools.assert_is_none(
-            PathCombinator._build_core_path(up_seg, "core", down_seg))
-
-    def test_none(self):
-        for up, down in self._generate_none():
-            yield self._check_none, up, down
-
-    @patch("lib.packet.path.PathCombinator._check_connected",
-           new_callable=create_mock)
-    def test_not_connected(self, check_connected):
-        up, core, down = (create_mock(['ases']), create_mock(['ases']),
-                          create_mock(['ases']))
-        check_connected.return_value = False
-        # Call
-        ntools.assert_is_none(PathCombinator._build_core_path(up, core, down))
-        # Tests
-        check_connected.assert_called_once_with(up, core, down)
-
-    def _mk_asm(self, mtu_base):
-        asm = create_mock(["pcbm", "ext"])
-        asm.pcbm = create_mock(['isd_as', 'hof'])
-        asm.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
-        asm.ext = create_mock(['EXT_TYPE', 'mtu'])
-        asm.ext.EXT_TYPE = MtuPcbExt.EXT_TYPE
-        asm.ext.mtu = mtu_base * 100
-        return asm
-
-    @patch("lib.packet.path.SCIONPath", autospec=True)
-    @patch("lib.packet.path.PathCombinator._copy_segment",
-           new_callable=create_mock)
-    @patch("lib.packet.path.PathCombinator._check_connected",
-           new_callable=create_mock)
-    def test_full(self, check_connected, copy_seg, scion_path):
-        up = create_mock(['ases'])
-        core = create_mock(['ases'])
-        down = create_mock(['ases'])
-        up.ases = []
-        core.ases = []
-        down.ases = []
-        for i in range(6):
-            # MTUs: 300, 400, 500, 600, 700, 800
-            up.ases.append(self._mk_asm(i + 3))
-            # MTUs: 500, 400, 300, 200, 100, 0 (invalid)
-            core.ases.append(self._mk_asm(5 - i))
-            # MTUs: 200, 300, 400, 500, 600, 700
-            down.ases.append(self._mk_asm(i + 2))
-        copy_seg.side_effect = [
-            ("up_iof", "up_hofs", 300),
-            ("core_iof", "core_hofs", 100),  # smallest valid MTU is 100
-            ("down_iof", "down_hofs", 200),
-        ]
-        # Call
-        ntools.eq_(PathCombinator._build_core_path(up, core, down),
-                   scion_path.from_values.return_value)
-        # Tests
-        assert_these_calls(copy_seg, [
-            call(up, False, True), call(core, True, True),
-            call(down, True, False, up=False),
-        ])
-        scion_path.from_values.assert_called_once_with(
-            "up_iof", "up_hofs", "core_iof", "core_hofs", "down_iof",
-            "down_hofs")
 
 
 class TestPathCombinatorCopySegment(object):
