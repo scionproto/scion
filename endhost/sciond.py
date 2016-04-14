@@ -369,10 +369,14 @@ class SCIONDaemon(SCIONElement):
         down_segs = self.down_segments(last_ia=dst_ia)
         core_segs = self._calc_core_segs(dst_ia[0], up_segs, down_segs)
         full_paths = PathCombinator.build_shortcut_paths(up_segs, down_segs)
+        tuples = []
         for up_seg in up_segs:
             for down_seg in down_segs:
-                full_paths.extend(PathCombinator.build_core_paths(
-                    up_seg, down_seg, core_segs))
+                tuples.append((up_seg, None, down_seg))
+                for core_seg in core_segs:
+                    tuples.append((up_seg, core_seg, down_seg))
+                full_paths.extend(
+                    PathCombinator.tuples_to_full_paths(tuples, True))
         return full_paths
 
     def _resolve_not_core_not_core_sibra(self, dst_ia):
