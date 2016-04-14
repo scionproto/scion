@@ -531,6 +531,8 @@ class PathCombinator(object):
         Check if the supplied segments are connected in sequence. If the `core`
         segment is not specified, it is ignored.
         """
+        if not up_segment or not down_segment:
+            return True
         up_first_ia = up_segment.get_first_pcbm().isd_as
         down_first_ia = down_segment.get_first_pcbm().isd_as
         if core_segment:
@@ -608,7 +610,7 @@ class PathCombinator(object):
                     return up_peer.hof, down_peer.hof
 
     @classmethod
-    def tuples_to_full_paths(cls, tuples, up_and_down=False):
+    def tuples_to_full_paths(cls, tuples):
         """
         For a set of tuples of possible end-to-end path [format is:
         (up_seg, core_seg, down_seg)], return a list of fullpaths.
@@ -618,12 +620,9 @@ class PathCombinator(object):
         for up_segment, core_segment, down_segment in tuples:
             if not up_segment and not core_segment and not down_segment:
                 continue
-            if up_and_down:
-                if not up_segment or not down_segment:
-                    continue
-                if not cls._check_connected(up_segment, core_segment,
-                                            down_segment):
-                    continue
+            if not cls._check_connected(up_segment, core_segment,
+                                        down_segment):
+                continue
 
             up_iof, up_hofs, up_mtu = cls._copy_segment(
                 up_segment, False, (core_segment or down_segment))

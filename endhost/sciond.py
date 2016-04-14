@@ -376,7 +376,7 @@ class SCIONDaemon(SCIONElement):
                 for core_seg in core_segs:
                     tuples.append((up_seg, core_seg, down_seg))
                 full_paths.extend(
-                    PathCombinator.tuples_to_full_paths(tuples, True))
+                    PathCombinator.tuples_to_full_paths(tuples))
         return full_paths
 
     def _resolve_not_core_not_core_sibra(self, dst_ia):
