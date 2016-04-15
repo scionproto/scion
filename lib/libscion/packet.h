@@ -23,6 +23,7 @@ typedef struct {
 
 #pragma pack(pop)
 
+#define PROTO_VER(sch) ((ntohs(sch->ver_src_dst) >> 12))
 #define SRC_TYPE(sch) ((ntohs(sch->ver_src_dst) & 0xfc0) >> 6)
 #define DST_TYPE(sch) (ntohs(sch->ver_src_dst) & 0x3f)
 
@@ -34,5 +35,6 @@ void inc_hof_idx(uint8_t *buf);
 int is_known_proto(uint8_t type);
 uint8_t get_l4_proto(uint8_t **l4ptr);
 void reverse_packet(uint8_t *buf);
+void print_header(uint8_t *buf);
 
 #endif

@@ -18,6 +18,7 @@ extern "C" {
 #include "path.h"
 #include "types.h"
 #include "udp.h"
+#include "checksum.h"
 
 #ifdef __cplusplus
 }

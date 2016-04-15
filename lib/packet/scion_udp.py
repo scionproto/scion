@@ -114,9 +114,7 @@ class SCIONUDPHeader(L4HeaderBase):
             - Source address
             - Destination address
             - L4 protocol type (UDP)
-            - Source port
-            - Destination port
-            - Payload length
+            - UDP header, excluding checksum
         """
         assert isinstance(self._src, SCIONAddr)
         assert isinstance(self._dst, SCIONAddr)
@@ -127,7 +125,8 @@ class SCIONUDPHeader(L4HeaderBase):
             payload.pack_full(),
         ])
         chk_int = scapy.utils.checksum(pseudo_header)
-        return struct.pack("!H", chk_int)
+        # scapy's checksum always outputs in network-byte-order.
+        return struct.pack("H", chk_int)
 
     def reverse(self):
         self._src, self._dst = self._dst, self._src

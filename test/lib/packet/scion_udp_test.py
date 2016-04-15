@@ -153,7 +153,7 @@ class TestSCIONUDPHeaderCalcChecksum(object):
             bytes.fromhex("11 1111 2222 0009"),
             b"payload",
         ])
-        scapy_checksum.return_value = 0x1234
+        scapy_checksum.return_value = 0x3412
         # Call
         ntools.eq_(inst._calc_checksum(payload), bytes.fromhex("1234"))
         # Tests

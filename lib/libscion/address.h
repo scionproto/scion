@@ -4,6 +4,8 @@
 #include "defines.h"
 
 #define ISD_AS_LEN 4
+// Maximum length string needed to describe any host address.
+#define MAX_HOST_ADDR_STR INET6_ADDRSTRLEN
 
 typedef struct {
     int addr_len;
@@ -54,5 +56,6 @@ uint8_t * get_src_addr(uint8_t *buf);
 uint8_t get_src_len(uint8_t *buf);
 uint8_t * get_dst_addr(uint8_t *buf);
 uint8_t get_dst_len(uint8_t *buf);
+void print_addresses(uint8_t *buf);
 
 #endif
