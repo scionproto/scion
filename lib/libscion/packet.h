@@ -33,7 +33,7 @@ int padded_addr_len(void *buf);
 void set_path(void *buf, uint8_t *path, int len);
 uint8_t * get_path(void *buf);
 int get_path_len(void *buf);
-int get_total_header_len(void *buf);
+int get_scion_layer_len(void *buf);
 void init_of_idx(void *buf);
 void inc_hof_idx(void *buf);
 int is_known_proto(uint8_t type);

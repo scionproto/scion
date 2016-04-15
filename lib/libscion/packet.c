@@ -110,7 +110,7 @@ uint8_t * get_path(void *buf)
 int get_path_len(void *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return ntohs(sch->total_len) - (get_path(buf) - (uint8_t *)buf);
+    return ntohs(sch->header_len) - (get_path(buf) - (uint8_t *)buf);
 }
 
 /*
@@ -118,7 +118,7 @@ int get_path_len(void *buf)
  * buf: Pointer to start of SCION packet
  * return value: Length of combined SCION headers, -1 on error
  */
-int get_total_header_len(void *buf)
+int get_scion_layer_len(void *buf)
 {
     if (!buf)
         return -1;
