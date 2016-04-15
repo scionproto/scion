@@ -276,11 +276,8 @@ class CertGenerator(object):
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
-        # if as_conf.get('core', False):
-        #     return
-        if 'cert_issuer' not in as_conf:
-            logging.warning("No 'cert_issuer' attribute for "
-                            "a non-core AS: %s", topo_id)
+        # FIXME(PSz): for now '0-0' means self-signed. It be str(topo_id), but
+        # then the generator somehow loops.
         issuer = TopoID(as_conf.get('cert_issuer', '0-0'))
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), self.sig_pub_keys[topo_id],
