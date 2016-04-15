@@ -196,7 +196,7 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
-            pcb.remove_signatures()
+            pcb.remove_crypto()
             self._sign_beacon(pcb)
             try:
                 self.register_up_segment(pcb)
@@ -212,7 +212,7 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
-            pcb.remove_signatures()
+            pcb.remove_crypto()
             self._sign_beacon(pcb)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())

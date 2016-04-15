@@ -348,6 +348,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for _, rev_info in self.revs_to_downstream.items():
             rev_ext = RevPcbExt.from_values(rev_info)
             extensions.append(rev_ext)
+        # FIXME(psz): add TRC ver.
         return ASMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
                                      ext=extensions)
@@ -502,6 +503,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
+    def _get_my_trc(self):
+        return self.trust_store.get_trc(self.addr.isd_as[0])
+
+    def _get_my_cert(self):
+        return self.trust_store.get_cert(self.addr.isd_as)
+
     def _get_trc(self, isd_as, trc_ver):
         """
         Get TRC from local storage or memory.
@@ -554,7 +561,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _sign_beacon(self, pcb):
         """
-        Sign a beacon. Signature is appended to the last ASMarking.
+        Sign a beacon. Signature and certificate are appended to the last
+        ASMarking.
 
         :param pcb: beacon to sign.
         :type pcb: PathSegment
@@ -564,6 +572,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.warning("PCB already signed.")
             return
         (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
+        logging.debug("MY CERT: %s" % self._get_my_cert())
+        pcb.ases[-1].cert = self._get_my_cert()
         signature = sign(pcb.pack(), self.signing_key)
         pcb.ases[-1].sig = signature
         pcb.if_id = tmp_if_id

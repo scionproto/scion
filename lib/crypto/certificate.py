@@ -361,6 +361,9 @@ class CertificateChain(object):
     def pack(self):
         return self.to_json().encode('utf-8')
 
+    def __len__(self):
+        return len(self.pack())
+
     def __str__(self):
         return self.to_json()
 

@@ -266,7 +266,7 @@ class SteadyPath(object):
         # TODO(kormat): It might make sense to remove peer markings also, but
         # they might also be needed for sibra steady paths that traverse peer
         # links in the future.
-        pcb.remove_signatures()
+        pcb.remove_crypto()
         pcb.flags |= PSF.SIBRA
         latest = self.blocks[-1]
         assert latest.num_hops == len(latest.sofs)

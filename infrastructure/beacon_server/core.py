@@ -121,7 +121,7 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment contained in 'pcb' with the local core path
         server.
         """
-        pcb.remove_signatures()
+        pcb.remove_crypto()
         self._sign_beacon(pcb)
         # Register core path with local core path server.
         try:
