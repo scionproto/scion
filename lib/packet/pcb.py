@@ -247,8 +247,8 @@ class ASMarking(Serializable):
 
     def __len__(self):  # pragma: no cover
         return (
-            self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.sig) +
-            len(self._pack_ext())
+            self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.cert) +
+            len(self.sig) + len(self._pack_ext())
         )
 
     def __eq__(self, other):  # pragma: no cover
@@ -279,7 +279,7 @@ class ASMarking(Serializable):
         for ext in self.ext:
             s.append("    %s" % str(ext))
         s.append("  eg_rev_token: %s" % hex_str(self.eg_rev_token))
-        s.append("  Certificate: %s" % hex_str(self.cert))
+        s.append("  Certificate: %s" % self.cert)
         s.append("  Signature: %s" % hex_str(self.sig))
         return "\n".join(s)
 

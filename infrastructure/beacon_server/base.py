@@ -479,8 +479,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        if self._check_certs_trc(
-                last_pcbm.isd_as, pcb.get_last_asm().cert_ver, pcb.trc_ver):
+        if self._check_trc(last_pcbm.isd_as, pcb.trc_ver):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -492,13 +491,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
-    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
+    def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
 
         :param ISD_AS isd_is: ISD-AS identifier.
-        :param int cert_ver: certificate chain file version.
         :param int trc_ver: TRC file version.
         """
         raise NotImplementedError
@@ -547,8 +545,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         cert_ia = pcb.get_last_pcbm().isd_as
-        cert_ver = pcb.get_last_asm().cert_ver
-        chain = self.trust_store.get_cert(cert_ia, cert_ver)
+        chain = pcb.get_last_asm().cert
         if not chain:  # Signed by root. TODO(PSz): has to be revised
             chain = CertificateChain.from_values([])
         trc = self.trust_store.get_trc(cert_ia[0], pcb.trc_ver)

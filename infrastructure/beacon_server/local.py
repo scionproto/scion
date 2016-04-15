@@ -55,43 +55,19 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
 
-    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
+    def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
 
         :param ISD_AS isd_as: ISD-AS identifier.
-        :param int cert_ver: certificate chain file version.
         :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
         trc = self._get_trc(isd_as, trc_ver)
         if trc:
-            cert_chain = self.trust_store.get_cert(isd_as, cert_ver)
-            if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ases:
-                return True
-            else:
-                # Requesting certificate chain file from cert server
-                cert_chain_tuple = isd_as, cert_ver
-                now = int(SCIONTime.get_time())
-                if (cert_chain_tuple not in self.cert_chain_requests or
-                    (now - self.cert_chain_requests[cert_chain_tuple] >
-                        BeaconServer.REQUESTS_TIMEOUT)):
-                    new_cert_chain_req = CertChainRequest.from_values(
-                        isd_as, cert_ver)
-                    logging.info("Requesting %s certificate chain",
-                                 new_cert_chain_req.short_desc())
-                    try:
-                        dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
-                    except SCIONServiceLookupError as e:
-                        logging.warning("Unable to send cert query: %s", e)
-                        return False
-                    req_pkt = self._build_packet(
-                        dst_addr, payload=new_cert_chain_req)
-                    self.send(req_pkt, dst_addr)
-                    self.cert_chain_requests[cert_chain_tuple] = now
-                    return False
+            return True
         else:
             return False
 
