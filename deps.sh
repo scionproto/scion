@@ -5,6 +5,7 @@ set -e
 cmd_all() {
     cmd_pkgs
     cmd_pip
+    cmd_zlog
     cmd_misc
 }
 
@@ -37,6 +38,20 @@ cmd_pip() {
     pip3 install --user -r requirements.txt
 }
 
+cmd_zlog() {
+    if [ -e ~/.local/lib/zlog/src/libzlog.a ]; then
+        echo "libzlog already installed"
+    else
+        echo "Installing libzlog"
+        cd ~/.local/lib
+        if [ ! -d zlog ]; then
+            mkdir zlog
+        fi
+        curl -L https://github.com/HardySimpson/zlog/archive/latest-stable.tar.gz | tar xzf - --strip-components=1 -C zlog
+        make -C zlog
+    fi
+}
+
 
 cmd_misc() {
     echo "Installing supervisor packages from pip2"
@@ -46,7 +61,7 @@ cmd_misc() {
 
 cmd_help() {
 	cat <<-_EOF
-	$PROGRAM [all|pkgs|pip|misc|help]
+	$PROGRAM [all|pkgs|pip|zlog|misc|help]
 	
 	Usage:
 	    $PROGRAM all
@@ -57,6 +72,8 @@ cmd_help() {
 	    $PROGRAM pip
 	        Install all pip package dependancies (using --user, so no root
 	        access required)
+	    $PROGRAM zlog
+	        Install libzlog
 	    $PROGRAM misc
 	        Install any additional packages not from the first 2 sources.
 	    $PROGRAM help
@@ -70,7 +87,7 @@ COMMAND="$1"
 shift || { cmd_help; exit; }
 
 case "$COMMAND" in
-    all|pkgs|pip|misc)
+    all|pkgs|pip|zlog|misc)
             "cmd_$COMMAND" "$@" ;;
     help|*)  cmd_help ;;
 esac

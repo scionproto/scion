@@ -1,5 +1,6 @@
 dnsutils
 cgroup-bin
+curl
 gcc
 g++
 libcurl4-openssl-dev

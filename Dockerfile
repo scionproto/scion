@@ -38,7 +38,7 @@ RUN sudo apt-get update && APTARGS=-y ./deps.sh pkgs
 COPY requirements.txt $BASE/
 RUN sudo chown -R scion: $HOME
 RUN ./deps.sh pip
-
+RUN ./deps.sh zlog
 RUN ./deps.sh misc
 
 RUN sudo rm -rf /usr/share/man
