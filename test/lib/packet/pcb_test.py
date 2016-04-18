@@ -81,27 +81,29 @@ class TestASMarkingParse(object):
     """
     Unit test for lib.packet.pcb.ASMarking._parse
     """
+    @patch("lib.packet.pcb.CertificateChain", autospec=True)
     @patch("lib.packet.pcb.PCBMarking", autospec=True)
     @patch("lib.packet.pcb.Raw", autospec=True)
-    def test(self, raw, pcb_marking):
+    def test(self, raw, pcb_marking, cert):
         inst = ASMarking()
         inst._parse_peers = create_mock()
         inst._parse_ext = create_mock()
         data = create_mock(["pop"])
         data.pop.side_effect = (
             bytes(range(ASMarking.METADATA_LEN)),
-            "pop pcbm", "pop rev tkn", "pop sig")
+            "pop pcbm", "pop rev tkn", b"pop cert", "pop sig")
         raw.return_value = data
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.MIN_LEN, min_=True)
         ntools.eq_(inst.trc_ver, 0x0001)
-        ntools.eq_(inst.block_len, 0x0607)
+        ntools.eq_(inst.block_len, 0x0809)
         pcb_marking.assert_called_once_with("pop pcbm")
+        cert.assert_called_once_with("pop cert")
         ntools.eq_(inst.pcbm, pcb_marking.return_value)
-        inst._parse_peers.assert_called_once_with(data, 0x0203, 0x0405)
-        inst._parse_ext.assert_called_once_with(data, 0x0203)
+        inst._parse_peers.assert_called_once_with(data, 0x0608, 0x0607)
+        inst._parse_ext.assert_called_once_with(data, 0x0608)
         ntools.eq_(inst.eg_rev_token, "pop rev tkn")
         ntools.eq_(inst.sig, "pop sig")
 
@@ -202,9 +204,9 @@ class TestASMarkingPack(object):
         inst.cert.__len__.return_value = 4
         inst.sig = b'sig'
         expected = b"".join([
-            bytes.fromhex("0000 0003 000b 0003"), b'packed_pcbm', b'packed_pm0',
-            b'packed_pm1', b'packed_exts', b'eg_rev_token', b'cert', b'sig'
-        ])
+            bytes.fromhex("0000 0004 0003 000b 0004"), b'packed_pcbm',
+            b'packed_pm0', b'packed_pm1', b'packed_exts', b'eg_rev_token',
+            b'cert', b'sig'])
         len_.return_value = len(expected)
         # Call
         ntools.eq_(inst.pack(), expected)
@@ -272,7 +274,7 @@ class TestPathSegmentParseHops(object):
         inst.iof = create_mock(['hops'])
         inst.iof.hops = 2
         data = create_mock(["get", "pop"])
-        data.get.side_effect = bytes(range(8)), bytes(range(8, 16))
+        data.get.side_effect = bytes(range(10)), bytes(range(10, 20))
         data.pop.side_effect = "pop asm0", "pop asm1"
         asm.side_effect = 'asm0', 'asm1'
         asm.METADATA_LEN = 4

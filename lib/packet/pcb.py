@@ -134,7 +134,7 @@ class ASMarking(Serializable):
     def __init__(self, raw=None):  # pragma: no cover
         self.pcbm = None
         self.pms = []
-        self.cert = CertificateChain()
+        self.cert = None
         self.sig = b''
         self.ext = []
         self.eg_rev_token = bytes(REV_TOKEN_LEN)
@@ -190,8 +190,7 @@ class ASMarking(Serializable):
         inst.pcbm = pcbm
         inst.pms = pms or []
         inst.block_len = (1 + len(inst.pms)) * PCBMarking.LEN
-        if cert:
-            inst.cert = cert
+        inst.cert = cert
         inst.sig = sig
         inst.ext = ext or []
         inst.eg_rev_token = eg_rev_token or bytes(REV_TOKEN_LEN)
