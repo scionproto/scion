@@ -20,15 +20,13 @@ import logging
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import CERTIFICATE_SERVICE, PATH_SERVICE, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
-from lib.packet.cert_mgmt import CertChainRequest
 from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import SVCType
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
-from lib.util import SCIONTime
 
 
 class LocalBeaconServer(BeaconServer):

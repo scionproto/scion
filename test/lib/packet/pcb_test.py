@@ -96,7 +96,7 @@ class TestASMarkingParse(object):
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.MIN_LEN, min_=True)
-        ntools.eq_(inst.cert_ver, 0x0001)
+        ntools.eq_(inst.trc_ver, 0x0001)
         ntools.eq_(inst.block_len, 0x0607)
         pcb_marking.assert_called_once_with("pop pcbm")
         ntools.eq_(inst.pcbm, pcb_marking.return_value)
@@ -155,15 +155,17 @@ class TestASMarkingFromValues(object):
         pcbm = create_mock()
         pms = ['pms0', 'pms1']
         eg_rev_token = bytes(range(REV_TOKEN_LEN))
+        cert = b'cert_bytes'
         sig = b'sig_bytes'
         ext = ['ext1', 'ext22']
         # Call
-        inst = ASMarking.from_values(pcbm, pms, eg_rev_token, sig, ext)
+        inst = ASMarking.from_values(pcbm, pms, eg_rev_token, cert, sig, ext)
         # Tests
         ntools.assert_is_instance(inst, ASMarking)
         ntools.eq_(inst.pcbm, pcbm)
         ntools.eq_(inst.pms, pms)
         ntools.eq_(inst.block_len, 3 * PCBMarking.LEN)
+        ntools.eq_(inst.cert, cert)
         ntools.eq_(inst.sig, sig)
         ntools.eq_(inst.ext, ext)
         ntools.eq_(inst.eg_rev_token, eg_rev_token)
@@ -185,8 +187,7 @@ class TestASMarkingPack(object):
     @patch("lib.packet.pcb.ASMarking.__len__", autospec=True)
     def test(self, len_):
         inst = ASMarking()
-        (inst.cert_ver, sig_len, ext_len,
-         inst.block_len) = range(4)
+        inst.trc_ver, cert_len, sig_len, ext_len, inst.block_len = range(5)
         inst.pcbm = create_mock(['pack'])
         inst.pcbm.pack.return_value = b'packed_pcbm'
         for i in range(2):
@@ -196,10 +197,13 @@ class TestASMarkingPack(object):
         inst._pack_ext = create_mock()
         inst._pack_ext.return_value = b'packed_exts'
         inst.eg_rev_token = b'eg_rev_token'
+        inst.cert = create_mock(['pack', '__len__'])
+        inst.cert.pack.return_value = b'cert'
+        inst.cert.__len__.return_value = 4
         inst.sig = b'sig'
         expected = b"".join([
             bytes.fromhex("0000 0003 000b 0003"), b'packed_pcbm', b'packed_pm0',
-            b'packed_pm1', b'packed_exts', b'eg_rev_token', b'sig'
+            b'packed_pm1', b'packed_exts', b'eg_rev_token', b'cert', b'sig'
         ])
         len_.return_value = len(expected)
         # Call

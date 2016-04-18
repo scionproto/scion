@@ -33,7 +33,7 @@ from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
 from infrastructure.beacon_server.rev_obj import RevocationObject
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import CertificateChain, verify_sig_chain_trc
+from lib.crypto.certificate import verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
 from lib.defines import (
     BEACON_SERVICE,
@@ -546,15 +546,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(pcb, PathSegment)
         cert_ia = pcb.get_last_pcbm().isd_as
         chain = pcb.get_last_asm().cert
-        if not chain:  # Signed by root. TODO(PSz): has to be revised
-            chain = CertificateChain.from_values([])
-        trc = self.trust_store.get_trc(cert_ia[0], pcb.trc_ver)
+        trc_ver = pcb.get_last_asm().trc_ver
+        trc = self.trust_store.get_trc(cert_ia[0], trc_ver)
 
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
         new_pcb.ases[-1].sig = b''
         return verify_sig_chain_trc(new_pcb.pack(), pcb.ases[-1].sig,
-                                    str(cert_ia), chain, trc, pcb.trc_ver)
+                                    str(cert_ia), chain, trc, trc_ver)
 
     def _sign_beacon(self, pcb):
         """

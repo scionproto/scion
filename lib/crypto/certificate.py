@@ -242,6 +242,9 @@ class Certificate(object):
         cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
         return cert_str
 
+    def __eq__(self, other):  # pragma: no cover
+        return str(self) == str(other)
+
 
 class CertificateChain(object):
     """
@@ -308,8 +311,6 @@ class CertificateChain(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        if subject in trc.core_ases:
-            return True
         if len(self.certs) == 0:
             logging.warning("The certificate chain is not initialized.")
             return False
@@ -322,9 +323,10 @@ class CertificateChain(object):
                 return False
             cert = issuer_cert
             subject = cert.subject
-        if cert.issuer not in trc.core_ases:
-            logging.warning("The verification against the TRC failed.")
-            return False
+        # First check whether a root cert was added to the chain.
+        if cert.issuer == subject:
+            return trc.core_ases[cert.subject] == cert
+        # Try to find a root cert in the trc.
         if not cert.verify(subject, trc.core_ases[cert.issuer]):
             return False
         return True
@@ -366,6 +368,9 @@ class CertificateChain(object):
 
     def __str__(self):
         return self.to_json()
+
+    def __eq__(self, other):  # pragma: no cover
+        return str(self) == str(other)
 
 
 class TRC(object):
@@ -551,3 +556,6 @@ class TRC(object):
 
     def __str__(self):
         return self.to_json()
+
+    def __eq__(self, other):  # pragma: no cover
+        return str(self) == str(other)
