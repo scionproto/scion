@@ -110,3 +110,68 @@ uint8_t get_dst_len(uint8_t *buf)
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return ADDR_LENS[DST_TYPE(sch)];
 }
+
+/*
+ * Get short description of address type.
+ * Returns "UNKOWN" if the address type isn't supported.
+ * return type: char pointer to description string.
+ */
+char *addr_type_str(int addr_type) {
+    switch (addr_type) {
+        case ADDR_IPV4_TYPE:
+            return "IPv4";
+        case ADDR_IPV6_TYPE:
+            return "IPv6";
+        case ADDR_SVC_TYPE:
+            return "SVC";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+/*
+ * Format host address as string into the supplied buffer. If the address type
+ * isn't supported, "UNKNOWN" is written to the buffer instead. Supports
+ * ipv4/ipv6/SVC.
+ * addr_type: address type.
+ * addr: pointer to first byte of address.
+ * buf: char array to write the result to.
+ * size: size of supplied char array.
+ */
+void format_host(int addr_type, uint8_t *addr, char *buf, int size) {
+    int af;
+    switch(addr_type) {
+        case ADDR_IPV4_TYPE:
+            af = AF_INET;
+            break;
+        case ADDR_IPV6_TYPE:
+            af = AF_INET6;
+            break;
+        case ADDR_SVC_TYPE:
+            snprintf(buf, size, "%d", ntohs(*(uint16_t *)addr));
+            return;
+        default:
+            snprintf(buf, size, "UNKNOWN");
+            return;
+    }
+    inet_ntop(af, (void *)addr, buf, size);
+}
+
+/*
+ * Print address header to stderr
+ * buf: Pointer to start of packet.
+ */
+void print_addresses(uint8_t *buf) {
+    if (!buf)
+        return;
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    uint32_t src_isd_as = get_src_isd_as(buf);
+    uint32_t dst_isd_as = get_dst_isd_as(buf);
+    char host_str[MAX_HOST_ADDR_STR];
+    format_host(SRC_TYPE(sch), get_src_addr(buf), host_str, sizeof(host_str));
+    fprintf(stderr, "Src: ISD-AS: %d-%d Host(%s): %s\n", ISD(src_isd_as),
+            AS(src_isd_as), addr_type_str(SRC_TYPE(sch)), host_str);
+    format_host(DST_TYPE(sch), get_dst_addr(buf), host_str, sizeof(host_str));
+    fprintf(stderr, "Dst: ISD-AS: %d-%d Host(%s): %s\n", ISD(dst_isd_as),
+            AS(dst_isd_as), addr_type_str(DST_TYPE(sch)), host_str);
+}

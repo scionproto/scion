@@ -409,8 +409,9 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
     SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
 
     uint16_t checksum = scion_udp_checksum(buf);
-    if (checksum != ntohs(udp->checksum)) {
-        fprintf(stderr, "Bad UDP checksum\n");
+    if (checksum != udp->checksum) {
+        fprintf(stderr, "Bad UDP checksum. Expected:%04x Got:%#04x\n",
+                udp->checksum, checksum);
         return;
     }
 

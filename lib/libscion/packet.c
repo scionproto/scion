@@ -208,3 +208,14 @@ void reverse_packet(uint8_t *buf)
             break;
     }
 }
+
+void print_header(uint8_t *buf) {
+    if (!buf)
+        return;
+
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    fprintf(stderr, "Version: %d Src type: %d Dest type: %d Total len: %dB\n",
+           PROTO_VER(sch), SRC_TYPE(sch), DST_TYPE(sch), ntohs(sch->total_len));
+    fprintf(stderr, "IOF offset: %dB HOF offset: %dB Next hdr: %d Header len: %dB\n",
+           sch->current_iof, sch->current_hof, sch->next_header, sch->header_len);
+}
