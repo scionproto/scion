@@ -1,10 +1,9 @@
 CC=gcc
 CFLAGS +=-Wall -g
-INC += -I./ssp -I../lib/libscion
-LDFLAGS += -lpthread -lscion
 LIBDIR=../lib/libscion
-LIBFLAG=-L$(LIBDIR)
-LIBFILE=$(LIBDIR)/libscion.a
+ZLOGDIR=$(HOME)/.local/lib/zlog/src
+INC += -I./ssp -I../lib/libscion -I$(ZLOGDIR)
+LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -L$(ZLOGDIR) -lzlog -Wl,-Bdynamic -lpthread
 LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
 SRCS=dispatcher.c
 
@@ -14,7 +13,7 @@ all: dispatcher
 
 dispatcher: dispatcher.c $(LIBHSRC)
 	$(MAKE) -C $(LIBDIR)
-	$(CC) $(CFLAGS) $(INC) $(SRCS) -o $@ $(LDFLAGS) $(LIBFLAG)
+	$(CC) $(CFLAGS) $(INC) $(SRCS) -o $@ $(LDFLAGS)
 
 install:
 	cp dispatcher ../bin
