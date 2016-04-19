@@ -63,11 +63,9 @@ class LocalBeaconServer(BeaconServer):
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        trc = self._get_trc(isd_as, trc_ver)
-        if trc:
+        if self._get_trc(isd_as, trc_ver):
             return True
-        else:
-            return False
+        return False
 
     def register_up_segment(self, pcb):
         """

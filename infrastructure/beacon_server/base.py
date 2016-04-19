@@ -568,7 +568,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.warning("PCB already signed.")
             return
         (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
-        logging.debug("MY CERT: %s" % self._get_my_cert())
         pcb.ases[-1].cert = self._get_my_cert()
         signature = sign(pcb.pack(), self.signing_key)
         pcb.ases[-1].sig = signature
