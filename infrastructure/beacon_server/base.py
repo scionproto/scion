@@ -33,7 +33,7 @@ from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
 from infrastructure.beacon_server.rev_obj import RevocationObject
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import CertificateChain, verify_sig_chain_trc
+from lib.crypto.certificate import verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
 from lib.defines import (
     BEACON_SERVICE,
@@ -348,6 +348,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for _, rev_info in self.revs_to_downstream.items():
             rev_ext = RevPcbExt.from_values(rev_info)
             extensions.append(rev_ext)
+        # FIXME(psz): add TRC ver.
         return ASMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
                                      ext=extensions)
@@ -478,8 +479,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        if self._check_certs_trc(
-                last_pcbm.isd_as, pcb.get_last_asm().cert_ver, pcb.trc_ver):
+        if self._check_trc(last_pcbm.isd_as, pcb.trc_ver):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -491,16 +491,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
-    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
+    def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
 
         :param ISD_AS isd_is: ISD-AS identifier.
-        :param int cert_ver: certificate chain file version.
         :param int trc_ver: TRC file version.
         """
         raise NotImplementedError
+
+    def _get_my_trc(self):
+        return self.trust_store.get_trc(self.addr.isd_as[0])
+
+    def _get_my_cert(self):
+        return self.trust_store.get_cert(self.addr.isd_as)
 
     def _get_trc(self, isd_as, trc_ver):
         """
@@ -540,21 +545,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         cert_ia = pcb.get_last_pcbm().isd_as
-        cert_ver = pcb.get_last_asm().cert_ver
-        chain = self.trust_store.get_cert(cert_ia, cert_ver)
-        if not chain:  # Signed by root. TODO(PSz): has to be revised
-            chain = CertificateChain.from_values([])
-        trc = self.trust_store.get_trc(cert_ia[0], pcb.trc_ver)
+        chain = pcb.get_last_asm().cert
+        trc_ver = pcb.get_last_asm().trc_ver
+        trc = self.trust_store.get_trc(cert_ia[0], trc_ver)
 
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
         new_pcb.ases[-1].sig = b''
         return verify_sig_chain_trc(new_pcb.pack(), pcb.ases[-1].sig,
-                                    str(cert_ia), chain, trc, pcb.trc_ver)
+                                    str(cert_ia), chain, trc, trc_ver)
 
     def _sign_beacon(self, pcb):
         """
-        Sign a beacon. Signature is appended to the last ASMarking.
+        Sign a beacon. Signature and certificate are appended to the last
+        ASMarking.
 
         :param pcb: beacon to sign.
         :type pcb: PathSegment
@@ -564,6 +568,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.warning("PCB already signed.")
             return
         (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
+        pcb.ases[-1].cert = self._get_my_cert()
         signature = sign(pcb.pack(), self.signing_key)
         pcb.ases[-1].sig = signature
         pcb.if_id = tmp_if_id

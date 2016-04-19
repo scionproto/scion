@@ -20,15 +20,13 @@ import logging
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import CERTIFICATE_SERVICE, PATH_SERVICE, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
-from lib.packet.cert_mgmt import CertChainRequest
 from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import SVCType
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
-from lib.util import SCIONTime
 
 
 class LocalBeaconServer(BeaconServer):
@@ -55,45 +53,19 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
 
-    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
+    def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
 
         :param ISD_AS isd_as: ISD-AS identifier.
-        :param int cert_ver: certificate chain file version.
         :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        trc = self._get_trc(isd_as, trc_ver)
-        if trc:
-            cert_chain = self.trust_store.get_cert(isd_as, cert_ver)
-            if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ases:
-                return True
-            else:
-                # Requesting certificate chain file from cert server
-                cert_chain_tuple = isd_as, cert_ver
-                now = int(SCIONTime.get_time())
-                if (cert_chain_tuple not in self.cert_chain_requests or
-                    (now - self.cert_chain_requests[cert_chain_tuple] >
-                        BeaconServer.REQUESTS_TIMEOUT)):
-                    new_cert_chain_req = CertChainRequest.from_values(
-                        isd_as, cert_ver)
-                    logging.info("Requesting %s certificate chain",
-                                 new_cert_chain_req.short_desc())
-                    try:
-                        dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
-                    except SCIONServiceLookupError as e:
-                        logging.warning("Unable to send cert query: %s", e)
-                        return False
-                    req_pkt = self._build_packet(
-                        dst_addr, payload=new_cert_chain_req)
-                    self.send(req_pkt, dst_addr)
-                    self.cert_chain_requests[cert_chain_tuple] = now
-                    return False
-        else:
-            return False
+        if self._get_trc(isd_as, trc_ver):
+            return True
+        return False
 
     def register_up_segment(self, pcb):
         """
@@ -196,7 +168,7 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
-            pcb.remove_signatures()
+            pcb.remove_crypto()
             self._sign_beacon(pcb)
             try:
                 self.register_up_segment(pcb)
@@ -212,7 +184,7 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
-            pcb.remove_signatures()
+            pcb.remove_crypto()
             self._sign_beacon(pcb)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())

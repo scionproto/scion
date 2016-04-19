@@ -121,7 +121,7 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment contained in 'pcb' with the local core path
         server.
         """
-        pcb.remove_signatures()
+        pcb.remove_crypto()
         self._sign_beacon(pcb)
         # Register core path with local core path server.
         try:
@@ -185,12 +185,11 @@ class CoreBeaconServer(BeaconServer):
             isds.add(curr_isd)
         return True
 
-    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
+    def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary TRC file is found.
 
         :param ISD_AS isd_as: ISD-AS identifier.
-        :param int cert_ver: certificate chain file version.
         :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.
         :rtype: bool

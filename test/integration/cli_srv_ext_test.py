@@ -62,6 +62,9 @@ class ExtClient(TestClientBase):
             seg = (self.sd.up_segments() +
                    self.sd.core_segments() +
                    self.sd.down_segments())[0]
+            # FIXME(PSz): remove the following line when PathTransportExt can
+            # handle long paths.
+            seg.remove_crypto()
             exts.append(PathTransportExt.from_values(
                 PathTransType.PCB_PATH, seg))
         return exts

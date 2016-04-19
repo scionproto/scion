@@ -276,12 +276,8 @@ class CertGenerator(object):
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
-        if as_conf.get('core', False):
-            return
-        if 'cert_issuer' not in as_conf:
-            logging.warning("No 'cert_issuer' attribute for "
-                            "a non-core AS: %s", topo_id)
-        issuer = TopoID(as_conf.get('cert_issuer', '0-0'))
+        # Self-signed if cert_issuer is missing.
+        issuer = TopoID(as_conf.get('cert_issuer', str(topo_id)))
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), self.sig_pub_keys[topo_id],
             self.enc_pub_keys[topo_id], str(issuer), self.sig_priv_keys[issuer],
@@ -294,6 +290,8 @@ class CertGenerator(object):
             issuer = TopoID(cert.issuer)
             while issuer in self.certs:
                 cert = self.certs[issuer]
+                if str(issuer) == cert.issuer:
+                    break
                 chain.append(cert)
                 issuer = TopoID(cert.issuer)
             cert_path = get_cert_chain_file_path(
@@ -304,14 +302,10 @@ class CertGenerator(object):
     def _gen_trc_entry(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
-        cert = Certificate.from_values(
-            str(topo_id), self.sig_pub_keys[topo_id],
-            self.enc_pub_keys[topo_id],
-            str(topo_id), self.sig_priv_keys[topo_id], 0)
         if topo_id[0] not in self.trcs:
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
-        trc.core_ases[str(topo_id)] = cert
+        trc.core_ases[str(topo_id)] = self.certs[topo_id]
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(

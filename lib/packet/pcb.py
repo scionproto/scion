@@ -24,6 +24,7 @@ import struct
 from Crypto.Hash import SHA256
 
 # SCION
+from lib.crypto.certificate import CertificateChain
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
@@ -127,16 +128,17 @@ class ASMarking(Serializable):
     # Length of a first row (containg cert version, and lengths of signature,
     # extensions, and block) of ASMarking
     NAME = "ASMarking"
-    METADATA_LEN = 8
+    METADATA_LEN = 10
     MIN_LEN = METADATA_LEN + PCBMarking.LEN + REV_TOKEN_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
         self.pcbm = None
         self.pms = []
+        self.cert = None
         self.sig = b''
         self.ext = []
         self.eg_rev_token = bytes(REV_TOKEN_LEN)
-        self.cert_ver = 0
+        self.trc_ver = 0
         self.block_len = 0
         super().__init__(raw)
 
@@ -145,23 +147,24 @@ class ASMarking(Serializable):
         Populates fields from a raw bytes block.
         """
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
-        self.cert_ver, sig_len, exts_len, self.block_len = \
-            struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
+        self.trc_ver, cert_len, sig_len, exts_len, self.block_len = \
+            struct.unpack("!HHHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
-        self._parse_peers(data, sig_len, exts_len)
-        self._parse_ext(data, sig_len)
+        self._parse_peers(data, cert_len + sig_len, exts_len)
+        self._parse_ext(data, cert_len + sig_len)
         self.eg_rev_token = data.pop(REV_TOKEN_LEN)
+        self.cert = CertificateChain(data.pop(cert_len).decode('utf-8'))
         self.sig = data.pop()
 
-    def _parse_peers(self, data, sig_len, exts_len):
+    def _parse_peers(self, data, cert_sig_len, exts_len):
         """
         Populated Peer Marking fields from raw bytes
         """
-        while len(data) > sig_len + exts_len + REV_TOKEN_LEN:
+        while len(data) > cert_sig_len + exts_len + REV_TOKEN_LEN:
             self.pms.append(PCBMarking(data.pop(PCBMarking.LEN)))
 
-    def _parse_ext(self, data, sig_len):
-        while len(data) > sig_len + REV_TOKEN_LEN:
+    def _parse_ext(self, data, cert_sig_len):
+        while len(data) > cert_sig_len + REV_TOKEN_LEN:
             ext_type = data.pop(1)
             ext_len = data.pop(1)
             constr = PCB_EXTENSION_MAP.get(ext_type)
@@ -173,7 +176,7 @@ class ASMarking(Serializable):
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,
-                    eg_rev_token=None, sig=b'', ext=None):
+                    eg_rev_token=None, cert=None, sig=b'', ext=None):
         """
         Returns ASMarking with fields populated from values.
 
@@ -187,6 +190,7 @@ class ASMarking(Serializable):
         inst.pcbm = pcbm
         inst.pms = pms or []
         inst.block_len = (1 + len(inst.pms)) * PCBMarking.LEN
+        inst.cert = cert
         inst.sig = sig
         inst.ext = ext or []
         inst.eg_rev_token = eg_rev_token or bytes(REV_TOKEN_LEN)
@@ -195,13 +199,15 @@ class ASMarking(Serializable):
     def pack(self):
         packed = []
         packed_ext = self._pack_ext()
-        packed.append(struct.pack("!HHHH", self.cert_ver, len(self.sig),
-                                  len(packed_ext), self.block_len))
+        packed.append(struct.pack("!HHHHH", self.trc_ver, len(self.cert),
+                                  len(self.sig), len(packed_ext),
+                                  self.block_len))
         packed.append(self.pcbm.pack())
         for peer_marking in self.pms:
             packed.append(peer_marking.pack())
         packed.append(packed_ext)
         packed.append(self.eg_rev_token)
+        packed.append(self.cert.pack())
         packed.append(self.sig)
         raw = b"".join(packed)
         assert len(raw) == len(self)
@@ -215,11 +221,17 @@ class ASMarking(Serializable):
             packed.append(ext.pack())
         return b"".join(packed)
 
-    def remove_signature(self):  # pragma: no cover
+    def _remove_signature(self):  # pragma: no cover
         """
         Removes the signature from the AS block.
         """
         self.sig = b''
+
+    def _remove_cert(self):  # pragma: no cover
+        """
+        Removes the certificate from the AS block.
+        """
+        self.cert = CertificateChain()
 
     def add_ext(self, ext):  # pragma: no cover
         """
@@ -234,8 +246,8 @@ class ASMarking(Serializable):
 
     def __len__(self):  # pragma: no cover
         return (
-            self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.sig) +
-            len(self._pack_ext())
+            self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.cert) +
+            len(self.sig) + len(self._pack_ext())
         )
 
     def __eq__(self, other):  # pragma: no cover
@@ -245,13 +257,14 @@ class ASMarking(Serializable):
                 self.pms == other.pms and
                 self.ext == other.ext and
                 self.eg_rev_token == other.eg_rev_token and
+                self.cert == other.cert and
                 self.sig == other.sig)
 
     def __str__(self):
         s = []
         s.append("%s(%sB):" % (self.NAME, len(self)))
-        s.append("  cert_ver: %s, ext_len %s, sig_len: %s, block_len: %s" %
-                 (self.cert_ver, len(self._pack_ext()),
+        s.append("  trc_ver: %s, ext_len %s, sig_len: %s, block_len: %s" %
+                 (self.trc_ver, len(self._pack_ext()),
                   len(self.sig), self.block_len))
         for line in str(self.pcbm).splitlines():
             s.append("  %s" % line)
@@ -265,6 +278,7 @@ class ASMarking(Serializable):
         for ext in self.ext:
             s.append("    %s" % str(ext))
         s.append("  eg_rev_token: %s" % hex_str(self.eg_rev_token))
+        s.append("  Certificate: %s" % self.cert)
         s.append("  Signature: %s" % hex_str(self.sig))
         return "\n".join(s)
 
@@ -288,7 +302,7 @@ class PathSegment(SCIONPayloadBase):
 
     def __init__(self, raw=None):  # pragma: no cover
         self.iof = None
-        self.trc_ver = 0
+        self.trc_ver = 0  # FIXME(PSz): drop this field.
         self.if_id = 0
         self.flags = 0
         self.ases = []
@@ -314,9 +328,9 @@ class PathSegment(SCIONPayloadBase):
 
     def _parse_hops(self, data):
         for _ in range(self.iof.hops):
-            (_, exts_len, sig_len, block_len) = \
-                struct.unpack("!HHHH", data.get(ASMarking.METADATA_LEN))
-            as_len = (exts_len + sig_len + block_len +
+            (_, exts_len, cert_len, sig_len, block_len) = \
+                struct.unpack("!HHHHH", data.get(ASMarking.METADATA_LEN))
+            as_len = (exts_len + cert_len + sig_len + block_len +
                       ASMarking.METADATA_LEN + REV_TOKEN_LEN)
             self.add_as(ASMarking(data.pop(as_len)))
 
@@ -353,12 +367,26 @@ class PathSegment(SCIONPayloadBase):
         self.iof.hops = len(self.ases)
         self._set_mtu()
 
-    def remove_signatures(self):  # pragma: no cover
+    def _remove_signatures(self):  # pragma: no cover
         """
-        Removes the signature from each AS block.
+        Removes the signatures from each AS block.
         """
         for asm in self.ases:
-            asm.remove_signature()
+            asm._remove_signature()
+
+    def _remove_certs(self):  # pragma: no cover
+        """
+        Removes the certificates from each AS block.
+        """
+        for asm in self.ases:
+            asm._remove_cert()
+
+    def remove_crypto(self):  # pragram: no cover
+        """
+        Remover the signatures and certificates from each AS block.
+        """
+        self._remove_signatures()
+        self._remove_certs()
 
     def get_path(self, reverse_direction=False):
         """
