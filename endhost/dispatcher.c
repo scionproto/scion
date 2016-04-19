@@ -85,6 +85,8 @@ int main(int argc, char **argv)
 {
     int res;
 
+    setenv("TZ", "UTC", 1);
+
     res = zlog_init("endhost/dispatcher.conf");
     if (res < 0) {
         fprintf(stderr, "failed to init zlog\n");

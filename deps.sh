@@ -39,16 +39,15 @@ cmd_pip() {
 }
 
 cmd_zlog() {
-    if [ -e ~/.local/lib/zlog/src/libzlog.a ]; then
-        echo "libzlog already installed"
-    else
-        echo "Installing libzlog"
-        cd ~/.local/lib
-        if [ ! -d zlog ]; then
-            mkdir zlog
-        fi
-        curl -L https://github.com/HardySimpson/zlog/archive/latest-stable.tar.gz | tar xzf - --strip-components=1 -C zlog
-        make -C zlog
+    ZLOG_DIR=~/.local/lib/zlog
+    if [ ! -d $ZLOG_DIR ]; then
+        echo "No libzlog directory, download and extract"
+        mkdir -p $ZLOG_DIR
+        curl -L https://github.com/HardySimpson/zlog/archive/latest-stable.tar.gz | tar xzf - --strip-components=1 -C $ZLOG_DIR
+    fi
+    if [ ! -e $ZLOG_DIR/src/libzlog.a ]; then
+        echo "Libzlog not built yet, building now"
+        make -C $ZLOG_DIR
     fi
 }
 
