@@ -297,7 +297,7 @@ def reg_dispatcher(sock, addr, port, svc=None):
                 logging.info("dispatcher registration successful")
                 break
         except OSError:
-            logging.debug("timed out registering, retry")
+            logging.warning("timed out registering, retry")
     else:
         logging.critical("Failed to register with dispatcher")
         sys.exit(1)
