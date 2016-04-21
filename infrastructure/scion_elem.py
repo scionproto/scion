@@ -16,6 +16,7 @@
 ==================================================
 """
 # Stdlib
+import copy
 import logging
 import os
 import queue
@@ -40,7 +41,11 @@ from lib.defines import (
     TOPO_FILE,
 )
 from lib.dnsclient import DNSCachingClient
-from lib.errors import SCIONBaseError, SCIONServiceLookupError
+from lib.errors import (
+    SCIONBaseError,
+    SCIONChecksumFailed,
+    SCIONServiceLookupError,
+)
 from lib.log import log_exception
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
@@ -53,12 +58,28 @@ from lib.packet.scion import (
 )
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
+from lib.packet.scmp.errors import (
+    SCMPBadDstType,
+    SCMPBadExtOrder,
+    SCMPBadHOFOffset,
+    SCMPBadHopByHop,
+    SCMPBadIOFOffset,
+    SCMPBadPktLen,
+    SCMPBadSrcType,
+    SCMPBadVersion,
+    SCMPError,
+    SCMPOversizePkt,
+    SCMPTooManyHopByHop,
+    SCMPUnspecified,
+)
+from lib.packet.scmp.types import SCMPClass
+from lib.packet.scmp.util import scmp_type_name
 from lib.socket import UDPSocket, UDPSocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import PayloadClass
+from lib.types import L4Proto, PayloadClass
 from lib.topology import Topology
-from lib.util import reg_dispatcher, trim_dispatcher_packet
+from lib.util import hex_str, reg_dispatcher, trim_dispatcher_packet
 
 
 MAX_QUEUE = 30
@@ -105,7 +126,8 @@ class SCIONElement(object):
         self.config = Config.from_file(
             os.path.join(self.conf_dir, AS_CONF_FILE))
         # Must be over-ridden by child classes:
-        self.PLD_CLASS_MAP = {}
+        self.CTRL_PLD_CLASS_MAP = {}
+        self.SCMP_PLD_CLASS_MAP = {}
         if host_addr is None:
             own_config = self.topology.get_own_config(
                 self.SERVICE_TYPE, server_id)
@@ -137,7 +159,7 @@ class SCIONElement(object):
         )
         self._port = self._local_sock.port
         svc = SVC_TYPE_MAP.get(self.SERVICE_TYPE)
-        reg_dispatcher(self._local_sock, self.addr, self._port, svc)
+        reg_dispatcher(self._local_sock, self.addr, self._port, svc=svc)
         self._socks.add(self._local_sock)
 
     def construct_ifid2addr_map(self):
@@ -164,11 +186,8 @@ class SCIONElement(object):
         Main routine to handle incoming SCION packets. Subclasses may
         override this to provide their own functionality.
         """
-        try:
-            pkt = SCIONL4Packet(packet)
-        except SCIONBaseError:
-            log_exception("Error parsing packet: %s" % packet,
-                          level=logging.ERROR)
+        pkt = self._parse_packet(packet)
+        if not pkt:
             return
         try:
             pkt.parse_payload()
@@ -184,21 +203,135 @@ class SCIONElement(object):
             log_exception("Error handling packet:\n%s" % pkt)
 
     def _get_handler(self, pkt):
+        if pkt.l4_hdr.TYPE == L4Proto.UDP:
+            return self._get_ctrl_handler(pkt)
+        elif pkt.l4_hdr.TYPE == L4Proto.SCMP:
+            return self._get_scmp_handler(pkt)
+        logging.error("L4 header type not supported: %s(%s)\n",
+                      pkt.l4_hdr.TYPE, L4Proto.to_str(pkt.l4_hdr.TYPE))
+        return None
+
+    def _get_ctrl_handler(self, pkt):
         pld = pkt.get_payload()
         try:
-            type_map = self.PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
+            type_map = self.CTRL_PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
         except KeyError:
-            logging.error("Payload class not supported: %s\n%s",
-                          PayloadClass.to_str(pld.PAYLOAD_CLASS), pkt.addrs)
+            logging.error("Control payload class not supported: %s\n%s",
+                          PayloadClass.to_str(pld.PAYLOAD_CLASS), pkt)
             return None
         try:
-            handler = type_map[pld.PAYLOAD_TYPE]
+            return type_map[pld.PAYLOAD_TYPE]
         except KeyError:
-            logging.error("%s payload type not supported: %s\n%s",
+            logging.error("%s control payload type not supported: %s\n%s",
                           PayloadClass.to_str(pld.PAYLOAD_CLASS),
-                          pld.PAYLOAD_TYPE, pkt.addrs)
+                          pld.PAYLOAD_TYPE, pkt)
+        return None
+
+    def _get_scmp_handler(self, pkt):
+        scmp = pkt.l4_hdr
+        try:
+            type_map = self.SCMP_PLD_CLASS_MAP[scmp.class_]
+        except KeyError:
+            logging.error("SCMP class not supported: %s(%s)\n%s",
+                          scmp.class_, SCMPClass.to_str(scmp.class_), pkt)
             return None
-        return handler
+        try:
+            return type_map[scmp.type]
+        except KeyError:
+            logging.error("SCMP %s type not supported: %s(%s)\n%s",
+                          scmp.type, scmp_type_name(scmp.type), pkt)
+        return None
+
+    def _parse_packet(self, packet):
+        try:
+            pkt = SCIONL4Packet(packet)
+        except SCMPError as e:
+            self._scmp_parse_error(packet, e)
+            return None
+        except SCIONBaseError:
+            log_exception("Error parsing packet: %s" % hex_str(packet),
+                          level=logging.ERROR)
+            return None
+        try:
+            pkt.validate(len(packet))
+        except SCMPError as e:
+            self._scmp_validate_error(pkt, e)
+            return None
+        except SCIONChecksumFailed:
+            logging.debug("Dropping packet due to failed checksum:\n%s", pkt)
+        return pkt
+
+    def _scmp_parse_error(self, packet, e):
+        HDR_TYPE_OFFSET = 6
+        if packet[HDR_TYPE_OFFSET] == L4Proto.SCMP:
+            # Ideally, never respond to an SCMP error with an SCMP error.
+            # However, if parsing failed, we can (at best) only determine if
+            # it's an SCMP packet, so just drop SCMP packets on parse error.
+            logging.warning("Dropping SCMP packet due to parse error. %s", e)
+            return
+        # For now, none of these can be properly handled, so just log and drop
+        # the packet. In the future, the "x Not Supported" errors might be
+        # handlable in the case of deprecating old versions.
+        DROP = SCMPBadVersion, SCMPBadSrcType, SCMPBadDstType
+        assert isinstance(e, DROP)
+        logging.warning("Dropping packet due to parse error: %s", e)
+
+    def _scmp_validate_error(self, pkt, e):
+        if pkt.cmn_hdr.next_hdr == L4Proto.SCMP and pkt.ext_hdrs[0].error:
+            # Never respond to an SCMP error with an SCMP error.
+            logging.info(
+                "Dropping SCMP error packet due to validation error. %s", e)
+            return
+        if isinstance(e, (SCMPBadIOFOffset, SCMPBadHOFOffset)):
+            # Can't handle normally, as the packet isn't reversible.
+            reply = self._scmp_bad_path_metadata(pkt, e)
+        else:
+            logging.warning("Error: %s", type(e))
+            reply = pkt.reversed_copy()
+            args = ()
+            if isinstance(e, SCMPUnspecified):
+                args = (str(e),)
+            elif isinstance(e, (SCMPOversizePkt, SCMPBadPktLen)):
+                args = (self.config.mtu,)
+            elif isinstance(e, (SCMPTooManyHopByHop, SCMPBadExtOrder,
+                                SCMPBadHopByHop)):
+                args = e.args
+                if isinstance(e, SCMPBadExtOrder):
+                    # Delete the problematic extension.
+                    del reply.ext_hdrs[args[0]]
+            reply.convert_to_scmp_error(self.addr, e.CLASS, e.TYPE, pkt, *args)
+        if pkt.addrs.src.isd_as == self.addr.isd_as:
+            # No path needed for a local reply.
+            reply.path = SCIONPath()
+        next_hop, port = self.get_first_hop(reply)
+        reply.update()
+        logging.warning("Reply:\n%s", reply)
+        self.send(reply, next_hop, port)
+
+    def _scmp_bad_path_metadata(self, pkt, e):
+        """
+        Handle a packet with an invalid IOF/HOF offset in the common header.
+
+        As the path can't be used, a response can only be sent if the source is
+        local (as that doesn't require a path).
+        """
+        if pkt.addrs.src.isd_as != self.addr.isd_as:
+            logging.warning(
+                "Invalid path metadata in packet from "
+                "non-local source, dropping: %s\n%s\n%s\n%s",
+                e, pkt.cmn_hdr, pkt.addrs, pkt.path)
+            return
+        reply = copy.deepcopy(pkt)
+        # Remove existing path before reversing.
+        reply.path = SCIONPath()
+        reply.reverse()
+        reply.convert_to_scmp_error(self.addr, e.CLASS, e.TYPE, pkt)
+        reply.update()
+        logging.warning(
+                "Invalid path metadata in packet from "
+                "local source, sending SCMP error: %s\n%s\n%s\n%s",
+                e, pkt.cmn_hdr, pkt.addrs, pkt.path)
+        return reply
 
     def get_first_hop(self, spkt):
         """

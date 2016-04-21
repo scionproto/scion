@@ -71,7 +71,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
-        self.PLD_CLASS_MAP = {
+        self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
                 PMT.REPLY: self.handle_path_segment_record,

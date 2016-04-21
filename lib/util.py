@@ -277,13 +277,18 @@ def hex_str(raw):
     return hexlify(raw).decode("ascii")
 
 
-def reg_dispatcher(sock, addr, port, svc=None):
+def reg_dispatcher(sock, addr, port, svc=None, reg=True, scmp=True):
     """
     Helper function for registering app with dispatcher
     """
-    sock.settimeout(1.0)
+    old_timeout = sock.settimeout(1.0)
+    cmd = 0
+    if reg:
+        cmd |= 1
+    if scmp:
+        cmd |= 1 << 1
     data = [
-        struct.pack("!BBIHB", 1, L4Proto.UDP, addr.isd_as.int(), port,
+        struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port,
                     addr.host.TYPE),
         addr.host.pack()
     ]
@@ -294,14 +299,17 @@ def reg_dispatcher(sock, addr, port, svc=None):
         sock.send(buf, (SCION_DISPATCHER_ADDR, SCION_DISPATCHER_PORT))
         try:
             if sock.recv():
-                logging.info("dispatcher registration successful")
                 break
         except OSError:
             logging.warning("timed out registering, retry")
     else:
         logging.critical("Failed to register with dispatcher")
         sys.exit(1)
-    sock.settimeout(None)
+    if reg:
+        logging.info("registered with dispatcher")
+    else:
+        logging.info("unregistered from dispatcher")
+    sock.settimeout(old_timeout)
 
 
 def trim_dispatcher_packet(packet):

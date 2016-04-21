@@ -63,7 +63,7 @@ class SibraServerBase(SCIONElement):
         self.sendq = Queue()
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
-        self.PLD_CLASS_MAP = {
+        self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REG: self.handle_path_reg,
             },

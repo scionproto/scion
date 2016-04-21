@@ -53,11 +53,15 @@ class Serializable(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError
 
 
-class L4HeaderBase(Serializable):
+class L4HeaderBase(Serializable, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for L4 headers.
     """
     TYPE = None
+
+    @abstractmethod
+    def validate(self, payload):
+        raise NotImplementedError
 
 
 class PacketBase(Serializable):  # pragma: no cover

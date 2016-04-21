@@ -18,13 +18,14 @@
 # Stdlib
 import logging
 import struct
+from collections import defaultdict
 
 # SCION
-from lib.errors import SCIONParseError
 from lib.packet.ext.path_probe import PathProbeExt
 from lib.packet.ext.path_transport import PathTransportExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ext_hdr import ExtensionHeader
+from lib.packet.scmp.ext import SCMPExt
 from lib.sibra.ext.util import parse_sibra_ext
 from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType, L4Proto
 
@@ -32,6 +33,7 @@ from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType, L4Proto
 EXTENSION_MAP = {
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SIBRA): parse_sibra_ext,
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.TRACEROUTE): TracerouteExt,
+    (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SCMP): SCMPExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
@@ -45,6 +47,8 @@ def parse_extensions(data, next_hdr):
     """
     cur_hdr_type = next_hdr
     ext_hdrs = []
+    unknown = defaultdict(list)
+    idx = 0
     while cur_hdr_type not in L4Proto.L4:
         next_hdr_type, hdr_len, ext_no = struct.unpack(
             "!BBB", data.pop(ExtensionHeader.SUBHDR_LEN))
@@ -52,15 +56,16 @@ def parse_extensions(data, next_hdr):
         hdr_len = (hdr_len + 1) * ExtensionHeader.LINE_LEN
         logging.info("Found extension hdr of type (%d, %d) with len %dB",
                      cur_hdr_type, ext_no, hdr_len)
-        try:
-            ext_class = EXTENSION_MAP[(cur_hdr_type, ext_no)]
-        except KeyError:
-            raise SCIONParseError("Extension (%d, %d) unknown." %
-                                  (cur_hdr_type, ext_no)) from None
-        ext_hdrs.append(
-            ext_class(data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)))
+        ext_class = EXTENSION_MAP.get((cur_hdr_type, ext_no))
+        ext_data = data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)
+        if ext_class:
+            ext_hdrs.append(ext_class(ext_data))
+        else:
+            logging.error("Unknown extension: %s-%s", cur_hdr_type, ext_no)
+            unknown[cur_hdr_type].append(idx)
         cur_hdr_type = next_hdr_type
-    return ext_hdrs, cur_hdr_type
+        idx += 1
+    return ext_hdrs, cur_hdr_type, dict(unknown)
 
 
 def find_ext_hdr(spkt, class_, type_):  # pragma: no cover

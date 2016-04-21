@@ -31,44 +31,39 @@ class SCIONBaseError(SCIONBaseException):
 
     It should probably not be raised directly.
     """
-    pass
 
 
 class SCIONIOError(SCIONBaseError):
     """IO error"""
-    pass
 
 
 class SCIONIndexError(SCIONBaseError):
     """Index error (accessing out of bound index on array)"""
-    pass
 
 
 class SCIONKeyError(SCIONBaseError):
     """Key error (trying to access invalid entry in dictionary)"""
-    pass
 
 
 class SCIONJSONError(SCIONBaseError):
     """JSON parsing error"""
-    pass
 
 
 class SCIONYAMLError(SCIONBaseError):
     """YAML parsing error"""
-    pass
 
 
 class SCIONParseError(SCIONBaseError):
     """Parsing error"""
-    pass
 
 
 class SCIONTypeError(SCIONBaseError):
     """Wrong type"""
-    pass
 
 
 class SCIONServiceLookupError(SCIONBaseError):
     """Service lookup failed"""
-    pass
+
+
+class SCIONChecksumFailed(SCIONBaseError):
+    """Checksum failed"""

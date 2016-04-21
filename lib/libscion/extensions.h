@@ -2,7 +2,7 @@
 #define _EXTENSIONS_H_
 
 // Extensions
-#define SCION_EXT_LINE 8
+#define SCION_EXT_LINE LINE_LEN
 #define SCION_EXT_SUBHDR 3
 
 #define HOP_BY_HOP 0

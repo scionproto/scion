@@ -34,18 +34,24 @@ class TestParseL4Hdr(object):
     Unit tests for lib.packet.scion_l4.parse_l4_hdr
     """
     @patch("lib.packet.scion_l4.SCIONUDPHeader", autospec=True)
-    @patch("lib.packet.scion_l4.PayloadRaw", autospec=True)
-    def test_udp(self, pld_raw, udp_hdr):
+    def test_udp(self, udp_hdr):
         data = create_mock(["get", "pop"])
         # Call
         ntools.eq_(parse_l4_hdr(L4Proto.UDP, data, "src addr", "dst addr"),
                    udp_hdr.return_value)
         # Tests
-        pld_raw.assert_called_once_with(data.get.return_value)
         udp_hdr.assert_called_once_with((
-            "src addr", "dst addr", data.pop.return_value,
-            pld_raw.return_value
-        ))
+            "src addr", "dst addr", data.pop.return_value))
+
+    @patch("lib.packet.scion_l4.SCMPHeader", autospec=True)
+    def test_scmp(self, scmp_hdr):
+        data = create_mock(["get", "pop"])
+        # Call
+        ntools.eq_(parse_l4_hdr(L4Proto.SCMP, data, "src addr", "dst addr"),
+                   scmp_hdr.return_value)
+        # Tests
+        scmp_hdr.assert_called_once_with((
+            "src addr", "dst addr", data.pop.return_value))
 
     def test_other_l4(self):
         # Call

@@ -20,11 +20,19 @@ import copy
 import struct
 
 # SCION
-from lib.errors import SCIONParseError
+from lib.defines import SCION_PROTO_VERSION, MAX_HOPBYHOP_EXT
+from lib.errors import (
+    SCIONIndexError,
+    SCIONParseError,
+)
 from lib.packet.cert_mgmt import parse_certmgmt_payload
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import parse_extensions
-from lib.packet.host_addr import HostAddrSVC, haddr_get_type
+from lib.packet.host_addr import (
+    HostAddrInvalidType,
+    HostAddrSVC,
+    haddr_get_type,
+)
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import (
     Serializable,
@@ -38,8 +46,29 @@ from lib.packet.path_mgmt import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
+from lib.packet.scmp.errors import (
+    SCMPBadDstType,
+    SCMPBadEnd2End,
+    SCMPBadHOFOffset,
+    SCMPBadHopByHop,
+    SCMPBadHost,
+    SCMPBadIOFOffset,
+    SCMPBadPktLen,
+    SCMPBadSrcType,
+    SCMPBadVersion,
+)
+from lib.packet.scmp.ext import SCMPExt
+from lib.packet.scmp.hdr import SCMPHeader
+from lib.packet.scmp.payload import SCMPPayload
 from lib.sibra.payload import parse_sibra_payload
-from lib.types import IFIDType, L4Proto, PayloadClass
+from lib.types import (
+    AddrType,
+    ExtHopByHopType,
+    ExtensionClass,
+    IFIDType,
+    L4Proto,
+    PayloadClass,
+)
 from lib.util import Raw, calc_padding
 
 
@@ -80,15 +109,22 @@ class SCIONCommonHdr(Serializable):
         """
         Parses the raw data and populates the fields accordingly.
         """
-        self._raw = raw
         data = Raw(raw, self.NAME, self.LEN)
         (types, self.total_len, curr_iof_p, curr_hof_p,
          self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", data.pop())
-        self.version = (types & 0xf000) >> 12
+        self.version = types >> 12
+        if self.version != SCION_PROTO_VERSION:
+            raise SCMPBadVersion("Unsupported SCION version: %s" % self.version)
         self.src_addr_type = (types & 0x0fc0) >> 6
         self.dst_addr_type = types & 0x003f
         self.addrs_len, _ = SCIONAddrHdr.calc_lens(
             self.src_addr_type, self.dst_addr_type)
+        if self.hdr_len < self.LEN + self.addrs_len:
+            # Can't send an SCMP error, as there isn't enough information to
+            # parse the path and the l4 header.
+            raise SCIONParseError(
+                "hdr_len (%sB) < common header len (%sB) + addrs len (%sB)" %
+                (self.hdr_len, self.LEN, self.addrs_len))
         first_of_offset = self.LEN + self.addrs_len
         # FIXME(kormat): NB this assumes that all OFs have the same length.
         self._iof_idx = (curr_iof_p - first_of_offset) // OpaqueField.LEN
@@ -127,6 +163,22 @@ class SCIONCommonHdr(Serializable):
         raw = b"".join(packed)
         assert len(raw) == self.LEN
         return raw
+
+    def validate(self, pkt_len, path_len):
+        if pkt_len != self.total_len:
+            raise SCMPBadPktLen(
+                "Packet length incorrect. Expected: %sB. Actual: %sB" %
+                (self.total_len, pkt_len))
+        if path_len == 0:
+            # Empty path
+            if self._iof_idx != 0:
+                raise SCMPBadIOFOffset(
+                    "Non-zero IOF index for empty path: %s" % self._iof_idx)
+            if self._hof_idx != 0:
+                raise SCMPBadHOFOffset(
+                    "Non-zero HOF index for empty path: %s" % self._hof_idx)
+        elif self._hof_idx == 0:
+            raise SCMPBadHOFOffset("Zero HOF index for non-empty path")
 
     def get_of_idxs(self):  # pragma: no cover
         return self._iof_idx, self._hof_idx
@@ -178,6 +230,8 @@ class SCIONAddrHdr(Serializable):
         self.dst = SCIONAddr((dst_type, data.get()))
         data.pop(len(self.dst))
         self.update()
+        if self.src.host.TYPE == AddrType.SVC:
+            raise SCMPBadSrcType("Invalid source type: SVC")
 
     @classmethod
     def from_values(cls, src, dst):  # pragma: no cover
@@ -201,14 +255,27 @@ class SCIONAddrHdr(Serializable):
         assert len(raw) == self._total_len
         return raw
 
+    def validate(self):  # pragma: no cover
+        if self.dst.host.TYPE == AddrType.SVC and self.dst.host not in [
+                SVCType.BS, SVCType.PS, SVCType.CS, SVCType.SB]:
+            raise SCMPBadHost("Invalid dest SVC: %s" % self.dst.host.addr)
+
     def update(self):
         self._total_len, self._pad_len = self.calc_lens(
             self.src.host.TYPE, self.dst.host.TYPE)
 
     @classmethod
     def calc_lens(cls, src_type, dst_type):
-        data_len = SCIONAddr.calc_len(src_type)
-        data_len += SCIONAddr.calc_len(dst_type)
+        try:
+            data_len = SCIONAddr.calc_len(src_type)
+        except HostAddrInvalidType:
+            raise SCMPBadSrcType(
+                "Unsupported src address type: %s" % src_type) from None
+        try:
+            data_len += SCIONAddr.calc_len(dst_type)
+        except HostAddrInvalidType:
+            raise SCMPBadDstType(
+                "Unsupported dst address type: %s" % dst_type) from None
         pad_len = calc_padding(data_len, cls.BLK_SIZE)
         total_len = data_len + pad_len
         assert total_len % cls.BLK_SIZE == 0
@@ -254,18 +321,10 @@ class SCIONBasePacket(PacketBase):
         self._inner_parse(data)
         self.set_payload(PayloadRaw(data.get()))
 
-    def _inner_parse(self, data):
-        self._parse_cmn_hdr(data)
-        self._parse_addrs(data)
-        self._parse_path(data, self.cmn_hdr.hdr_len - data.offset())
-
-    def _parse_cmn_hdr(self, data):
-        total_len = len(data)
+    def _inner_parse(self, data):  # pragma: no cover
         self.cmn_hdr = SCIONCommonHdr(data.pop(SCIONCommonHdr.LEN))
-        if total_len != self.cmn_hdr.total_len:
-            raise SCIONParseError(
-                "Packet length incorrect. Expected: %sB. Actual: %sB\n%s" %
-                (self.cmn_hdr.total_len, total_len, self.cmn_hdr))
+        self._parse_addrs(data)
+        self._parse_path(data)
 
     def _parse_addrs(self, data):
         self.addrs = SCIONAddrHdr((
@@ -275,10 +334,23 @@ class SCIONBasePacket(PacketBase):
         ))
         data.pop(len(self.addrs))
 
-    def _parse_path(self, data, count):
+    def _parse_path(self, data):
+        count = self.cmn_hdr.hdr_len - data.offset()
+        if count < 0:
+            raise SCIONParseError(
+                "Bad header len field (%sB), implies negative path length" %
+                self.cmn_hdr.hdr_len,
+            )
+        if count > len(data):
+            raise SCIONParseError(
+                "Bad header len field (%sB), "
+                "implies path is longer than packet (%sB)"
+                % (self.cmn_hdr.hdr_len, len(data) + data.offset())
+            )
         self.path = parse_path(data.get(count))
         data.pop(len(self.path))
-        self.path.set_of_idxs(*self.cmn_hdr.get_of_idxs())
+        iof_idx, hof_idx = self.cmn_hdr.get_of_idxs()
+        self.path.set_of_idxs(iof_idx, hof_idx)
 
     @classmethod
     def from_values(cls, cmn_hdr, addr_hdr, path_hdr, payload=None):
@@ -316,6 +388,24 @@ class SCIONBasePacket(PacketBase):
     def _pack_payload(self):  # pragma: no cover
         return self._payload.pack_full()
 
+    def validate(self, pkt_len):
+        """Called after parsing, to check for errors that don't break parsing"""
+        path_len = len(self.path)
+        self.cmn_hdr.validate(pkt_len, path_len)
+        self.addrs.validate()
+        if path_len:
+            self._validate_of_idxes()
+
+    def _validate_of_idxes(self):
+        try:
+            self.path.get_iof()
+        except SCIONIndexError as e:
+            raise SCMPBadIOFOffset("%s" % e) from None
+        try:
+            self.path.get_hof()
+        except SCIONIndexError as e:
+            raise SCMPBadHOFOffset("%s" % e) from None
+
     def update(self):
         self.addrs.update()
         self._update_cmn_hdr()
@@ -345,6 +435,24 @@ class SCIONBasePacket(PacketBase):
         inst.reverse()
         return inst
 
+    def convert_to_scmp_error(self, addr, class_, type_, pkt, *args,
+                              hopbyhop=False, **kwargs):
+        self.addrs.src = addr
+        if self.ext_hdrs:
+            if self.ext_hdrs[0].EXT_TYPE == ExtHopByHopType.SCMP:
+                # Remove any existing SCMP ext header
+                del self.ext_hdrs[0]
+        # Insert SCMP ext at start of headers
+        self.ext_hdrs.insert(0, SCMPExt.from_values(hopbyhop=hopbyhop))
+        # Trim any extra headers, in the case of SCMPTooManyHopByHop, max+1 as
+        # the SCMP ext header isn't counted.
+        self.ext_hdrs = self.ext_hdrs[:MAX_HOPBYHOP_EXT + 1]
+        # Create SCMP payload.
+        pld = SCMPPayload.from_pkt(class_, type_, pkt, *args, **kwargs)
+        self.l4_hdr = SCMPHeader.from_values(self.addrs.src, self.addrs.dst,
+                                             class_, type_, pld)
+        self.set_payload(pld)
+
     def __len__(self):
         return len(self.cmn_hdr) + len(self.addrs) + \
             len(self.path) + self._get_offset_len()
@@ -357,8 +465,9 @@ class SCIONBasePacket(PacketBase):
         for line in str(self.path).splitlines():
             s.append("  %s" % line)
         s.extend(self._inner_str())
-        s.append("  Payload(%dB): %s" % (
-            len(self._payload), self._payload))
+        s.append("  Payload(%dB):" % len(self._payload))
+        for line in str(self._payload).splitlines():
+            s.append("  %s" % line)
         return "\n".join(s)
 
     def _inner_str(self):  # pragma: no cover
@@ -373,12 +482,13 @@ class SCIONExtPacket(SCIONBasePacket):
 
     def __init__(self, raw=None):  # pragma: no cover
         self.ext_hdrs = []
+        self._unknown_exts = {}
         super().__init__(raw)
 
-    def _inner_parse(self, data):
+    def _inner_parse(self, data):  # pragma: no cover
         super()._inner_parse(data)
         # Parse extension headers
-        self.ext_hdrs, self._l4_proto = parse_extensions(
+        self.ext_hdrs, self._l4_proto, self._unknown_exts = parse_extensions(
             data, self.cmn_hdr.next_hdr)
 
     @classmethod
@@ -394,8 +504,8 @@ class SCIONExtPacket(SCIONBasePacket):
             assert isinstance(hdr, ExtensionHeader)
             self.ext_hdrs.append(hdr)
 
-    def _inner_pack(self):
-        packed = [super()._inner_pack()]
+    def pack_exts(self):
+        packed = []
         max_idx = len(self.ext_hdrs) - 1
         for i, hdr in enumerate(self.ext_hdrs):
             ext_packed = []
@@ -410,6 +520,9 @@ class SCIONExtPacket(SCIONBasePacket):
             packed.append(ext)
         return b"".join(packed)
 
+    def _inner_pack(self):
+        return super()._inner_pack() + self.pack_exts()
+
     def _get_offset_len(self):
         l = super()._get_offset_len()
         for hdr in self.ext_hdrs:
@@ -421,6 +534,19 @@ class SCIONExtPacket(SCIONBasePacket):
             return self.ext_hdrs[0].EXT_CLASS
         else:
             return self._l4_proto
+
+    def validate(self, pkt_len):
+        super().validate(pkt_len)
+        if not self._unknown_exts:
+            return True
+        # Use the first unknown extension, and use that for the SCMP error
+        # message.
+        hbh = self._unknown_exts.get(ExtensionClass.HOP_BY_HOP)
+        if hbh:
+            raise SCMPBadHopByHop(hbh[0])
+        e2e = self._unknown_exts.get(ExtensionClass.END_TO_END)
+        if e2e:
+            raise SCMPBadEnd2End(e2e[0])
 
     def _inner_str(self):  # pragma: no cover
         s = super()._inner_str()
@@ -475,6 +601,11 @@ class SCIONL4Packet(SCIONExtPacket):
             packed.append(self.l4_hdr.pack())
         return b"".join(packed)
 
+    def validate(self, pkt_len):  # pragma: no cover
+        super().validate(pkt_len)
+        if self.l4_hdr:
+            self.l4_hdr.validate(self._payload)
+
     def update(self):
         if self.l4_hdr:
             self.l4_hdr.update(src=self.addrs.src, dst=self.addrs.dst,
@@ -489,6 +620,17 @@ class SCIONL4Packet(SCIONExtPacket):
 
     def parse_payload(self):
         data = Raw(self._payload.pack(), "SCIONL4Packet.parse_payload")
+        if not self.l4_hdr:
+            raise SCIONParseError("Cannot parse payload of non-L4 packet")
+        if self.l4_hdr.TYPE == L4Proto.UDP:
+            # Treat as SCION control message
+            pld = self._parse_pld_ctrl(data)
+        elif self.l4_hdr.TYPE == L4Proto.SCMP:
+            pld = self._parse_pld_scmp(data)
+        self.set_payload(pld)
+        return pld
+
+    def _parse_pld_ctrl(self, data):
         pld_class = data.pop(1)
         class_map = {
             PayloadClass.PCB: parse_pcb_payload,
@@ -500,9 +642,10 @@ class SCIONL4Packet(SCIONExtPacket):
         handler = class_map.get(pld_class)
         if not handler:
             raise SCIONParseError("Unsupported payload class: %s" % pld_class)
-        pld = handler(data.pop(1), data)
-        self.set_payload(pld)
-        return pld
+        return handler(data.pop(1), data)
+
+    def _parse_pld_scmp(self, data):  # pragma: no cover
+        return SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, data.pop()))
 
     def _get_offset_len(self):
         l = super()._get_offset_len()

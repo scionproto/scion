@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import selectors
+from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
     AF_INET,
     AF_INET6,
@@ -30,6 +31,7 @@ from socket import (
 
 # SCION
 from lib.defines import SCION_BUFLEN
+from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.thread import kill_self
 from lib.types import AddrType
 
@@ -83,7 +85,7 @@ class UDPSocket(object):
         if desc:
             logging.info("%s bound to %s:%d", desc, addr, self.port)
 
-    def send(self, data, dst):
+    def send(self, data, dst, sock=None):
         """
         Send data to a specified destination.
 
@@ -92,10 +94,17 @@ class UDPSocket(object):
             Tuple of (`str`, `int`) describing the destination address and port,
             respectively.
         """
+        if sock is None:
+            sock = self.sock
         try:
-            self.sock.sendto(data, dst)
+            sock.sendto(data, dst)
         except OSError as e:
+            errno = e.args[0]
             logging.error("Error sending %dB to %s: %s", len(data), dst, e)
+            if errno == ENETUNREACH:
+                raise SCMPUnreachNet(dst)
+            elif errno == EHOSTUNREACH:
+                raise SCMPUnreachHost(dst)
 
     def recv(self, block=True):
         """
@@ -121,7 +130,9 @@ class UDPSocket(object):
         self.sock.close()
 
     def settimeout(self, timeout):  # pragma: no cover
+        prev = self.sock.gettimeout()
         self.sock.settimeout(timeout)
+        return prev
 
 
 class UDPSocketMgr(object):

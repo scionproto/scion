@@ -26,4 +26,6 @@
 #define MAX_SEGMENT_TTL (24 * 60 * 60)
 #define EXP_TIME_UNIT (MAX_SEGMENT_TTL >> 8)
 
+#define LINE_LEN 8
+
 #endif
