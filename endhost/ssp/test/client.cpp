@@ -10,7 +10,7 @@ int main(int argc, char **argv)
     SCIONAddr saddr;
     memset(&saddr, 0, sizeof(saddr));
 
-    SCIONSocket s(L4_UDP);
+    SCIONSocket s(L4_SSP);
     s.bind(saddr);
 
     uint16_t isd;
@@ -27,11 +27,11 @@ int main(int argc, char **argv)
     saddr.host.addr_len = 4;
     saddr.host.port = 8080;
     sprintf(str, "127.%d.%d.254", isd, as);
-    printf("connect to (%d, %d):%s\n", isd, as, str);
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
 
     s.connect(saddr);
+    printf("connected to (%d, %d):%s\n", isd, as, str);
 
     /*
     SCIONOption option;
@@ -50,9 +50,9 @@ int main(int argc, char **argv)
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);
-        //s.send((uint8_t *)buf, BUFSIZE);
-        s.send((uint8_t *)buf, BUFSIZE, &saddr);
-        usleep(500000);
+        s.send((uint8_t *)buf, BUFSIZE);
+        //s.send((uint8_t *)buf, BUFSIZE, &saddr);
+        //usleep(500000);
     }
     exit(0);
 }

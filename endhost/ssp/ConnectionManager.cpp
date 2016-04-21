@@ -423,7 +423,7 @@ void SSPConnectionManager::sendAck(SCIONPacket *packet)
     DEBUG("send ack on path %d\n", packet->pathIndex);
     pthread_mutex_lock(&mPathMutex);
     if (mPaths[packet->pathIndex])
-        mPaths[packet->pathIndex]->send(packet, mSendSocket);
+        mPaths[packet->pathIndex]->sendPacket(packet, mSendSocket);
     pthread_mutex_unlock(&mPathMutex);
 }
 
@@ -447,7 +447,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
         SSPHeader &sh = sp.header;
         sh.headerLen = sizeof(sh);
         sh.flowID = htobe64(flowID);
-        int ret = p->send(&packet, mSendSocket);
+        int ret = p->sendPacket(&packet, mSendSocket);
         free(packet.header.extensions);
         if (ret) {
             DEBUG("terminate path %lu\n", i);
@@ -475,7 +475,7 @@ int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] && mPaths[i]->timeUntilReady() == 0) {
             SCIONPacket *dup = cloneSSPPacket(packet);
-            res |= mPaths[i]->send(dup, mSendSocket);
+            res |= mPaths[i]->sendPacket(dup, mSendSocket);
         }
     }
     pthread_mutex_unlock(&mPathMutex);
@@ -496,7 +496,7 @@ int SSPConnectionManager::sendAlternatePath(SCIONPacket *packet, size_t exclude)
             continue;
         SCIONPacket *clone = cloneSSPPacket(packet);
         pthread_mutex_unlock(&mPacketMutex);
-        ret = p->send(clone, mSendSocket);
+        ret = p->sendPacket(clone, mSendSocket);
         break;
     }
     pthread_mutex_unlock(&mPacketMutex);
@@ -945,7 +945,7 @@ void SSPConnectionManager::schedule()
                 DEBUG("sending FIN packet (%lu)\n", offset);
                 mFinAttempts++;
             }
-            p->send(packet, mSendSocket);
+            p->sendPacket(packet, mSendSocket);
             if (p->getLossRate() > SSP_HIGH_LOSS)
                 sendAlternatePath(packet, p->getIndex());
             pthread_mutex_unlock(&mPathMutex);
@@ -1035,7 +1035,7 @@ SUDPConnectionManager::~SUDPConnectionManager()
 {
 }
 
-int SUDPConnectionManager::send(SCIONPacket *packet)
+int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
 {
     Path *p = NULL;
     // TODO: Choose optimal path?
@@ -1048,7 +1048,7 @@ int SUDPConnectionManager::send(SCIONPacket *packet)
     }
     int ret = -1;
     if (p)
-        ret = p->send(packet, mSendSocket);
+        ret = p->sendPacket(packet, mSendSocket);
     pthread_mutex_unlock(&mPathMutex);
     return ret;
 }
@@ -1073,7 +1073,7 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
         sh.srcPort = htons(srcPort);
         sh.dstPort = htons(dstPort);
         sh.len = htons(sizeof(SUDPHeader));
-        ret |= mPaths[i]->send(&p, mSendSocket);
+        ret |= mPaths[i]->sendPacket(&p, mSendSocket);
         free(p.header.extensions);
         if (probeNum > SUDP_PROBE_WINDOW && mLastProbeAcked[i] < probeNum - SUDP_PROBE_WINDOW) {
             DEBUG("last probe acked on path %lu was %d, now %d\n", i, mLastProbeAcked[i], probeNum);
@@ -1109,7 +1109,7 @@ void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int
         sh.srcPort = htons(sp->header.dstPort);
         sh.dstPort = htons(sp->header.srcPort);
         sh.len = htons(sizeof(sh));
-        mPaths[index]->send(&p, mSendSocket);
+        mPaths[index]->sendPacket(&p, mSendSocket);
         DEBUG("sending probe ack back to dst port %d\n", sp->header.srcPort);
     }
 }

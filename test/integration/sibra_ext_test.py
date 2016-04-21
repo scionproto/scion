@@ -26,6 +26,7 @@ import time
 # SCION
 from endhost.sciond import SCIONDaemon
 from lib.defines import GEN_PATH, SIBRA_TICK, SIBRA_MAX_IDX
+from lib.dispatcher import reg_dispatcher
 from lib.flagtypes import PathSegFlags as PSF
 from lib.log import init_logging
 from lib.main import main_wrapper
@@ -45,7 +46,6 @@ from lib.types import ExtensionClass
 from lib.util import (
     SCIONTime,
     handle_signals,
-    reg_dispatcher,
     trim_dispatcher_packet,
 )
 

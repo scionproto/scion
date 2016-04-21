@@ -1,13 +1,19 @@
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
+#include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 #include "zlog.h"
@@ -20,6 +26,11 @@
 
 #define MAX_SVCS_PER_ADDR 10
 
+#define MAX_BACKLOG 128
+#define MAX_SOCKETS 1024
+#define APP_INDEX 0
+#define DATA_INDEX 1
+
 #define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in_pktinfo)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
 
@@ -31,15 +42,13 @@ typedef struct sockaddr_in sockaddr_in;
 typedef struct {
     uint16_t port;
     uint32_t isd_as;
+    uint8_t host[MAX_HOST_ADDR_LEN];
     uint64_t flow_id;
-    uint8_t host[MAX_HOST_ADDR_LEN];
-} SSPKey;
+} L4Key;
 
-typedef struct {
-    uint16_t port;
-    uint32_t isd_as;
-    uint8_t host[MAX_HOST_ADDR_LEN];
-} UDPKey;
+#define MIN_UDP_PORT 1025
+#define MAX_UDP_PORT USHRT_MAX
+static uint16_t next_port = MIN_UDP_PORT;
 
 typedef struct {
     uint16_t addr;
@@ -48,55 +57,84 @@ typedef struct {
 } SVCKey;
 
 typedef struct {
-    sockaddr_in addr;
-    UDPKey udp_key;
-    SSPKey ssp_key;
-    UT_hash_handle hh;
-    uint8_t scmp;
-} Entry;
-
-typedef struct {
     SVCKey key;
-    sockaddr_in addrs[MAX_SVCS_PER_ADDR];
     int count;
+    int sockets[MAX_SVCS_PER_ADDR];
     UT_hash_handle hh;
 } SVCEntry;
 
-Entry *SSPFlows = NULL;
-Entry *SSPWildcards = NULL;
-Entry *UDPPorts = NULL;
+typedef struct Entry {
+    sockaddr_in addr;
+    L4Key l4_key;
+    int sock;
+    uint8_t scmp;
+    struct Entry **list;
+    SVCEntry *se;
+    UT_hash_handle hh;
+    UT_hash_handle pollhh;
+} Entry;
 
-SVCEntry *SVCEntries = NULL;
+Entry *ssp_flow_list = NULL;
+Entry *ssp_wildcard_list = NULL;
+Entry *udp_port_list = NULL;
+Entry *poll_fd_list = NULL;
+
+SVCEntry *svc_list = NULL;
+
+static struct pollfd sockets[MAX_SOCKETS];
+static int num_sockets = 2; // data_socket and app_socket
 
 static int data_socket;
 static int app_socket;
 
 static zlog_category_t *zc;
 
+void handle_signal(int signal);
+int run();
+
 int create_sockets();
+int set_sockopts();
+int bind_app_socket();
+int bind_data_socket();
 
 void handle_app();
-void register_ssp(uint8_t *buf, int len, sockaddr_in *addr);
-void register_udp(uint8_t *buf, int len, sockaddr_in *addr);
-Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr);
-void reply(char code, sockaddr_in *addr);
+void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock);
+void register_udp(uint8_t *buf, int len, sockaddr_in *addr, int sock);
+Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr, int sock);
+int find_available_port(Entry *list, L4Key *key);
+void reply(int sock, int port);
+static inline uint16_t get_next_port();
 
 void handle_data();
-void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, sockaddr_in *addr);
-void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst);
+void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
+void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, sockaddr_in *from);
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, sockaddr_in *from);
 void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, sockaddr_in *from);
 
+void handle_send(int index);
+void cleanup_socket(int sock, int index, int err);
+
 int main(int argc, char **argv)
 {
+    signal(SIGTERM, handle_signal);
+    signal(SIGQUIT, handle_signal);
+    signal(SIGINT, handle_signal);
+
+    struct rlimit rl;
     int res;
+
+    rl.rlim_cur = MAX_SOCKETS;
+    rl.rlim_max = MAX_SOCKETS;
+    if (setrlimit(RLIMIT_NOFILE, &rl)< 0) {
+        fprintf(stderr, "failed to set fileno limit\n");
+        return -1;
+    }
 
     setenv("TZ", "UTC", 1);
 
-    res = zlog_init("endhost/dispatcher.conf");
-    if (res < 0) {
+    if (zlog_init("endhost/dispatcher.conf") < 0) {
         fprintf(stderr, "failed to init zlog\n");
         return -1;
     }
@@ -112,168 +150,251 @@ int main(int argc, char **argv)
     if (create_sockets() < 0)
         return -1;
 
-    fd_set fds;
-    FD_ZERO(&fds);
-    while (1) {
-        int max = data_socket > app_socket ? data_socket : app_socket;
-        FD_SET(data_socket, &fds);
-        FD_SET(app_socket, &fds);
-        res = select(max + 1, &fds, NULL, NULL, NULL);
-        if (res < 0) {
-            zlog_fatal(zc, "select error: %s", strerror(errno));
-            break;
-        }
+    res = run();
 
-        if (FD_ISSET(app_socket, &fds)) {
-            FD_CLR(app_socket, &fds);
-            handle_app();
-        }
-        if (FD_ISSET(data_socket, &fds)) {
-            FD_CLR(data_socket, &fds);
-            handle_data();
-        }
-    }
+    /* Would only get down here if poll failed */
 
     close(data_socket);
     close(app_socket);
+    int i;
+    for (i = 0; i < num_sockets; i++)
+        close(sockets[i].fd);
     zlog_fini();
     return res;
 }
 
+void handle_signal(int sig)
+{
+    switch (sig) {
+        case SIGTERM:
+            zlog_info(zc, "Received SIGTERM");
+            exit(0);
+        default:
+            zlog_info(zc, "Received signal %d", sig);
+            exit(1);
+    }
+}
+
 int create_sockets()
 {
-    int res;
-    data_socket = socket(PF_INET, SOCK_DGRAM, 0);
-    app_socket = socket(PF_INET, SOCK_DGRAM, 0);
+    app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+    data_socket = socket(AF_INET, SOCK_DGRAM, 0);
     if (data_socket < 0 || app_socket < 0) {
         zlog_fatal(zc, "failed to open sockets");
         return -1;
     }
+    if (set_sockopts() < 0) {
+        zlog_fatal(zc, "failed to set socket options");
+        return -1;
+    }
+
+    /* Bind app socket to SCION_DISPATCHER_ADDR */
+    if (bind_app_socket() < 0)
+        return -1;
+
+    /* Bind data socket to SCION_UDP_EH_DATA_PORT */
+    if (bind_data_socket() < 0)
+        return -1;
+
+    sockets[APP_INDEX].fd = app_socket;
+    sockets[APP_INDEX].events = POLLIN;
+    sockets[DATA_INDEX].fd = data_socket;
+    sockets[DATA_INDEX].events = POLLIN;
+
+    int i;
+    for (i = 2; i < MAX_SOCKETS; i++) {
+        sockets[i].fd = -1;
+        sockets[i].events = 0;
+        sockets[i].revents = 0;
+    }
+
+    return 0;
+}
+
+int set_sockopts()
+{
     int optval = 1;
     /*
      * FIXME(kormat): This should go away once the dispatcher and the router no
      * longer try binding to the same socket.
      */
-    res = setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR,
+    int res = setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR,
             &optval, sizeof(optval));
     res |= setsockopt(data_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
-    res |= setsockopt(app_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     optval = 1 << 20;
     res |= setsockopt(data_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
-    if (res < 0) {
-        zlog_fatal(zc, "failed to set socket options");
+    res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
+    res |= fcntl(data_socket, F_SETFL, O_NONBLOCK);
+    return res;
+}
+
+int bind_app_socket()
+{
+    struct sockaddr_un su;
+    memset(&su, 0, sizeof(su));
+    su.sun_family = AF_UNIX;
+    strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    unlink(su.sun_path);
+    if (bind(app_socket, (struct sockaddr *)&su, sizeof(su)) < 0) {
+        zlog_fatal(zc, "failed to bind app socket to %s", su.sun_path);
         return -1;
     }
-    /* Bind data socket to SCION_UDP_EH_DATA_PORT */
+    if (listen(app_socket, MAX_BACKLOG) < 0) {
+        zlog_fatal(zc, "failed to listen on app socket");
+        return -1;
+    }
+    zlog_info(zc, "app socket bound to %s", su.sun_path);
+    return 0;
+}
+
+int bind_data_socket()
+{
     sockaddr_in sa;
     memset(&sa, 0, sizeof(sa));
-    sa.sin_addr.s_addr = INADDR_ANY;
     sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = INADDR_ANY;
     sa.sin_port = htons(SCION_UDP_EH_DATA_PORT);
-    res = bind(data_socket, (struct sockaddr *)&sa, sizeof(sa));
-    if (res < 0) {
-        zlog_fatal(zc, "failed to bind data socket to %s:%d",
-                inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
+    if (bind(data_socket, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+        zlog_fatal(zc, "failed to bind data socket to %s:%d, %s",
+                inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), strerror(errno));
         return -1;
     }
-    zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sa.sin_addr), SCION_UDP_EH_DATA_PORT);
-
-    /* Bind app socket to SCION_DISPATCHER_PORT */
-    sa.sin_port = htons(SCION_DISPATCHER_PORT);
-    sa.sin_addr.s_addr = inet_addr(SCION_DISPATCHER_HOST);
-    res = bind(app_socket, (struct sockaddr *)&sa, sizeof(sa));
-    if (res < 0) {
-        zlog_fatal(zc, "failed to bind app socket to %s:%d",
-                inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
-        return -1;
-    }
-    zlog_info(zc, "app socket bound to %s:%d", inet_ntoa(sa.sin_addr), SCION_DISPATCHER_PORT);
+    zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
     return 0;
+}
+
+int run()
+{
+    while (1) {
+        int count = poll(sockets, num_sockets, -1);
+        if (count < 0) {
+            zlog_fatal(zc, "poll error: %s", strerror(errno));
+            return -1;
+        }
+        int i;
+        for (i = 0; i < num_sockets && count > 0; i++) {
+            if (sockets[i].fd == -1 || sockets[i].revents == 0)
+                continue;
+            count--;
+            switch (i) {
+                case APP_INDEX:
+                    handle_app();
+                    break;
+                case DATA_INDEX:
+                    handle_data();
+                    break;
+                default:
+                    handle_send(i);
+                    break;
+            }
+        }
+    }
+    return 0; // shouldn't get here
 }
 
 void handle_app()
 {
+    if (num_sockets == MAX_SOCKETS) {
+        zlog_warn(zc, "no room to allocate new socket");
+        return;
+    }
+
     sockaddr_in addr;
-    socklen_t addrLen = sizeof(addr);
+    socklen_t addr_len = sizeof(addr);
     uint8_t buf[APP_BUFSIZE];
-    int len = recvfrom(app_socket, buf, APP_BUFSIZE, 0,
-            (struct sockaddr *)&addr, &addrLen);
+    int sock = accept(app_socket, (struct sockaddr *)&addr, &addr_len);
+    if (sock < 0) {
+        zlog_error(zc, "error in accept: %s", strerror(errno));
+        return;
+    }
+    zlog_info(zc, "new socket created: %d", sock);
+    /*
+     * Application message format:
+     * cookie (8B) | addr_len (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
+     * addr and port denote first hop for outgoing packets
+     * if addr_len == 0, addr and port fields are omitted (which is the case for registration messages)
+     */
+    int len = recv_all(sock, buf, DP_HEADER_LEN);
+    if (len < 0) {
+        zlog_error(zc, "error receiving registration request");
+        close(sock);
+        return;
+    }
+    int packet_len = 0;
+    // Here addr_len will always be 0 and there will be no port number either
+    parse_dp_header(buf, NULL, &packet_len);
+    if (packet_len < 0) {
+        zlog_error(zc, "invalid dispatcher header in registration packet");
+        close(sock);
+        return;
+    }
+    // addr_len is 0
+    len = recv_all(sock, buf, packet_len);
     if (len > 2) { /* command (1B) | proto (1B) | id */
         unsigned char protocol = buf[1];
         zlog_info(zc, "received registration for proto: %d (%d bytes)", protocol, len);
         switch (protocol) {
             case L4_SSP:
-                register_ssp(buf, len, &addr);
+                register_ssp(buf, len, &addr, sock);
                 break;
             case L4_UDP:
-                register_udp(buf, len, &addr);
+                register_udp(buf, len, &addr, sock);
                 break;
         }
+    } else {
+        zlog_error(zc, "invalid registration packet size");
+        close(sock);
     }
 }
 
-void register_ssp(uint8_t *buf, int len, sockaddr_in *addr)
+void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
 {
     zlog_info(zc, "SSP registration request");
-    uint8_t cmd = *buf; /* 0 = unregister, 1 = register */
-    Entry *e = parse_request(buf, len, L4_SSP, addr);
+    Entry *e = parse_request(buf, len, L4_SSP, addr, sock);
     if (!e)
         return;
     Entry *old = NULL;
-    if (e->ssp_key.flow_id != 0) {
+    if (e->l4_key.flow_id != 0) {
         /* Find registered flow ID */
-        HASH_FIND(hh, SSPFlows, &e->ssp_key, sizeof(SSPKey), old);
+        HASH_FIND(hh, ssp_flow_list, &e->l4_key, sizeof(L4Key), old);
         if (old) {
-            /* Delete obsolete entry - this also serves as unregister */
-            HASH_DELETE(hh, SSPFlows, old);
-            free(old);
-            zlog_debug(zc, "entry for flow %" PRIu64 " deleted", e->ssp_key.flow_id);
+            zlog_error(zc, "address-flow already registered");
+            reply(sock, 0);
+            return;
         }
-        /* If command is "register", add new entry */
-        if (IS_REG_CMD(cmd)) {
-            HASH_ADD(hh, SSPFlows, ssp_key, sizeof(SSPKey), e);
-            zlog_info(zc, "flow registration success: %" PRIu64, e->ssp_key.flow_id);
-        }
+        e->list = &ssp_flow_list;
+        HASH_ADD(hh, ssp_flow_list, l4_key, sizeof(L4Key), e);
+        zlog_info(zc, "flow registration success: %" PRIu64, e->l4_key.flow_id);
     } else {
-        /* Find registered wildcard port */
-        HASH_FIND(hh, SSPWildcards, &e->ssp_key, sizeof(SSPKey), old);
-        if (old) {
-            /* Delete obsolete entry - this also serves as unregister */
-            HASH_DELETE(hh, SSPWildcards, old);
-            free(old);
-            zlog_debug(zc, "entry for port %d deleted", e->ssp_key.port);
+        if (find_available_port(ssp_wildcard_list, &e->l4_key) < 0) {
+            free(e);
+            reply(sock, 0);
+            return;
         }
-        /* If command is "register", add new entry */
-        if (IS_REG_CMD(cmd)) {
-            HASH_ADD(hh, SSPWildcards, ssp_key, sizeof(SSPKey), e);
-            zlog_info(zc, "wildcard registration success: %d", e->ssp_key.port);
-        }
+        e->list = &ssp_wildcard_list;
+        HASH_ADD(hh, ssp_wildcard_list, l4_key, sizeof(L4Key), e);
+        zlog_info(zc, "wildcard registration success: %d", e->l4_key.port);
     }
-    reply(1, addr);
+    reply(sock, e->l4_key.port);
 }
 
-void register_udp(uint8_t *buf, int len, sockaddr_in *addr)
+void register_udp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
 {
     zlog_info(zc, "UDP registration request");
-
-    uint8_t cmd = *buf; /* 0 = unregister, 1 = register */
-    Entry *e = parse_request(buf, len, L4_UDP, addr);
+    Entry *e = parse_request(buf, len, L4_UDP, addr, sock);
     if (!e)
         return;
-    Entry *old = NULL;
-    HASH_FIND(hh, UDPPorts, &e->udp_key, sizeof(UDPKey), old);
-    if (old) {
-        /* Delete obsolete entry - this also serves as unregister */
-        HASH_DELETE(hh, UDPPorts, old);
-        free(old);
+    if (find_available_port(udp_port_list, &e->l4_key) < 0) {
+        free(e);
+        reply(sock, 0);
+        return;
     }
-    /* If command is "register", add new entry */
-    if (IS_REG_CMD(cmd))
-        HASH_ADD(hh, UDPPorts, udp_key, sizeof(UDPKey), e);
-    reply(1, addr);
+    e->list = &udp_port_list;
+    HASH_ADD(hh, udp_port_list, l4_key, sizeof(L4Key), e);
+    reply(sock, e->l4_key.port);
 }
 
-Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
+Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr, int sock)
 {
     uint32_t isd_as = ntohl(*(uint32_t *)(buf + 2));
     uint16_t port = ntohs(*(uint16_t *)(buf + 6));
@@ -288,6 +409,11 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
     }
     memset(e, 0, sizeof(Entry));
     e->addr = *addr;
+    e->sock = sock;
+    sockets[num_sockets].fd = sock;
+    sockets[num_sockets].events = POLLIN;
+    num_sockets++;
+    HASH_ADD(pollhh, poll_fd_list, sock, sizeof(int), e);
 
     uint8_t type = *(uint8_t *)(buf + 8);
     if (type < ADDR_IPV4_TYPE || type > ADDR_IPV6_TYPE) {
@@ -298,26 +424,25 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
     SVCKey svc_key;
     memset(&svc_key, 0, sizeof(SVCKey));
 
-    int ADDR_LENS[] = {4, 16, 2};
-    int addr_len = ADDR_LENS[type - 1];
+    int addr_len = get_addr_len(type);
     int end;
 
     if (proto == L4_SSP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | flow ID (8B) | addr (?B) | SVC (2B, optional) */
-        e->ssp_key.flow_id = *(uint64_t *)(buf + common);
-        e->ssp_key.port = port;
-        e->ssp_key.isd_as = isd_as;
-        memcpy(e->ssp_key.host, buf + common + 8, addr_len);
+        e->l4_key.flow_id = *(uint64_t *)(buf + common);
+        e->l4_key.port = port;
+        e->l4_key.isd_as = isd_as;
+        memcpy(e->l4_key.host, buf + common + 8, addr_len);
         end = addr_len + common + 8;
     } else if (proto == L4_UDP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
-        e->udp_key.port = port;
-        e->udp_key.isd_as = isd_as;
-        memcpy(e->udp_key.host, buf + common, addr_len);
+        e->l4_key.port = port;
+        e->l4_key.isd_as = isd_as;
+        memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
         sockaddr_in reg_addr;
-        memcpy(&reg_addr.sin_addr, e->udp_key.host, addr_len);
-        zlog_info(zc, "registration for %s:%d", inet_ntoa(reg_addr.sin_addr), e->udp_key.port);
+        memcpy(&reg_addr.sin_addr, e->l4_key.host, addr_len);
+        zlog_info(zc, "registration for %s:%d", inet_ntoa(reg_addr.sin_addr), e->l4_key.port);
     }
     if (IS_SCMP_REQ(*buf))
         e->scmp = 1;
@@ -328,10 +453,10 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
         svc_key.isd_as = isd_as;
         zlog_info(zc, "SVC (%d) registration included", svc_key.addr);
         SVCEntry *se;
-        HASH_FIND(hh, SVCEntries, &svc_key, sizeof(svc_key), se);
+        HASH_FIND(hh, svc_list, &svc_key, sizeof(svc_key), se);
         if (se) {
             if (se->count < MAX_SVCS_PER_ADDR)
-                se->addrs[se->count++] = *addr;
+                se->sockets[se->count++] = sock;
             else
                 zlog_warn(zc, "Reached maximum SVC entries for this host");
         } else {
@@ -342,22 +467,68 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr)
             }
             memset(se, 0, sizeof(SVCEntry));
             se->key = svc_key;
-            se->addrs[se->count++] = *addr;
-            HASH_ADD(hh, SVCEntries, key, sizeof(SVCKey), se);
+            se->sockets[se->count++] = sock;
+            HASH_ADD(hh, svc_list, key, sizeof(SVCKey), se);
         }
+        e->se = se;
     }
 
     return e;
 }
 
-void reply(char code, sockaddr_in *addr)
+int find_available_port(Entry *list, L4Key *key)
 {
-    sendto(app_socket, &code, 1, 0, (struct sockaddr *)addr, sizeof(*addr));
+    Entry *old;
+    int requested = 1;
+    if (key->port == 0) {
+        requested = 0;
+        key->port = get_next_port();
+    }
+    int start_port = key->port;
+    while (1) {
+        // Find an available port number between 1025 and 65535.
+        HASH_FIND(hh, ssp_wildcard_list, key, sizeof(L4Key), old);
+        if (old) {
+            if (requested) {
+                // If app requested unavailable port number, reply with failure message
+                zlog_error(zc, "requested port number %d not available", key->port);
+                return -1;
+            }
+            zlog_debug(zc, "port %d already taken, find unused port", key->port);
+            key->port = get_next_port();
+            if (key->port == start_port) {
+                zlog_error(zc, "no available ports");
+                return -1;
+            }
+        } else {
+            break;
+        }
+    }
+    return 0;
+}
+
+void reply(int sock, int port)
+{
+    uint8_t buf[DP_HEADER_LEN + 2];
+    write_dp_header(buf, NULL, 2);
+    *(uint16_t *)(buf + DP_HEADER_LEN) = port;
+    send_all(sock, buf, sizeof(buf));
+    zlog_debug(zc, "sent reply %d on socket %d", port, sock);
+}
+
+static inline uint16_t get_next_port()
+{
+    uint16_t next = next_port;
+    if (next_port == MAX_UDP_PORT)
+        next_port = MIN_UDP_PORT;
+    else
+        next_port++;
+    return next;
 }
 
 void handle_data()
 {
-    sockaddr_in from;
+    sockaddr_in src_si;
     sockaddr_in dst;
     uint8_t buf[DATA_BUFSIZE];
 
@@ -370,8 +541,8 @@ void handle_data()
     iov[0].iov_len = sizeof(buf);
 
     memset(&msg, 0, sizeof(msg));
-    msg.msg_name = &from;
-    msg.msg_namelen = sizeof(from);
+    msg.msg_name = &src_si;
+    msg.msg_namelen = sizeof(src_si);
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
     msg.msg_control = control_buf;;
@@ -394,12 +565,16 @@ void handle_data()
         zlog_error(zc, "invalid SCION packet");
         return;
     }
+    HostAddr from;
+    memcpy(from.addr, &src_si.sin_addr, 4);
+    from.addr_len = 4;
+    from.port = ntohs(src_si.sin_port);
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
     switch (l4) {
         case L4_SCMP:
             fprintf(stderr, "incoming scmp packet for %s\n", inet_ntoa(dst.sin_addr));
-            process_scmp(buf, (SCMPL4Header *)l4ptr, len, &from);
+            process_scmp(buf, (SCMPL4Header *)l4ptr, len, &src_si);
             break;
         case L4_SSP:
             deliver_ssp(buf, l4ptr, len, &from);
@@ -410,42 +585,41 @@ void handle_data()
     }
 }
 
-void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, sockaddr_in *addr)
+void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
 {
     uint8_t *dst_ptr = get_dst_addr(buf);
     int dst_len = get_dst_len(buf);
     Entry *e;
-    SSPKey key;
+    L4Key key;
     memset(&key, 0, sizeof(key));
     key.flow_id = be64toh(*(uint64_t *)l4ptr);
     key.port = 0;
-    key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
+    key.isd_as = ntohl(*(uint32_t *)(dst_ptr - ISD_AS_LEN));
     memcpy(key.host, dst_ptr, dst_len);
-    HASH_FIND(hh, SSPFlows, &key, sizeof(key), e);
+    HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
     if (!e) {
         zlog_warn(zc, "no flow entry found for %" PRIu64, key.flow_id);
         key.flow_id = 0;
         key.port = ntohs(*(uint16_t *)(l4ptr + 8));
-        HASH_FIND(hh, SSPWildcards, &key, sizeof(key), e);
+        HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "no wildcard entry found for %d", key.port);
             return;
         }
     }
-    socklen_t addrLen = sizeof(sockaddr_in);
-    /* Append real first hop sender addr to end of message (needed by socket) */
-    memcpy(buf + len, addr, addrLen);
-    sendto(app_socket, buf, len + addrLen, 0,
-            (struct sockaddr *)&e->addr, addrLen);
+    zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64, 
+            inet_ntoa(*(struct in_addr *)dst_ptr), key.port, key.flow_id);
+    send_dp_header(e->sock, from, len);
+    send_all(e->sock, buf, len);
 }
 
-void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
+void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst)
 {
-    sockaddr_in addr;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *l4ptr = buf;
     get_l4_proto(&l4ptr);
     SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
+    int sock;
 
     uint16_t checksum = scion_udp_checksum(buf);
     if (checksum != udp->checksum) {
@@ -462,16 +636,16 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
         /* TODO: IPv6? */
         memcpy(svc_key.host, &dst->sin_addr.s_addr, 4);
         SVCEntry *se;
-        HASH_FIND(hh, SVCEntries, &svc_key, sizeof(SVCKey), se);
+        HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
         if (!se) {
             zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %d IP: %s",
                     ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
                     inet_ntoa(dst->sin_addr));
             return;
         }
-        addr = se->addrs[random() % se->count];
+        sock = se->sockets[rand() % se->count];
     } else {
-        UDPKey key;
+        L4Key key;
         memset(&key, 0, sizeof(key));
         /* Find dst info in packet */
         key.port = ntohs(*(uint16_t *)(l4ptr + 2));
@@ -479,19 +653,16 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
         memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
 
         Entry *e;
-        HASH_FIND(hh, UDPPorts, &key, sizeof(key), e);
+        HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "entry for %s:%d not found\n",
+            zlog_warn(zc, "entry for %s:%d not found",
                     inet_ntoa(*(struct in_addr *)(key.host)), key.port);
             return;
         }
-        addr = e->addr;
+        sock = e->sock;
     }
-    socklen_t addrLen = sizeof(sockaddr_in);
-    /* Append real first hop sender addr to end of message (needed by socket) */
-    memcpy(buf + len, from, addrLen);
-    sendto(app_socket, buf, len + addrLen, 0,
-            (struct sockaddr *)&addr, addrLen);
+    send_dp_header(sock, from, len);
+    send_all(sock, buf, len);
 }
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
@@ -523,8 +694,6 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, sockaddr_in *from)
 
 void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
 {
-    int addrlen = sizeof(sockaddr_in);
-    memcpy(buf + len, from, addrlen);
     SCMPPayload *pld;
     pld = scmp_parse_payload(scmp);
     if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_NONE) {
@@ -536,7 +705,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
         fprintf(stderr, "SCMP does not support SVC source.\n");
         return;
     }
-    UDPKey key;
+    L4Key key;
     memset(&key, 0, sizeof(key));
     /* Find src info in payload */
     key.port = ntohs(*(uint16_t *)(pld->l4hdr));
@@ -544,7 +713,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
 
     Entry *e;
-    HASH_FIND(hh, UDPPorts, &key, sizeof(key), e);
+    HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
         fprintf(stderr, "entry for %s:%d not found\n",
                 inet_ntoa(*(struct in_addr *)(key.host)), key.port);
@@ -552,11 +721,102 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
     }
     fprintf(stderr, "entry for %s:%d found\n",
             inet_ntoa(*(struct in_addr *)(key.host)), key.port);
-    sockaddr_in addr;
-    addr = e->addr;
-    socklen_t addrLen = sizeof(sockaddr_in);
-    /* Append real first hop sender addr to end of message (needed by socket) */
-    memcpy(buf + len, from, addrLen);
-    sendto(app_socket, buf, len + addrLen, 0,
-            (struct sockaddr *)&addr, addrLen);
+
+    HostAddr host;
+    memcpy(host.addr, &from->sin_addr.s_addr, 4);
+    host.addr_len = 4;
+    host.port = ntohs(from->sin_port);
+
+    send_dp_header(e->sock, &host, len);
+    send_all(e->sock, buf, len);
+}
+
+void handle_send(int index)
+{
+    uint8_t buf[DATA_BUFSIZE];
+    int res;
+    int sock = sockets[index].fd;
+
+    zlog_debug(zc, "handle_send on socket %d (fd %d)", index, sock);
+    /*
+     * Application message format:
+     * cookie (8B) | addr_len (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
+     * addr and port denote first hop for outgoing packets
+     * if addr_len == 0, addr and port fields are omitted
+     */
+    res = recv_all(sock, buf, DP_HEADER_LEN);
+    if (res <= 0) {
+        cleanup_socket(sock, index, errno);
+        return;
+    }
+
+    zlog_debug(zc, "%d bytes on socket %d (fd %d)", res, index, sock);
+    int addr_len, packet_len;
+    parse_dp_header(buf, &addr_len, &packet_len);
+    if (packet_len < 0 || addr_len == 0) {
+        zlog_error(zc, "invalid header sent from app - Cookie:");
+        int i;
+        for (i = 0; i < 8; i++)
+            zlog_error(zc, "byte %d: %x", i, buf[i]);
+        zlog_error(zc, "addr_len = %d, packet_len = %d", addr_len, packet_len);
+        cleanup_socket(sock, index, EIO);
+        return;
+    }
+    zlog_debug(zc, "fd %d: read in %d total bytes", sock, packet_len);
+    if (recv_all(sock, buf, addr_len + 2 + packet_len) < 0) {
+        zlog_error(zc, "error reading from application");
+        cleanup_socket(sock, index, errno);
+        return;
+    }
+    // TODO: Don't assume IPv4
+    struct sockaddr_in hop;
+    memset(&hop, 0, sizeof(hop));
+    hop.sin_family = AF_INET;
+    memcpy(&hop.sin_addr, buf, addr_len);
+    hop.sin_port = htons(*(uint16_t *)(buf + addr_len));
+    sendto(data_socket, buf + addr_len + 2, packet_len, 0, (struct sockaddr *)&hop, sizeof(hop));
+    zlog_debug(zc, "packet sent to %s:%d", inet_ntoa(hop.sin_addr), ntohs(hop.sin_port));
+}
+
+void cleanup_socket(int sock, int index, int err)
+{
+    if (err == 0)
+        zlog_info(zc, "socket %d closed from remote end", sock);
+    else
+        zlog_error(zc, "error on socket %d: %s", sock, strerror(err));
+    close(sock);
+    sockets[index] = sockets[--num_sockets];
+    sockets[num_sockets].fd = -1;
+    sockets[num_sockets].events = 0;
+    sockets[num_sockets].revents = 0;
+    zlog_info(zc, "num_sockets now %d", num_sockets);
+
+    Entry *e = NULL;
+    HASH_FIND(pollhh, poll_fd_list, &sock, sizeof(sock), e);
+    if (e) {
+        HASH_DELETE(pollhh, poll_fd_list, e);
+        HASH_DELETE(hh, *(e->list), e);
+        if (e->se) {
+            int i;
+            for (i = 0; i < e->se->count; i++) {
+                int fd = e->se->sockets[i];
+                if (fd == sock) {
+                    int count = e->se->count - 1;
+                    e->se->sockets[i] = e->se->sockets[count];
+                    e->se->sockets[count] = -1;
+                    e->se->count = count;
+                    zlog_info(zc, "removed socket from SVC listeners for host");
+                    if (count == 0) {
+                        HASH_DELETE(hh, svc_list, e->se);
+                        free(e->se);
+                        e->se = NULL;
+                        zlog_info(zc, "no more SVC listeners on host, remove entry");
+                    }
+                    break;
+                }
+            }
+        }
+        free(e);
+        zlog_info(zc, "deleted entry from hash table");
+    }
 }

@@ -11,6 +11,16 @@
 const int ADDR_LENS[] = {0, 4, 16, 2};
 
 /*
+ * Get addr length by type
+ * type: Address type
+ * return value: Length of address of given type
+ */
+int get_addr_len(int type)
+{
+    return ADDR_LENS[type];
+}
+
+/*
  * Get src ISD_AS
  * buf: Pointer to start of SCION packet
  * return value: src ISD_AS value, 0 on error

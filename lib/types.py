@@ -38,6 +38,7 @@ class AddrType(TypeBase):
     IPV4 = 1
     IPV6 = 2
     SVC = 3
+    UNIX = 4  # For dispatcher socket
 
 
 class ExtensionClass(TypeBase):

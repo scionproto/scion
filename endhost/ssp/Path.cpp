@@ -79,7 +79,7 @@ Path::~Path()
     pthread_mutex_destroy(&mMutex);
 }
 
-int Path::send(SCIONPacket *packet, int sock)
+int Path::sendPacket(SCIONPacket *packet, int sock)
 {
     return 0;
 }
@@ -385,7 +385,7 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
     }
 }
 
-int SSPPath::send(SCIONPacket *packet, int sock)
+int SSPPath::sendPacket(SCIONPacket *packet, int sock)
 {
     pthread_mutex_lock(&mMutex);
     bool wasValid = mValid;
@@ -408,29 +408,25 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     int src_len = get_src_len((uint8_t *)&sch) + ISD_AS_LEN;
     int dst_len = get_dst_len((uint8_t *)&sch) + ISD_AS_LEN;
     sch.header_len = sizeof(sch) + src_len + dst_len + mPathLen;
-    uint16_t total_len = sch.header_len + sh.headerLen + sp->len;
+    uint16_t packet_len = sch.header_len + sh.headerLen + sp->len;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
-        total_len += getHeaderLen(ext);
+        packet_len += getHeaderLen(ext);
         ext = ext->nextExt;
     }
-    sch.total_len = htons(total_len);
+    sch.total_len = htons(packet_len);
 
-    uint8_t *buf = (uint8_t *)malloc(total_len);
+    // TODO: Don't assume IPv4 (5 = 1 byte len + 4 byte addr)
+    uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &packet->header);
     bufptr += sch.header_len;
     bufptr = packExtensions(&packet->header, bufptr);
     bufptr = copySSPPacket(sp, bufptr, probe);
 
-    struct sockaddr_in sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(mFirstHop.port);
-    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addr_len);
-    sendto(sock, buf, total_len, 0, (struct sockaddr *)&sa, sizeof(sa));
+    send_dp_header(sock, &mFirstHop, packet_len);
+    send_all(sock, buf, packet_len);
     free(buf);
-    DEBUG("sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
 
     if (sendInterfaces) {
         sh.flags &= ~SSP_NEW_PATH;
@@ -581,7 +577,7 @@ SUDPPath::~SUDPPath()
 {
 }
 
-int SUDPPath::send(SCIONPacket *packet, int sock)
+int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
 {
     int res;
     SCIONHeader &sh = packet->header;
@@ -591,15 +587,16 @@ int SUDPPath::send(SCIONPacket *packet, int sock)
     int dst_len = get_dst_len((uint8_t *)&sch) + ISD_AS_LEN;
     sch.header_len = sizeof(sch) + src_len + dst_len + mPathLen;
 
-    uint16_t total_len = sch.header_len + sizeof(SUDPHeader) + sp->payloadLen;
+    uint16_t packet_len = sch.header_len + sizeof(SUDPHeader) + sp->payloadLen;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
-        total_len += getHeaderLen(ext);
+        packet_len += getHeaderLen(ext);
         ext = ext->nextExt;
     }
-    sch.total_len = htons(total_len);
+    sch.total_len = htons(packet_len);
 
-    uint8_t *buf = (uint8_t *)malloc(total_len);
+    // TODO: Don't assume IPv4 (5 = 1 byte len + 4 byte addr)
+    uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &sh);
     bufptr += sch.header_len;
@@ -609,16 +606,12 @@ int SUDPPath::send(SCIONPacket *packet, int sock)
     bufptr += sizeof(SUDPHeader);
     // SUDP payload
     memcpy(bufptr, sp->payload, sp->payloadLen);
+    bufptr += sp->payloadLen;
     // Calculate checksum
     update_scion_udp_checksum(buf);
 
-    struct sockaddr_in sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(mFirstHop.port);
-    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addr_len);
-    res = sendto(sock, buf, ntohs(sch.total_len), 0, (struct sockaddr *)&sa, sizeof(sa));
-    DEBUG("packet sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
+    send_dp_header(sock, &mFirstHop, packet_len);
+    res = send_all(sock, buf, packet_len);
     free(buf);
 
     return res;

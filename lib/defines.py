@@ -57,7 +57,7 @@ SCION_DNS_PORT = 30053
 #: Default SCION router UDP port.
 SCION_ROUTER_PORT = 50000
 #: Default SCION dispatcher host addr
-SCION_DISPATCHER_ADDR = "127.255.255.254"
+SCION_DISPATCHER_ADDR = "/run/shm/dispatcher.socket"
 #: Default SCION dispatcher port
 SCION_DISPATCHER_PORT = 3334
 
@@ -77,10 +77,8 @@ SERVICE_TYPES = (
     SIBRA_SERVICE,
 )
 
-#: Dispatcher sender data size
-DISPATCHER_SENDER = 16
 #: Dispatcher registration timeout
-DISPATCHER_TIMEOUT = 60
+DISPATCHER_TIMEOUT = 60.0
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1

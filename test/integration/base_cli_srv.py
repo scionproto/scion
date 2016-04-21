@@ -42,15 +42,13 @@ from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
-from lib.socket import UDPSocket
+from lib.socket import DispatcherSocket, UDPSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType
 from lib.util import (
     Raw,
     handle_signals,
     load_yaml_file,
-    reg_dispatcher,
-    trim_dispatcher_packet,
 )
 
 API_TOUT = 15
@@ -76,9 +74,7 @@ class TestClientBase(object):
         else:
             self._get_path_direct()
         assert self.path.mtu
-        self.sock = UDPSocket(bind=(str(self.src.host), 0, "Test Client App"),
-                              addr_type=AddrType.IPV4)
-        reg_dispatcher(self.sock, self.src, self.sock.port)
+        self.sock = DispatcherSocket(self.src, 0)
 
     def _run_sciond(self):
         return start_sciond(self.src)
@@ -116,6 +112,7 @@ class TestClientBase(object):
             except socket.timeout:
                 continue
             if data:
+                sock.close()
                 return data
             logging.debug("Empty response from local api.")
         logging.critical("Unable to get path from local api.")
@@ -166,7 +163,7 @@ class TestClientBase(object):
         return self.sd.get_first_hop(spkt)
 
     def _send_pkt(self, spkt, next_hop, port):
-        self.sock.send(spkt.pack(), (str(next_hop), port))
+        self.sock.send(spkt.pack(), (next_hop, port))
 
     def _create_payload(self, spkt):
         return PayloadRaw(self.data)
@@ -180,14 +177,12 @@ class TestClientBase(object):
 
     def _recv(self):
         packet = self.sock.recv()[0]
-        packet = trim_dispatcher_packet(packet)
         return SCIONL4Packet(packet)
 
     def _handle_response(self, spkt):
         pass
 
     def _shutdown(self):
-        reg_dispatcher(self.sock, self.src, self.sock.port, reg=False)
         self.sock.close()
 
 
@@ -200,16 +195,13 @@ class TestServerBase(object):
         self.data = data
         self.sd = sd or self._run_sciond()
         self.done = False
-        self.sock = UDPSocket(bind=(str(self.dst.host), 0, "Test Server App"),
-                              addr_type=AddrType.IPV4)
-        reg_dispatcher(self.sock, self.dst, self.sock.port)
+        self.sock = DispatcherSocket(self.dst, 0)
 
     def _run_sciond(self):
         return start_sciond(self.src)
 
     def run(self):
         packet = self.sock.recv()[0]
-        packet = trim_dispatcher_packet(packet)
         spkt = SCIONL4Packet(packet)
         payload = spkt.get_payload()
         if self._verify_request(payload):

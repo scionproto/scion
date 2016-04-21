@@ -16,7 +16,7 @@ void * timerThread(void *arg)
     return NULL;
 }
 
-SCIONProtocol::SCIONProtocol()
+SCIONProtocol::SCIONProtocol(int sock)
     : mPathManager(NULL),
     mSrcPort(0),
     mDstPort(0),
@@ -27,7 +27,7 @@ SCIONProtocol::SCIONProtocol()
     mNextSendByte(0),
     mProbeNum(0)
 {
-    mSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    mSocket = sock; // gets closed by SCIONSocket
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     gettimeofday(&mLastProbeTime, NULL);
     pthread_mutex_init(&mReadMutex, NULL);
@@ -37,7 +37,6 @@ SCIONProtocol::SCIONProtocol()
 
 SCIONProtocol::~SCIONProtocol()
 {
-    close(mSocket);
     pthread_mutex_destroy(&mReadMutex);
     pthread_cond_destroy(&mReadCond);
     pthread_mutex_destroy(&mStateMutex);
@@ -150,10 +149,6 @@ int SCIONProtocol::shutdown()
     return 0;
 }
 
-void SCIONProtocol::removeDispatcher(int sock)
-{
-}
-
 uint32_t SCIONProtocol::getLocalIA()
 {
     if (!mPathManager)
@@ -166,8 +161,8 @@ uint32_t SCIONProtocol::getLocalIA()
 
 // SSP
 
-SSPProtocol::SSPProtocol()
-    : SCIONProtocol(),
+SSPProtocol::SSPProtocol(int sock)
+    : SCIONProtocol(sock),
     mInitialized(false),
     mInitAckCount(0),
     mFlowID(0),
@@ -239,7 +234,7 @@ int SSPProtocol::listen(int sock)
     e.isd_as = htonl(addr->isd_as);
     e.addr_type = ADDR_IPV4_TYPE;
     memcpy(e.addr, addr->host.addr, MAX_HOST_ADDR_LEN);
-    registerFlow(L4_SSP, &e, sock, 1);
+    mSrcPort = registerFlow(L4_SSP, &e, sock, 1);
     return 0;
 }
 
@@ -368,7 +363,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
     se.isd_as = htonl(localAddr->isd_as);
     se.addr_type = ADDR_IPV4_TYPE;
     memcpy(se.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
-    registerFlow(L4_SSP, &se, sock, 1);
+    mSrcPort = registerFlow(L4_SSP, &se, sock, 1);
     DEBUG("start protocol for flow %lu\n", mFlowID);
     if (packet && buf)
         handlePacket(packet, buf);
@@ -843,24 +838,10 @@ void SSPProtocol::notifyFinAck()
     pthread_mutex_unlock(&mReadMutex);
 }
 
-void SSPProtocol::removeDispatcher(int sock)
-{
-    SCIONAddr *localAddr = mConnectionManager->localAddress();
-
-    DispatcherEntry e;
-    memset(&e, 0, sizeof(e));
-    e.flow_id = mFlowID;
-    e.port = 0;
-    e.isd_as = htonl(localAddr->isd_as);
-    e.addr_type = ADDR_IPV4_TYPE;
-    memcpy(e.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
-    registerFlow(L4_SSP, &e, sock, 0);
-}
-
 // SUDP
 
-SUDPProtocol::SUDPProtocol()
-    : SCIONProtocol(),
+SUDPProtocol::SUDPProtocol(int sock)
+    : SCIONProtocol(sock),
     mTotalReceived(0)
 {
     mConnectionManager = new SUDPConnectionManager(mSocket);
@@ -903,7 +884,7 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
     sp.payload = malloc(len);
     sp.payloadLen = len;
     memcpy(sp.payload, buf, len);
-    return mConnectionManager->send(&packet);
+    return mConnectionManager->sendPacket(&packet);
 }
 
 int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
@@ -1015,12 +996,7 @@ void SUDPProtocol::registerDispatcher(uint16_t port, int sock, int reg)
     e.addr_type = ADDR_IPV4_TYPE;
     e.isd_as = htonl(addr->isd_as);
     memcpy(e.addr, addr->host.addr, MAX_HOST_ADDR_LEN);
-    registerFlow(L4_UDP, &e, sock, reg);
-}
-
-void SUDPProtocol::removeDispatcher(int sock)
-{
-    registerDispatcher(mSrcPort, sock, 0);
+    mSrcPort = registerFlow(L4_UDP, &e, sock, reg);
 }
 
 void SUDPProtocol::getStats(SCIONStats *stats)
