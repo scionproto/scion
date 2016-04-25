@@ -30,6 +30,8 @@ void SCIONDestroyStats(void *stats);
 int SCIONSetOption(int fd, SCIONOption *option);
 int SCIONGetOption(int fd, SCIONOption *option);
 
+uint32_t SCIONGetLocalIA(int fd);
+
 #ifdef __cplusplus
 }
 #endif

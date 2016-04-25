@@ -26,6 +26,7 @@ public:
     int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr);
     int setSocketOption(SCIONOption *option);
     int getSocketOption(SCIONOption *option);
+    uint32_t getLocalIA();
 
     // construct SCION packet from incoming data
     void handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr);

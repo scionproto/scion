@@ -154,6 +154,16 @@ void SCIONProtocol::removeDispatcher(int sock)
 {
 }
 
+uint32_t SCIONProtocol::getLocalIA()
+{
+    if (!mPathManager)
+        return 0;
+    SCIONAddr *addr = mPathManager->localAddress();
+    if (addr->isd_as == 0)
+        mPathManager->queryLocalAddress();
+    return addr->isd_as;
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol()
