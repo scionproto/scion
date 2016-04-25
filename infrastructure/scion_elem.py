@@ -328,9 +328,9 @@ class SCIONElement(object):
         reply.convert_to_scmp_error(self.addr, e.CLASS, e.TYPE, pkt)
         reply.update()
         logging.warning(
-                "Invalid path metadata in packet from "
-                "local source, sending SCMP error: %s\n%s\n%s\n%s",
-                e, pkt.cmn_hdr, pkt.addrs, pkt.path)
+            "Invalid path metadata in packet from "
+            "local source, sending SCMP error: %s\n%s\n%s\n%s",
+            e, pkt.cmn_hdr, pkt.addrs, pkt.path)
         return reply
 
     def get_first_hop(self, spkt):

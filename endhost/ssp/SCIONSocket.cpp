@@ -206,6 +206,13 @@ int SCIONSocket::getSocketOption(SCIONOption *option)
     return 0;
 }
 
+uint32_t SCIONSocket::getLocalIA()
+{
+    if (!mProtocol)
+        return 0;
+    return mProtocol->getLocalIA();
+}
+
 bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)
 {
     bool claimed = false;

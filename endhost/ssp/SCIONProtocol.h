@@ -46,6 +46,8 @@ public:
     virtual int shutdown();
     virtual void removeDispatcher(int sock);
 
+    uint32_t getLocalIA();
+
 protected:
     PathManager            *mPathManager;
 

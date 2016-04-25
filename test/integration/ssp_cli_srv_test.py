@@ -127,6 +127,9 @@ def client():
 
     client_sock = ScionClientSocket(L4Proto.SSP)
     client_sock.connect(saddr, SERVER_PORT)
+    ia = client_sock.get_local_ia()
+    logging.info("Client running at %s",
+                 ISD_AS(ia.to_bytes(4, byteorder='big')))
 
     isds = struct.pack("HH", 1, 3)
     client_sock.setopt(SCION_OPTION_ISD_WLIST, 0, isds)

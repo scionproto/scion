@@ -419,6 +419,14 @@ class ScionBaseSocket(object):
         else:
             return struct.pack("!I", opt.val)
 
+    def get_local_ia(self):
+        """
+        Get ISD_AS of local address
+        :returns: Local ISD_AS, 0 on failure
+        :rtype: int
+        """
+        return self.libsock.SCIONGetLocalIA(self.fd)
+
     def shutdown(self, how):
         """
         Closes connection.

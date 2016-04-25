@@ -272,4 +272,12 @@ int SCIONShutdown(int sock)
     return e->sock->shutdown();
 }
 
+uint32_t SCIONGetLocalIA(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return 0;
+    return e->sock->getLocalIA();
+}
+
 }
