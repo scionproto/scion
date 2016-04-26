@@ -26,6 +26,9 @@ uint16_t checksum(chk_input *in) {
         int j = 0;
         int len = in->len[i];
         uint8_t *ptr = in->ptr[i];
+        if (len == 0) {
+            continue;
+        }
         // Handle a carry byte from the previous chunk.
         if (carry) {
             _add_sum(&sum, *carry << 8 | ptr[0]);
