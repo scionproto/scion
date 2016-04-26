@@ -129,6 +129,8 @@ class KnowledgeBaseLookupService(object):
             resp = self._handle_set_ISD_whitelist(isds)
         elif cmd == 'GET_ISD_WHITELIST':
             resp = self._handle_get_ISD_whitelist()
+        elif cmd == 'GET_ISD_ENDPOINTS':
+            resp = self._handle_get_ISD_endpoints()
         else:
             logging.error('Unsupported command: %s', cmd)
             return
@@ -226,8 +228,20 @@ class KnowledgeBaseLookupService(object):
 
     def _handle_get_ISD_whitelist(self):
         """
-        Queries the kbase and return which ISDs are whitelisted.
+        Queries the kbase and returns which ISDs are whitelisted.
         :returns: A list (potentially empty) containing the whitelisted ISDs.
         :rtype: list
         """
         return self.kbase.get_ISD_whitelist()
+
+    def _handle_get_ISD_endpoints(self):
+        """
+        Gets the source and target ISD end-points and returns them as a
+        dictionary.
+        :returns: a dictionary containing source_ISD_AS and target_ISD_AS
+        :rtype: dict
+        """
+        result = {}
+        result["source_ISD_AS"] = list(self.kbase.source_ISD_AS)
+        result["target_ISD_AS"] = list(self.kbase.target_ISD_AS)
+        return result

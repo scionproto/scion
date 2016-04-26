@@ -46,6 +46,7 @@ def main():
     test_locations_lookup()
     test_set_ISD_whitelist()
     test_clear_ISD_whitelist()
+    test_ISD_endpoints_lookup()
 
 
 def test_list():
@@ -164,6 +165,22 @@ def get_ISD_whitelist():
            "command": "GET_ISD_WHITELIST"}
 
     return send_req_and_read_resp(sock, req)
+
+
+def test_ISD_endpoints_lookup():
+    """
+    Creates a get ISD end-points request, sends it to the
+    UDP server and reads the response.
+    """
+
+    logging.info('Starting the get ISD end-points test')
+    # Create a UDP socket
+    sock = UDPSocket(None, AddrType.IPV4)
+
+    req = {"version": "0.1",
+           "command": "GET_ISD_ENDPOINTS"}
+
+    send_req_and_read_resp(sock, req)
 
 
 def extract_from_json(req_raw):
