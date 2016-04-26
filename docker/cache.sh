@@ -9,7 +9,7 @@ BUILDDIR=docker/_build
 
 cmd_save() {
     echo "====> Docker image: saving"
-    time docker save scion:latest | gzip -1 > "$DOCKERCACHE"
+    time docker save scion:latest ubuntu:14.04 | gzip -1 > "$DOCKERCACHE"
     echo "====> Docker image: saved ($(get_size "$DOCKERCACHE"))"
 }
 
