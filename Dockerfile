@@ -11,14 +11,13 @@ RUN echo 'Yes, do as I say!' | bash -c 'DEBIAN_FRONTEND=noninteractive apt-get p
 COPY docker/pkgs_purge.txt $BASE/docker/
 RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get purge --auto-remove -y $(< docker/pkgs_purge.txt)'
 
-# Pre-install some of the largest indirect dependancies, to speed up rebuild when
+# Pre-install some of the largest indirect dependencies, to speed up rebuild when
 # deps.sh changes for any reason.
-RUN apt-get update
 COPY docker/pkgs_preinstall.txt $BASE/docker/
 RUN bash -c 'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y $(< docker/pkgs_preinstall.txt)'
 
 ################################################################################
-# Handle installing all dependancies up-front. That way code changes don't cause
+# Handle installing all dependencies up-front. That way code changes don't cause
 # the expensive part of the image build to be re-run.
 ################################################################################
 
@@ -38,8 +37,8 @@ RUN sudo apt-get update && APTARGS=-y ./deps.sh pkgs
 COPY requirements.txt $BASE/
 RUN sudo chown -R scion: $HOME
 RUN ./deps.sh zlog
-RUN ./deps.sh pip
 RUN ./deps.sh misc
+RUN ./deps.sh pip
 
 RUN sudo rm -rf /usr/share/man
 # Clean out the cached packages now they're no longer necessary
@@ -47,7 +46,7 @@ RUN sudo apt-get clean
 RUN sudo du -hsx /
 
 #################################################################################
-## All dependancies are now installed, carry on with the rest.
+## All dependencies are now installed, carry on with the rest.
 #################################################################################
 
 # Now copy over the current branch

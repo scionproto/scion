@@ -64,12 +64,12 @@ cmd_help() {
 	
 	Usage:
 	    $PROGRAM all
-	        Install all dependancies (recommended).
+	        Install all dependencies (recommended).
 	    $PROGRAM pkgs
-	        Install all system package dependancies (e.g. via apt-get).
+	        Install all system package dependencies (e.g. via apt-get).
 	        Uses sudo.
 	    $PROGRAM pip
-	        Install all pip package dependancies (using --user, so no root
+	        Install all pip package dependencies (using --user, so no root
 	        access required)
 	    $PROGRAM zlog
 	        Install libzlog

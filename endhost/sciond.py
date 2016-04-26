@@ -208,7 +208,7 @@ class SCIONDaemon(SCIONElement):
            p2_len(1B)|...
          or b"" when no path found. Only IPv4 supported currently.
 
-        FIXME(kormat): make IP-version independant
+        FIXME(kormat): make IP-version independent
         """
         dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
         paths = self.get_paths(dst_ia)
