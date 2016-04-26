@@ -10,7 +10,7 @@
 #include "SCIONProtocol.h"
 #include "Utils.h"
 
-PathManager::PathManager(int sock)
+PathManager::PathManager(int sock, const char *sciond)
     : mSendSocket(sock),
     mInvalid(0)
 {
@@ -18,9 +18,9 @@ PathManager::PathManager(int sock)
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strcpy(addr.sun_path, SCIOND_API_SOCKDIR);
+    strcpy(addr.sun_path, sciond);
     if (connect(mDaemonSocket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "failed to connect to sciond at %s: %s\n", SCIOND_API_SOCKDIR, strerror(errno));
+        fprintf(stderr, "failed to connect to sciond at %s: %s\n", sciond, strerror(errno));
         exit(1);
     }
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
@@ -66,13 +66,7 @@ SCIONAddr * PathManager::localAddress()
 void PathManager::queryLocalAddress()
 {
     DEBUG("%s\n", __func__);
-    struct sockaddr_in addr;
     uint8_t buf[32];
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SCIOND_API_SOCKDIR);
-    addr.sin_port = htons(SCIOND_API_PORT);
 
     buf[0] = 1;
     send_dp_header(mDaemonSocket, NULL, 1);
@@ -89,11 +83,6 @@ void PathManager::queryLocalAddress()
     // TODO: IPv6?
     mLocalAddr.host.addr_len = ADDR_IPV4_LEN;
     memcpy(mLocalAddr.host.addr, buf + ISD_AS_LEN, ADDR_IPV4_LEN);
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    memcpy(&addr.sin_addr, mLocalAddr.host.addr, mLocalAddr.host.addr_len);
-    bind(mSendSocket, (struct sockaddr *)&addr, sizeof(addr));
 }
 
 int PathManager::setLocalAddress(SCIONAddr addr)
@@ -167,16 +156,9 @@ int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidate
 
 void PathManager::getPaths()
 {
-    struct sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
     int buflen = (MAX_PATH_LEN + 15) * MAX_TOTAL_PATHS;
     int recvlen;
     uint8_t buf[buflen];
-
-    memset(&addr, 0, addrlen);
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SCIOND_API_SOCKDIR);
-    addr.sin_port = htons(SCIOND_API_PORT);
 
     memset(buf, 0, buflen);
 
@@ -326,13 +308,13 @@ int PathManager::setISDWhitelist(void *data, size_t len)
 
 // SSP
 
-SSPConnectionManager::SSPConnectionManager(int sock)
-    : PathManager(sock)
+SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond)
+    : PathManager(sock, sciond)
 {
 }
 
-SSPConnectionManager::SSPConnectionManager(int sock, SSPProtocol *protocol)
-    : PathManager(sock),
+SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProtocol *protocol)
+    : PathManager(sock, sciond),
     mInitSends(0),
     mRunning(true),
     mFinAcked(false),
@@ -1044,8 +1026,8 @@ void SSPConnectionManager::didSend(SCIONPacket *packet)
 
 // SUDP
 
-SUDPConnectionManager::SUDPConnectionManager(int sock)
-    : PathManager(sock)
+SUDPConnectionManager::SUDPConnectionManager(int sock, const char *sciond)
+    : PathManager(sock, sciond)
 {
     memset(&mLastProbeTime, 0, sizeof(struct timeval));
 }

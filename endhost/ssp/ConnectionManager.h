@@ -14,7 +14,7 @@ class PathState;
 
 class PathManager {
 public:
-    PathManager(int sock);
+    PathManager(int sock, const char *sciond);
     virtual ~PathManager();
 
     int getSocket();
@@ -54,8 +54,8 @@ protected:
 
 class SSPConnectionManager : public PathManager {
 public:
-    SSPConnectionManager(int sock);
-    SSPConnectionManager(int sock, SSPProtocol *protocol);
+    SSPConnectionManager(int sock, const char *sciond);
+    SSPConnectionManager(int sock, const char *sciond, SSPProtocol *protocol);
     virtual ~SSPConnectionManager();
 
     void setRemoteWindow(uint32_t window);
@@ -129,7 +129,7 @@ protected:
 
 class SUDPConnectionManager : public PathManager {
 public:
-    SUDPConnectionManager(int sock);
+    SUDPConnectionManager(int sock, const char *sciond);
     ~SUDPConnectionManager();
 
     int sendPacket(SCIONPacket *packet);

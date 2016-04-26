@@ -55,7 +55,7 @@ int setupSocket()
     return sock;
 }
 
-SCIONSocket::SCIONSocket(int protocol)
+SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     : mProtocolID(protocol),
     mRegistered(false),
     mState(SCION_RUNNING),
@@ -65,6 +65,8 @@ SCIONSocket::SCIONSocket(int protocol)
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
     signal(SIGINT, signalHandler);
+
+    strcpy(mSCIONDAddr, sciond);
 
     // init pthread variables
     pthread_mutex_init(&mAcceptMutex, NULL);
@@ -78,11 +80,11 @@ SCIONSocket::SCIONSocket(int protocol)
 
     switch (protocol) {
         case L4_SSP: {
-            mProtocol = new SSPProtocol(mReliableSocket);
+            mProtocol = new SSPProtocol(mReliableSocket, sciond);
             break;
         }
         case L4_UDP: {
-            mProtocol = new SUDPProtocol(mReliableSocket);
+            mProtocol = new SUDPProtocol(mReliableSocket, sciond);
             break;
         }
         default:
@@ -305,7 +307,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
         if (!claimed) {
             // accept: create new socket to handle connection
             DEBUG("create new socket to handle incoming flow\n");
-            SCIONSocket *s = new SCIONSocket(mProtocolID);
+            SCIONSocket *s = new SCIONSocket(mProtocolID, mSCIONDAddr);
             s->mParent = this;
             s->mProtocol->start(packet, buf + sch.header_len, s->mReliableSocket);
             s->mRegistered = true;

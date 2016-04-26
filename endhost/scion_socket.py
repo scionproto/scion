@@ -22,8 +22,18 @@ import errno
 import logging
 import os
 import struct
-from ctypes import (addressof, byref, CDLL, c_int, c_short, c_size_t,
-                    c_ubyte, c_uint, c_void_p, Structure)
+from ctypes import (
+    addressof,
+    byref,
+    CDLL,
+    c_int,
+    c_short,
+    c_size_t,
+    c_ubyte,
+    c_uint,
+    c_void_p,
+    Structure,
+)
 
 # SCION
 from lib.packet.scion_addr import ISD_AS
@@ -209,8 +219,7 @@ class ScionStats(object):
 
 
 SHARED_LIB_LOCATION = os.path.join("endhost", "ssp")
-SHARED_LIB_SERVER = "libserver.so"
-SHARED_LIB_CLIENT = "libclient.so"
+SHARED_LIB_FILE = "libsocket.so"
 
 # Slightly more than enough for 20 paths with 20 IFs each
 MAX_STATS_BUFFER = 3072
@@ -255,7 +264,7 @@ class ScionBaseSocket(object):
     # map option to minimum data length for that option
     LONG_OPTIONS = {SCION_OPTION_ISD_WLIST: 0}
 
-    def __init__(self, proto, libsock, fd=None):
+    def __init__(self, proto, sciond_addr, libsock, fd=None):
         """
         This class can be used if the fd and libsock are known in
         advance. See accept() in ScionServerSocket for an example
@@ -269,10 +278,11 @@ class ScionBaseSocket(object):
         """
         self.proto = proto
         self.libsock = libsock
+        self.sciond_addr = sciond_addr
         if fd:
             self.fd = fd
         else:
-            self.fd = self.libsock.newSCIONSocket(self.proto)
+            self.fd = self.libsock.newSCIONSocket(self.proto, sciond_addr)
 
     def bind(self, port, saddr=None):
         """
@@ -460,7 +470,7 @@ class ScionServerSocket(ScionBaseSocket):
     Server side wrapper of the SCION Multi-Path Socket.
     """
 
-    def __init__(self, proto):
+    def __init__(self, proto, sciond_addr):
         """
         :param proto: The type of SCION socket protocol to be used
         (see lib/defines).
@@ -468,8 +478,9 @@ class ScionServerSocket(ScionBaseSocket):
         :param server_port: The port number that the server will listen on.
         :type server_port: int
         """
-        super().__init__(proto, CDLL(os.path.join(SHARED_LIB_LOCATION,
-                                                  SHARED_LIB_SERVER)))
+        super().__init__(proto, sciond_addr,
+                         CDLL(os.path.join(SHARED_LIB_LOCATION,
+                                           SHARED_LIB_FILE)))
         logging.info("ScionServerSocket fd = %d" % self.fd)
 
     def listen(self):
@@ -493,14 +504,15 @@ class ScionServerSocket(ScionBaseSocket):
         """
         newfd = self.libsock.SCIONAccept(self.fd)
         logging.info("Accepted socket %d" % newfd)
-        return ScionBaseSocket(self.proto, self.libsock, newfd), None
+        return ScionBaseSocket(self.proto, self.sciond_addr,
+                               self.libsock, newfd), None
 
 
 class ScionClientSocket(ScionBaseSocket):
     """
     Client side wrapper of the SCION Multi-Path Socket.
     """
-    def __init__(self, proto):
+    def __init__(self, proto, sciond_addr):
         """
         :param proto: The type of SCION socket protocol to be used
         (see lib/defines).
@@ -509,8 +521,9 @@ class ScionClientSocket(ScionBaseSocket):
         :param target_address: The address of the server to connect to.
         :type target_address: (string, int) tuple
         """
-        super().__init__(proto, CDLL(os.path.join(SHARED_LIB_LOCATION,
-                                                  SHARED_LIB_CLIENT)))
+        super().__init__(proto, sciond_addr,
+                         CDLL(os.path.join(SHARED_LIB_LOCATION,
+                                           SHARED_LIB_FILE)))
         logging.info("ScionClientSocket fd = %d" % self.fd)
 
     def connect(self, saddr, port):

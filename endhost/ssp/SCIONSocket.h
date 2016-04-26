@@ -13,7 +13,7 @@
 
 class SCIONSocket {
 public:
-    SCIONSocket(int protocol);
+    SCIONSocket(int protocol, const char *sciond);
     ~SCIONSocket();
 
     // traditional socket functionality
@@ -64,6 +64,7 @@ private:
     SCIONState                 mState;
     int                        mLastAccept;
     bool                       mIsListener;
+    char                       mSCIONDAddr[32];
 
     SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;

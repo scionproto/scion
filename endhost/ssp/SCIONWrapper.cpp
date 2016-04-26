@@ -35,9 +35,9 @@ SocketEntry * findSocket(int sock)
     return e;
 }
 
-int newSCIONSocket(int protocol)
+int newSCIONSocket(int protocol, const char *sciond)
 {
-    SCIONSocket *s = new SCIONSocket(protocol);
+    SCIONSocket *s = new SCIONSocket(protocol, sciond);
     SocketEntry *e;
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
     e->fd = s->getReliableSocket();

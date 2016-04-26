@@ -9,7 +9,7 @@ extern "C" {
 
 typedef struct SCIONSocket SCIONSocket;
 
-int newSCIONSocket(int protocol);
+int newSCIONSocket(int protocol, const char *sciond);
 void deleteSCIONSocket(int sock);
 int SCIONAccept(int sock);
 int SCIONBind(int sock, SCIONAddr addr);
