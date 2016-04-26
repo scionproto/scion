@@ -445,8 +445,8 @@ void deliver_udp(uint8_t *buf, int len, sockaddr_in *from, sockaddr_in *dst)
 
     uint16_t checksum = scion_udp_checksum(buf);
     if (checksum != udp->checksum) {
-        zlog_error(zc, "Bad UDP checksum. Expected:%04x Got:%#04x",
-                udp->checksum, checksum);
+        zlog_error(zc, "Bad UDP checksum in packet to %s. Expected:%04x Got:%04x",
+                inet_ntoa(dst->sin_addr), ntohs(udp->checksum), ntohs(checksum));
         return;
     }
 
