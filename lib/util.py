@@ -306,9 +306,9 @@ def reg_dispatcher(sock, addr, port, svc=None, reg=True, scmp=True):
         logging.critical("Failed to register with dispatcher")
         sys.exit(1)
     if reg:
-        logging.info("registered with dispatcher")
+        logging.debug("registered with dispatcher")
     else:
-        logging.info("unregistered from dispatcher")
+        logging.debug("unregistered from dispatcher")
     sock.settimeout(old_timeout)
 
 

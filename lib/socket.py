@@ -83,7 +83,7 @@ class UDPSocket(object):
             kill_self()
         self.port = self.sock.getsockname()[1]
         if desc:
-            logging.info("%s bound to %s:%d", desc, addr, self.port)
+            logging.debug("%s bound to %s:%d", desc, addr, self.port)
 
     def send(self, data, dst, sock=None):
         """

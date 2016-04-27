@@ -38,13 +38,13 @@ class TrustStore(object):
         for path in glob.glob("%s/*.trc" % self._dir):
             trc_raw = read_file(path)
             self.add_trc(TRC(trc_raw), write=False)
-            logging.info("Loaded: %s" % path)
+            logging.debug("Loaded: %s" % path)
 
     def _init_certs(self):  # pragma: no cover
         for path in glob.glob("%s/*.crt" % self._dir):
             cert_raw = read_file(path)
             self.add_cert(CertificateChain(cert_raw), write=False)
-            logging.info("Loaded: %s" % path)
+            logging.debug("Loaded: %s" % path)
 
     def get_trc(self, isd, version=None):
         if not self._trcs[isd]:

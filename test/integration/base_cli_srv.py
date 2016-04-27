@@ -103,19 +103,19 @@ class TestClientBase(object):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
         msg = b'\x00' + self.dst.isd_as.pack()
         for _ in range(5):
-            logging.info("Sending path request to local API.")
+            logging.debug("Sending path request to local API.")
             sock.send(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
             data = Raw(sock.recv()[0], "Path response")
             if data:
                 return data
-            logging.warning("Empty response from local api.")
+            logging.debug("Empty response from local api.")
         else:
             logging.critical("Unable to get path from local api.")
             kill_self()
         sock.close()
 
     def _get_path_direct(self):
-        logging.info("Sending PATH request for %s", self.dst)
+        logging.debug("Sending PATH request for %s", self.dst)
         # Get paths through local API.
         paths = []
         for _ in range(5):
@@ -138,9 +138,9 @@ class TestClientBase(object):
         spkt = self._build_pkt()
         next_hop, port = self._get_first_hop(spkt)
         assert next_hop is not None
-        logging.info("Sending packet via (%s:%s):\n%s", next_hop, port, spkt)
+        logging.debug("Sending packet via (%s:%s):\n%s", next_hop, port, spkt)
         if self.iflist:
-            logging.info("Interfaces: %s", ", ".join(
+            logging.debug("Interfaces: %s", ", ".join(
                 ["%s:%s" % ifentry for ifentry in self.iflist]))
         self._send_pkt(spkt, next_hop, port)
 
@@ -316,7 +316,7 @@ def setup_main():
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
     args = parser.parse_args()
-    init_logging("logs/end2end", console_level=logging.DEBUG)
+    init_logging("logs/NAME", console_level=logging.INFO)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
