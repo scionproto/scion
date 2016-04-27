@@ -16,9 +16,6 @@
  */
 uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type)
 {
-    if (!buf)
-        return NULL;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t next_header = sch->next_header;
     uint8_t curr_header = next_header;
@@ -36,4 +33,25 @@ uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type)
         ptr += real_len;
     }
     return NULL;
+}
+
+/*
+ * Get total length of all extension headers
+ * buf: Pointer to start of SCION packet
+ * return value: Total length of all extension headers
+ */
+int get_total_ext_len(uint8_t *buf)
+{
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    uint8_t *ptr = buf + sch->header_len;
+    int current_header = sch->next_header;
+    int size = 0;
+    while (!is_known_proto(current_header)) {
+        current_header = *ptr;
+        int header_len = *(ptr + 1);
+        header_len = (header_len + 1) * SCION_EXT_LINE;
+        ptr += header_len;
+        size += header_len;
+    }
+    return size;
 }

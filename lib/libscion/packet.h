@@ -29,7 +29,10 @@ typedef struct {
 
 void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr);
 void build_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst);
+int padded_addr_len(uint8_t *buf);
 void set_path(uint8_t *buf, uint8_t *path, int len);
+uint8_t * get_path(uint8_t *buf);
+int get_path_len(uint8_t *buf);
 void init_of_idx(uint8_t *buf);
 void inc_hof_idx(uint8_t *buf);
 int is_known_proto(uint8_t type);

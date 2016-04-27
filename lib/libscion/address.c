@@ -23,13 +23,10 @@ uint32_t get_src_isd_as(uint8_t *buf)
 /* 
  * Get src host addr
  * buf: Pointer to start of SCION packet
- * return value: pointer to start of src host addr, NULL on error
+ * return value: pointer to start of src host addr
  * */
 uint8_t * get_src_addr(uint8_t *buf)
 {
-    if (!buf)
-        return NULL;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return (uint8_t *)(sch + 1) + ISD_AS_LEN;
 }
@@ -37,13 +34,10 @@ uint8_t * get_src_addr(uint8_t *buf)
 /* 
  * Get length of src host addr
  * buf: Pointer to start of SCION packet
- * return value: Length of src host addr, 0 on error
+ * return value: Length of src host addr
  * */
 uint8_t get_src_len(uint8_t *buf)
 {
-    if (!buf)
-        return 0;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return ADDR_LENS[SRC_TYPE(sch)];
 }
@@ -55,9 +49,6 @@ uint8_t get_src_len(uint8_t *buf)
  */
 uint32_t get_dst_isd_as(uint8_t *buf)
 {
-    if (!buf)
-        return 0;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
 
     uint8_t src_len;
@@ -79,9 +70,6 @@ uint32_t get_dst_isd_as(uint8_t *buf)
  * */
 uint8_t * get_dst_addr(uint8_t *buf)
 {
-    if (!buf)
-        return NULL;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t src_len;
     uint8_t src_type = SRC_TYPE(sch);
@@ -100,13 +88,10 @@ uint8_t * get_dst_addr(uint8_t *buf)
 /* 
  * Get length of dst host addr
  * buf: Pointer to start of SCION packet
- * return value: Length of dst host addr, 0 on error
+ * return value: Length of dst host addr
  * */
 uint8_t get_dst_len(uint8_t *buf)
 {
-    if (!buf)
-        return 0;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return ADDR_LENS[DST_TYPE(sch)];
 }
@@ -162,8 +147,6 @@ void format_host(int addr_type, uint8_t *addr, char *buf, int size) {
  * buf: Pointer to start of packet.
  */
 void print_addresses(uint8_t *buf) {
-    if (!buf)
-        return;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint32_t src_isd_as = get_src_isd_as(buf);
     uint32_t dst_isd_as = get_dst_isd_as(buf);

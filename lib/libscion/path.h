@@ -43,7 +43,7 @@ typedef struct {
 #define INGRESS_IF(HOF) (ntohl((HOF)->ingress_egress_if) >> (12 + 8))
 #define EGRESS_IF(HOF) ((ntohl((HOF)->ingress_egress_if) >> 8) & 0x000fff)
 
-int reverse_path(uint8_t *buf, uint8_t *original, uint8_t *reverse, int len);
+int reverse_path(uint8_t *buf, uint8_t *reverse);
 uint8_t * get_hof_ver(uint8_t *buf, int ingress);
 uint8_t * get_hof_ver_normal(uint8_t *buf);
 
