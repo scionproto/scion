@@ -4,16 +4,13 @@ dnslib
 dnspython3
 flake8
 kazoo
-networkx
 nose
 nose-cov
 nose-descriptionfixer
-parse
 pycrypto
 pydblite
 pygments
 pynacl
-python-pytun
 pyyaml
 scapy-python3
 sphinxcontrib-napoleon

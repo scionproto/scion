@@ -21,26 +21,13 @@ cmd_build() {
     echo "Copying current working tree for Docker image"
     echo "============================================="
     mkdir -p "${build_dir:?}"
-    copy_tree
+    # Just in case it's sitting there from a previous run
+    rm -rf "${build_dir}/scion.git/"
+    git ls-files -z | rsync -a0 --files-from=- . "${build_dir}/scion.git/"
     echo
     echo "Building Docker image"
     echo "====================="
     docker_build "build.log"
-}
-
-copy_tree() {
-    # Just in case it's sitting there from a previous failed run
-    rm -rf docker/_build/.scion.tmp
-    # Ignore timestamps; only update files if their checksums have changed.
-    # This prevents Docker from doing unnecessary cache invalidations. As
-    # rsync --from-files cannot delete unknown files in the destionation, first
-    # rsync to a clean dir using --from-files, then rsync again from that dir
-    # to the actual Docker context dir using --delete
-    git ls-files -z | rsync -a0 --files-from=- . docker/_build/.scion.tmp/
-    rsync -a --delete docker/_build/.scion.tmp/ "${build_dir}/scion.git/"
-    # Set all timestamps to the epoch to force docker to only use checksums for
-    # checking if a file has changed.
-    find "${build_dir}/scion.git/" -print0 | xargs -0 touch --date="@0"
 }
 
 docker_build() {

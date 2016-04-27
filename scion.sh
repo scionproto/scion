@@ -5,7 +5,9 @@ export PYTHONPATH=.
 # BEGIN subcommand functions
 
 cmd_topology() {
-    echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
+    if type -p supervisorctl &>/dev/null; then
+        echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
+    fi
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
     if [ "$1" = "zkclean" ]; then
@@ -23,10 +25,6 @@ cmd_run() {
         cmd_build || exit 1
     fi
     echo "Running the network..."
-    supervisor/supervisor.sh reload
-    # Supervisor reload causes the domain socket to briefly disappear, which
-    # breaks the detection logic in supervisor.sh
-    sleep 1
     bash gen/zk_datalog_dirs.sh || exit 1
     supervisor/supervisor.sh quickstart dispatcher:dispatcher
     supervisor/supervisor.sh quickstart all
