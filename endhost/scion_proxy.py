@@ -501,6 +501,9 @@ def main():
     parser.add_argument("-l", "--loc",
                         help='Locations file SCION knowledge-base should use',
                         default='topology/Wide.locations')
+    parser.add_argument("--source_isd_as",
+                        help='ISD-AS of the source SCION Proxy',
+                        default='1-4')
     parser.add_argument("--target_isd_as",
                         help='ISD-AS of the target SCION Proxy',
                         default='3-3')
@@ -523,7 +526,9 @@ def main():
         if args.kbase:
             if args.forward:
                 logging.info("SCION-socket knowledge-base is enabled.")
-                kbase = SocketKnowledgeBase(args.topo, args.loc)
+                kbase = SocketKnowledgeBase(args.topo, args.loc,
+                                            ISD_AS(args.source_isd_as),
+                                            ISD_AS(args.target_isd_as))
             else:
                 logging.info("SCION-socket knowledge-base is supported "
                              "only in forwarding mode.")

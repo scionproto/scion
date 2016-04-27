@@ -38,13 +38,15 @@ class SocketKnowledgeBase(object):
     recording the stats in a dictionary.
     """
 
-    def __init__(self, topo_file, loc_file):
+    def __init__(self, topo_file, loc_file, src_ia, target_ia):
         """
         Creates an instance of the knowledge base class.
         """
         self.active_sockets = set()
         self.kbase = {}  # HTTP Req (method, path) to stats (ScionStats)
         self.isd_whitelist = []  # ISDs to whitelist.
+        self.source_ISD_AS = src_ia
+        self.target_ISD_AS = target_ia
         self.lock = threading.Lock()
         self.gatherer = threading.Thread(
             target=thread_safety_net,
