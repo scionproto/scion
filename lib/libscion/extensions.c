@@ -14,11 +14,8 @@
  * ext_type: Type of extension to find
  * return value: Pointer to extension, NULL if not found or error
  */
-uint8_t * find_extension(void *buf, uint8_t ext_class, uint8_t ext_type)
+uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type)
 {
-    if (!buf)
-        return NULL;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t next_header = sch->next_header;
     uint8_t curr_header = next_header;
@@ -43,11 +40,8 @@ uint8_t * find_extension(void *buf, uint8_t ext_class, uint8_t ext_type)
  * buf: Pointer to start of SCION packet
  * return value: Total length of all extension headers
  */
-int get_total_ext_len(void *buf)
+int get_total_ext_len(uint8_t *buf)
 {
-    if (!buf)
-        return -1;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *ptr = buf + sch->header_len;
     int current_header = sch->next_header;

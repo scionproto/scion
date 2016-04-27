@@ -13,11 +13,11 @@ typedef struct {
 
 #pragma pack(pop)
 
-void build_scion_udp(void *buf, uint16_t payload_len);
-uint8_t get_payload_class(void *buf);
-uint8_t get_payload_type(void *buf);
-uint16_t scion_udp_checksum(void *buf);
-void update_scion_udp_checksum(void *buf);
+void build_scion_udp(uint8_t *buf, uint16_t payload_len);
+uint8_t get_payload_class(uint8_t *buf);
+uint8_t get_payload_type(uint8_t *buf);
+uint16_t scion_udp_checksum(uint8_t *buf);
+void update_scion_udp_checksum(uint8_t *buf);
 void reverse_udp_header(uint8_t *l4ptr);
 void print_udp_header(uint8_t *buf);
 

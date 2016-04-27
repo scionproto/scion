@@ -16,11 +16,8 @@ uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
  * dst_type: Address type of dst host addr
  * next_hdr: L4 protocol number or extension type
  */
-void build_cmn_hdr(void *buf, int src_type, int dst_type, int next_hdr)
+void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
 {
-    if (!buf)
-        return;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint16_t vsd = 0;
     vsd |= src_type << 6;
@@ -42,11 +39,8 @@ void build_cmn_hdr(void *buf, int src_type, int dst_type, int next_hdr)
  * src: Src SCION addr
  * dst: Dst SCION addr
  */
-void build_addr_hdr(void *buf, SCIONAddr *src, SCIONAddr *dst)
+void build_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst)
 {
-    if (!buf)
-        return;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     int src_len = get_src_len(buf);
     int dst_len = get_dst_len(buf);
@@ -63,12 +57,10 @@ void build_addr_hdr(void *buf, SCIONAddr *src, SCIONAddr *dst)
 /*
  * Get total length of addresses with padding
  * buf: Pointer to start of SCION packet
- * return value: Total padded addr length, -1 on error
+ * return value: Total padded addr length
  */
-int padded_addr_len(void *buf)
+int padded_addr_len(uint8_t *buf)
 {
-    if (!buf)
-        return -1;
     int addr_len = get_src_len(buf) + get_dst_len(buf) + 2 * ISD_AS_LEN;
     return (addr_len + SCION_ADDR_PAD - 1) & ~(SCION_ADDR_PAD - 1);
 }
@@ -78,9 +70,9 @@ int padded_addr_len(void *buf)
  * buf: Pointer to start of SCION packet
  * path: Pointer to start of path data to be copied
  */
-void set_path(void *buf, uint8_t *path, int len)
+void set_path(uint8_t *buf, uint8_t *path, int len)
 {
-    if (!buf || len < 0)
+    if (len < 0)
         return;
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
@@ -93,12 +85,10 @@ void set_path(void *buf, uint8_t *path, int len)
 /*
  * Get SCION path
  * buf: Pointer to start of SCION packet
- * return value: Pointer to start of SCION path in packet, NULL on error
+ * return value: Pointer to start of SCION path in packet
  */
-uint8_t * get_path(void *buf)
+uint8_t * get_path(uint8_t *buf)
 {
-    if (!buf)
-        return NULL;
     return buf + sizeof(SCIONCommonHeader) + padded_addr_len(buf);
 }
 
@@ -107,38 +97,18 @@ uint8_t * get_path(void *buf)
  * buf: Pointer to start of SCION packet
  * return value: Length of SCION path in packet
  */
-int get_path_len(void *buf)
+int get_path_len(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return ntohs(sch->header_len) - (get_path(buf) - (uint8_t *)buf);
-}
-
-/*
- * Get total length of headers including extensions
- * buf: Pointer to start of SCION packet
- * return value: Length of combined SCION headers, -1 on error
- */
-int get_scion_layer_len(void *buf)
-{
-    if (!buf)
-        return -1;
-
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    int ext_len = get_total_ext_len(buf);
-    if (ext_len < 0)
-        return -1;
-    return sch->header_len + ext_len;
+    return ntohs(sch->header_len) - sizeof(SCIONCommonHeader) - padded_addr_len(buf);
 }
 
 /*
  * Initialize OF indices (pointers)
  * buf: Pointer to start of SCION packet
  */
-void init_of_idx(void *buf)
+void init_of_idx(uint8_t *buf)
 {
-    if (!buf)
-        return;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
 
     uint8_t *iof = buf + sch->current_iof;
@@ -153,11 +123,8 @@ void init_of_idx(void *buf)
  * Increment HOF pointer to next valid HOF
  * buf: Pointer to start of SCION packet
  */
-void inc_hof_idx(void *buf)
+void inc_hof_idx(uint8_t *buf)
 {
-    if (!buf)
-        return;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *iof = buf + sch->current_iof;
     uint8_t *hof = buf + sch->current_hof;
@@ -198,13 +165,10 @@ int is_known_proto(uint8_t type)
  * Get L4 protocol and start of L4 header
  * l4ptr: Pointer to pointer to start of SCION packet. When the function
  *        returns it will point to the start of the L4 header.
- * return value: L4 protocol of packet, 0 on error
+ * return value: L4 protocol of packet
  */
 uint8_t get_l4_proto(uint8_t **l4ptr)
 {
-    if (!l4ptr || !*l4ptr)
-        return 0;
-
     uint8_t *ptr = *l4ptr;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)ptr;
     uint8_t currentHeader = sch->next_header;
@@ -223,11 +187,8 @@ uint8_t get_l4_proto(uint8_t **l4ptr)
  * Reverse the direction of all headers
  * buf: Pointer to start of SCION packet
  */
-void reverse_packet(void *buf)
+void reverse_packet(uint8_t *buf)
 {
-    if (!buf)
-        return;
-
     uint8_t *srcptr = buf + sizeof(SCIONCommonHeader);
     int srclen = get_src_len(buf) + ISD_AS_LEN;
     uint8_t *dstptr = srcptr + srclen;
@@ -255,10 +216,11 @@ void reverse_packet(void *buf)
     }
 }
 
-void print_header(void *buf) {
-    if (!buf)
-        return;
-
+/*
+ * Print fields in common header
+ * buf: Pointer to start of SCION packet
+ */
+void print_header(uint8_t *buf) {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     fprintf(stderr, "Version: %d Src type: %d Dest type: %d Total len: %dB\n",
            PROTO_VER(sch), SRC_TYPE(sch), DST_TYPE(sch), ntohs(sch->total_len));

@@ -13,7 +13,7 @@
  * reverse: Buffer to store reversed path
  * return value: 0 on success, -1 on failure
  */
-int reverse_path(void *buf, uint8_t *reverse)
+int reverse_path(uint8_t *buf, uint8_t *reverse)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *original = get_path(buf);
@@ -83,11 +83,8 @@ int reverse_path(void *buf, uint8_t *reverse)
  * ingress: True if packet is from neighbor AS
  * return value: Pointer to HOF used to verify current HOF, NULL on error
  */
-uint8_t * get_hof_ver(void *buf, int ingress)
+uint8_t * get_hof_ver(uint8_t *buf, int ingress)
 {
-    if (!buf)
-        return NULL;
-
     uint8_t *iof = get_current_iof(buf);
     uint8_t *hof = get_current_hof(buf);
 
@@ -120,11 +117,8 @@ uint8_t * get_hof_ver(void *buf, int ingress)
  * buf: Pointer to start of SCION packet
  * return value: Pointer to HOF used to verify current HOF, NULL on error
  */
-uint8_t * get_hof_ver_normal(void *buf)
+uint8_t * get_hof_ver_normal(uint8_t *buf)
 {
-    if (!buf)
-        return NULL;
-
     uint8_t *iof = get_current_iof(buf);
     uint8_t *hof = get_current_hof(buf);
 

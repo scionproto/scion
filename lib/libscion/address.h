@@ -52,12 +52,12 @@ typedef struct {
 #define SVC_CERT_MGMT 2
 #define SVC_SIBRA 3
 
-uint32_t get_src_isd_as(void *buf);
-uint8_t * get_src_addr(void *buf);
-uint8_t get_src_len(void *buf);
-uint32_t get_dst_isd_as(void *buf);
-uint8_t * get_dst_addr(void *buf);
-uint8_t get_dst_len(void *buf);
-void print_addresses(void *buf);
+uint32_t get_src_isd_as(uint8_t *buf);
+uint8_t * get_src_addr(uint8_t *buf);
+uint8_t get_src_len(uint8_t *buf);
+uint32_t get_dst_isd_as(uint8_t *buf);
+uint8_t * get_dst_addr(uint8_t *buf);
+uint8_t get_dst_len(uint8_t *buf);
+void print_addresses(uint8_t *buf);
 
 #endif

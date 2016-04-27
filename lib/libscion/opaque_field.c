@@ -10,13 +10,10 @@
 /*
  * Get current IOF
  * buf: Pointer to start of SCION packet
- * return value: Pointer to current IOF, NULL on error
+ * return value: Pointer to current IOF
  */
-uint8_t * get_current_iof(void *buf)
+uint8_t * get_current_iof(uint8_t *buf)
 {
-    if (!buf)
-        return NULL;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return buf + sch->current_iof;
 }
@@ -24,13 +21,10 @@ uint8_t * get_current_iof(void *buf)
 /*
  * Get current HOF
  * buf: Pointer to start of SCION packet
- * return value: Pointer to current HOF, NULL on error
+ * return value: Pointer to current HOF
  */
-uint8_t * get_current_hof(void *buf)
+uint8_t * get_current_hof(uint8_t *buf)
 {
-    if (!buf)
-        return NULL;
-
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return buf + sch->current_hof;
 }
@@ -38,13 +32,10 @@ uint8_t * get_current_hof(void *buf)
 /*
  * Get forwarding interface
  * buf: Pointer to start of SCION packet
- * return value: IFID of next hop interface, 0 on error
+ * return value: IFID of next hop interface
  */
-uint16_t get_fwd_if(void *buf)
+uint16_t get_fwd_if(uint8_t *buf)
 {
-    if (!buf)
-        return 0;
-
     uint8_t *iof = get_current_iof(buf);
     uint8_t *hof = get_current_hof(buf);
     if (*iof & IOF_FLAG_UPDOWN)
@@ -55,13 +46,10 @@ uint16_t get_fwd_if(void *buf)
 /*
  * Get ingress/egress IFIDs from HOF
  * hof: Pointer to HOF
- * return value: Combined ingress/egress IFIDs in hof, 0 on error
+ * return value: Combined ingress/egress IFIDs in hof
  */
 uint32_t get_ingress_egress(uint8_t *hof)
 {
-    if (!hof)
-        return 0;
-
     uint8_t in_eg_bytes[4];
     int i;
     for (i = 0; i < 3; i++)
@@ -73,23 +61,19 @@ uint32_t get_ingress_egress(uint8_t *hof)
 /*
  * Get ingress IFID from HOF
  * hof: Pointer to HOF
- * return value: Ingress IFID in hof, 0 on error
+ * return value: Ingress IFID in hof
  */
 uint16_t get_ingress_if(uint8_t *hof)
 {
-    if (!hof)
-        return 0;
     return get_ingress_egress(hof) >> 12;
 }
 
 /*
  * Get egress IFID from HOF
  * hof: Pointer to HOF
- * return value: Egress IFID in hof, 0 on error
+ * return value: Egress IFID in hof
  */
 uint16_t get_egress_if(uint8_t *hof)
 {
-    if (!hof)
-        return 0;
     return get_ingress_egress(hof) & 0xfff;
 }
