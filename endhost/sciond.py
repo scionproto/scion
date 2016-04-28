@@ -120,7 +120,7 @@ class SCIONDaemon(SCIONElement):
         """
         Stop SCIONDaemon thread
         """
-        logging.info("Stopping SCIONDaemon")
+        logging.debug("Stopping SCIONDaemon")
         super().stop()
         self.daemon_thread.join()
 
@@ -188,7 +188,7 @@ class SCIONDaemon(SCIONElement):
         Handle local API's requests.
         """
         if packet[0] == 0:  # path request
-            logging.info('API: path request from %s.', sender)
+            logging.debug('API: path request from %s.', sender)
             threading.Thread(
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, packet, sender),
@@ -240,7 +240,7 @@ class SCIONDaemon(SCIONElement):
         :type rev_info: :class:`lib.packet.path_mgmt.RevocationInfo`
         """
         rev_info = pkt.get_payload()
-        logging.info("Received revocation:\n%s", str(rev_info))
+        logging.debug("Received revocation:\n%s", str(rev_info))
         # Verify revocation.
 #         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
 #             logging.info("Revocation verification failed.")
@@ -252,7 +252,7 @@ class SCIONDaemon(SCIONElement):
                                                rev_info.rev_token)
         deletions += self._remove_revoked_pcbs(self.down_segments,
                                                rev_info.rev_token)
-        logging.info("Removed %d segments due to revocation.", deletions)
+        logging.debug("Removed %d segments due to revocation.", deletions)
 
     def _remove_revoked_pcbs(self, db, rev_token):
         """

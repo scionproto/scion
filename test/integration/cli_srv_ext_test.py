@@ -71,8 +71,8 @@ class ExtClient(TestClientBase):
 
     def _handle_response(self, spkt):
         self.done = True
-        logging.info('CLI: Received response:\n%s', spkt)
-        logging.info("CLI: leaving.")
+        logging.debug('CLI: Received response:\n%s', spkt)
+        logging.debug("CLI: leaving.")
 
 
 class ExtServer(TestServerBase):
@@ -83,7 +83,7 @@ class ExtServer(TestServerBase):
         return payload == PayloadRaw(b"request to server")
 
     def _handle_request(self, spkt):
-        logging.info('SRV: request received, sending response.')
+        logging.debug('SRV: request received, sending response.')
         # Reverse the packet
         spkt.reverse()
         # Setting payload
@@ -93,7 +93,7 @@ class ExtServer(TestServerBase):
         assert next_hop is not None
         # Send packet to first hop (it is sent through SCIONDaemon)
         self.sd.send(spkt, next_hop, port)
-        logging.info("SRV: Leaving server.")
+        logging.debug("SRV: Leaving server.")
 
 
 class TestClientServerExtension(TestClientServerBase):

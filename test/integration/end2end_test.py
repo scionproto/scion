@@ -61,7 +61,8 @@ class E2EClient(TestClientBase):
         payload = spkt.get_payload()
         pong = self._gen_max_pld(b"pong " + self.data, len(payload))
         if payload == pong:
-            logging.info('%s:%d: pong received.', self.src.host, self.sock.port)
+            logging.debug('%s:%d: pong received.', self.src.host,
+                          self.sock.port)
             self.done = True
         else:
             logging.error(
@@ -80,14 +81,14 @@ class E2EServer(TestServerBase):
 
     def _handle_request(self, spkt):
         # Reverse the packet and send "pong".
-        logging.info('%s:%d: ping received, sending pong.',
-                     self.dst.host, self.sock.port)
+        logging.debug('%s:%d: ping received, sending pong.',
+                      self.dst.host, self.sock.port)
         self.ping_received = True
         spkt.reverse()
         spkt.set_payload(self._create_payload(spkt))
         next_hop, port = self.sd.get_first_hop(spkt)
         assert next_hop is not None
-        logging.info("Replying with (via %s:%s):\n%s", next_hop, port, spkt)
+        logging.debug("Replying with (via %s:%s):\n%s", next_hop, port, spkt)
         self.sd.send(spkt, next_hop, port)
 
     def _create_payload(self, spkt):
