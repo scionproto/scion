@@ -96,7 +96,7 @@ class TestSCMPEcho(TestClientServerBase):
 
 
 def main():
-    args, srcs, dsts = setup_main()
+    args, srcs, dsts = setup_main("scmp_echo_test")
     TestSCMPEcho(args.client, args.server, srcs, dsts).run()
 
 

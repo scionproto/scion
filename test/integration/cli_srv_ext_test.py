@@ -111,14 +111,14 @@ class TestClientServerExtension(TestClientServerBase):
         return b"request to server"
 
     def _create_server(self, addr, data):
-        return ExtServer(addr, data)
+        return ExtServer(addr, data, sd=self._run_sciond(addr))
 
     def _create_client(self, src, dst, port, data):
-        return ExtClient(src, dst, port, data)
+        return ExtClient(src, dst, port, data, sd=self._run_sciond(src))
 
 
 def main():
-    args, srcs, dsts = setup_main()
+    args, srcs, dsts = setup_main("cli_srv_ext_test")
     TestClientServerExtension(args.client, args.server, srcs, dsts, False).run()
 
 

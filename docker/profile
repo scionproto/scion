@@ -1,4 +1,6 @@
 export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH"
+export SHELL
+export PYTHONPATH="$HOME/scion.git"
 
 # Properly setup terminal to allow use of screen, etc.
 # Note: you still can't /re-attach/ to a screen session.
@@ -12,4 +14,3 @@ sudo bash -c "umount /etc/hosts && mv /tmp/hosts /etc/hosts"
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828
 sudo chmod g+s /usr/bin/screen
-

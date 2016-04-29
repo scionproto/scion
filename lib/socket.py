@@ -175,8 +175,10 @@ class UDPSocketMgr(object):
         """
         Close all sockets.
         """
-        for entry in list(self._sel.get_map().values()):
-            udpsock = entry.data
-            self.remove(udpsock)
-            udpsock.close()
+        mapping = self._sel.get_map()
+        if mapping:
+            for entry in list(mapping.values()):
+                udpsock = entry.data
+                self.remove(udpsock)
+                udpsock.close()
         self._sel.close()

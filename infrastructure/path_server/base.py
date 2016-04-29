@@ -315,7 +315,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Handle any queries that are waiting for a path to any core AS in an ISD.
         """
         dst_ia = pcb.get_first_pcbm().isd_as
-        if not self._is_core_as(dst_ia):
+        if not self.is_core_as(dst_ia):
             logging.warning("Invalid waiting target, not a core AS: %s", dst_ia)
             return
         self._send_waiting_queries(dst_ia[0], pcb)
