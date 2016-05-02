@@ -30,32 +30,40 @@ shutdown() {
     exit $result
 }
 
+run() {
+    log "${1:?}: starting"
+    time ${2:?}
+    result=$?
+    if [ $result -eq 0 ]; then
+        log "$1: success"
+    else
+        log "$1: failure"
+    fi
+    return $result
+}
+export -f run log
+
 export PYTHONPATH=.
 
-log "Building dispatcher"
+log "Building C code"
 ./scion.sh build
 log "Starting scion"
 ./scion.sh run nobuild | grep -v "RUNNING"
 log "Scion status:"
 ./scion.sh status || exit 1
 
-log "End2end starting:"
-test/integration/end2end_test.py
-result=$?
-if [ $result -eq 0 ]; then
-    log "End2end: success"
-else
-    log "End2end: failure"
-    shutdown
-fi
+sleep 5
 
-log "C2S_extn starting:"
+cat << EOF | parallel -n2 -j10 run
+End2End
+test/integration/end2end_test.py
+C2S_extn
 test/integration/cli_srv_ext_test.py
+SCMP error
+test/integration/scmp_error_test.py
+EOF
 result=$?
-if [ $result -eq 0 ]; then
-    log "C2S_extn: success"
-else
-    log "C2S_extn: failure"
-fi
 
 shutdown
+
+return $result

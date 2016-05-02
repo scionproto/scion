@@ -101,7 +101,7 @@ class LocalPathServer(PathServer):
         core_segs = set()
         down_segs = set()
         # dst as==0 means any core AS in the specified ISD
-        if self._is_core_as(dst_ia) or dst_ia[1] == 0:
+        if self.is_core_as(dst_ia) or dst_ia[1] == 0:
             self._resolve_core(seg_req, up_segs, core_segs)
         else:
             self._resolve_not_core(seg_req, up_segs, core_segs, down_segs)

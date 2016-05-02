@@ -178,7 +178,7 @@ class SCIONElement(object):
         for trc in self.trust_store.get_trcs():
             self._core_ases[trc.isd] = trc.get_core_ases()
 
-    def _is_core_as(self, isd_as):
+    def is_core_as(self, isd_as):
         return isd_as in self._core_ases[isd_as[0]]
 
     def handle_request(self, packet, sender, from_local_socket=True):

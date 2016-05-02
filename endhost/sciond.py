@@ -67,7 +67,7 @@ class SCIONDaemon(SCIONElement):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=SCION_UDP_PORT):
+                 port=SCION_UDP_PORT, api_port=SCIOND_API_PORT):
         """
         Initialize an instance of the class SCIONDaemon.
         """
@@ -85,6 +85,8 @@ class SCIONDaemon(SCIONElement):
         )
         self._api_socket = None
         self.daemon_thread = None
+        self.api_addr = api_addr or SCIOND_API_HOST
+        self.api_port = api_port
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -93,15 +95,15 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
-            api_addr = api_addr or SCIOND_API_HOST
             self._api_sock = UDPSocket(
-                bind=(api_addr, SCIOND_API_PORT, "sciond local API"),
+                bind=(self.api_addr, self.api_port, "sciond local API"),
                 addr_type=AddrType.IPV4)
+            self.api_port = self._api_sock.port
             self._socks.add(self._api_sock)
 
     @classmethod
     def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,
-              port=SCION_UDP_PORT):
+              port=SCION_UDP_PORT, api_port=SCIOND_API_PORT):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -109,20 +111,12 @@ class SCIONDaemon(SCIONElement):
         sd = SCIONDaemon.start(conf_dir, addr)
         paths = sd.get_paths(isd_as)
         """
-        sd = cls(conf_dir, addr, api_addr, run_local_api, port)
-        sd.daemon_thread = threading.Thread(
-            target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
+        inst = cls(conf_dir, addr, api_addr, run_local_api, port, api_port)
+        inst.daemon_thread = threading.Thread(
+            target=thread_safety_net, args=(inst.run,), name="SCIONDaemon.run",
             daemon=True)
-        sd.daemon_thread.start()
-        return sd
-
-    def stop(self):
-        """
-        Stop SCIONDaemon thread
-        """
-        logging.debug("Stopping SCIONDaemon")
-        super().stop()
-        self.daemon_thread.join()
+        inst.daemon_thread.start()
+        return inst
 
     def handle_request(self, packet, sender, from_local_socket=True):
         # PSz: local_socket may be misleading, especially that we have
@@ -296,7 +290,7 @@ class SCIONDaemon(SCIONElement):
 
     def path_resolution(self, dst_ia, flags=0):
         # dst as == 0 means any core AS in the specified ISD.
-        dst_is_core = self._is_core_as(dst_ia) or dst_ia[1] == 0
+        dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
         sibra = bool(flags & PSF.SIBRA)
         if self.topology.is_core_as:
             if dst_is_core:

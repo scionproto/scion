@@ -231,7 +231,7 @@ class CorePathServer(PathServer):
             logging.warning("Dropping request: requested DST is local AS")
             return False
         # dst as==0 means any core AS in the specified ISD
-        dst_is_core = self._is_core_as(dst_ia) or dst_ia[1] == 0
+        dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
         if dst_is_core:
             core_segs = self._resolve_core(pkt, dst_ia, new_request,
                                            seg_req.flags)

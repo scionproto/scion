@@ -115,14 +115,14 @@ class TestEnd2End(TestClientServerBase):
         return ("%s<->%s" % (self.src, self.dst)).encode("UTF-8")
 
     def _create_server(self, addr, data):
-        return E2EServer(addr, data)
+        return E2EServer(addr, data, sd=self._run_sciond(addr))
 
     def _create_client(self, src, dst, port, data):
-        return E2EClient(src, dst, port, data, True)
+        return E2EClient(src, dst, port, data, sd=self._run_sciond(src))
 
 
 def main():
-    args, srcs, dsts = setup_main()
+    args, srcs, dsts = setup_main("end2end")
     TestEnd2End(args.client, args.server, srcs, dsts).run()
 
 

@@ -9,6 +9,7 @@ make
 net-tools
 netcat-openbsd
 ntp
+parallel
 python-minimal
 python-pip
 python3-dev

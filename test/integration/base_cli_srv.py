@@ -22,13 +22,14 @@ import copy
 import logging
 import os
 import random
+import socket
 import struct
 import sys
 import threading
 import time
 
 # SCION
-from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
+from endhost.sciond import SCIONDaemon
 from lib.defines import AS_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
@@ -59,7 +60,7 @@ class TestClientBase(object):
     """
     Base client app
     """
-    def __init__(self, src, dst, dport, data, api=False):
+    def __init__(self, src, dst, dport, data, sd=None, api=False):
         self.src = src
         self.dst = dst
         self.dport = dport
@@ -68,11 +69,7 @@ class TestClientBase(object):
         self.api = api
         self.path = None
         self.iflist = []
-        conf_dir = "%s/ISD%d/AS%d/endhost" % (
-            GEN_PATH, src.isd_as[0], src.isd_as[1])
-        # Local api on, random port:
-        self.sd = SCIONDaemon.start(
-            conf_dir, self.src.host, run_local_api=True, port=0)
+        self.sd = sd or self._run_sciond()
         if self.api:
             self._get_path_via_api()
         else:
@@ -81,6 +78,9 @@ class TestClientBase(object):
         self.sock = UDPSocket(bind=(str(self.src.host), 0, "Test Client App"),
                               addr_type=AddrType.IPV4)
         reg_dispatcher(self.sock, self.src, self.sock.port)
+
+    def _run_sciond(self):
+        return start_sciond(self.src)
 
     def _get_path_via_api(self):
         """
@@ -101,11 +101,18 @@ class TestClientBase(object):
 
     def _try_sciond_api(self):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
+        sock.settimeout(1.0)
         msg = b'\x00' + self.dst.isd_as.pack()
         for _ in range(5):
-            logging.debug("Sending path request to local API.")
-            sock.send(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
-            data = Raw(sock.recv()[0], "Path response")
+            addr = self.sd.api_addr
+            port = self.sd.api_port
+            logging.debug("Sending path request to local API (%s:%s)",
+                          addr, port)
+            sock.send(msg, (addr, port))
+            try:
+                data = Raw(sock.recv()[0], "Path response")
+            except socket.timeout:
+                continue
             if data:
                 return data
             logging.debug("Empty response from local api.")
@@ -181,24 +188,23 @@ class TestClientBase(object):
     def _shutdown(self):
         reg_dispatcher(self.sock, self.src, self.sock.port, reg=False)
         self.sock.close()
-        self.sd.stop()
 
 
 class TestServerBase(object):
     """
     Base server app
     """
-    def __init__(self, dst, data):
+    def __init__(self, dst, data, sd=None):
         self.dst = dst
         self.data = data
+        self.sd = sd or self._run_sciond()
         self.done = False
-        conf_dir = "%s/ISD%d/AS%d/endhost" % (
-            GEN_PATH, self.dst.isd_as[0], self.dst.isd_as[1])
-        # API off, standard port.
-        self.sd = SCIONDaemon.start(conf_dir, self.dst.host)
         self.sock = UDPSocket(bind=(str(self.dst.host), 0, "Test Server App"),
                               addr_type=AddrType.IPV4)
         reg_dispatcher(self.sock, self.dst, self.sock.port)
+
+    def _run_sciond(self):
+        return start_sciond(self.src)
 
     def run(self):
         packet = self.sock.recv()[0]
@@ -212,7 +218,6 @@ class TestServerBase(object):
             logging.error("Request can't be verified:\n%s", spkt)
             kill_self()
         self.sock.close()
-        self.sd.stop()
 
     def _verify_request(self, payload):
         return True
@@ -234,6 +239,7 @@ class TestClientServerBase(object):
         self.client_name = "Base Client"
         self.server_name = "Base Server"
         self.thread_name = "Base.MainThread"
+        self.scionds = {}
 
     def run(self):
         """
@@ -266,10 +272,9 @@ class TestClientServerBase(object):
         for _ in range(TOUT * 10):
             time.sleep(0.1)
             if server.done and client.done:
-                break
-        else:
-            logging.error("Test timed out")
-            sys.exit(1)
+                return
+        logging.error("Test timed out")
+        sys.exit(1)
 
     def _create_data(self):
         """
@@ -281,13 +286,28 @@ class TestClientServerBase(object):
         """
         Instantiate server app
         """
-        return TestServerBase(addr, data)
+        return TestServerBase(addr, data, sd=self._run_sciond(addr))
 
     def _create_client(self, src, dst, port, data):
         """
         Instantiate client app
         """
-        return TestClientBase(src, dst, port, data)
+        return TestClientBase(src, dst, port, data, sd=self._run_sciond(src))
+
+    def _run_sciond(self, addr):
+        if addr.isd_as not in self.scionds:
+            logging.debug("Starting sciond for %s", addr.isd_as)
+            # Local api on, random port, random api port
+            self.scionds[addr.isd_as] = start_sciond(addr, api=True)
+        return self.scionds[addr.isd_as]
+
+
+def start_sciond(addr, api=False, port=0, api_addr=None, api_port=0):
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (
+        GEN_PATH, addr.isd_as[0], addr.isd_as[1])
+    return SCIONDaemon.start(
+        conf_dir, addr.host, api_addr=api_addr, run_local_api=api, port=port,
+        api_port=api_port)
 
 
 def _load_as_list():
@@ -306,7 +326,7 @@ def _parse_locs(as_str, as_list):
     return copied
 
 
-def setup_main():
+def setup_main(name):
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--client', help='Client address')
@@ -316,7 +336,7 @@ def setup_main():
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
     args = parser.parse_args()
-    init_logging("logs/NAME", console_level=logging.INFO)
+    init_logging("logs/%s" % name, console_level=logging.INFO)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
@@ -329,7 +349,7 @@ def setup_main():
 
 
 def main():
-    args, srcs, dsts = setup_main()
+    args, srcs, dsts = setup_main("base")
     TestClientServerBase(args.client, args.server, srcs, dsts).run()
 
 
