@@ -105,6 +105,7 @@ class UDPSocket(object):
                 raise SCMPUnreachNet(dst)
             elif errno == EHOSTUNREACH:
                 raise SCMPUnreachHost(dst)
+            return
         if ret != len(data):
             logging.error("Wanted to send %dB, only sent %dB", len(data), ret)
 

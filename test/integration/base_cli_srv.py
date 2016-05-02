@@ -102,7 +102,7 @@ class TestClientBase(object):
 
     def _try_sciond_api(self):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
-        sock.settimeout(1.0)
+        sock.settimeout(5.0)
         msg = b'\x00' + self.dst.isd_as.pack()
         start = time.time()
         while time.time() - start < API_TOUT:
