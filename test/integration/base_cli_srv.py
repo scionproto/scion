@@ -53,6 +53,7 @@ from lib.util import (
     trim_dispatcher_packet,
 )
 
+API_TOUT = 15
 TOUT = 10  # How long wait for response.
 
 
@@ -103,7 +104,8 @@ class TestClientBase(object):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
         sock.settimeout(1.0)
         msg = b'\x00' + self.dst.isd_as.pack()
-        for _ in range(5):
+        start = time.time()
+        while time.time() - start < API_TOUT:
             addr = self.sd.api_addr
             port = self.sd.api_port
             logging.debug("Sending path request to local API (%s:%s)",
@@ -116,9 +118,8 @@ class TestClientBase(object):
             if data:
                 return data
             logging.debug("Empty response from local api.")
-        else:
-            logging.critical("Unable to get path from local api.")
-            kill_self()
+        logging.critical("Unable to get path from local api.")
+        kill_self()
         sock.close()
 
     def _get_path_direct(self):
