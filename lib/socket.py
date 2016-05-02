@@ -97,7 +97,7 @@ class UDPSocket(object):
         if sock is None:
             sock = self.sock
         try:
-            sock.sendto(data, dst)
+            ret = sock.sendto(data, dst)
         except OSError as e:
             errno = e.args[0]
             logging.error("Error sending %dB to %s: %s", len(data), dst, e)
@@ -105,6 +105,8 @@ class UDPSocket(object):
                 raise SCMPUnreachNet(dst)
             elif errno == EHOSTUNREACH:
                 raise SCMPUnreachHost(dst)
+        if ret != len(data):
+            logging.error("Wanted to send %dB, only sent %dB", len(data), ret)
 
     def recv(self, block=True):
         """

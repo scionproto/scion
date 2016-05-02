@@ -207,6 +207,8 @@ class SCIONDaemon(SCIONElement):
         dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
         paths = self.get_paths(dst_ia)
         reply = []
+        logging.debug("Replying to api request for %s with %d paths",
+                      dst_ia, len(paths))
         for path in paths:
             raw_path = path.pack()
             # assumed IPv4 addr
