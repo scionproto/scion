@@ -438,7 +438,9 @@ class SCIONDaemon(SCIONElement):
         fulfilled.
         """
         dst_ia, flags = key
-        return self.path_resolution(dst_ia, flags=flags)
+        ret = bool(self.path_resolution(dst_ia, flags=flags))
+        logging.debug("check_segments: key: %s check? %s", key, ret)
+        return ret
 
     def _fetch_segments(self, key, _):
         """
@@ -459,6 +461,7 @@ class SCIONDaemon(SCIONElement):
         """
         Called by RequestHandler to signal that the request has been fulfilled.
         """
+        logging.debug("reply_segments: replying to key %s", key)
         e.set()
 
     def _req_key_map(self, key, req_keys):
@@ -477,6 +480,8 @@ class SCIONDaemon(SCIONElement):
                 # Covers the case where a request was for ISD-0 (i.e. any path
                 # to a core AS in the specified ISD)
                 ret.append((req_ia, req_flags))
+        logging.debug("req_key_map: key: %r req_keys: %r ret: %r",
+                      key, req_keys, ret)
         return ret
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):

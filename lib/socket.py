@@ -40,7 +40,7 @@ class UDPSocket(object):
     """
     Thin wrapper around BSD/POSIX UDP sockets.
     """
-    def __init__(self, bind=None, addr_type=AddrType.IPV6):
+    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
         """
         Initialise a socket of the specified type, and optionally bind it to an
         address/port.
@@ -58,7 +58,8 @@ class UDPSocket(object):
         if self._addr_type == AddrType.IPV4:
             af_domain = AF_INET
         self.sock = socket(af_domain, SOCK_DGRAM)
-        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        if reuse:
+            self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.port = None
         if bind:
             self.bind(*bind)

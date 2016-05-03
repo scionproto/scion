@@ -61,7 +61,7 @@ class TestClientBase(object):
     """
     Base client app
     """
-    def __init__(self, src, dst, dport, data, sd=None, api=False):
+    def __init__(self, src, dst, dport, data, sd=None, api=True):
         self.src = src
         self.dst = dst
         self.dport = dport
@@ -102,7 +102,7 @@ class TestClientBase(object):
 
     def _try_sciond_api(self):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
-        sock.settimeout(5.0)
+        sock.settimeout(1.0)
         msg = b'\x00' + self.dst.isd_as.pack()
         start = time.time()
         while time.time() - start < API_TOUT:

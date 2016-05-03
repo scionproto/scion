@@ -89,6 +89,7 @@ class RequestHandler(object):
     def run(self):
         while True:
             key, req = self._queue.get()
+            logging.debug("lib.requests.run: key: %r req? %r", key, bool(req))
             if req:
                 # Add a new request
                 self._add_req(key, req)
@@ -107,6 +108,7 @@ class RequestHandler(object):
 
     def _answer_reqs(self, key):
         if not self._check(key):
+            logging.debug("lib.requests.answer_reqs: key: %r no answer", key)
             # Don't have the answer yet.
             return
         self._expire_reqs(key)
