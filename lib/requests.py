@@ -111,6 +111,8 @@ class RequestHandler(object):
             logging.debug("lib.requests.answer_reqs: key: %r no answer", key)
             # Don't have the answer yet.
             return
+        logging.debug("lib.request.answer_reqs: reqs for key %r: %d",
+                      key, len(self._req_map[key]))
         self._expire_reqs(key)
         reqs = self._req_map[key]
         while reqs:
