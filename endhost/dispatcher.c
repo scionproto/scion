@@ -150,6 +150,10 @@ int create_sockets()
         return -1;
     }
     int optval = 1;
+    /*
+     * FIXME(kormat): This should go away once the dispatcher and the router no
+     * longer try binding to the same socket.
+     */
     res = setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR,
             &optval, sizeof(optval));
     res |= setsockopt(data_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));

@@ -53,6 +53,7 @@ from lib.util import (
     trim_dispatcher_packet,
 )
 
+API_TOUT = 15
 TOUT = 10  # How long wait for response.
 
 
@@ -60,7 +61,7 @@ class TestClientBase(object):
     """
     Base client app
     """
-    def __init__(self, src, dst, dport, data, sd=None, api=False):
+    def __init__(self, src, dst, dport, data, sd=None, api=True):
         self.src = src
         self.dst = dst
         self.dport = dport
@@ -103,7 +104,8 @@ class TestClientBase(object):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
         sock.settimeout(1.0)
         msg = b'\x00' + self.dst.isd_as.pack()
-        for _ in range(5):
+        start = time.time()
+        while time.time() - start < API_TOUT:
             addr = self.sd.api_addr
             port = self.sd.api_port
             logging.debug("Sending path request to local API (%s:%s)",
@@ -116,9 +118,8 @@ class TestClientBase(object):
             if data:
                 return data
             logging.debug("Empty response from local api.")
-        else:
-            logging.critical("Unable to get path from local api.")
-            kill_self()
+        logging.critical("Unable to get path from local api.")
+        kill_self()
         sock.close()
 
     def _get_path_direct(self):
@@ -262,13 +263,13 @@ class TestClientServerBase(object):
         dst_addr = SCIONAddr.from_values(dst_ia, self.server_ip)
         data = self._create_data()
         server = self._create_server(dst_addr, data)
-        threading.Thread(
-            target=thread_safety_net, args=(server.run,),
-            name=self.server_name, daemon=True).start()
+        server_name = "%s %s" % (self.server_name, dst_ia)
+        threading.Thread(target=thread_safety_net, args=(server.run,),
+                         name=server_name, daemon=True).start()
         client = self._create_client(src_addr, dst_addr, server.sock.port, data)
-        threading.Thread(
-            target=thread_safety_net, args=(client.run,),
-            name=self.client_name, daemon=True).start()
+        client_name = "%s %s" % (self.client_name, src_ia)
+        threading.Thread(target=thread_safety_net, args=(client.run,),
+                         name=client_name, daemon=True).start()
         for _ in range(TOUT * 10):
             time.sleep(0.1)
             if server.done and client.done:

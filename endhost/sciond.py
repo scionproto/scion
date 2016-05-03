@@ -79,8 +79,9 @@ class SCIONDaemon(SCIONElement):
                                            max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
                                            max_res_no=self.MAX_SEG_NO)
+        req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
         self.requests = RequestHandler.start(
-            "SCIONDaemon Requests", self._check_segments, self._fetch_segments,
+            req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
         self._api_socket = None
@@ -112,9 +113,9 @@ class SCIONDaemon(SCIONElement):
         paths = sd.get_paths(isd_as)
         """
         inst = cls(conf_dir, addr, api_addr, run_local_api, port, api_port)
+        name = "SCIONDaemon.run %s" % inst.addr.isd_as
         inst.daemon_thread = threading.Thread(
-            target=thread_safety_net, args=(inst.run,), name="SCIONDaemon.run",
-            daemon=True)
+            target=thread_safety_net, args=(inst.run,), name=name, daemon=True)
         inst.daemon_thread.start()
         return inst
 
@@ -186,7 +187,7 @@ class SCIONDaemon(SCIONElement):
             threading.Thread(
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, packet, sender),
-                name="SCIONDaemon", daemon=True).start()
+                daemon=True).start()
         elif packet[0] == 1:  # address request
             self._api_sock.send(self.addr.pack(), sender)
         else:
@@ -205,8 +206,13 @@ class SCIONDaemon(SCIONElement):
         FIXME(kormat): make IP-version independent
         """
         dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
+        thread = threading.current_thread()
+        thread.name = "SCIONDaemon API id:%s %s -> %s" % (
+            thread.ident, self.addr.isd_as, dst_ia)
         paths = self.get_paths(dst_ia)
         reply = []
+        logging.debug("Replying to api request for %s with %d paths",
+                      dst_ia, len(paths))
         for path in paths:
             raw_path = path.pack()
             # assumed IPv4 addr
@@ -369,8 +375,7 @@ class SCIONDaemon(SCIONElement):
                 tuples.append((up_seg, None, down_seg))
                 for core_seg in core_segs:
                     tuples.append((up_seg, core_seg, down_seg))
-                full_paths.extend(
-                    PathCombinator.tuples_to_full_paths(tuples))
+        full_paths.extend(PathCombinator.tuples_to_full_paths(tuples))
         return full_paths
 
     def _resolve_not_core_not_core_sibra(self, dst_ia):

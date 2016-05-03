@@ -161,9 +161,11 @@ class Router(SCIONElement):
         """
         Setup incoming socket
         """
+        # FIXME(kormat): reuse=True should to away once the dispatcher and the
+        # router no longer try binding to the same socket.
         self._local_sock = UDPSocket(
             bind=(str(self.addr.host), SCION_UDP_EH_DATA_PORT, self.id),
-            addr_type=self.addr.host.TYPE,
+            addr_type=self.addr.host.TYPE, reuse=True,
         )
         self._port = self._local_sock.port
         self._socks.add(self._local_sock)

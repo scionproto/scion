@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 # errors.
 
 #: Bytes
-LOG_MAX_SIZE = 1 * 1024 * 1024
+LOG_MAX_SIZE = 10 * 1024 * 1024
 LOG_BACKUP_COUNT = 1
 
 # Logging handlers that will log logging exceptions, and then re-raise them. The
