@@ -2,8 +2,8 @@
 #define _DEFINES_H_
 
 #define SCIOND_API_PORT 3333
-#define SCION_DISPATCHER_HOST "127.255.255.254"
-#define SCION_DISPATCHER_PORT 3334
+#define SCION_DISPATCHER_ADDR "/run/shm/dispatcher.socket"
+
 #define DISPATCHER_BUF_SIZE 65535
 
 #define SCION_UDP_PORT         30040

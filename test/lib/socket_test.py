@@ -29,7 +29,7 @@ from lib.defines import SCION_BUFLEN
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.socket import (
     UDPSocket,
-    UDPSocketMgr,
+    SocketMgr,
 )
 from lib.types import AddrType
 from test.testcommon import SCIONTestError, create_mock
@@ -181,13 +181,13 @@ class TestUDPSocketRecv(object):
         ntools.eq_(inst.sock.recvfrom.call_count, 3)
 
 
-class TestUDPSocketMgrSelect(object):
+class TestSocketMgrSelect(object):
     """
-    Unit tests for lib.socket.UDPSocketMgr.select
+    Unit tests for lib.socket.SocketMgr.select
     """
-    @patch("lib.socket.UDPSocketMgr.__init__", autospec=True, return_value=None)
+    @patch("lib.socket.SocketMgr.__init__", autospec=True, return_value=None)
     def test(self, init):
-        inst = UDPSocketMgr()
+        inst = SocketMgr()
         inst._sel = create_mock(["select"])
         events = []
         for i in range(3):
@@ -201,13 +201,13 @@ class TestUDPSocketMgrSelect(object):
         inst._sel.select.assert_called_once_with(timeout="timeout")
 
 
-class TestUDPSocketMgrClose(object):
+class TestSocketMgrClose(object):
     """
-    Unit tests for lib.socket.UDPSocketMgr.close
+    Unit tests for lib.socket.SocketMgr.close
     """
-    @patch("lib.socket.UDPSocketMgr.__init__", autospec=True, return_value=None)
+    @patch("lib.socket.SocketMgr.__init__", autospec=True, return_value=None)
     def test(self, init):
-        inst = UDPSocketMgr()
+        inst = SocketMgr()
         inst._sel = create_mock(["close", "get_map"])
         inst.remove = create_mock()
         map_ = {}

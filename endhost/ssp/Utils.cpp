@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 #include "ProtocolConfigs.h"
@@ -115,47 +116,64 @@ int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg)
 {
     DEBUG("register flow via socket %d\n", sock);
 
-    struct sockaddr_in addr;
-    socklen_t addrLen = sizeof(addr);
-    memset(&addr, 0, addrLen);
-    addr.sin_port = htons(SCION_DISPATCHER_PORT);
-    addr.sin_addr.s_addr = inet_addr(SCION_DISPATCHER_HOST);
-
     int len;
     int addr_len = e->addr_type == ADDR_IPV4_TYPE ? 4 : 16;
     int common = 2 + ISD_AS_LEN + 2 + 1;
-    char buf[32];
-    buf[0] = reg;
-    buf[1] = proto;
-    memcpy(buf + 2, &e->isd_as, ISD_AS_LEN);
-    *(uint16_t *)(buf + 2 + ISD_AS_LEN) = e->port;
-    buf[2 + ISD_AS_LEN + 2] = e->addr_type;
     switch (proto) {
-        case L4_SSP: {
-            memcpy(buf + common, &e->flow_id, SSP_FID_LEN);
-            memcpy(buf + common + SSP_FID_LEN, e->addr, addr_len);
+        case L4_SSP:
             len = common + SSP_FID_LEN + addr_len;
             break;
-        }
-        case L4_UDP: {
-            memcpy(buf + common, e->addr, addr_len);
+        case L4_UDP:
             len = common + addr_len;
             break;
-        }
+        default:
+            len = 0;
+            break;
+    }
+    uint8_t buf[128];
+    write_dp_header(buf, NULL, len);
+    uint8_t *ptr = buf + DP_HEADER_LEN;
+    ptr[0] = reg;
+    ptr[1] = proto;
+    memcpy(ptr + 2, &e->isd_as, ISD_AS_LEN);
+    *(uint16_t *)(ptr + 2 + ISD_AS_LEN) = e->port;
+    ptr[2 + ISD_AS_LEN + 2] = e->addr_type;
+    switch (proto) {
+        case L4_SSP:
+            memcpy(ptr + common, &e->flow_id, SSP_FID_LEN);
+            memcpy(ptr + common + SSP_FID_LEN, e->addr, addr_len);
+            break;
+        case L4_UDP:
+            memcpy(ptr + common, e->addr, addr_len);
+            break;
         default:
             return -1;
     }
-    int res = sendto(sock, buf, len, 0, (struct sockaddr *)&addr, addrLen);
+
+    struct sockaddr_un su;
+    memset(&su, 0, sizeof(su));
+    su.sun_family = AF_UNIX;
+    strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    int res = connect(sock, (struct sockaddr *)&su, sizeof(su));
     if (res < 0) {
-        fprintf(stderr, "CRITICAL: sendto failed\n");
-        exit(1);
+        fprintf(stderr, "CRITICAL: failed to connect to dispatcher: %s\n", strerror(errno));
+        return -1;
     }
-    res = recvfrom(sock, buf, 1, 0, NULL, NULL);
+
+    res = send_all(sock, buf, len + DP_HEADER_LEN);
     if (res < 0) {
+        fprintf(stderr, "CRITICAL: sendto failed: %s\n", strerror(errno));
+        return -1;
+    }
+    res = recv_all(sock, buf, DP_HEADER_LEN + 2);
+    len = 0;
+    parse_dp_header(buf, NULL, &len);
+    if (res < 0 || len == 0) {
         fprintf(stderr, "CRITICAL: recvfrom failed\n");
-        exit(1);
+        return -1;
     }
-    return res;
+    uint16_t port = *(uint16_t *)(buf + DP_HEADER_LEN);
+    return port;
 }
 
 void destroyStats(SCIONStats *stats)

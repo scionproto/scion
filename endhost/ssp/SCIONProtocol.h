@@ -12,7 +12,7 @@
 
 class SCIONProtocol {
 public:
-    SCIONProtocol();
+    SCIONProtocol(int sock);
     virtual ~SCIONProtocol();
 
     virtual int bind(SCIONAddr addr, int sock);
@@ -44,7 +44,6 @@ public:
     int setISDWhitelist(void *data, size_t len);
 
     virtual int shutdown();
-    virtual void removeDispatcher(int sock);
 
     uint32_t getLocalIA();
 
@@ -75,7 +74,7 @@ protected:
 
 class SSPProtocol: public SCIONProtocol {
 public:
-    SSPProtocol();
+    SSPProtocol(int sock);
     ~SSPProtocol();
 
     int connect(SCIONAddr addr);
@@ -104,7 +103,6 @@ public:
     int shutdown();
     void notifyFinAck();
     void registerDispatcher(uint64_t flowID, uint16_t port, int sock);
-    void removeDispatcher(int sock);
 
 protected:
     void getWindowSize();
@@ -151,7 +149,7 @@ protected:
 
 class SUDPProtocol : public SCIONProtocol {
 public:
-    SUDPProtocol();
+    SUDPProtocol(int sock);
     ~SUDPProtocol();
 
     int bind(SCIONAddr addr, int sock);
@@ -164,7 +162,6 @@ public:
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
     void registerDispatcher(uint16_t port, int sock, int reg);
-    void removeDispatcher(int sock);
 
     void getStats(SCIONStats *stats);
 

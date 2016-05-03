@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 #include "address.h"
+#include "checksum.h"
 #include "defines.h"
 #include "extensions.h"
 #include "interface.h"
@@ -19,7 +20,7 @@ extern "C" {
 #include "scmp.h"
 #include "types.h"
 #include "udp.h"
-#include "checksum.h"
+#include "utils.h"
 
 #ifdef __cplusplus
 }

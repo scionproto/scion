@@ -157,7 +157,7 @@ class Router(SCIONElement):
         self._socks.add(self._remote_sock)
         logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
 
-    def _setup_socket(self):
+    def _setup_socket(self, init=True):
         """
         Setup incoming socket
         """
@@ -201,7 +201,7 @@ class Router(SCIONElement):
         if from_local_as:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
         else:
-            super().send(spkt, addr, port)
+            self._local_sock.send(spkt.pack(), (str(addr), port))
 
     def handle_extensions(self, spkt, pre_routing_phase, from_local_as):
         """

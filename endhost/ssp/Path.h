@@ -14,7 +14,7 @@ public:
     Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
     virtual ~Path();
 
-    virtual int send(SCIONPacket *packet, int sock);
+    virtual int sendPacket(SCIONPacket *packet, int sock);
 
     virtual void handleTimeout(struct timeval *current);
 
@@ -76,7 +76,7 @@ public:
     SSPPath(SSPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
     ~SSPPath();
 
-    virtual int send(SCIONPacket *packet, int sock);
+    virtual int sendPacket(SCIONPacket *packet, int sock);
 
     int handleData(SCIONPacket *packet);
     virtual int handleAck(SCIONPacket *packet, bool rttSample);
@@ -118,7 +118,7 @@ public:
     SUDPPath(SUDPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
     ~SUDPPath();
 
-    int send(SCIONPacket *packet, int sock);
+    int sendPacket(SCIONPacket *packet, int sock);
 
     int getPayloadLen(bool ack);
     void handleTimeout(struct timeval *current);

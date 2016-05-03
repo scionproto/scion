@@ -32,7 +32,6 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
     PATH_SERVICE,
-    SCION_DISPATCHER_PORT,
     SCION_UDP_EH_DATA_PORT,
     SCION_UDP_PORT,
     SERVICE_TYPES,
@@ -74,12 +73,12 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.socket import UDPSocket, UDPSocketMgr
+from lib.socket import DispatcherSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
 from lib.types import L4Proto, PayloadClass
 from lib.topology import Topology
-from lib.util import hex_str, reg_dispatcher, trim_dispatcher_packet
+from lib.util import hex_str
 
 
 MAX_QUEUE = 30
@@ -145,21 +144,20 @@ class SCIONElement(object):
         self.stopped_flag = threading.Event()
         self.stopped_flag.set()
         self._in_buf = queue.Queue(MAX_QUEUE)
-        self._socks = UDPSocketMgr()
-        self._setup_socket()
+        self._socks = SocketMgr()
+        self._setup_socket(True)
         self._startup = time.time()
 
-    def _setup_socket(self):
+    def _setup_socket(self, init):
         """
         Setup incoming socket and register with dispatcher
         """
-        self._local_sock = UDPSocket(
-            bind=(str(self.addr.host), self._port, self.id),
-            addr_type=self.addr.host.TYPE,
-        )
-        self._port = self._local_sock.port
         svc = SVC_TYPE_MAP.get(self.SERVICE_TYPE)
-        reg_dispatcher(self._local_sock, self.addr, self._port, svc=svc)
+        self._local_sock = DispatcherSocket(self.addr, self._port, init, svc)
+        if not self._local_sock.registered:
+            self._local_sock = None
+            return
+        self._port = self._local_sock.port
         self._socks.add(self._local_sock)
 
     def construct_ifid2addr_map(self):
@@ -389,7 +387,9 @@ class SCIONElement(object):
         assert not isinstance(packet.addrs.src.host, HostAddrNone)
         assert not isinstance(packet.addrs.dst.host, HostAddrNone)
         assert isinstance(packet, SCIONBasePacket)
-        self._local_sock.send(packet.pack(), (str(dst), dst_port))
+        if not self._local_sock:
+            return
+        self._local_sock.send(packet.pack(), (dst, dst_port))
 
     def run(self):
         """
@@ -404,14 +404,12 @@ class SCIONElement(object):
 
         self._packet_process()
 
-    def packet_put(self, packet, addr, from_local_as, dispatcher):
+    def packet_put(self, packet, addr, from_local_as):
         """
         Try to put incoming packet in queue
         If queue is full, drop oldest packet in queue
         """
         dropped = 0
-        if dispatcher:
-            packet = trim_dispatcher_packet(packet)
         while True:
             try:
                 self._in_buf.put((packet, addr, from_local_as), block=False)
@@ -430,6 +428,8 @@ class SCIONElement(object):
         Read packets from sockets, and put them into a :class:`queue.Queue`.
         """
         while self.run_flag.is_set():
+            if not self._local_sock:
+                self._setup_socket(False)
             for sock in self._socks.select_(timeout=1.0):
                 while True:
                     try:
@@ -438,9 +438,14 @@ class SCIONElement(object):
                     except BlockingIOError:
                         break
                     else:
-                        dispatcher = addr[1] == SCION_DISPATCHER_PORT
-                        self.packet_put(packet, addr, sock == self._local_sock,
-                                        dispatcher)
+                        if (sock == self._local_sock and
+                                isinstance(sock, DispatcherSocket) and
+                                packet is None):
+                            self._socks.remove(self._local_sock)
+                            self._local_sock.close()
+                            self._local_sock = None
+                            break
+                        self.packet_put(packet, addr, sock == self._local_sock)
 
         self.stopped_flag.set()
 
@@ -460,9 +465,9 @@ class SCIONElement(object):
         """
         # Signal that the thread should stop
         self.run_flag.clear()
+        self._socks.close()
         # Wait for the thread to finish
         self.stopped_flag.wait()
-        self._socks.close()
 
     def _quiet_startup(self):
         return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD

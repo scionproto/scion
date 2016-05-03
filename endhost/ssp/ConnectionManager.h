@@ -132,7 +132,7 @@ public:
     SUDPConnectionManager(int sock);
     ~SUDPConnectionManager();
 
-    int send(SCIONPacket *packet);
+    int sendPacket(SCIONPacket *packet);
 
     void sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort);
     void handlePacket(SCIONPacket *packet);

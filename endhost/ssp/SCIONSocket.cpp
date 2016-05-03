@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <sys/un.h>
 
 #include "Extensions.h"
 #include "SCIONSocket.h"
@@ -20,18 +21,29 @@ void *dispatcherThread(void *arg)
 {
     SCIONSocket *ss = (SCIONSocket *)arg;
     int sock = ss->getDispatcherSocket();
-    char buf[DISPATCHER_BUF_SIZE];
+    uint8_t buf[DISPATCHER_BUF_SIZE];
     struct sockaddr_in addr;
-    socklen_t addrLen = sizeof(addr);
     ss->waitForRegistration();
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     while (ss->isRunning()) {
-        int len = recvfrom(sock, buf, sizeof(buf), 0,
-                            (struct sockaddr *)&addr, &addrLen);
+        int len = recv_all(sock, buf, DP_HEADER_LEN);
+        if (len < 0) {
+            fprintf(stderr, "error on recv from dispatcher: %s\n", strerror(errno));
+            exit(1);
+        }
+        int addr_len = 0;
+        int packet_len = 0;
+        parse_dp_header(buf, &addr_len, &packet_len);
+        if (packet_len == 0) {
+            fprintf(stderr, "invalid dispatcher header\n");
+            exit(1);
+        }
+        len = recv_all(sock, buf, addr_len + 2 + packet_len);
         if (len > 0) {
-            DEBUG("received %d bytes from dispatcher\n", len);
-            addr = *(struct sockaddr_in *)(buf + len - sizeof(addr));
-            ss->handlePacket((uint8_t *)buf, len - sizeof(addr), &addr);
+            DEBUG("received %d bytes from dispatcher, addr_len = %d\n", len, addr_len);
+            memcpy(&addr.sin_addr, buf, addr_len);
+            addr.sin_port = *(uint16_t *)(buf + addr_len);
+            ss->handlePacket(buf + addr_len + 2, packet_len, &addr);
         }
     }
     return NULL;
@@ -39,12 +51,7 @@ void *dispatcherThread(void *arg)
 
 int setupSocket()
 {
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    struct sockaddr_in sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = INADDR_ANY;
-    bind(sock, (struct sockaddr *)&sa, sizeof(sa));
+    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     return sock;
 }
 
@@ -71,11 +78,11 @@ SCIONSocket::SCIONSocket(int protocol)
 
     switch (protocol) {
         case L4_SSP: {
-            mProtocol = new SSPProtocol();
+            mProtocol = new SSPProtocol(mDispatcherSocket);
             break;
         }
         case L4_UDP: {
-            mProtocol = new SUDPProtocol();
+            mProtocol = new SUDPProtocol(mDispatcherSocket);
             break;
         }
         default:
@@ -90,7 +97,6 @@ SCIONSocket::~SCIONSocket()
     mState = SCION_CLOSED;
     pthread_cancel(mReceiverThread);
     pthread_join(mReceiverThread, NULL);
-    mProtocol->removeDispatcher(mDispatcherSocket);
     delete mProtocol;
     mProtocol = NULL;
     close(mDispatcherSocket);
@@ -250,7 +256,7 @@ void SCIONSocket::signalSelect()
 void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr)
 {
     DEBUG("received SCION packet: %lu bytes\n", len);
-    DEBUG("sent from %s:%d\n", inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
+    DEBUG("sent from %s:%d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
     // SCION header
     SCIONPacket *packet = (SCIONPacket *)malloc(sizeof(SCIONPacket));
     memset(packet, 0, sizeof(SCIONPacket));

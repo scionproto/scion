@@ -1,25 +1,26 @@
 #include "SCIONSocket.h"
 
-#define BUFSIZE 102400
+#define BUFSIZE 1024
 
 int main()
 {
-    SCIONSocket s(L4_UDP);
+    SCIONSocket s(L4_SSP);
     SCIONAddr addr;
     memset(&addr, 0, sizeof(addr));
     addr.host.port = 8080;
     s.bind(addr);
-    //s.listen();
 
-    //SCIONSocket *newSocket = s.accept();
+    s.listen();
+    SCIONSocket *newSocket = s.accept();
+
     char buf[BUFSIZE];
     int size = 0;
     struct timeval start, end;
     gettimeofday(&start, NULL);
     while (1) {
         memset(buf, 0, BUFSIZE);
-        //int recvlen = newSocket->recv((uint8_t *)buf, BUFSIZE, NULL);
-        int recvlen = s.recv((uint8_t *)buf, BUFSIZE, NULL);
+        int recvlen = newSocket->recv((uint8_t *)buf, BUFSIZE, NULL);
+        //int recvlen = s.recv((uint8_t *)buf, BUFSIZE, NULL);
         printf("received message: %s", buf);
         gettimeofday(&end, NULL);
         size += recvlen;

@@ -23,23 +23,17 @@ import logging
 import os
 import shutil
 import signal
-import struct
 import sys
 import time
 from binascii import hexlify
 from datetime import datetime, timezone
+from socket import MSG_DONTWAIT
 
 # External packages
 import yaml
 from external.stacktracer import trace_start
 
 # SCION
-from lib.defines import (
-    DISPATCHER_TIMEOUT,
-    DISPATCHER_SENDER,
-    SCION_DISPATCHER_ADDR,
-    SCION_DISPATCHER_PORT,
-)
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
@@ -48,7 +42,6 @@ from lib.errors import (
     SCIONTypeError,
     SCIONYAMLError,
 )
-from lib.types import L4Proto
 
 CERT_DIR = 'certs'
 KEYS_DIR = 'keys'
@@ -277,47 +270,23 @@ def hex_str(raw):
     return hexlify(raw).decode("ascii")
 
 
-def reg_dispatcher(sock, addr, port, svc=None, reg=True, scmp=True):
-    """
-    Helper function for registering app with dispatcher
-    """
-    old_timeout = sock.settimeout(1.0)
-    cmd = 0
-    if reg:
-        cmd |= 1
-    if scmp:
-        cmd |= 1 << 1
-    data = [
-        struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port,
-                    addr.host.TYPE),
-        addr.host.pack()
-    ]
-    if svc is not None:
-        data.append(svc.pack())
-    buf = b"".join(data)
-    for i in range(DISPATCHER_TIMEOUT):
-        sock.send(buf, (SCION_DISPATCHER_ADDR, SCION_DISPATCHER_PORT))
+def recv_all(sock, total_len, flags):
+    barr = bytearray()
+    while len(barr) < total_len:
+        # The first recv call must support non-blocking mode to raise an error
+        # if the socket is not ready. Subsequent calls should be blocking to
+        # avoid sync problems.
+        if flags & MSG_DONTWAIT and len(barr) > 0:
+            flags &= ~MSG_DONTWAIT
         try:
-            if sock.recv():
-                break
-        except OSError:
-            logging.warning("timed out registering, retry")
-    else:
-        logging.critical("Failed to register with dispatcher")
-        sys.exit(1)
-    if reg:
-        logging.debug("registered with dispatcher")
-    else:
-        logging.debug("unregistered from dispatcher")
-    sock.settimeout(old_timeout)
-
-
-def trim_dispatcher_packet(packet):
-    """
-    Strip sender info off the end of packet from dispatcher
-    """
-    assert len(packet) > DISPATCHER_SENDER
-    return packet[:-DISPATCHER_SENDER]
+            buf = sock.recv(total_len - len(barr), flags)
+        except InterruptedError:
+            continue
+        if not buf:
+            logging.error("recv returned nil, socket closed")
+            return None
+        barr += buf
+    return bytes(barr)
 
 
 class SCIONTime(object):

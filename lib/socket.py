@@ -16,14 +16,18 @@
 ==========================================
 """
 # Stdlib
+import ipaddress
 import logging
 import selectors
+import struct
 from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
     AF_INET,
     AF_INET6,
+    AF_UNIX,
     MSG_DONTWAIT,
     SOCK_DGRAM,
+    SOCK_STREAM,
     SOL_SOCKET,
     SO_REUSEADDR,
     socket,
@@ -31,16 +35,21 @@ from socket import (
 
 # SCION
 from lib.defines import SCION_BUFLEN
+from lib.dispatcher import reg_dispatcher
+from lib.errors import SCIONIOError
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
+from lib.util import recv_all
 from lib.thread import kill_self
 from lib.types import AddrType
 
 
-class UDPSocket(object):
+class Socket(object):
     """
-    Thin wrapper around BSD/POSIX UDP sockets.
+    Base class for socket wrappers
     """
-    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
+    def __init__(self, sock_type, bind=None, addr_type=AddrType.IPV6,
+                 reuse=False):
         """
         Initialise a socket of the specified type, and optionally bind it to an
         address/port.
@@ -52,17 +61,22 @@ class UDPSocket(object):
             Socket domain. Must be one of :const:`~lib.types.AddrType.IPV4`,
             :const:`~lib.types.AddrType.IPV6` (default).
         """
-        assert addr_type in (AddrType.IPV4, AddrType.IPV6)
+        assert addr_type in (AddrType.IPV4, AddrType.IPV6, AddrType.UNIX)
         self._addr_type = addr_type
         af_domain = AF_INET6
         if self._addr_type == AddrType.IPV4:
             af_domain = AF_INET
-        self.sock = socket(af_domain, SOCK_DGRAM)
+        elif self._addr_type == AddrType.UNIX:
+            af_domain = AF_UNIX
+        self.sock = socket(af_domain, sock_type)
         if reuse:
             self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.port = None
         if bind:
             self.bind(*bind)
+        else:
+            # TODO: Replace with dispatcher-assigned port
+            self.port = 30045
 
     def bind(self, addr, port, desc=None):
         """
@@ -85,6 +99,25 @@ class UDPSocket(object):
         self.port = self.sock.getsockname()[1]
         if desc:
             logging.debug("%s bound to %s:%d", desc, addr, self.port)
+
+    def close(self):  # pragma: no cover
+        """
+        Close the socket.
+        """
+        self.sock.close()
+
+    def settimeout(self, timeout):  # pragma: no cover
+        prev = self.sock.gettimeout()
+        self.sock.settimeout(timeout)
+        return prev
+
+
+class UDPSocket(Socket):
+    """
+    Thin wrapper around BSD/POSIX UDP sockets.
+    """
+    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
+        super().__init__(SOCK_DGRAM, bind, addr_type, reuse)
 
     def send(self, data, dst, sock=None):
         """
@@ -127,40 +160,97 @@ class UDPSocket(object):
             except InterruptedError:
                 pass
 
-    def close(self):  # pragma: no cover
+
+class DispatcherSocket(Socket):
+    """
+    Wrapper around Unix socket with dispatcher-specific functionality baked in
+    """
+    COOKIE = bytes.fromhex("de00ad01be02ef03")
+    COOKIE_LEN = len(COOKIE)
+
+    def __init__(self, addr, port, init=True, svc=None):
+        super().__init__(SOCK_STREAM, None, AddrType.UNIX)
+        self.registered = reg_dispatcher(self, addr, port, init, svc)
+
+    def connect(self, addr):
+        self.sock.connect(addr)
+
+    def send(self, data, dst=None):
         """
-        Close the socket.
+        Send data through the socket.
+
+        :param bytes data: Data to send.
         """
-        self.sock.close()
+        if dst:
+            dst_addr, dst_port = dst
+            if isinstance(dst_addr, str):
+                dst_addr = haddr_parse_interface(dst_addr)
+            addr_len = struct.pack("B", len(dst_addr))
+            packed_dst = dst_addr.pack() + struct.pack("H", dst_port)
+        else:
+            addr_len = struct.pack("B", 0)
+            packed_dst = b""
+        data_len = struct.pack("I", len(data))
+        data = b"".join([self.COOKIE, addr_len, data_len, packed_dst, data])
+        try:
+            self.sock.sendall(data)
+        except OSError as e:
+            logging.error("error sending to dispatcher: %s", e)
 
-    def settimeout(self, timeout):  # pragma: no cover
-        prev = self.sock.gettimeout()
-        self.sock.settimeout(timeout)
-        return prev
+    def recv(self, block=True):
+        """
+        Read data from socket.
+
+        :returns: bytestring containing received data.
+        """
+        flags = 0
+        if not block:
+            flags = MSG_DONTWAIT
+        buf = recv_all(self.sock, self.COOKIE_LEN + 5, flags)
+        if not buf:
+            return None, None
+        cookie, addr_len, packet_len = struct.unpack("=8sBI", buf)
+        if cookie != self.COOKIE:
+            logging.critical("Dispatcher socket out of sync")
+            raise SCIONIOError
+        port_len = 0
+        if addr_len > 0:
+            port_len = 2
+        # We know there is data coming, block here to avoid sync problems.
+        buf = recv_all(self.sock, addr_len + port_len + packet_len, 0)
+        if addr_len > 0:
+            addr = buf[:addr_len]
+            port = buf[addr_len:addr_len + port_len]
+        else:
+            addr = ""
+            port = 0
+        packet = buf[addr_len + port_len:]
+        sender = (not addr or str(ipaddress.ip_address(addr)), port)
+        return packet, sender
 
 
-class UDPSocketMgr(object):
+class SocketMgr(object):
     """
     :class:`UDPSocket` manager.
     """
     def __init__(self):  # pragma: no cover
         self._sel = selectors.DefaultSelector()
 
-    def add(self, udpsock):  # pragma: no cover
+    def add(self, sock):  # pragma: no cover
         """
         Add new socket.
 
         :param UDPSocket sock: UDPSocket to add.
         """
-        self._sel.register(udpsock.sock, selectors.EVENT_READ, udpsock)
+        self._sel.register(sock.sock, selectors.EVENT_READ, sock)
 
-    def remove(self, udpsock):  # pragma: no cover
+    def remove(self, sock):  # pragma: no cover
         """
         Remove socket.
 
         :param UDPSocket sock: UDPSocket to remove.
         """
-        self._sel.unregister(udpsock.sock)
+        self._sel.unregister(sock.sock)
 
     def select_(self, timeout=None):
         """
@@ -182,7 +272,7 @@ class UDPSocketMgr(object):
         mapping = self._sel.get_map()
         if mapping:
             for entry in list(mapping.values()):
-                udpsock = entry.data
-                self.remove(udpsock)
-                udpsock.close()
+                sock = entry.data
+                self.remove(sock)
+                sock.close()
         self._sel.close()
