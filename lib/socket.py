@@ -193,7 +193,7 @@ class DispatcherSocket(Socket):
         data_len = struct.pack("I", len(data))
         data = b"".join([self.COOKIE, addr_len, data_len, packed_dst, data])
         try:
-            self.sock.send(data)
+            self.sock.sendall(data)
         except OSError as e:
             logging.error("error sending to dispatcher: %s", e)
 

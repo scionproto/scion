@@ -33,8 +33,8 @@ def reg_dispatcher(sock, addr, port, init=True, svc=None, scmp=True):
     """
     Helper function for registering app with dispatcher
     """
-    buf = pack_dispatcher_msg(addr, port, svc, scmp)
-    if not connect_dispatcher(sock, init):
+    buf = _pack_dispatcher_msg(addr, port, svc, scmp)
+    if not _connect_dispatcher(sock, init):
         return
     try:
         sock.send(buf)
@@ -60,7 +60,7 @@ def reg_dispatcher(sock, addr, port, init=True, svc=None, scmp=True):
     return True
 
 
-def pack_dispatcher_msg(addr, port, svc, scmp):
+def _pack_dispatcher_msg(addr, port, svc, scmp):
     cmd = 1
     if scmp:
         cmd |= 1 << 1
@@ -74,7 +74,7 @@ def pack_dispatcher_msg(addr, port, svc, scmp):
     return b"".join(data)
 
 
-def connect_dispatcher(sock, init):
+def _connect_dispatcher(sock, init):
     start = time.time()
     now = start
     while True:
