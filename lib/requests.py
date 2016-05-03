@@ -89,26 +89,36 @@ class RequestHandler(object):
     def run(self):
         while True:
             key, req = self._queue.get()
+            logging.debug("lib.requests.run: key: %r req? %r", key, bool(req))
             if req:
                 # Add a new request
                 self._add_req(key, req)
             # Answer existing requests, if possible.
             for k in self._key_map(key, self._req_map.keys()):
+                logging.debug(
+                    "lib.requests.run: calling answer reqs for key %s", k)
                 self._answer_reqs(k)
 
     def _add_req(self, key, request):
         self._req_map.setdefault(key, [])
         self._expire_reqs(key)
+        logging.debug(
+            "lib.requests.add_req: num of existing requests for %s: %s",
+            key, len(self._req_map[key]))
         if not self._check(key) and len(self._req_map[key]) == 0:
             # Don't already have the answer, and there were no outstanding
             # requests, so send a new query
+            logging.debug("lib.requests.add_req: fetching %s", key)
             self._fetch(key, request)
         self._req_map[key].append((SCIONTime.get_time(), request))
 
     def _answer_reqs(self, key):
         if not self._check(key):
+            logging.debug("lib.requests.answer_reqs: key: %r no answer", key)
             # Don't have the answer yet.
             return
+        logging.debug("lib.request.answer_reqs: reqs for key %r: %d",
+                      key, len(self._req_map[key]))
         self._expire_reqs(key)
         reqs = self._req_map[key]
         while reqs:

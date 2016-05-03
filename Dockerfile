@@ -54,6 +54,8 @@ COPY . $BASE/
 RUN sudo chown -R scion: $HOME
 # Build topology files
 RUN ./scion.sh topology
+# Build C code
+RUN make all
 # Install bash config
 COPY docker/profile $HOME/.profile
 # Install basic screen config

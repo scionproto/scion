@@ -79,8 +79,9 @@ class SCIONDaemon(SCIONElement):
                                            max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
                                            max_res_no=self.MAX_SEG_NO)
+        req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
         self.requests = RequestHandler.start(
-            "SCIONDaemon Requests", self._check_segments, self._fetch_segments,
+            req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
         self._api_socket = None
@@ -112,9 +113,9 @@ class SCIONDaemon(SCIONElement):
         paths = sd.get_paths(isd_as)
         """
         inst = cls(conf_dir, addr, api_addr, run_local_api, port, api_port)
+        name = "SCIONDaemon.run %s" % inst.addr.isd_as
         inst.daemon_thread = threading.Thread(
-            target=thread_safety_net, args=(inst.run,), name="SCIONDaemon.run",
-            daemon=True)
+            target=thread_safety_net, args=(inst.run,), name=name, daemon=True)
         inst.daemon_thread.start()
         return inst
 
@@ -182,11 +183,12 @@ class SCIONDaemon(SCIONElement):
         Handle local API's requests.
         """
         if packet[0] == 0:  # path request
-            logging.debug('API: path request from %s.', sender)
             threading.Thread(
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, packet, sender),
-                name="SCIONDaemon", daemon=True).start()
+                daemon=True).start()
+            logging.debug('API: path request from %s. Number of threads: %s',
+                          sender, threading.active_count())
         elif packet[0] == 1:  # address request
             self._api_sock.send(self.addr.pack(), sender)
         else:
@@ -205,8 +207,13 @@ class SCIONDaemon(SCIONElement):
         FIXME(kormat): make IP-version independent
         """
         dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
+        thread = threading.current_thread()
+        thread.name = "SCIONDaemon API id:%s %s -> %s" % (
+            thread.ident, self.addr.isd_as, dst_ia)
         paths = self.get_paths(dst_ia)
         reply = []
+        logging.debug("Replying to api request for %s with %d paths",
+                      dst_ia, len(paths))
         for path in paths:
             raw_path = path.pack()
             # assumed IPv4 addr
@@ -436,7 +443,9 @@ class SCIONDaemon(SCIONElement):
         fulfilled.
         """
         dst_ia, flags = key
-        return self.path_resolution(dst_ia, flags=flags)
+        ret = bool(self.path_resolution(dst_ia, flags=flags))
+        logging.debug("check_segments: key: %s check? %s", key, ret)
+        return ret
 
     def _fetch_segments(self, key, _):
         """
@@ -457,6 +466,7 @@ class SCIONDaemon(SCIONElement):
         """
         Called by RequestHandler to signal that the request has been fulfilled.
         """
+        logging.debug("reply_segments: replying to key %s", key)
         e.set()
 
     def _req_key_map(self, key, req_keys):
@@ -475,6 +485,8 @@ class SCIONDaemon(SCIONElement):
                 # Covers the case where a request was for ISD-0 (i.e. any path
                 # to a core AS in the specified ISD)
                 ret.append((req_ia, req_flags))
+        logging.debug("req_key_map: key: %r req_keys: %r ret: %r",
+                      key, req_keys, ret)
         return ret
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
