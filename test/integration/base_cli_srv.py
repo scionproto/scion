@@ -263,13 +263,13 @@ class TestClientServerBase(object):
         dst_addr = SCIONAddr.from_values(dst_ia, self.server_ip)
         data = self._create_data()
         server = self._create_server(dst_addr, data)
-        threading.Thread(
-            target=thread_safety_net, args=(server.run,),
-            name=self.server_name, daemon=True).start()
+        server_name = "%s %s" % (self.server_name, dst_ia)
+        threading.Thread(target=thread_safety_net, args=(server.run,),
+                         name=server_name, daemon=True).start()
         client = self._create_client(src_addr, dst_addr, server.sock.port, data)
-        threading.Thread(
-            target=thread_safety_net, args=(client.run,),
-            name=self.client_name, daemon=True).start()
+        client_name = "%s %s" % (self.client_name, src_ia)
+        threading.Thread(target=thread_safety_net, args=(client.run,),
+                         name=client_name, daemon=True).start()
         for _ in range(TOUT * 10):
             time.sleep(0.1)
             if server.done and client.done:
