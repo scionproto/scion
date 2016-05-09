@@ -100,7 +100,7 @@ uint8_t * get_path(uint8_t *buf)
 int get_path_len(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return ntohs(sch->header_len) - sizeof(SCIONCommonHeader) - padded_addr_len(buf);
+    return sch->header_len - sizeof(SCIONCommonHeader) - padded_addr_len(buf);
 }
 
 /*
