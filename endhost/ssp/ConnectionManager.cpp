@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <unistd.h>
+#include <sys/un.h>
 
 #include "ConnectionManager.h"
 #include "Extensions.h"
@@ -13,13 +14,15 @@ PathManager::PathManager(int sock)
     : mSendSocket(sock),
     mInvalid(0)
 {
-    struct sockaddr_in addr;
-
-    mDaemonSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    mDaemonSocket = socket(AF_UNIX, SOCK_STREAM, 0);
+    struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    bind(mDaemonSocket, (struct sockaddr *)&addr, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strcpy(addr.sun_path, SCIOND_API_HOST);
+    if (connect(mDaemonSocket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        fprintf(stderr, "failed to connect to sciond at %s: %s\n", SCIOND_API_HOST, strerror(errno));
+        exit(1);
+    }
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
     pthread_mutex_init(&mPathMutex, NULL);
 }
@@ -62,8 +65,9 @@ SCIONAddr * PathManager::localAddress()
 
 void PathManager::queryLocalAddress()
 {
+    DEBUG("%s\n", __func__);
     struct sockaddr_in addr;
-    char buf[32];
+    uint8_t buf[32];
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -71,8 +75,16 @@ void PathManager::queryLocalAddress()
     addr.sin_port = htons(SCIOND_API_PORT);
 
     buf[0] = 1;
-    sendto(mDaemonSocket, buf, 1, 0, (struct sockaddr *)&addr, sizeof(addr));
-    recvfrom(mDaemonSocket, buf, 32, 0, NULL, NULL);
+    send_dp_header(mDaemonSocket, NULL, 1);
+    send_all(mDaemonSocket, buf, 1);
+    recv_all(mDaemonSocket, buf, DP_HEADER_LEN);
+    int len = 0;
+    parse_dp_header(buf, NULL, &len);
+    if (len == -1) {
+        fprintf(stderr, "out of sync with sciond\n");
+        exit(1);
+    }
+    recv_all(mDaemonSocket, buf, len);
     mLocalAddr.isd_as = ntohl(*(uint32_t *)buf);
     // TODO: IPv6?
     mLocalAddr.host.addr_len = ADDR_IPV4_LEN;
@@ -182,10 +194,17 @@ void PathManager::getPaths()
     std::vector<Path *> candidates;
     memset(buf, 0, buflen);
     *(uint32_t *)(buf + 1) = htonl(mDstAddr.isd_as);
-    sendto(mDaemonSocket, buf, 5, 0, (struct sockaddr *)&addr, addrlen);
+    send_dp_header(mDaemonSocket, NULL, 5);
+    send_all(mDaemonSocket, buf, 5);
 
     memset(buf, 0, buflen);
-    recvlen = recvfrom(mDaemonSocket, buf, buflen, 0, NULL, NULL);
+    recv_all(mDaemonSocket, buf, DP_HEADER_LEN);
+    parse_dp_header(buf, NULL, &recvlen);
+    if (recvlen == -1) {
+        fprintf(stderr, "out of sync with sciond\n");
+        exit(1);
+    }
+    recvlen = recv_all(mDaemonSocket, buf, recvlen);
     if (recvlen > 0) {
         DEBUG("%d byte response from daemon\n", recvlen);
         int offset = 0;

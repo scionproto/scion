@@ -37,7 +37,7 @@ public:
     // getters
     bool isListener();
     bool isRunning();
-    int getDispatcherSocket();
+    int getReliableSocket();
     bool bypassDispatcher();
 
     // wait for dispatcher registration
@@ -59,7 +59,7 @@ private:
     void signalSelect();
 
     int                        mProtocolID;
-    int                        mDispatcherSocket;
+    int                        mReliableSocket;
     bool                       mRegistered;
     SCIONState                 mState;
     int                        mLastAccept;

@@ -18,6 +18,7 @@
 # Stdlib
 import ipaddress
 import logging
+import os
 import selectors
 import struct
 from errno import EHOSTUNREACH, ENETUNREACH
@@ -161,16 +162,49 @@ class UDPSocket(Socket):
                 pass
 
 
-class DispatcherSocket(Socket):
+class ReliableSocket(Socket):
     """
-    Wrapper around Unix socket with dispatcher-specific functionality baked in
+    Wrapper around Unix socket with message framing functionality baked in
     """
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, addr, port, init=True, svc=None):
+    def __init__(self, addr, port, init=True, svc=None, reg=True, listen=False):
         super().__init__(SOCK_STREAM, None, AddrType.UNIX)
-        self.registered = reg_dispatcher(self, addr, port, init, svc)
+        self.is_listener = listen
+        if reg:
+            self.registered = reg_dispatcher(self, addr, port, init, svc)
+
+    @classmethod
+    def from_socket(cls, sock):
+        inst = cls(None, None, reg=False)
+        inst.sock.close()
+        inst.sock = sock
+        return inst
+
+    def bind(self, addr):
+        try:
+            os.unlink(addr)
+        except OSError:
+            pass
+        try:
+            self.sock.bind(addr)
+        except OSError as e:
+            logging.critical("Error binding to %s: %s", addr, e)
+            kill_self()
+        self.sock.listen(5)
+
+    def accept(self, block=True):
+        prev = self.sock.gettimeout()
+        if not block:
+            self.sock.settimeout(0)
+        try:
+            s = self.sock.accept()[0]
+        except BlockingIOError:
+            self.sock.settimeout(prev)
+            raise
+        self.sock.settimeout(prev)
+        return ReliableSocket.from_socket(s)
 
     def connect(self, addr):
         self.sock.connect(addr)
@@ -221,11 +255,12 @@ class DispatcherSocket(Socket):
         if addr_len > 0:
             addr = buf[:addr_len]
             port = buf[addr_len:addr_len + port_len]
+            sender = (str(ipaddress.ip_address(addr)), port)
         else:
             addr = ""
             port = 0
+            sender = (None, None)
         packet = buf[addr_len + port_len:]
-        sender = (not addr or str(ipaddress.ip_address(addr)), port)
         return packet, sender
 
 

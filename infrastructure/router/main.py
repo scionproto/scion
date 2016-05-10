@@ -649,7 +649,7 @@ class Router(SCIONElement):
         logging.debug("Packet delivered by extension")
         self.deliver(pkt)
 
-    def handle_request(self, packet, _, from_local_socket=True):
+    def handle_request(self, packet, _, from_local_socket=True, sock=None):
         """
         Main routine to handle incoming SCION packets.
 

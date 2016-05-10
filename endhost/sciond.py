@@ -40,17 +40,16 @@ from lib.packet.scion_addr import ISD_AS
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.sibra.ext.resv import ResvBlockSteady
-from lib.socket import UDPSocket
+from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
 from lib.types import (
-    AddrType,
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
 )
 from lib.util import SCIONTime
 
-SCIOND_API_HOST = "127.255.255.254"
+SCIOND_API_HOST = "/run/shm/sciond"
 SCIOND_API_PORT = 3333
 
 
@@ -67,7 +66,7 @@ class SCIONDaemon(SCIONElement):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=SCION_UDP_PORT, api_port=SCIOND_API_PORT):
+                 port=SCION_UDP_PORT):
         """
         Initialize an instance of the class SCIONDaemon.
         """
@@ -87,7 +86,6 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         self.daemon_thread = None
         self.api_addr = api_addr or SCIOND_API_HOST
-        self.api_port = api_port
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -96,15 +94,14 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
-            self._api_sock = UDPSocket(
-                bind=(self.api_addr, self.api_port, "sciond local API"),
-                addr_type=AddrType.IPV4)
-            self.api_port = self._api_sock.port
+            self._api_sock = ReliableSocket(None, None, reg=False,
+                                            listen=True)
+            self._api_sock.bind(self.api_addr)
             self._socks.add(self._api_sock)
 
     @classmethod
     def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,
-              port=SCION_UDP_PORT, api_port=SCIOND_API_PORT):
+              port=SCION_UDP_PORT):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -112,14 +109,15 @@ class SCIONDaemon(SCIONElement):
         sd = SCIONDaemon.start(conf_dir, addr)
         paths = sd.get_paths(isd_as)
         """
-        inst = cls(conf_dir, addr, api_addr, run_local_api, port, api_port)
+        inst = cls(conf_dir, addr, api_addr, run_local_api, port)
         name = "SCIONDaemon.run %s" % inst.addr.isd_as
         inst.daemon_thread = threading.Thread(
             target=thread_safety_net, args=(inst.run,), name=name, daemon=True)
         inst.daemon_thread.start()
+        logging.debug("sciond started with api_addr = %s", inst.api_addr)
         return inst
 
-    def handle_request(self, packet, sender, from_local_socket=True):
+    def handle_request(self, packet, sender, from_local_socket=True, sock=None):
         # PSz: local_socket may be misleading, especially that we have
         # api_socket which is local (in the localhost sense). What do you think
         # about changing local_socket to as_socket
@@ -127,7 +125,7 @@ class SCIONDaemon(SCIONElement):
         Main routine to handle incoming SCION packets.
         """
         if not from_local_socket:  # From localhost (SCIONDaemon API)
-            self.api_handle_request(packet, sender)
+            self.api_handle_request(packet, sock)
             return
         super().handle_request(packet, sender, from_local_socket)
 
@@ -178,23 +176,23 @@ class SCIONDaemon(SCIONElement):
             return first_ia
         return None
 
-    def api_handle_request(self, packet, sender):
+    def api_handle_request(self, packet, sock):
         """
         Handle local API's requests.
         """
         if packet[0] == 0:  # path request
-            logging.debug('API: path request from %s.', sender)
+            logging.debug('API: path request')
             threading.Thread(
                 target=thread_safety_net,
-                args=(self._api_handle_path_request, packet, sender),
+                args=(self._api_handle_path_request, packet, sock),
                 daemon=True).start()
         elif packet[0] == 1:  # address request
-            logging.debug('API: local addr request from %s', sender)
-            self._api_sock.send(self.addr.pack(), sender)
+            logging.debug('API: local addr request')
+            sock.send(self.addr.pack())
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
-    def _api_handle_path_request(self, packet, sender):
+    def _api_handle_path_request(self, packet, sock):
         """
         Path request:
           | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
@@ -231,7 +229,7 @@ class SCIONDaemon(SCIONElement):
                 isd_as, link = interface
                 reply.append(isd_as.pack())
                 reply.append(struct.pack("!H", link))
-        self._api_sock.send(b"".join(reply), sender)
+        sock.send(b"".join(reply))
 
     def handle_revocation(self, pkt):
         """
