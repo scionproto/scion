@@ -221,7 +221,8 @@ class ConnectionHandler(object):
             # FIXME(kormat): needs error handling
             return
         try:
-            self._send_request(soc, scm, netloc, path, params, query)
+            # Normal mode proxy strips out scm and netloc
+            self._send_request(soc, '', '', path, params, query)
             self._read_write(soc)
         finally:
             cleanup(soc)
