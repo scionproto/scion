@@ -153,7 +153,7 @@ class SCIONElement(object):
         Setup incoming socket and register with dispatcher
         """
         svc = SVC_TYPE_MAP.get(self.SERVICE_TYPE)
-        self._local_sock = ReliableSocket(self.addr, self._port, init, svc)
+        self._local_sock = ReliableSocket((self.addr, self._port,  svc), init)
         if not self._local_sock.registered:
             self._local_sock = None
             return

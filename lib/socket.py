@@ -69,7 +69,10 @@ class Socket(object):
             af_domain = AF_INET
         elif self._addr_type == AddrType.UNIX:
             af_domain = AF_UNIX
-        self.sock = socket(af_domain, sock_type)
+        if sock_type is None:
+            self.sock = None
+        else:
+            self.sock = socket(af_domain, sock_type)
         if reuse:
             self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.port = None
@@ -169,16 +172,20 @@ class ReliableSocket(Socket):
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, addr, port, init=True, svc=None, reg=True, listen=False):
-        super().__init__(SOCK_STREAM, None, AddrType.UNIX)
+    def __init__(self, reg=None, init=True, listen=False, socket=True):
+        if socket:
+            sock_type = SOCK_STREAM
+        else:
+            sock_type = None
+        super().__init__(sock_type, None, AddrType.UNIX)
         self.is_listener = listen
         if reg:
+            addr, port, svc = reg
             self.registered = reg_dispatcher(self, addr, port, init, svc)
 
     @classmethod
     def from_socket(cls, sock):
-        inst = cls(None, None, reg=False)
-        inst.sock.close()
+        inst = cls(None, socket=False)
         inst.sock = sock
         return inst
 
@@ -200,10 +207,8 @@ class ReliableSocket(Socket):
             self.sock.settimeout(0)
         try:
             s = self.sock.accept()[0]
-        except BlockingIOError:
+        finally:
             self.sock.settimeout(prev)
-            raise
-        self.sock.settimeout(prev)
         return ReliableSocket.from_socket(s)
 
     def connect(self, addr):

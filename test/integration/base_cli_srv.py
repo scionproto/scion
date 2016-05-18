@@ -22,7 +22,6 @@ import copy
 import logging
 import os
 import random
-import socket
 import struct
 import sys
 import threading
@@ -30,7 +29,7 @@ import time
 from abc import ABCMeta, abstractmethod
 
 # SCION
-from endhost.sciond import SCIONDaemon
+from endhost.sciond import SCIOND_API_SOCK, SCIONDaemon
 from lib.defines import AS_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
@@ -60,7 +59,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.data = data
         self.finished = finished
         self.addr = addr
-        self.sock = ReliableSocket(addr, 0)
+        self.sock = ReliableSocket((addr, 0, None))
         self.sock.settimeout(1.0)
         self.success = None
 
@@ -125,7 +124,7 @@ class TestClientBase(TestBase):
             self.iflist.append((isd_as, ifid))
 
     def _try_sciond_api(self):
-        sock = ReliableSocket(None, None, reg=False)
+        sock = ReliableSocket()
         msg = b'\x00' + self.dst.isd_as.pack()
         start = time.time()
         try:
@@ -305,7 +304,7 @@ class TestClientServerBase(object):
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port
             self.scionds[addr.isd_as] = start_sciond(
-                addr, api=True, api_addr="/run/shm/sciond_%s_%s" %
+                addr, api=True, api_addr=SCIOND_API_SOCK + "%s_%s" %
                 (self.thread_name, addr.isd_as))
         return self.scionds[addr.isd_as]
 

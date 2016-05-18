@@ -54,9 +54,7 @@ log "Scion status:"
 
 sleep 5
 
-# FIXME(kormat): to be reverted to -j0 or so once sciond's api is over a
-# reliable transport.
-cat << EOF | parallel -n2 -j10 run
+cat << EOF | parallel -n2 -j0 run
 End2End
 test/integration/end2end_test.py
 C2S_extn

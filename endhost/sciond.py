@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import os
 import struct
 import threading
 from itertools import product
@@ -49,8 +50,7 @@ from lib.types import (
 )
 from lib.util import SCIONTime
 
-SCIOND_API_HOST = "/run/shm/sciond"
-SCIOND_API_PORT = 3333
+SCIOND_API_SOCK = "/run/shm/sciond/"
 
 
 class SCIONDaemon(SCIONElement):
@@ -85,7 +85,8 @@ class SCIONDaemon(SCIONElement):
         )
         self._api_socket = None
         self.daemon_thread = None
-        self.api_addr = api_addr or SCIOND_API_HOST
+        os.makedirs(SCIOND_API_SOCK, exist_ok=True)
+        self.api_addr = api_addr or SCIOND_API_SOCK + self.addr.isd_as
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -94,8 +95,7 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
-            self._api_sock = ReliableSocket(None, None, reg=False,
-                                            listen=True)
+            self._api_sock = ReliableSocket(None, listen=True)
             self._api_sock.bind(self.api_addr)
             self._socks.add(self._api_sock)
 
