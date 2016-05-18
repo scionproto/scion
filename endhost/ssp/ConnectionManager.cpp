@@ -256,7 +256,12 @@ int PathManager::insertOnePath(Path *p)
 
 Path * PathManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
 {
-    return new Path(this, mLocalAddr, dstAddr, rawPath, pathLen);
+    PathParams params;
+    params.localAddr = &mLocalAddr;
+    params.dstAddr = &dstAddr;
+    params.rawPath = rawPath;
+    params.pathLen = pathLen;
+    return new Path(this, &params);
 }
 
 void PathManager::handleTimeout()
@@ -543,7 +548,7 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
         saddr.host.addr_len = ADDR_IPV4_LEN;
         memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
 
-        SSPPath *p = new SSPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
+        SSPPath *p = (SSPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
         p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
         p->setInterfaces(sp->interfaces, sp->interfaceCount);
         if (mPolicy.validate(p)) {
@@ -866,7 +871,13 @@ void SSPConnectionManager::getStats(SCIONStats *stats)
 
 Path * SSPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
 {
-    return new SSPPath(this, mLocalAddr, dstAddr, rawPath, pathLen);
+    PathParams params;
+    params.localAddr = &mLocalAddr;
+    params.dstAddr = &dstAddr;
+    params.rawPath = rawPath;
+    params.pathLen = pathLen;
+    params.type = CC_CUBIC;
+    return new SSPPath(this, &params);
 }
 
 void SSPConnectionManager::startScheduler()
@@ -1135,7 +1146,7 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
         saddr.host.addr_len = ADDR_IPV4_LEN;
         memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
 
-        SUDPPath *p = new SUDPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
+        SUDPPath *p = (SUDPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
         p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
         index = insertOnePath(p);
         mLastProbeAcked.resize(mPaths.size());
@@ -1167,5 +1178,10 @@ void SUDPConnectionManager::setRemoteAddress(SCIONAddr addr)
 
 Path * SUDPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
 {
-    return new SUDPPath(this, mLocalAddr, dstAddr, rawPath, pathLen);
+    PathParams params;
+    params.localAddr = &mLocalAddr;
+    params.dstAddr = &dstAddr;
+    params.rawPath = rawPath;
+    params.pathLen = pathLen;
+    return new SUDPPath(this, &params);
 }

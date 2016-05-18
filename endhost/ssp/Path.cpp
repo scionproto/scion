@@ -5,26 +5,26 @@
 #include "Path.h"
 #include "Utils.h"
 
-Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
+Path::Path(PathManager *manager, PathParams *params)
     : mIndex(-1),
-    mLocalAddr(localAddr),
-    mDstAddr(dstAddr),
+    mLocalAddr(*(params->localAddr)),
+    mDstAddr(*(params->dstAddr)),
     mUp(false),
     mUsed(false),
     mValid(true),
     mProbeAttempts(0)
 {
     mSocket = manager->getSocket();
-    if (pathLen == 0) {
+    if (params->pathLen == 0) {
         // raw data is in daemon reply format
-        uint8_t *ptr = rawPath;
-        mPathLen = *rawPath * 8;
+        uint8_t *ptr = params->rawPath;
+        mPathLen = *ptr * 8;
         ptr++;
         if (mPathLen == 0) {
             // empty path
             mPath = NULL;
-            mFirstHop.addr_len = dstAddr.host.addr_len;
-            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addr_len);
+            mFirstHop.addr_len = mDstAddr.host.addr_len;
+            memcpy(mFirstHop.addr, mDstAddr.host.addr, mFirstHop.addr_len);
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
             mMTU = SCION_DEFAULT_MTU;
         } else {
@@ -38,8 +38,8 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
             mFirstHop.port = ntohs(*(uint16_t *)ptr);
             ptr += 2;
 #ifdef BYPASS_ROUTERS
-            mFirstHop.addr_len = dstAddr.host.addr_len;
-            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addr_len);
+            mFirstHop.addr_len = mDstAddr.host.addr_len;
+            memcpy(mFirstHop.addr, mDstAddr.host.addr, mFirstHop.addr_len);
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
 #endif
             mMTU = ntohs(*(uint16_t *)ptr);
@@ -61,13 +61,29 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
         }
     } else {
         // raw data contains path only
-        mPathLen = pathLen;
+        mPathLen = params->pathLen;
         mPath = (uint8_t *)malloc(mPathLen);
-        memcpy(mPath, rawPath, mPathLen);
+        memcpy(mPath, params->rawPath, mPathLen);
         mMTU = SCION_DEFAULT_MTU;
     }
     gettimeofday(&mLastSendTime, NULL);
     pthread_mutex_init(&mMutex, NULL);
+
+    switch (params->type) {
+        case CC_CBR:
+            mState = new CBRPathState(SCION_DEFAULT_RTT, mMTU);
+            break;
+        case CC_PCC:
+            mState = new PCCPathState(SCION_DEFAULT_RTT, mMTU);
+            break;
+        case CC_RENO:
+            mState = new RenoPathState(SCION_DEFAULT_RTT, mMTU);
+            break;
+        case CC_CUBIC:
+        default:
+            mState = new CUBICPathState(SCION_DEFAULT_RTT, mMTU);
+            break;
+    }
 }
 
 Path::~Path()
@@ -290,16 +306,14 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh)
 
 // SSP
 
-SSPPath::SSPPath(SSPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
-    : Path(manager, localAddr, dstAddr, rawPath, pathLen),
+SSPPath::SSPPath(SSPConnectionManager *manager, PathParams *params)
+    : Path(manager, params),
     mManager(manager),
     mTotalReceived(0),
     mTotalSent(0),
     mTotalAcked(0),
     mTimeoutCount(0)
 {
-    mState = new CUBICPathState(SCION_DEFAULT_RTT, mMTU);
-
     gettimeofday(&mLastLossTime, NULL);
 
     pthread_mutex_init(&mTimeMutex, NULL);
@@ -568,8 +582,8 @@ void SSPPath::getStats(SCIONStats *stats)
 
 // SUDP
 
-SUDPPath::SUDPPath(SUDPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
-    : Path(manager, localAddr, dstAddr, rawPath, pathLen)
+SUDPPath::SUDPPath(SUDPConnectionManager *manager, PathParams *params)
+    : Path(manager, params)
 {
 }
 
