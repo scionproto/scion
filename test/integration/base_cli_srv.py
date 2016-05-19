@@ -27,6 +27,7 @@ import struct
 import sys
 import threading
 import time
+from abc import ABCMeta, abstractmethod
 
 # SCION
 from endhost.sciond import SCIONDaemon
@@ -52,32 +53,58 @@ from lib.util import (
 )
 
 API_TOUT = 15
-TOUT = 10  # How long wait for response.
 
 
-class TestClientBase(object):
+class TestBase(object, metaclass=ABCMeta):
+    def __init__(self, sd, data, finished, addr):
+        self.sd = sd
+        self.data = data
+        self.finished = finished
+        self.addr = addr
+        self.sock = DispatcherSocket(addr, 0)
+        self.sock.settimeout(1.0)
+        self.success = None
+
+    @abstractmethod
+    def run(self):
+        raise NotImplementedError
+
+    def _recv(self):
+        try:
+            packet = self.sock.recv()[0]
+        except socket.timeout:
+            return None
+        return SCIONL4Packet(packet)
+
+    def _send_pkt(self, spkt, next_=None):
+        next_hop, port = next_ or self.sd.get_first_hop(spkt)
+        assert next_hop is not None
+        logging.debug("Sending (via %s:%s):\n%s", next_hop, port, spkt)
+        self.sock.send(spkt.pack(), (next_hop, port))
+
+    def _shutdown(self):
+        self.sock.close()
+
+
+class TestClientBase(TestBase):
     """
     Base client app
     """
-    def __init__(self, src, dst, dport, data, sd=None, api=True):
-        self.src = src
+    def __init__(self, sd, data, finished, addr, dst, dport, api=True):
+        super().__init__(sd, data, finished, addr)
         self.dst = dst
         self.dport = dport
-        self.data = data
-        self.done = False
         self.api = api
         self.path = None
         self.iflist = []
-        self.sd = sd or self._run_sciond()
-        if self.api:
+        self._get_path(api)
+
+    def _get_path(self, api):
+        if api:
             self._get_path_via_api()
         else:
             self._get_path_direct()
         assert self.path.mtu
-        self.sock = DispatcherSocket(self.src, 0)
-
-    def _run_sciond(self):
-        return start_sciond(self.src)
 
     def _get_path_via_api(self):
         """
@@ -98,7 +125,6 @@ class TestClientBase(object):
 
     def _try_sciond_api(self):
         sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
-        sock.settimeout(1.0)
         msg = b'\x00' + self.dst.isd_as.pack()
         start = time.time()
         while time.time() - start < API_TOUT:
@@ -107,54 +133,57 @@ class TestClientBase(object):
             logging.debug("Sending path request to local API (%s:%s)",
                           addr, port)
             sock.send(msg, (addr, port))
-            try:
-                data = Raw(sock.recv()[0], "Path response")
-            except socket.timeout:
-                continue
+            data = Raw(sock.recv()[0], "Path response")
             if data:
                 sock.close()
                 return data
             logging.debug("Empty response from local api.")
         logging.critical("Unable to get path from local api.")
-        kill_self()
         sock.close()
+        kill_self()
 
-    def _get_path_direct(self):
+    def _get_path_direct(self, flags=0):
         logging.debug("Sending PATH request for %s", self.dst)
         # Get paths through local API.
         paths = []
         for _ in range(5):
-            paths = self.sd.get_paths(self.dst.isd_as)
+            paths = self.sd.get_paths(self.dst.isd_as, flags=flags)
             if paths:
                 break
         else:
             logging.critical("Unable to get path directly from sciond")
             kill_self()
         self.path = paths[0]
+        self._get_iflist()
+
+    def _get_iflist(self):
         self.iflist = self.path.interfaces
 
     def run(self):
-        self._send()
-        spkt = self._recv()
-        self._handle_response(spkt)
+        while not self.finished.is_set():
+            self._send()
+            spkt = self._recv()
+            if not spkt or not self._handle_response(spkt):
+                if not spkt:
+                    logging.error("Timeout waiting for response")
+                self.success = False
+                self.finished.set()
         self._shutdown()
 
     def _send(self):
-        spkt = self._build_pkt()
-        next_hop, port = self._get_first_hop(spkt)
-        assert next_hop is not None
-        logging.debug("Sending packet via (%s:%s):\n%s", next_hop, port, spkt)
+        self._send_pkt(self._build_pkt())
         if self.iflist:
             logging.debug("Interfaces: %s", ", ".join(
                 ["%s:%s" % ifentry for ifentry in self.iflist]))
-        self._send_pkt(spkt, next_hop, port)
 
-    def _build_pkt(self):
-        cmn_hdr, addr_hdr = build_base_hdrs(self.src, self.dst)
+    def _build_pkt(self, path=None):
+        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)
         l4_hdr = self._create_l4_hdr()
         extensions = self._create_extensions()
+        if path is None:
+            path = self.path
         spkt = SCIONL4Packet.from_values(
-            cmn_hdr, addr_hdr, self.path, extensions, l4_hdr)
+            cmn_hdr, addr_hdr, path, extensions, l4_hdr)
         spkt.set_payload(self._create_payload(spkt))
         spkt.update()
         return spkt
@@ -162,61 +191,36 @@ class TestClientBase(object):
     def _get_first_hop(self, spkt):
         return self.sd.get_first_hop(spkt)
 
-    def _send_pkt(self, spkt, next_hop, port):
-        self.sock.send(spkt.pack(), (next_hop, port))
-
     def _create_payload(self, spkt):
         return PayloadRaw(self.data)
 
     def _create_l4_hdr(self):
         return SCIONUDPHeader.from_values(
-            self.src, self.sock.port, self.dst, self.dport)
+            self.addr, self.sock.port, self.dst, self.dport)
 
     def _create_extensions(self):
         return []
 
-    def _recv(self):
-        packet = self.sock.recv()[0]
-        return SCIONL4Packet(packet)
-
+    @abstractmethod
     def _handle_response(self, spkt):
-        pass
-
-    def _shutdown(self):
-        self.sock.close()
+        raise NotImplementedError
 
 
-class TestServerBase(object):
+class TestServerBase(TestBase):
     """
     Base server app
     """
-    def __init__(self, dst, data, sd=None):
-        self.dst = dst
-        self.data = data
-        self.sd = sd or self._run_sciond()
-        self.done = False
-        self.sock = DispatcherSocket(self.dst, 0)
-
-    def _run_sciond(self):
-        return start_sciond(self.src)
-
     def run(self):
-        packet = self.sock.recv()[0]
-        spkt = SCIONL4Packet(packet)
-        payload = spkt.get_payload()
-        if self._verify_request(payload):
-            self._handle_request(spkt)
-            self.done = True
-        else:
-            logging.error("Request can't be verified:\n%s", spkt)
-            kill_self()
-        self.sock.close()
+        while not self.finished.is_set():
+            spkt = self._recv()
+            if spkt and not self._handle_request(spkt):
+                self.success = False
+                self.finished.set()
+        self._shutdown()
 
-    def _verify_request(self, payload):
-        return True
-
+    @abstractmethod
     def _handle_request(self, spkt):
-        pass
+        raise NotImplementedError
 
 
 class TestClientServerBase(object):
@@ -229,17 +233,12 @@ class TestClientServerBase(object):
         self.src_ias = sources
         self.dst_ias = destinations
         self.local = local
-        self.client_name = "Base Client"
-        self.server_name = "Base Server"
-        self.thread_name = "Base.MainThread"
         self.scionds = {}
 
     def run(self):
         """
         Run a test for every pair of src and dst
         """
-        thread = threading.current_thread()
-        thread.name = self.thread_name
         for src_ia in self.src_ias:
             for dst_ia in self.dst_ias:
                 if not self.local and src_ia == dst_ia:
@@ -251,23 +250,32 @@ class TestClientServerBase(object):
         Run client and server, wait for both to finish
         """
         logging.info("Testing: %s -> %s", src_ia, dst_ia)
+        # finished is used by the client/server to signal to the other that they
+        # are stopping.
+        finished = threading.Event()
         src_addr = SCIONAddr.from_values(src_ia, self.client_ip)
         dst_addr = SCIONAddr.from_values(dst_ia, self.server_ip)
         data = self._create_data()
-        server = self._create_server(dst_addr, data)
-        server_name = "%s %s" % (self.server_name, dst_ia)
-        threading.Thread(target=thread_safety_net, args=(server.run,),
-                         name=server_name, daemon=True).start()
-        client = self._create_client(src_addr, dst_addr, server.sock.port, data)
-        client_name = "%s %s" % (self.client_name, src_ia)
-        threading.Thread(target=thread_safety_net, args=(client.run,),
-                         name=client_name, daemon=True).start()
-        for _ in range(TOUT * 10):
-            time.sleep(0.1)
-            if server.done and client.done:
-                return
-        logging.error("Test timed out")
-        sys.exit(1)
+        server = self._create_server(data, finished, dst_addr)
+        client = self._create_client(data, finished, src_addr, dst_addr,
+                                     server.sock.port)
+        server_name = "Server %s" % dst_ia
+        s_thread = threading.Thread(
+            target=thread_safety_net, args=(server.run,), name=server_name,
+            daemon=True)
+        s_thread.start()
+        client.run()
+        # If client is finished, server should finish within ~1s (due to recv
+        # timeout). If it hasn't, then there was a problem.
+        s_thread.join(2.0)
+        if s_thread.is_alive():
+            logging.error("Timeout waiting for server thread to terminate")
+            sys.exit(1)
+        if not client.success and server.success:
+            logging.error("Client success? %s Server success? %s",
+                          client.success, server.success)
+            sys.exit(1)
+        logging.debug("Success")
 
     def _create_data(self):
         """
@@ -275,17 +283,18 @@ class TestClientServerBase(object):
         """
         return b""
 
-    def _create_server(self, addr, data):
+    def _create_server(self, data, finished, addr):
         """
         Instantiate server app
         """
-        return TestServerBase(addr, data, sd=self._run_sciond(addr))
+        return TestServerBase(self._run_sciond(addr), data, finished, addr)
 
-    def _create_client(self, src, dst, port, data):
+    def _create_client(self, data, finished, src, dst, port):
         """
         Instantiate client app
         """
-        return TestClientBase(src, dst, port, data, sd=self._run_sciond(src))
+        return TestClientBase(self._run_sciond(src), data, finished, src, dst,
+                              port)
 
     def _run_sciond(self, addr):
         if addr.isd_as not in self.scionds:

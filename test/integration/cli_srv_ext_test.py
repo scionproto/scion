@@ -52,7 +52,7 @@ class ExtClient(TestClientBase):
         exts.append(TracerouteExt.from_values(routers_no))
         # Create PathTransportExtension
         # One with data-plane path.
-        of_path = PathTransOFPath.from_values(self.src, self.dst, self.path)
+        of_path = PathTransOFPath.from_values(self.addr, self.dst, self.path)
         exts.append(PathTransportExt.from_values(
             PathTransType.OF_PATH, of_path))
         # And another PathTransportExtension with control-plane path.
@@ -70,9 +70,9 @@ class ExtClient(TestClientBase):
         return exts
 
     def _handle_response(self, spkt):
-        self.done = True
         logging.debug('CLI: Received response:\n%s', spkt)
         logging.debug("CLI: leaving.")
+        return True
 
 
 class ExtServer(TestServerBase):
@@ -110,11 +110,11 @@ class TestClientServerExtension(TestClientServerBase):
     def _create_data(self):
         return b"request to server"
 
-    def _create_server(self, addr, data):
-        return ExtServer(addr, data, sd=self._run_sciond(addr))
+    def _create_server(self, data, finished, addr):
+        return ExtServer(self._run_sciond(addr), data, finished, addr)
 
-    def _create_client(self, src, dst, port, data):
-        return ExtClient(src, dst, port, data, sd=self._run_sciond(src))
+    def _create_client(self, data, finished, src, dst, port):
+        return ExtClient(self._run_sciond(src), data, finished, src, dst, port)
 
 
 def main():

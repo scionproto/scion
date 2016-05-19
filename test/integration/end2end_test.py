@@ -22,7 +22,6 @@ import logging
 # SCION
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
-from lib.thread import kill_self
 from lib.types import L4Proto
 from test.integration.base_cli_srv import (
     setup_main,
@@ -47,49 +46,49 @@ class E2EClient(TestClientBase):
 
     def _handle_response(self, spkt):
         if spkt.l4_hdr.TYPE == L4Proto.SCMP:
-            spkt.parse_payload()
+            self._handle_scmp(spkt)
+            return False
         logging.debug("Received:\n%s", spkt)
-        if spkt.l4_hdr.TYPE == L4Proto.SCMP:
-            logging.error("Received SCMP error")
-            kill_self()
-            return
         if len(spkt) != self.path.mtu:
             logging.error("Packet length (%sB) != MTU (%sB)",
                           len(spkt), self.path.mtu)
-            kill_self()
-            return
+            return False
         payload = spkt.get_payload()
         pong = self._gen_max_pld(b"pong " + self.data, len(payload))
         if payload == pong:
-            logging.debug('%s:%d: pong received.', self.src.host,
+            logging.debug('%s:%d: pong received.', self.addr.host,
                           self.sock.port)
-            self.done = True
-        else:
-            logging.error(
-                "Unexpected payload:\n  Received (%dB): %s\n  "
-                "Expected (%dB): %s", len(payload), payload, len(pong), pong)
-            kill_self()
+            self.success = True
+            self.finished.set()
+            return True
+        logging.error(
+            "Unexpected payload:\n  Received (%dB): %s\n  "
+            "Expected (%dB): %s", len(payload), payload, len(pong), pong)
+        return False
+
+    def _handle_scmp(self, spkt):
+        spkt.parse_payload()
+        logging.error("Received SCMP error:\n%s", spkt)
 
 
 class E2EServer(TestServerBase):
     """
     Simple pong app.
     """
-    def _verify_request(self, payload):
-        expected = b"ping " + self.data
-        return payload.pack().startswith(expected)
-
     def _handle_request(self, spkt):
+        expected = b"ping " + self.data
+        raw_pld = spkt.get_payload().pack()
+        if not raw_pld.startswith(expected):
+            return False
         # Reverse the packet and send "pong".
         logging.debug('%s:%d: ping received, sending pong.',
-                      self.dst.host, self.sock.port)
-        self.ping_received = True
+                      self.addr.host, self.sock.port)
         spkt.reverse()
         spkt.set_payload(self._create_payload(spkt))
-        next_hop, port = self.sd.get_first_hop(spkt)
-        assert next_hop is not None
-        logging.debug("Replying with (via %s:%s):\n%s", next_hop, port, spkt)
-        self.sd.send(spkt, next_hop, port)
+        self._send_pkt(spkt)
+        self.success = True
+        self.finished.set()
+        return True
 
     def _create_payload(self, spkt):
         old_pld = spkt.get_payload()
@@ -114,11 +113,11 @@ class TestEnd2End(TestClientServerBase):
     def _create_data(self):
         return ("%s<->%s" % (self.src, self.dst)).encode("UTF-8")
 
-    def _create_server(self, addr, data):
-        return E2EServer(addr, data, sd=self._run_sciond(addr))
+    def _create_server(self, data, finished, addr):
+        return E2EServer(self._run_sciond(addr), data, finished, addr)
 
-    def _create_client(self, src, dst, port, data):
-        return E2EClient(src, dst, port, data, sd=self._run_sciond(src))
+    def _create_client(self, data, finished, src, dst, port):
+        return E2EClient(self._run_sciond(src), data, finished, src, dst, port)
 
 
 def main():

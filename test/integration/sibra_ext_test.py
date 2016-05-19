@@ -49,7 +49,6 @@ from lib.util import (
     trim_dispatcher_packet,
 )
 
-TOUT = 10  # How long wait for response.
 RESV_LEN = SIBRA_TICK
 
 
