@@ -372,7 +372,7 @@ class SCIONElement(object):
         dst_addr = SCIONAddr.from_values(dst_ia, dst_host)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, self._port, dst_addr, dst_port, payload)
+            self.addr, self._port, dst_addr, dst_port)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 

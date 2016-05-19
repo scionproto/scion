@@ -103,7 +103,7 @@ class SCMPPayload(PayloadBase):
         if SCMPIncParts.EXTS in inc_list:
             inst._exts = pkt.pack_exts()
         if SCMPIncParts.L4 in inc_list:
-            inst._l4_hdr = pkt.l4_hdr.pack()
+            inst._l4_hdr = pkt.l4_hdr.pack(b"")
             inst.l4_proto = pkt.l4_hdr.TYPE
         else:
             inst.l4_proto = L4Proto.NONE

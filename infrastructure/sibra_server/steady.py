@@ -211,7 +211,7 @@ class SteadyPath(object):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         payload = SIBRAPayload()
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, payload)
+            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
         return cmn_hdr, addr_hdr, udp_hdr, payload
 
     def _create_scion_pkt(self, ext):
@@ -257,7 +257,7 @@ class SteadyPath(object):
         dest = SCIONAddr.from_values(dst_ia, SVCType.PS)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, pld)
+            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [], udp_hdr, pld)
 

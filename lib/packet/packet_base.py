@@ -59,6 +59,12 @@ class L4HeaderBase(Serializable, metaclass=ABCMeta):  # pragma: no cover
     """
     TYPE = None
 
+    def pack(self, payload, checksum=None):
+        self.total_len = self.LEN + len(payload)
+        if checksum is None:
+            checksum = self._calc_checksum(payload)
+        return self._pack(checksum)
+
     @abstractmethod
     def validate(self, payload):
         raise NotImplementedError
@@ -100,6 +106,8 @@ class PayloadBase(Serializable):  # pragma: no cover
 
 
 class PayloadRaw(PayloadBase):  # pragma: no cover
+    SNIPPET_LEN = 32
+
     def __init__(self, raw=None):
         self._raw = b""
         super().__init__(raw)
@@ -123,7 +131,11 @@ class PayloadRaw(PayloadBase):  # pragma: no cover
         return len(self._raw)
 
     def __str__(self):
-        return hex_str(self._raw)
+        s = "PayloadRaw(%dB): %s" % (len(self._raw),
+                                     hex_str(self._raw[:self.SNIPPET_LEN]))
+        if len(self._raw) > self.SNIPPET_LEN:
+            s += "[...]"
+        return s
 
 
 class SCIONPayloadBase(PayloadBase):  # pragma: no cover
@@ -138,6 +150,36 @@ class SCIONPayloadBase(PayloadBase):  # pragma: no cover
 
     def pack_meta(self):
         return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
+
+
+class SCIONPayloadBaseProto(SCIONPayloadBase):  # pragma: no cover
+    def __init__(self, p):
+        self.p = p
+        self._packed = False
+
+    @classmethod
+    def from_raw(cls, raw):  # pragma: no cover
+        return cls(cls.P_CLS.from_bytes_packed(raw).as_builder())
+
+    def _parse(self, raw):
+        raise NotImplementedError
+
+    def pack(self, *args, **kwargs):
+        assert not self._packed, "May only be packed once"
+        self._packed = True
+        return self._pack(*args, **kwargs)
+
+    def _pack(self):
+        return self.p.to_bytes_packed()
+
+    def __len__(self, raw):
+        raise NotImplementedError
+
+    def copy(self):
+        return type(self)(self.p.copy())
+
+    def __str__(self):
+        return "%s: %s" % (self.NAME, self.p)
 
 
 class PathMgmtPayloadBase(SCIONPayloadBase):
