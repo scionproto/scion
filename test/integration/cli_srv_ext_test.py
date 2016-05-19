@@ -71,7 +71,8 @@ class ExtClient(TestClientBase):
 
     def _handle_response(self, spkt):
         logging.debug('CLI: Received response:\n%s', spkt)
-        logging.debug("CLI: leaving.")
+        self.success = True
+        self.finished.set()
         return True
 
 
@@ -79,21 +80,19 @@ class ExtServer(TestServerBase):
     """
     Extension test server app.
     """
-    def _verify_request(self, payload):
-        return payload == PayloadRaw(b"request to server")
 
     def _handle_request(self, spkt):
+        if spkt.get_payload() != PayloadRaw(b"request to server"):
+            logging.error("Payload verification failed:\n%s", spkt)
+            self.success = False
+            self.finished.set()
         logging.debug('SRV: request received, sending response.')
-        # Reverse the packet
         spkt.reverse()
-        # Setting payload
         spkt.set_payload(PayloadRaw(b"response"))
-        # Determine first hop (i.e., local address of border router)
-        (next_hop, port) = self.sd.get_first_hop(spkt)
-        assert next_hop is not None
-        # Send packet to first hop (it is sent through SCIONDaemon)
-        self.sd.send(spkt, next_hop, port)
-        logging.debug("SRV: Leaving server.")
+        self._send_pkt(spkt)
+        self.success = True
+        self.finished.set()
+        return True
 
 
 class TestClientServerExtension(TestClientServerBase):

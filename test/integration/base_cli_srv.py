@@ -90,8 +90,10 @@ class TestClientBase(TestBase):
     """
     Base client app
     """
-    def __init__(self, sd, data, finished, addr, dst, dport, api=True):
+    def __init__(self, sd, data, finished, addr, dst, dport, api=True,
+                 timeout=3.0):
         super().__init__(sd, data, finished, addr)
+        self.sock.settimeout(timeout)
         self.dst = dst
         self.dport = dport
         self.api = api
@@ -271,11 +273,12 @@ class TestClientServerBase(object):
         if s_thread.is_alive():
             logging.error("Timeout waiting for server thread to terminate")
             sys.exit(1)
-        if not client.success and server.success:
-            logging.error("Client success? %s Server success? %s",
-                          client.success, server.success)
-            sys.exit(1)
-        logging.debug("Success")
+        if client.success and server.success:
+            logging.debug("Success")
+            return
+        logging.error("Client success? %s Server success? %s",
+                      client.success, server.success)
+        sys.exit(1)
 
     def _create_data(self):
         """
