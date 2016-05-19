@@ -22,6 +22,7 @@ import copy
 import logging
 import os
 import random
+import socket
 import struct
 import sys
 import threading
@@ -29,7 +30,7 @@ import time
 from abc import ABCMeta, abstractmethod
 
 # SCION
-from endhost.sciond import SCIOND_API_SOCK, SCIONDaemon
+from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
 from lib.defines import AS_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
@@ -59,7 +60,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.data = data
         self.finished = finished
         self.addr = addr
-        self.sock = ReliableSocket((addr, 0, None))
+        self.sock = ReliableSocket(reg=(addr, 0, True, None))
         self.sock.settimeout(1.0)
         self.success = None
 
@@ -133,7 +134,8 @@ class TestClientBase(TestBase):
             logging.critical("Error connecting to sciond: %s", e)
             kill_self()
         while time.time() - start < API_TOUT:
-            logging.debug("Sending path request to local API")
+            logging.debug("Sending path request to local API at %s",
+                          self.sd.api_addr)
             sock.send(msg)
             data = Raw(sock.recv()[0], "Path response")
             if data:
@@ -304,7 +306,7 @@ class TestClientServerBase(object):
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port
             self.scionds[addr.isd_as] = start_sciond(
-                addr, api=True, api_addr=SCIOND_API_SOCK + "%s_%s" %
+                addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
                 (self.thread_name, addr.isd_as))
         return self.scionds[addr.isd_as]
 

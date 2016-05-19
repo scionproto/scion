@@ -154,7 +154,7 @@ class Router(SCIONElement):
             bind=(str(self.interface.addr), self.interface.udp_port),
             addr_type=AddrType.IPV4,
         )
-        self._socks.add(self._remote_sock)
+        self._socks.add(self._remote_sock, self.handle_recv)
         logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
 
     def _setup_socket(self, init=True):
@@ -168,7 +168,7 @@ class Router(SCIONElement):
             addr_type=self.addr.host.TYPE, reuse=True,
         )
         self._port = self._local_sock.port
-        self._socks.add(self._local_sock)
+        self._socks.add(self._local_sock, self.handle_recv)
 
     def run(self):
         """

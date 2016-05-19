@@ -41,7 +41,9 @@ void write_dp_header(uint8_t *buf, HostAddr *host, int packet_len)
 
 int send_dp_header(int sock, HostAddr *host, int packet_len)
 {
-    int addr_port_len = host && host->addr_len > 0 ? host->addr_len + 2 : 0;
+    int addr_port_len = 0;
+    if (host && host->addr_len > 0)
+        addr_port_len = host->addr_len + 2;
     uint8_t buf[DP_HEADER_LEN + addr_port_len];
     write_dp_header(buf, host, packet_len);
     return send_all(sock, buf, DP_HEADER_LEN + addr_port_len);

@@ -21,6 +21,7 @@ import logging
 import os
 import selectors
 import struct
+from abc import abstractmethod
 from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
     AF_INET,
@@ -49,11 +50,38 @@ class Socket(object):
     """
     Base class for socket wrappers
     """
-    def __init__(self, sock_type, bind=None, addr_type=AddrType.IPV6,
-                 reuse=False):
+    @abstractmethod
+    def bind(self, addr, port=None, desc=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def send(self, data, dst=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def recv(self, block=True):
+        raise NotImplementedError
+
+    def close(self):  # pragma: no cover
         """
-        Initialise a socket of the specified type, and optionally bind it to an
-        address/port.
+        Close the socket.
+        """
+        self.sock.close()
+
+    def settimeout(self, timeout):  # pragma: no cover
+        prev = self.sock.gettimeout()
+        self.sock.settimeout(timeout)
+        return prev
+
+
+class UDPSocket(Socket):
+    """
+    Thin wrapper around BSD/POSIX UDP sockets.
+    """
+    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
+        """
+        Initialize a UDP socket, then call superclass init for socket options
+        and binding.
 
         :param tuple bind:
             Optional tuple of (`str`, `int`, `str`) describing respectively the
@@ -61,28 +89,22 @@ class Socket(object):
         :param addr_type:
             Socket domain. Must be one of :const:`~lib.types.AddrType.IPV4`,
             :const:`~lib.types.AddrType.IPV6` (default).
+        :param reuse:
+            Boolean value indicating whether SO_REUSEADDR option should be set.
         """
-        assert addr_type in (AddrType.IPV4, AddrType.IPV6, AddrType.UNIX)
+        assert addr_type in (AddrType.IPV4, AddrType.IPV6)
         self._addr_type = addr_type
         af_domain = AF_INET6
         if self._addr_type == AddrType.IPV4:
             af_domain = AF_INET
-        elif self._addr_type == AddrType.UNIX:
-            af_domain = AF_UNIX
-        if sock_type is None:
-            self.sock = None
-        else:
-            self.sock = socket(af_domain, sock_type)
+        self.sock = socket(af_domain, SOCK_DGRAM)
         if reuse:
             self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.port = None
         if bind:
             self.bind(*bind)
-        else:
-            # TODO: Replace with dispatcher-assigned port
-            self.port = 30045
 
-    def bind(self, addr, port, desc=None):
+    def bind(self, addr, port=None, desc=None):
         """
         Bind socket to the specified address & port. If `addr` is ``None``, the
         socket will bind to all interfaces.
@@ -104,26 +126,7 @@ class Socket(object):
         if desc:
             logging.debug("%s bound to %s:%d", desc, addr, self.port)
 
-    def close(self):  # pragma: no cover
-        """
-        Close the socket.
-        """
-        self.sock.close()
-
-    def settimeout(self, timeout):  # pragma: no cover
-        prev = self.sock.gettimeout()
-        self.sock.settimeout(timeout)
-        return prev
-
-
-class UDPSocket(Socket):
-    """
-    Thin wrapper around BSD/POSIX UDP sockets.
-    """
-    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
-        super().__init__(SOCK_DGRAM, bind, addr_type, reuse)
-
-    def send(self, data, dst, sock=None):
+    def send(self, data, dst=None):
         """
         Send data to a specified destination.
 
@@ -132,10 +135,8 @@ class UDPSocket(Socket):
             Tuple of (`str`, `int`) describing the destination address and port,
             respectively.
         """
-        if sock is None:
-            sock = self.sock
         try:
-            ret = sock.sendto(data, dst)
+            ret = self.sock.sendto(data, dst)
         except OSError as e:
             errno = e.args[0]
             logging.error("Error sending %dB to %s: %s", len(data), dst, e)
@@ -172,24 +173,37 @@ class ReliableSocket(Socket):
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, reg=None, init=True, listen=False, socket=True):
-        if socket:
-            sock_type = SOCK_STREAM
+    def __init__(self, reg=None, bind=None, open_sock=True):
+        """
+        Initialise a socket of the specified type, and optionally bind it to an
+        address/port.
+
+        :param tuple reg:
+            Optional tuple of (`SCIONAddr`, `int`, `SVCType`, `bool`)
+            describing respectively the address, port, SVC type, and init value
+            to register with the dispatcher. In sockets that do not connect to
+            the dispatcher, this argument is None.
+        :param open_sock:
+            Whether or not this object should create its own socket. The False
+            case is used in the from_socket() class method.
+        """
+        if open_sock:
+            self.sock = socket(AF_UNIX, SOCK_STREAM)
         else:
-            sock_type = None
-        super().__init__(sock_type, None, AddrType.UNIX)
-        self.is_listener = listen
+            self.sock = None
         if reg:
-            addr, port, svc = reg
+            addr, port, init, svc = reg
             self.registered = reg_dispatcher(self, addr, port, init, svc)
+        if bind:
+            self.bind(*bind)
 
     @classmethod
     def from_socket(cls, sock):
-        inst = cls(None, socket=False)
+        inst = cls(None, open_sock=False)
         inst.sock = sock
         return inst
 
-    def bind(self, addr):
+    def bind(self, addr, port=None, desc=None):
         try:
             os.unlink(addr)
         except OSError:
@@ -200,6 +214,8 @@ class ReliableSocket(Socket):
             logging.critical("Error binding to %s: %s", addr, e)
             kill_self()
         self.sock.listen(5)
+        if desc:
+            logging.debug("%s bound to %s", desc, addr)
 
     def accept(self, block=True):
         prev = self.sock.gettimeout()
@@ -275,14 +291,16 @@ class SocketMgr(object):
     """
     def __init__(self):  # pragma: no cover
         self._sel = selectors.DefaultSelector()
+        self.fd_to_obj = {}
 
-    def add(self, sock):  # pragma: no cover
+    def add(self, sock, callback):  # pragma: no cover
         """
         Add new socket.
 
         :param UDPSocket sock: UDPSocket to add.
         """
-        self._sel.register(sock.sock, selectors.EVENT_READ, sock)
+        self._sel.register(sock.sock, selectors.EVENT_READ, callback)
+        self.fd_to_obj[sock.sock] = sock
 
     def remove(self, sock):  # pragma: no cover
         """
@@ -291,6 +309,7 @@ class SocketMgr(object):
         :param UDPSocket sock: UDPSocket to remove.
         """
         self._sel.unregister(sock.sock)
+        self.fd_to_obj.pop(sock.sock, None)
 
     def select_(self, timeout=None):
         """
@@ -302,7 +321,7 @@ class SocketMgr(object):
         """
         ret = []
         for key, _ in self._sel.select(timeout=timeout):
-            ret.append(key.data)
+            ret.append((self.fd_to_obj[key.fileobj], key.data))
         return ret
 
     def close(self):

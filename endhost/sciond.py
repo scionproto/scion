@@ -50,7 +50,7 @@ from lib.types import (
 )
 from lib.util import SCIONTime
 
-SCIOND_API_SOCK = "/run/shm/sciond/"
+SCIOND_API_SOCKDIR = "/run/shm/sciond/"
 
 
 class SCIONDaemon(SCIONElement):
@@ -85,8 +85,9 @@ class SCIONDaemon(SCIONElement):
         )
         self._api_socket = None
         self.daemon_thread = None
-        os.makedirs(SCIOND_API_SOCK, exist_ok=True)
-        self.api_addr = api_addr or SCIOND_API_SOCK + self.addr.isd_as
+        os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
+        self.api_addr = (api_addr or
+                         SCIOND_API_SOCKDIR + self.addr.isd_as + ".sock")
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -95,9 +96,8 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
-            self._api_sock = ReliableSocket(None, listen=True)
-            self._api_sock.bind(self.api_addr)
-            self._socks.add(self._api_sock)
+            self._api_sock = ReliableSocket(bind=(self.api_addr, None, None))
+            self._socks.add(self._api_sock, self.handle_accept)
 
     @classmethod
     def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,

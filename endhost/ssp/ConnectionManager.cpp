@@ -18,9 +18,9 @@ PathManager::PathManager(int sock)
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strcpy(addr.sun_path, SCIOND_API_HOST);
+    strcpy(addr.sun_path, SCIOND_API_SOCKDIR);
     if (connect(mDaemonSocket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "failed to connect to sciond at %s: %s\n", SCIOND_API_HOST, strerror(errno));
+        fprintf(stderr, "failed to connect to sciond at %s: %s\n", SCIOND_API_SOCKDIR, strerror(errno));
         exit(1);
     }
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
@@ -71,7 +71,7 @@ void PathManager::queryLocalAddress()
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
+    addr.sin_addr.s_addr = inet_addr(SCIOND_API_SOCKDIR);
     addr.sin_port = htons(SCIOND_API_PORT);
 
     buf[0] = 1;
@@ -175,7 +175,7 @@ void PathManager::getPaths()
 
     memset(&addr, 0, addrlen);
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SCIOND_API_HOST);
+    addr.sin_addr.s_addr = inet_addr(SCIOND_API_SOCKDIR);
     addr.sin_port = htons(SCIOND_API_PORT);
 
     memset(buf, 0, buflen);

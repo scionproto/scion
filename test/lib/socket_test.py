@@ -189,14 +189,20 @@ class TestSocketMgrSelect(object):
     def test(self, init):
         inst = SocketMgr()
         inst._sel = create_mock(["select"])
+        inst.fd_to_obj = {}
         events = []
         for i in range(3):
-            key = create_mock(["data"])
-            key.data = "sock%d" % i
+            key = create_mock(["data", "fileobj"])
+            key.data = "callback%d" % i
+            key.fileobj = "sock%d" % i
+            inst.fd_to_obj[key.fileobj] = "sockobj%d" % i
             events.append((key, None))
         inst._sel.select.return_value = events
         # Call
-        ntools.eq_(inst.select_(timeout="timeout"), ["sock0", "sock1", "sock2"])
+        ntools.eq_(inst.select_(timeout="timeout"),
+                   [("sockobj0", "callback0"),
+                    ("sockobj1", "callback1"),
+                    ("sockobj2", "callback2")])
         # Tests
         inst._sel.select.assert_called_once_with(timeout="timeout")
 

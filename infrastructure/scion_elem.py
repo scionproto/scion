@@ -153,12 +153,13 @@ class SCIONElement(object):
         Setup incoming socket and register with dispatcher
         """
         svc = SVC_TYPE_MAP.get(self.SERVICE_TYPE)
-        self._local_sock = ReliableSocket((self.addr, self._port,  svc), init)
+        self._local_sock = ReliableSocket(
+            reg=(self.addr, self._port, init, svc))
         if not self._local_sock.registered:
             self._local_sock = None
             return
         self._port = self._local_sock.port
-        self._socks.add(self._local_sock)
+        self._socks.add(self._local_sock, self.handle_recv)
 
     def construct_ifid2addr_map(self):
         """
@@ -426,6 +427,33 @@ class SCIONElement(object):
             logging.debug("%d packet(s) dropped (%d total dropped so far)",
                           dropped, self.total_dropped)
 
+    def handle_accept(self, sock):
+        """
+        Callback to handle a ready listening socket
+        """
+        try:
+            s = sock.accept(block=False)
+        except BlockingIOError:
+            return False
+        self._socks.add(s, self.handle_recv)
+
+    def handle_recv(self, sock):
+        """
+        Callback to handle a ready recving socket
+        """
+        try:
+            packet, addr = sock.recv(block=False)
+        except BlockingIOError:
+            return False
+        if (isinstance(sock, ReliableSocket) and packet is None):
+            self._socks.remove(sock)
+            sock.close()
+            if sock == self._local_sock:
+                self._local_sock = None
+            return False
+        self.packet_put(packet, addr, sock)
+        return True
+
     def packet_recv(self):
         """
         Read packets from sockets, and put them into a :class:`queue.Queue`.
@@ -433,30 +461,10 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             if not self._local_sock:
                 self._setup_socket(False)
-            for sock in self._socks.select_(timeout=1.0):
+            for sock, callback in self._socks.select_(timeout=1.0):
                 while True:
-                    if isinstance(sock, ReliableSocket) and sock.is_listener:
-                        try:
-                            s = sock.accept(block=False)
-                        except BlockingIOError:
-                            break
-                        self._socks.add(s)
-                        continue
-                    try:
-                        # Read from socket until its buffer is empty.
-                        packet, addr = sock.recv(block=False)
-                    except BlockingIOError:
+                    if not callback(sock):
                         break
-                    else:
-                        if (isinstance(sock, ReliableSocket) and
-                                packet is None):
-                            self._socks.remove(sock)
-                            sock.close()
-                            if sock == self._local_sock:
-                                self._local_sock = None
-                            break
-                        self.packet_put(packet, addr, sock)
-
         self.stopped_flag.set()
 
     def _packet_process(self):
