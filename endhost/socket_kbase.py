@@ -28,7 +28,8 @@ from lib.thread import thread_safety_net
 
 
 STATS_PERIOD = 5  # seconds
-SOC2REQ = {}  # Map socket objects to HTTP requests (method, path)
+SOC2REQ = {}  # Map socket objects to HTTP requests (conn_id, method, path)
+REQ2SOC = {}  # Map HTTP requests (conn_id, method, path) to socket
 
 
 class SocketKnowledgeBase(object):
@@ -43,11 +44,12 @@ class SocketKnowledgeBase(object):
         Creates an instance of the knowledge base class.
         """
         self.active_sockets = set()
-        self.kbase = {}  # HTTP Req (method, path) to stats (ScionStats)
+        self.kbase = {}  # Req (conn_id, method, path) to stats (ScionStats)
         self.isd_whitelist = []  # ISDs to whitelist.
         self.source_ISD_AS = src_ia
         self.target_ISD_AS = target_ia
-        self.lock = threading.Lock()
+        self.socket_list_lock = threading.Lock()
+        self.kbase_lock = threading.Lock()
         self.gatherer = threading.Thread(
             target=thread_safety_net,
             args=(self._collect_stats,),
@@ -57,7 +59,7 @@ class SocketKnowledgeBase(object):
         self.lookup_service = KnowledgeBaseLookupService(
             self, topo_file, loc_file)
 
-    def add_socket(self, soc, method, path):
+    def add_socket(self, soc, conn_id, method, path):
         """
         Adds a socket to the knowledge-base to query for stats.
         :param soc: The socket for which the stats gathering should be done.
@@ -67,41 +69,49 @@ class SocketKnowledgeBase(object):
         :param path: Path section of the HTTP Request that soc is performing.
         :type path: String
         """
-        logging.debug("Adding a socket to knowledge-base")
-        self.lock.acquire()
-        SOC2REQ[soc] = (method, path)
-        self.active_sockets.add(soc)
-        self.lock.release()
+        key = conn_id, method, path
+        logging.info("Adding a socket to knowledge-base %s %s %s", *key)
+        with self.socket_list_lock:
+            SOC2REQ[soc] = key
+            if key in REQ2SOC:
+                logging.error("Request already in KBASE! %s %s %s", *key)
+            REQ2SOC[key] = soc
+            self.active_sockets.add(soc)
 
     def remove_socket(self, soc):
         """
         Removes a socket from the knowledge-base.
         :param soc: The socket to be removed from stats gathering.
-        :type soc: SCION-socket
+        :type soc: SCIONSocket
         """
-        self.lock.acquire()
-        if soc in self.active_sockets:
-            logging.debug("Removing a socket from knowledge-base")
-            self.update_single_stat(soc)
-            self.active_sockets.remove(soc)
-            del SOC2REQ[soc]
-        self.lock.release()
+        with self.socket_list_lock:
+            if soc in self.active_sockets:
+                self.update_single_stat(soc)
+                self.active_sockets.remove(soc)
+                key = SOC2REQ[soc]
+                logging.info("Removing a socket from mappings: %s %s %s", *key)
+                del REQ2SOC[key]
+                del SOC2REQ[soc]
 
-    def lookup(self, req_type, res_name):
+    def lookup(self, conn_id, req_type, res_name):
         """
         Look up and return the stats of a given HTTP request specified
         by the req_type and the resource name.
+        :param conn_id: Unique identifier of the connection/socket.
+        :type conn_id: UUID String
         :param req_type: HTTP req_type
         :type req_type: String
         :param res_name: The resource name.
         :type res_name: String
-        :returns: Dictionary of (req_type, res_name) -> ScionStats
+        :returns: ScionStats object as a dict
         :rtype: dict
         """
-        if (req_type, res_name) in self.kbase:
-            return self.kbase[(req_type, res_name)].to_dict()
-        else:
-            return {}
+        result = {}
+        with self.kbase_lock:
+            key = conn_id, req_type, res_name
+            if key in self.kbase:
+                result = self.kbase[key].to_dict()
+        return result
 
     def list(self):
         """
@@ -109,7 +119,23 @@ class SocketKnowledgeBase(object):
         :returns: List of tuples
         :rtype: list
         """
-        return list(self.kbase.keys())
+        with self.kbase_lock:
+            result = list(self.kbase.keys())
+        return result
+
+    def clear(self):
+        """
+        Clears the knowledge-base.
+        """
+        with self.kbase_lock:
+            with self.socket_list_lock:
+                for req_info in list(self.kbase):
+                    # remove data of only the closed (inactive) sockets
+                    if req_info not in REQ2SOC:
+                        del self.kbase[req_info]
+
+        logging.info("Stale entries in the knowledge-base cleared.")
+        return {'STATUS': 'OK'}
 
     def set_ISD_whitelist(self, isds):
         """
@@ -141,8 +167,9 @@ class SocketKnowledgeBase(object):
         if soc.is_alive():
             new_stats = soc.get_stats()
             if new_stats is not None:
-                method, path = SOC2REQ[soc]
-                self.kbase[(method, path)] = new_stats
+                key = SOC2REQ[soc]
+                with self.kbase_lock:
+                    self.kbase[key] = new_stats
 
     def _collect_stats(self):
         """
@@ -151,12 +178,13 @@ class SocketKnowledgeBase(object):
         """
         while True:
             logging.debug("Socket stats:")
-            self.lock.acquire()
-            for s in self.active_sockets:
-                self.update_single_stat(s)
-            self.lock.release()
+            with self.socket_list_lock:
+                logging.info("%s active sockets", len(self.active_sockets)),
+                for s in self.active_sockets:
+                    self.update_single_stat(s)
 
-            for (req, stats) in self.kbase.items():
-                logging.debug(str(req) + "\n" + str(stats)),
+            with self.kbase_lock:
+                for req in list(self.kbase):
+                    logging.debug(str(req) + "\n" + str(self.kbase[req])),
 
             time.sleep(STATS_PERIOD)

@@ -40,13 +40,15 @@ def main():
     init_logging(CLIENT_LOG_BASE,
                  file_level=logging.DEBUG, console_level=logging.DEBUG)
     handle_signals()
-    test_list()
-    test_lookup()
+    res = test_list()
+    test_lookup(res)
     test_topology_lookup()
     test_locations_lookup()
     test_set_ISD_whitelist()
     test_clear_ISD_whitelist()
     test_ISD_endpoints_lookup()
+    test_clear_kbase()
+    test_list()
 
 
 def test_list():
@@ -61,23 +63,44 @@ def test_list():
     req = {"version": "0.1",
            "command": "LIST"}
 
-    send_req_and_read_resp(sock, req)
+    raw_resp = send_req_and_read_resp(sock, req)
+    return extract_from_json(raw_resp)
 
 
-def test_lookup():
+def test_lookup(res):
     """
     Creates a sample look-up request, sends it to the UDP server and
     reads the response.
     """
+    if res is None or len(res) == 0:
+        return
 
     logging.info('Starting the look-up test')
+    item = res[0]
     # Create a UDP socket
     sock = UDPSocket(None, AddrType.IPV4)
 
     req = {"version": "0.1",
            "command": "LOOKUP",
-           "req_type": "CONNECT",
-           "res_name": "api.github.com:443"}
+           "conn_id": item[0],
+           "req_type": item[1],
+           "res_name": item[2]}
+
+    logging.info('Sending LOOKUP request %s', req)
+    send_req_and_read_resp(sock, req)
+
+
+def test_clear_kbase():
+    """
+    Creates a sample clear knowledge-base request, sends it to the
+    UDP server and reads the response returned.
+    """
+    logging.info('Starting the clear test')
+    # Open up a UDP socket
+    sock = UDPSocket(None, AddrType.IPV4)
+
+    req = {"version": "0.1",
+           "command": "CLEAR"}
 
     send_req_and_read_resp(sock, req)
 

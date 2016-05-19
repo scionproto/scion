@@ -395,7 +395,8 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
             soc.connect(self.scion_target_proxy, self.scion_target_port)
             if self.socket_kbase:
                 self._handle_socket_options(soc)
-                self.socket_kbase.add_socket(soc, self.method, self.path)
+                self.socket_kbase.add_socket(soc, self.conn_id,
+                                             self.method, self.path)
         else:
             soc = self._unix_client_socket()
         return soc
