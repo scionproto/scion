@@ -189,20 +189,15 @@ class TestSocketMgrSelect(object):
     def test(self, init):
         inst = SocketMgr()
         inst._sel = create_mock(["select"])
-        inst.fd_to_obj = {}
         events = []
         for i in range(3):
-            key = create_mock(["data", "fileobj"])
-            key.data = "callback%d" % i
-            key.fileobj = "sock%d" % i
-            inst.fd_to_obj[key.fileobj] = "sockobj%d" % i
+            key = create_mock(["data"])
+            key.data = ("sock%d" % i, "callback%d" % i)
             events.append((key, None))
         inst._sel.select.return_value = events
         # Call
-        ntools.eq_(inst.select_(timeout="timeout"),
-                   [("sockobj0", "callback0"),
-                    ("sockobj1", "callback1"),
-                    ("sockobj2", "callback2")])
+        for i, (sock, callback) in enumerate(inst.select_(timeout="timeout")):
+            ntools.eq_((sock, callback), ("sock%d" % i, "callback%d" % i))
         # Tests
         inst._sel.select.assert_called_once_with(timeout="timeout")
 
@@ -219,7 +214,7 @@ class TestSocketMgrClose(object):
         map_ = {}
         for i in range(3):
             entry = create_mock(["data"])
-            entry.data = create_mock(["close"])
+            entry.data = create_mock(["close"]), create_mock([])
             map_[i] = entry
         inst._sel.get_map.return_value = map_
         # Call
@@ -227,8 +222,8 @@ class TestSocketMgrClose(object):
         # Tests
         inst._sel.get_map.assert_called_once_with()
         for entry in map_.values():
-            inst.remove.assert_any_call(entry.data)
-            entry.data.close.assert_called_once_with()
+            inst.remove.assert_any_call(entry.data[0])
+            entry.data[0].close.assert_called_once_with()
         ntools.eq_(inst.remove.call_count, 3)
         inst._sel.close.assert_called_once_with()
 

@@ -431,28 +431,21 @@ class SCIONElement(object):
         """
         Callback to handle a ready listening socket
         """
-        try:
-            s = sock.accept(block=False)
-        except BlockingIOError:
-            return False
+        s = sock.accept()
         self._socks.add(s, self.handle_recv)
 
     def handle_recv(self, sock):
         """
         Callback to handle a ready recving socket
         """
-        try:
-            packet, addr = sock.recv(block=False)
-        except BlockingIOError:
-            return False
-        if (isinstance(sock, ReliableSocket) and packet is None):
+        packet, addr = sock.recv()
+        if packet is None:
             self._socks.remove(sock)
             sock.close()
             if sock == self._local_sock:
                 self._local_sock = None
-            return False
+            return
         self.packet_put(packet, addr, sock)
-        return True
 
     def packet_recv(self):
         """
@@ -462,9 +455,7 @@ class SCIONElement(object):
             if not self._local_sock:
                 self._setup_socket(False)
             for sock, callback in self._socks.select_(timeout=1.0):
-                while True:
-                    if not callback(sock):
-                        break
+                callback(sock)
         self.stopped_flag.set()
 
     def _packet_process(self):

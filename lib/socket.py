@@ -51,7 +51,7 @@ class Socket(object):
     Base class for socket wrappers
     """
     @abstractmethod
-    def bind(self, addr, port=None, desc=None):
+    def bind(self, addr, port=0, desc=None):
         raise NotImplementedError
 
     @abstractmethod
@@ -104,7 +104,7 @@ class UDPSocket(Socket):
         if bind:
             self.bind(*bind)
 
-    def bind(self, addr, port=None, desc=None):
+    def bind(self, addr, port=0, desc=None):
         """
         Bind socket to the specified address & port. If `addr` is ``None``, the
         socket will bind to all interfaces.
@@ -173,7 +173,7 @@ class ReliableSocket(Socket):
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, reg=None, bind=None, open_sock=True):
+    def __init__(self, reg=None, bind=None, sock=None):
         """
         Initialise a socket of the specified type, and optionally bind it to an
         address/port.
@@ -183,14 +183,10 @@ class ReliableSocket(Socket):
             describing respectively the address, port, SVC type, and init value
             to register with the dispatcher. In sockets that do not connect to
             the dispatcher, this argument is None.
-        :param open_sock:
-            Whether or not this object should create its own socket. The False
-            case is used in the from_socket() class method.
+        :param sock:
+            Optional socket file object to build instance around.
         """
-        if open_sock:
-            self.sock = socket(AF_UNIX, SOCK_STREAM)
-        else:
-            self.sock = None
+        self.sock = sock or socket(AF_UNIX, SOCK_STREAM)
         if reg:
             addr, port, init, svc = reg
             self.registered = reg_dispatcher(self, addr, port, init, svc)
@@ -199,11 +195,9 @@ class ReliableSocket(Socket):
 
     @classmethod
     def from_socket(cls, sock):
-        inst = cls(None, open_sock=False)
-        inst.sock = sock
-        return inst
+        return cls(None, sock=sock)
 
-    def bind(self, addr, port=None, desc=None):
+    def bind(self, addr, port=0, desc=None):
         try:
             os.unlink(addr)
         except OSError:
@@ -287,7 +281,7 @@ class ReliableSocket(Socket):
 
 class SocketMgr(object):
     """
-    :class:`UDPSocket` manager.
+    :class:`Socket` manager.
     """
     def __init__(self):  # pragma: no cover
         self._sel = selectors.DefaultSelector()
@@ -299,8 +293,7 @@ class SocketMgr(object):
 
         :param UDPSocket sock: UDPSocket to add.
         """
-        self._sel.register(sock.sock, selectors.EVENT_READ, callback)
-        self.fd_to_obj[sock.sock] = sock
+        self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
 
     def remove(self, sock):  # pragma: no cover
         """
@@ -319,10 +312,8 @@ class SocketMgr(object):
             Number of seconds to wait for at least one UDPSocket to become
             ready. ``None`` means wait forever.
         """
-        ret = []
         for key, _ in self._sel.select(timeout=timeout):
-            ret.append((self.fd_to_obj[key.fileobj], key.data))
-        return ret
+            yield key.data
 
     def close(self):
         """
@@ -331,7 +322,7 @@ class SocketMgr(object):
         mapping = self._sel.get_map()
         if mapping:
             for entry in list(mapping.values()):
-                sock = entry.data
+                sock = entry.data[0]
                 self.remove(sock)
                 sock.close()
         self._sel.close()

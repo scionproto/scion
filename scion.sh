@@ -90,7 +90,7 @@ cmd_sock_cli() {
         GENDIR=gen/ISD1/AS19/endhost
         ADDR="127.1.19.254"
     fi
-    # FIXME: Will become ISD_AS.sock in later PR
+    # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/client"
     PYTHONPATH=.
     python3 endhost/dummy.py $GENDIR $ADDR $APIADDR client
@@ -110,7 +110,7 @@ cmd_sock_ser() {
         GENDIR=gen/ISD2/AS26/endhost
         ADDR="127.2.26.254"
     fi
-    # FIXME: Will become ISD_AS.sock in later PR
+    # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/server"
     PYTHONPATH=.
     python3 endhost/dummy.py $GENDIR $ADDR $APIADDR server
