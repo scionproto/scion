@@ -285,7 +285,6 @@ class SocketMgr(object):
     """
     def __init__(self):  # pragma: no cover
         self._sel = selectors.DefaultSelector()
-        self.fd_to_obj = {}
 
     def add(self, sock, callback):  # pragma: no cover
         """
@@ -302,7 +301,6 @@ class SocketMgr(object):
         :param UDPSocket sock: UDPSocket to remove.
         """
         self._sel.unregister(sock.sock)
-        self.fd_to_obj.pop(sock.sock, None)
 
     def select_(self, timeout=None):
         """
