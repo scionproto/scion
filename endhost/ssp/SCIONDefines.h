@@ -8,8 +8,6 @@
 
 // Shared defines
 
-//#define SCIOND_API_HOST "127.255.255.254" // Given as compile option
-
 typedef struct {
     uint32_t as;
     uint16_t isd;

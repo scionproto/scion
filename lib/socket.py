@@ -18,8 +18,10 @@
 # Stdlib
 import ipaddress
 import logging
+import os
 import selectors
 import struct
+from abc import abstractmethod
 from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
     AF_INET,
@@ -48,11 +50,38 @@ class Socket(object):
     """
     Base class for socket wrappers
     """
-    def __init__(self, sock_type, bind=None, addr_type=AddrType.IPV6,
-                 reuse=False):
+    @abstractmethod
+    def bind(self, addr, port=0, desc=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def send(self, data, dst=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def recv(self, block=True):
+        raise NotImplementedError
+
+    def close(self):  # pragma: no cover
         """
-        Initialise a socket of the specified type, and optionally bind it to an
-        address/port.
+        Close the socket.
+        """
+        self.sock.close()
+
+    def settimeout(self, timeout):  # pragma: no cover
+        prev = self.sock.gettimeout()
+        self.sock.settimeout(timeout)
+        return prev
+
+
+class UDPSocket(Socket):
+    """
+    Thin wrapper around BSD/POSIX UDP sockets.
+    """
+    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
+        """
+        Initialize a UDP socket, then call superclass init for socket options
+        and binding.
 
         :param tuple bind:
             Optional tuple of (`str`, `int`, `str`) describing respectively the
@@ -60,25 +89,22 @@ class Socket(object):
         :param addr_type:
             Socket domain. Must be one of :const:`~lib.types.AddrType.IPV4`,
             :const:`~lib.types.AddrType.IPV6` (default).
+        :param reuse:
+            Boolean value indicating whether SO_REUSEADDR option should be set.
         """
-        assert addr_type in (AddrType.IPV4, AddrType.IPV6, AddrType.UNIX)
+        assert addr_type in (AddrType.IPV4, AddrType.IPV6)
         self._addr_type = addr_type
         af_domain = AF_INET6
         if self._addr_type == AddrType.IPV4:
             af_domain = AF_INET
-        elif self._addr_type == AddrType.UNIX:
-            af_domain = AF_UNIX
-        self.sock = socket(af_domain, sock_type)
+        self.sock = socket(af_domain, SOCK_DGRAM)
         if reuse:
             self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.port = None
         if bind:
             self.bind(*bind)
-        else:
-            # TODO: Replace with dispatcher-assigned port
-            self.port = 30045
 
-    def bind(self, addr, port, desc=None):
+    def bind(self, addr, port=0, desc=None):
         """
         Bind socket to the specified address & port. If `addr` is ``None``, the
         socket will bind to all interfaces.
@@ -100,26 +126,7 @@ class Socket(object):
         if desc:
             logging.debug("%s bound to %s:%d", desc, addr, self.port)
 
-    def close(self):  # pragma: no cover
-        """
-        Close the socket.
-        """
-        self.sock.close()
-
-    def settimeout(self, timeout):  # pragma: no cover
-        prev = self.sock.gettimeout()
-        self.sock.settimeout(timeout)
-        return prev
-
-
-class UDPSocket(Socket):
-    """
-    Thin wrapper around BSD/POSIX UDP sockets.
-    """
-    def __init__(self, bind=None, addr_type=AddrType.IPV6, reuse=False):
-        super().__init__(SOCK_DGRAM, bind, addr_type, reuse)
-
-    def send(self, data, dst, sock=None):
+    def send(self, data, dst=None):
         """
         Send data to a specified destination.
 
@@ -128,10 +135,8 @@ class UDPSocket(Socket):
             Tuple of (`str`, `int`) describing the destination address and port,
             respectively.
         """
-        if sock is None:
-            sock = self.sock
         try:
-            ret = sock.sendto(data, dst)
+            ret = self.sock.sendto(data, dst)
         except OSError as e:
             errno = e.args[0]
             logging.error("Error sending %dB to %s: %s", len(data), dst, e)
@@ -161,16 +166,60 @@ class UDPSocket(Socket):
                 pass
 
 
-class DispatcherSocket(Socket):
+class ReliableSocket(Socket):
     """
-    Wrapper around Unix socket with dispatcher-specific functionality baked in
+    Wrapper around Unix socket with message framing functionality baked in
     """
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, addr, port, init=True, svc=None):
-        super().__init__(SOCK_STREAM, None, AddrType.UNIX)
-        self.registered = reg_dispatcher(self, addr, port, init, svc)
+    def __init__(self, reg=None, bind=None, sock=None):
+        """
+        Initialise a socket of the specified type, and optionally bind it to an
+        address/port.
+
+        :param tuple reg:
+            Optional tuple of (`SCIONAddr`, `int`, `SVCType`, `bool`)
+            describing respectively the address, port, SVC type, and init value
+            to register with the dispatcher. In sockets that do not connect to
+            the dispatcher, this argument is None.
+        :param sock:
+            Optional socket file object to build instance around.
+        """
+        self.sock = sock or socket(AF_UNIX, SOCK_STREAM)
+        if reg:
+            addr, port, init, svc = reg
+            self.registered = reg_dispatcher(self, addr, port, init, svc)
+        if bind:
+            self.bind(*bind)
+
+    @classmethod
+    def from_socket(cls, sock):
+        return cls(None, sock=sock)
+
+    def bind(self, addr, port=0, desc=None):
+        try:
+            os.unlink(addr)
+        except OSError:
+            pass
+        try:
+            self.sock.bind(addr)
+        except OSError as e:
+            logging.critical("Error binding to %s: %s", addr, e)
+            kill_self()
+        self.sock.listen(5)
+        if desc:
+            logging.debug("%s bound to %s", desc, addr)
+
+    def accept(self, block=True):
+        prev = self.sock.gettimeout()
+        if not block:
+            self.sock.settimeout(0)
+        try:
+            s = self.sock.accept()[0]
+        finally:
+            self.sock.settimeout(prev)
+        return ReliableSocket.from_socket(s)
 
     def connect(self, addr):
         self.sock.connect(addr)
@@ -221,28 +270,29 @@ class DispatcherSocket(Socket):
         if addr_len > 0:
             addr = buf[:addr_len]
             port = buf[addr_len:addr_len + port_len]
+            sender = (str(ipaddress.ip_address(addr)), port)
         else:
             addr = ""
             port = 0
+            sender = (None, None)
         packet = buf[addr_len + port_len:]
-        sender = (not addr or str(ipaddress.ip_address(addr)), port)
         return packet, sender
 
 
 class SocketMgr(object):
     """
-    :class:`UDPSocket` manager.
+    :class:`Socket` manager.
     """
     def __init__(self):  # pragma: no cover
         self._sel = selectors.DefaultSelector()
 
-    def add(self, sock):  # pragma: no cover
+    def add(self, sock, callback):  # pragma: no cover
         """
         Add new socket.
 
         :param UDPSocket sock: UDPSocket to add.
         """
-        self._sel.register(sock.sock, selectors.EVENT_READ, sock)
+        self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
 
     def remove(self, sock):  # pragma: no cover
         """
@@ -260,10 +310,8 @@ class SocketMgr(object):
             Number of seconds to wait for at least one UDPSocket to become
             ready. ``None`` means wait forever.
         """
-        ret = []
         for key, _ in self._sel.select(timeout=timeout):
-            ret.append(key.data)
-        return ret
+            yield key.data
 
     def close(self):
         """
@@ -272,7 +320,7 @@ class SocketMgr(object):
         mapping = self._sel.get_map()
         if mapping:
             for entry in list(mapping.values()):
-                sock = entry.data
+                sock = entry.data[0]
                 self.remove(sock)
                 sock.close()
         self._sel.close()

@@ -40,7 +40,7 @@ int newSCIONSocket(int protocol)
     SCIONSocket *s = new SCIONSocket(protocol);
     SocketEntry *e;
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
-    e->fd = s->getDispatcherSocket();
+    e->fd = s->getReliableSocket();
     e->sock = s;
     updateTable(e);
     return e->fd;
@@ -62,7 +62,7 @@ int SCIONAccept(int sock)
         return -1;
     SCIONSocket *s = e->sock->accept();
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
-    e->fd = s->getDispatcherSocket();
+    e->fd = s->getReliableSocket();
     e->sock = s;
     updateTable(e);
     return e->fd;

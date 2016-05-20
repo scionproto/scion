@@ -20,7 +20,7 @@ void signalHandler(int signum)
 void *dispatcherThread(void *arg)
 {
     SCIONSocket *ss = (SCIONSocket *)arg;
-    int sock = ss->getDispatcherSocket();
+    int sock = ss->getReliableSocket();
     uint8_t buf[DISPATCHER_BUF_SIZE];
     struct sockaddr_in addr;
     ss->waitForRegistration();
@@ -74,15 +74,15 @@ SCIONSocket::SCIONSocket(int protocol)
     pthread_mutex_init(&mSelectMutex, NULL);
 
     // open dispatcher socket
-    mDispatcherSocket = setupSocket();
+    mReliableSocket = setupSocket();
 
     switch (protocol) {
         case L4_SSP: {
-            mProtocol = new SSPProtocol(mDispatcherSocket);
+            mProtocol = new SSPProtocol(mReliableSocket);
             break;
         }
         case L4_UDP: {
-            mProtocol = new SUDPProtocol(mDispatcherSocket);
+            mProtocol = new SUDPProtocol(mReliableSocket);
             break;
         }
         default:
@@ -99,7 +99,7 @@ SCIONSocket::~SCIONSocket()
     pthread_join(mReceiverThread, NULL);
     delete mProtocol;
     mProtocol = NULL;
-    close(mDispatcherSocket);
+    close(mReliableSocket);
     pthread_mutex_destroy(&mAcceptMutex);
     pthread_cond_destroy(&mAcceptCond);
     pthread_mutex_destroy(&mRegisterMutex);
@@ -129,10 +129,10 @@ int SCIONSocket::bind(SCIONAddr addr)
     if (addr.isd_as == 0 && addr.host.port == 0) {
         struct sockaddr_in sa;
         socklen_t len = sizeof(sa);
-        getsockname(mDispatcherSocket, (struct sockaddr *)&sa, &len);
+        getsockname(mReliableSocket, (struct sockaddr *)&sa, &len);
         addr.host.port = ntohs(sa.sin_port);
     }
-    int ret = mProtocol->bind(addr, mDispatcherSocket);
+    int ret = mProtocol->bind(addr, mReliableSocket);
     if (mProtocolID == L4_UDP) {
         pthread_mutex_lock(&mRegisterMutex);
         mRegistered = true;
@@ -144,7 +144,7 @@ int SCIONSocket::bind(SCIONAddr addr)
 
 int SCIONSocket::connect(SCIONAddr addr)
 {
-    mProtocol->start(NULL, NULL, mDispatcherSocket);
+    mProtocol->start(NULL, NULL, mReliableSocket);
     pthread_mutex_lock(&mRegisterMutex);
     mRegistered = true;
     pthread_cond_signal(&mRegisterCond);
@@ -154,7 +154,7 @@ int SCIONSocket::connect(SCIONAddr addr)
 
 int SCIONSocket::listen()
 {
-    int ret = mProtocol->listen(mDispatcherSocket);
+    int ret = mProtocol->listen(mReliableSocket);
     if (ret < 0)
         return ret;
     mIsListener = true;
@@ -307,7 +307,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
             DEBUG("create new socket to handle incoming flow\n");
             SCIONSocket *s = new SCIONSocket(mProtocolID);
             s->mParent = this;
-            s->mProtocol->start(packet, buf + sch.header_len, s->mDispatcherSocket);
+            s->mProtocol->start(packet, buf + sch.header_len, s->mReliableSocket);
             s->mRegistered = true;
             pthread_cond_signal(&s->mRegisterCond);
             pthread_mutex_lock(&mAcceptMutex);
@@ -349,9 +349,9 @@ void SCIONSocket::waitForRegistration()
     DEBUG("registered\n");
 }
 
-int SCIONSocket::getDispatcherSocket()
+int SCIONSocket::getReliableSocket()
 {
-    return mDispatcherSocket;
+    return mReliableSocket;
 }
 
 void * SCIONSocket::getStats(void *buf, int len)

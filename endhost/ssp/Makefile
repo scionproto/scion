@@ -21,10 +21,12 @@ SERVER_LIB=libserver.so
 all: $(CLIENT_LIB) $(SERVER_LIB)
 
 %._client.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.254"'
+	# FIXME(aznair): SCIOND_API_SOCKDIR will become ISD_AS.sock in later PR
+	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $< -DSCIOND_API_SOCKDIR='"/run/shm/sciond/client"'
 
 %._server.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.253"'
+	# FIXME(aznair): SCIOND_API_SOCKDIR will become ISD_AS.sock in later PR
+	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $< -DSCIOND_API_SOCKDIR='"/run/shm/sciond/server"'
 
 %.o: %.cpp $(HDRS)
 	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $<

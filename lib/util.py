@@ -283,7 +283,10 @@ def recv_all(sock, total_len, flags):
         except InterruptedError:
             continue
         if not buf:
-            logging.error("recv returned nil, socket closed")
+            if not barr:
+                logging.debug("recv returned nil, socket closed")
+            else:
+                logging.error("socket connection prematurely terminated")
             return None
         barr += buf
     return bytes(barr)

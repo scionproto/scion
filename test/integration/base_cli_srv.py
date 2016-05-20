@@ -30,7 +30,7 @@ import time
 from abc import ABCMeta, abstractmethod
 
 # SCION
-from endhost.sciond import SCIONDaemon
+from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
 from lib.defines import AS_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
@@ -43,9 +43,8 @@ from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
-from lib.socket import DispatcherSocket, UDPSocket
+from lib.socket import ReliableSocket
 from lib.thread import kill_self, thread_safety_net
-from lib.types import AddrType
 from lib.util import (
     Raw,
     handle_signals,
@@ -61,7 +60,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.data = data
         self.finished = finished
         self.addr = addr
-        self.sock = DispatcherSocket(addr, 0)
+        self.sock = ReliableSocket(reg=(addr, 0, True, None))
         self.sock.settimeout(1.0)
         self.success = None
 
@@ -126,15 +125,18 @@ class TestClientBase(TestBase):
             self.iflist.append((isd_as, ifid))
 
     def _try_sciond_api(self):
-        sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
+        sock = ReliableSocket()
         msg = b'\x00' + self.dst.isd_as.pack()
         start = time.time()
+        try:
+            sock.connect(self.sd.api_addr)
+        except OSError as e:
+            logging.critical("Error connecting to sciond: %s", e)
+            kill_self()
         while time.time() - start < API_TOUT:
-            addr = self.sd.api_addr
-            port = self.sd.api_port
-            logging.debug("Sending path request to local API (%s:%s)",
-                          addr, port)
-            sock.send(msg, (addr, port))
+            logging.debug("Sending path request to local API at %s",
+                          self.sd.api_addr)
+            sock.send(msg)
             data = Raw(sock.recv()[0], "Path response")
             if data:
                 sock.close()
@@ -303,16 +305,17 @@ class TestClientServerBase(object):
         if addr.isd_as not in self.scionds:
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port
-            self.scionds[addr.isd_as] = start_sciond(addr, api=True)
+            self.scionds[addr.isd_as] = start_sciond(
+                addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
+                (self.thread_name, addr.isd_as))
         return self.scionds[addr.isd_as]
 
 
-def start_sciond(addr, api=False, port=0, api_addr=None, api_port=0):
+def start_sciond(addr, api=False, port=0, api_addr=None):
     conf_dir = "%s/ISD%d/AS%d/endhost" % (
         GEN_PATH, addr.isd_as[0], addr.isd_as[1])
     return SCIONDaemon.start(
-        conf_dir, addr.host, api_addr=api_addr, run_local_api=api, port=port,
-        api_port=api_port)
+        conf_dir, addr.host, api_addr=api_addr, run_local_api=api, port=port)
 
 
 def _load_as_list():
