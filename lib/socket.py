@@ -187,6 +187,7 @@ class ReliableSocket(Socket):
             Optional socket file object to build instance around.
         """
         self.sock = sock or socket(AF_UNIX, SOCK_STREAM)
+        self.addr = None
         if reg:
             addr, port, init, svc = reg
             self.registered = reg_dispatcher(self, addr, port, init, svc)
@@ -198,10 +199,7 @@ class ReliableSocket(Socket):
         return cls(None, sock=sock)
 
     def bind(self, addr, port=0, desc=None):
-        try:
-            os.unlink(addr)
-        except OSError:
-            pass
+        self.addr = addr
         try:
             self.sock.bind(addr)
         except OSError as e:
@@ -277,6 +275,16 @@ class ReliableSocket(Socket):
             sender = (None, None)
         packet = buf[addr_len + port_len:]
         return packet, sender
+
+    def close(self):
+        super().close()
+        if not self.addr:
+            return
+        try:
+            os.unlink(self.addr)
+        except OSError as e:
+            logging.critical("Error unlinking unix socket: %s", e)
+            kill_self()
 
 
 class SocketMgr(object):
