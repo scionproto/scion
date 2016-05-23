@@ -55,7 +55,7 @@ from lib.log import log_exception
 from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
-from lib.packet.path_mgmt import IFStateRequest
+from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
 from lib.packet.scion import SVCType
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
@@ -279,14 +279,15 @@ class Router(SCIONElement):
         """
         Periodically request interface states from the BS.
         """
-        ifstates_req = IFStateRequest.from_values()
-        req_pkt = self._build_packet(payload=ifstates_req)
+        pld = IFStateRequest.from_values()
+        req = self._build_packet()
         while True:
             start_time = SCIONTime.get_time()
             logging.info("Sending IFStateRequest for all interfaces.")
             for bs in self.topology.beacon_servers:
-                req_pkt.addrs.dst.host = bs.addr
-                self.send(req_pkt)
+                req.addrs.dst.host = bs.addr
+                req.set_payload(pld.copy())
+                self.send(req)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
                            "request_ifstates")
 
@@ -408,8 +409,8 @@ class Router(SCIONElement):
             # handle state update
             logging.debug("Received IFState update:\n%s",
                           str(mgmt_pkt.get_payload()))
-            for ifstate in payload.ifstate_infos:
-                self.if_states[ifstate.if_id].update(ifstate)
+            for p in payload.p.infos:
+                self.if_states[p.ifID].update(IFStateInfo(p))
             return
         self.handle_data(mgmt_pkt, from_local_as)
 

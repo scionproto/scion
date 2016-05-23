@@ -26,13 +26,11 @@ class InterfaceState(object):
         self.is_active = True
         self.rev_token = None
 
-    def update(self, ifstate):
+    def update(self, info):
         """
         Updates the interface state.
 
-        :param ifstate: IFStateInfo object sent by the BS.
-        :type ifstate: :class: `lib.packet.path_mgmt.IFStateInfo`
+        :param info: IFStateInfo object sent by the BS.
         """
-        assert isinstance(ifstate.rev_info.rev_token, bytes)
-        self.is_active = bool(ifstate.state)
-        self.rev_token = ifstate.rev_info.rev_token
+        self.is_active = info.p.active
+        self.rev_token = info.rev_info.p.revToken
