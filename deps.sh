@@ -51,6 +51,22 @@ cmd_zlog() {
     fi
 }
 
+cmd_capnp() {
+    if type -P capnp &>/dev/null; then
+        return
+    fi
+    CP_DIR=~/.local/capnproto
+    if [ ! -d $CP_DIR ]; then
+        echo "No capnproto directory, download and extract"
+        mkdir -p $CP_DIR
+        curl -L https://capnproto.org/capnproto-c++-0.5.3.tar.gz | tar xzf - --strip-components=1 -C $CP_DIR
+    fi
+    cd "$CP_DIR"
+    ./configure
+    make -j6 check
+    sudo make install
+}
+
 
 cmd_misc() {
     echo "Installing supervisor packages from pip2"
@@ -60,7 +76,7 @@ cmd_misc() {
 
 cmd_help() {
 	cat <<-_EOF
-	$PROGRAM [all|pkgs|pip|zlog|misc|help]
+	$PROGRAM CMD
 	
 	Usage:
 	    $PROGRAM all
@@ -73,6 +89,8 @@ cmd_help() {
 	        access required)
 	    $PROGRAM zlog
 	        Install libzlog
+	    $PROGRAM capnp
+	        Install capnproto
 	    $PROGRAM misc
 	        Install any additional packages not from the first 2 sources.
 	    $PROGRAM help
@@ -86,7 +104,7 @@ COMMAND="$1"
 shift || { cmd_help; exit; }
 
 case "$COMMAND" in
-    all|pkgs|pip|zlog|misc)
+    all|pkgs|pip|capnp|zlog|misc)
             "cmd_$COMMAND" "$@" ;;
     help|*)  cmd_help ;;
 esac

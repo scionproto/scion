@@ -54,8 +54,9 @@ from lib.errors import (
 from lib.log import log_exception
 from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.ifid import IFIDPayload
 from lib.packet.path_mgmt import IFStateRequest
-from lib.packet.scion import IFIDPayload, SVCType
+from lib.packet.scion import SVCType
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
     SCMPBadHopByHop,
@@ -263,9 +264,9 @@ class Router(SCIONElement):
         neighboring router.
         """
         ifid_pld = IFIDPayload.from_values(self.interface.if_id)
-        pkt = self._build_packet(SVCType.BS, dst_ia=self.interface.isd_as,
-                                 payload=ifid_pld)
+        pkt = self._build_packet(SVCType.BS, dst_ia=self.interface.isd_as)
         while True:
+            pkt.set_payload(ifid_pld.copy())
             self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
             time.sleep(IFID_PKT_TOUT)
 
@@ -297,16 +298,17 @@ class Router(SCIONElement):
             return
         if pkt.addrs.dst.host != SVCType.BS:
             raise SCMPBadHost("Invalid SVC address: %s", pkt.addrs.dst.host)
-        ifid_pld = pkt.get_payload()
+        ifid_pld = pkt.get_payload().copy()
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         # BS must determine interface.
-        ifid_pld.reply_id = self.interface.if_id
+        ifid_pld.p.relayIF = self.interface.if_id
         try:
             bs_addrs = self.dns_query_topo(BEACON_SERVICE)
         except SCIONServiceLookupError as e:
             logging.error("Unable to deliver ifid packet: %s", e)
             raise SCMPUnknownHost
         for bs_addr in bs_addrs:
+            pkt.set_payload(ifid_pld.copy())
             self.send(pkt, bs_addr)
 
     def get_srv_addr(self, service, pkt):

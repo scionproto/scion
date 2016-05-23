@@ -17,10 +17,10 @@ test:
     override:
         - ./docker.sh run -c "./scion.sh coverage -v"
         - ./docker.sh run -c "./scion.sh lint"
-        - ./docker.sh run -c "make -C sphinx-doc clean html"
+        - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
         - ./docker.sh run -c "docker/integration_test.sh"
     post:
         - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
-        - cp -a sphinx-doc/_build/html "$CIRCLE_ARTIFACTS"/docs
+        - cp -a sphinx-doc/_build/html/sphinx-doc/ "$CIRCLE_ARTIFACTS"/docs
         - cp -a logs "$CIRCLE_ARTIFACTS"/logs
         - LOGS="logs.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}"; mv logs/ "$LOGS"; tar czf "${CIRCLE_ARTIFACTS}/$LOGS.tar.gz" "$LOGS"

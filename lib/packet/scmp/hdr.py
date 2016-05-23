@@ -53,7 +53,7 @@ class SCMPHeader(L4HeaderBase):
         # Header fields
         self.class_ = None
         self.type = None
-        self._length = self.LEN
+        self.total_len = self.LEN
         self._checksum = b""
         self.timestamp = 0
         # Meta-data
@@ -67,21 +67,21 @@ class SCMPHeader(L4HeaderBase):
         data = Raw(raw, self.NAME, self.LEN)
         self._src = src
         self._dst = dst
-        (self.class_, self.type, self._length, self._checksum,
+        (self.class_, self.type, self.total_len, self._checksum,
          self.timestamp) = struct.unpack(self.STRUCT_FMT, data.pop())
 
     @classmethod
-    def from_values(cls, src, dst, class_, type_,
-                    payload=None):  # pragma: no cover
+    def from_values(cls, src, dst, class_, type_):
         """
         Returns an SCMPHeader with the values specified.
         """
         inst = cls()
         inst.timestamp = int(time.time() * 1000000)
-        inst.update(src, dst, class_, type_, payload)
+        inst.update(src, dst, class_, type_)
         return inst
 
-    def update(self, src=None, dst=None, class_=None, type_=None, payload=None):
+    def update(self, src=None, dst=None, class_=None,
+               type_=None):  # pragma: no cover
         if src is not None:
             self._src = src
         if dst is not None:
@@ -90,27 +90,22 @@ class SCMPHeader(L4HeaderBase):
             self.class_ = class_
         if type_ is not None:
             self.type = type_
-        if payload is not None:
-            self._length = self.LEN + len(payload)
-            self._checksum = self._calc_checksum(payload)
 
-    def pack(self, checksum=None):  # pragma: no cover
-        if checksum is None:
-            checksum = self._checksum
+    def _pack(self, checksum):  # pragma: no cover
         return struct.pack(self.STRUCT_FMT, self.class_, self.type,
-                           self._length, checksum, self.timestamp)
+                           self.total_len, checksum, self.timestamp)
 
     def reverse(self):  # pragma: no cover
         pass
 
     def validate(self, payload):
         # Strip off header size.
-        payload_len = self._length - self.LEN
+        payload_len = self.total_len - self.LEN
         if payload_len != len(payload):
             raise SCMPBadPktLen(
                 "%s: length in header (%dB) does not match "
                 "supplied payload (%dB)" %
-                (self.NAME, self._length, self.LEN + len(payload)))
+                (self.NAME, self.total_len, self.LEN + len(payload)))
         checksum = self._calc_checksum(payload)
         if checksum != self._checksum:
             raise SCIONChecksumFailed(
@@ -130,7 +125,7 @@ class SCMPHeader(L4HeaderBase):
         assert isinstance(self._dst, SCIONAddr)
         pseudo_header = b"".join([
             self._src.pack(), self._dst.pack(), struct.pack("!B", L4Proto.SCMP),
-            self.pack(checksum=bytes(2)), payload.pack(),
+            self.pack(payload, checksum=bytes(2)), payload,
         ])
         chk_int = scapy.utils.checksum(pseudo_header)
         # scapy's checksum always outputs in network-byte-order.
@@ -144,5 +139,5 @@ class SCMPHeader(L4HeaderBase):
                 "length: %sB checksum: %s timestamp: %s" % (
                     self.NAME, self.LEN, SCMPClass.to_str(self.class_),
                     scmp_type_name(self.class_, self.type),
-                    self._length, hex_str(self._checksum),
+                    self.total_len, hex_str(self._checksum),
                     iso_timestamp(self.timestamp / 1000000)))

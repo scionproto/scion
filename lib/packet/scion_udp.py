@@ -50,7 +50,7 @@ class SCIONUDPHeader(L4HeaderBase):
         self.src_port = None
         self._dst = None
         self.dst_port = None
-        self._length = self.LEN
+        self.total_len = self.LEN
         self._checksum = b""
 
         if raw:
@@ -61,19 +61,18 @@ class SCIONUDPHeader(L4HeaderBase):
         data = Raw(raw, self.NAME, self.LEN)
         self._src = src
         self._dst = dst
-        self.src_port, self.dst_port, self._length, self._checksum = \
+        self.src_port, self.dst_port, self.total_len, self._checksum = \
             struct.unpack("!HHH2s", data.pop(self.LEN))
 
     @classmethod
-    def from_values(cls, src, src_port, dst, dst_port,
-                    payload=None):  # pragma: no cover
+    def from_values(cls, src, src_port, dst, dst_port):  # pragma: no cover
         """Returns an SCIONUDPHeader with the values specified."""
         inst = cls()
-        inst.update(src, src_port, dst, dst_port, payload)
+        inst.update(src, src_port, dst, dst_port)
         return inst
 
-    def update(self, src=None, src_port=None, dst=None, dst_port=None,
-               payload=None):
+    def update(self, src=None, src_port=None, dst=None,
+               dst_port=None):  # pragma: no cover
         if src is not None:
             self._src = src
         if src_port is not None:
@@ -82,24 +81,19 @@ class SCIONUDPHeader(L4HeaderBase):
             self._dst = dst
         if dst_port is not None:
             self.dst_port = dst_port
-        if payload is not None:
-            self._length = self.LEN + payload.total_len()
-            self._checksum = self._calc_checksum(payload)
 
-    def pack(self, checksum=None):  # pragma: no cover
-        if checksum is None:
-            checksum = self._checksum
-        return struct.pack("!HHH2s", self.src_port, self.dst_port, self._length,
-                           checksum)
+    def _pack(self, checksum):  # pragma: no cover
+        return struct.pack("!HHH2s", self.src_port, self.dst_port,
+                           self.total_len, checksum)
 
     def validate(self, payload):
         # Strip off udp header size.
-        payload_len = self._length - self.LEN
+        payload_len = self.total_len - self.LEN
         if payload_len != len(payload):
             raise SCMPBadPktLen(
                 "%s: length in header (%dB) does not match "
                 "supplied payload (%dB)" %
-                (self.NAME, self._length, self.LEN + len(payload)))
+                (self.NAME, self.total_len, self.LEN + len(payload)))
         checksum = self._calc_checksum(payload)
         if checksum != self._checksum:
             raise SCIONChecksumFailed(
@@ -119,7 +113,7 @@ class SCIONUDPHeader(L4HeaderBase):
         assert isinstance(self._dst, SCIONAddr)
         pseudo_header = b"".join([
             self._src.pack(), self._dst.pack(), struct.pack("!B", L4Proto.UDP),
-            self.pack(checksum=bytes(2)), payload.pack_full(),
+            self.pack(payload, checksum=bytes(2)), payload,
         ])
         chk_int = scapy.utils.checksum(pseudo_header)
         # scapy's checksum always outputs in network-byte-order.
@@ -135,4 +129,4 @@ class SCIONUDPHeader(L4HeaderBase):
     def __str__(self):
         return "UDP hdr (%sB): sport: %s dport: %s length: %sB checksum: %s" \
             % (self.LEN, self.src_port, self.dst_port,
-               self._length, hex_str(self._checksum))
+               self.total_len, hex_str(self._checksum))

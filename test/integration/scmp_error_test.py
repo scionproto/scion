@@ -20,7 +20,6 @@
 import copy
 import logging
 import random
-import socket
 import sys
 
 # SCION
@@ -28,8 +27,8 @@ from lib.defines import MAX_HOPBYHOP_EXT
 from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import HostAddrSVC
+from lib.packet.ifid import IFIDPayload
 from lib.packet.path import SCIONPath
-from lib.packet.scion import IFIDPayload
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.types import (
@@ -59,9 +58,8 @@ class ErrorGenBase(TestClientBase):
         if self.CLASS is None:
             # Allow testing of errors which don't send SCMP responses.
             return True
-        try:
-            pkt = self._recv()
-        except socket.timeout:
+        pkt = self._recv()
+        if not pkt:
             logging.error("Test timed out")
             return False
         ret = self._handle_response(pkt)

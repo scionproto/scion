@@ -33,13 +33,13 @@ from lib.packet.host_addr import (
     HostAddrSVC,
     haddr_get_type,
 )
+from lib.packet.ifid import parse_ifid_payload
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import (
     Serializable,
     L4HeaderBase,
     PacketBase,
     PayloadRaw,
-    SCIONPayloadBase,
 )
 from lib.packet.path import SCIONPath, parse_path
 from lib.packet.path_mgmt import parse_pathmgmt_payload
@@ -65,7 +65,6 @@ from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
-    IFIDType,
     L4Proto,
     PayloadClass,
 )
@@ -373,11 +372,12 @@ class SCIONBasePacket(PacketBase):
     def pack(self):
         self.update()
         packed = []
+        inner = self._inner_pack()
+        self.cmn_hdr.total_len = self.cmn_hdr.hdr_len + len(inner)
         packed.append(self.cmn_hdr.pack())
         packed.append(self.addrs.pack())
         packed.append(self.path.pack())
-        packed.append(self._inner_pack())
-        packed.append(self._pack_payload())
+        packed.append(inner)
         raw = b"".join(packed)
         assert len(raw) == self.cmn_hdr.total_len
         return raw
@@ -395,6 +395,7 @@ class SCIONBasePacket(PacketBase):
         self.addrs.validate()
         if path_len:
             self._validate_of_idxes()
+        assert isinstance(self._payload, PayloadRaw)
 
     def _validate_of_idxes(self):
         try:
@@ -421,7 +422,7 @@ class SCIONBasePacket(PacketBase):
         hdr.next_hdr = self._get_next_hdr()
 
     def _get_offset_len(self):  # pragma: no cover
-        return self._payload.total_len()
+        return 0
 
     def _get_next_hdr(self):  # pragma: no cover
         return self._l4_proto
@@ -450,12 +451,11 @@ class SCIONBasePacket(PacketBase):
         # Create SCMP payload.
         pld = SCMPPayload.from_pkt(class_, type_, pkt, *args, **kwargs)
         self.l4_hdr = SCMPHeader.from_values(self.addrs.src, self.addrs.dst,
-                                             class_, type_, pld)
+                                             class_, type_)
         self.set_payload(pld)
 
-    def __len__(self):
-        return len(self.cmn_hdr) + len(self.addrs) + \
-            len(self.path) + self._get_offset_len()
+    def __len__(self):  # pragma: no cover
+        return self.cmn_hdr.total_len
 
     def __str__(self):
         s = []
@@ -465,9 +465,9 @@ class SCIONBasePacket(PacketBase):
         for line in str(self.path).splitlines():
             s.append("  %s" % line)
         s.extend(self._inner_str())
-        s.append("  Payload(%dB):" % len(self._payload))
+        s.append("  Payload:")
         for line in str(self._payload).splitlines():
-            s.append("  %s" % line)
+            s.append("    %s" % line)
         return "\n".join(s)
 
     def _inner_str(self):  # pragma: no cover
@@ -597,19 +597,24 @@ class SCIONL4Packet(SCIONExtPacket):
     def _inner_pack(self):
         self.update()
         packed = [super()._inner_pack()]
+        pld = super()._pack_payload()
         if self.l4_hdr:
-            packed.append(self.l4_hdr.pack())
+            packed.append(self.l4_hdr.pack(pld))
+        packed.append(pld)
         return b"".join(packed)
+
+    def _pack_payload(self):  # pragma: no cover
+        # Payload is already packed and included as part of _inner_pack
+        return b""
 
     def validate(self, pkt_len):  # pragma: no cover
         super().validate(pkt_len)
         if self.l4_hdr:
-            self.l4_hdr.validate(self._payload)
+            self.l4_hdr.validate(self._payload.pack())
 
     def update(self):
         if self.l4_hdr:
-            self.l4_hdr.update(src=self.addrs.src, dst=self.addrs.dst,
-                               payload=self._payload)
+            self.l4_hdr.update(src=self.addrs.src, dst=self.addrs.dst)
             self._l4_proto = self.l4_hdr.TYPE
         super().update()
 
@@ -650,7 +655,7 @@ class SCIONL4Packet(SCIONExtPacket):
     def _get_offset_len(self):
         l = super()._get_offset_len()
         if self.l4_hdr:
-            l += len(self.l4_hdr)
+            l += self.l4_hdr.total_len
         return l
 
     def _inner_str(self):  # pragma: no cover
@@ -659,59 +664,7 @@ class SCIONL4Packet(SCIONExtPacket):
         return s
 
 
-class IFIDPayload(SCIONPayloadBase):
-    """
-    IFID packet.
-    """
-    PAYLOAD_CLASS = PayloadClass.IFID
-    PAYLOAD_TYPE = IFIDType.PAYLOAD
-    NAME = "IFIDPayload"
-    LEN = 4
-
-    def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class IFIDPacket.
-
-        :param raw:
-        :type raw:
-        """
-        self.reply_id = 0  # Always 0 for initial request.
-        self.request_id = None
-        super().__init__(raw)
-
-    def _parse(self, raw):  # pragma: no cover
-        data = Raw(raw, self.NAME, self.LEN)
-        self.reply_id, self.request_id = struct.unpack(
-            "!HH", data.pop(self.LEN))
-
-    @classmethod
-    def from_values(cls, request_id):  # pragma: no cover
-        inst = cls()
-        inst.request_id = request_id
-        return inst
-
-    def pack(self):  # pragma: no cover
-        return struct.pack("!HH", self.reply_id, self.request_id)
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
-
-    def __str__(self):
-        return "[IFID (%dB): reply ID:%d request ID:%d]" % (
-            self.LEN, self.reply_id, self.request_id)
-
-
 def build_base_hdrs(src, dst, l4=L4Proto.UDP):
     cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE, l4)
     addr_hdr = SCIONAddrHdr.from_values(src, dst)
     return cmn_hdr, addr_hdr
-
-
-def parse_ifid_payload(type_, data):
-    type_map = {
-        IFIDType.PAYLOAD: (IFIDPayload, IFIDPayload.LEN)
-    }
-    if type_ not in type_map:
-        raise SCIONParseError("Unsupported IFID type: %s", type_)
-    handler, len_ = type_map[type_]
-    return handler(data.pop(len_))

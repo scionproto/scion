@@ -50,30 +50,9 @@ class TestSCMPHeaderParse(object):
         ntools.eq_(inst._dst, "dst")
         ntools.eq_(inst.class_, 0x1111)
         ntools.eq_(inst.type, 0x2222)
-        ntools.eq_(inst._length, 0x000F)
+        ntools.eq_(inst.total_len, 0x000F)
         ntools.eq_(inst._checksum, bytes.fromhex("9999"))
         ntools.eq_(inst.timestamp, 0x2323232323232323)
-
-
-class TestSCMPHeaderUpdate(object):
-    """
-    Unit tests for lib.packet.scmp.hdr.SCMPHeader.update
-    """
-    def test_full(self):
-        inst = SCMPHeader()
-        inst._calc_checksum = create_mock()
-        inst._calc_checksum.return_value = 0x9999
-        # Call
-        inst.update(src="src addr", dst="dst addr", class_="class",
-                    type_="type", payload="payload")
-        # Tests
-        ntools.eq_(inst._src, "src addr")
-        ntools.eq_(inst._dst, "dst addr")
-        ntools.eq_(inst.class_, "class")
-        ntools.eq_(inst.type, "type")
-        ntools.eq_(inst._length, inst.LEN + 7)
-        inst._calc_checksum.assert_called_once_with("payload")
-        ntools.eq_(inst._checksum, 0x9999)
 
 
 class TestSCMPHeaderValidate(object):
@@ -83,14 +62,14 @@ class TestSCMPHeaderValidate(object):
     @patch("lib.packet.scmp.hdr.Raw", autospec=True)
     def test_bad_length(self, raw):
         inst = SCMPHeader()
-        inst._length = 10
+        inst.total_len = 10
         # Call
         ntools.assert_raises(SCMPBadPktLen, inst.validate, range(9))
 
     @patch("lib.packet.scmp.hdr.Raw", autospec=True)
     def test_bad_checksum(self, raw):
         inst = SCMPHeader()
-        inst._length = 10 + inst.LEN
+        inst.total_len = 10 + inst.LEN
         inst._calc_checksum = create_mock()
         inst._calc_checksum.return_value = bytes.fromhex("8888")
         inst._checksum = bytes.fromhex("9999")
@@ -111,11 +90,10 @@ class TestSCMPHeaderCalcChecksum(object):
         inst._dst.pack.return_value = b"destination address"
         inst.pack = create_mock()
         inst.pack.return_value = b"packed with null checksum"
-        payload = create_mock(["pack"])
-        payload.pack.return_value = b"payload"
+        payload = b"payload"
         expected_call = b"".join([
             b"source address", b"destination address", bytes([L4Proto.SCMP]),
-            b"packed with null checksum", b"payload",
+            b"packed with null checksum", payload,
         ])
         scapy_checksum.return_value = 0x3412
         # Call

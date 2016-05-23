@@ -381,7 +381,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type ipkt: IFIDPayload
         """
         payload = pkt.get_payload()
-        ifid = payload.reply_id
+        ifid = payload.p.relayIF
         if ifid not in self.ifid_state:
             raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
         prev_state = self.ifid_state[ifid].update()
