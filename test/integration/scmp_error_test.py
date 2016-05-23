@@ -333,7 +333,7 @@ class SCMPErrorTest(TestClientServerBase):
         self.dst = server
         self.thread_name = "SCMPErr.MainThread"
 
-    def run(self):
+    def _run(self):
         for src_ia in self.src_ias:
             src = SCIONAddr.from_values(src_ia, self.client_ip)
             # Pick N random non-local ASes as destination.

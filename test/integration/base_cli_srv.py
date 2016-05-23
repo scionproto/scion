@@ -24,7 +24,6 @@ import os
 import random
 import socket
 import struct
-import sys
 import threading
 import time
 from abc import ABCMeta, abstractmethod
@@ -240,6 +239,12 @@ class TestClientServerBase(object):
         self.scionds = {}
 
     def run(self):
+        try:
+            self._run()
+        finally:
+            self._stop_scionds()
+
+    def _run(self):
         """
         Run a test for every pair of src and dst
         """
@@ -247,7 +252,8 @@ class TestClientServerBase(object):
             for dst_ia in self.dst_ias:
                 if not self.local and src_ia == dst_ia:
                     continue
-                self._run_test(src_ia, dst_ia)
+                if not self._run_test(src_ia, dst_ia):
+                    break
 
     def _run_test(self, src_ia, dst_ia):
         """
@@ -274,13 +280,13 @@ class TestClientServerBase(object):
         s_thread.join(2.0)
         if s_thread.is_alive():
             logging.error("Timeout waiting for server thread to terminate")
-            sys.exit(1)
+            return False
         if client.success and server.success:
             logging.debug("Success")
             return
         logging.error("Client success? %s Server success? %s",
                       client.success, server.success)
-        sys.exit(1)
+        return False
 
     def _create_data(self):
         """
@@ -309,6 +315,10 @@ class TestClientServerBase(object):
                 addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
                 (self.thread_name, addr.isd_as))
         return self.scionds[addr.isd_as]
+
+    def _stop_scionds(self):
+        for sd in self.scionds.values():
+            sd.stop()
 
 
 def start_sciond(addr, api=False, port=0, api_addr=None):
