@@ -35,7 +35,7 @@ from infrastructure.sibra_server.util import seg_to_hops
 from lib.errors import SCIONBaseError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.path import SCIONPath
-from lib.packet.path_mgmt import PathRecordsReg
+from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.scion import SVCType
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr

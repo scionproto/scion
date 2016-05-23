@@ -17,7 +17,7 @@
 """
 # SCION
 from lib.packet.pcb_ext import BeaconExtType, BeaconExtension
-from lib.packet.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 
 
 class RevPcbExt(BeaconExtension):  # pragma: no cover

@@ -20,7 +20,7 @@ import struct
 
 # SCION
 from lib.packet.packet_base import Serializable
-from lib.packet.path_mgmt import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.util import Raw
 
 
@@ -29,7 +29,6 @@ class RevocationObject(Serializable):
     Revocation object that gets stored to Zookeeper.
     """
     NAME = "RevocationObject"
-    LEN = 8 + RevocationInfo.LEN
 
     def __init__(self, raw=None):
         self.if_id = 0
@@ -41,9 +40,9 @@ class RevocationObject(Serializable):
         """
         Parses raw bytes and populates the fields.
         """
-        data = Raw(raw, self.NAME, self.LEN)
+        data = Raw(raw, self.NAME)
         self.if_id, self.hash_chain_idx = struct.unpack("!II", data.pop(8))
-        self.rev_info = RevocationInfo(data.pop(RevocationInfo.LEN))
+        self.rev_info = RevocationInfo.from_raw(data.pop())
 
     @classmethod
     def from_values(cls, if_id, index, rev_token):
@@ -65,12 +64,12 @@ class RevocationObject(Serializable):
         Returns a bytes object from the fields.
         """
         return (struct.pack("!II", self.if_id, self.hash_chain_idx) +
-                self.rev_info.pack())
+                self.rev_info.copy().pack())
 
     def __len__(self):
-        return self.LEN
+        raise NotImplementedError
 
     def __str__(self):
-        return "%s(%sB): IF id: %s Idx: %s Rev info: %s" % (
-            self.NAME, self.LEN, self.if_id, self.hash_chain_idx,
+        return "%s: IF id: %s Idx: %s Rev info: %s" % (
+            self.NAME, self.if_id, self.hash_chain_idx,
             self.rev_info)

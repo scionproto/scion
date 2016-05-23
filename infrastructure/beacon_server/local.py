@@ -22,7 +22,7 @@ import logging
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
-from lib.packet.path_mgmt import PathRecordsReg
+from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import SVCType
 from lib.path_store import PathStore
@@ -76,7 +76,7 @@ class LocalBeaconServer(BeaconServer):
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
         ps_host = self.dns_query_topo(PATH_SERVICE)[0]
-        pkt = self._build_packet(ps_host, payload=records)
+        pkt = self._build_packet(ps_host, payload=records.copy())
         self.send(pkt, ps_host)
         sb_host = self.dns_query_topo(SIBRA_SERVICE)[0]
         pkt = self._build_packet(sb_host, payload=records)

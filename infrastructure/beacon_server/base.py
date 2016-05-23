@@ -50,12 +50,12 @@ from lib.errors import (
 )
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.opaque_field import HopOpaqueField
-from lib.packet.path_mgmt import (
+from lib.packet.path_mgmt.ifstate import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    RevocationInfo,
 )
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
     ASMarking,
     PCBMarking,
@@ -395,14 +395,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 chain = self._get_if_hash_chain(ifid)
                 if chain is None:
                     return
-                state_info = IFStateInfo.from_values(ifid, True,
-                                                     chain.current_element())
-                payload = IFStatePayload.from_values([state_info])
-                payload.pack()
-                mgmt_packet = self._build_packet(payload=payload)
+                state_info = IFStateInfo.from_values(
+                    ifid, True, chain.current_element())
+                pld = IFStatePayload.from_values([state_info])
+                mgmt_packet = self._build_packet()
                 for er in self.topology.get_all_edge_routers():
                     if er.interface.if_id != ifid:
                         mgmt_packet.addrs.dst.host = er.addr
+                        mgmt_packet.set_payload(pld.copy())
                         self.send(mgmt_packet, er.addr)
 
     def run(self):
@@ -663,10 +663,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
-        payload = IFStatePayload.from_values([info])
-        state_pkt = self._build_packet(payload=payload)
+        pld = IFStatePayload.from_values([info])
+        state_pkt = self._build_packet()
         for er in self.topology.get_all_edge_routers():
             state_pkt.addrs.dst.host = er.addr
+            state_pkt.set_payload(pld.copy())
             self.send(state_pkt, er.addr)
         self._process_revocation(rev_info, if_id)
 
@@ -788,26 +789,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                            "Handle IF timeouts")
 
     def _handle_ifstate_request(self, mgmt_pkt):
-        """
-        Handles IFStateRequests.
-
-        :param mgmt_pkt: The packet containing the IFStateRequest.
-        :type request: :class:`lib.packet.path_mgmt.PathMgmtPacket`
-        """
         # Only master replies to ifstate requests.
         if not self.zk.have_lock():
             return
-        request = mgmt_pkt.get_payload()
-        assert isinstance(request, IFStateRequest)
+        req = mgmt_pkt.get_payload()
+        assert isinstance(req, IFStateRequest)
         logging.debug("Received ifstate req:\n%s", mgmt_pkt)
         infos = []
-        if request.if_id == IFStateRequest.ALL_INTERFACES:
+        if req.p.ifID == IFStateRequest.ALL_INTERFACES:
             ifid_states = self.ifid_state.items()
-        elif request.if_id in self.ifid_state:
-            ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
+        elif req.p.ifID in self.ifid_state:
+            ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
         else:
             logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.addrs.src, request.if_id)
+                          "interface %s.", mgmt_pkt.addrs.src, req.p.ifID)
             return
 
         for (ifid, state) in ifid_states:
