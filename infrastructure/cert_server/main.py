@@ -176,16 +176,11 @@ class CertServer(SCIONElement):
             logging.warning("Reply not sent: no destination found")
 
     def process_cert_chain_request(self, pkt):
-        """
-        Process a certificate chain request.
-
-        :param cc_req: certificate chain request.
-        :type cc_req: CertChainRequest
-        """
-        cc_req = pkt.get_payload()
-        assert isinstance(cc_req, CertChainRequest)
-        logging.info("Cert chain request received for %s", cc_req.short_desc())
-        key = cc_req.isd_as, cc_req.version
+        """Process a certificate chain request."""
+        req = pkt.get_payload()
+        assert isinstance(req, CertChainRequest)
+        key = req.isd_as(), req.p.version
+        logging.info("Cert chain request received for %sv%s", *key)
         local = pkt.addrs.src.isd_as == self.addr.isd_as
         if not self._check_cc(key) and not local:
             logging.warning(
@@ -195,21 +190,17 @@ class CertServer(SCIONElement):
         self.cc_requests.put((key, (pkt.addrs.src, pkt.l4_hdr.src_port)))
 
     def process_cert_chain_reply(self, pkt, from_zk=False):
-        """
-        Process a certificate chain reply.
-
-        :param pkt: certificate chain reply.
-        :type pkt: CertChainReply
-        """
-        cc_rep = pkt.get_payload()
-        assert isinstance(cc_rep, CertChainReply)
-        logging.info("Cert chain reply received for %s, ZK: %s" %
-                     (cc_rep.short_desc(), from_zk))
-        self.trust_store.add_cert(cc_rep.cert_chain)
+        """Process a certificate chain reply."""
+        rep = pkt.get_payload()
+        assert isinstance(rep, CertChainReply)
+        ia_ver = rep.chain.get_leaf_isd_as_ver()
+        logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
+                     (ia_ver[0], ia_ver[1], from_zk))
+        self.trust_store.add_cert(rep.chain)
         if not from_zk:
             self._share_object(pkt, is_trc=False)
         # Reply to all requests for this certificate chain
-        self.cc_requests.put((cc_rep.cert_chain.get_leaf_isd_as_ver(), None))
+        self.cc_requests.put((ia_ver, None))
 
     def _check_cc(self, key):
         cert_chain = self.trust_store.get_cert(*key)
@@ -220,16 +211,15 @@ class CertServer(SCIONElement):
 
     def _fetch_cc(self, key, _):
         isd_as, ver = key
-        cc_req = CertChainRequest.from_values(isd_as, ver)
+        req = CertChainRequest.from_values(isd_as, ver)
         dst_addr = self._get_next_hop(isd_as, True)
-        req_pkt = self._build_packet(SVCType.CS, dst_ia=isd_as,
-                                     payload=cc_req)
+        req_pkt = self._build_packet(SVCType.CS, dst_ia=isd_as, payload=req)
         if dst_addr:
             self.send(req_pkt, dst_addr)
-            logging.info("Cert chain request sent for %s", cc_req.short_desc())
+            logging.info("Cert chain request sent: %s", req.short_desc())
         else:
             logging.warning("Cert chain request (for %s) not sent: "
-                            "no destination found", cc_req.short_desc())
+                            "no destination found", req.short_desc())
 
     def _reply_cc(self, key, info):
         isd_as, ver = key
@@ -240,15 +230,10 @@ class CertServer(SCIONElement):
                      isd_as, ver, src, port)
 
     def process_trc_request(self, pkt):
-        """
-        Process a TRC request.
-
-        :param pkt: TRC request.
-        :type pkt: SCIONL4Packet.
-        """
-        trc_req = pkt.get_payload()
-        assert isinstance(trc_req, TRCRequest)
-        key = trc_req.isd_as[0], trc_req.version
+        """Process a TRC request."""
+        req = pkt.get_payload()
+        assert isinstance(req, TRCRequest)
+        key = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s", *key)
         local = pkt.addrs.src.isd_as == self.addr.isd_as
         if not self._check_trc(key) and not local:
@@ -257,7 +242,7 @@ class CertServer(SCIONElement):
                 "TRC not found && requester is not local)",
                 pkt.addrs.src, *key)
         self.trc_requests.put((
-            key, (pkt.addrs.src, pkt.l4_hdr.src_port, trc_req.isd_as[1]),
+            key, (pkt.addrs.src, pkt.l4_hdr.src_port, req.isd_as()[1]),
         ))
 
     def process_trc_reply(self, pkt, from_zk=False):

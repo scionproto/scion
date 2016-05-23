@@ -61,6 +61,8 @@ C2S_extn
 test/integration/cli_srv_ext_test.py
 SCMP error
 test/integration/scmp_error_test.py
+Cert/TRC request
+test/integration/cert_req_test.py
 EOF
 result=$?
 
