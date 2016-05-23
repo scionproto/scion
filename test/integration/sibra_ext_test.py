@@ -20,8 +20,7 @@ import logging
 import time
 
 # SCION
-from lib.defines import SIBRA_MAX_IDX
-from lib.flagtypes import PathSegFlags as PSF
+from lib.defines import PATH_FLAG_SIBRA, SIBRA_MAX_IDX
 from lib.main import main_wrapper
 from lib.packet.ext_util import find_ext_hdr
 from lib.packet.packet_base import PayloadRaw
@@ -52,7 +51,7 @@ class SibraClient(TestClientBase):
         self.eph_id = SibraExtEphemeral.mk_path_id(self.addr.isd_as)
 
     def _get_path(self, _):
-        self._get_path_direct(flags=PSF.SIBRA)
+        self._get_path_direct(flags=(PATH_FLAG_SIBRA,))
         assert self.path
         logging.debug("Interfaces: %s", ", ".join(
             ["%s:%s" % ifentry for ifentry in self.iflist]))

@@ -30,10 +30,8 @@ from infrastructure.scion_elem import SCIONElement
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONParseError
 from lib.log import log_exception
-from lib.packet.path_mgmt import (
-    PathRecordsReply,
-    RevocationInfo,
-)
+from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import SVCType
 from lib.path_db import DBResult, PathSegmentDB
@@ -232,7 +230,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not (up | core | down):
             logging.warning("No segments to send")
             return
-        seg_req = pkt.get_payload()
+        req = pkt.get_payload()
         rep_pkt = pkt.reversed_copy()
         rep_pkt.set_payload(PathRecordsReply.from_values(
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
@@ -246,7 +244,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         logging.info(
             "Sending PATH_REPLY with %d segment(s) to:%s "
             "port:%s in response to: %s", len(up | core | down),
-            rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port, seg_req.short_desc()
+            rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port, req.short_desc(),
         )
         self.send(rep_pkt, next_hop, port)
 

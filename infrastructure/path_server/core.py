@@ -21,12 +21,10 @@ from collections import deque
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.flagtypes import PathSegFlags as PSF
+from lib.defines import PATH_FLAG_SIBRA
 from lib.packet.host_addr import haddr_parse
-from lib.packet.path_mgmt import (
-    PathRecordsReply,
-    PathSegmentReq,
-)
+from lib.packet.path_mgmt.seg_recs import PathRecordsReply
+from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zookeeper import ZkNoConnection
@@ -187,10 +185,11 @@ class CorePathServer(PathServer):
         if not master:
             logging.warning("_send_to_master(): _master_id not set.")
             return
-        pkt = self._build_packet(haddr_parse("IPV4", master), payload=pld)
+        pkt = self._build_packet(haddr_parse("IPV4", master),
+                                 payload=pld.copy())
         self.send(pkt, master)
 
-    def _query_master(self, dst_ia, src_ia=None, flags=0):
+    def _query_master(self, dst_ia, src_ia=None, flags=()):
         """
         Query master for a segment.
         """
@@ -217,7 +216,7 @@ class CorePathServer(PathServer):
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
             pkt = self._build_packet(SVCType.PS, dst_ia=isd_as, path=cseg,
-                                     payload=rep_recs)
+                                     payload=rep_recs.copy())
             self._send_to_next_hop(pkt, cseg.get_fwd_if())
 
     def path_resolution(self, pkt, new_request=True):
@@ -227,10 +226,10 @@ class CorePathServer(PathServer):
         pending request (False).
         Return True when resolution succeeded, False otherwise.
         """
-        seg_req = pkt.get_payload()
-        dst_ia = seg_req.dst_ia
+        req = pkt.get_payload()
+        dst_ia = req.dst_ia()
         if new_request:
-            logging.info("PATH_REQ received: %s", seg_req.short_desc())
+            logging.info("PATH_REQ received: %s", req.short_desc())
         if dst_ia == self.addr.isd_as:
             logging.warning("Dropping request: requested DST is local AS")
             return False
@@ -238,11 +237,11 @@ class CorePathServer(PathServer):
         dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
         if dst_is_core:
             core_segs = self._resolve_core(pkt, dst_ia, new_request,
-                                           seg_req.flags)
+                                           req.flags())
             down_segs = set()
         else:
             core_segs, down_segs = self._resolve_not_core(
-                pkt, dst_ia, new_request, seg_req.flags)
+                pkt, dst_ia, new_request, req.flags())
 
         if not (core_segs | down_segs):
             if new_request:
@@ -260,7 +259,7 @@ class CorePathServer(PathServer):
         """
         Dst is core AS.
         """
-        sibra = bool(flags & PSF.SIBRA)
+        sibra = PATH_FLAG_SIBRA in flags
         params = {"last_ia": self.addr.isd_as}
         params["sibra"] = sibra
         params.update(dst_ia.params())
@@ -278,7 +277,7 @@ class CorePathServer(PathServer):
         Dst is regular AS.
         """
         seg_req = pkt.get_payload()
-        sibra = bool(flags & PSF.SIBRA)
+        sibra = PATH_FLAG_SIBRA in flags
         core_segs = set()
         down_segs = set()
         # Check if there exists any down-segs to dst.
@@ -289,7 +288,7 @@ class CorePathServer(PathServer):
         for dseg in tmp_down_segs:
             dseg_ia = dseg.get_first_pcbm().isd_as
             if (dseg_ia == self.addr.isd_as or
-                    seg_req.src_ia[0] != self.addr.isd_as[0]):
+                    seg_req.src_ia()[0] != self.addr.isd_as[0]):
                 # If it's a direct down-seg, or if it's a remote query, there's
                 # no need to include core-segs
                 down_segs.add(dseg)
@@ -314,7 +313,7 @@ class CorePathServer(PathServer):
         lack of corresponding down segment(s).
         This must not be executed for a pending request.
         """
-        sibra = bool(flags & PSF.SIBRA)
+        sibra = PATH_FLAG_SIBRA in flags
         self.pending_req[(dst_ia, sibra)].append(pkt)
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.
