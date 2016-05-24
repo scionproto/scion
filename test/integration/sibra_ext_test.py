@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import random
+import sys
 import time
 
 # SCION
@@ -67,6 +68,7 @@ class SibraClient(TestClientBase):
         # removed.
         if len(set(self.iflist)) != len(self.iflist):
             logging.info("Skipping on-path pair")
+            self.success = "skip"
             self.finished.set()
             return
         super().run()
@@ -171,14 +173,20 @@ class SIBRATest(TestClientServerBase):
         self.thread_name = "SIBRA"
         super().__init__(*args, **kwargs)
 
-    def run(self):
+    def _run(self):
         for _ in range(10):
             src_ia = random.choice(self.src_ias)
             # Pick a random non-local AS as destination.
             dst_ia = src_ia
             while dst_ia == src_ia:
                 dst_ia = random.choice(self.dst_ias)
-            self._run_test(src_ia, dst_ia)
+            if not self._run_test(src_ia, dst_ia):
+                sys.exit(1)
+
+    def _check_result(self, client, server):
+        if client.success == "skip":
+            return True
+        return super()._check_result(client, server)
 
     def _create_server(self, data, finished, addr):
         return SibraServer(self._run_sciond(addr), data, finished, addr)

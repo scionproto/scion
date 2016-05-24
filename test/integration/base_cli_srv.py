@@ -282,6 +282,9 @@ class TestClientServerBase(object):
         if s_thread.is_alive():
             logging.error("Timeout waiting for server thread to terminate")
             return False
+        return self._check_result(client, server)
+
+    def _check_result(self, client, server):
         if client.success and server.success:
             logging.debug("Success")
             return True
