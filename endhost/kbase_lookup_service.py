@@ -108,13 +108,16 @@ class KnowledgeBaseLookupService(object):
             resp = self.kbase.list()
         elif cmd == 'LOOKUP':
             try:
+                conn_id = request['conn_id']
                 req_type = request['req_type']
                 res_name = request['res_name']
             except KeyError as e:
                 logging.error('Key error while parsing LOOKUP req: %s' % e)
                 return
             assert(isinstance(req_type, str))
-            resp = self.kbase.lookup(req_type, res_name)
+            resp = self.kbase.lookup(conn_id, req_type, res_name)
+        elif cmd == 'CLEAR':
+            resp = self.kbase.clear()
         elif cmd == 'TOPO':
             resp = self._get_topology()
         elif cmd == 'LOCATIONS':
