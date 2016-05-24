@@ -61,6 +61,7 @@ class SibraExtSteady(SibraExtBase):
         inst.total_hops = total_hops
         inst.path_ids = [path_id]
         inst.req_block = ResvBlockSteady.from_values(req_info, inst.total_hops)
+        inst._parse_src_ia()
         inst._set_size()
         return inst
 
@@ -71,6 +72,7 @@ class SibraExtSteady(SibraExtBase):
         inst.path_ids = [path_id]
         inst.total_hops = block.num_hops
         inst.switch_resv(block)
+        inst._parse_src_ia()
         return inst
 
     @staticmethod

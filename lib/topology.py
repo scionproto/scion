@@ -23,6 +23,10 @@ from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
+    LINK_CHILD,
+    LINK_PARENT,
+    LINK_PEER,
+    LINK_ROUTING,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SIBRA_SERVICE,
@@ -192,10 +196,10 @@ class Topology(object):
         for k, v in topology['EdgeRouters'].items():
             router = RouterElement(v, k)
             ntype_map = {
-                'PARENT': self.parent_edge_routers,
-                'CHILD': self.child_edge_routers,
-                'PEER': self.peer_edge_routers,
-                'ROUTING': self.routing_edge_routers,
+                LINK_PARENT: self.parent_edge_routers,
+                LINK_CHILD: self.child_edge_routers,
+                LINK_PEER: self.peer_edge_routers,
+                LINK_ROUTING: self.routing_edge_routers,
             }
             ntype_map[router.interface.link_type].append(router)
 

@@ -92,6 +92,8 @@ class ReservationBase(BandwidthBase):
         self.idxes = {}
         self.order = []
         self._update(curr_tick)
+        if self.RESV_TYPE == "Ephemeral":
+            self.parent.remove_child(self.pathid)
 
     def _update(self, curr_tick):
         """
@@ -166,19 +168,19 @@ class ReservationBase(BandwidthBase):
 
     def __str__(self):
         tmp = []
-        tmp.append("%s Parent: %s" %
+        tmp.append("%s Parent: (%s)" %
                    (self.short_desc(), self.parent.short_desc()))
+        for i in self.order:
+            for line in str(self.idxes[i]).splitlines():
+                tmp.append("  %s" % line)
         if self.children:
             tmp.append(
                 "Children: %d. Used/Reserved bandwidth (Kibit/s): "
                 "%.1f/%.1f Rev: %.1f/%.1f" % (
-                    len(self.children), self.child_resvs[0].fwd/1024,
-                    self.child_used.fwd/1024, self.child_resvs[0].rev/1024,
-                    self.child_used.rev/1024,
+                    len(self.children), self.child_used.fwd/1024,
+                    self.child_resvs[0].fwd/1024, self.child_used.rev/1024,
+                    self.child_resvs[0].rev/1024,
                 ))
-        for i in self.order:
-            for line in str(self.idxes[i]).splitlines():
-                tmp.append("  %s" % line)
         return "\n".join(tmp)
 
 

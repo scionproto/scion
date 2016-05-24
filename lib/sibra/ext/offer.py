@@ -93,8 +93,9 @@ class OfferBlockBase(Serializable):
         """
         Add a suggested bandwidth for the current hop
         """
-        assert curr_hop < self.offer_hops
-        self.offers[curr_hop] = bw_cls
+        offer_hop = curr_hop - self.info.fail_hop
+        assert offer_hop < self.offer_hops
+        self.offers[offer_hop] = bw_cls
 
     def get_min(self, total_hops):
         """

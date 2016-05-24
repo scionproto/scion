@@ -29,7 +29,7 @@ from test.testcommon import assert_these_calls, create_mock
 
 class TestSibraStateUpdateTick(object):
     """
-    Unit tests for lib.sibra.state.state.SibraState._update_tick
+    Unit tests for lib.sibra.state.state.SibraState.update_tick
     """
     @patch("lib.sibra.state.state.current_tick", autospec=True)
     @patch("lib.sibra.state.state.LinkBandwidth", autospec=True)
@@ -42,7 +42,7 @@ class TestSibraStateUpdateTick(object):
         inst._resv_tick = create_mock()
         curr_tick.return_value = 3
         # Call
-        inst._update_tick()
+        inst.update_tick()
         # Tests
         ntools.eq_(inst.curr_tick, 3)
         assert_these_calls(inst.link.next, [call()] * 3)
@@ -79,7 +79,7 @@ class TestSibraStateAddSteady(object):
     @patch("lib.sibra.state.state.LinkBandwidth", autospec=True)
     def test_setup_success(self, _):
         inst = SibraState("bw", "isd as")
-        inst._update_tick = create_mock()
+        inst.update_tick = create_mock()
         inst._create_steady = create_mock()
         inst._create_steady.return_value = "resv"
         inst._add = create_mock()
@@ -87,7 +87,7 @@ class TestSibraStateAddSteady(object):
         # Call
         inst.add_steady("path id", "resv idx", "bwsnap", "exp_tick", "accepted")
         # Tests
-        inst._update_tick.assert_called_once_with()
+        inst.update_tick.assert_called_once_with()
         inst._create_steady.assert_called_once_with("path id")
         inst._add.assert_called_once_with(
             "resv", "resv idx", "bwsnap", "exp_tick", "accepted")
@@ -97,7 +97,7 @@ class TestSibraStateAddSteady(object):
     @patch("lib.sibra.state.state.LinkBandwidth", autospec=True)
     def test_renewal_denied(self, _):
         inst = SibraState("bw", "isd as")
-        inst._update_tick = create_mock()
+        inst.update_tick = create_mock()
         inst._add = create_mock()
         inst.steady["path id"] = "resv"
         # Call
@@ -117,26 +117,28 @@ class TestSibraStateAddEphemeral(object):
     @patch("lib.sibra.state.state.LinkBandwidth", autospec=True)
     def test_setup_success(self, _):
         inst = SibraState("bw", "isd as")
-        inst._update_tick = create_mock()
+        inst.update_tick = create_mock()
         inst._create_ephemeral = create_mock()
         inst._create_ephemeral.return_value = "resv"
         inst._add = create_mock()
         inst._add.return_value = None
+        inst.steady["steady id"] = create_mock(["add_child"])
         # Call
         inst.add_ephemeral("path id", "steady id", "resv idx", "bwsnap",
                            "exp_tick", "accepted")
         # Tests
-        inst._update_tick.assert_called_once_with()
+        inst.update_tick.assert_called_once_with()
         inst._create_ephemeral.assert_called_once_with("path id", "steady id")
         inst._add.assert_called_once_with(
             "resv", "resv idx", "bwsnap", "exp_tick", "accepted")
         ntools.eq_(inst.ephemeral, {"path id": "resv"})
         ntools.eq_(inst.pend_ephemeral, {"path id": True})
+        inst.steady["steady id"].add_child.assert_called_once_with("path id")
 
     @patch("lib.sibra.state.state.LinkBandwidth", autospec=True)
     def test_renewal_denied(self, _):
         inst = SibraState("bw", "isd as")
-        inst._update_tick = create_mock()
+        inst.update_tick = create_mock()
         inst._add = create_mock()
         inst.ephemeral["path id"] = "resv"
         # Call

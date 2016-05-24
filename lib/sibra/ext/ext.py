@@ -26,6 +26,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import HopByHopExtension
+from lib.packet.scion_addr import ISD_AS
 from lib.sibra.ext.offer import OfferBlockSteady, OfferBlockEphemeral
 from lib.sibra.ext.process import ProcessMeta
 from lib.sibra.ext.resv import ResvBlockSteady, ResvBlockEphemeral
@@ -110,6 +111,7 @@ class SibraExtBase(HopByHopExtension):
         self.total_hops = 0
         self.block_idx = 0
         self.rel_sof_idx = 0
+        self.src_ia = None
 
         super().__init__(raw)
 
@@ -140,6 +142,10 @@ class SibraExtBase(HopByHopExtension):
         if len(data):
             raise SCIONParseError("%s bytes left when parsing %s: %s" % (
                 len(data), self.NAME, hex_str(data.get())))
+        self._parse_src_ia()
+
+    def _parse_src_ia(self):  # pragma: no cover
+        self.src_ia = ISD_AS(self.path_ids[0][:ISD_AS.LEN])
 
     def _parse_flags(self, flags):
         """Parse the header flags field."""
@@ -271,7 +277,6 @@ class SibraExtBase(HopByHopExtension):
         assert block.num_hops == len(block.sofs)
         assert block.num_hops == self.total_hops
         self.setup = False
-        self.path_lens[0] = block.num_hops
         self.active_blocks = [block]
         self._set_size()
 
@@ -333,8 +338,8 @@ class SibraExtBase(HopByHopExtension):
             else:
                 # Reservation has been rejected by further along the path.
                 meta.state.pend_remove(self.path_ids[0], self.steady)
-            # Route packet as normal
         else:
+            # Route packet as normal
             self._process_req(meta)
         return []
 
@@ -410,10 +415,10 @@ class SibraExtBase(HopByHopExtension):
             # First hop to reject the request
             self._reject_req(bw_hint)
             return
+        assert self.curr_hop >= self.req_block.info.fail_hop
         if dir_fwd:
             # Req was already rejected, and this is on egress, so update the
             # offer that the ingress ER made.
-            assert self.curr_hop >= self.req_block.info.fail_hop
             offer_hop = self.curr_hop - self.req_block.info.fail_hop
             curr_offer = self.req_block.offers[offer_hop]
             curr_offer.min(bw_hint)
@@ -472,6 +477,9 @@ class SibraExtBase(HopByHopExtension):
         logging.error("MAC verification failed:\n%s", self)
         return False
 
+    def _id_with_owner(self, id_):  # pragma: no cover
+        return "%s (Owner: %s)" % (hex_str(id_), ISD_AS(id_[:ISD_AS.LEN]))
+
     def __str__(self):
         tmp = ["%s(%dB):" % (self.NAME, len(self))]
         tmp.append(
@@ -481,9 +489,11 @@ class SibraExtBase(HopByHopExtension):
              bool(self.req_block), self.accepted, self.error, self.steady,
              self.fwd, self.version))
         type_ = "Steady" if self.steady else "Ephemeral"
-        tmp.append("  %s path ID: %s" % (type_, hex_str(self.path_ids[0])))
+        tmp.append("  %s path ID: %s" % (
+            type_, self._id_with_owner(self.path_ids[0])))
         for i, path_id in enumerate(self.path_ids[1:]):
-            tmp.append("  Steady path %d ID: %s" % (i, hex_str(path_id)))
+            tmp.append("  Steady path %d ID: %s" % (
+                i, self._id_with_owner(path_id)))
         for i, block in enumerate(self.active_blocks):
             tmp.append("  Active block %d:" % i)
             for line in str(block).splitlines():

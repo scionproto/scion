@@ -123,14 +123,14 @@ class ResvInfoBase(Serializable):
         return self.LEN
 
     def __str__(self):
-        tmp = ["%s(%dB):" % (self.NAME, len(self))]
-        tmp.append("Resv idx: %2s" % self.index)
-        tmp.append("Fwd: %s" % self.bw.fwd_str())
-        tmp.append("Rev: %s" % self.bw.rev_str())
-        tmp.append("Failhop: %s" % self.fail_hop)
-        tmp.append("Dir fwd: %s" % self.fwd_dir)
-        tmp.append("Expiry: %s" % iso_timestamp(tick_to_time(self.exp_tick)))
-        return " ".join(tmp)
+        tmp = []
+        tmp.append("%s(%dB): Resv idx: %2s Fwd: %s Rev: %s" %
+                   (self.NAME, len(self), self.index, self.bw.fwd_str(),
+                    self.bw.rev_str()))
+        tmp.append("Failhop: %s Dir fwd: %s Expiry: %s" %
+                   (self.fail_hop, self.fwd_dir,
+                    iso_timestamp(tick_to_time(self.exp_tick))))
+        return "\n  ".join(tmp)
 
 
 class ResvInfoSteady(ResvInfoBase):

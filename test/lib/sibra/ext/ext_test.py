@@ -82,6 +82,7 @@ class TestSibraExtBaseParseEnd(object):
         inst.accepted = accepted
         inst._parse_block = create_mock()
         inst._parse_offers_block = create_mock()
+        inst._parse_src_ia = create_mock()
         inst.total_hops = "total hops"
         inst.steady = "so steady"
         data = create_mock(["__len__"])
@@ -96,6 +97,7 @@ class TestSibraExtBaseParseEnd(object):
         inst._parse_block.assert_called_once_with(
             data, "total hops", "so steady")
         ntools.eq_(inst.req_block, inst._parse_block.return_value)
+        inst._parse_src_ia.assert_called_once_with()
 
     def test_req_rejected(self):
         inst, data = self._setup(accepted=False)
@@ -267,7 +269,6 @@ class TestSibraExtBaseSwitchResv(object):
         inst._set_size = create_mock()
         inst.setup = True
         inst.req_block = "req block"
-        inst.path_lens = [1, 2, 3]
         inst.total_hops = 4
         block = create_mock(["num_hops", "sofs"])
         block.num_hops = 4
@@ -278,7 +279,6 @@ class TestSibraExtBaseSwitchResv(object):
         inst.switch_resv(block)
         # Tests
         ntools.eq_(inst.setup, False)
-        ntools.eq_(inst.path_lens, [4, 2, 3])
         ntools.eq_(inst.active_blocks, [block])
         inst._set_size.assert_called_once_with()
 
@@ -606,14 +606,16 @@ class TestSibraExtBaseReqDenied(object):
     def test_rev(self):
         inst = SibraExtBaseTesting()
         inst.accepted = False
-        inst.curr_hop = "curr hop"
+        inst.curr_hop = 3
         bwhint = create_mock(["reverse"])
-        inst.req_block = create_mock(["add"])
+        inst.req_block = create_mock(["add", "info"])
+        inst.req_block.info = create_mock(["fail_hop"])
+        inst.req_block.info.fail_hop = 0
         # Call
         inst._req_denied(False, bwhint)
         # Tests
         bwhint.reverse.assert_called_once_with()
-        inst.req_block.add.assert_called_once_with("curr hop", bwhint)
+        inst.req_block.add.assert_called_once_with(3, bwhint)
 
 
 class TestSibraExtBaseRejectReq(object):

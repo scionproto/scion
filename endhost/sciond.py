@@ -389,9 +389,8 @@ class SCIONDaemon(SCIONElement):
             if src_core_ia == dst_core_ia:
                 res.add((up_seg, down_seg))
                 continue
-            core_seg = self.core_segments(first_ia=src_core_ia,
-                                          last_ia=dst_core_ia, sibra=True)
-            if core_seg:
+            for core_seg in self.core_segments(first_ia=dst_core_ia,
+                                               last_ia=src_core_ia, sibra=True):
                 res.add((up_seg, core_seg, down_seg))
         return res
 
@@ -417,12 +416,28 @@ class SCIONDaemon(SCIONElement):
         assert info_ext
         resv_info = info_ext.info
         resv = ResvBlockSteady.from_values(resv_info, pcb.get_n_hops())
-        asms = reversed(pcb.ases) if resv_info.fwd_dir else pcb.ases
+        asms = pcb.ases if info_ext.sofs_fwd else reversed(pcb.ases)
+        iflist = []
         for asm in asms:
-            sof_ext = asm.find_ext(BeaconExtType.SIBRA_SEG_SOF)
-            resv.sofs.append(sof_ext.sof)
+            sof = asm.find_ext(BeaconExtType.SIBRA_SEG_SOF).sof
+            resv.sofs.append(sof)
+            iflist.extend(self._sibra_add_ifs(
+                asm.pcbm.isd_as, sof, resv_info.fwd_dir))
         assert resv.num_hops == len(resv.sofs)
-        return info_ext.id, resv
+        return info_ext.id, resv, iflist
+
+    def _sibra_add_ifs(self, isd_as, sof, fwd):
+        def _add(ifid):
+            if ifid:
+                ret.append((isd_as, ifid))
+        ret = []
+        if fwd:
+            _add(sof.ingress)
+            _add(sof.egress)
+        else:
+            _add(sof.egress)
+            _add(sof.ingress)
+        return ret
 
     def _wait_for_events(self, events, deadline):
         """

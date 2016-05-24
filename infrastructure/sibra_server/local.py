@@ -17,7 +17,8 @@
 """
 # SCION
 from infrastructure.sibra_server.main import SibraServerBase
+from lib.types import PathSegmentType as PST
 
 
 class SibraServerLocal(SibraServerBase):
-    pass
+    PST_TYPE = PST.UP

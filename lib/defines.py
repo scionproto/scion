@@ -105,3 +105,12 @@ SIBRA_EPHEMERAL_ID_LEN = 16
 SIBRA_BW_FACTOR = 16 * 1024
 #: SIBRA max reservation index
 SIBRA_MAX_IDX = 16
+
+#: Link to child AS
+LINK_CHILD = "CHILD"
+#: Link to parent AS
+LINK_PARENT = "PARENT"
+#: Link to peer AS
+LINK_PEER = "PEER"
+#: Link to other core AS
+LINK_ROUTING = "ROUTING"

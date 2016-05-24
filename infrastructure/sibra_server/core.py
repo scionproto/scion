@@ -15,9 +15,17 @@
 :mod:`core` --- core SIBRA service daemon
 =========================================
 """
+
 # SCION
 from infrastructure.sibra_server.main import SibraServerBase
+from lib.types import PathSegmentType as PST
 
 
 class SibraServerCore(SibraServerBase):
-    pass
+    PST_TYPE = PST.CORE
+
+    def _manage_routing(self, link):
+        if self.addr.isd_as.int() < link.neigh.int():
+            # It's the responsibility of the lower ISD-AS to create/maintain the
+            # core steady path.
+            self._add_renew(link)

@@ -61,7 +61,7 @@ class SibraExtEphemeral(SibraExtBase):
     def _parse_active_blocks(self, data):
         if not self.setup:
             # Ephemeral non-setup packets have a single active block
-            return [self._parse_block(data, self.path_lens[0])]
+            return [self._parse_block(data, self.total_hops)]
         # Ephemeral setup packets have 1-3 active blocks
         ret = []
         for plen in self.path_lens:
@@ -76,7 +76,6 @@ class SibraExtEphemeral(SibraExtBase):
         inst = cls()
         inst.setup = True
         inst.steady = False
-        inst.path_lens = [0, 0, 0]
         for i, b in enumerate(steady_blocks):
             inst.path_lens[i] = b.num_hops
         inst._calc_total_hops()
@@ -84,14 +83,23 @@ class SibraExtEphemeral(SibraExtBase):
         inst.active_blocks = steady_blocks
         inst.req_block = ResvBlockEphemeral.from_values(
             req_info, inst.total_hops)
+        inst._parse_src_ia()
         inst._set_size()
         return inst
 
     @classmethod
-    def use_from_values(cls, path_ids, block):  # pragma: no cover
+    def use_from_values(cls, path_ids, path_lens, block,
+                        req_info=None):  # pragma: no cover
         inst = cls()
         inst.path_ids = path_ids
-        inst.total_hops = block.num_hops
+        for i, len_ in enumerate(path_lens):
+            inst.path_lens[i] = len_
+        inst._calc_total_hops()
+        assert inst.total_hops == block.num_hops
+        inst._parse_src_ia()
+        if req_info:
+            inst.req_block = ResvBlockEphemeral.from_values(
+                req_info, inst.total_hops)
         inst.switch_resv(block)
         return inst
 
@@ -106,14 +114,7 @@ class SibraExtEphemeral(SibraExtBase):
         return self._pack_end(raw)
 
     def _calc_total_hops(self):
-        """
-        Calculate the total number of hops from the path lengths. Ephemeral
-        non-setup packets can just use the normal calculation, but ephemeral
-        setup packets have to account for cross-over hops.
-        """
-        if not self.setup:
-            super()._calc_total_hops()
-            return
+        """Calculate the total number of hops from the path lengths."""
         count = 0
         for plen in self.path_lens:
             if not plen:

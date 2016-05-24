@@ -78,10 +78,10 @@ class LinkBandwidth(BandwidthBase):
         return self.max_bw - self.resvs[0]
 
     def short_desc(self):  # pragma: no cover
-        return "Link: Owner: %s" % self.owner
+        return "Link: %s" % self.owner
 
     def __str__(self):
-        return ("Link: Owner: %s Used/Max bandwidth (Kibit/s): "
+        return ("Link: %s Used/Max bandwidth (Kibit/s): "
                 "Fwd: %.1f/%.1f Rev: %.1f/%.1f" % (
                     self.owner, self.resvs[0].fwd/1024, self.max_bw.fwd/1024,
                     self.resvs[0].rev/1024, self.max_bw.rev/1024))
