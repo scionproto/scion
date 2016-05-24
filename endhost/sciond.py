@@ -88,7 +88,7 @@ class SCIONDaemon(SCIONElement):
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
         self.api_addr = (api_addr or
                          os.path.join(SCIOND_API_SOCKDIR,
-                                      self.addr.isd_as + ".sock"))
+                                      "%s.sock" % self.addr.isd_as))
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -97,7 +97,7 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
-            self._api_sock = ReliableSocket(bind=(self.api_addr, None, None))
+            self._api_sock = ReliableSocket(bind=(self.api_addr, "sciond"))
             self._socks.add(self._api_sock, self.handle_accept)
 
     @classmethod
