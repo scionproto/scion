@@ -24,6 +24,7 @@ import os
 import random
 import socket
 import struct
+import sys
 import threading
 import time
 from abc import ABCMeta, abstractmethod
@@ -253,7 +254,7 @@ class TestClientServerBase(object):
                 if not self.local and src_ia == dst_ia:
                     continue
                 if not self._run_test(src_ia, dst_ia):
-                    break
+                    sys.exit(1)
 
     def _run_test(self, src_ia, dst_ia):
         """
@@ -283,7 +284,7 @@ class TestClientServerBase(object):
             return False
         if client.success and server.success:
             logging.debug("Success")
-            return
+            return True
         logging.error("Client success? %s Server success? %s",
                       client.success, server.success)
         return False
