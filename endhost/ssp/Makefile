@@ -5,7 +5,7 @@ LIBDIR=../../lib/libscion
 INC=-I$(LIBDIR)
 LIBFLAG=-L$(LIBDIR)
 LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
-LIBSOCK=libsocket.so
+LIBSOCK=libssocket.so
 
 HDRS=$(wildcard *.h) $(wildcard ../../lib/libscion/*.h)
 
