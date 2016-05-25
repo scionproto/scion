@@ -64,7 +64,7 @@ test/integration/scmp_error_test.py
 Cert/TRC request
 test/integration/cert_req_test.py
 Sibra Ext
-test/integration/sibra_ext_test.py
+test/integration/sibra_ext_test.py --wait 30
 EOF
 result=$?
 

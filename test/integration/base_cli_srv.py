@@ -348,9 +348,9 @@ def _parse_locs(as_str, as_list):
     return copied
 
 
-def setup_main(name):
+def setup_main(name, parser=None):
     handle_signals()
-    parser = argparse.ArgumentParser()
+    parser = parser or argparse.ArgumentParser()
     parser.add_argument('-c', '--client', help='Client address')
     parser.add_argument('-s', '--server', help='Server address')
     parser.add_argument('-m', '--mininet', action='store_true',
