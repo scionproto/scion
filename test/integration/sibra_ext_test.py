@@ -16,6 +16,7 @@
 ======================================================================
 """
 # Stdlib
+import argparse
 import logging
 import random
 import sys
@@ -196,8 +197,18 @@ class SIBRATest(TestClientServerBase):
                            port)
 
 
+def setup(name):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-w", "--wait", type=float, default=0.0,
+                        help="Time in seconds to wait before running")
+    return setup_main(name, parser=parser)
+
+
 def main():
-    args, srcs, dsts = setup_main("sibra_ext_test")
+    args, srcs, dsts = setup("sibra_ext_test")
+    if args.wait:
+        logging.info("Waiting %ss", args.wait)
+        time.sleep(args.wait)
     SIBRATest(args.client, args.server, srcs, dsts).run()
 
 
