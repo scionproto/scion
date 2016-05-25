@@ -80,15 +80,12 @@ class TestCertClient(TestClientBase):
 
 
 class TestCertReq(TestClientServerBase):
-    def __init__(self, client, server, sources, destinations, local=True):
-        super().__init__(client, server, sources, destinations)
-        self.src = client
-        self.dst = server
-        self.thread_name = "CertReqTest"
+    NAME = "CertReqTest"
 
-    def run(self):
+    def _run(self):
         for isd_as in self.src_ias:
-            self._run_test(isd_as)
+            if not self._run_test(isd_as):
+                sys.exit(1)
 
     def _run_test(self, isd_as):
         logging.info("Testing: %s", isd_as)
@@ -97,10 +94,9 @@ class TestCertReq(TestClientServerBase):
         client = self._create_client(finished, addr)
         client.run()
         if client.success:
-            logging.debug("Success")
-            return
+            return True
         logging.error("Client success? %s", client.success)
-        sys.exit(1)
+        return False
 
     def _create_client(self, finished, addr):
         return TestCertClient(self._run_sciond(addr), finished, addr)
@@ -108,7 +104,7 @@ class TestCertReq(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("certreq")
-    TestCertReq(args.client, args.server, srcs, dsts).run()
+    TestCertReq(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
 
 
 if __name__ == "__main__":

@@ -16,10 +16,7 @@
 ======================================================================
 """
 # Stdlib
-import argparse
 import logging
-import random
-import sys
 import time
 
 # SCION
@@ -134,8 +131,8 @@ class SibraClient(TestClientBase):
         logging.debug("Received:\n%s", spkt)
         if not self.setup_ts:
             self._handle_setup()
-        else:
-            self._handle_use()
+        elif not self._handle_use():
+            return True
         ext = self.get_ext(spkt)
         if not ext.req_block:
             return True
@@ -170,19 +167,7 @@ class SibraServer(TestServerBase):
 
 
 class SIBRATest(TestClientServerBase):
-    def __init__(self, *args, **kwargs):
-        self.thread_name = "SIBRA"
-        super().__init__(*args, **kwargs)
-
-    def _run(self):
-        for _ in range(10):
-            src_ia = random.choice(self.src_ias)
-            # Pick a random non-local AS as destination.
-            dst_ia = src_ia
-            while dst_ia == src_ia:
-                dst_ia = random.choice(self.dst_ias)
-            if not self._run_test(src_ia, dst_ia):
-                sys.exit(1)
+    NAME = "SIBRA"
 
     def _check_result(self, client, server):
         if client.success == "skip":
@@ -197,19 +182,13 @@ class SIBRATest(TestClientServerBase):
                            port)
 
 
-def setup(name):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-w", "--wait", type=float, default=0.0,
-                        help="Time in seconds to wait before running")
-    return setup_main(name, parser=parser)
-
-
 def main():
-    args, srcs, dsts = setup("sibra_ext_test")
+    args, srcs, dsts = setup_main("sibra_ext_test")
     if args.wait:
         logging.info("Waiting %ss", args.wait)
         time.sleep(args.wait)
-    SIBRATest(args.client, args.server, srcs, dsts).run()
+    SIBRATest(args.client, args.server, srcs, dsts, local=False,
+              max_runs=args.runs).run()
 
 
 if __name__ == "__main__":

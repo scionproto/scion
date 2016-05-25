@@ -82,10 +82,9 @@ class ExtServer(TestServerBase):
     """
 
     def _handle_request(self, spkt):
-        if spkt.get_payload() != PayloadRaw(b"request to server"):
+        if spkt.get_payload() != PayloadRaw(self.data):
             logging.error("Payload verification failed:\n%s", spkt)
-            self.success = False
-            self.finished.set()
+            return False
         logging.debug('SRV: request received, sending response.')
         spkt.reverse()
         spkt.set_payload(PayloadRaw(b"response"))
@@ -100,14 +99,7 @@ class TestClientServerExtension(TestClientServerBase):
     End to end packet transmission test with extension.
     For this test a infrastructure must be running.
     """
-    def __init__(self, client, server, sources, destinations, local):
-        super().__init__(client, server, sources, destinations, local)
-        self.client_name = "Ext Client"
-        self.server_name = "Ext Server"
-        self.thread_name = "CliSrvExt.MainThread"
-
-    def _create_data(self):
-        return b"request to server"
+    NAME = "CliSrvExt"
 
     def _create_server(self, data, finished, addr):
         return ExtServer(self._run_sciond(addr), data, finished, addr)
@@ -118,7 +110,8 @@ class TestClientServerExtension(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("cli_srv_ext_test")
-    TestClientServerExtension(args.client, args.server, srcs, dsts, False).run()
+    TestClientServerExtension(args.client, args.server, srcs, dsts, local=False,
+                              max_runs=args.runs).run()
 
 
 if __name__ == "__main__":
