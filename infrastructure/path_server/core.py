@@ -102,7 +102,8 @@ class CorePathServer(PathServer):
         logging.error("Core Path Server received up-segment record!")
         return set()
 
-    def _handle_down_segment_record(self, pcb, from_master=False):
+    def _handle_down_segment_record(self, pcb, from_master=False,
+                                    from_zk=False):
         added = self._add_segment(pcb, self.down_segments, "Down")
         first_ia = pcb.get_first_pcbm().isd_as
         last_ia = pcb.get_last_pcbm().isd_as
@@ -110,10 +111,9 @@ class CorePathServer(PathServer):
             # Segment is to us, so propagate to all other core ASes within the
             # local ISD.
             self._segs_to_prop.append((PST.DOWN, pcb))
-        if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not
-                from_master):
-            # Master gets a copy of all local segments.
-            self._segs_to_master.append((PST.DOWN, pcb))
+        if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not from_zk):
+            # Sync all local down segs via zk
+            self._segs_to_zk.append((PST.DOWN, pcb))
         if added:
             return set([(last_ia, pcb.is_sibra())])
         return set()
