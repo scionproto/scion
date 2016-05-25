@@ -52,6 +52,12 @@ typedef struct {
 #define SVC_CERT_MGMT 2
 #define SVC_SIBRA 3
 
+typedef struct {
+    uint8_t type;
+    uint8_t host_len;
+    uint8_t addr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
+} saddr_t;
+
 int get_addr_len(int type);
 uint32_t get_src_isd_as(uint8_t *buf);
 uint8_t * get_src_addr(uint8_t *buf);

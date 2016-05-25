@@ -9,6 +9,166 @@
 
 uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
 
+spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pkt *l4)
+{
+    spkt_t *spkt = (spkt_t *)malloc(sizeof(spkt_t));
+    spkt->sch = (sch_t *)malloc(sizeof(sch_t));
+    uint8_t next_header;
+    if (exts && exts->count > 0)
+        next_header = exts->extensions->ext_class;
+    else
+        next_header = l4->type;
+    pack_cmn_hdr((uint8_t *)spkt->sch, src->type, dst->type, next_header);
+    spkt->src = src;
+    spkt->dst = dst;
+    spkt->path = path;
+    spkt->exts = exts;
+    spkt->l4 = l4;
+    return spkt;
+}
+
+spkt_t * parse_spkt(uint8_t *buf)
+{
+    // assumption: buf is not freed or overwritten throughout the lifetime of spkt
+    // this is to avoid some potentially large memcpy()s
+    spkt_t *spkt = (spkt_t *)malloc(sizeof(spkt_t));
+    parse_spkt_cmn_hdr(buf, spkt);
+    parse_spkt_addr_hdr(buf, spkt);
+    parse_spkt_path(buf, spkt);
+    parse_spkt_extensions(buf, spkt);
+    parse_spkt_l4(buf, spkt);
+    return spkt;
+}
+
+void parse_spkt_cmn_hdr(uint8_t *buf, spkt_t *spkt)
+{
+    sch_t *sch = (sch_t *)malloc(sizeof(sch_t));
+    memcpy(sch, buf, sizeof(sch_t));
+    spkt->sch = sch;
+}
+
+void parse_spkt_addr_hdr(uint8_t *buf, spkt_t *spkt)
+{
+    saddr_t *src = (saddr_t *)malloc(sizeof(saddr_t));
+    src->type = SRC_TYPE(spkt->sch);
+    src->host_len = get_addr_len(src->type);
+    memcpy(src->addr, buf + sizeof(sch_t), ISD_AS_LEN + src->host_len);
+    spkt->src = src;
+
+    saddr_t *dst = (saddr_t *)malloc(sizeof(saddr_t));
+    dst->type = DST_TYPE(spkt->sch);
+    dst->host_len = get_addr_len(dst->type);
+    memcpy(dst->addr, get_dst_addr(buf) - ISD_AS_LEN, ISD_AS_LEN + dst->host_len);
+    spkt->dst = dst;
+}
+
+void parse_spkt_path(uint8_t *buf, spkt_t *spkt)
+{
+    spath_t *path = (spath_t *)malloc(sizeof(spath_t));
+    memset(path, 0, sizeof(spath_t));
+    path->len = get_path_len(buf);
+    path->raw_path = get_path(buf);
+    spkt->path = path;
+}
+
+void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
+{
+    exts_t *exts = (exts_t *)malloc(sizeof(exts_t));
+    memset(exts, 0, sizeof(exts_t));
+    uint8_t curr = spkt->sch->next_header;
+    uint8_t *ptr = buf + spkt->sch->header_len;
+    while (!is_known_proto(curr)) {
+        seh_t *seh = (seh_t *)malloc(sizeof(seh_t));
+        memset(seh, 0, sizeof(seh_t));
+        seh->next_header = *ptr;
+        seh->len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
+        seh->ext_class = curr;
+        seh->ext_type = *(ptr + 2);
+        seh->payload = ptr + 3;
+        curr = seh->next_header;
+        ptr += seh->len;
+        if (!exts->extensions)
+            exts->extensions = seh;
+        else
+            exts->extensions->next = seh;
+        exts->count++;
+    }
+    spkt->exts = exts;
+}
+
+void parse_spkt_l4(uint8_t *buf, spkt_t *spkt)
+{
+    uint8_t *l4ptr = buf;
+    uint8_t l4proto = get_l4_proto(&l4ptr);
+    l4_pkt *l4 = (l4_pkt *)malloc(sizeof(l4_pkt));
+    l4->type = l4proto;
+    l4->len = ntohs(spkt->sch->total_len) - (l4ptr - buf);
+    l4->packet = l4ptr;
+    spkt->l4 = l4;
+}
+
+void pack_spkt(spkt_t *spkt, uint8_t *buf)
+{
+    uint8_t *ptr = buf;
+
+    ptr = pack_spkt_cmn_hdr(spkt, ptr);
+    ptr = pack_spkt_addr_hdr(spkt, ptr);
+    if (spkt->path && spkt->path->len > 0)
+        ptr = pack_spkt_path(spkt, ptr);
+
+    if (spkt->exts && spkt->exts->count > 0)
+        ptr = pack_spkt_extensions(spkt, ptr);
+
+    ptr = pack_spkt_l4(spkt, ptr);
+}
+
+uint8_t * pack_spkt_cmn_hdr(spkt_t *spkt, uint8_t *ptr)
+{
+    size_t len;
+    len = sizeof(sch_t);
+    memcpy(ptr, spkt->sch, len);
+    return ptr + len;
+}
+
+uint8_t * pack_spkt_addr_hdr(spkt_t *spkt, uint8_t *ptr)
+{
+    size_t len;
+    len = spkt->src->host_len + ISD_AS_LEN;
+    memcpy(ptr, spkt->src->addr, len);
+    ptr += len;
+    len = spkt->dst->host_len + ISD_AS_LEN;
+    memcpy(ptr, spkt->dst->addr, len);
+    return ptr + len;
+}
+
+uint8_t * pack_spkt_path(spkt_t *spkt, uint8_t *ptr)
+{
+    size_t len;
+    len = spkt->path->len;
+    memcpy(ptr, spkt->path->raw_path, len);
+    return ptr + len;
+}
+
+uint8_t * pack_spkt_extensions(spkt_t *spkt, uint8_t *ptr)
+{
+    seh_t *seh = spkt->exts->extensions;
+    while (seh) {
+        *ptr++ = seh->next_header;
+        *ptr++ = seh->len / SCION_EXT_LINE - 1;
+        *ptr++ = seh->ext_type;
+        memcpy(ptr, seh->payload, seh->len);
+        ptr += seh->len;
+        seh = seh->next;
+    }
+    return ptr;
+}
+
+uint8_t * pack_spkt_l4(spkt_t *spkt, uint8_t *ptr)
+{
+    memcpy(ptr, spkt->l4->packet, spkt->l4->len);
+    return ptr + spkt->l4->len;
+}
+
 /*
  * Initialize common header fields
  * buf: Pointer to start of SCION packet
@@ -16,7 +176,7 @@ uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
  * dst_type: Address type of dst host addr
  * next_hdr: L4 protocol number or extension type
  */
-void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
+void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint16_t vsd = 0;
@@ -39,7 +199,7 @@ void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
  * src: Src SCION addr
  * dst: Dst SCION addr
  */
-void build_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst)
+void pack_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     int src_len = get_src_len(buf);

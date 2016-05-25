@@ -20,6 +20,7 @@ typedef struct {
     /** Header length that includes the path */
     uint8_t header_len;
 } SCIONCommonHeader;
+typedef SCIONCommonHeader sch_t;
 
 #pragma pack(pop)
 
@@ -27,8 +28,59 @@ typedef struct {
 #define SRC_TYPE(sch) ((ntohs(sch->ver_src_dst) & 0xfc0) >> 6)
 #define DST_TYPE(sch) (ntohs(sch->ver_src_dst) & 0x3f)
 
-void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr);
-void build_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst);
+typedef struct {
+    uint8_t len;
+    uint8_t *raw_path;
+    struct sockaddr_in first_hop;
+} spath_t;
+
+typedef struct scion_ext_hdr {
+    uint8_t next_header;
+    uint8_t len;
+    uint8_t ext_class;
+    uint8_t ext_type;
+    uint8_t *payload;
+    struct scion_ext_hdr *next;
+} seh_t;
+
+typedef struct {
+    uint8_t count;
+    seh_t *extensions;
+} exts_t;
+
+typedef struct {
+    uint8_t type;
+    uint16_t len;
+    uint8_t *packet;
+} l4_pkt;
+
+typedef struct {
+    sch_t *sch;
+    saddr_t *src;
+    saddr_t *dst;
+    spath_t *path;
+    exts_t *exts;
+    l4_pkt *l4;
+} spkt_t;
+
+spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pkt *l4);
+
+spkt_t * parse_spkt(uint8_t *buf);
+void parse_spkt_cmn_hdr(uint8_t *buf, spkt_t *spkt);
+void parse_spkt_addr_hdr(uint8_t *buf, spkt_t *spkt);
+void parse_spkt_path(uint8_t *buf, spkt_t *spkt);
+void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt);
+void parse_spkt_l4(uint8_t *buf, spkt_t *spkt);
+
+void pack_spkt(spkt_t *spkt, uint8_t *buf);
+uint8_t * pack_spkt_cmn_hdr(spkt_t *spkt, uint8_t *ptr);
+uint8_t * pack_spkt_addr_hdr(spkt_t *spkt, uint8_t *ptr);
+uint8_t * pack_spkt_path(spkt_t *spkt, uint8_t *ptr);
+uint8_t * pack_spkt_extensions(spkt_t *spkt, uint8_t *ptr);
+uint8_t * pack_spkt_l4(spkt_t *spkt, uint8_t *ptr);
+
+void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr);
+void pack_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst);
 int padded_addr_len(uint8_t *buf);
 void set_path(uint8_t *buf, uint8_t *path, int len);
 uint8_t * get_path(uint8_t *buf);
