@@ -102,16 +102,7 @@ class TestEnd2End(TestClientServerBase):
     End to end packet transmission test.
     For this test a infrastructure must be running.
     """
-    def __init__(self, client, server, sources, destinations, local=True):
-        super().__init__(client, server, sources, destinations)
-        self.src = client
-        self.dst = server
-        self.client_name = "E2E Client"
-        self.server_name = "E2E Server"
-        self.thread_name = "E2E.MainThread"
-
-    def _create_data(self):
-        return ("%s<->%s" % (self.src, self.dst)).encode("UTF-8")
+    NAME = "End2End"
 
     def _create_server(self, data, finished, addr):
         return E2EServer(self._run_sciond(addr), data, finished, addr)
@@ -122,7 +113,7 @@ class TestEnd2End(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("end2end")
-    TestEnd2End(args.client, args.server, srcs, dsts).run()
+    TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
 
 
 if __name__ == "__main__":

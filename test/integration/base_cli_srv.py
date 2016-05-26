@@ -28,6 +28,7 @@ import sys
 import threading
 import time
 from abc import ABCMeta, abstractmethod
+from itertools import product
 
 # SCION
 from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
@@ -231,46 +232,60 @@ class TestClientServerBase(object):
     """
     Test module to run client and server
     """
-    def __init__(self, client, server, sources, destinations, local=True):
+    NAME = ""
+
+    def __init__(self, client, server, sources, destinations, local=True,
+                 max_runs=None):
+        assert self.NAME
+        t = threading.current_thread()
+        t.name = self.NAME
         self.client_ip = haddr_parse_interface(client)
         self.server_ip = haddr_parse_interface(server)
         self.src_ias = sources
         self.dst_ias = destinations
         self.local = local
         self.scionds = {}
+        self.max_runs = max_runs
 
     def run(self):
         try:
             self._run()
         finally:
             self._stop_scionds()
+        logging.info("All tests successful")
 
     def _run(self):
         """
         Run a test for every pair of src and dst
         """
-        for src_ia in self.src_ias:
-            for dst_ia in self.dst_ias:
-                if not self.local and src_ia == dst_ia:
-                    continue
-                if not self._run_test(src_ia, dst_ia):
-                    sys.exit(1)
+        # Generate all possible pairs, and randomise the order.
+        pairs = list(product(self.src_ias, self.dst_ias))
+        random.shuffle(pairs)
+        count = 0
+        for src_ia, dst_ia in pairs:
+            if not self.local and src_ia == dst_ia:
+                continue
+            count += 1
+            if self.max_runs and count > self.max_runs:
+                logging.debug("Hit max runs (%d), stopping", self.max_runs)
+                break
+            src = SCIONAddr.from_values(src_ia, self.client_ip)
+            dst = SCIONAddr.from_values(dst_ia, self.server_ip)
+            if not self._run_test(src, dst):
+                sys.exit(1)
 
-    def _run_test(self, src_ia, dst_ia):
+    def _run_test(self, src, dst):
         """
         Run client and server, wait for both to finish
         """
-        logging.info("Testing: %s -> %s", src_ia, dst_ia)
+        logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
         # finished is used by the client/server to signal to the other that they
         # are stopping.
         finished = threading.Event()
-        src_addr = SCIONAddr.from_values(src_ia, self.client_ip)
-        dst_addr = SCIONAddr.from_values(dst_ia, self.server_ip)
-        data = self._create_data()
-        server = self._create_server(data, finished, dst_addr)
-        client = self._create_client(data, finished, src_addr, dst_addr,
-                                     server.sock.port)
-        server_name = "Server %s" % dst_ia
+        data = self._create_data(src, dst)
+        server = self._create_server(data, finished, dst)
+        client = self._create_client(data, finished, src, dst, server.sock.port)
+        server_name = "Server %s" % dst.isd_as
         s_thread = threading.Thread(
             target=thread_safety_net, args=(server.run,), name=server_name,
             daemon=True)
@@ -292,11 +307,8 @@ class TestClientServerBase(object):
                       client.success, server.success)
         return False
 
-    def _create_data(self):
-        """
-        Create raw payload data
-        """
-        return b""
+    def _create_data(self, src, dst):
+        return ("%s <-> %s" % (src.isd_as, dst.isd_as)).encode("UTF-8")
 
     def _create_server(self, data, finished, addr):
         """
@@ -317,7 +329,7 @@ class TestClientServerBase(object):
             # Local api on, random port, random api port
             self.scionds[addr.isd_as] = start_sciond(
                 addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
-                (self.thread_name, addr.isd_as))
+                (self.NAME, addr.isd_as))
         return self.scionds[addr.isd_as]
 
     def _stop_scionds(self):
@@ -355,6 +367,10 @@ def setup_main(name, parser=None):
     parser.add_argument('-s', '--server', help='Server address')
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
+    parser.add_argument("-r", "--runs", type=int,
+                        help="Limit the number of pairs tested")
+    parser.add_argument("-w", "--wait", type=float, default=0.0,
+                        help="Time in seconds to wait before running")
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
     args = parser.parse_args()

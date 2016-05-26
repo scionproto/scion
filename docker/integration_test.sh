@@ -60,11 +60,11 @@ test/integration/end2end_test.py
 C2S_extn
 test/integration/cli_srv_ext_test.py
 SCMP error
-test/integration/scmp_error_test.py
+test/integration/scmp_error_test.py --runs 60
 Cert/TRC request
 test/integration/cert_req_test.py
 Sibra Ext
-test/integration/sibra_ext_test.py --wait 30
+test/integration/sibra_ext_test.py --wait 30 --runs 10
 EOF
 result=$?
 

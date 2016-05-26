@@ -19,8 +19,6 @@
 # Stdlib
 import copy
 import logging
-import random
-import sys
 
 # SCION
 from lib.defines import MAX_HOPBYHOP_EXT
@@ -29,7 +27,7 @@ from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import HostAddrSVC
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path import SCIONPath
-from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.types import (
     SCMPClass,
@@ -327,26 +325,7 @@ GEN_LIST = (
 
 
 class SCMPErrorTest(TestClientServerBase):
-    def __init__(self, client, server, sources, destinations):
-        super().__init__(client, server, sources, destinations, local=False)
-        self.src = client
-        self.dst = server
-        self.thread_name = "SCMPErr.MainThread"
-
-    def _run(self):
-        for src_ia in self.src_ias:
-            src = SCIONAddr.from_values(src_ia, self.client_ip)
-            # Pick N random non-local ASes as destination.
-            for dst in self.iter_dsts(src_ia, 3):
-                self._run_test(src, dst)
-
-    def iter_dsts(self, src_ia, count):
-        dst_ias = self.dst_ias[:]
-        if src_ia in dst_ias:
-            dst_ias.remove(src_ia)
-        random.shuffle(dst_ias)
-        for dst_ia in dst_ias[:count]:
-            yield SCIONAddr.from_values(dst_ia, self.server_ip)
+    NAME = "SCMPErr"
 
     def _run_test(self, src, dst):
         logging.info("=======================> Testing: %s -> %s",
@@ -357,15 +336,14 @@ class SCMPErrorTest(TestClientServerBase):
             client = cls_(self._run_sciond(src), copy.deepcopy(data), None,
                           copy.deepcopy(src), copy.deepcopy(dst), 0, api=True)
             if not client.run():
-                sys.exit(1)
-
-    def _create_data(self, src, dst):
-        return ("%s<->%s" % (self.src, self.dst)).encode("UTF-8")
+                return False
+        return True
 
 
 def main():
     args, srcs, dsts = setup_main("scmp_error_test")
-    SCMPErrorTest(args.client, args.server, srcs, dsts).run()
+    SCMPErrorTest(args.client, args.server, srcs, dsts, local=False,
+                  max_runs=args.runs).run()
 
 
 if __name__ == "__main__":
