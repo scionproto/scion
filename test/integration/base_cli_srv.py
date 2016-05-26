@@ -293,7 +293,7 @@ class TestClientServerBase(object):
         client.run()
         # If client is finished, server should finish within ~1s (due to recv
         # timeout). If it hasn't, then there was a problem.
-        s_thread.join(2.0)
+        s_thread.join(5.0)
         if s_thread.is_alive():
             logging.error("Timeout waiting for server thread to terminate")
             return False
