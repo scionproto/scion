@@ -78,7 +78,7 @@ class CorePathServer(PathServer):
         core_segs = []
         # Find all core segments from remote ISDs
         for pcb in self.core_segments(full=True):
-            if pcb.get_first_pcbm().isd_as[0] != self.addr.isd_as[0]:
+            if pcb.first_ia()[0] != self.addr.isd_as[0]:
                 core_segs.append(pcb)
         # Find down-segments from local ISD.
         down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
@@ -86,7 +86,7 @@ class CorePathServer(PathServer):
         seen_ases = set()
         for seg_type, segs in [(PST.CORE, core_segs), (PST.DOWN, down_segs)]:
             for pcb in segs:
-                key = pcb.get_first_pcbm().isd_as, pcb.get_last_pcbm().isd_as
+                key = pcb.first_ia(), pcb.last_ia()
                 # Send only one SCION segment for given (src, dst) pair.
                 if not pcb.is_sibra() and key in seen_ases:
                     continue
@@ -103,8 +103,8 @@ class CorePathServer(PathServer):
     def _handle_down_segment_record(self, pcb, from_master=False,
                                     from_zk=False):
         added = self._add_segment(pcb, self.down_segments, "Down")
-        first_ia = pcb.get_first_pcbm().isd_as
-        last_ia = pcb.get_last_pcbm().isd_as
+        first_ia = pcb.first_ia()
+        last_ia = pcb.last_ia()
         if first_ia == self.addr.isd_as:
             # Segment is to us, so propagate to all other core ASes within the
             # local ISD.
@@ -119,7 +119,7 @@ class CorePathServer(PathServer):
     def _handle_core_segment_record(self, pcb, from_master=False,
                                     from_zk=False):
         """Handle registration of a core segment."""
-        first_ia = pcb.get_first_pcbm().isd_as
+        first_ia = pcb.first_ia()
         reverse = False
         if pcb.is_sibra() and first_ia == self.addr.isd_as:
             reverse = True
@@ -286,7 +286,7 @@ class CorePathServer(PathServer):
             self._resolve_not_core_failed(pkt, dst_ia, flags)
 
         for dseg in tmp_down_segs:
-            dseg_ia = dseg.get_first_pcbm().isd_as
+            dseg_ia = dseg.first_ia()
             if (dseg_ia == self.addr.isd_as or
                     seg_req.src_ia()[0] != self.addr.isd_as[0]):
                 # If it's a direct down-seg, or if it's a remote query, there's
@@ -329,7 +329,7 @@ class CorePathServer(PathServer):
         if csegs:
             cseg = csegs[0]
             path = cseg.get_path(reverse_direction=True)
-            dst_ia = cseg.get_first_pcbm().isd_as
+            dst_ia = cseg.first_ia()
             req_pkt = self._build_packet(SVCType.PS, dst_ia=dst_ia,
                                          path=path, payload=seg_req)
             logging.info("Down-Segment request for different ISD, "

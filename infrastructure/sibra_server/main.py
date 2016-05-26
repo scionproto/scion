@@ -172,8 +172,9 @@ class SibraServerBase(SCIONElement):
         payload = pkt.get_payload()
         name = PST.to_str(self.PST_TYPE)
         with self.lock:
-            for pcb in payload.pcbs[self.PST_TYPE]:
-                self._add_segment(pcb, name)
+            for type_, pcb in payload.iter_pcbs():
+                if type_ == self.PST_TYPE:
+                    self._add_segment(pcb, name)
 
     def _add_segment(self, pcb, name):
         res = self.segments.update(pcb)
@@ -181,7 +182,7 @@ class SibraServerBase(SCIONElement):
             logging.info("%s Segment added: %s", name, pcb.short_desc())
         elif res == DBResult.ENTRY_UPDATED:
             logging.debug("%s Segment updated: %s", name, pcb.short_desc())
-        isd_as = pcb.get_first_pcbm().isd_as
+        isd_as = pcb.first_ia()
         if isd_as not in self.dests:
             logging.debug("Found new destination ISD-AS: %s", isd_as)
             self.dests[isd_as] = {}
@@ -278,7 +279,7 @@ class SibraServerBase(SCIONElement):
         if not seg:
             del self.dests[isd_as]
             return
-        ifid = seg.get_last_pcbm().hof.ingress_if
+        ifid = seg.last_hof().ingress_if
         link_state = self.link_states[ifid]
         link_type = self.link_types[ifid]
         # FIXME(kormat): un-hardcode these bandwidths

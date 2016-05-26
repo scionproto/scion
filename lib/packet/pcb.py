@@ -15,433 +15,253 @@
 :mod:`pcb` --- SCION Beacon
 ===========================
 """
-# Stdlib
-import copy
-import logging
-import struct
-
 # External packages
 from Crypto.Hash import SHA256
+import capnp  # noqa
 
 # SCION
+import proto.pcb_capnp as P
+from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
-from lib.packet.packet_base import Serializable, SCIONPayloadBase
-from lib.packet.path import SCIONPath, min_mtu
-from lib.packet.pcb_ext.mtu import MtuPcbExt
-from lib.packet.pcb_ext.rev import RevPcbExt
-from lib.packet.pcb_ext.sibra import SibraPcbExt
+from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
+from lib.packet.path import SCIONPath  # , min_mtu
 from lib.packet.scion_addr import ISD_AS
-from lib.sibra.pcb_ext.info import SibraSegInfo
-from lib.sibra.pcb_ext.sof import SibraSegSOF
-from lib.types import PayloadClass, PCBType
-from lib.util import Raw, hex_str, iso_timestamp
+from lib.sibra.pcb_ext import SibraPCBExt
+from lib.types import PCBType, PayloadClass
+from lib.util import hex_str, iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
 
-# Dictionary of supported extensions
-PCB_EXTENSION_MAP = {
-    (MtuPcbExt.EXT_TYPE): MtuPcbExt,
-    (RevPcbExt.EXT_TYPE): RevPcbExt,
-    (SibraPcbExt.EXT_TYPE): SibraPcbExt,
-    (SibraSegInfo.EXT_TYPE): SibraSegInfo,
-    (SibraSegSOF.EXT_TYPE): SibraSegSOF,
-}
 
-
-class PCBMarking(Serializable):
-    """
-    Pack all fields for a specific PCB marking, which include: ISD and AS
-    numbers, the HopOpaqueField, and the revocation token for the ingress
-    interfaces included in the HOF. (Revocation token for egress interface is
-    included within ASMarking.)
-    """
+class PCBMarking(Cerealizable):
     NAME = "PCBMarking"
-    LEN = 12 + REV_TOKEN_LEN
-
-    def __init__(self, raw=None):  # pragma: no cover
-        self.isd_as = None
-        self.hof = None
-        self.ig_rev_token = bytes(REV_TOKEN_LEN)
-        super().__init__(raw)
-
-    def _parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        data = Raw(raw, self.NAME, self.LEN)
-        self.isd_as = ISD_AS(data.pop(ISD_AS.LEN))
-        self.hof = HopOpaqueField(data.pop(HopOpaqueField.LEN))
-        self.ig_rev_token = data.pop(REV_TOKEN_LEN)
+    P_CLS = P.PCBMarking
 
     @classmethod
-    def from_values(cls, isd_as, hof, ig_rev_token=None):  # pragma: no cover
+    def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid, hof,
+                    ig_rev_token):  # pragma: no cover
+        return cls(cls.P_CLS.new_message(
+            inIA=str(in_ia), inIF=in_ifid, inMTU=in_mtu,
+            outIA=str(out_ia), outIF=out_ifid, hof=hof.pack(),
+            igRevToken=ig_rev_token))
+
+    def inIA(self):  # pragma: no cover
+        return ISD_AS(self.p.inIA)
+
+    def outIA(self):  # pragma: no cover
+        return ISD_AS(self.p.outIA)
+
+    def hof(self):  # pragma: no cover
+        return HopOpaqueField(self.p.hof)
+
+    def sig_pack(self, ver):
         """
-        Returns PCBMarking with fields populated from values.
-
-        :param isd_as: ISD_AS object.
-        :param hof: HopOpaqueField object.
-        :param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
+        Pack for signing up for version 6 (defined by highest field number).
         """
-        inst = PCBMarking()
-        inst.isd_as = isd_as
-        inst.hof = hof
-        inst.ig_rev_token = ig_rev_token or bytes(REV_TOKEN_LEN)
-        return inst
-
-    def pack(self):
-        packed = []
-        packed.append(self.isd_as.pack())
-        packed.append(self.hof.pack())
-        packed.append(self.ig_rev_token)
-        raw = b"".join(packed)
-        assert len(raw) == len(self)
-        return raw
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
-
-    def __eq__(self, other):  # pragma: no cover
-        if type(other) is not type(self):
-            return False
-        return (self.isd_as == other.isd_as and
-                self.hof == other.hof and
-                self.ig_rev_token == other.ig_rev_token)
+        b = []
+        if ver >= 6:
+            b.append(self.p.inIA.encode("utf8"))
+            b.append(self.p.inIF.to_bytes(8, 'big'))
+            b.append(self.p.inMTU.to_bytes(2, 'big'))
+            b.append(self.p.outIA.encode("utf8"))
+            b.append(self.p.outIF.to_bytes(8, 'big'))
+            b.append(self.p.hof)
+            b.append(self.p.igRevToken)
+        return b"".join(b)
 
     def __str__(self):
         s = []
-        s.append("%s(%dB): ISD-AS %s:" % (self.NAME, len(self), self.isd_as))
-        s.append("  ig_rev_token: %s" % hex_str(self.ig_rev_token))
-        s.append("  %s" % self.hof)
+        s.append("%s: From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
+                 (self.NAME, self.isd_as(), self.p.ifID, self.p.mtu))
+        s.append("  %s" % self.hof())
+        s.append("  ig_rev_token: %s" % hex_str(self.p.igRevToken))
         return "\n".join(s)
 
 
-class ASMarking(Serializable):
-    """
-    Packs all fields for a specific Autonomous System.
-    """
-    # Length of a first row (containg cert version, and lengths of signature,
-    # extensions, and block) of ASMarking
+class ASMarking(Cerealizable):
     NAME = "ASMarking"
-    METADATA_LEN = 10
-    MIN_LEN = METADATA_LEN + PCBMarking.LEN + REV_TOKEN_LEN
-
-    def __init__(self, raw=None):  # pragma: no cover
-        self.pcbm = None
-        self.pms = []
-        self.cert = None
-        self.sig = b''
-        self.ext = []
-        self.eg_rev_token = bytes(REV_TOKEN_LEN)
-        self.trc_ver = 0
-        self.block_len = 0
-        super().__init__(raw)
-
-    def _parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
-        self.trc_ver, cert_len, sig_len, exts_len, self.block_len = \
-            struct.unpack("!HHHHH", data.pop(self.METADATA_LEN))
-        self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
-        self._parse_peers(data, cert_len + sig_len, exts_len)
-        self._parse_ext(data, cert_len + sig_len)
-        self.eg_rev_token = data.pop(REV_TOKEN_LEN)
-        self.cert = CertificateChain(data.pop(cert_len).decode('utf-8'))
-        self.sig = data.pop()
-
-    def _parse_peers(self, data, cert_sig_len, exts_len):
-        """
-        Populated Peer Marking fields from raw bytes
-        """
-        while len(data) > cert_sig_len + exts_len + REV_TOKEN_LEN:
-            self.pms.append(PCBMarking(data.pop(PCBMarking.LEN)))
-
-    def _parse_ext(self, data, cert_sig_len):
-        while len(data) > cert_sig_len + REV_TOKEN_LEN:
-            ext_type = data.pop(1)
-            ext_len = data.pop(1)
-            constr = PCB_EXTENSION_MAP.get(ext_type)
-            ext_data = data.pop(ext_len)
-            if not constr:
-                logging.warning("Unknown extension type: %d", ext_type)
-                continue
-            self.ext.append(constr(ext_data))
+    P_CLS = P.ASMarking
 
     @classmethod
-    def from_values(cls, pcbm=None, pms=None,
-                    eg_rev_token=None, cert=None, sig=b'', ext=None):
-        """
-        Returns ASMarking with fields populated from values.
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, eg_rev_token, mtu,
+                    cert_chain, ifid_size=12, rev_infos=()):
+        p = cls.P_CLS.new_message(
+            isdas=str(isd_as), trcVer=trc_ver, certVer=cert_ver,
+            ifIDSize=ifid_size, egRevToken=eg_rev_token, mtu=mtu,
+            chain=cert_chain.pack(lz4_=True))
+        p.init("pcbms", len(pcbms))
+        for i, pm in enumerate(pcbms):
+            p.pcbms[i] = pm.p
+        p.exts.init("revInfos", len(rev_infos))
+        for i, rev_info in enumerate(rev_infos):
+            p.exts.revInfos[i] = rev_info.pack()
+        return cls(p)
 
-        :param pcbm: PCBMarking object.
-        :param pms: List of PCBMarking objects.
-        :param eg_rev_token: Revocation token for the egress if
-                             in the HopOpaqueField.
-        :param sig: Beacon's signature.
-        """
-        inst = ASMarking()
-        inst.pcbm = pcbm
-        inst.pms = pms or []
-        inst.block_len = (1 + len(inst.pms)) * PCBMarking.LEN
-        inst.cert = cert
-        inst.sig = sig
-        inst.ext = ext or []
-        inst.eg_rev_token = eg_rev_token or bytes(REV_TOKEN_LEN)
-        return inst
+    def isd_as(self):  # pragma: no cover
+        return ISD_AS(self.p.isdas)
 
-    def pack(self):
-        packed = []
-        packed_ext = self._pack_ext()
-        packed.append(struct.pack("!HHHHH", self.trc_ver, len(self.cert),
-                                  len(self.sig), len(packed_ext),
-                                  self.block_len))
-        packed.append(self.pcbm.pack())
-        for peer_marking in self.pms:
-            packed.append(peer_marking.pack())
-        packed.append(packed_ext)
-        packed.append(self.eg_rev_token)
-        packed.append(self.cert.pack())
-        packed.append(self.sig)
-        raw = b"".join(packed)
-        assert len(raw) == len(self)
-        return raw
+    def pcbm(self, idx):  # pragma: no cover
+        return PCBMarking(self.p.pcbms[idx])
 
-    def _pack_ext(self):
-        packed = []
-        for ext in self.ext:
-            packed.append(struct.pack("!B", ext.EXT_TYPE))
-            packed.append(struct.pack("!B", len(ext)))
-            packed.append(ext.pack())
-        return b"".join(packed)
+    def iter_pcbms(self, start=0):  # pragma: no cover
+        for i in range(start, len(self.p.pcbms)):
+            yield self.pcbm(i)
 
-    def _remove_signature(self):  # pragma: no cover
-        """
-        Removes the signature from the AS block.
-        """
-        self.sig = b''
-
-    def _remove_cert(self):  # pragma: no cover
-        """
-        Removes the certificate from the AS block.
-        """
-        self.cert = CertificateChain()
+    def chain(self):  # pragma: no cover
+        return CertificateChain(self.p.chain, lz4_=True)
 
     def add_ext(self, ext):  # pragma: no cover
         """
-        Add beacon extension.
+        Appends a new ASMarking extension.
         """
-        self.ext.append(ext)
+        d = self.p.to_dict()
+        d.setdefault('exts', []).append(ext)
+        self.p.from_dict(d)
 
-    def find_ext(self, type_):  # pragma: no cover
-        for ext in self.ext:
-            if ext.EXT_TYPE == type_:
-                return ext
+    def sig_pack(self, ver):
+        """
+        Pack for signing up for given version (defined by highest field number).
+        """
+        b = []
+        if ver >= 9:
+            b.append(self.p.isdas.encode("utf8"))
+            b.append(self.p.trcVer.to_bytes(4, 'big'))
+            b.append(self.p.certVer.to_bytes(4, 'big'))
+            b.append(self.p.ifIDSize.to_bytes(1, 'big'))
+            for pcbm in self.iter_pcbms():
+                b.append(pcbm.sig_pack(6))
+            b.append(self.p.egRevToken)
+            b.extend(self.p.exts.revInfos)
+            b.append(self.p.mtu.to_bytes(2, 'big'))
+            b.append(self.p.chain)
+        return b"".join(b)
 
-    def __len__(self):  # pragma: no cover
-        return (
-            self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.cert) +
-            len(self.sig) + len(self._pack_ext())
-        )
+    def remove_sig(self):  # pragma: no cover
+        """
+        Removes the signature from the AS block.
+        """
+        self.p.sig = b''
 
-    def __eq__(self, other):  # pragma: no cover
-        if type(other) is not type(self):
-            return False
-        return (self.pcbm == other.pcbm and
-                self.pms == other.pms and
-                self.ext == other.ext and
-                self.eg_rev_token == other.eg_rev_token and
-                self.cert == other.cert and
-                self.sig == other.sig)
-
-    def __str__(self):
-        s = []
-        s.append("%s(%sB):" % (self.NAME, len(self)))
-        s.append("  trc_ver: %s, ext_len %s, sig_len: %s, block_len: %s" %
-                 (self.trc_ver, len(self._pack_ext()),
-                  len(self.sig), self.block_len))
-        for line in str(self.pcbm).splitlines():
-            s.append("  %s" % line)
-        if self.pms:
-            s.append("  Peer markings:")
-        for pm in self.pms:
-            for line in str(pm).splitlines():
-                s.append("    %s" % line)
-        if self.ext:
-            s.append("  PCB Extensions:")
-        for ext in self.ext:
-            s.append("    %s" % str(ext))
-        s.append("  eg_rev_token: %s" % hex_str(self.eg_rev_token))
-        s.append("  Certificate: %s" % self.cert)
-        s.append("  Signature: %s" % hex_str(self.sig))
-        return "\n".join(s)
+    def remove_chain(self):  # pragma: no cover
+        """
+        Removes the certificate chain from the AS block.
+        """
+        self.p.chain = b''
 
 
-class PathSegment(SCIONPayloadBase):
-    """
-    Packs all PathSegment fields for a specific beacon.
-
-    :cvar int MIN_LEN: the minimum length of a PathSegment in bytes.
-
-    :ivar iof: the info opaque field of the segment.
-    :type iof: :class:`InfoOpaqueField`
-    :ivar int trc_ver: the TRC version number at the creating AS.
-    :ivar int if_id: the interface identifier.
-    :ivar list ases: the ASes on the path.
-    """
+class PathSegment(SCIONPayloadBaseProto):
     NAME = "PathSegment"
     PAYLOAD_CLASS = PayloadClass.PCB
     PAYLOAD_TYPE = PCBType.SEGMENT
-    MIN_LEN = InfoOpaqueField.LEN + 4 + 2 + 1
+    P_CLS = P.PathSegment
 
-    def __init__(self, raw=None):  # pragma: no cover
-        self.iof = None
-        self.trc_ver = 0  # FIXME(PSz): drop this field.
-        self.if_id = 0
-        self.flags = 0
-        self.ases = []
-        self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
-        self.mtu = None
-        super().__init__(raw)
+    def __init__(self, p):  # pragma: no cover
+        super().__init__(p)
+        self._min_exp = float("inf")
+        self._setup()
 
-    def _parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
-        self.iof = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        # 4B for trc_ver, 2B for if_id, 1B for flags.
-        self.trc_ver, self.if_id, self.flags = struct.unpack(
-            "!IHB", data.pop(7))
-        self._parse_hops(data)
-        self._set_mtu()
-        return data.offset()
-
-    def is_sibra(self):  # pragma: no cover
-        return bool(self.flags & PSF.SIBRA)
-
-    def _parse_hops(self, data):
-        for _ in range(self.iof.hops):
-            (_, exts_len, cert_len, sig_len, block_len) = \
-                struct.unpack("!HHHHH", data.get(ASMarking.METADATA_LEN))
-            as_len = (exts_len + cert_len + sig_len + block_len +
-                      ASMarking.METADATA_LEN + REV_TOKEN_LEN)
-            self.add_as(ASMarking(data.pop(as_len)))
+    def _setup(self):
+        self.info = InfoOpaqueField(self.p.info)
+        self._calc_min_exp()
+        self.sibra_ext = None
+        if self.is_sibra():
+            self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     @classmethod
-    def from_values(cls, iof, flags=0):  # pragma: no cover
-        inst = cls()
-        inst.iof = iof
-        inst.flags = flags
-        return inst
+    def from_values(cls, info, sibra_ext=None):  # pragma: no cover
+        p = cls.P_CLS.new_message(info=info.pack())
+        if sibra_ext:
+            p.exts.sibra = sibra_ext.p
+        return cls(p)
 
-    def pack(self):
-        self._set_mtu()
-        packed = []
-        packed.append(self.iof.pack())
-        packed.append(struct.pack("!IHB", self.trc_ver, self.if_id, self.flags))
-        for asm in self.ases:
-            packed.append(asm.pack())
-        return b"".join(packed)
+    def _calc_min_exp(self):
+        # NB: only the expiration time of the first pcbm is considered.
+        for asm in self.iter_asms():
+            self._min_exp = min(self._min_exp, asm.pcbm(0).hof().exp_time)
 
-    def _set_mtu(self):  # pragma: no cover
-        self.mtu = None
-        for asm in self.ases:
-            for ext in asm.ext:
-                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
-                    self.mtu = min_mtu(self.mtu, ext.mtu)
+    def asm(self, idx):  # pragma: no cover
+        return ASMarking(self.p.asms[idx])
 
-    def add_as(self, asm):
+    def iter_asms(self, start=0):  # pragma: no cover
+        for i in range(start, len(self.p.asms)):
+            yield self.asm(i)
+
+    def is_sibra(self):  # pragma: no cover
+        return bool(self.p.exts.sibra.id)
+
+    def sig_pack(self, ver=3):
+        b = []
+        if ver >= 3:
+            b.append(self.p.info)
+            # ifID field is changed on the fly, and so is ignored.
+            for asm in self.iter_asms():
+                b.append(asm.sig_pack(9))
+            if self.is_sibra():
+                b.append(self.sibra_ext.sig_pack(2))
+        return b"".join(b)
+
+    def sign(self, key, set_=True):  # pragma: no cover
+        assert not self.p.asms[-1].sig
+        sig = sign(self.sig_pack(3), key)
+        if set_:
+            self.p.asms[-1].sig = sig
+        return sig
+
+    def add_asm(self, asm):  # pragma: no cover
         """
         Appends a new ASMarking block.
         """
-        if asm.pcbm.hof.exp_time < self.min_exp_time:
-            self.min_exp_time = asm.pcbm.hof.exp_time
-        self.ases.append(asm)
-        self.iof.hops = len(self.ases)
-        self._set_mtu()
+        d = self.p.to_dict()
+        d.setdefault('asms', []).append(asm.p)
+        self.p.from_dict(d)
+        self._update_info()
+        self._min_exp = min(self._min_exp, asm.pcbm(0).hof().exp_time)
 
-    def _remove_signatures(self):  # pragma: no cover
-        """
-        Removes the signatures from each AS block.
-        """
-        for asm in self.ases:
-            asm._remove_signature()
+    def _update_info(self):  # pragma: no cover
+        self.info.hops = len(self.p.asms)
+        self.p.info = self.info.pack()
 
-    def _remove_certs(self):  # pragma: no cover
-        """
-        Removes the certificates from each AS block.
-        """
-        for asm in self.ases:
-            asm._remove_cert()
+    def add_sibra_ext(self, ext_p):  # pragma: no cover
+        self.p.exts.sibra = ext_p.copy()
+        self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     def remove_crypto(self):  # pragma: no cover
         """
         Remover the signatures and certificates from each AS block.
         """
-        self._remove_signatures()
-        self._remove_certs()
+        for asm in self.iter_asms():
+            asm.remove_sig()
+            asm.remove_chain()
 
     def get_path(self, reverse_direction=False):
         """
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
-        iof = copy.copy(self.iof)
-        ases = self.ases
+        info = InfoOpaqueField(self.p.info)
+        asms = list(self.iter_asms())
         if reverse_direction:
-            ases = reversed(ases)
-            iof.up_flag = self.iof.up_flag ^ True
-        for asm in ases:
-            hofs.append(asm.pcbm.hof)
-        return SCIONPath.from_values(iof, hofs)
+            asms = reversed(asms)
+            info.up_flag ^= True
+        for asm in asms:
+            hofs.append(asm.pcbm(0).hof())
+        return SCIONPath.from_values(info, hofs)
 
-    def get_isd(self):  # pragma: no cover
-        """
-        Returns the ISD ID.
-        """
-        return self.iof.isd
+    def first_ia(self):  # pragma: no cover
+        return self.asm(0).isd_as()
 
-    def get_last_asm(self):  # pragma: no cover
-        """
-        Returns the last ASMarking on the path.
-        """
-        if self.ases:
-            return self.ases[-1]
+    def last_ia(self):  # pragma: no cover
+        return self.asm(-1).isd_as()
+
+    def last_hof(self):  # pragma: no cover
+        if self.p.asms:
+            return self.asm(-1).pcbm(0).hof()
         return None
-
-    def get_last_pcbm(self):  # pragma: no cover
-        """
-        Returns the PCBMarking belonging to the last AS on the path.
-        """
-        if self.ases:
-            return self.ases[-1].pcbm
-        return None
-
-    def get_first_pcbm(self):  # pragma: no cover
-        """
-        Returns the PCBMarking belonging to the first AS on the path.
-        """
-        if self.ases:
-            return self.ases[0].pcbm
-        return None
-
-    def compare_hops(self, other):  # pragma: no cover
-        """
-        Compares the (AS-level) hops of two half-paths. Returns true if all hops
-        are identical and false otherwise.
-        """
-        if not isinstance(other, PathSegment):
-            return False
-        self_hops = [asm.pcbm.isd_as for asm in self.ases]
-        other_hops = [asm.pcbm.isd_as for asm in other.ases]
-        return self_hops == other_hops
 
     def get_hops_hash(self, hex=False):
         """
@@ -449,96 +269,59 @@ class PathSegment(SCIONPayloadBase):
         the path segment.
         """
         h = SHA256.new()
-        for asm in self.ases:
-            h.update(asm.pcbm.ig_rev_token)
-            h.update(asm.eg_rev_token)
-            for pm in asm.pms:
-                h.update(pm.ig_rev_token)
+        for token in self.get_all_iftokens():
+            h.update(token)
         if hex:
             return h.hexdigest()
         return h.digest()
 
     def get_n_peer_links(self):  # pragma: no cover
-        """
-        Return the total number of peer links in the PathSegment.
-        """
-        n_peer_links = 0
-        for asm in self.ases:
-            n_peer_links += len(asm.pms)
-        return n_peer_links
+        """Return the total number of peer links in the PathSegment."""
+        n = 0
+        for asm in self.p.asms:
+            n += len(asm.pcbms) - 1
+        return n
 
     def get_n_hops(self):  # pragma: no cover
-        """
-        Return the number of hops in the PathSegment.
-        """
-        return len(self.ases)
+        """Return the number of hops in the PathSegment."""
+        return len(self.p.asms)
 
     def get_timestamp(self):  # pragma: no cover
-        """
-        Returns the creation timestamp of this PathSegment.
-        """
-        return self.iof.timestamp
+        """Returns the creation timestamp of this PathSegment."""
+        return self.info.timestamp
 
     def set_timestamp(self, timestamp):  # pragma: no cover
-        """
-        Updates the timestamp in the IOF.
-        """
+        """Updates the timestamp in the IOF."""
         assert timestamp < 2 ** 32 - 1
-        self.iof.timestamp = timestamp
+        self.info.timestamp = timestamp
+        self._update_info()
 
-    def get_expiration_time(self):
+    def get_expiration_time(self):  # pragma: no cover
         """
         Returns the expiration time of the path segment in real time. If a PCB
         extension in the last ASMarking supplies an expiration time, use that.
         Otherwise fall-back to the standard expiration time calculation.
         """
-        if self.ases:
-            for ext in self.ases[-1].ext:
-                exp_ts = ext.exp_ts()
-                if exp_ts is not None:
-                    return exp_ts
-        return self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT)
+        if self.is_sibra():
+            return self.sibra_ext.exp_ts()
+        return self.info.timestamp + int(self._min_exp * EXP_TIME_UNIT)
 
     def get_all_iftokens(self):
         """
         Returns all interface revocation tokens included in the path segment.
         """
         tokens = []
-        for asm in self.ases:
-            tokens.append(asm.pcbm.ig_rev_token)
-            tokens.append(asm.eg_rev_token)
-            for pm in asm.pms:
-                tokens.append(pm.ig_rev_token)
+        for asm in self.p.asms:
+            for pcbm in asm.pcbms:
+                tokens.append(pcbm.igRevToken)
+            tokens.append(asm.egRevToken)
         return tokens
 
-    @staticmethod
-    def deserialize(raw):
-        """
-        Deserializes a bytes string into a list of PathSegments.
-        """
-        data = Raw(raw, "PathSegment")
-        pcbs = []
-        while len(data):
-            pcb = PathSegment(data.get())
-            data.pop(len(pcb))
-            pcbs.append(pcb)
-        return pcbs
-
-    @staticmethod
-    def serialize(pcbs):
-        """
-        Serializes a list of PathSegments into a bytes string.
-        """
-        pcbs_list = []
-        for pcb in pcbs:
-            pcbs_list.append(pcb.pack())
-        return b"".join(pcbs_list)
-
-    def __len__(self):  # pragma: no cover
-        l = self.MIN_LEN
-        for asm in self.ases:
-            l += len(asm)
-        return l
+    def flags(self):  # pragma: no cover
+        f = 0
+        if self.is_sibra():
+            f |= PSF.SIBRA
+        return f
 
     def short_desc(self):  # pragma: no cover
         """
@@ -551,53 +334,35 @@ class PathSegment(SCIONPayloadBase):
             iso_timestamp(self.get_timestamp()),
         ))
         hops = []
+        for asm in self.iter_asms():
+            hops.append(str(asm.isd_as()))
         exts = []
-        for asm in self.ases:
-            hops.append(str(asm.pcbm.isd_as))
-            for ext in asm.ext:
-                ext_desc = ext.short_desc()
-                if not ext_desc:
-                    continue
-                for line in ext_desc.splitlines():
-                    exts.append("  %s" % line)
+        if self.is_sibra():
+            exts.append("  %s" % self.sibra_ext.short_desc())
         desc.append(" > ".join(hops))
-        desc.append(", Flags: %s, MTU: %sB" %
-                    (PSF.to_str(self.flags), self.mtu))
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
 
-    def __eq__(self, other):  # pragma: no cover
-        if type(other) is not type(self):
-            return False
-        return (self.iof == other.iof and
-                self.trc_ver == other.trc_ver and
-                self.ases == other.ases)
-
     def __str__(self):
         s = []
-        s.append("%s(%dB):" % (self.NAME, len(self)))
-        s.append("  %s" % self.iof)
-        s.append("  trc_ver: %d, if_id: %d, Flags: %s" % (
-            self.trc_ver, self.if_id, PSF.to_str(self.flags)))
-        for asm in self.ases:
-            for line in str(asm).splitlines():
+        s.append("%s:" % self.NAME)
+        s.append("  %s" % self.info)
+        for asm in self.iter_asms():
+            for line in asm.short_desc().splitlines():
+                s.append("  %s" % line)
+        if self.sibra_ext:
+            for line in str(self.sibra_ext).splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
 
     def __hash__(self):  # pragma: no cover
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
-    def flags_(self):
-        f = []
-        if self.is_sibra():
-            f.append(self.FLAG_SIBRA)
-        return tuple(f)
 
-
-def parse_pcb_payload(type_, data):
+def parse_pcb_payload(type_, data):  # pragma: no cover
     type_map = {
-        PCBType.SEGMENT: PathSegment,
+        PCBType.SEGMENT: PathSegment.from_raw,
     }
     if type_ not in type_map:
         raise SCIONParseError("Unsupported pcb type: %s", type_)

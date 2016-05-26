@@ -16,7 +16,6 @@
 ==================================
 """
 # Stdlib
-import copy
 import logging
 from _collections import defaultdict
 
@@ -27,7 +26,6 @@ from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
-from lib.packet.scion import SVCType
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime
@@ -62,28 +60,14 @@ class CoreBeaconServer(BeaconServer):
         """
         Propagates the core beacons to other core ASes.
         """
-        assert isinstance(pcb, PathSegment)
-        ingress_if = pcb.if_id
         count = 0
-        for core_router in self.topology.routing_edge_routers:
-            dst_ia = core_router.interface.isd_as
+        for r in self.topology.routing_edge_routers:
+            dst_ia = r.interface.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
                 continue
-            new_pcb = copy.deepcopy(pcb)
-            egress_if = core_router.interface.if_id
-            last_pcbm = new_pcb.get_last_pcbm()
-            if last_pcbm:
-                as_marking = self._create_as_marking(ingress_if, egress_if,
-                                                     new_pcb.get_timestamp(),
-                                                     last_pcbm.hof)
-            else:
-                as_marking = self._create_as_marking(ingress_if, egress_if,
-                                                     new_pcb.get_timestamp())
-            new_pcb.add_as(as_marking)
-            self._sign_beacon(new_pcb)
-            beacon = self._build_packet(SVCType.BS, dst_ia=dst_ia,
-                                        payload=new_pcb)
-            self.send(beacon, core_router.addr)
+            beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
+                                          r.interface.if_id)
+            self.send(beacon, r.addr)
             count += 1
         return count
 
@@ -122,7 +106,7 @@ class CoreBeaconServer(BeaconServer):
         server.
         """
         pcb.remove_crypto()
-        self._sign_beacon(pcb)
+        pcb.sign(self.signing_key)
         # Register core path with local core path server.
         try:
             ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
@@ -144,7 +128,7 @@ class CoreBeaconServer(BeaconServer):
         for pcb in pcbs:
             if raw:
                 try:
-                    pcb = PathSegment(pcb)
+                    pcb = PathSegment.from_raw(pcb)
                 except SCIONParseError as e:
                     logging.error("Unable to parse raw pcb: %s", e)
                     continue
@@ -166,7 +150,8 @@ class CoreBeaconServer(BeaconServer):
         """
         # Add the current ISD-AS to the end, to look for loops in the final list
         # of hops.
-        isd_ases = [asm.pcbm.isd_as for asm in pcb.ases] + [self.addr.isd_as]
+        isd_ases = [asm.isd_as() for asm in pcb.iter_asms()]
+        isd_ases.append(self.addr.isd_as)
         # If a destination ISD-AS is specified, add that as well. Used to decide
         # when to propagate.
         if dst_ia:
@@ -209,8 +194,7 @@ class CoreBeaconServer(BeaconServer):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        isd_as = pcb.get_first_pcbm().isd_as
-        self.core_beacons[isd_as].add_segment(pcb)
+        self.core_beacons[pcb.first_ia()].add_segment(pcb)
 
     def register_core_segments(self):
         """
@@ -222,7 +206,7 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
-            self._sign_beacon(pcb)
+            pcb.sign(self.signing_key)
             self.register_core_segment(pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
