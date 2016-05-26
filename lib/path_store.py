@@ -86,8 +86,8 @@ class PathPolicy(object):
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
         """
-        for asm in pcb.ases:
-            isd_as = asm.pcbm.isd_as
+        for asm in pcb.iter_asms():
+            isd_as = asm.isd_as()
             if isd_as in self.unwanted_ases:
                 return isd_as
 
@@ -366,10 +366,10 @@ class PathStore(object):
             path_disjointness = self.disjointness[candidate.id]
             as_disjointness = 0.0
             if_disjointness = 0.0
-            for asMarking in candidate.pcb.ases:
-                as_disjointness += self.disjointness[asMarking.pcbm.isd_as[1]]
+            for asm in candidate.pcb.iter_asms():
+                as_disjointness += self.disjointness[asm.isd_as()[1]]
                 if_disjointness += self.disjointness[
-                    asMarking.pcbm.hof.egress_if]
+                    asm.pcbm(0).hof().egress_if]
             candidate.disjointness = (path_disjointness + as_disjointness +
                                       if_disjointness)
             if candidate.disjointness > max_disjointness:
