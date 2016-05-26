@@ -1,6 +1,7 @@
+#include <errno.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -51,6 +52,7 @@ int send_dp_header(int sock, HostAddr *host, int packet_len)
 
 int recv_all(int sock, uint8_t *buf, int len)
 {
+    errno = 0;
     int recvd = 0;
     while (recvd < len) {
         int ret = recv(sock, buf + recvd, len - recvd, 0);
@@ -65,6 +67,7 @@ int recv_all(int sock, uint8_t *buf, int len)
 
 int send_all(int sock, uint8_t *buf, int len)
 {
+    errno = 0;
     int sent = 0;
     while (sent < len) {
         int ret = send(sock, buf + sent, len - sent, 0);
