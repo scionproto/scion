@@ -2,9 +2,22 @@
 
 #define BUFSIZE 1024
 
-int main()
+int main(int argc, char **argv)
 {
-    SCIONSocket s(L4_SSP);
+    uint16_t isd;
+    uint32_t as;
+    char str[40];
+    if (argc == 2) {
+        isd = atoi(strtok(argv[1], "-"));
+        as = atoi(strtok(NULL, "-"));
+    } else {
+        isd = 2;
+        as = 26;
+    }
+
+    sprintf(str, "/run/shm/sciond/%d-%d.sock", isd, as);
+    SCIONSocket s(L4_SSP, str);
+
     SCIONAddr addr;
     memset(&addr, 0, sizeof(addr));
     addr.host.port = 8080;

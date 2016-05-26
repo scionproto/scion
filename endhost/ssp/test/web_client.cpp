@@ -13,24 +13,39 @@ size_t dummy(void *buffer, size_t size, size_t nmemb, void *userp)
 
 int main(int argc, char **argv)
 {
-    SCIONAddr saddr;
-    int isd, as;
-    char str[20];
-    if (argc == 3) {
-        isd = atoi(argv[1]);
-        as = atoi(argv[2]);
+    uint16_t src_isd, dst_isd;
+    uint32_t src_as, dst_as;
+    char str[40];
+    if (argc >= 2) {
+        src_isd = atoi(strtok(argv[1], "-"));
+        src_as = atoi(strtok(NULL, "-"));
     } else {
-        isd = 2;
-        as = 26;
+        src_isd = 1;
+        src_as = 19;
     }
-    saddr.isd_as = ISD_AS(isd, as);
+    if (argc == 3) {
+        dst_isd = atoi(strtok(argv[2], "-"));
+        dst_as = atoi(strtok(NULL, "-"));
+    } else {
+        dst_isd = 2;
+        dst_as = 26;
+    }
+
+    sprintf(str, "/run/shm/sciond/%d-%d.sock", src_isd, src_as);
+    SCIONSocket s(L4_SSP, str);
+
+    SCIONAddr saddr;
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.isd_as = ISD_AS(dst_isd, dst_as);
     saddr.host.addr_len = 4;
-    sprintf(str, "127.%d.%d.254", isd, as);
-    printf("connect to (%d, %d):%s\n", isd, as, str);
+    saddr.host.port = 8080;
+    sprintf(str, "127.%d.%d.254", dst_isd, dst_as);
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
-    SCIONSocket s(L4_SSP);
+
+    //s.bind(saddr);
     s.connect(saddr);
+    printf("connected to (%d, %d):%s\n", dst_isd, dst_as, str);
 
     int count = 0;
     char curldata[1024];

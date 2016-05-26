@@ -12,7 +12,7 @@
 
 class SCIONProtocol {
 public:
-    SCIONProtocol(int sock);
+    SCIONProtocol(int sock, const char *sciond);
     virtual ~SCIONProtocol();
 
     virtual int bind(SCIONAddr addr, int sock);
@@ -74,7 +74,7 @@ protected:
 
 class SSPProtocol: public SCIONProtocol {
 public:
-    SSPProtocol(int sock);
+    SSPProtocol(int sock, const char *sciond);
     ~SSPProtocol();
 
     int connect(SCIONAddr addr);
@@ -149,7 +149,7 @@ protected:
 
 class SUDPProtocol : public SCIONProtocol {
 public:
-    SUDPProtocol(int sock);
+    SUDPProtocol(int sock, const char *sciond);
     ~SUDPProtocol();
 
     int bind(SCIONAddr addr, int sock);

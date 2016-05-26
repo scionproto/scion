@@ -16,7 +16,7 @@ void * timerThread(void *arg)
     return NULL;
 }
 
-SCIONProtocol::SCIONProtocol(int sock)
+SCIONProtocol::SCIONProtocol(int sock, const char *sciond)
     : mPathManager(NULL),
     mSrcPort(0),
     mDstPort(0),
@@ -161,8 +161,8 @@ uint32_t SCIONProtocol::getLocalIA()
 
 // SSP
 
-SSPProtocol::SSPProtocol(int sock)
-    : SCIONProtocol(sock),
+SSPProtocol::SSPProtocol(int sock, const char *sciond)
+    : SCIONProtocol(sock, sciond),
     mInitialized(false),
     mInitAckCount(0),
     mFlowID(0),
@@ -182,7 +182,7 @@ SSPProtocol::SSPProtocol(int sock)
 
     pthread_mutex_init(&mSelectMutex, NULL);
 
-    mConnectionManager = new SSPConnectionManager(mSocket, this);
+    mConnectionManager = new SSPConnectionManager(mSocket, sciond, this);
     mPathManager = mConnectionManager;
     pthread_create(&mTimerThread, NULL, timerThread, this);
 }
@@ -840,11 +840,11 @@ void SSPProtocol::notifyFinAck()
 
 // SUDP
 
-SUDPProtocol::SUDPProtocol(int sock)
-    : SCIONProtocol(sock),
+SUDPProtocol::SUDPProtocol(int sock, const char *sciond)
+    : SCIONProtocol(sock, sciond),
     mTotalReceived(0)
 {
-    mConnectionManager = new SUDPConnectionManager(mSocket);
+    mConnectionManager = new SUDPConnectionManager(mSocket, sciond);
     mPathManager = mConnectionManager;
     pthread_create(&mTimerThread, NULL, timerThread, this);
 }

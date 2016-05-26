@@ -14,14 +14,25 @@ int main(int argc, char **argv)
     sha.GetHash(hash);
     printf("random data + hash ready\n");
 
-    SCIONAddr saddr;
-    memset(&saddr, 0, sizeof(saddr));
-    saddr.host.port = 8080;
+    uint16_t isd;
+    uint32_t as;
+    char str[40];
+    if (argc == 2) {
+        isd = atoi(strtok(argv[1], "-"));
+        as = atoi(strtok(NULL, "-"));
+    } else {
+        isd = 2;
+        as = 26;
+    }
 
-    SCIONSocket s(L4_SSP);
-    s.bind(saddr);
+    sprintf(str, "/run/shm/sciond/%d-%d.sock", isd, as);
+    SCIONSocket s(L4_SSP, str);
+
+    SCIONAddr addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.host.port = 8080;
+    s.bind(addr);
     s.listen();
-
     SCIONSocket *newSocket = s.accept();
     printf("got new socket\n");
 
