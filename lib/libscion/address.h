@@ -54,7 +54,6 @@ typedef struct {
 
 typedef struct {
     uint8_t type;
-    uint8_t host_len;
     uint8_t addr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
 } saddr_t;
 
