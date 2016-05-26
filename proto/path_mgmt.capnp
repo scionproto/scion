@@ -1,5 +1,7 @@
 @0x8fcd13516850d142;
 
+using PCB = import "pcb.capnp";
+
 struct SegReq {
     srcIA @0 :Text;
     dstIA @1 :Text;
@@ -9,10 +11,5 @@ struct SegReq {
 }
 
 struct SegRecs {
-    pcbs @0 :List(RawPCB);
-
-    struct RawPCB {
-        type @0 :UInt8;
-        raw @1 :Data;
-    }
+    recs @0 :List(PCB.PathSegMeta);
 }

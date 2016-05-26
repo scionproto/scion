@@ -24,11 +24,9 @@ class BeaconExtType(TypeBase):
     """
     Constants for two types of beacon extensions.
     """
-    MTU = 0
-    REV = 1
-    SIBRA = 2
-    SIBRA_SEG_INFO = 3
-    SIBRA_SEG_SOF = 4
+    REV = "revInfo"
+    SIBRA_INFO = "sibraInfo"
+    SIBRA_OF = "sibraOF"
 
 
 class BeaconExtension(Serializable):

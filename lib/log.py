@@ -97,3 +97,7 @@ def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
     logging.log(level, msg, *args, **kwargs)
     for line in traceback.format_exc().split("\n"):
         logging.log(level, line)
+
+
+def log_stack(level=logging.DEBUG):
+    logging.log(level, "".join(traceback.format_stack()))
