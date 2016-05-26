@@ -40,11 +40,11 @@ def sciond_default():
                         help='Address to bind to (Default: %s)' %
                         os.path.join(SCIOND_API_SOCKDIR, "ISD-AS.sock"))
     args = parser.parse_args()
-    init_logging(os.path.join(args.log_dir, args.sciond_id))
+    init_logging(os.path.join(args.log_dir, args.sciond_id),
+                 console_level=logging.CRITICAL)
     addr = haddr_parse("IPV4", args.addr)
 
-    inst = SCIONDaemon(args.sciond_id, args.conf_dir, addr, args.api_addr,
-                       run_local_api=True)
+    inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, run_local_api=True)
     logging.info("Started %s", args.sciond_id)
     inst.run()
 
