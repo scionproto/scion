@@ -97,7 +97,7 @@ cmd_sock_cli() {
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
-    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR client
+    bin/sciond --addr $ADDR --api-addr $APIADDR sspclient $GENDIR
 }
 
 cmd_run_cli() {
@@ -121,7 +121,7 @@ cmd_sock_ser() {
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
-    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR server
+    bin/sciond --addr $ADDR --api-addr $APIADDR sspserver $GENDIR
 }
 
 cmd_run_ser() {

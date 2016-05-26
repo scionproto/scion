@@ -51,7 +51,7 @@ class Socket(object):
     Base class for socket wrappers
     """
     @abstractmethod
-    def bind(self, addr, port=0, desc=None):
+    def bind(self, addr, *args, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
@@ -183,6 +183,9 @@ class ReliableSocket(Socket):
             describing respectively the address, port, SVC type, and init value
             to register with the dispatcher. In sockets that do not connect to
             the dispatcher, this argument is None.
+        :param tuple bind:
+            Optional tuple of (`str`, `str`) describing path to bind to, and an
+            optional description.
         :param sock:
             Optional socket file object to build instance around.
         """
@@ -198,7 +201,7 @@ class ReliableSocket(Socket):
     def from_socket(cls, sock):
         return cls(None, sock=sock)
 
-    def bind(self, addr, port=0, desc=None):
+    def bind(self, addr, desc=None):
         self.addr = addr
         try:
             self.sock.bind(addr)
