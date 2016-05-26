@@ -403,8 +403,10 @@ class SCIONElement(object):
         threading.Thread(
             target=thread_safety_net, args=(self.packet_recv,),
             name="Elem.packet_recv", daemon=True).start()
-
-        self._packet_process()
+        try:
+            self._packet_process()
+        finally:
+            self.stop()
 
     def packet_put(self, packet, addr, sock):
         """
@@ -476,7 +478,7 @@ class SCIONElement(object):
         self.run_flag.clear()
         self._socks.close()
         # Wait for the thread to finish
-        self.stopped_flag.wait()
+        self.stopped_flag.wait(5)
 
     def _quiet_startup(self):
         return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD

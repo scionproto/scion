@@ -17,7 +17,6 @@
 """
 
 # Stdlib
-import signal
 from unittest.mock import patch
 
 # External packages
@@ -25,23 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.thread import (
-    kill_self,
-    thread_safety_net
-)
-
-
-class TestKillSelf(object):
-    """
-    Unit tests for lib.thread.kill_self
-    """
-    @patch("lib.thread.os.kill", autospec=True)
-    @patch("lib.thread.os.getpid", autospec=True)
-    def test_basic(self, pid_mock, kill_mock):
-        pid_mock.return_value = "test_pid_val"
-        kill_self()
-        pid_mock.assert_called_once_with()
-        kill_mock.assert_called_once_with("test_pid_val", signal.SIGINT)
+from lib.thread import thread_safety_net
 
 
 class TestThreadSafetyNet(object):
