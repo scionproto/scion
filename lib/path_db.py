@@ -51,7 +51,7 @@ class PathSegmentDBRecord(object):
         self.id = pcb.get_hops_hash()
         # Fidelity can be used to configure the desirability of a path. For
         # now we just use path length.
-        self.fidelity = pcb.iof.hops
+        self.fidelity = pcb.get_n_hops()
         if exp_time:
             self.exp_time = min(pcb.get_expiration_time(), exp_time)
         else:
@@ -104,8 +104,8 @@ class PathSegmentDB(object):
         Insert path into database.
         Return the result of the operation.
         """
-        first_ia = pcb.get_first_pcbm().isd_as
-        last_ia = pcb.get_last_pcbm().isd_as
+        first_ia = pcb.first_ia()
+        last_ia = pcb.last_ia()
         if reverse:
             first_ia, last_ia = last_ia, first_ia
         if self._segment_ttl:

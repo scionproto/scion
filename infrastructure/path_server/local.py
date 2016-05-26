@@ -51,17 +51,17 @@ class LocalPathServer(PathServer):
             # Sending pending targets to the core using first registered
             # up-segment.
             self._handle_waiting_targets(pcb)
-            return set([(pcb.get_first_pcbm().isd_as, pcb.is_sibra())])
+            return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
     def _handle_down_segment_record(self, pcb, from_zk=None):
         if self._add_segment(pcb, self.down_segments, "Down"):
-            return set([(pcb.get_last_pcbm().isd_as, pcb.is_sibra())])
+            return set([(pcb.last_ia(), pcb.is_sibra())])
         return set()
 
     def _handle_core_segment_record(self, pcb, from_zk=None):
         if self._add_segment(pcb, self.core_segments, "Core"):
-            return set([(pcb.get_first_pcbm().isd_as, pcb.is_sibra())])
+            return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
     def _remove_revoked_segments(self, rev_info):
@@ -129,8 +129,7 @@ class LocalPathServer(PathServer):
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
-            cseg_ia = cseg.get_last_pcbm().isd_as
-            tmp_up_segs = self.up_segments(first_ia=cseg_ia,
+            tmp_up_segs = self.up_segments(first_ia=cseg.last_ia(),
                                            sibra=req.p.flags.sibra)
             if tmp_up_segs:
                 up_segs.update(tmp_up_segs)
@@ -143,7 +142,7 @@ class LocalPathServer(PathServer):
         sibra = req.p.flags.sibra
         # Check if there exists down-seg to DST.
         for dseg in self.down_segments(last_ia=req.dst_ia(), sibra=sibra):
-            first_ia = dseg.get_first_pcbm().isd_as
+            first_ia = dseg.first_ia()
             if req.dst_ia()[0] == self.addr.isd_as[0]:
                 # Dst in local ISD. First try to find direct up-seg.
                 dir_up_segs = self.up_segments(first_ia=first_ia, sibra=sibra)
@@ -153,9 +152,9 @@ class LocalPathServer(PathServer):
             # Now try core segments that connect to down segment.
             # PSz: it might make sense to start with up_segments instead.
             for cseg in self.core_segments(first_ia=first_ia, sibra=sibra):
-                last_ia = cseg.get_last_pcbm().isd_as
                 # And up segments that connect to core segment.
-                up_core_segs = self.up_segments(first_ia=last_ia, sibra=sibra)
+                up_core_segs = self.up_segments(first_ia=cseg.last_ia(),
+                                                sibra=sibra)
                 if up_core_segs:
                     up_segs.update(up_core_segs)
                     core_segs.add(cseg)
@@ -178,5 +177,5 @@ class LocalPathServer(PathServer):
                      req.short_desc(), pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
         req_pkt = self._build_packet(SVCType.PS, payload=req.copy(), path=path,
-                                     dst_ia=pcb.get_first_pcbm().isd_as)
+                                     dst_ia=pcb.first_ia())
         self._send_to_next_hop(req_pkt, path.get_fwd_if())
