@@ -16,10 +16,10 @@
 =====================================================
 """
 # External
-import capnp
-import lz4
+import capnp  # noqa
 
 # SCION
+import proto.cert_mgmt_capnp as P
 from lib.crypto.certificate import CertificateChain, TRC
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBaseProto
@@ -43,8 +43,7 @@ class CertMgmtRequest(CertMgmtBase):  # pragma: no cover
 class CertChainRequest(CertMgmtRequest):
     NAME = "CertChainRequest"
     PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
-    P = capnp.load("proto/cert_req.capnp")
-    P_CLS = P.CertReq
+    P_CLS = P.CertChainReq
 
     def short_desc(self):
         return "%sv%s" % (self.isd_as(), self.p.version)
@@ -53,18 +52,15 @@ class CertChainRequest(CertMgmtRequest):
 class CertChainReply(CertMgmtBase):  # pragma: no cover
     NAME = "CertChainReply"
     PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REPLY
-    P = capnp.load("proto/cert_reply.capnp")
-    P_CLS = P.CertRep
+    P_CLS = P.CertChainRep
 
     def __init__(self, p):
         super().__init__(p)
-        text = lz4.loads(p.chain).decode('utf-8')
-        self.chain = CertificateChain(text)
+        self.chain = CertificateChain(p.chain, lz4_=True)
 
     @classmethod
     def from_values(cls, chain):
-        data = lz4.dumps(chain.pack())
-        return cls(cls.P_CLS.new_message(chain=data))
+        return cls(cls.P_CLS.new_message(chain=chain.pack(lz4_=True)))
 
     def short_desc(self):
         return "%sv%s" % self.chain.get_leaf_isd_as_ver()
@@ -77,7 +73,6 @@ class CertChainReply(CertMgmtBase):  # pragma: no cover
 class TRCRequest(CertMgmtRequest):
     NAME = "TRCRequest"
     PAYLOAD_TYPE = CertMgmtType.TRC_REQ
-    P = capnp.load("proto/trc_req.capnp")
     P_CLS = P.TRCReq
 
     def short_desc(self):
@@ -87,18 +82,15 @@ class TRCRequest(CertMgmtRequest):
 class TRCReply(CertMgmtBase):  # pragma: no cover
     NAME = "TRCReply"
     PAYLOAD_TYPE = CertMgmtType.TRC_REPLY
-    P = capnp.load("proto/trc_reply.capnp")
     P_CLS = P.TRCRep
 
     def __init__(self, p):
         super().__init__(p)
-        text = lz4.loads(p.trc).decode('utf-8')
-        self.trc = TRC(text)
+        self.trc = TRC(p.trc, lz4_=True)
 
     @classmethod
     def from_values(cls, trc):
-        data = lz4.dumps(trc.pack())
-        return cls(cls.P_CLS.new_message(trc=data))
+        return cls(cls.P_CLS.new_message(trc=trc.pack(lz4_=True)))
 
     def short_desc(self):
         return "%sv%s" % self.trc.get_isd_ver()
