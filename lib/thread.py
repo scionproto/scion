@@ -26,12 +26,13 @@ import threading
 from lib.log import log_exception
 
 
-def kill_self():
+def kill_self():  # pragma: no cover
     """
     Send SIGINT to self, to allow quitting the process from threads when fatal
     errors occur.
     """
-    os.kill(os.getpid(), signal.SIGINT)
+    os.kill(os.getpid(), signal.SIGUSR2)
+    signal.pause()
 
 
 def thread_safety_net(func, *args, **kwargs):

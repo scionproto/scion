@@ -52,7 +52,6 @@ _SIG_MAP = {
     signal.SIGINT: "SIGINT",
     signal.SIGQUIT: "SIGQUIT",
     signal.SIGTERM: "SIGTERM",
-    signal.SIGUSR1: "SIGUSR1",
     signal.SIGUSR2: "SIGUSR2"
 }
 
@@ -240,6 +239,9 @@ def sleep_interval(start, interval, desc, quiet=False):
 
 def handle_signals():
     """Setup basic signal handler for the most common signals."""
+    # FIXME(kormat): the SIGUSR1 handler is actually silently overridden by
+    # pycapnp, so we can't use/catch it.
+    # https://github.com/jparyani/pycapnp/issues/101
     for sig in _SIG_MAP.keys():
         signal.signal(sig, _signal_handler)
 
@@ -247,7 +249,7 @@ def handle_signals():
 def _signal_handler(signum, _):
     """Basic signal handler function."""
     text = "Received %s" % _SIG_MAP[signum]
-    if signum == signal.SIGTERM:
+    if signum in (signal.SIGTERM, signal.SIGINT):
         logging.info(text)
         sys.exit(0)
     else:
