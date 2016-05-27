@@ -476,7 +476,6 @@ class SCIONElement(object):
         """
         # Signal that the thread should stop
         self.run_flag.clear()
-        self._socks.close()
         # Wait for the thread to finish
         self.stopped_flag.wait(5)
 
