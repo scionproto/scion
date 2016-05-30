@@ -34,18 +34,16 @@ typedef struct {
     struct sockaddr_in first_hop;
 } spath_t;
 
-typedef struct scion_ext_hdr {
-    uint8_t next_header;
+typedef struct {
     uint8_t len;
     uint8_t ext_class;
     uint8_t ext_type;
     uint8_t *payload;
-    struct scion_ext_hdr *next;
 } seh_t;
 
 typedef struct {
     uint8_t count;
-    seh_t *extensions;
+    seh_t *extensions; // malloc'ed as count * seh_t
 } exts_t;
 
 typedef struct {
@@ -72,7 +70,7 @@ void parse_spkt_path(uint8_t *buf, spkt_t *spkt);
 void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt);
 void parse_spkt_l4(uint8_t *buf, spkt_t *spkt);
 
-void pack_spkt(spkt_t *spkt, uint8_t *buf);
+int pack_spkt(spkt_t *spkt, uint8_t *buf, size_t len);
 uint8_t * pack_spkt_cmn_hdr(spkt_t *spkt, uint8_t *ptr);
 uint8_t * pack_spkt_addr_hdr(spkt_t *spkt, uint8_t *ptr);
 uint8_t * pack_spkt_path(spkt_t *spkt, uint8_t *ptr);

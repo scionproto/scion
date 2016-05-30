@@ -14,12 +14,10 @@ spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_
     spkt_t *spkt = (spkt_t *)malloc(sizeof(spkt_t));
     spkt->sch = (sch_t *)malloc(sizeof(sch_t));
     uint8_t next_header;
-    if (exts && exts->count > 0) {
-        seh_t *first_ext = exts->extensions;
-        next_header = first_ext->ext_class;
-    } else {
+    if (exts && exts->count > 0)
+        next_header = exts->extensions[0].ext_class;
+    else
         next_header = l4->type;
-    }
     pack_cmn_hdr((uint8_t *)spkt->sch, src->type, dst->type, next_header);
     spkt->src = src;
     spkt->dst = dst;
@@ -44,9 +42,7 @@ spkt_t * parse_spkt(uint8_t *buf)
 
 void parse_spkt_cmn_hdr(uint8_t *buf, spkt_t *spkt)
 {
-    sch_t *sch = (sch_t *)malloc(sizeof(sch_t));
-    memcpy(sch, buf, sizeof(sch_t));
-    spkt->sch = sch;
+    spkt->sch = (sch_t *)buf;
 }
 
 void parse_spkt_addr_hdr(uint8_t *buf, spkt_t *spkt)
@@ -64,11 +60,16 @@ void parse_spkt_addr_hdr(uint8_t *buf, spkt_t *spkt)
 
 void parse_spkt_path(uint8_t *buf, spkt_t *spkt)
 {
-    spath_t *path = (spath_t *)malloc(sizeof(spath_t));
-    memset(path, 0, sizeof(spath_t));
-    path->len = get_path_len(buf);
-    path->raw_path = get_path(buf);
-    spkt->path = path;
+    int path_len = get_path_len(buf);
+    if (path_len > 0) {
+        spath_t *path = (spath_t *)malloc(sizeof(spath_t));
+        memset(path, 0, sizeof(spath_t));
+        path->len = path_len;
+        path->raw_path = get_path(buf);
+        spkt->path = path;
+    } else {
+        spkt->path = NULL;
+    }
 }
 
 void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
@@ -78,20 +79,28 @@ void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
     uint8_t curr = spkt->sch->next_header;
     uint8_t *ptr = buf + spkt->sch->header_len;
     while (!is_known_proto(curr)) {
-        seh_t *seh = (seh_t *)malloc(sizeof(seh_t));
-        memset(seh, 0, sizeof(seh_t));
-        seh->next_header = *ptr;
+        // first pass to get ext count
+        uint8_t len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
+        ptr += len;
+        exts->count++;
+    }
+    size_t size = exts->count * sizeof(seh_t);
+    exts->extensions = (seh_t *)malloc(size);
+    memset(exts->extensions, 0, size);
+
+    int i = 0;
+    curr = spkt->sch->next_header;
+    ptr = buf + spkt->sch->header_len;
+    while (!is_known_proto(curr)) {
+        // second pass to populate array
+        seh_t *seh = exts->extensions + i;
         seh->len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
         seh->ext_class = curr;
         seh->ext_type = *(ptr + 2);
         seh->payload = ptr + 3;
-        curr = seh->next_header;
+        curr = *ptr;
         ptr += seh->len;
-        if (!exts->extensions)
-            exts->extensions = seh;
-        else
-            exts->extensions->next = seh;
-        exts->count++;
+        i++;
     }
     spkt->exts = exts;
 }
@@ -107,25 +116,27 @@ void parse_spkt_l4(uint8_t *buf, spkt_t *spkt)
     spkt->l4 = l4;
 }
 
-void pack_spkt(spkt_t *spkt, uint8_t *buf)
+int pack_spkt(spkt_t *spkt, uint8_t *buf, size_t len)
 {
     uint8_t *ptr = buf;
+
+    if (len < ntohs(spkt->sch->total_len))
+        return -1;
 
     ptr = pack_spkt_cmn_hdr(spkt, ptr);
     ptr = pack_spkt_addr_hdr(spkt, ptr);
     if (spkt->path && spkt->path->len > 0)
         ptr = pack_spkt_path(spkt, ptr);
-
     if (spkt->exts && spkt->exts->count > 0)
         ptr = pack_spkt_extensions(spkt, ptr);
-
     ptr = pack_spkt_l4(spkt, ptr);
+
+    return 0;
 }
 
 uint8_t * pack_spkt_cmn_hdr(spkt_t *spkt, uint8_t *ptr)
 {
-    size_t len;
-    len = sizeof(sch_t);
+    size_t len = sizeof(sch_t);
     memcpy(ptr, spkt->sch, len);
     return ptr + len;
 }
@@ -145,22 +156,26 @@ uint8_t * pack_spkt_addr_hdr(spkt_t *spkt, uint8_t *ptr)
 
 uint8_t * pack_spkt_path(spkt_t *spkt, uint8_t *ptr)
 {
-    size_t len;
-    len = spkt->path->len;
+    size_t len = spkt->path->len;
     memcpy(ptr, spkt->path->raw_path, len);
     return ptr + len;
 }
 
 uint8_t * pack_spkt_extensions(spkt_t *spkt, uint8_t *ptr)
 {
-    seh_t *seh = spkt->exts->extensions;
-    while (seh) {
-        *ptr++ = seh->next_header;
+    int i;
+    for (i = 0; i < spkt->exts->count; i++) {
+        seh_t *seh = spkt->exts->extensions + i;
+        uint8_t next_header;
+        if (i == spkt->exts->count - 1)
+            next_header = spkt->l4->type;
+        else
+            next_header = spkt->exts->extensions[i + 1].ext_class;
+        *ptr++ = next_header;
         *ptr++ = seh->len / SCION_EXT_LINE - 1;
         *ptr++ = seh->ext_type;
         memcpy(ptr, seh->payload, seh->len);
         ptr += seh->len;
-        seh = seh->next;
     }
     return ptr;
 }
@@ -175,11 +190,11 @@ void destroy_spkt(spkt_t *spkt, int from_raw)
 {
     /*
      * If from_raw is true, original raw packet data is assumed to exist,
-     * therefore raw path, extension payload, l4 data are not free'd here.
+     * therefore sch, raw path, extension payload, l4 data are not free'd here.
      * Otherwise those elements are also assumed to have been malloc'ed
      * somewhere and consequently free'd here.
      */
-    if (spkt->sch)
+    if (!from_raw && spkt->sch)
         free(spkt->sch);
     if (spkt->src)
         free(spkt->src);
@@ -191,14 +206,12 @@ void destroy_spkt(spkt_t *spkt, int from_raw)
         free(spkt->path);
     }
     if (spkt->exts) {
-        seh_t *ext = spkt->exts->extensions;
-        while (ext) {
-            seh_t *next = ext->next;
-            if (!from_raw)
-                free(ext->payload);
-            free(ext);
-            ext = next;
+        if (!from_raw) {
+            int i;
+            for (i = 0; i < spkt->exts->count; i++)
+                free(spkt->exts->extensions[i].payload);
         }
+        free(spkt->exts->extensions);
         free(spkt->exts);
     }
     if (spkt->l4) {
