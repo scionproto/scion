@@ -279,7 +279,7 @@ class SCIONDaemon(SCIONElement):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
             empty = SCIONPath()
-            empty.mtu = self.config.mtu
+            empty.mtu = self.topology.mtu
             return [empty]
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()

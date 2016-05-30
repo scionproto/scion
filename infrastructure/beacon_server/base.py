@@ -342,7 +342,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         # Add extensions.
         extensions = []
-        extensions.append(MtuPcbExt.from_values(self.config.mtu))
+        extensions.append(MtuPcbExt.from_values(self.topology.mtu))
         # FIXME(kormat): add real values, based on the interface pair specified.
         extensions.append(SibraPcbExt.from_values(1, 2))
         for _, rev_info in self.revs_to_downstream.items():

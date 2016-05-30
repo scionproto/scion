@@ -550,11 +550,13 @@ class Router(SCIONElement):
 
     def _process_data(self, spkt, ingress, drop_on_error):
         path = spkt.path
-        if len(spkt) > self.config.mtu:
+        if len(spkt) > self.topology.mtu:
             # FIXME(kormat): ignore this check for now, as PCB packets are often
             # over MTU, it's just that udp-overlay handles fragmentation for us.
             # Once we have TCP/SCION, this check should be re-instated.
-            #  raise SCMPOversizePkt
+            # This also needs to look at the specific MTU for the relevant link
+            # if on egress.
+            #  raise SCMPOversizePkt("Packet larger than mtu", mtu)
             pass
         self.verify_hof(path, ingress=ingress)
         hof = spkt.path.get_hof()

@@ -93,7 +93,7 @@ class SCIONUDPHeader(L4HeaderBase):
             raise SCMPBadPktLen(
                 "%s: length in header (%dB) does not match "
                 "supplied payload (%dB)" %
-                (self.NAME, self.total_len, self.LEN + len(payload)))
+                (self.NAME, self.total_len, self.LEN + len(payload)), 0)
         checksum = self._calc_checksum(payload)
         if checksum != self._checksum:
             raise SCIONChecksumFailed(

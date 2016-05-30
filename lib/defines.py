@@ -82,8 +82,8 @@ DISPATCHER_TIMEOUT = 60.0
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1
-#: Default MTU
-DEFAULT_MTU = 1500
+#: Default MTU - assumes overlay is ipv4+udp
+DEFAULT_MTU = 1500 - 20 - 8
 #: IPv6 min value
 SCION_MIN_MTU = 1280
 #: Length of opaque fields
