@@ -16,9 +16,10 @@
 ====================================
 """
 # External
-import capnp
+import capnp  # noqa
 
 # SCION
+import proto.ifid_capnp as P
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBaseProto
 from lib.types import IFIDType, PayloadClass
@@ -31,7 +32,6 @@ class IFIDPayload(SCIONPayloadBaseProto):  # pragma: no cover
     PAYLOAD_CLASS = PayloadClass.IFID
     PAYLOAD_TYPE = IFIDType.PAYLOAD
     NAME = "IFIDPayload"
-    P = capnp.load("proto/ifid.capnp")
     P_CLS = P.IFID
 
     @classmethod
