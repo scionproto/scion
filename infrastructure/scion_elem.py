@@ -291,7 +291,7 @@ class SCIONElement(object):
             if isinstance(e, SCMPUnspecified):
                 args = (str(e),)
             elif isinstance(e, (SCMPOversizePkt, SCMPBadPktLen)):
-                args = (self.config.mtu,)
+                args = (e.args[1],)  # the relevant MTU.
             elif isinstance(e, (SCMPTooManyHopByHop, SCMPBadExtOrder,
                                 SCMPBadHopByHop)):
                 args = e.args

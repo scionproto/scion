@@ -32,7 +32,6 @@ class Config(object):
     :ivar int registration_time: the interval at which paths are registered.
     :ivar int registers_paths: whether or not the AS registers paths.
     :ivar int cert_ver: initial version of the certificate chain.
-    :ivar int mtu: value for MTU within AS.
     """
 
     def __init__(self):  # pragma: no cover
@@ -41,7 +40,6 @@ class Config(object):
         self.registration_time = 0
         self.registers_paths = 0
         self.cert_ver = 0
-        self.mtu = 0
 
     @classmethod
     def from_file(cls, config_file):  # pragma: no cover
@@ -78,4 +76,3 @@ class Config(object):
         self.registration_time = config['RegisterTime']
         self.registers_paths = config['RegisterPath']
         self.cert_ver = config['CertChainVersion']
-        self.mtu = config['MTU']

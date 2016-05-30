@@ -215,7 +215,6 @@ class ConfigGenerator(object):
             'MasterASKey': master_as_key.decode("utf-8"),
             'RegisterTime': 5,
             'PropagateTime': 5,
-            'MTU': as_topo["MTU"],
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathServers"] else False,
@@ -442,6 +441,7 @@ class TopoGenerator(object):
                 'UdpPort': SCION_ROUTER_PORT,
                 'ToUdpPort': SCION_ROUTER_PORT,
                 'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
+                'MTU': attrs.get('mtu', DEFAULT_MTU),
             }
         }
 

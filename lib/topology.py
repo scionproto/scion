@@ -91,6 +91,7 @@ class InterfaceElement(Element):
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
         self.bandwidth = interface_dict['Bandwidth']
+        self.mtu = interface_dict['MTU']
         to_addr = interface_dict['ToAddr']
         self.to_addr = None
         if to_addr:
@@ -135,6 +136,7 @@ class Topology(object):
         self.is_core_as = False
         self.isd_as = None
         self.dns_domain = ""
+        self.mtu = None
         self.beacon_servers = []
         self.certificate_servers = []
         self.dns_servers = []
@@ -177,6 +179,7 @@ class Topology(object):
         self.is_core_as = topology['Core']
         self.isd_as = ISD_AS(topology['ISD_AS'])
         self.dns_domain = topology['DnsDomain']
+        self.mtu = topology['MTU']
         self._parse_srv_dicts(topology)
         self._parse_router_dicts(topology)
         self._parse_zk_dicts(topology)
