@@ -26,16 +26,16 @@ from itertools import product
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import (
+    PATH_FLAG_SIBRA,
     PATH_SERVICE,
-    SCION_UDP_PORT,
     SCION_UDP_EH_DATA_PORT,
+    SCION_UDP_PORT,
 )
 from lib.errors import SCIONServiceLookupError
-from lib.flagtypes import PathSegFlags as PSF
 from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import PathCombinator, SCIONPath
-from lib.packet.path_mgmt import PathSegmentReq
+from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.pcb_ext import BeaconExtType
 from lib.packet.scion_addr import ISD_AS
 from lib.path_db import DBResult, PathSegmentDB
@@ -146,7 +146,8 @@ class SCIONDaemon(SCIONElement):
                 ret = map_[type_](pcb)
                 if not ret:
                     continue
-                added.add((ret, pcb.flags))
+                flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
+                added.add((ret, flags))
         logging.debug("Added: %s", added)
         for dst_ia, flags in added:
             self.requests.put(((dst_ia, flags), None))
@@ -233,12 +234,6 @@ class SCIONDaemon(SCIONElement):
         sock.send(b"".join(reply))
 
     def handle_revocation(self, pkt):
-        """
-        Handle revocation.
-
-        :param rev_info: The RevocationInfo object.
-        :type rev_info: :class:`lib.packet.path_mgmt.RevocationInfo`
-        """
         rev_info = pkt.get_payload()
         logging.debug("Received revocation:\n%s", str(rev_info))
         # Verify revocation.
@@ -275,9 +270,9 @@ class SCIONDaemon(SCIONElement):
 
         return db.delete_all(to_remove)
 
-    def get_paths(self, dst_ia, flags=0):
+    def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""
-        logging.debug("Paths requested for %s", dst_ia)
+        logging.debug("Paths requested for %s %s", dst_ia, flags)
         if self.addr.isd_as == dst_ia or (
                 self.addr.isd_as.any_as() == dst_ia and
                 self.topology.is_core_as):
@@ -294,10 +289,10 @@ class SCIONDaemon(SCIONElement):
             return []
         return self.path_resolution(dst_ia, flags=flags)
 
-    def path_resolution(self, dst_ia, flags=0):
+    def path_resolution(self, dst_ia, flags=()):
         # dst as == 0 means any core AS in the specified ISD.
         dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
-        sibra = bool(flags & PSF.SIBRA)
+        sibra = PATH_FLAG_SIBRA in flags
         if self.topology.is_core_as:
             if dst_is_core:
                 ret = self._resolve_core_core(dst_ia, sibra=sibra)
@@ -485,9 +480,11 @@ class SCIONDaemon(SCIONElement):
         `key`.
         """
         ans_ia, ans_flags = key
+        ans_f_set = set(ans_flags)
         ret = []
         for req_ia, req_flags in req_keys:
-            if req_flags != ans_flags and (not ans_flags & req_flags):
+            req_f_set = set(req_flags)
+            if req_f_set != ans_f_set and (not ans_f_set & req_f_set):
                 # The answer and the request have no flags in common, so skip
                 # it.
                 continue

@@ -42,7 +42,7 @@ from lib.packet.packet_base import (
     PayloadRaw,
 )
 from lib.packet.path import SCIONPath, parse_path
-from lib.packet.path_mgmt import parse_pathmgmt_payload
+from lib.packet.path_mgmt.parse import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr

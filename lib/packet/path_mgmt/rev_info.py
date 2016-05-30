@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`rev_info` --- Revocation info packets
+:mod:`rev_info` --- Revocation info payload
 ============================================
-
-Contains the packet format used for revocations.
 """
-# Stdlib
-import struct
+# External
+import capnp  # noqa
 
 # SCION
+import proto.rev_info_capnp as P
+from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.types import PathMgmtType as PMT
-from lib.packet.packet_base import PathMgmtPayloadBase
-from lib.util import Raw
 
 
 class RevocationInfo(PathMgmtPayloadBase):
@@ -32,15 +30,7 @@ class RevocationInfo(PathMgmtPayloadBase):
     """
     NAME = "RevocationInfo"
     PAYLOAD_TYPE = PMT.REVOCATION
-    LEN = 32
-
-    def __init__(self, raw=None):  # pragma: no cover
-        self.rev_token = b""
-        super().__init__(raw)
-
-    def _parse(self, raw):
-        data = Raw(raw, self.NAME, self.LEN)
-        self.rev_token = struct.unpack("!32s", data.pop(self.LEN))[0]
+    P_CLS = P.RevInfo
 
     @classmethod
     def from_values(cls, rev_token):
@@ -49,15 +39,4 @@ class RevocationInfo(PathMgmtPayloadBase):
 
         :param bytes rev_token: revocation token of interface
         """
-        inst = cls()
-        inst.rev_token = rev_token
-        return inst
-
-    def pack(self):
-        return struct.pack("!32s", self.rev_token)
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
-
-    def __str__(self):
-        return "%s(%sB): %s" % (self.NAME, len(self), self.rev_token)
+        return cls(cls.P_CLS.new_message(revToken=rev_token))

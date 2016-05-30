@@ -588,6 +588,12 @@ class PathSegment(SCIONPayloadBase):
     def __hash__(self):  # pragma: no cover
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
+    def flags_(self):
+        f = []
+        if self.is_sibra():
+            f.append(self.FLAG_SIBRA)
+        return tuple(f)
+
 
 def parse_pcb_payload(type_, data):
     type_map = {

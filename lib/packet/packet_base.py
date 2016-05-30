@@ -53,6 +53,54 @@ class Serializable(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError
 
 
+class Cerealizable(object, metaclass=ABCMeta):
+    # P = capnp.load("proto/foo.capnp")
+    # P_CLS = P.Foo
+    def __init__(self, p):
+        assert not isinstance(p, bytes)
+        self.p = p
+        self._packed = False
+
+    @classmethod
+    def from_raw(cls, raw):
+        return cls(cls.P_CLS.from_bytes_packed(raw).as_builder())
+
+    @abstractmethod
+    def from_values(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def pack(self, *args, **kwargs):
+        assert not self._packed, "May only be packed once"
+        self._packed = True
+        return self._pack(*args, **kwargs)
+
+    def _pack(self):
+        return self.p.to_bytes_packed()
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def copy(self):
+        return type(self)(self.p.copy())
+
+    def __copy__(self):
+        return type(self)(self.p.copy())
+
+    def __deepcopy__(self, memo):
+        # http://stackoverflow.com/a/15774013
+        cls = self.__class__
+        inst = cls.__new__(cls)
+        memo[id(self)] = inst
+        inst.p = self.p.copy()
+        return inst
+
+    def short_desc(self):
+        return str(self.p)
+
+    def __str__(self):
+        return "%s: %s" % (self.NAME, self.short_desc())
+
+
 class L4HeaderBase(Serializable, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for L4 headers.
@@ -85,7 +133,7 @@ class PacketBase(Serializable):  # pragma: no cover
         return self._payload
 
     def set_payload(self, new_payload):
-        assert isinstance(new_payload, PayloadBase)
+        assert isinstance(new_payload, (PayloadBase, SCIONPayloadBaseProto))
         self._payload = new_payload
 
 
@@ -152,34 +200,17 @@ class SCIONPayloadBase(PayloadBase):  # pragma: no cover
         return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
 
 
-class SCIONPayloadBaseProto(SCIONPayloadBase):  # pragma: no cover
-    def __init__(self, p):
-        self.p = p
-        self._packed = False
+class SCIONPayloadBaseProto(Cerealizable):  # pragma: no cover
+    """
+    Equivelant to SCIONPayloadBase, but using capnp serialization.
+    """
+    METADATA_LEN = 2
 
-    @classmethod
-    def from_raw(cls, raw):  # pragma: no cover
-        return cls(cls.P_CLS.from_bytes_packed(raw).as_builder())
+    def pack_full(self):
+        return self.pack_meta() + self.pack()
 
-    def _parse(self, raw):
-        raise NotImplementedError
-
-    def pack(self, *args, **kwargs):
-        assert not self._packed, "May only be packed once"
-        self._packed = True
-        return self._pack(*args, **kwargs)
-
-    def _pack(self):
-        return self.p.to_bytes_packed()
-
-    def __len__(self, raw):
-        raise NotImplementedError
-
-    def copy(self):
-        return type(self)(self.p.copy())
-
-    def __str__(self):
-        return "%s: %s" % (self.NAME, self.p)
+    def pack_meta(self):
+        return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
 
 
 class PathMgmtPayloadBase(SCIONPayloadBase):
