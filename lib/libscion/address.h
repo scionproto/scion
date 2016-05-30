@@ -57,6 +57,10 @@ typedef struct {
     uint8_t addr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
 } saddr_t;
 
+#define SADDR_ISD(saddr) ISD(ntohs(*(uint32_t *)(saddr.addr)))
+#define SADDR_AS(saddr) AS(ntohs(*(uint32_t *)(saddr.addr)))
+#define SADDR_HOST(saddr) (saddr.addr + ISD_AS_LEN)
+
 int get_addr_len(int type);
 uint32_t get_src_isd_as(uint8_t *buf);
 uint8_t * get_src_addr(uint8_t *buf);
