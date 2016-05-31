@@ -40,12 +40,15 @@ public:
     virtual bool readyToWrite();
     virtual int registerSelect(Notification *n, int mode);
     virtual void deregisterSelect(int index);
+    virtual int registerDispatcher(uint64_t flowID, uint16_t port, int sock);
 
     int setISDWhitelist(void *data, size_t len);
 
-    virtual int shutdown();
+    virtual int shutdown(bool force=false);
 
     uint32_t getLocalIA();
+
+    virtual void threadCleanup();
 
 protected:
     PathManager            *mPathManager;
@@ -100,9 +103,11 @@ public:
 
     void notifySender();
 
-    int shutdown();
+    int shutdown(bool force=false);
     void notifyFinAck();
-    void registerDispatcher(uint64_t flowID, uint16_t port, int sock);
+    int registerDispatcher(uint64_t flowID, uint16_t port, int sock);
+
+    void threadCleanup();
 
 protected:
     void getWindowSize();
@@ -113,7 +118,7 @@ protected:
     void handleInOrder(SSPPacket *sp, int pathIndex);
     void handleOutOfOrder(SSPPacket *sp, int pathIndex);
     void handleData(SSPPacket *packet, int pathIndex);
-    void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
+    void sendAck(SSPPacket *sip, int pathIndex);
 
     // path manager
     SSPConnectionManager *mConnectionManager;
@@ -161,7 +166,7 @@ public:
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
-    void registerDispatcher(uint16_t port, int sock, int reg);
+    int registerDispatcher(uint64_t flowID, uint16_t port, int sock);
 
     void getStats(SCIONStats *stats);
 

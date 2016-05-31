@@ -61,13 +61,17 @@ class TestBase(object, metaclass=ABCMeta):
         self.data = data
         self.finished = finished
         self.addr = addr
-        self.sock = ReliableSocket(reg=(addr, 0, True, None))
-        self.sock.settimeout(1.0)
+        self.sock = self._create_socket(addr)
         self.success = None
 
     @abstractmethod
     def run(self):
         raise NotImplementedError
+
+    def _create_socket(self, addr):
+        sock = ReliableSocket(reg=(addr, 0, True, None))
+        sock.settimeout(1.0)
+        return sock
 
     def _recv(self):
         try:
@@ -91,15 +95,16 @@ class TestClientBase(TestBase):
     Base client app
     """
     def __init__(self, sd, data, finished, addr, dst, dport, api=True,
-                 timeout=3.0):
+                 timeout=3.0, get_path=True):
         super().__init__(sd, data, finished, addr)
-        self.sock.settimeout(timeout)
         self.dst = dst
         self.dport = dport
         self.api = api
         self.path = None
         self.iflist = []
-        self._get_path(api)
+        self.sock.settimeout(timeout)
+        if get_path:
+            self._get_path(api)
 
     def _get_path(self, api):
         if api:
@@ -323,7 +328,7 @@ class TestClientServerBase(object):
         return TestClientBase(self._run_sciond(src), data, finished, src, dst,
                               port)
 
-    def _run_sciond(self, addr):
+    def _run_sciond(self, addr, sd_type=None):
         if addr.isd_as not in self.scionds:
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port

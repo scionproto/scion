@@ -33,6 +33,10 @@ public:
 
     int setISDWhitelist(void *data, size_t len);
 
+    virtual void threadCleanup();
+    virtual void didSend(SCIONPacket *packet);
+    int sendRawPacket(uint8_t *buf, int len, HostAddr *firstHop);
+
 protected:
     int checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidates);
     void prunePaths();
@@ -46,6 +50,7 @@ protected:
 
     std::vector<Path *>          mPaths;
     pthread_mutex_t              mPathMutex;
+    pthread_mutex_t              mDispatcherMutex;
     int                          mInvalid;
     PathPolicy                   mPolicy;
 };
@@ -86,6 +91,8 @@ public:
 
     Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
 
+    void threadCleanup();
+
     PathState *mState;
 
 protected:
@@ -93,7 +100,7 @@ protected:
     void handlePacketAcked(bool found, SCIONPacket *ack, SCIONPacket *sent);
     bool handleDupAck(SCIONPacket *packet);
     void addRetries(std::vector<SCIONPacket *> &retries);
-    int handleAckOnPath(SCIONPacket *packet, bool rttSample);
+    int handleAckOnPath(SCIONPacket *packet, bool rttSample, int pathIndex);
 
     int                          mReceiveWindow;
     int                          mInitSends;
@@ -101,6 +108,7 @@ protected:
     bool                         mRunning;
     bool                         mFinAcked;
     int                          mFinAttempts;
+    struct timeval               mFinSentTime;
     bool                         mInitAcked;
     bool                         mResendInit;
 

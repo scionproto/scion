@@ -12,7 +12,8 @@ Path::Path(PathManager *manager, PathParams *params)
     mUp(false),
     mUsed(false),
     mValid(true),
-    mProbeAttempts(0)
+    mProbeAttempts(0),
+    mManager(manager)
 {
     mSocket = manager->getSocket();
     if (params->pathLen == 0) {
@@ -308,7 +309,6 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh)
 
 SSPPath::SSPPath(SSPConnectionManager *manager, PathParams *params)
     : Path(manager, params),
-    mManager(manager),
     mTotalReceived(0),
     mTotalSent(0),
     mTotalAcked(0),
@@ -401,6 +401,7 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
 
 int SSPPath::sendPacket(SCIONPacket *packet, int sock)
 {
+    DEBUG("path %d: sendPacket\n", mIndex);
     pthread_mutex_lock(&mMutex);
     bool wasValid = mValid;
     int acked = mTotalAcked;
@@ -438,8 +439,7 @@ int SSPPath::sendPacket(SCIONPacket *packet, int sock)
     bufptr = packExtensions(&packet->header, bufptr);
     bufptr = copySSPPacket(sp, bufptr, probe);
 
-    send_dp_header(sock, &mFirstHop, packet_len);
-    send_all(sock, buf, packet_len);
+    mManager->sendRawPacket(buf, packet_len, &mFirstHop);
     free(buf);
 
     if (sendInterfaces) {
@@ -624,8 +624,7 @@ int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
     // Calculate checksum
     update_scion_udp_checksum(buf);
 
-    send_dp_header(sock, &mFirstHop, packet_len);
-    res = send_all(sock, buf, packet_len);
+    res = mManager->sendRawPacket(buf, packet_len, &mFirstHop);
     free(buf);
 
     return res;

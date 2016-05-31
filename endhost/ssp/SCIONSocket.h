@@ -38,7 +38,6 @@ public:
     bool isListener();
     bool isRunning();
     int getReliableSocket();
-    bool bypassDispatcher();
 
     // wait for dispatcher registration
     void waitForRegistration();
@@ -51,8 +50,10 @@ public:
 
     void * getStats(void *buf, int len);
 
-    int shutdown();
+    int shutdown(bool force=false);
     void removeChild(SCIONSocket *child);
+
+    void threadCleanup();
 
 private:
     bool checkChildren(SCIONPacket *packet, uint8_t *ptr);
