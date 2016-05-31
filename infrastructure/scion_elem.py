@@ -98,9 +98,7 @@ class SCIONElement(object):
     :ivar `Topology` topology: the topology of the AS as seen by the server.
     :ivar `Config` config:
         the configuration of the AS in which the server is located.
-    :ivar dict ifid2addr:
-        a dictionary mapping interface identifiers to the corresponding border
-        router addresses in the server's AS.
+    :ivar dict ifid2er: map of interface ID to RouterElement.
     :ivar `SCIONAddr` addr: the server's address.
     """
     SERVICE_TYPE = None
@@ -118,7 +116,7 @@ class SCIONElement(object):
         """
         self.id = server_id
         self.conf_dir = conf_dir
-        self.ifid2addr = {}
+        self.ifid2er = {}
         self._port = port
         self.topology = Topology.from_file(
             os.path.join(self.conf_dir, TOPO_FILE))
@@ -135,7 +133,7 @@ class SCIONElement(object):
         self._dns = DNSCachingClient(
             [str(s.addr) for s in self.topology.dns_servers],
             self.topology.dns_domain)
-        self.construct_ifid2addr_map()
+        self.init_ifid2er()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
@@ -162,14 +160,9 @@ class SCIONElement(object):
         self._port = self._local_sock.port
         self._socks.add(self._local_sock, self.handle_recv)
 
-    def construct_ifid2addr_map(self):
-        """
-        Construct the mapping between the local interface IDs and the address
-        of the neighbors connected to those interfaces.
-        """
-        assert self.topology is not None
-        for edge_router in self.topology.get_all_edge_routers():
-            self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
+    def init_ifid2er(self):
+        for er in self.topology.get_all_edge_routers():
+            self.ifid2er[er.interface.if_id] = er
 
     def init_core_ases(self):
         """
@@ -342,8 +335,8 @@ class SCIONElement(object):
             if len(spkt.path) == 0:
                 return self._empty_first_hop(spkt)
             if_id = spkt.path.get_fwd_if()
-        if if_id in self.ifid2addr:
-            return self.ifid2addr[if_id], SCION_UDP_EH_DATA_PORT
+        if if_id in self.ifid2er:
+            return self.ifid2er[if_id].addr, SCION_UDP_EH_DATA_PORT
         logging.error("Unable to find first hop")
         return None, None
 

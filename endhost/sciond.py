@@ -220,7 +220,10 @@ class SCIONDaemon(SCIONElement):
             fwd_if = path.get_fwd_if()
             # Set dummy host addr if path is empty.
             # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
-            haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPV4", "0.0.0.0"))
+            if fwd_if == 0:
+                haddr = haddr_parse("IPV4", "0.0.0.0")
+            else:
+                haddr = self.ifid2er[fwd_if].addr
             path_len = len(raw_path) // 8
             reply.append(struct.pack("!B", path_len) + raw_path +
                          haddr.pack() +

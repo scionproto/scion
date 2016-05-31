@@ -94,15 +94,6 @@ class Router(SCIONElement):
     """
     The SCION Router.
 
-    :ivar addr: the router address.
-    :type addr: :class:`SCIONAddr`
-    :ivar topology: the AS topology as seen by the router.
-    :type topology: :class:`Topology`
-    :ivar config: the configuration of the router.
-    :type config: :class:`Config`
-    :ivar dict ifid2addr:
-        a map from interface identifiers to the corresponding border router
-        addresses in the server's AS.
     :ivar interface: the router's inter-AS interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
@@ -571,7 +562,7 @@ class Router(SCIONElement):
             fwd_if = path.get_fwd_if()
             path_incd = False
         try:
-            if_addr = self.ifid2addr[fwd_if]
+            if_addr = self.ifid2er[fwd_if].addr
         except KeyError:
             # So that the error message will show the current state of the
             # packet.
@@ -653,7 +644,7 @@ class Router(SCIONElement):
             logging.error("Extension asked to forward this to interface 0:\n%s",
                           pkt)
             return
-        next_hop = self.ifid2addr[ifid]
+        next_hop = self.ifid2er[ifid].addr
         logging.debug("Packet forwarded by extension via %s", next_hop)
         self.send(pkt, next_hop)
 
