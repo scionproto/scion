@@ -127,7 +127,7 @@ class SibraServerBase(SCIONElement):
         # reservation blocks.
         worker_cycle = 1.0
         start = SCIONTime.get_time()
-        while True:
+        while self.run_flag.is_set():
             sleep_interval(start, worker_cycle, "SB.worker cycle")
             start = SCIONTime.get_time()
             with self.lock:
@@ -138,7 +138,7 @@ class SibraServerBase(SCIONElement):
         Handle sending packets on behalf of Link/SteadyPath objects through the
         local socket.
         """
-        while True:
+        while self.run_flag.is_set():
             spkt = self.sendq.get()
             dst, port = self._find_dest(spkt)
             if not dst:

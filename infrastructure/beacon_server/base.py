@@ -427,7 +427,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         worker_cycle = 1.0
         was_master = False
         start = SCIONTime.get_time()
-        while True:
+        while self.run_flag.is_set():
             sleep_interval(start, worker_cycle, "BS.worker cycle",
                            self._quiet_startup())
             start = SCIONTime.get_time()
@@ -765,7 +765,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-        while True:
+        while self.run_flag.is_set():
             start_time = SCIONTime.get_time()
             for (if_id, if_state) in self.ifid_state.items():
                 # Check if interface has timed-out.
