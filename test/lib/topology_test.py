@@ -69,7 +69,7 @@ class TestInterfaceElementInit(object):
         intf_dict = {
             'Addr': 'addr', 'IFID': 1, 'ISD_AS': '3-2',
             'LinkType': 'PARENT', 'ToUdpPort': 5, 'UdpPort': 6,
-            'ToAddr': 'toaddr', "Bandwidth": 1001,
+            'ToAddr': 'toaddr', "Bandwidth": 1001, 'MTU': 4242,
         }
         # Call
         inst = InterfaceElement(intf_dict, 'name')
@@ -81,6 +81,7 @@ class TestInterfaceElementInit(object):
         ntools.eq_(inst.to_udp_port, 5)
         ntools.eq_(inst.udp_port, 6)
         ntools.eq_(inst.bandwidth, 1001)
+        ntools.eq_(inst.mtu, 4242)
         parse.assert_called_once_with("toaddr")
         ntools.eq_(inst.to_addr, parse.return_value)
 
@@ -91,7 +92,7 @@ class TestTopologyParseDict(object):
     """
     @patch("lib.topology.ISD_AS", autospec=True)
     def test(self, isd_as):
-        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'DnsDomain': 3}
+        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'DnsDomain': 3, 'MTU': 440}
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()
@@ -102,6 +103,7 @@ class TestTopologyParseDict(object):
         ntools.eq_(inst.is_core_as, True)
         ntools.eq_(inst.isd_as, isd_as.return_value)
         ntools.eq_(inst.dns_domain, 3)
+        ntools.eq_(inst.mtu, 440)
         inst._parse_srv_dicts.assert_called_once_with(topo_dict)
         inst._parse_router_dicts.assert_called_once_with(topo_dict)
         inst._parse_zk_dicts.assert_called_once_with(topo_dict)

@@ -35,7 +35,6 @@ class BaseLibConfig(object):
         'propagation_time': 'PropagateTime',
         'registration_time': 'RegisterTime',
         'registers_paths': 'RegisterPath',
-        'mtu': 'MTU',
         'cert_ver': 'CertChainVersion',
     }
 
@@ -50,7 +49,6 @@ class TestConfigParseDict(BaseLibConfig):
         "PropagateTime": 5,
         "RegisterPath": 1,
         "RegisterTime": 5,
-        "MTU": 1500,
     }
 
     def test_basic(self):

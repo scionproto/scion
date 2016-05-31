@@ -167,7 +167,7 @@ class SCIONCommonHdr(Serializable):
         if pkt_len != self.total_len:
             raise SCMPBadPktLen(
                 "Packet length incorrect. Expected: %sB. Actual: %sB" %
-                (self.total_len, pkt_len))
+                (self.total_len, pkt_len), 0)
         if path_len == 0:
             # Empty path
             if self._iof_idx != 0:
