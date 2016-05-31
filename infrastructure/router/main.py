@@ -270,7 +270,7 @@ class Router(SCIONElement):
         """
         ifid_pld = IFIDPayload.from_values(self.interface.if_id)
         pkt = self._build_packet(SVCType.BS, dst_ia=self.interface.isd_as)
-        while True:
+        while self.run_flag.is_set():
             pkt.set_payload(ifid_pld.copy())
             self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
             time.sleep(IFID_PKT_TOUT)
@@ -281,7 +281,7 @@ class Router(SCIONElement):
         """
         pld = IFStateRequest.from_values()
         req = self._build_packet()
-        while True:
+        while self.run_flag.is_set():
             start_time = SCIONTime.get_time()
             logging.info("Sending IFStateRequest for all interfaces.")
             for bs in self.topology.beacon_servers:
@@ -292,7 +292,7 @@ class Router(SCIONElement):
                            "request_ifstates")
 
     def sibra_worker(self):
-        while True:
+        while self.run_flag.is_set():
             start_time = SCIONTime.get_time()
             self.sibra_state.update_tick()
             sleep_interval(start_time, 1.0, "sibra_worker")

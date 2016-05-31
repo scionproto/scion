@@ -141,8 +141,9 @@ class SCIONElement(object):
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
         self.init_core_ases()
         self.run_flag = threading.Event()
+        self.run_flag.set()
         self.stopped_flag = threading.Event()
-        self.stopped_flag.set()
+        self.stopped_flag.clear()
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
         self._setup_socket(True)
@@ -398,8 +399,6 @@ class SCIONElement(object):
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
-        self.stopped_flag.clear()
-        self.run_flag.set()
         threading.Thread(
             target=thread_safety_net, args=(self.packet_recv,),
             name="Elem.packet_recv", daemon=True).start()
@@ -458,6 +457,7 @@ class SCIONElement(object):
                 self._setup_socket(False)
             for sock, callback in self._socks.select_(timeout=1.0):
                 callback(sock)
+        self._socks.close()
         self.stopped_flag.set()
 
     def _packet_process(self):
@@ -471,9 +471,7 @@ class SCIONElement(object):
                 continue
 
     def stop(self):
-        """
-        Shut down the daemon thread
-        """
+        """Shut down the daemon thread."""
         # Signal that the thread should stop
         self.run_flag.clear()
         # Wait for the thread to finish

@@ -95,7 +95,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         worker_cycle = 1.0
         start = SCIONTime.get_time()
-        while True:
+        while self.run_flag.is_set():
             sleep_interval(start, worker_cycle, "cPS.worker cycle",
                            self._quiet_startup())
             start = SCIONTime.get_time()
