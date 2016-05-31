@@ -130,7 +130,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.revs_to_downstream = ExpiringDict(max_len=1000, max_age_seconds=60)
 
         self.ifid_state = {}
-        for ifid in self.ifid2addr:
+        for ifid in self.ifid2er:
             self.ifid_state[ifid] = InterfaceState()
 
         self.CTRL_PLD_CLASS_MAP = {
