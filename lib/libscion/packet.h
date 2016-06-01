@@ -49,8 +49,8 @@ typedef struct {
 typedef struct {
     uint8_t type;
     uint16_t len;
-    uint8_t *packet;
-} l4_pkt;
+    uint8_t *payload;
+} l4_pld;
 
 typedef struct {
     sch_t *sch;
@@ -58,10 +58,10 @@ typedef struct {
     saddr_t *dst;
     spath_t *path;
     exts_t *exts;
-    l4_pkt *l4;
+    l4_pld *l4;
 } spkt_t;
 
-spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pkt *l4);
+spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pld *l4);
 
 spkt_t * parse_spkt(uint8_t *buf);
 void parse_spkt_cmn_hdr(uint8_t *buf, spkt_t *spkt);

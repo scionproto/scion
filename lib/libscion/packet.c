@@ -9,7 +9,7 @@
 
 uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
 
-spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pkt *l4)
+spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pld *l4)
 {
     spkt_t *spkt = (spkt_t *)malloc(sizeof(spkt_t));
     spkt->sch = (sch_t *)malloc(sizeof(sch_t));
@@ -80,6 +80,7 @@ void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
     uint8_t *ptr = buf + spkt->sch->header_len;
     while (!is_known_proto(curr)) {
         // first pass to get ext count
+        curr = *ptr;
         uint8_t len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
         ptr += len;
         exts->count++;
@@ -88,19 +89,18 @@ void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
     exts->extensions = (seh_t *)malloc(size);
     memset(exts->extensions, 0, size);
 
-    int i = 0;
     curr = spkt->sch->next_header;
     ptr = buf + spkt->sch->header_len;
+    seh_t *seh = exts->extensions;
     while (!is_known_proto(curr)) {
         // second pass to populate array
-        seh_t *seh = exts->extensions + i;
         seh->len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
         seh->ext_class = curr;
         seh->ext_type = *(ptr + 2);
         seh->payload = ptr + 3;
         curr = *ptr;
         ptr += seh->len;
-        i++;
+        seh++;
     }
     spkt->exts = exts;
 }
@@ -109,10 +109,10 @@ void parse_spkt_l4(uint8_t *buf, spkt_t *spkt)
 {
     uint8_t *l4ptr = buf;
     uint8_t l4proto = get_l4_proto(&l4ptr);
-    l4_pkt *l4 = (l4_pkt *)malloc(sizeof(l4_pkt));
+    l4_pld *l4 = (l4_pld *)malloc(sizeof(l4_pld));
     l4->type = l4proto;
     l4->len = ntohs(spkt->sch->total_len) - (l4ptr - buf);
-    l4->packet = l4ptr;
+    l4->payload = l4ptr;
     spkt->l4 = l4;
 }
 
@@ -182,17 +182,18 @@ uint8_t * pack_spkt_extensions(spkt_t *spkt, uint8_t *ptr)
 
 uint8_t * pack_spkt_l4(spkt_t *spkt, uint8_t *ptr)
 {
-    memcpy(ptr, spkt->l4->packet, spkt->l4->len);
+    memcpy(ptr, spkt->l4->payload, spkt->l4->len);
     return ptr + spkt->l4->len;
 }
 
 void destroy_spkt(spkt_t *spkt, int from_raw)
 {
     /*
-     * If from_raw is true, original raw packet data is assumed to exist,
-     * therefore sch, raw path, extension payload, l4 data are not free'd here.
-     * Otherwise those elements are also assumed to have been malloc'ed
-     * somewhere and consequently free'd here.
+     * If from_raw is true, original raw packet data is assumed to exist and
+     * sch, raw path, extension payload, and l4 data point into the original
+     * buffer, therefore they are not free()'d here.
+     * Otherwise those elements are also assumed to have been malloc()'ed
+     * somewhere and consequently free()'d here.
      */
     if (!from_raw && spkt->sch)
         free(spkt->sch);
@@ -216,7 +217,7 @@ void destroy_spkt(spkt_t *spkt, int from_raw)
     }
     if (spkt->l4) {
         if (!from_raw)
-            free(spkt->l4->packet);
+            free(spkt->l4->payload);
         free(spkt->l4);
     }
     free(spkt);
