@@ -19,6 +19,8 @@ spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_
     else
         next_header = l4->type;
     pack_cmn_hdr((uint8_t *)spkt->sch, src->type, dst->type, next_header);
+    spkt->sch->header_len += path->len;
+    spkt->sch->total_len = htons(spkt->sch->header_len + l4->len);
     spkt->src = src;
     spkt->dst = dst;
     spkt->path = path;
