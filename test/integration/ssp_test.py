@@ -22,12 +22,10 @@ import random
 
 # SCION
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
-from endhost.sciond import SCIOND_API_SOCKDIR
 from lib.main import main_wrapper
 from lib.types import L4Proto, TestSDType
 from test.integration.base_cli_srv import (
     setup_main,
-    start_sciond,
     TestClientBase,
     TestClientServerBase,
     TestServerBase,
@@ -45,6 +43,7 @@ class SSPClient(TestClientBase):
                  timeout=3.0, get_path=True):
         super().__init__(sd, data, finished, addr, dst, dport, api, timeout,
                          get_path)
+        self.sock.bind(0, self.addr)
         self.sock.connect(self.dst, self.dport)
 
     def _create_socket(self, addr):
@@ -53,6 +52,9 @@ class SSPClient(TestClientBase):
 
     def _recv(self):
         return self.sock.recv_all(DATA_LEN)
+
+    def _send(self):
+        self._send_pkt(self._build_pkt())
 
     def _send_pkt(self, spkt, next_=None):
         self.sock.send(spkt)
@@ -94,7 +96,7 @@ class SSPServer(TestServerBase):
     """
     def _create_socket(self, addr):
         sock = ScionServerSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
-        sock.bind(random.randint(1025, 65535))
+        sock.bind(random.randint(1025, 65535), self.addr)
         sock.listen()
         return sock
 
@@ -151,23 +153,6 @@ class TestSSP(TestClientServerBase):
     def _create_client(self, data, finished, src, dst, port):
         return SSPClient(self._run_sciond(src, TestSDType.CLIENT), data,
                          finished, src, dst, port, get_path=False)
-
-    def _run_sciond(self, addr, sd_type=None):
-        ia = addr.isd_as
-        if ia in self.scionds:
-            sd, type_ = self.scionds[ia]
-            if type_ == sd_type:
-                return sd
-            sd.stop()
-        sd = start_sciond(
-            addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
-            (self.NAME, ia))
-        self.scionds[ia] = sd, sd_type
-        return sd
-
-    def _stop_scionds(self):
-        for sd, _ in self.scionds.values():
-            sd.stop()
 
 
 def main():

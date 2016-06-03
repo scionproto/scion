@@ -337,8 +337,7 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
     Handler class for the SCION forwarding (bridge) proxy.
     """
     server_version = "SCION HTTP Bridge Proxy/" + VERSION
-    unix_target_proxy = '127.0.0.1', 9090
-    target_proxy = '127.%s.%s.254', 9090
+    target_proxy = '127.0.0.1', 9090
 
     def __init__(self, connection, address, conn_id,
                  scion_mode, kbase, source_isd_as, target_isd_as):
@@ -353,7 +352,7 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         self.scion_mode = scion_mode
         self.socket_kbase = kbase
         isd_as = ISD_AS(target_isd_as)
-        host = HostAddrIPv4(self.target_proxy[0] % (isd_as[0], isd_as[1]))
+        host = HostAddrIPv4(self.target_proxy[0])
         self.scion_target_proxy = SCIONAddr.from_values(isd_as, host)
         self.scion_target_port = self.target_proxy[1]
         self.isd_as = source_isd_as
@@ -422,16 +421,16 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
 
     def _unix_client_socket(self):
         soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        logging.debug("Connecting to %s:%s" % self.unix_target_proxy)
+        logging.debug("Connecting to %s:%s" % self.target_proxy)
         try:
-            soc.connect(self.unix_target_proxy)
+            soc.connect(self.target_proxy)
         except OSError:
             log_exception("Error while connecting to %s:%s" %
-                          self.unix_target_proxy)
+                          self.target_proxy)
             cleanup(soc)
             return None
         logging.debug("Connected to target proxy %s:%s" %
-                      self.unix_target_proxy)
+                      self.target_proxy)
         return soc
 
 
@@ -471,7 +470,9 @@ def scion_server_socket(server_address, isd_as):
     logging.info("Starting SCION test server application.")
     sockdir = "/run/shm/sciond/%s.sock" % isd_as
     soc = ScionServerSocket(L4Proto.SSP, bytes(sockdir, 'ascii'))
-    soc.bind(server_address[1])
+    host = HostAddrIPv4(server_address[0])
+    saddr = SCIONAddr.from_values(ISD_AS(isd_as), host)
+    soc.bind(server_address[1], saddr)
     soc.listen()
     return soc
 

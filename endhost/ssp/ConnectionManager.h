@@ -17,6 +17,7 @@ public:
     PathManager(int sock, const char *sciond);
     virtual ~PathManager();
 
+    void getDefaultIP();
     int getSocket();
     int getPathCount();
     int maxPayloadSize();

@@ -66,6 +66,8 @@ private:
     int                        mLastAccept;
     bool                       mIsListener;
     char                       mSCIONDAddr[32];
+    SCIONAddr                  mLocalAddr;
+    bool                       mBound;
 
     SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;

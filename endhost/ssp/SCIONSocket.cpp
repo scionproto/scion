@@ -73,12 +73,14 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     mState(SCION_RUNNING),
     mLastAccept(-1),
     mIsListener(false),
+    mBound(false),
     mParent(NULL),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
     signal(SIGINT, signalHandler);
 
     strcpy(mSCIONDAddr, sciond);
+    memset(&mLocalAddr, 0, sizeof(mLocalAddr));
 
     // init pthread variables
     pthread_mutex_init(&mAcceptMutex, NULL);
@@ -139,13 +141,21 @@ SCIONSocket * SCIONSocket::accept()
     return s;
 }
 
-/*
- * Used to send/receive on subset of host's SCION addresses
- * Since we don't support multiple addresses yet, does pretty much nothing ATM
- * Still needs to be called before listen() and accept()
- */
 int SCIONSocket::bind(SCIONAddr addr)
 {
+    if (mBound) {
+        DEBUG("already bound\n");
+        return -EPERM;
+    }
+
+    if (addr.host.addr_len < 0 || addr.host.addr_len > MAX_HOST_ADDR_LEN) {
+        DEBUG("invalid addr len: %d\n", addr.host.addr_len);
+        return -EINVAL;
+    }
+
+    mBound = true;
+    mLocalAddr = addr;
+
     if (addr.isd_as == 0 && addr.host.port == 0) {
         struct sockaddr_in sa;
         socklen_t len = sizeof(sa);
@@ -330,6 +340,9 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
             // accept: create new socket to handle connection
             DEBUG("create new socket to handle incoming flow\n");
             SCIONSocket *s = new SCIONSocket(mProtocolID, mSCIONDAddr);
+            SCIONAddr addr = mLocalAddr;
+            addr.host.port = 0;
+            s->bind(addr);
             s->mParent = this;
             s->mProtocol->start(packet, buf + sch.header_len, s->mReliableSocket);
             s->mRegistered = true;

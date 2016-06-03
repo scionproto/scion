@@ -1,6 +1,8 @@
 #include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <net/if.h>
 #include <unistd.h>
 #include <sys/un.h>
 
@@ -27,12 +29,39 @@ PathManager::PathManager(int sock, const char *sciond)
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     pthread_mutex_init(&mPathMutex, NULL);
     pthread_mutex_init(&mDispatcherMutex, NULL);
+
+    // get default IP from OS - can be overwritten by bind()
+    getDefaultIP();
 }
 
 PathManager::~PathManager()
 {
     close(mDaemonSocket);
     pthread_mutex_destroy(&mPathMutex);
+}
+
+void PathManager::getDefaultIP()
+{
+    struct ifaddrs *ifaddr, *ifa;
+
+    if (getifaddrs(&ifaddr) < 0) {
+        fprintf(stderr, "failed to get OS IP addr: %s\n", strerror(errno));
+        exit(1);
+    }
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+        if (ifa->ifa_flags & IFF_LOOPBACK)
+            continue;
+        // TODO(aznair): IPv6
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            struct sockaddr_in *sa = (struct sockaddr_in *)(ifa->ifa_addr);
+            mLocalAddr.host.addr_len = 4;
+            memcpy(mLocalAddr.host.addr, &sa->sin_addr, 4);
+            break;
+        }
+    }
+    freeifaddrs(ifaddr);
 }
 
 int PathManager::getSocket()
@@ -82,27 +111,21 @@ void PathManager::queryLocalAddress()
     }
     recv_all(mDaemonSocket, buf, len);
     mLocalAddr.isd_as = ntohl(*(uint32_t *)buf);
-    // TODO: IPv6?
-    mLocalAddr.host.addr_len = ADDR_IPV4_LEN;
-    memcpy(mLocalAddr.host.addr, buf + ISD_AS_LEN, ADDR_IPV4_LEN);
 }
 
 int PathManager::setLocalAddress(SCIONAddr addr)
 {
-    if (addr.isd_as == 0) {/* bind to any address */
-        if (mLocalAddr.isd_as == 0)
-            queryLocalAddress();
+    if (mLocalAddr.isd_as == 0)
+        queryLocalAddress();
+
+    if (addr.isd_as == 0) /* bind to any address */
         return 0;
-    }
 
-    if (mLocalAddr.isd_as != addr.isd_as ||
-            mLocalAddr.host.addr_len != addr.host.addr_len)
-        return -1;
-
-    for (int i = 0; i < MAX_HOST_ADDR_LEN; i++) {
-        if (mLocalAddr.host.addr[i] != addr.host.addr[i])
-            return -1;
-    }
+    DEBUG("%p: bind to (%d, %d):%s\n",
+            this, ISD(addr.isd_as), AS(addr.isd_as),
+            inet_ntoa(*(struct in_addr *)addr.host.addr));
+    mLocalAddr.host.addr_len = addr.host.addr_len;
+    memcpy(mLocalAddr.host.addr, addr.host.addr, addr.host.addr_len);
 
     return 0;
 }
