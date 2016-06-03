@@ -597,6 +597,9 @@ void handle_data()
         case L4_UDP:
             deliver_udp(buf, len, &from, &dst);
             break;
+        case L4_TCP:
+            deliver_tcp(buf, len, &src_si);
+            break;
     }
 }
 
@@ -678,6 +681,17 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst)
     }
     send_dp_header(sock, from, len);
     send_all(sock, buf, len);
+}
+
+void deliver_tcp(uint8_t *buf, int len, struct sockaddr_in *from)
+{
+    /* Allocate buffer for LWIP's processing. */
+    int sin_size = sizeof(struct sockaddr_in);
+    struct pbuf *p = pbuf_alloc(PBUF_RAW, len + sin_size, PBUF_RAM);
+    memcpy(p->payload, from, sin_size);
+    memcpy(p->payload + sin_size, buf, len);
+    /* Put [from (sockaddr_in) || raw_spkt] to the TCP queue. */
+    tcpip_input(p, (struct netif *)NULL);
 }
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
