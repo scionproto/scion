@@ -291,11 +291,19 @@ class TestClientServerBase(object):
         server = self._create_server(data, finished, dst)
         client = self._create_client(data, finished, src, dst, server.sock.port)
         server_name = "Server %s" % dst.isd_as
+        client_name = "Client %s" % src.isd_as
         s_thread = threading.Thread(
             target=thread_safety_net, args=(server.run,), name=server_name,
             daemon=True)
         s_thread.start()
-        client.run()
+        c_thread = threading.Thread(
+            target=thread_safety_net, args=(client.run,), name=client_name,
+            daemon=True)
+        c_thread.start()
+        c_thread.join(60.0)
+        if c_thread.is_alive():
+            logging.error("Timeout waiting for client thread to terminate")
+            return False
         # If client is finished, server should finish within ~1s (due to recv
         # timeout). If it hasn't, then there was a problem.
         s_thread.join(5.0)
