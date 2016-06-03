@@ -5,6 +5,7 @@ export PYTHONPATH=.
 # BEGIN subcommand functions
 
 cmd_topology() {
+    local zkclean
     if type -p supervisorctl &>/dev/null; then
         echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     fi
@@ -12,11 +13,15 @@ cmd_topology() {
     [ -e gen ] && rm -r gen
     if [ "$1" = "zkclean" ]; then
         shift
-        echo "Deleting all Zookeeper state"
-        tools/zkcleanslate
+        zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
     topology/generator.py "$@"
+    if [ -n "$zkclean" ]; then
+        echo "Deleting all Zookeeper state"
+        rm -rf /run/shm/scion-zk
+        tools/zkcleanslate --zk 127.0.0.1:2181
+    fi
 }
 
 cmd_run() {
