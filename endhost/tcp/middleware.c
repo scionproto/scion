@@ -261,7 +261,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
             continue;
         }
         // read new part from app
-        len=read(args->fd, buf, BUFLEN);
+        len=read(args->fd, buf, TCPMW_BUFLEN);
         if (len < 1){
             perror("tcpmw_send() error at local sock read()\n");
             goto fail;
@@ -318,7 +318,7 @@ void tcpmw_close(struct conn_args *args){
 void *tcpmw_sock_thread(void *data){
     struct conn_args *args = data;
     int rc;
-    char buf[BUFLEN];
+    char buf[TCPMW_BUFLEN];
     fprintf(stderr, "started, waiting for requests\n");
     while ((rc=read(args->fd, buf, sizeof(buf))) > 0) {
         printf("read %u bytes from %d: %.*s\n", rc, args->fd, rc, buf);

@@ -35,7 +35,7 @@
 #define SOCK_PATH_LEN 36  // of "accept" socket
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 2)
-#define BUFLEN 1024
+#define TCPMW_BUFLEN 1024
 
 struct conn_args{
     int fd;
