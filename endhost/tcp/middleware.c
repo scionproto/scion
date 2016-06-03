@@ -248,10 +248,10 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
         }
         if (netconn_write_partly(args->conn, p, len, NETCONN_COPY, &written) != ERR_OK){
             perror("tcpmw_send() error at netconn_write()\n");
-            printf("NETCONN PARTLY BROKEN: %d, %d, %d\n", len, written, size);
+            printf("NETCONN PARTLY BROKEN: %d, %lu, %d\n", len, written, size);
             goto fail;
         }
-        printf("NETCONN PARTLY OK: %d, %d, %d\n", len, written, size);
+        printf("NETCONN PARTLY OK: %d, %lu, %d\n", len, written, size);
         size -= written;
         len -= written;
         if (!size) // done
@@ -352,10 +352,10 @@ void *tcpmw_sock_thread(void *data){
         tcpmw_close(args);
     }
     printf("Leaving tcpmw_sock_thread\n");
-    return;
+    return 0;
 }
 
-void *tcpmw_main_thread() {
+void *tcpmw_main_thread(void) {
     struct sockaddr_un addr;
     int fd, cl;
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
@@ -387,6 +387,6 @@ void *tcpmw_main_thread() {
         // socket() called by app. Create a netconn and a coresponding thread.
         tcpmw_socket(cl);
     }
-    return;
+    return 0;
 }
 

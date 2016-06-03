@@ -18,14 +18,17 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <pthread.h>
 #include "lwip/sys.h"
 #include "lwip/api.h"
-#include "libscion/address.h"
 #include "lwip/ip_addr.h"
+#include "libscion/address.h"
 
 #define LWIP_SOCK_DIR "/run/shm/lwip/"
 #define RPCD_SOCKET "/run/shm/lwip/lwip"
@@ -39,7 +42,7 @@ struct conn_args{
     struct netconn *conn;
 };
 
-void *tcpmw_main_thread(void *);
+void *tcpmw_main_thread(void);
 void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
 void tcpmw_bind(struct conn_args *, char *, int);

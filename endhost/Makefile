@@ -2,10 +2,14 @@ CC=gcc
 CFLAGS +=-Wall -g
 LIBDIR=../lib/libscion
 ZLOGDIR=$(HOME)/.local/lib/zlog/src
-INC += -I./ssp -I../lib/libscion -I$(ZLOGDIR)
-LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -L$(ZLOGDIR) -lzlog -Wl,-Bdynamic -lpthread
+LWIPDIR=../../scion-lwip/src/include
+LWIPPORTDIR=../../scion-lwip-contrib/ports/unix/
+INC += -I./ssp -I../lib/libscion -I$(ZLOGDIR) -I$(LWIPDIR) -I$(LWIPDIR)/scion \
+	   -I$(LWIPPORTDIR)/include -I$(LWIPPORTDIR)/proj/scion -I../lib
+LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -L$(ZLOGDIR) -lzlog -Wl,-Bdynamic -lpthread \
+		   -L$(LWIPPORTDIR)/proj/scion -llwip
 LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
-SRCS=dispatcher.c
+SRCS=dispatcher.c tcp/middleware.c
 
 HDRS=$(wildcard *.h)
 
