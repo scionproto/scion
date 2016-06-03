@@ -14,11 +14,17 @@ spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_
     spkt_t *spkt = (spkt_t *)malloc(sizeof(spkt_t));
     spkt->sch = (sch_t *)malloc(sizeof(sch_t));
     uint8_t next_header;
-    if (exts && exts->count > 0)
+    uint16_t exts_len = 0;
+    if (exts && exts->count > 0) {
         next_header = exts->extensions[0].ext_class;
+        uint8_t i;
+        for (i = 0; i < exts->count; i++)
+            exts_len += exts->extensions[i].len;
+    }
     else
         next_header = l4->type;
-    pack_cmn_hdr((uint8_t *)spkt->sch, src->type, dst->type, next_header);
+    pack_cmn_hdr((uint8_t *)spkt->sch, src->type, dst->type, next_header,
+                 path->len, exts_len, l4->len);
     spkt->src = src;
     spkt->dst = dst;
     spkt->path = path;
@@ -230,7 +236,8 @@ void destroy_spkt(spkt_t *spkt, int from_raw)
  * dst_type: Address type of dst host addr
  * next_hdr: L4 protocol number or extension type
  */
-void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
+void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
+                  int path_len, int exts_len, int l4_len)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint16_t vsd = 0;
@@ -240,8 +247,8 @@ void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
     sch->next_header = next_hdr;
 
     int addr_len = padded_addr_len(buf);
-    sch->header_len = sizeof(SCIONCommonHeader) + addr_len;
-    sch->total_len = htons(sch->header_len);
+    sch->header_len = sizeof(SCIONCommonHeader) + addr_len + path_len;
+    sch->total_len = htons(sch->header_len + exts_len + l4_len);
     /* Set of pointers to start of path (which has not been set yet) */
     sch->current_iof = sch->header_len;
     sch->current_hof = sch->current_iof;

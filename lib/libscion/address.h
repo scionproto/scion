@@ -53,8 +53,8 @@ typedef struct {
 #define SVC_SIBRA 3
 
 typedef struct {
-    uint8_t type;
     uint8_t addr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
+    uint8_t type;
 } saddr_t;
 
 #define SADDR_ISD(saddr) ISD(ntohs(*(uint32_t *)(saddr.addr)))

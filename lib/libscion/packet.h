@@ -79,7 +79,8 @@ uint8_t * pack_spkt_l4(spkt_t *spkt, uint8_t *ptr);
 
 void destroy_spkt(spkt_t *spkt, int from_raw);
 
-void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr);
+void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
+                  int path_len, int exts_len, int l4_len);
 void pack_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst);
 int padded_addr_len(uint8_t *buf);
 void set_path(uint8_t *buf, uint8_t *path, int len);
