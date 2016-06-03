@@ -28,6 +28,10 @@ PathManager::PathManager(int sock, const char *sciond)
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     pthread_mutex_init(&mPathMutex, NULL);
+    pthread_condattr_t ca;
+    pthread_condattr_init(&ca);
+    pthread_condattr_setclock(&ca, CLOCK_REALTIME);
+    pthread_cond_init(&mPathCond, &ca);
     pthread_mutex_init(&mDispatcherMutex, NULL);
 
     // get default IP from OS - can be overwritten by bind()
@@ -38,6 +42,7 @@ PathManager::~PathManager()
 {
     close(mDaemonSocket);
     pthread_mutex_destroy(&mPathMutex);
+    pthread_cond_destroy(&mPathCond);
 }
 
 void PathManager::getDefaultIP()
@@ -226,6 +231,7 @@ void PathManager::getPaths()
     insertPaths(candidates);
     DEBUG("total %lu paths\n", mPaths.size() - mInvalid);
 
+    pthread_cond_broadcast(&mPathCond);
     pthread_mutex_unlock(&mPathMutex);
 }
 
@@ -365,12 +371,11 @@ SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond)
 
 SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProtocol *protocol)
     : PathManager(sock, sciond),
-    mInitSends(0),
     mRunning(true),
     mFinAcked(false),
     mFinAttempts(0),
     mInitAcked(false),
-    mResendInit(false),
+    mResendInit(true),
     mTotalSize(0),
     mProtocol(protocol)
 {
@@ -386,7 +391,6 @@ SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProt
     pthread_condattr_init(&ca);
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mPacketCond, &ca);
-    pthread_cond_init(&mPathCond, &ca);
     memset(&mFinSentTime, 0, sizeof(mFinSentTime));
 
     pthread_create(&mWorker, NULL, &SSPConnectionManager::workerHelper, this);
@@ -421,7 +425,6 @@ SSPConnectionManager::~SSPConnectionManager()
     pthread_mutex_destroy(&mRetryMutex);
     pthread_mutex_destroy(&mPacketMutex);
     pthread_cond_destroy(&mPacketCond);
-    pthread_cond_destroy(&mPathCond);
 }
 
 void SSPConnectionManager::setRemoteWindow(uint32_t window)
@@ -778,6 +781,7 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample, i
 
 void SSPConnectionManager::handleProbeAck(SCIONPacket *packet)
 {
+    DEBUG("%p: handleProbeAck\n", this);
     pthread_mutex_lock(&mPathMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] &&
@@ -964,7 +968,7 @@ void SSPConnectionManager::schedule()
         pthread_mutex_lock(&mPathMutex);
         while (!(p = pathToSend(&dup))) {
             DEBUG("%p: no path ready yet, wait\n", this);
-            if (mResendInit) {
+            if (!mPaths.empty() && mResendInit) {
                 DEBUG("%p: need to resend init\n", this);
                 break;
             }
@@ -983,9 +987,9 @@ void SSPConnectionManager::schedule()
         }
         SSPPacket *sp = (SSPPacket *)(packet->payload);
         uint64_t offset = be64toh(sp->header.offset);
-        if (offset == 0 && sp->retryAttempts > 0) {
+        DEBUG("%p: try to send packet %lu\n", this, offset);
+        if (offset == 0) {
             DEBUG("%p: resend packet 0 on all paths\n", this);
-            mInitSends = 0;
             mResendInit = false;
             sendAllPaths(packet);
         } else if (sp->header.flags & SSP_FIN) {

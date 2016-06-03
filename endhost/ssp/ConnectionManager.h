@@ -51,6 +51,7 @@ protected:
 
     std::vector<Path *>          mPaths;
     pthread_mutex_t              mPathMutex;
+    pthread_cond_t               mPathCond;
     pthread_mutex_t              mDispatcherMutex;
     int                          mInvalid;
     PathPolicy                   mPolicy;
@@ -104,7 +105,6 @@ protected:
     int handleAckOnPath(SCIONPacket *packet, bool rttSample, int pathIndex);
 
     int                          mReceiveWindow;
-    int                          mInitSends;
 
     bool                         mRunning;
     bool                         mFinAcked;
@@ -127,7 +127,6 @@ protected:
     pthread_mutex_t              mRetryMutex;
     pthread_mutex_t              mPacketMutex;
     pthread_cond_t               mPacketCond;
-    pthread_cond_t               mPathCond;
 
     pthread_t                    mWorker;
 
