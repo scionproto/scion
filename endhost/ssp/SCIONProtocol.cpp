@@ -460,7 +460,7 @@ void SSPProtocol::handleProbe(SCIONPacket *packet)
     SCIONPacket p;
     memset(&p, 0, sizeof(p));
     pack_cmn_hdr((uint8_t *)&p.header.commonHeader,
-            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP);
+            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
     addProbeExtension(&p.header, probeNum, 1);
     p.pathIndex = packet->pathIndex;
     SSPPacket sp;
@@ -662,7 +662,7 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex, bool full)
     SCIONPacket packet;
     memset(&packet, 0, sizeof(SCIONPacket));
     pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
-            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP);
+            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
     packet.pathIndex = pathIndex;
 
     SSPPacket sp;
@@ -701,7 +701,7 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     SCIONPacket *packet = (SCIONPacket *)malloc(sizeof(SCIONPacket));
     memset(packet, 0, sizeof(SCIONPacket));
     pack_cmn_hdr((uint8_t *)&packet->header.commonHeader,
-            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP);
+            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
 
     SSPPacket *sp = new SSPPacket();
     packet->payload = sp;
@@ -873,7 +873,8 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
     DEBUG("send %lu byte packet\n", len);
     SCIONPacket packet;
     memset(&packet, 0, sizeof(packet));
-    pack_cmn_hdr((uint8_t *)&packet.header.commonHeader, ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_UDP);
+    pack_cmn_hdr((uint8_t *)&packet.header.commonHeader, ADDR_IPV4_TYPE,
+            ADDR_IPV4_TYPE, L4_UDP, 0, 0, 0);
     SUDPPacket sp;
     memset(&sp, 0, sizeof(sp));
     packet.payload = &sp;

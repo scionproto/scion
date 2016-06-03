@@ -446,7 +446,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
         SCIONPacket packet;
         memset(&packet, 0, sizeof(packet));
         pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
-                ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP);
+                ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
         addProbeExtension(&packet.header, probeNum, 0);
         SSPPacket sp;
         packet.payload = &sp;
@@ -1076,7 +1076,8 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
         DEBUG("send probe on path %lu\n", i);
         SCIONPacket p;
         memset(&p, 0, sizeof(p));
-        pack_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_UDP);
+        pack_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE,
+                ADDR_IPV4_TYPE, L4_UDP, 0, 0, 0);
         addProbeExtension(&p.header, probeNum, 0);
         SUDPPacket sp;
         memset(&sp, 0, sizeof(sp));
@@ -1112,7 +1113,8 @@ void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int
     } else {
         SCIONPacket p;
         memset(&p, 0, sizeof(p));
-        pack_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_UDP);
+        pack_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE,
+                ADDR_IPV4_TYPE, L4_UDP, 0, 0, 0);
         addProbeExtension(&p.header, probeNum, 1);
         SUDPPacket ack;
         p.payload = &ack;
