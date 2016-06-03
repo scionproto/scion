@@ -145,11 +145,3 @@ class RouterFlag(TypeBase):
 class SIBRAPathType(TypeBase):
     STEADY = 0
     EPHEMERAL = 1
-
-
-############################
-# Integration test types
-############################
-class TestSDType(TypeBase):
-    CLIENT = 0
-    SERVER = 1

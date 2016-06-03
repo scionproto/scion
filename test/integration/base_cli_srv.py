@@ -97,12 +97,12 @@ class TestClientBase(TestBase):
     def __init__(self, sd, data, finished, addr, dst, dport, api=True,
                  timeout=3.0, get_path=True):
         super().__init__(sd, data, finished, addr)
+        self.sock.settimeout(timeout)
         self.dst = dst
         self.dport = dport
         self.api = api
         self.path = None
         self.iflist = []
-        self.sock.settimeout(timeout)
         if get_path:
             self._get_path(api)
 
@@ -328,7 +328,7 @@ class TestClientServerBase(object):
         return TestClientBase(self._run_sciond(src), data, finished, src, dst,
                               port)
 
-    def _run_sciond(self, addr, sd_type=None):
+    def _run_sciond(self, addr):
         if addr.isd_as not in self.scionds:
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port

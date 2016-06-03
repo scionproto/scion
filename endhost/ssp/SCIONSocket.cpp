@@ -39,7 +39,6 @@ void *dispatcherThread(void *arg)
         if (len < 0) {
             DEBUG("error (%d) in dispatcher connection (fd %d): %s\n", len, sock, strerror(errno));
             ss->shutdown(true);
-            exit(1);
             return NULL;
         }
         int addr_len = 0;

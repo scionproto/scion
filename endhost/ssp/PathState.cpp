@@ -141,7 +141,6 @@ int PathState::packetsInFlight()
 double PathState::getLossRate()
 {
     pthread_mutex_lock(&mMutex);
-    DEBUG("%s\n", __func__);
     uint64_t currentInterval = mTotalAcked - mLastTotalAcked;
     if (currentInterval > mAverageLossInterval) {
         if (currentInterval > 2 * mAverageLossInterval)

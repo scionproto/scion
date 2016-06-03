@@ -23,7 +23,7 @@ import random
 # SCION
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.main import main_wrapper
-from lib.types import L4Proto, TestSDType
+from lib.types import L4Proto
 from test.integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -33,6 +33,11 @@ from test.integration.base_cli_srv import (
 
 
 DATA_LEN = 2048
+
+
+def pad_data(data):
+    padding = DATA_LEN - len(data)
+    return data + bytes(padding)
 
 
 class SSPClient(TestClientBase):
@@ -60,9 +65,7 @@ class SSPClient(TestClientBase):
         self.sock.send(spkt)
 
     def _build_pkt(self, path=None):
-        data = b"ping " + self.data
-        padding = DATA_LEN - len(data)
-        return data + bytes(padding)
+        return pad_data(b"ping " + self.data)
 
     def _handle_response(self, spkt):
         logging.debug("Received:\n%s", spkt)
@@ -70,9 +73,7 @@ class SSPClient(TestClientBase):
             logging.error("Packet length (%sB) != DATA_LEN (%sB)",
                           len(spkt), DATA_LEN)
             return False
-        pong = b"pong " + self.data
-        padding = DATA_LEN - len(pong)
-        pong += bytes(padding)
+        pong = pad_data(b"pong " + self.data)
         if spkt == pong:
             logging.debug('%s: pong received.', self.addr.host)
             self.success = True
@@ -85,6 +86,7 @@ class SSPClient(TestClientBase):
 
     def _shutdown(self):
         self.sock.shutdown(0)
+        # Wait until connection has terminated gracefully
         while self.sock.recv(DATA_LEN):
             pass
         self.sock.close()
@@ -116,15 +118,13 @@ class SSPServer(TestServerBase):
         self.new_sock.send(spkt)
 
     def _build_pkt(self, path=None):
-        data = b"pong " + self.data
-        padding = DATA_LEN - len(data)
-        return data + bytes(padding)
+        return pad_data(b"pong " + self.data)
 
     def _handle_request(self, spkt):
         expected = b"ping " + self.data
         if not spkt.startswith(expected):
             return False
-        # Reverse the packet and send "pong".
+        # Send back "pong".
         logging.debug('%s: ping received, sending pong.', self.addr.host)
         self._send_pkt(self._build_pkt())
         self.success = True
@@ -133,6 +133,7 @@ class SSPServer(TestServerBase):
 
     def _shutdown(self):
         self.new_sock.shutdown(0)
+        # Wait until connection has terminated gracefully
         while self.new_sock.recv(DATA_LEN):
             pass
         self.new_sock.close()
@@ -147,12 +148,11 @@ class TestSSP(TestClientServerBase):
     NAME = "SSP"
 
     def _create_server(self, data, finished, addr):
-        return SSPServer(self._run_sciond(addr, TestSDType.SERVER), data,
-                         finished, addr)
+        return SSPServer(self._run_sciond(addr), data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return SSPClient(self._run_sciond(src, TestSDType.CLIENT), data,
-                         finished, src, dst, port, get_path=False)
+        return SSPClient(self._run_sciond(src), data, finished, src, dst, port,
+                         get_path=False)
 
 
 def main():
