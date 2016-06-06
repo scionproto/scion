@@ -242,6 +242,8 @@ int SSPProtocol::connect(SCIONAddr addr)
 
     uint8_t buf = 0;
     SCIONPacket *packet = createPacket(&buf, 1);
+    SSPPacket *sp = (SSPPacket *)packet->payload;
+    sp->header.flags |= SSP_CON;
     mConnectionManager->queuePacket(packet);
     return 0;
 }
@@ -319,7 +321,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
     if (mState == SCION_CLOSED || mState == SCION_FIN_READ) {
         pthread_mutex_unlock(&mStateMutex);
         pthread_mutex_unlock(&mReadMutex);
-        DEBUG("%p: connection has already terminated\n", this);
+        DEBUG("%p: connection has already terminated (%d)\n", this, mState);
         return 0;
     }
     pthread_mutex_unlock(&mStateMutex);

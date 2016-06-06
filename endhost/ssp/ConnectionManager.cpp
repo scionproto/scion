@@ -1012,9 +1012,15 @@ void SSPConnectionManager::schedule()
         }
         DEBUG("%p: try to send packet %lu\n", this, offset);
         if (offset == 0) {
-            DEBUG("%p: resend packet 0 on all paths\n", this);
+            if (sp->header.flags & SSP_CON) {
+                DEBUG("%p: send packet 0 on all paths\n", this);
+                sendAllPaths(packet);
+            } else {
+                DEBUG("%p: send packet %lu on path %d\n", this,
+                        offset, p->getIndex());
+                p->sendPacket(packet, mSendSocket);
+            }
             mResendInit = false;
-            sendAllPaths(packet);
         } else if (sp->header.flags & SSP_FIN) {
             DEBUG("%p: send FIN packet (%lu) on all paths\n", this, offset);
             if (mFinAttempts == 0)
