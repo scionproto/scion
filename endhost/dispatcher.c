@@ -98,6 +98,7 @@ int create_sockets();
 int set_sockopts();
 int bind_app_socket();
 int bind_data_socket();
+void overlay_output(uint8_t *, int, struct sockaddr_in *);
 
 void handle_app();
 void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock);
@@ -275,6 +276,7 @@ int init_tcpmw()
         zlog_fatal(zc, "pthread_create(): %s", strerror(errno));
         return -1;
     }
+    tcp_scion_output = &overlay_output;
     return 0;
 }
 
@@ -692,6 +694,12 @@ void deliver_tcp(uint8_t *buf, int len, struct sockaddr_in *from)
     memcpy(p->payload + sin_size, buf, len);
     /* Put [from (sockaddr_in) || raw_spkt] to the TCP queue. */
     tcpip_input(p, (struct netif *)NULL);
+}
+
+void overlay_output(uint8_t *buf, int len, struct sockaddr_in *first_hop)
+{
+    sendto(data_socket, buf, len, 0, (struct sockaddr *)first_hop,
+           sizeof(*first_hop));
 }
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
