@@ -627,7 +627,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
             return;
         }
     }
-    zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64, 
+    zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64,
             inet_ntoa(*(struct in_addr *)dst_ptr), key.port, key.flow_id);
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);

@@ -31,6 +31,7 @@ cmd_run() {
     fi
     echo "Running the network..."
     bash gen/zk_datalog_dirs.sh || exit 1
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/../scion-lwip-contrib/ports/unix/proj/scion/
     supervisor/supervisor.sh quickstart dispatcher:dispatcher
     supervisor/supervisor.sh quickstart all
 }
@@ -106,7 +107,7 @@ cmd_sock_cli() {
 }
 
 cmd_run_cli() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp:`pwd`../scion-lwip-contrib/ports/unix/proj/scion/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/endhost/ssp
     $SOCKDIR/test/client
 }
 
@@ -130,7 +131,7 @@ cmd_sock_ser() {
 }
 
 cmd_run_ser() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp:`pwd`/../scion-lwip-contrib/ports/unix/proj/scion/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/endhost/ssp
     $SOCKDIR/test/server
 }
 
