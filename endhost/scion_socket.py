@@ -365,8 +365,11 @@ class ScionBaseSocket(object):
         barr = bytearray()
         while len(barr) < total:
             buf = self.recv(total - len(barr))
-            if len(barr) and not buf:
-                logging.error("Connection prematurely terminated")
+            if not buf:
+                if len(barr) > 0:
+                    logging.error("Connection prematurely terminated")
+                else:
+                    logging.debug("Connection terminated")
                 return None
             barr += buf
         return barr

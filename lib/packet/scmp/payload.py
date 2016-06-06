@@ -111,7 +111,8 @@ class SCMPPayload(PayloadBase):
                 if len(payload) > LINE_LEN:
                     inst._l4_hdr = payload.pack()[:LINE_LEN]
                 else:
-                    inst._l4_hdr = b""
+                    padding = LINE_LEN - len(payload)
+                    inst._l4_hdr = payload.pack() + bytes(padding)
                 inst.l4_proto = L4Proto.NONE
         else:
             inst.l4_proto = L4Proto.NONE

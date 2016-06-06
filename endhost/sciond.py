@@ -189,7 +189,7 @@ class SCIONDaemon(SCIONElement):
                 args=(self._api_handle_path_request, packet, sock),
                 daemon=True).start()
         elif packet[0] == 1:  # address request
-            logging.debug('API: local addr request')
+            logging.debug('API: local ISD-AS request')
             sock.send(self.addr.isd_as.pack())
         else:
             logging.warning("API: type %d not supported.", packet[0])

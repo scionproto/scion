@@ -44,22 +44,18 @@ class SSPClient(TestClientBase):
     """
     Simple ping app.
     """
-    def __init__(self, sd, data, finished, addr, dst, dport, api=True,
-                 timeout=3.0, get_path=True):
-        super().__init__(sd, data, finished, addr, dst, dport, api, timeout,
-                         get_path)
-        self.sock.bind(0, self.addr)
-        self.sock.connect(self.dst, self.dport)
-
     def _create_socket(self, addr):
         sock = ScionClientSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
+        sock.bind(0, self.addr)
+        sock.connect(self.dst, self.dport)
         return sock
+
+    def _get_path(self, api):
+        # Libssock takes care of this internally
+        pass
 
     def _recv(self):
         return self.sock.recv_all(DATA_LEN)
-
-    def _send(self):
-        self._send_pkt(self._build_pkt())
 
     def _send_pkt(self, spkt, next_=None):
         self.sock.send(spkt)
@@ -70,7 +66,7 @@ class SSPClient(TestClientBase):
     def _handle_response(self, spkt):
         logging.debug("Received:\n%s", spkt)
         if len(spkt) != DATA_LEN:
-            logging.error("Packet length (%sB) != DATA_LEN (%sB)",
+            logging.error("Payload length (%sB) != DATA_LEN (%sB)",
                           len(spkt), DATA_LEN)
             return False
         pong = pad_data(b"pong " + self.data)
@@ -151,8 +147,7 @@ class TestSSP(TestClientServerBase):
         return SSPServer(self._run_sciond(addr), data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return SSPClient(self._run_sciond(src), data, finished, src, dst, port,
-                         get_path=False)
+        return SSPClient(self._run_sciond(src), data, finished, src, dst, port)
 
 
 def main():

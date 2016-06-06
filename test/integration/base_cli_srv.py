@@ -95,16 +95,15 @@ class TestClientBase(TestBase):
     Base client app
     """
     def __init__(self, sd, data, finished, addr, dst, dport, api=True,
-                 timeout=3.0, get_path=True):
-        super().__init__(sd, data, finished, addr)
-        self.sock.settimeout(timeout)
+                 timeout=3.0):
         self.dst = dst
         self.dport = dport
         self.api = api
         self.path = None
         self.iflist = []
-        if get_path:
-            self._get_path(api)
+        super().__init__(sd, data, finished, addr)
+        self.sock.settimeout(timeout)
+        self._get_path(api)
 
     def _get_path(self, api):
         if api:

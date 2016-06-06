@@ -306,7 +306,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
             gettimeofday(&tv, NULL);
             ts.tv_sec = tv.tv_sec + (int)timeout;
             ts.tv_nsec = tv.tv_usec * 1000 + ns;
-            if (pthread_cond_timedwait(&mReadCond, &mReadMutex, &ts) == -ETIMEDOUT) {
+            if (pthread_cond_timedwait(&mReadCond, &mReadMutex, &ts) == ETIMEDOUT) {
                 pthread_mutex_unlock(&mReadMutex);
                 DEBUG("%p: timeout in recv\n", this);
                 return -ETIMEDOUT;

@@ -455,7 +455,7 @@ int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double time
             gettimeofday(&tv, NULL);
             ts.tv_sec = tv.tv_sec + (int)timeout;
             ts.tv_nsec = tv.tv_usec * 1000 + ns;
-            if (pthread_cond_timedwait(&mSentCond, &mSentMutex, &ts) == -ETIMEDOUT) {
+            if (pthread_cond_timedwait(&mSentCond, &mSentMutex, &ts) == ETIMEDOUT) {
                 DEBUG("%p: timed out waiting for send buffer\n", this);
                 return -ETIMEDOUT;
             }

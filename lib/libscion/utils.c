@@ -70,6 +70,7 @@ int send_all(int sock, uint8_t *buf, int len)
     errno = 0;
     int sent = 0;
     while (sent < len) {
+        errno = 0;
         int ret = send(sock, buf + sent, len - sent, 0);
         if (ret < 0)
             return ret;
