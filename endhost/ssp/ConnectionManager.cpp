@@ -499,9 +499,13 @@ void SSPConnectionManager::sendAck(SCIONPacket *packet)
 
 void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
 {
+    DEBUG("send probes\n");
+
+    if (!mInitAcked)
+        return;
+
     bool refresh = false;
     pthread_mutex_lock(&mPathMutex);
-    DEBUG("send probes\n");
     for (size_t i = 0; i < mPaths.size(); i++) {
         SSPPath *p = (SSPPath *)mPaths[i];
         if (!p || p->isUp() || !p->isValid())
@@ -698,7 +702,12 @@ void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
         SCIONPacket *p = retries[j];
         SSPPacket *sp = (SSPPacket *)(p->payload);
         int index= p->pathIndex;
-        mRetryPackets->push(p);
+        if (be64toh(sp->header.offset) == 0 && (!mInitAcked && !mResendInit)) {
+            mResendInit = true;
+            mRetryPackets->push(p);
+        } else if (be64toh(sp->header.offset) > 0) {
+            mRetryPackets->push(p);
+        }
         ((SSPPath *)(mPaths[index]))->addLoss(be64toh(sp->header.offset));
         if (!done[index]) {
             done[index] = true;
@@ -853,24 +862,14 @@ void SSPConnectionManager::handleTimeout()
     while (i != mSentPackets.end()) {
         int index = (*i)->pathIndex;
         SSPPacket *sp = (SSPPacket *)((*i)->payload);
-        uint64_t offset = be64toh(sp->header.offset);
         if (timeout[index] > 0 ||
                 sp->skipCount >= SSP_FR_THRESHOLD) {
             DEBUG("%p: put packet %lu (path %d) in retransmit list (%d dups, timeout = %d)\n",
-                  this, offset, index, sp->skipCount, timeout[index]);
+                  this, be64toh(sp->header.offset), index, sp->skipCount, timeout[index]);
             SCIONPacket *p = *i;
             i = mSentPackets.erase(i);
             sp->skipCount = 0;
             sp->header.mark++;
-            if (offset == 0) {
-                if (!mInitAcked && !mResendInit) {
-                    DEBUG("resend init packet\n");
-                    mResendInit = true;
-                } else {
-                    DEBUG("init packet acked on different path, drop\n");
-                    continue;
-                }
-            }
             retries.push_back(p);
         } else {
             i++;

@@ -827,7 +827,7 @@ void SSPProtocol::notifySender()
 int SSPProtocol::shutdown(bool force)
 {
     pthread_mutex_lock(&mStateMutex);
-    DEBUG("%lu: shutdown\n", mFlowID);
+    DEBUG("%p: shutdown\n", this);
     if (mState == SCION_CLOSED) {
         pthread_mutex_unlock(&mStateMutex);
         return 0;

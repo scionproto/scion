@@ -46,6 +46,7 @@ class SSPClient(TestClientBase):
     """
     def _create_socket(self, addr):
         sock = ScionClientSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
+        sock.settimeout(5.0)
         sock.bind(0, self.addr)
         sock.connect(self.dst, self.dport)
         return sock
@@ -94,6 +95,7 @@ class SSPServer(TestServerBase):
     """
     def _create_socket(self, addr):
         sock = ScionServerSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
+        sock.settimeout(5.0)
         sock.bind(random.randint(1025, 65535), self.addr)
         sock.listen()
         return sock
