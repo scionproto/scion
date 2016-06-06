@@ -112,6 +112,7 @@ protected:
     struct timeval               mFinSentTime;
     bool                         mInitAcked;
     bool                         mResendInit;
+    uint64_t                     mHighestAcked;
 
     size_t                       mTotalSize;
     PacketList                   mSentPackets;

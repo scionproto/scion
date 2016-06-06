@@ -376,6 +376,7 @@ SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProt
     mFinAttempts(0),
     mInitAcked(false),
     mResendInit(true),
+    mHighestAcked(0),
     mTotalSize(0),
     mProtocol(protocol)
 {
@@ -719,6 +720,8 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
     DEBUG("got some acks on path %d: L = %lu, I = %d, O = %d, V = %#x\n",
             packet->pathIndex, ack.L, ack.I, ack.O, ack.V);
 
+    mHighestAcked = ack.L - 1;
+
     std::vector<SCIONPacket *> retries;
     pthread_mutex_lock(&mPathMutex);
     pthread_mutex_lock(&mSentMutex);
@@ -1002,6 +1005,11 @@ void SSPConnectionManager::schedule()
         }
         SSPPacket *sp = (SSPPacket *)(packet->payload);
         uint64_t offset = be64toh(sp->header.offset);
+        if (offset > 0 && offset <= mHighestAcked) {
+            DEBUG("%p: packet %lu already received on remote end\n", this, offset);
+            destroySSPPacketFull(packet);
+            continue;
+        }
         DEBUG("%p: try to send packet %lu\n", this, offset);
         if (offset == 0) {
             DEBUG("%p: resend packet 0 on all paths\n", this);
