@@ -46,9 +46,6 @@ RESP_SIZE = CMD_SIZE + 2  # either "OK" or "ER" is appended
 class error(stdsock.error):
     pass
 
-def get_path(isd, ad):
-    return b"PATH0PATH1PATH23"
-
 
 class SCIONSocket(object):
     BUFLEN = 1024
@@ -74,11 +71,12 @@ class SCIONSocket(object):
         if rep != b"BINDOK":
             raise error("bind() failed: %s" % rep)
 
-    def connect(self, addr_port, path=None):
+    def connect(self, addr_port, path):
         addr, port = addr_port
         haddr_type = addr.host.TYPE
         if path is None:
-            path = get_path(addr.isd_as[0], addr.isd_as[1])
+            path = b''
+        # TODO(PSz): path len // 8
         req = (b"CONN" + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddr_type) + addr.pack())
         self._to_lwip(req)
