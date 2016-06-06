@@ -21,7 +21,7 @@ public:
     int bind(SCIONAddr addr);
     int connect(SCIONAddr addr);
     int listen();
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
     int send(uint8_t *buf, size_t len);
     int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr);
     int setSocketOption(SCIONOption *option);

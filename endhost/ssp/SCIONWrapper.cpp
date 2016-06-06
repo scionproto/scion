@@ -110,12 +110,12 @@ int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
 }
 
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
-              SCIONAddr *srcAddr)
+              SCIONAddr *srcAddr, double timeout)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->recv(buf, len, srcAddr);
+    return e->sock->recv(buf, len, srcAddr, timeout);
 }
 
 void * SCIONGetStats(int sock, void *buf, int len)

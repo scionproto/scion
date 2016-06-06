@@ -194,11 +194,11 @@ int SCIONSocket::listen()
     return 0;
 }
 
-int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     if (mState == SCION_CLOSED)
         return 0;
-    return mProtocol->recv(buf, len, srcAddr);
+    return mProtocol->recv(buf, len, srcAddr, timeout);
 }
 
 int SCIONSocket::send(uint8_t *buf, size_t len)

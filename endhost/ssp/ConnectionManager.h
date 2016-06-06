@@ -68,7 +68,7 @@ public:
     void setRemoteWindow(uint32_t window);
     bool bufferFull(int window);
     int totalQueuedSize();
-    void waitForSendBuffer(int len, int windowSize);
+    int waitForSendBuffer(int len, int windowSize, double timeout=0.0);
 
     void queuePacket(SCIONPacket *packet);
     int sendAllPaths(SCIONPacket *packet);

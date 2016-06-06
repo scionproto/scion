@@ -18,8 +18,8 @@ public:
     virtual int bind(SCIONAddr addr, int sock);
     virtual int connect(SCIONAddr addr);
     virtual int listen(int sock);
-    virtual int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
-    virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    virtual int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
+    virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
 
     virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
     virtual void handleTimerEvent();
@@ -82,8 +82,8 @@ public:
 
     int connect(SCIONAddr addr);
     int listen(int sock);
-    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
@@ -158,8 +158,8 @@ public:
     ~SUDPProtocol();
 
     int bind(SCIONAddr addr, int sock);
-    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
 
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
     void handleTimerEvent();

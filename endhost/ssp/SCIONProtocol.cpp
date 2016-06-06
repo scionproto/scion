@@ -40,7 +40,10 @@ SCIONProtocol::SCIONProtocol(int sock, const char *sciond)
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     gettimeofday(&mLastProbeTime, NULL);
     pthread_mutex_init(&mReadMutex, NULL);
-    pthread_cond_init(&mReadCond, NULL);
+    pthread_condattr_t ca;
+    pthread_condattr_init(&ca);
+    pthread_condattr_setclock(&ca, CLOCK_REALTIME);
+    pthread_cond_init(&mReadCond, &ca);
     pthread_mutex_init(&mStateMutex, NULL);
 }
 
@@ -68,12 +71,12 @@ int SCIONProtocol::listen(int sock)
     return 0;
 }
 
-int SCIONProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SCIONProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
     return 0;
 }
 
-int SCIONProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SCIONProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     return 0;
 }
@@ -255,7 +258,7 @@ int SSPProtocol::listen(int sock)
     return 0;
 }
 
-int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
     uint8_t *ptr = buf;
     size_t total_len = len;
@@ -271,14 +274,17 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
         size_t packetLen = packetMax > len ? len : packetMax;
         len -= packetLen;
         SCIONPacket *packet = createPacket(ptr, packetLen);
-        mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow);
+        if (mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow) == -ETIMEDOUT) {
+            DEBUG("timed out in send\n");
+            return -ETIMEDOUT;
+        }
         mConnectionManager->queuePacket(packet);
         ptr += packetLen;
     }
     return total_len;
 }
 
-int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     int total = 0;
     uint8_t *ptr = buf;
@@ -292,7 +298,22 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
             DEBUG("non-blocking socket not ready to recv\n");
             return -EWOULDBLOCK;
         }
-        pthread_cond_wait(&mReadCond, &mReadMutex);
+        if (timeout > 0.0) {
+            struct timespec ts;
+            struct timeval tv;
+            int secs = (int)timeout;
+            uint64_t ns = (timeout - secs) * 1000000000;
+            gettimeofday(&tv, NULL);
+            ts.tv_sec = tv.tv_sec + (int)timeout;
+            ts.tv_nsec = tv.tv_usec * 1000 + ns;
+            if (pthread_cond_timedwait(&mReadCond, &mReadMutex, &ts) == -ETIMEDOUT) {
+                pthread_mutex_unlock(&mReadMutex);
+                DEBUG("%p: timeout in recv\n", this);
+                return -ETIMEDOUT;
+            }
+        } else {
+            pthread_cond_wait(&mReadCond, &mReadMutex);
+        }
     }
     pthread_mutex_lock(&mStateMutex);
     if (mState == SCION_CLOSED || mState == SCION_FIN_READ) {
@@ -893,7 +914,7 @@ int SUDPProtocol::bind(SCIONAddr addr, int sock)
     return ret;
 }
 
-int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
     if (dstAddr && mRemoteAddr.isd_as != dstAddr->isd_as) {
         memcpy(&mRemoteAddr, dstAddr, sizeof(SCIONAddr));
@@ -918,7 +939,7 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
     return mConnectionManager->sendPacket(&packet);
 }
 
-int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     DEBUG("recv max %lu bytes\n", len);
     int size = 0;

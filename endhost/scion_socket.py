@@ -26,6 +26,7 @@ from ctypes import (
     addressof,
     byref,
     CDLL,
+    c_double,
     c_int,
     c_short,
     c_size_t,
@@ -278,6 +279,7 @@ class ScionBaseSocket(object):
         self.libssock = libssock
         self.sciond_addr = sciond_addr
         self.port = 0
+        self.timeout = 0.0
         if fd:
             self.fd = fd
         else:
@@ -314,7 +316,8 @@ class ScionBaseSocket(object):
             return 0
         if msg is None or len(msg) == 0:
             return 0
-        return self.libssock.SCIONSend(self.fd, msg, len(msg))
+        return self.libssock.SCIONSend(self.fd, msg, len(msg), 0,
+                                       c_double(self.timeout))
 
     def sendall(self, msg):
         """
@@ -343,7 +346,8 @@ class ScionBaseSocket(object):
             return None
         buf = (c_ubyte * bufsize)()
         num_bytes_rcvd = self.libssock.SCIONRecv(self.fd, byref(buf),
-                                                 bufsize, None)
+                                                 bufsize, None,
+                                                 c_double(self.timeout))
         if num_bytes_rcvd < 0:
             logging.error("Error during recv.")
             return None
@@ -481,7 +485,7 @@ class ScionBaseSocket(object):
         """
         Placeholder for now, might be implemented later.
         """
-        pass
+        self.timeout = timeout
 
 
 class ScionServerSocket(ScionBaseSocket):

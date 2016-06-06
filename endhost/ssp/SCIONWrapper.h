@@ -19,7 +19,7 @@ int SCIONSend(int sock, uint8_t *buf, size_t len);
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
                      SCIONAddr *dstAddr);
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
-              SCIONAddr *srcAddr);
+              SCIONAddr *srcAddr, double timeout);
 int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
                 struct timeval *timeout);
 int SCIONShutdown(int fd);

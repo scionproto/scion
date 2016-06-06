@@ -383,13 +383,13 @@ SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProt
     mRetryPackets = new OrderedList<SCIONPacket *>(compareOffsetNested, destroySSPPacketFull);
     pthread_mutex_init(&mMutex, NULL);
     pthread_mutex_init(&mSentMutex, NULL);
+    pthread_condattr_t ca;
+    pthread_condattr_init(&ca);
+    pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mSentCond, NULL);
     pthread_mutex_init(&mFreshMutex, NULL);
     pthread_mutex_init(&mRetryMutex, NULL);
     pthread_mutex_init(&mPacketMutex, NULL);
-    pthread_condattr_t ca;
-    pthread_condattr_init(&ca);
-    pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mPacketCond, &ca);
     memset(&mFinSentTime, 0, sizeof(mFinSentTime));
 
@@ -442,13 +442,28 @@ bool SSPConnectionManager::bufferFull(int window)
     return window - totalQueuedSize() < maxPayloadSize();
 }
 
-void SSPConnectionManager::waitForSendBuffer(int len, int windowSize)
+int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double timeout)
 {
     while (totalQueuedSize() + len > windowSize) {
         pthread_mutex_lock(&mSentMutex);
-        pthread_cond_wait(&mSentCond, &mSentMutex);
+        if (timeout > 0.0) {
+            struct timespec ts;
+            struct timeval tv;
+            int secs = (int)timeout;
+            uint64_t ns = (timeout - secs) * 1000000000;
+            gettimeofday(&tv, NULL);
+            ts.tv_sec = tv.tv_sec + (int)timeout;
+            ts.tv_nsec = tv.tv_usec * 1000 + ns;
+            if (pthread_cond_timedwait(&mSentCond, &mSentMutex, &ts) == -ETIMEDOUT) {
+                DEBUG("%p: timed out waiting for send buffer\n", this);
+                return -ETIMEDOUT;
+            }
+        } else {
+            pthread_cond_wait(&mSentCond, &mSentMutex);
+        }
         pthread_mutex_unlock(&mSentMutex);
     }
+    return 0;
 }
 
 int SSPConnectionManager::totalQueuedSize()
