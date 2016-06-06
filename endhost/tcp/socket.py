@@ -24,6 +24,7 @@ import uuid
 
 # SCION
 from lib.packet.host_addr import haddr_parse
+from lib.packet.path import SCIONPath
 from lib.packet.scion import SVCType
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 
@@ -76,7 +77,7 @@ class SCIONSocket(object):
         haddr_type = addr.host.TYPE
         path, first_ip, first_port = path_info
         path = path.pack()
-        # TODO(PSz): path len // 8, change order of packing, don't assume ipv4
+        # TODO(PSz): change order of packing, don't assume ipv4
         req = (b"CONN" + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddr_type) + addr.pack() + first_ip.pack() +
                struct.pack("H", first_port))
@@ -130,8 +131,7 @@ class SCIONSocket(object):
         rep = rep[6:]
         path_len, = struct.unpack("H", rep[:2])
         rep = rep[2:]
-        # TODO(PSz): instantiate path
-        path = rep[:path_len]
+        path = SCIONPath(rep[:path_len])
         rep = rep[path_len:]
         addr = SCIONAddr((rep[0], rep[1:]))
 

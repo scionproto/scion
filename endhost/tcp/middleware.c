@@ -101,7 +101,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     char *p = buf;
 
     printf("CONN received\n");
-    p += CMD_SIZE; // skip "BIND"
+    p += CMD_SIZE; // skip "CONN"
     port = *((u16_t *)p);
     p += 2; // skip port
     path_len = *((u16_t *)p);
