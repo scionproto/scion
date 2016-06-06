@@ -652,6 +652,8 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst)
             return;
         }
         sock = se->sockets[rand() % se->count];
+        zlog_debug(zc, "deliver UDP packet to (%d,%d):%s",
+                ISD(svc_key.isd_as), AS(svc_key.isd_as), inet_ntoa(dst->sin_addr));
     } else {
         L4Key key;
         memset(&key, 0, sizeof(key));
@@ -745,7 +747,6 @@ void handle_send(int index)
     int res;
     int sock = sockets[index].fd;
 
-    zlog_debug(zc, "handle_send on socket %d (fd %d)", index, sock);
     /*
      * Application message format:
      * cookie (8B) | addr_len (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
@@ -757,9 +758,7 @@ void handle_send(int index)
         return;
     }
 
-    zlog_debug(zc, "%d bytes on socket %d (fd %d)", res, index, sock);
     int addr_len, packet_len;
-    zlog_debug(zc, "addr_len = %d, packet_len = %d", buf[8], *(int *)(buf + 9));
     parse_dp_header(buf, &addr_len, &packet_len);
     if (packet_len < 0 || addr_len == 0) {
         zlog_error(zc, "invalid header sent from app - Cookie: %" PRIx64, *(uint64_t *)buf);
@@ -767,7 +766,6 @@ void handle_send(int index)
         cleanup_socket(sock, index, EIO);
         return;
     }
-    zlog_debug(zc, "fd %d: read in %d total bytes", sock, packet_len);
     if (recv_all(sock, buf, addr_len + 2 + packet_len) < 0) {
         zlog_error(zc, "error reading from application");
         cleanup_socket(sock, index, errno);
