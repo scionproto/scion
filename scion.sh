@@ -106,7 +106,7 @@ cmd_sock_cli() {
 }
 
 cmd_run_cli() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp:`pwd`../scion-lwip-contrib/ports/unix/proj/scion/
     $SOCKDIR/test/client
 }
 
@@ -130,7 +130,7 @@ cmd_sock_ser() {
 }
 
 cmd_run_ser() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp:`pwd`../scion-lwip-contrib/ports/unix/proj/scion/
     $SOCKDIR/test/server
 }
 
