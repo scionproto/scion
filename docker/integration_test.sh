@@ -66,7 +66,7 @@ test/integration/cert_req_test.py
 Sibra Ext
 test/integration/sibra_ext_test.py --wait 30 --runs 10
 SSP
-test/integration/ssp_test.py
+./ssptest.sh
 EOF
 result=$?
 
