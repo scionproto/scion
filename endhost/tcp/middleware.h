@@ -16,6 +16,7 @@
 #ifndef _MIDDLEWARE_H_
 #define _MIDDLEWARE_H_
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -29,6 +30,7 @@
 #include "lwip/api.h"
 #include "lwip/ip_addr.h"
 #include "libscion/address.h"
+#include "zlog.h"
 
 #define LWIP_SOCK_DIR "/run/shm/lwip/"
 #define RPCD_SOCKET "/run/shm/lwip/lwip"
@@ -36,6 +38,8 @@
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 2)
 #define TCPMW_BUFLEN 1024
+
+zlog_category_t *zc_tcp;
 
 struct conn_args{
     int fd;

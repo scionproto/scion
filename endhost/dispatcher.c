@@ -98,7 +98,6 @@ int create_sockets();
 int set_sockopts();
 int bind_app_socket();
 int bind_data_socket();
-void overlay_output(uint8_t *, int, struct sockaddr_in *);
 
 void handle_app();
 void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock);
@@ -111,6 +110,8 @@ static inline uint16_t get_next_port();
 void handle_data();
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst);
+void deliver_tcp(uint8_t *buf, int len, struct sockaddr_in *from);
+void overlay_output(uint8_t *buf, int len, struct sockaddr_in *first_hop);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, sockaddr_in *from);
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, sockaddr_in *from);
@@ -277,6 +278,7 @@ int init_tcpmw()
         return -1;
     }
     tcp_scion_output = &overlay_output;
+    zc_tcp = zc;
     return 0;
 }
 
