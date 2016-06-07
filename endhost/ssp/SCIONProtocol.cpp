@@ -264,8 +264,11 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeo
 {
     uint8_t *ptr = buf;
     size_t total_len = len;
-    size_t packetMax = mConnectionManager->maxPayloadSize();
     size_t room = mLocalSendWindow - mConnectionManager->totalQueuedSize();
+    int packetMax = mConnectionManager->maxPayloadSize(timeout);
+
+    if (packetMax < 0)
+        return packetMax;
 
     if (!mBlocking && room < len) {
         DEBUG("non-blocking socket not ready to send\n");
@@ -273,10 +276,10 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeo
     }
 
     while (len > 0) {
-        size_t packetLen = packetMax > len ? len : packetMax;
+        size_t packetLen = (size_t)packetMax > len ? len : packetMax;
         len -= packetLen;
         SCIONPacket *packet = createPacket(ptr, packetLen);
-        if (mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow) == -ETIMEDOUT) {
+        if (mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow, timeout) == -ETIMEDOUT) {
             DEBUG("timed out in send\n");
             return -ETIMEDOUT;
         }

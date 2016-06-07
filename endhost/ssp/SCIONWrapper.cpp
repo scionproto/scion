@@ -92,12 +92,12 @@ int SCIONListen(int sock)
     return e->sock->listen();
 }
 
-int SCIONSend(int sock, uint8_t *buf, size_t len)
+int SCIONSend(int sock, uint8_t *buf, size_t len, double timeout)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->send(buf, len);
+    return e->sock->send(buf, len, timeout);
 }
 
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,

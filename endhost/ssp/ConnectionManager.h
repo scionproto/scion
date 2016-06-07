@@ -20,7 +20,7 @@ public:
     void getDefaultIP();
     int getSocket();
     int getPathCount();
-    int maxPayloadSize();
+    int maxPayloadSize(double timeout=0.0);
     SCIONAddr * localAddress();
 
     void queryLocalAddress();

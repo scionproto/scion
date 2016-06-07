@@ -25,6 +25,7 @@ from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.main import main_wrapper
 from lib.types import L4Proto
 from test.integration.base_cli_srv import (
+    API_TOUT,
     setup_main,
     TestClientBase,
     TestClientServerBase,
@@ -46,7 +47,7 @@ class SSPClient(TestClientBase):
     """
     def _create_socket(self, addr):
         sock = ScionClientSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
-        sock.settimeout(5.0)
+        sock.settimeout(API_TOUT)
         sock.bind(0, self.addr)
         sock.connect(self.dst, self.dport)
         return sock

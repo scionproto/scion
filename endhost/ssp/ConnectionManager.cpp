@@ -79,10 +79,21 @@ int PathManager::getPathCount()
     return mPaths.size();
 }
 
-int PathManager::maxPayloadSize()
+int PathManager::maxPayloadSize(double timeout)
 {
     int min = INT_MAX;
     pthread_mutex_lock(&mPathMutex);
+    while (mPaths.size() - mInvalid == 0) {
+        if (timeout > 0.0) {
+            if (timedWait(&mPathCond, &mPathMutex, timeout) == ETIMEDOUT) {
+                pthread_mutex_unlock(&mPathMutex);
+                DEBUG("%p: timeout getting max payload size (no paths)\n", this);
+                return -ETIMEDOUT;
+            }
+        } else {
+            pthread_cond_wait(&mPathCond, &mPathMutex);
+        }
+    }
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (!mPaths[i])
             continue;
@@ -495,31 +506,30 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
 {
     DEBUG("send probes\n");
 
-    if (!mInitAcked)
-        return;
-
     bool refresh = false;
     pthread_mutex_lock(&mPathMutex);
-    for (size_t i = 0; i < mPaths.size(); i++) {
-        SSPPath *p = (SSPPath *)mPaths[i];
-        if (!p || p->isUp() || !p->isValid())
-            continue;
-        DEBUG("send probe %u on path %lu\n", probeNum, i);
-        SCIONPacket packet;
-        memset(&packet, 0, sizeof(packet));
-        pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
-                ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
-        addProbeExtension(&packet.header, probeNum, 0);
-        SSPPacket sp;
-        packet.payload = &sp;
-        SSPHeader &sh = sp.header;
-        sh.headerLen = sizeof(sh);
-        sh.flowID = htobe64(flowID);
-        int ret = p->sendPacket(&packet, mSendSocket);
-        free(packet.header.extensions);
-        if (ret) {
-            DEBUG("terminate path %lu\n", i);
-            refresh = true;
+    if (mInitAcked) {
+        for (size_t i = 0; i < mPaths.size(); i++) {
+            SSPPath *p = (SSPPath *)mPaths[i];
+            if (!p || p->isUp() || !p->isValid())
+                continue;
+            DEBUG("send probe %u on path %lu\n", probeNum, i);
+            SCIONPacket packet;
+            memset(&packet, 0, sizeof(packet));
+            pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
+                    ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
+            addProbeExtension(&packet.header, probeNum, 0);
+            SSPPacket sp;
+            packet.payload = &sp;
+            SSPHeader &sh = sp.header;
+            sh.headerLen = sizeof(sh);
+            sh.flowID = htobe64(flowID);
+            int ret = p->sendPacket(&packet, mSendSocket);
+            free(packet.header.extensions);
+            if (ret) {
+                DEBUG("terminate path %lu\n", i);
+                refresh = true;
+            }
         }
     }
     refresh = refresh || mPaths.size() - mInvalid == 0;

@@ -201,16 +201,16 @@ int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
     return mProtocol->recv(buf, len, srcAddr, timeout);
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len)
+int SCIONSocket::send(uint8_t *buf, size_t len, double timeout)
 {
     if (mState == SCION_CLOSED)
         return 0;
-    return send(buf, len, NULL);
+    return send(buf, len, NULL, timeout);
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
-    return mProtocol->send(buf, len, dstAddr);
+    return mProtocol->send(buf, len, dstAddr, timeout);
 }
 
 int SCIONSocket::setSocketOption(SCIONOption *option)
