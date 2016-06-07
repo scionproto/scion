@@ -56,18 +56,23 @@ API_TOUT = 15
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, sd, data, finished, addr):
+    def __init__(self, sd, data, finished, addr, timeout=1.0):
         self.sd = sd
         self.data = data
         self.finished = finished
         self.addr = addr
-        self.sock = ReliableSocket(reg=(addr, 0, True, None))
-        self.sock.settimeout(1.0)
+        self._timeout = timeout
+        self.sock = self._create_socket(addr)
         self.success = None
 
     @abstractmethod
     def run(self):
         raise NotImplementedError
+
+    def _create_socket(self, addr):
+        sock = ReliableSocket(reg=(addr, 0, True, None))
+        sock.settimeout(self._timeout)
+        return sock
 
     def _recv(self):
         try:
@@ -92,13 +97,12 @@ class TestClientBase(TestBase):
     """
     def __init__(self, sd, data, finished, addr, dst, dport, api=True,
                  timeout=3.0):
-        super().__init__(sd, data, finished, addr)
-        self.sock.settimeout(timeout)
         self.dst = dst
         self.dport = dport
         self.api = api
         self.path = None
         self.iflist = []
+        super().__init__(sd, data, finished, addr, timeout)
         self._get_path(api)
 
     def _get_path(self, api):

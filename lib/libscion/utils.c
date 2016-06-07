@@ -52,9 +52,9 @@ int send_dp_header(int sock, HostAddr *host, int packet_len)
 
 int recv_all(int sock, uint8_t *buf, int len)
 {
-    errno = 0;
     int recvd = 0;
     while (recvd < len) {
+        errno = 0;
         int ret = recv(sock, buf + recvd, len - recvd, 0);
         if (ret < 0)
             return ret;
@@ -70,6 +70,7 @@ int send_all(int sock, uint8_t *buf, int len)
     errno = 0;
     int sent = 0;
     while (sent < len) {
+        errno = 0;
         int ret = send(sock, buf + sent, len - sent, 0);
         if (ret < 0)
             return ret;

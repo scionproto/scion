@@ -21,7 +21,7 @@ public:
     int bind(SCIONAddr addr);
     int connect(SCIONAddr addr);
     int listen();
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
     int send(uint8_t *buf, size_t len);
     int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr);
     int setSocketOption(SCIONOption *option);
@@ -38,7 +38,6 @@ public:
     bool isListener();
     bool isRunning();
     int getReliableSocket();
-    bool bypassDispatcher();
 
     // wait for dispatcher registration
     void waitForRegistration();
@@ -51,8 +50,10 @@ public:
 
     void * getStats(void *buf, int len);
 
-    int shutdown();
+    int shutdown(bool force=false);
     void removeChild(SCIONSocket *child);
+
+    void threadCleanup();
 
 private:
     bool checkChildren(SCIONPacket *packet, uint8_t *ptr);
@@ -65,6 +66,8 @@ private:
     int                        mLastAccept;
     bool                       mIsListener;
     char                       mSCIONDAddr[32];
+    SCIONAddr                  mLocalAddr;
+    bool                       mBound;
 
     SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;

@@ -553,7 +553,10 @@ class Router(SCIONElement):
         hof = spkt.path.get_hof()
         if hof.verify_only:
             raise SCMPNonRoutingHOF
-        if spkt.addrs.dst.isd_as == self.addr.isd_as:
+        # FIXME(aznair): Remove second condition once PathCombinator is less
+        # stupid.
+        if (spkt.addrs.dst.isd_as == self.addr.isd_as and
+                spkt.path.is_on_last_segment()):
             self.deliver(spkt)
             return
         if ingress:

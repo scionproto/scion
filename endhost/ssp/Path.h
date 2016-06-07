@@ -84,6 +84,8 @@ protected:
     struct timeval  mLastSendTime;
 
     pthread_mutex_t mMutex;
+
+    PathManager *mManager;
 };
 
 class SSPPath : public Path {
@@ -112,8 +114,6 @@ public:
 protected:
     uint8_t *copySSPPacket(SSPPacket *sp, uint8_t *bufptr, bool probe);
     void postProcessing(SCIONPacket *packet, bool probe);
-
-    SSPConnectionManager *mManager;
 
     int             mTotalReceived;
     int             mTotalSent;

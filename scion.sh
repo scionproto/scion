@@ -31,7 +31,6 @@ cmd_run() {
     fi
     echo "Running the network..."
     bash gen/zk_datalog_dirs.sh || exit 1
-    supervisor/supervisor.sh quickstart dispatcher:dispatcher
     supervisor/supervisor.sh quickstart all
 }
 

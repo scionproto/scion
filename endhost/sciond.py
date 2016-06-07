@@ -83,7 +83,7 @@ class SCIONDaemon(SCIONElement):
             req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
-        self._api_socket = None
+        self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
         self.api_addr = (api_addr or
@@ -189,8 +189,8 @@ class SCIONDaemon(SCIONElement):
                 args=(self._api_handle_path_request, packet, sock),
                 daemon=True).start()
         elif packet[0] == 1:  # address request
-            logging.debug('API: local addr request')
-            sock.send(self.addr.pack())
+            logging.debug('API: local ISD-AS request')
+            sock.send(self.addr.isd_as.pack())
         else:
             logging.warning("API: type %d not supported.", packet[0])
 

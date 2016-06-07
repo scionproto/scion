@@ -58,7 +58,7 @@ int main(int argc, char **argv)
             }
             if (newsock > 0 && FD_ISSET(newsock, &readfds)) {
                 memset(buf, 0, BUFSIZE);
-                int recvlen = SCIONRecv(newsock, (uint8_t *)buf, BUFSIZE, NULL);
+                int recvlen = SCIONRecv(newsock, (uint8_t *)buf, BUFSIZE, NULL, 0.0);
                 gettimeofday(&end, NULL);
                 size += recvlen;
                 long us = end.tv_usec - start.tv_usec + (end.tv_sec - start.tv_sec) * 1000000;

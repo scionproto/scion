@@ -6,13 +6,22 @@
 #include "SCIONProtocol.h"
 #include "Utils.h"
 
-void * timerThread(void *arg)
+void timerCleanup(void *arg)
 {
     SCIONProtocol *p = (SCIONProtocol *)arg;
+    p->threadCleanup();
+}
+
+void * timerThread(void *arg)
+{
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    SCIONProtocol *p = (SCIONProtocol *)arg;
+    pthread_cleanup_push(timerCleanup, arg);
     while (p->isRunning()) {
         p->handleTimerEvent();
         usleep(SCION_TIMER_INTERVAL);
     }
+    pthread_cleanup_pop(1);
     return NULL;
 }
 
@@ -31,12 +40,16 @@ SCIONProtocol::SCIONProtocol(int sock, const char *sciond)
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     gettimeofday(&mLastProbeTime, NULL);
     pthread_mutex_init(&mReadMutex, NULL);
-    pthread_cond_init(&mReadCond, NULL);
+    pthread_condattr_t ca;
+    pthread_condattr_init(&ca);
+    pthread_condattr_setclock(&ca, CLOCK_REALTIME);
+    pthread_cond_init(&mReadCond, &ca);
     pthread_mutex_init(&mStateMutex, NULL);
 }
 
 SCIONProtocol::~SCIONProtocol()
 {
+    mState = SCION_CLOSED;
     pthread_mutex_destroy(&mReadMutex);
     pthread_cond_destroy(&mReadCond);
     pthread_mutex_destroy(&mStateMutex);
@@ -58,12 +71,12 @@ int SCIONProtocol::listen(int sock)
     return 0;
 }
 
-int SCIONProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SCIONProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
     return 0;
 }
 
-int SCIONProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SCIONProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     return 0;
 }
@@ -134,6 +147,11 @@ void SCIONProtocol::deregisterSelect(int index)
 {
 }
 
+int SCIONProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
+{
+    return 0;
+}
+
 int SCIONProtocol::setISDWhitelist(void *data, size_t len)
 {
     if (!mPathManager)
@@ -144,7 +162,7 @@ int SCIONProtocol::setISDWhitelist(void *data, size_t len)
     return mPathManager->setISDWhitelist(data, len);
 }
 
-int SCIONProtocol::shutdown()
+int SCIONProtocol::shutdown(bool force)
 {
     return 0;
 }
@@ -157,6 +175,14 @@ uint32_t SCIONProtocol::getLocalIA()
     if (addr->isd_as == 0)
         mPathManager->queryLocalAddress();
     return addr->isd_as;
+}
+
+void SCIONProtocol::threadCleanup()
+{
+    if (mPathManager)
+        mPathManager->threadCleanup();
+    pthread_mutex_unlock(&mReadMutex);
+    pthread_mutex_unlock(&mStateMutex);
 }
 
 // SSP
@@ -191,6 +217,7 @@ SSPProtocol::~SSPProtocol()
 {
     mState = SCION_CLOSED;
     pthread_cancel(mTimerThread);
+    pthread_join(mTimerThread, NULL);
     if (mConnectionManager) {
         delete mConnectionManager;
         mConnectionManager = NULL;
@@ -215,7 +242,9 @@ int SSPProtocol::connect(SCIONAddr addr)
 
     uint8_t buf = 0;
     SCIONPacket *packet = createPacket(&buf, 1);
-    mConnectionManager->sendAllPaths(packet);
+    SSPPacket *sp = (SSPPacket *)packet->payload;
+    sp->header.flags |= SSP_CON;
+    mConnectionManager->queuePacket(packet);
     return 0;
 }
 
@@ -227,18 +256,11 @@ int SSPProtocol::listen(int sock)
         return -1;
     }
 
-    DispatcherEntry e;
-    memset(&e, 0, sizeof(e));
-    e.flow_id = 0;
-    e.port = htons(mSrcPort);
-    e.isd_as = htonl(addr->isd_as);
-    e.addr_type = ADDR_IPV4_TYPE;
-    memcpy(e.addr, addr->host.addr, MAX_HOST_ADDR_LEN);
-    mSrcPort = registerFlow(L4_SSP, &e, sock, 1);
+    mSrcPort = registerDispatcher(0, 0, sock);
     return 0;
 }
 
-int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
     uint8_t *ptr = buf;
     size_t total_len = len;
@@ -254,14 +276,17 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
         size_t packetLen = packetMax > len ? len : packetMax;
         len -= packetLen;
         SCIONPacket *packet = createPacket(ptr, packetLen);
-        mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow);
+        if (mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow) == -ETIMEDOUT) {
+            DEBUG("timed out in send\n");
+            return -ETIMEDOUT;
+        }
         mConnectionManager->queuePacket(packet);
         ptr += packetLen;
     }
     return total_len;
 }
 
-int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     int total = 0;
     uint8_t *ptr = buf;
@@ -269,24 +294,32 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
 
     pthread_mutex_lock(&mReadMutex);
     while (!mReadyToRead) {
-        DEBUG("no data to read yet\n");
+        DEBUG("%p: no data to read yet\n", this);
         if (!mBlocking) {
             pthread_mutex_unlock(&mReadMutex);
             DEBUG("non-blocking socket not ready to recv\n");
             return -EWOULDBLOCK;
         }
-        pthread_cond_wait(&mReadCond, &mReadMutex);
+        if (timeout > 0.0) {
+            if (timedWait(&mReadCond, &mReadMutex, timeout) == ETIMEDOUT) {
+                pthread_mutex_unlock(&mReadMutex);
+                DEBUG("%p: timeout in recv\n", this);
+                return -ETIMEDOUT;
+            }
+        } else {
+            pthread_cond_wait(&mReadCond, &mReadMutex);
+        }
     }
     pthread_mutex_lock(&mStateMutex);
     if (mState == SCION_CLOSED || mState == SCION_FIN_READ) {
         pthread_mutex_unlock(&mStateMutex);
         pthread_mutex_unlock(&mReadMutex);
-        DEBUG("%lu: connection has already terminated\n", mFlowID);
+        DEBUG("%p: connection has already terminated (%d)\n", this, mState);
         return 0;
     }
     pthread_mutex_unlock(&mStateMutex);
 
-    DEBUG("start recv\n");
+    DEBUG("%p: start recv\n", this);
     while (!mReadyPackets->empty()) {
         if (total >= (int)len) {
             DEBUG("filled user buffer\n");
@@ -302,7 +335,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
         size_t toRead = len - total > currentPacket ? currentPacket : len - total;
         DEBUG("reading %lu bytes\n", toRead);
         if (sp->header.flags & SSP_FIN) {
-            DEBUG("%lu: recv'd FIN packet\n", mFlowID);
+            DEBUG("%p: recv'd FIN packet\n", this);
             pthread_mutex_lock(&mStateMutex);
             mState = SCION_FIN_READ;
             pthread_mutex_unlock(&mStateMutex);
@@ -313,7 +346,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
             sp->dataOffset += toRead;
         }
         if (sp->dataOffset == sp->len) {
-            DEBUG("%lu: done with packet %lu\n", mFlowID, sp->header.offset);
+            DEBUG("%p: done with packet %lu\n", this, sp->header.offset);
             mReadyPackets->pop();
             mNextPacket += sp->len;
             mTotalReceived -= sizeof(SSPPacket) + sp->len;
@@ -330,8 +363,8 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
     }
     pthread_mutex_unlock(&mReadMutex);
     if (!total)
-        DEBUG("%lu: connection has terminated\n", mFlowID);
-    DEBUG("%lu: recv'd total %d bytes\n", mFlowID, total);
+        DEBUG("%p: connection has terminated\n", this);
+    DEBUG("%p: recv'd total %d bytes\n", this, total);
     return total;
 }
 
@@ -353,17 +386,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
     }
     DEBUG("%lu created\n", mFlowID);
 
-    SCIONAddr *localAddr = mConnectionManager->localAddress();
-    if (localAddr->isd_as == 0)
-        mConnectionManager->queryLocalAddress();
-    DispatcherEntry se;
-    memset(&se, 0, sizeof(se));
-    se.flow_id = mFlowID;
-    se.port = 0;
-    se.isd_as = htonl(localAddr->isd_as);
-    se.addr_type = ADDR_IPV4_TYPE;
-    memcpy(se.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
-    mSrcPort = registerFlow(L4_SSP, &se, sock, 1);
+    mSrcPort = registerDispatcher(0, 0, sock);
     DEBUG("start protocol for flow %lu\n", mFlowID);
     if (packet && buf)
         handlePacket(packet, buf);
@@ -543,7 +566,7 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
         DEBUG("in-order packet %lu: Receive window too full: %u/%u\n",
                 sp->header.offset, mTotalReceived, mLocalReceiveWindow);
         sp->header.offset = mHighestReceived;
-        sendAck(sp, pathIndex, true);
+        sendAck(sp, pathIndex);
         sp->data = NULL;
         destroySSPPacket(sp);
         pthread_mutex_unlock(&mReadMutex);
@@ -561,7 +584,7 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
         sendAck(sp, pathIndex);
         mReadyToRead = true;
         if (last->header.flags & SSP_FIN) {
-            DEBUG("%lu: Read up to FIN flag, connection done\n", mFlowID);
+            DEBUG("%p: Read up to FIN flag, connection done\n", this);
             pthread_mutex_lock(&mStateMutex);
             mState = SCION_FIN_RCVD;
             pthread_mutex_unlock(&mStateMutex);
@@ -591,7 +614,7 @@ void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
                 sp->header.offset, mLowestPending,
                 mTotalReceived, mLocalReceiveWindow);
         sp->header.offset = mHighestReceived;
-        sendAck(sp, pathIndex, true);
+        sendAck(sp, pathIndex);
         sp->data = NULL;
         destroySSPPacket(sp);
         pthread_mutex_unlock(&mReadMutex);
@@ -624,9 +647,9 @@ void SSPProtocol::handleData(SSPPacket *sp, int pathIndex)
 
     if (mIsReceiver && start == 0) {
         DEBUG("Connect packet received\n");
-        mLowestPending = end;
-        mNextPacket = end;
-        sendAck(sp, pathIndex, true);
+        mLowestPending = mLowestPending > end ? mLowestPending : end;
+        mNextPacket = mNextPacket > end ? mNextPacket : end;
+        sendAck(sp, pathIndex);
         destroySSPPacket(sp);
         return;
     }
@@ -639,7 +662,7 @@ void SSPProtocol::handleData(SSPPacket *sp, int pathIndex)
     }
 
     if (sp->header.flags & SSP_FIN)
-        DEBUG("%lu: handleData for FIN packet %lu (%lu)\n", mFlowID, start, mLowestPending);
+        DEBUG("%p: handleData for FIN packet %lu (%lu)\n", this, start, mLowestPending);
 
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -651,7 +674,7 @@ void SSPProtocol::handleData(SSPPacket *sp, int pathIndex)
     }
 }
 
-void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex, bool full)
+void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
 {
     uint64_t packetNum = inPacket->header.offset;
     DEBUG("%lu: send ack for %lu (path %d)\n", mFlowID, packetNum, pathIndex);
@@ -672,8 +695,6 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex, bool full)
     sh.flags |= SSP_ACK;
     if (inPacket->header.flags & SSP_FIN)
         sh.flags |= SSP_FIN;
-    if (full)
-        sh.flags |= SSP_FULL;
     sh.headerLen = sizeof(SSPHeader) + sizeof(SSPAck);
     if (!mInitialized) {
         sh.flags |= SSP_WINDOW;
@@ -707,7 +728,7 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     packet->payload = sp;
     sp->header.headerLen = sizeof(SSPHeader);
     sp->header.flowID = htobe64(mFlowID);
-    sp->header.port = htons(mDstPort);
+    sp->header.port = mInitialized ? 0 : htons(mDstPort);
     sp->header.offset = htobe64(mNextSendByte);
     DEBUG("%s: created packet %lu at %p\n", __func__, be64toh(sp->header.offset), packet);
     if (!mInitialized) {
@@ -732,7 +753,7 @@ void SSPProtocol::handleTimerEvent()
     struct timeval current;
     gettimeofday(&current, NULL);
     mConnectionManager->handleTimeout();
-    if (elapsedTime(&mLastProbeTime, &current) >= (int32_t)mProbeInterval) {
+    if (mInitialized && elapsedTime(&mLastProbeTime, &current) >= (int32_t)mProbeInterval) {
         mConnectionManager->sendProbes(++mProbeNum, mFlowID);
         mLastProbeTime = current;
     }
@@ -796,15 +817,16 @@ void SSPProtocol::notifySender()
     pthread_mutex_unlock(&mSelectMutex);
 }
 
-int SSPProtocol::shutdown()
+int SSPProtocol::shutdown(bool force)
 {
     pthread_mutex_lock(&mStateMutex);
-    DEBUG("%lu: shutdown\n", mFlowID);
+    DEBUG("%p: shutdown\n", this);
     if (mState == SCION_CLOSED) {
         pthread_mutex_unlock(&mStateMutex);
         return 0;
     }
-    if (mState == SCION_FIN_READ ||
+    if (force ||
+            mState == SCION_FIN_READ ||
             mState == SCION_FIN_RCVD ||
             (!mIsReceiver && mNextSendByte == 0)) {
         if (mState == SCION_RUNNING)
@@ -823,7 +845,7 @@ int SSPProtocol::shutdown()
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     sp->header.flags |= SSP_FIN;
     mConnectionManager->queuePacket(packet);
-    DEBUG("%lu: FIN packet (%lu) sent\n", mFlowID, be64toh(sp->header.offset));
+    DEBUG("%lu: FIN packet (%lu) queued\n", mFlowID, be64toh(sp->header.offset));
     return 0;
 }
 
@@ -836,6 +858,30 @@ void SSPProtocol::notifyFinAck()
     mReadyToRead = true;
     pthread_cond_broadcast(&mReadCond);
     pthread_mutex_unlock(&mReadMutex);
+}
+
+int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
+{
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
+    if (localAddr->isd_as == 0)
+        mConnectionManager->queryLocalAddress();
+    DispatcherEntry de;
+    memset(&de, 0, sizeof(de));
+    de.flow_id = flowID > 0 ? flowID : mFlowID;
+    de.port = port > 0 ? port : htons(mSrcPort);
+    de.isd_as = htonl(localAddr->isd_as);
+    de.addr_type = ADDR_IPV4_TYPE;
+    memcpy(de.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
+    int ret = registerFlow(L4_SSP, &de, sock);
+    if (mSrcPort > 0 && ret == 0)
+        return mSrcPort;
+    return ret;
+}
+
+void SSPProtocol::threadCleanup()
+{
+    pthread_mutex_unlock(&mSelectMutex);
+    SCIONProtocol::threadCleanup();
 }
 
 // SUDP
@@ -859,11 +905,11 @@ SUDPProtocol::~SUDPProtocol()
 int SUDPProtocol::bind(SCIONAddr addr, int sock)
 {
     int ret = SCIONProtocol::bind(addr, sock);
-    registerDispatcher(addr.host.port, sock, 1);
+    mSrcPort = registerDispatcher(0, addr.host.port, sock);
     return ret;
 }
 
-int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
+int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
     if (dstAddr && mRemoteAddr.isd_as != dstAddr->isd_as) {
         memcpy(&mRemoteAddr, dstAddr, sizeof(SCIONAddr));
@@ -888,7 +934,7 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
     return mConnectionManager->sendPacket(&packet);
 }
 
-int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
 {
     DEBUG("recv max %lu bytes\n", len);
     int size = 0;
@@ -988,16 +1034,17 @@ void SUDPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 {
 }
 
-void SUDPProtocol::registerDispatcher(uint16_t port, int sock, int reg)
+int SUDPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
 {
     SCIONAddr *addr = mConnectionManager->localAddress();
 
     DispatcherEntry e;
-    e.port = htons(port);
+    e.flow_id = flowID;
+    e.port = port > 0 ? htons(port) : htons(mSrcPort);
     e.addr_type = ADDR_IPV4_TYPE;
     e.isd_as = htonl(addr->isd_as);
     memcpy(e.addr, addr->host.addr, MAX_HOST_ADDR_LEN);
-    mSrcPort = registerFlow(L4_UDP, &e, sock, reg);
+    return registerFlow(L4_UDP, &e, sock);
 }
 
 void SUDPProtocol::getStats(SCIONStats *stats)

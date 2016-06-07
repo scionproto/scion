@@ -107,12 +107,13 @@ uint64_t createRandom(int bits)
     int fd = open("/dev/urandom", O_RDONLY);
     uint64_t r;
     read(fd, &r, 8);
+    close(fd);
     if (bits == 64)
         return r;
     return r & ((1 << bits) - 1);
 }
 
-int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg)
+int registerFlow(int proto, DispatcherEntry *e, int sock)
 {
     DEBUG("register flow via socket %d\n", sock);
 
@@ -133,7 +134,7 @@ int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg)
     uint8_t buf[128];
     write_dp_header(buf, NULL, len);
     uint8_t *ptr = buf + DP_HEADER_LEN;
-    ptr[0] = reg;
+    ptr[0] = 1;
     ptr[1] = proto;
     memcpy(ptr + 2, &e->isd_as, ISD_AS_LEN);
     *(uint16_t *)(ptr + 2 + ISD_AS_LEN) = e->port;
@@ -156,6 +157,10 @@ int registerFlow(int proto, DispatcherEntry *e, int sock, uint8_t reg)
     strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
     int res = connect(sock, (struct sockaddr *)&su, sizeof(su));
     if (res < 0) {
+        if (errno == EISCONN) {
+            DEBUG("already connected\n");
+            return 0;
+        }
         fprintf(stderr, "CRITICAL: failed to connect to dispatcher: %s\n", strerror(errno));
         return -1;
     }
@@ -183,4 +188,16 @@ void destroyStats(SCIONStats *stats)
             free(stats->ifLists[i]);
     }
     free(stats);
+}
+
+int timedWait(pthread_cond_t *cond, pthread_mutex_t *mutex, double timeout)
+{
+    struct timespec ts;
+    struct timeval tv;
+    int secs = (int)timeout;
+    uint64_t ns = (timeout - secs) * 1000000000;
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec + (int)timeout;
+    ts.tv_nsec = tv.tv_usec * 1000 + ns;
+    return pthread_cond_timedwait(cond, mutex, &ts);
 }

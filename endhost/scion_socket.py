@@ -26,6 +26,7 @@ from ctypes import (
     addressof,
     byref,
     CDLL,
+    c_double,
     c_int,
     c_short,
     c_size_t,
@@ -277,6 +278,8 @@ class ScionBaseSocket(object):
         self.proto = proto
         self.libssock = libssock
         self.sciond_addr = sciond_addr
+        self.port = 0
+        self.timeout = 0.0
         if fd:
             self.fd = fd
         else:
@@ -294,6 +297,7 @@ class ScionBaseSocket(object):
         :rtype: int
         """
         sa = addr_py2c(saddr, port)
+        self.port = port
         return self.libssock.SCIONBind(self.fd, sa)
 
     def send(self, msg):
@@ -312,7 +316,8 @@ class ScionBaseSocket(object):
             return 0
         if msg is None or len(msg) == 0:
             return 0
-        return self.libssock.SCIONSend(self.fd, msg, len(msg))
+        return self.libssock.SCIONSend(self.fd, msg, len(msg), 0,
+                                       c_double(self.timeout))
 
     def sendall(self, msg):
         """
@@ -340,16 +345,33 @@ class ScionBaseSocket(object):
             logging.critical("Called recv after close")
             return None
         buf = (c_ubyte * bufsize)()
-        num_bytes_rcvd = self.libssock.SCIONRecv(self.fd, byref(buf),
-                                                 bufsize, None)
+        num_bytes_rcvd = self.libssock.SCIONRecv(
+            self.fd, byref(buf), bufsize, None, c_double(self.timeout))
         if num_bytes_rcvd < 0:
             logging.error("Error during recv.")
             return None
         elif num_bytes_rcvd == 0:
-            logging.warning("Received 0 bytes on fd %d. Is the socket closed?"
-                            % self.fd)
-
+            logging.debug("Received 0 bytes on fd %d - remote socket closed",
+                          self.fd)
         return bytes(buf[:num_bytes_rcvd])
+
+    def recv_all(self, total):
+        """
+        Repeatedly call recv until total bytes are read.
+        :param total: Total size to read from socket.
+        :type total: int
+        """
+        barr = bytearray()
+        while len(barr) < total:
+            buf = self.recv(total - len(barr))
+            if not buf:
+                if len(barr) > 0:
+                    logging.error("Connection prematurely terminated")
+                else:
+                    logging.debug("Connection terminated")
+                return None
+            barr += buf
+        return barr
 
     def fileno(self):
         """
@@ -420,7 +442,6 @@ class ScionBaseSocket(object):
             buf = bytes(self.LONG_OPTIONS[opttype])
             opt.data = buf
             opt.len = len(buf)
-        logging.debug("opt addr = %x", addressof(opt))
         self.libssock.SCIONGetOption(self.fd, addressof(opt))
         if opttype in self.LONG_OPTIONS:
             return buf
@@ -462,6 +483,12 @@ class ScionBaseSocket(object):
         """
         return self.fd != -1
 
+    def settimeout(self, timeout):
+        """
+        Placeholder for now, might be implemented later.
+        """
+        self.timeout = timeout
+
 
 class ScionServerSocket(ScionBaseSocket):
     """
@@ -477,7 +504,7 @@ class ScionServerSocket(ScionBaseSocket):
         :type server_port: int
         """
         super().__init__(proto, sciond_addr, CDLL(SHARED_LIB_FILE))
-        logging.info("ScionServerSocket fd = %d" % self.fd)
+        logging.debug("ScionServerSocket fd = %d" % self.fd)
 
     def listen(self):
         """
@@ -499,7 +526,7 @@ class ScionServerSocket(ScionBaseSocket):
         :rtype: Address tuple (ScionBaseSocket, Address)
         """
         newfd = self.libssock.SCIONAccept(self.fd)
-        logging.info("Accepted socket %d" % newfd)
+        logging.debug("Accepted socket %d" % newfd)
         return ScionBaseSocket(self.proto, self.sciond_addr,
                                self.libssock, newfd), None
 
@@ -518,7 +545,7 @@ class ScionClientSocket(ScionBaseSocket):
         :type target_address: (string, int) tuple
         """
         super().__init__(proto, sciond_addr, CDLL(SHARED_LIB_FILE))
-        logging.info("ScionClientSocket fd = %d" % self.fd)
+        logging.debug("ScionClientSocket fd = %d" % self.fd)
 
     def connect(self, saddr, port):
         """

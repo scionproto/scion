@@ -291,6 +291,15 @@ class SCIONPath(Serializable):
             return iof.hops - 1
         return iof.hops - 2
 
+    def is_on_last_segment(self):
+        label = self._ofs.get_label_by_idx(self._hof_idx)
+        if label == self.A_HOFS:
+            return self._ofs.count(self.B_HOFS) == 0
+        elif label == self.B_HOFS:
+            return self._ofs.count(self.C_HOFS) == 0
+        else:
+            return True
+
     def __len__(self):  # pragma: no cover
         """Return the path length in bytes."""
         return len(self._ofs) * OpaqueField.LEN

@@ -218,6 +218,9 @@ class ReliableSocket(Socket):
             self.sock.settimeout(0)
         try:
             s = self.sock.accept()[0]
+        except OSError as e:
+            logging.error("error accepting socket: %s", e)
+            return None
         finally:
             self.sock.settimeout(prev)
         return ReliableSocket.from_socket(s)

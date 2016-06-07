@@ -426,6 +426,9 @@ class SCIONElement(object):
         Callback to handle a ready listening socket
         """
         s = sock.accept()
+        if not s:
+            logging.error("accept failed")
+            return
         self._socks.add(s, self.handle_recv)
 
     def handle_recv(self, sock):

@@ -18,8 +18,8 @@ public:
     virtual int bind(SCIONAddr addr, int sock);
     virtual int connect(SCIONAddr addr);
     virtual int listen(int sock);
-    virtual int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
-    virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    virtual int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
+    virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
 
     virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
     virtual void handleTimerEvent();
@@ -40,12 +40,15 @@ public:
     virtual bool readyToWrite();
     virtual int registerSelect(Notification *n, int mode);
     virtual void deregisterSelect(int index);
+    virtual int registerDispatcher(uint64_t flowID, uint16_t port, int sock);
 
     int setISDWhitelist(void *data, size_t len);
 
-    virtual int shutdown();
+    virtual int shutdown(bool force=false);
 
     uint32_t getLocalIA();
+
+    virtual void threadCleanup();
 
 protected:
     PathManager            *mPathManager;
@@ -79,8 +82,8 @@ public:
 
     int connect(SCIONAddr addr);
     int listen(int sock);
-    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
@@ -100,9 +103,11 @@ public:
 
     void notifySender();
 
-    int shutdown();
+    int shutdown(bool force=false);
     void notifyFinAck();
-    void registerDispatcher(uint64_t flowID, uint16_t port, int sock);
+    int registerDispatcher(uint64_t flowID, uint16_t port, int sock);
+
+    void threadCleanup();
 
 protected:
     void getWindowSize();
@@ -113,7 +118,7 @@ protected:
     void handleInOrder(SSPPacket *sp, int pathIndex);
     void handleOutOfOrder(SSPPacket *sp, int pathIndex);
     void handleData(SSPPacket *packet, int pathIndex);
-    void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
+    void sendAck(SSPPacket *sip, int pathIndex);
 
     // path manager
     SSPConnectionManager *mConnectionManager;
@@ -153,15 +158,15 @@ public:
     ~SUDPProtocol();
 
     int bind(SCIONAddr addr, int sock);
-    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL);
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
 
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
     void handleTimerEvent();
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
-    void registerDispatcher(uint16_t port, int sock, int reg);
+    int registerDispatcher(uint64_t flowID, uint16_t port, int sock);
 
     void getStats(SCIONStats *stats);
 
