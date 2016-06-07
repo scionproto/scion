@@ -30,7 +30,7 @@ from lib.path_store import (
     PathStore,
     PathStoreRecord
 )
-from test.testcommon import create_mock
+from test.testcommon import create_mock, create_mock_full
 
 
 class TestPathPolicyCheckFilters(object):
@@ -59,33 +59,6 @@ class TestPathPolicyCheckFilters(object):
     def test_property_ranges(self):
         inst, pcb = self._setup(reasons="reasons")
         ntools.assert_false(inst.check_filters(pcb))
-
-
-class TestPathPolicyCheckUnwantedASes(object):
-    """
-    Unit tests for lib.path_store.PathPolicy._check_unwanted_ases
-    """
-    def _setup(self):
-        inst = PathPolicy()
-        pcb = create_mock(['ases'])
-        pcb.ases = []
-        for i in range(5):
-            asm = create_mock(['pcbm'])
-            asm.pcbm = create_mock(['isd_as'])
-            asm.pcbm.isd_as = "%d-%d" % (i, i)
-            pcb.ases.append(asm)
-        return inst, pcb
-
-    def test_basic(self):
-        inst, pcb = self._setup()
-        unwanted = "2-2"
-        inst.unwanted_ases = [unwanted]
-        # Call
-        ntools.eq_(inst._check_unwanted_ases(pcb), unwanted)
-
-    def test_not_present(self):
-        inst, pcb = self._setup()
-        ntools.assert_is_none(inst._check_unwanted_ases(pcb))
 
 
 class TestPathPolicyCheckPropertyRanges(object):
@@ -366,35 +339,31 @@ class TestPathStoreUpdateAllDisjointness(object):
     Unit tests for lib.path_store._update_all_disjointness
     """
     def test(self):
-        path_policy = MagicMock(spec_set=['history_limit'])
-        path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        inst = PathStore(create_mock_full({'history_limit': 3}))
         numCandidates = 5
         pathLength = 5
-        pth_str.candidates = []
-        pth_str.disjointness = {}
+        inst.candidates = []
+        inst.disjointness = {}
         for i in range(numCandidates):
-            record = create_mock(['pcb', 'disjointness', 'id'])
-            record.id = i * (2 * pathLength + 1)
-            pth_str.disjointness[record.id] = 1.0
-            record.pcb = create_mock(['ases'])
-            record.pcb.ases = []
+            id_ = i * (2 * pathLength + 1)
+            asms = []
             for j in range(pathLength):
-                pcbm = create_mock(['isd_as', 'hof'])
-                pcbm.isd_as = (9, record.id + j + 1)
-                pth_str.disjointness[pcbm.isd_as[1]] = 1.0
-                pcbm.hof = MagicMock(spec_set=['egress_if'])
-                pcbm.hof.egress_if = pcbm.isd_as[1] + pathLength
-                pth_str.disjointness[pcbm.hof.egress_if] = 1.0
-                as_marking = create_mock(['pcbm'])
-                as_marking.pcbm = pcbm
-                record.pcb.ases.append(as_marking)
-            pth_str.candidates.append(record)
-        pth_str._update_disjointness_db = create_mock()
-        pth_str._update_all_disjointness()
+                isdas = 9, id_ + j + 1
+                hof = create_mock_full({'egress_if': isdas[1] + pathLength})
+                pcbm = create_mock_full({'hof()': hof})
+                asms.append(create_mock_full({
+                    "isd_as()": isdas, "pcbm()": pcbm}))
+                inst.disjointness[isdas[1]] = 1.0
+                inst.disjointness[hof.egress_if] = 1.0
+            pcb = create_mock_full({"iter_asms()": asms})
+            record = create_mock_full(
+                {'pcb': pcb, 'disjointness': 0, 'id': id_})
+            inst.disjointness[id_] = 1.0
+            inst.candidates.append(record)
+        inst._update_disjointness_db = create_mock()
+        inst._update_all_disjointness()
         for i in range(numCandidates):
-            ntools.assert_almost_equal(pth_str.candidates[i].disjointness,
-                                       1.0)
+            ntools.assert_almost_equal(inst.candidates[i].disjointness, 1.0)
 
 
 class TestPathStoreUpdateAllDelayTime(object):

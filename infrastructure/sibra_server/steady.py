@@ -151,9 +151,9 @@ class SteadyPath(object):
         if ext.accepted:
             self.blocks.append(ext.req_block)
             if ext.setup:
-                logging.info("Setup successful: %s", ext.req_block.info)
+                logging.info("Setup successful: %s", ext.req_block)
             else:
-                logging.debug("Renewal successful: %s", ext.req_block.info)
+                logging.debug("Renewal successful: %s", ext.req_block)
             self._register_path()
             self._stamp = None
             return
@@ -288,9 +288,10 @@ class SteadyPath(object):
         info.fwd_dir = not remote
         sofs = latest.sofs[:]
         up = True
-        if remote and self.link_type == LINK_PARENT:
+        if remote:
             sofs.reverse()
-            up = False
+            if self.link_type == LINK_PARENT:
+                up = False
         pcb_d = self.seg.to_dict()
         if remote and self.link_type == LINK_ROUTING:
             pcb_d['asms'].reverse()
@@ -299,7 +300,16 @@ class SteadyPath(object):
         pcb.remove_crypto()
         pcb.add_sibra_ext(pcb_ext.p)
         pcb.sign(self.signing_key)
+        logging.debug(self._reg_pcb_str(pcb))
         return pcb
+
+    def _reg_pcb_str(self, pcb):
+        a = []
+        for line in pcb.short_desc().splitlines():
+            a.append("  %s" % line)
+        for sof in pcb.sibra_ext.iter_sofs():
+            a.append("    %s" % sof)
+        return "\n".join(a)
 
     def __str__(self):
         with self._lock:

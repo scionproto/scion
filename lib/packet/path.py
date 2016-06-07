@@ -348,8 +348,8 @@ class PathCombinator(object):
         Returns a list of all shortcut paths (peering and crossover paths) that
         can be built using the provided up- and down-segments.
 
-        :param list up_segments: List of `up` :any:`PathSegment`\s.
-        :param list down_segments: List of `down` :any:`PathSegment`\s.
+        :param list up_segments: List of `up` PathSegments.
+        :param list down_segments: List of `down` PathSegments.
         :returns: List of paths.
         """
         paths = []
@@ -478,6 +478,8 @@ class PathCombinator(object):
         :returns:
             :any:`PeerPath` if using a peering link, otherwise
             :any:`CrossOverPath`.
+
+        FIXME(kormat): this is an untestable mess.
         """
         (up_index, down_index) = point
 
@@ -515,7 +517,7 @@ class PathCombinator(object):
             hof = asm.pcbm(0).hof()
             if hof.egress_if:
                 path.interfaces.append((asm.isd_as(), hof.egress_if))
-            if i != 0:
+            if i:
                 path.interfaces.append((asm.isd_as(), hof.ingress_if))
         if peer:
             up_ia = up_segment.asm(up_index).isd_as()
@@ -524,7 +526,7 @@ class PathCombinator(object):
             path.interfaces.append((down_ia, down_peering_hof.ingress_if))
         for i, asm in enumerate(down_segment.iter_asms(down_index)):
             hof = asm.pcbm(0).hof()
-            if i != 0:
+            if i:
                 path.interfaces.append((asm.isd_as(), hof.ingress_if))
             if hof.egress_if:
                 path.interfaces.append((asm.isd_as(), hof.egress_if))

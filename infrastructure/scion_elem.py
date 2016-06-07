@@ -337,7 +337,7 @@ class SCIONElement(object):
             if_id = spkt.path.get_fwd_if()
         if if_id in self.ifid2er:
             return self.ifid2er[if_id].addr, SCION_UDP_EH_DATA_PORT
-        logging.error("Unable to find first hop")
+        logging.error("Unable to find first hop:\n", spkt.path)
         return None, None
 
     def _ext_first_hop(self, spkt):

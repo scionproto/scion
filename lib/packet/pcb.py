@@ -15,9 +15,6 @@
 :mod:`pcb` --- SCION Beacon
 ===========================
 """
-# Stdlib
-import copy
-
 # External packages
 from Crypto.Hash import SHA256
 import capnp  # noqa
@@ -42,38 +39,24 @@ REV_TOKEN_LEN = 32
 
 
 class PCBMarking(Cerealizable):
-    """
-    Pack all fields for a specific PCB marking, which include: ISD and AS
-    numbers, the HopOpaqueField, and the revocation token for the ingress
-    interfaces included in the HOF. (Revocation token for egress interface is
-    included within ASMarking.)
-    """
     NAME = "PCBMarking"
     P_CLS = P.PCBMarking
 
     @classmethod
     def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid, hof,
                     ig_rev_token):  # pragma: no cover
-        """
-        Returns PCBMarking with fields populated from values.
-
-        :param isd_as: ISD_AS object.
-        :param hof: HopOpaqueField object.
-        :param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
-        """
         return cls(cls.P_CLS.new_message(
             inIA=str(in_ia), inIF=in_ifid, inMTU=in_mtu,
             outIA=str(out_ia), outIF=out_ifid, hof=hof.pack(),
             igRevToken=ig_rev_token))
 
-    def inIA(self):
+    def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
 
-    def outIA(self):
+    def outIA(self):  # pragma: no cover
         return ISD_AS(self.p.outIA)
 
-    def hof(self):
+    def hof(self):  # pragma: no cover
         return HopOpaqueField(self.p.hof)
 
     def sig_pack(self, ver):
@@ -90,9 +73,6 @@ class PCBMarking(Cerealizable):
             b.append(self.p.hof)
             b.append(self.p.igRevToken)
         return b"".join(b)
-
-    def __eq__(self, other):  # pragma: no cover
-        return self.p == other.p
 
     def __str__(self):
         s = []
@@ -122,20 +102,20 @@ class ASMarking(Cerealizable):
             p.exts.revInfos[i] = rev_info.pack()
         return cls(p)
 
-    def isd_as(self):
+    def isd_as(self):  # pragma: no cover
         return ISD_AS(self.p.isdas)
 
-    def pcbm(self, idx):
+    def pcbm(self, idx):  # pragma: no cover
         return PCBMarking(self.p.pcbms[idx])
 
-    def iter_pcbms(self, start=0):
+    def iter_pcbms(self, start=0):  # pragma: no cover
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
 
-    def chain(self):
+    def chain(self):  # pragma: no cover
         return CertificateChain(self.p.chain, lz4_=True)
 
-    def add_ext(self, ext):
+    def add_ext(self, ext):  # pragma: no cover
         """
         Appends a new ASMarking extension.
         """
@@ -180,11 +160,16 @@ class PathSegment(SCIONPayloadBaseProto):
     PAYLOAD_TYPE = PCBType.SEGMENT
     P_CLS = P.PathSegment
 
-    def __init__(self, p):
+    def __init__(self, p):  # pragma: no cover
         super().__init__(p)
-        self.info = InfoOpaqueField(p.info)
+        self._min_exp = float("inf")
+        self._setup()
+
+    def _setup(self):
+        self.info = InfoOpaqueField(self.p.info)
+        self._calc_min_exp()
         self.sibra_ext = None
-        if p.exts.sibra.info:
+        if self.is_sibra():
             self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     @classmethod
@@ -194,14 +179,19 @@ class PathSegment(SCIONPayloadBaseProto):
             p.exts.sibra = sibra_ext.p
         return cls(p)
 
-    def asm(self, idx):
+    def _calc_min_exp(self):
+        # NB: only the expiration time of the first pcbm is considered.
+        for asm in self.iter_asms():
+            self._min_exp = min(self._min_exp, asm.pcbm(0).hof().exp_time)
+
+    def asm(self, idx):  # pragma: no cover
         return ASMarking(self.p.asms[idx])
 
-    def iter_asms(self, start=0):
+    def iter_asms(self, start=0):  # pragma: no cover
         for i in range(start, len(self.p.asms)):
             yield self.asm(i)
 
-    def is_sibra(self):
+    def is_sibra(self):  # pragma: no cover
         return bool(self.p.exts.sibra.id)
 
     def sig_pack(self, ver=3):
@@ -215,14 +205,14 @@ class PathSegment(SCIONPayloadBaseProto):
                 b.append(self.sibra_ext.sig_pack(2))
         return b"".join(b)
 
-    def sign(self, key, set_=True):
+    def sign(self, key, set_=True):  # pragma: no cover
         assert not self.p.asms[-1].sig
         sig = sign(self.sig_pack(3), key)
         if set_:
             self.p.asms[-1].sig = sig
         return sig
 
-    def add_asm(self, asm):
+    def add_asm(self, asm):  # pragma: no cover
         """
         Appends a new ASMarking block.
         """
@@ -230,12 +220,13 @@ class PathSegment(SCIONPayloadBaseProto):
         d.setdefault('asms', []).append(asm.p)
         self.p.from_dict(d)
         self._update_info()
+        self._min_exp = min(self._min_exp, asm.pcbm(0).hof().exp_time)
 
-    def _update_info(self):
+    def _update_info(self):  # pragma: no cover
         self.info.hops = len(self.p.asms)
         self.p.info = self.info.pack()
 
-    def add_sibra_ext(self, ext_p):
+    def add_sibra_ext(self, ext_p):  # pragma: no cover
         self.p.exts.sibra = ext_p.copy()
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
@@ -252,7 +243,7 @@ class PathSegment(SCIONPayloadBaseProto):
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
-        info = copy.deepcopy(self.info)
+        info = InfoOpaqueField(self.p.info)
         asms = list(self.iter_asms())
         if reverse_direction:
             asms = reversed(asms)
@@ -261,13 +252,13 @@ class PathSegment(SCIONPayloadBaseProto):
             hofs.append(asm.pcbm(0).hof())
         return SCIONPath.from_values(info, hofs)
 
-    def first_ia(self):
+    def first_ia(self):  # pragma: no cover
         return self.asm(0).isd_as()
 
-    def last_ia(self):
+    def last_ia(self):  # pragma: no cover
         return self.asm(-1).isd_as()
 
-    def last_hof(self):
+    def last_hof(self):  # pragma: no cover
         if self.p.asms:
             return self.asm(-1).pcbm(0).hof()
         return None
@@ -305,7 +296,7 @@ class PathSegment(SCIONPayloadBaseProto):
         self.info.timestamp = timestamp
         self._update_info()
 
-    def get_expiration_time(self):
+    def get_expiration_time(self):  # pragma: no cover
         """
         Returns the expiration time of the path segment in real time. If a PCB
         extension in the last ASMarking supplies an expiration time, use that.
@@ -313,8 +304,7 @@ class PathSegment(SCIONPayloadBaseProto):
         """
         if self.is_sibra():
             return self.sibra_ext.exp_ts()
-        # FIXME(kormat): need to get min.
-        return self.info.timestamp + int((2 ** 8 - 1) * EXP_TIME_UNIT)
+        return self.info.timestamp + int(self._min_exp * EXP_TIME_UNIT)
 
     def get_all_iftokens(self):
         """
@@ -327,7 +317,7 @@ class PathSegment(SCIONPayloadBaseProto):
             tokens.append(asm.egRevToken)
         return tokens
 
-    def flags(self):
+    def flags(self):  # pragma: no cover
         f = 0
         if self.is_sibra():
             f |= PSF.SIBRA
@@ -370,7 +360,7 @@ class PathSegment(SCIONPayloadBaseProto):
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
 
-def parse_pcb_payload(type_, data):
+def parse_pcb_payload(type_, data):  # pragma: no cover
     type_map = {
         PCBType.SEGMENT: PathSegment.from_raw,
     }

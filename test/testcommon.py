@@ -17,7 +17,7 @@
 """
 # Stdlib
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # External
 import nose.tools as ntools
@@ -27,71 +27,11 @@ from lib.errors import SCIONBaseError
 
 
 class SCIONTestError(SCIONBaseError):
-    """
-    SCIONTestError class.
-    """
     pass
 
 
 class SCIONCommonTest(unittest.TestCase):
-    """
-    SCIONCommonTest class.
-    """
     pass
-
-
-class MockCollection(object):
-    """
-    A wrapper class to automate patching (and unpatching) multiple objects. To
-    be used from a unittesting decorator.
-    """
-    def __init__(self):
-        """
-        Initialize an instance of the class MockCollection.
-        """
-        self._patcher = {}
-
-    def add(self, target, name, new=None, autospec=True):
-        """
-        Create a patcher for `target`, and use `name` for the mock object made
-        available after `start()`.
-
-        :param target:
-        :type target:
-        :param name:
-        :type name:
-        :param new:
-        :type new:
-        :param autospec:
-        :type autospec:
-        """
-        # Don't redo an existing patch
-        if name in self._patcher:
-            return
-        kwargs = {}
-        if new is None:
-            kwargs["autospec"] = autospec
-        else:
-            kwargs["new"] = new
-        self._patcher[name] = patch(target, **kwargs)
-
-    def start(self):
-        """
-        Start all patchers, and use the stored `name`s to make the mock objects
-        available.
-        """
-        for name, patcher in self._patcher.items():
-            # Make sure we don't start a patcher twice
-            if not hasattr(self, name):
-                setattr(self, name, patcher.start())
-
-    def stop(self):
-        """
-        Stop all patchers, and delete the mock object references.
-        """
-        for name, patcher in self._patcher.items():
-            patcher.stop()
-            delattr(self, name)
 
 
 def create_mock(attrs=None, class_=None):
@@ -107,6 +47,38 @@ def create_mock(attrs=None, class_=None):
         if attr == "__class__" and class_:
             value = class_
         setattr(m, attr, value)
+    return m
+
+
+def create_mock_full(kv=None, class_=None, return_value=None, side_effect=None):
+    """
+    'kv' is a dict
+    "attr": val - directly sets attr to val.
+    "attr()": val - sets the return value of attr() to val.
+    "attr()...": val - sets the side_effects of attr() to val.
+    """
+    def base(name):
+        return name.rstrip("().")
+    if not kv:
+        kv = {}
+    attrs = []
+    for k in kv:
+        attrs.append(base(k))
+    m = create_mock(attrs, class_=class_)
+    if return_value is not None:
+        m.return_value = return_value
+    if side_effect is not None:
+        m.side_effect = side_effect
+    for k, v in kv.items():
+        a = base(k)
+        if k.endswith("()..."):
+            f = getattr(m, a)
+            setattr(f, "side_effect", v)
+        elif k.endswith("()"):
+            f = getattr(m, a)
+            setattr(f, "return_value", v)
+        else:
+            setattr(m, a, v)
     return m
 
 
