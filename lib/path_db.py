@@ -38,7 +38,7 @@ class DBResult(object):
 class PathSegmentDBRecord(object):
     """Path record that gets stored in the the PathSegmentDB"""
 
-    def __init__(self, pcb, exp_time=None):
+    def __init__(self, pcb, exp_time=float("inf")):
         """
         :param pcb: The PCB stored in the record.
         :type pcb: :class:`lib.packet.pcb.PathSegment`
@@ -52,18 +52,15 @@ class PathSegmentDBRecord(object):
         # Fidelity can be used to configure the desirability of a path. For
         # now we just use path length.
         self.fidelity = pcb.get_n_hops()
-        if exp_time:
-            self.exp_time = min(pcb.get_expiration_time(), exp_time)
-        else:
-            self.exp_time = pcb.get_expiration_time()
+        self.exp_time = min(pcb.get_expiration_time(), exp_time)
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # pragma: no cover
         if type(other) is type(self):
             return self.id == other.id
         else:
             return False
 
-    def __hash__(self):
+    def __hash__(self):  # pragma: no cover
         return self.id
 
 
@@ -86,7 +83,7 @@ class PathSegmentDB(object):
         self._segment_ttl = segment_ttl
         self._max_res_no = max_res_no
 
-    def __getitem__(self, seg_id):
+    def __getitem__(self, seg_id):  # pragma: no cover
         """Return a path object by segment id."""
         with self._lock:
             recs = self._db(id=seg_id)
@@ -94,7 +91,7 @@ class PathSegmentDB(object):
             return recs[0]['record'].pcb
         return None
 
-    def __contains__(self, seg_id):
+    def __contains__(self, seg_id):  # pragma: no cover
         with self._lock:
             recs = self._db(id=seg_id)
         return len(recs) > 0

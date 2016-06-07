@@ -79,7 +79,7 @@ class PathPolicy(object):
             return False
         return True
 
-    def _check_unwanted_ases(self, pcb):
+    def _check_unwanted_ases(self, pcb):  # pragma: no cover
         """
         Checks whether any of the ASes in the path belong to the black list.
 

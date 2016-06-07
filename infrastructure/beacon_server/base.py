@@ -257,9 +257,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.debug("%s", pcb.sibra_ext)
 
     def rev_ext_handler(self, rev_info, isd_as):
-        """
-        Handler for RevPcbExt.
-        """
         logging.info("REV %s: %s" % (isd_as, rev_info))
         # Trigger the removal of PCBs which contain the revoked interface
         self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
