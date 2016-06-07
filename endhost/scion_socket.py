@@ -345,9 +345,8 @@ class ScionBaseSocket(object):
             logging.critical("Called recv after close")
             return None
         buf = (c_ubyte * bufsize)()
-        num_bytes_rcvd = self.libssock.SCIONRecv(self.fd, byref(buf),
-                                                 bufsize, None,
-                                                 c_double(self.timeout))
+        num_bytes_rcvd = self.libssock.SCIONRecv(
+            self.fd, byref(buf), bufsize, None, c_double(self.timeout))
         if num_bytes_rcvd < 0:
             logging.error("Error during recv.")
             return None

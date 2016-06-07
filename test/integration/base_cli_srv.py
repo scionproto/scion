@@ -56,11 +56,12 @@ API_TOUT = 15
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, sd, data, finished, addr):
+    def __init__(self, sd, data, finished, addr, timeout=1.0):
         self.sd = sd
         self.data = data
         self.finished = finished
         self.addr = addr
+        self._timeout = timeout
         self.sock = self._create_socket(addr)
         self.success = None
 
@@ -70,7 +71,7 @@ class TestBase(object, metaclass=ABCMeta):
 
     def _create_socket(self, addr):
         sock = ReliableSocket(reg=(addr, 0, True, None))
-        sock.settimeout(1.0)
+        sock.settimeout(self._timeout)
         return sock
 
     def _recv(self):
@@ -101,8 +102,7 @@ class TestClientBase(TestBase):
         self.api = api
         self.path = None
         self.iflist = []
-        super().__init__(sd, data, finished, addr)
-        self.sock.settimeout(timeout)
+        super().__init__(sd, data, finished, addr, timeout)
         self._get_path(api)
 
     def _get_path(self, api):

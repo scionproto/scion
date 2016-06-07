@@ -25,7 +25,7 @@ from lib.packet.scmp.info import parse_scmp_info, build_scmp_info
 from lib.packet.scmp.types import SCMPIncParts
 from lib.packet.scmp.util import scmp_get_inc_parts
 from lib.types import L4Proto
-from lib.util import Raw, hex_str
+from lib.util import Raw, calc_padding, hex_str
 
 
 class SCMPPayload(PayloadBase):
@@ -108,11 +108,8 @@ class SCMPPayload(PayloadBase):
                 inst.l4_proto = pkt.l4_hdr.TYPE
             else:
                 payload = pkt.get_payload()
-                if len(payload) > LINE_LEN:
-                    inst._l4_hdr = payload.pack()[:LINE_LEN]
-                else:
-                    padding = LINE_LEN - len(payload)
-                    inst._l4_hdr = payload.pack() + bytes(padding)
+                pld = payload.pack()[:LINE_LEN * 4]
+                inst._l4_hdr = pld + bytes(calc_padding(len(pld), LINE_LEN))
                 inst.l4_proto = L4Proto.NONE
         else:
             inst.l4_proto = L4Proto.NONE

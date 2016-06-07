@@ -448,15 +448,9 @@ int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double time
     while (totalQueuedSize() + len > windowSize) {
         pthread_mutex_lock(&mSentMutex);
         if (timeout > 0.0) {
-            struct timespec ts;
-            struct timeval tv;
-            int secs = (int)timeout;
-            uint64_t ns = (timeout - secs) * 1000000000;
-            gettimeofday(&tv, NULL);
-            ts.tv_sec = tv.tv_sec + (int)timeout;
-            ts.tv_nsec = tv.tv_usec * 1000 + ns;
-            if (pthread_cond_timedwait(&mSentCond, &mSentMutex, &ts) == ETIMEDOUT) {
-                DEBUG("%p: timed out waiting for send buffer\n", this);
+            if (timedWait(&mSentCond, &mSentMutex, timeout) == ETIMEDOUT) {
+                DEBUG("%p: timeout waiting for send buffer\n", this);
+                pthread_mutex_unlock(&mSentMutex);
                 return -ETIMEDOUT;
             }
         } else {

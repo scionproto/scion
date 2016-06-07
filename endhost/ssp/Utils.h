@@ -30,4 +30,6 @@ uint64_t createRandom(int bits);
 int registerFlow(int proto, DispatcherEntry *e, int sock);
 void destroyStats(SCIONStats *stats);
 
+int timedWait(pthread_cond_t *cond, pthread_mutex_t *mutex, double timeout);
+
 #endif

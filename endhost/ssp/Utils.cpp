@@ -189,3 +189,15 @@ void destroyStats(SCIONStats *stats)
     }
     free(stats);
 }
+
+int timedWait(pthread_cond_t *cond, pthread_mutex_t *mutex, double timeout)
+{
+    struct timespec ts;
+    struct timeval tv;
+    int secs = (int)timeout;
+    uint64_t ns = (timeout - secs) * 1000000000;
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec + (int)timeout;
+    ts.tv_nsec = tv.tv_usec * 1000 + ns;
+    return pthread_cond_timedwait(cond, mutex, &ts);
+}
