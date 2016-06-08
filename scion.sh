@@ -73,14 +73,14 @@ cmd_version() {
 
 cmd_build() {
     if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make all install
+        USER_OPTS=-DBYPASS_ROUTERS make -s all install
     else
-        make all install
+        make -s all install
     fi
 }
 
 cmd_clean() {
-    make clean
+    make -s clean
 }
 
 SOCKDIR=endhost/ssp
