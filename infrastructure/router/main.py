@@ -413,6 +413,10 @@ class Router(SCIONElement):
         if from_local_as:
             return
         # Forward to local path server if we haven't recently.
+        
+        # MACHAU: just make revocations to be a map of revinfos, and make every rev_token here int oa rev_info
+        #         this removes the problem of the contructor too
+        # MACHAU: SCMPInfoRevocation maybe should have rev_infos instead of rev_tokens
         rev_token = pld.info.rev_token
         if (self.topology.path_servers and
                 rev_token not in self.revocations):
@@ -422,15 +426,14 @@ class Router(SCIONElement):
             except SCIONServiceLookupError:
                 logging.error("No local PS to forward revocation to.")
                 raise SCMPUnknownHost
-            ps_pkt = copy.deepcopy(spkt)
-            ps_pkt.addrs.dst.isd_as = self.addr.isd_as
-            ps_pkt.addrs.dst.host = ps
             # FIXME(kormat): disabling for now, as this doesn't currently work.
             # The dispatcher has no way to route the revocation scmp message to
             # the designated path server.
-            logging.debug("DISABLED: Forwarding revocation to local PS: %s", ps)
-            # self.send(spkt, ps)
-        self.handle_data(spkt, from_local_as)
+            # MACHAU: this constructor should not longer work
+            rev_info = RevocationInfo(rev_token)
+            pkt = self._build_packet(ps, payload=rev_info)            
+            logging.debug("ENABLED: Forwarding revocation to local PS: %s", ps)
+            self.send(pkt, ps)
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """

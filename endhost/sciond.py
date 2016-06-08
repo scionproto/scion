@@ -24,12 +24,15 @@ from itertools import product
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_chain import HashChain
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SCION_UDP_PORT,
+    TIME_T,
+    TIME_t,
+    N_EPOCHS,
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
@@ -58,8 +61,6 @@ class SCIONDaemon(SCIONElement):
     """
     # Max time for a path lookup to succeed/fail.
     TIMEOUT = 5
-    # Number of tokens the PS checks when receiving a revocation.
-    N_TOKENS_CHECK = 20
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
     MAX_SEG_NO = 5  # TODO: replace by config variable.
@@ -234,36 +235,41 @@ class SCIONDaemon(SCIONElement):
     def handle_revocation(self, pkt):
         rev_info = pkt.get_payload()
         logging.debug("Received revocation:\n%s", str(rev_info))
-        # Verify revocation.
-#         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
-#             logging.info("Revocation verification failed.")
-#             return
+
         # Go through all segment databases and remove affected segments.
         deletions = self._remove_revoked_pcbs(self.up_segments,
-                                              rev_info.rev_token)
+                                              rev_info)
         deletions += self._remove_revoked_pcbs(self.core_segments,
-                                               rev_info.rev_token)
+                                               rev_info)
         deletions += self._remove_revoked_pcbs(self.down_segments,
-                                               rev_info.rev_token)
+                                               rev_info)
         logging.debug("Removed %d segments due to revocation.", deletions)
 
-    def _remove_revoked_pcbs(self, db, rev_token):
+    def _remove_revoked_pcbs(self, db, rev_info):
         """
         Removes all segments from 'db' that contain an IF token for which
         rev_token is a preimage (within 20 calls).
 
         :param db: The PathSegmentDB.
         :type db: :class:`lib.path_db.PathSegmentDB`
-        :param rev_token: The revocation token.
-        :type rev_token: bytes
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
 
         :returns: The number of deletions.
         :rtype: int
         """
         to_remove = []
+
         for segment in db():
-            for iftoken in segment.get_all_iftokens():
-                if HashChain.verify(rev_token, iftoken, self.N_TOKENS_CHECK):
+        	for asm in segment.pcb.ases:
+                ingress_if_id = asm.pcbm.hof.ingress_if
+                egress_if_id = asm.pcbm.hof.egress_if
+                ingress_iftoken = asm.pcbm.ig_rev_token 
+                egress_iftoken = asm.eg_rev_token
+                # MACHAU: get the ifid from the rev_info somehow
+                if rev_info.getIFID() == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
+                    to_remove.append(segment.get_hops_hash())
+                elif rev_info.getIFID() == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
                     to_remove.append(segment.get_hops_hash())
 
         return db.delete_all(to_remove)

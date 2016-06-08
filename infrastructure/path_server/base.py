@@ -27,7 +27,7 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import PATH_SERVICE, SCION_UDP_PORT
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT, TIME_T, TIME_t, N_EPOCHS
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scion import SVCType
@@ -46,8 +46,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
-    # Number of tokens the PS checks when receiving a revocation.
-    N_TOKENS_CHECK = 20
     # Max number of segments per propagation packet
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
@@ -65,7 +63,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
-        self.iftoken2seg = defaultdict(set)
+        self.astoken_if2seg = defaultdict(set)
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -131,8 +129,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         segment_id = pcb.get_hops_hash()
         for asm in pcb.p.asms:
-            self.iftoken2seg[asm.pcbms[0].igRevToken].add(segment_id)
-            self.iftoken2seg[asm.egRevToken].add(segment_id)
+            self.astoken_if2seg[(asm.pcbm.ig_rev_token, asm.pcbm.hof.ingress_if)].add(segment_id)
+            self.astoken_if2seg[(asm.eg_rev_token, asm.pcbm.hof.egress_if)].add(segment_id)
             for pm in asm.pcbms:
                 self.iftoken2seg[pm.igRevToken].add(segment_id)
 
@@ -179,23 +177,32 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _remove_revoked_segments(self, rev_info):
         """
-        Remove segments that contain a revoked interface. Checks 20 tokens in
-        case previous revocations were missed by the PS.
+        Try the previous and next hashes as possible astokens, 
+        and delete anyone that matches
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
         rev_token = rev_info.rev_token
-        for _ in range(self.N_TOKENS_CHECK):
-            rev_token = SHA256.new(rev_token).digest()
-            segments = self.iftoken2seg[rev_token]
+        cur_epoch = self.get_t()
+        rev_epoch = rev_info.getEpoch()
+        if not rev_epoch == cur_epoch:
+             return
+        
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_token)
+        if_id = rev_info.getIFID()
+
+        for H in (hash01, hash12):
+            segments = self.astoken_if2seg.get((H, if_id))
+            if not segments:
+                continue
+            deletions = 0 # keeps track of number of deleted segments
             while segments:
                 sid = segments.pop()
-                # Delete segment from DB.
-                self.down_segments.delete(sid)
-                self.core_segments.delete(sid)
-            if rev_token in self.iftoken2seg:
-                del self.iftoken2seg[rev_token]
+                deletions+=(self.down_segments.delete(sid)==3)
+                deletions+=(self.core_segments.delete(sid)==3)
+            if (H, if_id) in self.astoken_if2seg:
+                del self.astoken_if2seg[(H, if_id)]
 
     def _send_to_next_hop(self, pkt, if_id):
         """

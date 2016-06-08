@@ -23,6 +23,8 @@ from Crypto.Hash import SHA256
 
 # SCION
 from infrastructure.path_server.base import PathServer
+from lib.crypto import ConnectedHashTree
+from lib.defines import TIME_T, Time_t, N_EPOCHS
 from lib.packet.scion import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -73,17 +75,27 @@ class LocalPathServer(PathServer):
         :type rev_info: RevocationInfo
         """
         rev_token = rev_info.rev_token
-        for _ in range(self.N_TOKENS_CHECK):
-            segments = self.iftoken2seg[rev_token]
+
+        cur_epoch = self.get_t()
+        rev_epoch = rev_info.getEpoch()
+        if not rev_epoch == cur_epoch:
+            return
+
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_token)
+        if_id = rev_info.getIFID()
+
+        for H in (hash01, hash12):
+            segments = self.astoken_if2seg.get((H, if_id))
+            if not segments:
+                continue
+            deletions = 0
             while segments:
                 sid = segments.pop()
-                # Delete segment from DB.
-                self.up_segments.delete(sid)
-                self.down_segments.delete(sid)
-                self.core_segments.delete(sid)
-            if rev_token in self.iftoken2seg:
-                del self.iftoken2seg[rev_token]
-            rev_token = SHA256.new(rev_token).digest()
+                deletions += (self.up_segments.delete(sid)==3)
+                deletions += (self.down_segments.delete(sid)==3)
+                deletions += (self.core_segments.delete(sid)==3)
+            if (H, if_id) in self.astoken_if2seg:
+                del self.astoken_if2seg[(H, if_id)]
 
     def path_resolution(self, pkt, new_request=True):
         """
