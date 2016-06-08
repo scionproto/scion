@@ -76,12 +76,12 @@ int SCIONBind(int sock, SCIONAddr addr)
     return e->sock->bind(addr);
 }
 
-int SCIONConnect(int sock, SCIONAddr addr)
+int SCIONConnect(int sock, SCIONAddr addr, double timeout)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->connect(addr);
+    return e->sock->connect(addr, timeout);
 }
 
 int SCIONListen(int sock)

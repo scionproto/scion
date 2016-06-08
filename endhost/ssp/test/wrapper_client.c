@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
 
-    SCIONConnect(sock, saddr);
+    SCIONConnect(sock, saddr, 0.0);
 
     int count = 0;
     char buf[BUFSIZE];

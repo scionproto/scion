@@ -50,6 +50,7 @@ class SSPClient(TestClientBase):
         sock.settimeout(API_TOUT)
         sock.bind(0, self.addr)
         sock.connect(self.dst, self.dport)
+        sock.settimeout(self._timeout)
         return sock
 
     def _get_path(self, api):

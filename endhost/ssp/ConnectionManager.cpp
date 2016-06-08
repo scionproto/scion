@@ -2,6 +2,7 @@
 #include <ifaddrs.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <math.h>
 #include <net/if.h>
 #include <unistd.h>
 #include <sys/un.h>
@@ -146,21 +147,58 @@ int PathManager::setLocalAddress(SCIONAddr addr)
     return 0;
 }
 
-void PathManager::setRemoteAddress(SCIONAddr addr)
+int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
 {
+    DEBUG("%p: setRemoteAddress: (%d,%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
     if (addr.isd_as == mDstAddr.isd_as) {
-        DEBUG("dst addr already set: (%d, %d)\n", ISD(mDstAddr.isd_as), AS(mDstAddr.isd_as));
-        return;
+        DEBUG("%p: dst addr already set: (%d, %d)\n", this, ISD(mDstAddr.isd_as), AS(mDstAddr.isd_as));
+        return -EPERM;
     }
 
     mDstAddr = addr;
+
+    double waitTime = timeout;
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    pthread_mutex_lock(&mPathMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
         Path *p = mPaths[i];
         if (p)
             delete p;
     }
     mPaths.clear();
+    pthread_mutex_unlock(&mPathMutex);
     getPaths();
+    gettimeofday(&end, NULL);
+    long delta = elapsedTime(&start, &end);
+    waitTime -= delta / 1000000.0;
+    if (waitTime < 0)
+        return -ETIMEDOUT;
+    waitTime = floor(waitTime);
+
+    pthread_mutex_lock(&mPathMutex);
+    while (mPaths.size() - mInvalid == 0) {
+        DEBUG("%p: trying to connect but no paths available\n", this);
+        if (timeout > 0.0) {
+            gettimeofday(&start, NULL);
+            int ret;
+            if ((ret = timedWait(&mPathCond, &mPathMutex, waitTime)) == ETIMEDOUT) {
+                DEBUG("%p: timeout in setRemoteAddress\n", this);
+                pthread_mutex_unlock(&mPathMutex);
+                return -ETIMEDOUT;
+            }
+            gettimeofday(&end, NULL);
+            delta = elapsedTime(&start, &end);
+            waitTime -= delta / 1000000.0;
+            if (waitTime < 0)
+                return -ETIMEDOUT;
+            waitTime = floor(waitTime);
+        } else {
+            pthread_cond_wait(&mPathCond, &mPathMutex);
+        }
+    }
+    pthread_mutex_unlock(&mPathMutex);
+    return 0;
 }
 
 int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidates)
@@ -504,7 +542,7 @@ void SSPConnectionManager::sendAck(SCIONPacket *packet)
 
 void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
 {
-    DEBUG("send probes\n");
+    DEBUG("%p: send probes\n", this);
 
     bool refresh = false;
     pthread_mutex_lock(&mPathMutex);
@@ -536,7 +574,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
     pthread_mutex_unlock(&mPathMutex);
     if (refresh) {
         // One or more paths down for long time
-        DEBUG("get fresh paths\n");
+        DEBUG("%p: get fresh paths\n", this);
         getPaths();
     }
 }
@@ -634,8 +672,10 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
             used++;
     if (used < MAX_USED_PATHS)
         mPaths[index]->setUsed(true);
-    if (sp->len > 0)
+    if (sp->len > 0) {
+        mInitAcked = true;
         ret = ((SSPPath *)(mPaths[index]))->handleData(packet);
+    }
     pthread_mutex_unlock(&mPathMutex);
     return ret;
 }
@@ -1254,9 +1294,11 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
     pthread_mutex_unlock(&mPathMutex);
 }
 
-void SUDPConnectionManager::setRemoteAddress(SCIONAddr addr)
+int SUDPConnectionManager::setRemoteAddress(SCIONAddr addr, double timeout)
 {
-    PathManager::setRemoteAddress(addr);
+    int ret = PathManager::setRemoteAddress(addr, timeout);
+    if (ret < 0)
+        return ret;
     pthread_mutex_lock(&mPathMutex);
     mLastProbeAcked.resize(mPaths.size());
     for (size_t i = 0; i < mPaths.size(); i++) {
@@ -1266,6 +1308,7 @@ void SUDPConnectionManager::setRemoteAddress(SCIONAddr addr)
         mPaths[i]->setUp();
     }
     pthread_mutex_unlock(&mPathMutex);
+    return 0;
 }
 
 Path * SUDPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)

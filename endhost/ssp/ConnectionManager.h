@@ -25,7 +25,7 @@ public:
 
     void queryLocalAddress();
     int setLocalAddress(SCIONAddr addr);
-    virtual void setRemoteAddress(SCIONAddr addr);
+    virtual int setRemoteAddress(SCIONAddr addr, double timeout=0.0);
     void getPaths();
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
@@ -146,7 +146,7 @@ public:
     void sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort);
     void handlePacket(SCIONPacket *packet);
 
-    void setRemoteAddress(SCIONAddr addr);
+    int setRemoteAddress(SCIONAddr addr, double timeout=0.0);
 
     Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
 protected:

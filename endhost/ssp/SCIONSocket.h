@@ -19,7 +19,7 @@ public:
     // traditional socket functionality
     SCIONSocket * accept();
     int bind(SCIONAddr addr);
-    int connect(SCIONAddr addr);
+    int connect(SCIONAddr addr, double timeout=0.0);
     int listen();
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
     int send(uint8_t *buf, size_t len, double timeout=0.0);
