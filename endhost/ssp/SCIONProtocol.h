@@ -16,7 +16,7 @@ public:
     virtual ~SCIONProtocol();
 
     virtual int bind(SCIONAddr addr, int sock);
-    virtual int connect(SCIONAddr addr);
+    virtual int connect(SCIONAddr addr, double timeout=0.0);
     virtual int listen(int sock);
     virtual int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
     virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
@@ -80,7 +80,7 @@ public:
     SSPProtocol(int sock, const char *sciond);
     ~SSPProtocol();
 
-    int connect(SCIONAddr addr);
+    int connect(SCIONAddr addr, double timeout=0.0);
     int listen(int sock);
     int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr=NULL, double timeout=0.0);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);

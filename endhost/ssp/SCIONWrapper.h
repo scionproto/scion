@@ -13,9 +13,9 @@ int newSCIONSocket(int protocol, const char *sciond);
 void deleteSCIONSocket(int sock);
 int SCIONAccept(int sock);
 int SCIONBind(int sock, SCIONAddr addr);
-int SCIONConnect(int sock, SCIONAddr addr);
+int SCIONConnect(int sock, SCIONAddr addr, double timeout);
 int SCIONListen(int sock);
-int SCIONSend(int sock, uint8_t *buf, size_t len);
+int SCIONSend(int sock, uint8_t *buf, size_t len, double timeout);
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
                      SCIONAddr *dstAddr);
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
