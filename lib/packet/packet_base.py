@@ -20,7 +20,6 @@ import struct
 from abc import ABCMeta, abstractmethod
 
 # SCION
-from lib.types import PayloadClass
 from lib.util import hex_str
 
 
@@ -202,7 +201,7 @@ class PayloadRaw(PayloadBase):  # pragma: no cover
         return s
 
 
-class SCIONPayloadBase(PayloadBase):  # pragma: no cover
+class SCIONPayloadBaseProto(Cerealizable):  # pragma: no cover
     """
     All child classes must define two attributes:
         PAYLOAD_CLASS: Global payload class, defined by PayloadClass.
@@ -212,23 +211,8 @@ class SCIONPayloadBase(PayloadBase):  # pragma: no cover
     # 1B each for payload class and type.
     METADATA_LEN = 2
 
-    def pack_meta(self):
-        return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
-
-
-class SCIONPayloadBaseProto(Cerealizable):  # pragma: no cover
-    """
-    Equivelant to SCIONPayloadBase, but using capnp serialization.
-    """
-    METADATA_LEN = 2
-
     def pack_full(self):
         return self.pack_meta() + self.pack()
 
     def pack_meta(self):
         return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
-
-
-class PathMgmtPayloadBase(SCIONPayloadBase):
-    PAYLOAD_CLASS = PayloadClass.PATH
-    PAYLOAD_TYPE = None
