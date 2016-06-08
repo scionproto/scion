@@ -225,7 +225,7 @@ class SteadyPath(object):
         """
         dest = SCIONAddr.from_values(self.remote, SVCType.SB)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
-        payload = SIBRAPayload()
+        payload = SIBRAPayload.from_values()
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
         return cmn_hdr, addr_hdr, udp_hdr, payload

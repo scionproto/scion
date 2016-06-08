@@ -6,3 +6,6 @@ struct SibraPCBExt {
     up @2 :Bool;
     sofs @3 :List(Data);
 }
+
+struct SibraPayload {
+}

@@ -15,37 +15,28 @@
 :mod:`payload` --- SIBRA payload
 ================================
 """
-# Stdlib
+# External
+import capnp  # noqa
 
 # SCION
+import proto.sibra_capnp as P
 from lib.errors import SCIONParseError
-from lib.packet.packet_base import SCIONPayloadBase
+from lib.packet.packet_base import SCIONPayloadBaseProto
 from lib.types import PayloadClass, SIBRAPayloadType
 
 
-class SIBRAPayload(SCIONPayloadBase):  # pragma: no cover
+class SIBRAPayload(SCIONPayloadBaseProto):  # pragma: no cover
     """
     An empty payload to allow for packet dispatching.
     """
     NAME = "SIBRAPayload"
+    P_CLS = P.SibraPayload
     PAYLOAD_CLASS = PayloadClass.SIBRA
     PAYLOAD_TYPE = SIBRAPayloadType.EMPTY
 
-    def _parse(self, raw):
-        pass
-
     @classmethod
     def from_values(cls):
-        return cls()
-
-    def pack(self):
-        return b""
-
-    def __len__(self):
-        return 0
-
-    def __str__(self):
-        return "<Empty SIBRA payload>"
+        return cls(cls.P_CLS.new_message())
 
 
 def parse_sibra_payload(type_, data):  # pragma: no cover
@@ -55,4 +46,4 @@ def parse_sibra_payload(type_, data):  # pragma: no cover
     if type_ not in type_map:
         raise SCIONParseError("Unsupported sibra payload type: %s", type_)
     handler = type_map[type_]
-    return handler(data.pop())
+    return handler.from_raw(data.pop())
