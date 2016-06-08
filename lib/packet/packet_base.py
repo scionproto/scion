@@ -65,9 +65,21 @@ class Cerealizable(object, metaclass=ABCMeta):
     def from_raw(cls, raw):
         return cls(cls.P_CLS.from_bytes_packed(raw).as_builder())
 
+    @classmethod
+    def from_raw_multiple(cls, raw):
+        for p in cls.P_CLS.read_multiple_bytes_packed(raw):
+            yield cls(p.as_builder())
+
     @abstractmethod
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(cls.P_CLS.new_message(**d))
+
+    def to_dict(self):
+        return self.p.to_dict()
 
     def pack(self, *args, **kwargs):
         assert not self._packed, "May only be packed once"
@@ -76,6 +88,9 @@ class Cerealizable(object, metaclass=ABCMeta):
 
     def _pack(self):
         return self.p.to_bytes_packed()
+
+    def __bool__(self):
+        return True
 
     def __len__(self):
         raise NotImplementedError
@@ -88,11 +103,12 @@ class Cerealizable(object, metaclass=ABCMeta):
 
     def __deepcopy__(self, memo):
         # http://stackoverflow.com/a/15774013
-        cls = self.__class__
-        inst = cls.__new__(cls)
+        inst = type(self)(self.p.copy())
         memo[id(self)] = inst
-        inst.p = self.p.copy()
         return inst
+
+    def __eq__(self, other):  # pragma: no cover
+        return (self.p == other.p)
 
     def short_desc(self):
         return str(self.p)

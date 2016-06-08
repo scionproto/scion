@@ -55,18 +55,6 @@ class ExtClient(TestClientBase):
         of_path = PathTransOFPath.from_values(self.addr, self.dst, self.path)
         exts.append(PathTransportExt.from_values(
             PathTransType.OF_PATH, of_path))
-        # And another PathTransportExtension with control-plane path.
-        if (self.sd.up_segments() or
-                self.sd.core_segments() or
-                self.sd.down_segments()):
-            seg = (self.sd.up_segments() +
-                   self.sd.core_segments() +
-                   self.sd.down_segments())[0]
-            # FIXME(PSz): remove the following line when PathTransportExt can
-            # handle long paths.
-            seg.remove_crypto()
-            exts.append(PathTransportExt.from_values(
-                PathTransType.PCB_PATH, seg))
         return exts
 
     def _handle_response(self, spkt):

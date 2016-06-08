@@ -96,6 +96,7 @@ class InterfaceElement(Element):
         self.to_addr = None
         if to_addr:
             self.to_addr = haddr_parse_interface(to_addr)
+        self.to_if_id = 0  # Filled in later by IFID packets
 
 
 class RouterElement(Element):
