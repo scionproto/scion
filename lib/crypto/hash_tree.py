@@ -15,13 +15,11 @@
 :mod:`hash_tree` --- SCION time-connected hash-tree implementation
 ==================================================================
 """
-# Stdlib
-import struct
-
 # External
 from Crypto.Hash import SHA256
 
 # SCION
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.util import Raw
 
 class HashTree(object):
@@ -37,8 +35,8 @@ class HashTree(object):
         self._seed = seed
         self._hash_func = hash_func
 
-        # Calculate the depth of the smallest complete binary tree having the
-        # (if_id , epoch) pairs as leaves.
+        # Calculate the depth of the smallest complete binary tree that can
+        # have (num(if_id) * num(epoch)) leaves.
         self._depth = 0
         least_higher_2_power = 1
         length = len(if_ids) * n_epochs
@@ -81,30 +79,30 @@ class HashTree(object):
             hash_concat = self._nodes[idx * 2 + 1] + self._nodes[idx * 2 + 2]
             self._nodes[idx] = self._hash_func.new(hash_concat).digest()
 
-    def get_proof(self, if_id, epoch):
+    def get_proof(self, if_id, epoch, prev_root, next_root):
         assert if_id in self._if2idx.keys(), "if_id not found in AS"
-        packed = []
 
-        # Pack the if_id, ti (epoch) and nonce of the leaf into the proof.
-        packed.append(struct.pack("!HH", if_id, epoch))
+        # Obtain the nonce for the (if_id, epoch) pair using the seed.
         raw_nonce = (str(self._seed) + str(if_id) + str(epoch)).encode('utf-8')
         nonce = self._hash_func.new(raw_nonce).digest()
-        packed.append(struct.pack("!32s", nonce))
 
-        # Pack the sibling count and their hash values (along with l/r).
-        packed.append(struct.pack("!B", self._depth))
+        # Obtain the sibling hashes along with their left/right position info.
+        siblings = []
         idx = self._if2idx[if_id] + epoch
         while (idx > 0):
             if (idx % 2 == 0):
-                packed.append(struct.pack("!33s", b"l" + self._nodes[idx - 1]))
+                siblings.append((True, self._nodes[idx - 1]))
             else:
-                packed.append(struct.pack("!33s", b"r" + self._nodes[idx + 1]))
+                siblings.append((False, self._nodes[idx + 1]))
             idx = (idx - 1) // 2
-        return packed
 
-    def print_tree(self):
-        for s in self._nodes:
-            print(s)
+        # Using the above fields, construct a RevInfo capnp as the proof.
+        return RevocationInfo.from_values(if_id,
+                                          epoch,
+                                          nonce, 
+                                          siblings, 
+                                          prev_root, 
+                                          next_root)
 
 class ConnectedHashTree(object):
     """
@@ -135,86 +133,40 @@ class ConnectedHashTree(object):
         return root12
 
     def get_proof(self, if_id, epoch):
-        packed = self._ht1.get_proof(if_id, epoch)
-        packed.append(struct.pack("!32s", self._ht0_root))
-        packed.append(struct.pack("!32s", self._ht2._nodes[0]))
-        raw = b"".join(packed)
-        padding = 8 - len(raw)%8
-        if padding==8:
-            padding=0
-        packed.append(bytes(padding))
-        raw = b"".join(packed)
-
-        return raw
+        # Call get_proof on the hashtree at T, passing roots for T-1 and T+1.
+        return self._ht1.get_proof(if_id,
+                                   epoch,
+                                   self._ht0_root,
+                                   self._ht2._nodes[0])
 
     @staticmethod
-    def _parse(raw):
-        assert len(raw)%8==0, "Proof not multiple of 8 bytes"
-        padding = 8-len(raw)%8
-        if padding==8:
-            padding=0
-
-        data = Raw(raw, "RevocationProof", len(raw))
-        # Unpack all the fields of the revocation proof.
-        if_id, epoch = struct.unpack("!HH", data.pop(4))
-        nonce = struct.unpack("!32s", data.pop(32))[0]
-        num_siblings = data.pop(1)
-        siblings = []
-        for i in range(num_siblings):
-            siblings.append(chr(data.pop(1)))
-            siblings.append(struct.unpack("!32s", data.pop(32))[0])
-        root0 = struct.unpack("!32s", data.pop(32))[0]
-        root2 = struct.unpack("!32s", data.pop(32))[0]
-        data.pop(padding)
-        # Pack the extracted fields into a tuple and return
-        return (if_id, epoch, nonce, num_siblings, siblings, root0, root2)
-
-    @staticmethod
-    def get_possible_hashes(raw_proof, hash_func=SHA256):
-        # Extract fields from the raw proof.
-        if_id, epoch, nonce, num_siblings, siblings, root0, root2 = \
-            ConnectedHashTree._parse(raw_proof)
-        
+    def get_possible_hashes(proof, hash_func=SHA256):
         # Calculate the hashes upwards till the tree root.
-        if_tuple = (str(if_id) + str(epoch) + str(nonce)).encode('utf-8')
+        if_tuple = (str(proof.ifID) + str(proof.epoch) + str(proof.nonce)) \
+                   .encode('utf-8')
         curr_hash = hash_func.new(if_tuple).digest()
-        for i in range(num_siblings):
-            new_hash = siblings[2 * i + 1]
-            if (siblings[2 * i] == 'l'):
-                raw_hash = new_hash + curr_hash
+
+        for i in range(len(proof.siblings)):
+            is_left = proof.siblings[i].isLeft
+            sibling_hash = proof.siblings[i].hash
+            if is_left:
+                curr_hash = sibling_hash + curr_hash
             else:
-                raw_hash = curr_hash + new_hash
-            curr_hash = hash_func.new(raw_hash).digest()
+                curr_hash = curr_hash + sibling_hash
+            curr_hash = hash_func.new(curr_hash).digest()
 
-        # Get the hashes for both the subtrees T-1:T and T:T+1.
-        hash01 = hash_func.new(root0 + curr_hash).digest()
-        hash12 = hash_func.new(curr_hash + root2).digest() 
-        """
-        # Printing fields of the proof
-        print("IF_ID: ", if_id)
-        print("Epoch: ", epoch)
-        print("#siblings: ", num_siblings)
-        print("Siblings: ")
-        for i in range(num_siblings):
-            print(siblings[2 * i], siblings[2 * i + 1])
-        print("Rt-1: ", root0)
-        print("Rt+1: ", root2)
-
-        # Printing computed roots of the connected hash tree.
-        print("\nHash01: ", hash01)
-        print("\nHash12: ", hash12)
-        """
+        # Get the hashes for the tree joins T-1:T and T:T+1 and return them.
+        hash01 = hash_func.new(proof.prevRoot + curr_hash).digest()
+        hash12 = hash_func.new(curr_hash + proof.nextRoot).digest() 
         return (hash01, hash12)
 
     @staticmethod
-    def verify(raw_proof, root, curr_epoch, hash_func=SHA256):
+    def verify(revProof, root, curr_epoch, hash_func=SHA256):
+        proof = revProof.p
+        assert not isinstance(proof, bytes)
         # Check if the current epoch matches the epoch in the proof.
-        data = Raw(raw_proof, "RevocationProof")
-        if_id, epoch = struct.unpack("!HH", data.pop(4))
-        if (epoch != curr_epoch):
+        if (proof.epoch != curr_epoch):
             return False
-
         # Check that either hash of T-1:T or T:T+1 matches the root.
-        hash01, hash12 = ConnectedHashTree.get_possible_hashes(raw_proof, \
-                                                               hash_func)
+        hash01,hash12 = ConnectedHashTree.get_possible_hashes(proof, hash_func)
         return (hash01 == root) or (hash12 == root)

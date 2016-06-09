@@ -259,17 +259,15 @@ class SCIONDaemon(SCIONElement):
         :rtype: int
         """
         to_remove = []
-
         for segment in db():
-        	for asm in segment.pcb.ases:
+            for asm in segment.pcb.ases:
                 ingress_if_id = asm.pcbm.hof.ingress_if
                 egress_if_id = asm.pcbm.hof.egress_if
                 ingress_iftoken = asm.pcbm.ig_rev_token 
                 egress_iftoken = asm.eg_rev_token
-                # MACHAU: get the ifid from the rev_info somehow
-                if rev_info.getIFID() == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
+                if rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
                     to_remove.append(segment.get_hops_hash())
-                elif rev_info.getIFID() == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
+                elif rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
                     to_remove.append(segment.get_hops_hash())
 
         return db.delete_all(to_remove)

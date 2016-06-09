@@ -24,7 +24,7 @@ class InterfaceState(object):
     """
     def __init__(self):
         self.is_active = True
-        self.rev_token = None
+        self.rev_info = None
 
     def update(self, info):
         """
@@ -33,4 +33,4 @@ class InterfaceState(object):
         :param info: IFStateInfo object sent by the BS.
         """
         self.is_active = info.p.active
-        self.rev_token = info.rev_info.p.revToken
+        self.rev_info = info.rev_info

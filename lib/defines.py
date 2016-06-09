@@ -122,4 +122,4 @@ TIME_T = 24*60*60
 # Time per Epoch
 TIME_t = 60
 # Number of epochs in one TTL per interface
-N_EPOCHS = TIME_T / TIME_t
+N_EPOCHS = TIME_T // TIME_t

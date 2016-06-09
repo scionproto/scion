@@ -78,6 +78,7 @@ from lib.util import (
     get_sig_key_file_path,
     read_file,
     sleep_interval,
+    SCIONTime,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 from external.expiring_dict import ExpiringDict
@@ -158,7 +159,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         seed1 = self.config.master_as_key + (self.get_T() - 1).to_bytes(8, byteorder='big')
         seed2 = self.config.master_as_key + (self.get_T() + 0).to_bytes(8, byteorder='big')
         seed3 = self.config.master_as_key + (self.get_T() + 1).to_bytes(8, byteorder='big')
-        ifs = [x for x in self.ifid2addr]
+        ifs = [x for x in self.ifid2er]
         self._hash_tree = ConnectedHashTree(ifs, N_EPOCHS, [seed1, seed2, seed3])
 
     def _get_hash_tree(self):
@@ -169,12 +170,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _get_proof(self, if_id):
         tree = self._get_hash_tree()
         return tree.get_proof(if_id, self.get_t())
-        # MACHAU: make sure this returns a RevocationInfo
 
     def _get_root(self):
         tree = self._get_hash_tree()
         return tree.get_root()
-        # MACHAU: make sure this returns a raw
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -303,7 +302,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_asm_exts(self):
         return {"rev_infos": [rev_info for (_, rev_info) in list(self.revs_to_downstream.items())]}
-        # MACHAU: may need to change this to give the rev_tokens instead
 
     def _terminate_pcb(self, pcb):
         """
@@ -380,7 +378,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info("New T started, adding new hash tree")
         start = SCIONTime.get_time()
         seed = self.config.master_as_key + (T + 1).to_bytes(8, byteorder='big')
-        ifs = [x for x in self.ifid2addr]
+        ifs = [x for x in self.ifid2er]
         self._hash_tree.update(ifs, N_EPOCHS, seed)
         sleep_interval(start, TIME_T, "BS.hashtree TTL", 
             self._quiet_startup())
@@ -587,13 +585,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info("Storing revocation in ZK.")
         rev_obj = RevocationObject.from_values(if_id, self.addr.isd_as.int(),
                                                rev_info)
-        # MACHAU: ensure it takes a RevInfo object
         entry_name = "%s:%s" % (if_id, self.addr.isd_as.int())
         self.revobjs_cache.store(entry_name, rev_obj.pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
-        # MACHAU: ensure that IFStateInfo takes a RevInfo object
         pld = IFStatePayload.from_values([info])
         state_pkt = self._build_packet()
         for er in self.topology.get_all_edge_routers():
@@ -638,7 +634,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Send revocations to local PS.
         self._send_rev_to_local_ps(rev_info)
         # Add the revocation to the downstream queue
-        self.revs_to_downstream[rev_info] = rev_info # MACHAU: key was rev_info.rev_token before
+        self.revs_to_downstream[rev_info] = rev_info
         # Propagate the Revocation instantly
         self.handle_pcbs_propagation()
 
@@ -690,10 +686,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     egress_if_id = asm.pcbm.hof.egress_if
                     ingress_iftoken = asm.pcbm.ig_rev_token 
                     egress_iftoken = asm.eg_rev_token
-                    # MACHAU: ifid
-                    if rev_info.getIFID() == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
+                    if rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
                          to_remove.append(cand.id)
-                    elif rev_info.getIFID() == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
+                    elif rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
                         to_remove.append(cand.id)
         return to_remove
 

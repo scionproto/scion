@@ -21,7 +21,7 @@ struct ASMarking {
     pcbms @4 :List(PCBMarking);
     egRevToken @5 :Data;
     exts :group {
-        revInfos @6 :List(Data);
+        revInfos @6 :List(RevInfo.RevInfo);
     }
     sig @7 :Data;
     mtu @8 :UInt16;  # Internal MTU

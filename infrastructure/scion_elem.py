@@ -81,7 +81,7 @@ from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
 from lib.types import L4Proto, PayloadClass
 from lib.topology import Topology
-from lib.util import hex_str
+from lib.util import hex_str, SCIONTime
 
 
 MAX_QUEUE = 30
@@ -152,12 +152,12 @@ class SCIONElement(object):
 
     def get_T(self):
         cur_time = int(SCIONTime.get_time())
-        self._curT = int(cur_time / TIME_T)
+        self._curT = cur_time // TIME_T
         return self._curT
 
     def get_t(self):
         cur_time = int(SCIONTime.get_time()) % TIME_T
-        return int(cur_time / TIME_t)
+        return cur_time // TIME_t
 
     def _setup_socket(self, init):
         """

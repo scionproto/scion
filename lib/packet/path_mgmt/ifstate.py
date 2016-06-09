@@ -40,8 +40,8 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
         self.rev_info = RevocationInfo(p.revInfo)
 
     @classmethod
-    def from_values(cls, if_id, active, rev_token):
-        rev_info = RevocationInfo.from_values(rev_token)
+    def from_values(cls, if_id, active, rev_info):
+        # MACHAU: why is there a .p here?
         return cls(cls.P_CLS.new_message(ifID=if_id, active=active,
                                          revInfo=rev_info.p))
 

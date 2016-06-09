@@ -23,8 +23,8 @@ from Crypto.Hash import SHA256
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.crypto import ConnectedHashTree
-from lib.defines import TIME_T, Time_t, N_EPOCHS
+from lib.crypto.hash_tree import ConnectedHashTree
+from lib.defines import TIME_T, TIME_t, N_EPOCHS
 from lib.packet.scion import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -74,15 +74,13 @@ class LocalPathServer(PathServer):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        rev_token = rev_info.rev_token
-
         cur_epoch = self.get_t()
         rev_epoch = rev_info.getEpoch()
         if not rev_epoch == cur_epoch:
             return
 
-        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_token)
-        if_id = rev_info.getIFID()
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
+        if_id = rev_info.p.ifID
 
         for H in (hash01, hash12):
             segments = self.astoken_if2seg.get((H, if_id))

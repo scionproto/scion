@@ -129,10 +129,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         segment_id = pcb.get_hops_hash()
         for asm in pcb.p.asms:
-            self.astoken_if2seg[(asm.pcbm.ig_rev_token, asm.pcbm.hof.ingress_if)].add(segment_id)
-            self.astoken_if2seg[(asm.eg_rev_token, asm.pcbm.hof.egress_if)].add(segment_id)
+            # MACHAU: this addition is already being done in the loop below, so removing it; however it was there
+            # before the revocation changes were made too, so maybe it makes sense for some reason?
+            #self.astoken_if2seg[(asm.pcbms[0].igRevToken, asm.pcbms[0].inIF)].add(segment_id)
+            self.astoken_if2seg[(asm.egRevToken, asm.pcbms[0].outIF)].add(segment_id)
             for pm in asm.pcbms:
-                self.iftoken2seg[pm.igRevToken].add(segment_id)
+                self.astoken_if2seg[(pm.igRevToken, pm.inIF)].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -183,14 +185,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        rev_token = rev_info.rev_token
         cur_epoch = self.get_t()
         rev_epoch = rev_info.getEpoch()
         if not rev_epoch == cur_epoch:
              return
         
-        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_token)
-        if_id = rev_info.getIFID()
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
+
+        if_id = rev_info.p.ifID
 
         for H in (hash01, hash12):
             segments = self.astoken_if2seg.get((H, if_id))

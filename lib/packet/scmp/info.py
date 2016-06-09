@@ -192,16 +192,19 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
 class SCMPInfoRevocation(SCMPInfoPathOffsets):
     """Store IOF offset, HOF offset, IF id and ingress flag."""
     NAME = "SCMPInfoPktSize"
-    REV_LEN = 32
-    STRUCT_FMT = "!HHH?x32s"
-    LEN = struct.calcsize(STRUCT_FMT)
     ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress", "rev_token"]
 
     @classmethod
-    def from_pkt(cls, pkt, if_id, ingress, rev_token):  # pragma: no cover
+    def from_pkt(cls, pkt, if_id, ingress, rev_info):  # pragma: no cover
+        # MACHAU: at this point, rev_info is an object; convert it to a bytes called rev_token
+        # rev_token = rev_info.pack() or something
+        assert isinstance(rev_token, bytes)
         inst = cls()
         iof_offset, hof_offset = inst._calc_offsets(pkt)
         inst._set_vals((iof_offset, hof_offset, if_id, ingress, rev_token))
+        inst.REV_LEN = len(rev_token)
+        inst.STRUCT_FMT = "!HHH?x" + str(inst.REV_LEN) + "s"
+        inst.LEN = struct.calcsize(inst.STRUCT_FMT)
         return inst
 
     def pack(self):  # pragma: no cover
