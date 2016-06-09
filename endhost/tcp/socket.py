@@ -46,6 +46,10 @@ class error(stdsock.error):
     pass
 
 
+class timeout(stdsock.timeout):
+    pass
+
+
 class SCIONSocket(object):
     BUFLEN = 1024
 
@@ -178,18 +182,48 @@ class SCIONSocket(object):
             ret = self._recv_buf[:bufsize]
             self._recv_buf = self._recv_buf[bufsize:]
             return ret
-        # Local recv_buf is empty, request LWIP and fulfill it.
+        # Local recv_buf is empty, request LWIP and fulfill it
         self._fill_recv_buf()
-        # recv buf is ready
+        # Recv buf is ready
         return self.recv(bufsize)
+
+    def set_recv_tout(self, timeout):  # Timeout is given as a float
+        if 0.0 < timeout < 0.001:
+            raise error("set_recv_tout(): incorrect value")
+        # Convert to miliseconds
+        timeout = int(timeout * 1000)
+        req = b"SRTO" + struct.pack("I", timeout)
+        self._to_lwip(req)
+        rep = self._from_lwip()
+        if rep != b"SRTOOK":
+            logging.error("set_recv_tout() failed: %s" % rep)
+            raise error("set_recv_tout() failed: %s" % rep)
+
+    def get_recv_tout(self):
+        req = b"GRTO"
+        self._to_lwip(req)
+        rep = self._from_lwip()
+        if rep[:6] != b"GRTOOK":
+            logging.error("get_recv_tout() failed: %s" % rep)
+            raise error("get_recv_tout() failed: %s" % rep)
+        timeout, = struct.unpack("I", rep[6:])
+        # Convert to seconds
+        return 0.001 * timeout
 
     def _fill_recv_buf(self):
         req = b"RECV"
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep is None or len(rep) < RESP_SIZE or rep[:RESP_SIZE] != b"RECVOK":
+        if rep is None or len(rep) < RESP_SIZE:
             logging.error("recv() failed: %s" % rep)
             raise error("recv() failed: %s" % rep)
+        if rep[:RESP_SIZE] != b"RECVOK":
+            if rep[:RESP_SIZE + 4] == b"RECVERTOUT":
+                logging.warning("recv() timeouted")
+                raise timeout("recv() timeout")
+            logging.error("recv() failed: %s" % rep)
+            raise error("recv() failed: %s" % rep)
+
         size, = struct.unpack("H", rep[RESP_SIZE:RESP_SIZE+2])
         self._recv_buf = rep[RESP_SIZE+2:]
         while len(self._recv_buf) < size:
@@ -198,6 +232,7 @@ class SCIONSocket(object):
                 logging.error("recv() failed, partial read() %s" % rep)
                 raise error("recv() failed, partial read() %s" % rep)
             self._recv_buf += rep
+
         if len(self._recv_buf) != size:
             logging.error("recv() read too much: %d/%d",
                           len(self._recv_buf), size)

@@ -55,6 +55,8 @@ void tcpmw_listen(struct conn_args *);
 void tcpmw_accept(struct conn_args *, char *, int);
 void tcpmw_send(struct conn_args *, char *, int);
 void tcpmw_recv(struct conn_args *);
+void tcpmw_set_recv_tout(struct conn_args *, char *, int);
+void tcpmw_get_recv_tout(struct conn_args *);
 void tcpmw_close(struct conn_args *);
 
 #endif

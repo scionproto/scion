@@ -60,6 +60,7 @@ def server(svc=False):
         new_sock, addr, path = s.accept()
         print("Accepted: addr and path:", addr, path)
         set_MSG()
+        # time.sleep(10)
         new_sock.send(MSG)
         new_sock.close()
 
@@ -84,6 +85,8 @@ def client(svc, counter):
     else:
         saddr = SCIONAddr.from_values(s_isd_as, s_ip)
         s.connect((saddr, 5000), path_info)
+    # s.set_recv_tout(5.0)
+    # print(s.get_recv_tout())
     tmp = b''
     while len(tmp) != MSG_SIZE:
         tmp += s.recv(1024)

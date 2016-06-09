@@ -292,7 +292,13 @@ void tcpmw_recv(struct conn_args *args){
     void *data;
     u16_t len;
 
-    if (netconn_recv(args->conn, &buf) != ERR_OK){
+    int ret = netconn_recv(args->conn, &buf);
+    if (ret != ERR_OK){
+        if (ret == ERR_TIMEOUT){
+            zlog_warn(zc_tcp, "tcpmw_recv(): timeouted");
+            write(args->fd, "RECVERTOUT", RESP_SIZE + 4);
+            return;
+        }
         zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv() failed");
         // TODO(PSz): other errors (especially check if buf has to be freed).
         goto fail;
@@ -315,6 +321,35 @@ void tcpmw_recv(struct conn_args *args){
 fail:
     zlog_debug(zc_tcp, "%s", strerror(errno));
     write(args->fd, "RECVER", RESP_SIZE);
+    return;
+}
+
+void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
+    zlog_info(zc_tcp, "SRTO received");
+    if (len != CMD_SIZE + 4){
+        zlog_error(zc_tcp, "tcpmw_set_recv_tout(): incorrect SRTO length");
+        goto fail;
+    }
+
+    int timeout = (int)*(u32_t *)(buf + CMD_SIZE);
+    fprintf(stderr, "TOUT: %d\n", timeout);
+    netconn_set_recvtimeout(args->conn, timeout);
+    write(args->fd, "SRTOOK", RESP_SIZE);
+    return;
+
+fail:
+    write(args->fd, "SRTOER", RESP_SIZE);
+    return;
+}
+
+void tcpmw_get_recv_tout(struct conn_args *args){
+    zlog_info(zc_tcp, "GRTO received");
+    int timeout = netconn_get_recvtimeout(args->conn);
+    char *msg = malloc(RESP_SIZE + 4);
+    memcpy(msg, "GRTOOK", RESP_SIZE);
+    *(u32_t *)(msg + RESP_SIZE) = (u32_t)timeout;
+    write(args->fd, msg, RESP_SIZE + 4);
+    free(msg);
     return;
 }
 
@@ -349,6 +384,10 @@ void *tcpmw_sock_thread(void *data){
             tcpmw_listen(args);
         else if (!strncmp(buf, "ACCE", CMD_SIZE))
             tcpmw_accept(args, buf, rc);
+        else if (!strncmp(buf, "SRTO", CMD_SIZE))
+            tcpmw_set_recv_tout(args, buf, rc);
+        else if (!strncmp(buf, "GRTO", CMD_SIZE))
+            tcpmw_get_recv_tout(args);
         else if (!strncmp(buf, "CLOS", CMD_SIZE)){
             tcpmw_close(args);
             break;
