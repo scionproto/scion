@@ -18,6 +18,8 @@ int reverse_path(uint8_t *buf, uint8_t *reverse)
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *original = get_path(buf);
     int len = get_path_len(buf);
+    if (len == 0)
+        return 0;
     /* Pointers to IOF fields in original path */
     uint8_t *iof[] = {NULL, NULL, NULL};
     /* Number of hops in each segment of original path */

@@ -67,10 +67,11 @@ typedef struct Entry {
     L4Key l4_key;
     int sock;
     uint8_t scmp;
-    struct Entry **list;
     SVCEntry *se;
     UT_hash_handle hh;
     UT_hash_handle pollhh;
+    struct Entry *next;
+    struct Entry **list;
 } Entry;
 
 Entry *ssp_flow_list = NULL;
@@ -105,7 +106,8 @@ void reply(int sock, int port);
 static inline uint16_t get_next_port();
 
 void handle_data();
-void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
+void deliver(uint8_t *buf, int len, sockaddr_in *src, sockaddr_in *dst, int sock);
+void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from, int from_sock);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, sockaddr_in *from);
@@ -360,12 +362,19 @@ void register_ssp(uint8_t *buf, int len, int sock)
         /* Find registered flow ID */
         HASH_FIND(hh, ssp_flow_list, &e->l4_key, sizeof(L4Key), old);
         if (old) {
-            zlog_error(zc, "address-flow already registered");
-            reply(sock, 0);
-            return;
+            if (sock == old->sock) {
+                zlog_error(zc, "address-flow already registered");
+                reply(sock, 0);
+                return;
+            }
+            while (old->next != NULL)
+                old = old->next;
+            old->next = e;
+            zlog_debug(zc, "added another entry for flow %" PRIu64, e->l4_key.flow_id);
+        } else {
+            HASH_ADD(hh, ssp_flow_list, l4_key, sizeof(L4Key), e);
         }
         e->list = &ssp_flow_list;
-        HASH_ADD(hh, ssp_flow_list, l4_key, sizeof(L4Key), e);
         zlog_info(zc, "flow registration success: %" PRIu64, e->l4_key.flow_id);
     } else {
         if (find_available_port(ssp_wildcard_list, &e->l4_key) < 0) {
@@ -529,7 +538,7 @@ static inline uint16_t get_next_port()
 
 void handle_data()
 {
-    sockaddr_in src_si;
+    sockaddr_in src;
     sockaddr_in dst;
     uint8_t buf[DATA_BUFSIZE];
 
@@ -542,8 +551,8 @@ void handle_data()
     iov[0].iov_len = sizeof(buf);
 
     memset(&msg, 0, sizeof(msg));
-    msg.msg_name = &src_si;
-    msg.msg_namelen = sizeof(src_si);
+    msg.msg_name = &src;
+    msg.msg_namelen = sizeof(src);
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
     msg.msg_control = control_buf;;
@@ -566,27 +575,33 @@ void handle_data()
         zlog_error(zc, "invalid SCION packet");
         return;
     }
+
+    deliver(buf, len, &src, &dst, data_socket);
+}
+
+void deliver(uint8_t *buf, int len, sockaddr_in *src, sockaddr_in *dst, int sock)
+{
     HostAddr from;
-    memcpy(from.addr, &src_si.sin_addr, 4);
+    memcpy(from.addr, &src->sin_addr, 4);
     from.addr_len = 4;
-    from.port = ntohs(src_si.sin_port);
+    from.port = ntohs(src->sin_port);
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
     switch (l4) {
         case L4_SCMP:
-            zlog_debug(zc, "incoming scmp packet for %s\n", inet_ntoa(dst.sin_addr));
-            process_scmp(buf, (SCMPL4Header *)l4ptr, len, &src_si);
+            zlog_debug(zc, "incoming scmp packet for %s\n", inet_ntoa(dst->sin_addr));
+            process_scmp(buf, (SCMPL4Header *)l4ptr, len, src);
             break;
         case L4_SSP:
-            deliver_ssp(buf, l4ptr, len, &from);
+            deliver_ssp(buf, l4ptr, len, &from, sock);
             break;
         case L4_UDP:
-            deliver_udp(buf, len, &from, &dst);
+            deliver_udp(buf, len, &from, dst);
             break;
     }
 }
 
-void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
+void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from, int from_sock)
 {
     uint8_t *dst_ptr = get_dst_addr(buf);
     int dst_len = get_dst_len(buf);
@@ -609,6 +624,13 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         if (!e) {
             zlog_warn(zc, "no flow entry found for %" PRIu64, key.flow_id);
             return;
+        }
+        if (e->sock == from_sock) {
+            if (e->next == NULL) {
+                zlog_warn(zc, "no loopback receiver for flow %" PRIu64, key.flow_id);
+                return;
+            }
+            e = e->next;
         }
     }
     zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64, 
@@ -767,6 +789,21 @@ void handle_send(int index)
         cleanup_socket(sock, index, errno);
         return;
     }
+
+    uint8_t *pkt = buf + addr_len + 2;
+    if (get_src_len(pkt) == get_dst_len(pkt) &&
+            !memcmp(get_src_addr(pkt) - ISD_AS_LEN, get_dst_addr(pkt) - ISD_AS_LEN, get_src_len(pkt))) {
+        // Loopback
+        sockaddr_in src, dst;
+        memset(&src, 0, sizeof(src));
+        memset(&dst, 0, sizeof(dst));
+        src.sin_port = htons(SCION_UDP_EH_DATA_PORT);
+        memcpy(&src.sin_addr, get_src_addr(pkt), 4);
+        dst = src;
+        deliver(pkt, packet_len, &src, &dst, sock);
+        return;
+    }
+
     // TODO: Don't assume IPv4
     struct sockaddr_in hop;
     memset(&hop, 0, sizeof(hop));
@@ -796,7 +833,8 @@ void cleanup_socket(int sock, int index, int err)
     HASH_FIND(pollhh, poll_fd_list, &sock, sizeof(sock), e);
     if (e) {
         HASH_DELETE(pollhh, poll_fd_list, e);
-        HASH_DELETE(hh, *(e->list), e);
+        if (*(e->list))
+            HASH_DELETE(hh, *(e->list), e);
         if (e->se) {
             int i;
             for (i = 0; i < e->se->count; i++) {

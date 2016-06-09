@@ -172,7 +172,7 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
     gettimeofday(&end, NULL);
     long delta = elapsedTime(&start, &end);
     waitTime -= delta / 1000000.0;
-    if (waitTime < 0)
+    if (timeout > 0.0 && waitTime < 0)
         return -ETIMEDOUT;
     waitTime = floor(waitTime);
 
@@ -665,15 +665,15 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
         }
     }
     packet->pathIndex = index;
-    mPaths[index]->setUp();
-    int used = 0;
-    for (size_t i = 0; i < mPaths.size(); i++)
-        if (mPaths[i]->isUsed())
-            used++;
-    if (used < MAX_USED_PATHS)
-        mPaths[index]->setUsed(true);
     if (sp->len > 0) {
         mInitAcked = true;
+        mPaths[index]->setUp();
+        int used = 0;
+        for (size_t i = 0; i < mPaths.size(); i++)
+            if (mPaths[i]->isUsed())
+                used++;
+        if (used < MAX_USED_PATHS)
+            mPaths[index]->setUsed(true);
         ret = ((SSPPath *)(mPaths[index]))->handleData(packet);
     }
     pthread_mutex_unlock(&mPathMutex);
@@ -857,6 +857,7 @@ void SSPConnectionManager::handleProbeAck(SCIONPacket *packet)
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] &&
                 mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
+            DEBUG("probe came on path %lu (up? %d)\n", i, mPaths[i]->isUp());
             if (!mPaths[i]->isUp()) {
                 DEBUG("path %lu back up from probe\n", i);
                 mPaths[i]->setUp();

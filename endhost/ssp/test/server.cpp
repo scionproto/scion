@@ -1,6 +1,6 @@
 #include "SCIONSocket.h"
 
-#define BUFSIZE 1024
+#define BUFSIZE 102400
 
 int main(int argc, char **argv)
 {
@@ -18,9 +18,14 @@ int main(int argc, char **argv)
     sprintf(str, "/run/shm/sciond/%d-%d.sock", isd, as);
     SCIONSocket s(L4_SSP, str);
 
+
     SCIONAddr addr;
     memset(&addr, 0, sizeof(addr));
+    addr.isd_as = ISD_AS(isd, as);
     addr.host.port = 8080;
+    sprintf(str, "127.%d.%d.254", isd, as);
+    *(in_addr_t *)addr.host.addr = inet_addr(str);
+    addr.host.addr_len = 4;
     s.bind(addr);
 
     s.listen();
