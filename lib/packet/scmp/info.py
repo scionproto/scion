@@ -196,6 +196,7 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
 
     @classmethod
     def from_pkt(cls, pkt, if_id, ingress, rev_info):  # pragma: no cover
+        # rev_token = rev_info
         # MACHAU: at this point, rev_info is an object; convert it to a bytes called rev_token
         # rev_token = rev_info.pack() or something
         assert isinstance(rev_token, bytes)

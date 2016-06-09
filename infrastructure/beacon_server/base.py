@@ -666,6 +666,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         processed = set()
         for cand in candidates:
             if cand.id in processed:
+                print(type(cand))
                 continue
             processed.add(cand.id)
             if if_id is not None:
@@ -678,10 +679,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 # However, worst, the valid beacon would get added within the
                 # next propagation period.
                 if (self.ifid_state[if_id].is_expired() and
-                        cand.pcb.if_id == if_id):
+                        cand.pcb.p.ifID == if_id):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
-                for asm in cand.pcb.ases:
+                for asm in cand.pcb.iter_asms():
                     ingress_if_id = asm.pcbm.hof.ingress_if
                     egress_if_id = asm.pcbm.hof.egress_if
                     ingress_iftoken = asm.pcbm.ig_rev_token 
