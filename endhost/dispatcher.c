@@ -64,7 +64,6 @@ typedef struct {
 } SVCEntry;
 
 typedef struct Entry {
-    sockaddr_in addr;
     L4Key l4_key;
     int sock;
     uint8_t scmp;
@@ -98,9 +97,9 @@ int bind_app_socket();
 int bind_data_socket();
 
 void handle_app();
-void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock);
-void register_udp(uint8_t *buf, int len, sockaddr_in *addr, int sock);
-Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr, int sock);
+void register_ssp(uint8_t *buf, int len, int sock);
+void register_udp(uint8_t *buf, int len, int sock);
+Entry * parse_request(uint8_t *buf, int len, int proto, int sock);
 int find_available_port(Entry *list, L4Key *key);
 void reply(int sock, int port);
 static inline uint16_t get_next_port();
@@ -304,10 +303,8 @@ void handle_app()
         return;
     }
 
-    sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
     uint8_t buf[APP_BUFSIZE];
-    int sock = accept(app_socket, (struct sockaddr *)&addr, &addr_len);
+    int sock = accept(app_socket, NULL, NULL);
     if (sock < 0) {
         zlog_error(zc, "error in accept: %s", strerror(errno));
         return;
@@ -340,10 +337,10 @@ void handle_app()
         zlog_info(zc, "received registration for proto: %d (%d bytes)", protocol, len);
         switch (protocol) {
             case L4_SSP:
-                register_ssp(buf, len, &addr, sock);
+                register_ssp(buf, len, sock);
                 break;
             case L4_UDP:
-                register_udp(buf, len, &addr, sock);
+                register_udp(buf, len, sock);
                 break;
         }
     } else {
@@ -352,10 +349,10 @@ void handle_app()
     }
 }
 
-void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
+void register_ssp(uint8_t *buf, int len, int sock)
 {
     zlog_info(zc, "SSP registration request");
-    Entry *e = parse_request(buf, len, L4_SSP, addr, sock);
+    Entry *e = parse_request(buf, len, L4_SSP, sock);
     if (!e)
         return;
     Entry *old = NULL;
@@ -383,10 +380,10 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
     reply(sock, e->l4_key.port);
 }
 
-void register_udp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
+void register_udp(uint8_t *buf, int len, int sock)
 {
     zlog_info(zc, "UDP registration request");
-    Entry *e = parse_request(buf, len, L4_UDP, addr, sock);
+    Entry *e = parse_request(buf, len, L4_UDP, sock);
     if (!e)
         return;
     if (find_available_port(udp_port_list, &e->l4_key) < 0) {
@@ -399,7 +396,7 @@ void register_udp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
     reply(sock, e->l4_key.port);
 }
 
-Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr, int sock)
+Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 {
     uint32_t isd_as = ntohl(*(uint32_t *)(buf + 2));
     uint16_t port = ntohs(*(uint16_t *)(buf + 6));
@@ -413,7 +410,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr, int s
         exit(1);
     }
     memset(e, 0, sizeof(Entry));
-    e->addr = *addr;
     e->sock = sock;
     sockets[num_sockets].fd = sock;
     sockets[num_sockets].events = POLLIN;
