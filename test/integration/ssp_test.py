@@ -156,8 +156,7 @@ class TestSSP(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("ssp")
-    TestSSP(args.client, args.server, srcs, dsts, local=False,
-            max_runs=args.runs).run()
+    TestSSP(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
 
 
 if __name__ == "__main__":
