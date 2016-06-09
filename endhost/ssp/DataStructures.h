@@ -59,7 +59,6 @@ typedef struct {
     uint8_t headerLen;
     uint64_t offset;
     uint8_t flags;
-    uint8_t mark;
 } SSPHeader;
 
 typedef struct {
@@ -117,6 +116,36 @@ struct SSPPacket {
     {
         if (interfaces)
             free(interfaces);
+    }
+
+    uint64_t getOffset(bool outgoing)
+    {
+        if (outgoing)
+            return be64toh(header.offset) & 0xffffffffffffff;
+        else
+            return header.offset & 0xffffffffffffff;
+    }
+
+    void setOffset(uint64_t offset, bool outgoing)
+    {
+        header.offset = offset & 0xffffffffffffff;
+        if (outgoing)
+            header.offset = be64toh(header.offset);
+    }
+
+    uint8_t getMark(bool outgoing)
+    {
+        return getOffset(outgoing) >> 56;
+    }
+
+    void setMark(uint8_t mark, bool outgoing)
+    {
+        uint64_t offset = mark;
+        offset = offset << 56;
+        offset |= getOffset(outgoing);
+        header.offset = offset;
+        if (outgoing)
+            header.offset = be64toh(header.offset);
     }
 
     std::shared_ptr<uint8_t> data;

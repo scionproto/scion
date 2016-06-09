@@ -10,10 +10,10 @@ int compareOffset(void *p1, void *p2)
 {
     SSPPacket *sp1 = (SSPPacket *)p1;
     SSPPacket *sp2 = (SSPPacket *)p2;
-    if (sp1->header.offset < sp2->header.offset &&
-            sp2->header.offset < sp1->header.offset + sp1->len)
+    if (sp1->getOffset(false) < sp2->getOffset(false) &&
+            sp2->getOffset(false) < sp1->getOffset(false) + sp1->len)
         return 0;
-    return sp1->header.offset - sp2->header.offset;
+    return sp1->getOffset(false) - sp2->getOffset(false);
 }
 
 int compareOffsetNested(void *p1, void *p2)
@@ -22,7 +22,7 @@ int compareOffsetNested(void *p1, void *p2)
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SSPPacket *sp1 = (SSPPacket *)(s1->payload);
     SSPPacket *sp2 = (SSPPacket *)(s2->payload);
-    return be64toh(sp1->header.offset) - be64toh(sp2->header.offset);
+    return sp1->getOffset(true) - sp2->getOffset(true);
 }
 
 SCIONPacket * cloneSSPPacket(SCIONPacket *packet)
@@ -46,8 +46,6 @@ void buildSSPHeader(SSPHeader *header, uint8_t *ptr)
     header->offset = be64toh(*(uint64_t *)ptr);
     ptr += 8;
     header->flags = *ptr;
-    ptr++;
-    header->mark = *ptr;
 }
 
 void buildSSPAck(SSPAck *ack, uint8_t *ptr)

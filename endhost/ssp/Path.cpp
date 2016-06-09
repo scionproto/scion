@@ -379,7 +379,7 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
     packet->rto = mState->getRTO();
     DEBUG("using rto %d us for path %d\n", packet->rto, mIndex);
     if (!(sh.flags & SSP_ACK) && !probe) {
-        mState->handleSend(be64toh(sh.offset));
+        mState->handleSend(sp->getOffset(true));
         mTotalSent++;
         pthread_mutex_lock(&mTimeMutex);
         gettimeofday(&mLastSendTime, NULL);
@@ -388,7 +388,7 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
         mManager->didSend(packet);
         DEBUG("%ld.%06ld: packet %lu(%p) sent on path %d: %d/%d packets in flight\n",
                 mLastSendTime.tv_sec, mLastSendTime.tv_usec,
-                be64toh(sh.offset), packet, mIndex, mState->packetsInFlight(), mState->window());
+                sp->getOffset(true), packet, mIndex, mState->packetsInFlight(), mState->window());
     } else if (probe) {
         mProbeAttempts++;
         if (mProbeAttempts >= SSP_PROBE_ATTEMPTS) {
