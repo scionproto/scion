@@ -81,7 +81,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     svc = *((u16_t *)p);
     p += 2;  /* skip SVC */
     args->conn->pcb.ip->svc = svc;  /* set svc for TCP/IP context */
-    scion_addr_raw(&addr, p[0], p + 1);
+    scion_addr_from_raw(&addr, p[0], p + 1);
     /* TODO(PSz): test bind with addr = NULL */
     if (netconn_bind(args->conn, &addr, port) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_bind() failed");
@@ -118,7 +118,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     zlog_info(zc_tcp, "Path added, len %d", path_len);
 
     p += path_len;  /* skip path */
-    scion_addr_raw(&addr, p[0], p + 1);
+    scion_addr_from_raw(&addr, p[0], p + 1);
     if (p[0] == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
         args->conn->pcb.ip->svc = ntohs(*(u16_t*)(p + ISD_AS_LEN + 1));
     /* Set first hop. */
