@@ -187,6 +187,34 @@ class SCIONSocket(object):
         # Recv buf is ready
         return self.recv(bufsize)
 
+    def _fill_recv_buf(self):
+        req = b"RECV"
+        self._to_lwip(req)
+        rep = self._from_lwip()
+        if rep is None or len(rep) < RESP_SIZE:
+            logging.error("recv() failed: %s" % rep)
+            raise error("recv() failed: %s" % rep)
+        if rep[:RESP_SIZE + 4] == b"RECVERTOUT":
+            logging.warning("recv() timeouted")
+            raise timeout("recv() timeout")
+        if rep[:RESP_SIZE] != b"RECVOK":
+            logging.error("recv() failed: %s" % rep)
+            raise error("recv() failed: %s" % rep)
+
+        size, = struct.unpack("H", rep[RESP_SIZE:RESP_SIZE+2])
+        self._recv_buf = rep[RESP_SIZE+2:]
+        while len(self._recv_buf) < size:
+            rep = self._from_lwip()
+            if rep is None:
+                logging.error("recv() failed, partial read() %s" % rep)
+                raise error("recv() failed, partial read() %s" % rep)
+            self._recv_buf += rep
+
+        if len(self._recv_buf) != size:
+            logging.error("recv() read too much: %d/%d",
+                          len(self._recv_buf), size)
+            raise error("recv() read too much: ", len(self._recv_buf), size)
+
     def set_recv_tout(self, timeout):  # Timeout is given as a float
         if 0.0 < timeout < 0.001:
             raise error("set_recv_tout(): incorrect value")
@@ -209,34 +237,6 @@ class SCIONSocket(object):
         timeout, = struct.unpack("I", rep[6:])
         # Convert to seconds
         return 0.001 * timeout
-
-    def _fill_recv_buf(self):
-        req = b"RECV"
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        if rep is None or len(rep) < RESP_SIZE:
-            logging.error("recv() failed: %s" % rep)
-            raise error("recv() failed: %s" % rep)
-        if rep[:RESP_SIZE] != b"RECVOK":
-            if rep[:RESP_SIZE + 4] == b"RECVERTOUT":
-                logging.warning("recv() timeouted")
-                raise timeout("recv() timeout")
-            logging.error("recv() failed: %s" % rep)
-            raise error("recv() failed: %s" % rep)
-
-        size, = struct.unpack("H", rep[RESP_SIZE:RESP_SIZE+2])
-        self._recv_buf = rep[RESP_SIZE+2:]
-        while len(self._recv_buf) < size:
-            rep = self._from_lwip()
-            if rep is None:
-                logging.error("recv() failed, partial read() %s" % rep)
-                raise error("recv() failed, partial read() %s" % rep)
-            self._recv_buf += rep
-
-        if len(self._recv_buf) != size:
-            logging.error("recv() read too much: %d/%d",
-                          len(self._recv_buf), size)
-            raise error("recv() read too much: ", len(self._recv_buf), size)
 
     def close(self):
         req = b"CLOS"
