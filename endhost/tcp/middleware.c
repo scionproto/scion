@@ -36,7 +36,7 @@ void tcpmw_socket(int fd){
         goto fail;
     }
 
-    // Create a detached thread.
+    /* Create a detached thread. */
     pthread_attr_t attr;
     if (pthread_attr_init(&attr)){
         zlog_error(zc_tcp, "tcpmw_socket(): attribute init failed");
@@ -74,14 +74,14 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
         goto fail;
     }
 
-    p += CMD_SIZE; // skip "BIND"
+    p += CMD_SIZE;  /* skip "BIND" */
     port = *((u16_t *)p);
-    p += 2; // skip port
-    svc = *((u16_t *)p); // SVC Address
-    p += 2; // skip svc
-    args->conn->pcb.ip->svc = svc; // set svc for TCP/IP context
+    p += 2;  /* skip port */
+    svc = *((u16_t *)p);
+    p += 2;  /* skip SVC */
+    args->conn->pcb.ip->svc = svc;  /* set svc for TCP/IP context */
     scion_addr_raw(&addr, p[0], p + 1);
-    // TODO(PSz): test bind with addr = NULL
+    /* TODO(PSz): test bind with addr = NULL */
     if (netconn_bind(args->conn, &addr, port) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_bind() failed");
         goto fail;
@@ -97,19 +97,18 @@ fail:
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
-    // Some sanity checks with len etc...
     ip_addr_t addr;
     u16_t port, path_len;
     char *p = buf;
 
     zlog_info(zc_tcp, "CONN received");
-    p += CMD_SIZE; // skip "CONN"
+    p += CMD_SIZE;  /* skip "CONN" */
     port = *((u16_t *)p);
-    p += 2; // skip port
+    p += 2;  /* skip port */
     path_len = *((u16_t *)p);
-    p += 2; // skip path_len
+    p += 2;  /* skip path_len */
 
-    // add path to TCP/IP state
+    /* Add path to the TCP/IP state */
     spath_t *path = malloc(sizeof *path);
     path->raw_path = malloc(path_len);
     memcpy(path->raw_path, p, path_len);
@@ -117,19 +116,19 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     args->conn->pcb.ip->path = path;
     zlog_info(zc_tcp, "Path added, len %d", path_len);
 
-    p += path_len; // skip path
+    p += path_len;  /* skip path */
     scion_addr_raw(&addr, p[0], p + 1);
-    if (p[0] == ADDR_SVC_TYPE)  // set svc for TCP/IP context
+    if (p[0] == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
         args->conn->pcb.ip->svc = ntohs(*(u16_t*)(p + ISD_AS_LEN + 1));
-    // Set first hop.
-    p += 1 + ISD_AS_LEN + get_addr_len(p[0]);
+    /* Set first hop. */
+    p += 1 + ISD_AS_LEN + get_addr_len(p[0]);  /* TODO(PSz): don't assume IPv4 */
     path->first_hop.sin_family = AF_INET;
-    memcpy(&(path->first_hop.sin_addr), p, 4); // TODO(PSz): don't assume IPv4
+    memcpy(&(path->first_hop.sin_addr), p, 4);
     path->first_hop.sin_port = htons(*(uint16_t *)(p + 4));
 
     if (netconn_connect(args->conn, &addr, port) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect() failed");
-        // Path is freed in tcpmw_pcb_remove()
+        /* Path is freed in tcpmw_pcb_remove() */
         goto fail;
     }
     write(args->fd, "CONNOK", RESP_SIZE);
@@ -188,7 +187,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         goto fail;
     }
 
-    // Create a detached thread.
+    /* Create a detached thread. */
     pthread_attr_t attr;
     pthread_t tid;
     if (pthread_attr_init(&attr)){
@@ -208,7 +207,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         goto fail;
     }
 
-    // Letting know that new thread is ready.
+    /* Letting know that new thread is ready. */
     u8_t *tmp, *p, haddr_len;
     u16_t tot_len, path_len = newconn->pcb.ip->path->len;
     haddr_len = get_addr_len(newconn->pcb.ip->remote_ip.type);
@@ -226,7 +225,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     p++;
     memcpy(p, newconn->pcb.ip->remote_ip.addr, 4 + haddr_len);
     write(args->fd, tmp, tot_len);
-    write(new_fd, "ACCEOK", RESP_SIZE); // confirm it is ok.
+    write(new_fd, "ACCEOK", RESP_SIZE);  /* confirm it is ok. */
     free(tmp);
     return;
 
@@ -241,15 +240,15 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     u32_t size;
     size_t written;
 
-    p += CMD_SIZE; // skip "SEND"
+    p += CMD_SIZE;  /* skip "SEND" */
     len -= CMD_SIZE;
     size = *((u32_t *)p);
-    p += 4; // skip total size
-    len -= 4; // how many bytes local read() has read.
+    p += 4;  /* skip total size */
+    len -= 4;  /* how many bytes local read() has read. */
     zlog_info(zc_tcp, "SEND received (%dB to send, locally received: %dB)", size, len);
 
-    // This is implemented more like send_all(). If this is not desired, we
-    // could allocate temporary buf or sync buf size with python's send().
+    /* This is implemented more like send_all(). If this is not desired, we */
+    /* could allocate temporary buf or sync buf size with python's send(). */
     while (1){
         if (len > size){
             zlog_error(zc_tcp, "tcpmw_send(): received more than to send");
@@ -263,13 +262,13 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
         zlog_debug(zc_tcp, "netconn_write(): len/written/size: %d/%lu/%d", len, written, size);
         size -= written;
         len -= written;
-        if (!size) // done
+        if (!size)  /* done */
             break;
-        if (len > 0){ // write again from current buf
+        if (len > 0){  /* write again from current buf */
             p += written;
             continue;
         }
-        // read new part from app
+        /* read new part from app */
         len=read(args->fd, buf, TCPMW_BUFLEN);
         if (len < 1){
             zlog_error(zc_tcp, "tcpmw_send(): local sock read() error");
@@ -300,7 +299,6 @@ void tcpmw_recv(struct conn_args *args){
             return;
         }
         zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv() failed");
-        // TODO(PSz): other errors (especially check if buf has to be freed).
         goto fail;
     }
 
@@ -434,7 +432,7 @@ void *tcpmw_main_thread(void) {
             zlog_fatal(zc_tcp, "tcpmw_main_thread: accept() failed");
             continue;
         }
-        // socket() called by app. Create a netconn and a corresponding thread.
+        /* socket() called by app. Create a netconn and a corresponding thread. */
         tcpmw_socket(cl);
     }
     return 0;
