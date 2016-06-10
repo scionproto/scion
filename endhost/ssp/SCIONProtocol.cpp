@@ -239,8 +239,10 @@ int SSPProtocol::connect(SCIONAddr addr, double timeout)
     mDstAddr = addr;
     mDstPort = addr.host.port;
     int ret = mConnectionManager->setRemoteAddress(addr, timeout);
-    if (ret < 0)
+    if (ret < 0) {
+        DEBUG("setRemoteAddress failed: %d\n", ret);
         return ret;
+    }
 
     uint8_t buf = 0;
     SCIONPacket *packet = createPacket(&buf, 1);

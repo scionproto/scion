@@ -172,7 +172,7 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
     gettimeofday(&end, NULL);
     long delta = elapsedTime(&start, &end);
     waitTime -= delta / 1000000.0;
-    if (waitTime < 0)
+    if (timeout > 0.0 && waitTime < 0)
         return -ETIMEDOUT;
     waitTime = floor(waitTime);
 
