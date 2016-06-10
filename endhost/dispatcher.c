@@ -172,11 +172,9 @@ void handle_signal(int sig)
             break;
         case SIGTERM:
             zlog_info(zc, "Received SIGTERM");
-            unlink(SCION_DISPATCHER_ADDR);
             exit(0);
         default:
             zlog_info(zc, "Received signal %d", sig);
-            unlink(SCION_DISPATCHER_ADDR);
             exit(1);
     }
 }
@@ -240,6 +238,8 @@ int bind_app_socket()
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
     strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    // should only be one dispatcher per host anyway
+    unlink(su.sun_path);
     if (bind(app_socket, (struct sockaddr *)&su, sizeof(su)) < 0) {
         zlog_fatal(zc, "failed to bind app socket to %s", su.sun_path);
         return -1;
@@ -364,7 +364,7 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
         HASH_FIND(hh, ssp_flow_list, &e->l4_key, sizeof(L4Key), old);
         if (old) {
             zlog_error(zc, "address-flow already registered");
-            reply(sock, 0);
+            reply(sock, 1);
             return;
         }
         e->list = &ssp_flow_list;
@@ -611,7 +611,8 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         key.flow_id = be64toh(*(uint64_t *)l4ptr);
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no flow entry found for %" PRIu64, key.flow_id);
+            zlog_warn(zc, "no flow entry found for (%d,%d):%s:%" PRIu64,
+                    ISD(key.isd_as), AS(key.isd_as), inet_ntoa(*(struct in_addr *)key.host), key.flow_id);
             return;
         }
     }

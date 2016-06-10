@@ -310,8 +310,6 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     memcpy(&sh, buf, sizeof(SCIONCommonHeader));
     sch.total_len = ntohs(sch.total_len);
 
-    int src_len = get_src_len(buf);
-    int dst_len = get_dst_len(buf);
     memcpy(sh.srcAddr, buf + sizeof(SCIONCommonHeader), ISD_AS_LEN);
     memcpy(sh.srcAddr + ISD_AS_LEN, get_src_addr(buf), get_src_len(buf));
     memcpy(sh.dstAddr, get_dst_addr(buf) - ISD_AS_LEN, ISD_AS_LEN);
@@ -328,18 +326,20 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     memcpy(srcAddr.host.addr, sh.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
 
     // path
-    sh.pathLen = sch.header_len - sizeof(sch) - 2 * ISD_AS_LEN - src_len - dst_len;
-    sh.path = (uint8_t *)malloc(sh.pathLen);
+    sh.pathLen = get_path_len(buf);
+    if (sh.pathLen > 0) {
+        sh.path = (uint8_t *)malloc(sh.pathLen);
 #ifdef SIMULATOR
-    memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
+        memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
 #else
-    int res = reverse_path(buf, sh.path);
-    if (res < 0) {
-        DEBUG("reverse_path failed\n");
-        free(packet);
-        return;
-    }
+        int res = reverse_path(buf, sh.path);
+        if (res < 0) {
+            DEBUG("reverse_path failed\n");
+            free(packet);
+            return;
+        }
 #endif
+    }
     packet->firstHop = (uint32_t)(addr->sin_addr.s_addr);
 
     uint8_t *ptr = parseExtensions(&packet->header, buf + sch.header_len);

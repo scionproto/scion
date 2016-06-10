@@ -19,8 +19,12 @@ Path::Path(PathManager *manager, PathParams *params)
     if (params->pathLen == 0) {
         // raw data is in daemon reply format
         uint8_t *ptr = params->rawPath;
-        mPathLen = *ptr * 8;
-        ptr++;
+        if (ptr) {
+            mPathLen = *ptr * 8;
+            ptr++;
+        } else {
+            mPathLen = 0;
+        }
         if (mPathLen == 0) {
             // empty path
             mPath = NULL;

@@ -377,7 +377,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
 
 bool SSPProtocol::claimPacket(SCIONPacket *packet, uint8_t *buf)
 {
-    uint64_t flowID = be64toh(*(uint64_t *)buf);
+    uint64_t flowID = be64toh(*(uint64_t *)buf) & ~1;
     DEBUG("mFlowID = %lu, incoming flowID = %lu\n", mFlowID, flowID);
     return flowID == mFlowID;
 }
@@ -386,10 +386,10 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 {
     if (buf) {
         mIsReceiver = true;
-        mFlowID = be64toh(*(uint64_t *)buf);
+        mFlowID = be64toh(*(uint64_t *)buf) & ~1;
     } else {
         mIsReceiver = false;
-        mFlowID = createRandom(64);
+        mFlowID = createRandom(64) & ~1;
     }
     DEBUG("%lu created\n", mFlowID);
 
@@ -501,7 +501,10 @@ void SSPProtocol::handleProbe(SCIONPacket *packet)
     p.pathIndex = packet->pathIndex;
     SSPPacket sp;
     p.payload = &sp;
-    sp.setFlowID(mFlowID);
+    if (mIsReceiver)
+        sp.setFlowID(mFlowID);
+    else
+        sp.setFlowID(mFlowID | 1);
     sp.header.headerLen = sizeof(sp.header);
     mConnectionManager->sendAck(&p);
 }
@@ -716,7 +719,10 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
         mRemoteWindow = inPacket->windowSize;
         mInitialized = true;
     }
-    sp.setFlowID(mFlowID);
+    if (mIsReceiver)
+        sp.setFlowID(mFlowID);
+    else
+        sp.setFlowID(mFlowID | 1);
     sp.setMark(inPacket->getMark());
 
     // ack stuff
@@ -739,7 +745,11 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     SSPPacket *sp = new SSPPacket();
     packet->payload = sp;
     sp->header.headerLen = sizeof(SSPHeader);
-    sp->setFlowID(mFlowID);
+    // Server's LSb is 1, so client sets outgoing LSb to 1
+    if (mIsReceiver)
+        sp->setFlowID(mFlowID);
+    else
+        sp->setFlowID(mFlowID | 1);
     sp->setPort(mInitialized ? 0 : mDstPort);
     sp->setOffset(mNextSendByte);
     DEBUG("%s: created packet %lu at %p\n", __func__, sp->getOffset(), packet);
@@ -766,7 +776,7 @@ void SSPProtocol::handleTimerEvent()
     gettimeofday(&current, NULL);
     mConnectionManager->handleTimeout();
     if (mDstAddr.isd_as != 0 && elapsedTime(&mLastProbeTime, &current) >= (int32_t)mProbeInterval) {
-        mConnectionManager->sendProbes(++mProbeNum, mFlowID);
+        mConnectionManager->sendProbes(++mProbeNum, mIsReceiver ? mFlowID : mFlowID | 1);
         mLastProbeTime = current;
     }
 }
@@ -880,6 +890,8 @@ int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
     DispatcherEntry de;
     memset(&de, 0, sizeof(de));
     de.flow_id = flowID > 0 ? flowID : mFlowID;
+    if (mIsReceiver)
+        de.flow_id = de.flow_id | 1;
     de.port = port > 0 ? port : htons(mSrcPort);
     de.isd_as = htonl(localAddr->isd_as);
     de.addr_type = ADDR_IPV4_TYPE;
