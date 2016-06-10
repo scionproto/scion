@@ -83,6 +83,8 @@ class SVCType(object):
     CS = HostAddrSVC(2, raw=False)
     # SIBRA service
     SB = HostAddrSVC(3, raw=False)
+    # No service, used e.g., in TCP socket.
+    NONE = HostAddrSVC(0xffff, raw=False)
 
 
 class SCIONCommonHdr(Serializable):

@@ -52,7 +52,7 @@ def server(svc=False):
     s = socket.socket(socket.AF_SCION, socket.SOCK_STREAM, 0)
     addr = SCIONAddr.from_values(s_isd_as, s_ip)
     if svc:
-        s.bind((addr, 6000), svc=socket.SVC_PS)
+        s.bind((addr, 6000), svc=SVCType.PS)
     else:
         s.bind((addr, 5000))
     s.listen()

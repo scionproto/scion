@@ -21,7 +21,6 @@ void tcpmw_socket(int fd){
     struct netconn *conn;
     pthread_t tid;
 
-    zlog_info(zc_tcp, "NEWS received");
     if (read(fd, buf, sizeof(buf)) != CMD_SIZE){
         zlog_error(zc_tcp, "tcpmw_socket() error on read");
         goto fail;
@@ -30,6 +29,8 @@ void tcpmw_socket(int fd){
         zlog_error(zc_tcp, "tcpmw_socket() wrong command");
         goto fail;
     }
+    zlog_info(zc_tcp, "NEWS received");
+
     conn = netconn_new(NETCONN_TCP);
     if (conn == NULL){
         zlog_error(zc_tcp, "tcpmw_socket(): netconn_new() failed");

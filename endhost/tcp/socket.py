@@ -24,14 +24,8 @@ import uuid
 
 # SCION
 from lib.packet.path import SCIONPath
+from lib.packet.scion import SVCType
 from lib.packet.scion_addr import SCIONAddr
-
-# TODO(PSz): that should be somewhere in the SCION python's lib:
-SVC_BS = 0
-SVC_PS = 1
-SVC_CS = 2
-SVC_SB = 3
-NO_SVC = 0xffff  # No service associated with the socket
 
 LWIP_SOCK_DIR = "/run/shm/lwip/"
 RPCD_SOCKET = "/run/shm/lwip/lwip"
@@ -64,10 +58,13 @@ class SCIONSocket(object):
         self._lwip_accept = None
         self._recv_buf = b''
 
-    def bind(self, addr_port, svc=NO_SVC):
+    def bind(self, addr_port, svc=None):
+        if svc is None:
+            svc = SVCType.NONE
         addr, port = addr_port
         haddr_type = addr.host.TYPE
-        req = b"BIND" + struct.pack("HHB", port, svc, haddr_type) + addr.pack()
+        req = (b"BIND" + struct.pack("H", port) + svc.pack() +
+               struct.pack("B", haddr_type) + addr.pack())
         self._to_lwip(req)
         rep = self._from_lwip()
         if rep != b"BINDOK":
