@@ -73,6 +73,7 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     mLastAccept(-1),
     mIsListener(false),
     mBound(false),
+    mTimeout(0.0),
     mParent(NULL),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
@@ -171,14 +172,14 @@ int SCIONSocket::bind(SCIONAddr addr)
     return ret;
 }
 
-int SCIONSocket::connect(SCIONAddr addr, double timeout)
+int SCIONSocket::connect(SCIONAddr addr)
 {
     mProtocol->start(NULL, NULL, mReliableSocket);
     pthread_mutex_lock(&mRegisterMutex);
     mRegistered = true;
     pthread_cond_signal(&mRegisterCond);
     pthread_mutex_unlock(&mRegisterMutex);
-    return mProtocol->connect(addr, timeout);
+    return mProtocol->connect(addr, mTimeout);
 }
 
 int SCIONSocket::listen()
@@ -194,23 +195,23 @@ int SCIONSocket::listen()
     return 0;
 }
 
-int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
+int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
 {
     if (mState == SCION_CLOSED)
         return 0;
-    return mProtocol->recv(buf, len, srcAddr, timeout);
+    return mProtocol->recv(buf, len, srcAddr, mTimeout);
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len, double timeout)
+int SCIONSocket::send(uint8_t *buf, size_t len)
 {
     if (mState == SCION_CLOSED)
         return 0;
-    return send(buf, len, NULL, timeout);
+    return send(buf, len, NULL);
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
+int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
 {
-    return mProtocol->send(buf, len, dstAddr, timeout);
+    return mProtocol->send(buf, len, dstAddr, mTimeout);
 }
 
 int SCIONSocket::setSocketOption(SCIONOption *option)
@@ -250,6 +251,16 @@ uint32_t SCIONSocket::getLocalIA()
     if (!mProtocol)
         return 0;
     return mProtocol->getLocalIA();
+}
+
+void SCIONSocket::setTimeout(double timeout)
+{
+    mTimeout = timeout;
+}
+
+double SCIONSocket::getTimeout()
+{
+    return mTimeout;
 }
 
 bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)

@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
 
-    SCIONConnect(sock, saddr, 0.0);
+    SCIONConnect(sock, saddr);
 
     int count = 0;
     char buf[BUFSIZE];
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
         FD_ZERO(&writefds);
         FD_SET(sock, &writefds);
         SCIONSelect(sock + 1, NULL, &writefds, NULL);
-        SCIONSend(sock, (uint8_t *)buf, BUFSIZE, 0.0);
+        SCIONSend(sock, (uint8_t *)buf, BUFSIZE);
     }
 
     return 0;
