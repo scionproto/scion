@@ -6,6 +6,7 @@ cmd_all() {
     cmd_pkgs
     cmd_pip
     cmd_zlog
+    cmd_golang
     cmd_misc
 }
 
@@ -67,6 +68,14 @@ cmd_capnp() {
     sudo make install
 }
 
+cmd_golang() {
+    echo "Checking for go 1.6"
+    if type -P go &>/dev/null && go version | grep -q ' go1.6'; then
+        return
+    fi
+    echo "Installing golang-1.6 from apt"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang-1.6
+}
 
 cmd_misc() {
     echo "Installing supervisor packages from pip2"
@@ -91,6 +100,8 @@ cmd_help() {
 	        Install libzlog
 	    $PROGRAM capnp
 	        Install capnproto
+	    $PROGRAM golang
+	        Install golang-1.6
 	    $PROGRAM misc
 	        Install any additional packages not from the first 2 sources.
 	    $PROGRAM help
@@ -104,7 +115,7 @@ COMMAND="$1"
 shift || { cmd_help; exit; }
 
 case "$COMMAND" in
-    all|pkgs|pip|capnp|zlog|misc)
+    all|pkgs|pip|capnp|golang|zlog|misc)
             "cmd_$COMMAND" "$@" ;;
     help|*)  cmd_help ;;
 esac

@@ -16,6 +16,7 @@ get_params() {
 cmd_build() {
     set -e
     set -o pipefail
+    make -s go
     get_params
     echo
     echo "Copying current working tree for Docker image"
@@ -24,6 +25,7 @@ cmd_build() {
     # Just in case it's sitting there from a previous run
     rm -rf "${build_dir}/scion.git/"
     git ls-files -z | rsync -a0 --files-from=- . "${build_dir}/scion.git/"
+    cp bin/discovery "${build_dir}/scion.git/bin"
     echo
     echo "Building Docker image"
     echo "====================="
