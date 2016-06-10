@@ -14,16 +14,37 @@ Internet architecture.
 
 Necessary steps in order to run SCION:
 
-1. Make sure that `~/.local/bin` can be found in your `$PATH` variable. For
-   example, do the following to update `$PATH` in your `~/.profile` and apply
-   the changes to your session:
+1. Have `$GOPATH` set in your environment. E.g.:
+   ```
+   echo GOPATH=$HOME/go >> ~/.profile
 
-    `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && source
-    ~/.profile`
+1. Make sure that you have a
+   [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
+   `~/.local/bin`, `/usr/lib/go-1.6/bin` and `$GOPATH/bin` can be found in your
+   `$PATH` variable. For example:
+
+    ```
+    echo 'export GOPATH="$HOME/go"' >> ~/.profile
+    echo 'export PATH="$HOME/.local/bin:/usr/lib/go-1.6/bin:$GOPATH/bin:$PATH"' >> ~/.profile
+    source ~/.profile`
+    mkdir -p "$GOPATH"
+    ```
+
+1. Check out scion into the appropriate directory inside your go workspace (or
+   put a symlink into the go workspace to point to your existing scion
+   checkout):
+   ```
+   mkdir -p "$GOPATH/src/github.com/netsec-ethz"
+   cd "$GOPATH/src/github.com/netsec-ethz"
+   git clone https://github.com/netsec-ethz/scion
+   cd scion
+   ```
 
 1. Install required packages with dependencies:
-
-    `./deps.sh all`
+    ```
+    ./deps.sh all
+    go get -t -v ./go/...
+    ```
 
 1. Configure the host Zookeeper instance. At a minimum, add `maxClientCnxns=0`
    to `/etc/zookeeper/conf/zoo.cfg`, but replacing it with `docker/zoo.cfg` is
@@ -79,4 +100,3 @@ Notes about `topology/Default.topo`:
 In order to run the unit tests:
 
   `./scion.sh test`
-
