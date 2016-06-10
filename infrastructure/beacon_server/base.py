@@ -685,6 +685,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         cand.pcb.p.ifID == if_id):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
+                cur_epoch = self.get_t()
+                rev_epoch = rev_info.p.epoch
+                if not rev_epoch == cur_epoch:
+                    logging.warning("Gap is "+str(self.get_time_since_epoch()))
+                    # The value '1' below needs to be adjusted.
+                    if not self.get_time_since_epoch() < 1:
+                        logging.warning("Epochs did not match " +
+                                        str(rev_epoch) +
+                                        " " + str(cur_epoch) + " " +
+                                        str(self.get_time_since_epoch()))
+                        continue
+
                 for asm in cand.pcb.p.asms:
                     ingress_if_id = asm.pcbms[0].inIF
                     egress_if_id = asm.pcbms[0].outIF

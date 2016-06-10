@@ -167,5 +167,5 @@ class ConnectedHashTree(object):
         proof = revProof.p
         assert not isinstance(proof, bytes)
         # Check that either hash of T-1:T or T:T+1 matches the root.
-        hash01, hash12 = ConnectedHashTree.get_possible_hashes(proof, hash_func)
-        return (hash01 == root) or (hash12 == root)
+        h01, h12 = ConnectedHashTree.get_possible_hashes(revProof, hash_func)
+        return (h01 == root) or (h12 == root)
