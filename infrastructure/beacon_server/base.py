@@ -578,8 +578,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         :param if_id: The interface that needs to be revoked.
         :type if_id: int
-        :param chain: The hash chain corresponding to if_id.
-        :type chain: :class:`lib.crypto.hash_chain.HashChain`
         """
         # Only the master BS issues revocations.
         if not self.zk.have_lock():
