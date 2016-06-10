@@ -27,7 +27,9 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT, TIME_T, TIME_t, N_EPOCHS
+from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scion import SVCType
@@ -63,6 +65,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
+        # SHANTANU: this should now be an expiring dict with time = TTL = TIME_T?
         self.astoken_if2seg = defaultdict(set)
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -129,12 +132,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         segment_id = pcb.get_hops_hash()
         for asm in pcb.p.asms:
-            # MACHAU: this addition is already being done in the loop below, so removing it; however it was there
+            # SHANTANU: this addition is already being done in the loop below, so removing it; however it was there
             # before the revocation changes were made too, so maybe it makes sense for some reason?
-            #self.astoken_if2seg[(asm.pcbms[0].igRevToken, asm.pcbms[0].inIF)].add(segment_id)
-            self.astoken_if2seg[(asm.egRevToken, asm.pcbms[0].outIF)].add(segment_id)
+            # self.astoken_if2seg[(asm.pcbms[0].igRevToken, asm.pcbms[0].inIF)].add(segment_id)
+            
+            self.astoken_if2seg[(asm.egRevToken, HopOpaqueField(asm.pcbms[0].hof).egress_if)].add(segment_id)
             for pm in asm.pcbms:
-                self.astoken_if2seg[(pm.igRevToken, pm.inIF)].add(segment_id)
+                self.astoken_if2seg[(pm.igRevToken, HopOpaqueField(pm.hof).ingress_if)].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -167,11 +171,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
-        if hash(rev_info) in self.revocations:
+        if hash((rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot)) in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
         else:
-            self.revocations[hash(rev_info)] = rev_info
+            self.revocations[hash((rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot))] = rev_info
             logging.debug("Received revocation from %s:\n%s",
                           pkt.addrs.src, rev_info)
         # Remove segments that contain the revoked interface.
@@ -186,9 +190,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :type rev_info: RevocationInfo
         """
         cur_epoch = self.get_t()
-        rev_epoch = rev_info.getEpoch()
+        rev_epoch = rev_info.p.epoch
+        
         if not rev_epoch == cur_epoch:
-             return
+            # this value needs to be adjusted
+            if not self.get_time_since_epoch() < 1: 
+                logging.warning("Epochs did not match")
+                return
         
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
 
@@ -197,12 +205,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for H in (hash01, hash12):
             segments = self.astoken_if2seg.get((H, if_id))
             if not segments:
+                logging.warning("0 paths removed due to segments")
                 continue
             deletions = 0 # keeps track of number of deleted segments
             while segments:
                 sid = segments.pop()
                 deletions+=(self.down_segments.delete(sid)==3)
                 deletions+=(self.core_segments.delete(sid)==3)
+            logging.warning(str(deletions) + " paths removed")
             if (H, if_id) in self.astoken_if2seg:
                 del self.astoken_if2seg[(H, if_id)]
 

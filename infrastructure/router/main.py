@@ -56,6 +56,7 @@ from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion import SVCType
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
@@ -98,7 +99,7 @@ class Router(SCIONElement):
     :type interface: :class:`lib.topology.InterfaceElement`
     """
     SERVICE_TYPE = ROUTER_SERVICE
-    FWD_REVOCATION_TIMEOUT = 5
+    FWD_REVOCATION_TIMEOUT = 0 # 5
     IFSTATE_REQ_INTERVAL = 30
 
     def __init__(self, server_id, conf_dir, ):
@@ -413,11 +414,11 @@ class Router(SCIONElement):
         if from_local_as:
             return
         # Forward to local path server if we haven't recently.
-        
-        rev_info = pld.info.rev_info
+        rev_info = RevocationInfo.from_raw(pld.info.rev_token)
+
         if (self.topology.path_servers and
-                rev_info not in self.revocations):
-            self.revocations[rev_info] = True
+                (rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot) not in self.revocations):
+            self.revocations[(rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot)] = True
             try:
                 ps = self.get_srv_addr(PATH_SERVICE, spkt)
             except SCIONServiceLookupError:
@@ -442,7 +443,7 @@ class Router(SCIONElement):
                           "revocation." % if_id)
             return
 
-        assert if_state.rev_token, "Revocation token missing."
+        assert if_state.rev_info, "Revocation token missing."
 
         rev_pkt = spkt.reversed_copy()
         rev_pkt.convert_to_scmp_error(

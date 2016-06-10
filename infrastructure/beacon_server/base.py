@@ -634,7 +634,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Send revocations to local PS.
         self._send_rev_to_local_ps(rev_info)
         # Add the revocation to the downstream queue
-        self.revs_to_downstream[rev_info] = rev_info
+        self.revs_to_downstream[rev_info.p.ifID] = rev_info
         # Propagate the Revocation instantly
         self.handle_pcbs_propagation()
 
@@ -682,11 +682,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         cand.pcb.p.ifID == if_id):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
-                for asm in cand.pcb.iter_asms():
-                    ingress_if_id = asm.pcbm.hof.ingress_if
-                    egress_if_id = asm.pcbm.hof.egress_if
-                    ingress_iftoken = asm.pcbm.ig_rev_token 
-                    egress_iftoken = asm.eg_rev_token
+                for asm in cand.pcb.p.asms:
+                    ingress_if_id = asm.pcbms[0].inIF
+                    egress_if_id = asm.pcbms[0].outIF
+                    ingress_iftoken = asm.pcbms[0].igRevToken
+                    egress_iftoken = asm.egRevToken
                     if rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
                          to_remove.append(cand.id)
                     elif rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):

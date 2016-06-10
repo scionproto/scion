@@ -258,13 +258,19 @@ class SCIONDaemon(SCIONElement):
         :returns: The number of deletions.
         :rtype: int
         """
+
+        if not rev_info.p.epoch == self.get_t():
+            if not self.get_time_since_epoch() < 1:
+                logging.warning("Epochs did not match")
+                return
+
         to_remove = []
         for segment in db():
-            for asm in segment.pcb.ases:
-                ingress_if_id = asm.pcbm.hof.ingress_if
-                egress_if_id = asm.pcbm.hof.egress_if
-                ingress_iftoken = asm.pcbm.ig_rev_token 
-                egress_iftoken = asm.eg_rev_token
+            for asm in segment.pcb.asms:
+                ingress_if_id = HopOpaqueField(asm.pcbms[0].hof).ingress_if
+                egress_if_id = HopOpaqueField(asm.pcbms[0].hof).egress_if
+                ingress_iftoken = asm.pcbms[0].igRevToken
+                egress_iftoken = asm.egRevToken
                 if rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
                     to_remove.append(segment.get_hops_hash())
                 elif rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):

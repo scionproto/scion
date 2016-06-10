@@ -558,4 +558,4 @@ class ScionClientSocket(ScionBaseSocket):
         :rtype: int
         """
         sa = addr_py2c(saddr, port)
-        return self.libssock.SCIONConnect(self.fd, sa, c_double(self.timeout))
+        return self.libssock.SCIONConnect(self.fd, sa)

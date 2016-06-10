@@ -196,17 +196,34 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
 
     @classmethod
     def from_pkt(cls, pkt, if_id, ingress, rev_info):  # pragma: no cover
-        # rev_token = rev_info
-        # MACHAU: at this point, rev_info is an object; convert it to a bytes called rev_token
-        # rev_token = rev_info.pack() or something
+        # SHANTANU
+        # calling copy here since the rev_info will be part of an if_state_info
+        # and hence is not the root struct; so cannot pack otherwise
+        rev_token = rev_info.copy().pack()
         assert isinstance(rev_token, bytes)
         inst = cls()
+        
+        padding_length = calc_padding(struct.calcsize(inst.STRUCT_FMT) + len(rev_token), LINE_LEN)
+        rev_token = rev_token + bytes(padding_length)
+        
         iof_offset, hof_offset = inst._calc_offsets(pkt)
         inst._set_vals((iof_offset, hof_offset, if_id, ingress, rev_token))
         inst.REV_LEN = len(rev_token)
-        inst.STRUCT_FMT = "!HHH?x" + str(inst.REV_LEN) + "s"
+        inst.STRUCT_FMT = inst.STRUCT_FMT + str(inst.REV_LEN) + "s"
         inst.LEN = struct.calcsize(inst.STRUCT_FMT)
         return inst
+
+    def _parse(self, raw):
+        data = Raw(raw, self.NAME)
+
+        total_len = len(data)
+        rev_len = total_len - self.LEN
+
+        self.STRUCT_FMT = self.STRUCT_FMT + str(rev_len) + "s"
+        self.REV_LEN = rev_len
+        self.LEN = total_len
+
+        self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop()))
 
     def pack(self):  # pragma: no cover
         assert isinstance(self.rev_token, bytes)

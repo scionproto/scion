@@ -151,9 +151,9 @@ class SteadyPath(object):
         if ext.accepted:
             self.blocks.append(ext.req_block)
             if ext.setup:
-                logging.info("Setup successful: %s", ext.req_block)
+                logging.info("Setup successful: %s", ext.req_block.info)
             else:
-                logging.debug("Renewal successful: %s", ext.req_block)
+                logging.debug("Renewal successful: %s", ext.req_block.info)
             self._register_path()
             self._stamp = None
             return
@@ -225,7 +225,7 @@ class SteadyPath(object):
         """
         dest = SCIONAddr.from_values(self.remote, SVCType.SB)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
-        payload = SIBRAPayload.from_values()
+        payload = SIBRAPayload()
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
         return cmn_hdr, addr_hdr, udp_hdr, payload
@@ -288,10 +288,9 @@ class SteadyPath(object):
         info.fwd_dir = not remote
         sofs = latest.sofs[:]
         up = True
-        if remote:
+        if remote and self.link_type == LINK_PARENT:
             sofs.reverse()
-            if self.link_type == LINK_PARENT:
-                up = False
+            up = False
         pcb_d = self.seg.to_dict()
         if remote and self.link_type == LINK_ROUTING:
             pcb_d['asms'].reverse()
@@ -300,16 +299,7 @@ class SteadyPath(object):
         pcb.remove_crypto()
         pcb.add_sibra_ext(pcb_ext.p)
         pcb.sign(self.signing_key)
-        logging.debug(self._reg_pcb_str(pcb))
         return pcb
-
-    def _reg_pcb_str(self, pcb):
-        a = []
-        for line in pcb.short_desc().splitlines():
-            a.append("  %s" % line)
-        for sof in pcb.sibra_ext.iter_sofs():
-            a.append("    %s" % sof)
-        return "\n".join(a)
 
     def __str__(self):
         with self._lock:

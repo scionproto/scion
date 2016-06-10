@@ -140,8 +140,9 @@ class ConnectedHashTree(object):
                                    self._ht2._nodes[0])
 
     @staticmethod
-    def get_possible_hashes(proof, hash_func=SHA256):
+    def get_possible_hashes(revProof, hash_func=SHA256):
         # Calculate the hashes upwards till the tree root.
+        proof = revProof.p
         if_tuple = (str(proof.ifID) + str(proof.epoch) + str(proof.nonce)) \
                    .encode('utf-8')
         curr_hash = hash_func.new(if_tuple).digest()
@@ -164,9 +165,6 @@ class ConnectedHashTree(object):
     def verify(revProof, root, curr_epoch, hash_func=SHA256):
         proof = revProof.p
         assert not isinstance(proof, bytes)
-        # Check if the current epoch matches the epoch in the proof.
-        if (proof.epoch != curr_epoch):
-            return False
         # Check that either hash of T-1:T or T:T+1 matches the root.
         hash01,hash12 = ConnectedHashTree.get_possible_hashes(proof, hash_func)
         return (hash01 == root) or (hash12 == root)

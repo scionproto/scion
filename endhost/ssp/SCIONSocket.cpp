@@ -171,14 +171,14 @@ int SCIONSocket::bind(SCIONAddr addr)
     return ret;
 }
 
-int SCIONSocket::connect(SCIONAddr addr, double timeout)
+int SCIONSocket::connect(SCIONAddr addr)
 {
     mProtocol->start(NULL, NULL, mReliableSocket);
     pthread_mutex_lock(&mRegisterMutex);
     mRegistered = true;
     pthread_cond_signal(&mRegisterCond);
     pthread_mutex_unlock(&mRegisterMutex);
-    return mProtocol->connect(addr, timeout);
+    return mProtocol->connect(addr);
 }
 
 int SCIONSocket::listen()
@@ -201,16 +201,16 @@ int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
     return mProtocol->recv(buf, len, srcAddr, timeout);
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len, double timeout)
+int SCIONSocket::send(uint8_t *buf, size_t len)
 {
     if (mState == SCION_CLOSED)
         return 0;
-    return send(buf, len, NULL, timeout);
+    return send(buf, len, NULL);
 }
 
-int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
+int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
 {
-    return mProtocol->send(buf, len, dstAddr, timeout);
+    return mProtocol->send(buf, len, dstAddr);
 }
 
 int SCIONSocket::setSocketOption(SCIONOption *option)
