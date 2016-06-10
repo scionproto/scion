@@ -81,7 +81,7 @@ class LocalPathServer(PathServer):
             logging.warning("Gap is "+str(self.get_time_since_epoch()))
             # this value needs to be adjusted
             if not self.get_time_since_epoch() < 1: 
-                logging.warning("Epochs did not match")
+                logging.warning("Epochs did not match" + str(rev_epoch) + " "+str(cur_epoch) + " " + str(self.get_time_since_epoch()))
                 return
 
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)

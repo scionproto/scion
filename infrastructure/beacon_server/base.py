@@ -236,7 +236,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Handle ASMarking extensions:
         for asm in pcb.iter_asms():
             for rev_info in asm.p.exts.revInfos:
-                self.rev_ext_handler(rev_info, asm.isd_as())
+                self.rev_ext_handler(RevocationInfo(rev_info), asm.isd_as())
         # Handle PCB extensions:
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)

@@ -418,7 +418,8 @@ class Router(SCIONElement):
 
         if (self.topology.path_servers and
                 (rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot) not in self.revocations):
-            self.revocations[(rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot)] = True
+            #self.revocations[(rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot)] = True
+            pass
             try:
                 ps = self.get_srv_addr(PATH_SERVICE, spkt)
             except SCIONServiceLookupError:

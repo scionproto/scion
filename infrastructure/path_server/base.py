@@ -64,7 +64,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
-        self.revocations = ExpiringDict(1000, 300)
+        self.revocations = ExpiringDict(1000, 0)
         # SHANTANU: this should now be an expiring dict with time = TTL = TIME_T?
         self.astoken_if2seg = defaultdict(set)
         self.CTRL_PLD_CLASS_MAP = {
@@ -195,7 +195,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not rev_epoch == cur_epoch:
             # this value needs to be adjusted
             if not self.get_time_since_epoch() < 1: 
-                logging.warning("Epochs did not match")
+                logging.warning("Epochs did not match" + str(rev_epoch) + " "+str(cur_epoch) + " " + str(self.get_time_since_epoch()))
                 return
         
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
