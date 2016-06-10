@@ -613,7 +613,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONServiceLookupError:
                 # If there are no local path servers, stop here.
                 return
-            pkt = self._build_packet(ps_addr, payload=rev_info)
+            pkt = self._build_packet(ps_addr, payload=rev_info.copy())
             logging.info("Sending revocation to local PS.")
             self.send(pkt, ps_addr)
 
