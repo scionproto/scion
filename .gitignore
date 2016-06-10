@@ -12,7 +12,6 @@
 *.idx
 *.out
 
-
 # OS generated files #
 #########################
 .DS_Store
@@ -23,29 +22,20 @@
 ehthumbs.db
 Thumbs.db
 
-
 # SCION generated files #
 #########################
 /logs/
 /gen/
 /traces/
 
-
 # Python generated files #
 #########################
 __pycache__
 topology/mininet/*.pyc
 
-
 # vim generated files #
 #########################
 .*.swp
-
-
-# Crypto library generated files #
-#########################
-/lib/crypto/python-tweetnacl-20140309/build/
-
 
 # Documentation and Environment files
 #########################
@@ -67,8 +57,9 @@ topology/mininet/*.pyc
 *.o
 *.so
 
-# Socket binaries
+# Executable binaries
 ##########################
+bin/discovery
 bin/dispatcher
 endhost/dispatcher
 endhost/ssp/test/*client

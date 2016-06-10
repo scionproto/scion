@@ -1,8 +1,9 @@
-dnsutils
 cgroup-bin
 curl
-gcc
+dnsutils
+file
 g++
+gcc
 libcurl4-openssl-dev
 libffi-dev
 make
