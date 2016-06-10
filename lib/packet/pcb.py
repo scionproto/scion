@@ -19,8 +19,6 @@
 from Crypto.Hash import SHA256
 import capnp  # noqa
 
-import logging
-
 # SCION
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
@@ -139,9 +137,9 @@ class ASMarking(Cerealizable):
             for pcbm in self.iter_pcbms():
                 b.append(pcbm.sig_pack(6))
             b.append(self.p.egRevToken)
-            # SHANTANU
-            # call r is part of ASMarking here; call .copy() to pack since it is not root struct
-            tempList = [RevocationInfo(r.copy()).pack() for r in self.p.exts.revInfos]
+            # SHANTANU : Call .copy() to pack since it is not root struct.
+            tempList = [RevocationInfo(r.copy()).pack() for r in
+                        self.p.exts.revInfos]
             b.extend(tempList)
             b.append(self.p.mtu.to_bytes(2, 'big'))
             b.append(self.p.chain)

@@ -40,7 +40,6 @@ from lib.defines import (
     TOPO_FILE,
     TIME_T,
     TIME_t,
-    N_EPOCHS,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import (

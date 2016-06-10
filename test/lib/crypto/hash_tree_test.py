@@ -19,10 +19,6 @@
 import logging
 import unittest
 
-# External packages
-from Crypto import Random
-import nose.tools as ntools
-
 # SCION
 from lib.crypto.hash_tree import ConnectedHashTree
 from test.testcommon import SCIONCommonTest

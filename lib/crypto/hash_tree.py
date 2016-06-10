@@ -20,13 +20,13 @@ from Crypto.Hash import SHA256
 
 # SCION
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.util import Raw
+
 
 class HashTree(object):
     """
     Class encapsulating a scion hash-tree.
 
-    The number of interfaces and epoch times are configurable. 
+    The number of interfaces and epoch times are configurable.
     The used hash function needs to implement the hashlib interface.
 
     """
@@ -64,7 +64,7 @@ class HashTree(object):
         for if_id in if_ids:         # For given (if_id, epoch) leaves
             self._if2idx[if_id] = idx
             for i in range(n_epochs):
-                raw_nonce = (str(seed) +str(if_id) + str(i)).encode('utf-8')
+                raw_nonce = (str(seed) + str(if_id) + str(i)).encode('utf-8')
                 nonce = self._hash_func.new(raw_nonce).digest()
                 if_tuple = (str(if_id) + str(i) + str(nonce)).encode('utf-8')
                 self._nodes[idx] = self._hash_func.new(if_tuple).digest()
@@ -99,16 +99,17 @@ class HashTree(object):
         # Using the above fields, construct a RevInfo capnp as the proof.
         return RevocationInfo.from_values(if_id,
                                           epoch,
-                                          nonce, 
-                                          siblings, 
-                                          prev_root, 
+                                          nonce,
+                                          siblings,
+                                          prev_root,
                                           next_root)
+
 
 class ConnectedHashTree(object):
     """
     Class encapsulating a scion time-connected hash-tree.
 
-    The number of interfaces and epoch times are configurable. 
+    The number of interfaces and epoch times are configurable.
     The used hash function needs to implement the hashlib interface.
 
     """
@@ -144,7 +145,7 @@ class ConnectedHashTree(object):
         # Calculate the hashes upwards till the tree root.
         proof = revProof.p
         if_tuple = (str(proof.ifID) + str(proof.epoch) + str(proof.nonce)) \
-                   .encode('utf-8')
+            .encode('utf-8')
         curr_hash = hash_func.new(if_tuple).digest()
 
         for i in range(len(proof.siblings)):
@@ -158,7 +159,7 @@ class ConnectedHashTree(object):
 
         # Get the hashes for the tree joins T-1:T and T:T+1 and return them.
         hash01 = hash_func.new(proof.prevRoot + curr_hash).digest()
-        hash12 = hash_func.new(curr_hash + proof.nextRoot).digest() 
+        hash12 = hash_func.new(curr_hash + proof.nextRoot).digest()
         return (hash01, hash12)
 
     @staticmethod
@@ -166,5 +167,5 @@ class ConnectedHashTree(object):
         proof = revProof.p
         assert not isinstance(proof, bytes)
         # Check that either hash of T-1:T or T:T+1 matches the root.
-        hash01,hash12 = ConnectedHashTree.get_possible_hashes(proof, hash_func)
+        hash01, hash12 = ConnectedHashTree.get_possible_hashes(proof, hash_func)
         return (hash01 == root) or (hash12 == root)

@@ -18,13 +18,9 @@
 # Stdlib
 import logging
 
-# External packages
-from Crypto.Hash import SHA256
-
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.crypto.hash_tree import ConnectedHashTree
-from lib.defines import TIME_T, TIME_t, N_EPOCHS
 from lib.packet.scion import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -76,11 +72,11 @@ class LocalPathServer(PathServer):
         """
         cur_epoch = self.get_t()
         rev_epoch = rev_info.p.epoch
-        
+
         if not rev_epoch == cur_epoch:
-            logging.warning("Gap is "+str(self.get_time_since_epoch()))
-            # this value needs to be adjusted
-            if not self.get_time_since_epoch() < 1: 
+            logging.warning("Gap is " + str(self.get_time_since_epoch()))
+            # The value '1' below needs to be adjusted.
+            if not self.get_time_since_epoch() < 1:
                 logging.warning("Epochs did not match")
                 return
 
@@ -95,9 +91,9 @@ class LocalPathServer(PathServer):
             deletions = 0
             while segments:
                 sid = segments.pop()
-                deletions += (self.up_segments.delete(sid)==3)
-                deletions += (self.down_segments.delete(sid)==3)
-                deletions += (self.core_segments.delete(sid)==3)
+                deletions += (self.up_segments.delete(sid) == 3)
+                deletions += (self.down_segments.delete(sid) == 3)
+                deletions += (self.core_segments.delete(sid) == 3)
             logging.warning(str(deletions) + " paths removed")
             if (H, if_id) in self.astoken_if2seg:
                 del self.astoken_if2seg[(H, if_id)]

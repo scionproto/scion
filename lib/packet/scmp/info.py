@@ -202,10 +202,11 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
         rev_token = rev_info.copy().pack()
         assert isinstance(rev_token, bytes)
         inst = cls()
-        
-        padding_length = calc_padding(struct.calcsize(inst.STRUCT_FMT) + len(rev_token), LINE_LEN)
+
+        padding_length = calc_padding(struct.calcsize(inst.STRUCT_FMT) +
+                                      len(rev_token), LINE_LEN)
         rev_token = rev_token + bytes(padding_length)
-        
+
         iof_offset, hof_offset = inst._calc_offsets(pkt)
         inst._set_vals((iof_offset, hof_offset, if_id, ingress, rev_token))
         inst.REV_LEN = len(rev_token)

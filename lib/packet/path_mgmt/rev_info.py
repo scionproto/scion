@@ -53,5 +53,4 @@ class RevocationInfo(PathMgmtPayloadBase):
         # Put the roots of the hash trees at T-1 and T+1.
         proof.prevRoot = prev_root
         proof.nextRoot = next_root
-
         return cls(proof)

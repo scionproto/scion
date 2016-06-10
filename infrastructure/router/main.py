@@ -16,7 +16,6 @@
 ===========================================
 """
 # Stdlib
-import copy
 import logging
 import threading
 import time
@@ -99,7 +98,7 @@ class Router(SCIONElement):
     :type interface: :class:`lib.topology.InterfaceElement`
     """
     SERVICE_TYPE = ROUTER_SERVICE
-    FWD_REVOCATION_TIMEOUT = 0 # 5
+    FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
     def __init__(self, server_id, conf_dir, ):
@@ -417,8 +416,11 @@ class Router(SCIONElement):
         rev_info = RevocationInfo.from_raw(pld.info.rev_token)
 
         if (self.topology.path_servers and
-                (rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot) not in self.revocations):
-            self.revocations[(rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot)] = True
+           (rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot)
+           not in self.revocations):
+            self.revocations[(rev_info.p.ifID,
+                              rev_info.p.prevRoot,
+                              rev_info.p.nextRoot)] = True
             try:
                 ps = self.get_srv_addr(PATH_SERVICE, spkt)
             except SCIONServiceLookupError:
@@ -427,7 +429,7 @@ class Router(SCIONElement):
             # FIXME(kormat): disabling for now, as this doesn't currently work.
             # The dispatcher has no way to route the revocation scmp message to
             # the designated path server.
-            pkt = self._build_packet(ps, payload=rev_info)            
+            pkt = self._build_packet(ps, payload=rev_info)
             logging.debug("ENABLED: Forwarding revocation to local PS: %s", ps)
             self.send(pkt, ps)
 

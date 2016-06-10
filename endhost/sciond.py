@@ -30,13 +30,11 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SCION_UDP_PORT,
-    TIME_T,
-    TIME_t,
-    N_EPOCHS,
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
+from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
@@ -271,9 +269,15 @@ class SCIONDaemon(SCIONElement):
                 egress_if_id = HopOpaqueField(asm.pcbms[0].hof).egress_if
                 ingress_iftoken = asm.pcbms[0].igRevToken
                 egress_iftoken = asm.egRevToken
-                if rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
+                if rev_info.p.ifID == ingress_if_id and \
+                    ConnectedHashTree.verify(rev_info,
+                                             ingress_iftoken,
+                                             self.get_t()):
                     to_remove.append(segment.get_hops_hash())
-                elif rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
+                elif rev_info.p.ifID == egress_if_id and \
+                    ConnectedHashTree.verify(rev_info,
+                                             egress_iftoken,
+                                             self.get_t()):
                     to_remove.append(segment.get_hops_hash())
 
         return db.delete_all(to_remove)

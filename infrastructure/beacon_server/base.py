@@ -25,7 +25,6 @@ from _collections import deque
 from abc import ABCMeta, abstractmethod
 
 # External packages
-from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 
 # SCION
@@ -41,11 +40,9 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_UDP_PORT,
     TIME_T,
-    TIME_t,
     N_EPOCHS,
 )
 from lib.errors import (
-    SCIONIndexError,
     SCIONKeyError,
     SCIONParseError,
     SCIONServiceLookupError,
@@ -105,7 +102,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = 60 * 60
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
-    
+
     def __init__(self, server_id, conf_dir):
         """
         :param str server_id: server identifier.
@@ -156,11 +153,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _init_hash_tree(self):
         if self._hash_tree:
             return
-        seed1 = self.config.master_as_key + (self.get_T() - 1).to_bytes(8, byteorder='big')
-        seed2 = self.config.master_as_key + (self.get_T() + 0).to_bytes(8, byteorder='big')
-        seed3 = self.config.master_as_key + (self.get_T() + 1).to_bytes(8, byteorder='big')
+        seed1 = self.config.master_as_key + \
+            (self.get_T() - 1).to_bytes(8, byteorder='big')
+        seed2 = self.config.master_as_key + \
+            (self.get_T() + 0).to_bytes(8, byteorder='big')
+        seed3 = self.config.master_as_key + \
+            (self.get_T() + 1).to_bytes(8, byteorder='big')
         ifs = [x for x in self.ifid2er]
-        self._hash_tree = ConnectedHashTree(ifs, N_EPOCHS, [seed1, seed2, seed3])
+        self._hash_tree = ConnectedHashTree(ifs,
+                                            N_EPOCHS,
+                                            [seed1, seed2, seed3])
 
     def _get_hash_tree(self):
         if not self._hash_tree:
@@ -236,7 +238,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Handle ASMarking extensions:
         for asm in pcb.iter_asms():
             for rev_info in asm.p.exts.revInfos:
-                self.rev_ext_handler(rev_info, asm.isd_as())
+                self.rev_ext_handler(RevocationInfo(rev_info), asm.isd_as())
         # Handle PCB extensions:
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
@@ -301,7 +303,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             hof, self._get_root())
 
     def _create_asm_exts(self):
-        return {"rev_infos": [rev_info for (_, rev_info) in list(self.revs_to_downstream.items())]}
+        return {"rev_infos": [rev_info for (_, rev_info) in
+                              list(self.revs_to_downstream.items())]}
 
     def _terminate_pcb(self, pcb):
         """
@@ -373,15 +376,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         oldT = self._curT
         T = self.get_T()
-        if oldT==T:
+        if oldT == T:
             T = T+1
         logging.info("New T started, adding new hash tree")
         start = SCIONTime.get_time()
         seed = self.config.master_as_key + (T + 1).to_bytes(8, byteorder='big')
         ifs = [x for x in self.ifid2er]
         self._hash_tree.update(ifs, N_EPOCHS, seed)
-        sleep_interval(start, TIME_T, "BS.hashtree TTL", 
-            self._quiet_startup())
+        sleep_interval(start, TIME_T, "BS.hashtree TTL",
+                       self._quiet_startup())
 
     def worker(self):
         """
@@ -458,8 +461,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     @abstractmethod
     def _check_trc(self, isd_as, trc_ver):
         """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
+        Return True or False whether the necessary Certificate and TRC files
+        are found.
 
         :param ISD_AS isd_is: ISD-AS identifier.
         :param int trc_ver: TRC file version.
@@ -502,8 +505,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _verify_beacon(self, pcb):
         """
-        Once the necessary certificate and TRC files have been found, verify the
-        beacons.
+        Once the necessary certificate and TRC files have been found, verify
+        the beacons.
 
         :param pcb: path segment to verify.
         :type pcb: PathSegment
@@ -687,16 +690,22 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     egress_if_id = asm.pcbms[0].outIF
                     ingress_iftoken = asm.pcbms[0].igRevToken
                     egress_iftoken = asm.egRevToken
-                    if rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(rev_info, ingress_iftoken, self.get_t()):
-                         to_remove.append(cand.id)
-                    elif rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(rev_info, egress_iftoken, self.get_t()):
+                    if rev_info.p.ifID == ingress_if_id and \
+                        ConnectedHashTree.verify(rev_info,
+                                                 ingress_iftoken,
+                                                 self.get_t()):
+                        to_remove.append(cand.id)
+                    elif rev_info.p.ifID == egress_if_id and \
+                        ConnectedHashTree.verify(rev_info,
+                                                 egress_iftoken,
+                                                 self.get_t()):
                         to_remove.append(cand.id)
         return to_remove
 
     def _handle_if_timeouts(self):
         """
-        Periodically checks each interface state and issues an if revocation, if
-        no keep-alive message was received for IFID_TOUT.
+        Periodically checks each interface state and issues an if revocation,
+        if no keep-alive message was received for IFID_TOUT.
         """
         while self.run_flag.is_set():
             start_time = time.time()
