@@ -61,7 +61,7 @@ int SCIONProtocol::bind(SCIONAddr addr, int sock)
     return mPathManager->setLocalAddress(addr);
 }
 
-int SCIONProtocol::connect(SCIONAddr addr)
+int SCIONProtocol::connect(SCIONAddr addr, double timeout)
 {
     return 0;
 }
@@ -229,7 +229,7 @@ SSPProtocol::~SSPProtocol()
     pthread_mutex_destroy(&mSelectMutex);
 }
 
-int SSPProtocol::connect(SCIONAddr addr)
+int SSPProtocol::connect(SCIONAddr addr, double timeout)
 {
     if (mNextSendByte != 0) {
         DEBUG("connection already established\n");
@@ -268,8 +268,11 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeo
 {
     uint8_t *ptr = buf;
     size_t total_len = len;
-    size_t packetMax = mConnectionManager->maxPayloadSize();
     size_t room = mLocalSendWindow - mConnectionManager->totalQueuedSize();
+    int packetMax = mConnectionManager->maxPayloadSize(timeout);
+
+    if (packetMax < 0)
+        return packetMax;
 
     if (!mBlocking && room < len) {
         DEBUG("non-blocking socket not ready to send\n");
@@ -277,10 +280,10 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeo
     }
 
     while (len > 0) {
-        size_t packetLen = packetMax > len ? len : packetMax;
+        size_t packetLen = (size_t)packetMax > len ? len : packetMax;
         len -= packetLen;
         SCIONPacket *packet = createPacket(ptr, packetLen);
-        if (mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow) == -ETIMEDOUT) {
+        if (mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow, timeout) == -ETIMEDOUT) {
             DEBUG("timed out in send\n");
             return -ETIMEDOUT;
         }
@@ -411,12 +414,18 @@ int SSPProtocol::getDeadlineFromProfile(DataProfile profile)
 int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
 {
     DEBUG("incoming SSP packet\n");
+
     uint8_t *ptr = buf;
     SCIONCommonHeader &sch = packet->header.commonHeader;
+    if (mDstAddr.isd_as == 0) {
+        mDstAddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
+        mDstAddr.host.addr_len = get_src_len((uint8_t *)&sch);
+        memcpy(mDstAddr.host.addr, packet->header.srcAddr + ISD_AS_LEN, mDstAddr.host.addr_len);
+    }
+
     // Build SSP incoming packet
     SSPPacket *sp = new SSPPacket();
     buildSSPHeader(&(sp->header), ptr);
-
     int payloadLen = sch.total_len - sch.header_len - sp->header.headerLen;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
