@@ -19,8 +19,12 @@ Path::Path(PathManager *manager, PathParams *params)
     if (params->pathLen == 0) {
         // raw data is in daemon reply format
         uint8_t *ptr = params->rawPath;
-        mPathLen = *ptr * 8;
-        ptr++;
+        if (ptr) {
+            mPathLen = *ptr * 8;
+            ptr++;
+        } else {
+            mPathLen = 0;
+        }
         if (mPathLen == 0) {
             // empty path
             mPath = NULL;
@@ -379,7 +383,7 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
     packet->rto = mState->getRTO();
     DEBUG("using rto %d us for path %d\n", packet->rto, mIndex);
     if (!(sh.flags & SSP_ACK) && !probe) {
-        mState->handleSend(be64toh(sh.offset));
+        mState->handleSend(sp->getOffset());
         mTotalSent++;
         pthread_mutex_lock(&mTimeMutex);
         gettimeofday(&mLastSendTime, NULL);
@@ -388,7 +392,7 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
         mManager->didSend(packet);
         DEBUG("%ld.%06ld: packet %lu(%p) sent on path %d: %d/%d packets in flight\n",
                 mLastSendTime.tv_sec, mLastSendTime.tv_usec,
-                be64toh(sh.offset), packet, mIndex, mState->packetsInFlight(), mState->window());
+                sp->getOffset(), packet, mIndex, mState->packetsInFlight(), mState->window());
     } else if (probe) {
         mProbeAttempts++;
         if (mProbeAttempts >= SSP_PROBE_ATTEMPTS) {
@@ -467,14 +471,13 @@ int SSPPath::handleData(SCIONPacket *packet)
 int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
 {
     SSPPacket *sp = (SSPPacket *)(packet->payload);
-    SSPAck &ack = sp->ack;
     DEBUG("path %d: packet %lu acked, %d packets in flight\n",
-            mIndex, ack.L + ack.I, mState->packetsInFlight() - 1);
+            mIndex, sp->getAckNum(), mState->packetsInFlight() - 1);
     int rtt = elapsedTime(&(packet->sendTime), &(packet->arrivalTime));
     if (!rttSample)
         rtt = 0;
     pthread_mutex_lock(&mWindowMutex);
-    mState->addRTTSample(rtt, ack.L + ack.I);
+    mState->addRTTSample(rtt, sp->getAckNum());
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
         pthread_cond_broadcast(&mWindowCond);

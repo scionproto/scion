@@ -10,10 +10,10 @@ int compareOffset(void *p1, void *p2)
 {
     SSPPacket *sp1 = (SSPPacket *)p1;
     SSPPacket *sp2 = (SSPPacket *)p2;
-    if (sp1->header.offset < sp2->header.offset &&
-            sp2->header.offset < sp1->header.offset + sp1->len)
+    if (sp1->getOffset() < sp2->getOffset() &&
+            sp2->getOffset() < sp1->getOffset() + sp1->len)
         return 0;
-    return sp1->header.offset - sp2->header.offset;
+    return sp1->getOffset() - sp2->getOffset();
 }
 
 int compareOffsetNested(void *p1, void *p2)
@@ -22,7 +22,7 @@ int compareOffsetNested(void *p1, void *p2)
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SSPPacket *sp1 = (SSPPacket *)(s1->payload);
     SSPPacket *sp2 = (SSPPacket *)(s2->payload);
-    return be64toh(sp1->header.offset) - be64toh(sp2->header.offset);
+    return sp1->getOffset() - sp2->getOffset();
 }
 
 SCIONPacket * cloneSSPPacket(SCIONPacket *packet)
@@ -37,30 +37,28 @@ SCIONPacket * cloneSSPPacket(SCIONPacket *packet)
 
 void buildSSPHeader(SSPHeader *header, uint8_t *ptr)
 {
-    header->flowID = be64toh(*(uint64_t *)ptr);
+    header->flowID = *(uint64_t *)ptr;
     ptr += 8;
-    header->port = ntohs(*ptr);
+    header->port = *(uint16_t *)ptr;
     ptr += 2;
     header->headerLen = *ptr;
     ptr++;
-    header->offset = be64toh(*(uint64_t *)ptr);
+    header->offset = *(uint64_t *)ptr;
     ptr += 8;
     header->flags = *ptr;
-    ptr++;
-    header->mark = *ptr;
 }
 
 void buildSSPAck(SSPAck *ack, uint8_t *ptr)
 {
-    ack->L = be64toh(*(uint64_t *)ptr);
+    ack->L = *(uint64_t *)ptr;
     ptr += 8;
-    ack->I = ntohl(*(int32_t *)ptr);
+    ack->I = *(int32_t *)ptr;
     ptr += 4;
-    ack->H = ntohl(*(int32_t *)ptr);
+    ack->H = *(int32_t *)ptr;
     ptr += 4;
-    ack->O = ntohl(*(int32_t *)ptr);
+    ack->O = *(int32_t *)ptr;
     ptr += 4;
-    ack->V = ntohl(*(uint32_t *)ptr);
+    ack->V = *(uint32_t *)ptr;
 }
 
 void destroySCIONPacket(void *p)
@@ -178,6 +176,10 @@ int registerFlow(int proto, DispatcherEntry *e, int sock)
         return -1;
     }
     uint16_t port = *(uint16_t *)(buf + DP_HEADER_LEN);
+    if (port != ntohs(e->port)) {
+        fprintf(stderr, "CRITICAL: dispatcher registration failed\n");
+        return -1;
+    }
     return port;
 }
 

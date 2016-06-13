@@ -279,7 +279,6 @@ class ScionBaseSocket(object):
         self.libssock = libssock
         self.sciond_addr = sciond_addr
         self.port = 0
-        self.timeout = 0.0
         if fd:
             self.fd = fd
         else:
@@ -316,8 +315,7 @@ class ScionBaseSocket(object):
             return 0
         if msg is None or len(msg) == 0:
             return 0
-        return self.libssock.SCIONSend(self.fd, msg, len(msg), 0,
-                                       c_double(self.timeout))
+        return self.libssock.SCIONSend(self.fd, msg, len(msg), 0)
 
     def sendall(self, msg):
         """
@@ -346,7 +344,7 @@ class ScionBaseSocket(object):
             return None
         buf = (c_ubyte * bufsize)()
         num_bytes_rcvd = self.libssock.SCIONRecv(
-            self.fd, byref(buf), bufsize, None, c_double(self.timeout))
+            self.fd, byref(buf), bufsize, None)
         if num_bytes_rcvd < 0:
             logging.error("Error during recv.")
             return None
@@ -485,9 +483,9 @@ class ScionBaseSocket(object):
 
     def settimeout(self, timeout):
         """
-        Placeholder for now, might be implemented later.
+        Set timeout for socket operations connect/send/recv
         """
-        self.timeout = timeout
+        self.libssock.SCIONSetTimeout(self.fd, c_double(timeout))
 
 
 class ScionServerSocket(ScionBaseSocket):

@@ -238,7 +238,11 @@ int SSPProtocol::connect(SCIONAddr addr)
 
     mDstAddr = addr;
     mDstPort = addr.host.port;
-    mConnectionManager->setRemoteAddress(addr);
+    int ret = mConnectionManager->setRemoteAddress(addr, timeout);
+    if (ret < 0) {
+        DEBUG("setRemoteAddress failed: %d\n", ret);
+        return ret;
+    }
 
     uint8_t buf = 0;
     SCIONPacket *packet = createPacket(&buf, 1);
@@ -326,7 +330,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
             break;
         }
         SSPPacket *sp = mReadyPackets->front();
-        if (sp->header.offset != mNextPacket) {
+        if (sp->getOffset() != mNextPacket) {
             DEBUG("missing packet %lu\n", mNextPacket);
             missing = true;
             break;
@@ -346,7 +350,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
             sp->dataOffset += toRead;
         }
         if (sp->dataOffset == sp->len) {
-            DEBUG("%p: done with packet %lu\n", this, sp->header.offset);
+            DEBUG("%p: done with packet %lu\n", this, sp->getOffset());
             mReadyPackets->pop();
             mNextPacket += sp->len;
             mTotalReceived -= sizeof(SSPPacket) + sp->len;
@@ -370,7 +374,7 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
 
 bool SSPProtocol::claimPacket(SCIONPacket *packet, uint8_t *buf)
 {
-    uint64_t flowID = be64toh(*(uint64_t *)buf);
+    uint64_t flowID = be64toh(*(uint64_t *)buf) & ~1;
     DEBUG("mFlowID = %lu, incoming flowID = %lu\n", mFlowID, flowID);
     return flowID == mFlowID;
 }
@@ -379,10 +383,10 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 {
     if (buf) {
         mIsReceiver = true;
-        mFlowID = be64toh(*(uint64_t *)buf);
+        mFlowID = be64toh(*(uint64_t *)buf) & ~1;
     } else {
         mIsReceiver = false;
-        mFlowID = createRandom(64);
+        mFlowID = createRandom(64) & ~1;
     }
     DEBUG("%lu created\n", mFlowID);
 
@@ -488,14 +492,17 @@ void SSPProtocol::handleProbe(SCIONPacket *packet)
     p.pathIndex = packet->pathIndex;
     SSPPacket sp;
     p.payload = &sp;
-    sp.header.flowID = htobe64(mFlowID);
+    if (mIsReceiver)
+        sp.setFlowID(mFlowID);
+    else
+        sp.setFlowID(mFlowID | 1);
     sp.header.headerLen = sizeof(sp.header);
     mConnectionManager->sendAck(&p);
 }
 
 SSPPacket * SSPProtocol::checkOutOfOrderQueue(SSPPacket *sp)
 {
-    uint64_t start = sp->header.offset;
+    uint64_t start = sp->getOffset();
     uint64_t end = start + sp->len;
     bool pushed = false;
     SSPPacket *last = sp;
@@ -507,14 +514,14 @@ SSPPacket * SSPProtocol::checkOutOfOrderQueue(SSPPacket *sp)
         while (!mOOPackets->empty()) {
             DEBUG("check out-of-order queue\n");
             last = (SSPPacket *)mOOPackets->front();
-            if (last->header.offset < end)
+            if (last->getOffset() < end)
                 break;
             if (!pushed) {
                 mReadyPackets->push(sp);
                 mLowestPending = end;
                 pushed = true;
             }
-            start = last->header.offset;
+            start = last->getOffset();
             end = start + last->len;
             DEBUG("packet: %lu ~ %lu\n", start, end);
             if (start <= mLowestPending && end > mLowestPending) {
@@ -553,9 +560,9 @@ void SSPProtocol::signalSelect()
 
 void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
 {
-    DEBUG("in-order packet: %lu\n", sp->header.offset);
+    DEBUG("in-order packet: %lu\n", sp->getOffset());
 
-    uint64_t start = sp->header.offset;
+    uint64_t start = sp->getOffset();
     uint64_t end = start + sp->len;
     int packetSize = end - start + sizeof(SSPPacket);
 
@@ -564,8 +571,8 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
     if (!(sp->header.flags & SSP_FIN) &&
             packetSize + mTotalReceived > mLocalReceiveWindow) {
         DEBUG("in-order packet %lu: Receive window too full: %u/%u\n",
-                sp->header.offset, mTotalReceived, mLocalReceiveWindow);
-        sp->header.offset = mHighestReceived;
+                sp->getOffset(), mTotalReceived, mLocalReceiveWindow);
+        sp->setOffset(mHighestReceived);
         sendAck(sp, pathIndex);
         sp->data = NULL;
         destroySSPPacket(sp);
@@ -599,9 +606,9 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
 
 void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
 {
-    DEBUG("out-of-order packet %lu (%lu)\n", sp->header.offset, mLowestPending);
+    DEBUG("out-of-order packet %lu (%lu)\n", sp->getOffset(), mLowestPending);
 
-    uint64_t start = sp->header.offset;
+    uint64_t start = sp->getOffset();
     uint64_t end = start + sp->len;
     int maxPayload = mConnectionManager->maxPayloadSize();
     int packetSize = end - start + sizeof(SSPPacket);
@@ -611,9 +618,9 @@ void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
     if (!(sp->header.flags & SSP_FIN) &&
             packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
         DEBUG("out-of-order packet %lu(%lu): Receive window too full: %d/%u\n",
-                sp->header.offset, mLowestPending,
+                sp->getOffset(), mLowestPending,
                 mTotalReceived, mLocalReceiveWindow);
-        sp->header.offset = mHighestReceived;
+        sp->setOffset(mHighestReceived);
         sendAck(sp, pathIndex);
         sp->data = NULL;
         destroySSPPacket(sp);
@@ -641,7 +648,7 @@ void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
 
 void SSPProtocol::handleData(SSPPacket *sp, int pathIndex)
 {
-    uint64_t start = sp->header.offset;
+    uint64_t start = sp->getOffset();
     uint64_t end = start + sp->len;
     DEBUG("Incoming SSP packet %lu ~ %lu\n", start, end);
 
@@ -676,7 +683,7 @@ void SSPProtocol::handleData(SSPPacket *sp, int pathIndex)
 
 void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
 {
-    uint64_t packetNum = inPacket->header.offset;
+    uint64_t packetNum = inPacket->getOffset();
     DEBUG("%lu: send ack for %lu (path %d)\n", mFlowID, packetNum, pathIndex);
 
     if (inPacket->header.flags & SSP_FIN)
@@ -703,16 +710,18 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
         mRemoteWindow = inPacket->windowSize;
         mInitialized = true;
     }
-    sh.flowID = htobe64(mFlowID);
-    sh.mark = inPacket->header.mark;
+    if (mIsReceiver)
+        sp.setFlowID(mFlowID);
+    else
+        sp.setFlowID(mFlowID | 1);
+    sp.setMark(inPacket->getMark());
 
     // ack stuff
-    SSPAck &sa = sp.ack;
-    sa.L = htobe64(mLowestPending);
-    sa.I = htonl((int)(packetNum - mLowestPending));
-    sa.H = htonl((int)(mHighestReceived - mLowestPending));
+    sp.setL(mLowestPending);
+    sp.setI(packetNum - mLowestPending);
+    sp.setH(mHighestReceived - mLowestPending);
     DEBUG("outgoing ACK: L = %lu, I = %d, H = %d, O = %d, V = %u\n",
-            be64toh(sa.L), ntohl(sa.I), ntohl(sa.H), ntohl(sa.O), ntohl(sa.V));
+            sp.getL(), sp.getI(), sp.getH(), sp.getO(), sp.getV());
 
     mConnectionManager->sendAck(&packet);
 }
@@ -727,10 +736,14 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     SSPPacket *sp = new SSPPacket();
     packet->payload = sp;
     sp->header.headerLen = sizeof(SSPHeader);
-    sp->header.flowID = htobe64(mFlowID);
-    sp->header.port = mInitialized ? 0 : htons(mDstPort);
-    sp->header.offset = htobe64(mNextSendByte);
-    DEBUG("%s: created packet %lu at %p\n", __func__, be64toh(sp->header.offset), packet);
+    // Server's LSb is 1, so client sets outgoing LSb to 1
+    if (mIsReceiver)
+        sp->setFlowID(mFlowID);
+    else
+        sp->setFlowID(mFlowID | 1);
+    sp->setPort(mInitialized ? 0 : mDstPort);
+    sp->setOffset(mNextSendByte);
+    DEBUG("%s: created packet %lu at %p\n", __func__, sp->getOffset(), packet);
     if (!mInitialized) {
         DEBUG("include window size for initial packet\n");
         sp->header.flags |= SSP_WINDOW;
@@ -753,8 +766,8 @@ void SSPProtocol::handleTimerEvent()
     struct timeval current;
     gettimeofday(&current, NULL);
     mConnectionManager->handleTimeout();
-    if (mInitialized && elapsedTime(&mLastProbeTime, &current) >= (int32_t)mProbeInterval) {
-        mConnectionManager->sendProbes(++mProbeNum, mFlowID);
+    if (mDstAddr.isd_as != 0 && elapsedTime(&mLastProbeTime, &current) >= (int32_t)mProbeInterval) {
+        mConnectionManager->sendProbes(++mProbeNum, mIsReceiver ? mFlowID : mFlowID | 1);
         mLastProbeTime = current;
     }
 }
@@ -845,7 +858,7 @@ int SSPProtocol::shutdown(bool force)
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     sp->header.flags |= SSP_FIN;
     mConnectionManager->queuePacket(packet);
-    DEBUG("%lu: FIN packet (%lu) queued\n", mFlowID, be64toh(sp->header.offset));
+    DEBUG("%lu: FIN packet (%lu) queued\n", mFlowID, sp->getOffset());
     return 0;
 }
 
@@ -868,6 +881,8 @@ int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
     DispatcherEntry de;
     memset(&de, 0, sizeof(de));
     de.flow_id = flowID > 0 ? flowID : mFlowID;
+    if (mIsReceiver)
+        de.flow_id = de.flow_id | 1;
     de.port = port > 0 ? port : htons(mSrcPort);
     de.isd_as = htonl(localAddr->isd_as);
     de.addr_type = ADDR_IPV4_TYPE;

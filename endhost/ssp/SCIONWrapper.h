@@ -19,18 +19,20 @@ int SCIONSend(int sock, uint8_t *buf, size_t len);
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
                      SCIONAddr *dstAddr);
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
-              SCIONAddr *srcAddr, double timeout);
+              SCIONAddr *srcAddr);
 int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
                 struct timeval *timeout);
-int SCIONShutdown(int fd);
+int SCIONShutdown(int sock);
 
 void * SCIONGetStats(int sock, void *buf, int len);
 void SCIONDestroyStats(void *stats);
 
-int SCIONSetOption(int fd, SCIONOption *option);
-int SCIONGetOption(int fd, SCIONOption *option);
+int SCIONSetOption(int sock, SCIONOption *option);
+int SCIONGetOption(int sock, SCIONOption *option);
 
-uint32_t SCIONGetLocalIA(int fd);
+uint32_t SCIONGetLocalIA(int sock);
+
+void SCIONSetTimeout(int sock, double timeout);
 
 #ifdef __cplusplus
 }

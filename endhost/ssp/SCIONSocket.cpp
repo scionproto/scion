@@ -73,6 +73,7 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     mLastAccept(-1),
     mIsListener(false),
     mBound(false),
+    mTimeout(0.0),
     mParent(NULL),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
@@ -178,7 +179,7 @@ int SCIONSocket::connect(SCIONAddr addr)
     mRegistered = true;
     pthread_cond_signal(&mRegisterCond);
     pthread_mutex_unlock(&mRegisterMutex);
-    return mProtocol->connect(addr);
+    return mProtocol->connect(addr, mTimeout);
 }
 
 int SCIONSocket::listen()
@@ -194,11 +195,11 @@ int SCIONSocket::listen()
     return 0;
 }
 
-int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
+int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
 {
     if (mState == SCION_CLOSED)
         return 0;
-    return mProtocol->recv(buf, len, srcAddr, timeout);
+    return mProtocol->recv(buf, len, srcAddr, mTimeout);
 }
 
 int SCIONSocket::send(uint8_t *buf, size_t len)
@@ -210,7 +211,7 @@ int SCIONSocket::send(uint8_t *buf, size_t len)
 
 int SCIONSocket::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr)
 {
-    return mProtocol->send(buf, len, dstAddr);
+    return mProtocol->send(buf, len, dstAddr, mTimeout);
 }
 
 int SCIONSocket::setSocketOption(SCIONOption *option)
@@ -250,6 +251,16 @@ uint32_t SCIONSocket::getLocalIA()
     if (!mProtocol)
         return 0;
     return mProtocol->getLocalIA();
+}
+
+void SCIONSocket::setTimeout(double timeout)
+{
+    mTimeout = timeout;
+}
+
+double SCIONSocket::getTimeout()
+{
+    return mTimeout;
 }
 
 bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)
@@ -299,8 +310,6 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     memcpy(&sh, buf, sizeof(SCIONCommonHeader));
     sch.total_len = ntohs(sch.total_len);
 
-    int src_len = get_src_len(buf);
-    int dst_len = get_dst_len(buf);
     memcpy(sh.srcAddr, buf + sizeof(SCIONCommonHeader), ISD_AS_LEN);
     memcpy(sh.srcAddr + ISD_AS_LEN, get_src_addr(buf), get_src_len(buf));
     memcpy(sh.dstAddr, get_dst_addr(buf) - ISD_AS_LEN, ISD_AS_LEN);
@@ -317,18 +326,20 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     memcpy(srcAddr.host.addr, sh.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
 
     // path
-    sh.pathLen = sch.header_len - sizeof(sch) - 2 * ISD_AS_LEN - src_len - dst_len;
-    sh.path = (uint8_t *)malloc(sh.pathLen);
+    sh.pathLen = get_path_len(buf);
+    if (sh.pathLen > 0) {
+        sh.path = (uint8_t *)malloc(sh.pathLen);
 #ifdef SIMULATOR
-    memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
+        memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
 #else
-    int res = reverse_path(buf, sh.path);
-    if (res < 0) {
-        DEBUG("reverse_path failed\n");
-        free(packet);
-        return;
-    }
+        int res = reverse_path(buf, sh.path);
+        if (res < 0) {
+            DEBUG("reverse_path failed\n");
+            free(packet);
+            return;
+        }
 #endif
+    }
     packet->firstHop = (uint32_t)(addr->sin_addr.s_addr);
 
     uint8_t *ptr = parseExtensions(&packet->header, buf + sch.header_len);
