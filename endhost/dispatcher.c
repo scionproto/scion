@@ -690,11 +690,12 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst)
 void deliver_tcp(uint8_t *buf, int len, struct sockaddr_in *from)
 {
     /* Allocate buffer for LWIP's processing. */
-    int sin_size = sizeof(struct sockaddr_in);
-    struct pbuf *p = pbuf_alloc(PBUF_RAW, len + sin_size, PBUF_RAM);
-    memcpy(p->payload, from, sin_size);
-    memcpy(p->payload + sin_size, buf, len);
-    /* Put [from (sockaddr_in) || raw_spkt] to the TCP queue. */
+    uint8_t sin_size = sizeof(struct sockaddr_in);
+    struct pbuf *p = pbuf_alloc(PBUF_RAW, len + 1 + sin_size, PBUF_RAM);
+    ((u8_t *)p->payload)[0] = sin_size;
+    memcpy(p->payload + 1, from, sin_size);
+    memcpy(p->payload + 1 + sin_size, buf, len);
+    /* Put [from_len (1B) || from (sockaddr_in) || raw_spkt] to the TCP queue. */
     tcpip_input(p, (struct netif *)NULL);
 }
 
