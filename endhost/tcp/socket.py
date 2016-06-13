@@ -88,12 +88,14 @@ class LWIPError(object):
         ERR_SYS: "System's call error.",
         }
 
-    def is_fatal(self, err):
-        return err < self.ERR_ISCONN
+    @classmethod
+    def is_fatal(cls, err):
+        return err < cls.ERR_ISCONN
 
-    def err2str(self, err):
-        if err in self.ERR2STR:
-            return self.ERR2STR[err]
+    @classmethod
+    def err2str(cls, err):
+        if err in cls.ERR2STR:
+            return cls.ERR2STR[err]
         logging.error("Unknown error code.")
         return None
 
@@ -114,9 +116,10 @@ class SCIONSocket(object):
 
     def _handle_reply(self, cmd, reply):
         reply = reply[:RESP_SIZE]
-        if len(reply) < RESP_SIZE or cmd != reply[:CMD_SIZE]:
-            raise error("%s: incorrect reply:%d" % (cmd, reply))
-        err_code, = struct.unpack("b", reply[CMD_SIZE])
+        if reply is None or len(reply) < RESP_SIZE or cmd != reply[:CMD_SIZE]:
+            logging.error("%s: incorrect reply: %s" % (cmd, reply))
+            raise error("%s: incorrect reply: %s" % (cmd, reply))
+        err_code, = struct.unpack("b", reply[-1:])
         if err_code:
             err_str = LWIPError.err2str(err_code)
             msg = "%s: (%d) %s" % (cmd, err_code, err_str)
@@ -138,9 +141,7 @@ class SCIONSocket(object):
                struct.pack("B", haddr_type) + addr.pack())
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep != b"BINDOK":
-            logging.error("bind() failed: %s" % rep)
-            raise error("bind() failed: %s" % rep)
+        self._handle_reply(req[:CMD_SIZE], rep)
 
     def connect(self, addr_port, path_info):
         addr, port = addr_port
@@ -153,9 +154,7 @@ class SCIONSocket(object):
                struct.pack("H", first_port))
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep != b"CONNOK":
-            logging.error("connect() failed: %s" % rep)
-            raise error("connect() failed: %s" % rep)
+        self._handle_reply(req[:CMD_SIZE], rep)
 
     def create_socket(self):
         assert self._lwip_sock is None
@@ -166,10 +165,8 @@ class SCIONSocket(object):
         req = b"NEWS"
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep != b"NEWSOK":
-            self._lwip_sock.close()
-            logging.error("socket() failed: %s" % rep)
-            raise error("socket() failed: %s" % rep)
+        self._handle_reply(req, rep)
+        # self._lwip_sock.close()
 
     def _to_lwip(self, req):
         logging.debug("Sending to LWIP(%dB): %s..." % (len(req), req[:20]))
@@ -186,9 +183,7 @@ class SCIONSocket(object):
         req = b"LIST"
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep != b"LISTOK":
-            logging.error("list() failed: %s" % rep)
-            raise error("list() failed: %s" % rep)
+        self._handle_reply(req, rep)
 
     def accept(self):
         self._init_accept_sock()
@@ -197,11 +192,9 @@ class SCIONSocket(object):
         self._to_lwip(req)
 
         rep = self._from_lwip()
-        if rep[:6] != b"ACCEOK":
-            logging.error("accept() failed (old sock): %s" % rep)
-            raise error("accept() failed (old sock): %s" % rep)
+        self._handle_reply(req[:CMD_SIZE], rep)
         logging.debug("accept() raw reply: %s", rep)
-        rep = rep[6:]
+        rep = rep[RESP_SIZE:]
         path_len, = struct.unpack("H", rep[:2])
         rep = rep[2:]
         path = SCIONPath(rep[:path_len])
@@ -210,9 +203,7 @@ class SCIONSocket(object):
 
         new_sock, _ = self._lwip_accept.accept()
         rep = new_sock.recv(self.BUFLEN)
-        if rep != b"ACCEOK":
-            logging.error("accept() failed (new sock): %s" % rep)
-            raise error("accept() failed (new sock): %s" % rep)
+        self._handle_reply(req[:CMD_SIZE], rep)
         sock = SCIONSocket(self._family, self._type, self._proto)
         sock.set_lwip_sock(new_sock)
         return sock, addr, path
@@ -240,9 +231,7 @@ class SCIONSocket(object):
         req = b"SEND" + struct.pack("I", len(msg)) + msg
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep != b"SENDOK":
-            logging.error("send() failed: %s" % rep)
-            raise error("send() failed: %s" % rep)
+        self._handle_reply(req[:CMD_SIZE], rep)
         return len(msg)
 
     def recv(self, bufsize):
@@ -259,15 +248,7 @@ class SCIONSocket(object):
         req = b"RECV"
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep is None or len(rep) < RESP_SIZE:
-            logging.error("recv() failed: %s" % rep)
-            raise error("recv() failed: %s" % rep)
-        if rep[:RESP_SIZE + 4] == b"RECVERTOUT":
-            logging.warning("recv() timeouted")
-            raise timeout("recv() timeout")
-        if rep[:RESP_SIZE] != b"RECVOK":
-            logging.error("recv() failed: %s" % rep)
-            raise error("recv() failed: %s" % rep)
+        self._handle_reply(req, rep)
 
         size, = struct.unpack("H", rep[RESP_SIZE:RESP_SIZE+2])
         self._recv_buf = rep[RESP_SIZE+2:]
@@ -299,10 +280,8 @@ class SCIONSocket(object):
         req = b"GRTO"
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep[:6] != b"GRTOOK":
-            logging.error("get_recv_tout() failed: %s" % rep)
-            raise error("get_recv_tout() failed: %s" % rep)
-        timeout, = struct.unpack("I", rep[6:])
+        self._handle_reply(req, rep)
+        timeout, = struct.unpack("I", rep[RESP_SIZE:])
         # Convert to seconds
         return 0.001 * timeout
 

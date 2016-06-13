@@ -38,7 +38,7 @@
 #define RPCD_SOCKET "/run/shm/lwip/lwip"
 #define SOCK_PATH_LEN 36  /* of "accept" socket */
 #define CMD_SIZE 4
-#define RESP_SIZE (CMD_SIZE + 2)
+#define RESP_SIZE (CMD_SIZE + 1)
 #define TCPMW_BUFLEN 1024
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
