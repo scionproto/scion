@@ -24,7 +24,7 @@ from itertools import product
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_chain import HashChain
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
@@ -37,6 +37,7 @@ from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
+from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.sibra.ext.resv import ResvBlockSteady
@@ -58,8 +59,6 @@ class SCIONDaemon(SCIONElement):
     """
     # Max time for a path lookup to succeed/fail.
     TIMEOUT = 5
-    # Number of tokens the PS checks when receiving a revocation.
-    N_TOKENS_CHECK = 20
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
     MAX_SEG_NO = 5  # TODO: replace by config variable.
@@ -95,6 +94,11 @@ class SCIONDaemon(SCIONElement):
                 PMT.REVOCATION: self.handle_revocation,
             }
         }
+
+        self.SCMP_PLD_CLASS_MAP = {
+            SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.handle_revocation},
+        }
+
         if run_local_api:
             self._api_sock = ReliableSocket(bind=(self.api_addr, "sciond"))
             self._socks.add(self._api_sock, self.handle_accept)
@@ -229,40 +233,42 @@ class SCIONDaemon(SCIONElement):
 
     def handle_revocation(self, pkt):
         rev_info = pkt.get_payload()
-        logging.debug("Received revocation:\n%s", str(rev_info))
-        # Verify revocation.
-#         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
-#             logging.info("Revocation verification failed.")
-#             return
-        # Go through all segment databases and remove affected segments.
-        deletions = self._remove_revoked_pcbs(self.up_segments,
-                                              rev_info.rev_token)
-        deletions += self._remove_revoked_pcbs(self.core_segments,
-                                               rev_info.rev_token)
-        deletions += self._remove_revoked_pcbs(self.down_segments,
-                                               rev_info.rev_token)
-        logging.debug("Removed %d segments due to revocation.", deletions)
+        logging.debug("Received revocation:\n%s", rev_info)
 
-    def _remove_revoked_pcbs(self, db, rev_token):
+        # Go through all segment databases and remove affected segments.
+        self._remove_revoked_pcbs(self.up_segments, rev_info)
+        self._remove_revoked_pcbs(self.core_segments, rev_info)
+        self._remove_revoked_pcbs(self.down_segments, rev_info)
+
+    def _remove_revoked_pcbs(self, db, rev_info):
         """
         Removes all segments from 'db' that contain an IF token for which
         rev_token is a preimage (within 20 calls).
 
         :param db: The PathSegmentDB.
         :type db: :class:`lib.path_db.PathSegmentDB`
-        :param rev_token: The revocation token.
-        :type rev_token: bytes
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
 
         :returns: The number of deletions.
         :rtype: int
         """
+
+        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            return
+
         to_remove = []
         for segment in db():
-            for iftoken in segment.get_all_iftokens():
-                if HashChain.verify(rev_token, iftoken, self.N_TOKENS_CHECK):
+            for asm in segment.pcb.iter_asms():
+                if self.verify_asm(asm, rev_info):
                     to_remove.append(segment.get_hops_hash())
-
         return db.delete_all(to_remove)
+
+    def verify_asm(self, asm, rev_info):
+        hof = asm.pcbm(0).hof()
+        root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
+        return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and
+                root_verify)
 
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""
