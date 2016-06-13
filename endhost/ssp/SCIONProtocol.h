@@ -173,7 +173,6 @@ public:
 protected:
     SUDPConnectionManager *mConnectionManager;
     std::list<SUDPPacket *> mReceivedPackets;
-    SCIONAddr mRemoteAddr;
     size_t mTotalReceived;
 };
 

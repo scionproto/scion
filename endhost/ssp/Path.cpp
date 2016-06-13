@@ -36,7 +36,7 @@ Path::Path(PathManager *manager, PathParams *params)
             mPath = (uint8_t *)malloc(mPathLen);
             memcpy(mPath, ptr, mPathLen);
             ptr += mPathLen;
-            // TODO: IPv6?
+            // TODO: IPv6 (once sciond supports it)
             mFirstHop.addr_type = ADDR_IPV4_TYPE;
             memcpy(mFirstHop.addr, ptr, ADDR_IPV4_LEN);
             ptr += get_addr_len(mFirstHop.addr_type);
