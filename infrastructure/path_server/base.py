@@ -54,6 +54,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
+    # The tolerable error in epoch in seconds 
+    EPOCH_TOLERANCE = 5
 
     def __init__(self, server_id, conf_dir):
         """
@@ -213,8 +215,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         rev_epoch = rev_info.p.epoch
 
         if not rev_epoch == cur_epoch:
-            # The value '1' below needs to be adjusted.
-            if not self.get_time_since_epoch() < 1:
+            if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
                 logging.warning("Epochs did not match" + str(rev_epoch) +
                                 " " + str(cur_epoch) + " " +
                                 str(self.get_time_since_epoch()))

@@ -75,8 +75,7 @@ class LocalPathServer(PathServer):
 
         if not rev_epoch == cur_epoch:
             logging.warning("Gap is "+str(self.get_time_since_epoch()))
-            # The value '1' below needs to be adjusted.
-            if not self.get_time_since_epoch() < 1:
+            if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
                 logging.warning("Epochs did not match" + str(rev_epoch) +
                                 " " + str(cur_epoch) + " " +
                                 str(self.get_time_since_epoch()))

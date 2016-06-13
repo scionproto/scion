@@ -90,6 +90,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             hash-chain for each interface.
     """
     SERVICE_TYPE = BEACON_SERVICE
+    # The tolerable error in epoch in seconds 
+    EPOCH_TOLERANCE = 5
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
     # Timeout for TRC or Certificate requests.
@@ -687,8 +689,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 rev_epoch = rev_info.p.epoch
                 if not rev_epoch == cur_epoch:
                     logging.warning("Gap is "+str(self.get_time_since_epoch()))
-                    # The value '1' below needs to be adjusted.
-                    if not self.get_time_since_epoch() < 1:
+                    if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
                         logging.warning("Epochs did not match " +
                                         str(rev_epoch) +
                                         " " + str(cur_epoch) + " " +
