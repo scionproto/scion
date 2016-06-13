@@ -16,7 +16,6 @@
 ===========================================
 """
 # Stdlib
-import copy
 import logging
 import threading
 import time
@@ -57,6 +56,7 @@ from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
 from lib.packet.svc import SVCType
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
     SCMPBadHopByHop,
@@ -409,24 +409,25 @@ class Router(SCIONElement):
         self.handle_data(spkt, from_local_as)
         if from_local_as:
             return
-        # Forward to local path server if we haven't recently.
-        rev_token = pld.info.rev_token
-        if (self.topology.path_servers and
-                rev_token not in self.revocations):
-            self.revocations[rev_token] = True
+        # Forward to local path and beacon services if we haven't recently.
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        if rev_info in self.revocations:
+            return
+        snames = [BEACON_SERVICE]
+        if self.topology.path_servers:
+            snames.append(PATH_SERVICE)
+
+        self.revocations[rev_info] = True
+        for sname in snames:
             try:
-                ps = self.get_srv_addr(PATH_SERVICE, spkt)
+                addr, port = self.dns_query_topo(sname)[0]
             except SCIONServiceLookupError:
-                logging.error("No local PS to forward revocation to.")
-                raise SCMPUnknownHost
-            ps_pkt = copy.deepcopy(spkt)
-            ps_pkt.addrs.dst.isd_as = self.addr.isd_as
-            ps_pkt.addrs.dst.host = ps
-            # FIXME(kormat): disabling for now, as this doesn't currently work.
-            # The dispatcher has no way to route the revocation scmp message to
-            # the designated path server.
-            logging.debug("DISABLED: Forwarding revocation to local PS: %s", ps)
-            # self.send(spkt, ps)
+                logging.error("Unable to find %s to forward revocation to.",
+                              sname)
+                continue
+            pkt = self._build_packet(addr, dst_port=port,
+                                     payload=rev_info.copy())
+            self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
@@ -440,12 +441,12 @@ class Router(SCIONElement):
                           "revocation." % if_id)
             return
 
-        assert if_state.rev_token, "Revocation token missing."
+        assert if_state.rev_info, "Revocation token missing."
 
         rev_pkt = spkt.reversed_copy()
         rev_pkt.convert_to_scmp_error(
             self.addr, SCMPClass.PATH, SCMPPathClass.REVOKED_IF, spkt, if_id,
-            ingress, if_state.rev_token, hopbyhop=True)
+            ingress, if_state.rev_info.copy(), hopbyhop=True)
         if path_incd:
             rev_pkt.path.inc_hof_idx()
         rev_pkt.update()

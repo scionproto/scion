@@ -18,9 +18,6 @@
 # Stdlib
 import logging
 
-# External packages
-from Crypto.Hash import SHA256
-
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.packet.svc import SVCType
@@ -63,27 +60,6 @@ class LocalPathServer(PathServer):
         if self._add_segment(pcb, self.core_segments, "Core"):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
-
-    def _remove_revoked_segments(self, rev_info):
-        """
-        Remove segments that contain a revoked interface. Checks 20 tokens in
-        case previous revocations were missed by the PS.
-
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
-        """
-        rev_token = rev_info.rev_token
-        for _ in range(self.N_TOKENS_CHECK):
-            segments = self.iftoken2seg[rev_token]
-            while segments:
-                sid = segments.pop()
-                # Delete segment from DB.
-                self.up_segments.delete(sid)
-                self.down_segments.delete(sid)
-                self.core_segments.delete(sid)
-            if rev_token in self.iftoken2seg:
-                del self.iftoken2seg[rev_token]
-            rev_token = SHA256.new(rev_token).digest()
 
     def path_resolution(self, pkt, new_request=True):
         """
