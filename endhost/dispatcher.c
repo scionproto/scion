@@ -364,7 +364,7 @@ void register_ssp(uint8_t *buf, int len, sockaddr_in *addr, int sock)
         HASH_FIND(hh, ssp_flow_list, &e->l4_key, sizeof(L4Key), old);
         if (old) {
             zlog_error(zc, "address-flow already registered");
-            reply(sock, 0);
+            reply(sock, 1);
             return;
         }
         e->list = &ssp_flow_list;
@@ -405,7 +405,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, sockaddr_in *addr, int s
     uint16_t port = ntohs(*(uint16_t *)(buf + 6));
     int common = 9; // start of (protocol/addrtype)-dependent data
 
-    zlog_info(zc, "registration for isd_as %x(%d,%d)", isd_as, ISD(isd_as), AS(isd_as));
+    zlog_info(zc, "registration for isd_as %x(%d-%d)", isd_as, ISD(isd_as), AS(isd_as));
 
     Entry *e = (Entry *)malloc(sizeof(Entry));
     if (!e) {
@@ -603,7 +603,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
     if (key.port != 0) {
         HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no wildcard entry found for port %d at (%d,%d):%s",
+            zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
                     key.port, ISD(key.isd_as), AS(key.isd_as), inet_ntoa(*(struct in_addr *)key.host));
             return;
         }
@@ -611,7 +611,8 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         key.flow_id = be64toh(*(uint64_t *)l4ptr);
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no flow entry found for %" PRIu64, key.flow_id);
+            zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
+                    ISD(key.isd_as), AS(key.isd_as), inet_ntoa(*(struct in_addr *)key.host), key.flow_id);
             return;
         }
     }
@@ -652,7 +653,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, sockaddr_in *dst)
             return;
         }
         sock = se->sockets[rand() % se->count];
-        zlog_debug(zc, "deliver UDP packet to (%d,%d):%s",
+        zlog_debug(zc, "deliver UDP packet to (%d-%d):%s",
                 ISD(svc_key.isd_as), AS(svc_key.isd_as), inet_ntoa(dst->sin_addr));
     } else {
         L4Key key;

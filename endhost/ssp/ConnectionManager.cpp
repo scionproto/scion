@@ -132,15 +132,16 @@ void PathManager::queryLocalAddress()
 
 int PathManager::setLocalAddress(SCIONAddr addr)
 {
+    DEBUG("%p: bind to (%d-%d):%s\n",
+            this, ISD(addr.isd_as), AS(addr.isd_as),
+            inet_ntoa(*(struct in_addr *)addr.host.addr));
+
     if (mLocalAddr.isd_as == 0)
         queryLocalAddress();
 
     if (addr.isd_as == 0) /* bind to any address */
         return 0;
 
-    DEBUG("%p: bind to (%d, %d):%s\n",
-            this, ISD(addr.isd_as), AS(addr.isd_as),
-            inet_ntoa(*(struct in_addr *)addr.host.addr));
     mLocalAddr.host.addr_len = addr.host.addr_len;
     memcpy(mLocalAddr.host.addr, addr.host.addr, addr.host.addr_len);
 
@@ -149,9 +150,9 @@ int PathManager::setLocalAddress(SCIONAddr addr)
 
 int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
 {
-    DEBUG("%p: setRemoteAddress: (%d,%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
+    DEBUG("%p: setRemoteAddress: (%d-%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
     if (addr.isd_as == mDstAddr.isd_as) {
-        DEBUG("%p: dst addr already set: (%d, %d)\n", this, ISD(mDstAddr.isd_as), AS(mDstAddr.isd_as));
+        DEBUG("%p: dst addr already set: (%d-%d)\n", this, ISD(mDstAddr.isd_as), AS(mDstAddr.isd_as));
         return -EPERM;
     }
 
@@ -172,7 +173,7 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
     gettimeofday(&end, NULL);
     long delta = elapsedTime(&start, &end);
     waitTime -= delta / 1000000.0;
-    if (waitTime < 0)
+    if (timeout > 0.0 && waitTime < 0)
         return -ETIMEDOUT;
     waitTime = floor(waitTime);
 
@@ -561,7 +562,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
             packet.payload = &sp;
             SSPHeader &sh = sp.header;
             sh.headerLen = sizeof(sh);
-            sh.flowID = htobe64(flowID);
+            sp.setFlowID(flowID);
             int ret = p->sendPacket(&packet, mSendSocket);
             free(packet.header.extensions);
             if (ret) {
@@ -685,14 +686,14 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
     SSPPacket *acksp = (SSPPacket *)(ack->payload);
     SSPPacket *sp = (SSPPacket *)(sent->payload);
     SSPHeader &sh = sp->header;
-    uint64_t pn = be64toh(sh.offset);
-    uint64_t offset = acksp->ack.L + acksp->ack.I;
+    uint64_t pn = sp->getOffset();
+    uint64_t offset = acksp->getAckNum();
     if (match) {
         ack->sendTime = sent->sendTime;
         DEBUG("got ack for packet %lu (path %d), mark: %d|%d\n",
-                pn, sent->pathIndex, sh.mark, acksp->header.mark);
+                pn, sent->pathIndex, sp->getMark(), acksp->getMark());
         bool sampleRtt = (pn == offset &&
-                acksp->header.mark == sh.mark &&
+                acksp->getMark() == sp->getMark() &&
                 sent->pathIndex == ack->pathIndex);
         handleAckOnPath(ack, sampleRtt, sent->pathIndex);
     } else if (pn != 0) {
@@ -708,7 +709,7 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
     pthread_cond_broadcast(&mPathCond);
     if (sh.flags & SSP_FIN) {
         DEBUG("FIN packet (%lu) acked, %lu more sent packets\n",
-                be64toh(sp->header.offset), mSentPackets.size());
+                sp->getOffset(), mSentPackets.size());
         mFinAcked = true;
     }
     if (sp->data.use_count() == 1) {
@@ -724,14 +725,14 @@ bool SSPConnectionManager::handleDupAck(SCIONPacket *packet)
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     bool dropped = false;
     DEBUG("out of order ack: packet %lu possibly dropped\n",
-            be64toh(sp->header.offset));
+            sp->getOffset());
     ((SSPPath *)(mPaths[packet->pathIndex]))->handleDupAck();
     sp->skipCount++;
     if (sp->skipCount >= SSP_FR_THRESHOLD) {
         DEBUG("packet %lu dropped, add to resend list\n",
-                be64toh(sp->header.offset));
+                sp->getOffset());
         sp->skipCount = 0;
-        sp->header.mark++;
+        sp->setMark(sp->getMark() + 1);
         dropped = true;
     }
     return dropped;
@@ -746,13 +747,13 @@ void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
         SCIONPacket *p = retries[j];
         SSPPacket *sp = (SSPPacket *)(p->payload);
         int index= p->pathIndex;
-        if (be64toh(sp->header.offset) == 0 && (!mInitAcked && !mResendInit)) {
+        if (sp->getOffset() == 0 && (!mInitAcked && !mResendInit)) {
             mResendInit = true;
             mRetryPackets->push(p);
-        } else if (be64toh(sp->header.offset) > 0) {
+        } else if (sp->getOffset() > 0) {
             mRetryPackets->push(p);
         }
-        ((SSPPath *)(mPaths[index]))->addLoss(be64toh(sp->header.offset));
+        ((SSPPath *)(mPaths[index]))->addLoss(sp->getOffset());
         if (!done[index]) {
             done[index] = true;
             ((SSPPath *)(mPaths[index]))->addRetransmit();
@@ -767,13 +768,12 @@ void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
 void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool receiver)
 {
     SSPPacket *spacket = (SSPPacket *)(packet->payload);
-    SSPAck &ack = spacket->ack;
-    uint64_t offset = ack.L + ack.I;
+    uint64_t offset = spacket->getAckNum();
 
     DEBUG("got some acks on path %d: L = %lu, I = %d, O = %d, V = %#x\n",
-            packet->pathIndex, ack.L, ack.I, ack.O, ack.V);
+            packet->pathIndex, spacket->getL(), spacket->getI(), spacket->getO(), spacket->getV());
 
-    mHighestAcked = ack.L - 1;
+    mHighestAcked = spacket->getL() - 1;
 
     std::vector<SCIONPacket *> retries;
     pthread_mutex_lock(&mPathMutex);
@@ -783,11 +783,11 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         SCIONPacket *p = *i;
         SSPPacket *sp = (SSPPacket *)(p->payload);
         SSPHeader &sh = sp->header;
-        uint64_t pn = be64toh(sh.offset);
+        uint64_t pn = sp->getOffset();
         bool match = offset == pn &&
             (sh.flags & SSP_FIN ||
-             (sh.mark == spacket->header.mark && p->pathIndex == packet->pathIndex));
-        if (match || (pn > 0 && pn < ack.L)) {
+             (sp->getMark() == spacket->getMark() && p->pathIndex == packet->pathIndex));
+        if (match || (pn > 0 && pn < spacket->getL())) {
             i = mSentPackets.erase(i);
             handlePacketAcked(match, packet, p);
             DEBUG("removed packet %lu (%p, path %d) from sent list\n",
@@ -827,14 +827,13 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample, i
 {
     SSPPath *path = (SSPPath *)(mPaths[pathIndex]);
     SSPPacket *sp = (SSPPacket *)(packet->payload);
-    SSPAck *ack = &sp->ack;
 
     if (!path) {
         DEBUG("got ack on null path %d\n", pathIndex);
         return -1;
     }
 
-    if (ack->L + ack->I == 0) {
+    if (sp->getAckNum() == 0) {
         DEBUG("%p: setting path %d up with ack\n", this, pathIndex);
         mPaths[pathIndex]->setUp();
         int used = 0;
@@ -909,11 +908,11 @@ void SSPConnectionManager::handleTimeout()
         if (timeout[index] > 0 ||
                 sp->skipCount >= SSP_FR_THRESHOLD) {
             DEBUG("%p: put packet %lu (path %d) in retransmit list (%d dups, timeout = %d)\n",
-                  this, be64toh(sp->header.offset), index, sp->skipCount, timeout[index]);
+                  this, sp->getOffset(), index, sp->skipCount, timeout[index]);
             SCIONPacket *p = *i;
             i = mSentPackets.erase(i);
             sp->skipCount = 0;
-            sp->header.mark++;
+            sp->setMark(sp->getMark() + 1);
             retries.push_back(p);
         } else {
             i++;
@@ -1047,7 +1046,7 @@ void SSPConnectionManager::schedule()
             continue;
         }
         SSPPacket *sp = (SSPPacket *)(packet->payload);
-        uint64_t offset = be64toh(sp->header.offset);
+        uint64_t offset = sp->getOffset();
         if (offset > 0 && offset <= mHighestAcked) {
             DEBUG("%p: packet %lu already received on remote end\n", this, offset);
             destroySSPPacketFull(packet);
@@ -1145,7 +1144,7 @@ void SSPConnectionManager::didSend(SCIONPacket *packet)
                 return;
             }
             fprintf(stderr, "duplicate packet in sent list: %" PRIu64 "|%" PRIu64 ", path %d|%d (%p)\n",
-                    be64toh(s->header.offset), be64toh(sp->header.offset),
+                    s->getOffset(), sp->getOffset(),
                     packet->pathIndex, p->pathIndex, packet);
             exit(0);
         }

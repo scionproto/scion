@@ -76,12 +76,12 @@ int SCIONBind(int sock, SCIONAddr addr)
     return e->sock->bind(addr);
 }
 
-int SCIONConnect(int sock, SCIONAddr addr, double timeout)
+int SCIONConnect(int sock, SCIONAddr addr)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->connect(addr, timeout);
+    return e->sock->connect(addr);
 }
 
 int SCIONListen(int sock)
@@ -92,16 +92,15 @@ int SCIONListen(int sock)
     return e->sock->listen();
 }
 
-int SCIONSend(int sock, uint8_t *buf, size_t len, double timeout)
+int SCIONSend(int sock, uint8_t *buf, size_t len)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->send(buf, len, timeout);
+    return e->sock->send(buf, len);
 }
 
-int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
-                     SCIONAddr *dstAddr)
+int SCIONSendProfile(int sock, uint8_t *buf, size_t len, SCIONAddr *dstAddr)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
@@ -109,13 +108,12 @@ int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
     return e->sock->send(buf, len, dstAddr);
 }
 
-int SCIONRecv(int sock, uint8_t *buf, size_t len,
-              SCIONAddr *srcAddr, double timeout)
+int SCIONRecv(int sock, uint8_t *buf, size_t len, SCIONAddr *srcAddr)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->recv(buf, len, srcAddr, timeout);
+    return e->sock->recv(buf, len, srcAddr);
 }
 
 void * SCIONGetStats(int sock, void *buf, int len)
@@ -278,6 +276,22 @@ uint32_t SCIONGetLocalIA(int sock)
     if (!e)
         return 0;
     return e->sock->getLocalIA();
+}
+
+void SCIONSetTimeout(int sock, double timeout)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return;
+    e->sock->setTimeout(timeout);
+}
+
+double SCIONGetTimeout(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return 0.0;
+    return e->sock->getTimeout();
 }
 
 }

@@ -19,14 +19,16 @@ public:
     // traditional socket functionality
     SCIONSocket * accept();
     int bind(SCIONAddr addr);
-    int connect(SCIONAddr addr, double timeout=0.0);
+    int connect(SCIONAddr addr);
     int listen();
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout=0.0);
-    int send(uint8_t *buf, size_t len, double timeout=0.0);
-    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout=0.0);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len);
+    int send(uint8_t *buf, size_t len, SCIONAddr *dstAddr);
     int setSocketOption(SCIONOption *option);
     int getSocketOption(SCIONOption *option);
     uint32_t getLocalIA();
+    void setTimeout(double timeout);
+    double getTimeout();
 
     // construct SCION packet from incoming data
     void handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr);
@@ -68,6 +70,7 @@ private:
     char                       mSCIONDAddr[32];
     SCIONAddr                  mLocalAddr;
     bool                       mBound;
+    double                     mTimeout;
 
     SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;
