@@ -8,7 +8,7 @@
 #define MAX_HOST_ADDR_STR INET6_ADDRSTRLEN
 
 typedef struct {
-    int addr_len;
+    uint8_t addr_type;
     uint8_t addr[MAX_HOST_ADDR_LEN];
     uint16_t port;
 } HostAddr;

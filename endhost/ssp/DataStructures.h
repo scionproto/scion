@@ -43,7 +43,7 @@ typedef struct {
     SCIONHeader header;
     void *payload;
 
-    uint32_t firstHop;
+    HostAddr firstHop;
     struct timeval arrivalTime;
     struct timeval sendTime;
     uint32_t rto;

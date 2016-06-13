@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     memset(&addr, 0, sizeof(addr));
     addr.isd_as = ISD_AS(isd, as);
     addr.host.port = 8080;
-    addr.host.addr_len = 4;
+    addr.host.addr_type = ADDR_IPV4_TYPE;
     sprintf(str, "127.%d.%d.254", isd, as);
     in_addr_t in = inet_addr(str);
     memcpy(addr.host.addr, &in, 4);

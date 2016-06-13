@@ -62,8 +62,8 @@ void PathManager::getDefaultIP()
         // TODO(aznair): IPv6
         if (ifa->ifa_addr->sa_family == AF_INET) {
             struct sockaddr_in *sa = (struct sockaddr_in *)(ifa->ifa_addr);
-            mLocalAddr.host.addr_len = 4;
-            memcpy(mLocalAddr.host.addr, &sa->sin_addr, 4);
+            mLocalAddr.host.addr_type = ADDR_IPV4_TYPE;
+            memcpy(mLocalAddr.host.addr, &sa->sin_addr, ADDR_IPV4_LEN);
             break;
         }
     }
@@ -142,8 +142,8 @@ int PathManager::setLocalAddress(SCIONAddr addr)
     if (addr.isd_as == 0) /* bind to any address */
         return 0;
 
-    mLocalAddr.host.addr_len = addr.host.addr_len;
-    memcpy(mLocalAddr.host.addr, addr.host.addr, addr.host.addr_len);
+    mLocalAddr.host.addr_type = addr.host.addr_type;
+    memcpy(mLocalAddr.host.addr, addr.host.addr, get_addr_len(addr.host.addr_type));
 
     return 0;
 }
@@ -651,11 +651,11 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
         SCIONAddr saddr;
         saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
         // TODO: IPv6?
-        saddr.host.addr_len = ADDR_IPV4_LEN;
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
+        saddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
+        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(saddr.host.addr_type));
 
         SSPPath *p = (SSPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
-        p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
+        p->setFirstHop(&packet->firstHop);
         p->setInterfaces(sp->interfaces, sp->interfaceCount);
         if (mPolicy.validate(p)) {
             index = insertOnePath(p);
@@ -1274,11 +1274,11 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
         SCIONAddr saddr;
         saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
         // TODO: IPv6?
-        saddr.host.addr_len = ADDR_IPV4_LEN;
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
+        saddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
+        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(saddr.host.addr_type));
 
         SUDPPath *p = (SUDPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
-        p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
+        p->setFirstHop(&packet->firstHop);
         index = insertOnePath(p);
         mLastProbeAcked.resize(mPaths.size());
     }

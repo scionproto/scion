@@ -39,7 +39,7 @@ from socket import (
 from lib.defines import SCION_BUFLEN
 from lib.dispatcher import reg_dispatcher
 from lib.errors import SCIONIOError
-from lib.packet.host_addr import haddr_parse_interface
+from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
 from lib.thread import kill_self
@@ -238,13 +238,13 @@ class ReliableSocket(Socket):
             dst_addr, dst_port = dst
             if isinstance(dst_addr, str):
                 dst_addr = haddr_parse_interface(dst_addr)
-            addr_len = struct.pack("B", len(dst_addr))
+            addr_type = struct.pack("B", dst_addr.TYPE)
             packed_dst = dst_addr.pack() + struct.pack("H", dst_port)
         else:
-            addr_len = struct.pack("B", 0)
+            addr_type = struct.pack("B", 0)
             packed_dst = b""
         data_len = struct.pack("I", len(data))
-        data = b"".join([self.COOKIE, addr_len, data_len, packed_dst, data])
+        data = b"".join([self.COOKIE, addr_type, data_len, packed_dst, data])
         try:
             self.sock.sendall(data)
         except OSError as e:
@@ -262,13 +262,14 @@ class ReliableSocket(Socket):
         buf = recv_all(self.sock, self.COOKIE_LEN + 5, flags)
         if not buf:
             return None, None
-        cookie, addr_len, packet_len = struct.unpack("=8sBI", buf)
+        cookie, addr_type, packet_len = struct.unpack("=8sBI", buf)
         if cookie != self.COOKIE:
             logging.critical("Dispatcher socket out of sync")
             raise SCIONIOError
         port_len = 0
-        if addr_len > 0:
+        if addr_type != 0:
             port_len = 2
+        addr_len = haddr_get_type(addr_type).LEN
         # We know there is data coming, block here to avoid sync problems.
         buf = recv_all(self.sock, addr_len + port_len + packet_len, 0)
         if addr_len > 0:

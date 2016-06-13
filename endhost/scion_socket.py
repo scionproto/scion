@@ -47,7 +47,7 @@ SHARED_LIB_FILE = os.path.join("endhost", "ssp", "libssocket.so")
 
 
 class C_HostAddr(Structure):
-    _fields_ = [("addr_len", c_int),
+    _fields_ = [("addr_type", c_ubyte),
                 ("addr", ByteArray16),
                 ("port", c_short)]
 
@@ -241,11 +241,11 @@ def addr_py2c(saddr=None, port=None):
     if saddr:
         sa.isd_as = c_uint(saddr.isd_as.int())
         ip_bytes = saddr.host.pack()
-        sa.host.addr_len = len(ip_bytes)
+        sa.host.addr_type = saddr.host.TYPE
         sa.host.addr = ByteArray16(*ip_bytes)
     else:
         sa.isd_as = 0
-        sa.host_addr_len = 0
+        sa.host_addr_type = 0
         sa.host.addr = ByteArray16(0)
     if port:
         sa.host.port = port

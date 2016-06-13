@@ -24,9 +24,9 @@ typedef SCIONCommonHeader sch_t;
 
 #pragma pack(pop)
 
-#define PROTO_VER(sch) ((ntohs(sch->ver_src_dst) >> 12))
-#define SRC_TYPE(sch) ((ntohs(sch->ver_src_dst) & 0xfc0) >> 6)
-#define DST_TYPE(sch) (ntohs(sch->ver_src_dst) & 0x3f)
+#define PROTO_VER(sch) ((ntohs((sch)->ver_src_dst) >> 12))
+#define SRC_TYPE(sch) ((ntohs((sch)->ver_src_dst) & 0xfc0) >> 6)
+#define DST_TYPE(sch) (ntohs((sch)->ver_src_dst) & 0x3f)
 
 typedef struct {
     uint8_t len;
