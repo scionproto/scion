@@ -23,6 +23,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
 from test.testcommon import assert_these_calls, create_mock_full
 
@@ -30,7 +31,7 @@ from test.testcommon import assert_these_calls, create_mock_full
 def mk_pcbm_p(inIF=22):
     return create_mock_full({
         "inIA": "in_ia", "inIF": inIF, "inMTU": 4000, "outIA": "out_ia",
-        "outIF": 33, "hof": b"hof", "igRevToken": b"revToken"},
+        "outIF": 33, "hof": b"hof"},
         class_=PCBMarking)
 
 
@@ -42,7 +43,7 @@ class TestPCBMarkingSigPack(object):
         inst = PCBMarking(mk_pcbm_p())
         expected = b"".join([
             b"in_ia", bytes.fromhex("0000000000000016 0fa0"), b"out_ia",
-            bytes.fromhex("0000000000000021"), b"hof", b"revToken"])
+            bytes.fromhex("0000000000000021"), b"hof"])
         # Call
         ntools.eq_(inst.sig_pack(6), expected)
 
@@ -59,15 +60,15 @@ class TestASMarkingFromValues(object):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         cchain = create_mock_full({"pack()": "cchain"})
         revs = []
-        for i in range(2):
-            revs.append(create_mock_full({"pack()": "rev %d" % i}))
+        revs.append(RevocationInfo.from_values(1, 0, "abcd", [], "qw", "er"))
+        revs.append(RevocationInfo.from_values(2, 0, "pqr", [], "ty", "ui"))
         # Call
-        ASMarking.from_values("isdas", 2, 3, pcbms, "eg rev token", "mtu",
+        ASMarking.from_values("isdas", 2, 3, pcbms, "root", "mtu",
                               cchain, ifid_size=14, rev_infos=revs)
         # Tests
         p_cls.new_message.assert_called_once_with(
             isdas="isdas", trcVer=2, certVer=3, ifIDSize=14,
-            egRevToken="eg rev token", mtu="mtu",
+            root="root", mtu="mtu",
             chain="cchain")
         msg.init.assert_called_once_with("pcbms", 3)
         msg.exts.init.assert_called_once_with("revInfos", 2)
@@ -86,17 +87,19 @@ class TestASMarkingSigPack(object):
         for i in range(3):
             pcbms.append(create_mock_full({
                 "sig_pack()": bytes("pcbm %i" % i, "ascii")}))
-        exts = create_mock_full({"revInfos": [b"rev0", b"rev1"]})
+        exts = []
+        for i in range(2):
+            exts.append(create_mock_full({
+                "sig_pack()": bytes("rev %i" % i, "ascii")}))
         inst = ASMarking(create_mock_full({
             "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
-            "egRevToken": b"eg rev", "exts": exts, "mtu": 1482, "chain":
-            b"chain",
-        }))
+            "root": b"root", "mtu": 1482, "chain": b"chain"}))
+        inst.iter_rev_infos = create_mock_full(return_value=exts)
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
         expected = b"".join([
             b"isdas", bytes.fromhex("00000002 00000003 04"),
-            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"eg rev", b"rev0", b"rev1",
-            bytes.fromhex("05ca"), b"chain"])
+            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root", b"rev 0",
+            b"rev 1", bytes.fromhex("05ca"), b"chain"])
         # Call
         ntools.eq_(inst.sig_pack(9), expected)
 
@@ -200,14 +203,10 @@ class TestPathSegmentGetAllIftokens(object):
         asms = []
         for i in range(3):
             pcbms = []
-            for j in range(2):
-                pcbms.append(create_mock_full(
-                    {"igRevToken": "ig %d %d" % (i, j)}))
             asms.append(create_mock_full({
-                "pcbms": pcbms, "egRevToken": "eg %d" % i}))
+                "pcbms": pcbms, "root": "eg %d" % i}))
         inst = PathSegment(create_mock_full({"asms": asms}))
-        expected = ['ig 0 0', 'ig 0 1', 'eg 0', 'ig 1 0', 'ig 1 1', 'eg 1',
-                    'ig 2 0', 'ig 2 1', 'eg 2']
+        expected = ['eg 0', 'eg 1', 'eg 2']
         # Call
         ntools.eq_(inst.get_all_iftokens(), expected)
 
