@@ -45,6 +45,7 @@ class timeout(stdsock.timeout):
 
 
 class LWIPError(object):
+    # LWIP error codes.
     ERR_OK = 0  # No error, everything OK.
     ERR_MEM = -1  # Out of memory error.
     ERR_BUF = -2  # Buffer error.
@@ -100,6 +101,20 @@ class LWIPError(object):
         return None
 
 
+class APICmd(object):
+    # Middleware API commands.
+    ACCEPT = b"ACCE"
+    BIND = b"BIND"
+    CLOSE = b"CLOS"
+    CONNECT = b"CONN"
+    GET_RECV_TOUT = b"GRTO"
+    LISTEN = b"LIST"
+    NEW_SOCK = b"NEWS"
+    RECV = b"RECV"
+    SEND = b"SEND"
+    SET_RECV_TOUT = b"SRTO"
+
+
 class SCIONSocket(object):
     BUFLEN = 1024
 
@@ -137,7 +152,7 @@ class SCIONSocket(object):
             svc = SVCType.NONE
         addr, port = addr_port
         haddr_type = addr.host.TYPE
-        req = (b"BIND" + struct.pack("H", port) + svc.pack() +
+        req = (APICmd.BIND + struct.pack("H", port) + svc.pack() +
                struct.pack("B", haddr_type) + addr.pack())
         self._to_lwip(req)
         rep = self._from_lwip()
@@ -149,7 +164,7 @@ class SCIONSocket(object):
         path, first_ip, first_port = path_info
         path = path.pack()
         # TODO(PSz): change order of packing, don't assume ipv4
-        req = (b"CONN" + struct.pack("HH", port, len(path)) + path +
+        req = (APICmd.CONNECT + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddr_type) + addr.pack() + first_ip.pack() +
                struct.pack("H", first_port))
         self._to_lwip(req)
@@ -162,7 +177,7 @@ class SCIONSocket(object):
         self._lwip_sock = stdsock.socket(stdsock.AF_UNIX, stdsock.SOCK_STREAM)
         self._lwip_sock.connect(RPCD_SOCKET)
         # Register it
-        req = b"NEWS"
+        req = APICmd.NEW_SOCK
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req, rep)
@@ -180,7 +195,7 @@ class SCIONSocket(object):
         return rep
 
     def listen(self):  # w/o backlog for now, let's use LWIP's default
-        req = b"LIST"
+        req = APICmd.LISTEN
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req, rep)
@@ -188,7 +203,8 @@ class SCIONSocket(object):
     def accept(self):
         self._init_accept_sock()
         self._lwip_accept.listen(5)  # FIXME(PSz): consistent with LWIP backlog
-        req = b"ACCE" + self._lwip_accept.getsockname()[-36:].encode('ascii')
+        sockname = self._lwip_accept.getsockname()[-36:].encode('ascii')
+        req = APICmd.ACCEPT + sockname
         self._to_lwip(req)
 
         rep = self._from_lwip()
@@ -228,7 +244,7 @@ class SCIONSocket(object):
         if len(msg) > MAX_MSG_LEN:
             logging.error("send() msg too long: %d" % len(msg))
             raise error("send() msg too long: %d" % len(msg))
-        req = b"SEND" + struct.pack("I", len(msg)) + msg
+        req = APICmd.SEND + struct.pack("I", len(msg)) + msg
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req[:CMD_SIZE], rep)
@@ -245,7 +261,7 @@ class SCIONSocket(object):
         return self.recv(bufsize)
 
     def _fill_recv_buf(self):
-        req = b"RECV"
+        req = APICmd.RECV
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req, rep)
@@ -269,13 +285,13 @@ class SCIONSocket(object):
             raise error("set_recv_tout(): incorrect value")
         # Convert to miliseconds
         timeout = int(timeout * 1000)
-        req = b"SRTO" + struct.pack("I", timeout)
+        req = APICmd.SET_RECV_TOUT + struct.pack("I", timeout)
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req[:CMD_SIZE], rep)
 
     def get_recv_tout(self):
-        req = b"GRTO"
+        req = APICmd.GET_RECV_TOUT
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req, rep)
@@ -284,7 +300,7 @@ class SCIONSocket(object):
         return 0.001 * timeout
 
     def close(self):
-        req = b"CLOS"
+        req = APICmd.CLOSE
         self._to_lwip(req)
         self._lwip_sock.close()
         if self._lwip_accept:

@@ -44,6 +44,18 @@
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
 
+/* Middleware API commands */
+#define CMD_ACCEPT "ACCE"
+#define CMD_BIND "BIND"
+#define CMD_CLOSE "CLOS"
+#define CMD_CONNECT "CONN"
+#define CMD_GET_RECV_TOUT "GRTO"
+#define CMD_LISTEN "LIST"
+#define CMD_NEW_SOCK "NEWS"
+#define CMD_RECV "RECV"
+#define CMD_SEND "SEND"
+#define CMD_SET_RECV_TOUT "SRTO"
+
 zlog_category_t *zc_tcp;
 int sys_err;
 s8_t lwip_err;

@@ -49,7 +49,7 @@ void tcpmw_socket(int fd){
         zlog_error(zc_tcp, "tcpmw_socket() error on read");
         goto fail;
     }
-    if (strncmp(buf, "NEWS", CMD_SIZE)){
+    if (strncmp(buf, CMD_NEW_SOCK, CMD_SIZE)){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_socket() wrong command");
         goto fail;
@@ -88,7 +88,7 @@ void tcpmw_socket(int fd){
 fail:
     close(fd);
 reply:
-    tcpmw_reply(fd, "NEWS");
+    tcpmw_reply(fd, CMD_NEW_SOCK);
 }
 
 void tcpmw_bind(struct conn_args *args, char *buf, int len){
@@ -105,7 +105,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
         goto reply;
     }
 
-    p += CMD_SIZE;  /* skip "BIND" */
+    p += CMD_SIZE;  /* skip CMD_BIND */
     port = *((u16_t *)p);
     p += 2;  /* skip port */
     svc = *((u16_t *)p);
@@ -120,7 +120,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     zlog_info(zc_tcp, "tcpmw_bind(): bound port %d, svc: %d", port, svc);
 
 reply:
-    tcpmw_reply(args->fd, "BIND");
+    tcpmw_reply(args->fd, CMD_BIND);
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
@@ -131,7 +131,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
     sys_err = 0;
     zlog_info(zc_tcp, "CONN received");
-    p += CMD_SIZE;  /* skip "CONN" */
+    p += CMD_SIZE;  /* skip CMD_CONNECT */
     port = *((u16_t *)p);
     p += 2;  /* skip port */
     path_len = *((u16_t *)p);
@@ -158,7 +158,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect() failed");
 
-    tcpmw_reply(args->fd, "CONN");
+    tcpmw_reply(args->fd, CMD_CONNECT);
 }
 
 void tcpmw_listen(struct conn_args *args){
@@ -168,7 +168,7 @@ void tcpmw_listen(struct conn_args *args){
     if ((lwip_err = netconn_listen(args->conn)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_listen() failed");
 
-    tcpmw_reply(args->fd, "LIST");
+    tcpmw_reply(args->fd, CMD_LISTEN);
 }
 
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
@@ -239,7 +239,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
 
     tmp = malloc(tot_len);
     p = tmp;
-    memcpy(p, "ACCE", RESP_SIZE - 1);
+    memcpy(p, CMD_ACCEPT, RESP_SIZE - 1);
     p[RESP_SIZE - 1] = ERR_OK;
     p += RESP_SIZE;
     *((u16_t *)(p)) = path_len;
@@ -250,13 +250,13 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     p++;
     memcpy(p, newconn->pcb.ip->remote_ip.addr, 4 + haddr_len);
     write(args->fd, tmp, tot_len);
-    /* Confirm it is ok, by sending "ACCE"+ERR_OK only */
+    /* Confirm it is ok, by sending CMD_ACCEPT+ERR_OK only */
     write(new_fd, tmp, RESP_SIZE);
     free(tmp);
     return;
 
 fail:
-    tcpmw_reply(args->fd, "ACCE");
+    tcpmw_reply(args->fd, CMD_ACCEPT);
 }
 
 void tcpmw_send(struct conn_args *args, char *buf, int len){
@@ -266,7 +266,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
 
     lwip_err = 0;
     sys_err = 0;
-    p += CMD_SIZE;  /* skip "SEND" */
+    p += CMD_SIZE;  /* skip CMD_SEND */
     len -= CMD_SIZE;
     size = *((u32_t *)p);
     p += 4;  /* skip total size */
@@ -306,7 +306,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     }
 
 reply:
-    tcpmw_reply(args->fd, "SEND");
+    tcpmw_reply(args->fd, CMD_SEND);
 }
 
 void tcpmw_recv(struct conn_args *args){
@@ -328,7 +328,7 @@ void tcpmw_recv(struct conn_args *args){
     }
 
     msg = malloc(len + RESP_SIZE + 2);
-    memcpy(msg, "RECV", RESP_SIZE - 1);
+    memcpy(msg, CMD_RECV, RESP_SIZE - 1);
     msg[RESP_SIZE - 1] = ERR_OK;
     *((u16_t *)(msg + RESP_SIZE)) = len;
     memcpy(msg + RESP_SIZE + 2, data, len);
@@ -338,7 +338,7 @@ void tcpmw_recv(struct conn_args *args){
     return;
 
 fail:
-    tcpmw_reply(args->fd, "RECV");
+    tcpmw_reply(args->fd, CMD_RECV);
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
@@ -356,14 +356,14 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     netconn_set_recvtimeout(args->conn, timeout);
 
 reply:
-    tcpmw_reply(args->fd, "SRTO");
+    tcpmw_reply(args->fd, CMD_SET_RECV_TOUT);
 }
 
 void tcpmw_get_recv_tout(struct conn_args *args){
     zlog_info(zc_tcp, "GRTO received");
     int timeout = netconn_get_recvtimeout(args->conn);
     char *msg = malloc(RESP_SIZE + 4);
-    memcpy(msg, "GRTO", RESP_SIZE - 1);
+    memcpy(msg, CMD_GET_RECV_TOUT, RESP_SIZE - 1);
     msg[RESP_SIZE - 1] = ERR_OK;
     *(u32_t *)(msg + RESP_SIZE) = (u32_t)timeout;
     write(args->fd, msg, RESP_SIZE + 4);
@@ -389,23 +389,23 @@ void *tcpmw_sock_thread(void *data){
             zlog_error(zc_tcp, "tcpmw_sock_thread: command too short");
             continue;
         }
-        if (!strncmp(buf, "SEND", CMD_SIZE))
+        if (!strncmp(buf, CMD_SEND, CMD_SIZE))
             tcpmw_send(args, buf, rc);
-        else if (!strncmp(buf, "RECV", CMD_SIZE))
+        else if (!strncmp(buf, CMD_RECV, CMD_SIZE))
             tcpmw_recv(args);
-        else if (!strncmp(buf, "BIND", CMD_SIZE))
+        else if (!strncmp(buf, CMD_BIND, CMD_SIZE))
             tcpmw_bind(args, buf, rc);
-        else if (!strncmp(buf, "CONN", CMD_SIZE))
+        else if (!strncmp(buf, CMD_CONNECT, CMD_SIZE))
             tcpmw_connect(args, buf, rc);
-        else if (!strncmp(buf, "LIST", CMD_SIZE))
+        else if (!strncmp(buf, CMD_LISTEN, CMD_SIZE))
             tcpmw_listen(args);
-        else if (!strncmp(buf, "ACCE", CMD_SIZE))
+        else if (!strncmp(buf, CMD_ACCEPT, CMD_SIZE))
             tcpmw_accept(args, buf, rc);
-        else if (!strncmp(buf, "SRTO", CMD_SIZE))
+        else if (!strncmp(buf, CMD_SET_RECV_TOUT, CMD_SIZE))
             tcpmw_set_recv_tout(args, buf, rc);
-        else if (!strncmp(buf, "GRTO", CMD_SIZE))
+        else if (!strncmp(buf, CMD_GET_RECV_TOUT, CMD_SIZE))
             tcpmw_get_recv_tout(args);
-        else if (!strncmp(buf, "CLOS", CMD_SIZE)){
+        else if (!strncmp(buf, CMD_CLOSE, CMD_SIZE)){
             tcpmw_close(args);
             break;
         }
