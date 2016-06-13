@@ -483,7 +483,7 @@ class ScionBaseSocket(object):
 
     def settimeout(self, timeout):
         """
-        Placeholder for now, might be implemented later.
+        Set timeout for socket operations connect/send/recv
         """
         self.libssock.SCIONSetTimeout(self.fd, c_double(timeout))
 

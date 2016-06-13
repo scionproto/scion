@@ -132,7 +132,7 @@ void PathManager::queryLocalAddress()
 
 int PathManager::setLocalAddress(SCIONAddr addr)
 {
-    DEBUG("%p: bind to (%d, %d):%s\n",
+    DEBUG("%p: bind to (%d-%d):%s\n",
             this, ISD(addr.isd_as), AS(addr.isd_as),
             inet_ntoa(*(struct in_addr *)addr.host.addr));
 
@@ -150,9 +150,9 @@ int PathManager::setLocalAddress(SCIONAddr addr)
 
 int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
 {
-    DEBUG("%p: setRemoteAddress: (%d,%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
+    DEBUG("%p: setRemoteAddress: (%d-%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
     if (addr.isd_as == mDstAddr.isd_as) {
-        DEBUG("%p: dst addr already set: (%d, %d)\n", this, ISD(mDstAddr.isd_as), AS(mDstAddr.isd_as));
+        DEBUG("%p: dst addr already set: (%d-%d)\n", this, ISD(mDstAddr.isd_as), AS(mDstAddr.isd_as));
         return -EPERM;
     }
 
