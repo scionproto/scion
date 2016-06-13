@@ -27,6 +27,7 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.hash_tree import ConnectedHashTree, HASHTREE_TTL
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
@@ -46,8 +47,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
-    # Number of tokens the PS checks when receiving a revocation.
-    N_TOKENS_CHECK = 20
+    # ZK path for incoming REVs
+    ZK_REV_CACHE_PATH = "rev_cache"
     # Max number of segments per propagation packet
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
@@ -65,7 +66,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
-        self.iftoken2seg = defaultdict(set)
+        self.astoken_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -76,6 +77,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             },
         }
         self._segs_to_zk = deque()
+        self._revs_to_zk = deque()
         # Add more IPs here if we support dual-stack
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                 str(self.addr.host)])
@@ -84,6 +86,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.zk.retry("Joining party", self.zk.party_setup)
         self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
                                         self._cached_entries_handler)
+        self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
+                                       self._rev_entries_handler)
 
     def worker(self):
         """
@@ -99,10 +103,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             try:
                 self.zk.wait_connected()
                 self.path_cache.process()
+                self.rev_cache.process()
                 # Try to become a master.
                 is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
                 if is_master:
                     self.path_cache.expire(self.config.propagation_time * 10)
+                    self.rev_cache.expire(self.config.propagation_time * 10)
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass
@@ -125,16 +131,26 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _update_master(self):
         pass
 
+    def _rev_entries_handler(self, raw_entries):
+        for raw in raw_entries:
+            rev_info = RevocationInfo.from_raw(raw)
+            self._remove_revoked_segments(rev_info)
+
     def _add_if_mappings(self, pcb):
         """
         Add if revocation token to segment ID mappings.
         """
         segment_id = pcb.get_hops_hash()
-        for asm in pcb.p.asms:
-            self.iftoken2seg[asm.pcbms[0].igRevToken].add(segment_id)
-            self.iftoken2seg[asm.egRevToken].add(segment_id)
-            for pm in asm.pcbms:
-                self.iftoken2seg[pm.igRevToken].add(segment_id)
+        for asm in pcb.iter_asms():
+            egress_h = (asm.p.root, asm.pcbm(0).hof().egress_if)
+            if egress_h not in self.astoken_if2seg:
+                self.astoken_if2seg[egress_h] = set()
+            self.astoken_if2seg[egress_h].add(segment_id)
+            for pm in asm.iter_pcbms():
+                ingress_h = (asm.p.root, pm.hof().ingress_if)
+                if ingress_h not in self.astoken_if2seg:
+                    self.astoken_if2seg[ingress_h] = set()
+                self.astoken_if2seg[ingress_h].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -167,11 +183,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
-        if hash(rev_info) in self.revocations:
+        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
+        h = (rev_info.p.ifID, rev_info.p.epoch,
+             rev_info.p.prevRoot, rev_info.p.nextRoot)
+        if h in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
         else:
-            self.revocations[hash(rev_info)] = rev_info
+            self.revocations[h] = rev_info
             logging.debug("Received revocation from %s:\n%s",
                           pkt.addrs.src, rev_info)
         # Remove segments that contain the revoked interface.
@@ -179,23 +198,28 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _remove_revoked_segments(self, rev_info):
         """
-        Remove segments that contain a revoked interface. Checks 20 tokens in
-        case previous revocations were missed by the PS.
+        Try the previous and next hashes as possible astokens,
+        and delete anyone that matches
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        rev_token = rev_info.rev_token
-        for _ in range(self.N_TOKENS_CHECK):
-            rev_token = SHA256.new(rev_token).digest()
-            segments = self.iftoken2seg[rev_token]
+        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            logging.warning("Epochs did not match")
+            return
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
+        if_id = rev_info.p.ifID
+
+        for H in (hash01, hash12):
+            segments = self.astoken_if2seg.get((H, if_id))
             while segments:
                 sid = segments.pop()
-                # Delete segment from DB.
                 self.down_segments.delete(sid)
                 self.core_segments.delete(sid)
-            if rev_token in self.iftoken2seg:
-                del self.iftoken2seg[rev_token]
+                if not self.topology.is_core_as:
+                    self.up_segments.delete(sid)
+            if (H, if_id) in self.astoken_if2seg:
+                del self.astoken_if2seg[(H, if_id)]
 
     def _send_to_next_hop(self, pkt, if_id):
         """
@@ -273,6 +297,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _propagate_and_sync(self):
         self._share_via_zk()
+        self._share_revs_via_zk()
 
     def _gen_prop_recs(self, queue, limit=PROP_LIMIT):
         count = 0
@@ -287,6 +312,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 pcbs = defaultdict(list)
         if pcbs:
             yield(pcbs)
+
+    def _gen_prop_revs(self, queue, limit=PROP_LIMIT):
+        count = 0
+        revs = []
+        while queue:
+            count += 1
+            rev = queue.popleft()
+            revs.append(rev)
+            if count >= limit:
+                yield(revs)
+                count = 0
+                revs = []
+        if revs:
+            yield(revs)
 
     @abstractmethod
     def path_resolution(self, path_request):
@@ -330,12 +369,29 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             seg_recs = PathSegmentRecords.from_values(pcb_dict)
             self._zk_write(seg_recs.pack())
 
+    def _share_revs_via_zk(self):
+        if not self._revs_to_zk:
+            return
+        logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
+        for raw_list in self._gen_prop_revs(self._revs_to_zk,
+                                            limit=self.ZK_SHARE_LIMIT):
+            for raw in raw_list:
+                self._zk_write_rev(raw)
+
     def _zk_write(self, data):
         hash_ = SHA256.new(data).hexdigest()
         try:
             self.path_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
         except ZkNoConnection:
             logging.warning("Unable to store segment(s) in shared path: "
+                            "no connection to ZK")
+
+    def _zk_write_rev(self, data):
+        hash_ = SHA256.new(data).hexdigest()
+        try:
+            self.rev_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
+        except ZkNoConnection:
+            logging.warning("Unable to store revocation(s) in shared path: "
                             "no connection to ZK")
 
     def run(self):

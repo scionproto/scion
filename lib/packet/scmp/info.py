@@ -192,28 +192,46 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
 class SCMPInfoRevocation(SCMPInfoPathOffsets):
     """Store IOF offset, HOF offset, IF id and ingress flag."""
     NAME = "SCMPInfoPktSize"
-    REV_LEN = 32
-    STRUCT_FMT = "!HHH?x32s"
-    LEN = struct.calcsize(STRUCT_FMT)
-    ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress", "rev_token"]
+    ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress", "rev_info"]
 
     @classmethod
-    def from_pkt(cls, pkt, if_id, ingress, rev_token):  # pragma: no cover
+    def from_pkt(cls, pkt, if_id, ingress, rev_info):
+        rev_token = rev_info.pack()
         inst = cls()
+
+        padding_length = calc_padding(struct.calcsize(inst.STRUCT_FMT) +
+                                      len(rev_token), LINE_LEN)
+        rev_token += bytes(padding_length)
+
         iof_offset, hof_offset = inst._calc_offsets(pkt)
         inst._set_vals((iof_offset, hof_offset, if_id, ingress, rev_token))
+        inst.REV_LEN = len(rev_token)
+        inst.STRUCT_FMT = inst.STRUCT_FMT + str(inst.REV_LEN) + "s"
+        inst.LEN = struct.calcsize(inst.STRUCT_FMT)
         return inst
 
+    def _parse(self, raw):
+        data = Raw(raw, self.NAME)
+
+        total_len = len(data)
+        rev_len = total_len - self.LEN
+
+        self.STRUCT_FMT = self.STRUCT_FMT + str(rev_len) + "s"
+        self.REV_LEN = rev_len
+        self.LEN = total_len
+
+        self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop()))
+
     def pack(self):  # pragma: no cover
-        assert isinstance(self.rev_token, bytes)
-        assert len(self.rev_token) == self.REV_LEN
+        assert isinstance(self.rev_info, bytes)
+        assert len(self.rev_info) == self.REV_LEN
         return super().pack()
 
     def __str__(self):
         return ("%s(%dB): IOF offset:%sB HOF offset: %sB "
                 "IF id: %s Ingress: %s Rev token: %s" % (
                     self.NAME, self.LEN, self.iof_off, self.hof_off,
-                    self.if_id, self.ingress, hex_str(self.rev_token)))
+                    self.if_id, self.ingress, hex_str(self.rev_info)))
 
 
 class SCMPInfoExtIdx(SCMPInfoGeneric):

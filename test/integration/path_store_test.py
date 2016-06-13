@@ -49,7 +49,7 @@ class TestPathStore(unittest.TestCase):
         """
         hof = HopOpaqueField.from_values(1, 111, 222)
         rev_token = HashChain(Random.new().read(32)).next_element()
-        pcbm = PCBMarking.from_values(1, 10, hof, rev_token)
+        pcbm = PCBMarking.from_values(1, 10, hof)
         peer_markings = []
         signing_key = read_file(get_sig_key_file_path(1, 10))
         signing_key = base64.b64decode(signing_key)
