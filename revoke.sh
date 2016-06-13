@@ -1,0 +1,1 @@
+./supervisor/supervisor.sh stop as$1-$2:er$1-$2er$3-$4

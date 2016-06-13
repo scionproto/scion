@@ -19,12 +19,11 @@
 import capnp  # noqa
 
 # SCION
-import proto.sibra_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.sof import SibraOpaqueField
-from lib.util import hex_str
+import proto.sibra_capnp as P
 
 
 class SibraPCBExt(Cerealizable):  # pragma: no cover
@@ -78,8 +77,7 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
 
     def short_desc(self):
         a = []
-        a.append("%s: id: %s (owner: %s) Up? %s" %
-                 (self.NAME, hex_str(self.p.id), self.isd_as(), self.p.up))
+        a.append("%s: owner: %s Up? %s" % (self.NAME, self.isd_as(), self.p.up))
         for line in str(self.info).splitlines():
             a.append("  %s" % line)
         return "\n".join(a)

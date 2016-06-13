@@ -29,6 +29,7 @@ from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
 from lib.packet.path import SCIONPath  # , min_mtu
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
 from lib.types import PCBType, PayloadClass
@@ -99,7 +100,7 @@ class ASMarking(Cerealizable):
             p.pcbms[i] = pm.p
         p.exts.init("revInfos", len(rev_infos))
         for i, rev_info in enumerate(rev_infos):
-            p.exts.revInfos[i] = rev_info.pack()
+            p.exts.revInfos[i] = rev_info.p
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
@@ -136,7 +137,10 @@ class ASMarking(Cerealizable):
             for pcbm in self.iter_pcbms():
                 b.append(pcbm.sig_pack(6))
             b.append(self.p.egRevToken)
-            b.extend(self.p.exts.revInfos)
+            # SHANTANU : Call .copy() to pack since it is not root struct.
+            tempList = [RevocationInfo(r.copy()).pack() for r in
+                        self.p.exts.revInfos]
+            b.extend(tempList)
             b.append(self.p.mtu.to_bytes(2, 'big'))
             b.append(self.p.chain)
         return b"".join(b)

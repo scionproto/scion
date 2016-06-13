@@ -38,6 +38,8 @@ from lib.defines import (
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TOPO_FILE,
+    TIME_T,
+    TIME_t,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import (
@@ -78,7 +80,7 @@ from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
 from lib.types import L4Proto, PayloadClass
 from lib.topology import Topology
-from lib.util import hex_str
+from lib.util import hex_str, SCIONTime
 
 
 MAX_QUEUE = 30
@@ -146,6 +148,18 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_socket(True)
         self._startup = time.time()
+
+    def get_T(self):
+        cur_time = int(SCIONTime.get_time())
+        self._curT = cur_time // TIME_T
+        return self._curT
+
+    def get_t(self):
+        cur_time = int(SCIONTime.get_time()) % TIME_T
+        return cur_time // TIME_t
+
+    def get_time_since_epoch(self):
+        return SCIONTime.get_time() % TIME_t
 
     def _setup_socket(self, init):
         """
@@ -337,7 +351,7 @@ class SCIONElement(object):
             if_id = spkt.path.get_fwd_if()
         if if_id in self.ifid2er:
             return self.ifid2er[if_id].addr, SCION_UDP_EH_DATA_PORT
-        logging.error("Unable to find first hop:\n", spkt.path)
+        logging.error("Unable to find first hop")
         return None, None
 
     def _ext_first_hop(self, spkt):

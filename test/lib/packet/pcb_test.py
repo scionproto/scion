@@ -23,6 +23,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
 from test.testcommon import assert_these_calls, create_mock_full
 
@@ -59,8 +60,8 @@ class TestASMarkingFromValues(object):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         cchain = create_mock_full({"pack()": "cchain"})
         revs = []
-        for i in range(2):
-            revs.append(create_mock_full({"pack()": "rev %d" % i}))
+        revs.append(RevocationInfo.from_values(1, 0, "abcd", [], "qw", "er"))
+        revs.append(RevocationInfo.from_values(2, 0, "pqr", [], "ty", "ui"))
         # Call
         ASMarking.from_values("isdas", 2, 3, pcbms, "eg rev token", "mtu",
                               cchain, ifid_size=14, rev_infos=revs)
@@ -86,7 +87,9 @@ class TestASMarkingSigPack(object):
         for i in range(3):
             pcbms.append(create_mock_full({
                 "sig_pack()": bytes("pcbm %i" % i, "ascii")}))
-        exts = create_mock_full({"revInfos": [b"rev0", b"rev1"]})
+        rev0 = RevocationInfo.from_values(1, 0, "abcd", [], "qw", "er").p
+        rev1 = RevocationInfo.from_values(1, 0, "abcd", [], "qw", "er").p
+        exts = create_mock_full({"revInfos": [rev0, rev1]})
         inst = ASMarking(create_mock_full({
             "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "egRevToken": b"eg rev", "exts": exts, "mtu": 1482, "chain":
@@ -95,7 +98,10 @@ class TestASMarkingSigPack(object):
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
         expected = b"".join([
             b"isdas", bytes.fromhex("00000002 00000003 04"),
-            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"eg rev", b"rev0", b"rev1",
+            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"eg rev", b"\x10\x0bP\x02\x04" +
+            b"\x01\x01\x00\x00\x11\r\"\x11\r\x07\x11\r\x12\x11\r\x12\x0fabc" +
+            b"dP\x01\x01\x03qw\x03er\x10\x0bP\x02\x04\x01\x01\x00\x00\x11\r" +
+            b"\"\x11\r\x07\x11\r\x12\x11\r\x12\x0fabcdP\x01\x01\x03qw\x03er",
             bytes.fromhex("05ca"), b"chain"])
         # Call
         ntools.eq_(inst.sig_pack(9), expected)
