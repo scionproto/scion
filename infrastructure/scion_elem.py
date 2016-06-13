@@ -38,6 +38,8 @@ from lib.defines import (
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TOPO_FILE,
+    HASHTREE_TTL,
+    EPOCH_TIME,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import (
@@ -146,6 +148,17 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_socket(True)
         self._startup = time.time()
+
+    def get_ttl_window(self):
+        cur_time = int(time.time())
+        return cur_time // HASHTREE_TTL
+
+    def get_current_epoch(self):
+        cur_window = int(time.time()) % HASHTREE_TTL
+        return cur_window // EPOCH_TIME
+
+    def get_time_since_epoch(self):
+        return time.time() % EPOCH_TIME
 
     def _setup_socket(self, init):
         """
