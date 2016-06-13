@@ -44,6 +44,55 @@ class timeout(stdsock.timeout):
     pass
 
 
+class LWIPError(object):
+    ERR_OK = 0  # No error, everything OK.
+    ERR_MEM = -1  # Out of memory error.
+    ERR_BUF = -2  # Buffer error.
+    ERR_TIMEOUT = -3  # Timeout.
+    ERR_RTE = -4  # Routing problem.
+    ERR_INPROGRESS = -5  # Operation in progress
+    ERR_VAL = -6  # Illegal value.
+    ERR_WOULDBLOCK = -7  # Operation would block.
+    ERR_USE = -8  # Address in use.
+    ERR_ISCONN = -9  # Already connected.
+    ERR_ABRT = -10  # Connection aborted.
+    ERR_RST = -11  # Connection reset.
+    ERR_CLSD = -12  # Connection closed.
+    ERR_CONN = -13  # Not connected.
+    ERR_ARG = -14  # Illegal argument.
+    ERR_IF = -15  # Low-level netif error.
+    ERR_SYS = -128  # System's call error.
+
+    ERR2STR = {
+        ERR_OK: "Ok.",
+        ERR_MEM: "Out of memory error.",
+        ERR_BUF: "Buffer error.",
+        ERR_TIMEOUT: "Timeout.",
+        ERR_RTE: "Routing problem.",
+        ERR_INPROGRESS: "Operation in progress.",
+        ERR_VAL: "Illegal value.",
+        ERR_WOULDBLOCK: "Operation would block.",
+        ERR_USE: "Address in use.",
+        ERR_ISCONN: "Already connected.",
+        ERR_ABRT: "Connection aborted.",
+        ERR_RST: "Connection reset.",
+        ERR_CLSD: "Connection closed.",
+        ERR_CONN: "Not connected.",
+        ERR_ARG: "Illegal argument.",
+        ERR_IF: "Low-level netif error.",
+        ERR_SYS: "System's call error."
+        }
+
+    def is_fatal(self, err):
+        return err < self.ERR_ISCONN
+
+    def err2str(self, err):
+        if err in self.ERR2STR:
+            return self.ERR2STR[err]
+        logging.error("Unknown error code.")
+        return None
+
+
 class SCIONSocket(object):
     BUFLEN = 1024
 
