@@ -26,20 +26,26 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "lwip/sys.h"
 #include "lwip/api.h"
+#include "lwip/err.h"
 #include "lwip/ip_addr.h"
+#include "lwip/sys.h"
+#include "lwip/tcpip.h"
 #include "libscion/address.h"
 #include "zlog.h"
 
 #define LWIP_SOCK_DIR "/run/shm/lwip/"
 #define RPCD_SOCKET "/run/shm/lwip/lwip"
-#define SOCK_PATH_LEN 36  // of "accept" socket
+#define SOCK_PATH_LEN 36  /* of "accept" socket */
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 2)
 #define TCPMW_BUFLEN 1024
+#define ERR_MW -127  /* API/TCP middleware error. */
+#define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
 
 zlog_category_t *zc_tcp;
+int sys_err;
+s8_t lwip_err;
 
 struct conn_args{
     int fd;
@@ -58,5 +64,6 @@ void tcpmw_recv(struct conn_args *);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
 void tcpmw_get_recv_tout(struct conn_args *);
 void tcpmw_close(struct conn_args *);
+void tcpmw_fail(int, const char *);
 
 #endif

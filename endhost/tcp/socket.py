@@ -61,6 +61,7 @@ class LWIPError(object):
     ERR_CONN = -13  # Not connected.
     ERR_ARG = -14  # Illegal argument.
     ERR_IF = -15  # Low-level netif error.
+    ERR_MW = -127  # API/TCP middleware error.
     ERR_SYS = -128  # System's call error.
 
     ERR2STR = {
@@ -80,6 +81,7 @@ class LWIPError(object):
         ERR_CONN: "Not connected.",
         ERR_ARG: "Illegal argument.",
         ERR_IF: "Low-level netif error.",
+        ERR_MW: "API/TCP middleware error.",
         ERR_SYS: "System's call error."
         }
 

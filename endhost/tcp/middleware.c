@@ -15,17 +15,36 @@
  */
 #include "middleware.h"
 
+void tcpmw_fail(int fd, const char *msg){
+    if (lwip_err)
+        if (lwip_err == ERR_MW)
+            zlog_debug(zc_tcp, "API/TCP middleware error.");
+        else if (lwip_err == ERR_SYS)
+            zlog_debug(zc_tcp, "System's call error.");
+        else
+            zlog_debug(zc_tcp, "%s", lwip_strerr(lwip_err));
+    if (sys_err){
+        zlog_debug(zc_tcp, "%s", strerror(sys_err));
+        lwip_err = ERR_SYS;
+    }
+    write(fd, msg, RESP_SIZE);
+}
+
 void tcpmw_socket(int fd){
     char buf[8];
     struct conn_args *args;
     struct netconn *conn;
     pthread_t tid;
 
+    lwip_err = 0;
+    sys_err = 0;
     if (read(fd, buf, sizeof(buf)) != CMD_SIZE){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_socket() error on read");
         goto fail;
     }
     if (strncmp(buf, "NEWS", CMD_SIZE)){
+        lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_socket() wrong command");
         goto fail;
     }
@@ -40,10 +59,12 @@ void tcpmw_socket(int fd){
     /* Create a detached thread. */
     pthread_attr_t attr;
     if (pthread_attr_init(&attr)){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_socket(): attribute init failed");
         goto fail;
     }
     if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_socket(): setting detached state failed");
         goto fail;
     }
@@ -51,6 +72,7 @@ void tcpmw_socket(int fd){
     args->fd = fd;
     args->conn = conn;
     if (pthread_create(&tid, &attr, &tcpmw_sock_thread, args)){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_create() failed");
         free(args);
         goto fail;
@@ -59,18 +81,20 @@ void tcpmw_socket(int fd){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(fd, "NEWSER", RESP_SIZE);
+    tcpmw_fail(fd, "NEWSER");
     close(fd);
-    return;
 }
 
 void tcpmw_bind(struct conn_args *args, char *buf, int len){
     ip_addr_t addr;
     u16_t port, svc;
     char *p = buf;
+
+    lwip_err = 0;
+    sys_err = 0;
     zlog_info(zc_tcp, "BIND received");
     if ((len < CMD_SIZE + 5 + ADDR_NONE_LEN) || (len > CMD_SIZE + 5 + ADDR_IPV6_LEN)){
+        lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_bind(): wrong command");
         goto fail;
     }
@@ -83,7 +107,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     args->conn->pcb.ip->svc = svc;  /* set svc for TCP/IP context */
     scion_addr_from_raw(&addr, p[0], p + 1);
     /* TODO(PSz): test bind with addr = NULL */
-    if (netconn_bind(args->conn, &addr, port) != ERR_OK){
+    if ((lwip_err = netconn_bind(args->conn, &addr, port)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_bind() failed");
         goto fail;
     }
@@ -92,9 +116,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(args->fd, "BINDER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "BINDER");
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
@@ -102,6 +124,8 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     u16_t port, path_len;
     char *p = buf;
 
+    lwip_err = 0;
+    sys_err = 0;
     zlog_info(zc_tcp, "CONN received");
     p += CMD_SIZE;  /* skip "CONN" */
     port = *((u16_t *)p);
@@ -127,7 +151,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     memcpy(&(path->first_hop.sin_addr), p, 4);
     path->first_hop.sin_port = htons(*(uint16_t *)(p + 4));
 
-    if (netconn_connect(args->conn, &addr, port) != ERR_OK){
+    if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect() failed");
         /* Path is freed in tcpmw_pcb_remove() */
         goto fail;
@@ -136,14 +160,14 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(args->fd, "CONNER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "CONNER");
 }
 
 void tcpmw_listen(struct conn_args *args){
+    lwip_err = 0;
+    sys_err = 0;
     zlog_info(zc_tcp, "LIST received");
-    if (netconn_listen(args->conn) != ERR_OK){
+    if ((lwip_err = netconn_listen(args->conn)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_listen() failed");
         goto fail;
     }
@@ -151,9 +175,7 @@ void tcpmw_listen(struct conn_args *args){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(args->fd, "LISTER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "LISTER");
 }
 
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
@@ -162,13 +184,16 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     struct sockaddr_un addr;
     struct netconn *newconn;
 
+    lwip_err = 0;
+    sys_err = 0;
     zlog_info(zc_tcp, "ACCE received");
     if (len != CMD_SIZE + SOCK_PATH_LEN){
+        lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_accept(): incorrect ACCE length");
         goto fail;
     }
 
-    if (netconn_accept(args->conn, &newconn) != ERR_OK){
+    if ((lwip_err = netconn_accept(args->conn, &newconn)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept() failed");
         goto fail;
     }
@@ -177,6 +202,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     sprintf(accept_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf + CMD_SIZE);
     zlog_info(zc_tcp, "connecting to %s", accept_path);
     if ((new_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): socket() failed");
         goto fail;
     }
@@ -184,6 +210,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, accept_path, sizeof(addr.sun_path)-1);
     if (connect(new_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): connect() to %s failed", accept_path);
         goto fail;
     }
@@ -192,10 +219,12 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     pthread_attr_t attr;
     pthread_t tid;
     if (pthread_attr_init(&attr)){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): attribute init failed");
         goto fail;
     }
     if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): setting detached state failed");
         goto fail;
     }
@@ -203,6 +232,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     new_args->fd = new_fd;
     new_args->conn = newconn;
     if (pthread_create(&tid, &attr, &tcpmw_sock_thread, new_args)){
+        sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_create() failed");
         free(new_args);
         goto fail;
@@ -231,9 +261,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(args->fd, "ACCEER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "ACCEER");
 }
 
 void tcpmw_send(struct conn_args *args, char *buf, int len){
@@ -241,6 +269,8 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     u32_t size;
     size_t written;
 
+    lwip_err = 0;
+    sys_err = 0;
     p += CMD_SIZE;  /* skip "SEND" */
     len -= CMD_SIZE;
     size = *((u32_t *)p);
@@ -252,10 +282,11 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     /* could allocate temporary buf or sync buf size with python's send(). */
     while (1){
         if (len > size){
+            lwip_err = ERR_MW;
             zlog_error(zc_tcp, "tcpmw_send(): received more than to send");
             goto fail;
         }
-        if (netconn_write_partly(args->conn, p, len, NETCONN_COPY, &written) != ERR_OK){
+        if ((lwip_err = netconn_write_partly(args->conn, p, len, NETCONN_COPY, &written)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send(): netconn_write() failed");
             zlog_debug(zc_tcp, "netconn_write(): len/written/size: %d/%lu/%d", len, written, size);
             goto fail;
@@ -270,8 +301,9 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
             continue;
         }
         /* read new part from app */
-        len=read(args->fd, buf, TCPMW_BUFLEN);
+        len = read(args->fd, buf, TCPMW_BUFLEN);
         if (len < 1){
+            sys_err = errno;
             zlog_error(zc_tcp, "tcpmw_send(): local sock read() error");
             goto fail;
         }
@@ -281,9 +313,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(args->fd, "SENDER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "SENDER");
 }
 
 void tcpmw_recv(struct conn_args *args){
@@ -292,18 +322,19 @@ void tcpmw_recv(struct conn_args *args){
     void *data;
     u16_t len;
 
-    int ret = netconn_recv(args->conn, &buf);
-    if (ret != ERR_OK){
-        if (ret == ERR_TIMEOUT){
-            zlog_warn(zc_tcp, "tcpmw_recv(): timeouted");
-            write(args->fd, "RECVERTOUT", RESP_SIZE + 4);
-            return;
-        }
+    lwip_err = 0;
+    sys_err = 0;
+    if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
+        /* if (ret == ERR_TIMEOUT){ */
+        /*     zlog_warn(zc_tcp, "tcpmw_recv(): timeouted"); */
+        /*     write(args->fd, "RECVERTOUT", RESP_SIZE + 4); */
+        /*     return; */
+        /* } */
         zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv() failed");
         goto fail;
     }
 
-    if (netbuf_data(buf, &data, &len) != ERR_OK){
+    if ((lwip_err = netbuf_data(buf, &data, &len)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_recv(): netbuf_data() failed");
         goto fail;
     }
@@ -318,14 +349,15 @@ void tcpmw_recv(struct conn_args *args){
     return;
 
 fail:
-    zlog_debug(zc_tcp, "%s", strerror(errno));
-    write(args->fd, "RECVER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "RECVER");
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
+    lwip_err = 0;
+    sys_err = 0;
     zlog_info(zc_tcp, "SRTO received");
     if (len != CMD_SIZE + 4){
+        lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_set_recv_tout(): incorrect SRTO length");
         goto fail;
     }
@@ -337,8 +369,7 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    write(args->fd, "SRTOER", RESP_SIZE);
-    return;
+    tcpmw_fail(args->fd, "SRTOER");
 }
 
 void tcpmw_get_recv_tout(struct conn_args *args){
@@ -349,7 +380,6 @@ void tcpmw_get_recv_tout(struct conn_args *args){
     *(u32_t *)(msg + RESP_SIZE) = (u32_t)timeout;
     write(args->fd, msg, RESP_SIZE + 4);
     free(msg);
-    return;
 }
 
 void tcpmw_close(struct conn_args *args){
