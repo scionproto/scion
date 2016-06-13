@@ -33,10 +33,24 @@ class RevocationInfo(PathMgmtPayloadBase):
     P_CLS = P.RevInfo
 
     @classmethod
-    def from_values(cls, rev_token):
+    def from_values(cls, if_id, epoch, nonce, siblings, prev_root, next_root):
         """
         Returns a RevocationInfo object with the specified values.
 
-        :param bytes rev_token: revocation token of interface
+        :param int if_id: ID of the interface to be revoked
+        :param int epoch: Time epoch for which interface is to be revoked
+        :param bytes nonce: Nonce for the (if_id, epoch) leaf in the hashtree
+        :param list[(bool, bytes)] siblings: Positions and hashes of siblings
+        :param bytes prev_root: Hash of the tree root at time T-1
+        :param bytes next_root: Hash of the tree root at time T+1
         """
-        return cls(cls.P_CLS.new_message(revToken=rev_token))
+        # Put the if_id, epoch and nonce of the leaf into the proof.
+        proof = cls.P_CLS.new_message(ifID=if_id, epoch=epoch, nonce=nonce)
+        # Put the list of sibling hashes (along with l/r) into the proof.
+        sibs = proof.init('siblings', len(siblings))
+        for index in range(len(siblings)):
+            sibs[index].isLeft, sibs[index].hash = siblings[index]
+        # Put the roots of the hash trees at T-1 and T+1.
+        proof.prevRoot = prev_root
+        proof.nextRoot = next_root
+        return cls(proof)

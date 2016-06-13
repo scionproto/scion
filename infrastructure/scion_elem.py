@@ -38,6 +38,8 @@ from lib.defines import (
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TOPO_FILE,
+    TIME_T,
+    TIME_t,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import (
@@ -146,6 +148,18 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_socket(True)
         self._startup = time.time()
+
+    def get_T(self):
+        cur_time = int(time.time())
+        self._curT = cur_time // TIME_T
+        return self._curT
+
+    def get_t(self):
+        cur_time = int(time.time()) % TIME_T
+        return cur_time // TIME_t
+
+    def get_time_since_epoch(self):
+        return time.time() % TIME_t
 
     def _setup_socket(self, init):
         """
