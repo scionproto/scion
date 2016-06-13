@@ -54,7 +54,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
-    # The tolerable error in epoch in seconds 
+    # The tolerable error in epoch in seconds.
     EPOCH_TOLERANCE = 5
 
     def __init__(self, server_id, conf_dir):

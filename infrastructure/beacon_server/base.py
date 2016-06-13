@@ -90,7 +90,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             hash-chain for each interface.
     """
     SERVICE_TYPE = BEACON_SERVICE
-    # The tolerable error in epoch in seconds 
+    # The tolerable error in epoch in seconds.
     EPOCH_TOLERANCE = 5
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
