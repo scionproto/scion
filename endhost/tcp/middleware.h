@@ -40,6 +40,7 @@
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 2)
 #define TCPMW_BUFLEN 1024
+#define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
 
@@ -64,6 +65,6 @@ void tcpmw_recv(struct conn_args *);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
 void tcpmw_get_recv_tout(struct conn_args *);
 void tcpmw_close(struct conn_args *);
-void tcpmw_fail(int, const char *);
+void tcpmw_reply(int, const char *);
 
 #endif

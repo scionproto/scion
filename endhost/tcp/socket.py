@@ -33,7 +33,7 @@ AF_SCION = 11
 SOCK_STREAM = stdsock.SOCK_STREAM
 MAX_MSG_LEN = 2 << 31  # u32_t is used as size_t at middleware
 CMD_SIZE = 4
-RESP_SIZE = CMD_SIZE + 2  # either "OK" or "ER" is appended
+RESP_SIZE = CMD_SIZE + 1  # either return (error) code is appended.
 
 
 class error(stdsock.error):
@@ -61,6 +61,8 @@ class LWIPError(object):
     ERR_CONN = -13  # Not connected.
     ERR_ARG = -14  # Illegal argument.
     ERR_IF = -15  # Low-level netif error.
+    # PSz: codes below are added by me.
+    ERR_NEW = -126  # netconn_new() error.
     ERR_MW = -127  # API/TCP middleware error.
     ERR_SYS = -128  # System's call error.
 
@@ -81,8 +83,9 @@ class LWIPError(object):
         ERR_CONN: "Not connected.",
         ERR_ARG: "Illegal argument.",
         ERR_IF: "Low-level netif error.",
+        ERR_NEW: "netconn_new() error.",
         ERR_MW: "API/TCP middleware error.",
-        ERR_SYS: "System's call error."
+        ERR_SYS: "System's call error.",
         }
 
     def is_fatal(self, err):
@@ -108,6 +111,23 @@ class SCIONSocket(object):
         self._lwip_sock = None
         self._lwip_accept = None
         self._recv_buf = b''
+
+    def _handle_reply(self, cmd, reply):
+        reply = reply[:RESP_SIZE]
+        if len(reply) < RESP_SIZE or cmd != reply[:CMD_SIZE]:
+            raise error("%s: incorrect reply:%d" % (cmd, reply))
+        err_code, = struct.unpack("b", reply[CMD_SIZE])
+        if err_code:
+            err_str = LWIPError.err2str(err_code)
+            msg = "%s: (%d) %s" % (cmd, err_code, err_str)
+            if LWIPError.is_fatal(err_code):
+                logging.error(msg)
+            else:
+                logging.warning(msg)
+            if err_code == LWIPError.ERR_TIMEOUT:
+                raise timeout(msg)
+            else:
+                raise error(msg)
 
     def bind(self, addr_port, svc=None):
         if svc is None:

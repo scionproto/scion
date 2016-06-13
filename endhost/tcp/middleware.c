@@ -15,19 +15,25 @@
  */
 #include "middleware.h"
 
-void tcpmw_fail(int fd, const char *msg){
-    if (lwip_err)
+void tcpmw_reply(int fd, const char *msg){
+    char buf[RESP_SIZE + 1];  /* Append LWIP's error code. */
+    if (lwip_err){
         if (lwip_err == ERR_MW)
             zlog_debug(zc_tcp, "API/TCP middleware error.");
+        else if (lwip_err == ERR_NEW)
+            zlog_debug(zc_tcp, "netconn_new() error.");
         else if (lwip_err == ERR_SYS)
             zlog_debug(zc_tcp, "System's call error.");
         else
             zlog_debug(zc_tcp, "%s", lwip_strerr(lwip_err));
+    }
     if (sys_err){
         zlog_debug(zc_tcp, "%s", strerror(sys_err));
         lwip_err = ERR_SYS;
     }
-    write(fd, msg, RESP_SIZE);
+    memcpy(buf, msg, RESP_SIZE);
+    buf[RESP_SIZE] = lwip_err;  /* Set error code. */
+    write(fd, msg, RESP_SIZE + 1);
 }
 
 void tcpmw_socket(int fd){
@@ -50,8 +56,8 @@ void tcpmw_socket(int fd){
     }
     zlog_info(zc_tcp, "NEWS received");
 
-    conn = netconn_new(NETCONN_TCP);
-    if (conn == NULL){
+    if ((conn = netconn_new(NETCONN_TCP)) == NULL){
+        lwip_err = ERR_NEW;
         zlog_error(zc_tcp, "tcpmw_socket(): netconn_new() failed");
         goto fail;
     }
@@ -81,7 +87,7 @@ void tcpmw_socket(int fd){
     return;
 
 fail:
-    tcpmw_fail(fd, "NEWSER");
+    tcpmw_reply(fd, "NEWSER");
     close(fd);
 }
 
@@ -116,7 +122,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "BINDER");
+    tcpmw_reply(args->fd, "BINDER");
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
@@ -160,7 +166,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "CONNER");
+    tcpmw_reply(args->fd, "CONNER");
 }
 
 void tcpmw_listen(struct conn_args *args){
@@ -175,7 +181,7 @@ void tcpmw_listen(struct conn_args *args){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "LISTER");
+    tcpmw_reply(args->fd, "LISTER");
 }
 
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
@@ -261,7 +267,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "ACCEER");
+    tcpmw_reply(args->fd, "ACCEER");
 }
 
 void tcpmw_send(struct conn_args *args, char *buf, int len){
@@ -313,7 +319,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "SENDER");
+    tcpmw_reply(args->fd, "SENDER");
 }
 
 void tcpmw_recv(struct conn_args *args){
@@ -349,7 +355,7 @@ void tcpmw_recv(struct conn_args *args){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "RECVER");
+    tcpmw_reply(args->fd, "RECVER");
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
@@ -369,7 +375,7 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     return;
 
 fail:
-    tcpmw_fail(args->fd, "SRTOER");
+    tcpmw_reply(args->fd, "SRTOER");
 }
 
 void tcpmw_get_recv_tout(struct conn_args *args){
