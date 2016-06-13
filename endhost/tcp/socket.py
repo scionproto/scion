@@ -272,9 +272,7 @@ class SCIONSocket(object):
         req = b"SRTO" + struct.pack("I", timeout)
         self._to_lwip(req)
         rep = self._from_lwip()
-        if rep != b"SRTOOK":
-            logging.error("set_recv_tout() failed: %s" % rep)
-            raise error("set_recv_tout() failed: %s" % rep)
+        self._handle_reply(req[:CMD_SIZE], rep)
 
     def get_recv_tout(self):
         req = b"GRTO"
