@@ -29,7 +29,8 @@ void *dispatcherThread(void *arg)
     SCIONSocket *ss = (SCIONSocket *)arg;
     int sock = ss->getReliableSocket();
     uint8_t buf[DISPATCHER_BUF_SIZE];
-    struct sockaddr_in addr;
+    HostAddr addr;
+    memset(&addr, 0, sizeof(addr));
     ss->waitForRegistration();
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_cleanup_push(receiverCleanup, arg);
@@ -41,18 +42,20 @@ void *dispatcherThread(void *arg)
             ss->shutdown(true);
             return NULL;
         }
-        int addr_len = 0;
+        uint8_t addr_type = 0;
         int packet_len = 0;
-        parse_dp_header(buf, &addr_len, &packet_len);
+        parse_dp_header(buf, &addr_type, &packet_len);
         if (packet_len == 0) {
             fprintf(stderr, "invalid dispatcher header\n");
             exit(1);
         }
+        int addr_len = get_addr_len(addr_type);
         len = recv_all(sock, buf, addr_len + 2 + packet_len);
         if (len > 0) {
             DEBUG("received %d bytes from dispatcher, addr_len = %d\n", len, addr_len);
-            memcpy(&addr.sin_addr, buf, addr_len);
-            addr.sin_port = *(uint16_t *)(buf + addr_len);
+            addr.addr_type = addr_type;
+            memcpy(&addr.addr, buf, addr_len);
+            addr.port = *(uint16_t *)(buf + addr_len);
             ss->handlePacket(buf + addr_len + 2, packet_len, &addr);
         }
     }
@@ -148,20 +151,14 @@ int SCIONSocket::bind(SCIONAddr addr)
         return -EPERM;
     }
 
-    if (addr.host.addr_len < 0 || addr.host.addr_len > MAX_HOST_ADDR_LEN) {
-        DEBUG("invalid addr len: %d\n", addr.host.addr_len);
+    if (addr.host.addr_type == 0 || addr.host.addr_type > MAX_HOST_ADDR_LEN) {
+        DEBUG("invalid addr type: %d\n", addr.host.addr_type);
         return -EINVAL;
     }
 
     mBound = true;
     mLocalAddr = addr;
 
-    if (addr.isd_as == 0 && addr.host.port == 0) {
-        struct sockaddr_in sa;
-        socklen_t len = sizeof(sa);
-        getsockname(mReliableSocket, (struct sockaddr *)&sa, &len);
-        addr.host.port = ntohs(sa.sin_port);
-    }
     int ret = mProtocol->bind(addr, mReliableSocket);
     if (mProtocolID == L4_UDP) {
         pthread_mutex_lock(&mRegisterMutex);
@@ -297,40 +294,32 @@ void SCIONSocket::signalSelect()
     pthread_mutex_unlock(&mSelectMutex);
 }
 
-void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr)
+void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
 {
     DEBUG("received SCION packet: %lu bytes\n", len);
-    DEBUG("sent from %s:%d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
+    DEBUG("sent from %s:%d\n", inet_ntoa(*(struct in_addr *)addr->addr), addr->port);
     // SCION header
     SCIONPacket *packet = (SCIONPacket *)malloc(sizeof(SCIONPacket));
     memset(packet, 0, sizeof(SCIONPacket));
     gettimeofday(&(packet->arrivalTime), NULL);
     SCIONHeader &sh = packet->header;
-    SCIONCommonHeader &sch = sh.commonHeader;
+    SCIONCommonHeader *sch = &sh.commonHeader;
     memcpy(&sh, buf, sizeof(SCIONCommonHeader));
-    sch.total_len = ntohs(sch.total_len);
+    sch->total_len = ntohs(sch->total_len);
 
     memcpy(sh.srcAddr, buf + sizeof(SCIONCommonHeader), ISD_AS_LEN);
     memcpy(sh.srcAddr + ISD_AS_LEN, get_src_addr(buf), get_src_len(buf));
     memcpy(sh.dstAddr, get_dst_addr(buf) - ISD_AS_LEN, ISD_AS_LEN);
     memcpy(sh.dstAddr + ISD_AS_LEN, get_dst_addr(buf), get_dst_len(buf));
-    DEBUG("SCION header len = %d bytes\n", sch.header_len);
-    DEBUG("total packet len = %d bytes\n", sch.total_len);
-
-    // address
-    SCIONAddr srcAddr;
-    memset(&srcAddr, 0, sizeof(srcAddr));
-    srcAddr.isd_as = ntohl(*(uint32_t *)(sh.srcAddr));
-    // TODO: IPv6?
-    srcAddr.host.addr_len = ADDR_IPV4_LEN;
-    memcpy(srcAddr.host.addr, sh.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
+    DEBUG("SCION header len = %d bytes\n", sch->header_len);
+    DEBUG("total packet len = %d bytes\n", sch->total_len);
 
     // path
     sh.pathLen = get_path_len(buf);
     if (sh.pathLen > 0) {
         sh.path = (uint8_t *)malloc(sh.pathLen);
 #ifdef SIMULATOR
-        memcpy(sh.path, buf + sch.header_len - sh.pathLen, sh.pathLen);
+        memcpy(sh.path, buf + sch->header_len - sh.pathLen, sh.pathLen);
 #else
         int res = reverse_path(buf, sh.path);
         if (res < 0) {
@@ -340,9 +329,9 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
         }
 #endif
     }
-    packet->firstHop = (uint32_t)(addr->sin_addr.s_addr);
+    packet->firstHop = *addr;
 
-    uint8_t *ptr = parseExtensions(&packet->header, buf + sch.header_len);
+    uint8_t *ptr = parseExtensions(&packet->header, buf + sch->header_len);
 
     if (mIsListener) {
         bool claimed = checkChildren(packet, ptr);
@@ -354,7 +343,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
             addr.host.port = 0;
             s->bind(addr);
             s->mParent = this;
-            s->mProtocol->start(packet, buf + sch.header_len, s->mReliableSocket);
+            s->mProtocol->start(packet, buf + sch->header_len, s->mReliableSocket);
             s->mRegistered = true;
             pthread_cond_signal(&s->mRegisterCond);
             pthread_mutex_lock(&mAcceptMutex);

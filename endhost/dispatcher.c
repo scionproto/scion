@@ -312,9 +312,9 @@ void handle_app()
     zlog_info(zc, "new socket created: %d", sock);
     /*
      * Application message format:
-     * cookie (8B) | addr_len (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
+     * cookie (8B) | addr_type (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
      * addr and port denote first hop for outgoing packets
-     * if addr_len == 0, addr and port fields are omitted (which is the case for registration messages)
+     * if addr_type == 0, addr and port fields are omitted (which is the case for registration messages)
      */
     int len = recv_all(sock, buf, DP_HEADER_LEN);
     if (len < 0) {
@@ -323,14 +323,14 @@ void handle_app()
         return;
     }
     int packet_len = 0;
-    // Here addr_len will always be 0 and there will be no port number either
+    // Here addr_type will always be 0 and there will be no port number either
     parse_dp_header(buf, NULL, &packet_len);
     if (packet_len < 0) {
         zlog_error(zc, "invalid dispatcher header in registration packet");
         close(sock);
         return;
     }
-    // addr_len is 0
+    // addr_type is 0
     len = recv_all(sock, buf, packet_len);
     if (len > 2) { /* command (1B) | proto (1B) | id */
         unsigned char protocol = buf[1];
@@ -568,7 +568,7 @@ void handle_data()
     }
     HostAddr from;
     memcpy(from.addr, &src_si.sin_addr, 4);
-    from.addr_len = 4;
+    from.addr_type = ADDR_IPV4_TYPE;
     from.port = ntohs(src_si.sin_port);
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
@@ -731,7 +731,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, sockaddr_in *from)
 
     HostAddr host;
     memcpy(host.addr, &from->sin_addr.s_addr, 4);
-    host.addr_len = 4;
+    host.addr_type = ADDR_IPV4_TYPE;
     host.port = ntohs(from->sin_port);
 
     send_dp_header(e->sock, &host, len);
@@ -746,7 +746,7 @@ void handle_send(int index)
 
     /*
      * Application message format:
-     * cookie (8B) | addr_len (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
+     * cookie (8B) | addr_type (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
      * addr and port denote first hop for outgoing packets
      */
     res = recv_all(sock, buf, DP_HEADER_LEN);
@@ -755,14 +755,16 @@ void handle_send(int index)
         return;
     }
 
-    int addr_len, packet_len;
-    parse_dp_header(buf, &addr_len, &packet_len);
-    if (packet_len < 0 || addr_len == 0) {
+    uint8_t addr_type;
+    int packet_len;
+    parse_dp_header(buf, &addr_type, &packet_len);
+    if (packet_len < 0 || addr_type == 0) {
         zlog_error(zc, "invalid header sent from app - Cookie: %" PRIx64, *(uint64_t *)buf);
-        zlog_error(zc, "addr_len = %d, packet_len = %d", addr_len, packet_len);
+        zlog_error(zc, "addr_type = %d, packet_len = %d", addr_type, packet_len);
         cleanup_socket(sock, index, EIO);
         return;
     }
+    int addr_len = get_addr_len(addr_type);
     if (recv_all(sock, buf, addr_len + 2 + packet_len) < 0) {
         zlog_error(zc, "error reading from application");
         cleanup_socket(sock, index, errno);

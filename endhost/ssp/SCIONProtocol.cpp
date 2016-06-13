@@ -156,7 +156,7 @@ int SCIONProtocol::setISDWhitelist(void *data, size_t len)
 {
     if (!mPathManager)
         return -EPERM;
-    // Disallow chaning policy if connection is already active
+    // Disallow changing policy if connection is already active
     if (mNextSendByte != 1)
         return -EPERM;
     return mPathManager->setISDWhitelist(data, len);
@@ -416,17 +416,17 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     DEBUG("incoming SSP packet\n");
 
     uint8_t *ptr = buf;
-    SCIONCommonHeader &sch = packet->header.commonHeader;
+    SCIONCommonHeader *sch = &packet->header.commonHeader;
     if (mDstAddr.isd_as == 0) {
         mDstAddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
-        mDstAddr.host.addr_len = get_src_len((uint8_t *)&sch);
-        memcpy(mDstAddr.host.addr, packet->header.srcAddr + ISD_AS_LEN, mDstAddr.host.addr_len);
+        mDstAddr.host.addr_type = SRC_TYPE(sch);
+        memcpy(mDstAddr.host.addr, packet->header.srcAddr + ISD_AS_LEN, get_addr_len(mDstAddr.host.addr_type));
     }
 
     // Build SSP incoming packet
     SSPPacket *sp = new SSPPacket();
     buildSSPHeader(&(sp->header), ptr);
-    int payloadLen = sch.total_len - sch.header_len - sp->header.headerLen;
+    int payloadLen = sch->total_len - sch->header_len - sp->header.headerLen;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
         payloadLen -= (ext->headerLen + 1) * 8;

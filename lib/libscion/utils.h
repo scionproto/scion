@@ -5,7 +5,7 @@
 #define DP_HEADER_LEN (DP_COOKIE_LEN + 5)
 
 int validate_cookie(uint8_t *buf);
-void parse_dp_header(uint8_t *buf, int *addr_len, int *packet_len);
+void parse_dp_header(uint8_t *buf, uint8_t *addr_len, int *packet_len);
 void write_dp_header(uint8_t *buf, HostAddr *host, int packet_len);
 int send_dp_header(int sock, HostAddr *host, int packet_len);
 
