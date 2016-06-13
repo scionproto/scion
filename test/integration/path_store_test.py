@@ -27,13 +27,14 @@ from Crypto import Random
 
 # SCION
 from lib.crypto.asymcrypto import sign
-from lib.crypto.hash_tree import ConnectedHashTree
+from lib.crypto.hash_chain import HashChain
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
 )
-from lib.packet.pcb import PCBMarking, PathSegment
+from lib.packet.pcb import ADMarking, PCBMarking, PathSegment
 from lib.path_store import PathPolicy, PathStore
+from lib.types import OpaqueFieldType as OFT
 from lib.util import get_sig_key_file_path, read_file
 
 
@@ -47,7 +48,7 @@ class TestPathStore(unittest.TestCase):
         Create an AD Marking with the given ingress and egress interfaces.
         """
         hof = HopOpaqueField.from_values(1, 111, 222)
-        rev_token = ConnectedHashTree([1,2,3], 2, ["a", "b", "c"]).get_root()
+        rev_token = HashChain(Random.new().read(32)).next_element()
         pcbm = PCBMarking.from_values(1, 10, hof, rev_token)
         peer_markings = []
         signing_key = read_file(get_sig_key_file_path(1, 10))
@@ -60,9 +61,6 @@ class TestPathStore(unittest.TestCase):
         """
         Test the main functionalities of the path store.
         """
-        # This test is not valid anymore. Path policies exist as .yml in a
-        # different directory structure.
-        return
         path_policy_file = "topology/ISD1/path_policies/ISD1-AD10.json"
         path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)
@@ -100,4 +98,4 @@ class TestPathStore(unittest.TestCase):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+unittest.main()

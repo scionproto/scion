@@ -89,8 +89,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
                                         self._cached_entries_handler)
         self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
-                                        self._rev_entries_handler)
-        
+                                       self._rev_entries_handler)
 
     def worker(self):
         """
@@ -190,7 +189,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
-        self._revs_to_zk.append(rev_info.copy().pack()) # have to pack copy
+        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         h = hash((rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot))
         if h in self.revocations:
             logging.debug("Already received revocation. Dropping...")
@@ -380,12 +379,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for raw in self._revs_to_zk:
             hash_ = SHA256.new(raw).hexdigest()
             try:
-                self.rev_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), raw)
+                self.rev_cache.store("%s-%s" % (hash_, SCIONTime.get_time()),
+                                     raw)
             except ZkNoConnection:
                 logging.warning("Unable to store revocation(s) in shared path: "
                                 "no connection to ZK")
         self._revs_to_zk = deque()
-    
 
     def _zk_write(self, data):
         hash_ = SHA256.new(data).hexdigest()
