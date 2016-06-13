@@ -1,5 +1,5 @@
 #!/bin/bash
-rm -Rf logs/* && ./scion.sh stop && ./scion.sh run
+./scion.sh stop && rm -Rf logs/* && ./scion.sh run
 sleep 15
 ./supervisor/supervisor.sh stop as$1-$2:er$1-$2er$3-$4
 sleep 15

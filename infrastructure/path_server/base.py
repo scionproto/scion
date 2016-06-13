@@ -48,6 +48,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
+    # ZK path for incoming REVs
+    ZK_REV_CACHE_PATH = "rev_cache"
     # Max number of segments per propagation packet
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
@@ -77,6 +79,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             },
         }
         self._segs_to_zk = deque()
+        self._revs_to_zk = deque()
         # Add more IPs here if we support dual-stack
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                 str(self.addr.host)])
@@ -85,6 +88,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.zk.retry("Joining party", self.zk.party_setup)
         self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
                                         self._cached_entries_handler)
+        self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
+                                        self._rev_entries_handler)
+        
 
     def worker(self):
         """
@@ -100,10 +106,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             try:
                 self.zk.wait_connected()
                 self.path_cache.process()
+                self.rev_cache.process()
                 # Try to become a master.
                 is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
                 if is_master:
                     self.path_cache.expire(self.config.propagation_time * 10)
+                    self.rev_cache.expire(self.config.propagation_time * 10)
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass
@@ -125,6 +133,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _update_master(self):
         pass
+
+    def _rev_entries_handler(self, raw_entries):
+        for raw in raw_entries:
+            rev_info = RevocationInfo.from_raw(raw)
+            self._remove_revoked_segments(rev_info)
 
     def _add_if_mappings(self, pcb):
         """
@@ -177,6 +190,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
+        self._revs_to_zk.append(rev_info.copy().pack()) # have to pack copy
         h = hash((rev_info.p.ifID, rev_info.p.prevRoot, rev_info.p.nextRoot))
         if h in self.revocations:
             logging.debug("Already received revocation. Dropping...")
@@ -301,6 +315,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _propagate_and_sync(self):
         self._share_via_zk()
+        self._share_revs_via_zk()
 
     def _gen_prop_recs(self, queue, limit=PROP_LIMIT):
         count = 0
@@ -357,6 +372,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                                             limit=self.ZK_SHARE_LIMIT):
             seg_recs = PathSegmentRecords.from_values(pcb_dict)
             self._zk_write(seg_recs.pack())
+
+    def _share_revs_via_zk(self):
+        if not self._revs_to_zk:
+            return
+        logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
+        for raw in self._revs_to_zk:
+            hash_ = SHA256.new(raw).hexdigest()
+            try:
+                self.rev_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), raw)
+            except ZkNoConnection:
+                logging.warning("Unable to store revocation(s) in shared path: "
+                                "no connection to ZK")
+        self._revs_to_zk = deque()
+    
 
     def _zk_write(self, data):
         hash_ = SHA256.new(data).hexdigest()
