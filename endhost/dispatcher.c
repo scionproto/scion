@@ -86,7 +86,7 @@ Entry *poll_fd_list = NULL;
 SVCEntry *svc_list = NULL;
 
 static struct pollfd sockets[MAX_SOCKETS];
-static int num_sockets = 3; // app_socket, data_socket, data_v6_socket
+static int num_sockets = 2; // app_socket, data_socket, data_v6_socket
 
 static int data_socket;
 static int data_v6_socket;
@@ -193,10 +193,13 @@ int create_sockets()
     app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
     data_socket = socket(AF_INET, SOCK_DGRAM, 0);
     data_v6_socket = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (data_socket < 0 || data_v6_socket < 0 || app_socket < 0) {
+    if (data_socket < 0 || app_socket < 0) {
         zlog_fatal(zc, "failed to open sockets");
         return -1;
     }
+    if (data_v6_socket < 0)
+        zlog_info(zc, "IPv6 not supported on this host");
+
     if (set_sockopts() < 0) {
         zlog_fatal(zc, "failed to set socket options");
         return -1;
@@ -214,11 +217,14 @@ int create_sockets()
     sockets[APP_INDEX].events = POLLIN;
     sockets[DATA_INDEX].fd = data_socket;
     sockets[DATA_INDEX].events = POLLIN;
-    sockets[DATA_V6_INDEX].fd = data_v6_socket;
-    sockets[DATA_V6_INDEX].events = POLLIN;
+    if (data_v6_socket > 0) {
+        num_sockets = 3;
+        sockets[DATA_V6_INDEX].fd = data_v6_socket;
+        sockets[DATA_V6_INDEX].events = POLLIN;
+    }
 
     int i;
-    for (i = 3; i < MAX_SOCKETS; i++) {
+    for (i = num_sockets; i < MAX_SOCKETS; i++) {
         sockets[i].fd = -1;
         sockets[i].events = 0;
         sockets[i].revents = 0;
@@ -236,14 +242,19 @@ int set_sockopts()
      */
     int res = setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     res |= setsockopt(data_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
-    res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-    res |= setsockopt(data_v6_socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval, sizeof(optval));
+    if (data_v6_socket > 0) {
+        res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        res |= setsockopt(data_v6_socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval, sizeof(optval));
+        res |= setsockopt(data_v6_socket, SOL_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
+    }
     optval = 1 << 20;
     res |= setsockopt(data_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
-    res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
     res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
     res |= fcntl(data_socket, F_SETFL, O_NONBLOCK);
-    res |= fcntl(data_v6_socket, F_SETFL, O_NONBLOCK);
+    if (data_v6_socket > 0) {
+        res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
+        res |= fcntl(data_v6_socket, F_SETFL, O_NONBLOCK);
+    }
     return res;
 }
 
@@ -279,19 +290,21 @@ int bind_data_sockets()
     }
     zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
 
-    sockaddr_in6 sa6;
-    memset(&sa6, 0, sizeof(sa6));
-    sa6.sin6_family = AF_INET6;
-    sa6.sin6_addr = in6addr_any;
-    sa6.sin6_port = htons(SCION_UDP_EH_DATA_PORT);
-    char str[50];
-    inet_ntop(AF_INET6, &sa6.sin6_addr, str, 50);
-    if (bind(data_v6_socket, (struct sockaddr *)&sa6, sizeof(sa6)) < 0) {
-        zlog_fatal(zc, "failed to bind v6 data socket to %s : %d, %s",
-                str, ntohs(sa6.sin6_port), strerror(errno));
-        return -1;
+    if (data_v6_socket > 0) {
+        sockaddr_in6 sa6;
+        memset(&sa6, 0, sizeof(sa6));
+        sa6.sin6_family = AF_INET6;
+        sa6.sin6_addr = in6addr_any;
+        sa6.sin6_port = htons(SCION_UDP_EH_DATA_PORT);
+        char str[50];
+        inet_ntop(AF_INET6, &sa6.sin6_addr, str, 50);
+        if (bind(data_v6_socket, (struct sockaddr *)&sa6, sizeof(sa6)) < 0) {
+            zlog_fatal(zc, "failed to bind v6 data socket to %s : %d, %s",
+                    str, ntohs(sa6.sin6_port), strerror(errno));
+            return -1;
+        }
+        zlog_info(zc, "data v6 socket bound to %s:%d", str, ntohs(sa6.sin6_port));
     }
-    zlog_info(zc, "data v6 socket bound to %s:%d", str, ntohs(sa6.sin6_port));
     return 0;
 }
 
