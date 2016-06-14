@@ -10,6 +10,9 @@
 
 static const uint8_t cookie[] = { 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0x03 };
 
+#define ADDR_BUF_SIZE 50
+char addr_buf[ADDR_BUF_SIZE];
+
 int validate_cookie(uint8_t *buf)
 {
     return !memcmp(buf, cookie, DP_COOKIE_LEN);
@@ -85,4 +88,16 @@ int send_all(int sock, uint8_t *buf, int len)
         sent += ret;
     }
     return sent;
+}
+
+const char * addr_to_str(uint8_t *addr, uint8_t type)
+{
+    switch (type) {
+        case ADDR_IPV4_TYPE:
+            return inet_ntop(AF_INET, addr, addr_buf, ADDR_BUF_SIZE);
+        case ADDR_IPV6_TYPE:
+            return inet_ntop(AF_INET6, addr, addr_buf, ADDR_BUF_SIZE);
+        default:
+            return NULL;
+    }
 }
