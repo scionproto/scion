@@ -31,7 +31,7 @@ cmd_run() {
     fi
     echo "Running the network..."
     bash gen/zk_datalog_dirs.sh || exit 1
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/../scion-lwip-contrib/ports/unix/proj/scion/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/sub/lwip-contrib/ports/unix/proj/scion/
     supervisor/supervisor.sh quickstart dispatcher:dispatcher
     supervisor/supervisor.sh quickstart all
 }
