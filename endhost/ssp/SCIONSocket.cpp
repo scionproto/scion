@@ -297,7 +297,7 @@ void SCIONSocket::signalSelect()
 void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
 {
     DEBUG("received SCION packet: %lu bytes\n", len);
-    DEBUG("sent from %s:%d\n", inet_ntoa(*(struct in_addr *)addr->addr), addr->port);
+    DEBUG("sent from %s:%d\n", addr_to_str(addr->addr, addr->addr_type), addr->port);
     // SCION header
     SCIONPacket *packet = (SCIONPacket *)malloc(sizeof(SCIONPacket));
     memset(packet, 0, sizeof(SCIONPacket));

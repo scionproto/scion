@@ -467,14 +467,14 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         memcpy(e->l4_key.host, buf + common + 8, addr_len);
         end = addr_len + common + 8;
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
-                inet_ntoa(*(struct in_addr *)e->l4_key.host), e->l4_key.port, e->l4_key.flow_id);
+                addr_to_str(e->l4_key.host, type), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
-        zlog_info(zc, "registration for %s:%d", inet_ntoa(*(struct in_addr *)e->l4_key.host), e->l4_key.port);
+        zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type), e->l4_key.port);
     }
     if (IS_SCMP_REQ(*buf))
         e->scmp = 1;
@@ -637,8 +637,10 @@ void handle_data(int v6)
 
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *dst_ptr = get_dst_addr(buf);
     int dst_len = get_dst_len(buf);
+    uint8_t dst_type = DST_TYPE(sch);
     Entry *e;
     L4Key key;
     memset(&key, 0, sizeof(key));
@@ -649,7 +651,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
-                    key.port, ISD(key.isd_as), AS(key.isd_as), inet_ntoa(*(struct in_addr *)key.host));
+                    key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type));
             return;
         }
     } else {
@@ -657,12 +659,12 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
-                    ISD(key.isd_as), AS(key.isd_as), inet_ntoa(*(struct in_addr *)key.host), key.flow_id);
+                    ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type), key.flow_id);
             return;
         }
     }
     zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64, 
-               inet_ntoa(*(struct in_addr *)dst_ptr), key.port, key.flow_id);
+               addr_to_str(dst_ptr, dst_type), key.port, key.flow_id);
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);
 }
@@ -677,10 +679,8 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
 
     uint16_t checksum = scion_udp_checksum(buf);
     if (checksum != udp->checksum) {
-#if 0
         zlog_error(zc, "Bad UDP checksum in packet to %s. Expected:%04x Got:%04x",
-                inet_ntoa(dst->sin_addr), ntohs(udp->checksum), ntohs(checksum));
-#endif
+                addr_to_str(dst->addr, dst->addr_type), ntohs(udp->checksum), ntohs(checksum));
         return;
     }
 
@@ -694,18 +694,14 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         SVCEntry *se;
         HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
         if (!se) {
-#if 0
             zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %d IP: %s",
                     ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
-                    inet_ntoa(dst->sin_addr));
-#endif
+                    addr_to_str(dst->addr, dst->addr_type));
             return;
         }
         sock = se->sockets[rand() % se->count];
-#if 0
         zlog_debug(zc, "deliver UDP packet to (%d-%d):%s",
-                ISD(svc_key.isd_as), AS(svc_key.isd_as), inet_ntoa(dst->sin_addr));
-#endif
+                ISD(svc_key.isd_as), AS(svc_key.isd_as), addr_to_str(dst->addr, dst->addr_type));
     } else {
         L4Key key;
         memset(&key, 0, sizeof(key));
@@ -718,7 +714,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "entry for %s:%d not found",
-                    inet_ntoa(*(struct in_addr *)(key.host)), key.port);
+                    addr_to_str(key.host, DST_TYPE(sch)), key.port);
             return;
         }
         sock = e->sock;
@@ -747,9 +743,7 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
     reverse_packet(buf);
     scmp->type = htons(SCMP_ECHO_REPLY);
     update_scmp_checksum(buf);
-#if 0
-    zlog_debug(zc, "send echo reply to %s:%d\n", inet_ntoa(from->sin_addr), ntohs(from->sin_port));
-#endif
+    zlog_debug(zc, "send echo reply to %s:%d\n", addr_to_str(from->addr, from->addr_type), ntohs(from->port));
     send_data(buf, from);
 }
 
@@ -777,11 +771,11 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
         zlog_error(zc, "entry for %s:%d not found\n",
-                inet_ntoa(*(struct in_addr *)(key.host)), key.port);
+                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf)), key.port);
         return;
     }
     zlog_debug(zc, "entry for %s:%d found\n",
-            inet_ntoa(*(struct in_addr *)(key.host)), key.port);
+            addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf)), key.port);
 
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);

@@ -134,7 +134,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
 {
     DEBUG("%p: bind to (%d-%d):%s\n",
             this, ISD(addr.isd_as), AS(addr.isd_as),
-            inet_ntoa(*(struct in_addr *)addr.host.addr));
+            addr_to_str(addr.host.addr, addr.host.addr_type));
 
     if (mLocalAddr.isd_as == 0)
         queryLocalAddress();
