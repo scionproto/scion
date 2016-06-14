@@ -370,16 +370,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Maintain the hashtree. Update the the windows in the connected tree
         """
-        if not self._hash_tree:
-            self._init_hash_tree()
-
-        T = self.get_ttl_window()
-        start = time.time()
-        seed = self.config.master_as_key + (T + 1).to_bytes(8, byteorder='big')
-        ifs = [x for x in self.ifid2er]
-        self._hash_tree.update(ifs, N_EPOCHS, seed)
-        sleep_interval(start, HASHTREE_TTL, "BS.hashtree TTL",
-                       self._quiet_startup())
+        while self.run_flag.is_set():
+            if not self._hash_tree:
+                self._init_hash_tree()
+            T = self.get_ttl_window()
+            start = time.time()
+            seed = self.config.master_as_key + (T + 1).to_bytes(8, 'big')
+            ifs = [x for x in self.ifid2er]
+            self._hash_tree.update(ifs, N_EPOCHS, seed)
+            logging.info("New Hash Tree TTL beginning")
+            sleep_interval(start, HASHTREE_TTL, "BS.hashtree TTL",
+                           self._quiet_startup())
 
     def worker(self):
         """
