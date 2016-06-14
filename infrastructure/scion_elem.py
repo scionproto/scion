@@ -374,10 +374,10 @@ class SCIONElement(object):
         """
         Send *packet* to *dst* (to port *dst_port*) using the local socket.
         Calling ``packet.pack()`` should return :class:`bytes`, and
-        ``dst.__str__()`` should return a string representing an IPv4 address.
+        ``dst.__str__()`` should return a string representing an IP address.
 
         :param packet: the packet to be sent to the destination.
-        :param str dst: the destination IPv4 address.
+        :param str dst: the destination IP address.
         :param int dst_port: the destination port number.
         """
         assert not isinstance(packet.addrs.src.host, HostAddrNone)

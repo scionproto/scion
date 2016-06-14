@@ -33,7 +33,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
-from lib.packet.host_addr import haddr_parse
+from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
@@ -197,7 +197,7 @@ class SCIONDaemon(SCIONElement):
           |p1_len(1B)|p1((p1_len*8)B)|fh_type(1B)|fh_IP(?B)|fh_port(2B)|mtu(2B)|
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
            p2_len(1B)|...
-         or b"" when no path found. Only IPv4 supported currently.
+         or b"" when no path found.
 
         FIXME(kormat): make IP-version independent
         """
@@ -211,12 +211,10 @@ class SCIONDaemon(SCIONElement):
                       dst_ia, len(paths))
         for path in paths:
             raw_path = path.pack()
-            # assumed IPv4 addr
             fwd_if = path.get_fwd_if()
             # Set dummy host addr if path is empty.
-            # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
             if fwd_if == 0:
-                haddr = haddr_parse("IPV4", "0.0.0.0")
+                haddr = HostAddrNone()
             else:
                 haddr = self.ifid2er[fwd_if].addr
             path_len = len(raw_path) // 8

@@ -65,6 +65,11 @@ void PathManager::getDefaultIP()
             mLocalAddr.host.addr_type = ADDR_IPV4_TYPE;
             memcpy(mLocalAddr.host.addr, &sa->sin_addr, ADDR_IPV4_LEN);
             break;
+        } else if (ifa->ifa_addr->sa_family == AF_INET6) {
+            struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
+            mLocalAddr.host.addr_type = ADDR_IPV6_TYPE;
+            memcpy(mLocalAddr.host.addr, &sa6->sin6_addr, ADDR_IPV6_LEN);
+            break;
         }
     }
     freeifaddrs(ifaddr);

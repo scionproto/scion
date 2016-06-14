@@ -436,7 +436,6 @@ int SSPPath::sendPacket(SCIONPacket *packet, int sock)
     }
     sch.total_len = htons(packet_len);
 
-    // TODO: Don't assume IPv4 (5 = 1 byte len + 4 byte addr)
     uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &packet->header);
@@ -613,7 +612,6 @@ int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
     }
     sch.total_len = htons(packet_len);
 
-    // TODO: Don't assume IPv4 (5 = 1 byte len + 4 byte addr)
     uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &sh);
