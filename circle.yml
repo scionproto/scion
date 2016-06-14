@@ -13,6 +13,11 @@ dependencies:
         - ./docker.sh build
         - docker/cache.sh save
 
+checkout:
+    post:
+      - git submodule sync
+      - git submodule update --init
+
 test:
     override:
         - ./docker.sh run -c "./scion.sh coverage -v"
