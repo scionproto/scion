@@ -15,7 +15,7 @@
  */
 #include "middleware.h"
 
-void *tcpmw_main_thread(void) {
+void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
     int fd, cl;
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {

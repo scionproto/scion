@@ -65,7 +65,7 @@ struct conn_args{
     struct netconn *conn;
 };
 
-void *tcpmw_main_thread(void);
+void *tcpmw_main_thread(void *);
 void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
 void tcpmw_bind(struct conn_args *, char *, int);
