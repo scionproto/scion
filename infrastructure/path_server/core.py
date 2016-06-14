@@ -22,7 +22,7 @@ from collections import deque
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.defines import PATH_FLAG_SIBRA
-from lib.packet.host_addr import haddr_parse
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion import SVCType
@@ -185,7 +185,7 @@ class CorePathServer(PathServer):
         if not master:
             logging.warning("_send_to_master(): _master_id not set.")
             return
-        pkt = self._build_packet(haddr_parse("IPV4", master),
+        pkt = self._build_packet(haddr_parse_interface(master),
                                  payload=pld.copy())
         self.send(pkt, master)
 

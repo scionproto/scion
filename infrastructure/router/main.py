@@ -146,7 +146,7 @@ class Router(SCIONElement):
         }
         self._remote_sock = UDPSocket(
             bind=(str(self.interface.addr), self.interface.udp_port),
-            addr_type=AddrType.IPV4,
+            addr_type=self.interface.addr.TYPE,
         )
         self._socks.add(self._remote_sock, self.handle_recv)
         logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
@@ -182,13 +182,13 @@ class Router(SCIONElement):
     def send(self, spkt, addr=None, port=SCION_UDP_EH_DATA_PORT):
         """
         Send a spkt to addr (class of that object must implement
-        __str__ which returns IPv4 addr) using port and local or remote
+        __str__ which returns IP addr string) using port and local or remote
         socket. If addr isn't set, use the destination address in the packet.
 
         :param spkt: The packet to send.
         :type spkt: :class:`lib.spkt.SCIONspkt`
         :param addr: The address of the next hop.
-        :type addr: :class:`IPv4Adress`
+        :type addr: :class:`HostAddrBase`
         :param int port: The port number of the next hop.
         """
         if addr is None:
