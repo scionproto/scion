@@ -1,4 +1,4 @@
-.PHONY: all clean dispatcher install
+.PHONY: all clean dispatcher lwip install
 
 CC=gcc
 CFLAGS +=-Wall -g
