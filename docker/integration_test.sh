@@ -45,8 +45,8 @@ export -f run log
 
 export PYTHONPATH=.
 
-log "Building C code"
-./scion.sh build
+log "Compiling"
+make -s c install || exit 1
 log "Starting scion"
 ./scion.sh run nobuild | grep -v "RUNNING"
 log "Scion status:"

@@ -1,4 +1,4 @@
-export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH"
+export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:/usr/lib/go-1.6/bin:$PATH"
 export SHELL
 export PYTHONPATH="$HOME/scion.git"
 
