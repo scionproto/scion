@@ -121,7 +121,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, HostAddr *from);
 void handle_send(int index);
 void cleanup_socket(int sock, int index, int err);
 
-int send_data(uint8_t *buf, HostAddr *first_hop);
+int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 
 int main(int argc, char **argv)
 {
@@ -476,8 +476,10 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         end = addr_len + common;
         zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type), e->l4_key.port);
     }
-    if (IS_SCMP_REQ(*buf))
+    if (IS_SCMP_REQ(*buf)) {
+        zlog_info(zc, "SCMP registration included");
         e->scmp = 1;
+    }
 
     if (len > end) {
         memcpy(svc_key.host, buf + end - addr_len, addr_len);
@@ -713,7 +715,8 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         Entry *e;
         HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "entry for %s:%d not found",
+            zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
+                    ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE(sch)), key.port);
             return;
         }
@@ -740,11 +743,12 @@ void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     reverse_packet(buf);
     scmp->type = htons(SCMP_ECHO_REPLY);
     update_scmp_checksum(buf);
     zlog_debug(zc, "send echo reply to %s:%d\n", addr_to_str(from->addr, from->addr_type), ntohs(from->port));
-    send_data(buf, from);
+    send_data(buf, ntohs(sch->total_len), from);
 }
 
 void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
@@ -770,11 +774,11 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     Entry *e;
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
-        zlog_error(zc, "entry for %s:%d not found\n",
+        zlog_error(zc, "SCMP entry for %s:%d not found\n",
                 addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf)), key.port);
         return;
     }
-    zlog_debug(zc, "entry for %s:%d found\n",
+    zlog_debug(zc, "SCMP entry for %s:%d found\n",
             addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf)), key.port);
 
     send_dp_header(e->sock, from, len);
@@ -818,12 +822,11 @@ void handle_send(int index)
     hop.addr_type = addr_type;
     memcpy(hop.addr, buf, addr_len);
     hop.port = *(uint16_t *)(buf + addr_len);
-    send_data(buf + addr_len + 2, &hop);
-#if 0
+    send_data(buf + addr_len + 2, packet_len, &hop);
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
-    zlog_debug(zc, "packet (l4 = %d) sent to %s:%d", l4, inet_ntoa(hop.sin_addr), ntohs(hop.sin_port));
-#endif
+    zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
+            packet_len, l4, addr_to_str(hop.addr, hop.addr_type), hop.port);
 }
 
 void cleanup_socket(int sock, int index, int err)
@@ -869,9 +872,8 @@ void cleanup_socket(int sock, int index, int err)
     }
 }
 
-int send_data(uint8_t *buf, HostAddr *first_hop)
+int send_data(uint8_t *buf, int len, HostAddr *first_hop)
 {
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     int ret = 0;
     errno = 0;
     if (first_hop->addr_type == ADDR_IPV4_TYPE) {
@@ -880,14 +882,14 @@ int send_data(uint8_t *buf, HostAddr *first_hop)
         sa.sin_family = AF_INET;
         sa.sin_port = htons(first_hop->port);
         memcpy(&sa.sin_addr, first_hop->addr, ADDR_IPV4_LEN);
-        ret = sendto(data_socket, buf, ntohs(sch->total_len), 0, (struct sockaddr *)&sa, sizeof(sa));
+        ret = sendto(data_socket, buf, len, 0, (struct sockaddr *)&sa, sizeof(sa));
     } else if (first_hop->addr_type == ADDR_IPV6_TYPE) {
         sockaddr_in6 sa6;
         memset(&sa6, 0, sizeof(sa6));
         sa6.sin6_family = AF_INET6;
         sa6.sin6_port = htons(first_hop->port);
         memcpy(&sa6.sin6_addr, first_hop->addr, ADDR_IPV6_LEN);
-        ret = sendto(data_v6_socket, buf, ntohs(sch->total_len), 0, (struct sockaddr *)&sa6, sizeof(sa6));
+        ret = sendto(data_v6_socket, buf, len, 0, (struct sockaddr *)&sa6, sizeof(sa6));
     } else {
         zlog_error(zc, "Unsupported first hop address type %d", first_hop->addr_type);
         errno = EINVAL;
