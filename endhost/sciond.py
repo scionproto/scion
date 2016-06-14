@@ -194,7 +194,7 @@ class SCIONDaemon(SCIONElement):
         Path request:
           | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
         Reply:
-          |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|mtu(2B)|
+          |p1_len(1B)|p1((p1_len*8)B)|fh_type(1B)|fh_IP(?B)|fh_port(2B)|mtu(2B)|
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
            p2_len(1B)|...
          or b"" when no path found. Only IPv4 supported currently.
@@ -221,7 +221,7 @@ class SCIONDaemon(SCIONElement):
                 haddr = self.ifid2er[fwd_if].addr
             path_len = len(raw_path) // 8
             reply.append(struct.pack("!B", path_len) + raw_path +
-                         haddr.pack() +
+                         struct.pack("!B", haddr.TYPE) + haddr.pack() +
                          struct.pack("!H", SCION_UDP_EH_DATA_PORT) +
                          struct.pack("!H", path.mtu) +
                          struct.pack("!B", len(path.interfaces)))

@@ -119,7 +119,7 @@ class TestClientBase(TestBase):
         data = self._try_sciond_api()
         path_len = data.pop(1) * 8
         self.path = SCIONPath(data.pop(path_len))
-        haddr_type = haddr_get_type("IPV4")
+        haddr_type = haddr_get_type(data.pop(1))
         data.pop(haddr_type.LEN)  # first hop, unused here
         data.pop(2)  # port number, unused here
         self.path.mtu = struct.unpack("!H", data.pop(2))[0]
