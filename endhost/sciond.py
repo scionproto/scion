@@ -34,7 +34,6 @@ from lib.defines import (
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
-from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
@@ -232,7 +231,7 @@ class SCIONDaemon(SCIONElement):
 
     def handle_revocation(self, pkt):
         rev_info = pkt.get_payload()
-        logging.debug("Received revocation:\n%s", str(rev_info))
+        logging.debug("Received revocation:\n%s", rev_info)
 
         # Go through all segment databases and remove affected segments.
         deletions = self._remove_revoked_pcbs(self.up_segments,
@@ -257,30 +256,27 @@ class SCIONDaemon(SCIONElement):
         :rtype: int
         """
 
-        if not rev_info.p.epoch == self.get_t():
+        if not rev_info.p.epoch == self.get_current_epoch():
             if not self.get_time_since_epoch() < 1:
                 logging.warning("Epochs did not match")
                 return
 
         to_remove = []
         for segment in db():
-            for asm in segment.pcb.asms:
-                ingress_if_id = HopOpaqueField(asm.pcbms[0].hof).ingress_if
-                egress_if_id = HopOpaqueField(asm.pcbms[0].hof).egress_if
-                ingress_iftoken = asm.pcbms[0].igRevToken
-                egress_iftoken = asm.egRevToken
-                if rev_info.p.ifID == ingress_if_id and \
-                    ConnectedHashTree.verify(rev_info,
-                                             ingress_iftoken,
-                                             self.get_t()):
+            for asm in segment.pcb.iter_asms():
+                if self.verify_asm(asm, rev_info):
                     to_remove.append(segment.get_hops_hash())
-                elif rev_info.p.ifID == egress_if_id and \
-                    ConnectedHashTree.verify(rev_info,
-                                             egress_iftoken,
-                                             self.get_t()):
-                    to_remove.append(segment.get_hops_hash())
-
         return db.delete_all(to_remove)
+
+    def verify_asm(self, asm, rev_info):
+        ingress_if_id = asm.pcbm(0).hof().ingress_if
+        egress_if_id = asm.pcbm(0).hof().egress_if
+        ingress_iftoken = asm.pcbm(0).p.igRevToken
+        egress_iftoken = asm.p.egRevToken
+        return ((rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(
+                    rev_info, ingress_iftoken, self.get_current_epoch())) or
+                (rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(
+                    rev_info, egress_iftoken, self.get_current_epoch())))
 
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""

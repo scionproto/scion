@@ -39,7 +39,7 @@ from lib.defines import (
     PATH_POLICY_FILE,
     PATH_SERVICE,
     SCION_UDP_PORT,
-    TIME_T,
+    HASHTREE_TTL,
     N_EPOCHS,
 )
 from lib.errors import (
@@ -120,7 +120,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
         logging.info(self.config.__dict__)
-        self._curT = 0
         self._hash_tree = None
         self._if_rev_token_lock = threading.Lock()
         self.revs_to_downstream = ExpiringDict(max_len=1000, max_age_seconds=60)
@@ -155,15 +154,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if self._hash_tree:
             return
         seed1 = self.config.master_as_key + \
-            (self.get_T() - 1).to_bytes(8, byteorder='big')
+            (self.get_ttl_window() - 1).to_bytes(8, byteorder='big')
         seed2 = self.config.master_as_key + \
-            (self.get_T() + 0).to_bytes(8, byteorder='big')
+            (self.get_ttl_window() + 0).to_bytes(8, byteorder='big')
         seed3 = self.config.master_as_key + \
-            (self.get_T() + 1).to_bytes(8, byteorder='big')
+            (self.get_ttl_window() + 1).to_bytes(8, byteorder='big')
         ifs = [x for x in self.ifid2er]
-        self._hash_tree = ConnectedHashTree(ifs,
-                                            N_EPOCHS,
-                                            [seed1, seed2, seed3])
+        self._hash_tree = ConnectedHashTree(
+                        ifs, N_EPOCHS, [seed1, seed2, seed3])
 
     def _get_hash_tree(self):
         if not self._hash_tree:
@@ -172,7 +170,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _get_proof(self, if_id):
         tree = self._get_hash_tree()
-        return tree.get_proof(if_id, self.get_t())
+        return tree.get_proof(if_id, self.get_current_epoch())
 
     def _get_root(self):
         tree = self._get_hash_tree()
@@ -304,8 +302,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             hof, self._get_root())
 
     def _create_asm_exts(self):
-        return {"rev_infos": [rev_info for (_, rev_info) in
-                              list(self.revs_to_downstream.items())]}
+        return {"rev_infos":
+                [r for (_, r) in list(self.revs_to_downstream.items())]}
 
     def _terminate_pcb(self, pcb):
         """
@@ -375,16 +373,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self._hash_tree:
             self._init_hash_tree()
 
-        oldT = self._curT
-        T = self.get_T()
-        if oldT == T:
-            T = T+1
-        logging.info("New T started, adding new hash tree")
+        T = self.get_ttl_window()
         start = time.time()
         seed = self.config.master_as_key + (T + 1).to_bytes(8, byteorder='big')
         ifs = [x for x in self.ifid2er]
         self._hash_tree.update(ifs, N_EPOCHS, seed)
-        sleep_interval(start, TIME_T, "BS.hashtree TTL",
+        sleep_interval(start, HASHTREE_TTL, "BS.hashtree TTL",
                        self._quiet_startup())
 
     def worker(self):
@@ -683,33 +677,26 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         cand.pcb.p.ifID == if_id):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
-                cur_epoch = self.get_t()
+                cur_epoch = self.get_current_epoch()
                 rev_epoch = rev_info.p.epoch
                 if not rev_epoch == cur_epoch:
-                    logging.warning("Gap is "+str(self.get_time_since_epoch()))
                     if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
-                        logging.warning("Epochs did not match " +
-                                        str(rev_epoch) +
-                                        " " + str(cur_epoch) + " " +
-                                        str(self.get_time_since_epoch()))
+                        logging.warning("Epochs did not match ")
                         continue
-
-                for asm in cand.pcb.p.asms:
-                    ingress_if_id = asm.pcbms[0].inIF
-                    egress_if_id = asm.pcbms[0].outIF
-                    ingress_iftoken = asm.pcbms[0].igRevToken
-                    egress_iftoken = asm.egRevToken
-                    if rev_info.p.ifID == ingress_if_id and \
-                        ConnectedHashTree.verify(rev_info,
-                                                 ingress_iftoken,
-                                                 self.get_t()):
-                        to_remove.append(cand.id)
-                    elif rev_info.p.ifID == egress_if_id and \
-                        ConnectedHashTree.verify(rev_info,
-                                                 egress_iftoken,
-                                                 self.get_t()):
+                for asm in cand.pcb.iter_asms():
+                    if self.verify_asm(asm, rev_info):
                         to_remove.append(cand.id)
         return to_remove
+
+    def verify_asm(self, asm, rev_info):
+        ingress_if_id = asm.pcbm(0).hof().ingress_if
+        egress_if_id = asm.pcbm(0).hof().egress_if
+        ingress_iftoken = asm.pcbm(0).p.igRevToken
+        egress_iftoken = asm.p.egRevToken
+        return ((rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(
+                    rev_info, ingress_iftoken, self.get_current_epoch())) or
+                (rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(
+                    rev_info, egress_iftoken, self.get_current_epoch())))
 
     def _handle_if_timeouts(self):
         """

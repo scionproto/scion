@@ -196,7 +196,6 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
 
     @classmethod
     def from_pkt(cls, pkt, if_id, ingress, rev_info):  # pragma: no cover
-        # SHANTANU
         # calling copy here since the rev_info will be part of an if_state_info
         # and hence is not the root struct; so cannot pack otherwise
         rev_token = rev_info.copy().pack()

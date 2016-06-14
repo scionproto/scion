@@ -70,15 +70,12 @@ class LocalPathServer(PathServer):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        cur_epoch = self.get_t()
+        cur_epoch = self.get_current_epoch()
         rev_epoch = rev_info.p.epoch
 
         if not rev_epoch == cur_epoch:
-            logging.warning("Gap is "+str(self.get_time_since_epoch()))
             if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
-                logging.warning("Epochs did not match" + str(rev_epoch) +
-                                " " + str(cur_epoch) + " " +
-                                str(self.get_time_since_epoch()))
+                logging.warning("Epochs did not match")
                 return
 
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
@@ -87,7 +84,7 @@ class LocalPathServer(PathServer):
         for H in (hash01, hash12):
             segments = self.astoken_if2seg.get((H, if_id))
             if not segments:
-                logging.warning("0 paths removed due to segments")
+                logging.warning("0 paths removed")
                 continue
             deletions = 0
             while segments:
@@ -95,7 +92,7 @@ class LocalPathServer(PathServer):
                 deletions += (self.up_segments.delete(sid) == 3)
                 deletions += (self.down_segments.delete(sid) == 3)
                 deletions += (self.core_segments.delete(sid) == 3)
-            logging.warning(str(deletions) + " paths removed")
+            logging.warning("%d paths removed", deletions)
             if (H, if_id) in self.astoken_if2seg:
                 del self.astoken_if2seg[(H, if_id)]
 

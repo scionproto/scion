@@ -137,10 +137,10 @@ class ASMarking(Cerealizable):
             for pcbm in self.iter_pcbms():
                 b.append(pcbm.sig_pack(6))
             b.append(self.p.egRevToken)
-            # SHANTANU : Call .copy() to pack since it is not root struct.
-            tempList = [RevocationInfo(r.copy()).pack() for r in
+            # Call .copy() to pack since it is not root struct.
+            rev_list = [RevocationInfo(r.copy()).pack() for r in
                         self.p.exts.revInfos]
-            b.extend(tempList)
+            b.extend(rev_list)
             b.append(self.p.mtu.to_bytes(2, 'big'))
             b.append(self.p.chain)
         return b"".join(b)

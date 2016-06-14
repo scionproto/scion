@@ -29,7 +29,6 @@ from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
-from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scion import SVCType
@@ -70,7 +69,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
         self.astoken_if2seg = defaultdict(set)
-        # FixMe: Should be an expiring dict with time = TTL = TIME_T, but size?
+        # FIXME(SIVA): astoken_if2seg Should be an expiring dict with
+        # expiration time ~ HASHTREE_TTL, but size?
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -145,20 +145,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Add if revocation token to segment ID mappings.
         """
         segment_id = pcb.get_hops_hash()
-        for asm in pcb.p.asms:
-            # SHANTANU: This addition is already being done in the loop below,
-            # so removing it; however it was there before the revocation
-            # changes were made too, so maybe it makes sense for some reason?
+        for asm in pcb.iter_asms():
             # self.astoken_if2seg[(asm.pcbms[0].igRevToken, asm.pcbms[0].inIF)]
             # .add(segment_id)
-
-            self.astoken_if2seg[(asm.egRevToken,
-                                 HopOpaqueField(asm.pcbms[0].hof).egress_if)] \
-                .add(segment_id)
-            for pm in asm.pcbms:
-                self.astoken_if2seg[(pm.igRevToken,
-                                     HopOpaqueField(pm.hof).ingress_if)] \
-                    .add(segment_id)
+            self.astoken_if2seg[(asm.p.egRevToken,
+                                 asm.pcbm(0).hof().egress_if)].add(segment_id)
+            for pm in asm.iter_pcbms():
+                self.astoken_if2seg[(pm.p.igRevToken,
+                                     pm.hof().ingress_if)].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -212,14 +206,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        cur_epoch = self.get_t()
+        cur_epoch = self.get_current_epoch()
         rev_epoch = rev_info.p.epoch
 
         if not rev_epoch == cur_epoch:
             if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
-                logging.warning("Epochs did not match" + str(rev_epoch) +
-                                " " + str(cur_epoch) + " " +
-                                str(self.get_time_since_epoch()))
+                logging.warning("Epochs did not match")
                 return
 
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
@@ -229,14 +221,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for H in (hash01, hash12):
             segments = self.astoken_if2seg.get((H, if_id))
             if not segments:
-                logging.warning("0 paths removed due to segments")
+                logging.warning("0 paths removed")
                 continue
             deletions = 0  # Keeps track of number of deleted segments.
             while segments:
                 sid = segments.pop()
                 deletions += (self.down_segments.delete(sid) == 3)
                 deletions += (self.core_segments.delete(sid) == 3)
-            logging.warning(str(deletions) + " paths removed")
+            logging.warning("%d paths removed", deletions)
             if (H, if_id) in self.astoken_if2seg:
                 del self.astoken_if2seg[(H, if_id)]
 
