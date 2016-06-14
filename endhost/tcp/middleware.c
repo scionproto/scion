@@ -353,7 +353,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     zlog_info(zc_tcp, "SEND received (%dB to send, locally received: %dB)", size, len);
 
     /* This is implemented more like send_all(). If this is not desired, we */
-    /* could allocate temporary buf or sync buf size with python's send(). */
+    /* could allocate temporary buf. */
     while (1){
         if (len > size){
             lwip_err = ERR_MW;
