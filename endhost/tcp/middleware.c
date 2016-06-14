@@ -135,7 +135,7 @@ void *tcpmw_sock_thread(void *data){
         /* zlog_info(zc_tcp, "read %u bytes from %d: %.*s", rc, args->fd, rc, buf); */
         if (rc < CMD_SIZE){
             zlog_error(zc_tcp, "tcpmw_sock_thread: command too short");
-            continue;
+            break;
         }
         if (!strncmp(buf, CMD_SEND, CMD_SIZE))
             tcpmw_send(args, buf, rc);

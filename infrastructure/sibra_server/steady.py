@@ -22,7 +22,6 @@ import threading
 import time
 
 # SCION
-from lib.crypto.asymcrypto import sign
 from lib.defines import (
     LINK_PARENT,
     LINK_ROUTING,
@@ -33,9 +32,9 @@ from lib.defines import (
 )
 from infrastructure.sibra_server.util import seg_to_hops
 from lib.errors import SCIONBaseError
-from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
+from lib.packet.pcb import PathSegment
 from lib.packet.scion import SVCType
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
@@ -43,8 +42,7 @@ from lib.packet.scion_udp import SCIONUDPHeader
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.payload import SIBRAPayload
-from lib.sibra.pcb_ext.info import SibraSegInfo
-from lib.sibra.pcb_ext.sof import SibraSegSOF
+from lib.sibra.pcb_ext import SibraPCBExt
 from lib.sibra.util import current_tick, tick_to_time
 from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime, hex_str
@@ -83,8 +81,7 @@ class SteadyPath(object):
         self.id = SibraExtSteady.mk_path_id(self.addr.isd_as)
         self.idx = 0
         self.blocks = []
-        first = self.seg.get_first_pcbm()
-        self.remote = first.isd_as
+        self.remote = self.seg.first_ia()
         self._lock = threading.RLock()
         self._stamp = None
 
@@ -154,9 +151,9 @@ class SteadyPath(object):
         if ext.accepted:
             self.blocks.append(ext.req_block)
             if ext.setup:
-                logging.info("Setup successful: %s", ext.req_block.info)
+                logging.info("Setup successful: %s", ext.req_block)
             else:
-                logging.debug("Renewal successful: %s", ext.req_block.info)
+                logging.debug("Renewal successful: %s", ext.req_block)
             self._register_path()
             self._stamp = None
             return
@@ -228,7 +225,7 @@ class SteadyPath(object):
         """
         dest = SCIONAddr.from_values(self.remote, SVCType.SB)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
-        payload = SIBRAPayload()
+        payload = SIBRAPayload.from_values()
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
         return cmn_hdr, addr_hdr, udp_hdr, payload
@@ -282,28 +279,37 @@ class SteadyPath(object):
             cmn_hdr, addr_hdr, path, [], udp_hdr, pld)
 
     def _create_reg_pcb(self, remote):
-        pcb = copy.deepcopy(self.seg)
         # TODO(kormat): It might make sense to remove peer markings also, but
         # they might also be needed for sibra steady paths that traverse peer
         # links in the future.
-        pcb.remove_crypto()
-        pcb.flags |= PSF.SIBRA
         latest = self.blocks[-1]
         assert latest.num_hops == len(latest.sofs)
         info = copy.deepcopy(latest.info)
         info.fwd_dir = not remote
-        for asm, sof in zip(reversed(pcb.ases), latest.sofs):
-            asm.add_ext(SibraSegSOF.from_values(sof))
+        sofs = latest.sofs[:]
+        up = True
+        if remote:
+            sofs.reverse()
+            if self.link_type == LINK_PARENT:
+                up = False
+        pcb_d = self.seg.to_dict()
         if remote and self.link_type == LINK_ROUTING:
-            pcb.ases.reverse()
-        sofs_fwd = False
-        if remote and self.link_type == LINK_PARENT:
-            sofs_fwd = True
-        last_asm = pcb.ases[-1]
-        last_asm.add_ext(SibraSegInfo.from_values(
-            self.id, info, sofs_fwd=sofs_fwd))
-        last_asm.sig = sign(pcb.pack(), self.signing_key)
+            pcb_d['asms'].reverse()
+        pcb = PathSegment.from_dict(pcb_d)
+        pcb_ext = SibraPCBExt.from_values(self.id, info, sofs, up)
+        pcb.remove_crypto()
+        pcb.add_sibra_ext(pcb_ext.p)
+        pcb.sign(self.signing_key)
+        logging.debug(self._reg_pcb_str(pcb))
         return pcb
+
+    def _reg_pcb_str(self, pcb):
+        a = []
+        for line in pcb.short_desc().splitlines():
+            a.append("  %s" % line)
+        for sof in pcb.sibra_ext.iter_sofs():
+            a.append("    %s" % sof)
+        return "\n".join(a)
 
     def __str__(self):
         with self._lock:

@@ -36,7 +36,6 @@ from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
-from lib.packet.pcb_ext import BeaconExtType
 from lib.packet.scion_addr import ISD_AS
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
@@ -83,7 +82,7 @@ class SCIONDaemon(SCIONElement):
             req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
-        self._api_socket = None
+        self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
         self.api_addr = (api_addr or
@@ -141,29 +140,26 @@ class SCIONDaemon(SCIONElement):
             PST.DOWN: self._handle_down_seg,
             PST.CORE: self._handle_core_seg,
         }
-        for type_, pcbs in path_reply.pcbs.items():
-            for pcb in pcbs:
-                ret = map_[type_](pcb)
-                if not ret:
-                    continue
-                flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
-                added.add((ret, flags))
+        for type_, pcb in path_reply.iter_pcbs():
+            ret = map_[type_](pcb)
+            if not ret:
+                continue
+            flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
+            added.add((ret, flags))
         logging.debug("Added: %s", added)
         for dst_ia, flags in added:
             self.requests.put(((dst_ia, flags), None))
 
     def _handle_up_seg(self, pcb):
-        first_ia = pcb.get_first_pcbm().isd_as
-        last_ia = pcb.get_last_pcbm().isd_as
-        if self.addr.isd_as != last_ia:
+        if self.addr.isd_as != pcb.last_ia():
             return None
         if self.up_segments.update(pcb) == DBResult.ENTRY_ADDED:
             logging.debug("Up segment added: %s", pcb.short_desc())
-            return first_ia
+            return pcb.first_ia()
         return None
 
     def _handle_down_seg(self, pcb):
-        last_ia = pcb.get_last_pcbm().isd_as
+        last_ia = pcb.last_ia()
         if self.addr.isd_as == last_ia:
             return None
         if self.down_segments.update(pcb) == DBResult.ENTRY_ADDED:
@@ -172,10 +168,9 @@ class SCIONDaemon(SCIONElement):
         return None
 
     def _handle_core_seg(self, pcb):
-        first_ia = pcb.get_first_pcbm().isd_as
         if self.core_segments.update(pcb) == DBResult.ENTRY_ADDED:
             logging.debug("Core segment added: %s", pcb.short_desc())
-            return first_ia
+            return pcb.first_ia()
         return None
 
     def api_handle_request(self, packet, sock):
@@ -189,8 +184,8 @@ class SCIONDaemon(SCIONElement):
                 args=(self._api_handle_path_request, packet, sock),
                 daemon=True).start()
         elif packet[0] == 1:  # address request
-            logging.debug('API: local addr request')
-            sock.send(self.addr.pack())
+            logging.debug('API: local ISD-AS request')
+            sock.send(self.addr.isd_as.pack())
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
@@ -332,7 +327,7 @@ class SCIONDaemon(SCIONElement):
                 res.add((None, None, dseg))
         # Check core-down combination.
         for dseg in self.down_segments(last_ia=dst_ia, sibra=sibra):
-            dseg_ia = dseg.get_first_pcbm().isd_as
+            dseg_ia = dseg.first_ia()
             if self.addr.isd_as == dseg_ia:
                 pass
             for cseg in self.core_segments(
@@ -354,8 +349,7 @@ class SCIONDaemon(SCIONElement):
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
-            cseg_ia = cseg.get_last_pcbm().isd_as
-            for useg in self.up_segments(first_ia=cseg_ia, sibra=sibra):
+            for useg in self.up_segments(first_ia=cseg.last_ia(), sibra=sibra):
                 res.add((useg, cseg, None))
         if sibra:
             return res
@@ -382,8 +376,8 @@ class SCIONDaemon(SCIONElement):
         up_segs = set(self.up_segments(sibra=True))
         down_segs = set(self.down_segments(last_ia=dst_ia, sibra=True))
         for up_seg, down_seg in product(up_segs, down_segs):
-            src_core_ia = up_seg.get_first_pcbm().isd_as
-            dst_core_ia = down_seg.get_first_pcbm().isd_as
+            src_core_ia = up_seg.first_ia()
+            dst_core_ia = down_seg.first_ia()
             if src_core_ia == dst_core_ia:
                 res.add((up_seg, down_seg))
                 continue
@@ -409,20 +403,20 @@ class SCIONDaemon(SCIONElement):
         return ret
 
     def _sibra_strip_pcb(self, pcb):
-        last_asm = pcb.ases[-1]
-        info_ext = last_asm.find_ext(BeaconExtType.SIBRA_SEG_INFO)
-        assert info_ext
-        resv_info = info_ext.info
+        assert pcb.is_sibra()
+        pcb_ext = pcb.sibra_ext
+        resv_info = pcb_ext.info
         resv = ResvBlockSteady.from_values(resv_info, pcb.get_n_hops())
-        asms = pcb.ases if info_ext.sofs_fwd else reversed(pcb.ases)
+        asms = pcb.iter_asms()
+        if pcb_ext.p.up:
+            asms = reversed(list(asms))
         iflist = []
-        for asm in asms:
-            sof = asm.find_ext(BeaconExtType.SIBRA_SEG_SOF).sof
+        for sof, asm in zip(pcb_ext.iter_sofs(), asms):
             resv.sofs.append(sof)
             iflist.extend(self._sibra_add_ifs(
-                asm.pcbm.isd_as, sof, resv_info.fwd_dir))
+                asm.isd_as(), sof, resv_info.fwd_dir))
         assert resv.num_hops == len(resv.sofs)
-        return info_ext.id, resv, iflist
+        return pcb_ext.p.id, resv, iflist
 
     def _sibra_add_ifs(self, isd_as, sof, fwd):
         def _add(ifid):
@@ -506,9 +500,9 @@ class SCIONDaemon(SCIONElement):
         src_core_ases = set()
         dst_core_ases = set()
         for seg in up_segs:
-            src_core_ases.add(seg.get_first_pcbm().isd_as[1])
+            src_core_ases.add(seg.first_ia()[1])
         for seg in down_segs:
-            dst_core_ases.add(seg.get_first_pcbm().isd_as[1])
+            dst_core_ases.add(seg.first_ia()[1])
         # Generate all possible AS pairs
         as_pairs = list(product(src_core_ases, dst_core_ases))
         return self._find_core_segs(self.addr.isd_as[0], dst_isd, as_pairs)

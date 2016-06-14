@@ -56,18 +56,23 @@ API_TOUT = 15
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, sd, data, finished, addr):
+    def __init__(self, sd, data, finished, addr, timeout=1.0):
         self.sd = sd
         self.data = data
         self.finished = finished
         self.addr = addr
-        self.sock = ReliableSocket(reg=(addr, 0, True, None))
-        self.sock.settimeout(1.0)
+        self._timeout = timeout
+        self.sock = self._create_socket(addr)
         self.success = None
 
     @abstractmethod
     def run(self):
         raise NotImplementedError
+
+    def _create_socket(self, addr):
+        sock = ReliableSocket(reg=(addr, 0, True, None))
+        sock.settimeout(self._timeout)
+        return sock
 
     def _recv(self):
         try:
@@ -92,13 +97,12 @@ class TestClientBase(TestBase):
     """
     def __init__(self, sd, data, finished, addr, dst, dport, api=True,
                  timeout=3.0):
-        super().__init__(sd, data, finished, addr)
-        self.sock.settimeout(timeout)
         self.dst = dst
         self.dport = dport
         self.api = api
         self.path = None
         self.iflist = []
+        super().__init__(sd, data, finished, addr, timeout)
         self._get_path(api)
 
     def _get_path(self, api):
@@ -271,6 +275,8 @@ class TestClientServerBase(object):
                 break
             src = SCIONAddr.from_values(src_ia, self.client_ip)
             dst = SCIONAddr.from_values(dst_ia, self.server_ip)
+            t = threading.current_thread()
+            t.name = "%s %s > %s main" % (self.NAME, src_ia, dst_ia)
             if not self._run_test(src, dst):
                 sys.exit(1)
 
@@ -285,7 +291,7 @@ class TestClientServerBase(object):
         data = self._create_data(src, dst)
         server = self._create_server(data, finished, dst)
         client = self._create_client(data, finished, src, dst, server.sock.port)
-        server_name = "Server %s" % dst.isd_as
+        server_name = "%s %s > %s server" % (self.NAME, src.isd_as, dst.isd_as)
         s_thread = threading.Thread(
             target=thread_safety_net, args=(server.run,), name=server_name,
             daemon=True)
@@ -363,6 +369,8 @@ def _parse_locs(as_str, as_list):
 def setup_main(name, parser=None):
     handle_signals()
     parser = parser or argparse.ArgumentParser()
+    parser.add_argument('-l', '--loglevel', default="INFO",
+                        help='Console logging level (Default: %(default)s)')
     parser.add_argument('-c', '--client', help='Client address')
     parser.add_argument('-s', '--server', help='Server address')
     parser.add_argument('-m', '--mininet', action='store_true',
@@ -374,7 +382,7 @@ def setup_main(name, parser=None):
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
     args = parser.parse_args()
-    init_logging("logs/%s" % name, console_level=logging.INFO)
+    init_logging("logs/%s" % name, console_level=args.loglevel)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"

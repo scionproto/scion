@@ -15,9 +15,6 @@
 :mod:`seg_recs` --- Path Segment records
 ============================================
 """
-# Stdlib
-from collections import defaultdict
-
 # External
 import capnp  # noqa
 
@@ -28,7 +25,7 @@ from lib.packet.pcb import PathSegment
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 
 
-class PathSegmentRecords(PathMgmtPayloadBase):
+class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
     """
     Path Record class used for sending list of down/up-paths. Paths are
     represented as objects of the PathSegment class.
@@ -37,34 +34,37 @@ class PathSegmentRecords(PathMgmtPayloadBase):
 
     def __init__(self, p):  # pragma: no cover
         super().__init__(p)
-        self.pcbs = defaultdict(list)
-        for entry in self.p.pcbs:
-            self.pcbs[entry.type].append(PathSegment(entry.raw))
+
+    def iter_pcbs(self):
+        for rec in self.p.recs:
+            yield rec.type, PathSegment(rec.pcb)
 
     @classmethod
     def from_values(cls, pcb_dict):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
         """
-        unrolled = []
+        p = cls.P_CLS.new_message()
+        flat = []
         for type_, pcbs in pcb_dict.items():
             for pcb in pcbs:
-                unrolled.append((type_, pcb))
-        p = cls.P_CLS.new_message()
-        p.init("pcbs", len(unrolled))
-        for i, (type_, pcb) in enumerate(unrolled):
-            p.pcbs[i].type = type_
-            p.pcbs[i].raw = pcb.pack()
+                flat.append((type_, pcb))
+        p.init("recs", len(flat))
+        for i, (type_, pcb) in enumerate(flat):
+            p.recs[i].type = type_
+            p.recs[i].pcb = pcb.p
         return cls(p)
 
     def __str__(self):
         s = []
         s.append("%s:" % self.NAME)
-        for type_ in [PST.UP, PST.DOWN, PST.CORE]:
-            if self.pcbs[type_]:
+        recs = list(self.iter_pcbs())
+        recs.sort(key=lambda x: x[0])
+        last_type = None
+        for type_, pcb in recs:
+            if type_ != last_type:
                 s.append("  %s:" % PST.to_str(type_))
-                for pcb in self.pcbs[type_]:
-                    s.append("    %s" % pcb.short_desc())
+            s.append("    %s" % pcb.short_desc())
         return "\n".join(s)
 
 

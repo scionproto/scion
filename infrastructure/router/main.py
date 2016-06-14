@@ -338,12 +338,12 @@ class Router(SCIONElement):
         """
         pcb = pkt.get_payload()
         if from_bs:
-            if self.interface.if_id != pcb.get_last_pcbm().hof.egress_if:
+            if self.interface.if_id != pcb.last_hof().egress_if:
                 logging.error("Wrong interface set by BS.")
                 return
             self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
         else:
-            pcb.if_id = self.interface.if_id
+            pcb.p.ifID = self.interface.if_id
             try:
                 bs_addr = self.get_srv_addr(BEACON_SERVICE, pkt)
             except SCIONServiceLookupError as e:
@@ -553,7 +553,10 @@ class Router(SCIONElement):
         hof = spkt.path.get_hof()
         if hof.verify_only:
             raise SCMPNonRoutingHOF
-        if spkt.addrs.dst.isd_as == self.addr.isd_as:
+        # FIXME(aznair): Remove second condition once PathCombinator is less
+        # stupid.
+        if (spkt.addrs.dst.isd_as == self.addr.isd_as and
+                spkt.path.is_on_last_segment()):
             self.deliver(spkt)
             return
         if ingress:

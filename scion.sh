@@ -31,7 +31,6 @@ cmd_run() {
     fi
     echo "Running the network..."
     bash gen/zk_datalog_dirs.sh || exit 1
-    supervisor/supervisor.sh quickstart dispatcher:dispatcher
     supervisor/supervisor.sh quickstart all
 }
 
@@ -74,14 +73,14 @@ cmd_version() {
 
 cmd_build() {
     if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make all install
+        USER_OPTS=-DBYPASS_ROUTERS make -s all install
     else
-        make all install
+        make -s all install
     fi
 }
 
 cmd_clean() {
-    make clean
+    make -s clean
 }
 
 SOCKDIR=endhost/ssp

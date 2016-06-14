@@ -59,7 +59,6 @@ typedef struct {
     uint8_t headerLen;
     uint64_t offset;
     uint8_t flags;
-    uint8_t mark;
 } SSPHeader;
 
 typedef struct {
@@ -118,6 +117,41 @@ struct SSPPacket {
         if (interfaces)
             free(interfaces);
     }
+
+    uint64_t getFlowID() { return be64toh(header.flowID); }
+    void setFlowID(uint64_t flowID) { header.flowID = htobe64(flowID); }
+
+    uint16_t getPort() { return ntohs(header.port); }
+    void setPort(uint16_t port) { header.port = htons(port); }
+
+    uint64_t getOffset() { return be64toh(header.offset) & 0xffffffffffffff; }
+    void setOffset(uint64_t offset) { header.offset = htobe64(offset & 0xffffffffffffff); }
+
+    uint8_t getMark() { return be64toh(header.offset) >> 56; }
+    void setMark(uint8_t mark)
+    {
+        uint64_t offset = mark;
+        offset = offset << 56;
+        offset |= getOffset();
+        header.offset = htobe64(offset);
+    }
+
+    uint64_t getL() { return be64toh(ack.L); }
+    void setL(uint64_t L) { ack.L = htobe64(L); }
+
+    int getI() { return ntohl(ack.I); }
+    void setI(int I) { ack.I = htonl(I); }
+
+    uint64_t getAckNum() { return getL() + getI(); }
+
+    int getH() { return ntohl(ack.H); }
+    void setH(int H) { ack.H = htonl(H); }
+
+    int getO() { return ntohl(ack.O); }
+    void setO(int O) { ack.O = htonl(O); }
+
+    uint32_t getV() { return ntohl(ack.V); }
+    void setV(uint32_t V) { ack.V = htonl(V); }
 
     std::shared_ptr<uint8_t> data;
     size_t len;

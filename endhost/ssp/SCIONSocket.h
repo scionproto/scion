@@ -27,6 +27,8 @@ public:
     int setSocketOption(SCIONOption *option);
     int getSocketOption(SCIONOption *option);
     uint32_t getLocalIA();
+    void setTimeout(double timeout);
+    double getTimeout();
 
     // construct SCION packet from incoming data
     void handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr);
@@ -38,7 +40,6 @@ public:
     bool isListener();
     bool isRunning();
     int getReliableSocket();
-    bool bypassDispatcher();
 
     // wait for dispatcher registration
     void waitForRegistration();
@@ -51,8 +52,10 @@ public:
 
     void * getStats(void *buf, int len);
 
-    int shutdown();
+    int shutdown(bool force=false);
     void removeChild(SCIONSocket *child);
+
+    void threadCleanup();
 
 private:
     bool checkChildren(SCIONPacket *packet, uint8_t *ptr);
@@ -65,6 +68,9 @@ private:
     int                        mLastAccept;
     bool                       mIsListener;
     char                       mSCIONDAddr[32];
+    SCIONAddr                  mLocalAddr;
+    bool                       mBound;
+    double                     mTimeout;
 
     SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;

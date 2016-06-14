@@ -27,7 +27,6 @@ from lib.packet.opaque_field import (
     OpaqueFieldList,
 )
 from lib.packet.packet_base import Serializable
-from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.util import Raw
 
 
@@ -291,6 +290,15 @@ class SCIONPath(Serializable):
             return iof.hops - 1
         return iof.hops - 2
 
+    def is_on_last_segment(self):
+        label = self._ofs.get_label_by_idx(self._hof_idx)
+        if label == self.A_HOFS:
+            return self._ofs.count(self.B_HOFS) == 0
+        elif label == self.B_HOFS:
+            return self._ofs.count(self.C_HOFS) == 0
+        else:
+            return True
+
     def __len__(self):  # pragma: no cover
         """Return the path length in bytes."""
         return len(self._ofs) * OpaqueField.LEN
@@ -340,8 +348,8 @@ class PathCombinator(object):
         Returns a list of all shortcut paths (peering and crossover paths) that
         can be built using the provided up- and down-segments.
 
-        :param list up_segments: List of `up` :any:`PathSegment`\s.
-        :param list down_segments: List of `down` :any:`PathSegment`\s.
+        :param list up_segments: List of `up` PathSegments.
+        :param list down_segments: List of `down` PathSegments.
         :returns: List of paths.
         """
         paths = []
@@ -364,7 +372,7 @@ class PathCombinator(object):
         """
         # TODO check if stub ASs are the same...
         if (not up_segment or not down_segment or
-                not up_segment.ases or not down_segment.ases):
+                not up_segment.p.asms or not down_segment.p.asms):
             return None
 
         # looking for xovr and peer points
@@ -386,15 +394,16 @@ class PathCombinator(object):
             return cls._join_shortcuts(up_segment, down_segment, xovr, False)
 
     @classmethod
-    def _add_interfaces(cls, path, segment_ases, up=True):
+    def _add_interfaces(cls, path, asms, up=True):
         """
-        Add interface IDs of segment_ases to path. Order of IDs depends on up
-        flag.
+        Add interface IDs of segment ASMarkings to path. Order of IDs depends on
+        up flag.
         """
-        for block in segment_ases:
-            isd_as = block.pcbm.isd_as
-            egress = block.pcbm.hof.egress_if
-            ingress = block.pcbm.hof.ingress_if
+        for asm in asms:
+            isd_as = asm.isd_as()
+            hof = asm.pcbm(0).hof()
+            egress = hof.egress_if
+            ingress = hof.ingress_if
             if up:
                 if egress:
                     path.interfaces.append((isd_as, egress))
@@ -413,15 +422,15 @@ class PathCombinator(object):
         flags, and optionally reversing the hops.
         """
         if not segment:
-            return None, None, None
-        iof = copy.deepcopy(segment.iof)
-        iof.up_flag = up
-        hofs, mtu = cls._copy_hofs(segment.ases, reverse=up)
+            return None, None, float("inf")
+        info = copy.deepcopy(segment.info)
+        info.up_flag = up
+        hofs, mtu = cls._copy_hofs(segment.iter_asms(), reverse=up)
         if xover_start:
             hofs[0].xover = True
         if xover_end:
             hofs[-1].xover = True
-        return iof, hofs, mtu
+        return info, hofs, mtu
 
     @classmethod
     def _get_xovr_peer(cls, up_segment, down_segment):
@@ -439,16 +448,15 @@ class PathCombinator(object):
         """
         xovrs = []
         peers = []
-        for up_i, up_as in enumerate(up_segment.ases[1:], 1):
-            for down_i, down_as in enumerate(down_segment.ases[1:], 1):
-                if up_as.pcbm.isd_as == down_as.pcbm.isd_as:
+        for up_i, up_asm in enumerate(up_segment.iter_asms(1), 1):
+            for down_i, down_asm in enumerate(down_segment.iter_asms(1), 1):
+                up_ia = up_asm.isd_as()
+                down_ia = down_asm.isd_as()
+                if up_ia == down_ia:
                     xovrs.append((up_i, down_i))
                     continue
-                for up_peer in up_as.pms:
-                    for down_peer in down_as.pms:
-                        if (up_peer.isd_as == down_as.pcbm.isd_as and
-                                down_peer.isd_as == up_as.pcbm.isd_as):
-                            peers.append((up_i, down_i))
+                if cls._join_shortcuts_peer(up_asm, down_asm):
+                    peers.append((up_i, down_i))
         xovr = peer = None
         if xovrs:
             xovr = max(xovrs, key=lambda tup: sum(tup))
@@ -470,6 +478,8 @@ class PathCombinator(object):
         :returns:
             :any:`PeerPath` if using a peering link, otherwise
             :any:`CrossOverPath`.
+
+        FIXME(kormat): this is an untestable mess.
         """
         (up_index, down_index) = point
 
@@ -487,11 +497,14 @@ class PathCombinator(object):
         else:
             # It's a peer path.
             up_iof.peer = down_iof.peer = True
-            up_peering_hof, down_peering_hof = cls._join_shortcuts_peer(
-                up_segment.ases[up_index], down_segment.ases[down_index])
+            up_peering_hof, down_peering_hof, peering_mtu = \
+                cls._join_shortcuts_peer(up_segment.asm(up_index),
+                                         down_segment.asm(down_index))
             up_hofs.extend([up_peering_hof, up_upstream_hof])
             down_hofs.insert(0, down_peering_hof)
             down_hofs.insert(0, down_upstream_hof)
+            up_mtu = min(up_mtu, peering_mtu)
+            down_mtu = min(down_mtu, peering_mtu)
         args = []
         for iof, hofs in [(up_iof, up_hofs), (down_iof, down_hofs)]:
             l = len(hofs)
@@ -500,28 +513,23 @@ class PathCombinator(object):
                 iof.hops = l
                 args.extend([iof, hofs])
         path = SCIONPath.from_values(*args)
-        for i in reversed(range(up_index, len(up_segment.ases))):
-            pcbm = up_segment.ases[i].pcbm
-            egress = pcbm.hof.egress_if
-            ingress = pcbm.hof.ingress_if
-            if egress:
-                path.interfaces.append((pcbm.isd_as, egress))
-            if i != up_index:
-                path.interfaces.append((pcbm.isd_as, ingress))
+        for i, asm in enumerate(reversed(list(up_segment.iter_asms(up_index)))):
+            hof = asm.pcbm(0).hof()
+            if hof.egress_if:
+                path.interfaces.append((asm.isd_as(), hof.egress_if))
+            if i:
+                path.interfaces.append((asm.isd_as(), hof.ingress_if))
         if peer:
-            up_pcbm = up_segment.ases[up_index].pcbm
-            down_pcbm = down_segment.ases[down_index].pcbm
-            path.interfaces.append((up_pcbm.isd_as, up_peering_hof.ingress_if))
-            path.interfaces.append((
-                down_pcbm.isd_as, down_peering_hof.ingress_if))
-        for i in range(down_index, len(down_segment.ases)):
-            pcbm = down_segment.ases[i].pcbm
-            egress = pcbm.hof.egress_if
-            ingress = pcbm.hof.ingress_if
-            if i != down_index:
-                path.interfaces.append((pcbm.isd_as, ingress))
-            if egress:
-                path.interfaces.append((pcbm.isd_as, egress))
+            up_ia = up_segment.asm(up_index).isd_as()
+            down_ia = down_segment.asm(down_index).isd_as()
+            path.interfaces.append((up_ia, up_peering_hof.ingress_if))
+            path.interfaces.append((down_ia, down_peering_hof.ingress_if))
+        for i, asm in enumerate(down_segment.iter_asms(down_index)):
+            hof = asm.pcbm(0).hof()
+            if i:
+                path.interfaces.append((asm.isd_as(), hof.ingress_if))
+            if hof.egress_if:
+                path.interfaces.append((asm.isd_as(), hof.egress_if))
         path.mtu = min_mtu(up_mtu, down_mtu)
         return path
 
@@ -533,19 +541,18 @@ class PathCombinator(object):
         """
         if not up_segment or not down_segment:
             return True
-        up_first_ia = up_segment.get_first_pcbm().isd_as
-        down_first_ia = down_segment.get_first_pcbm().isd_as
+        up_first_ia = up_segment.first_ia()
+        down_first_ia = down_segment.first_ia()
         if core_segment:
-            core_first_ia = core_segment.get_first_pcbm().isd_as
-            core_last_ia = core_segment.get_last_pcbm().isd_as
-            if (core_last_ia != up_first_ia or core_first_ia != down_first_ia):
+            if (core_segment.last_ia() != up_first_ia or
+                    core_segment.first_ia() != down_first_ia):
                 return False
         elif up_first_ia != down_first_ia:
             return False
         return True
 
     @classmethod
-    def _copy_hofs(cls, ases, reverse=True):
+    def _copy_hofs(cls, asms, reverse=True):
         """
         Copy :any:`HopOpaqueField`\s, and optionally reverse the result.
 
@@ -555,12 +562,15 @@ class PathCombinator(object):
             List of copied :any:`HopOpaqueField`\s.
         """
         hofs = []
-        mtu = None
-        for block in ases:
-            for ext in block.ext:
-                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
-                    mtu = min_mtu(mtu, ext.mtu)
-            hofs.append(copy.deepcopy(block.pcbm.hof))
+        mtu = float("inf")
+        for i, asm in enumerate(asms):
+            pcbm = asm.pcbm(0)
+            if i != 0:
+                # The upstream interface's mtu is irrelevant for the first
+                # ASMarking, as it won't be traversed.
+                mtu = min(mtu, pcbm.p.inMTU)
+            mtu = min(mtu, asm.p.mtu)
+            hofs.append(pcbm.hof())
         if reverse:
             hofs.reverse()
         return hofs, mtu
@@ -582,32 +592,35 @@ class PathCombinator(object):
             The copied :any:`InfoOpaqueField`, path :any:`HopOpaqueField`\s and
             Upstream :any:`HopOpaqueField`.
         """
-        iof = copy.deepcopy(segment.iof)
-        iof.hops -= index
-        iof.up_flag = up
+        info = copy.deepcopy(segment.info)
+        info.hops -= index
+        info.up_flag = up
         # Copy segment HOFs
-        ases = segment.ases[index:]
-        hofs, mtu = cls._copy_hofs(ases, reverse=up)
+        asms = segment.iter_asms(index)
+        hofs, mtu = cls._copy_hofs(asms, reverse=up)
         xovr_idx = -1 if up else 0
         hofs[xovr_idx].xover = True
         # Extract upstream HOF
-        upstream_hof = copy.deepcopy(segment.ases[index - 1].pcbm.hof)
+        upstream_hof = segment.asm(index - 1).pcbm(0).hof()
         upstream_hof.xover = False
         upstream_hof.verify_only = True
-        return iof, hofs, upstream_hof, mtu
+        return info, hofs, upstream_hof, mtu
 
     @classmethod
-    def _join_shortcuts_peer(cls, up_as, down_as):
+    def _join_shortcuts_peer(cls, up_asm, down_asm):
         """
         Finds the peering :any:`HopOpaqueField` of the shortcut path.
         """
-        # FIXME(kormat): Is it possible for there to be multiple matches? Could
-        # 2 ASs have >1 peering link to the other?
-        for up_peer in up_as.pms:
-            for down_peer in down_as.pms:
-                if (up_peer.isd_as == down_as.pcbm.isd_as and
-                        down_peer.isd_as == up_as.pcbm.isd_as):
-                    return up_peer.hof, down_peer.hof
+        up_ia = up_asm.isd_as()
+        down_ia = down_asm.isd_as()
+        for up_peer in up_asm.iter_pcbms(1):
+            up_hof = up_peer.hof()
+            for down_peer in down_asm.iter_pcbms(1):
+                down_hof = down_peer.hof()
+                if (up_peer.inIA() == down_ia and down_peer.inIA() == up_ia and
+                        up_peer.p.inIF == down_hof.ingress_if and
+                        up_hof.ingress_if == down_peer.p.inIF):
+                    return up_peer.hof(), down_peer.hof(), up_peer.p.inMTU
 
     @classmethod
     def tuples_to_full_paths(cls, tuples):
@@ -638,14 +651,14 @@ class PathCombinator(object):
             path = SCIONPath.from_values(*args)
             path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
             if up_segment:
-                up_core = list(reversed(up_segment.ases))
+                up_core = list(reversed(list(up_segment.iter_asms())))
             else:
                 up_core = []
             if core_segment:
-                up_core += list(reversed(core_segment.ases))
+                up_core += list(reversed(list(core_segment.iter_asms())))
             cls._add_interfaces(path, up_core)
             if down_segment:
-                down_core = down_segment.ases
+                down_core = list(down_segment.iter_asms())
             else:
                 down_core = []
             cls._add_interfaces(path, down_core, up=False)

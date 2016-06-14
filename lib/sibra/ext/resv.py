@@ -98,7 +98,8 @@ class ResvBlockBase(Serializable):
 
     def __str__(self):
         tmp = ["%s(%dB): Num hops: %s" % (self.NAME, len(self), self.num_hops)]
-        tmp.append("  %s" % self.info)
+        for line in str(self.info).splitlines():
+            tmp.append("  %s" % line)
         for sof in self.sofs:
             tmp.append("  %s" % sof)
         return "\n".join(tmp)

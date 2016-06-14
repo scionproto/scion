@@ -17,14 +17,15 @@ public:
     PathManager(int sock, const char *sciond);
     virtual ~PathManager();
 
+    void getDefaultIP();
     int getSocket();
     int getPathCount();
-    int maxPayloadSize();
+    int maxPayloadSize(double timeout=0.0);
     SCIONAddr * localAddress();
 
     void queryLocalAddress();
     int setLocalAddress(SCIONAddr addr);
-    virtual void setRemoteAddress(SCIONAddr addr);
+    virtual int setRemoteAddress(SCIONAddr addr, double timeout=0.0);
     void getPaths();
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
@@ -32,6 +33,10 @@ public:
     virtual void getStats(SCIONStats *stats);
 
     int setISDWhitelist(void *data, size_t len);
+
+    virtual void threadCleanup();
+    virtual void didSend(SCIONPacket *packet);
+    int sendRawPacket(uint8_t *buf, int len, HostAddr *firstHop);
 
 protected:
     int checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidates);
@@ -46,6 +51,8 @@ protected:
 
     std::vector<Path *>          mPaths;
     pthread_mutex_t              mPathMutex;
+    pthread_cond_t               mPathCond;
+    pthread_mutex_t              mDispatcherMutex;
     int                          mInvalid;
     PathPolicy                   mPolicy;
 };
@@ -61,7 +68,7 @@ public:
     void setRemoteWindow(uint32_t window);
     bool bufferFull(int window);
     int totalQueuedSize();
-    void waitForSendBuffer(int len, int windowSize);
+    int waitForSendBuffer(int len, int windowSize, double timeout=0.0);
 
     void queuePacket(SCIONPacket *packet);
     int sendAllPaths(SCIONPacket *packet);
@@ -86,6 +93,8 @@ public:
 
     Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
 
+    void threadCleanup();
+
     PathState *mState;
 
 protected:
@@ -93,16 +102,17 @@ protected:
     void handlePacketAcked(bool found, SCIONPacket *ack, SCIONPacket *sent);
     bool handleDupAck(SCIONPacket *packet);
     void addRetries(std::vector<SCIONPacket *> &retries);
-    int handleAckOnPath(SCIONPacket *packet, bool rttSample);
+    int handleAckOnPath(SCIONPacket *packet, bool rttSample, int pathIndex);
 
     int                          mReceiveWindow;
-    int                          mInitSends;
 
     bool                         mRunning;
     bool                         mFinAcked;
     int                          mFinAttempts;
+    struct timeval               mFinSentTime;
     bool                         mInitAcked;
     bool                         mResendInit;
+    uint64_t                     mHighestAcked;
 
     size_t                       mTotalSize;
     PacketList                   mSentPackets;
@@ -118,7 +128,6 @@ protected:
     pthread_mutex_t              mRetryMutex;
     pthread_mutex_t              mPacketMutex;
     pthread_cond_t               mPacketCond;
-    pthread_cond_t               mPathCond;
 
     pthread_t                    mWorker;
 
@@ -137,7 +146,7 @@ public:
     void sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort);
     void handlePacket(SCIONPacket *packet);
 
-    void setRemoteAddress(SCIONAddr addr);
+    int setRemoteAddress(SCIONAddr addr, double timeout=0.0);
 
     Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
 protected:

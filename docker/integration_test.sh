@@ -56,15 +56,17 @@ sleep 5
 
 cat << EOF | parallel -n2 -j0 run
 End2End
-test/integration/end2end_test.py
+test/integration/end2end_test.py -l ERROR
 C2S_extn
-test/integration/cli_srv_ext_test.py
+test/integration/cli_srv_ext_test.py -l ERROR
 SCMP error
-test/integration/scmp_error_test.py --runs 60
+test/integration/scmp_error_test.py -l ERROR --runs 60
 Cert/TRC request
-test/integration/cert_req_test.py
+test/integration/cert_req_test.py -l ERROR
 Sibra Ext
-test/integration/sibra_ext_test.py --wait 30 --runs 10
+test/integration/sibra_ext_test.py -l ERROR --wait 30 --runs 10
+SSP
+test/integration/ssp_test.py -l ERROR
 EOF
 result=$?
 
