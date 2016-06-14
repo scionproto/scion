@@ -153,20 +153,19 @@ void *tcpmw_sock_thread(void *data){
             tcpmw_set_recv_tout(args, buf, rc);
         else if (!strncmp(buf, CMD_GET_RECV_TOUT, CMD_SIZE))
             tcpmw_get_recv_tout(args);
-        else if (!strncmp(buf, CMD_CLOSE, CMD_SIZE)){
-            tcpmw_close(args);
+        else if (!strncmp(buf, CMD_CLOSE, CMD_SIZE))
+            break;
+        else{
+            zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %s", buf);
             break;
         }
     }
-    if (rc == -1) {
+    if (rc == -1)
         zlog_error(zc_tcp, "tcpmw_sock_thread: read() failed");
-        tcpmw_close(args);
-    }
-    else if (rc == 0) {
+    else if (rc == 0)
         zlog_info(zc_tcp, "tcpmw_sock_thread: EOF");
-        tcpmw_close(args);
-    }
     zlog_info(zc_tcp, "tcpmw_sock_thread: leaving");
+    tcpmw_close(args);
     return 0;
 }
 
