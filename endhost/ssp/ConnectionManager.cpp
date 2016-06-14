@@ -208,8 +208,10 @@ int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidate
     int pathLen = *ptr * 8;
     if (pathLen > len)
         return -1;
+    uint8_t addr_type = *(ptr + 1 + pathLen);
+    int addr_len = get_addr_len(addr_type);
     // TODO: IPv6 (once sciond supports it)
-    int interfaceOffset = 1 + pathLen + ADDR_IPV4_LEN + 2 + 2;
+    int interfaceOffset = 1 + pathLen + 1 + addr_len + 2 + 2;
     int interfaceCount = *(ptr + interfaceOffset);
     if (interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN > len)
         return -1;

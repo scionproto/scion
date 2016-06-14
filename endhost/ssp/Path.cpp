@@ -36,10 +36,11 @@ Path::Path(PathManager *manager, PathParams *params)
             mPath = (uint8_t *)malloc(mPathLen);
             memcpy(mPath, ptr, mPathLen);
             ptr += mPathLen;
-            // TODO: IPv6 (once sciond supports it)
-            mFirstHop.addr_type = ADDR_IPV4_TYPE;
-            memcpy(mFirstHop.addr, ptr, ADDR_IPV4_LEN);
-            ptr += get_addr_len(mFirstHop.addr_type);
+            uint8_t addr_type = *ptr++;
+            int addr_len = get_addr_len(addr_type);
+            mFirstHop.addr_type = addr_type;
+            memcpy(mFirstHop.addr, ptr, addr_len);
+            ptr += addr_len;
             mFirstHop.port = ntohs(*(uint16_t *)ptr);
             ptr += 2;
 #ifdef BYPASS_ROUTERS
