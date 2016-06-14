@@ -14,10 +14,10 @@ LWIP_CONTRIB_DIR=sub/lwip-contrib
 
 all:
 	$(MAKE) -C $(LIB_DIR)
+	$(MAKE) -C $(LWIP_CONTRIB_DIR)
 	$(MAKE) -C $(DISPATCHER_DIR)
 	$(MAKE) -C $(SOCKET_DIR)
 	$(MAKE) -C $(TEST_DIR)
-	$(MAKE) -C $(LWIP_CONTRIB_DIR)
 
 dispatcher:
 	$(MAKE) -C $(DISPATCHER_DIR)
