@@ -6,4 +6,4 @@
 	url = git@github.com:netsec-ethz/scion-lwip-contrib.git
 [submodule "sub/web"]
 	path = sub/web
-	url = https://github.com/netsec-ethz/scion-web.git
+	url = git@github.com:netsec-ethz/scion-web.git
