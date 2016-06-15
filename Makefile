@@ -1,4 +1,4 @@
-.PHONY: all clean dispatcher lwip install
+.PHONY: all c clean dispatcher go install lwip
 
 CC=gcc
 CFLAGS +=-Wall -g
@@ -12,10 +12,15 @@ SOCKET=$(SOCKET_DIR)/libsocket.so
 TEST_DIR=$(SOCKET_DIR)/test
 LWIP_CONTRIB_DIR=sub/lwip-contrib
 
-all: lwip dispatcher
+all: c dispatcher go lwip
+
+c:
 	$(MAKE) -C $(LIB_DIR)
 	$(MAKE) -C $(SOCKET_DIR)
 	$(MAKE) -C $(TEST_DIR)
+
+go:
+	GOBIN=$$PWD/bin go install -v ./go/...
 
 dispatcher:
 	$(MAKE) -C $(DISPATCHER_DIR)
@@ -32,4 +37,4 @@ clean:
 	$(MAKE) clean -C $(SOCKET_DIR)
 	$(MAKE) clean -C $(TEST_DIR)
 	$(MAKE) clean -C $(LWIP_CONTRIB_DIR)
-	rm -f bin/dispatcher
+	rm -f bin/dispatcher bin/discovery
