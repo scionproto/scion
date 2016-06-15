@@ -3,20 +3,30 @@ machine:
         version: 3.4.3
     services:
         - docker
+    environment:
+      BASE_DIR: $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+
+general:
+  build_dir:
+    ../../../$BASE_DIR
+
+checkout:
+    post:
+      - mkdir -p $(dirname $BASE_DIR) && ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $BASE_DIR:
+          pwd: /
+      - echo 'export GOPATH=$GOPATH:$HOME/.go_project' >> ~/.circlerc
+      - git submodule sync
+      - git submodule update --init
 
 dependencies:
     cache_directories:
         - "~/cache"
     override:
+        - go get -d -v ./go/...
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
         - ./docker.sh build
         - docker/cache.sh save
-
-checkout:
-    post:
-      - git submodule sync
-      - git submodule update --init
 
 test:
     override:
