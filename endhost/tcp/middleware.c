@@ -226,7 +226,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     p += path_len;  /* skip path */
     scion_addr_from_raw(&addr, p[0], p + 1);
     if (p[0] == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
-        args->conn->pcb.ip->svc = ntohs(*(u16_t*)(p + ISD_AS_LEN + 1));
+        args->conn->pcb.ip->svc = *(u16_t*)(p + ISD_AS_LEN + 1);
     /* Set first hop. */
     p += 1 + ISD_AS_LEN + get_addr_len(p[0]);  /* TODO(PSz): don't assume IPv4 */
     path->first_hop.sin_family = AF_INET;
