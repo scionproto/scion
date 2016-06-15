@@ -309,29 +309,29 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         goto exit;
     }
 
-    /* Letting know that new thread is ready. */
-    u8_t *tmp, *p, haddr_len;
-    u16_t tot_len, path_len = newconn->pcb.ip->path->len;
-    haddr_len = get_addr_len(newconn->pcb.ip->remote_ip.type);
-    tot_len = RESP_SIZE + 2 + path_len + 1 + 4 + haddr_len;
+    /* Preparing a successful response. */
+    u16_t  path_len = newconn->pcb.ip->path->len;
+    u8_t haddr_len = get_addr_len(newconn->pcb.ip->remote_ip.type);
+    u16_t tot_len = RESP_SIZE + 2 + path_len + 1 + 4 + haddr_len;
 
-    tmp = malloc(tot_len);
-    p = tmp;
+    u8_t *tmp = malloc(tot_len);
+    u8_t *p = tmp;
+    /* First CMD_ACCEPT+ERR_OK */
     memcpy(p, CMD_ACCEPT, RESP_SIZE - 1);
     p[RESP_SIZE - 1] = ERR_OK;
     p += RESP_SIZE;
+    /* Encode path. */
     *((u16_t *)(p)) = path_len;
     p += 2;
     memcpy(p, newconn->pcb.ip->path->raw_path, path_len);
     p += path_len;
+    /* Encode address. */
     p[0] = newconn->pcb.ip->remote_ip.type;
     p++;
     memcpy(p, newconn->pcb.ip->remote_ip.addr, 4 + haddr_len);
-    write(args->fd, tmp, tot_len);
-    /* Confirm it is ok, by sending CMD_ACCEPT+ERR_OK only */
-    write(new_fd, tmp, RESP_SIZE);
+    write(new_fd, tmp, tot_len);
     free(tmp);
-    return;
+    /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
 
 exit:
     tcpmw_reply(args->fd, CMD_ACCEPT);
@@ -430,7 +430,6 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     }
 
     int timeout = (int)*(u32_t *)(buf + CMD_SIZE);
-    fprintf(stderr, "TOUT: %d\n", timeout);
     netconn_set_recvtimeout(args->conn, timeout);
 
 exit:

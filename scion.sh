@@ -105,7 +105,7 @@ cmd_sock_cli() {
 }
 
 cmd_run_cli() {
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/endhost/ssp
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
     $SOCKDIR/test/client
 }
 
@@ -129,7 +129,7 @@ cmd_sock_ser() {
 }
 
 cmd_run_ser() {
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/endhost/ssp
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
     $SOCKDIR/test/server
 }
 

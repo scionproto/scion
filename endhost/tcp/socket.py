@@ -207,7 +207,9 @@ class SCIONSocket(object):
         req = APICmd.ACCEPT + sockname
         self._to_lwip(req)
 
-        rep = self._from_lwip()
+        new_sock, _ = self._lwip_accept.accept()
+        # Metadata (path and addr) from new (UNIX) socket.
+        rep = new_sock.recv(self.BUFLEN)
         self._handle_reply(req[:CMD_SIZE], rep)
         logging.debug("accept() raw reply: %s", rep)
         rep = rep[RESP_SIZE:]
@@ -216,10 +218,10 @@ class SCIONSocket(object):
         path = SCIONPath(rep[:path_len])
         rep = rep[path_len:]
         addr = SCIONAddr((rep[0], rep[1:]))
-
-        new_sock, _ = self._lwip_accept.accept()
-        rep = new_sock.recv(self.BUFLEN)
+        # Confirmation from old (UNIX) socket.
+        rep = self._from_lwip()
         self._handle_reply(req[:CMD_SIZE], rep)
+        # Everything is ok, create new SCION TCP socket.
         sock = SCIONSocket(self._family, self._type, self._proto)
         sock.set_lwip_sock(new_sock)
         return sock, addr, path
