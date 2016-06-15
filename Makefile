@@ -12,10 +12,8 @@ SOCKET=$(SOCKET_DIR)/libsocket.so
 TEST_DIR=$(SOCKET_DIR)/test
 LWIP_CONTRIB_DIR=sub/lwip-contrib
 
-all:
+all: lwip dispatcher
 	$(MAKE) -C $(LIB_DIR)
-	$(MAKE) -C $(LWIP_CONTRIB_DIR)
-	$(MAKE) -C $(DISPATCHER_DIR)
 	$(MAKE) -C $(SOCKET_DIR)
 	$(MAKE) -C $(TEST_DIR)
 
