@@ -291,8 +291,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         out_info = self._mk_if_info(out_if)
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
-            out_info["remote_ia"], out_info["remote_if"],
-            hof, self._get_root())
+            out_info["remote_ia"], out_info["remote_if"], hof)
 
     def _create_asm_exts(self):
         return {"rev_infos":
@@ -680,12 +679,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def verify_asm(self, asm, rev_info):
         ingress_if_id = asm.pcbm(0).hof().ingress_if
         egress_if_id = asm.pcbm(0).hof().egress_if
-        ingress_iftoken = asm.pcbm(0).p.igRevToken
-        egress_iftoken = asm.p.egRevToken
-        ingress_verify = ConnectedHashTree.verify(rev_info, ingress_iftoken)
-        egress_verify = ConnectedHashTree.verify(rev_info, egress_iftoken)
-        return ((rev_info.p.ifID == ingress_if_id and ingress_verify) or
-                (rev_info.p.ifID == egress_if_id and egress_verify))
+        root = asm.p.root
+        root_verify = ConnectedHashTree.verify(rev_info, root)
+        return (rev_info.p.ifID == ingress_if_id and
+                rev_info.p.ifID == egress_if_id) or root_verify
 
     def _handle_if_timeouts(self):
         """

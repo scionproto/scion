@@ -243,8 +243,5 @@ class ConnectedHashTree(object):
     def verify_epoch(epoch):
         cur_epoch = ConnectedHashTree.get_current_epoch()
         gap_time = ConnectedHashTree.get_time_since_epoch()
-        if epoch == cur_epoch:
-            return True
-        if cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE:
-            return True
-        return False
+        return (epoch == cur_epoch or
+                cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE)

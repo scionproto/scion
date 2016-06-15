@@ -266,12 +266,10 @@ class SCIONDaemon(SCIONElement):
     def verify_asm(self, asm, rev_info):
         ingress_if_id = asm.pcbm(0).hof().ingress_if
         egress_if_id = asm.pcbm(0).hof().egress_if
-        ingress_iftoken = asm.pcbm(0).p.igRevToken
-        egress_iftoken = asm.p.egRevToken
-        ingress_verify = ConnectedHashTree.verify(rev_info, ingress_iftoken)
-        egress_verify = ConnectedHashTree.verify(rev_info, egress_iftoken)
-        return ((rev_info.p.ifID == ingress_if_id and ingress_verify) or
-                (rev_info.p.ifID == egress_if_id and egress_verify))
+        root = asm.p.root
+        root_verify = ConnectedHashTree.verify(rev_info, root)
+        return (rev_info.p.ifID == ingress_if_id and
+                rev_info.p.ifID == egress_if_id) or root_verify
 
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""

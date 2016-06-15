@@ -33,7 +33,7 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
 from lib.types import PCBType, PayloadClass
-from lib.util import hex_str, iso_timestamp
+from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
@@ -44,12 +44,11 @@ class PCBMarking(Cerealizable):
     P_CLS = P.PCBMarking
 
     @classmethod
-    def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid, hof,
-                    ig_rev_token):  # pragma: no cover
+    def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid,
+                    hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
             inIA=str(in_ia), inIF=in_ifid, inMTU=in_mtu,
-            outIA=str(out_ia), outIF=out_ifid, hof=hof.pack(),
-            igRevToken=ig_rev_token))
+            outIA=str(out_ia), outIF=out_ifid, hof=hof.pack()))
 
     def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
@@ -72,7 +71,6 @@ class PCBMarking(Cerealizable):
             b.append(self.p.outIA.encode("utf8"))
             b.append(self.p.outIF.to_bytes(8, 'big'))
             b.append(self.p.hof)
-            b.append(self.p.igRevToken)
         return b"".join(b)
 
     def __str__(self):
@@ -80,7 +78,6 @@ class PCBMarking(Cerealizable):
         s.append("%s: From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
                  (self.NAME, self.isd_as(), self.p.ifID, self.p.mtu))
         s.append("  %s" % self.hof())
-        s.append("  ig_rev_token: %s" % hex_str(self.p.igRevToken))
         return "\n".join(s)
 
 
@@ -89,11 +86,11 @@ class ASMarking(Cerealizable):
     P_CLS = P.ASMarking
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, eg_rev_token, mtu,
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, root, mtu,
                     cert_chain, ifid_size=12, rev_infos=()):
         p = cls.P_CLS.new_message(
             isdas=str(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, egRevToken=eg_rev_token, mtu=mtu,
+            ifIDSize=ifid_size, root=root, mtu=mtu,
             chain=cert_chain.pack(lz4_=True))
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
@@ -143,7 +140,7 @@ class ASMarking(Cerealizable):
             b.append(self.p.ifIDSize.to_bytes(1, 'big'))
             for pcbm in self.iter_pcbms():
                 b.append(pcbm.sig_pack(6))
-            b.append(self.p.egRevToken)
+            b.append(self.p.root)
             for r in self.iter_rev_infos():
                 b.append(r.sig_pack(ver))
             b.append(self.p.mtu.to_bytes(2, 'big'))
@@ -321,9 +318,7 @@ class PathSegment(SCIONPayloadBaseProto):
         """
         tokens = []
         for asm in self.p.asms:
-            for pcbm in asm.pcbms:
-                tokens.append(pcbm.igRevToken)
-            tokens.append(asm.egRevToken)
+            tokens.append(asm.root)
         return tokens
 
     def flags(self):  # pragma: no cover

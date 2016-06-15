@@ -144,14 +144,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         segment_id = pcb.get_hops_hash()
         for asm in pcb.iter_asms():
-            # self.astoken_if2seg[(asm.pcbms[0].igRevToken, asm.pcbms[0].inIF)]
-            # .add(segment_id)
-
             logging.info("Adding to astoken mapping")
-            self.astoken_if2seg[(asm.p.egRevToken,
+            self.astoken_if2seg[(asm.p.root,
                                  asm.pcbm(0).hof().egress_if)].add(segment_id)
             for pm in asm.iter_pcbms():
-                self.astoken_if2seg[(pm.p.igRevToken,
+                self.astoken_if2seg[(asm.p.root,
                                      pm.hof().ingress_if)].add(segment_id)
 
     @abstractmethod
