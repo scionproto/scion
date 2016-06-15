@@ -20,7 +20,6 @@ import logging
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.packet.scion import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -61,40 +60,6 @@ class LocalPathServer(PathServer):
         if self._add_segment(pcb, self.core_segments, "Core"):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
-
-    def _remove_revoked_segments(self, rev_info):
-        """
-        Remove segments that contain a revoked interface. Checks 20 tokens in
-        case previous revocations were missed by the PS.
-
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
-        """
-        cur_epoch = self.get_current_epoch()
-        rev_epoch = rev_info.p.epoch
-
-        if not rev_epoch == cur_epoch:
-            if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
-                logging.warning("Epochs did not match")
-                return
-
-        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
-        if_id = rev_info.p.ifID
-
-        for H in (hash01, hash12):
-            segments = self.astoken_if2seg.get((H, if_id))
-            if not segments:
-                logging.warning("0 paths removed")
-                continue
-            deletions = 0
-            while segments:
-                sid = segments.pop()
-                deletions += (self.up_segments.delete(sid) == 3)
-                deletions += (self.down_segments.delete(sid) == 3)
-                deletions += (self.core_segments.delete(sid) == 3)
-            logging.warning("%d paths removed", deletions)
-            if (H, if_id) in self.astoken_if2seg:
-                del self.astoken_if2seg[(H, if_id)]
 
     def path_resolution(self, pkt, new_request=True):
         """

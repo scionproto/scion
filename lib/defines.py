@@ -116,10 +116,3 @@ LINK_PEER = "PEER"
 LINK_ROUTING = "ROUTING"
 
 PATH_FLAG_SIBRA = "SIBRA"
-
-# Max time to live
-HASHTREE_TTL = 24*60*60
-# Time per Epoch
-EPOCH_TIME = 60
-# Number of epochs in one TTL per interface
-N_EPOCHS = HASHTREE_TTL // EPOCH_TIME

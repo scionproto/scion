@@ -234,13 +234,9 @@ class SCIONDaemon(SCIONElement):
         logging.debug("Received revocation:\n%s", rev_info)
 
         # Go through all segment databases and remove affected segments.
-        deletions = self._remove_revoked_pcbs(self.up_segments,
-                                              rev_info)
-        deletions += self._remove_revoked_pcbs(self.core_segments,
-                                               rev_info)
-        deletions += self._remove_revoked_pcbs(self.down_segments,
-                                               rev_info)
-        logging.debug("Removed %d segments due to revocation.", deletions)
+        self._remove_revoked_pcbs(self.up_segments, rev_info)
+        self._remove_revoked_pcbs(self.core_segments, rev_info)
+        self._remove_revoked_pcbs(self.down_segments, rev_info)
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
@@ -256,10 +252,9 @@ class SCIONDaemon(SCIONElement):
         :rtype: int
         """
 
-        if not rev_info.p.epoch == self.get_current_epoch():
-            if not self.get_time_since_epoch() < 1:
-                logging.warning("Epochs did not match")
-                return
+        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            logging.warning("Epochs did not match")
+            return
 
         to_remove = []
         for segment in db():
@@ -273,10 +268,10 @@ class SCIONDaemon(SCIONElement):
         egress_if_id = asm.pcbm(0).hof().egress_if
         ingress_iftoken = asm.pcbm(0).p.igRevToken
         egress_iftoken = asm.p.egRevToken
-        return ((rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(
-                    rev_info, ingress_iftoken, self.get_current_epoch())) or
-                (rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(
-                    rev_info, egress_iftoken, self.get_current_epoch())))
+        ingress_verify = ConnectedHashTree.verify(rev_info, ingress_iftoken)
+        egress_verify = ConnectedHashTree.verify(rev_info, egress_iftoken)
+        return ((rev_info.p.ifID == ingress_if_id and ingress_verify) or
+                (rev_info.p.ifID == egress_if_id and egress_verify))
 
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""

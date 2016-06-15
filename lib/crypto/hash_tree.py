@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,33 +15,42 @@
 :mod:`hash_tree` --- SCION time-connected hash-tree implementation
 ==================================================================
 """
+# Stdlib
+import time
+
 # External
 from Crypto.Hash import SHA256
 
 # SCION
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 
+# The tolerable error in epoch in seconds.
+HASHTREE_EPOCH_TOLERANCE = 5
+# Max time to live
+HASHTREE_TTL = 24*60*60
+# Time per Epoch
+HASHTREE_EPOCH_TIME = 60
+# Number of epochs in one TTL per interface
+HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
+
 
 class HashTree(object):
     """
     Class encapsulating a scion hash-tree.
-
     The number of interfaces and epoch times are configurable.
     The used hash function needs to implement the hashlib interface.
-
     """
 
-    def __init__(self, if_ids, n_epochs, seed, hash_func):
+    def __init__(self, if_ids, seed, hash_func):
         """
         :param List[int] if_ids: list of interface IDs of the AS.
-        :param int n_epochs: number of epochs for the hash-tree revocation.
         :param str seed: seed for creating hash-tree nonces.
         :param hash_func: hash function that implements hashlib interface.
         """
         self._seed = seed
         self._hash_func = hash_func
-        self.calc_tree_depth(len(if_ids) * n_epochs)
-        self.create_tree(if_ids, n_epochs)
+        self.calc_tree_depth(len(if_ids) * HASHTREE_N_EPOCHS)
+        self.create_tree(if_ids)
 
     def calc_tree_depth(self, leaf_count):
         """
@@ -53,21 +62,20 @@ class HashTree(object):
         self._depth = 0
         least_higher_2_power = 1
         temp = leaf_count
-        while (temp > 0):
+        while temp > 0:
             temp = temp // 2
             self._depth = self._depth + 1
             least_higher_2_power = least_higher_2_power * 2
         # If leaf count is a power of 2, then reduce the calculated depth by 1.
-        if (least_higher_2_power == leaf_count * 2):
+        if least_higher_2_power == leaf_count * 2:
             least_higher_2_power = leaf_count
-            self._depth = self._depth - 1
+            self._depth -= 1
 
-    def create_tree(self, if_ids, n_epochs):
+    def create_tree(self, if_ids):
         """
         Create a (heap-like) array of nodes to represent the hash-tree.
 
         :param List[int] if_ids: list of interface IDs of the AS.
-        :param int n_epochs: number of epochs for the hash-tree revocation.
         """
         self._nodes = []
         node_count = pow(2, self._depth + 1) - 1
@@ -78,16 +86,16 @@ class HashTree(object):
         self._leaves_start_idx = pow(2, self._depth) - 1
         idx = self._leaves_start_idx
         self._if2idx = {}
-        for if_id in if_ids:         # For given (if_id, epoch) leaves
+        for if_id in if_ids:  # For given (if_id, epoch) leaves
             self._if2idx[if_id] = idx
-            for i in range(n_epochs):
+            for i in range(HASHTREE_N_EPOCHS):
                 raw_nonce = str(self._seed) + str(if_id) + str(i)
                 raw_nonce = raw_nonce.encode('utf-8')
                 nonce = self._hash_func.new(raw_nonce).digest()
                 if_tuple = (str(if_id) + str(i) + str(nonce)).encode('utf-8')
                 self._nodes[idx] = self._hash_func.new(if_tuple).digest()
                 idx = idx + 1
-        while (idx < node_count):  # For extra leaves added to complete tree
+        while idx < node_count:  # For extra leaves added to complete tree
             self._nodes[idx] = self._hash_func.new(b"0").digest()
             idx = idx + 1
 
@@ -113,8 +121,8 @@ class HashTree(object):
         # Obtain the sibling hashes along with their left/right position info.
         siblings = []
         idx = self._if2idx[if_id] + epoch
-        while (idx > 0):
-            if (idx % 2 == 0):
+        while idx > 0:
+            if idx % 2 == 0:
                 siblings.append((True, self._nodes[idx - 1]))
             else:
                 siblings.append((False, self._nodes[idx + 1]))
@@ -134,28 +142,46 @@ class ConnectedHashTree(object):
 
     """
 
-    def __init__(self, if_ids, n_epochs, seeds, hash_func=SHA256):
+    def __init__(self, if_ids, seed, hash_func=SHA256):
         """
         :param List[int] if_ids: list of interface IDs of the AS.
-        :param int n_epochs: number of epochs for the hash-tree revocation.
         :param List[str] seeds: list of 3 seeds for creating hash-tree nonces.
         :param hash_func: hash function that implements hashlib interface.
         """
-        assert len(if_ids)*n_epochs >= 1, "Hash tree must have at least 1 leaf"
-        assert len(seeds) == 3, "Not provided 3 seeds for the Hash tree"
-        self._hash_func = hash_func
-        self._ht0_root = hash_func.new(str(seeds[0]).encode('utf-8')).digest()
-        self._ht1 = HashTree(if_ids, n_epochs, seeds[1], hash_func)
-        self._ht2 = HashTree(if_ids, n_epochs, seeds[2], hash_func)
+        assert len(if_ids)*HASHTREE_N_EPOCHS >= 1, "Must have at least 1 leaf"
+        ttl_window = self.get_ttl_window()
+        seed1 = seed + (ttl_window - 1).to_bytes(8, 'big')
+        seed2 = seed + (ttl_window + 0).to_bytes(8, 'big')
+        seed3 = seed + (ttl_window + 1).to_bytes(8, 'big')
 
-    def update(self, if_ids, n_epochs, seed):
+        self._hash_func = hash_func
+        self._ht0_root = hash_func.new(str(seed1).encode('utf-8')).digest()
+        self._ht1 = HashTree(if_ids, seed2, hash_func)
+        self._ht2 = HashTree(if_ids, seed3, hash_func)
+
+    @staticmethod
+    def get_ttl_window():
+        cur_time = int(time.time())
+        return cur_time // HASHTREE_TTL
+
+    @staticmethod
+    def get_current_epoch():
+        cur_window = int(time.time()) % HASHTREE_TTL
+        return cur_window // HASHTREE_EPOCH_TIME
+
+    @staticmethod
+    def get_time_since_epoch():
+        return time.time() % HASHTREE_EPOCH_TIME
+
+    def update(self, if_ids, seed):
         """
         Shift the connected hash-tree to the next time interval (T+1).
-        The 'if_ids' and 'n_epochs' need to match that given during __init__.
+        The 'if_ids' need to match that given during __init__.
         """
+        seed += (self.get_ttl_window() + 1).to_bytes(8, 'big')
         self._ht0_root = self._ht1._nodes[0]
         self._ht1 = self._ht2
-        self._ht2 = HashTree(if_ids, n_epochs, seed, self._hash_func)
+        self._ht2 = HashTree(if_ids, seed, self._hash_func)
 
     def get_root(self):
         """
@@ -166,8 +192,9 @@ class ConnectedHashTree(object):
         root12 = self._hash_func.new(root1 + root2).digest()
         return root12
 
-    def get_proof(self, if_id, epoch):
+    def get_proof(self, if_id):
         # Call get_proof on the hashtree at T, passing roots for T-1 and T+1.
+        epoch = ConnectedHashTree.get_current_epoch()
         return self._ht1.get_proof(
             if_id, epoch, self._ht0_root, self._ht2._nodes[0])
 
@@ -178,8 +205,8 @@ class ConnectedHashTree(object):
         """
         # Calculate the hashes upwards till the tree root (of T).
         proof = revProof.p
-        if_tuple = (str(proof.ifID) + str(proof.epoch) + str(proof.nonce)) \
-            .encode('utf-8')
+        if_tuple = ((str(proof.ifID) + str(proof.epoch) + str(proof.nonce))
+                    .encode('utf-8'))
         curr_hash = hash_func.new(if_tuple).digest()
 
         for i in range(len(proof.siblings)):
@@ -197,7 +224,7 @@ class ConnectedHashTree(object):
         return (hash01, hash12)
 
     @staticmethod
-    def verify(revProof, root, curr_epoch, hash_func=SHA256):
+    def verify(revProof, root, hash_func=SHA256):
         """
         Verify whether revProof proves the revocation for the current epoch,
         given the root of the connected hash-tree.
@@ -210,4 +237,14 @@ class ConnectedHashTree(object):
         proof = revProof.p
         assert not isinstance(proof, bytes)
         h01, h12 = ConnectedHashTree.get_possible_hashes(revProof, hash_func)
-        return (h01 == root) or (h12 == root)
+        return h01 == root or h12 == root
+
+    @staticmethod
+    def verify_epoch(epoch):
+        cur_epoch = ConnectedHashTree.get_current_epoch()
+        gap_time = ConnectedHashTree.get_time_since_epoch()
+        if epoch == cur_epoch:
+            return True
+        if cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE:
+            return True
+        return False

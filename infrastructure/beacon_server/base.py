@@ -32,15 +32,13 @@ from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
 from infrastructure.beacon_server.rev_obj import RevocationObject
 from lib.crypto.certificate import verify_sig_chain_trc
-from lib.crypto.hash_tree import ConnectedHashTree
+from lib.crypto.hash_tree import ConnectedHashTree, HASHTREE_TTL
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     PATH_POLICY_FILE,
     PATH_SERVICE,
     SCION_UDP_PORT,
-    HASHTREE_TTL,
-    N_EPOCHS,
 )
 from lib.errors import (
     SCIONKeyError,
@@ -119,6 +117,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
+        self.hashtree_gen_key = PBKDF2(
+                            self.config.master_as_key, b"Derive hashtree Key")
         logging.info(self.config.__dict__)
         self._hash_tree = None
         self._if_rev_token_lock = threading.Lock()
@@ -153,15 +153,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _init_hash_tree(self):
         if self._hash_tree:
             return
-        seed1 = self.config.master_as_key + \
-            (self.get_ttl_window() - 1).to_bytes(8, byteorder='big')
-        seed2 = self.config.master_as_key + \
-            (self.get_ttl_window() + 0).to_bytes(8, byteorder='big')
-        seed3 = self.config.master_as_key + \
-            (self.get_ttl_window() + 1).to_bytes(8, byteorder='big')
-        ifs = [x for x in self.ifid2er]
-        self._hash_tree = ConnectedHashTree(
-                        ifs, N_EPOCHS, [seed1, seed2, seed3])
+        ifs = list(self.ifid2er.keys())
+        self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
 
     def _get_hash_tree(self):
         if not self._hash_tree:
@@ -170,7 +163,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _get_proof(self, if_id):
         tree = self._get_hash_tree()
-        return tree.get_proof(if_id, self.get_current_epoch())
+        return tree.get_proof(if_id)
 
     def _get_root(self):
         tree = self._get_hash_tree()
@@ -373,14 +366,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         while self.run_flag.is_set():
             if not self._hash_tree:
                 self._init_hash_tree()
-            T = self.get_ttl_window()
             start = time.time()
-            seed = self.config.master_as_key + (T + 1).to_bytes(8, 'big')
-            ifs = [x for x in self.ifid2er]
-            self._hash_tree.update(ifs, N_EPOCHS, seed)
+            ifs = list(self.ifid2er.keys())
+            self._hash_tree.update(ifs, self.hashtree_gen_key)
             logging.info("New Hash Tree TTL beginning")
-            sleep_interval(start, HASHTREE_TTL, "BS.hashtree TTL",
-                           self._quiet_startup())
+            sleep_interval(start, HASHTREE_TTL,
+                           "BS.hashtree TTL", self._quiet_startup())
 
     def worker(self):
         """
@@ -678,10 +669,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         cand.pcb.p.ifID == if_id):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
-                cur_epoch = self.get_current_epoch()
-                rev_epoch = rev_info.p.epoch
-                if not rev_epoch == cur_epoch:
-                    if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
+                if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                         logging.warning("Epochs did not match ")
                         continue
                 for asm in cand.pcb.iter_asms():
@@ -694,10 +682,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         egress_if_id = asm.pcbm(0).hof().egress_if
         ingress_iftoken = asm.pcbm(0).p.igRevToken
         egress_iftoken = asm.p.egRevToken
-        return ((rev_info.p.ifID == ingress_if_id and ConnectedHashTree.verify(
-                    rev_info, ingress_iftoken, self.get_current_epoch())) or
-                (rev_info.p.ifID == egress_if_id and ConnectedHashTree.verify(
-                    rev_info, egress_iftoken, self.get_current_epoch())))
+        ingress_verify = ConnectedHashTree.verify(rev_info, ingress_iftoken)
+        egress_verify = ConnectedHashTree.verify(rev_info, egress_iftoken)
+        return ((rev_info.p.ifID == ingress_if_id and ingress_verify) or
+                (rev_info.p.ifID == egress_if_id and egress_verify))
 
     def _handle_if_timeouts(self):
         """

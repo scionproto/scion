@@ -53,8 +53,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
-    # The tolerable error in epoch in seconds.
-    EPOCH_TOLERANCE = 5
 
     def __init__(self, server_id, conf_dir):
         """
@@ -208,29 +206,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        cur_epoch = self.get_current_epoch()
-        rev_epoch = rev_info.p.epoch
-
-        if not rev_epoch == cur_epoch:
-            if not self.get_time_since_epoch() < self.EPOCH_TOLERANCE:
-                logging.warning("Epochs did not match")
-                return
-
+        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            logging.warning("Epochs did not match")
+            return
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
-
         if_id = rev_info.p.ifID
 
         for H in (hash01, hash12):
             segments = self.astoken_if2seg.get((H, if_id))
-            if not segments:
-                logging.warning("0 paths removed")
-                continue
-            deletions = 0  # Keeps track of number of deleted segments.
             while segments:
                 sid = segments.pop()
-                deletions += (self.down_segments.delete(sid) == 3)
-                deletions += (self.core_segments.delete(sid) == 3)
-            logging.warning("%d paths removed", deletions)
+                self.down_segments.delete(sid)
+                self.core_segments.delete(sid)
+                if not self.topology.is_core_as:
+                    self.up_segments.delete(sid)
             if (H, if_id) in self.astoken_if2seg:
                 del self.astoken_if2seg[(H, if_id)]
 
