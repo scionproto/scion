@@ -33,8 +33,7 @@
 #define DATA_INDEX 1
 #define DATA_V6_INDEX 2
 
-#define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in_pktinfo)))
-#define DSTV6ADDR_DATASIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)))
+#define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
 #define DSTV6ADDR(x) (((struct in6_pktinfo *)CMSG_DATA(x))->ipi6_addr)
 
@@ -278,32 +277,34 @@ int bind_app_socket()
 
 int bind_data_sockets()
 {
-    sockaddr_in sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = INADDR_ANY;
-    sa.sin_port = htons(SCION_UDP_EH_DATA_PORT);
-    if (bind(data_socket, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+    struct sockaddr_storage sa;
+
+    sockaddr_in *sin = (sockaddr_in *)&sa;
+    memset(sin, 0, sizeof(sockaddr_in));
+    sin->sin_family = AF_INET;
+    sin->sin_addr.s_addr = INADDR_ANY;
+    sin->sin_port = htons(SCION_UDP_EH_DATA_PORT);
+    if (bind(data_socket, (struct sockaddr *)sin, sizeof(sockaddr_in)) < 0) {
         zlog_fatal(zc, "failed to bind data socket to %s:%d, %s",
-                inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), strerror(errno));
+                inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), strerror(errno));
         return -1;
     }
-    zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
+    zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 
     if (data_v6_socket > 0) {
-        sockaddr_in6 sa6;
-        memset(&sa6, 0, sizeof(sa6));
-        sa6.sin6_family = AF_INET6;
-        sa6.sin6_addr = in6addr_any;
-        sa6.sin6_port = htons(SCION_UDP_EH_DATA_PORT);
+        sockaddr_in6 *sin6 = (sockaddr_in6 *)&sa;
+        memset(sin6, 0, sizeof(sockaddr_in6));
+        sin6->sin6_family = AF_INET6;
+        sin6->sin6_addr = in6addr_any;
+        sin6->sin6_port = htons(SCION_UDP_EH_DATA_PORT);
         char str[50];
-        inet_ntop(AF_INET6, &sa6.sin6_addr, str, 50);
-        if (bind(data_v6_socket, (struct sockaddr *)&sa6, sizeof(sa6)) < 0) {
+        inet_ntop(AF_INET6, &sin6->sin6_addr, str, 50);
+        if (bind(data_v6_socket, (struct sockaddr *)sin6, sizeof(sockaddr_in6)) < 0) {
             zlog_fatal(zc, "failed to bind v6 data socket to %s : %d, %s",
-                    str, ntohs(sa6.sin6_port), strerror(errno));
+                    str, ntohs(sin6->sin6_port), strerror(errno));
             return -1;
         }
-        zlog_info(zc, "data v6 socket bound to %s:%d", str, ntohs(sa6.sin6_port));
+        zlog_info(zc, "data v6 socket bound to %s:%d", str, ntohs(sin6->sin6_port));
     }
     return 0;
 }
@@ -575,14 +576,12 @@ static inline uint16_t get_next_port()
 
 void handle_data(int v6)
 {
-    sockaddr_in src;
-    sockaddr_in6 src_v6;
+    struct sockaddr_storage src;
     HostAddr dst;
     uint8_t buf[DATA_BUFSIZE];
 
     struct msghdr msg;
-    int bufsize = v6 ? DSTV6ADDR_DATASIZE : DSTADDR_DATASIZE;
-    char control_buf[bufsize];
+    char control_buf[DSTADDR_DATASIZE];
     struct cmsghdr *cmsgptr;
     struct iovec iov[1];
 
@@ -590,13 +589,8 @@ void handle_data(int v6)
     iov[0].iov_len = sizeof(buf);
 
     memset(&msg, 0, sizeof(msg));
-    if (v6) {
-        msg.msg_name = &src_v6;
-        msg.msg_namelen = sizeof(src_v6);
-    } else {
-        msg.msg_name = &src;
-        msg.msg_namelen = sizeof(src);
-    }
+    msg.msg_name = &src;
+    msg.msg_namelen = sizeof(src);
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
     msg.msg_control = control_buf;;
@@ -627,13 +621,15 @@ void handle_data(int v6)
     }
     HostAddr from;
     if (v6) {
-        memcpy(from.addr, &src_v6.sin6_addr, ADDR_IPV6_LEN);
+        sockaddr_in6 *sin6 = (sockaddr_in6 *)&src;
+        memcpy(from.addr, &sin6->sin6_addr, ADDR_IPV6_LEN);
         from.addr_type = ADDR_IPV6_TYPE;
-        from.port = ntohs(src_v6.sin6_port);
+        from.port = ntohs(sin6->sin6_port);
     } else {
-        memcpy(from.addr, &src.sin_addr, ADDR_IPV4_LEN);
+        sockaddr_in *sin = (sockaddr_in *)&src;
+        memcpy(from.addr, &sin->sin_addr, ADDR_IPV4_LEN);
         from.addr_type = ADDR_IPV4_TYPE;
-        from.port = ntohs(src.sin_port);
+        from.port = ntohs(sin->sin_port);
     }
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
