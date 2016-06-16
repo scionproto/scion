@@ -97,18 +97,18 @@ void tcpmw_socket(int fd){
 
     /* Create a detached thread. */
     pthread_attr_t attr;
-    if (sys_err = pthread_attr_init(&attr)){
+    if ((sys_err = pthread_attr_init(&attr))){
         zlog_error(zc_tcp, "tcpmw_socket(): pathread_attr_init(): %s", strerror(sys_err));
         goto clean;
     }
-    if (sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)){
+    if ((sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED))){
         zlog_error(zc_tcp, "tcpmw_socket(): pthread_attr_setdetachstate(): %s", strerror(sys_err));
         goto clean;
     }
     args = malloc(sizeof *args);
     args->fd = fd;
     args->conn = conn;
-    if (sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, args)){
+    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, args))){
         zlog_error(zc_tcp, "tcpmw_socket(): pthread_create(): %s", strerror(sys_err));
         free(args);
         goto clean;
@@ -295,18 +295,18 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     /* Create a detached thread. */
     pthread_attr_t attr;
     pthread_t tid;
-    if (sys_err = pthread_attr_init(&attr)){
+    if ((sys_err = pthread_attr_init(&attr))){
         zlog_error(zc_tcp, "tcpmw_accept(): pathread_attr_init(): %s", strerror(sys_err));
         goto exit;
     }
-    if (sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)){
+    if ((sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED))){
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_attr_setdetachstate(): %s", strerror(sys_err));
         goto exit;
     }
     struct conn_args *new_args = malloc(sizeof *new_args);
     new_args->fd = new_fd;
     new_args->conn = newconn;
-    if (sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, new_args)){
+    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, new_args))){
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_create(): %s", strerror(sys_err));
         free(new_args);
         goto exit;

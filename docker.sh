@@ -24,6 +24,10 @@ cmd_build() {
     mkdir -p "${build_dir:?}"
     # Just in case it's sitting there from a previous run
     rm -rf "${build_dir}/scion.git/"
+    {
+        git ls-files;
+        git submodule --quiet foreach 'git ls-files | sed "s|^|$path/|"';
+    } | rsync -a --files-from=- . "${build_dir}/scion.git/"
     git ls-files -z | rsync -a0 --files-from=- . "${build_dir}/scion.git/"
     cp bin/discovery "${build_dir}/scion.git/bin"
     echo
