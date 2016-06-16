@@ -278,12 +278,12 @@ int bind_data_socket()
 int init_tcpmw()
 {
     pthread_t tid;
+    tcp_scion_output = &overlay_output;
+    zc_tcp = zc;
     if (pthread_create(&tid, NULL, &tcpmw_main_thread, NULL)){
         zlog_fatal(zc, "pthread_create(): %s", strerror(errno));
         return -1;
     }
-    tcp_scion_output = &overlay_output;
-    zc_tcp = zc;
     return 0;
 }
 

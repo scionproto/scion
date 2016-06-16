@@ -65,7 +65,7 @@ class LWIPError(object):
     # PSz: codes below are added by me.
     ERR_NEW = -126  # netconn_new() error.
     ERR_MW = -127  # API/TCP middleware error.
-    ERR_SYS = -128  # System's call error.
+    ERR_SYS = -128  # System call error.
 
     ERR2STR = {
         ERR_OK: "Ok.",
@@ -86,7 +86,7 @@ class LWIPError(object):
         ERR_IF: "Low-level netif error.",
         ERR_NEW: "netconn_new() error.",
         ERR_MW: "API/TCP middleware error.",
-        ERR_SYS: "System's call error.",
+        ERR_SYS: "System call error.",
         }
 
     @classmethod
