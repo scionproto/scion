@@ -16,7 +16,7 @@ checkout:
           pwd: /
       - echo 'export GOPATH=$GOPATH:$HOME/.go_project' >> ~/.circlerc
       - git submodule sync
-      - git submodule update --init
+      - git submodule update --init sub/lwip sub/lwip-contrib/
 
 dependencies:
     cache_directories:
