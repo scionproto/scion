@@ -28,7 +28,7 @@ cmd_build() {
         git ls-files;
         git submodule --quiet foreach 'git ls-files | sed "s|^|$path/|"';
     } | rsync -a --files-from=- . "${build_dir}/scion.git/"
-    git ls-files -z | rsync -a0 --files-from=- . "${build_dir}/scion.git/"
+    # git ls-files -z | rsync -a0 --files-from=- . "${build_dir}/scion.git/"
     cp bin/discovery "${build_dir}/scion.git/bin"
     echo
     echo "Building Docker image"
