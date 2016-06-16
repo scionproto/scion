@@ -59,7 +59,12 @@ cmd_coverage(){
 
 cmd_lint() {
     set -o pipefail
-    flake8 --config flake8.ini "${@:-.}" | sort -t: -k1,1 -k2n,2 -k3n,3
+    for i in . sub/web; do
+      [ -d "$i" ] || continue
+      echo "Linting $i"
+      echo "============================================="
+      (cd "$i" && flake8 --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3
+    done
 }
 
 cmd_version() {
