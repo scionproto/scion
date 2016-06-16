@@ -122,6 +122,8 @@ void cleanup_socket(int sock, int index, int err);
 
 int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 
+char socket_path[108];
+
 int main(int argc, char **argv)
 {
     signal(SIGTERM, handle_signal);
@@ -178,11 +180,11 @@ void handle_signal(int sig)
             break;
         case SIGTERM:
             zlog_info(zc, "Received SIGTERM");
-            unlink(SCION_DISPATCHER_ADDR);
+            unlink(socket_path);
             exit(0);
         default:
             zlog_info(zc, "Received signal %d", sig);
-            unlink(SCION_DISPATCHER_ADDR);
+            unlink(socket_path);
             exit(1);
     }
 }
@@ -278,7 +280,12 @@ int bind_app_socket()
     struct sockaddr_un su;
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
-    strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    char *env = getenv("DISPATCHER_ENV");
+    if (env)
+        sprintf(su.sun_path, "%s.socket", env);
+    else
+        strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    strcpy(socket_path, su.sun_path);
     if (bind(app_socket, (struct sockaddr *)&su, sizeof(su)) < 0) {
         zlog_fatal(zc, "failed to bind app socket to %s", su.sun_path);
         return -1;
