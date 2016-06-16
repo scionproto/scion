@@ -414,8 +414,8 @@ class Router(SCIONElement):
             return
         # Forward to local path server if we haven't recently.
         rev_info = RevocationInfo.from_raw(pld.info.rev_token)
-        h = hash((rev_info.p.ifID, rev_info.p.epoch, rev_info.p.prevRoot,
-                  rev_info.p.nextRoot))
+        h = (rev_info.p.ifID, rev_info.p.epoch, rev_info.p.prevRoot,
+             rev_info.p.nextRoot)
         if (self.topology.path_servers and h not in self.revocations):
             self.revocations[h] = True
             try:

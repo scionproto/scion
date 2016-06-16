@@ -151,23 +151,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
 
     def _init_hash_tree(self):
-        if self._hash_tree:
-            return
         ifs = list(self.ifid2er.keys())
         self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
 
-    def _get_hash_tree(self):
+    def _get_proof(self, if_id):
         if not self._hash_tree:
             self._init_hash_tree()
-        return self._hash_tree
-
-    def _get_proof(self, if_id):
-        tree = self._get_hash_tree()
-        return tree.get_proof(if_id)
+        return self._hash_tree.get_proof(if_id)
 
     def _get_root(self):
-        tree = self._get_hash_tree()
-        return tree.get_root()
+        if not self._hash_tree:
+            self._init_hash_tree()
+        return self._hash_tree.get_root()
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -681,8 +676,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         egress_if_id = asm.pcbm(0).hof().egress_if
         root = asm.p.root
         root_verify = ConnectedHashTree.verify(rev_info, root)
-        return (rev_info.p.ifID == ingress_if_id and
-                rev_info.p.ifID == egress_if_id) or root_verify
+        return (rev_info.p.ifID == ingress_if_id or
+                rev_info.p.ifID == egress_if_id) and root_verify
 
     def _handle_if_timeouts(self):
         """

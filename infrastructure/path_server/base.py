@@ -27,7 +27,7 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_tree import ConnectedHashTree
+from lib.crypto.hash_tree import ConnectedHashTree, HASHTREE_TTL
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
@@ -66,9 +66,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
-        self.astoken_if2seg = defaultdict(set)
-        # FIXME(SIVA): astoken_if2seg Should be an expiring dict with
-        # expiration time ~ HASHTREE_TTL, but size?
+        self.astoken_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -145,11 +143,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         segment_id = pcb.get_hops_hash()
         for asm in pcb.iter_asms():
             logging.info("Adding to astoken mapping")
-            self.astoken_if2seg[(asm.p.root,
-                                 asm.pcbm(0).hof().egress_if)].add(segment_id)
+            egress_h = (asm.p.root, asm.pcbm(0).hof().egress_if)
+            if egress_h not in self.astoken_if2seg:
+                self.astoken_if2seg[egress_h] = set()
+            self.astoken_if2seg[egress_h].add(segment_id)
             for pm in asm.iter_pcbms():
-                self.astoken_if2seg[(asm.p.root,
-                                     pm.hof().ingress_if)].add(segment_id)
+                ingress_h = (asm.p.root, pm.hof().ingress_if)
+                if ingress_h not in self.astoken_if2seg:
+                    self.astoken_if2seg[ingress_h] = set()
+                self.astoken_if2seg[ingress_h].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -183,8 +185,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
-        h = hash((rev_info.p.ifID, rev_info.p.epoch,
-                  rev_info.p.prevRoot, rev_info.p.nextRoot))
+        h = (rev_info.p.ifID, rev_info.p.epoch,
+             rev_info.p.prevRoot, rev_info.p.nextRoot)
         if h in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
