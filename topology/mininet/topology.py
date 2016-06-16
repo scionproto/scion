@@ -119,6 +119,7 @@ def main():
     topo = ScionTopo(topology)
     net = Mininet(topo=topo, controller=RemoteController, link=ScionTCLink)
     for host in net.hosts:
+        host.cmd('export DISPATCHER_ENV=/run/shm/disp_%s' % host.name)
         host.cmd('ip route add 169.254.0.0/16 dev %s-0' % host.name)
     net.start()
     os.system('ip link add name mininet type dummy')
