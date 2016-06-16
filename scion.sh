@@ -59,9 +59,14 @@ cmd_coverage(){
 
 cmd_lint() {
     set -o pipefail
-    flake8 --config flake8.ini "${@:-.}" | sort -t: -k1,1 -k2n,2 -k3n,3
+    for i in . sub/web; do
+      echo "Linting %i"
+      echo "============================================="
+      (cd "$i" && flake8 --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3
+    done
     if [ -d sub/web ]; then
-        flake8 --config sub/web/flake8.ini sub/web | sort -t: -k1,1 -k2n,2 -k3n,3
+        cd sub/web
+        flake8 --config flake8.ini sub/web | sort -t: -k1,1 -k2n,2 -k3n,3
     fi
 }
 
@@ -86,7 +91,7 @@ cmd_clean() {
     make -s clean
 }
 
-SOCKDIR=endhost/ssp
+SOCKDIR=endhost/ssp/
 
 cmd_sock_cli() {
     if [ $# -eq 2 ]
