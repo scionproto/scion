@@ -28,17 +28,15 @@ void *tcpmw_main_thread(void *unused) {
     }
 
     if (mkdir(LWIP_SOCK_DIR, 0755)){
-        if (errno == EEXIST)
-            zlog_warn(zc_tcp, "tcpmw_main_thread: mkdir(): %s", strerror(errno));
-        else{
+        if (errno != EEXIST){
             zlog_fatal(zc_tcp, "tcpmw_main_thread: mkdir(): %s", strerror(errno));
             exit(-1);
         }
     }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, RPCD_SOCKET, sizeof(addr.sun_path)-1);
-    if (unlink(RPCD_SOCKET)){
+    strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
+    if (unlink(TCPMW_SOCKET)){
         if (errno == ENOENT)
             zlog_warn(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
         else{
@@ -60,8 +58,11 @@ void *tcpmw_main_thread(void *unused) {
 
     while (1) {
         if ((cl = accept(fd, NULL, NULL)) == -1) {
+            err_t tmp_err = errno;
             zlog_fatal(zc_tcp, "tcpmw_main_thread: accept(): %s", strerror(errno));
-            continue;
+            if (tmp_err == EINTR)
+                continue;
+            exit(-1);
         }
         /* socket() called by app. Create a netconn and a corresponding thread. */
         tcpmw_socket(cl);
@@ -71,20 +72,27 @@ void *tcpmw_main_thread(void *unused) {
 
 void tcpmw_socket(int fd){
     char buf[8];
+    int count;
     struct conn_args *args;
     struct netconn *conn;
     pthread_t tid;
 
     lwip_err = 0;
     sys_err = 0;
-    if (read(fd, buf, sizeof(buf)) != CMD_SIZE){
-        sys_err = errno;
-        zlog_error(zc_tcp, "tcpmw_socket(): read(): %s", strerror(errno));
+    if ((count = read(fd, buf, sizeof(buf))) != CMD_SIZE){
+        if (count < 0){
+            sys_err = errno;
+            zlog_error(zc_tcp, "tcpmw_socket(): read(): %s", strerror(errno));
+        }
+        else{
+            lwip_err = ERR_MW;
+            zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s", count, buf);
+        }
         goto close;
     }
     if (strncmp(buf, CMD_NEW_SOCK, CMD_SIZE)){
         lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_socket(): wrong command");
+        zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s", count, buf);
         goto close;
     }
     zlog_info(zc_tcp, "NEWS received");
@@ -127,7 +135,7 @@ void tcpmw_reply(int fd, const char *cmd){
     char buf[RESP_SIZE];
     if (sys_err)
         lwip_err = ERR_SYS;
-    memcpy(buf, cmd, RESP_SIZE - 1);
+    memcpy(buf, cmd, CMD_SIZE);
     buf[RESP_SIZE - 1] = lwip_err;  /* Set error code. */
     write(fd, buf, RESP_SIZE);
 }
@@ -138,9 +146,8 @@ void *tcpmw_sock_thread(void *data){
     char buf[TCPMW_BUFLEN];
     zlog_info(zc_tcp, "New sock thread started, waiting for requests");
     while ((rc=read(args->fd, buf, sizeof(buf))) > 0) {
-        /* zlog_info(zc_tcp, "read %u bytes from %d: %.*s", rc, args->fd, rc, buf); */
         if (rc < CMD_SIZE){
-            zlog_error(zc_tcp, "tcpmw_sock_thread: command too short");
+            zlog_error(zc_tcp, "tcpmw_sock_thread: command too short: %.*s", rc, buf);
             break;
         }
         if (!strncmp(buf, CMD_SEND, CMD_SIZE))
@@ -201,7 +208,11 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_bind(): %s", lwip_strerr(lwip_err));
         goto exit;
     }
-    zlog_info(zc_tcp, "tcpmw_bind(): bound port %d, svc: %d", port, svc);
+    char host_str[MAX_HOST_ADDR_STR];
+    uint32_t isd_as = *(uint32_t*)addr.addr;
+    format_host(addr.type, addr.addr, host_str, sizeof(host_str));
+    zlog_info(zc_tcp, "tcpmw_bind(): bound:%d-%d ,%s port %d, svc: %d",
+              ISD(isd_as), AS(isd_as), host_str, port, svc);
 
 exit:
     tcpmw_reply(args->fd, CMD_BIND);
@@ -231,13 +242,14 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
 
     p += path_len;  /* skip path */
     scion_addr_from_raw(&addr, p[0], p + 1);
-    if (p[0] == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
-        args->conn->pcb.ip->svc = *(u16_t*)(p + ISD_AS_LEN + 1);
+    if (addr.type == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
+        args->conn->pcb.ip->svc = *(u16_t*)(addr.addr + ISD_AS_LEN);
     /* Set first hop. */
-    p += 1 + ISD_AS_LEN + get_addr_len(p[0]);  /* TODO(PSz): don't assume IPv4 */
+    p += 1 + ISD_AS_LEN + get_addr_len(p[0]);
+    /* TODO(PSz): don't assume IPv4 */
     path->first_hop.sin_family = AF_INET;
     memcpy(&(path->first_hop.sin_addr), p, 4);
-    path->first_hop.sin_port = htons(*(uint16_t *)(p + 4));
+    path->first_hop.sin_port = *(uint16_t *)(p + 4);
 
     if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect(): %s", lwip_strerr(lwip_err));
@@ -266,7 +278,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     zlog_info(zc_tcp, "ACCE received");
     if (len != CMD_SIZE + SOCK_PATH_LEN){
         lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_accept(): incorrect ACCE length");
+        zlog_error(zc_tcp, "tcpmw_accept(): incorrect ACCE length %.*s", len, buf);
         goto exit;
     }
 
@@ -364,11 +376,11 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
         }
         if ((lwip_err = netconn_write_partly(args->conn, p, len, NETCONN_COPY, &written)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send(): netconn_write(): %s", lwip_strerr(lwip_err));
-            zlog_debug(zc_tcp, "netconn_write(): read_locally/written/total_size: %d/%lu/%d",
+            zlog_debug(zc_tcp, "netconn_write(): buffered/total_written/total_size: %d/%lu/%d",
                        len, written, size);
             goto exit;
         }
-        zlog_debug(zc_tcp, "netconn_write(): read_locally/written/total_size: %d/%lu/%d",
+        zlog_debug(zc_tcp, "netconn_write(): buffered/total_written/total_size: %d/%lu/%d",
                    len, written, size);
         size -= written;
         len -= written;
@@ -379,10 +391,15 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
             continue;
         }
         /* read new part from app */
-        len = read(args->fd, buf, TCPMW_BUFLEN);
-        if (len < 1){
-            sys_err = errno;
-            zlog_error(zc_tcp, "tcpmw_send(): read(): %s", strerror(errno));
+        if ((len = read(args->fd, buf, TCPMW_BUFLEN)) < 1){
+            if (len < 0){
+                sys_err = errno;
+                zlog_error(zc_tcp, "tcpmw_send(): read(): %s", strerror(errno));
+            }
+            else{
+                lwip_err = ERR_MW;
+                zlog_error(zc_tcp, "tcpmw_send(): read() unexpected EOF");
+            }
             goto exit;
         }
         p = buf;
@@ -400,18 +417,20 @@ void tcpmw_recv(struct conn_args *args){
 
     lwip_err = 0;
     sys_err = 0;
+    /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
         goto exit;
     }
 
+    /* Get the pointer to the data and its length. */
     if ((lwip_err = netbuf_data(buf, &data, &len)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_recv(): netbuf_data(): %s", lwip_strerr(lwip_err));
         goto exit;
     }
 
     msg = malloc(len + RESP_SIZE + 2);
-    memcpy(msg, CMD_RECV, RESP_SIZE - 1);
+    memcpy(msg, CMD_RECV, CMD_SIZE);
     msg[RESP_SIZE - 1] = ERR_OK;
     *((u16_t *)(msg + RESP_SIZE)) = len;
     memcpy(msg + RESP_SIZE + 2, data, len);

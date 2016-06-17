@@ -28,7 +28,7 @@ from lib.packet.scion import SVCType
 from lib.packet.scion_addr import SCIONAddr
 
 LWIP_SOCK_DIR = "/run/shm/lwip/"
-RPCD_SOCKET = "/run/shm/lwip/lwip"
+TCPMW_SOCKET = "/run/shm/lwip/lwip"
 AF_SCION = 11
 SOCK_STREAM = stdsock.SOCK_STREAM
 MAX_MSG_LEN = 2 << 31  # u32_t is used as size_t at middleware
@@ -130,10 +130,10 @@ class SCIONSocket(object):
         self._recv_buf = b''
 
     def _handle_reply(self, cmd, reply):
-        reply = reply[:RESP_SIZE]
         if reply is None or len(reply) < RESP_SIZE or cmd != reply[:CMD_SIZE]:
             logging.error("%s: incorrect reply: %s" % (cmd, reply))
             raise error("%s: incorrect reply: %s" % (cmd, reply))
+        reply = reply[:RESP_SIZE]
         err_code, = struct.unpack("b", reply[-1:])
         if err_code:
             err_str = LWIPError.err2str(err_code)
@@ -166,7 +166,7 @@ class SCIONSocket(object):
         # TODO(PSz): change order of packing, don't assume ipv4
         req = (APICmd.CONNECT + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddr_type) + addr.pack() + first_ip.pack() +
-               struct.pack("H", first_port))
+               struct.pack("!H", first_port))
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req[:CMD_SIZE], rep)
@@ -175,13 +175,12 @@ class SCIONSocket(object):
         assert self._lwip_sock is None
         # Create a socket to LWIP
         self._lwip_sock = stdsock.socket(stdsock.AF_UNIX, stdsock.SOCK_STREAM)
-        self._lwip_sock.connect(RPCD_SOCKET)
+        self._lwip_sock.connect(TCPMW_SOCKET)
         # Register it
         req = APICmd.NEW_SOCK
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req, rep)
-        # self._lwip_sock.close()
 
     def _to_lwip(self, req):
         logging.debug("Sending to LWIP(%dB): %s..." % (len(req), req[:20]))
