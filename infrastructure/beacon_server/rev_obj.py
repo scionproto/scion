@@ -15,60 +15,40 @@
 :mod:`rev_obj` --- Revocation object
 ====================================
 """
-# Stdlib
-import struct
+# External
+import capnp  # noqa
 
 # SCION
-from lib.packet.packet_base import Serializable
+from lib.packet.packet_base import Cerealizable
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.util import Raw
+import proto.rev_info_capnp as P
 
 
-class RevocationObject(Serializable):
+class RevocationObject(Cerealizable):
     """
     Revocation object that gets stored to Zookeeper.
     """
     NAME = "RevocationObject"
-
-    def __init__(self, raw=None):
-        self.if_id = 0
-        self.isd_as = 0
-        self.rev_info = None
-        super().__init__(raw)
-
-    def _parse(self, raw):
-        """
-        Parses raw bytes and populates the fields.
-        """
-        data = Raw(raw, self.NAME)
-        self.if_id, self.isd_as = struct.unpack("!II", data.pop(8))
-        self.rev_info = RevocationInfo.from_raw(data.pop())
+    P_CLS = P.RevObj
 
     @classmethod
     def from_values(cls, if_id, isd_as, rev_info):
         """
         Returns a RevocationInfo object with the specified values.
 
-        :param int if_id: The interface id of the corresponding interface.
-        :param int isd_as: The isd, as of the corresponding interface.
-        :param RevocationInfo rev_info: revocation info of interface
+        :param int if_id: ID of the interface to be revoked
+        :param int isd_as: ISD/AS of the interface to be revoked
+        :param RevocationInfo rev_info
         """
-        inst = cls()
-        inst.if_id = if_id
-        inst.isd_as = isd_as
-        inst.rev_info = rev_info
-        return inst
+        p = cls.P_CLS.new_message(ifID=if_id, isdAS=isd_as, revInfo=rev_info)
+        return cls(p)
 
-    def pack(self):
-        """
-        Returns a bytes object from the fields.
-        """
-        return (struct.pack("!II", self.if_id, self.isd_as) +
-                self.rev_info.copy().pack())
+    def rev_info(self):
+        return RevocationInfo(self.p.revInfo)
 
     def __len__(self):
         raise NotImplementedError
 
     def __str__(self):
         return "%s: IF id: %s ISD_AS: %s Rev info: %s" % (
-            self.NAME, self.if_id, self.isd_as, self.rev_info)
+            self.NAME, self.p.ifID, self.p.isdAS, self.p.revInfo)

@@ -26,10 +26,10 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 
 # The tolerable error in epoch in seconds.
 HASHTREE_EPOCH_TOLERANCE = 5
-# Max time to live
-HASHTREE_TTL = 24*60*60
 # Time per Epoch
 HASHTREE_EPOCH_TIME = 60
+# Max time to live
+HASHTREE_TTL = 24*60*60
 # Number of epochs in one TTL per interface
 HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
 
@@ -159,18 +159,18 @@ class ConnectedHashTree(object):
         self._ht1 = HashTree(if_ids, seed2, hash_func)
         self._ht2 = HashTree(if_ids, seed3, hash_func)
 
-    @staticmethod
-    def get_ttl_window():
+    @classmethod
+    def get_ttl_window(cls):
         cur_time = int(time.time())
         return cur_time // HASHTREE_TTL
 
-    @staticmethod
-    def get_current_epoch():
+    @classmethod
+    def get_current_epoch(cls):
         cur_window = int(time.time()) % HASHTREE_TTL
         return cur_window // HASHTREE_EPOCH_TIME
 
-    @staticmethod
-    def get_time_since_epoch():
+    @classmethod
+    def get_time_since_epoch(cls):
         return time.time() % HASHTREE_EPOCH_TIME
 
     def update(self, if_ids, seed):
@@ -198,8 +198,8 @@ class ConnectedHashTree(object):
         return self._ht1.get_proof(
             if_id, epoch, self._ht0_root, self._ht2._nodes[0])
 
-    @staticmethod
-    def get_possible_hashes(revProof, hash_func=SHA256):
+    @classmethod
+    def get_possible_hashes(cls, revProof, hash_func=SHA256):
         """
         Compute the hashes of the connected hash-tree roots given revProof.
         """
@@ -223,8 +223,8 @@ class ConnectedHashTree(object):
         hash12 = hash_func.new(curr_hash + proof.nextRoot).digest()
         return (hash01, hash12)
 
-    @staticmethod
-    def verify(revProof, root, hash_func=SHA256):
+    @classmethod
+    def verify(cls, revProof, root, hash_func=SHA256):
         """
         Verify whether revProof proves the revocation for the current epoch,
         given the root of the connected hash-tree.
@@ -236,12 +236,12 @@ class ConnectedHashTree(object):
         """
         proof = revProof.p
         assert not isinstance(proof, bytes)
-        h01, h12 = ConnectedHashTree.get_possible_hashes(revProof, hash_func)
+        h01, h12 = cls.get_possible_hashes(revProof, hash_func)
         return h01 == root or h12 == root
 
-    @staticmethod
-    def verify_epoch(epoch):
-        cur_epoch = ConnectedHashTree.get_current_epoch()
-        gap_time = ConnectedHashTree.get_time_since_epoch()
+    @classmethod
+    def verify_epoch(cls, epoch):
+        cur_epoch = cls.get_current_epoch()
+        gap_time = cls.get_time_since_epoch()
         return (epoch == cur_epoch or
                 cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE)

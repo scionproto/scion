@@ -45,27 +45,23 @@ class RevocationInfo(PathMgmtPayloadBase):
         :param bytes next_root: Hash of the tree root at time T+1
         """
         # Put the if_id, epoch and nonce of the leaf into the proof.
-        proof = cls.P_CLS.new_message(ifID=if_id, epoch=epoch, nonce=nonce)
+        p = cls.P_CLS.new_message(ifID=if_id, epoch=epoch, nonce=nonce)
         # Put the list of sibling hashes (along with l/r) into the proof.
-        sibs = proof.init('siblings', len(siblings))
-        for index in range(len(siblings)):
-            sibs[index].isLeft, sibs[index].hash = siblings[index]
+        sibs = p.init('siblings', len(siblings))
+        for i, sibling in enumerate(siblings):
+            sibs[i].isLeft, sibs[i].hash = sibling
         # Put the roots of the hash trees at T-1 and T+1.
-        proof.prevRoot = prev_root
-        proof.nextRoot = next_root
-        return cls(proof)
-
-    def iter_siblings(self, start=0):
-        for i in range(start, len(self.p.siblings)):
-            yield self.p.siblings[i]
+        p.prevRoot = prev_root
+        p.nextRoot = next_root
+        return cls(p)
 
     def sig_pack(self, ver):
         b = []
-        if ver >= 9:
+        if ver >= 5:
             b.append(self.p.ifID.to_bytes(8, 'big'))
             b.append(self.p.epoch.to_bytes(2, 'big'))
             b.append(self.p.nonce)
-            for sib in self.iter_siblings():
+            for sib in self.p.siblings:
                 b.append(sib.isLeft.to_bytes(1, 'big'))
                 b.append(sib.hash)
             b.append(self.p.prevRoot)

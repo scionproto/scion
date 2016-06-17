@@ -23,6 +23,7 @@ import threading
 import time
 from _collections import deque
 from abc import ABCMeta, abstractmethod
+from threading import Lock
 
 # External packages
 from Crypto.Protocol.KDF import PBKDF2
@@ -30,9 +31,12 @@ from Crypto.Protocol.KDF import PBKDF2
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
-from infrastructure.beacon_server.rev_obj import RevocationObject
 from lib.crypto.certificate import verify_sig_chain_trc
-from lib.crypto.hash_tree import ConnectedHashTree, HASHTREE_TTL
+from lib.crypto.hash_tree import (
+    ConnectedHashTree,
+    HASHTREE_EPOCH_TIME,
+    HASHTREE_TTL,
+)
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -87,8 +91,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             hash-chain for each interface.
     """
     SERVICE_TYPE = BEACON_SERVICE
-    # The tolerable error in epoch in seconds.
-    EPOCH_TOLERANCE = 5
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
     # Timeout for TRC or Certificate requests.
@@ -121,8 +123,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                             self.config.master_as_key, b"Derive hashtree Key")
         logging.info(self.config.__dict__)
         self._hash_tree = None
+        self._hash_tree_lock = Lock()
         self._if_rev_token_lock = threading.Lock()
-        self.revs_to_downstream = ExpiringDict(max_len=1000, max_age_seconds=60)
+        self.revs_to_downstream = ExpiringDict(
+                            max_len=1000, max_age_seconds=HASHTREE_EPOCH_TIME)
 
         self.ifid_state = {}
         for ifid in self.ifid2er:
@@ -155,14 +159,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
 
     def _get_proof(self, if_id):
-        if not self._hash_tree:
-            self._init_hash_tree()
-        return self._hash_tree.get_proof(if_id)
+        with self._hash_tree_lock:
+            if not self._hash_tree:
+                self._init_hash_tree()
+            return self._hash_tree.get_proof(if_id)
 
     def _get_root(self):
-        if not self._hash_tree:
-            self._init_hash_tree()
-        return self._hash_tree.get_root()
+        with self._hash_tree_lock:
+            if not self._hash_tree:
+                self._init_hash_tree()
+            return self._hash_tree.get_root()
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -224,8 +230,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         # Handle ASMarking extensions:
         for asm in pcb.iter_asms():
-            for rev_info in asm.p.exts.revInfos:
-                self.rev_ext_handler(RevocationInfo(rev_info), asm.isd_as())
+            for rev_info in asm.iter_rev_infos():
+                self.rev_ext_handler(RevocationInfo(rev_info.p), asm.isd_as())
         # Handle PCB extensions:
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
@@ -289,8 +295,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             out_info["remote_ia"], out_info["remote_if"], hof)
 
     def _create_asm_exts(self):
-        return {"rev_infos":
-                [r for (_, r) in list(self.revs_to_downstream.items())]}
+        return {"rev_infos": self.revs_to_downstream.values()}
 
     def _terminate_pcb(self, pcb):
         """
@@ -358,12 +363,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Maintain the hashtree. Update the the windows in the connected tree
         """
         while self.run_flag.is_set():
-            if not self._hash_tree:
-                self._init_hash_tree()
-            start = time.time()
             ifs = list(self.ifid2er.keys())
-            self._hash_tree.update(ifs, self.hashtree_gen_key)
+            with self._hash_tree_lock:
+                if not self._hash_tree:
+                    self._init_hash_tree()
+                self._hash_tree.update(ifs, self.hashtree_gen_key)
             logging.info("New Hash Tree TTL beginning")
+            start = time.time()
             sleep_interval(start, HASHTREE_TTL,
                            "BS.hashtree TTL", self._quiet_startup())
 
@@ -442,8 +448,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     @abstractmethod
     def _check_trc(self, isd_as, trc_ver):
         """
-        Return True or False whether the necessary Certificate and TRC files
-        are found.
+        Return True or False whether the necessary Certificate and TRC files are
+        found.
 
         :param ISD_AS isd_is: ISD-AS identifier.
         :param int trc_ver: TRC file version.
@@ -486,8 +492,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _verify_beacon(self, pcb):
         """
-        Once the necessary certificate and TRC files have been found, verify
-        the beacons.
+        Once the necessary certificate and TRC files have been found, verify the
+        beacons.
 
         :param pcb: path segment to verify.
         :type pcb: PathSegment
@@ -540,22 +546,22 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb, quiet=True)
 
-    def process_rev_objects(self, rev_objs):
+    def process_rev_objects(self, rev_infos):
         """
-        Processes revocation objects stored in Zookeeper.
+        Processes revocation infos stored in Zookeeper.
         """
-        for raw_obj in rev_objs:
+        for raw in rev_infos:
             try:
-                rev_obj = RevocationObject(raw_obj)
+                rev_info = RevocationInfo.from_raw(raw)
             except SCIONParseError as e:
-                logging.error("Error processing revocation object from ZK: %s",
+                logging.error("Error processing revocation info from ZK: %s",
                               e)
                 continue
-            self._remove_revoked_pcbs(rev_obj.rev_info, rev_obj.if_id)
+            self._remove_revoked_pcbs(rev_info, rev_info.p.ifID)
 
     def _issue_revocation(self, if_id):
         """
-        Store a RevocationObject in ZK and send a revocation to all ERs.
+        Store a RevocationInfo in ZK and send a revocation to all ERs.
 
         :param if_id: The interface that needs to be revoked.
         :type if_id: int
@@ -565,10 +571,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         rev_info = self._get_proof(if_id)
         logging.info("Storing revocation in ZK.")
-        rev_obj = RevocationObject.from_values(if_id, self.addr.isd_as.int(),
-                                               rev_info)
         entry_name = "%s:%s" % (if_id, self.addr.isd_as.int())
-        self.revobjs_cache.store(entry_name, rev_obj.pack())
+        self.revobjs_cache.store(entry_name, rev_info.copy().pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
@@ -681,8 +685,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_if_timeouts(self):
         """
-        Periodically checks each interface state and issues an if revocation,
-        if no keep-alive message was received for IFID_TOUT.
+        Periodically checks each interface state and issues an if revocation, if
+        no keep-alive message was received for IFID_TOUT.
         """
         while self.run_flag.is_set():
             start_time = time.time()

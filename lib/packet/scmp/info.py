@@ -192,17 +192,16 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
 class SCMPInfoRevocation(SCMPInfoPathOffsets):
     """Store IOF offset, HOF offset, IF id and ingress flag."""
     NAME = "SCMPInfoPktSize"
-    ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress", "rev_token"]
+    ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress", "rev_info"]
 
     @classmethod
-    def from_pkt(cls, pkt, if_id, ingress, rev_info):  # pragma: no cover
+    def from_pkt(cls, pkt, if_id, ingress, rev_info):
         rev_token = rev_info.pack()
-        assert isinstance(rev_token, bytes)
         inst = cls()
 
         padding_length = calc_padding(struct.calcsize(inst.STRUCT_FMT) +
                                       len(rev_token), LINE_LEN)
-        rev_token = rev_token + bytes(padding_length)
+        rev_token += bytes(padding_length)
 
         iof_offset, hof_offset = inst._calc_offsets(pkt)
         inst._set_vals((iof_offset, hof_offset, if_id, ingress, rev_token))
@@ -224,15 +223,15 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
         self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop()))
 
     def pack(self):  # pragma: no cover
-        assert isinstance(self.rev_token, bytes)
-        assert len(self.rev_token) == self.REV_LEN
+        assert isinstance(self.rev_info, bytes)
+        assert len(self.rev_info) == self.REV_LEN
         return super().pack()
 
     def __str__(self):
         return ("%s(%dB): IOF offset:%sB HOF offset: %sB "
                 "IF id: %s Ingress: %s Rev token: %s" % (
                     self.NAME, self.LEN, self.iof_off, self.hof_off,
-                    self.if_id, self.ingress, hex_str(self.rev_token)))
+                    self.if_id, self.ingress, hex_str(self.rev_info)))
 
 
 class SCMPInfoExtIdx(SCMPInfoGeneric):

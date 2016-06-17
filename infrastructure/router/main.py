@@ -413,7 +413,7 @@ class Router(SCIONElement):
         if from_local_as:
             return
         # Forward to local path server if we haven't recently.
-        rev_info = RevocationInfo.from_raw(pld.info.rev_token)
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         h = (rev_info.p.ifID, rev_info.p.epoch, rev_info.p.prevRoot,
              rev_info.p.nextRoot)
         if (self.topology.path_servers and h not in self.revocations):
@@ -423,9 +423,6 @@ class Router(SCIONElement):
             except SCIONServiceLookupError:
                 logging.error("No local PS to forward revocation to.")
                 raise SCMPUnknownHost
-            # FIXME(kormat): disabling for now, as this doesn't currently work.
-            # The dispatcher has no way to route the revocation scmp message to
-            # the designated path server.
             pkt = self._build_packet(ps, payload=rev_info)
             logging.debug("ENABLED: Forwarding revocation to local PS: %s", ps)
             self.send(pkt, ps)

@@ -142,7 +142,7 @@ class ASMarking(Cerealizable):
                 b.append(pcbm.sig_pack(6))
             b.append(self.p.root)
             for r in self.iter_rev_infos():
-                b.append(r.sig_pack(ver))
+                b.append(r.sig_pack(5))
             b.append(self.p.mtu.to_bytes(2, 'big'))
             b.append(self.p.chain)
         return b"".join(b)
