@@ -10,8 +10,7 @@
 
 static const uint8_t cookie[] = { 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0x03 };
 
-#define ADDR_BUF_SIZE 50
-char addr_buf[ADDR_BUF_SIZE];
+char addr_buf[MAX_HOST_ADDR_STR];
 
 int validate_cookie(uint8_t *buf)
 {
@@ -31,8 +30,8 @@ void parse_dp_header(uint8_t *buf, uint8_t *addr_type, int *packet_len)
 
 void write_dp_header(uint8_t *buf, HostAddr *host, int packet_len)
 {
-    int addr_len = 0;
-    uint8_t addr_type = 0;
+    int addr_len = ADDR_NONE_LEN;
+    uint8_t addr_type = ADDR_NONE_TYPE;
     if (host) {
         addr_len = get_addr_len(host->addr_type);
         addr_type = host->addr_type;
@@ -52,7 +51,7 @@ void write_dp_header(uint8_t *buf, HostAddr *host, int packet_len)
 int send_dp_header(int sock, HostAddr *host, int packet_len)
 {
     int addr_port_len = 0;
-    if (host && host->addr_type != 0)
+    if (host && host->addr_type != ADDR_NONE_TYPE)
         addr_port_len = get_addr_len(host->addr_type) + 2;
     uint8_t buf[DP_HEADER_LEN + addr_port_len];
     write_dp_header(buf, host, packet_len);
@@ -94,9 +93,9 @@ const char * addr_to_str(uint8_t *addr, uint8_t type)
 {
     switch (type) {
         case ADDR_IPV4_TYPE:
-            return inet_ntop(AF_INET, addr, addr_buf, ADDR_BUF_SIZE);
+            return inet_ntop(AF_INET, addr, addr_buf, MAX_HOST_ADDR_STR);
         case ADDR_IPV6_TYPE:
-            return inet_ntop(AF_INET6, addr, addr_buf, ADDR_BUF_SIZE);
+            return inet_ntop(AF_INET6, addr, addr_buf, MAX_HOST_ADDR_STR);
         default:
             return NULL;
     }

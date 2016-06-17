@@ -198,8 +198,6 @@ class SCIONDaemon(SCIONElement):
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
            p2_len(1B)|...
          or b"" when no path found.
-
-        FIXME(kormat): make IP-version independent
         """
         dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
         thread = threading.current_thread()

@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+#define _GNU_SOURCE // required to get struct in6_pktinfo definition
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -30,7 +30,7 @@
 #define MAX_BACKLOG 128
 #define MAX_SOCKETS 1024
 #define APP_INDEX 0
-#define DATA_INDEX 1
+#define DATA_V4_INDEX 1
 #define DATA_V6_INDEX 2
 
 #define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)))
@@ -85,9 +85,9 @@ Entry *poll_fd_list = NULL;
 SVCEntry *svc_list = NULL;
 
 static struct pollfd sockets[MAX_SOCKETS];
-static int num_sockets = 2; // app_socket, data_socket, data_v6_socket
+static int num_sockets;
 
-static int data_socket;
+static int data_v4_socket;
 static int data_v6_socket;
 static int app_socket;
 
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 
     /* Would only get down here if poll failed */
 
-    close(data_socket);
+    close(data_v4_socket);
     close(app_socket);
     int i;
     for (i = 0; i < num_sockets; i++)
@@ -190,12 +190,14 @@ void handle_signal(int sig)
 int create_sockets()
 {
     app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-    data_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    data_v4_socket = socket(AF_INET, SOCK_DGRAM, 0);
     data_v6_socket = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (data_socket < 0 || app_socket < 0) {
-        zlog_fatal(zc, "failed to open sockets");
+    if (app_socket < 0) {
+        zlog_fatal(zc, "failed to open app socket");
         return -1;
     }
+    if (data_v4_socket < 0)
+        zlog_info(zc, "IPv4 not supported on this host");
     if (data_v6_socket < 0)
         zlog_info(zc, "IPv6 not supported on this host");
 
@@ -214,12 +216,21 @@ int create_sockets()
 
     sockets[APP_INDEX].fd = app_socket;
     sockets[APP_INDEX].events = POLLIN;
-    sockets[DATA_INDEX].fd = data_socket;
-    sockets[DATA_INDEX].events = POLLIN;
+    num_sockets++;
+    if (data_v4_socket > 0) {
+        sockets[DATA_V4_INDEX].fd = data_v4_socket;
+        sockets[DATA_V4_INDEX].events = POLLIN;
+        num_sockets++;
+    }
     if (data_v6_socket > 0) {
-        num_sockets = 3;
+        num_sockets++;
         sockets[DATA_V6_INDEX].fd = data_v6_socket;
         sockets[DATA_V6_INDEX].events = POLLIN;
+    }
+
+    if (num_sockets < 2) {
+        zlog_fatal(zc, "Could not open any IP sockets");
+        return -1;
     }
 
     int i;
@@ -239,17 +250,22 @@ int set_sockopts()
      * FIXME(kormat): This should go away once the dispatcher and the router no
      * longer try binding to the same socket.
      */
-    int res = setsockopt(data_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-    res |= setsockopt(data_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
+    int res = 0;
+    if (data_v4_socket > 0) {
+        setsockopt(data_v4_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        res |= setsockopt(data_v4_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
+    }
     if (data_v6_socket > 0) {
         res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
         res |= setsockopt(data_v6_socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval, sizeof(optval));
         res |= setsockopt(data_v6_socket, SOL_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
     }
     optval = 1 << 20;
-    res |= setsockopt(data_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
-    res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
-    res |= fcntl(data_socket, F_SETFL, O_NONBLOCK);
+    if (data_v4_socket > 0) {
+        res |= setsockopt(data_v4_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
+        res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
+        res |= fcntl(data_v4_socket, F_SETFL, O_NONBLOCK);
+    }
     if (data_v6_socket > 0) {
         res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
         res |= fcntl(data_v6_socket, F_SETFL, O_NONBLOCK);
@@ -279,17 +295,19 @@ int bind_data_sockets()
 {
     struct sockaddr_storage sa;
 
-    sockaddr_in *sin = (sockaddr_in *)&sa;
-    memset(sin, 0, sizeof(sockaddr_in));
-    sin->sin_family = AF_INET;
-    sin->sin_addr.s_addr = INADDR_ANY;
-    sin->sin_port = htons(SCION_UDP_EH_DATA_PORT);
-    if (bind(data_socket, (struct sockaddr *)sin, sizeof(sockaddr_in)) < 0) {
-        zlog_fatal(zc, "failed to bind data socket to %s:%d, %s",
-                inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), strerror(errno));
-        return -1;
+    if (data_v4_socket > 0) {
+        sockaddr_in *sin = (sockaddr_in *)&sa;
+        memset(sin, 0, sizeof(sockaddr_in));
+        sin->sin_family = AF_INET;
+        sin->sin_addr.s_addr = INADDR_ANY;
+        sin->sin_port = htons(SCION_UDP_EH_DATA_PORT);
+        if (bind(data_v4_socket, (struct sockaddr *)sin, sizeof(sockaddr_in)) < 0) {
+            zlog_fatal(zc, "failed to bind data socket to %s:%d, %s",
+                    inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), strerror(errno));
+            return -1;
+        }
+        zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
     }
-    zlog_info(zc, "data socket bound to %s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 
     if (data_v6_socket > 0) {
         sockaddr_in6 *sin6 = (sockaddr_in6 *)&sa;
@@ -297,7 +315,7 @@ int bind_data_sockets()
         sin6->sin6_family = AF_INET6;
         sin6->sin6_addr = in6addr_any;
         sin6->sin6_port = htons(SCION_UDP_EH_DATA_PORT);
-        char str[50];
+        char str[MAX_HOST_ADDR_STR];
         inet_ntop(AF_INET6, &sin6->sin6_addr, str, 50);
         if (bind(data_v6_socket, (struct sockaddr *)sin6, sizeof(sockaddr_in6)) < 0) {
             zlog_fatal(zc, "failed to bind v6 data socket to %s : %d, %s",
@@ -326,7 +344,7 @@ int run()
                 case APP_INDEX:
                     handle_app();
                     break;
-                case DATA_INDEX:
+                case DATA_V4_INDEX:
                     handle_data(0);
                     break;
                 case DATA_V6_INDEX:
@@ -596,7 +614,7 @@ void handle_data(int v6)
     msg.msg_control = control_buf;;
     msg.msg_controllen = sizeof(control_buf);
 
-    int sock = v6 ? data_v6_socket : data_socket;
+    int sock = v6 ? data_v6_socket : data_v4_socket;
     int len = recvmsg(sock, &msg, 0);
     if (len < 0) {
         zlog_error(zc, "error on recvmsg: %s", strerror(errno));
@@ -830,12 +848,12 @@ void handle_send(int index)
     memset(&hop, 0, sizeof(hop));
     hop.addr_type = addr_type;
     memcpy(hop.addr, buf, addr_len);
-    hop.port = *(uint16_t *)(buf + addr_len);
+    hop.port = htons(*(uint16_t *)(buf + addr_len));
     send_data(buf + addr_len + 2, packet_len, &hop);
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
-            packet_len, l4, addr_to_str(hop.addr, hop.addr_type), hop.port);
+            packet_len, l4, addr_to_str(hop.addr, hop.addr_type), ntohs(hop.port));
 }
 
 void cleanup_socket(int sock, int index, int err)
@@ -889,14 +907,14 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop)
         sockaddr_in sa;
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
-        sa.sin_port = htons(first_hop->port);
+        sa.sin_port = first_hop->port;
         memcpy(&sa.sin_addr, first_hop->addr, ADDR_IPV4_LEN);
-        ret = sendto(data_socket, buf, len, 0, (struct sockaddr *)&sa, sizeof(sa));
+        ret = sendto(data_v4_socket, buf, len, 0, (struct sockaddr *)&sa, sizeof(sa));
     } else if (first_hop->addr_type == ADDR_IPV6_TYPE) {
         sockaddr_in6 sa6;
         memset(&sa6, 0, sizeof(sa6));
         sa6.sin6_family = AF_INET6;
-        sa6.sin6_port = htons(first_hop->port);
+        sa6.sin6_port = first_hop->port;
         memcpy(&sa6.sin6_addr, first_hop->addr, ADDR_IPV6_LEN);
         ret = sendto(data_v6_socket, buf, len, 0, (struct sockaddr *)&sa6, sizeof(sa6));
     } else {

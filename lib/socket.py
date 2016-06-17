@@ -241,7 +241,7 @@ class ReliableSocket(Socket):
             addr_type = struct.pack("B", dst_addr.TYPE)
             packed_dst = dst_addr.pack() + struct.pack("H", dst_port)
         else:
-            addr_type = struct.pack("B", 0)
+            addr_type = struct.pack("B", AddrType.NONE)
             packed_dst = b""
         data_len = struct.pack("I", len(data))
         data = b"".join([self.COOKIE, addr_type, data_len, packed_dst, data])
@@ -267,7 +267,7 @@ class ReliableSocket(Socket):
             logging.critical("Dispatcher socket out of sync")
             raise SCIONIOError
         port_len = 0
-        if addr_type != 0:
+        if addr_type != AddrType.NONE:
             port_len = 2
         addr_len = haddr_get_type(addr_type).LEN
         # We know there is data coming, block here to avoid sync problems.
