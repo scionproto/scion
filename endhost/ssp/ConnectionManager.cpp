@@ -669,7 +669,7 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
     mPaths[index]->setUp();
     int used = 0;
     for (size_t i = 0; i < mPaths.size(); i++)
-        if (mPaths[i]->isUsed())
+        if (mPaths[i] && mPaths[i]->isUsed())
             used++;
     if (used < MAX_USED_PATHS)
         mPaths[index]->setUsed(true);
