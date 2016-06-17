@@ -89,13 +89,18 @@ int send_all(int sock, uint8_t *buf, int len)
     return sent;
 }
 
-const char * addr_to_str(uint8_t *addr, uint8_t type)
+const char * addr_to_str(uint8_t *addr, uint8_t type, char *buf)
 {
+    char *str;
+    if (buf)
+        str = buf;
+    else
+        str = addr_buf;
     switch (type) {
         case ADDR_IPV4_TYPE:
-            return inet_ntop(AF_INET, addr, addr_buf, MAX_HOST_ADDR_STR);
+            return inet_ntop(AF_INET, addr, str, MAX_HOST_ADDR_STR);
         case ADDR_IPV6_TYPE:
-            return inet_ntop(AF_INET6, addr, addr_buf, MAX_HOST_ADDR_STR);
+            return inet_ntop(AF_INET6, addr, str, MAX_HOST_ADDR_STR);
         default:
             return NULL;
     }

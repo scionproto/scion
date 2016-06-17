@@ -261,9 +261,9 @@ int set_sockopts()
         res |= setsockopt(data_v6_socket, SOL_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
     }
     optval = 1 << 20;
+    res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
     if (data_v4_socket > 0) {
         res |= setsockopt(data_v4_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
-        res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
         res |= fcntl(data_v4_socket, F_SETFL, O_NONBLOCK);
     }
     if (data_v6_socket > 0) {
@@ -499,14 +499,14 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         memcpy(e->l4_key.host, buf + common + 8, addr_len);
         end = addr_len + common + 8;
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
-                addr_to_str(e->l4_key.host, type), e->l4_key.port, e->l4_key.flow_id);
+                addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
-        zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type), e->l4_key.port);
+        zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
     }
     if (IS_SCMP_REQ(*buf)) {
         zlog_info(zc, "SCMP registration included");
@@ -680,7 +680,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
-                    key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type));
+                    key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL));
             return;
         }
     } else {
@@ -688,12 +688,12 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
-                    ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type), key.flow_id);
+                    ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL), key.flow_id);
             return;
         }
     }
     zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64, 
-               addr_to_str(dst_ptr, dst_type), key.port, key.flow_id);
+               addr_to_str(dst_ptr, dst_type, NULL), key.port, key.flow_id);
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);
 }
@@ -709,7 +709,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     uint16_t checksum = scion_udp_checksum(buf);
     if (checksum != udp->checksum) {
         zlog_error(zc, "Bad UDP checksum in packet to %s. Expected:%04x Got:%04x",
-                addr_to_str(dst->addr, dst->addr_type), ntohs(udp->checksum), ntohs(checksum));
+                addr_to_str(dst->addr, dst->addr_type, NULL), ntohs(udp->checksum), ntohs(checksum));
         return;
     }
 
@@ -725,12 +725,12 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         if (!se) {
             zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %d IP: %s",
                     ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
-                    addr_to_str(dst->addr, dst->addr_type));
+                    addr_to_str(dst->addr, dst->addr_type, NULL));
             return;
         }
         sock = se->sockets[rand() % se->count];
         zlog_debug(zc, "deliver UDP packet to (%d-%d):%s",
-                ISD(svc_key.isd_as), AS(svc_key.isd_as), addr_to_str(dst->addr, dst->addr_type));
+                ISD(svc_key.isd_as), AS(svc_key.isd_as), addr_to_str(dst->addr, dst->addr_type, NULL));
     } else {
         L4Key key;
         memset(&key, 0, sizeof(key));
@@ -744,7 +744,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         if (!e) {
             zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
                     ISD(key.isd_as), AS(key.isd_as),
-                    addr_to_str(key.host, DST_TYPE(sch)), key.port);
+                    addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
             return;
         }
         sock = e->sock;
@@ -774,7 +774,7 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
     reverse_packet(buf);
     scmp->type = htons(SCMP_ECHO_REPLY);
     update_scmp_checksum(buf);
-    zlog_debug(zc, "send echo reply to %s:%d\n", addr_to_str(from->addr, from->addr_type), ntohs(from->port));
+    zlog_debug(zc, "send echo reply to %s:%d\n", addr_to_str(from->addr, from->addr_type, NULL), ntohs(from->port));
     send_data(buf, ntohs(sch->total_len), from);
 }
 
@@ -802,11 +802,11 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
         zlog_error(zc, "SCMP entry for %s:%d not found\n",
-                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf)), key.port);
+                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
         return;
     }
     zlog_debug(zc, "SCMP entry for %s:%d found\n",
-            addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf)), key.port);
+            addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
 
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);
@@ -853,7 +853,7 @@ void handle_send(int index)
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
-            packet_len, l4, addr_to_str(hop.addr, hop.addr_type), ntohs(hop.port));
+            packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), ntohs(hop.port));
 }
 
 void cleanup_socket(int sock, int index, int err)
