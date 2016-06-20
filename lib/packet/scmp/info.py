@@ -213,7 +213,7 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
         data = Raw(raw, self.NAME)
         self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop(self.LEN)))
         self.rev_info = data.pop()
-        
+
     def pack(self):  # pragma: no cover
         assert isinstance(self.rev_info, bytes)
         return super().pack() + self.rev_info
