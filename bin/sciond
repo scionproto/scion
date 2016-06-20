@@ -22,7 +22,7 @@ import logging
 from endhost.sciond import SCIONDaemon, SCIOND_API_SOCKDIR
 from lib.log import init_logging
 from lib.main import main_wrapper
-from lib.packet.host_addr import haddr_parse
+from lib.packet.host_addr import haddr_parse_interface
 from lib.util import handle_signals
 
 
@@ -42,7 +42,7 @@ def sciond_default():
     args = parser.parse_args()
     init_logging(os.path.join(args.log_dir, args.sciond_id),
                  console_level=logging.CRITICAL)
-    addr = haddr_parse("IPV4", args.addr)
+    addr = haddr_parse_interface(args.addr)
 
     inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, run_local_api=True)
     logging.info("Started %s", args.sciond_id)

@@ -28,23 +28,24 @@ Path::Path(PathManager *manager, PathParams *params)
         if (mPathLen == 0) {
             // empty path
             mPath = NULL;
-            mFirstHop.addr_len = mDstAddr.host.addr_len;
-            memcpy(mFirstHop.addr, mDstAddr.host.addr, mFirstHop.addr_len);
+            mFirstHop.addr_type = mDstAddr.host.addr_type;
+            memcpy(mFirstHop.addr, mDstAddr.host.addr, get_addr_len(mFirstHop.addr_type));
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
             mMTU = SCION_DEFAULT_MTU;
         } else {
             mPath = (uint8_t *)malloc(mPathLen);
             memcpy(mPath, ptr, mPathLen);
             ptr += mPathLen;
-            // TODO: IPv6?
-            mFirstHop.addr_len = ADDR_IPV4_LEN;
-            memcpy(mFirstHop.addr, ptr, ADDR_IPV4_LEN);
-            ptr += mFirstHop.addr_len;
+            uint8_t addr_type = *ptr++;
+            int addr_len = get_addr_len(addr_type);
+            mFirstHop.addr_type = addr_type;
+            memcpy(mFirstHop.addr, ptr, addr_len);
+            ptr += addr_len;
             mFirstHop.port = ntohs(*(uint16_t *)ptr);
             ptr += 2;
 #ifdef BYPASS_ROUTERS
-            mFirstHop.addr_len = mDstAddr.host.addr_len;
-            memcpy(mFirstHop.addr, mDstAddr.host.addr, mFirstHop.addr_len);
+            mFirstHop.addr_type = mDstAddr.host.addr_type;
+            memcpy(mFirstHop.addr, mDstAddr.host.addr, get_addr_len(mFirstHop.addr_type));
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
 #endif
             mMTU = ntohs(*(uint16_t *)ptr);
@@ -230,11 +231,9 @@ bool Path::isValid()
     return ret;
 }
 
-void Path::setFirstHop(int len, uint8_t *addr)
+void Path::setFirstHop(HostAddr *addr)
 {
-    mFirstHop.addr_len = len;
-    memcpy(mFirstHop.addr, addr, len);
-    mFirstHop.port = SCION_UDP_EH_DATA_PORT;
+    mFirstHop = *addr;
 }
 
 bool Path::didTimeout(struct timeval *current)
@@ -282,21 +281,23 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh)
 {
     SCIONCommonHeader *sch = &sh->commonHeader;
     uint8_t *start = bufptr;
-    uint8_t srcLen = ISD_AS_LEN + mLocalAddr.host.addr_len;
-    uint8_t dstLen = ISD_AS_LEN + mDstAddr.host.addr_len;
+    int srcHostLen = get_addr_len(mLocalAddr.host.addr_type);
+    int dstHostLen = get_addr_len(mDstAddr.host.addr_type);
+    uint8_t srcLen = ISD_AS_LEN + srcHostLen;
+    uint8_t dstLen = ISD_AS_LEN + dstHostLen;
     // SCION common header
     memcpy(bufptr, sch, sizeof(*sch));
     bufptr += sizeof(*sch);
     // src/dst SCION addresses
     *(uint32_t *)bufptr = htonl(mLocalAddr.isd_as);
     bufptr += ISD_AS_LEN;
-    memcpy(bufptr, mLocalAddr.host.addr, mLocalAddr.host.addr_len);
-    bufptr += mLocalAddr.host.addr_len;
+    memcpy(bufptr, mLocalAddr.host.addr, srcHostLen);
+    bufptr += srcHostLen;
     memcpy(sh->srcAddr, bufptr - srcLen, srcLen);
     *(uint32_t *)bufptr = htonl(mDstAddr.isd_as);
     bufptr += ISD_AS_LEN;
-    memcpy(bufptr, mDstAddr.host.addr, mDstAddr.host.addr_len);
-    bufptr += mDstAddr.host.addr_len;
+    memcpy(bufptr, mDstAddr.host.addr, dstHostLen);
+    bufptr += dstHostLen;
     memcpy(sh->dstAddr, bufptr - dstLen, dstLen);
 
     if (mPathLen == 0)
@@ -435,7 +436,6 @@ int SSPPath::sendPacket(SCIONPacket *packet, int sock)
     }
     sch.total_len = htons(packet_len);
 
-    // TODO: Don't assume IPv4 (5 = 1 byte len + 4 byte addr)
     uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &packet->header);
@@ -612,7 +612,6 @@ int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
     }
     sch.total_len = htons(packet_len);
 
-    // TODO: Don't assume IPv4 (5 = 1 byte len + 4 byte addr)
     uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &sh);

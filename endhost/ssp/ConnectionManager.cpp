@@ -62,8 +62,13 @@ void PathManager::getDefaultIP()
         // TODO(aznair): IPv6
         if (ifa->ifa_addr->sa_family == AF_INET) {
             struct sockaddr_in *sa = (struct sockaddr_in *)(ifa->ifa_addr);
-            mLocalAddr.host.addr_len = 4;
-            memcpy(mLocalAddr.host.addr, &sa->sin_addr, 4);
+            mLocalAddr.host.addr_type = ADDR_IPV4_TYPE;
+            memcpy(mLocalAddr.host.addr, &sa->sin_addr, ADDR_IPV4_LEN);
+            break;
+        } else if (ifa->ifa_addr->sa_family == AF_INET6) {
+            struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
+            mLocalAddr.host.addr_type = ADDR_IPV6_TYPE;
+            memcpy(mLocalAddr.host.addr, &sa6->sin6_addr, ADDR_IPV6_LEN);
             break;
         }
     }
@@ -134,7 +139,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
 {
     DEBUG("%p: bind to (%d-%d):%s\n",
             this, ISD(addr.isd_as), AS(addr.isd_as),
-            inet_ntoa(*(struct in_addr *)addr.host.addr));
+            addr_to_str(addr.host.addr, addr.host.addr_type));
 
     if (mLocalAddr.isd_as == 0)
         queryLocalAddress();
@@ -142,8 +147,8 @@ int PathManager::setLocalAddress(SCIONAddr addr)
     if (addr.isd_as == 0) /* bind to any address */
         return 0;
 
-    mLocalAddr.host.addr_len = addr.host.addr_len;
-    memcpy(mLocalAddr.host.addr, addr.host.addr, addr.host.addr_len);
+    mLocalAddr.host.addr_type = addr.host.addr_type;
+    memcpy(mLocalAddr.host.addr, addr.host.addr, get_addr_len(addr.host.addr_type));
 
     return 0;
 }
@@ -208,8 +213,10 @@ int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidate
     int pathLen = *ptr * 8;
     if (pathLen > len)
         return -1;
-    // TODO: IPv6?
-    int interfaceOffset = 1 + pathLen + ADDR_IPV4_LEN + 2 + 2;
+    uint8_t addr_type = *(ptr + 1 + pathLen);
+    int addr_len = get_addr_len(addr_type);
+    // TODO: IPv6 (once sciond supports it)
+    int interfaceOffset = 1 + pathLen + 1 + addr_len + 2 + 2;
     int interfaceCount = *(ptr + interfaceOffset);
     if (interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN > len)
         return -1;
@@ -556,7 +563,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
             SCIONPacket packet;
             memset(&packet, 0, sizeof(packet));
             pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
-                    ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
+                    mLocalAddr.host.addr_type, mDstAddr.host.addr_type, L4_SSP, 0, 0, 0);
             addProbeExtension(&packet.header, probeNum, 0);
             SSPPacket sp;
             packet.payload = &sp;
@@ -651,11 +658,11 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
         SCIONAddr saddr;
         saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
         // TODO: IPv6?
-        saddr.host.addr_len = ADDR_IPV4_LEN;
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
+        saddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
+        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(saddr.host.addr_type));
 
         SSPPath *p = (SSPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
-        p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
+        p->setFirstHop(&packet->firstHop);
         p->setInterfaces(sp->interfaces, sp->interfaceCount);
         if (mPolicy.validate(p)) {
             index = insertOnePath(p);
@@ -1205,8 +1212,8 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
         DEBUG("send probe on path %lu\n", i);
         SCIONPacket p;
         memset(&p, 0, sizeof(p));
-        pack_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE,
-                ADDR_IPV4_TYPE, L4_UDP, 0, 0, 0);
+        pack_cmn_hdr((uint8_t *)&p.header.commonHeader,
+                mLocalAddr.host.addr_type, mDstAddr.host.addr_type, L4_UDP, 0, 0, 0);
         addProbeExtension(&p.header, probeNum, 0);
         SUDPPacket sp;
         memset(&sp, 0, sizeof(sp));
@@ -1242,8 +1249,8 @@ void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int
     } else {
         SCIONPacket p;
         memset(&p, 0, sizeof(p));
-        pack_cmn_hdr((uint8_t *)&p.header.commonHeader, ADDR_IPV4_TYPE,
-                ADDR_IPV4_TYPE, L4_UDP, 0, 0, 0);
+        pack_cmn_hdr((uint8_t *)&p.header.commonHeader,
+                mLocalAddr.host.addr_type, mDstAddr.host.addr_type, L4_UDP, 0, 0, 0);
         addProbeExtension(&p.header, probeNum, 1);
         SUDPPacket ack;
         p.payload = &ack;
@@ -1274,11 +1281,11 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
         SCIONAddr saddr;
         saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
         // TODO: IPv6?
-        saddr.host.addr_len = ADDR_IPV4_LEN;
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, ADDR_IPV4_LEN);
+        saddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
+        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(saddr.host.addr_type));
 
         SUDPPath *p = (SUDPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
-        p->setFirstHop(ADDR_IPV4_LEN, (uint8_t *)&(packet->firstHop));
+        p->setFirstHop(&packet->firstHop);
         index = insertOnePath(p);
         mLastProbeAcked.resize(mPaths.size());
     }

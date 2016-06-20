@@ -156,7 +156,7 @@ int SCIONProtocol::setISDWhitelist(void *data, size_t len)
 {
     if (!mPathManager)
         return -EPERM;
-    // Disallow chaning policy if connection is already active
+    // Disallow changing policy if connection is already active
     if (mNextSendByte != 1)
         return -EPERM;
     return mPathManager->setISDWhitelist(data, len);
@@ -416,17 +416,17 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     DEBUG("incoming SSP packet\n");
 
     uint8_t *ptr = buf;
-    SCIONCommonHeader &sch = packet->header.commonHeader;
+    SCIONCommonHeader *sch = &packet->header.commonHeader;
     if (mDstAddr.isd_as == 0) {
         mDstAddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
-        mDstAddr.host.addr_len = get_src_len((uint8_t *)&sch);
-        memcpy(mDstAddr.host.addr, packet->header.srcAddr + ISD_AS_LEN, mDstAddr.host.addr_len);
+        mDstAddr.host.addr_type = SRC_TYPE(sch);
+        memcpy(mDstAddr.host.addr, packet->header.srcAddr + ISD_AS_LEN, get_addr_len(mDstAddr.host.addr_type));
     }
 
     // Build SSP incoming packet
     SSPPacket *sp = new SSPPacket();
     buildSSPHeader(&(sp->header), ptr);
-    int payloadLen = sch.total_len - sch.header_len - sp->header.headerLen;
+    int payloadLen = sch->total_len - sch->header_len - sp->header.headerLen;
     SCIONExtension *ext = packet->header.extensions;
     while (ext != NULL) {
         payloadLen -= (ext->headerLen + 1) * 8;
@@ -493,10 +493,11 @@ void SSPProtocol::handleProbe(SCIONPacket *packet)
     DEBUG("incoming probe\n");
     SCIONExtension *ext = findProbeExtension(&packet->header);
     uint32_t probeNum = getProbeNum(ext);
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
     SCIONPacket p;
     memset(&p, 0, sizeof(p));
     pack_cmn_hdr((uint8_t *)&p.header.commonHeader,
-            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
+            localAddr->host.addr_type, mDstAddr.host.addr_type, L4_SSP, 0, 0, 0);
     addProbeExtension(&p.header, probeNum, 1);
     p.pathIndex = packet->pathIndex;
     SSPPacket sp;
@@ -698,10 +699,11 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
     if (inPacket->header.flags & SSP_FIN)
         DEBUG("%lu: send ack for FIN packet %lu\n", mFlowID, packetNum);
 
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
     SCIONPacket packet;
     memset(&packet, 0, sizeof(SCIONPacket));
     pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
-            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
+            localAddr->host.addr_type, mDstAddr.host.addr_type, L4_SSP, 0, 0, 0);
     packet.pathIndex = pathIndex;
 
     SSPPacket sp;
@@ -737,10 +739,11 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
 
 SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
 {
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
     SCIONPacket *packet = (SCIONPacket *)malloc(sizeof(SCIONPacket));
     memset(packet, 0, sizeof(SCIONPacket));
     pack_cmn_hdr((uint8_t *)&packet->header.commonHeader,
-            ADDR_IPV4_TYPE, ADDR_IPV4_TYPE, L4_SSP, 0, 0, 0);
+            localAddr->host.addr_type, mDstAddr.host.addr_type, L4_SSP, 0, 0, 0);
 
     SSPPacket *sp = new SSPPacket();
     packet->payload = sp;
@@ -894,7 +897,7 @@ int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
         de.flow_id = de.flow_id | 1;
     de.port = port > 0 ? port : htons(mSrcPort);
     de.isd_as = htonl(localAddr->isd_as);
-    de.addr_type = ADDR_IPV4_TYPE;
+    de.addr_type = localAddr->host.addr_type;
     memcpy(de.addr, localAddr->host.addr, MAX_HOST_ADDR_LEN);
     int ret = registerFlow(L4_SSP, &de, sock);
     if (mSrcPort > 0 && ret == 0)
@@ -935,22 +938,23 @@ int SUDPProtocol::bind(SCIONAddr addr, int sock)
 
 int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
 {
-    if (dstAddr && mRemoteAddr.isd_as != dstAddr->isd_as) {
-        memcpy(&mRemoteAddr, dstAddr, sizeof(SCIONAddr));
-        mDstPort = mRemoteAddr.host.port;
-        mConnectionManager->setRemoteAddress(mRemoteAddr);
+    if (dstAddr && mDstAddr.isd_as != dstAddr->isd_as) {
+        memcpy(&mDstAddr, dstAddr, sizeof(SCIONAddr));
+        mDstPort = mDstAddr.host.port;
+        mConnectionManager->setRemoteAddress(mDstAddr);
     }
     DEBUG("send %lu byte packet\n", len);
+    SCIONAddr *localAddr = mConnectionManager->localAddress();
     SCIONPacket packet;
     memset(&packet, 0, sizeof(packet));
-    pack_cmn_hdr((uint8_t *)&packet.header.commonHeader, ADDR_IPV4_TYPE,
-            ADDR_IPV4_TYPE, L4_UDP, 0, 0, 0);
+    pack_cmn_hdr((uint8_t *)&packet.header.commonHeader,
+            localAddr->host.addr_type, mDstAddr.host.addr_type, L4_UDP, 0, 0, 0);
     SUDPPacket sp;
     memset(&sp, 0, sizeof(sp));
     packet.payload = &sp;
     SUDPHeader &sh = sp.header;
     sh.srcPort = htons(mSrcPort);
-    sh.dstPort = htons(mRemoteAddr.host.port);
+    sh.dstPort = htons(mDstAddr.host.port);
     sh.len = htons(sizeof(SUDPHeader) + len);
     sp.payload = malloc(len);
     sp.payloadLen = len;
@@ -1065,7 +1069,7 @@ int SUDPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
     DispatcherEntry e;
     e.flow_id = flowID;
     e.port = port > 0 ? htons(port) : htons(mSrcPort);
-    e.addr_type = ADDR_IPV4_TYPE;
+    e.addr_type = addr->host.addr_type;
     e.isd_as = htonl(addr->isd_as);
     memcpy(e.addr, addr->host.addr, MAX_HOST_ADDR_LEN);
     return registerFlow(L4_UDP, &e, sock);
