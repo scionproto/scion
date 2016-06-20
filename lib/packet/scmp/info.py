@@ -189,36 +189,36 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
                     self.if_id, self.ingress))
 
 
-class SCMPInfoRevocation(SCMPInfo):
-    """Store IOF offset, HOF offset, IF id and ingress flag."""
+class SCMPInfoRevocation(SCMPInfoPathOffsets):
+    """Store IOF offset, HOF offset, IF id, ingress flag and Rev_info."""
     NAME = "SCMPInfoPktSize"
-    ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress", "rev_info"]
     STRUCT_FMT = "!HHH?x"
     LEN = struct.calcsize(STRUCT_FMT)
+    ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress"]
 
     @classmethod
     def from_pkt(cls, pkt, if_id, ingress, rev_info):
         rev_token = rev_info.pack()
         inst = cls()
 
-        padding_length = calc_padding(LEN + len(rev_token), LINE_LEN)
+        padding_length = calc_padding(inst.LEN + len(rev_token), LINE_LEN)
         rev_token += bytes(padding_length)
 
         iof_offset, hof_offset = inst._calc_offsets(pkt)
-        inst._set_vals((iof_offset, hof_offset, if_id, ingress, rev_token))
+        inst._set_vals((iof_offset, hof_offset, if_id, ingress))
+        inst.rev_info = rev_token
+        inst.LEN += len(inst.rev_info)
         return inst
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME)
-        rev_len = len(data) - self.LEN
-
-        self.STRUCT_FMT = self.STRUCT_FMT + str(rev_len) + "s"
-        self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop()))
+        self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop(self.LEN)))
+        self.rev_info = data.pop()
+        self.LEN += len(self.rev_info)
 
     def pack(self):  # pragma: no cover
         assert isinstance(self.rev_info, bytes)
-        assert len(self.rev_info) == self.REV_LEN
-        return super().pack()
+        return super().pack() + self.rev_info
 
     def __str__(self):
         return ("%s(%dB): IOF offset:%sB HOF offset: %sB "

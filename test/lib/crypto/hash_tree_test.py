@@ -26,17 +26,6 @@ from test.testcommon import SCIONCommonTest
 
 class TestConnectedHashtreeVerify(SCIONCommonTest):
     """
-<<<<<<< HEAD
-    Unit tests for lib.crypto.hash_tree.ConnectedHashTree.verify
-    """
-    def test_1(self):
-        if_ids = [23, 35, 120]
-        seed = b"qwerty"
-        hash_tree = ConnectedHashTree(if_ids, seed)
-        # Check that the revocation proof is verifiable within the same T.
-        root = hash_tree.get_root()
-        proof = hash_tree.get_proof(35)  # if_id = 35.
-=======
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.verify
     """
     def test(self):
@@ -46,32 +35,11 @@ class TestConnectedHashtreeVerify(SCIONCommonTest):
         # Check that the revocation proof is verifiable within the same T.
         root = inst.get_root()
         proof = inst.get_proof(35)  # if_id = 35.
->>>>>>> bd089f05dfc0a9f58a359f4783214b1853d5f203
         self.assertTrue(ConnectedHashTree.verify(proof, root))
 
 
 class TestConnectedHashTreeUpdate(SCIONCommonTest):
     """
-<<<<<<< HEAD
-    Unit tests for lib.crypto.hash_tree.ConnectedHashTree.update
-    """
-    def test_2(self):
-        if_ids = [23, 35, 120]
-        initial_seed = b"qwerty"
-        hash_tree = ConnectedHashTree(if_ids, initial_seed)
-
-        # Check that the revocation proof is verifiable across T and T+1.
-        root = hash_tree.get_root()
-        hash_tree.update(if_ids, b"new!!seed")
-        proof = hash_tree.get_proof(35)  # if_id = 35.
-        self.assertTrue(ConnectedHashTree.verify(proof, root))
-
-        # Check that the revocation proof is "NOT" verifiable across T and T+2.
-        root = hash_tree.get_root()
-        hash_tree.update(if_ids, b"newseed.@1")
-        hash_tree.update(if_ids, b"newseed/.@2")
-        proof = hash_tree.get_proof(35)  # if_id = 35.
-=======
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.update
     """
     def test(self):
@@ -116,7 +84,6 @@ class TestConnectedHashTreeUpdateAndVerify(SCIONCommonTest):
         inst.update(if_ids, b"newseed.@1")
         inst.update(if_ids, b"newseed/.@2")
         proof = inst.get_proof(35)  # if_id = 35.
->>>>>>> bd089f05dfc0a9f58a359f4783214b1853d5f203
         self.assertFalse(ConnectedHashTree.verify(proof, root))
 
 if __name__ == "__main__":
