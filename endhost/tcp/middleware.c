@@ -141,12 +141,14 @@ int tcpmw_read_cmd(int fd, char *buf){
 }
 
 void tcpmw_reply(int fd, const char *cmd){
-    char buf[RESP_SIZE];
+    u8_t buf[PLD_SIZE + RESP_SIZE];
     if (sys_err)
         lwip_err = ERR_SYS;
-    memcpy(buf, cmd, CMD_SIZE);
-    buf[RESP_SIZE - 1] = lwip_err;  /* Set error code. */
-    write(fd, buf, RESP_SIZE);
+    *(u16_t *)buf = 0;
+    memcpy(buf + PLD_SIZE, cmd, CMD_SIZE);
+    buf[PLD_SIZE + RESP_SIZE - 1] = lwip_err;  /* Set error code. */
+    if (send_all(fd, buf, PLD_SIZE + RESP_SIZE) < 0)
+        zlog_fatal(zc_tcp, "tcpmw_reply(): send_all(): %s", strerror(errno));
 }
 
 void *tcpmw_sock_thread(void *data){
@@ -329,11 +331,15 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     /* Preparing a successful response. */
     u16_t  path_len = newconn->pcb.ip->path->len;
     u8_t haddr_len = get_addr_len(newconn->pcb.ip->remote_ip.type);
-    u16_t tot_len = RESP_SIZE + 2 + path_len + 1 + 4 + haddr_len;
+    u16_t pld_len = 2 + path_len + 1 + 4 + haddr_len;
+    u16_t tot_len = PLD_SIZE + RESP_SIZE + pld_len;
 
     u8_t *tmp = malloc(tot_len);
     u8_t *p = tmp;
-    /* First CMD_ACCEPT+ERR_OK */
+    /* First payload len */
+    *(u16_t *)p = pld_len;
+    p += PLD_SIZE;
+    /* CMD_ACCEPT+ERR_OK */
     memcpy(p, CMD_ACCEPT, RESP_SIZE - 1);
     p[RESP_SIZE - 1] = ERR_OK;
     p += RESP_SIZE;
@@ -346,7 +352,8 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     p[0] = newconn->pcb.ip->remote_ip.type;
     p++;
     memcpy(p, newconn->pcb.ip->remote_ip.addr, 4 + haddr_len);
-    write(new_fd, tmp, tot_len);
+    if (send_all(new_fd, tmp, tot_len) < 0)
+        zlog_fatal(zc_tcp, "accept(): send_all(): %s", strerror(errno));
     free(tmp);
     /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
 
@@ -378,7 +385,7 @@ exit:
 }
 
 void tcpmw_recv(struct conn_args *args){
-    char *msg;
+    u8_t *msg;
     struct netbuf *buf;
     void *data;
     u16_t len;
@@ -397,16 +404,22 @@ void tcpmw_recv(struct conn_args *args){
         goto exit;
     }
 
-    msg = malloc(len + RESP_SIZE + 2);
-    memcpy(msg, CMD_RECV, CMD_SIZE);
-    msg[RESP_SIZE - 1] = ERR_OK;
-    *((u16_t *)(msg + RESP_SIZE)) = len;
-    memcpy(msg + RESP_SIZE + 2, data, len);
-    write(args->fd, msg, len + RESP_SIZE + 2);
+    msg = malloc(PLD_SIZE + RESP_SIZE);
+    *(u16_t *)msg = len;
+    memcpy(msg + PLD_SIZE, CMD_RECV, CMD_SIZE);
+    msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
+    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE) < 0)
+        goto clean;
+    if (send_all(args->fd, data, len) < 0)
+        goto clean;
+
     netbuf_delete(buf);
     free(msg);
     return;
 
+clean:
+    netbuf_delete(buf);
+    free(msg);
 exit:
     tcpmw_reply(args->fd, CMD_RECV);
 }
@@ -431,11 +444,13 @@ exit:
 void tcpmw_get_recv_tout(struct conn_args *args){
     zlog_info(zc_tcp, "GRTO received");
     int timeout = netconn_get_recvtimeout(args->conn);
-    char *msg = malloc(RESP_SIZE + 4);
-    memcpy(msg, CMD_GET_RECV_TOUT, RESP_SIZE - 1);
-    msg[RESP_SIZE - 1] = ERR_OK;
-    *(u32_t *)(msg + RESP_SIZE) = (u32_t)timeout;
-    write(args->fd, msg, RESP_SIZE + 4);
+    u8_t *msg = malloc(PLD_SIZE + RESP_SIZE + 4);
+    *(u16_t*)msg = 4;  /* Payload size */
+    memcpy(msg + PLD_SIZE, CMD_GET_RECV_TOUT, RESP_SIZE - 1);
+    msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
+    *(u32_t *)(msg + PLD_SIZE + RESP_SIZE) = (u32_t)timeout;
+    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 4) < 0)
+        zlog_fatal(zc_tcp, "tcpmw_get_recv_tout(): send_all(): %s", strerror(errno));
     free(msg);
 }
 

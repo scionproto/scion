@@ -26,6 +26,7 @@ import uuid
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SVCType
 from lib.packet.scion_addr import SCIONAddr
+from lib.util import recv_all
 
 LWIP_SOCK_DIR = "/run/shm/lwip/"
 TCPMW_SOCKET = "/run/shm/lwip/lwip"
@@ -116,6 +117,14 @@ class APICmd(object):
     SEND = b"SEND"
     SET_RECV_TOUT = b"SRTO"
 
+def get_lwip_reply(sock):
+    raw_len = recv_all(sock, PLD_SIZE, 0)
+    if not raw_len:
+        return None
+    pld_len, = struct.unpack("H", raw_len)
+    rep = recv_all(sock, RESP_SIZE + pld_len, 0)
+    return rep
+
 
 class SCIONSocket(object):
     BUFLEN = 1024
@@ -190,10 +199,8 @@ class SCIONSocket(object):
         pld_len = len(req) - CMD_SIZE
         self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
 
-    def _from_lwip(self, buflen=None):
-        if buflen is None:
-            buflen = self.BUFLEN
-        rep = self._lwip_sock.recv(buflen)  # TODO(PSz): read in a loop.
+    def _from_lwip(self):
+        rep = get_lwip_reply(self._lwip_sock)
         logging.debug("Reading from LWIP(%dB): %s..." % (len(rep), rep[:20]))
         return rep
 
@@ -212,7 +219,7 @@ class SCIONSocket(object):
 
         new_sock, _ = self._lwip_accept.accept()
         # Metadata (path and addr) from new (UNIX) socket.
-        rep = new_sock.recv(self.BUFLEN)
+        rep = get_lwip_reply(new_sock)
         self._handle_reply(req[:CMD_SIZE], rep)
         logging.debug("accept() raw reply: %s", rep)
         rep = rep[RESP_SIZE:]
@@ -275,20 +282,7 @@ class SCIONSocket(object):
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req, rep)
-
-        size, = struct.unpack("H", rep[RESP_SIZE:RESP_SIZE+2])
-        self._recv_buf = rep[RESP_SIZE+2:]
-        while len(self._recv_buf) < size:
-            rep = self._from_lwip()
-            if rep is None:
-                logging.error("recv() failed, partial read() %s" % rep)
-                raise error("recv() failed, partial read() %s" % rep)
-            self._recv_buf += rep
-
-        if len(self._recv_buf) != size:
-            logging.error("recv() read too much: %d/%d",
-                          len(self._recv_buf), size)
-            raise error("recv() read too much: ", len(self._recv_buf), size)
+        self._recv_buf += rep[RESP_SIZE:]
 
     def set_recv_tout(self, timeout):  # Timeout is given as a float
         if 0.0 < timeout < 0.001:
