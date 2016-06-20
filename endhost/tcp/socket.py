@@ -34,6 +34,8 @@ SOCK_STREAM = stdsock.SOCK_STREAM
 MAX_MSG_LEN = 2 << 31  # u32_t is used as size_t at middleware
 CMD_SIZE = 4
 RESP_SIZE = CMD_SIZE + 1  # either return (error) code is appended.
+PLD_SIZE = 2  # Each command/reply is prepended with 2B payload len field.
+TCPMW_BUFLEN = 8192  # TCPMW's buffer. Each command has to fit it.
 
 
 class error(stdsock.error):
@@ -184,7 +186,9 @@ class SCIONSocket(object):
 
     def _to_lwip(self, req):
         logging.debug("Sending to LWIP(%dB): %s..." % (len(req), req[:20]))
-        self._lwip_sock.sendall(req)
+        assert len(req) + PLD_SIZE <= TCPMW_BUFLEN, "Cmd too long"
+        pld_len = len(req) - CMD_SIZE
+        self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
 
     def _from_lwip(self, buflen=None):
         if buflen is None:
@@ -245,10 +249,15 @@ class SCIONSocket(object):
         if len(msg) > MAX_MSG_LEN:
             logging.error("send() msg too long: %d" % len(msg))
             raise error("send() msg too long: %d" % len(msg))
-        req = APICmd.SEND + struct.pack("I", len(msg)) + msg
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+
+        max_chunk = TCPMW_BUFLEN - PLD_SIZE - CMD_SIZE
+        start = 0
+        while start < len(msg):
+            req = APICmd.SEND + msg[start:start+max_chunk]
+            self._to_lwip(req)
+            rep = self._from_lwip()
+            self._handle_reply(req[:CMD_SIZE], rep)
+            start += max_chunk
         return len(msg)
 
     def recv(self, bufsize):

@@ -15,10 +15,6 @@
  */
 #include "middleware.h"
 
-/* FIXME(PSz): due to specifics of this middleware (UNIX sockets and sequential
- * blocking API), single recv() and send() are used. In general it is safer to
- * use send_all()/recv_all() (to send/receive exactly how much is needed). */
-
 void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
     int fd, cl;
@@ -71,28 +67,22 @@ void *tcpmw_main_thread(void *unused) {
 }
 
 void tcpmw_socket(int fd){
-    char buf[8];
-    int count;
+    char buf[TCPMW_BUFLEN];
+    int pld_len;
     struct conn_args *args;
     struct netconn *conn;
     pthread_t tid;
 
     lwip_err = 0;
     sys_err = 0;
-    if ((count = read(fd, buf, sizeof(buf))) != CMD_SIZE){
-        if (count < 0){
-            sys_err = errno;
-            zlog_error(zc_tcp, "tcpmw_socket(): read(): %s", strerror(errno));
-        }
-        else{
-            lwip_err = ERR_MW;
-            zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s", count, buf);
-        }
+    if ((pld_len = tcpmw_read_cmd(fd, buf)) < 0){
+        sys_err = errno;
+        zlog_error(zc_tcp, "tcpmw_socket(): tcpmw_read_cmd(): %s", strerror(errno));
         goto close;
     }
-    if (strncmp(buf, CMD_NEW_SOCK, CMD_SIZE)){
+    if (strncmp(buf, CMD_NEW_SOCK, CMD_SIZE) || pld_len){
         lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s", count, buf);
+        zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s", CMD_SIZE + pld_len, buf);
         goto close;
     }
     zlog_info(zc_tcp, "NEWS received");
@@ -131,6 +121,25 @@ exit:
     tcpmw_reply(fd, CMD_NEW_SOCK);
 }
 
+int tcpmw_read_cmd(int fd, char *buf){
+    /* Read payload length. */
+    int recvd = recv_all(fd, (u8_t*)buf, PLD_SIZE);
+    if (recvd < 0)
+        return recvd;
+    u16_t pld_len = *(u16_t *)buf;
+    /* Read command and the payload. */
+    recvd = recv_all(fd, (u8_t*)buf, CMD_SIZE + pld_len);
+    if (recvd < 0)
+        return recvd;
+    if (PLD_SIZE + recvd > TCPMW_BUFLEN){
+        zlog_error(zc_tcp, "tcpmw_read_cmd: incorrent command length (pld_len: %dB): %.*s",
+                   pld_len, recvd, buf);
+        return -1;
+    }
+    /* Return number of bytes after command code. */
+    return pld_len;
+}
+
 void tcpmw_reply(int fd, const char *cmd){
     char buf[RESP_SIZE];
     if (sys_err)
@@ -142,41 +151,36 @@ void tcpmw_reply(int fd, const char *cmd){
 
 void *tcpmw_sock_thread(void *data){
     struct conn_args *args = data;
-    int rc;
+    int pld_len;
     char buf[TCPMW_BUFLEN];
     zlog_info(zc_tcp, "New sock thread started, waiting for requests");
-    while ((rc=read(args->fd, buf, sizeof(buf))) > 0) {
-        if (rc < CMD_SIZE){
-            zlog_error(zc_tcp, "tcpmw_sock_thread: command too short: %.*s", rc, buf);
-            break;
-        }
+    while ((pld_len=tcpmw_read_cmd(args->fd, buf)) >= 0) {
         if (!strncmp(buf, CMD_SEND, CMD_SIZE))
-            tcpmw_send(args, buf, rc);
-        else if (!strncmp(buf, CMD_RECV, CMD_SIZE))
+            tcpmw_send(args, buf + CMD_SIZE, pld_len);
+        else if (!strncmp(buf, CMD_RECV, CMD_SIZE) && !pld_len)
             tcpmw_recv(args);
         else if (!strncmp(buf, CMD_BIND, CMD_SIZE))
-            tcpmw_bind(args, buf, rc);
+            tcpmw_bind(args, buf + CMD_SIZE, pld_len);
         else if (!strncmp(buf, CMD_CONNECT, CMD_SIZE))
-            tcpmw_connect(args, buf, rc);
-        else if (!strncmp(buf, CMD_LISTEN, CMD_SIZE))
+            tcpmw_connect(args, buf + CMD_SIZE, pld_len);
+        else if (!strncmp(buf, CMD_LISTEN, CMD_SIZE) && !pld_len)
             tcpmw_listen(args);
         else if (!strncmp(buf, CMD_ACCEPT, CMD_SIZE))
-            tcpmw_accept(args, buf, rc);
+            tcpmw_accept(args, buf + CMD_SIZE, pld_len);
         else if (!strncmp(buf, CMD_SET_RECV_TOUT, CMD_SIZE))
-            tcpmw_set_recv_tout(args, buf, rc);
-        else if (!strncmp(buf, CMD_GET_RECV_TOUT, CMD_SIZE))
+            tcpmw_set_recv_tout(args, buf + CMD_SIZE, pld_len);
+        else if (!strncmp(buf, CMD_GET_RECV_TOUT, CMD_SIZE) && !pld_len)
             tcpmw_get_recv_tout(args);
         else if (!strncmp(buf, CMD_CLOSE, CMD_SIZE))
             break;
         else{
-            zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %.*s", CMD_SIZE, buf);
+            zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %.*s (%dB)",
+                       CMD_SIZE + pld_len, buf, pld_len);
             break;
         }
     }
-    if (rc == -1)
-        zlog_error(zc_tcp, "tcpmw_sock_thread: read(): %s", strerror(errno));
-    else if (rc == 0)
-        zlog_info(zc_tcp, "tcpmw_sock_thread: EOF");
+    if (pld_len < 0)
+        zlog_error(zc_tcp, "tcpmw_sock_thread: tcpmw_read_cmd(): %s", strerror(errno));
     zlog_info(zc_tcp, "tcpmw_sock_thread: leaving");
     tcpmw_close(args);
     return NULL;
@@ -190,13 +194,12 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
     sys_err = 0;
     zlog_info(zc_tcp, "BIND received");
-    if ((len < CMD_SIZE + 5 + ADDR_NONE_LEN) || (len > CMD_SIZE + 5 + ADDR_IPV6_LEN)){
+    if ((len < 5 + ADDR_NONE_LEN) || (len > 5 + ADDR_IPV6_LEN)){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_bind(): wrong command");
         goto exit;
     }
 
-    p += CMD_SIZE;  /* skip CMD_BIND */
     port = *((u16_t *)p);
     p += 2;  /* skip port */
     svc = *((u16_t *)p);
@@ -226,7 +229,6 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
     sys_err = 0;
     zlog_info(zc_tcp, "CONN received");
-    p += CMD_SIZE;  /* skip CMD_CONNECT */
     port = *((u16_t *)p);
     p += 2;  /* skip port */
     path_len = *((u16_t *)p);
@@ -276,7 +278,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
     sys_err = 0;
     zlog_info(zc_tcp, "ACCE received");
-    if (len != CMD_SIZE + SOCK_PATH_LEN){
+    if (len != SOCK_PATH_LEN){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_accept(): incorrect ACCE length %.*s", len, buf);
         goto exit;
@@ -288,7 +290,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     }
     zlog_info(zc_tcp, "tcpmw_accept(): waiting...");
 
-    sprintf(accept_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf + CMD_SIZE);
+    sprintf(accept_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf);
     zlog_info(zc_tcp, "connecting to %s", accept_path);
     if ((new_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         sys_err = errno;
@@ -353,56 +355,22 @@ exit:
 }
 
 void tcpmw_send(struct conn_args *args, char *buf, int len){
-    char *p = buf;
-    u32_t size;
-    size_t written;
-
     lwip_err = 0;
-    sys_err = 0;
-    p += CMD_SIZE;  /* skip CMD_SEND */
-    len -= CMD_SIZE;
-    size = *((u32_t *)p);
-    p += 4;  /* skip total size */
-    len -= 4;  /* how many bytes local read() has read. */
-    zlog_info(zc_tcp, "SEND received (%dB to send, locally received: %dB)", size, len);
+    size_t tmp_sent, sent = 0;
+    zlog_info(zc_tcp, "SEND received (%dB to send)", len);
 
-    /* This is implemented more like send_all(). If this is not desired, we */
-    /* could allocate temporary buf. */
-    while (1){
-        if (len > size){
-            lwip_err = ERR_MW;
-            zlog_error(zc_tcp, "tcpmw_send(): received more than to send");
-            goto exit;
-        }
-        if ((lwip_err = netconn_write_partly(args->conn, p, len, NETCONN_COPY, &written)) != ERR_OK){
+    /* This is implemented more like send_all(). */
+    while (sent < len){
+        lwip_err = netconn_write_partly(args->conn, buf + sent, len - sent, NETCONN_COPY, &tmp_sent);
+        if (lwip_err != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send(): netconn_write(): %s", lwip_strerr(lwip_err));
-            zlog_debug(zc_tcp, "netconn_write(): buffered/total_written/total_size: %d/%lu/%d",
-                       len, written, size);
+            zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %lu/%lu/%d",
+                       sent, tmp_sent, len);
             goto exit;
         }
-        zlog_debug(zc_tcp, "netconn_write(): buffered/total_written/total_size: %d/%lu/%d",
-                   len, written, size);
-        size -= written;
-        len -= written;
-        if (!size)  /* done */
-            break;
-        if (len > 0){  /* write again from current buf */
-            p += written;
-            continue;
-        }
-        /* read new part from app */
-        if ((len = read(args->fd, buf, TCPMW_BUFLEN)) < 1){
-            if (len < 0){
-                sys_err = errno;
-                zlog_error(zc_tcp, "tcpmw_send(): read(): %s", strerror(errno));
-            }
-            else{
-                lwip_err = ERR_MW;
-                zlog_error(zc_tcp, "tcpmw_send(): read() unexpected EOF");
-            }
-            goto exit;
-        }
-        p = buf;
+        sent += tmp_sent;
+        zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %lu/%lu/%d",
+                   sent, tmp_sent, len);
     }
 
 exit:
@@ -447,13 +415,13 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
     sys_err = 0;
     zlog_info(zc_tcp, "SRTO received");
-    if (len != CMD_SIZE + 4){
+    if (len != 4){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_set_recv_tout(): incorrect SRTO length");
         goto exit;
     }
 
-    int timeout = (int)*(u32_t *)(buf + CMD_SIZE);
+    int timeout = (int)*(u32_t *)(buf);
     netconn_set_recvtimeout(args->conn, timeout);
 
 exit:
