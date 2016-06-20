@@ -117,6 +117,7 @@ class APICmd(object):
     SEND = b"SEND"
     SET_RECV_TOUT = b"SRTO"
 
+
 def get_lwip_reply(sock):
     raw_len = recv_all(sock, PLD_SIZE, 0)
     if not raw_len:
