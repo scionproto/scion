@@ -68,7 +68,7 @@ class TestASMarkingFromValues(object):
         # Tests
         p_cls.new_message.assert_called_once_with(
             isdas="isdas", trcVer=2, certVer=3, ifIDSize=14,
-            root="root", mtu="mtu",
+            hashTreeRoot="root", mtu="mtu",
             chain="cchain")
         msg.init.assert_called_once_with("pcbms", 3)
         msg.exts.init.assert_called_once_with("revInfos", 2)
@@ -93,7 +93,7 @@ class TestASMarkingSigPack(object):
                 "sig_pack()": bytes("rev %i" % i, "ascii")}))
         inst = ASMarking(create_mock_full({
             "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
-            "root": b"root", "mtu": 1482, "chain": b"chain"}))
+            "hashTreeRoot": b"root", "mtu": 1482, "chain": b"chain"}))
         inst.iter_rev_infos = create_mock_full(return_value=exts)
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
         expected = b"".join([
@@ -204,9 +204,9 @@ class TestPathSegmentGetAllIftokens(object):
         for i in range(3):
             pcbms = []
             asms.append(create_mock_full({
-                "pcbms": pcbms, "root": "eg %d" % i}))
+                "pcbms": pcbms, "hashTreeRoot": "root %d" % i}))
         inst = PathSegment(create_mock_full({"asms": asms}))
-        expected = ['eg 0', 'eg 1', 'eg 2']
+        expected = ['root 0', 'root 1', 'root 2']
         # Call
         ntools.eq_(inst.get_all_iftokens(), expected)
 

@@ -142,12 +142,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         segment_id = pcb.get_hops_hash()
         for asm in pcb.iter_asms():
-            egress_h = (asm.p.root, asm.pcbm(0).hof().egress_if)
+            egress_h = (asm.p.hashTreeRoot, asm.pcbm(0).hof().egress_if)
             if egress_h not in self.astoken_if2seg:
                 self.astoken_if2seg[egress_h] = set()
             self.astoken_if2seg[egress_h].add(segment_id)
             for pm in asm.iter_pcbms():
-                ingress_h = (asm.p.root, pm.hof().ingress_if)
+                ingress_h = (asm.p.hashTreeRoot, pm.hof().ingress_if)
                 if ingress_h not in self.astoken_if2seg:
                     self.astoken_if2seg[ingress_h] = set()
                 self.astoken_if2seg[ingress_h].add(segment_id)
@@ -313,20 +313,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if pcbs:
             yield(pcbs)
 
-    def _gen_prop_revs(self, queue, limit=PROP_LIMIT):
-        count = 0
-        revs = []
-        while queue:
-            count += 1
-            rev = queue.popleft()
-            revs.append(rev)
-            if count >= limit:
-                yield(revs)
-                count = 0
-                revs = []
-        if revs:
-            yield(revs)
-
     @abstractmethod
     def path_resolution(self, path_request):
         """
@@ -373,10 +359,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not self._revs_to_zk:
             return
         logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
-        for raw_list in self._gen_prop_revs(self._revs_to_zk,
-                                            limit=self.ZK_SHARE_LIMIT):
-            for raw in raw_list:
-                self._zk_write_rev(raw)
+        while self._revs_to_zk:
+                self._zk_write_rev(self._revs_to_zk.popleft())
 
     def _zk_write(self, data):
         hash_ = SHA256.new(data).hexdigest()

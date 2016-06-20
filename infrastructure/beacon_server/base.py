@@ -124,6 +124,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info(self.config.__dict__)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
+        self._init_hash_tree()
         self._if_rev_token_lock = threading.Lock()
         self.revs_to_downstream = ExpiringDict(
                             max_len=1000, max_age_seconds=HASHTREE_EPOCH_TIME)
@@ -160,14 +161,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _get_proof(self, if_id):
         with self._hash_tree_lock:
-            if not self._hash_tree:
-                self._init_hash_tree()
             return self._hash_tree.get_proof(if_id)
 
     def _get_root(self):
         with self._hash_tree_lock:
-            if not self._hash_tree:
-                self._init_hash_tree()
             return self._hash_tree.get_root()
 
     def propagate_downstream_pcb(self, pcb):
@@ -365,8 +362,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         while self.run_flag.is_set():
             ifs = list(self.ifid2er.keys())
             with self._hash_tree_lock:
-                if not self._hash_tree:
-                    self._init_hash_tree()
                 self._hash_tree.update(ifs, self.hashtree_gen_key)
             logging.info("New Hash Tree TTL beginning")
             start = time.time()
@@ -678,7 +673,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def verify_asm(self, asm, rev_info):
         ingress_if_id = asm.pcbm(0).hof().ingress_if
         egress_if_id = asm.pcbm(0).hof().egress_if
-        root = asm.p.root
+        root = asm.p.hashTreeRoot
         root_verify = ConnectedHashTree.verify(rev_info, root)
         return (rev_info.p.ifID == ingress_if_id or
                 rev_info.p.ifID == egress_if_id) and root_verify
