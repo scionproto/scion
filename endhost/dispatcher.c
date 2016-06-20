@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
-#include <linux/un.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
@@ -15,6 +14,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 #include "zlog.h"
@@ -122,6 +122,9 @@ void cleanup_socket(int sock, int index, int err);
 
 int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 
+#ifndef UNIX_PATH_MAX
+#define UNIX_PATH_MAX 108
+#endif
 char socket_path[UNIX_PATH_MAX];
 
 int main(int argc, char **argv)
