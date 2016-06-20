@@ -29,12 +29,14 @@ class TestConnectedHashtreeVerify(SCIONCommonTest):
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.verify
     """
     def test(self):
+        # Check that the revocation proof is verifiable within the same T.
+        # Setup
         if_ids = [23, 35, 120]
         seed = b"qwerty"
         inst = ConnectedHashTree(if_ids, seed)
-        # Check that the revocation proof is verifiable within the same T.
         root = inst.get_root()
         proof = inst.get_proof(35)  # if_id = 35.
+        # Call and tests
         self.assertTrue(ConnectedHashTree.verify(proof, root))
 
 
@@ -43,14 +45,16 @@ class TestConnectedHashTreeUpdate(SCIONCommonTest):
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.update
     """
     def test(self):
+        # Check that connected hash tree update works.
+        # Setup
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(if_ids, initial_seed)
-
-        # Check that connected hash tree update works.
         root1_before_update = inst._ht1._nodes[0]
         root2_before_update = inst._ht2._nodes[0]
+        # Call
         inst.update(if_ids, b"new!!seed")
+        # Tests
         root0_after_update = inst._ht0_root
         root1_after_update = inst._ht1._nodes[0]
         self.assertTrue(
@@ -64,25 +68,29 @@ class TestConnectedHashTreeUpdateAndVerify(SCIONCommonTest):
     used along with lib.crypto.hash_tree.ConnectedHashTree.update
     """
     def test_one_timestep(self):
+        # Check that the revocation proof is verifiable across T and T+1.
+        # Setup
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(if_ids, initial_seed)
-
-        # Check that the revocation proof is verifiable across T and T+1.
         root = inst.get_root()
+        # Call
         inst.update(if_ids, b"new!!seed")
+        # Tests
         proof = inst.get_proof(35)  # if_id = 35.
         self.assertTrue(ConnectedHashTree.verify(proof, root))
 
     def test_two_timesteps(self):
+        # Check that the revocation proof is "NOT" verifiable across T and T+2.
+        # Setup
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(if_ids, initial_seed)
-
-        # Check that the revocation proof is "NOT" verifiable across T and T+2.
         root = inst.get_root()
+        # Call
         inst.update(if_ids, b"newseed.@1")
         inst.update(if_ids, b"newseed/.@2")
+        # Tests
         proof = inst.get_proof(35)  # if_id = 35.
         self.assertFalse(ConnectedHashTree.verify(proof, root))
 

@@ -207,23 +207,24 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
         iof_offset, hof_offset = inst._calc_offsets(pkt)
         inst._set_vals((iof_offset, hof_offset, if_id, ingress))
         inst.rev_info = rev_token
-        inst.LEN += len(inst.rev_info)
         return inst
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME)
         self._set_vals(struct.unpack(self.STRUCT_FMT, data.pop(self.LEN)))
         self.rev_info = data.pop()
-        self.LEN += len(self.rev_info)
-
+        
     def pack(self):  # pragma: no cover
         assert isinstance(self.rev_info, bytes)
         return super().pack() + self.rev_info
 
+    def __len__(self):
+        return self.LEN + len(self.rev_info)
+
     def __str__(self):
         return ("%s(%dB): IOF offset:%sB HOF offset: %sB "
                 "IF id: %s Ingress: %s Rev token: %s" % (
-                    self.NAME, self.LEN, self.iof_off, self.hof_off,
+                    self.NAME, len(self), self.iof_off, self.hof_off,
                     self.if_id, self.ingress, hex_str(self.rev_info)))
 
 

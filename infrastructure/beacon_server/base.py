@@ -159,11 +159,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         ifs = list(self.ifid2er.keys())
         self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
 
-    def _get_proof(self, if_id):
+    def _get_ht_proof(self, if_id):
         with self._hash_tree_lock:
             return self._hash_tree.get_proof(if_id)
 
-    def _get_root(self):
+    def _get_ht_root(self):
         with self._hash_tree_lock:
             return self._hash_tree.get_root()
 
@@ -268,7 +268,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         _, cert_ver = chain.get_leaf_isd_as_ver()
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
-            self._get_root(), self.topology.mtu, chain, **exts)
+            self._get_ht_root(), self.topology.mtu, chain, **exts)
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
@@ -330,7 +330,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if self.zk.have_lock():
                 # Inform ERs about the interface coming up.
                 state_info = IFStateInfo.from_values(
-                    ifid, True, self._get_proof(ifid))
+                    ifid, True, self._get_ht_proof(ifid))
                 pld = IFStatePayload.from_values([state_info])
                 mgmt_packet = self._build_packet()
                 for er in self.topology.get_all_edge_routers():
@@ -564,9 +564,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Only the master BS issues revocations.
         if not self.zk.have_lock():
             return
-        rev_info = self._get_proof(if_id)
+        rev_info = self._get_ht_proof(if_id)
         logging.info("Storing revocation in ZK.")
-        entry_name = "%s:%s" % (if_id, self.addr.isd_as.int())
+        entry_name = "%s:%s" % (hash(rev_info.sig_pack(5)), time.time())
         self.revobjs_cache.store(entry_name, rev_info.copy().pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
@@ -663,7 +663,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
                 if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-                        logging.warning("Epochs did not match ")
+                        logging.debug("Epochs did not match ")
                         continue
                 for asm in cand.pcb.iter_asms():
                     if self.verify_asm(asm, rev_info):
@@ -716,7 +716,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if state.is_inactive():
                 continue
             info = IFStateInfo.from_values(ifid, state.is_active(),
-                                           self._get_proof(ifid))
+                                           self._get_ht_proof(ifid))
             infos.append(info)
         if not infos and not self._quiet_startup():
             logging.warning("No IF state info to put in response.")

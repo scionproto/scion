@@ -20,6 +20,7 @@ import logging
 import threading
 from _collections import defaultdict, deque
 from abc import ABCMeta, abstractmethod
+from threading import Lock
 
 # External packages
 from Crypto.Hash import SHA256
@@ -66,7 +67,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
-        self.astoken_if2seg = ExpiringDict(1000, HASHTREE_TTL)
+        # A mapping from (hash tree root of AS, IFID) to segments
+        self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
+        self.htroot_if2seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -141,16 +144,17 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Add if revocation token to segment ID mappings.
         """
         segment_id = pcb.get_hops_hash()
-        for asm in pcb.iter_asms():
-            egress_h = (asm.p.hashTreeRoot, asm.pcbm(0).hof().egress_if)
-            if egress_h not in self.astoken_if2seg:
-                self.astoken_if2seg[egress_h] = set()
-            self.astoken_if2seg[egress_h].add(segment_id)
-            for pm in asm.iter_pcbms():
-                ingress_h = (asm.p.hashTreeRoot, pm.hof().ingress_if)
-                if ingress_h not in self.astoken_if2seg:
-                    self.astoken_if2seg[ingress_h] = set()
-                self.astoken_if2seg[ingress_h].add(segment_id)
+        with self.htroot_if2seglock:
+            for asm in pcb.iter_asms():
+                egress_h = (asm.p.hashTreeRoot, asm.pcbm(0).hof().egress_if)
+                if egress_h not in self.htroot_if2seg:
+                    self.htroot_if2seg[egress_h] = set()
+                self.htroot_if2seg[egress_h].add(segment_id)
+                for pm in asm.iter_pcbms():
+                    ingress_h = (asm.p.hashTreeRoot, pm.hof().ingress_if)
+                    if ingress_h not in self.htroot_if2seg:
+                        self.htroot_if2seg[ingress_h] = set()
+                    self.htroot_if2seg[ingress_h].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -199,27 +203,28 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _remove_revoked_segments(self, rev_info):
         """
         Try the previous and next hashes as possible astokens,
-        and delete anyone that matches
+        and delete any segment that matches
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            logging.warning("Epochs did not match")
+            logging.debug("Epochs did not match")
             return
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
         if_id = rev_info.p.ifID
 
-        for H in (hash01, hash12):
-            segments = self.astoken_if2seg.get((H, if_id))
-            while segments:
-                sid = segments.pop()
-                self.down_segments.delete(sid)
-                self.core_segments.delete(sid)
-                if not self.topology.is_core_as:
-                    self.up_segments.delete(sid)
-            if (H, if_id) in self.astoken_if2seg:
-                del self.astoken_if2seg[(H, if_id)]
+        with self.htroot_if2seglock:
+            for H in (hash01, hash12):
+                segments = self.htroot_if2seg.get((H, if_id))
+                while segments:
+                    sid = segments.pop()
+                    self.down_segments.delete(sid)
+                    self.core_segments.delete(sid)
+                    if not self.topology.is_core_as:
+                        self.up_segments.delete(sid)
+                if (H, if_id) in self.htroot_if2seg:
+                    del self.htroot_if2seg[(H, if_id)]
 
     def _send_to_next_hop(self, pkt, if_id):
         """
