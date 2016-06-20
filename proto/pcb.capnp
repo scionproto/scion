@@ -18,7 +18,7 @@ struct ASMarking {
     certVer @2 :UInt32;
     ifIDSize @3 :UInt8;  # Number of bits used for interface IDs in this AS.
     pcbms @4 :List(PCBMarking);
-    root @5 :Data;
+    hashTreeRoot @5 :Data;
     exts :group {
         revInfos @6 :List(RevInfo.RevInfo);
     }

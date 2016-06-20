@@ -266,8 +266,8 @@ class SCIONDaemon(SCIONElement):
     def verify_asm(self, asm, rev_info):
         ingress_if_id = asm.pcbm(0).hof().ingress_if
         egress_if_id = asm.pcbm(0).hof().egress_if
-        root = asm.p.root
-        root_verify = ConnectedHashTree.verify(rev_info, root)
+        hashTreeRoot = asm.p.hashTreeRoot
+        root_verify = ConnectedHashTree.verify(rev_info, hashTreeRoot)
         return (rev_info.p.ifID == ingress_if_id or
                 rev_info.p.ifID == egress_if_id) and root_verify
 
