@@ -86,11 +86,11 @@ class ASMarking(Cerealizable):
     P_CLS = P.ASMarking
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, root, mtu,
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
                     cert_chain, ifid_size=12, rev_infos=()):
         p = cls.P_CLS.new_message(
             isdas=str(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, root=root, mtu=mtu,
+            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
             chain=cert_chain.pack(lz4_=True))
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
@@ -140,7 +140,7 @@ class ASMarking(Cerealizable):
             b.append(self.p.ifIDSize.to_bytes(1, 'big'))
             for pcbm in self.iter_pcbms():
                 b.append(pcbm.sig_pack(6))
-            b.append(self.p.root)
+            b.append(self.p.hashTreeRoot)
             for r in self.iter_rev_infos():
                 b.append(r.sig_pack(5))
             b.append(self.p.mtu.to_bytes(2, 'big'))
@@ -318,7 +318,7 @@ class PathSegment(SCIONPayloadBaseProto):
         """
         tokens = []
         for asm in self.p.asms:
-            tokens.append(asm.root)
+            tokens.append(asm.hashTreeRoot)
         return tokens
 
     def flags(self):  # pragma: no cover

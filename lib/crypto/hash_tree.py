@@ -185,7 +185,7 @@ class ConnectedHashTree(object):
 
     def get_root(self):
         """
-        Obtain the root of the connected hash-tree across trees at T and T-1.
+        Obtain the root of the connected hash-tree across trees for T and T+1.
         """
         root1 = self._ht1._nodes[0]
         root2 = self._ht2._nodes[0]
