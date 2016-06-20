@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <linux/un.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
@@ -14,7 +15,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <sys/un.h>
 #include <unistd.h>
 
 #include "zlog.h"
@@ -122,7 +122,7 @@ void cleanup_socket(int sock, int index, int err);
 
 int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 
-char socket_path[108];
+char socket_path[UNIX_PATH_MAX];
 
 int main(int argc, char **argv)
 {
@@ -280,9 +280,9 @@ int bind_app_socket()
     struct sockaddr_un su;
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
-    char *env = getenv("DISPATCHER_ENV");
+    char *env = getenv("DISPATCHER_PATH");
     if (env)
-        sprintf(su.sun_path, "%s.socket", env);
+        sprintf(su.sun_path, "%s.sock", env);
     else
         strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
     strcpy(socket_path, su.sun_path);

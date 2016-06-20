@@ -78,9 +78,9 @@ def _pack_dispatcher_msg(addr, port, svc, scmp):
 def _connect_dispatcher(sock, init):
     start = time.time()
     now = start
-    env = os.getenv("DISPATCHER_ENV")
+    env = os.getenv("DISPATCHER_PATH")
     if env:
-        path = env + ".socket"
+        path = env + ".sock"
     else:
         path = SCION_DISPATCHER_ADDR
     logging.debug("connect to dispatcher at path %s", path)
