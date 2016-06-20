@@ -253,7 +253,7 @@ class SCIONDaemon(SCIONElement):
         """
 
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            logging.warning("Epochs did not match")
+            logging.debug("Epochs did not match")
             return
 
         to_remove = []
@@ -264,12 +264,10 @@ class SCIONDaemon(SCIONElement):
         return db.delete_all(to_remove)
 
     def verify_asm(self, asm, rev_info):
-        ingress_if_id = asm.pcbm(0).hof().ingress_if
-        egress_if_id = asm.pcbm(0).hof().egress_if
-        hashTreeRoot = asm.p.hashTreeRoot
-        root_verify = ConnectedHashTree.verify(rev_info, hashTreeRoot)
-        return (rev_info.p.ifID == ingress_if_id or
-                rev_info.p.ifID == egress_if_id) and root_verify
+        hof = asm.pcbm(0).hof()
+        root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
+        return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and
+                root_verify)
 
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""

@@ -64,7 +64,7 @@ class PCBMarking(Cerealizable):
         Pack for signing up for version 6 (defined by highest field number).
         """
         b = []
-        if ver >= 6:
+        if ver >= 5:
             b.append(self.p.inIA.encode("utf8"))
             b.append(self.p.inIF.to_bytes(8, 'big'))
             b.append(self.p.inMTU.to_bytes(2, 'big'))
@@ -139,7 +139,7 @@ class ASMarking(Cerealizable):
             b.append(self.p.certVer.to_bytes(4, 'big'))
             b.append(self.p.ifIDSize.to_bytes(1, 'big'))
             for pcbm in self.iter_pcbms():
-                b.append(pcbm.sig_pack(6))
+                b.append(pcbm.sig_pack(5))
             b.append(self.p.hashTreeRoot)
             for r in self.iter_rev_infos():
                 b.append(r.sig_pack(5))
