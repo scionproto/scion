@@ -1,5 +1,6 @@
 #define _GNU_SOURCE // required to get struct in6_pktinfo definition
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -9,6 +10,8 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -21,6 +24,11 @@
 #include <uthash.h>
 
 #include "scion.h"
+
+#define USE_FILTER_SOCKET
+#ifdef USE_FILTER_SOCKET
+#include "filter.h"
+#endif
 
 #define APP_BUFSIZE 32
 #define DATA_BUFSIZE 65535
@@ -93,6 +101,10 @@ static int app_socket;
 
 static zlog_category_t *zc;
 
+#ifdef USE_FILTER_SOCKET
+FilterSocket *filter_socket = NULL;
+#endif
+
 void handle_signal(int signal);
 int run();
 
@@ -162,15 +174,24 @@ int main(int argc, char **argv)
     if (create_sockets() < 0)
         return -1;
 
+    populate_test_filter_hashmaps(filter_socket);
     res = run();
 
     /* Would only get down here if poll failed */
 
-    close(data_v4_socket);
+    if (data_v4_socket >= 0)
+        close(data_v4_socket);
+    if (data_v6_socket >= 0)
+        close(data_v6_socket);
     close(app_socket);
     int i;
     for (i = 0; i < num_sockets; i++)
         close(sockets[i].fd);
+
+#ifdef USE_FILTER_SOCKET
+    close_filter_socket(filter_socket);
+#endif
+
     zlog_fini();
     return res;
 }
@@ -206,6 +227,14 @@ int create_sockets()
     if (data_v6_socket < 0)
         zlog_info(zc, "IPv6 not supported on this host");
 
+#ifdef USE_FILTER_SOCKET
+    filter_socket = init_filter_socket(zc);
+    if (filter_socket == NULL) {
+        zlog_fatal(zc, "Failed to initialize filter socket");
+        return -1;
+    }
+#endif
+
     if (set_sockopts() < 0) {
         zlog_fatal(zc, "failed to set socket options");
         return -1;
@@ -228,9 +257,9 @@ int create_sockets()
         num_sockets++;
     }
     if (data_v6_socket > 0) {
-        num_sockets++;
         sockets[DATA_V6_INDEX].fd = data_v6_socket;
         sockets[DATA_V6_INDEX].events = POLLIN;
+        num_sockets++;
     }
 
     if (num_sockets < 2) {
@@ -257,7 +286,7 @@ int set_sockopts()
      */
     int res = 0;
     if (data_v4_socket > 0) {
-        setsockopt(data_v4_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        res |= setsockopt(data_v4_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
         res |= setsockopt(data_v4_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
     }
     if (data_v6_socket > 0) {
@@ -365,6 +394,10 @@ int run()
                     break;
             }
         }
+
+#ifdef USE_FILTER_SOCKET
+        poll_filter(filter_socket);
+#endif
     }
     return 0; // shouldn't get here
 }
@@ -662,6 +695,14 @@ void handle_data(int v6)
     }
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
+
+#ifdef USE_FILTER_SOCKET
+    if (is_blocked_by_filter(filter_socket, buf, from, 0, &msg)) {
+        zlog_debug(zc, "filtered packet at handle data");
+        return;
+    }
+#endif
+
     switch (l4) {
         case L4_SCMP:
             process_scmp(buf, (SCMPL4Header *)l4ptr, len, &from);
@@ -860,9 +901,18 @@ void handle_send(int index)
     hop.addr_type = addr_type;
     memcpy(hop.addr, buf, addr_len);
     hop.port = htons(*(uint16_t *)(buf + addr_len));
-    send_data(buf + addr_len + 2, packet_len, &hop);
+
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
+
+#ifdef USE_FILTER_SOCKET
+    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, hop, 1, NULL)) {
+        zlog_debug(zc, "filtered packet at handle send");
+        return;
+    }
+#endif
+
+    send_data(buf + addr_len + 2, packet_len, &hop);
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
             packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), ntohs(hop.port));
 }

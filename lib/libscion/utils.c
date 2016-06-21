@@ -101,6 +101,9 @@ const char * addr_to_str(uint8_t *addr, uint8_t type, char *buf)
             return inet_ntop(AF_INET, addr, str, MAX_HOST_ADDR_STR);
         case ADDR_IPV6_TYPE:
             return inet_ntop(AF_INET6, addr, str, MAX_HOST_ADDR_STR);
+        case ADDR_SVC_TYPE:
+            sprintf(str, "%d", ntohs(*(uint16_t *)addr));
+            return (const char *)str;
         default:
             return NULL;
     }
