@@ -35,7 +35,6 @@ from lib.crypto.certificate import verify_sig_chain_trc
 from lib.crypto.hash_tree import (
     ConnectedHashTree,
     HASHTREE_EPOCH_TIME,
-    HASHTREE_TTL,
 )
 from lib.defines import (
     BEACON_SERVICE,
@@ -100,7 +99,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # ZK path for revocations.
     ZK_REVOCATIONS_PATH = "rev_cache"
     # Time revocation objects are cached in memory (in seconds).
-    ZK_REV_OBJ_MAX_AGE = 60 * 60
+    ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
@@ -124,7 +123,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info(self.config.__dict__)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
-        self._init_hash_tree()
         self._if_rev_token_lock = threading.Lock()
         self.revs_to_downstream = ExpiringDict(
                             max_len=1000, max_age_seconds=HASHTREE_EPOCH_TIME)
@@ -350,23 +348,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self._handle_if_timeouts,),
             name="BS._handle_if_timeouts", daemon=True).start()
-        threading.Thread(
-            target=thread_safety_net, args=(self._maintain_hash_tree,),
-            name="BS._maintain_hash_tree", daemon=True).start()
         super().run()
 
     def _maintain_hash_tree(self):
         """
         Maintain the hashtree. Update the the windows in the connected tree
         """
-        while self.run_flag.is_set():
-            ifs = list(self.ifid2er.keys())
-            with self._hash_tree_lock:
-                self._hash_tree.update(ifs, self.hashtree_gen_key)
-            logging.info("New Hash Tree TTL beginning")
-            start = time.time()
-            sleep_interval(start, HASHTREE_TTL,
-                           "BS.hashtree TTL", self._quiet_startup())
+        ifs = list(self.ifid2er.keys())
+        with self._hash_tree_lock:
+            self._hash_tree.update(ifs, self.hashtree_gen_key)
+        logging.info("New Hash Tree TTL beginning")
 
     def worker(self):
         """
@@ -374,6 +365,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         propagating PCBS/registering paths when master.
         """
         last_propagation = last_registration = 0
+        last_ttl_window = ConnectedHashTree.get_ttl_window()
         worker_cycle = 1.0
         was_master = False
         start = time.time()
@@ -389,14 +381,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.revobjs_cache.process()
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     was_master = False
+                    with self._hash_tree_lock:
+                        self._hash_tree = None
                     continue
                 if not was_master:
                     self._became_master()
                     was_master = True
                 self.pcb_cache.expire(self.config.propagation_time * 10)
-                self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE * 24)
+                self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
             except ZkNoConnection:
                 continue
+            cur_ttl_window = ConnectedHashTree.get_ttl_window()
+            if cur_ttl_window != last_ttl_window:
+                self._maintain_hash_tree()
+                cur_ttl_window = last_ttl_window
             now = time.time()
             if now - last_propagation >= self.config.propagation_time:
                 self.handle_pcbs_propagation()
@@ -416,6 +414,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rebuilt over time.
         """
         # Reset all timed-out and revoked interfaces to inactive.
+        with self._hash_tree_lock:
+            self._init_hash_tree()
         for (_, ifstate) in self.ifid_state.items():
             if not ifstate.is_active():
                 ifstate.reset()
