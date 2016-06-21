@@ -1,5 +1,6 @@
 #define _GNU_SOURCE // required to get struct in6_pktinfo definition
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -9,6 +10,8 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -25,6 +28,15 @@
 #define APP_BUFSIZE 32
 #define DATA_BUFSIZE 65535
 
+#define USE_FILTER_SOCKET 1
+#define FILTER_BUFSIZE 200
+#define FILTER_FIELD_COUNT 15
+
+#define BLOCK_INGRESS 0
+#define BLOCK_EGRESS 1
+#define BLOCK_HOP_BY_HOP 0
+#define BLOCK_END2END 1
+
 #define MAX_SVCS_PER_ADDR 10
 
 #define MAX_BACKLOG 128
@@ -32,6 +44,7 @@
 #define APP_INDEX 0
 #define DATA_V4_INDEX 1
 #define DATA_V6_INDEX 2
+#define FILTER_INDEX 3
 
 #define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
@@ -90,6 +103,23 @@ static int num_sockets;
 static int data_v4_socket;
 static int data_v6_socket;
 static int app_socket;
+static int filter_socket;
+
+typedef struct {
+    SCIONAddr src;
+    SCIONAddr dst;
+    SCIONAddr hop;
+    uint8_t on_egress;
+    uint8_t is_end2end;
+    int protocol;
+} FilterKey;
+
+typedef struct {
+    FilterKey fkey;
+    UT_hash_handle hh;
+} Filter;
+
+Filter *filter_list = NULL;
 
 static zlog_category_t *zc;
 
@@ -100,6 +130,7 @@ int create_sockets();
 int set_sockopts();
 int bind_app_socket();
 int bind_data_sockets();
+int bind_filter_socket();
 
 void handle_app();
 void register_ssp(uint8_t *buf, int len, int sock);
@@ -116,6 +147,18 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, HostAddr *from);
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, HostAddr *from);
 void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, HostAddr *from);
+
+void handle_filter();
+void add_new_filter(char *buf);
+int get_filter_fields(char *buf, char *fields[], int fields_size);
+int set_filter_from_fields(char *fields[]);
+int get_scionaddr_from_fields(SCIONAddr *ha, char **fields);
+void sockaddr_to_hostaddr(const sockaddr_in *sa, HostAddr *ha);
+void print_filter_key(FilterKey *f);
+void print_scionaddr(SCIONAddr *addr, char *str);
+int is_blocked_by_filter(uint8_t *buf, HostAddr hop, uint8_t called_from_send, struct msghdr *msg);
+void construct_filter_key(FilterKey *f, const SCIONAddr *src, const SCIONAddr *dst, const SCIONAddr *hop,
+    uint8_t on_egress, uint8_t is_end2end, int l4);
 
 void handle_send(int index);
 void cleanup_socket(int sock, int index, int err);
@@ -167,7 +210,10 @@ int main(int argc, char **argv)
     /* Would only get down here if poll failed */
 
     close(data_v4_socket);
+    close(data_v6_socket);
     close(app_socket);
+    if (USE_FILTER_SOCKET)
+        close(filter_socket);
     int i;
     for (i = 0; i < num_sockets; i++)
         close(sockets[i].fd);
@@ -197,6 +243,9 @@ int create_sockets()
     app_socket = socket(AF_UNIX, SOCK_STREAM, 0);
     data_v4_socket = socket(AF_INET, SOCK_DGRAM, 0);
     data_v6_socket = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (USE_FILTER_SOCKET)
+        filter_socket = socket(AF_INET, SOCK_DGRAM, 0);
+
     if (app_socket < 0) {
         zlog_fatal(zc, "failed to open app socket");
         return -1;
@@ -205,6 +254,10 @@ int create_sockets()
         zlog_info(zc, "IPv4 not supported on this host");
     if (data_v6_socket < 0)
         zlog_info(zc, "IPv6 not supported on this host");
+    if (USE_FILTER_SOCKET && filter_socket < 0) {
+        zlog_fatal(zc, "failed to open filter socket");
+        return -1;
+    }
 
     if (set_sockopts() < 0) {
         zlog_fatal(zc, "failed to set socket options");
@@ -219,6 +272,10 @@ int create_sockets()
     if (bind_data_sockets() < 0)
         return -1;
 
+    /* Bind filter socket to SCION_UDP_EH_DATA_PORT */
+    if (USE_FILTER_SOCKET && bind_filter_socket() < 0)
+        return -1;
+
     sockets[APP_INDEX].fd = app_socket;
     sockets[APP_INDEX].events = POLLIN;
     num_sockets++;
@@ -228,12 +285,17 @@ int create_sockets()
         num_sockets++;
     }
     if (data_v6_socket > 0) {
-        num_sockets++;
         sockets[DATA_V6_INDEX].fd = data_v6_socket;
         sockets[DATA_V6_INDEX].events = POLLIN;
+        num_sockets++;
+    }
+    if (USE_FILTER_SOCKET) {
+        sockets[FILTER_INDEX].fd = filter_socket;
+        sockets[FILTER_INDEX].events = POLLIN;
+        num_sockets++;
     }
 
-    if (num_sockets < 2) {
+    if (num_sockets < 3) {
         zlog_fatal(zc, "Could not open any IP sockets");
         return -1;
     }
@@ -265,6 +327,10 @@ int set_sockopts()
         res |= setsockopt(data_v6_socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval, sizeof(optval));
         res |= setsockopt(data_v6_socket, SOL_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
     }
+    if (filter_socket > 0) {
+        setsockopt(filter_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        res |= setsockopt(filter_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
+    }
     optval = 1 << 20;
     res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
     if (data_v4_socket > 0) {
@@ -274,6 +340,10 @@ int set_sockopts()
     if (data_v6_socket > 0) {
         res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
         res |= fcntl(data_v6_socket, F_SETFL, O_NONBLOCK);
+    }
+    if (USE_FILTER_SOCKET) {
+        res |= setsockopt(filter_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
+        res |= fcntl(filter_socket, F_SETFL, O_NONBLOCK);
     }
     return res;
 }
@@ -337,6 +407,23 @@ int bind_data_sockets()
     return 0;
 }
 
+int bind_filter_socket()
+{
+    struct sockaddr_storage sa;
+    sockaddr_in *sin = (sockaddr_in *)&sa;
+    memset(sin, 0, sizeof(sockaddr_in));
+    sin->sin_family = AF_INET;
+    sin->sin_addr.s_addr = INADDR_ANY;
+    sin->sin_port = htons(SCION_FILTER_CMD_PORT);
+    if (bind(filter_socket, (struct sockaddr *)sin, sizeof(sockaddr_in)) < 0) {
+        zlog_fatal(zc, "failed to bind filter socket to %s:%d, %s",
+                inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), strerror(errno));
+        return -1;
+    }
+    zlog_info(zc, "filter socket bound to %s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+    return 0;
+}
+
 int run()
 {
     while (1) {
@@ -359,6 +446,10 @@ int run()
                     break;
                 case DATA_V6_INDEX:
                     handle_data(1);
+                    break;
+                case FILTER_INDEX:
+                    if (USE_FILTER_SOCKET)
+                        handle_filter();
                     break;
                 default:
                     handle_send(i);
@@ -662,6 +753,24 @@ void handle_data(int v6)
     }
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
+
+    if (USE_FILTER_SOCKET && is_blocked_by_filter(buf, from, 0, &msg)) {
+        zlog_debug(zc, "Filtered packet at handle data");
+        return;
+    }
+
+    /*
+    uint8_t dest_addr[MAX_HOST_ADDR_LEN];
+    memset(dest_addr, 0, MAX_HOST_ADDR_LEN);
+    get_dst_addr(dest_addr);
+    if (memcmp(dest_addr, dst.addr, MAX_HOST_ADDR_LEN) != 0) {
+        zlog_debug(zc, "Destination addresses didn't match!!");
+        zlog_debug(zc, "%d.%d.%d.%d != %d.%d.%d.%d",
+            dest_addr[0], dest_addr[1], dest_addr[2], dest_addr[3],
+            dst.addr[0], dst.addr[1], dst.addr[2], dst.addr[3]);
+    }
+    */
+
     switch (l4) {
         case L4_SCMP:
             process_scmp(buf, (SCMPL4Header *)l4ptr, len, &from);
@@ -823,6 +932,192 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     send_all(e->sock, buf, len);
 }
 
+void handle_filter()
+{
+    char buf[FILTER_BUFSIZE];
+    memset(buf, 0, sizeof(buf));
+
+    int len = recv(filter_socket, buf, FILTER_BUFSIZE, 0);
+    if (len < 0) {
+        zlog_error(zc, "error on recvfrom: %s", strerror(errno));
+        return;
+    }
+    zlog_debug(zc, "msg received by filter socket: %s", buf);
+    add_new_filter(buf);
+}
+
+void add_new_filter(char *buf)
+{
+    char *fields[FILTER_FIELD_COUNT];
+
+    /* Get the fields of the filter from the message */
+    int field_count = get_filter_fields(buf, fields, FILTER_FIELD_COUNT);
+    if (field_count < FILTER_FIELD_COUNT) {
+        zlog_error(zc, "expected a %d-tuple for the filter, received a %d-tuple",
+                FILTER_FIELD_COUNT, field_count);
+        return;
+    }
+    /* Set a filter in the filter_list using the obtained fields */
+    if (set_filter_from_fields(fields) < 0) {
+        zlog_error(zc, "filter not added: received badly formatted request");
+        return;
+    }
+}
+
+int get_filter_fields(char *buf, char *fields[], int fields_size)
+{
+    char *field = strtok(buf, " ");
+    int i = 0;
+    while (field != NULL && i < fields_size) {
+        fields[i] = field;
+        field = strtok(NULL, " ");
+        i++;
+    }
+    return i;
+}
+
+int set_filter_from_fields(char *fields[])
+{
+    /*
+    Format of 'fields' of the filter should be:
+    fields[0] = isd_as, fields[1] = ip, fields[2] = port, fields[3] = address type  (for source)
+    fields[4] = isd_as, fields[5] = ip, fields[6] = port, fields[7] = address type  (for destination)
+    fields[8] = isd_as, fields[9] = ip, fields[10] = port, fields[11] = address type  (for filter location)
+    fields[12] = filter traffic at ingress/egress?
+    fields[13] = filter traffic hop by hop or end2end
+    fields[14] = L4 protocol
+    */
+    FilterKey f;
+    memset(&f, 0, sizeof(f));
+
+    if (get_scionaddr_from_fields(&f.src, fields) < 0)
+        return -1;
+    if (get_scionaddr_from_fields(&f.dst, fields + 4) < 0)
+        return -1;
+    if (get_scionaddr_from_fields(&f.hop, fields + 8) < 0)
+        return -1;
+    errno = 0;
+    f.on_egress = strtoul(fields[12], NULL, 10);
+    if (errno) {
+        zlog_error(zc, "Filter direction '%s' could not be parsed to an int: [errno = %d]", fields[12], errno);
+        return -1;
+    }
+    errno = 0;
+    f.is_end2end = strtol(fields[13], NULL, 10);
+    if (errno) {
+        zlog_error(zc, "Filtering mode '%s' could not be parsed to an int: [errno = %d]", fields[13], errno);
+        return -1;
+    }
+    errno = 0;
+    f.protocol = strtol(fields[14], NULL, 10);
+    if (errno) {
+        zlog_error(zc, "L4 protocol '%s' could not be parsed to an int: [errno = %d]", fields[14], errno);
+        return -1;
+    }
+
+    Filter *e;
+    HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+    if (e) {
+        zlog_debug(zc, "entry present in the filter list already");
+        return 0;
+    }
+
+    e = (Filter *)malloc(sizeof(Filter));
+    memset(e, 0, sizeof(Filter));
+    e->fkey = f;
+    HASH_ADD(hh, filter_list, fkey, sizeof(FilterKey), e);
+    zlog_debug(zc, "Adding a new filter key");
+    print_filter_key(&f);
+    return 0;
+}
+
+int get_scionaddr_from_fields(SCIONAddr *ha, char **fields) {
+    memset(ha, 0, sizeof(SCIONAddr));
+    errno = 0;
+    ha->isd_as = strtoul(fields[0], NULL, 10);
+    if (errno) {
+        zlog_error(zc, "isd_as '%s' could not be parsed to an int: [errno = %d]", fields[0], errno);
+        return -1;
+    }
+
+    errno = 0;
+    uint16_t port = strtoul(fields[2], NULL, 10);
+    if (errno) {
+        zlog_error(zc, "port '%s' could not be parsed to an int: [errno = %d]", fields[2], errno);
+        return -1;
+    }
+
+    errno = 0;
+    uint8_t addr_type = strtoul(fields[3], NULL, 10);
+    if (errno) {
+        zlog_error(zc, "addr_type '%s' could not be parsed to an int: [errno = %d]", fields[3], errno);
+        return -1;
+    }
+
+    if (addr_type == ADDR_IPV4_TYPE || addr_type == ADDR_IPV6_TYPE) {
+        sockaddr_in sa;
+        sa.sin_family = (addr_type == 1) ? AF_INET : AF_INET6;
+        sa.sin_port = port;
+        /* IP address */
+        if (inet_pton(sa.sin_family, fields[1], &sa.sin_addr) != 1) {
+            zlog_error(zc, "%s not a valid IP", fields[1]);
+            return -1;
+        }
+        sockaddr_to_hostaddr(&sa, &ha->host);
+    }
+    else if (addr_type == ADDR_SVC_TYPE) {
+        ha->host.addr_type = addr_type;
+        /* SVC address */
+        errno = 0;
+        uint16_t addr = strtoul(fields[1], NULL, 10);
+        if (errno) {
+            zlog_error(zc, "svc ip '%s' could not be parsed to an int: [errno = %d]", fields[1], errno);
+            return -1;
+        }
+        memcpy(ha->host.addr, &addr, ADDR_SVC_LEN);
+        ha->host.port = port;
+    }
+    else {
+        zlog_error(zc, "called get_scionaddr_from_fields() for an unimplemented addr_type %d",
+                addr_type);
+        return -1;
+    }
+    return 0;
+}
+
+void sockaddr_to_hostaddr(const sockaddr_in *sa, HostAddr *ha)
+{
+    if (sa->sin_family == AF_INET) {
+        ha->addr_type = ADDR_IPV4_TYPE;
+        memcpy(ha->addr, &sa->sin_addr, ADDR_IPV4_LEN);
+        ha->port = sa->sin_port;
+    }
+    else if (sa->sin_family == AF_INET6) {
+        ha->addr_type = ADDR_IPV6_TYPE;
+        memcpy(ha->addr, &sa->sin_addr, ADDR_IPV6_LEN);
+        ha->port = sa->sin_port;
+    }
+    else {
+        zlog_error(zc, "called sockaddr_to_hostaddr() for an unimplemented addr_type %d",
+                sa->sin_family);
+    }
+}
+
+void print_filter_key(FilterKey *f)
+{
+    print_scionaddr(&f->src, "src");
+    print_scionaddr(&f->dst, "dst");
+    print_scionaddr(&f->hop, "hop");
+    zlog_debug(zc, "on_egress : %d, is_end2end : %d, L4 protocol : %d", f->on_egress, f->is_end2end, f->protocol);
+}
+
+void print_scionaddr(SCIONAddr *addr, char *str)
+{
+    char buf[MAX_HOST_ADDR_STR];
+    format_host(addr->host.addr_type, addr->host.addr, buf, MAX_HOST_ADDR_STR);
+    zlog_debug(zc, "%s: [ISD-AS : %d-%d, IP : %s, Port : %d]", str, ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
+}
+
 void handle_send(int index)
 {
     uint8_t buf[DATA_BUFSIZE];
@@ -860,11 +1155,130 @@ void handle_send(int index)
     hop.addr_type = addr_type;
     memcpy(hop.addr, buf, addr_len);
     hop.port = htons(*(uint16_t *)(buf + addr_len));
-    send_data(buf + addr_len + 2, packet_len, &hop);
+
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
+
+    if (USE_FILTER_SOCKET && is_blocked_by_filter(buf + addr_len + 2, hop, 1, NULL)) {
+        zlog_debug(zc, "%d byte packet (l4 = %d) to %s:%d has been filtered",
+            packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), ntohs(hop.port));
+        return;
+    }
+    send_data(buf + addr_len + 2, packet_len, &hop);
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
             packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), ntohs(hop.port));
+}
+
+int is_blocked_by_filter(uint8_t *buf, HostAddr hop, uint8_t called_from_send, struct msghdr *msg)
+{
+    SCIONAddr src, dst, h;
+    uint8_t *l4ptr = buf;
+    int l4 = get_l4_proto(&l4ptr);
+    SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
+
+    /* Get src address. */
+    memset(&src, 0, sizeof(SCIONAddr));
+    src.isd_as = get_src_isd_as(buf);
+    src.host.addr_type = SRC_TYPE((SCIONCommonHeader *) buf);
+    memcpy(src.host.addr, get_src_addr(buf), get_src_len(buf));
+    src.host.port = udp->src_port;
+
+    /* Get dst address. */
+    memset(&dst, 0, sizeof(SCIONAddr));
+    dst.isd_as = get_dst_isd_as(buf);
+    if (called_from_send) {
+        dst.host.addr_type = DST_TYPE((SCIONCommonHeader *) buf);
+        memcpy(dst.host.addr, get_dst_addr(buf), get_dst_len(buf));
+    }
+    else {
+        // Obtain the destination address from the IP header, since it is not known within the 
+        // SCIONCommonHeader because of it being a service.
+        struct cmsghdr *cmsgptr;
+        for (cmsgptr = CMSG_FIRSTHDR(msg); cmsgptr != NULL; cmsgptr = CMSG_NXTHDR(msg, cmsgptr)) {
+            if (cmsgptr->cmsg_level == IPPROTO_IP && cmsgptr->cmsg_type == IP_PKTINFO) {
+                dst.host.addr_type = ADDR_IPV4_TYPE;
+                memcpy(dst.host.addr, &(DSTADDR(cmsgptr)), ADDR_IPV4_LEN);
+            }
+            if (cmsgptr->cmsg_level == IPPROTO_IPV6 && cmsgptr->cmsg_type == IPV6_PKTINFO) {
+                dst.host.addr_type = ADDR_IPV6_TYPE;
+                memcpy(dst.host.addr, &(DSTV6ADDR(cmsgptr)), ADDR_IPV6_LEN);
+            }
+        }
+    }
+    dst.host.port = udp->dst_port;
+
+    /* Get hop address. */
+    memset(&h, 0, sizeof(SCIONAddr));
+    h.isd_as = called_from_send ? src.isd_as : dst.isd_as;  // Change this if ER moves to dispatcher.
+    h.host.addr_type = hop.addr_type;
+    memcpy(h.host.addr, hop.addr, get_addr_len(hop.addr_type));
+    h.host.port = hop.port;
+
+    /* Check if any combination of block is satisfied by the packet. */
+    Filter *e;
+    FilterKey f;
+    if (called_from_send) {  // Called from handle_send()
+        construct_filter_key(&f, &src, &dst, &src, BLOCK_EGRESS, BLOCK_END2END, l4);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+        construct_filter_key(&f, &src, &dst, &h, BLOCK_INGRESS, BLOCK_END2END, l4);
+        zlog_debug(zc, "Inside handle_send() filter checking:");
+        print_filter_key(&f);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+        construct_filter_key(&f, &src, &h, &src, BLOCK_EGRESS, BLOCK_HOP_BY_HOP, l4);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+        construct_filter_key(&f, &src, &h, &h, BLOCK_INGRESS, BLOCK_HOP_BY_HOP, l4);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+    }
+    else {  // Called from handle_data()
+        construct_filter_key(&f, &src, &dst, &h, BLOCK_EGRESS, BLOCK_END2END, l4);
+        zlog_debug(zc, "Inside handle_data() filter checking:");
+        print_filter_key(&f);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+        construct_filter_key(&f, &src, &dst, &dst, BLOCK_INGRESS, BLOCK_END2END, l4);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+        construct_filter_key(&f, &h, &dst, &h, BLOCK_EGRESS, BLOCK_HOP_BY_HOP, l4);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+        construct_filter_key(&f, &h, &dst, &dst, BLOCK_INGRESS, BLOCK_HOP_BY_HOP, l4);
+        HASH_FIND(hh, filter_list, &f, sizeof(FilterKey), e);
+        if (e) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void construct_filter_key(
+        FilterKey *f, const SCIONAddr *src, const SCIONAddr *dst, const SCIONAddr *hop,
+        uint8_t on_egress, uint8_t is_end2end, int l4)
+{
+    memset(f, 0, sizeof(FilterKey));
+    memcpy(&f->src, src, sizeof(SCIONAddr));
+    memcpy(&f->dst, dst, sizeof(SCIONAddr));
+    memcpy(&f->hop, hop, sizeof(SCIONAddr));
+    f->on_egress = on_egress;
+    f->is_end2end = is_end2end;
+    f->protocol = l4;
 }
 
 void cleanup_socket(int sock, int index, int err)

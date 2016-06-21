@@ -1,4 +1,4 @@
-.PHONY: all c clean dispatcher go install
+.PHONY: all c clean dispatcher go install test
 
 CC=gcc
 CFLAGS +=-Wall -g

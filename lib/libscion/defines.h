@@ -8,6 +8,7 @@
 
 #define SCION_UDP_PORT         30040
 #define SCION_UDP_EH_DATA_PORT 30041
+#define SCION_FILTER_CMD_PORT  30042
 #define SCION_ROUTER_PORT      50000
 
 // L4 Protocols
