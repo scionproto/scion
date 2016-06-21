@@ -29,7 +29,7 @@ from lib.packet.scion_addr import SCIONAddr
 from lib.util import recv_all
 
 LWIP_SOCK_DIR = "/run/shm/lwip/"
-TCPMW_SOCKET = "/run/shm/lwip/lwip"
+TCPMW_SOCKET = "/run/shm/lwip/lwip.sock"
 AF_SCION = 11
 SOCK_STREAM = stdsock.SOCK_STREAM
 MAX_MSG_LEN = 2 << 31  # u32_t is used as size_t at middleware
@@ -258,10 +258,10 @@ class SCIONSocket(object):
         self._handle_reply(req[:CMD_SIZE], rep)
         # Everything is ok, create new SCION TCP socket.
         sock = SCIONSocket(self._family, self._type, self._proto)
-        sock.set_lwip_sock(new_sock)
+        sock._set_lwip_sock(new_sock)
         return sock, addr, path
 
-    def set_lwip_sock(self, sock):  # Can be only executed by accept().
+    def _set_lwip_sock(self, sock):  # Can be only executed by accept().
         self._lwip_sock = sock
 
     def _init_accept_sock(self):

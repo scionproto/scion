@@ -36,7 +36,7 @@
 #include "zlog.h"
 
 #define LWIP_SOCK_DIR "/run/shm/lwip/"
-#define TCPMW_SOCKET "/run/shm/lwip/lwip"
+#define TCPMW_SOCKET "/run/shm/lwip/lwip.sock"
 #define SOCK_PATH_LEN 36  /* of "accept" socket */
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 1)

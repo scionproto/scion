@@ -76,7 +76,7 @@ void tcpmw_socket(int fd){
     lwip_err = 0;
     sys_err = 0;
     if ((pld_len = tcpmw_read_cmd(fd, buf)) < 0){
-        sys_err = errno;
+        lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_socket(): tcpmw_read_cmd(): %s", strerror(errno));
         goto close;
     }
@@ -229,7 +229,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     char host_str[MAX_HOST_ADDR_STR];
     uint32_t isd_as = *(uint32_t*)addr.addr;
     format_host(addr.type, addr.addr, host_str, sizeof(host_str));
-    zlog_info(zc_tcp, "tcpmw_bind(): bound:%d-%d ,%s port %d, svc: %d",
+    zlog_info(zc_tcp, "tcpmw_bind(): bound:%d-%d, %s port %d, svc: %d",
               ISD(isd_as), AS(isd_as), host_str, port, svc);
 
 exit:
@@ -353,7 +353,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     *(u16_t *)p = pld_len;
     p += PLD_SIZE;
     /* CMD_ACCEPT+ERR_OK */
-    memcpy(p, CMD_ACCEPT, RESP_SIZE - 1);
+    memcpy(p, CMD_ACCEPT, CMD_SIZE);
     p[RESP_SIZE - 1] = ERR_OK;
     p += RESP_SIZE;
     /* Encode path. */
