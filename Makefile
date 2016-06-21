@@ -1,10 +1,14 @@
-.PHONY: all c clean dispatcher go install
+.PHONY: all c clean dispatcher go install test
 
 CC=gcc
 CFLAGS +=-Wall -g
 LIB_DIR=lib/libscion
+FILTER_DIR=lib/libfilter
+
 LIBFILE=$(LIB_DIR)/libscion.a
 LIB_H_SRC=$(LIB_DIR)/*.c $(LIB_DIR)/*.h
+FILTERFILE=$(FILTER_DIR)/libfilter.a
+FILTER_H_SRC=$(FILTER_DIR)/*.c $(FILTER_DIR)/*.h
 DISPATCHER_DIR=endhost
 DISPATCHER=$(DISPATCHER_DIR)/dispatcher
 SOCKET_DIR=endhost/ssp
@@ -15,6 +19,7 @@ all: c go
 
 c:
 	$(MAKE) -C $(LIB_DIR)
+	$(MAKE) -C $(FILTER_DIR)
 	$(MAKE) -C $(DISPATCHER_DIR)
 	$(MAKE) -C $(SOCKET_DIR)
 	$(MAKE) -C $(TEST_DIR)
@@ -30,6 +35,7 @@ install:
 
 clean:
 	$(MAKE) clean -C $(LIB_DIR)
+	$(MAKE) clean -C $(FILTER_DIR)
 	$(MAKE) clean -C $(DISPATCHER_DIR)
 	$(MAKE) clean -C $(SOCKET_DIR)
 	$(MAKE) clean -C $(TEST_DIR)

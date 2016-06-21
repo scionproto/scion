@@ -1,9 +1,10 @@
 CC=gcc
 CFLAGS +=-Wall -g
 LIBDIR=../lib/libscion
-INC += -I./ssp -I../lib/libscion
-LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -Wl,-Bdynamic -lpthread -lzlog
-LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
+FILTERDIR=../lib/libfilter
+INC += -I./ssp -I../lib/libscion -I../lib/libfilter
+LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -L$(FILTERDIR) -Wl,-Bdynamic -lpthread -lzlog
+LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h $(FILTERDIR)/*.c $(FILTERDIR)/*.h
 SRCS=dispatcher.c
 
 HDRS=$(wildcard *.h)
@@ -12,6 +13,7 @@ all: dispatcher
 
 dispatcher: dispatcher.c $(LIBHSRC)
 	$(MAKE) -C $(LIBDIR)
+	$(MAKE) -C $(FILTERDIR)
 	$(CC) $(CFLAGS) $(INC) $(SRCS) -o $@ $(LDFLAGS)
 
 install:
