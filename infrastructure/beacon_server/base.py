@@ -663,7 +663,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
                 if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-                        logging.debug("Epochs did not match ")
                         continue
                 for asm in cand.pcb.iter_asms():
                     if self.verify_asm(asm, rev_info):

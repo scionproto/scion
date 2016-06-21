@@ -209,22 +209,17 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :type rev_info: RevocationInfo
         """
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            logging.debug("Epochs did not match")
             return
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
         if_id = rev_info.p.ifID
 
         with self.htroot_if2seglock:
             for H in (hash01, hash12):
-                segments = self.htroot_if2seg.get((H, if_id))
-                while segments:
-                    sid = segments.pop()
+                for sid in self.htroot_if2seg.pop((H, if_id), []):
                     self.down_segments.delete(sid)
                     self.core_segments.delete(sid)
                     if not self.topology.is_core_as:
                         self.up_segments.delete(sid)
-                if (H, if_id) in self.htroot_if2seg:
-                    del self.htroot_if2seg[(H, if_id)]
 
     def _send_to_next_hop(self, pkt, if_id):
         """
