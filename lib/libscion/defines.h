@@ -7,8 +7,10 @@
 #define DISPATCHER_BUF_SIZE 65535
 
 #define SCION_UDP_EH_DATA_PORT 30041
+#define SCION_FILTER_CMD_PORT  30042
 #define SCION_ROUTER_PORT      50000
 
+#define L4_PROTOCOL_COUNT 4
 // L4 Protocols
 #define L4_NONE     0
 #define L4_SCMP     1
