@@ -51,7 +51,7 @@ public:
     bool isUsed();
     void setUsed(bool used);
     bool isValid();
-    void setFirstHop(int len, uint8_t *addr);
+    void setFirstHop(HostAddr *addr);
 
     virtual bool didTimeout(struct timeval *current);
 

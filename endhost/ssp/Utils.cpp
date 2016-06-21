@@ -113,10 +113,11 @@ uint64_t createRandom(int bits)
 
 int registerFlow(int proto, DispatcherEntry *e, int sock)
 {
-    DEBUG("register flow via socket %d\n", sock);
+    DEBUG("register flow via socket %d: flow = %lu, port = %d\n",
+            sock, e->flow_id, ntohs(e->port));
 
     int len;
-    int addr_len = e->addr_type == ADDR_IPV4_TYPE ? 4 : 16;
+    int addr_len = get_addr_len(e->addr_type);
     int common = 2 + ISD_AS_LEN + 2 + 1;
     switch (proto) {
         case L4_SSP:
@@ -152,7 +153,11 @@ int registerFlow(int proto, DispatcherEntry *e, int sock)
     struct sockaddr_un su;
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
-    strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    char *env = getenv("DISPATCHER_PATH");
+    if (env)
+        sprintf(su.sun_path, "%s.sock", env);
+    else
+        strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
     int res = connect(sock, (struct sockaddr *)&su, sizeof(su));
     if (res < 0) {
         if (errno == EISCONN) {
@@ -177,7 +182,7 @@ int registerFlow(int proto, DispatcherEntry *e, int sock)
     }
     uint16_t port = *(uint16_t *)(buf + DP_HEADER_LEN);
     if (port != ntohs(e->port)) {
-        fprintf(stderr, "CRITICAL: dispatcher registration failed\n");
+        fprintf(stderr, "CRITICAL: dispatcher registration failed: %d|%d\n", port, ntohs(e->port));
         return -1;
     }
     return port;

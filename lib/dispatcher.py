@@ -20,6 +20,7 @@ Helper functions for dealing with dispatcher.
 
 # Stdlib
 import logging
+import os
 import struct
 import time
 
@@ -77,10 +78,16 @@ def _pack_dispatcher_msg(addr, port, svc, scmp):
 def _connect_dispatcher(sock, init):
     start = time.time()
     now = start
+    env = os.getenv("DISPATCHER_PATH")
+    if env:
+        path = env + ".sock"
+    else:
+        path = SCION_DISPATCHER_ADDR
+    logging.debug("connect to dispatcher at path %s", path)
     while True:
         try:
             logging.debug("Attempt connect")
-            sock.connect(SCION_DISPATCHER_ADDR)
+            sock.connect(path)
             break
         except OSError as e:
             logging.warning("Connect error: %s", e)

@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     SCIONAddr saddr;
     memset(&saddr, 0, sizeof(saddr));
     saddr.isd_as = ISD_AS(dst_isd, dst_as);
-    saddr.host.addr_len = 4;
+    saddr.host.addr_type = ADDR_IPV4_TYPE;
     saddr.host.port = 8080;
     sprintf(str, "127.%d.%d.254", dst_isd, dst_as);
     in_addr_t in = inet_addr(str);

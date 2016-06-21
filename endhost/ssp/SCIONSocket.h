@@ -31,7 +31,7 @@ public:
     double getTimeout();
 
     // construct SCION packet from incoming data
-    void handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr);
+    void handlePacket(uint8_t *buf, size_t len, HostAddr *addr);
 
     // data profile: VoIP, streaming video, etc
     void setDataProfile(DataProfile profile);

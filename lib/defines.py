@@ -57,7 +57,7 @@ SCION_DNS_PORT = 30053
 #: Default SCION router UDP port.
 SCION_ROUTER_PORT = 50000
 #: Default SCION dispatcher host addr
-SCION_DISPATCHER_ADDR = "/run/shm/dispatcher.socket"
+SCION_DISPATCHER_ADDR = "/run/shm/dispatcher.sock"
 #: Default SCION dispatcher port
 SCION_DISPATCHER_PORT = 3334
 
@@ -116,3 +116,5 @@ LINK_PEER = "PEER"
 LINK_ROUTING = "ROUTING"
 
 PATH_FLAG_SIBRA = "SIBRA"
+
+MAX_HOST_ADDR_LEN = 16

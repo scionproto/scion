@@ -37,18 +37,19 @@ from ctypes import (
 )
 
 # SCION
+from lib.defines import MAX_HOST_ADDR_LEN
 from lib.packet.scion_addr import ISD_AS
 from lib.util import Raw
 
-ByteArray16 = c_ubyte * 16
+HostAddrBytes = c_ubyte * MAX_HOST_ADDR_LEN
 MAX_PATHS = 20
 MAX_OPTION_LEN = 20
 SHARED_LIB_FILE = os.path.join("endhost", "ssp", "libssocket.so")
 
 
 class C_HostAddr(Structure):
-    _fields_ = [("addr_len", c_int),
-                ("addr", ByteArray16),
+    _fields_ = [("addr_type", c_ubyte),
+                ("addr", HostAddrBytes),
                 ("port", c_short)]
 
 
@@ -241,12 +242,12 @@ def addr_py2c(saddr=None, port=None):
     if saddr:
         sa.isd_as = c_uint(saddr.isd_as.int())
         ip_bytes = saddr.host.pack()
-        sa.host.addr_len = len(ip_bytes)
-        sa.host.addr = ByteArray16(*ip_bytes)
+        sa.host.addr_type = saddr.host.TYPE
+        sa.host.addr = HostAddrBytes(*ip_bytes)
     else:
         sa.isd_as = 0
-        sa.host_addr_len = 0
-        sa.host.addr = ByteArray16(0)
+        sa.host_addr_type = 0
+        sa.host.addr = HostAddrBytes(0)
     if port:
         sa.host.port = port
     else:
