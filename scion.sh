@@ -30,7 +30,9 @@ cmd_run() {
         cmd_build || exit 1
     fi
     echo "Running the network..."
-    bash gen/zk_datalog_dirs.sh || exit 1
+    if [ -e gen/zk_datalog_dirs.sh ]; then
+        bash gen/zk_datalog_dirs.sh || exit 1
+    fi
     supervisor/supervisor.sh quickstart all
 }
 
