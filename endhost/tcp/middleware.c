@@ -182,6 +182,10 @@ void *tcpmw_sock_thread(void *data){
             tcpmw_set_recv_tout(args, buf + CMD_SIZE, pld_len);
         else if (!strncmp(buf, CMD_GET_RECV_TOUT, CMD_SIZE) && !pld_len)
             tcpmw_get_recv_tout(args);
+        else if (!strncmp(buf, CMD_SET_OPT, CMD_SIZE))
+            tcpmw_set_sock_opt(args, buf + CMD_SIZE, pld_len);
+        else if (!strncmp(buf, CMD_GET_OPT, CMD_SIZE))
+            tcpmw_get_sock_opt(args, buf + CMD_SIZE, pld_len);
         else if (!strncmp(buf, CMD_CLOSE, CMD_SIZE))
             break;
         else{
@@ -437,7 +441,6 @@ exit:
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
-    sys_err = 0;
     zlog_info(zc_tcp, "SRTO received");
     if (len != 4){
         lwip_err = ERR_MW;
@@ -457,7 +460,7 @@ void tcpmw_get_recv_tout(struct conn_args *args){
     int timeout = netconn_get_recvtimeout(args->conn);
     u8_t *msg = malloc(PLD_SIZE + RESP_SIZE + 4);
     *(u16_t*)msg = 4;  /* Payload size */
-    memcpy(msg + PLD_SIZE, CMD_GET_RECV_TOUT, RESP_SIZE - 1);
+    memcpy(msg + PLD_SIZE, CMD_GET_RECV_TOUT, CMD_SIZE);
     msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
     *(u32_t *)(msg + PLD_SIZE + RESP_SIZE) = (u32_t)timeout;
     if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 4) < 0){
@@ -466,6 +469,50 @@ void tcpmw_get_recv_tout(struct conn_args *args){
         tcpmw_terminate(args);
     }
     free(msg);
+}
+
+void tcpmw_set_sock_opt(struct conn_args *args, char *buf, int len){
+    lwip_err = 0;
+    zlog_info(zc_tcp, "SOPT received");
+    if (len != 2){
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_set_sock_opt(): incorrect SOPT length");
+        goto exit;
+    }
+
+    u16_t opt = *(u16_t *)buf;
+    ip_set_option(args->conn->pcb.ip, opt);
+
+exit:
+    tcpmw_reply(args, CMD_SET_OPT);
+}
+
+void tcpmw_get_sock_opt(struct conn_args *args, char *buf, int len){
+    lwip_err = 0;
+    zlog_info(zc_tcp, "GOPT received");
+    if (len != 2){
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_get_sock_opt(): incorrect GOPT length");
+        goto exit;
+    }
+
+    u16_t ret, opt = *(u16_t *)buf;
+    ret = ip_get_option(args->conn->pcb.ip, opt);
+    u8_t *msg = malloc(PLD_SIZE + RESP_SIZE + 2);
+    *(u16_t*)msg = 2;  /* Payload size */
+    memcpy(msg + PLD_SIZE, CMD_GET_OPT, CMD_SIZE);
+    msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
+    *(u16_t *)(msg + PLD_SIZE + RESP_SIZE) = ret;
+    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 2) < 0){
+        zlog_fatal(zc_tcp, "tcpmw_get_sock_opt(): send_all(): %s", strerror(errno));
+        free(msg);
+        tcpmw_terminate(args);
+    }
+    free(msg);
+    return;
+
+exit:
+    tcpmw_reply(args, CMD_GET_OPT);
 }
 
 void tcpmw_close(struct conn_args *args){

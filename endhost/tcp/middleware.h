@@ -57,6 +57,8 @@
 #define CMD_RECV "RECV"
 #define CMD_SEND "SEND"
 #define CMD_SET_RECV_TOUT "SRTO"
+#define CMD_SET_OPT "SOPT"
+#define CMD_GET_OPT "GOPT"
 
 zlog_category_t *zc_tcp;
 int sys_err;
@@ -78,6 +80,8 @@ void tcpmw_send(struct conn_args *, char *, int);
 void tcpmw_recv(struct conn_args *);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
 void tcpmw_get_recv_tout(struct conn_args *);
+void tcpmw_set_sock_opt(struct conn_args *, char *, int);
+void tcpmw_get_sock_opt(struct conn_args *, char *, int);
 void tcpmw_close(struct conn_args *);
 void tcpmw_reply(struct conn_args *, const char *);
 void tcpmw_terminate(struct conn_args *);

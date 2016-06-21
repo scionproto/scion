@@ -116,6 +116,17 @@ class APICmd(object):
     RECV = b"RECV"
     SEND = b"SEND"
     SET_RECV_TOUT = b"SRTO"
+    SET_OPT = b"SOPT"
+    GET_OPT = b"GOPT"
+
+
+class SockOpt(object):
+    # LWIP's socket options.
+    SOF_ACCEPTCONN = 0x02  # socket has had listen()
+    SOF_REUSEADDR = 0x04  # allow local address reuse
+    SOF_KEEPALIVE = 0x08  # keep connections alive
+    SOF_BROADCAST = 0x20  # permit to send and to receive broadcast messages
+    SOF_LINGER = 0x80  # linger on close if data present, PSz: unimplemented
 
 
 def get_lwip_reply(sock):
@@ -140,6 +151,19 @@ class SCIONSocket(object):
         self._lwip_sock = None
         self._lwip_accept = None
         self._recv_buf = b''
+
+    def set_sock_opt(self, opt):
+        req = APICmd.SET_OPT + struct.pack("H", opt)
+        self._to_lwip(req)
+        rep = self._from_lwip()
+        self._handle_reply(req[:CMD_SIZE], rep)
+
+    def get_sock_opt(self, opt):
+        req = APICmd.GET_OPT + struct.pack("H", opt)
+        self._to_lwip(req)
+        rep = self._from_lwip()
+        self._handle_reply(req[:CMD_SIZE], rep)
+        return struct.unpack("H", rep[RESP_SIZE:])[0]
 
     def _handle_reply(self, cmd, reply):
         if reply is None or len(reply) < RESP_SIZE or cmd != reply[:CMD_SIZE]:
