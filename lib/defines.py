@@ -50,6 +50,8 @@ AS_LIST_FILE = "as_list.yml"
 SCION_BUFLEN = 65535
 #: Default SCION endhost data port
 SCION_UDP_EH_DATA_PORT = 30041
+#: Default SCION filter command port
+SCION_FILTER_CMD_PORT = 30042
 #: Default DNS UDP/TCP port
 SCION_DNS_PORT = 30053
 #: Default SCION router UDP port.
