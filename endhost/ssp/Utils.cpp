@@ -153,7 +153,11 @@ int registerFlow(int proto, DispatcherEntry *e, int sock)
     struct sockaddr_un su;
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
-    strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
+    char *env = getenv("DISPATCHER_PATH");
+    if (env)
+        sprintf(su.sun_path, "%s.sock", env);
+    else
+        strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
     int res = connect(sock, (struct sockaddr *)&su, sizeof(su));
     if (res < 0) {
         if (errno == EISCONN) {
