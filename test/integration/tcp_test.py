@@ -99,7 +99,7 @@ def client(svc, counter):
 
 
 threading.Thread(target=server, args=[False]).start()
-threading.Thread(target=server, args=[True]).start()
+# threading.Thread(target=server, args=[True]).start()
 time.sleep(0.5)
 for i in range(100):
     # input()
