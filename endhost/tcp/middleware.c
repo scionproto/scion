@@ -115,10 +115,11 @@ void tcpmw_socket(int fd){
 
 clean:
     netconn_delete(conn);
+    args->conn = NULL;
 close:
     close(fd);
 exit:
-    tcpmw_reply(fd, CMD_NEW_SOCK);
+    tcpmw_reply(args, CMD_NEW_SOCK);
 }
 
 int tcpmw_read_cmd(int fd, char *buf){
@@ -140,15 +141,23 @@ int tcpmw_read_cmd(int fd, char *buf){
     return pld_len;
 }
 
-void tcpmw_reply(int fd, const char *cmd){
+void tcpmw_reply(struct conn_args *args, const char *cmd){
     u8_t buf[PLD_SIZE + RESP_SIZE];
     if (sys_err)
         lwip_err = ERR_SYS;
     *(u16_t *)buf = 0;
     memcpy(buf + PLD_SIZE, cmd, CMD_SIZE);
     buf[PLD_SIZE + RESP_SIZE - 1] = lwip_err;  /* Set error code. */
-    if (send_all(fd, buf, PLD_SIZE + RESP_SIZE) < 0)
+    if (send_all(args->fd, buf, PLD_SIZE + RESP_SIZE) < 0){
         zlog_fatal(zc_tcp, "tcpmw_reply(): send_all(): %s", strerror(errno));
+        tcpmw_terminate(args);
+    }
+}
+
+void tcpmw_terminate(struct conn_args *args){
+    zlog_debug(zc_tcp, "tcpmw_terminate()");
+    tcpmw_close(args);
+    pthread_exit(NULL);
 }
 
 void *tcpmw_sock_thread(void *data){
@@ -182,7 +191,7 @@ void *tcpmw_sock_thread(void *data){
         }
     }
     if (pld_len < 0)
-        zlog_error(zc_tcp, "tcpmw_sock_thread: tcpmw_read_cmd(): %s", strerror(errno));
+        zlog_fatal(zc_tcp, "tcpmw_sock_thread: tcpmw_read_cmd(): %s", strerror(errno));
     zlog_info(zc_tcp, "tcpmw_sock_thread: leaving");
     tcpmw_close(args);
     return NULL;
@@ -220,7 +229,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
               ISD(isd_as), AS(isd_as), host_str, port, svc);
 
 exit:
-    tcpmw_reply(args->fd, CMD_BIND);
+    tcpmw_reply(args, CMD_BIND);
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
@@ -258,7 +267,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect(): %s", lwip_strerr(lwip_err));
 
-    tcpmw_reply(args->fd, CMD_CONNECT);
+    tcpmw_reply(args, CMD_CONNECT);
 }
 
 void tcpmw_listen(struct conn_args *args){
@@ -268,7 +277,7 @@ void tcpmw_listen(struct conn_args *args){
     if ((lwip_err = netconn_listen(args->conn)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_listen(): %s", lwip_strerr(lwip_err));
 
-    tcpmw_reply(args->fd, CMD_LISTEN);
+    tcpmw_reply(args, CMD_LISTEN);
 }
 
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
@@ -352,13 +361,16 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     p[0] = newconn->pcb.ip->remote_ip.type;
     p++;
     memcpy(p, newconn->pcb.ip->remote_ip.addr, 4 + haddr_len);
-    if (send_all(new_fd, tmp, tot_len) < 0)
+    if (send_all(new_fd, tmp, tot_len) < 0){
         zlog_fatal(zc_tcp, "accept(): send_all(): %s", strerror(errno));
+        free(tmp);
+        tcpmw_terminate(args);
+    }
     free(tmp);
     /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
 
 exit:
-    tcpmw_reply(args->fd, CMD_ACCEPT);
+    tcpmw_reply(args, CMD_ACCEPT);
 }
 
 void tcpmw_send(struct conn_args *args, char *buf, int len){
@@ -381,7 +393,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     }
 
 exit:
-    tcpmw_reply(args->fd, CMD_SEND);
+    tcpmw_reply(args, CMD_SEND);
 }
 
 void tcpmw_recv(struct conn_args *args){
@@ -408,20 +420,19 @@ void tcpmw_recv(struct conn_args *args){
     *(u16_t *)msg = len;
     memcpy(msg + PLD_SIZE, CMD_RECV, CMD_SIZE);
     msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
-    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE) < 0)
-        goto clean;
-    if (send_all(args->fd, data, len) < 0)
-        goto clean;
+    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE) < 0 || send_all(args->fd, data, len) < 0){
+        zlog_fatal(zc_tcp, "tcpmw_recv(): send_all(): %s", strerror(errno));
+        netbuf_delete(buf);
+        free(msg);
+        tcpmw_terminate(args);
+    }
 
     netbuf_delete(buf);
     free(msg);
     return;
 
-clean:
-    netbuf_delete(buf);
-    free(msg);
 exit:
-    tcpmw_reply(args->fd, CMD_RECV);
+    tcpmw_reply(args, CMD_RECV);
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
@@ -438,7 +449,7 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     netconn_set_recvtimeout(args->conn, timeout);
 
 exit:
-    tcpmw_reply(args->fd, CMD_SET_RECV_TOUT);
+    tcpmw_reply(args, CMD_SET_RECV_TOUT);
 }
 
 void tcpmw_get_recv_tout(struct conn_args *args){
@@ -449,15 +460,20 @@ void tcpmw_get_recv_tout(struct conn_args *args){
     memcpy(msg + PLD_SIZE, CMD_GET_RECV_TOUT, RESP_SIZE - 1);
     msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
     *(u32_t *)(msg + PLD_SIZE + RESP_SIZE) = (u32_t)timeout;
-    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 4) < 0)
+    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 4) < 0){
         zlog_fatal(zc_tcp, "tcpmw_get_recv_tout(): send_all(): %s", strerror(errno));
+        free(msg);
+        tcpmw_terminate(args);
+    }
     free(msg);
 }
 
 void tcpmw_close(struct conn_args *args){
     close(args->fd);
-    netconn_close(args->conn);
-    netconn_delete(args->conn);
-    args->conn = NULL;
+    if (args->conn){
+        netconn_close(args->conn);
+        netconn_delete(args->conn);
+        args->conn = NULL;
+    }
     free(args);
 }
