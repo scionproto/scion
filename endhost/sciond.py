@@ -253,7 +253,6 @@ class SCIONDaemon(SCIONElement):
         """
 
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            logging.debug("Epochs did not match")
             return
 
         to_remove = []
