@@ -37,6 +37,7 @@ from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
+from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.sibra.ext.resv import ResvBlockSteady
@@ -93,6 +94,11 @@ class SCIONDaemon(SCIONElement):
                 PMT.REVOCATION: self.handle_revocation,
             }
         }
+
+        self.SCMP_PLD_CLASS_MAP = {
+            SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.handle_revocation},
+        }
+
         if run_local_api:
             self._api_sock = ReliableSocket(bind=(self.api_addr, "sciond"))
             self._socks.add(self._api_sock, self.handle_accept)

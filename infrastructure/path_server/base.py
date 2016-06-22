@@ -28,7 +28,11 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_tree import ConnectedHashTree, HASHTREE_TTL
+from lib.crypto.hash_tree import(
+    ConnectedHashTree,
+    HASHTREE_EPOCH_TIME,
+    HASHTREE_TTL,
+)
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
@@ -54,6 +58,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     PROP_LIMIT = 5
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
+    # Time to store revocations in zookeeper
+    ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
 
     def __init__(self, server_id, conf_dir):
         """
@@ -111,7 +117,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
                 if is_master:
                     self.path_cache.expire(self.config.propagation_time * 10)
-                    self.rev_cache.expire(self.config.propagation_time * 10)
+                    self.rev_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass

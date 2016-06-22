@@ -21,7 +21,7 @@ import logging
 import os
 import threading
 import time
-from _collections import deque
+from _collections import deque, defaultdict
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 
@@ -63,6 +63,7 @@ from lib.packet.pcb import (
 )
 from lib.packet.scion import SVCType
 from lib.packet.scion_addr import ISD_AS
+from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_store import PathPolicy
 from lib.thread import thread_safety_net
 from lib.types import (
@@ -78,7 +79,6 @@ from lib.util import (
     sleep_interval,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
-from external.expiring_dict import ExpiringDict
 
 
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
@@ -124,9 +124,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._hash_tree = None
         self._hash_tree_lock = Lock()
         self._if_rev_token_lock = threading.Lock()
-        self.revs_to_downstream = ExpiringDict(
-                            max_len=1000, max_age_seconds=HASHTREE_EPOCH_TIME)
-
         self.ifid_state = {}
         for ifid in self.ifid2er:
             self.ifid_state[ifid] = InterfaceState()
@@ -138,7 +135,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_rep,
                 CertMgmtType.TRC_REPLY: self.process_trc_rep,
             },
-            PayloadClass.PATH: {PMT.IFSTATE_REQ: self._handle_ifstate_request},
+            PayloadClass.PATH: {
+                PMT.IFSTATE_REQ: self._handle_ifstate_request,
+                PMT.REVOCATION: self._handle_revocation,
+            },
+        }
+
+        self.SCMP_PLD_CLASS_MAP = {
+            SCMPClass.PATH: {
+                SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
+            },
         }
 
         # Add more IPs here if we support dual-stack
@@ -223,20 +229,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handle beacon extensions.
         """
-        # Handle ASMarking extensions:
-        for asm in pcb.iter_asms():
-            for rev_info in asm.iter_rev_infos():
-                self.rev_ext_handler(RevocationInfo(rev_info.p), asm.isd_as())
         # Handle PCB extensions:
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
-
-    def rev_ext_handler(self, rev_info, isd_as):
-        logging.info("REV %s: %s" % (isd_as, rev_info))
-        # Trigger the removal of PCBs which contain the revoked interface
-        self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
-        # Inform the local PS
-        self._send_rev_to_local_ps(rev_info=rev_info)
 
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):
@@ -261,12 +256,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
-        exts = self._create_asm_exts()
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
-            self._get_ht_root(), self.topology.mtu, chain, **exts)
+            self._get_ht_root(), self.topology.mtu, chain)
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
@@ -288,9 +282,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
             out_info["remote_ia"], out_info["remote_if"], hof)
-
-    def _create_asm_exts(self):
-        return {"rev_infos": self.revs_to_downstream.values()}
 
     def _terminate_pcb(self, pcb):
         """
@@ -386,6 +377,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     continue
                 if not was_master:
                     self._became_master()
+                    last_ttl_window = ConnectedHashTree.get_ttl_window()
                     was_master = True
                 self.pcb_cache.expire(self.config.propagation_time * 10)
                 self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
@@ -552,7 +544,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 logging.error("Error processing revocation info from ZK: %s",
                               e)
                 continue
-            self._remove_revoked_pcbs(rev_info, rev_info.p.ifID)
+            self._remove_revoked_pcbs(rev_info)
 
     def _issue_revocation(self, if_id):
         """
@@ -565,9 +557,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.zk.have_lock():
             return
         rev_info = self._get_ht_proof(if_id)
-        logging.info("Storing revocation in ZK.")
-        entry_name = "%s:%s" % (hash(rev_info.sig_pack(5)), time.time())
-        self.revobjs_cache.store(entry_name, rev_info.copy().pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
@@ -577,7 +566,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             state_pkt.addrs.dst.host = er.addr
             state_pkt.set_payload(pld.copy())
             self.send(state_pkt, er.addr)
-        self._process_revocation(rev_info, if_id)
+        self._process_revocation(rev_info)
 
     def _send_rev_to_local_ps(self, rev_info):
         """
@@ -595,43 +584,52 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Sending revocation to local PS.")
             self.send(pkt, ps_addr)
 
-    def _process_revocation(self, rev_info, if_id):
+    def _handle_scmp_revocation(self, spkt):
+        pld = spkt.get_payload()
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        logging.info("Received revocation via SCMP:\n%s", rev_info)
+        self._process_revocation(rev_info, False)
+
+    def _handle_revocation(self, pkt):
+        rev_info = pkt.get_payload()
+        logging.info("Received revocation via UDP:\n%s", rev_info)
+        self._process_revocation(rev_info, False)
+
+    def _process_revocation(self, rev_info, send_to_ps=True):
         """
         Removes PCBs containing a revoked interface and sends the revocation
         to the local PS.
 
         :param rev_info: The RevocationInfo object
         :type rev_info: RevocationInfo
-        :param if_id: The if_id to be revoked (set only for if and hop rev)
-        :type if_id: int
         """
         assert isinstance(rev_info, RevocationInfo)
-        logging.info("Processing revocation:\n%s", str(rev_info))
+        if_id = rev_info.p.ifID
         if not if_id:
             logging.error("Trying to revoke IF with ID 0.")
             return
 
-        self._remove_revoked_pcbs(rev_info, if_id)
-        # Send revocations to local PS.
-        self._send_rev_to_local_ps(rev_info)
-        # Add the revocation to the downstream queue
-        self.revs_to_downstream[rev_info.p.ifID] = rev_info
-        # Propagate the Revocation instantly
-        self.handle_pcbs_propagation()
+        logging.info("Storing revocation in ZK.")
+        rev_token = rev_info.copy().pack()
+        entry_name = "%s:%s" % (hash(rev_token), time.time())
+        self.revobjs_cache.store(entry_name, rev_token)
+
+        self._remove_revoked_pcbs(rev_info)
+        if send_to_ps:
+            # Send revocations to local PS.
+            self._send_rev_to_local_ps(rev_info)
 
     @abstractmethod
-    def _remove_revoked_pcbs(self, rev_info, if_id):
+    def _remove_revoked_pcbs(self, rev_info):
         """
         Removes the PCBs containing the revoked interface.
 
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
-        :param if_id: The if_id to be revoked
-        :type if_id: int
         """
         raise NotImplementedError
 
-    def _pcb_list_to_remove(self, candidates, rev_info, if_id):
+    def _pcb_list_to_remove(self, candidates, rev_info):
         """
         Calculates the list of PCBs to remove.
         Called by _remove_revoked_pcbs.
@@ -640,8 +638,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type candidates: List
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
-        :param if_id: The if_id to be revoked
-        :type if_id: int
         """
         to_remove = []
         processed = set()
@@ -649,24 +645,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if cand.id in processed:
                 continue
             processed.add(cand.id)
-            if if_id is not None:
-                # If the beacon was received on this interface, remove it from
-                # the store. We also check, if the interface didn't come up in
-                # the mean time. Caveat: There is a small chance that a valid
-                # beacon gets removed, in case a new beacon reaches the BS
-                # through the interface, which is getting revoked, before the
-                # keep-alive message updates the interface state to 'ACTIVE'.
-                # However, worst, the valid beacon would get added within the
-                # next propagation period.
-                if (self.ifid_state[if_id].is_expired() and
-                        cand.pcb.p.ifID == if_id):
+            if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+                continue
+
+            if self.zk.have_lock():
+                root_verify = ConnectedHashTree.verify(
+                                rev_info, self._get_ht_root())
+                if cand.pcb.p.ifID == rev_info.p.ifID and root_verify:
                     to_remove.append(cand.id)
-            else:  # if_id = None means that this is an AS in downstream
-                if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-                        continue
-                for asm in cand.pcb.iter_asms():
-                    if self.verify_asm(asm, rev_info):
-                        to_remove.append(cand.id)
+
+            for asm in cand.pcb.iter_asms():
+                if self.verify_asm(asm, rev_info):
+                    to_remove.append(cand.id)
+
         return to_remove
 
     def verify_asm(self, asm, rev_info):
@@ -682,14 +673,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
+        if_id_last_revoked = defaultdict(int)
         while self.run_flag.is_set():
             start_time = time.time()
             for (if_id, if_state) in self.ifid_state.items():
+                cur_epoch = ConnectedHashTree.get_current_epoch()
                 # Check if interface has timed-out.
                 if if_state.is_expired():
-                    logging.info("IF %d appears to be down.", if_id)
-                    self._issue_revocation(if_id)
-                    if_state.revoke_if_expired()
+                    if if_id_last_revoked[if_id] != cur_epoch:
+                        if_id_last_revoked[if_id] = cur_epoch
+                        logging.info("IF %d appears to be down.", if_id)
+                        self._issue_revocation(if_id)
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 

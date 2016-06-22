@@ -418,14 +418,14 @@ class Router(SCIONElement):
              rev_info.p.nextRoot)
         if (self.topology.path_servers and h not in self.revocations):
             self.revocations[h] = True
-            try:
-                ps = self.get_srv_addr(PATH_SERVICE, spkt)
-            except SCIONServiceLookupError:
-                logging.error("No local PS to forward revocation to.")
-                raise SCMPUnknownHost
-            pkt = self._build_packet(ps, payload=rev_info)
-            logging.debug("ENABLED: Forwarding revocation to local PS: %s", ps)
-            self.send(pkt, ps)
+            for SERVICE in [PATH_SERVICE, BEACON_SERVICE]:
+                try:
+                    server = self.get_srv_addr(SERVICE, spkt)
+                except SCIONServiceLookupError:
+                    logging.error("No local server to forward revocation to.")
+                    raise SCMPUnknownHost
+                pkt = self._build_packet(server, payload=rev_info.copy())
+                self.send(pkt, server)
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """

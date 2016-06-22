@@ -54,16 +54,3 @@ class RevocationInfo(PathMgmtPayloadBase):
         p.prevRoot = prev_root
         p.nextRoot = next_root
         return cls(p)
-
-    def sig_pack(self, ver):
-        b = []
-        if ver >= 5:
-            b.append(self.p.ifID.to_bytes(8, 'big'))
-            b.append(self.p.epoch.to_bytes(2, 'big'))
-            b.append(self.p.nonce)
-            for sib in self.p.siblings:
-                b.append(sib.isLeft.to_bytes(1, 'big'))
-                b.append(sib.hash)
-            b.append(self.p.prevRoot)
-            b.append(self.p.nextRoot)
-        return b"".join(b)

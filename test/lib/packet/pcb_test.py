@@ -23,7 +23,6 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
 from test.testcommon import assert_these_calls, create_mock_full
 
@@ -59,23 +58,17 @@ class TestASMarkingFromValues(object):
         for i in range(3):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         cchain = create_mock_full({"pack()": "cchain"})
-        revs = []
-        revs.append(RevocationInfo.from_values(1, 0, "abcd", [], "qw", "er"))
-        revs.append(RevocationInfo.from_values(2, 0, "pqr", [], "ty", "ui"))
         # Call
         ASMarking.from_values("isdas", 2, 3, pcbms, "root", "mtu",
-                              cchain, ifid_size=14, rev_infos=revs)
+                              cchain, ifid_size=14)
         # Tests
         p_cls.new_message.assert_called_once_with(
             isdas="isdas", trcVer=2, certVer=3, ifIDSize=14,
             hashTreeRoot="root", mtu="mtu",
             chain="cchain")
         msg.init.assert_called_once_with("pcbms", 3)
-        msg.exts.init.assert_called_once_with("revInfos", 2)
         for i, pcbm in enumerate(msg.pcbms):
             ntools.eq_("pcbm %d" % i, pcbm)
-        for i, rev in enumerate(msg.exts.revInfos):
-            ntools.eq_("rev %d" % i, rev)
 
 
 class TestASMarkingSigPack(object):
@@ -87,21 +80,16 @@ class TestASMarkingSigPack(object):
         for i in range(3):
             pcbms.append(create_mock_full({
                 "sig_pack()": bytes("pcbm %i" % i, "ascii")}))
-        exts = []
-        for i in range(2):
-            exts.append(create_mock_full({
-                "sig_pack()": bytes("rev %i" % i, "ascii")}))
         inst = ASMarking(create_mock_full({
             "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "hashTreeRoot": b"root", "mtu": 1482, "chain": b"chain"}))
-        inst.iter_rev_infos = create_mock_full(return_value=exts)
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
         expected = b"".join([
             b"isdas", bytes.fromhex("00000002 00000003 04"),
-            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root", b"rev 0",
-            b"rev 1", bytes.fromhex("05ca"), b"chain"])
+            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",
+            bytes.fromhex("05ca"), b"chain"])
         # Call
-        ntools.eq_(inst.sig_pack(9), expected)
+        ntools.eq_(inst.sig_pack(8), expected)
 
 
 class TestPathSegmentSigPack(object):
