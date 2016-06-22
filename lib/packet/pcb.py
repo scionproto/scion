@@ -29,7 +29,6 @@ from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
 from lib.packet.path import SCIONPath  # , min_mtu
-from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
 from lib.types import PCBType, PayloadClass
@@ -87,7 +86,7 @@ class ASMarking(Cerealizable):
 
     @classmethod
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
-                    cert_chain, ifid_size=12, rev_infos=()):
+                    cert_chain, ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=str(isd_as), trcVer=trc_ver, certVer=cert_ver,
             ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
@@ -95,9 +94,6 @@ class ASMarking(Cerealizable):
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
-        p.exts.init("revInfos", len(rev_infos))
-        for i, rev_info in enumerate(rev_infos):
-            p.exts.revInfos[i] = rev_info.p
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
@@ -121,19 +117,12 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def revInfo(self, idx):
-        return RevocationInfo(self.p.exts.revInfos[idx])
-
-    def iter_rev_infos(self, start=0):
-        for i in range(start, len(self.p.exts.revInfos)):
-            yield self.revInfo(i)
-
     def sig_pack(self, ver):
         """
         Pack for signing up for given version (defined by highest field number).
         """
         b = []
-        if ver >= 9:
+        if ver >= 8:
             b.append(self.p.isdas.encode("utf8"))
             b.append(self.p.trcVer.to_bytes(4, 'big'))
             b.append(self.p.certVer.to_bytes(4, 'big'))
@@ -141,8 +130,6 @@ class ASMarking(Cerealizable):
             for pcbm in self.iter_pcbms():
                 b.append(pcbm.sig_pack(5))
             b.append(self.p.hashTreeRoot)
-            for r in self.iter_rev_infos():
-                b.append(r.sig_pack(5))
             b.append(self.p.mtu.to_bytes(2, 'big'))
             b.append(self.p.chain)
         return b"".join(b)
