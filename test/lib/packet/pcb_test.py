@@ -64,8 +64,7 @@ class TestASMarkingFromValues(object):
         # Tests
         p_cls.new_message.assert_called_once_with(
             isdas="isdas", trcVer=2, certVer=3, ifIDSize=14,
-            hashTreeRoot="root", mtu="mtu",
-            chain="cchain")
+            hashTreeRoot="root", mtu="mtu", chain="cchain")
         msg.init.assert_called_once_with("pcbms", 3)
         for i, pcbm in enumerate(msg.pcbms):
             ntools.eq_("pcbm %d" % i, pcbm)

@@ -41,15 +41,19 @@ class HashTree(object):
     The used hash function needs to implement the hashlib interface.
     """
 
-    def __init__(self, if_ids, seed, hash_func):
+    def __init__(self, if_ids, seed, hash_func=SHA256):
         """
         :param List[int] if_ids: list of interface IDs of the AS.
         :param str seed: seed for creating hash-tree nonces.
         :param hash_func: hash function that implements hashlib interface.
         """
         self._seed = seed
+        self._n_epochs = HASHTREE_N_EPOCHS
         self._hash_func = hash_func
-        self.calc_tree_depth(len(if_ids) * HASHTREE_N_EPOCHS)
+        self._setup(if_ids)
+
+    def _setup(self, if_ids):
+        self.calc_tree_depth(len(if_ids) * self._n_epochs)
         self.create_tree(if_ids)
 
     def calc_tree_depth(self, leaf_count):
@@ -88,7 +92,7 @@ class HashTree(object):
         self._if2idx = {}
         for if_id in if_ids:  # For given (if_id, epoch) leaves
             self._if2idx[if_id] = idx
-            for i in range(HASHTREE_N_EPOCHS):
+            for i in range(self._n_epochs):
                 raw_nonce = str(self._seed) + str(if_id) + str(i)
                 raw_nonce = raw_nonce.encode('utf-8')
                 nonce = self._hash_func.new(raw_nonce).digest()
@@ -142,7 +146,7 @@ class ConnectedHashTree(object):
 
     """
 
-    def __init__(self, if_ids, seed, hash_func=SHA256):
+    def __init__(self, if_ids, seed, hash_func=SHA256):  # pragma: no cover
         """
         :param List[int] if_ids: list of interface IDs of the AS.
         :param List[str] seeds: list of 3 seeds for creating hash-tree nonces.
@@ -224,7 +228,7 @@ class ConnectedHashTree(object):
         return (hash01, hash12)
 
     @classmethod
-    def verify(cls, revProof, root, hash_func=SHA256):
+    def verify(cls, revProof, root, hash_func=SHA256):  # pragma: no cover
         """
         Verify whether revProof proves the revocation for the current epoch,
         given the root of the connected hash-tree.
@@ -234,8 +238,7 @@ class ConnectedHashTree(object):
         :param int curr_epoch: current epoch
         :param hash_func: hash function that implements hashlib interface.
         """
-        proof = revProof.p
-        assert not isinstance(proof, bytes)
+        assert not isinstance(revProof.p, bytes)
         h01, h12 = cls.get_possible_hashes(revProof, hash_func)
         return h01 == root or h12 == root
 
