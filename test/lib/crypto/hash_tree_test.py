@@ -23,7 +23,12 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.crypto.hash_tree import HashTree, ConnectedHashTree
+from lib.crypto.hash_tree import(
+    HashTree,
+    ConnectedHashTree,
+    HASHTREE_EPOCH_TIME,
+    HASHTREE_EPOCH_TOLERANCE,
+)
 from test.testcommon import create_mock_full
 
 
@@ -190,7 +195,7 @@ class TestConnectedHashTreeVerifyEpoch(object):
     @patch("time.time", autospec=True)
     def test_same_epoch(self, time):
         # Setup
-        time.return_value = 75
+        time.return_value = HASHTREE_EPOCH_TIME + HASHTREE_EPOCH_TOLERANCE + 1
         # Call and tests
         ntools.eq_(ConnectedHashTree.verify_epoch(1), True)
         ntools.eq_(ConnectedHashTree.verify_epoch(2), False)
@@ -198,7 +203,7 @@ class TestConnectedHashTreeVerifyEpoch(object):
     @patch("time.time", autospec=True)
     def test_different_epoch(self, time):
         # Setup
-        time.return_value = 62
+        time.return_value = HASHTREE_EPOCH_TIME + 1
         # Call and test
         ntools.eq_(ConnectedHashTree.verify_epoch(0), True)
         ntools.eq_(ConnectedHashTree.verify_epoch(1), True)

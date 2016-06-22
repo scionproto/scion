@@ -83,7 +83,6 @@ class TestASMarkingSigPack(object):
             "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "hashTreeRoot": b"root", "mtu": 1482, "chain": b"chain"}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
-        inst.iter_rev_infos = create_mock_full(return_value=exts)
         expected = b"".join([
             b"isdas", bytes.fromhex("00000002 00000003 04"),
             b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",
