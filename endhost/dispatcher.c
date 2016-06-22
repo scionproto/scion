@@ -563,7 +563,7 @@ int find_available_port(Entry *list, L4Key *key)
     int start_port = key->port;
     while (1) {
         // Find an available port number between 1025 and 65535.
-        HASH_FIND(hh, ssp_wildcard_list, key, sizeof(L4Key), old);
+        HASH_FIND(hh, list, key, sizeof(L4Key), old);
         if (old) {
             if (requested) {
                 // If app requested unavailable port number, reply with failure message
