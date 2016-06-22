@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,36 +16,100 @@
 ======================================================================
 """
 # Stdlib
-import logging
-import unittest
+from unittest.mock import patch
+
+# External packages
+import nose
+import nose.tools as ntools
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
-from test.testcommon import SCIONCommonTest
+from lib.crypto.hash_tree import HashTree, ConnectedHashTree
+from test.testcommon import create_mock_full
 
 
-class TestConnectedHashtreeVerify(SCIONCommonTest):
+class TestHashTreeCalcTreeDepth(object):
     """
-    Unit test for lib.crypto.hash_tree.ConnectedHashTree.verify
+    Unit test for lib.crypto.hash_tree.HashTree.calc_tree_depth
     """
-    def test(self):
-        # Check that the revocation proof is verifiable within the same T.
+    @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
+    def test_for_non2power(self, _):
         # Setup
-        if_ids = [23, 35, 120]
-        seed = b"qwerty"
-        inst = ConnectedHashTree(if_ids, seed)
-        root = inst.get_root()
-        proof = inst.get_proof(35)  # if_id = 35.
-        # Call and tests
-        self.assertTrue(ConnectedHashTree.verify(proof, root))
+        if_ids = [1, 2, 3]
+        seed = b"abc"
+        inst = HashTree(if_ids, seed)
+        # Call
+        inst.calc_tree_depth(6)
+        # Tests
+        ntools.eq_(inst._depth, 3)
+
+    @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
+    def test_for_2power(self, _):
+        # Setup
+        if_ids = [1, 2, 3, 4]
+        seed = b"abc"
+        inst = HashTree(if_ids, seed)
+        # Call
+        inst.calc_tree_depth(8)
+        # Tests
+        ntools.eq_(inst._depth, 3)
 
 
-class TestConnectedHashTreeUpdate(SCIONCommonTest):
+class TestHashTreeCreateTree(object):
+    """
+    Unit test for lib.crypto.hash_tree.HashTree.calc_tree_depth
+    """
+    @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
+    def test(self, _):
+        # Setup
+        if_ids = [1, 2, 3]
+        hash_func_side_effect = ["s10", "10s10", "s20", "20s20", "s30",
+                                 "30s30", "0", "30s300", "10s1020s20",
+                                 "10s1020s2030s300"]
+        hash_new = create_mock_full({"digest()...": hash_func_side_effect})
+        hash_func = create_mock_full({"new()": hash_new})
+        inst = HashTree(if_ids, "s", hash_func)
+        inst._n_epochs = 1
+        inst._depth = 2
+        # Call
+        inst.create_tree(if_ids)
+        # Tests
+        expected = ["10s1020s2030s300", "10s1020s20", "30s300", "10s10",
+                    "20s20", "30s30", "0"]
+        ntools.eq_(inst._nodes, expected)
+
+
+class TestHashTreeGetProof(object):
+    """
+    Unit test for lib.crypto.hash_tree.HashTree.get_proof
+    """
+    @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
+    def test(self, _):
+        # Setup
+        if_ids = [1, 2, 3]
+        hash_func_side_effect = ["s10", "10s10", "s20", "20s20", "s30",
+                                 "30s30", "0", "30s300", "10s1020s20",
+                                 "10s1020s2030s300", "s20"]
+        hash_new = create_mock_full({"digest()...": hash_func_side_effect})
+        hash_func = create_mock_full({"new()": hash_new})
+        inst = HashTree(if_ids, "s", hash_func)
+        inst._n_epochs = 1
+        inst._depth = 2
+        inst.create_tree(if_ids)
+        # Call
+        proof = inst.get_proof(2, 0, "prev", "next")
+        # Tests
+        ntools.eq_(proof.p.nonce, b"s20")
+        ntools.eq_(proof.p.siblings[0].isLeft, True)
+        ntools.eq_(proof.p.siblings[0].hash, b"10s10")
+        ntools.eq_(proof.p.siblings[1].isLeft, False)
+        ntools.eq_(proof.p.siblings[1].hash, b"30s300")
+
+
+class TestConnectedHashTreeUpdate(object):
     """
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.update
     """
     def test(self):
-        # Check that connected hash tree update works.
         # Setup
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
@@ -57,12 +121,36 @@ class TestConnectedHashTreeUpdate(SCIONCommonTest):
         # Tests
         root0_after_update = inst._ht0_root
         root1_after_update = inst._ht1._nodes[0]
-        self.assertTrue(
-            (root1_before_update == root0_after_update) and
-            (root2_before_update == root1_after_update))
+        ntools.eq_(root1_before_update, root0_after_update)
+        ntools.eq_(root2_before_update, root1_after_update)
 
 
-class TestConnectedHashTreeUpdateAndVerify(SCIONCommonTest):
+class TestConnectedHashtreeGetPossibleHashes(object):
+    """
+    Unit test for lib.crypto.hash_tree.ConnectedHashTree.get_possible_hashes
+    """
+    def test(self):
+        # Setup
+        siblings = []
+        siblings.append(create_mock_full({"isLeft": True, "hash": "10s10"}))
+        siblings.append(create_mock_full({"isLeft": False, "hash": "30s300"}))
+        p = create_mock_full(
+            {"ifID": 2, "epoch": 0, "nonce": "s20", "siblings": siblings,
+             "prevRoot": "p", "nextRoot": "n"})
+        revProof = create_mock_full({"p": p})
+        hash_func_side_effect = ["20s20", "10s1020s20", "10s1020s2030s300",
+                                 "p10s1020s2030s300", "10s1020s2030s300n"]
+        hash_new = create_mock_full({"digest()...": hash_func_side_effect})
+        hash_func = create_mock_full({"new()": hash_new})
+        # Call
+        hash01, hash12 = ConnectedHashTree.get_possible_hashes(
+            revProof, hash_func)
+        # Tests
+        ntools.eq_(hash01, "p10s1020s2030s300")
+        ntools.eq_(hash12, "10s1020s2030s300n")
+
+
+class TestConnectedHashTreeUpdateAndVerify(object):
     """
     Unit tests for lib.crypto.hash_tree.ConnectedHashTree.verify
     used along with lib.crypto.hash_tree.ConnectedHashTree.update
@@ -78,7 +166,7 @@ class TestConnectedHashTreeUpdateAndVerify(SCIONCommonTest):
         inst.update(if_ids, b"new!!seed")
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
-        self.assertTrue(ConnectedHashTree.verify(proof, root))
+        ntools.eq_(ConnectedHashTree.verify(proof, root), True)
 
     def test_two_timesteps(self):
         # Check that the revocation proof is "NOT" verifiable across T and T+2.
@@ -92,8 +180,29 @@ class TestConnectedHashTreeUpdateAndVerify(SCIONCommonTest):
         inst.update(if_ids, b"newseed/.@2")
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
-        self.assertFalse(ConnectedHashTree.verify(proof, root))
+        ntools.eq_(ConnectedHashTree.verify(proof, root), False)
+
+
+class TestConnectedHashTreeVerifyEpoch(object):
+    """
+    Unit test for lib.crypto.hash_tree.ConnectedHashTree.verify_epoch
+    """
+    @patch("time.time", autospec=True)
+    def test_same_epoch(self, time):
+        # Setup
+        time.return_value = 75
+        # Call and tests
+        ntools.eq_(ConnectedHashTree.verify_epoch(1), True)
+        ntools.eq_(ConnectedHashTree.verify_epoch(2), False)
+
+    @patch("time.time", autospec=True)
+    def test_different_epoch(self, time):
+        # Setup
+        time.return_value = 62
+        # Call and test
+        ntools.eq_(ConnectedHashTree.verify_epoch(0), True)
+        ntools.eq_(ConnectedHashTree.verify_epoch(1), True)
+
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    nose.run(defaultTest=__name__)
