@@ -127,7 +127,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.ifid_state = {}
         for ifid in self.ifid2er:
             self.ifid_state[ifid] = InterfaceState()
-
+        self.ifid_state_lock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {PCBType.SEGMENT: self.handle_pcb},
             PayloadClass.IFID: {IFIDType.PAYLOAD: self.handle_ifid_packet},
@@ -323,10 +323,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 pld = IFStatePayload.from_values([state_info])
                 mgmt_packet = self._build_packet()
                 for er in self.topology.get_all_edge_routers():
-                    if er.interface.if_id != ifid:
-                        mgmt_packet.addrs.dst.host = er.addr
-                        mgmt_packet.set_payload(pld.copy())
-                        self.send(mgmt_packet, er.addr)
+                    mgmt_packet.addrs.dst.host = er.addr
+                    mgmt_packet.set_payload(pld.copy())
+                    self.send(mgmt_packet, er.addr)
 
     def run(self):
         """
