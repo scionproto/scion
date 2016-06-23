@@ -118,3 +118,12 @@ LINK_ROUTING = "ROUTING"
 PATH_FLAG_SIBRA = "SIBRA"
 
 MAX_HOST_ADDR_LEN = 16
+
+# Time per Epoch
+HASHTREE_EPOCH_TIME = 10
+# The tolerable error in epoch in seconds.
+HASHTREE_EPOCH_TOLERANCE = 5
+# Max time to live
+HASHTREE_TTL = 15 * 60
+# Number of epochs in one TTL per interface
+HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME

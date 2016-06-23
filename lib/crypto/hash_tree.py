@@ -17,21 +17,18 @@
 """
 # Stdlib
 import time
-import logging
+
 # External
 from Crypto.Hash import SHA256
 
 # SCION
+from lib.defines import (
+    HASHTREE_EPOCH_TIME,
+    HASHTREE_EPOCH_TOLERANCE,
+    HASHTREE_N_EPOCHS,
+    HASHTREE_TTL,
+)
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-
-# The tolerable error in epoch in seconds.
-HASHTREE_EPOCH_TOLERANCE = 5
-# Time per Epoch
-HASHTREE_EPOCH_TIME = 60
-# Max time to live
-HASHTREE_TTL = 24*60*60
-# Number of epochs in one TTL per interface
-HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
 
 
 class HashTree(object):
@@ -158,13 +155,10 @@ class ConnectedHashTree(object):
         seed2 = seed + (ttl_window + 0).to_bytes(8, 'big')
         seed3 = seed + (ttl_window + 1).to_bytes(8, 'big')
 
-        logging.warning("Made seeds")
         self._hash_func = hash_func
         self._ht0_root = hash_func.new(str(seed1).encode('utf-8')).digest()
         self._ht1 = HashTree(if_ids, seed2, hash_func)
-        logging.warning("Made first tree")
         self._ht2 = HashTree(if_ids, seed3, hash_func)
-        logging.warning("Made second tree")
 
     @classmethod
     def get_ttl_window(cls):

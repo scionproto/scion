@@ -28,12 +28,13 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_tree import (
-    ConnectedHashTree,
+from lib.crypto.hash_tree import ConnectedHashTree
+from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_TTL,
+    PATH_SERVICE,
+    SCION_UDP_PORT,
 )
-from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scion import SVCType

@@ -24,8 +24,10 @@ import nose.tools as ntools
 
 # SCION
 from lib.crypto.hash_tree import (
-    HashTree,
     ConnectedHashTree,
+    HashTree,
+)
+from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
 )
