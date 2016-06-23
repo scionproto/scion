@@ -380,9 +380,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         self._hash_tree = None
                     continue
                 if not was_master:
-                	logging.warning("Step 6")
+                    logging.warning("Step 6")
                     self._became_master()
-                	logging.warning("Step 7")
+                    logging.warning("Step 7")
                     last_ttl_window = ConnectedHashTree.get_ttl_window()
                     was_master = True
                 self.pcb_cache.expire(self.config.propagation_time * 10)
@@ -419,7 +419,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Reset all timed-out and revoked interfaces to inactive.
         logging.warning("Before lock")
         with self._hash_tree_lock:
-        	logging.warning("Got lock")
+            logging.warning("Got lock")
             self._init_hash_tree()
         logging.warning("Made tree")
         for (_, ifstate) in self.ifid_state.items():
