@@ -364,11 +364,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                            self._quiet_startup())
             start = time.time()
             try:
+                logging.warning("Step 1")            	
                 self.process_pcb_queue()
+                logging.warning("Step 2")            	
                 self.handle_unverified_beacons()
+                logging.warning("Step 3")            	
                 self.zk.wait_connected()
+                logging.warning("Step 4")            	
                 self.pcb_cache.process()
+                logging.warning("Step 5")            	
                 self.revobjs_cache.process()
+                logging.warning("Step 6")            	
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     was_master = False
                     with self._hash_tree_lock:
@@ -378,18 +384,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     self._became_master()
                     last_ttl_window = ConnectedHashTree.get_ttl_window()
                     was_master = True
+                logging.warning("Step 7")            	
                 self.pcb_cache.expire(self.config.propagation_time * 10)
+                logging.warning("Step 8")            	
                 self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
             except ZkNoConnection:
                 continue
+            logging.warning("Step 9")            	
             cur_ttl_window = ConnectedHashTree.get_ttl_window()
             if cur_ttl_window != last_ttl_window:
                 self._maintain_hash_tree()
                 cur_ttl_window = last_ttl_window
+            logging.warning("Step 10")            	
             now = time.time()
             if now - last_propagation >= self.config.propagation_time:
                 self.handle_pcbs_propagation()
                 last_propagation = now
+            logging.warning("Step 11")            	
             if (self.config.registers_paths and
                     now - last_registration >= self.config.registration_time):
                 try:
@@ -398,6 +409,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     logging.error("Register_segments: %s", e)
                     pass
                 last_registration = now
+            logging.warning("Step 12")            	
 
     def _became_master(self):
         """
