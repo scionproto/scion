@@ -155,11 +155,9 @@ class Router(SCIONElement):
         """
         Setup incoming socket
         """
-        # FIXME(kormat): reuse=True should to away once the dispatcher and the
-        # router no longer try binding to the same socket.
         self._local_sock = UDPSocket(
-            bind=(str(self.addr.host), SCION_UDP_EH_DATA_PORT, self.id),
-            addr_type=self.addr.host.TYPE, reuse=True,
+            bind=(str(self.addr.host), self._port, self.id),
+            addr_type=self.addr.host.TYPE,
         )
         self._port = self._local_sock.port
         self._socks.add(self._local_sock, self.handle_recv)
@@ -179,7 +177,7 @@ class Router(SCIONElement):
             name="ER.sibra_worker", daemon=True).start()
         SCIONElement.run(self)
 
-    def send(self, spkt, addr=None, port=SCION_UDP_EH_DATA_PORT):
+    def send(self, spkt, addr, port):
         """
         Send a spkt to addr (class of that object must implement
         __str__ which returns IP addr string) using port and local or remote
@@ -278,7 +276,7 @@ class Router(SCIONElement):
             for bs in self.topology.beacon_servers:
                 req.addrs.dst.host = bs.addr
                 req.set_payload(pld.copy())
-                self.send(req)
+                self.send(req, None, SCION_UDP_EH_DATA_PORT)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
                            "request_ifstates")
 
@@ -310,9 +308,9 @@ class Router(SCIONElement):
         except SCIONServiceLookupError as e:
             logging.error("Unable to deliver ifid packet: %s", e)
             raise SCMPUnknownHost
-        for bs_addr in bs_addrs:
+        for bs_addr, _ in bs_addrs:
             pkt.set_payload(ifid_pld.copy())
-            self.send(pkt, bs_addr)
+            self.send(pkt, bs_addr, SCION_UDP_EH_DATA_PORT)
 
     def get_srv_addr(self, service, pkt):
         """
@@ -325,7 +323,7 @@ class Router(SCIONElement):
         """
         addrs = self.dns_query_topo(service)
         addrs.sort()  # To not rely on order of DNS replies.
-        return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)]
+        return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)][0]
 
     def process_pcb(self, pkt, from_bs):
         """
@@ -349,7 +347,7 @@ class Router(SCIONElement):
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver PCB: %s", e)
                 raise SCMPUnknownHost
-            self.send(pkt, bs_addr)
+            self.send(pkt, bs_addr, SCION_UDP_EH_DATA_PORT)
 
     def relay_cert_server_packet(self, spkt, from_local_as):
         """
@@ -384,7 +382,7 @@ class Router(SCIONElement):
         except SCIONServiceLookupError as e:
             logging.error("Unable to deliver sibra service packet: %s", e)
             raise SCMPUnknownHost
-        self.send(spkt, addr)
+        self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def process_path_mgmt_packet(self, mgmt_pkt, from_local_as):
         """
@@ -430,7 +428,6 @@ class Router(SCIONElement):
             # the designated path server.
             logging.debug("DISABLED: Forwarding revocation to local PS: %s", ps)
             # self.send(spkt, ps)
-        self.handle_data(spkt, from_local_as)
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
@@ -492,7 +489,7 @@ class Router(SCIONElement):
         elif addr == SVCType.SB:
             self.fwd_sibra_service_pkt(spkt, None)
             return
-        self.send(spkt, addr)
+        self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def verify_hof(self, path, ingress=True):
         """Verify freshness and authentication of an opaque field."""
@@ -565,7 +562,8 @@ class Router(SCIONElement):
             fwd_if = path.get_fwd_if()
             path_incd = False
         try:
-            if_addr = self.ifid2er[fwd_if].addr
+            er = self.ifid2er[fwd_if]
+            if_addr, port = er.addr, er.port
         except KeyError:
             # So that the error message will show the current state of the
             # packet.
@@ -580,8 +578,8 @@ class Router(SCIONElement):
             self.send_revocation(spkt, fwd_if, ingress, path_incd)
             return
         if ingress:
-            logging.debug("Sending to IF %s (%s)", fwd_if, if_addr)
-            self.send(spkt, if_addr)
+            logging.debug("Sending to IF %s (%s:%s)", fwd_if, if_addr, port)
+            self.send(spkt, if_addr, port)
         else:
             path.inc_hof_idx()
             self._egress_forward(spkt)
@@ -647,9 +645,10 @@ class Router(SCIONElement):
             logging.error("Extension asked to forward this to interface 0:\n%s",
                           pkt)
             return
-        next_hop = self.ifid2er[ifid].addr
-        logging.debug("Packet forwarded by extension via %s", next_hop)
-        self.send(pkt, next_hop)
+        next_hop = self.ifid2er[ifid]
+        logging.debug("Packet forwarded by extension via %s:%s",
+                      next_hop.addr, next_hop.port)
+        self.send(pkt, next_hop.addr, next_hop.port)
 
     def _process_deliver_flag(self, pkt, flag):
         if (flag == RouterFlag.DELIVER and

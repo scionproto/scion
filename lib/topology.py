@@ -45,7 +45,7 @@ class Element(object):
     :ivar HostAddrBase addr: Host address of a server or edge router.
     :ivar str name: element name or id
     """
-    def __init__(self, addr=None, name=None):
+    def __init__(self, addr=None, port=None, name=None):
         """
         :param str addr: (addr_type, address) of the element's Host address.
         :param str name: element name or id
@@ -53,6 +53,7 @@ class Element(object):
         self.addr = None
         if addr:
             self.addr = haddr_parse_interface(addr)
+        self.port = port
         self.name = None
         if name is not None:
             self.name = str(name)
@@ -65,7 +66,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict['Addr'], name)
+        super().__init__(server_dict['Addr'], server_dict.get('Port'), name)
 
 
 class InterfaceElement(Element):
@@ -108,7 +109,7 @@ class RouterElement(Element):
         :param dict router_dict: contains information about an edge router.
         :param str name: router element name or id
         """
-        super().__init__(router_dict['Addr'], name)
+        super().__init__(router_dict['Addr'], router_dict['Port'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
     def __lt__(self, other):  # pragma: no cover

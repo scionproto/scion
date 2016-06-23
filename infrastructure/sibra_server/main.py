@@ -31,7 +31,6 @@ from infrastructure.sibra_server.steady import (
 from infrastructure.sibra_server.util import find_last_ifid
 from lib.defines import (
     PATH_SERVICE,
-    SCION_UDP_PORT,
     SIBRA_SERVICE,
 )
 from lib.errors import SCIONServiceLookupError
@@ -99,8 +98,7 @@ class SibraServerBase(SCIONElement):
                                  self.handle_sibra_pkt},
         }
         self._find_links()
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host)])
+        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
         self.zk = Zookeeper(self.addr.isd_as, SIBRA_SERVICE, name_addrs,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
@@ -154,7 +152,7 @@ class SibraServerBase(SCIONElement):
                 dst.host.TYPE == AddrType.SVC):
             # Destined for a local service
             try:
-                spkt.addrs.dst.host = self._svc_lookup(dst)
+                spkt.addrs.dst.host = self._svc_lookup(dst)[0]
             except SCIONServiceLookupError:
                 return None, None
         return self.get_first_hop(spkt)
@@ -284,7 +282,7 @@ class SibraServerBase(SCIONElement):
         link_type = self.link_types[ifid]
         # FIXME(kormat): un-hardcode these bandwidths
         bwsnap = BWSnapshot(500 * 1024, 500 * 1024)
-        steady = SteadyPath(self.addr, self.sendq, self.signing_key,
+        steady = SteadyPath(self.addr, self._port, self.sendq, self.signing_key,
                             link_type, link_state, seg, bwsnap)
         self.dests[isd_as][steady.id] = steady
         logging.debug("Setting up steady path %s -> %s over %s",
