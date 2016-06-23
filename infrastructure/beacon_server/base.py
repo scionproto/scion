@@ -121,7 +121,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info(self.config.__dict__)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
-        self._if_rev_token_lock = threading.Lock()
         self.ifid_state = {}
         for ifid in self.ifid2er:
             self.ifid_state[ifid] = InterfaceState()
@@ -265,10 +264,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         yield pcbm
         for er in sorted(self.topology.peer_edge_routers):
             in_if = er.interface.if_id
-            if (not self.ifid_state[in_if].is_active() and
-                    not self._quiet_startup()):
-                logging.warning('Peer ifid:%d inactive (not added).', in_if)
-                continue
+            with self.ifid_state_lock:
+                if (not self.ifid_state[in_if].is_active() and
+                        not self._quiet_startup()):
+                    logging.warning('Peer ifid:%d inactive (not added).', in_if)
+                    continue
             yield self._create_pcbm(in_if, out_if, ts, pcbm.hof(), xover=True)
 
     def _create_pcbm(self, in_if, out_if, ts, prev_hof, xover=False):
@@ -304,26 +304,28 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         payload = pkt.get_payload()
         ifid = payload.p.relayIF
-        if ifid not in self.ifid_state:
-            raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
-        er = self.ifid2er[ifid]
-        er.interface.to_if_id = payload.p.origIF
-        prev_state = self.ifid_state[ifid].update()
-        if prev_state == InterfaceState.INACTIVE:
-            logging.info("IF %d activated", ifid)
-        elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
-            logging.info("IF %d came back up.", ifid)
-        if not prev_state == InterfaceState.ACTIVE:
-            if self.zk.have_lock():
-                # Inform ERs about the interface coming up.
-                state_info = IFStateInfo.from_values(
-                    ifid, True, self._get_ht_proof(ifid))
-                pld = IFStatePayload.from_values([state_info])
-                mgmt_packet = self._build_packet()
-                for er in self.topology.get_all_edge_routers():
-                    mgmt_packet.addrs.dst.host = er.addr
-                    mgmt_packet.set_payload(pld.copy())
-                    self.send(mgmt_packet, er.addr)
+        with self.ifid_state_lock:
+            if ifid not in self.ifid_state:
+                raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
+            er = self.ifid2er[ifid]
+            er.interface.to_if_id = payload.p.origIF
+            prev_state = self.ifid_state[ifid].update()
+            if prev_state == InterfaceState.INACTIVE:
+                logging.info("IF %d activated", ifid)
+            elif prev_state in [InterfaceState.TIMED_OUT,
+                                InterfaceState.REVOKED]:
+                logging.info("IF %d came back up.", ifid)
+            if not prev_state == InterfaceState.ACTIVE:
+                if self.zk.have_lock():
+                    # Inform ERs about the interface coming up.
+                    state_info = IFStateInfo.from_values(
+                        ifid, True, self._get_ht_proof(ifid))
+                    pld = IFStatePayload.from_values([state_info])
+                    mgmt_packet = self._build_packet()
+                    for er in self.topology.get_all_edge_routers():
+                        mgmt_packet.addrs.dst.host = er.addr
+                        mgmt_packet.set_payload(pld.copy())
+                        self.send(mgmt_packet, er.addr)
 
     def run(self):
         """
@@ -405,9 +407,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Reset all timed-out and revoked interfaces to inactive.
         with self._hash_tree_lock:
             self._init_hash_tree()
-        for (_, ifstate) in self.ifid_state.items():
-            if not ifstate.is_active():
-                ifstate.reset()
+        with self.ifid_state_lock:
+            for (_, ifstate) in self.ifid_state.items():
+                if not ifstate.is_active():
+                    ifstate.reset()
 
     def _try_to_verify_beacon(self, pcb, quiet=False):
         """
@@ -581,6 +584,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Sending revocation to local PS.")
             self.send(pkt, ps_addr)
 
+    # FIXME(SIVA): There is no real need for this handler, as everytime the
+    # beacon server receives an SCMP error message, the edge router would
+    # have forwarded a PathMgmt packet with the same RevInfo as the payload
     def _handle_scmp_revocation(self, spkt):
         pld = spkt.get_payload()
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -673,14 +679,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if_id_last_revoked = defaultdict(int)
         while self.run_flag.is_set():
             start_time = time.time()
-            for (if_id, if_state) in self.ifid_state.items():
-                cur_epoch = ConnectedHashTree.get_current_epoch()
-                # Check if interface has timed-out.
-                if if_state.is_expired():
-                    if if_id_last_revoked[if_id] != cur_epoch:
-                        if_id_last_revoked[if_id] = cur_epoch
-                        logging.info("IF %d appears to be down.", if_id)
-                        self._issue_revocation(if_id)
+            with self.ifid_state_lock:
+                for (if_id, if_state) in self.ifid_state.items():
+                    cur_epoch = ConnectedHashTree.get_current_epoch()
+                    # Check if interface has timed-out.
+                    if if_state.is_expired():
+                        if if_id_last_revoked[if_id] != cur_epoch:
+                            if_id_last_revoked[if_id] = cur_epoch
+                            logging.info("IF %d appears to be down.", if_id)
+                            self._issue_revocation(if_id)
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
@@ -692,22 +699,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(req, IFStateRequest)
         logging.debug("Received ifstate req:\n%s", mgmt_pkt)
         infos = []
-        if req.p.ifID == IFStateRequest.ALL_INTERFACES:
-            ifid_states = self.ifid_state.items()
-        elif req.p.ifID in self.ifid_state:
-            ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
-        else:
-            logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.addrs.src, req.p.ifID)
-            return
+        with self.ifid_state_lock:
+            if req.p.ifID == IFStateRequest.ALL_INTERFACES:
+                ifid_states = self.ifid_state.items()
+            elif req.p.ifID in self.ifid_state:
+                ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
+            else:
+                logging.error("Received ifstate request from %s for unknown "
+                              "interface %s.", mgmt_pkt.addrs.src, req.p.ifID)
+                return
 
-        for (ifid, state) in ifid_states:
-            # Don't include inactive interfaces in response.
-            if state.is_inactive():
-                continue
-            info = IFStateInfo.from_values(ifid, state.is_active(),
-                                           self._get_ht_proof(ifid))
-            infos.append(info)
+            for (ifid, state) in ifid_states:
+                # Don't include inactive interfaces in response.
+                if state.is_inactive():
+                    continue
+                info = IFStateInfo.from_values(ifid, state.is_active(),
+                                               self._get_ht_proof(ifid))
+                infos.append(info)
         if not infos and not self._quiet_startup():
             logging.warning("No IF state info to put in response.")
             return

@@ -124,6 +124,7 @@ HASHTREE_EPOCH_TIME = 10
 # The tolerable error in epoch in seconds.
 HASHTREE_EPOCH_TOLERANCE = 5
 # Max time to live
+# 15 min for testing, 24 hrs in production
 HASHTREE_TTL = 15 * 60
 # Number of epochs in one TTL per interface
 HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
