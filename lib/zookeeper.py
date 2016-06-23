@@ -398,7 +398,8 @@ class Zookeeper(object):
 
     def get_lock_holder(self):
         """
-        Return address of the lock holder, or None if master is not elected.
+        Return address and port of the lock holder, or None if master is not
+        elected.
 
         :raises:
             ZkNoConnection: if there's no connection to ZK.
@@ -410,8 +411,7 @@ class Zookeeper(object):
             if not contenders:
                 logging.warning('No lock contenders found')
                 return None
-            _, _, server_addr = contenders[0].split("\x00")
-            return server_addr
+            return contenders[0].split("\x00")
         except (ConnectionLoss, SessionExpiredError):
             logging.warning("Disconnected from ZK.")
             raise ZkNoConnection from None

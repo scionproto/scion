@@ -29,7 +29,6 @@ from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SCION_UDP_PORT,
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
@@ -65,7 +64,7 @@ class SCIONDaemon(SCIONElement):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=SCION_UDP_PORT):
+                 port=None):
         """
         Initialize an instance of the class SCIONDaemon.
         """
@@ -100,8 +99,7 @@ class SCIONDaemon(SCIONElement):
             self._socks.add(self._api_sock, self.handle_accept)
 
     @classmethod
-    def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,
-              port=SCION_UDP_PORT):
+    def start(cls, conf_dir, addr, api_addr=None, run_local_api=False, port=0):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -212,13 +210,14 @@ class SCIONDaemon(SCIONElement):
             fwd_if = path.get_fwd_if()
             # Set dummy host addr if path is empty.
             if fwd_if == 0:
-                haddr = HostAddrNone()
+                haddr, port = HostAddrNone(), SCION_UDP_EH_DATA_PORT
             else:
-                haddr = self.ifid2er[fwd_if].addr
+                er = self.ifid2er[fwd_if]
+                haddr, port = er.addr, er.port
             path_len = len(raw_path) // 8
             reply.append(struct.pack("!B", path_len) + raw_path +
                          struct.pack("!B", haddr.TYPE) + haddr.pack() +
-                         struct.pack("!H", SCION_UDP_EH_DATA_PORT) +
+                         struct.pack("!H", port) +
                          struct.pack("!H", path.mtu) +
                          struct.pack("!B", len(path.interfaces)))
             for interface in path.interfaces:
@@ -452,14 +451,14 @@ class SCIONDaemon(SCIONElement):
         """
         dst_ia, flags = key
         try:
-            ps = self.dns_query_topo(PATH_SERVICE)[0]
+            addr, port = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request: %s", req.short_desc())
-        path_request = self._build_packet(ps, payload=req)
-        self.send(path_request, ps)
+        path_request = self._build_packet(addr, dst_port=port, payload=req)
+        self.send(path_request, addr, SCION_UDP_EH_DATA_PORT)
 
     def _reply_segments(self, key, e):
         """

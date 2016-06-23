@@ -25,7 +25,7 @@ from Crypto.Hash import SHA256
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
+from lib.defines import CERTIFICATE_SERVICE
 from lib.errors import SCIONParseError
 from lib.log import log_exception
 from lib.main import main_default, main_wrapper
@@ -80,8 +80,7 @@ class CertServer(SCIONElement):
         }
 
         # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host)])
+        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
         self.zk = Zookeeper(self.topology.isd_as, CERTIFICATE_SERVICE,
                             name_addrs, self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)

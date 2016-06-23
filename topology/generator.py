@@ -24,6 +24,7 @@ import getpass
 import logging
 import math
 import os
+import random
 import sys
 from collections import defaultdict
 from io import StringIO
@@ -51,8 +52,8 @@ from lib.defines import (
     LINK_PARENT,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
-    SCION_ROUTER_PORT,
     SCION_MIN_MTU,
+    SCION_ROUTER_PORT,
     TOPO_FILE,
 )
 from lib.path_store import PathPolicy
@@ -361,7 +362,6 @@ class TopoGenerator(object):
         networks = self.subnet_gen.alloc_subnets()
         self._write_as_topos()
         self._write_as_list()
-        self._write_hosts()
         return self.topo_dicts, self.zookeepers, networks
 
     def _read_links(self):
@@ -400,7 +400,6 @@ class TopoGenerator(object):
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateServers"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
-            ("dns_servers", DEFAULT_DNS_SERVERS, "ds", "DNSServers"),
             ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
         ):
             self._gen_srv_entry(
@@ -412,9 +411,10 @@ class TopoGenerator(object):
         count = as_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id, i)
-            self.topo_dicts[topo_id][topo_key][elem_id] = {
-                "Addr": self._reg_addr(topo_id, elem_id),
-            }
+            d = {}
+            d["Addr"] = self._reg_addr(topo_id, elem_id)
+            d["Port"] = random.randint(30050, 30100)
+            self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_hosts_entries(self, topo_id, dns_domain):
         for dns_srv in self.topo_dicts[topo_id]["DNSServers"].values():
@@ -432,6 +432,7 @@ class TopoGenerator(object):
             local, remote)
         self.topo_dicts[local]["EdgeRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
+            'Port': 30090,
             'Interface': {
                 'IFID': er_id,
                 'ISD_AS': str(remote),
@@ -487,13 +488,6 @@ class TopoGenerator(object):
     def _write_as_list(self):
         list_path = os.path.join(self.out_dir, AS_LIST_FILE)
         write_file(list_path, yaml.dump(dict(self.as_list)))
-
-    def _write_hosts(self):
-        text = StringIO()
-        for intf, domain in self.hosts:
-            text.write("%s\tds.%s\n" % (intf.ip, str(domain).rstrip(".")))
-        hosts_path = os.path.join(self.out_dir, HOSTS_FILE)
-        write_file(hosts_path, text.getvalue())
 
 
 class SupervisorGenerator(object):
