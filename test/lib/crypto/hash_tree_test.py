@@ -23,7 +23,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.crypto.hash_tree import(
+from lib.crypto.hash_tree import (
     HashTree,
     ConnectedHashTree,
     HASHTREE_EPOCH_TIME,
