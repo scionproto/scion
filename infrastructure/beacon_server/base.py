@@ -161,7 +161,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2er.keys())
+        logging.warning("Got ifs")
         self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
+        logging.warning("Made tree here")
 
     def _get_ht_proof(self, if_id):
         with self._hash_tree_lock:
@@ -421,7 +423,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         with self._hash_tree_lock:
             logging.warning("Got lock")
             self._init_hash_tree()
-        logging.warning("Made tree")
+            logging.warning("Made tree")
         for (_, ifstate) in self.ifid_state.items():
             if not ifstate.is_active():
                 ifstate.reset()
