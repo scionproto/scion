@@ -32,7 +32,6 @@ ASes:
     core: true
     beacon_servers: 2
     certificate_servers: 3
-    dns_servers: 2
   1-14:
     path_servers: 1
     cert_issuer: 1-11

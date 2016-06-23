@@ -22,7 +22,6 @@ import logging
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
-    DNS_SERVICE,
     LINK_CHILD,
     LINK_PARENT,
     LINK_PEER,
@@ -45,7 +44,7 @@ class Element(object):
     :ivar HostAddrBase addr: Host address of a server or edge router.
     :ivar str name: element name or id
     """
-    def __init__(self, addr=None, name=None):
+    def __init__(self, addr=None, port=None, name=None):
         """
         :param str addr: (addr_type, address) of the element's Host address.
         :param str name: element name or id
@@ -53,6 +52,7 @@ class Element(object):
         self.addr = None
         if addr:
             self.addr = haddr_parse_interface(addr)
+        self.port = port
         self.name = None
         if name is not None:
             self.name = str(name)
@@ -65,7 +65,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict['Addr'], name)
+        super().__init__(server_dict['Addr'], server_dict.get('Port'), name)
 
 
 class InterfaceElement(Element):
@@ -108,7 +108,7 @@ class RouterElement(Element):
         :param dict router_dict: contains information about an edge router.
         :param str name: router element name or id
         """
-        super().__init__(router_dict['Addr'], name)
+        super().__init__(router_dict['Addr'], router_dict['Port'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
     def __lt__(self, other):  # pragma: no cover
@@ -122,10 +122,8 @@ class Topology(object):
 
     :ivar bool is_core_as: tells whether an AS is a core AS or not.
     :ivar ISD_AS isd_is: the ISD-AS identifier.
-    :ivar str dns_domain: the dns domain the dns servers should use.
     :ivar list beacon_servers: beacons servers in the AS.
     :ivar list certificate_servers: certificate servers in the AS.
-    :ivar list dns_servers: dns servers in the AS.
     :ivar list path_servers: path servers in the AS.
     :ivar list parent_edge_routers: edge routers linking the AS to its parents.
     :ivar list child_edge_routers: edge routers linking the AS to its children.
@@ -136,11 +134,9 @@ class Topology(object):
     def __init__(self):  # pragma: no cover
         self.is_core_as = False
         self.isd_as = None
-        self.dns_domain = ""
         self.mtu = None
         self.beacon_servers = []
         self.certificate_servers = []
-        self.dns_servers = []
         self.path_servers = []
         self.sibra_servers = []
         self.parent_edge_routers = []
@@ -179,7 +175,6 @@ class Topology(object):
         """
         self.is_core_as = topology['Core']
         self.isd_as = ISD_AS(topology['ISD_AS'])
-        self.dns_domain = topology['DnsDomain']
         self.mtu = topology['MTU']
         self._parse_srv_dicts(topology)
         self._parse_router_dicts(topology)
@@ -189,7 +184,6 @@ class Topology(object):
         for type_, list_ in (
             ("BeaconServers", self.beacon_servers),
             ("CertificateServers", self.certificate_servers),
-            ("DNSServers", self.dns_servers),
             ("PathServers", self.path_servers),
             ("SibraServers", self.sibra_servers),
         ):
@@ -231,7 +225,6 @@ class Topology(object):
         type_map = {
             BEACON_SERVICE: self.beacon_servers,
             CERTIFICATE_SERVICE: self.certificate_servers,
-            DNS_SERVICE: self.dns_servers,
             PATH_SERVICE: self.path_servers,
             ROUTER_SERVICE: self.get_all_edge_routers(),
             SIBRA_SERVICE: self.sibra_servers,

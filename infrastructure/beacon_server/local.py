@@ -20,7 +20,7 @@ import logging
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import PATH_SERVICE, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SCION_UDP_EH_DATA_PORT, SIBRA_SERVICE
 from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
@@ -75,12 +75,12 @@ class LocalBeaconServer(BeaconServer):
             SCIONServiceLookupError: path server lookup failure
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
-        ps_host = self.dns_query_topo(PATH_SERVICE)[0]
-        pkt = self._build_packet(ps_host, payload=records.copy())
-        self.send(pkt, ps_host)
-        sb_host = self.dns_query_topo(SIBRA_SERVICE)[0]
-        pkt = self._build_packet(sb_host, payload=records)
-        self.send(pkt, sb_host)
+        addr, port = self.dns_query_topo(PATH_SERVICE)[0]
+        pkt = self._build_packet(addr, dst_port=port, payload=records.copy())
+        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
+        pkt = self._build_packet(addr, dst_port=port, payload=records)
+        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def register_down_segment(self, pcb):
         """
@@ -96,8 +96,8 @@ class LocalBeaconServer(BeaconServer):
             raise SCIONKeyError(
                 "Invalid IF %d in CorePath" % fwd_if)
 
-        next_hop = self.ifid2er[fwd_if].addr
-        self.send(pkt, next_hop)
+        next_hop = self.ifid2er[fwd_if]
+        self.send(pkt, next_hop.addr, next_hop.port)
 
     def register_segments(self):
         """

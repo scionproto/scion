@@ -23,7 +23,7 @@ import sys
 import threading
 
 # SCION
-from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
+from lib.defines import CERTIFICATE_SERVICE
 from lib.main import main_wrapper
 from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
 from lib.packet.path import SCIONPath
@@ -39,9 +39,9 @@ from test.integration.base_cli_srv import (
 class TestCertClient(TestClientBase):
     def __init__(self, sd, finished, addr):
         cs = sd.dns_query_topo(CERTIFICATE_SERVICE)[0]
-        cs_addr = SCIONAddr.from_values(addr.isd_as, cs)
+        cs_addr = SCIONAddr.from_values(addr.isd_as, cs[0])
         self.cert_done = False
-        super().__init__(sd, "", finished, addr, cs_addr, SCION_UDP_PORT)
+        super().__init__(sd, "", finished, addr, cs_addr, cs[1])
 
     def _get_path(self, api):
         pass  # No path required. All queries go to local CS

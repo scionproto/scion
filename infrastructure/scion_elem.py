@@ -30,16 +30,13 @@ from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
-    DNS_SERVICE,
     PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SCION_UDP_PORT,
     SERVICE_TYPES,
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TOPO_FILE,
 )
-from lib.dnsclient import DNSCachingClient
 from lib.errors import (
     SCIONBaseError,
     SCIONChecksumFailed,
@@ -50,10 +47,11 @@ from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
 from lib.packet.scion import (
-    build_base_hdrs,
     SCIONBasePacket,
     SCIONL4Packet,
-    SVCType
+    SVCType,
+    SVC_TO_SERVICE,
+    build_base_hdrs,
 )
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
@@ -76,7 +74,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import L4Proto, PayloadClass
+from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
 from lib.util import hex_str
 
@@ -104,15 +102,15 @@ class SCIONElement(object):
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
 
-    def __init__(self, server_id, conf_dir, host_addr=None,
-                 port=SCION_UDP_PORT):
+    def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param `HostAddrBase` host_addr:
             the interface to bind to. Overrides the address in the topology
             config.
-        :param int port: the port to bind to.
+        :param int port:
+            the port to bind to. Overrides the address in the topology config.
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -125,14 +123,14 @@ class SCIONElement(object):
         # Must be over-ridden by child classes:
         self.CTRL_PLD_CLASS_MAP = {}
         self.SCMP_PLD_CLASS_MAP = {}
-        if host_addr is None:
-            own_config = self.topology.get_own_config(
-                self.SERVICE_TYPE, server_id)
-            host_addr = own_config.addr
+        if self.SERVICE_TYPE:
+            own_config = self.topology.get_own_config(self.SERVICE_TYPE,
+                                                      server_id)
+            if host_addr is None:
+                host_addr = own_config.addr
+            if self._port is None:
+                self._port = own_config.port
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
-        self._dns = DNSCachingClient(
-            [str(s.addr) for s in self.topology.dns_servers],
-            self.topology.dns_domain)
         self.init_ifid2er()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
@@ -151,6 +149,9 @@ class SCIONElement(object):
         """
         Setup incoming socket and register with dispatcher
         """
+        if self._port is None:
+            # No scion socket desired.
+            return
         svc = SVC_TYPE_MAP.get(self.SERVICE_TYPE)
         self._local_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
@@ -336,7 +337,8 @@ class SCIONElement(object):
                 return self._empty_first_hop(spkt)
             if_id = spkt.path.get_fwd_if()
         if if_id in self.ifid2er:
-            return self.ifid2er[if_id].addr, SCION_UDP_EH_DATA_PORT
+            er = self.ifid2er[if_id]
+            return er.addr, er.port
         logging.error("Unable to find first hop:\n", spkt.path)
         return None, None
 
@@ -351,10 +353,13 @@ class SCIONElement(object):
             logging.error("Packet has no path but different src/dst ASes")
             logging.error(spkt)
             return None, None
-        return spkt.addrs.dst.host, SCION_UDP_EH_DATA_PORT
+        host = spkt.addrs.dst.host
+        if spkt.addrs.dst.host.TYPE == AddrType.SVC:
+            host = self.dns_query_topo(SVC_TO_SERVICE[host.addr])[0][0]
+        return host, SCION_UDP_EH_DATA_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(),
-                      dst_ia=None, payload=None, dst_port=SCION_UDP_PORT):
+                      dst_ia=None, payload=None, dst_port=0):
         if dst_host is None:
             dst_host = HostAddrNone()
         if dst_ia is None:
@@ -370,7 +375,7 @@ class SCIONElement(object):
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 
-    def send(self, packet, dst, dst_port=SCION_UDP_EH_DATA_PORT):
+    def send(self, packet, dst, dst_port):
         """
         Send *packet* to *dst* (to port *dst_port*) using the local socket.
         Calling ``packet.pack()`` should return :class:`bytes`, and
@@ -383,6 +388,7 @@ class SCIONElement(object):
         assert not isinstance(packet.addrs.src.host, HostAddrNone)
         assert not isinstance(packet.addrs.dst.host, HostAddrNone)
         assert isinstance(packet, SCIONBasePacket)
+        assert isinstance(dst_port, int), dst_port
         if not self._local_sock:
             return
         self._local_sock.send(packet.pack(), (dst, dst_port))
@@ -487,13 +493,13 @@ class SCIONElement(object):
         service_map = {
             BEACON_SERVICE: self.topology.beacon_servers,
             CERTIFICATE_SERVICE: self.topology.certificate_servers,
-            DNS_SERVICE: self.topology.dns_servers,
             PATH_SERVICE: self.topology.path_servers,
             SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
-        fallback = [srv.addr for srv in service_map[qname]]
-        results = self._dns.query(qname, fallback, self._quiet_startup())
+        results = [(srv.addr, srv.port) for srv in service_map[qname]]
+        # FIXME(kormat): replace with new discovery service when that's ready.
+        #  results = self._dns.query(qname, fallback, self._quiet_startup())
         if not results:
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)

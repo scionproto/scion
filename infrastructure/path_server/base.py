@@ -27,7 +27,7 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import PATH_SERVICE, SCION_UDP_PORT
+from lib.defines import PATH_SERVICE
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scion import SVCType
@@ -77,8 +77,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         }
         self._segs_to_zk = deque()
         # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host)])
+        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
         self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE, name_addrs,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
@@ -206,8 +205,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if if_id not in self.ifid2er:
             logging.error("Unknown Interface ID: %d", if_id)
             return
-        next_hop = self.ifid2er[if_id].addr
-        self.send(pkt, next_hop)
+        next_hop = self.ifid2er[if_id]
+        self.send(pkt, next_hop.addr, next_hop.port)
 
     def _send_path_segments(self, pkt, up=None, core=None, down=None):
         """

@@ -25,7 +25,6 @@ import time
 from lib.defines import (
     LINK_PARENT,
     LINK_ROUTING,
-    SCION_UDP_PORT,
     SIBRA_MAX_IDX,
     SIBRA_MAX_STEADY_TICKS,
     SIBRA_TICK,
@@ -59,7 +58,8 @@ class SteadyPath(object):
     """
     Class to manage a single steady path
     """
-    def __init__(self, addr, sendq, signing_key, link_type, state, seg, bwsnap):
+    def __init__(self, addr, port, sendq, signing_key, link_type, state, seg,
+                 bwsnap):
         """
         :param ScionAddr addr: the address of this sibra server
         :param queue.Queue sendq:
@@ -72,6 +72,7 @@ class SteadyPath(object):
         :param BWSnapshot bwsnap: initial bandwidth to request.
         """
         self.addr = addr
+        self._port = port
         self.sendq = sendq
         self.signing_key = signing_key
         self.link_type = link_type
@@ -226,8 +227,7 @@ class SteadyPath(object):
         dest = SCIONAddr.from_values(self.remote, SVCType.SB)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         payload = SIBRAPayload.from_values()
-        udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
+        udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
         return cmn_hdr, addr_hdr, udp_hdr, payload
 
     def _create_scion_pkt(self, ext):
@@ -273,8 +273,7 @@ class SteadyPath(object):
         pld = PathRecordsReg.from_values({type_: [pcb]})
         dest = SCIONAddr.from_values(dst_ia, SVCType.PS)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
-        udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT)
+        udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [], udp_hdr, pld)
 
