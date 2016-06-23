@@ -1,8 +1,0 @@
-2016-06-23 13:38:30.548043+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:31.192304+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:32.194068+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:33.196142+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:34.197916+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:35.199970+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:36.204133+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:38.146915+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection

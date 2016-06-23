@@ -1,7 +1,0 @@
-2016-06-23 13:39:12.447655+00:00 [INFO] (CliSrvExt 2-21 > 1-13 main) Testing: 2-21 -> 1-13
-2016-06-23 13:39:18.355238+00:00 [ERROR] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Query timed out for 1-13
-2016-06-23 13:39:23.377730+00:00 [ERROR] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Query timed out for 1-13
-2016-06-23 13:39:28.397860+00:00 [ERROR] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Query timed out for 1-13
-2016-06-23 13:39:28.398612+00:00 [CRITICAL] (CliSrvExt 2-21 > 1-13 main) Unable to get path from local api.
-2016-06-23 13:39:28.399249+00:00 [ERROR] (CliSrvExt 2-21 > 1-13 main) Received SIGUSR2
-2016-06-23 13:39:28.940212+00:00 [INFO] (CliSrvExt 2-21 > 1-13 main) Exiting

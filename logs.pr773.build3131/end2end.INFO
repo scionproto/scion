@@ -1,7 +1,0 @@
-2016-06-23 13:39:12.371026+00:00 [INFO] (End2End 1-15 > 2-24 main) Testing: 1-15 -> 2-24
-2016-06-23 13:39:18.338672+00:00 [ERROR] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Query timed out for 2-24
-2016-06-23 13:39:23.367486+00:00 [ERROR] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Query timed out for 2-24
-2016-06-23 13:39:28.401421+00:00 [ERROR] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Query timed out for 2-24
-2016-06-23 13:39:28.402138+00:00 [CRITICAL] (End2End 1-15 > 2-24 main) Unable to get path from local api.
-2016-06-23 13:39:28.402495+00:00 [ERROR] (End2End 1-15 > 2-24 main) Received SIGUSR2
-2016-06-23 13:39:29.407056+00:00 [INFO] (End2End 1-15 > 2-24 main) Exiting

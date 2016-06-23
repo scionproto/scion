@@ -1,5 +1,0 @@
-2016-06-23 13:22:54.423710+00:00 [ERROR] (SCIONDaemon API id:140572727699200 1-16 -> 2-25) Query timed out for 2-25
-2016-06-23 13:22:59.434245+00:00 [ERROR] (SCIONDaemon API id:140572727699200 1-16 -> 2-25) Query timed out for 2-25
-2016-06-23 13:23:06.854849+00:00 [ERROR] (SCIONDaemon API id:140572174042880 2-25 -> 1-18) Query timed out for 1-18
-2016-06-23 13:24:42.388337+00:00 [ERROR] (End2End 1-19 > 2-26 main) Timeout waiting for response
-2016-06-23 13:24:42.388993+00:00 [ERROR] (End2End 1-19 > 2-26 main) Client success? False Server success? True

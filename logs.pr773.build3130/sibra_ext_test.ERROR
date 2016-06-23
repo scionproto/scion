@@ -1,7 +1,0 @@
-2016-06-23 13:24:54.508270+00:00 [ERROR] (SIBRA 1-16 > 1-17 main) Query timed out for 1-17
-2016-06-23 13:24:59.509036+00:00 [ERROR] (SIBRA 1-16 > 1-17 main) Query timed out for 1-17
-2016-06-23 13:25:05.313865+00:00 [ERROR] (SIBRA 1-16 > 1-17 main) Query timed out for 1-17
-2016-06-23 13:25:10.314869+00:00 [ERROR] (SIBRA 1-16 > 1-17 main) Query timed out for 1-17
-2016-06-23 13:25:15.316205+00:00 [ERROR] (SIBRA 1-16 > 1-17 main) Query timed out for 1-17
-2016-06-23 13:25:15.318163+00:00 [CRITICAL] (SIBRA 1-16 > 1-17 main) Unable to get path directly from sciond
-2016-06-23 13:25:15.318528+00:00 [ERROR] (SIBRA 1-16 > 1-17 main) Received SIGUSR2

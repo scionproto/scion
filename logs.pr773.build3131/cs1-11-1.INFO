@@ -1,8 +1,0 @@
-2016-06-23 13:38:41.754889+00:00 [INFO] (MainThread) Connecting to Zookeeper
-2016-06-23 13:38:45.428776+00:00 [INFO] (MainThread) Started cs1-11-1
-2016-06-23 13:39:14.844196+00:00 [INFO] (MainThread) Cert chain request received for 1-11v0
-2016-06-23 13:39:14.846160+00:00 [INFO] (CC Requests) Cert chain for 1-11v0 sent to (1-11 (IPV4) 127.0.0.2):1050
-2016-06-23 13:39:14.854916+00:00 [INFO] (MainThread) TRC request received for 1v0
-2016-06-23 13:39:14.856918+00:00 [INFO] (TRC Requests) TRC for 1v0 sent to (1-11 (IPV4) 127.0.0.2):1050
-2016-06-23 13:40:12.717497+00:00 [INFO] (MainThread) Received SIGTERM
-2016-06-23 13:40:12.915924+00:00 [INFO] (MainThread) Exiting

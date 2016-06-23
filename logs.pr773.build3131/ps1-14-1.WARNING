@@ -1,4 +1,0 @@
-2016-06-23 13:38:33.169164+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:33.756551+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:34.758151+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
-2016-06-23 13:38:35.782549+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory

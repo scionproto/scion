@@ -1,4 +1,0 @@
-2016-06-23 13:38:52.829054+00:00 [INFO] (MainThread) Connecting to Zookeeper
-2016-06-23 13:38:56.907530+00:00 [INFO] (MainThread) Started ds1-16-1
-2016-06-23 13:40:13.416343+00:00 [INFO] (MainThread) Received SIGTERM
-2016-06-23 13:40:13.416687+00:00 [INFO] (MainThread) Exiting

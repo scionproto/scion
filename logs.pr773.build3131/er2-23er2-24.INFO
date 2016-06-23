@@ -1,9 +1,0 @@
-2016-06-23 13:38:48.988351+00:00 [INFO] (MainThread) Interface: {'to_udp_port': 50000, 'bandwidth': 1000, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f1bab0dd710>, 'link_type': 'PEER', 'if_id': 3, 'to_if_id': 0, 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f1bab0dd7b8>, 'name': None, 'udp_port': 50000, 'isd_as': ISD_AS(isd=2, as=24), 'mtu': 1472}
-2016-06-23 13:38:50.942031+00:00 [INFO] (MainThread) Initialized SibraState: Link: 2-23#3 -> 2-24 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
-2016-06-23 13:38:50.942688+00:00 [INFO] (MainThread) IP 127.0.0.40:50000
-2016-06-23 13:38:50.942981+00:00 [INFO] (MainThread) Started er2-23er2-24
-2016-06-23 13:38:51.178734+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
-2016-06-23 13:39:21.207408+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
-2016-06-23 13:39:51.237551+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
-2016-06-23 13:40:13.250507+00:00 [INFO] (MainThread) Received SIGTERM
-2016-06-23 13:40:13.914833+00:00 [INFO] (MainThread) Exiting
