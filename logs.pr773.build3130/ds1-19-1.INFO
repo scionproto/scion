@@ -1,0 +1,20 @@
+2016-06-23 13:22:22.603260+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:23.138617+00:00 [INFO] (MainThread) Started ds1-19-1
+2016-06-23 13:23:05.766912+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.546113+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:09.618196+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:10.980297+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:16.233213+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:17.421354+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:23.415175+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:26.210787+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:33.044358+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:37.503948+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:37.504491+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:41.000294+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.888888+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:55.380018+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:00.310685+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.447269+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:24.806416+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:24.806798+00:00 [INFO] (MainThread) Exiting

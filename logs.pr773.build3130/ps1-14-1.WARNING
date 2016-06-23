@@ -1,0 +1,23 @@
+2016-06-23 13:22:16.760627+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.356220+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.358369+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:23:05.368673+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:05.841445+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:12.964593+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.589s (should have been <= 1.000s)
+2016-06-23 13:23:15.622099+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.279253+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.312s (should have been <= 1.000s)
+2016-06-23 13:23:18.259080+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.943s (should have been <= 1.000s)
+2016-06-23 13:23:27.883628+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:27.883984+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.620s (should have been <= 1.000s)
+2016-06-23 13:23:27.884414+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:30.880301+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:30.880696+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.995s (should have been <= 1.000s)
+2016-06-23 13:23:30.881148+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:33.000555+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.118s (should have been <= 1.000s)
+2016-06-23 13:23:34.552481+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:37.588189+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.583s (should have been <= 1.000s)
+2016-06-23 13:23:40.589568+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:46.274088+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.685s (should have been <= 1.000s)
+2016-06-23 13:23:55.288290+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:58.390482+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.102s (should have been <= 1.000s)
+2016-06-23 13:25:01.491102+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.024s (should have been <= 1.000s)

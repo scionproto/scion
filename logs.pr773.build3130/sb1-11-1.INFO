@@ -1,0 +1,128 @@
+2016-06-23 13:21:49.069063+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:49.095515+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-11 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:49.096130+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-11 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:49.096611+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-11 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:49.096985+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-11 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:49.140816+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:21:49.272357+00:00 [INFO] (MainThread) Started sb1-11-1
+2016-06-23 13:21:49.338428+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:50.339682+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:51.341807+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:52.343674+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:53.345697+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:54.347734+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:55.349896+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:56.351749+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:57.353874+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:58.355670+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:59.357952+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:00.359695+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:01.361790+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:02.363700+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.365724+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:04.367664+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:05.369797+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:06.371677+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:07.373757+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.375667+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.377754+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.379654+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.381747+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.383659+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.385756+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.387696+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.389796+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.392246+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.394348+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.395692+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:46.805474+00:00 [INFO] (MainThread) CORE Segment added: d88f6cbb952f, 2016-06-23 13:22:45+00:00, 2-21 > 1-11
+2016-06-23 13:22:47.359262+00:00 [INFO] (SB.worker) Sending setup request using d88f6cbb952f, 2016-06-23 13:22:45+00:00, 2-21 > 1-11:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000b571f4633 (Owner: 1-11)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:44+00:00
+2016-06-23 13:22:47.489659+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:44+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 3 Mac: b43a94ee
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 72eb6a79
+2016-06-23 13:22:52.722697+00:00 [INFO] (MainThread) CORE Segment added: f5998b8a9973, 2016-06-23 13:22:50+00:00, 1-13 > 1-11
+2016-06-23 13:22:53.364202+00:00 [INFO] (SB.worker) Sending setup request using f5998b8a9973, 2016-06-23 13:22:50+00:00, 1-13 > 1-11:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000b34443cb6 (Owner: 1-11)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:53.414174+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 8a5bff93
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 4cd21847
+2016-06-23 13:22:57.732258+00:00 [INFO] (MainThread) CORE Segment added: 74cb4dbc1395, 2016-06-23 13:22:53+00:00, 1-12 > 1-11
+2016-06-23 13:22:57.753489+00:00 [INFO] (MainThread) CORE Segment added: 0304fefb6cd6, 2016-06-23 13:22:53+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:22:57.755150+00:00 [INFO] (MainThread) CORE Segment added: 31692ad2778c, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:22:58.368869+00:00 [INFO] (SB.worker) Sending setup request using 74cb4dbc1395, 2016-06-23 13:22:53+00:00, 1-12 > 1-11:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000b5a552468 (Owner: 1-11)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:58.370687+00:00 [INFO] (SB.worker) Sending setup request using 31692ad2778c, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000b92a5b10c (Owner: 1-11)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:58.407706+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 158fd69e
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 75ad25b7
+2016-06-23 13:22:58.443462+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:11.0(512.0Kibit/s) rev:11.0(512.0Kibit/s)> denied
+2016-06-23 13:22:58.444284+00:00 [INFO] (MainThread) Sending setup request using 31692ad2778c, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000b92a5b10c (Owner: 1-11)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:58.496093+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 3 Mac: 9f3c02bb
+  SibraOpaqueField(8B): Ingress: 1 Egress: 2 Mac: 019d68aa
+  SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: 62669258
+2016-06-23 13:23:02.979079+00:00 [INFO] (MainThread) CORE Segment added: 98e36b196940, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:03.000553+00:00 [INFO] (MainThread) CORE Segment added: 468fdf5291a8, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:03.015394+00:00 [INFO] (MainThread) CORE Segment added: e9c9d04f124f, 2016-06-23 13:22:55+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:03.031629+00:00 [INFO] (MainThread) CORE Segment added: 2a0f21f6d943, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:03.034050+00:00 [INFO] (MainThread) CORE Segment added: 0d1b1cb74889, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:05.744432+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.654916+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:09.846862+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:12.836045+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:16.235404+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.868412+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:20.895346+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:23.113743+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:27.774043+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:32.969398+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:33.847959+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:38.499280+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:39.472464+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:55.377408+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:57.411947+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:25:00.328529+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.440104+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:21.179880+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:21.868506+00:00 [INFO] (MainThread) Exiting

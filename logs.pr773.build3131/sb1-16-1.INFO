@@ -1,0 +1,22 @@
+2016-06-23 13:38:52.599707+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-16 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:52.600280+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-16 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:52.600622+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-16 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:52.716361+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:54.628913+00:00 [INFO] (MainThread) Started sb1-16-1
+2016-06-23 13:39:27.081884+00:00 [INFO] (MainThread) UP Segment added: b0c84da45d71, 2016-06-23 13:39:23+00:00, 1-13 > 1-16
+2016-06-23 13:39:27.739478+00:00 [INFO] (SB.worker) Sending setup request using b0c84da45d71, 2016-06-23 13:39:23+00:00, 1-13 > 1-16:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 00100010dd207954 (Owner: 1-16)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.850312+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 608afabe
+  SibraOpaqueField(8B): Ingress: 3 Egress: 0 Mac: 4407121f
+2016-06-23 13:40:12.967750+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:40:13.405239+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.973639+00:00 [INFO] (MainThread) Exiting

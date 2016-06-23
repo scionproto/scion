@@ -1,0 +1,2 @@
+2016-06-23 13:23:19.692338+00:00 [WARNING] (Thread-13) No instances found, returning SERVFAIL for bs.as18.isd1.scion.
+2016-06-23 13:23:19.692958+00:00 [WARNING] (Thread-13) Reply: [127.0.0.1:42868] (udp) / 'bs.as18.isd1.scion.' (A) / SERVFAIL

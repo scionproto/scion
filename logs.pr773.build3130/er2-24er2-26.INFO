@@ -1,0 +1,13 @@
+2016-06-23 13:22:16.361562+00:00 [INFO] (MainThread) Interface: {'isd_as': ISD_AS(isd=2, as=26), 'to_if_id': 0, 'if_id': 3, 'mtu': 1472, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f29af496b38>, 'udp_port': 50000, 'link_type': 'CHILD', 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f29af496cc0>, 'name': None, 'to_udp_port': 50000, 'bandwidth': 1000}
+2016-06-23 13:22:17.907241+00:00 [INFO] (MainThread) Initialized SibraState: Link: 2-24#3 -> 2-26 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:22:17.907921+00:00 [INFO] (MainThread) IP 127.0.0.46:50000
+2016-06-23 13:22:17.908216+00:00 [INFO] (MainThread) Started er2-24er2-26
+2016-06-23 13:22:18.108343+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:48.137626+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:18.168037+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:48.195652+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:18.223128+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:48.251351+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:18.280955+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:24.706078+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:25.443621+00:00 [INFO] (MainThread) Exiting

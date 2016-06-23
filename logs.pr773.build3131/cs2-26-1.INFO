@@ -1,0 +1,10 @@
+2016-06-23 13:38:47.892780+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:49.309246+00:00 [INFO] (MainThread) Started cs2-26-1
+2016-06-23 13:38:51.330091+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:39:13.670591+00:00 [INFO] (MainThread) Cert chain request received for 2-26v0
+2016-06-23 13:39:13.672723+00:00 [INFO] (CC Requests) Cert chain for 2-26v0 sent to (2-26 (IPV4) 127.0.0.2):1044
+2016-06-23 13:39:13.682618+00:00 [INFO] (MainThread) TRC request received for 2v0
+2016-06-23 13:39:13.684335+00:00 [INFO] (TRC Requests) TRC for 2v0 sent to (2-26 (IPV4) 127.0.0.2):1044
+2016-06-23 13:40:12.972068+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:40:13.365247+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.974479+00:00 [INFO] (MainThread) Exiting

@@ -1,0 +1,1253 @@
+2016-06-23 13:22:46.952767+00:00 [INFO] (CertReqTest) Testing: 1-18
+2016-06-23 13:22:47.013693+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-18
+2016-06-23 13:22:47.230161+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS18/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:47.230639+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS18/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:47.231321+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS18/endhost/certs/ISD1-AS18-V0.crt
+2016-06-23 13:22:47.231739+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:47.232051+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:47.289724+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-18 (IPV4) 127.0.0.2):1025
+2016-06-23 13:22:47.301139+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-18.sock
+2016-06-23 13:22:47.350241+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-18.sock
+2016-06-23 13:22:47.416960+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:47.417198+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:47.417755+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-18 (IPV4) 127.0.0.2):1026
+2016-06-23 13:22:47.418427+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.162:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-18 (IPV4) 127.0.0.162)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1026 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-18v0
+2016-06-23 13:22:47.424688+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.162)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1026 length: 658B checksum: 4fd7
+  Payload:
+    CertChainReply: ISD-AS: 1-18 Version: 0
+2016-06-23 13:22:47.426156+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:47.426594+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.162:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-18 (IPV4) 127.0.0.162)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1026 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:47.432740+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.162)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1026 length: 1658B checksum: cf9e
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:47.443316+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:47.445383+00:00 [INFO] (CertReqTest) Testing: 2-21
+2016-06-23 13:22:47.445749+00:00 [DEBUG] (CertReqTest) Starting sciond for 2-21
+2016-06-23 13:22:47.528877+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS21/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:47.529534+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS21/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:47.529974+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS21/endhost/certs/ISD2-AS21-V0.crt
+2016-06-23 13:22:47.530359+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:47.530529+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:47.531150+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-21 (IPV4) 127.0.0.2):1027
+2016-06-23 13:22:47.531992+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_2-21.sock
+2016-06-23 13:22:47.532510+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_2-21.sock
+2016-06-23 13:22:47.537158+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:47.537407+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:47.538170+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-21 (IPV4) 127.0.0.2):1028
+2016-06-23 13:22:47.538714+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.194:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-21 (IPV4) 127.0.0.2)> Dst:<(2-21 (IPV4) 127.0.0.194)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1028 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 2-21v0
+2016-06-23 13:22:47.556748+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(455B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 455B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-21 (IPV4) 127.0.0.194)> Dst:<(2-21 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1028 length: 431B checksum: 3419
+  Payload:
+    CertChainReply: ISD-AS: 2-21 Version: 0
+2016-06-23 13:22:47.557395+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:47.557766+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.194:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-21 (IPV4) 127.0.0.2)> Dst:<(2-21 (IPV4) 127.0.0.194)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1028 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 2v0
+2016-06-23 13:22:47.563208+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1333B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1333B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-21 (IPV4) 127.0.0.194)> Dst:<(2-21 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1028 length: 1309B checksum: b645
+  Payload:
+    TRCReply: ISD: 2 version: 0 TRC: {
+        "core_ases": {
+            "2-21": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIjltMFRWY1ZaYzY5Z25YemU2Yjk0eHFVM0FWYWJCYkRic0ZPWDdKMG95MnQ0dXEzb1kyM2FyYVB1bTB0aXZTMDdPY0YzZGN2b2I0bk1EbkgyU1JsTENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIk1nREc5bk1aZjRCNHAwVHpCRFA3NlBaRVNhelNTdGZ3T050OWpBNHI0Z2c9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiMmtXbVdTUWY2QzN3WDNGN2NUZHRocnovczhFZ3lpZGgwbXN2VnRzWlZHTT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "2-22": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIkc5enI1ei9XRjRML2dsZThOVW9PVmFjNFZzK3d5Wjh2aGpLYkEwb0dVbjVpbkZqUXpWV1UxU2VMVkMyMnJtSmZaVmI5QWRXS3VRQy9jdWxUNTBNZENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkEydTRXTHMycjBaSWQ0Nk8vTXBsRlpEMXkrSW5tbCtDb2JMQ2VsdVg0dE09IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiS3cwZk84c0xjdnF6ZlhEK3NXRERDbEVEN0ljODQwZGlGNFE2UU0za0hMdz0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 2,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "2-21": "d0aw9EHy38rF8g1LztqxdyVhQF45aTvyMjSdgxdVetVg8Z+RBGqww/pPea2NOnc5a8+NoiB9ZSkS6kVfQ0E2Bg==",
+            "2-22": "WJr1Mx6GW8I5B2TnvwxfAxMlKi8ZeyKFI4OIGdjdX/qBzrbQvTGXLSu1XqFxGm0f5zrwLMj/Z3P0/ceu/ln1DA=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:47.569123+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:47.569574+00:00 [INFO] (CertReqTest) Testing: 1-17
+2016-06-23 13:22:47.569870+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-17
+2016-06-23 13:22:47.636944+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS17/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:47.723268+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS17/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:47.723884+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS17/endhost/certs/ISD1-AS17-V0.crt
+2016-06-23 13:22:47.724278+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:47.724441+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:47.725045+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-17 (IPV4) 127.0.0.2):1029
+2016-06-23 13:22:47.747775+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-17.sock
+2016-06-23 13:22:47.799694+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-17.sock
+2016-06-23 13:22:47.834310+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:47.834539+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:47.835341+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-17 (IPV4) 127.0.0.2):1030
+2016-06-23 13:22:47.835876+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.58:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-17 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.58)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1030 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-17v0
+2016-06-23 13:22:47.842168+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(683B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 683B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-17 (IPV4) 127.0.0.58)> Dst:<(1-17 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1030 length: 659B checksum: 6e27
+  Payload:
+    CertChainReply: ISD-AS: 1-17 Version: 0
+2016-06-23 13:22:47.844731+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:47.845133+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.58:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-17 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.58)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1030 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:47.854641+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-17 (IPV4) 127.0.0.58)> Dst:<(1-17 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1030 length: 1658B checksum: 399b
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:47.859958+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:47.860404+00:00 [INFO] (CertReqTest) Testing: 2-26
+2016-06-23 13:22:47.860705+00:00 [DEBUG] (CertReqTest) Starting sciond for 2-26
+2016-06-23 13:22:48.056391+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS26/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:48.056906+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS26/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:48.057415+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS26/endhost/certs/ISD2-AS26-V0.crt
+2016-06-23 13:22:48.089688+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:48.089865+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:48.091759+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-26 (IPV4) 127.0.0.2):1031
+2016-06-23 13:22:48.162671+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_2-26.sock
+2016-06-23 13:22:48.180318+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_2-26.sock
+2016-06-23 13:22:48.218795+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:48.219025+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:48.219670+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-26 (IPV4) 127.0.0.2):1032
+2016-06-23 13:22:48.220180+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.1.2:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-26 (IPV4) 127.0.0.2)> Dst:<(2-26 (IPV4) 127.0.1.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1032 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 2-26v0
+2016-06-23 13:22:48.229763+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(683B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 683B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-26 (IPV4) 127.0.1.2)> Dst:<(2-26 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1032 length: 659B checksum: 59cd
+  Payload:
+    CertChainReply: ISD-AS: 2-26 Version: 0
+2016-06-23 13:22:48.230514+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:48.230927+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.1.2:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-26 (IPV4) 127.0.0.2)> Dst:<(2-26 (IPV4) 127.0.1.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1032 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 2v0
+2016-06-23 13:22:48.236287+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1333B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1333B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-26 (IPV4) 127.0.1.2)> Dst:<(2-26 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1032 length: 1309B checksum: 6c41
+  Payload:
+    TRCReply: ISD: 2 version: 0 TRC: {
+        "core_ases": {
+            "2-21": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIjltMFRWY1ZaYzY5Z25YemU2Yjk0eHFVM0FWYWJCYkRic0ZPWDdKMG95MnQ0dXEzb1kyM2FyYVB1bTB0aXZTMDdPY0YzZGN2b2I0bk1EbkgyU1JsTENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIk1nREc5bk1aZjRCNHAwVHpCRFA3NlBaRVNhelNTdGZ3T050OWpBNHI0Z2c9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiMmtXbVdTUWY2QzN3WDNGN2NUZHRocnovczhFZ3lpZGgwbXN2VnRzWlZHTT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "2-22": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIkc5enI1ei9XRjRML2dsZThOVW9PVmFjNFZzK3d5Wjh2aGpLYkEwb0dVbjVpbkZqUXpWV1UxU2VMVkMyMnJtSmZaVmI5QWRXS3VRQy9jdWxUNTBNZENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkEydTRXTHMycjBaSWQ0Nk8vTXBsRlpEMXkrSW5tbCtDb2JMQ2VsdVg0dE09IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiS3cwZk84c0xjdnF6ZlhEK3NXRERDbEVEN0ljODQwZGlGNFE2UU0za0hMdz0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 2,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "2-21": "d0aw9EHy38rF8g1LztqxdyVhQF45aTvyMjSdgxdVetVg8Z+RBGqww/pPea2NOnc5a8+NoiB9ZSkS6kVfQ0E2Bg==",
+            "2-22": "WJr1Mx6GW8I5B2TnvwxfAxMlKi8ZeyKFI4OIGdjdX/qBzrbQvTGXLSu1XqFxGm0f5zrwLMj/Z3P0/ceu/ln1DA=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:48.239378+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:48.239806+00:00 [INFO] (CertReqTest) Testing: 1-11
+2016-06-23 13:22:48.240114+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-11
+2016-06-23 13:22:48.607896+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS11/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:48.608373+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS11/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:48.608828+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS11/endhost/certs/ISD1-AS11-V0.crt
+2016-06-23 13:22:48.653387+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:48.653993+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:48.655412+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-11 (IPV4) 127.0.0.2):1033
+2016-06-23 13:22:48.676852+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-11.sock
+2016-06-23 13:22:48.741140+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-11.sock
+2016-06-23 13:22:48.805098+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:48.805323+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:48.805896+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-11 (IPV4) 127.0.0.2):1034
+2016-06-23 13:22:48.806432+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.66:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-11 (IPV4) 127.0.0.2)> Dst:<(1-11 (IPV4) 127.0.0.66)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1034 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-11v0
+2016-06-23 13:22:48.812198+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(455B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 455B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-11 (IPV4) 127.0.0.66)> Dst:<(1-11 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1034 length: 431B checksum: 9f70
+  Payload:
+    CertChainReply: ISD-AS: 1-11 Version: 0
+2016-06-23 13:22:48.812858+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:48.813229+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.66:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-11 (IPV4) 127.0.0.2)> Dst:<(1-11 (IPV4) 127.0.0.66)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1034 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:48.822663+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-11 (IPV4) 127.0.0.66)> Dst:<(1-11 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1034 length: 1658B checksum: 3d97
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:48.825279+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:48.825732+00:00 [INFO] (CertReqTest) Testing: 2-22
+2016-06-23 13:22:48.826048+00:00 [DEBUG] (CertReqTest) Starting sciond for 2-22
+2016-06-23 13:22:49.025688+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS22/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:49.026174+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS22/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:49.026626+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS22/endhost/certs/ISD2-AS22-V0.crt
+2016-06-23 13:22:49.027065+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:49.027237+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:49.041371+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-22 (IPV4) 127.0.0.2):1037
+2016-06-23 13:22:49.061961+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_2-22.sock
+2016-06-23 13:22:49.103354+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_2-22.sock
+2016-06-23 13:22:49.169324+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:49.169567+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:49.170337+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-22 (IPV4) 127.0.0.2):1041
+2016-06-23 13:22:49.170936+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.210:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-22 (IPV4) 127.0.0.2)> Dst:<(2-22 (IPV4) 127.0.0.210)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1041 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 2-22v0
+2016-06-23 13:22:49.176606+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(455B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 455B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-22 (IPV4) 127.0.0.210)> Dst:<(2-22 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1041 length: 431B checksum: 519e
+  Payload:
+    CertChainReply: ISD-AS: 2-22 Version: 0
+2016-06-23 13:22:49.177266+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:49.177632+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.210:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-22 (IPV4) 127.0.0.2)> Dst:<(2-22 (IPV4) 127.0.0.210)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1041 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 2v0
+2016-06-23 13:22:49.183799+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1333B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1333B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-22 (IPV4) 127.0.0.210)> Dst:<(2-22 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1041 length: 1309B checksum: a438
+  Payload:
+    TRCReply: ISD: 2 version: 0 TRC: {
+        "core_ases": {
+            "2-21": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIjltMFRWY1ZaYzY5Z25YemU2Yjk0eHFVM0FWYWJCYkRic0ZPWDdKMG95MnQ0dXEzb1kyM2FyYVB1bTB0aXZTMDdPY0YzZGN2b2I0bk1EbkgyU1JsTENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIk1nREc5bk1aZjRCNHAwVHpCRFA3NlBaRVNhelNTdGZ3T050OWpBNHI0Z2c9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiMmtXbVdTUWY2QzN3WDNGN2NUZHRocnovczhFZ3lpZGgwbXN2VnRzWlZHTT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "2-22": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIkc5enI1ei9XRjRML2dsZThOVW9PVmFjNFZzK3d5Wjh2aGpLYkEwb0dVbjVpbkZqUXpWV1UxU2VMVkMyMnJtSmZaVmI5QWRXS3VRQy9jdWxUNTBNZENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkEydTRXTHMycjBaSWQ0Nk8vTXBsRlpEMXkrSW5tbCtDb2JMQ2VsdVg0dE09IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiS3cwZk84c0xjdnF6ZlhEK3NXRERDbEVEN0ljODQwZGlGNFE2UU0za0hMdz0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 2,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "2-21": "d0aw9EHy38rF8g1LztqxdyVhQF45aTvyMjSdgxdVetVg8Z+RBGqww/pPea2NOnc5a8+NoiB9ZSkS6kVfQ0E2Bg==",
+            "2-22": "WJr1Mx6GW8I5B2TnvwxfAxMlKi8ZeyKFI4OIGdjdX/qBzrbQvTGXLSu1XqFxGm0f5zrwLMj/Z3P0/ceu/ln1DA=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:49.189795+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:49.190880+00:00 [INFO] (CertReqTest) Testing: 1-14
+2016-06-23 13:22:49.191889+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-14
+2016-06-23 13:22:49.434871+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS14/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:49.435381+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS14/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:49.435940+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS14/endhost/certs/ISD1-AS14-V0.crt
+2016-06-23 13:22:49.436327+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:49.436507+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:49.446969+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-14 (IPV4) 127.0.0.2):1046
+2016-06-23 13:22:49.490965+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-14.sock
+2016-06-23 13:22:49.531370+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-14.sock
+2016-06-23 13:22:49.548391+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:49.548633+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:49.549451+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-14 (IPV4) 127.0.0.2):1049
+2016-06-23 13:22:49.550001+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.115:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(1-14 (IPV4) 127.0.0.115)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1049 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-14v0
+2016-06-23 13:22:49.556261+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(459B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 459B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.115)> Dst:<(1-14 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1049 length: 435B checksum: 297c
+  Payload:
+    CertChainReply: ISD-AS: 1-14 Version: 0
+2016-06-23 13:22:49.556902+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:49.557264+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.115:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(1-14 (IPV4) 127.0.0.115)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1049 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:49.563740+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.115)> Dst:<(1-14 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1049 length: 1658B checksum: 0688
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:49.566676+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:49.567165+00:00 [INFO] (CertReqTest) Testing: 1-12
+2016-06-23 13:22:49.567473+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-12
+2016-06-23 13:22:49.746094+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS12/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:49.746575+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS12/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:49.747016+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS12/endhost/certs/ISD1-AS12-V0.crt
+2016-06-23 13:22:49.752369+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:49.752588+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:49.753119+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-12 (IPV4) 127.0.0.2):1051
+2016-06-23 13:22:49.824915+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-12.sock
+2016-06-23 13:22:49.841084+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-12.sock
+2016-06-23 13:22:49.869147+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:49.869381+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:49.870021+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-12 (IPV4) 127.0.0.2):1052
+2016-06-23 13:22:49.870599+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.82:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-12 (IPV4) 127.0.0.2)> Dst:<(1-12 (IPV4) 127.0.0.82)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1052 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-12v0
+2016-06-23 13:22:49.878717+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(455B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 455B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-12 (IPV4) 127.0.0.82)> Dst:<(1-12 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1052 length: 431B checksum: b364
+  Payload:
+    CertChainReply: ISD-AS: 1-12 Version: 0
+2016-06-23 13:22:49.879435+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:49.879825+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.82:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-12 (IPV4) 127.0.0.2)> Dst:<(1-12 (IPV4) 127.0.0.82)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1052 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:49.903374+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-12 (IPV4) 127.0.0.82)> Dst:<(1-12 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1052 length: 1658B checksum: 2b85
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:49.906293+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:49.906553+00:00 [INFO] (CertReqTest) Testing: 2-24
+2016-06-23 13:22:49.906915+00:00 [DEBUG] (CertReqTest) Starting sciond for 2-24
+2016-06-23 13:22:50.024628+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS24/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:50.028901+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS24/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:50.029443+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS24/endhost/certs/ISD2-AS24-V0.crt
+2016-06-23 13:22:50.029831+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.030003+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.039279+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.2):1053
+2016-06-23 13:22:50.117785+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_2-24.sock
+2016-06-23 13:22:50.167436+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_2-24.sock
+2016-06-23 13:22:50.241636+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.241867+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.243224+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.2):1054
+2016-06-23 13:22:50.243807+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.243:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.2)> Dst:<(2-24 (IPV4) 127.0.0.243)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1054 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 2-24v0
+2016-06-23 13:22:50.270635+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(459B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 459B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.243)> Dst:<(2-24 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1054 length: 435B checksum: 9a17
+  Payload:
+    CertChainReply: ISD-AS: 2-24 Version: 0
+2016-06-23 13:22:50.271438+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:50.274332+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.243:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.2)> Dst:<(2-24 (IPV4) 127.0.0.243)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1054 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 2v0
+2016-06-23 13:22:50.287547+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1333B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1333B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.243)> Dst:<(2-24 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1054 length: 1309B checksum: 7f2b
+  Payload:
+    TRCReply: ISD: 2 version: 0 TRC: {
+        "core_ases": {
+            "2-21": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIjltMFRWY1ZaYzY5Z25YemU2Yjk0eHFVM0FWYWJCYkRic0ZPWDdKMG95MnQ0dXEzb1kyM2FyYVB1bTB0aXZTMDdPY0YzZGN2b2I0bk1EbkgyU1JsTENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIk1nREc5bk1aZjRCNHAwVHpCRFA3NlBaRVNhelNTdGZ3T050OWpBNHI0Z2c9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiMmtXbVdTUWY2QzN3WDNGN2NUZHRocnovczhFZ3lpZGgwbXN2VnRzWlZHTT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "2-22": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIkc5enI1ei9XRjRML2dsZThOVW9PVmFjNFZzK3d5Wjh2aGpLYkEwb0dVbjVpbkZqUXpWV1UxU2VMVkMyMnJtSmZaVmI5QWRXS3VRQy9jdWxUNTBNZENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkEydTRXTHMycjBaSWQ0Nk8vTXBsRlpEMXkrSW5tbCtDb2JMQ2VsdVg0dE09IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiS3cwZk84c0xjdnF6ZlhEK3NXRERDbEVEN0ljODQwZGlGNFE2UU0za0hMdz0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 2,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "2-21": "d0aw9EHy38rF8g1LztqxdyVhQF45aTvyMjSdgxdVetVg8Z+RBGqww/pPea2NOnc5a8+NoiB9ZSkS6kVfQ0E2Bg==",
+            "2-22": "WJr1Mx6GW8I5B2TnvwxfAxMlKi8ZeyKFI4OIGdjdX/qBzrbQvTGXLSu1XqFxGm0f5zrwLMj/Z3P0/ceu/ln1DA=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:50.289532+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:50.289772+00:00 [INFO] (CertReqTest) Testing: 1-19
+2016-06-23 13:22:50.290073+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-19
+2016-06-23 13:22:50.496421+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS19/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:50.496927+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS19/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:50.497388+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS19/endhost/certs/ISD1-AS19-V0.crt
+2016-06-23 13:22:50.497775+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.497952+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.501205+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-19 (IPV4) 127.0.0.2):1055
+2016-06-23 13:22:50.528463+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-19.sock
+2016-06-23 13:22:50.542135+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-19.sock
+2016-06-23 13:22:50.552962+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.553216+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.554280+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-19 (IPV4) 127.0.0.2):1056
+2016-06-23 13:22:50.554859+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.180:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-19 (IPV4) 127.0.0.2)> Dst:<(1-19 (IPV4) 127.0.0.180)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1056 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-19v0
+2016-06-23 13:22:50.561857+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(685B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 685B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-19 (IPV4) 127.0.0.180)> Dst:<(1-19 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1056 length: 661B checksum: f5e8
+  Payload:
+    CertChainReply: ISD-AS: 1-19 Version: 0
+2016-06-23 13:22:50.562657+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:50.564609+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.180:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-19 (IPV4) 127.0.0.2)> Dst:<(1-19 (IPV4) 127.0.0.180)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1056 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:50.571289+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-19 (IPV4) 127.0.0.180)> Dst:<(1-19 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1056 length: 1658B checksum: bb80
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:50.573861+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:50.574115+00:00 [INFO] (CertReqTest) Testing: 1-13
+2016-06-23 13:22:50.574900+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-13
+2016-06-23 13:22:50.676436+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS13/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:50.679520+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS13/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:50.683646+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS13/endhost/certs/ISD1-AS13-V0.crt
+2016-06-23 13:22:50.686044+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.686254+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.687507+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-13 (IPV4) 127.0.0.2):1057
+2016-06-23 13:22:50.699411+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-13.sock
+2016-06-23 13:22:50.719985+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-13.sock
+2016-06-23 13:22:50.733084+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.733335+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.733947+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-13 (IPV4) 127.0.0.2):1058
+2016-06-23 13:22:50.734531+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.100:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-13 (IPV4) 127.0.0.2)> Dst:<(1-13 (IPV4) 127.0.0.100)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1058 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-13v0
+2016-06-23 13:22:50.740644+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(455B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 455B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-13 (IPV4) 127.0.0.100)> Dst:<(1-13 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1058 length: 431B checksum: e2d2
+  Payload:
+    CertChainReply: ISD-AS: 1-13 Version: 0
+2016-06-23 13:22:50.741283+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:50.741644+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.100:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-13 (IPV4) 127.0.0.2)> Dst:<(1-13 (IPV4) 127.0.0.100)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1058 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:50.749525+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-13 (IPV4) 127.0.0.100)> Dst:<(1-13 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1058 length: 1658B checksum: 177f
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:50.751945+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:50.752185+00:00 [INFO] (CertReqTest) Testing: 2-23
+2016-06-23 13:22:50.752494+00:00 [DEBUG] (CertReqTest) Starting sciond for 2-23
+2016-06-23 13:22:50.866796+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS23/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:50.879201+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS23/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:50.879795+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS23/endhost/certs/ISD2-AS23-V0.crt
+2016-06-23 13:22:50.880239+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.880421+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.882399+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-23 (IPV4) 127.0.0.2):1059
+2016-06-23 13:22:50.913745+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_2-23.sock
+2016-06-23 13:22:50.935335+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_2-23.sock
+2016-06-23 13:22:50.944354+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:50.944619+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:50.945692+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-23 (IPV4) 127.0.0.2):1060
+2016-06-23 13:22:50.946265+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.226:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-23 (IPV4) 127.0.0.2)> Dst:<(2-23 (IPV4) 127.0.0.226)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1060 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 2-23v0
+2016-06-23 13:22:50.951293+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(459B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 459B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-23 (IPV4) 127.0.0.226)> Dst:<(2-23 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1060 length: 435B checksum: 867c
+  Payload:
+    CertChainReply: ISD-AS: 2-23 Version: 0
+2016-06-23 13:22:50.952039+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:50.952428+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.226:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-23 (IPV4) 127.0.0.2)> Dst:<(2-23 (IPV4) 127.0.0.226)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1060 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 2v0
+2016-06-23 13:22:50.960632+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1333B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1333B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-23 (IPV4) 127.0.0.226)> Dst:<(2-23 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1060 length: 1309B checksum: 9225
+  Payload:
+    TRCReply: ISD: 2 version: 0 TRC: {
+        "core_ases": {
+            "2-21": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIjltMFRWY1ZaYzY5Z25YemU2Yjk0eHFVM0FWYWJCYkRic0ZPWDdKMG95MnQ0dXEzb1kyM2FyYVB1bTB0aXZTMDdPY0YzZGN2b2I0bk1EbkgyU1JsTENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIk1nREc5bk1aZjRCNHAwVHpCRFA3NlBaRVNhelNTdGZ3T050OWpBNHI0Z2c9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiMmtXbVdTUWY2QzN3WDNGN2NUZHRocnovczhFZ3lpZGgwbXN2VnRzWlZHTT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "2-22": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIkc5enI1ei9XRjRML2dsZThOVW9PVmFjNFZzK3d5Wjh2aGpLYkEwb0dVbjVpbkZqUXpWV1UxU2VMVkMyMnJtSmZaVmI5QWRXS3VRQy9jdWxUNTBNZENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkEydTRXTHMycjBaSWQ0Nk8vTXBsRlpEMXkrSW5tbCtDb2JMQ2VsdVg0dE09IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiS3cwZk84c0xjdnF6ZlhEK3NXRERDbEVEN0ljODQwZGlGNFE2UU0za0hMdz0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 2,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "2-21": "d0aw9EHy38rF8g1LztqxdyVhQF45aTvyMjSdgxdVetVg8Z+RBGqww/pPea2NOnc5a8+NoiB9ZSkS6kVfQ0E2Bg==",
+            "2-22": "WJr1Mx6GW8I5B2TnvwxfAxMlKi8ZeyKFI4OIGdjdX/qBzrbQvTGXLSu1XqFxGm0f5zrwLMj/Z3P0/ceu/ln1DA=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:50.963492+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:50.963982+00:00 [INFO] (CertReqTest) Testing: 1-16
+2016-06-23 13:22:50.964297+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-16
+2016-06-23 13:22:51.061293+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS16/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:51.061751+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS16/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:51.063107+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS16/endhost/certs/ISD1-AS16-V0.crt
+2016-06-23 13:22:51.063491+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.063662+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.068907+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-16 (IPV4) 127.0.0.2):1061
+2016-06-23 13:22:51.089868+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-16.sock
+2016-06-23 13:22:51.160053+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-16.sock
+2016-06-23 13:22:51.179631+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.179862+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.180940+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-16 (IPV4) 127.0.0.2):1062
+2016-06-23 13:22:51.181525+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.150:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.2)> Dst:<(1-16 (IPV4) 127.0.0.150)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1062 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-16v0
+2016-06-23 13:22:51.191011+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(459B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 459B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.150)> Dst:<(1-16 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1062 length: 435B checksum: ac78
+  Payload:
+    CertChainReply: ISD-AS: 1-16 Version: 0
+2016-06-23 13:22:51.194781+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:51.196122+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.150:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.2)> Dst:<(1-16 (IPV4) 127.0.0.150)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1062 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:51.201871+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.150)> Dst:<(1-16 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1062 length: 1658B checksum: df7a
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:51.205304+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:51.205791+00:00 [INFO] (CertReqTest) Testing: 1-10
+2016-06-23 13:22:51.206103+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-10
+2016-06-23 13:22:51.294635+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS10/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:51.295212+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS10/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:51.295714+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS10/endhost/certs/ISD1-AS10-V0.crt
+2016-06-23 13:22:51.296112+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.296281+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.301373+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-10 (IPV4) 127.0.0.2):1063
+2016-06-23 13:22:51.351462+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-10.sock
+2016-06-23 13:22:51.381546+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-10.sock
+2016-06-23 13:22:51.399365+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.399593+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.400235+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-10 (IPV4) 127.0.0.2):1064
+2016-06-23 13:22:51.400781+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.50:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-10 (IPV4) 127.0.0.2)> Dst:<(1-10 (IPV4) 127.0.0.50)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1064 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-10v0
+2016-06-23 13:22:51.408045+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(900B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 900B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-10 (IPV4) 127.0.0.50)> Dst:<(1-10 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1064 length: 876B checksum: 6393
+  Payload:
+    CertChainReply: ISD-AS: 1-10 Version: 0
+2016-06-23 13:22:51.408684+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:51.409067+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.50:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-10 (IPV4) 127.0.0.2)> Dst:<(1-10 (IPV4) 127.0.0.50)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1064 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:51.420306+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-10 (IPV4) 127.0.0.50)> Dst:<(1-10 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1064 length: 1658B checksum: 4f79
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:51.422715+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:51.422965+00:00 [INFO] (CertReqTest) Testing: 2-25
+2016-06-23 13:22:51.425680+00:00 [DEBUG] (CertReqTest) Starting sciond for 2-25
+2016-06-23 13:22:51.482450+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS25/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:51.482891+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS25/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:51.483375+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD2/AS25/endhost/certs/ISD2-AS25-V0.crt
+2016-06-23 13:22:51.483761+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.507613+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.523929+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-25 (IPV4) 127.0.0.2):1065
+2016-06-23 13:22:51.535992+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_2-25.sock
+2016-06-23 13:22:51.561244+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_2-25.sock
+2016-06-23 13:22:51.575628+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.575869+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.576737+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (2-25 (IPV4) 127.0.0.2):1066
+2016-06-23 13:22:51.577285+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.170:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-25 (IPV4) 127.0.0.2)> Dst:<(2-25 (IPV4) 127.0.0.170)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1066 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 2-25v0
+2016-06-23 13:22:51.583322+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(677B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 677B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-25 (IPV4) 127.0.0.170)> Dst:<(2-25 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1066 length: 653B checksum: 5c09
+  Payload:
+    CertChainReply: ISD-AS: 2-25 Version: 0
+2016-06-23 13:22:51.584063+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:51.584435+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.170:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-25 (IPV4) 127.0.0.2)> Dst:<(2-25 (IPV4) 127.0.0.170)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1066 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 2v0
+2016-06-23 13:22:51.595728+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1333B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1333B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-25 (IPV4) 127.0.0.170)> Dst:<(2-25 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1066 length: 1309B checksum: c61f
+  Payload:
+    TRCReply: ISD: 2 version: 0 TRC: {
+        "core_ases": {
+            "2-21": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIjltMFRWY1ZaYzY5Z25YemU2Yjk0eHFVM0FWYWJCYkRic0ZPWDdKMG95MnQ0dXEzb1kyM2FyYVB1bTB0aXZTMDdPY0YzZGN2b2I0bk1EbkgyU1JsTENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIk1nREc5bk1aZjRCNHAwVHpCRFA3NlBaRVNhelNTdGZ3T050OWpBNHI0Z2c9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiMmtXbVdTUWY2QzN3WDNGN2NUZHRocnovczhFZ3lpZGgwbXN2VnRzWlZHTT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "2-22": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjItMjIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIkc5enI1ei9XRjRML2dsZThOVW9PVmFjNFZzK3d5Wjh2aGpLYkEwb0dVbjVpbkZqUXpWV1UxU2VMVkMyMnJtSmZaVmI5QWRXS3VRQy9jdWxUNTBNZENRPT0iLAogICAgInN1YmplY3QiOiAiMi0yMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkEydTRXTHMycjBaSWQ0Nk8vTXBsRlpEMXkrSW5tbCtDb2JMQ2VsdVg0dE09IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiS3cwZk84c0xjdnF6ZlhEK3NXRERDbEVEN0ljODQwZGlGNFE2UU0za0hMdz0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 2,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "2-21": "d0aw9EHy38rF8g1LztqxdyVhQF45aTvyMjSdgxdVetVg8Z+RBGqww/pPea2NOnc5a8+NoiB9ZSkS6kVfQ0E2Bg==",
+            "2-22": "WJr1Mx6GW8I5B2TnvwxfAxMlKi8ZeyKFI4OIGdjdX/qBzrbQvTGXLSu1XqFxGm0f5zrwLMj/Z3P0/ceu/ln1DA=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:51.598635+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:51.599676+00:00 [INFO] (CertReqTest) Testing: 1-15
+2016-06-23 13:22:51.600006+00:00 [DEBUG] (CertReqTest) Starting sciond for 1-15
+2016-06-23 13:22:51.726226+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS15/endhost/certs/ISD1-V0.trc
+2016-06-23 13:22:51.726722+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS15/endhost/certs/ISD2-V0.trc
+2016-06-23 13:22:51.727235+00:00 [DEBUG] (CertReqTest) Loaded: gen/ISD1/AS15/endhost/certs/ISD1-AS15-V0.crt
+2016-06-23 13:22:51.727624+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.727791+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.731187+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-15 (IPV4) 127.0.0.2):1067
+2016-06-23 13:22:51.741897+00:00 [DEBUG] (CertReqTest) sciond bound to /run/shm/sciond/CertReqTest_1-15.sock
+2016-06-23 13:22:51.751344+00:00 [DEBUG] (CertReqTest) sciond started with api_addr = /run/shm/sciond/CertReqTest_1-15.sock
+2016-06-23 13:22:51.766307+00:00 [DEBUG] (CertReqTest) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:51.766549+00:00 [DEBUG] (CertReqTest) Attempt connect
+2016-06-23 13:22:51.769281+00:00 [DEBUG] (CertReqTest) Registered to dispatcher for addr (1-15 (IPV4) 127.0.0.2):1068
+2016-06-23 13:22:51.769872+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.130:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.2)> Dst:<(1-15 (IPV4) 127.0.0.130)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1068 dport: 30040 length: 8B checksum: 
+  Payload:
+    CertChainRequest: 1-15v0
+2016-06-23 13:22:51.792614+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(457B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 457B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.130)> Dst:<(1-15 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1068 length: 433B checksum: 1e91
+  Payload:
+    CertChainReply: ISD-AS: 1-15 Version: 0
+2016-06-23 13:22:51.793275+00:00 [DEBUG] (CertReqTest) Cert query success
+2016-06-23 13:22:51.793643+00:00 [DEBUG] (CertReqTest) Sending (via 127.0.0.130:30041):
+SCIONL4Packet(32B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 32B, IOF idx: None, HOF idx: None, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.2)> Dst:<(1-15 (IPV4) 127.0.0.130)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1068 dport: 30040 length: 8B checksum: 
+  Payload:
+    TRCRequest: 1v0
+2016-06-23 13:22:51.799861+00:00 [DEBUG] (CertReqTest) Got:
+SCIONL4Packet(1682B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1682B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.130)> Dst:<(1-15 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30040 dport: 1068 length: 1658B checksum: f574
+  Payload:
+    TRCReply: ISD: 1 version: 0 TRC: {
+        "core_ases": {
+            "1-11": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTEiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogIk1xbDhtTld3MExsNjlkZFcrMGtzczFsc053L2lBd2ZnL05HK1dVUW9Fb2NvTjZaSlp2cE5XT2hsODNRVXVpbVJHNWVienRFZ3ZsbldKWnN1TG05ZEJ3PT0iLAogICAgInN1YmplY3QiOiAiMS0xMSIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIlk5Y2JQWGFhL2thZWlRRllDK2tsOUNLNTg2ZXkzT051RE9hQkJ2enJyNzg9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAidnFlbDM2TlVRQ25JL1NXcWdwMU5EVnpTazQ5Z3BqK1ptdzM0eDhod2FJZz0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-12": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTIiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogImRoZGxtUTB3NUxVLzZQVjlxaTNoSkxLUE5ENHpZUnBKRjBudmRuQ054TTVmbUkwUEFuUzZoMkNSbFRvV3VVRFgyOXh5SkU5aWtGYndQeVdsWmZtbERRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMiIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkE0ZG9nSGVLMVhQdGxBc2tEOU1mdWhqNDRMaEVOUVJsakV2YkRWNlk5dmM9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAiT2FBbXE2bnNXMEhXUHNOZkVDRmhXZlM2Q1pZbytGOVpDMkN6aEVadEtjQT0iLAogICAgInZlcnNpb24iOiAwCn0=",
+            "1-13": "ewogICAgImVuY19hbGdvcml0aG0iOiAiY3VydmUyNTUxOXhzYWxzYTIwcG9seTEzMDUiLAogICAgImV4cGlyYXRpb25fdGltZSI6IDE0OTgyMjM5ODIsCiAgICAiaXNzdWVyIjogIjEtMTMiLAogICAgImlzc3VpbmdfdGltZSI6IDE0NjY2ODc5ODIsCiAgICAic2lnbl9hbGdvcml0aG0iOiAiZWQyNTUxOSIsCiAgICAic2lnbmF0dXJlIjogInAyQXE1dHZWVFdDdms0WTF2OW0rREc1c21VQkxwdGhUOTBDVWRCTHJML0FQeXJPNUdHNDBWMzlPZHZrMkdZVmsxTVkvS1ViWDZqVmQ1Uk5aQ0pWM0JRPT0iLAogICAgInN1YmplY3QiOiAiMS0xMyIsCiAgICAic3ViamVjdF9lbmNfa2V5IjogIkpoYitQOW41VldMbGp1WDlLNEVQUFZ2Ty9WNUdYcUhuUGpFKzRXTW4yN3M9IiwKICAgICJzdWJqZWN0X3NpZ19rZXkiOiAibnFPRnZaWkVwVmd4a1pycVplbUN6eTY2TjZ5UlR5Rm9QdGJrVU53bmZ4QT0iLAogICAgInZlcnNpb24iOiAwCn0="
+        },
+        "core_isps": {
+            "isp.com": "isp.com_cert_base64"
+        },
+        "core_quorum": 1,
+        "isd": 1,
+        "policies": {},
+        "registry_server_addr": "reg_srv_addr",
+        "registry_server_cert": "reg_srv_cert",
+        "root_cas": {
+            "ca.com": "ca.com_cert_base64"
+        },
+        "root_dns_server_addr": "dns_srv_addr",
+        "root_dns_server_cert": "dns_srv_cert",
+        "signatures": {
+            "1-11": "RYQIMyzMfE7JzcNMmPsyG8U7z1vlWWRwbcISQHq5JS49nqE1DCEw3fg/CU7EnT25jwYuVZR2vvKv2f3p9bZqBw==",
+            "1-12": "72UJrvmOMtsaqhBp9XLW3dewzL7hdwvcmfwjOz8A1mhSGM5lCruyFZ3gsURbCRCYoBONflYW4HaOx0rpwBsMCw==",
+            "1-13": "te248PRdoFKfepHrmWVO6I6FsXFyqMidf6YGc6jGtUnv6sOdc/SLne22BspRdZZ2Pow6jeBkYrlvZ7lDdJ8uCQ=="
+        },
+        "time": 1466687982,
+        "trc_quorum": 1,
+        "trc_server_addr": "trc_srv_addr",
+        "version": 0
+    }
+2016-06-23 13:22:51.802446+00:00 [DEBUG] (CertReqTest) TRC query success
+2016-06-23 13:22:59.556513+00:00 [INFO] (CertReqTest) All tests successful

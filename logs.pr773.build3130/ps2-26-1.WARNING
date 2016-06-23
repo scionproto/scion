@@ -1,0 +1,17 @@
+2016-06-23 13:23:05.697339+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:08.534847+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.835s (should have been <= 1.000s)
+2016-06-23 13:23:09.631608+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.096s (should have been <= 1.000s)
+2016-06-23 13:23:15.640825+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:21.729320+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 5.088s (should have been <= 1.000s)
+2016-06-23 13:23:27.807697+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:27.809066+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:27.809422+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.076s (should have been <= 1.000s)
+2016-06-23 13:23:27.809860+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:31.905991+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.095s (should have been <= 1.000s)
+2016-06-23 13:23:38.941340+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.027s (should have been <= 1.000s)
+2016-06-23 13:23:40.499463+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:41.006043+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.063s (should have been <= 1.000s)
+2016-06-23 13:23:45.869383+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.839s (should have been <= 1.000s)
+2016-06-23 13:23:55.107473+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:57.221658+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.345s (should have been <= 1.000s)
+2016-06-23 13:25:04.544972+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection

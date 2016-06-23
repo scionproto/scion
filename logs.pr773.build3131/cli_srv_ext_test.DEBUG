@@ -1,0 +1,50 @@
+2016-06-23 13:39:12.447655+00:00 [INFO] (CliSrvExt 2-21 > 1-13 main) Testing: 2-21 -> 1-13
+2016-06-23 13:39:12.448055+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Starting sciond for 1-13
+2016-06-23 13:39:12.820047+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Loaded: gen/ISD1/AS13/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:12.820502+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Loaded: gen/ISD1/AS13/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:12.821091+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Loaded: gen/ISD1/AS13/endhost/certs/ISD1-AS13-V0.crt
+2016-06-23 13:39:12.840946+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.841300+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Attempt connect
+2016-06-23 13:39:12.842540+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Registered to dispatcher for addr (1-13 (IPV4) 127.0.0.3):1031
+2016-06-23 13:39:12.864150+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) sciond bound to /run/shm/sciond/CliSrvExt_1-13.sock
+2016-06-23 13:39:12.888028+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) sciond started with api_addr = /run/shm/sciond/CliSrvExt_1-13.sock
+2016-06-23 13:39:12.888365+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.888531+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Attempt connect
+2016-06-23 13:39:12.889092+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Registered to dispatcher for addr (1-13 (IPV4) 127.0.0.3):1033
+2016-06-23 13:39:12.889471+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Starting sciond for 2-21
+2016-06-23 13:39:13.171829+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Loaded: gen/ISD2/AS21/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:13.172324+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Loaded: gen/ISD2/AS21/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:13.172775+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Loaded: gen/ISD2/AS21/endhost/certs/ISD2-AS21-V0.crt
+2016-06-23 13:39:13.173154+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:13.173329+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Attempt connect
+2016-06-23 13:39:13.242144+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Registered to dispatcher for addr (2-21 (IPV4) 127.0.0.2):1038
+2016-06-23 13:39:13.277695+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) sciond bound to /run/shm/sciond/CliSrvExt_2-21.sock
+2016-06-23 13:39:13.325397+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) sciond started with api_addr = /run/shm/sciond/CliSrvExt_2-21.sock
+2016-06-23 13:39:13.325824+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:13.325991+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Attempt connect
+2016-06-23 13:39:13.326791+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Registered to dispatcher for addr (2-21 (IPV4) 127.0.0.2):1040
+2016-06-23 13:39:13.327108+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Sending path request to local API at /run/shm/sciond/CliSrvExt_2-21.sock
+2016-06-23 13:39:13.338028+00:00 [DEBUG] (SCIONDaemon.run 2-21) API: path request
+2016-06-23 13:39:13.354757+00:00 [DEBUG] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Paths requested for 1-13 ()
+2016-06-23 13:39:13.411698+00:00 [DEBUG] (SCIONDaemon Requests 2-21) Sending path request: (srcIA = "2-21", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:39:18.355238+00:00 [ERROR] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Query timed out for 1-13
+2016-06-23 13:39:18.355861+00:00 [DEBUG] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Replying to api request for 1-13 with 0 paths
+2016-06-23 13:39:18.356228+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Empty response from local api.
+2016-06-23 13:39:18.356402+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Sending path request to local API at /run/shm/sciond/CliSrvExt_2-21.sock
+2016-06-23 13:39:18.356800+00:00 [DEBUG] (SCIONDaemon.run 2-21) API: path request
+2016-06-23 13:39:18.376936+00:00 [DEBUG] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Paths requested for 1-13 ()
+2016-06-23 13:39:23.377730+00:00 [ERROR] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Query timed out for 1-13
+2016-06-23 13:39:23.378337+00:00 [DEBUG] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Replying to api request for 1-13 with 0 paths
+2016-06-23 13:39:23.378711+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Empty response from local api.
+2016-06-23 13:39:23.378870+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Sending path request to local API at /run/shm/sciond/CliSrvExt_2-21.sock
+2016-06-23 13:39:23.380795+00:00 [DEBUG] (SCIONDaemon.run 2-21) API: path request
+2016-06-23 13:39:23.394306+00:00 [DEBUG] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Paths requested for 1-13 ()
+2016-06-23 13:39:23.394791+00:00 [DEBUG] (SCIONDaemon Requests 2-21) Expired 2 requests for (ISD_AS(isd=1, as=13), ())
+2016-06-23 13:39:23.395165+00:00 [DEBUG] (SCIONDaemon Requests 2-21) Sending path request: (srcIA = "2-21", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:39:28.397860+00:00 [ERROR] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Query timed out for 1-13
+2016-06-23 13:39:28.398235+00:00 [DEBUG] (SCIONDaemon API id:139994366723840 2-21 -> 1-13) Replying to api request for 1-13 with 0 paths
+2016-06-23 13:39:28.398462+00:00 [DEBUG] (CliSrvExt 2-21 > 1-13 main) Empty response from local api.
+2016-06-23 13:39:28.398612+00:00 [CRITICAL] (CliSrvExt 2-21 > 1-13 main) Unable to get path from local api.
+2016-06-23 13:39:28.399249+00:00 [ERROR] (CliSrvExt 2-21 > 1-13 main) Received SIGUSR2
+2016-06-23 13:39:28.399653+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:39:28.940212+00:00 [INFO] (CliSrvExt 2-21 > 1-13 main) Exiting

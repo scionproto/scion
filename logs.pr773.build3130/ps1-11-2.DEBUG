@@ -1,0 +1,1030 @@
+2016-06-23 13:22:26.817100+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/ps1-11-2/certs/ISD1-V0.trc
+2016-06-23 13:22:26.817707+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/ps1-11-2/certs/ISD2-V0.trc
+2016-06-23 13:22:26.818460+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/ps1-11-2/certs/ISD1-AS11-V0.crt
+2016-06-23 13:22:26.818928+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:26.819353+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:22:26.831002+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-11 (IPV4) 127.0.0.75):30040
+2016-06-23 13:22:26.883431+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:27.097496+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:22:27.097711+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:22:27.098146+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:22:27.098320+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530045)
+2016-06-23 13:22:27.102525+00:00 [DEBUG] (MainThread) ZK connection available after 0.00s
+2016-06-23 13:22:27.117938+00:00 [DEBUG] (MainThread) Current party (/1-11/ps/party) members are: ['ps1-11-2']
+2016-06-23 13:22:27.118213+00:00 [INFO] (MainThread) Started ps1-11-2
+2016-06-23 13:22:28.139453+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:22:28.141120+00:00 [DEBUG] (PS.worker) New master is: 127.0.0.75
+2016-06-23 13:22:28.141470+00:00 [DEBUG] (PS.worker) Syncing with 127.0.0.75
+2016-06-23 13:22:43.149258+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/rev_cache
+2016-06-23 13:22:46.721705+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: d88f6cbb952f, 2016-06-23 13:22:45+00:00, 2-21 > 1-11
+2016-06-23 13:22:46.722460+00:00 [INFO] (MainThread) Core-Segment registered: d88f6cbb952f, 2016-06-23 13:22:45+00:00, 2-21 > 1-11
+2016-06-23 13:22:47.550807+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: d88f6cbb952f, 2016-06-23 13:22:45+00:00, 2-21 > 1-11
+  SibraPCBExt: id: 0010000b571f4633 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:44+00:00
+2016-06-23 13:22:47.551607+00:00 [INFO] (MainThread) Core-Segment registered: d88f6cbb952f, 2016-06-23 13:22:45+00:00, 2-21 > 1-11
+  SibraPCBExt: id: 0010000b571f4633 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:44+00:00
+2016-06-23 13:22:51.154709+00:00 [DEBUG] (PS.worker) Added segment from 1-11 to 1-14: f8d1ed03e591, 2016-06-23 13:22:46+00:00, 1-11 > 1-14
+2016-06-23 13:22:51.157063+00:00 [INFO] (PS.worker) Down-Segment registered: f8d1ed03e591, 2016-06-23 13:22:46+00:00, 1-11 > 1-14
+2016-06-23 13:22:51.160529+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:22:51.160746+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:22:51.163911+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:22:51.164621+00:00 [WARNING] (PS.worker) Segment to AS 1-12 not found.
+2016-06-23 13:22:51.165194+00:00 [WARNING] (PS.worker) Segment to AS 1-13 not found.
+2016-06-23 13:22:52.156298+00:00 [DEBUG] (PS.worker) Added segment from 1-11 to 1-17: 40b7f17cac80, 2016-06-23 13:22:46+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:52.157304+00:00 [INFO] (PS.worker) Down-Segment registered: 40b7f17cac80, 2016-06-23 13:22:46+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:52.158307+00:00 [DEBUG] (PS.worker) Added segment from 1-11 to 1-14: f8d1ed03e591, 2016-06-23 13:22:46+00:00, 1-11 > 1-14
+  SibraPCBExt: id: 0010000e3e7a7403 (owner: 1-14) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:48+00:00
+2016-06-23 13:22:52.163201+00:00 [INFO] (PS.worker) Down-Segment registered: f8d1ed03e591, 2016-06-23 13:22:46+00:00, 1-11 > 1-14
+  SibraPCBExt: id: 0010000e3e7a7403 (owner: 1-14) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:48+00:00
+2016-06-23 13:22:52.163606+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:22:52.163778+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:22:52.165910+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:22:52.167338+00:00 [WARNING] (PS.worker) Segment to AS 1-12 not found.
+2016-06-23 13:22:52.168139+00:00 [WARNING] (PS.worker) Segment to AS 1-13 not found.
+2016-06-23 13:22:52.720029+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-11: f5998b8a9973, 2016-06-23 13:22:50+00:00, 1-13 > 1-11
+2016-06-23 13:22:52.720761+00:00 [INFO] (MainThread) Core-Segment registered: f5998b8a9973, 2016-06-23 13:22:50+00:00, 1-13 > 1-11
+2016-06-23 13:22:53.154500+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:22:50+00:00, 2-21 > 1-11
+2016-06-23 13:22:53.159248+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-11/ps/rev_cache
+2016-06-23 13:22:53.162761+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:55.158274+00:00 [DEBUG] (PS.worker) Added segment from 1-13 to 1-11: f5998b8a9973, 2016-06-23 13:22:50+00:00, 1-13 > 1-11
+  SibraPCBExt: id: 0010000b34443cb6 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.159094+00:00 [INFO] (PS.worker) Core-Segment registered: f5998b8a9973, 2016-06-23 13:22:50+00:00, 1-13 > 1-11
+  SibraPCBExt: id: 0010000b34443cb6 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.159438+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:22:55.159615+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:22:55.392783+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-16: 58b02717ad61, 2016-06-23 13:22:50+00:00, 1-13 > 1-16
+2016-06-23 13:22:55.393635+00:00 [INFO] (MainThread) Down-Segment registered: 58b02717ad61, 2016-06-23 13:22:50+00:00, 1-13 > 1-16
+2016-06-23 13:22:56.161189+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:22:52+00:00, 1-11 > 1-14
+2016-06-23 13:22:56.161460+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:22:56.161641+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:22:56.165926+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:56.171827+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:22:56.172489+00:00 [WARNING] (PS.worker) Segment to AS 1-12 not found.
+2016-06-23 13:22:57.160695+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:22:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:57.161919+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:22:52+00:00, 1-13 > 1-11
+  SibraPCBExt: id: 0010000d647e1c64 (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:57.162099+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:22:57.162271+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:22:57.164955+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:22:57.165557+00:00 [WARNING] (PS.worker) Segment to AS 1-12 not found.
+2016-06-23 13:22:57.525437+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 31692ad2778c, 2016-06-23 13:22:52+00:00, 2-22 > 2-21 > 1-11
+  SibraPCBExt: id: 002000164af38006 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:57.526871+00:00 [INFO] (MainThread) Core-Segment registered: 31692ad2778c, 2016-06-23 13:22:52+00:00, 2-22 > 2-21 > 1-11
+  SibraPCBExt: id: 002000164af38006 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:57.728720+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-11: 74cb4dbc1395, 2016-06-23 13:22:53+00:00, 1-12 > 1-11
+2016-06-23 13:22:57.729456+00:00 [INFO] (MainThread) Core-Segment registered: 74cb4dbc1395, 2016-06-23 13:22:53+00:00, 1-12 > 1-11
+2016-06-23 13:22:57.735973+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-11: 0304fefb6cd6, 2016-06-23 13:22:53+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:22:57.736836+00:00 [INFO] (MainThread) Core-Segment registered: 0304fefb6cd6, 2016-06-23 13:22:53+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:22:57.741065+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 31692ad2778c, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:22:57.741898+00:00 [INFO] (MainThread) Core-Segment registered: 31692ad2778c, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:22:57.746451+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:22:55+00:00, 1-13 > 1-11
+2016-06-23 13:22:58.157345+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:22:55+00:00, 2-21 > 1-11
+2016-06-23 13:22:58.161762+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:22:58.414680+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-11: 74cb4dbc1395, 2016-06-23 13:22:53+00:00, 1-12 > 1-11
+  SibraPCBExt: id: 0010000b5a552468 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:58.416116+00:00 [INFO] (MainThread) Core-Segment registered: 74cb4dbc1395, 2016-06-23 13:22:53+00:00, 1-12 > 1-11
+  SibraPCBExt: id: 0010000b5a552468 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:58.503606+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11
+  SibraPCBExt: id: 0010000b92a5b10c (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:59.167306+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:59.174643+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:22:52+00:00, 2-21 > 1-11
+  SibraPCBExt: id: 0020001531f1b544 (owner: 2-21) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:23:00.640429+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:22:55+00:00, 1-13 > 1-16
+2016-06-23 13:23:00.641278+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-19: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:00.642168+00:00 [INFO] (MainThread) Down-Segment registered: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:01.183752+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:22:57+00:00, 1-11 > 1-14
+2016-06-23 13:23:01.184680+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:22:57+00:00, 1-12 > 1-11
+  SibraPCBExt: id: 0010000c7f789c0b (owner: 1-12) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:23:01.184854+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:23:01.185029+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:01.200393+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:01.213649+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:01.406350+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-19: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+  SibraPCBExt: id: 001000138b280f8d (owner: 1-19) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:01.408408+00:00 [INFO] (MainThread) Down-Segment registered: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+  SibraPCBExt: id: 001000138b280f8d (owner: 1-19) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:01.482115+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "2-0", flags = (sibra = false))
+2016-06-23 13:23:01.483850+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-11 (IPV4) 127.0.0.76) port:30040 in response to: (srcIA = "1-11", dstIA = "2-0", flags = (sibra = false))
+2016-06-23 13:23:01.546546+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:23:01.547940+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(1-11 (IPV4) 127.0.0.2) port:1077 in response to: (srcIA = "1-11", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:23:01.937584+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:23:01.938035+00:00 [DEBUG] (MainThread) I'm master, query abandoned.
+2016-06-23 13:23:01.938195+00:00 [DEBUG] (MainThread) Segs to 1-18 not found.
+2016-06-23 13:23:02.171329+00:00 [DEBUG] (PS.worker) Added segment from 1-12 to 1-18: 68a3ddf641ee, 2016-06-23 13:22:53+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:02.172394+00:00 [INFO] (PS.worker) Down-Segment registered: 68a3ddf641ee, 2016-06-23 13:22:53+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:02.175319+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:22:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:02.175544+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:23:02.175714+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:02.267589+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:02.284735+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:03.183168+00:00 [DEBUG] (PS.worker) Added segment from 1-12 to 1-18: 68a3ddf641ee, 2016-06-23 13:22:53+00:00, 1-12 > 1-15 > 1-18
+  SibraPCBExt: id: 001000126eea279e (owner: 1-18) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:03.184178+00:00 [INFO] (PS.worker) Down-Segment registered: 68a3ddf641ee, 2016-06-23 13:22:53+00:00, 1-12 > 1-15 > 1-18
+  SibraPCBExt: id: 001000126eea279e (owner: 1-18) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:03.184510+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:23:03.184681+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:03.322472+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: 2a0f21f6d943, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:03.325623+00:00 [INFO] (MainThread) Core-Segment registered: 2a0f21f6d943, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:03.477230+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 98e36b196940, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:03.478062+00:00 [INFO] (MainThread) Core-Segment registered: 98e36b196940, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:03.478949+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:22:56+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:03.517160+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 468fdf5291a8, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:03.518101+00:00 [INFO] (MainThread) Core-Segment registered: 468fdf5291a8, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:03.519224+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:23:00+00:00, 2-21 > 1-11
+2016-06-23 13:23:03.520251+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: 0d1b1cb74889, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:03.521338+00:00 [INFO] (MainThread) Core-Segment registered: 0d1b1cb74889, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:03.660646+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-10: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:03.662062+00:00 [INFO] (MainThread) Down-Segment registered: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:04.179986+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:22:58+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:04.180794+00:00 [DEBUG] (PS.worker) Added segment from 1-13 to 1-11: e9c9d04f124f, 2016-06-23 13:22:55+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:04.181575+00:00 [INFO] (PS.worker) Core-Segment registered: e9c9d04f124f, 2016-06-23 13:22:55+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:04.182405+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:22:58+00:00, 1-12 > 1-11
+2016-06-23 13:23:04.200625+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:00+00:00, 1-13 > 1-11
+2016-06-23 13:23:04.200887+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:23:04.201065+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:04.231511+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:04.456569+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-16: 58b02717ad61, 2016-06-23 13:22:55+00:00, 1-13 > 1-16
+  SibraPCBExt: id: 00100010da5aaa7d (owner: 1-16) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:04.457397+00:00 [INFO] (MainThread) Down-Segment registered: 58b02717ad61, 2016-06-23 13:22:55+00:00, 1-13 > 1-16
+  SibraPCBExt: id: 00100010da5aaa7d (owner: 1-16) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:05.382091+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:23:05.758949+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:05.760129+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.382300+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:05.807461+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:05.840184+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:05.845117+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:05.847312+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:06.169592+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:07.352710+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:23:07.354423+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:23:07.924830+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:23:07.925205+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:07.925370+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:07.953738+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:00+00:00, 1-13 > 1-16
+2016-06-23 13:23:07.954797+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-10: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+  SibraPCBExt: id: 0010000a62d77df5 (owner: 1-10) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:04+00:00
+2016-06-23 13:23:07.955915+00:00 [INFO] (MainThread) Down-Segment registered: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+  SibraPCBExt: id: 0010000a62d77df5 (owner: 1-10) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:04+00:00
+2016-06-23 13:23:08.546992+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:23:08.547376+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:08.547544+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300b2)
+2016-06-23 13:23:08.636039+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:09.293051+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:09.297190+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:00+00:00, 1-13 > 1-11
+2016-06-23 13:23:09.336506+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:00+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:09.337810+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:09.346613+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:09.515600+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:23:10.114143+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:00+00:00, 1-13 > 1-16
+2016-06-23 13:23:10.228724+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "2-21", flags = (sibra = false))
+2016-06-23 13:23:10.230283+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "2-21", flags = (sibra = false))
+2016-06-23 13:23:12.558104+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 6)
+2016-06-23 13:23:12.863199+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 7)
+2016-06-23 13:23:13.360027+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-3']
+2016-06-23 13:23:13.360309+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:13.360466+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:13.360721+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:13.360880+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:13.361125+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:13.361297+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300d4)
+2016-06-23 13:23:13.361658+00:00 [DEBUG] (PS.worker) ZK connection available after 7.19s
+2016-06-23 13:23:13.361837+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:13.379435+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:13.517483+00:00 [DEBUG] (PS.worker) New master is: 127.0.0.76
+2016-06-23 13:23:13.518206+00:00 [DEBUG] (PS.worker) Syncing with 127.0.0.76
+2016-06-23 13:23:13.519079+00:00 [INFO] (PS.worker) Sharing 7 segment(s) via ZK
+2016-06-23 13:23:13.530389+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:13.531448+00:00 [INFO] (PS.worker) Propagating 11 segment(s) to master PS
+2016-06-23 13:23:13.540114+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 7.371s (should have been <= 1.000s)
+2016-06-23 13:23:13.540558+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:13.656997+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:23:13.657282+00:00 [DEBUG] (PS.worker) ZK connection available after 0.12s
+2016-06-23 13:23:13.841254+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:22:58+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:13.842008+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:08+00:00, 1-11 > 1-14
+2016-06-23 13:23:13.843101+00:00 [DEBUG] (PS.worker) Added segment from 1-12 to 1-15: 4ffce3004a6b, 2016-06-23 13:22:58+00:00, 1-12 > 1-15
+2016-06-23 13:23:13.843845+00:00 [INFO] (PS.worker) Down-Segment registered: 4ffce3004a6b, 2016-06-23 13:22:58+00:00, 1-12 > 1-15
+2016-06-23 13:23:13.851662+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:13.852488+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:22:58+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:13.853283+00:00 [DEBUG] (PS.worker) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:13.854088+00:00 [DEBUG] (PS.worker) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:13.854830+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:23:09+00:00, 1-12 > 1-15
+2016-06-23 13:23:13.855709+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:22:58+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:13.857063+00:00 [DEBUG] (PS.worker) Added segment from 1-12 to 1-15: 4ffce3004a6b, 2016-06-23 13:22:58+00:00, 1-12 > 1-15
+  SibraPCBExt: id: 0010000f6e09a6a0 (owner: 1-15) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:08+00:00
+2016-06-23 13:23:13.858174+00:00 [INFO] (PS.worker) Down-Segment registered: 4ffce3004a6b, 2016-06-23 13:22:58+00:00, 1-12 > 1-15
+  SibraPCBExt: id: 0010000f6e09a6a0 (owner: 1-15) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:08+00:00
+2016-06-23 13:23:13.858894+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:08+00:00, 1-11 > 1-14
+2016-06-23 13:23:13.859534+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:23:03+00:00, 1-12 > 1-11
+2016-06-23 13:23:13.895534+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:22:58+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:13.895807+00:00 [DEBUG] (PS.worker) Processed 15 PCBs from ZK
+2016-06-23 13:23:13.895988+00:00 [DEBUG] (PS.worker) Processed 6 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:14.166347+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to other core ASes
+2016-06-23 13:23:14.395907+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:14.573561+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:14.683827+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:00+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:14.710297+00:00 [DEBUG] (PS.worker) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:00+00:00, 1-13 > 1-16
+2016-06-23 13:23:14.712496+00:00 [DEBUG] (PS.worker) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:14.713268+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:14.730134+00:00 [DEBUG] (PS.worker) Processed 7 PCBs from ZK
+2016-06-23 13:23:14.730355+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:14.779237+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:15.186694+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 8)
+2016-06-23 13:23:16.255883+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:16.256282+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.228594+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:16.334575+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to other core ASes
+2016-06-23 13:23:16.336879+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:23:16.338111+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.796s (should have been <= 1.000s)
+2016-06-23 13:23:16.338496+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:17.717356+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 9)
+2016-06-23 13:23:17.718947+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:17.719178+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:18.567398+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:23:18.568420+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 2-21 via d88f6cbb952f, 2016-06-23 13:23:00+00:00, 2-21 > 1-11
+2016-06-23 13:23:18.568993+00:00 [DEBUG] (MainThread) Segs to 2-26 not found.
+2016-06-23 13:23:18.633744+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-26: 958275c551f3, 2016-06-23 13:23:01+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:23:18.634718+00:00 [INFO] (MainThread) Down-Segment registered: 958275c551f3, 2016-06-23 13:23:01+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:23:18.635619+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-26: 37c0deb079c9, 2016-06-23 13:23:00+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:23:18.636577+00:00 [INFO] (MainThread) Down-Segment registered: 37c0deb079c9, 2016-06-23 13:23:00+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:23:18.640758+00:00 [INFO] (MainThread) Sending PATH_REPLY with 8 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:23:19.726189+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 10)
+2016-06-23 13:23:19.726727+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:19.726903+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530146)
+2016-06-23 13:23:20.600022+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:23:20.601542+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:23:20.744300+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:22:58+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:20.745504+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:20.777987+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:23:10+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:20.780722+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:18+00:00, 1-13 > 1-11
+2016-06-23 13:23:20.860796+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:23:11+00:00, 2-21 > 1-11
+2016-06-23 13:23:21.142493+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:23:21.142848+00:00 [DEBUG] (PS.worker) ZK connection available after 4.80s
+2016-06-23 13:23:21.769358+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:14+00:00, 1-11 > 1-14
+2016-06-23 13:23:21.770176+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:09+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:21.770927+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:00+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:21.771131+00:00 [DEBUG] (PS.worker) Processed 3 PCBs from ZK
+2016-06-23 13:23:21.771301+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:23.498067+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:23.498908+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:23.886139+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 11)
+2016-06-23 13:23:23.886445+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:23.886643+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:23.886749+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:23.888233+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:23.888559+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:23:23.889841+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:23.890192+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:23.892091+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to master PS
+2016-06-23 13:23:23.893743+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 7.555s (should have been <= 1.000s)
+2016-06-23 13:23:23.894124+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:24.113801+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:24.115497+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:24.828648+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:24.830138+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-11 (IPV4) 127.0.0.2) port:1077 in response to: (srcIA = "1-11", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:26.122191+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:23:26.126486+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:23:26.304390+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 12)
+2016-06-23 13:23:26.304766+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:26.304935+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:27.304422+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:23:22+00:00, 1-12 > 1-11
+2016-06-23 13:23:27.397345+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 13)
+2016-06-23 13:23:27.398552+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:27.398733+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530187)
+2016-06-23 13:23:27.427272+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:23:22+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:27.564913+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:27.638824+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:27.659634+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:22+00:00, 1-13 > 1-11
+2016-06-23 13:23:27.984633+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:23:19+00:00, 2-21 > 1-11
+2016-06-23 13:23:27.990418+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:28.074595+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 14)
+2016-06-23 13:23:29.515268+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 15)
+2016-06-23 13:23:29.761149+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:30.312515+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 16)
+2016-06-23 13:23:30.764609+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 17)
+2016-06-23 13:23:30.944809+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 18)
+2016-06-23 13:23:30.975978+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:30.977652+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:31.091796+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:23:31.093465+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:23:31.605865+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:23:31.606146+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:31.606339+00:00 [DEBUG] (PS.worker) ZK connection available after 7.71s
+2016-06-23 13:23:31.606683+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:31.606470+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:31.607979+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:31.608125+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:31.608462+00:00 [DEBUG] (libZK._state_handler) Kazoo CONNECTED ignored as the events queue is not empty.
+2016-06-23 13:23:31.608631+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: SUSPENDED
+2016-06-23 13:23:31.608807+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:31.609052+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:31.609206+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301ad)
+2016-06-23 13:23:31.967450+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:23:31.968658+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:31.969033+00:00 [INFO] (PS.worker) Propagating 5 segment(s) to master PS
+2016-06-23 13:23:31.971292+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 8.077s (should have been <= 1.000s)
+2016-06-23 13:23:31.971721+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:32.464474+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:23:32.464828+00:00 [DEBUG] (PS.worker) ZK connection available after 0.49s
+2016-06-23 13:23:33.199282+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:33.200470+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:14+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:33.201255+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:09+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:33.202022+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:22+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:33.202205+00:00 [DEBUG] (PS.worker) Processed 5 PCBs from ZK
+2016-06-23 13:23:33.202382+00:00 [DEBUG] (PS.worker) Processed 3 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:33.301324+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:22+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:33.514516+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:23:22+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:33.761323+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:22+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:33.795650+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:10+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:33.928215+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:23:26+00:00, 2-21 > 1-11
+2016-06-23 13:23:33.929456+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:35.516043+00:00 [WARNING] (PS.worker) No lock contenders found
+2016-06-23 13:23:35.516454+00:00 [WARNING] (PS.worker) _update_master(): current master is None.
+2016-06-23 13:23:35.516786+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:35.647408+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:35.650178+00:00 [INFO] (PS.worker) Propagating 5 segment(s) to master PS
+2016-06-23 13:23:35.665208+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.693s (should have been <= 1.000s)
+2016-06-23 13:23:35.726905+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:36.611359+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:26+00:00, 1-11 > 1-14
+2016-06-23 13:23:36.612158+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:24+00:00, 1-13 > 1-11
+2016-06-23 13:23:36.612888+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:24+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:36.613625+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:14+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:36.613832+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:23:36.614013+00:00 [DEBUG] (PS.worker) Processed 3 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:37.115157+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:37.116144+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 2-21 via d88f6cbb952f, 2016-06-23 13:23:26+00:00, 2-21 > 1-11
+2016-06-23 13:23:37.116680+00:00 [DEBUG] (MainThread) Segs to 2-24 not found.
+2016-06-23 13:23:37.131660+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-24: ac837c81296e, 2016-06-23 13:23:33+00:00, 2-22 > 2-24
+2016-06-23 13:23:37.132392+00:00 [INFO] (MainThread) Down-Segment registered: ac837c81296e, 2016-06-23 13:23:33+00:00, 2-22 > 2-24
+2016-06-23 13:23:37.133895+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-11 (IPV4) 127.0.0.2) port:1077 in response to: (srcIA = "1-11", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:37.571299+00:00 [DEBUG] (PS.worker) New master is: 127.0.0.74
+2016-06-23 13:23:37.571964+00:00 [DEBUG] (PS.worker) Syncing with 127.0.0.74
+2016-06-23 13:23:37.572852+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:37.799935+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:37.802110+00:00 [INFO] (PS.worker) Propagating 9 segment(s) to master PS
+2016-06-23 13:23:37.816171+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.151s (should have been <= 1.000s)
+2016-06-23 13:23:38.026299+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:38.026582+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:23:38.026761+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:38.776702+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:28+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:39.520625+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:19+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:39.717294+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:39.719350+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to master PS
+2016-06-23 13:23:39.720802+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.904s (should have been <= 1.000s)
+2016-06-23 13:23:40.400353+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 19)
+2016-06-23 13:23:40.400563+00:00 [WARNING] (PS.worker) Unable to retrieve entry from shared path /1-11/ps/path_cache: no connection to ZK
+2016-06-23 13:23:40.959924+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:41.001340+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.010574+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:41.036948+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:41.044623+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:41.053340+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.332s (should have been <= 1.000s)
+2016-06-23 13:23:41.053728+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:42.868941+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 20)
+2016-06-23 13:23:42.869302+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:42.869493+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:44.531060+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:45.575888+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 21)
+2016-06-23 13:23:45.576412+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:45.576576+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530262)
+2016-06-23 13:23:45.792797+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:45.794533+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:46.148674+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2']
+2016-06-23 13:23:46.148999+00:00 [DEBUG] (PS.worker) ZK connection available after 5.10s
+2016-06-23 13:23:46.301156+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:26+00:00, 1-11 > 1-14
+2016-06-23 13:23:46.301834+00:00 [DEBUG] (PS.worker) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:00+00:00, 1-13 > 1-16
+2016-06-23 13:23:46.302520+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:23:09+00:00, 1-12 > 1-15
+2016-06-23 13:23:46.303699+00:00 [DEBUG] (PS.worker) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:46.304438+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:09+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:46.305243+00:00 [DEBUG] (PS.worker) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:46.321249+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:23:33+00:00, 1-12 > 1-11
+2016-06-23 13:23:46.322002+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:29+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:46.322179+00:00 [DEBUG] (PS.worker) Processed 9 PCBs from ZK
+2016-06-23 13:23:46.322352+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:47.264967+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:47.465292+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:47.467602+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 6.414s (should have been <= 1.000s)
+2016-06-23 13:23:47.680455+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:32+00:00, 1-11 > 1-14
+2016-06-23 13:23:47.681155+00:00 [DEBUG] (PS.worker) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:00+00:00, 1-13 > 1-16
+2016-06-23 13:23:47.681800+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:23:33+00:00, 1-12 > 1-15
+2016-06-23 13:23:47.682941+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:09+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:47.684748+00:00 [DEBUG] (PS.worker) Processed 7 PCBs from ZK
+2016-06-23 13:23:47.684928+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:48.194867+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:48.198145+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 2-21 via d88f6cbb952f, 2016-06-23 13:23:26+00:00, 2-21 > 1-11
+2016-06-23 13:23:48.198724+00:00 [DEBUG] (MainThread) Segs to 2-23 not found.
+2016-06-23 13:23:48.332660+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-23: 99ddb820a3bc, 2016-06-23 13:23:37+00:00, 2-21 > 2-23
+2016-06-23 13:23:48.333440+00:00 [INFO] (MainThread) Down-Segment registered: 99ddb820a3bc, 2016-06-23 13:23:37+00:00, 2-21 > 2-23
+2016-06-23 13:23:48.335162+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:48.378535+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:23:33+00:00, 1-12 > 1-11
+2016-06-23 13:23:48.517471+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:48.571542+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:48.637076+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:48.645763+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:23:48.774638+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:48.776887+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:23:48.778160+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.310s (should have been <= 1.000s)
+2016-06-23 13:23:48.855877+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:19+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:49.014530+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:37+00:00, 1-11 > 1-14
+2016-06-23 13:23:49.015434+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:33+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:49.016072+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:23:38+00:00, 1-12 > 1-15
+2016-06-23 13:23:49.016820+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:32+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:49.017044+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:23:49.017212+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:49.389767+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:49.428402+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:49.430634+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:23:49.495614+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:49.780736+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:29+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:49.780956+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:23:49.781124+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:49.786997+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:53.666668+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:23:53.668407+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:23:53.820316+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:38+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:53.821056+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:23:49+00:00, 1-12 > 1-15
+2016-06-23 13:23:53.821714+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:47+00:00, 1-11 > 1-14
+2016-06-23 13:23:53.822411+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:37+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:53.822605+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:23:53.822774+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:53.850357+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:53.873941+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:55.270997+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 22)
+2016-06-23 13:23:55.271287+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:55.327473+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:55.370702+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.406234+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:55.431539+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:55.431941+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:23:55.784821+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:55.955635+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 23)
+2016-06-23 13:23:55.956157+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:55.956343+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:57.314329+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 24)
+2016-06-23 13:23:57.318654+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:57.318848+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530270)
+2016-06-23 13:23:57.671460+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:23:57.674221+00:00 [DEBUG] (PS.worker) ZK connection available after 1.89s
+2016-06-23 13:23:57.886214+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:23:49+00:00, 1-12 > 1-11
+2016-06-23 13:23:57.886992+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:57.887297+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:23:57.887481+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:58.388273+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.603s (should have been <= 1.000s)
+2016-06-23 13:23:58.446178+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:47+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:58.446469+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:23:58.446642+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:58.625294+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:59.462457+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:52+00:00, 1-11 > 1-14
+2016-06-23 13:23:59.462736+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:23:59.462907+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:23:59.799107+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:59.938077+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:23:52+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:24:00.010130+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:00.690840+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:00.691784+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:00.733641+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:00.751839+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to master PS
+2016-06-23 13:24:01.460815+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:23:49+00:00, 1-12 > 1-15
+2016-06-23 13:24:01.461590+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:23:56+00:00, 1-12 > 1-11
+2016-06-23 13:24:01.462295+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:01.462991+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:01.475403+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:01.475587+00:00 [DEBUG] (PS.worker) Processed 5 PCBs from ZK
+2016-06-23 13:24:01.475755+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:03.410817+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:03.412703+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:49+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:03.412919+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:03.413105+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:03.430434+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:03.618060+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:04.401873+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:23:58+00:00, 1-11 > 1-14
+2016-06-23 13:24:04.402143+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:04.402312+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:04.419979+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:04.423633+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:05.142491+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:57+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:24:05.285039+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:05.344361+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:00+00:00, 2-21 > 1-11
+2016-06-23 13:24:05.412785+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:01+00:00, 1-12 > 1-11
+2016-06-23 13:24:05.413554+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:05.413726+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:05.413886+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:05.444394+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:54+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:24:05.712413+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:05.777398+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:05.778302+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:05.786630+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to master PS
+2016-06-23 13:24:06.420718+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:06.421455+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:01+00:00, 1-12 > 1-15
+2016-06-23 13:24:06.422180+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:23:49+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:06.422405+00:00 [DEBUG] (PS.worker) Processed 3 PCBs from ZK
+2016-06-23 13:24:06.422579+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:06.432657+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:09.407708+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:23:58+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:09.407978+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:09.408142+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:09.683663+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:10.432478+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:04+00:00, 1-11 > 1-14
+2016-06-23 13:24:10.432750+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:10.432926+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:10.455283+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:10.784949+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:10.795147+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:24:02+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:24:10.919700+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:11.179109+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:11.179926+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:11.212384+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:24:00+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:24:11.809208+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:24:11.851961+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to master PS
+2016-06-23 13:24:11.952464+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:12.572515+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:06+00:00, 1-12 > 1-15
+2016-06-23 13:24:12.573258+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:06+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:12.573853+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:06+00:00, 1-12 > 1-11
+2016-06-23 13:24:12.574436+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:12.574589+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:24:12.574756+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:12.823403+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:14.431707+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:04+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:14.432463+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:09+00:00, 1-11 > 1-14
+2016-06-23 13:24:14.432676+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:14.432848+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:14.450915+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:24:15.655553+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:15.656287+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:15.835068+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:11+00:00, 1-12 > 1-11
+2016-06-23 13:24:15.957283+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:15.970489+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:16.054246+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:16.516789+00:00 [INFO] (PS.worker) Sharing 5 segment(s) via ZK
+2016-06-23 13:24:16.545698+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:24:16.615337+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:16.785067+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:11+00:00, 2-21 > 1-11
+  SibraPCBExt: id: 0010000b571f4633 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:16+00:00
+2016-06-23 13:24:17.427481+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:11+00:00, 1-12 > 1-15
+2016-06-23 13:24:17.428338+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:17.428500+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:17.428665+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:17.453173+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:17.458945+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:24:18.453119+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:11+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:18.453387+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:18.453561+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:20.438552+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:09+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:20.440285+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:15+00:00, 1-11 > 1-14
+2016-06-23 13:24:20.440505+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:20.440681+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:20.488374+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:24:21.428138+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:15+00:00, 1-11 > 1-14
+  SibraPCBExt: id: 0010000e3e7a7403 (owner: 1-14) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:20+00:00
+2016-06-23 13:24:21.428442+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:21.428607+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:21.550619+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:21.765647+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:21.767004+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:21.925816+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:21.938668+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:22.441403+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:17+00:00, 1-12 > 1-15
+2016-06-23 13:24:22.457990+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:17+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:22.458789+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:17+00:00, 1-12 > 1-11
+2016-06-23 13:24:22.472110+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:22.473644+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:24:22.473822+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:22.520122+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:24:22.638664+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:23.611667+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:25.490988+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:15+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:25.491957+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+  SibraPCBExt: id: 0010000b34443cb6 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+2016-06-23 13:24:25.492130+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:25.492300+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:25.557669+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:26.477235+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:21+00:00, 1-11 > 1-14
+2016-06-23 13:24:26.478151+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:37+00:00, 1-13 > 1-11
+  SibraPCBExt: id: 0010000d647e1c64 (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:24+00:00
+2016-06-23 13:24:26.478335+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:26.478507+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:26.505645+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:26.718865+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:26.876058+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:22+00:00, 1-12 > 1-11
+2016-06-23 13:24:27.248644+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:24:18+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:24:27.364612+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:22+00:00, 2-21 > 1-11
+2016-06-23 13:24:27.455305+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:22+00:00, 1-12 > 1-15
+2016-06-23 13:24:27.458125+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:27.458362+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:27.458524+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:27.499313+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:27.501829+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to master PS
+2016-06-23 13:24:27.627779+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:22+00:00, 1-13 > 1-16
+2016-06-23 13:24:27.700992+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:24:27.702542+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-11 (IPV4) 127.0.0.3) port:1198 in response to: (srcIA = "1-11", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:24:28.465312+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:22+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:28.465564+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:28.465741+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:28.582841+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:28.625127+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:23:35+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:29.383896+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:24:21+00:00, 2-22 > 2-21 > 1-11
+  SibraPCBExt: id: 002000164af38006 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:28+00:00
+2016-06-23 13:24:29.612345+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:22+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:29.613092+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:22+00:00, 1-13 > 1-11
+2016-06-23 13:24:29.613262+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:29.613441+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:29.922374+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:29.947411+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:24:30.438635+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:21+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:30.439946+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:22+00:00, 1-12 > 1-11
+  SibraPCBExt: id: 0010000b5a552468 (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:28+00:00
+2016-06-23 13:24:30.440710+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:26+00:00, 1-12 > 1-11
+  SibraPCBExt: id: 0010000c7f789c0b (owner: 1-12) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:28+00:00
+2016-06-23 13:24:30.440876+00:00 [DEBUG] (PS.worker) Processed 3 PCBs from ZK
+2016-06-23 13:24:30.441045+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:30.488005+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:31.768959+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:31.785741+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:31.790830+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:22+00:00, 1-13 > 1-11
+2016-06-23 13:24:31.796143+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:22+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:31.809425+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:32.493911+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:26+00:00, 1-11 > 1-14
+2016-06-23 13:24:32.494678+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:27+00:00, 1-12 > 1-15
+2016-06-23 13:24:32.495586+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:27+00:00, 1-12 > 1-11
+2016-06-23 13:24:32.495765+00:00 [DEBUG] (PS.worker) Processed 3 PCBs from ZK
+2016-06-23 13:24:32.495936+00:00 [DEBUG] (PS.worker) Processed 3 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:32.525187+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:24:32.553549+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:32.580333+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to master PS
+2016-06-23 13:24:32.987898+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:32.988636+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:22+00:00, 1-13 > 1-16
+2016-06-23 13:24:33.473244+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:27+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:33.473516+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:33.473714+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:33.493803+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:33.621765+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:22+00:00, 1-13 > 1-16
+  SibraPCBExt: id: 00100010da5aaa7d (owner: 1-16) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:32+00:00
+2016-06-23 13:24:33.622658+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19
+  SibraPCBExt: id: 001000138b280f8d (owner: 1-19) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:32+00:00
+2016-06-23 13:24:34.459331+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:27+00:00, 1-12 > 1-15 > 1-18
+  SibraPCBExt: id: 001000126eea279e (owner: 1-18) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:32+00:00
+2016-06-23 13:24:34.459624+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:34.459802+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:34.603192+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:34.656871+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:35.461132+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:36.500182+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:36.500476+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:36.500658+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:36.675332+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:36.782325+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19 > 1-10
+  SibraPCBExt: id: 0010000a62d77df5 (owner: 1-10) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:36+00:00
+2016-06-23 13:24:37.060380+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:24:29+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:24:37.068094+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:37.178321+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:33+00:00, 2-21 > 1-11
+2016-06-23 13:24:37.185764+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:24:27+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:24:37.237539+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:37.503764+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:22+00:00, 1-13 > 1-11
+2016-06-23 13:24:37.504499+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:31+00:00, 1-11 > 1-14
+2016-06-23 13:24:37.505152+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:32+00:00, 1-12 > 1-15
+2016-06-23 13:24:37.505361+00:00 [DEBUG] (PS.worker) Processed 3 PCBs from ZK
+2016-06-23 13:24:37.505550+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:37.617259+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:37.642598+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:37.644590+00:00 [INFO] (PS.worker) Propagating 5 segment(s) to master PS
+2016-06-23 13:24:37.764198+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:37.764922+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:22+00:00, 1-13 > 1-16
+2016-06-23 13:24:38.443089+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:32+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:38.443847+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:32+00:00, 1-12 > 1-11
+2016-06-23 13:24:38.444542+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:38.445240+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:22+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:38.446153+00:00 [DEBUG] (PS.worker) Added segment from 1-11 to 1-17: 40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+  SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:36+00:00
+2016-06-23 13:24:38.470181+00:00 [INFO] (PS.worker) Down-Segment registered: 40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+  SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:36+00:00
+2016-06-23 13:24:38.470633+00:00 [DEBUG] (PS.worker) Processed 5 PCBs from ZK
+2016-06-23 13:24:38.470818+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:38.486244+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:38.517835+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:40.414505+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-14", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:24:40.416183+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 2-21 via d88f6cbb952f, 2016-06-23 13:24:33+00:00, 2-21 > 1-11
+2016-06-23 13:24:40.416728+00:00 [DEBUG] (MainThread) Segs to 2-25 not found.
+2016-06-23 13:24:40.429928+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-25: 02631019d61c, 2016-06-23 13:24:33+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:24:40.430954+00:00 [INFO] (MainThread) Down-Segment registered: 02631019d61c, 2016-06-23 13:24:33+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:24:40.432691+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-14 (IPV4) 127.0.0.122) port:30040 in response to: (srcIA = "1-14", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:24:40.639361+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:41.499336+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:41.772660+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:37+00:00, 1-12 > 1-11
+2016-06-23 13:24:41.781062+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:33+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:41.828687+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:22+00:00, 1-13 > 1-11
+2016-06-23 13:24:41.865435+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:22+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:42.484031+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:31+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:42.484959+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:32+00:00, 1-12 > 1-15
+  SibraPCBExt: id: 0010000f6e09a6a0 (owner: 1-15) Up? False
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:40+00:00
+2016-06-23 13:24:42.485616+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:41+00:00, 1-11 > 1-14
+2016-06-23 13:24:42.485831+00:00 [DEBUG] (PS.worker) Processed 3 PCBs from ZK
+2016-06-23 13:24:42.486014+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:42.520063+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:24:42.539664+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:24:42.632261+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:22+00:00, 1-13 > 1-16
+2016-06-23 13:24:43.452884+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:37+00:00, 1-12 > 1-15
+2016-06-23 13:24:43.453144+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:43.453315+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:43.462095+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:43.654701+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:44.449911+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:37+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:44.450192+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:44.450375+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:44.512291+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:46.300564+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:24:46.301494+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(1-11 (IPV4) 127.0.0.2) port:1197 in response to: (srcIA = "1-11", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:24:46.568027+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-11", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:24:46.568945+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-11 (IPV4) 127.0.0.2) port:1197 in response to: (srcIA = "1-11", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:24:46.658879+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:47.456671+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:41+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:47.456942+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:47.457117+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:47.462715+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:47.464763+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:47.701832+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:47.741800+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:24:40+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:24:47.759752+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:43+00:00, 2-21 > 1-11
+2016-06-23 13:24:47.777976+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:24:38+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:24:48.454700+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:47+00:00, 1-11 > 1-14
+2016-06-23 13:24:48.455510+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:44+00:00, 1-13 > 1-11
+2016-06-23 13:24:48.456264+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:22+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:48.456951+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:43+00:00, 1-12 > 1-11
+2016-06-23 13:24:48.457117+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:24:48.457292+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:48.494678+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:48.497231+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:48.499203+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to master PS
+2016-06-23 13:24:48.640020+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:48.640748+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:44+00:00, 1-13 > 1-16
+2016-06-23 13:24:49.455271+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:48+00:00, 1-12 > 1-15
+2016-06-23 13:24:49.455550+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:49.455732+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:49.465391+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:50.455707+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:48+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:50.455986+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:50.456153+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:51.642397+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:22+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:52.465015+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:47+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:52.465282+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:52.465463+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:52.476453+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:52.491660+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:52.804914+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:52.823344+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:24:45+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:24:52.844484+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:44+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:52.849996+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:49+00:00, 2-21 > 1-11
+2016-06-23 13:24:52.855593+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:24:43+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:24:52.861100+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:53.458435+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:49+00:00, 1-13 > 1-11
+2016-06-23 13:24:53.459199+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:48+00:00, 1-12 > 1-11
+2016-06-23 13:24:53.459363+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:53.459533+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:53.471681+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:53.474025+00:00 [INFO] (PS.worker) Propagating 4 segment(s) to master PS
+2016-06-23 13:24:53.644191+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:44+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:54.459247+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:52+00:00, 1-11 > 1-14
+2016-06-23 13:24:54.459432+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:54.459542+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:54.470481+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:54.474000+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:54.642534+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:49+00:00, 1-13 > 1-16
+2016-06-23 13:24:55.459957+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:54+00:00, 1-12 > 1-15
+2016-06-23 13:24:55.460414+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:54+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:55.460546+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:55.460653+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:55.471524+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:57.463178+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:57.463451+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:24:57.463630+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:57.478818+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:57.696546+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:44+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:57.762567+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:24:57.785602+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:24:54+00:00, 1-13 > 1-11
+2016-06-23 13:24:57.795409+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:24:54+00:00, 2-21 > 1-11
+2016-06-23 13:24:58.463294+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:49+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:58.464024+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:24:54+00:00, 1-12 > 1-11
+2016-06-23 13:24:58.464230+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:24:58.464405+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:24:58.470026+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:24:58.472609+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:24:58.647698+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:49+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:24:59.464981+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:00.514516+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.054s (should have been <= 1.000s)
+2016-06-23 13:25:01.309484+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:54+00:00, 1-13 > 1-16
+2016-06-23 13:25:01.802408+00:00 [DEBUG] (PS.worker) New master is: 127.0.0.76
+2016-06-23 13:25:01.803149+00:00 [DEBUG] (PS.worker) Syncing with 127.0.0.76
+2016-06-23 13:25:01.804040+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:01.848791+00:00 [INFO] (PS.worker) Propagating 9 segment(s) to master PS
+2016-06-23 13:25:02.524811+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:52+00:00, 1-11 > 1-14
+2016-06-23 13:25:02.525944+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:54+00:00, 1-12 > 1-15
+2016-06-23 13:25:02.526684+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:02.527456+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:54+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:02.530707+00:00 [DEBUG] (PS.worker) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:49+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:25:02.548677+00:00 [DEBUG] (PS.worker) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:44+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:25:02.549454+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:24:57+00:00, 1-11 > 1-14
+2016-06-23 13:25:02.550228+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:54+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:02.550439+00:00 [DEBUG] (PS.worker) Processed 9 PCBs from ZK
+2016-06-23 13:25:02.550621+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:02.600700+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to other core ASes
+2016-06-23 13:25:02.879975+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:25:00+00:00, 1-12 > 1-11
+2016-06-23 13:25:02.912262+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:25:02.952952+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:25:01+00:00, 2-21 > 1-11
+2016-06-23 13:25:03.524652+00:00 [DEBUG] (PS.worker) Down-Segment updated: 58b02717ad61, 2016-06-23 13:24:54+00:00, 1-13 > 1-16
+2016-06-23 13:25:03.525064+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:54+00:00, 1-12 > 1-15
+2016-06-23 13:25:03.525477+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:03.525880+00:00 [DEBUG] (PS.worker) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:49+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:25:03.526532+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:54+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:03.526971+00:00 [DEBUG] (PS.worker) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:44+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:25:03.527631+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:24:54+00:00, 1-12 > 1-15
+2016-06-23 13:25:03.528496+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:24:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:03.531333+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:25:03.532394+00:00 [DEBUG] (PS.worker) Processed 10 PCBs from ZK
+2016-06-23 13:25:03.532579+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:03.596908+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:03.615280+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to other core ASes
+2016-06-23 13:25:03.617708+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to master PS
+2016-06-23 13:25:03.674717+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:49+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:25:03.675539+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:24:54+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:25:04.196093+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 25)
+2016-06-23 13:25:04.424975+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:04.425586+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.517999+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:25:04.865761+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 26)
+2016-06-23 13:25:04.866115+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:04.866275+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530270)
+2016-06-23 13:25:04.917352+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:25:04.917652+00:00 [DEBUG] (PS.worker) ZK connection available after 0.40s
+2016-06-23 13:25:04.927726+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:25:00+00:00, 1-13 > 1-11
+2016-06-23 13:25:04.928532+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:24:54+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:25:04.928703+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:25:04.928890+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:04.968389+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:25:05.655758+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:25:00+00:00, 1-13 > 1-16
+2016-06-23 13:25:06.524672+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:25:02+00:00, 1-11 > 1-14
+2016-06-23 13:25:06.524930+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:06.525125+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:06.539414+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:06.541245+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:07.523853+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:24:54+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:07.524038+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:07.524154+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:08.529140+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:25:05+00:00, 1-12 > 1-15
+2016-06-23 13:25:08.529354+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:08.529553+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:08.660178+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:24:54+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:25:08.660953+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:25:00+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:25:08.826189+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:25:00+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:25:09.523158+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:25:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:09.523355+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:09.523466+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:09.527689+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:25:09.529443+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:09.530998+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to master PS
+2016-06-23 13:25:10.525178+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:25:05+00:00, 1-12 > 1-11
+2016-06-23 13:25:10.525598+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:25:06+00:00, 1-13 > 1-11
+2016-06-23 13:25:10.526001+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:25:00+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:25:10.526420+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:25:10.526576+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:25:10.526683+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:10.660940+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:25:06+00:00, 1-13 > 1-16
+2016-06-23 13:25:11.525457+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:25:08+00:00, 1-11 > 1-14
+2016-06-23 13:25:11.525716+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:11.525896+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:11.534669+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:11.536260+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:12.527346+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:25:05+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:12.527534+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:12.527646+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:13.664055+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:25:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:25:13.664503+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:25:06+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:25:13.836678+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:25:06+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:25:13.870859+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:25:13.886824+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:25:06+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:25:14.528144+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:25:11+00:00, 1-12 > 1-15
+2016-06-23 13:25:14.528630+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:25:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:14.528772+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:25:14.528882+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:14.532828+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:25:14.534517+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:14.535944+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to master PS
+2016-06-23 13:25:15.528983+00:00 [DEBUG] (PS.worker) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:25:15.529394+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:25:11+00:00, 1-13 > 1-11
+2016-06-23 13:25:15.529846+00:00 [DEBUG] (PS.worker) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:25:11+00:00, 1-12 > 1-11
+2016-06-23 13:25:15.530247+00:00 [DEBUG] (PS.worker) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:25:11+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:25:15.530350+00:00 [DEBUG] (PS.worker) Processed 4 PCBs from ZK
+2016-06-23 13:25:15.530459+00:00 [DEBUG] (PS.worker) Processed 2 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:15.663499+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:25:11+00:00, 1-13 > 1-16
+2016-06-23 13:25:16.531814+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:25:13+00:00, 1-11 > 1-14
+2016-06-23 13:25:16.532088+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:16.532259+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:16.540517+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:16.542055+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:17.534130+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:25:11+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:17.534390+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:17.534567+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:18.669544+00:00 [DEBUG] (MainThread) Down-Segment updated: eccd6ac9e1ba, 2016-06-23 13:25:06+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:25:18.670293+00:00 [DEBUG] (MainThread) Down-Segment updated: ee9c92a3a503, 2016-06-23 13:25:11+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:25:18.794575+00:00 [DEBUG] (MainThread) Core-Segment updated: 74cb4dbc1395, 2016-06-23 13:25:16+00:00, 1-12 > 1-11
+2016-06-23 13:25:18.819650+00:00 [DEBUG] (MainThread) Core-Segment updated: 0304fefb6cd6, 2016-06-23 13:23:49+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:25:18.827020+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:25:12+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:25:18.844203+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:25:16+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:25:18.851072+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:25:17+00:00, 2-21 > 1-11
+2016-06-23 13:25:18.853810+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:25:12+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:25:18.863372+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:25:19.532780+00:00 [DEBUG] (PS.worker) Down-Segment updated: 4ffce3004a6b, 2016-06-23 13:25:16+00:00, 1-12 > 1-15
+2016-06-23 13:25:19.532979+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:19.533090+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:19.538620+00:00 [INFO] (PS.worker) Sharing 5 segment(s) via ZK
+2016-06-23 13:25:19.540780+00:00 [INFO] (PS.worker) Propagating 4 segment(s) to master PS
+2016-06-23 13:25:20.536990+00:00 [DEBUG] (PS.worker) Down-Segment updated: 40b7f17cac80, 2016-06-23 13:25:13+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:20.537771+00:00 [DEBUG] (PS.worker) Core-Segment updated: f5998b8a9973, 2016-06-23 13:25:16+00:00, 1-13 > 1-11
+2016-06-23 13:25:20.537947+00:00 [DEBUG] (PS.worker) Processed 2 PCBs from ZK
+2016-06-23 13:25:20.538122+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:20.544749+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:20.686882+00:00 [DEBUG] (MainThread) Down-Segment updated: 58b02717ad61, 2016-06-23 13:25:16+00:00, 1-13 > 1-16
+2016-06-23 13:25:21.546806+00:00 [DEBUG] (PS.worker) Down-Segment updated: f8d1ed03e591, 2016-06-23 13:25:18+00:00, 1-11 > 1-14
+2016-06-23 13:25:21.547174+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:21.547391+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:21.611534+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:21.613581+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:22.545339+00:00 [DEBUG] (PS.worker) Down-Segment updated: 68a3ddf641ee, 2016-06-23 13:25:16+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:25:22.545615+00:00 [DEBUG] (PS.worker) Processed 1 PCBs from ZK
+2016-06-23 13:25:22.545798+00:00 [DEBUG] (PS.worker) Processed 1 new entries from /1-11/ps/path_cache
+2016-06-23 13:25:25.126512+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:25.518608+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:25:25.524658+00:00 [INFO] (MainThread) Exiting

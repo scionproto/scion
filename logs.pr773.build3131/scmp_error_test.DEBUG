@@ -1,0 +1,41 @@
+2016-06-23 13:39:12.236536+00:00 [INFO] (SCMPErr 2-22 > 1-12 main) =======================> Testing: 2-22 -> 1-12
+2016-06-23 13:39:12.237024+00:00 [INFO] (SCMPErr 2-22 > 1-12 main) ===========> Testing: bad host
+2016-06-23 13:39:12.237486+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Starting sciond for 2-22
+2016-06-23 13:39:12.571684+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Loaded: gen/ISD2/AS22/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:12.572175+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Loaded: gen/ISD2/AS22/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:12.572781+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Loaded: gen/ISD2/AS22/endhost/certs/ISD2-AS22-V0.crt
+2016-06-23 13:39:12.573305+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.574629+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Attempt connect
+2016-06-23 13:39:12.575511+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Registered to dispatcher for addr (2-22 (IPV4) 127.0.0.2):1025
+2016-06-23 13:39:12.665438+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) sciond bound to /run/shm/sciond/SCMPErr_2-22.sock
+2016-06-23 13:39:12.729632+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) sciond started with api_addr = /run/shm/sciond/SCMPErr_2-22.sock
+2016-06-23 13:39:12.730331+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.730495+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Attempt connect
+2016-06-23 13:39:12.745923+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Registered to dispatcher for addr (2-22 (IPV4) 127.0.0.2):1028
+2016-06-23 13:39:12.746257+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Sending path request to local API at /run/shm/sciond/SCMPErr_2-22.sock
+2016-06-23 13:39:12.761788+00:00 [DEBUG] (SCIONDaemon.run 2-22) API: path request
+2016-06-23 13:39:12.801046+00:00 [DEBUG] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Paths requested for 1-12 ()
+2016-06-23 13:39:12.830546+00:00 [DEBUG] (SCIONDaemon Requests 2-22) Sending path request: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:17.802482+00:00 [ERROR] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Query timed out for 1-12
+2016-06-23 13:39:17.803189+00:00 [DEBUG] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Replying to api request for 1-12 with 0 paths
+2016-06-23 13:39:17.803597+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Empty response from local api.
+2016-06-23 13:39:17.803760+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Sending path request to local API at /run/shm/sciond/SCMPErr_2-22.sock
+2016-06-23 13:39:17.804058+00:00 [DEBUG] (SCIONDaemon.run 2-22) API: path request
+2016-06-23 13:39:17.837541+00:00 [DEBUG] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Paths requested for 1-12 ()
+2016-06-23 13:39:17.837974+00:00 [DEBUG] (SCIONDaemon Requests 2-22) Expired 1 requests for (ISD_AS(isd=1, as=12), ())
+2016-06-23 13:39:17.838346+00:00 [DEBUG] (SCIONDaemon Requests 2-22) Sending path request: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:22.838037+00:00 [ERROR] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Query timed out for 1-12
+2016-06-23 13:39:22.838701+00:00 [DEBUG] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Replying to api request for 1-12 with 0 paths
+2016-06-23 13:39:22.839126+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Empty response from local api.
+2016-06-23 13:39:22.839289+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Sending path request to local API at /run/shm/sciond/SCMPErr_2-22.sock
+2016-06-23 13:39:22.839603+00:00 [DEBUG] (SCIONDaemon.run 2-22) API: path request
+2016-06-23 13:39:22.864660+00:00 [DEBUG] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Paths requested for 1-12 ()
+2016-06-23 13:39:22.865073+00:00 [DEBUG] (SCIONDaemon Requests 2-22) Expired 1 requests for (ISD_AS(isd=1, as=12), ())
+2016-06-23 13:39:22.865479+00:00 [DEBUG] (SCIONDaemon Requests 2-22) Sending path request: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:27.867876+00:00 [ERROR] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Query timed out for 1-12
+2016-06-23 13:39:27.868540+00:00 [DEBUG] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Replying to api request for 1-12 with 0 paths
+2016-06-23 13:39:27.869019+00:00 [DEBUG] (SCMPErr 2-22 > 1-12 main) Empty response from local api.
+2016-06-23 13:39:27.869184+00:00 [CRITICAL] (SCMPErr 2-22 > 1-12 main) Unable to get path from local api.
+2016-06-23 13:39:27.869811+00:00 [ERROR] (SCMPErr 2-22 > 1-12 main) Received SIGUSR2
+2016-06-23 13:39:27.870328+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:39:27.870714+00:00 [INFO] (SCMPErr 2-22 > 1-12 main) Exiting

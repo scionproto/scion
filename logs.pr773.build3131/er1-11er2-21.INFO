@@ -1,0 +1,14 @@
+2016-06-23 13:38:15.724930+00:00 [INFO] (MainThread) Interface: {'bandwidth': 1000, 'link_type': 'ROUTING', 'udp_port': 50000, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f692d589d30>, 'to_if_id': 0, 'isd_as': ISD_AS(isd=2, as=21), 'if_id': 3, 'to_udp_port': 50000, 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f692d589c50>, 'name': None, 'mtu': 1472}
+2016-06-23 13:38:16.884786+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-11#3 -> 2-21 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:16.885704+00:00 [INFO] (MainThread) IP 127.0.0.12:50000
+2016-06-23 13:38:16.886002+00:00 [INFO] (MainThread) Started er1-11er2-21
+2016-06-23 13:38:17.048932+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:38:47.077431+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:39:17.107303+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:39:27.516268+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:39:27.529613+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:39:27.687498+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:39:29.673228+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:39:47.135837+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:40:10.094772+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:10.953761+00:00 [INFO] (MainThread) Exiting

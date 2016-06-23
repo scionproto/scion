@@ -1,0 +1,7 @@
+2016-06-23 13:38:20.262574+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:51.882153+00:00 [WARNING] (Thread-7) No instances found, returning SERVFAIL for bs.as23.isd2.scion.
+2016-06-23 13:38:51.882909+00:00 [WARNING] (Thread-7) Reply: [127.0.0.1:36457] (udp) / 'bs.as23.isd2.scion.' (A) / SERVFAIL
+2016-06-23 13:38:52.144890+00:00 [WARNING] (Thread-8) No instances found, returning SERVFAIL for bs.as23.isd2.scion.
+2016-06-23 13:38:52.145336+00:00 [WARNING] (Thread-8) Reply: [127.0.0.1:41041] (udp) / 'bs.as23.isd2.scion.' (A) / SERVFAIL
+2016-06-23 13:38:52.444636+00:00 [WARNING] (Thread-9) No instances found, returning SERVFAIL for bs.as23.isd2.scion.
+2016-06-23 13:38:52.445823+00:00 [WARNING] (Thread-9) Reply: [127.0.0.1:54752] (udp) / 'bs.as23.isd2.scion.' (A) / SERVFAIL

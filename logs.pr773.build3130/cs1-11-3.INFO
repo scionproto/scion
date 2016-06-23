@@ -1,0 +1,47 @@
+2016-06-23 13:22:24.334862+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:24.441593+00:00 [INFO] (MainThread) Started cs1-11-3
+2016-06-23 13:23:05.761827+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.523928+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:06.527750+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:09.095964+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:09.081358+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:09.096551+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.572s (should have been <= 1.000s)
+2016-06-23 13:23:10.804416+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 6)
+2016-06-23 13:23:10.804941+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.708s (should have been <= 1.000s)
+2016-06-23 13:23:14.982259+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.223478+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.251873+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.441s (should have been <= 1.000s)
+2016-06-23 13:23:16.760573+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:18.215581+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.911s (should have been <= 1.000s)
+2016-06-23 13:23:20.917343+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.699s (should have been <= 1.000s)
+2016-06-23 13:23:22.321125+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.403s (should have been <= 1.000s)
+2016-06-23 13:23:23.876919+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:23.883480+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.562s (should have been <= 1.000s)
+2016-06-23 13:23:23.877331+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:26.307240+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:29.194936+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:23:29.195376+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 5.312s (should have been <= 1.000s)
+2016-06-23 13:23:30.024277+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:32.474392+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.278s (should have been <= 1.000s)
+2016-06-23 13:23:33.978121+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.503s (should have been <= 1.000s)
+2016-06-23 13:23:35.928256+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.950s (should have been <= 1.000s)
+2016-06-23 13:23:37.137229+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.209s (should have been <= 1.000s)
+2016-06-23 13:23:38.171655+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.034s (should have been <= 1.000s)
+2016-06-23 13:23:39.694812+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 14)
+2016-06-23 13:23:39.695241+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.523s (should have been <= 1.000s)
+2016-06-23 13:23:40.997284+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:40.696675+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:41.968950+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:44.147727+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.451s (should have been <= 1.000s)
+2016-06-23 13:23:46.260347+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.111s (should have been <= 1.000s)
+2016-06-23 13:23:47.464127+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.203s (should have been <= 1.000s)
+2016-06-23 13:23:47.973675+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 17)
+2016-06-23 13:23:55.375458+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:56.670678+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 19)
+2016-06-23 13:23:56.671152+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.196s (should have been <= 1.000s)
+2016-06-23 13:25:00.352336+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:01.635222+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 21)
+2016-06-23 13:25:04.451951+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.806403+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 23)
+2016-06-23 13:25:24.845078+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:25.520328+00:00 [INFO] (MainThread) Exiting

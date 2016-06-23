@@ -1,0 +1,21 @@
+2016-06-23 13:38:47.710727+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/cs2-24-2/certs/ISD1-V0.trc
+2016-06-23 13:38:47.712357+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/cs2-24-2/certs/ISD2-V0.trc
+2016-06-23 13:38:47.712989+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/cs2-24-2/certs/ISD2-AS24-V0.crt
+2016-06-23 13:38:47.845958+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:47.846393+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:47.847038+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.243):30040
+2016-06-23 13:38:48.045992+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:48.429608+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:48.429811+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:48.430461+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:48.430643+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f800a2)
+2016-06-23 13:38:48.520985+00:00 [DEBUG] (MainThread) ZK connection available after 0.09s
+2016-06-23 13:38:49.100755+00:00 [DEBUG] (MainThread) Current party (/2-24/cs/party) members are: ['cs2-24-2', 'cs2-24-3']
+2016-06-23 13:38:49.101047+00:00 [INFO] (MainThread) Started cs2-24-2
+2016-06-23 13:40:10.048727+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:40:12.969566+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:40:12.969891+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:40:12.970045+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:40:12.970209+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:40:13.388319+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.973775+00:00 [INFO] (MainThread) Exiting

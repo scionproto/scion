@@ -1,0 +1,30 @@
+2016-06-23 13:22:08.472816+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.627871+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.630001+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.631586+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.633647+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.635694+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.637299+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.639553+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.641694+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.643702+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.645827+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.647670+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:23:05.663196+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:10.442093+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:10.443417+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:10.457839+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.794s (should have been <= 1.000s)
+2016-06-23 13:23:15.462346+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:18.801743+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.339s (should have been <= 1.000s)
+2016-06-23 13:23:20.905495+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.101s (should have been <= 1.000s)
+2016-06-23 13:23:23.354129+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:25.171715+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.264s (should have been <= 1.000s)
+2016-06-23 13:23:27.366436+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:34.769755+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:37.797572+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.619s (should have been <= 1.000s)
+2016-06-23 13:23:43.701591+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.903s (should have been <= 1.000s)
+2016-06-23 13:23:48.319258+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.614s (should have been <= 1.000s)
+2016-06-23 13:23:55.324905+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:59.867269+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.540s (should have been <= 1.000s)
+2016-06-23 13:25:00.151124+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:25:04.481259+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection

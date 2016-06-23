@@ -1,0 +1,29 @@
+2016-06-23 13:22:09.856390+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.254726+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.256164+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.257671+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.259684+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.260875+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.262995+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.264605+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.266730+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.268093+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:58.288873+00:00 [WARNING] (PS.worker) Segment to AS 1-11 not found.
+2016-06-23 13:22:58.289377+00:00 [WARNING] (PS.worker) Segment to AS 1-13 not found.
+2016-06-23 13:23:05.486201+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:05.816528+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:05.844187+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:05.850272+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:15.303252+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.257531+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:16.311457+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:16.313245+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:16.313650+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.011s (should have been <= 1.000s)
+2016-06-23 13:23:40.343216+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:41.010074+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:41.031776+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:41.059081+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:25:04.459464+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:25:04.479450+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:25:04.489987+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:25:04.513987+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK

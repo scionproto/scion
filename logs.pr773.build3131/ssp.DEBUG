@@ -1,0 +1,72 @@
+2016-06-23 13:39:12.528498+00:00 [INFO] (SSP 1-15 > 1-10 main) Testing: 1-15 -> 1-10
+2016-06-23 13:39:12.528972+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Starting sciond for 1-10
+2016-06-23 13:39:12.781469+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Loaded: gen/ISD1/AS10/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:12.782038+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Loaded: gen/ISD1/AS10/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:12.782774+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Loaded: gen/ISD1/AS10/endhost/certs/ISD1-AS10-V0.crt
+2016-06-23 13:39:12.785376+00:00 [DEBUG] (SSP 1-15 > 1-10 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.785698+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Attempt connect
+2016-06-23 13:39:12.786226+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Registered to dispatcher for addr (1-10 (IPV4) 127.0.0.3):1030
+2016-06-23 13:39:12.841865+00:00 [DEBUG] (SSP 1-15 > 1-10 main) sciond bound to /run/shm/sciond/SSP_1-10.sock
+2016-06-23 13:39:12.856291+00:00 [DEBUG] (SSP 1-15 > 1-10 main) sciond started with api_addr = /run/shm/sciond/SSP_1-10.sock
+2016-06-23 13:39:12.858452+00:00 [DEBUG] (SSP 1-15 > 1-10 main) ScionServerSocket fd = 16
+2016-06-23 13:39:12.898509+00:00 [DEBUG] (SCIONDaemon.run 1-10) API: local ISD-AS request
+2016-06-23 13:39:12.899190+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Starting sciond for 1-15
+2016-06-23 13:39:13.062769+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Loaded: gen/ISD1/AS15/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:13.063252+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Loaded: gen/ISD1/AS15/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:13.063681+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Loaded: gen/ISD1/AS15/endhost/certs/ISD1-AS15-V0.crt
+2016-06-23 13:39:13.064054+00:00 [DEBUG] (SSP 1-15 > 1-10 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:13.097577+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Attempt connect
+2016-06-23 13:39:13.098197+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Registered to dispatcher for addr (1-15 (IPV4) 127.0.0.2):1035
+2016-06-23 13:39:13.141036+00:00 [DEBUG] (SSP 1-15 > 1-10 main) sciond bound to /run/shm/sciond/SSP_1-15.sock
+2016-06-23 13:39:13.161466+00:00 [DEBUG] (SSP 1-15 > 1-10 main) sciond started with api_addr = /run/shm/sciond/SSP_1-15.sock
+2016-06-23 13:39:13.163215+00:00 [DEBUG] (SSP 1-15 > 1-10 main) ScionClientSocket fd = 22
+2016-06-23 13:39:13.196522+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: local ISD-AS request
+2016-06-23 13:39:13.205710+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:13.250570+00:00 [DEBUG] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Paths requested for 1-10 ()
+2016-06-23 13:39:13.304729+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:39:18.251998+00:00 [ERROR] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Query timed out for 1-10
+2016-06-23 13:39:18.252710+00:00 [DEBUG] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Replying to api request for 1-10 with 0 paths
+2016-06-23 13:39:18.303845+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:18.331334+00:00 [DEBUG] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Paths requested for 1-10 ()
+2016-06-23 13:39:18.331741+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Expired 1 requests for (ISD_AS(isd=1, as=10), ())
+2016-06-23 13:39:18.332159+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:39:23.333132+00:00 [ERROR] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Query timed out for 1-10
+2016-06-23 13:39:23.333820+00:00 [DEBUG] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Replying to api request for 1-10 with 0 paths
+2016-06-23 13:39:23.384455+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:23.394451+00:00 [DEBUG] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Paths requested for 1-10 ()
+2016-06-23 13:39:23.394824+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Expired 1 requests for (ISD_AS(isd=1, as=10), ())
+2016-06-23 13:39:23.395224+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:39:28.398498+00:00 [ERROR] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Query timed out for 1-10
+2016-06-23 13:39:28.399081+00:00 [DEBUG] (SCIONDaemon API id:140529702524672 1-15 -> 1-10) Replying to api request for 1-10 with 0 paths
+2016-06-23 13:39:28.450129+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:28.450534+00:00 [DEBUG] (SCIONDaemon API id:140529694131968 1-15 -> 1-10) Paths requested for 1-10 ()
+2016-06-23 13:39:28.450826+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Expired 1 requests for (ISD_AS(isd=1, as=10), ())
+2016-06-23 13:39:28.451101+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:39:33.450907+00:00 [ERROR] (SCIONDaemon API id:140529694131968 1-15 -> 1-10) Query timed out for 1-10
+2016-06-23 13:39:33.451335+00:00 [DEBUG] (SCIONDaemon API id:140529694131968 1-15 -> 1-10) Replying to api request for 1-10 with 0 paths
+2016-06-23 13:39:33.501773+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:33.502141+00:00 [DEBUG] (SCIONDaemon API id:140529694131968 1-15 -> 1-10) Paths requested for 1-10 ()
+2016-06-23 13:39:33.502500+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Expired 1 requests for (ISD_AS(isd=1, as=10), ())
+2016-06-23 13:39:33.502899+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:39:36.452332+00:00 [ERROR] (SSP 1-15 > 1-10 main) Error during recv.
+2016-06-23 13:39:36.452921+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Connection terminated
+2016-06-23 13:39:36.453073+00:00 [ERROR] (SSP 1-15 > 1-10 main) Timeout waiting for response
+2016-06-23 13:39:36.458775+00:00 [DEBUG] (SSP 1-15 > 1-10 main) Received 0 bytes on fd 22 - remote socket closed
+2016-06-23 13:39:36.460843+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:39:36.481734+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added segment from 1-12 to 1-15: 28a33ef42aa7, 2016-06-23 13:39:29+00:00, 1-12 > 1-15
+2016-06-23 13:39:36.482076+00:00 [DEBUG] (SCIONDaemon.run 1-15) Up segment added: 28a33ef42aa7, 2016-06-23 13:39:29+00:00, 1-12 > 1-15
+2016-06-23 13:39:36.482935+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added segment from 1-13 to 1-10: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:36.483266+00:00 [DEBUG] (SCIONDaemon.run 1-15) Down segment added: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:36.483919+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added segment from 1-13 to 1-12: 268e220bdea4, 2016-06-23 13:39:33+00:00, 1-13 > 1-12
+2016-06-23 13:39:36.484232+00:00 [DEBUG] (SCIONDaemon.run 1-15) Core segment added: 268e220bdea4, 2016-06-23 13:39:33+00:00, 1-13 > 1-12
+2016-06-23 13:39:36.485550+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added segment from 1-13 to 1-12: c0edd0b0b433, 2016-06-23 13:39:28+00:00, 1-13 > 1-11 > 1-12
+2016-06-23 13:39:36.485879+00:00 [DEBUG] (SCIONDaemon.run 1-15) Core segment added: c0edd0b0b433, 2016-06-23 13:39:28+00:00, 1-13 > 1-11 > 1-12
+2016-06-23 13:39:36.486092+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added: {(ISD_AS(isd=1, as=12), ()), (ISD_AS(isd=1, as=13), ()), (ISD_AS(isd=1, as=10), ())}
+2016-06-23 13:39:36.501578+00:00 [DEBUG] (SCIONDaemon API id:140529694131968 1-15 -> 1-10) Replying to api request for 1-10 with 2 paths
+2016-06-23 13:39:36.502069+00:00 [ERROR] (SCIONDaemon API id:140529694131968 1-15 -> 1-10) error sending to dispatcher: [Errno 9] Bad file descriptor
+2016-06-23 13:39:36.504225+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added: set()
+2016-06-23 13:39:36.509068+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added: set()
+2016-06-23 13:39:36.511120+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added: set()
+2016-06-23 13:39:36.530976+00:00 [DEBUG] (SCIONDaemon.run 1-15) Added: set()
+2016-06-23 13:39:41.461631+00:00 [ERROR] (SSP 1-15 > 1-10 main) Timeout waiting for server thread to terminate
+2016-06-23 13:39:41.930817+00:00 [INFO] (SSP 1-15 > 1-10 main) Exiting

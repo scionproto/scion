@@ -1,0 +1,61 @@
+2016-06-23 13:38:56.099352+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/ds1-11-1/certs/ISD1-V0.trc
+2016-06-23 13:38:56.099905+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/ds1-11-1/certs/ISD2-V0.trc
+2016-06-23 13:38:56.190318+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/ds1-11-1/certs/ISD1-AS11-V0.crt
+2016-06-23 13:38:56.190868+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:56.191248+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:56.191863+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-11 (IPV4) 127.0.0.69):30040
+2016-06-23 13:38:56.329756+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:56.580457+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:56.580640+00:00 [DEBUG] (MainThread) Joining parties
+2016-06-23 13:38:56.581079+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:56.581329+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:56.581535+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f800b0)
+2016-06-23 13:38:56.753728+00:00 [DEBUG] (MainThread) ZK connection available after 0.17s
+2016-06-23 13:38:56.956511+00:00 [DEBUG] (MainThread) Current party (/1-11/bs/party) members are: ['bs1-11-1']
+2016-06-23 13:38:57.266486+00:00 [DEBUG] (MainThread) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:38:57.576354+00:00 [DEBUG] (MainThread) Current party (/1-11/ds/party) members are: ['ds1-11-1']
+2016-06-23 13:38:57.722396+00:00 [DEBUG] (MainThread) Current party (/1-11/ps/party) members are: ['ps1-11-1', 'ps1-11-2', 'ps1-11-3']
+2016-06-23 13:38:57.820409+00:00 [DEBUG] (MainThread) Current party (/1-11/sb/party) members are: ['sb1-11-1']
+2016-06-23 13:38:57.820655+00:00 [INFO] (MainThread) Started ds1-11-1
+2016-06-23 13:38:58.561161+00:00 [DEBUG] (Thread-6) Request: [127.0.0.1:39865] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:38:58.562010+00:00 [DEBUG] (Thread-6) Reply: [127.0.0.1:39865] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:38:58.631291+00:00 [DEBUG] (Thread-7) Request: [127.0.0.1:37611] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:38:58.631901+00:00 [DEBUG] (Thread-7) Reply: [127.0.0.1:37611] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:38:58.691657+00:00 [DEBUG] (Thread-8) Request: [127.0.0.1:50176] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:38:58.692128+00:00 [DEBUG] (Thread-8) Reply: [127.0.0.1:50176] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:38:58.834041+00:00 [DEBUG] (Thread-9) Request: [127.0.0.1:44276] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:38:58.834634+00:00 [DEBUG] (Thread-9) Reply: [127.0.0.1:44276] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:14.831193+00:00 [DEBUG] (Thread-10) Request: [127.0.0.1:52414] (udp) / 'cs.as11.isd1.scion.' (A)
+2016-06-23 13:39:14.831955+00:00 [DEBUG] (Thread-10) Reply: [127.0.0.1:52414] (udp) / 'cs.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:22.902290+00:00 [DEBUG] (Thread-11) Request: [127.0.0.1:34484] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:39:22.902761+00:00 [DEBUG] (Thread-11) Reply: [127.0.0.1:34484] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:25.635774+00:00 [DEBUG] (Thread-12) Request: [127.0.0.1:50256] (udp) / 'ps.as11.isd1.scion.' (A)
+2016-06-23 13:39:25.636716+00:00 [DEBUG] (Thread-12) Reply: [127.0.0.1:50256] (udp) / 'ps.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:25.809175+00:00 [DEBUG] (Thread-13) Request: [127.0.0.1:34072] (udp) / 'sb.as11.isd1.scion.' (A)
+2016-06-23 13:39:25.809777+00:00 [DEBUG] (Thread-13) Reply: [127.0.0.1:34072] (udp) / 'sb.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:25.862190+00:00 [DEBUG] (Thread-14) Request: [127.0.0.1:36621] (udp) / 'ps.as11.isd1.scion.' (A)
+2016-06-23 13:39:25.862733+00:00 [DEBUG] (Thread-14) Reply: [127.0.0.1:36621] (udp) / 'ps.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:26.529174+00:00 [DEBUG] (Thread-15) Request: [127.0.0.1:53673] (udp) / 'sb.as11.isd1.scion.' (A)
+2016-06-23 13:39:26.531830+00:00 [DEBUG] (Thread-15) Reply: [127.0.0.1:53673] (udp) / 'sb.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:26.873119+00:00 [DEBUG] (Thread-16) Request: [127.0.0.1:58015] (udp) / 'ps.as11.isd1.scion.' (A)
+2016-06-23 13:39:26.873862+00:00 [DEBUG] (Thread-16) Reply: [127.0.0.1:58015] (udp) / 'ps.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:26.878473+00:00 [DEBUG] (Thread-17) Request: [127.0.0.1:33633] (udp) / 'sb.as11.isd1.scion.' (A)
+2016-06-23 13:39:26.878856+00:00 [DEBUG] (Thread-17) Reply: [127.0.0.1:33633] (udp) / 'sb.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:27.619940+00:00 [DEBUG] (Thread-18) Request: [127.0.0.1:34146] (udp) / 'ps.as11.isd1.scion.' (A)
+2016-06-23 13:39:27.639355+00:00 [DEBUG] (Thread-18) Reply: [127.0.0.1:34146] (udp) / 'ps.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:29.570958+00:00 [DEBUG] (Thread-19) Request: [127.0.0.1:45809] (udp) / 'sb.as11.isd1.scion.' (A)
+2016-06-23 13:39:29.571509+00:00 [DEBUG] (Thread-19) Reply: [127.0.0.1:45809] (udp) / 'sb.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:29.852209+00:00 [DEBUG] (Thread-20) Request: [127.0.0.1:47425] (udp) / 'ps.as11.isd1.scion.' (A)
+2016-06-23 13:39:29.852747+00:00 [DEBUG] (Thread-20) Reply: [127.0.0.1:47425] (udp) / 'ps.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:29.995947+00:00 [DEBUG] (Thread-21) Request: [127.0.0.1:53707] (udp) / 'sb.as11.isd1.scion.' (A)
+2016-06-23 13:39:29.996372+00:00 [DEBUG] (Thread-21) Reply: [127.0.0.1:53707] (udp) / 'sb.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:30.194918+00:00 [DEBUG] (Thread-22) Request: [127.0.0.1:52716] (udp) / 'ps.as11.isd1.scion.' (A)
+2016-06-23 13:39:30.199151+00:00 [DEBUG] (Thread-22) Reply: [127.0.0.1:52716] (udp) / 'ps.as11.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:58.757004+00:00 [DEBUG] (Thread-23) Request: [127.0.0.1:54116] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:39:58.757459+00:00 [DEBUG] (Thread-23) Reply: [127.0.0.1:54116] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:58.850610+00:00 [DEBUG] (Thread-24) Request: [127.0.0.1:35320] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:39:58.851075+00:00 [DEBUG] (Thread-24) Reply: [127.0.0.1:35320] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:58.936266+00:00 [DEBUG] (Thread-25) Request: [127.0.0.1:54109] (udp) / 'bs.as11.isd1.scion.' (A)
+2016-06-23 13:39:58.936701+00:00 [DEBUG] (Thread-25) Reply: [127.0.0.1:54109] (udp) / 'bs.as11.isd1.scion.' (A) / RRs: A
+2016-06-23 13:40:13.437623+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.437964+00:00 [INFO] (MainThread) Exiting

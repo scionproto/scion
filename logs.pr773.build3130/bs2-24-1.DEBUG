@@ -1,0 +1,1920 @@
+2016-06-23 13:22:37.974948+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/bs2-24-1/certs/ISD1-V0.trc
+2016-06-23 13:22:37.975553+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/bs2-24-1/certs/ISD2-V0.trc
+2016-06-23 13:22:37.976233+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/bs2-24-1/certs/ISD2-AS24-V0.crt
+2016-06-23 13:22:37.976731+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:37.977121+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:22:37.977812+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.241):30040
+2016-06-23 13:22:38.917977+00:00 [INFO] (MainThread) {'propagation_time': 5, 'cert_ver': 0, 'registers_paths': True, 'master_as_key': b'\xc7\xf0\x8e\x1b4\xc6\x8cR\xe5\r\xed\xca\x01\xd6\x19:', 'registration_time': 5}
+2016-06-23 13:22:38.959994+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:39.017693+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:22:39.017911+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:22:39.019500+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:22:39.019778+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753005d)
+2016-06-23 13:22:39.020785+00:00 [DEBUG] (MainThread) ZK connection available after 0.00s
+2016-06-23 13:22:39.049691+00:00 [DEBUG] (MainThread) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:22:39.050260+00:00 [INFO] (MainThread) Started bs2-24-1
+2016-06-23 13:22:39.169446+00:00 [INFO] (MainThread) IF 3 activated
+2016-06-23 13:22:39.170361+00:00 [INFO] (MainThread) IF 2 activated
+2016-06-23 13:22:39.171017+00:00 [INFO] (MainThread) IF 1 activated
+2016-06-23 13:22:40.056519+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:40.056988+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:40.057153+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:40.057480+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:40.057809+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:40.063767+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:40.070686+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:22:40.071105+00:00 [WARNING] (BS.worker) Step 6
+2016-06-23 13:22:40.071434+00:00 [WARNING] (BS.worker) Before lock
+2016-06-23 13:22:40.071740+00:00 [WARNING] (BS.worker) Got lock
+2016-06-23 13:22:46.928205+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.247)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9923
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:22:52.773757+00:00 [WARNING] (BS.worker) Made tree
+2016-06-23 13:22:52.781125+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.248)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9823
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:22:52.805215+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.246)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9a23
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:22:52.817282+00:00 [WARNING] (BS.worker) Step 7
+2016-06-23 13:22:52.817831+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:52.818195+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:52.818530+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:52.818951+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:52.819391+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:52.819757+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:52.828358+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:22:52.828599+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:52.828920+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:52.829239+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:52.831160+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:52.834554+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:52.834950+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:52.835336+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:52.835658+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:52.835964+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:53.820372+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:53.820803+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:53.820965+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:53.821289+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:53.821593+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:53.823543+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:53.825346+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:53.825718+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:53.826044+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:53.826369+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:53.826706+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:54.821453+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:54.821745+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:54.821885+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:54.822141+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:54.822320+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:54.823337+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:54.824032+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:54.824329+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:54.824637+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:54.824973+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:54.825286+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:55.821879+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:55.822189+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:55.822296+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:55.822475+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:55.822659+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:55.823506+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:55.824105+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:55.824303+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:55.824479+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:55.824650+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:55.824819+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:56.822413+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:56.828776+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:22:56.829188+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:56.829533+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:56.829896+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:56.831523+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:56.832123+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:56.832323+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:56.832505+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:56.832679+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:56.832856+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:57.823435+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:57.823740+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:57.823848+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:57.824033+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:57.824213+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:57.824858+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:57.825685+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:57.825905+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:57.826086+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:57.828814+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:22:57.829097+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:57.845290+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:22:56+00:00, 2-22 > 2-24
+2016-06-23 13:22:57.847626+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:22:56+00:00, 2-22 > 2-24
+2016-06-23 13:22:57.847899+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:58.824676+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:58.825119+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:58.825292+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:58.825633+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:58.825984+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:58.828129+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:58.835140+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:58.835536+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:58.835883+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:58.836207+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:58.836511+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:22:59.830574+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:59.831005+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:22:59.831791+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:59.832111+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:59.832431+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:59.834356+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:59.835286+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:22:59.835636+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:22:59.835973+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:22:59.836299+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:22:59.836626+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:00.833225+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:00.833658+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:00.833821+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:00.834166+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:00.834509+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:00.863407+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:00.891835+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:00.892243+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:00.892573+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:00.892937+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:00.893277+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:01.834247+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:01.837868+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:01.838046+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:01.838371+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:01.838699+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:01.839658+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:01.840422+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:01.840765+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:01.846219+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:01.846556+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:01.846902+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:02.835129+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:02.835573+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:02.835747+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:02.836090+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:02.836432+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:02.853154+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:02.859300+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:02.859692+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:02.860028+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:02.897807+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:02.898312+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:02.905530+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:01+00:00, 2-22 > 2-24
+2016-06-23 13:23:02.911787+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:01+00:00, 2-22 > 2-24
+2016-06-23 13:23:02.912101+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:03.836135+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:03.836570+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:03.836737+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:03.837076+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:03.837421+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:03.865095+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:03.879362+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:03.879776+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:03.880134+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:03.880463+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:03.880825+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:04.837161+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:04.837572+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:04.837743+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:04.838057+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:04.838371+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:04.842578+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:04.859399+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:04.859991+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:04.860347+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:04.860664+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:04.861006+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:05.470034+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:23:05.807428+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:05.807822+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.849004+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:05.850654+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:05.851250+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:05.852037+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:05.853555+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:23:06.737870+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:23:06.738293+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:06.738796+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:07.747522+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:23:07.747853+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:07.748021+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300a0)
+2016-06-23 13:23:08.071729+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:23:08.072267+00:00 [DEBUG] (BS.worker) ZK connection available after 2.22s
+2016-06-23 13:23:08.072463+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:08.187909+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:09.236351+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:23:09.236727+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:09.237080+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:09.237415+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:09.289767+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:09.290271+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:09.393838+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:01+00:00, 2-22 > 2-24
+2016-06-23 13:23:09.428496+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:01+00:00, 2-22 > 2-24
+2016-06-23 13:23:09.428836+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:09.429191+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 3.580s (should have been <= 1.000s)
+2016-06-23 13:23:09.429565+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:09.432655+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:09.432855+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:09.433190+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:09.435890+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:09.810456+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:09.914772+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:09.915245+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:09.915565+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:09.915874+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:09.916188+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:10.429844+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:10.430295+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:10.430463+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:10.430803+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:10.431192+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:10.598217+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:10.681278+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:10.681657+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:10.681959+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:10.682244+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:10.682532+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:11.430621+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:11.434235+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:11.434432+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:11.434795+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:11.437862+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:11.579129+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:11.633194+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:11.633644+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:11.633982+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:11.634312+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:11.634648+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:12.431394+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:12.431833+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:12.431998+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:12.432315+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:12.432648+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:12.504517+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:12.516617+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:12.517033+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:12.517366+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:12.517674+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:12.517978+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:13.432022+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:13.432453+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:13.432625+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:13.432940+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:13.433264+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:13.463037+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:13.507110+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:13.507532+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:13.507853+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:13.508172+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:13.508510+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:14.432977+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:14.433415+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:14.433585+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:14.433930+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:14.434261+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:14.480929+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:14.597396+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:14.597807+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:14.598152+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:14.601052+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:14.601340+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:14.646380+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:10+00:00, 2-22 > 2-24
+2016-06-23 13:23:14.657848+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:10+00:00, 2-22 > 2-24
+2016-06-23 13:23:14.658181+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:15.028528+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:23:15.433955+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:16.169826+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:16.234022+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.247214+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:16.324844+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:16.325202+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:16.325525+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:23:17.044527+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 6)
+2016-06-23 13:23:17.044923+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:17.045097+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:17.816003+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 7)
+2016-06-23 13:23:17.816403+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:17.816590+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300ef)
+2016-06-23 13:23:17.871661+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:23:17.871934+00:00 [DEBUG] (BS.worker) ZK connection available after 1.55s
+2016-06-23 13:23:17.872119+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:17.882406+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:17.913274+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 7)
+2016-06-23 13:23:17.913653+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:17.914004+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:17.914348+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:17.914669+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:17.914990+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:17.915358+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 2.481s (should have been <= 1.000s)
+2016-06-23 13:23:17.915724+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:17.916044+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:17.916204+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:17.916523+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:17.916840+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:17.985835+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:18.031670+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:18.032073+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:18.032413+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:18.032725+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:18.033033+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:18.169638+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.248)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9823
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:23:18.916712+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:18.917130+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:18.917303+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:18.917636+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:18.917954+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:18.981801+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:19.038788+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:19.039259+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:19.039589+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:19.039908+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:19.040218+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:19.917875+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:19.918299+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:19.918465+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:19.918793+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:19.919164+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:20.185118+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:20.535419+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:20.535876+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:20.536231+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:20.563162+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:20.563541+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:20.566810+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:10+00:00, 2-22 > 2-24
+2016-06-23 13:23:20.569548+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:10+00:00, 2-22 > 2-24
+2016-06-23 13:23:20.569829+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:20.918503+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:20.918910+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:20.919109+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:20.919442+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:20.919782+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:21.098874+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:21.216573+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:21.216998+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:21.217343+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:21.217681+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:21.218043+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:21.919127+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:21.919540+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:21.919703+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:21.920027+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:21.920348+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:22.133911+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:22.320243+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:22.320691+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:22.321034+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:22.321352+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:22.321680+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:22.363248+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.246)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9a23
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:23:22.920238+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:22.929971+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:22.946334+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:22.946754+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:22.947129+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:23.225409+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:23.614792+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:23.615255+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:23.615590+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:23.615931+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:23.616255+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:23.920631+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:23.921086+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:23.921252+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:23.921580+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:23.921918+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:24.067102+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:24.311356+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:24.311760+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:24.312086+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:24.312375+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:24.312645+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:24.921326+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:24.921751+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:24.921909+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:24.922233+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:24.922595+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:24.982258+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:25.038466+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:25.038907+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:25.039301+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:25.039631+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:25.039960+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:25.922664+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:25.924963+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:25.925153+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:25.925537+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:25.925876+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:25.932683+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:26.044222+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:26.049227+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:26.049622+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:26.053811+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:26.054255+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:26.062067+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:22+00:00, 2-22 > 2-24
+2016-06-23 13:23:26.105633+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:22+00:00, 2-22 > 2-24
+2016-06-23 13:23:26.106077+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:26.923132+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:26.923598+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:26.923786+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:26.924159+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:26.924500+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:26.990096+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:27.091676+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:27.092075+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:27.092408+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:27.092732+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:27.093045+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:27.631229+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 8)
+2016-06-23 13:23:27.631567+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:27.631774+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:27.924639+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:27.925089+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:27.925275+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:27.925598+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:27.925966+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:23:28.005470+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 9)
+2016-06-23 13:23:28.005836+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:28.006018+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300ef)
+2016-06-23 13:23:28.544266+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.716488+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:23:28.716982+00:00 [DEBUG] (BS.worker) ZK connection available after 0.79s
+2016-06-23 13:23:28.717185+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:28.847429+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:29.352756+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 9)
+2016-06-23 13:23:29.353128+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:29.353457+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:29.353782+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:29.354116+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:29.354437+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:29.354791+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.430s (should have been <= 1.000s)
+2016-06-23 13:23:29.366302+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:29.379902+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:29.380153+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:29.380716+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:29.381066+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:29.434606+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:29.470392+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:29.470814+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:29.471186+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:29.471504+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:29.471827+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:30.367159+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:30.367574+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:30.367736+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:30.368068+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:30.368390+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:30.538337+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:30.853030+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:30.853462+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:30.853801+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:30.854143+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:30.854476+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:31.367930+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:31.368357+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:31.368531+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:31.368869+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:31.369195+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:31.507891+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:31.638862+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:31.639310+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:31.639648+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:31.642406+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:31.642709+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:31.645998+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:28+00:00, 2-22 > 2-24
+2016-06-23 13:23:31.649614+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:28+00:00, 2-22 > 2-24
+2016-06-23 13:23:31.649926+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:32.368746+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:32.369182+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:32.369367+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:32.369715+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:32.370044+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:32.468199+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:32.585452+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:32.585904+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:32.586242+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:32.586597+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:32.586939+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:33.369595+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:33.370022+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:33.370198+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:33.370537+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:33.370890+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:33.647146+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:33.802621+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:33.807065+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:33.807503+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:33.807883+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:33.808209+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:34.371592+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:34.388092+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:34.388356+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:34.388698+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:34.389040+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:34.821605+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:35.070978+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:35.071445+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:35.071779+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:35.072109+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:35.072443+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:35.372084+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:35.372535+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:35.372706+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:35.373039+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:35.373370+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:35.509553+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:35.585162+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:35.585574+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:35.585903+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:35.586230+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:35.586559+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:36.372956+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:36.373404+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:36.373569+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:36.373912+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:36.374245+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:36.679515+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:36.814973+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:36.815433+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:36.815789+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:36.818604+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:36.818886+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:36.822138+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:33+00:00, 2-22 > 2-24
+2016-06-23 13:23:36.824924+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:33+00:00, 2-22 > 2-24
+2016-06-23 13:23:36.825206+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:37.373750+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:37.374348+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:37.374527+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:37.374855+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:37.375225+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:37.488372+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:37.656943+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:37.658999+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:37.687457+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:37.698185+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:37.698573+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:38.374267+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:38.374746+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:38.374919+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:38.376160+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:38.377232+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:38.757531+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:38.948563+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 10)
+2016-06-23 13:23:38.951108+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:38.951293+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:39.061145+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.379311+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:39.382817+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:39.383010+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:39.390481+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:39.390974+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:23:39.559461+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 11)
+2016-06-23 13:23:39.561582+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:39.561766+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300ef)
+2016-06-23 13:23:40.509259+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 12)
+2016-06-23 13:23:41.964143+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 13)
+2016-06-23 13:23:45.112607+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 14)
+2016-06-23 13:23:45.353737+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: []
+2016-06-23 13:23:45.354007+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:45.354173+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:45.354426+00:00 [DEBUG] (BS.worker) ZK connection available after 5.96s
+2016-06-23 13:23:45.354617+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:45.355121+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:45.355282+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:45.355538+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:45.355757+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753024d)
+2016-06-23 13:23:45.357771+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 5.978s (should have been <= 1.000s)
+2016-06-23 13:23:45.358169+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:45.358510+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:45.358669+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:45.359015+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:45.368357+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:23:46.055401+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:23:46.059810+00:00 [DEBUG] (BS.worker) ZK connection available after 0.69s
+2016-06-23 13:23:46.060018+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:46.211901+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:46.675869+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 14)
+2016-06-23 13:23:46.921715+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.247)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9923
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:23:46.996711+00:00 [DEBUG] (BS.worker) Expired 2 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:23:46.996945+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:46.997304+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:46.997654+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:47.001453+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:47.001760+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:47.013475+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:39+00:00, 2-22 > 2-24
+2016-06-23 13:23:47.017594+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:39+00:00, 2-22 > 2-24
+2016-06-23 13:23:47.017921+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:47.093025+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.735s (should have been <= 1.000s)
+2016-06-23 13:23:47.093517+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:47.289131+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:47.289349+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:47.289673+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:47.290006+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:47.436685+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:47.564322+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:47.564752+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:47.565081+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:47.565460+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:47.565968+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:48.095120+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:48.095553+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:48.095723+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:48.096041+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:48.096372+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:48.125578+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:48.201397+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.248)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9823
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:23:48.219651+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:48.220060+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:48.220339+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:48.220605+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:48.220869+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:49.096290+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:49.096721+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:49.096896+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:49.097237+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:49.097568+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:49.133437+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:49.193185+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:49.193621+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:49.193979+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:49.194331+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:49.194688+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:50.096830+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:50.097253+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:50.097425+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:50.097748+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:50.098081+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:50.110436+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:50.116593+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:50.116986+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:50.117312+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:50.117624+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:50.117926+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:51.097836+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:51.098271+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:51.098442+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:51.098778+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:51.099243+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:51.122648+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:51.164491+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:51.164895+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:51.165231+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:51.165549+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:51.165852+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:52.101518+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:52.101963+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:52.102132+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:52.102464+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:52.102797+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:52.148840+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:52.232380+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:23:52.232606+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:52.232957+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:52.233287+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:52.236045+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:52.236343+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:52.240651+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:46+00:00, 2-22 > 2-24
+2016-06-23 13:23:52.271298+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:46+00:00, 2-22 > 2-24
+2016-06-23 13:23:52.271632+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:52.430922+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.246)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9a23
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:23:53.106948+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:53.110520+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:53.110712+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:53.117922+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:53.118343+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:53.139760+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:53.195259+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:53.195690+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:53.196031+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:53.196360+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:53.196678+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:54.107281+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:54.107737+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:54.107904+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:54.108246+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:54.108583+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:54.149587+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:54.202313+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:54.202746+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:54.203124+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:54.203459+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:54.203797+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:55.072468+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 15)
+2016-06-23 13:23:55.108262+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:55.344847+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:55.360279+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.395005+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:55.472894+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:55.473326+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:55.473693+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:23:56.295437+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 16)
+2016-06-23 13:23:56.295863+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:56.296066+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753024d)
+2016-06-23 13:23:56.704147+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:23:56.707288+00:00 [DEBUG] (BS.worker) ZK connection available after 1.23s
+2016-06-23 13:23:56.707503+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:56.749785+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:56.905146+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 16)
+2016-06-23 13:23:56.905529+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:56.905884+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:56.909598+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:56.909954+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:56.910277+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:56.910606+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.802s (should have been <= 1.000s)
+2016-06-23 13:23:56.910955+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:56.920897+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:56.921077+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:56.921392+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:56.921706+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:56.996173+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:57.026827+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:57.027308+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:57.027675+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:57.028003+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:57.028316+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:57.911187+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:57.921860+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:23:57.922099+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:57.922619+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:57.922952+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:57.940376+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:57.973576+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:57.974004+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:57.974386+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:58.004193+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:58.004518+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:58.307428+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:57+00:00, 2-22 > 2-24
+2016-06-23 13:23:58.319363+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:57+00:00, 2-22 > 2-24
+2016-06-23 13:23:58.319684+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:58.911861+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:58.912293+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:58.912463+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:58.912795+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:58.913127+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:58.933649+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:59.005214+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:59.005588+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:59.005901+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:59.006229+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:59.006497+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:59.912719+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:59.913152+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:23:59.913324+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:59.913665+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:59.913995+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:00.117506+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:00.197094+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:00.197504+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:00.197835+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:00.198158+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:00.198485+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:00.913519+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:00.913978+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:00.914146+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:00.914476+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:00.914802+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:00.949985+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:01.000988+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:01.001240+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:01.001618+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:01.001938+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:01.002250+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:01.002591+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:01.915131+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:01.915569+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:01.915742+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:01.916112+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:01.916487+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:02.062010+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:02.209640+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:02.220055+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:02.222564+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:02.224334+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:02.226155+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:02.915417+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:02.915847+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:02.916016+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:02.916344+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:02.916674+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:03.051152+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:03.111930+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:03.112341+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:03.112670+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:03.115468+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:03.115759+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:03.119739+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:23:57+00:00, 2-22 > 2-24
+2016-06-23 13:24:03.122427+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:23:57+00:00, 2-22 > 2-24
+2016-06-23 13:24:03.122716+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:03.918226+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:03.921782+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:03.922009+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:03.922340+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:03.922677+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:03.967001+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:03.968150+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:03.968524+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:03.968868+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:03.969198+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:03.969546+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:04.919131+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:04.919569+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:04.919739+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:04.920065+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:04.920391+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:04.936956+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:04.957347+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:04.957752+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:04.958086+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:04.958428+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:04.958740+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:05.919958+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:05.920394+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:05.920565+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:05.920911+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:05.921227+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:05.927766+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:05.934184+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:05.934594+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:05.934926+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:05.935549+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:05.935883+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:06.920886+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:06.921307+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:06.921498+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:06.921839+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:06.922171+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:06.945694+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:07.000903+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:07.001322+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:07.001653+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:07.002076+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:07.002413+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:07.923202+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:07.924354+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:07.924517+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:07.924829+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:07.925144+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:07.927495+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:07.928619+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:07.928962+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:07.929284+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:07.929595+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:07.929897+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:08.924255+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:08.928483+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:08.928678+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:08.929018+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:08.929348+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:08.942944+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:08.966079+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:08.966552+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:08.966891+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:08.969706+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:08.969980+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:08.972923+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:08+00:00, 2-22 > 2-24
+2016-06-23 13:24:08.975937+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:08+00:00, 2-22 > 2-24
+2016-06-23 13:24:09.055103+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:09.925203+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:09.925618+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:09.925806+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:09.926130+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:09.926459+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:09.930889+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:09.931778+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:09.932147+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:09.932501+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:09.932815+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:09.933145+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:10.927195+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:10.927677+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:10.927861+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:10.928238+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:10.928602+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:10.934572+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:10.937916+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:10.938285+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:10.938643+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:10.938987+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:10.939335+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:11.928808+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:11.929245+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:11.929418+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:11.929754+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:11.930100+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:11.934535+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:11.998946+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:11.999421+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:11.999775+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:12.000098+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:12.000447+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:12.930833+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:12.933001+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:12.933173+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:12.933491+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:12.933823+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:12.943920+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:12.981566+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:12.981781+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:12.982139+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:12.982500+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:12.982825+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:12.986486+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:13.931082+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:13.934664+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:13.934842+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:13.935287+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:13.935613+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:13.946650+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:13.961943+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:13.962434+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:13.962798+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:13.963166+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:13.963515+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:14.934936+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:14.935425+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:14.935592+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:14.935930+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:14.936262+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:14.958207+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:14.984405+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:14.984828+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:14.985169+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:14.989967+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:14.990385+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:15.015249+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:13+00:00, 2-22 > 2-24
+2016-06-23 13:24:15.037549+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:13+00:00, 2-22 > 2-24
+2016-06-23 13:24:15.038904+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:15.939312+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:15.939764+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:15.939935+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:15.940270+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:15.940588+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:16.008176+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:16.020120+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:16.020539+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:16.020903+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:16.021232+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:16.021543+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:16.941627+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.247)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9923
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:24:16.952078+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:16.952458+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:16.952623+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:16.952954+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:16.953290+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:16.956384+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:16.960797+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:16.961159+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:16.961534+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:16.961863+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:16.962183+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:17.954119+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:17.954518+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:17.954685+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:17.956465+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:17.956811+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:17.963614+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:17.975594+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:17.976015+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:17.976372+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:17.979864+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:17.980283+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:18.225158+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.248)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9823
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:24:18.955245+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:18.960062+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:18.960264+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:18.960611+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:18.960962+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:18.976308+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:18.988987+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:18.989378+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:18.989847+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:18.990239+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:18.990590+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:19.957342+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:19.957777+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:19.957957+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:19.958289+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:19.958657+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:19.959844+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:19.962485+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:19.962872+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:19.963244+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:19.963580+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:19.963936+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:20.958216+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:20.958640+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:20.958802+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:20.959131+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:20.959485+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:20.985291+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:20.986207+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:20.986552+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:20.986875+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:20.989631+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:20.989904+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:20.997227+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:18+00:00, 2-22 > 2-24
+2016-06-23 13:24:21.000288+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:18+00:00, 2-22 > 2-24
+2016-06-23 13:24:21.000895+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:21.960079+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:21.960514+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:21.960677+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:21.960991+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:21.961343+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:21.987325+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:22.007923+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:22.008336+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:22.008677+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:22.009011+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:22.009358+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:22.421658+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.246)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9a23
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:24:22.963293+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:22.963729+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:22.963891+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:22.964243+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:22.964572+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:23.018315+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:23.038457+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:23.038898+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:23.039264+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:23.039605+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:23.039931+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:23.964257+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:23.975974+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:23.976197+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:23.977253+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:23.977613+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:24.027749+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:24.097920+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:24.098352+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:24.098686+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:24.099080+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:24.099580+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:24.965193+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:24.965596+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:24.965754+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:24.966075+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:24.966414+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:24.969758+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:24.977164+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:24.977368+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:24.977721+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:24.978070+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:24.978354+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:24.978676+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:25.968212+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:25.968661+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:25.968819+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:25.969158+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:25.969494+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:25.978590+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:25.984447+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:25.984855+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:25.985208+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:25.985553+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:25.985902+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:26.970086+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:26.970473+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:26.970632+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:26.970970+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:26.971351+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:26.975283+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:26.982708+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:26.983148+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:26.983472+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:26.988507+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:26.988994+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:27.024700+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:23+00:00, 2-22 > 2-24
+2016-06-23 13:24:27.162462+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:23+00:00, 2-22 > 2-24
+2016-06-23 13:24:27.164824+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:27.971005+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:27.971483+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:27.971650+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:27.971987+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:27.972324+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:27.983005+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:27.989011+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:27.989380+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:27.989709+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:27.990029+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:27.990352+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:28.971129+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:28.971567+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:28.971737+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:28.972085+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:28.972433+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:28.979976+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:29.002556+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:29.002978+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:29.003344+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:29.003681+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:29.004012+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:29.972170+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:29.975754+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:29.975950+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:29.976284+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:29.976604+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:30.001599+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:30.004872+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:30.005234+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:30.005569+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:30.005887+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:30.006203+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:30.973224+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:30.973651+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:30.973830+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:30.974170+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:30.974489+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:30.987939+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:30.995898+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:30.996299+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:30.996644+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:30.996976+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:30.997309+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:31.973442+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:31.973866+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:31.974032+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:31.974367+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:31.974690+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:31.994219+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:32.006315+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:32.006709+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:32.008064+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:32.012296+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:32.012570+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:32.019872+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:29+00:00, 2-22 > 2-24
+2016-06-23 13:24:32.029292+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:29+00:00, 2-22 > 2-24
+2016-06-23 13:24:32.029622+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:32.974142+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:32.974570+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:32.974737+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:32.975112+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:32.975437+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:32.995309+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:33.003465+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:33.003887+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:33.004246+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:33.005568+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:33.005908+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:33.975138+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:33.975573+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:33.975739+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:33.976093+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:33.976470+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:33.997071+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:34.011371+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:34.011817+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:34.012162+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:34.012514+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:34.012808+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:34.976165+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:34.980413+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:34.980603+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:34.980940+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:34.981268+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:34.985531+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:34.998176+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:34.998599+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:34.999291+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:34.999654+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:35+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:35.977220+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:35.977659+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:35.977831+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:35.978147+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:35.978468+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:35.987389+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:35.996450+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:35.996869+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:35.997199+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:35.997513+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:35.997846+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:36.978115+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:36.978552+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:36.978728+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:36.979116+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:36.979461+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:37.009288+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:37.095317+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:37.095549+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:37.095919+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:37.096263+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:37.111651+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:37.111994+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:37.128632+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:34+00:00, 2-22 > 2-24
+2016-06-23 13:24:37.136522+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:34+00:00, 2-22 > 2-24
+2016-06-23 13:24:37.136839+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:37.979050+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:37.979545+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:37.979722+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:37.980078+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:37.980427+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:38.010478+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:38.020876+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:38.021298+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:38.021639+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:38.021960+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:38.022284+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:38.979896+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:38.980318+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:38.980487+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:38.980814+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:38.981139+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:38.988093+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:39.008128+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:39.008560+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:39.008909+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:39.009252+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:39.009561+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:39.981044+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:39.981438+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:39.981608+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:39.981909+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:39.982208+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:40.005201+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:40.026982+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:40.027429+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:40.027764+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:40.028089+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:40.028416+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:40.981819+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:40.985304+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:40.985500+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:40.985857+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:40.986180+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:40.995891+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:41.015497+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:41.015907+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:41.016234+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:41.023323+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:41.023665+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:41.982540+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:41.982938+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:41.983139+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:41.983464+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:41.983782+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:42.002097+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:42.009113+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:42.009554+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:42.009918+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:42.010263+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:42.010610+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:42.983153+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:42.983608+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:42.983787+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:42.984127+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:42.984479+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:42.992886+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:43.005967+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:43.006183+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:43.006525+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:43.006865+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:43.009582+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:43.009851+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:43.019145+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:40+00:00, 2-22 > 2-24
+2016-06-23 13:24:43.063567+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:40+00:00, 2-22 > 2-24
+2016-06-23 13:24:43.063909+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:43.984501+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:43.984955+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:43.985128+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:43.985473+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:43.985824+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:43.991852+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:43.999621+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:44.000012+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:44.019285+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:44.019644+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:44.023348+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:44.985650+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:44.986126+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:44.986328+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:44.986670+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:44.987014+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:44.988815+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:44.989768+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:44.990095+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:44.990309+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:44.990499+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:44.990674+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:45.986732+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:45.990612+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:45.990804+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:45.991733+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:45.992077+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:46.012432+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:46.023695+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:46.024142+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:46.024487+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:46.024728+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:46.024936+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:46.964991+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.247)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9923
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:24:46.987319+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:46.987776+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:46.987956+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:46.988315+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:46.988669+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:46.991745+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:46.993618+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:46.993986+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:46.994346+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:46.994698+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:46.995664+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:47.988248+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:47.988537+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:47.988642+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:47.988880+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:47.989060+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:47.990429+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:47.998385+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:47.998592+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:47.998941+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:47.999335+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:47.999670+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:48.000004+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:48.254032+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.248)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9823
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:24:48.988747+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:48.989201+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:48.989377+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:48.989720+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:48.990069+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:48.992670+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:48.996389+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:48.996778+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:48.997124+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:49.009908+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:49.010231+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:49.016136+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:45+00:00, 2-22 > 2-24
+2016-06-23 13:24:49.019348+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:45+00:00, 2-22 > 2-24
+2016-06-23 13:24:49.019621+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:49.989342+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:49.989720+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:49.989875+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:49.990177+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:49.990492+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:49.998147+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:50.005487+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:50.005907+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:50.006238+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:50.006590+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:50.006913+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:50.991363+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:50.994963+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:51.007373+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:51.007775+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:51.008139+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:51.016883+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:51.017817+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:51.029118+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:51.031014+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:51.031391+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:51.031710+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:51.991806+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:51.992270+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:51.992441+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:51.992783+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:51.993145+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:51.995466+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:51.997296+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:51.997646+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:51.997980+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:51.998298+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:51.998606+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:52.449116+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.246)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9a23
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:24:52.992884+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:52.993331+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:52.993446+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:52.993643+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:52.993888+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:52.998374+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:52.999175+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:52.999485+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:52.999678+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:52.999919+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:53.000143+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:53.994076+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:53.994520+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:53.994672+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:53.994950+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:53.995326+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:53.996375+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:54.002757+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:24:54.002963+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:54.003303+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:54.003590+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:54.005996+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:24:54.006236+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:54.043313+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:50+00:00, 2-22 > 2-24
+2016-06-23 13:24:54.053317+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:50+00:00, 2-22 > 2-24
+2016-06-23 13:24:54.053646+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:54.994330+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:54.994767+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:54.994937+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:54.995670+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:54.995969+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:54.997986+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:54.999829+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:55.000232+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:55.000577+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:55.000907+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:55.001213+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:55.995301+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:55.999019+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:24:55.999963+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:56.000472+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:56.000853+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:56.003053+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:56.004794+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:56.005177+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:56.005796+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:56.006297+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:56.006616+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:56.996442+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:56.996873+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:56.997040+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:56.997360+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:56.997703+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:57.002291+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:57.008648+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:57.009046+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:57.009418+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:57.009754+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:57.010076+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:57.997879+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:24:57.998330+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:24:57.998502+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:24:57.998856+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:24:57.999224+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:24:58.003443+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:24:58.006319+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:24:58.006709+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:24:58.007083+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:24:58.007420+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:24:58.007752+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:24:58.998670+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:00.281433+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:00.297037+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:00.316509+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:00.330851+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:00.455253+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:00.617090+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:25:00.617306+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:00.617698+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:00.618032+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:00.620819+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:25:00.621110+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:00.834252+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:24:55+00:00, 2-22 > 2-24
+2016-06-23 13:25:00.837865+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:24:55+00:00, 2-22 > 2-24
+2016-06-23 13:25:00.838148+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:00.838508+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.840s (should have been <= 1.000s)
+2016-06-23 13:25:00.838884+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:00.839286+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:00.839441+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:00.839768+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:00.840096+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:00.867839+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:00.875479+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:00.875904+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:00.876250+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:00.876595+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:00.876933+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:01.839712+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:01.859380+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:25:01.859647+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:01.863724+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:01.864091+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:01.877276+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:01.889356+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:01.889758+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:01.890097+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:01.890430+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:01.890759+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:02.841588+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:02.842461+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:02.842633+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:02.843003+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:02.843403+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:02.848768+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:02.850899+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:02.851258+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:02.851591+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:02.851885+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:02.857599+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:03.842434+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:04.301029+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 17)
+2016-06-23 13:25:04.467375+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:04.467680+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.467862+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:04.488513+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:04.493590+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:04.494539+00:00 [DEBUG] (BS.worker) Waiting for ZK connection
+2016-06-23 13:25:05.337536+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 18)
+2016-06-23 13:25:05.337898+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:05.338086+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753024d)
+2016-06-23 13:25:05.378334+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/bs/party) members are: ['bs2-24-1']
+2016-06-23 13:25:05.378615+00:00 [DEBUG] (BS.worker) ZK connection available after 0.88s
+2016-06-23 13:25:05.378822+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:05.382593+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:05.414418+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 18)
+2016-06-23 13:25:05.416108+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:25:05.416276+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:05.416637+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:05.416982+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:05.417311+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:05.417634+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:05.417978+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.576s (should have been <= 1.000s)
+2016-06-23 13:25:05.418342+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:05.418672+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:05.418833+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:05.419213+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:05.419546+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:05.423994+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:05.427881+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:05.428244+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:05.428576+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:05.428915+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:05.429244+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:06.419301+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:06.419592+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:06.419697+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:06.419879+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:06.420202+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:06.421057+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:06.421677+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:06.421924+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:06.422111+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:06.424505+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:25:06.424780+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:06.430210+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:25:00+00:00, 2-22 > 2-24
+2016-06-23 13:25:06.437466+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:25:00+00:00, 2-22 > 2-24
+2016-06-23 13:25:06.437783+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:07.420295+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:07.422546+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:25:07.422679+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:07.422894+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:07.423147+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:07.424262+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:07.424847+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:07.425054+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:07.425238+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:07.425414+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:07.425585+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:08.421377+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:08.421813+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:08.421955+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:08.422141+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:08.422327+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:08.422992+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:08.423645+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:08.423863+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:08.424057+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:08.424229+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:08.424403+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:09.422311+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:09.422617+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:09.422732+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:09.422918+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:09.423164+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:09.423835+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:09.426061+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:25:09.426240+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:09.426444+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:09.426625+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:09.426798+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:09.427088+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:10.423162+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:10.423469+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:10.423577+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:10.423761+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:10.423941+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:10.424613+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:10.425197+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:10.425394+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:10.425578+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:10.425750+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:10.425921+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:11.424245+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:11.424542+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:11.424647+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:11.424871+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:11.425051+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:11.425737+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:11.426328+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:11.426525+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:11.426713+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:11.428955+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:25:11.429228+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:11.435760+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:25:06+00:00, 2-22 > 2-24
+2016-06-23 13:25:11.439809+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:25:06+00:00, 2-22 > 2-24
+2016-06-23 13:25:11.440118+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:12.425080+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:12.425396+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:12.425503+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:12.425689+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:12.425926+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:12.426777+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:12.427502+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:12.427702+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:12.427884+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:12.428058+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:12.428229+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:13.426146+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:13.428430+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:25:13.428555+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:13.428749+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:13.428932+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:13.429653+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:13.430248+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:13.430444+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:13.430628+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:13.430799+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:13.430973+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:14.427129+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:14.427550+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:14.427665+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:14.427989+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:14.428201+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:14.429202+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:14.430569+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:25:14.430744+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:14.431069+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:14.431329+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:14.431522+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:14.431733+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:15.428211+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:15.428525+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:15.428634+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:15.428823+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:15.429006+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:15.430024+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:15.430751+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:15.430991+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:15.431220+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:15.431404+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:15.431578+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:16.428382+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:16.428700+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:16.428813+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:16.428998+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:16.429180+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:16.429910+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:16.430509+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:16.430711+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:16.430895+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:16.432609+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:25:16.432894+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:16.436542+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:25:12+00:00, 2-22 > 2-24
+2016-06-23 13:25:16.439374+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:25:12+00:00, 2-22 > 2-24
+2016-06-23 13:25:16.439649+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:16.995380+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.247)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9923
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:25:17.429430+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:17.429721+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:17.429826+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:17.430025+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:17.430210+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:17.430831+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:17.431508+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:17.431710+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:17.431889+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:17.432069+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:17.432242+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:18.282195+00:00 [DEBUG] (MainThread) Received ifstate req:
+SCIONL4Packet(40B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.248)> Dst:<(2-24 (IPV4) 127.0.0.241)>
+  <SCION-Path>
+  </SCION-Path>
+  UDP hdr (8B): sport: 30041 dport: 30040 length: 16B checksum: 9823
+  Payload:
+    IFStateRequest: (ifID = 0)
+2016-06-23 13:25:18.429861+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:18.432123+00:00 [DEBUG] (BS.worker) Processed 1 pcbs from incoming queue
+2016-06-23 13:25:18.432251+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:18.432478+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:18.432667+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:18.433541+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:18.434385+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:18.434589+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:18.434782+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:18.434955+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:18.435162+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:19.430923+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:19.431270+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:19.431381+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:19.431570+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:19.431785+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:19.432492+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:19.433552+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:25:19.433658+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:19.433841+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:19.434019+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:19.434304+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:19.434478+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:20.431126+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:20.431588+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:20.431762+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:20.432084+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:20.432415+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:20.434103+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:20.435103+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:20.435461+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:20.435790+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:20.436121+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:20.436443+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:21.432164+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:21.432672+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:21.432850+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:21.433209+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:21.433573+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:21.434836+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:21.435806+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:21.436127+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:21.436430+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:21.439216+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:25:21.439523+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:21.448757+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:25:17+00:00, 2-22 > 2-24
+2016-06-23 13:25:21.503694+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:25:17+00:00, 2-22 > 2-24
+2016-06-23 13:25:21.504062+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:22.432825+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:22.433219+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:22.433375+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:22.433687+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:22.433971+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:22.435722+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:22.436527+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:22.436867+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:22.437191+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:22.437489+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:22.437790+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:23.433510+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:23.433984+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:23.434154+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:23.434489+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:23.434825+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:23.435879+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:23.436717+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:23.437082+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:23.437439+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:23.437776+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:23.438113+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:24.434584+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:24.435064+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:24.435239+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:24.435578+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:24.435909+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:24.437124+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:24.437906+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:24.438255+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:24.438565+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:24.438878+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:24.439187+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:25.435136+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:25.435624+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:25.435801+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:25.436136+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:25.436472+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:25.437570+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:25.438972+00:00 [DEBUG] (BS.worker) Expired 1 old entries from /2-24/bs/pcb_cache
+2016-06-23 13:25:25.439196+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:25.439570+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:25.439924+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:25.440298+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:25.440641+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:25.506596+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:25:25.506977+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:25:25.507183+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:25:25.507376+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:25:26.310423+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:26.436214+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:25:26.436520+00:00 [DEBUG] (BS.worker) Processed 0 pcbs from incoming queue
+2016-06-23 13:25:26.436626+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:25:26.436808+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:25:26.436995+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:25:26.437701+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:25:26.438302+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:25:26.438499+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:25:26.438677+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:25:26.440279+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:25:26.440453+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:25:26.442743+00:00 [INFO] (BS.worker) Up path registered: ac837c81296e, 2016-06-23 13:25:17+00:00, 2-22 > 2-24
+2016-06-23 13:25:26.445419+00:00 [INFO] (BS.worker) Down path registered: ac837c81296e, 2016-06-23 13:25:17+00:00, 2-22 > 2-24
+2016-06-23 13:25:26.445722+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:25:26.509384+00:00 [INFO] (MainThread) Exiting

@@ -27,7 +27,7 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 # The tolerable error in epoch in seconds.
 HASHTREE_EPOCH_TOLERANCE = 5
 # Time per Epoch
-HASHTREE_EPOCH_TIME = 10
+HASHTREE_EPOCH_TIME = 60
 # Max time to live
 HASHTREE_TTL = 24*60*60
 # Number of epochs in one TTL per interface

@@ -1,0 +1,97 @@
+2016-06-23 13:23:33.109150+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:23:51.201554+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(129B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 129B, IOF idx: 3, HOF idx: 5, next hdr: 17, hdr len: 72B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:38+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 4e02a6
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 4, mac: f115e8
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:19+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 0, mac: 0cb049
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 83e805
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1595 dport: 0 length: 57B checksum: df74
+  Payload:
+    PayloadRaw(49B): 28312d313520284950563429203132372e302e302e32293c2d3e28312d313120[...]
+2016-06-23 13:23:51.204792+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadIF'>
+2016-06-23 13:23:51.217737+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(96B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 96B, IOF idx: 0, HOF idx: 1, next hdr: 0, hdr len: 72B
+  SCIONAddrHdr(16B): Src:<(1-11 (IPV4) 127.0.0.70)> Dst:<(1-15 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:23:19+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 83e805
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 0, mac: 0cb049
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:23:38+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 4, mac: f115e8
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 4e02a6
+    </B-Segment>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: BAD_IF length: 16B checksum:  timestamp: 2016-06-23 13:23:51.217533+00:00
+  Payload:
+    SCMPPayload(96B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 48B HOF offset: 64B IF id: 0 Ingress: False
+      Common Header(8B): 0041008130401148
+      Address Header(16B): 0010000f7f000002003000217f000003
+      Path Header(48B): 01576be2da000102003f0010004e02a6013f000004f115e801576be2c7000102013f0010000cb049003f00000183e805
+      L4 Header(8B): 063b0000000883ad
+2016-06-23 13:24:24.193531+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(153B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 153B, IOF idx: 5, HOF idx: 8, next hdr: 17, hdr len: 96B
+  SCIONAddrHdr(16B): Src:<(1-10 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:35+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: c4a492
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 2, mac: 690b44
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: 1252ba
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 3, mac: 5f642f
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:19+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 0, mac: 7f2ba9
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 2, mac: 8b4b1c
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 83e805
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1972 dport: 0 length: 57B checksum: e7fb
+  Payload:
+    PayloadRaw(49B): 28312d313020284950563429203132372e302e302e32293c2d3e28312d313120[...]
+2016-06-23 13:24:24.202745+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadIF'>
+2016-06-23 13:24:24.204732+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(120B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 120B, IOF idx: 0, HOF idx: 1, next hdr: 0, hdr len: 96B
+  SCIONAddrHdr(16B): Src:<(1-11 (IPV4) 127.0.0.70)> Dst:<(1-10 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:23:19+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 83e805
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 2, mac: 8b4b1c
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 0, mac: 7f2ba9
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:23:35+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 3, mac: 5f642f
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: 1252ba
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 2, mac: 690b44
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: c4a492
+    </B-Segment>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: BAD_IF length: 16B checksum:  timestamp: 2016-06-23 13:24:24.204622+00:00
+  Payload:
+    SCMPPayload(120B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 64B HOF offset: 88B IF id: 0 Ingress: False
+      Common Header(8B): 0041009940581160
+      Address Header(16B): 0010000a7f000002003000217f000003
+      Path Header(72B): 01576be2d7000104003f001000c4a492003f001002690b44003f0010031252ba013f0000035f642f01576be2c7000103013f0020007f2ba9003f0010028b4b1c003f00000183e805
+      L4 Header(8B): 07b4000000088734

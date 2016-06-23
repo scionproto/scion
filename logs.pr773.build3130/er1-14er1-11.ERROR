@@ -1,0 +1,106 @@
+2016-06-23 13:24:50.577632+00:00 [ERROR] (MainThread) Error parsing packet: 00410091182011050010000e7f000002002000167f00000301576be31f000102003f001000b8cf13013f00000468503001576be2be000204013f00200044dd1d003f002001a9cc14003f0030024818ef003f00000112583f095600000039f85728312d313420284950563429203132372e302e302e32293c2d3e28322d323220284950563429203132372e302e302e3329
+2016-06-23 13:24:50.583904+00:00 [ERROR] (MainThread) Traceback (most recent call last):
+2016-06-23 13:24:50.584357+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/infrastructure/scion_elem.py", line 240, in _parse_packet
+2016-06-23 13:24:50.586793+00:00 [ERROR] (MainThread)     pkt = SCIONL4Packet(packet)
+2016-06-23 13:24:50.587241+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 572, in __init__
+2016-06-23 13:24:50.587574+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.587902+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 486, in __init__
+2016-06-23 13:24:50.588257+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.588599+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 316, in __init__
+2016-06-23 13:24:50.588979+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.589382+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 145, in __init__
+2016-06-23 13:24:50.589925+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.590370+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 32, in __init__
+2016-06-23 13:24:50.591014+00:00 [ERROR] (MainThread)     self._parse(raw)
+2016-06-23 13:24:50.591538+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 320, in _parse
+2016-06-23 13:24:50.591920+00:00 [ERROR] (MainThread)     self._inner_parse(data)
+2016-06-23 13:24:50.592328+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 575, in _inner_parse
+2016-06-23 13:24:50.592749+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:50.594297+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 489, in _inner_parse
+2016-06-23 13:24:50.597460+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:50.597923+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 324, in _inner_parse
+2016-06-23 13:24:50.598361+00:00 [ERROR] (MainThread)     self.cmn_hdr = SCIONCommonHdr(data.pop(SCIONCommonHdr.LEN))
+2016-06-23 13:24:50.598980+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 105, in __init__
+2016-06-23 13:24:50.599440+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.599885+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 32, in __init__
+2016-06-23 13:24:50.600312+00:00 [ERROR] (MainThread)     self._parse(raw)
+2016-06-23 13:24:50.602510+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 126, in _parse
+2016-06-23 13:24:50.602950+00:00 [ERROR] (MainThread)     (self.hdr_len, self.LEN, self.addrs_len))
+2016-06-23 13:24:50.603411+00:00 [ERROR] (MainThread) lib.errors.SCIONParseError: hdr_len (5B) < common header len (8B) + addrs len (16B)
+2016-06-23 13:24:50.603830+00:00 [ERROR] (MainThread) 
+2016-06-23 13:24:50.625756+00:00 [ERROR] (MainThread) Error parsing packet: 00410091182011ff0010000e7f000002002000167f00000301576be31f000102003f001000b8cf13013f00000468503001576be2be000204013f00200044dd1d003f002001a9cc14003f0030024818ef003f00000112583f095700000039f85628312d313420284950563429203132372e302e302e32293c2d3e28322d323220284950563429203132372e302e302e3329
+2016-06-23 13:24:50.626522+00:00 [ERROR] (MainThread) Traceback (most recent call last):
+2016-06-23 13:24:50.626965+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/infrastructure/scion_elem.py", line 240, in _parse_packet
+2016-06-23 13:24:50.627489+00:00 [ERROR] (MainThread)     pkt = SCIONL4Packet(packet)
+2016-06-23 13:24:50.627913+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 572, in __init__
+2016-06-23 13:24:50.628351+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.628772+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 486, in __init__
+2016-06-23 13:24:50.629204+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.629596+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 316, in __init__
+2016-06-23 13:24:50.630014+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.630431+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 145, in __init__
+2016-06-23 13:24:50.630849+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:50.631309+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 32, in __init__
+2016-06-23 13:24:50.631728+00:00 [ERROR] (MainThread)     self._parse(raw)
+2016-06-23 13:24:50.632812+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 320, in _parse
+2016-06-23 13:24:50.633206+00:00 [ERROR] (MainThread)     self._inner_parse(data)
+2016-06-23 13:24:50.633601+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 575, in _inner_parse
+2016-06-23 13:24:50.634000+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:50.634405+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 489, in _inner_parse
+2016-06-23 13:24:50.635648+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:50.636344+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 326, in _inner_parse
+2016-06-23 13:24:50.636992+00:00 [ERROR] (MainThread)     self._parse_path(data)
+2016-06-23 13:24:50.637745+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 347, in _parse_path
+2016-06-23 13:24:50.638401+00:00 [ERROR] (MainThread)     % (self.cmn_hdr.hdr_len, len(data) + data.offset())
+2016-06-23 13:24:50.643489+00:00 [ERROR] (MainThread) lib.errors.SCIONParseError: Bad header len field (255B), implies path is longer than packet (145B)
+2016-06-23 13:24:50.644176+00:00 [ERROR] (MainThread) 
+2016-06-23 13:24:50.783098+00:00 [ERROR] (MainThread) Dropping packet due to incorrect MAC.
+Header:
+SCIONL4Packet(145B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 145B, IOF idx: 0, HOF idx: 1, next hdr: 17, hdr len: 88B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(2-22 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:24:47+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 000000
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 4, mac: 685030
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:10+00:00, ISD: 2, hops: 4
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 0, mac: 44dd1d
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 2, egress: 1, mac: a9cc14
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 3, egress: 2, mac: 4818ef
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 12583f
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 2397 dport: 0 length: 57B checksum: f850
+  Payload:
+    PayloadRaw(49B): 28312d313420284950563429203132372e302e302e32293c2d3e28322d323220[...]
+Invalid OF: HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 000000
+Prev OF: HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 4, mac: 685030
+2016-06-23 13:24:50.801861+00:00 [ERROR] (MainThread) Dropping packet due to expired OF.
+Header:
+SCIONL4Packet(145B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 145B, IOF idx: 0, HOF idx: 1, next hdr: 17, hdr len: 88B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(2-22 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 1970-01-01 00:00:00+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: b8cf13
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 4, mac: 685030
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:10+00:00, ISD: 2, hops: 4
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 0, mac: 44dd1d
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 2, egress: 1, mac: a9cc14
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 3, egress: 2, mac: 4818ef
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 12583f
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 2398 dport: 0 length: 57B checksum: f84f
+  Payload:
+    PayloadRaw(49B): 28312d313420284950563429203132372e302e302e32293c2d3e28322d323220[...]
+Expired OF: HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: b8cf13
+2016-06-23 13:24:51.004811+00:00 [ERROR] (MainThread) Too many hop-by-hop extensions.
+2016-06-23 13:24:51.066055+00:00 [ERROR] (MainThread) SCMP ext header not first.
+2016-06-23 13:24:51.117266+00:00 [ERROR] (MainThread) Unknown extension: 0-255

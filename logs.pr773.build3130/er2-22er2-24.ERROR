@@ -1,0 +1,15 @@
+2016-06-23 13:23:39.524526+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(105B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 105B, IOF idx: 0, HOF idx: 2, next hdr: 17, hdr len: 48B
+  SCIONAddrHdr(16B): Src:<(2-24 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:01+00:00, ISD: 2, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: c70372
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: 5baeaf
+    </A-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1478 dport: 0 length: 57B checksum: c6e5
+  Payload:
+    PayloadRaw(49B): 28322d323420284950563429203132372e302e302e32293c2d3e28322d323220[...]
+2016-06-23 13:23:58.469556+00:00 [ERROR] (MainThread) DNS failure, using fallback value for ps: Unable to reach any working nameservers

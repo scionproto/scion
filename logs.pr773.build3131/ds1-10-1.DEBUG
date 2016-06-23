@@ -1,0 +1,49 @@
+2016-06-23 13:38:06.968484+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS10/ds1-10-1/certs/ISD1-V0.trc
+2016-06-23 13:38:06.969009+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS10/ds1-10-1/certs/ISD2-V0.trc
+2016-06-23 13:38:07.021783+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS10/ds1-10-1/certs/ISD1-AS10-V0.crt
+2016-06-23 13:38:07.032506+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:07.032894+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:07.033096+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:07.089824+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:07.294660+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:07.294858+00:00 [DEBUG] (MainThread) Joining parties
+2016-06-23 13:38:07.295279+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:07.295536+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:07.295706+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80000)
+2016-06-23 13:38:07.655911+00:00 [DEBUG] (MainThread) ZK connection available after 0.36s
+2016-06-23 13:38:07.806077+00:00 [DEBUG] (MainThread) Current party (/1-10/bs/party) members are: []
+2016-06-23 13:38:07.832818+00:00 [DEBUG] (MainThread) Current party (/1-10/cs/party) members are: ['cs1-10-1']
+2016-06-23 13:38:07.902094+00:00 [DEBUG] (MainThread) Current party (/1-10/ds/party) members are: ['ds1-10-1']
+2016-06-23 13:38:07.940918+00:00 [DEBUG] (MainThread) Current party (/1-10/ps/party) members are: []
+2016-06-23 13:38:07.947779+00:00 [DEBUG] (MainThread) Current party (/1-10/sb/party) members are: []
+2016-06-23 13:38:07.947960+00:00 [INFO] (MainThread) Started ds1-10-1
+2016-06-23 13:38:37.610319+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:38:37.610669+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:37.610856+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:40.377005+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:38:40.377406+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:38:40.377564+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:41.762087+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:38:41.763471+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:38:41.763637+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80045)
+2016-06-23 13:38:41.954444+00:00 [DEBUG] (libZK._state_handler) Current party (/1-10/ps/party) members are: []
+2016-06-23 13:38:42.255656+00:00 [DEBUG] (libZK._state_handler) Current party (/1-10/bs/party) members are: ['bs1-10-1']
+2016-06-23 13:38:42.384985+00:00 [DEBUG] (libZK._state_handler) Current party (/1-10/sb/party) members are: []
+2016-06-23 13:38:42.719986+00:00 [DEBUG] (libZK._state_handler) Current party (/1-10/ds/party) members are: ['ds1-10-1']
+2016-06-23 13:38:42.736896+00:00 [DEBUG] (libZK._state_handler) Current party (/1-10/cs/party) members are: []
+2016-06-23 13:38:45.734687+00:00 [DEBUG] (Thread-6) Request: [127.0.0.1:43100] (udp) / 'bs.as10.isd1.scion.' (A)
+2016-06-23 13:38:45.735196+00:00 [DEBUG] (Thread-6) Reply: [127.0.0.1:43100] (udp) / 'bs.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:03.869729+00:00 [DEBUG] (Thread-7) Request: [127.0.0.1:39038] (udp) / 'ps.as10.isd1.scion.' (A)
+2016-06-23 13:39:03.870212+00:00 [DEBUG] (Thread-7) Reply: [127.0.0.1:39038] (udp) / 'ps.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:15.162541+00:00 [DEBUG] (Thread-8) Request: [127.0.0.1:49286] (udp) / 'cs.as10.isd1.scion.' (A)
+2016-06-23 13:39:15.169959+00:00 [DEBUG] (Thread-8) Reply: [127.0.0.1:49286] (udp) / 'cs.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:35.862520+00:00 [DEBUG] (Thread-9) Request: [127.0.0.1:50996] (udp) / 'sb.as10.isd1.scion.' (A)
+2016-06-23 13:39:35.862870+00:00 [DEBUG] (Thread-9) Reply: [127.0.0.1:50996] (udp) / 'sb.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:36.526018+00:00 [DEBUG] (Thread-10) Request: [127.0.0.1:36247] (udp) / 'ps.as10.isd1.scion.' (A)
+2016-06-23 13:39:36.526741+00:00 [DEBUG] (Thread-10) Reply: [127.0.0.1:36247] (udp) / 'ps.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:45.820636+00:00 [DEBUG] (Thread-11) Request: [127.0.0.1:37519] (udp) / 'bs.as10.isd1.scion.' (A)
+2016-06-23 13:39:45.821107+00:00 [DEBUG] (Thread-11) Reply: [127.0.0.1:37519] (udp) / 'bs.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:40:06.861786+00:00 [DEBUG] (Thread-12) Request: [127.0.0.1:37122] (udp) / 'ps.as10.isd1.scion.' (A)
+2016-06-23 13:40:06.862247+00:00 [DEBUG] (Thread-12) Reply: [127.0.0.1:37122] (udp) / 'ps.as10.isd1.scion.' (A) / RRs: A
+2016-06-23 13:40:08.468878+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:08.469213+00:00 [INFO] (MainThread) Exiting

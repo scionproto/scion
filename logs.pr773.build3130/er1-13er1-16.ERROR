@@ -1,0 +1,29 @@
+2016-06-23 13:24:18.346922+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(113B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 113B, IOF idx: 0, HOF idx: 3, next hdr: 17, hdr len: 56B
+  SCIONAddrHdr(16B): Src:<(1-19 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:00+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: cbda5f
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: a0e8ea
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: f71f02
+    </A-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1880 dport: 0 length: 57B checksum: d457
+  Payload:
+    PayloadRaw(49B): 28312d313920284950563429203132372e302e302e32293c2d3e28312d313320[...]
+2016-06-23 13:24:50.404668+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(105B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 105B, IOF idx: 0, HOF idx: 2, next hdr: 17, hdr len: 48B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:24:44+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 18c16d
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: b4ff5a
+    </A-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 2382 dport: 0 length: 57B checksum: d861
+  Payload:
+    PayloadRaw(49B): 28312d313620284950563429203132372e302e302e32293c2d3e28312d313320[...]

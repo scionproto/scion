@@ -1,0 +1,8 @@
+2016-06-23 13:39:12.236536+00:00 [INFO] (SCMPErr 2-22 > 1-12 main) =======================> Testing: 2-22 -> 1-12
+2016-06-23 13:39:12.237024+00:00 [INFO] (SCMPErr 2-22 > 1-12 main) ===========> Testing: bad host
+2016-06-23 13:39:17.802482+00:00 [ERROR] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Query timed out for 1-12
+2016-06-23 13:39:22.838037+00:00 [ERROR] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Query timed out for 1-12
+2016-06-23 13:39:27.867876+00:00 [ERROR] (SCIONDaemon API id:140712081479424 2-22 -> 1-12) Query timed out for 1-12
+2016-06-23 13:39:27.869184+00:00 [CRITICAL] (SCMPErr 2-22 > 1-12 main) Unable to get path from local api.
+2016-06-23 13:39:27.869811+00:00 [ERROR] (SCMPErr 2-22 > 1-12 main) Received SIGUSR2
+2016-06-23 13:39:27.870714+00:00 [INFO] (SCMPErr 2-22 > 1-12 main) Exiting

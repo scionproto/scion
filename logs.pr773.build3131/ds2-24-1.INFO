@@ -1,0 +1,8 @@
+2016-06-23 13:38:27.139168+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:27.272906+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:27.674770+00:00 [INFO] (MainThread) Started ds2-24-1
+2016-06-23 13:38:37.588534+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:44.884315+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:48.375912+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:40:11.282557+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:11.282913+00:00 [INFO] (MainThread) Exiting

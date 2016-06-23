@@ -1,0 +1,14 @@
+2016-06-23 13:22:10.992912+00:00 [INFO] (MainThread) Interface: {'mtu': 1472, 'bandwidth': 1000, 'to_if_id': 0, 'isd_as': ISD_AS(isd=1, as=14), 'if_id': 2, 'to_udp_port': 50000, 'link_type': 'PEER', 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f45f7690cc0>, 'name': None, 'udp_port': 50000, 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f45f7690f98>}
+2016-06-23 13:22:12.960725+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-15#2 -> 1-14 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:22:12.962424+00:00 [INFO] (MainThread) IP 127.0.0.23:50000
+2016-06-23 13:22:12.962699+00:00 [INFO] (MainThread) Started er1-15er1-14
+2016-06-23 13:22:13.091494+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:43.119198+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:13.147518+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:43.175122+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:13.203569+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:43.233633+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:13.263127+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:22.751711+00:00 [ERROR] (MainThread) DNS failure, using fallback value for bs: Unable to reach any working nameservers
+2016-06-23 13:25:23.538213+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:23.716405+00:00 [INFO] (MainThread) Exiting

@@ -1,0 +1,41 @@
+2016-06-23 13:21:53.553912+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:53.666850+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:02.427576+00:00 [INFO] (MainThread) Started cs1-12-1
+2016-06-23 13:22:02.466697+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.483700+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.487795+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:22:04.485813+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:05.487679+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:06.490854+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:07.492992+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.494183+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.495696+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.497792+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.499673+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.501922+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.503696+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.505838+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.507683+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.509792+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.511666+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.513809+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:49.874495+00:00 [INFO] (MainThread) Cert chain request received for 1-12v0
+2016-06-23 13:22:49.876544+00:00 [INFO] (CC Requests) Cert chain for 1-12v0 sent to (1-12 (IPV4) 127.0.0.2):1052
+2016-06-23 13:22:49.883292+00:00 [INFO] (MainThread) TRC request received for 1v0
+2016-06-23 13:22:49.885679+00:00 [INFO] (TRC Requests) TRC for 1v0 sent to (1-12 (IPV4) 127.0.0.2):1052
+2016-06-23 13:23:05.505424+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:05.746889+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.519755+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 3)
+2016-06-23 13:23:15.518350+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.233901+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.340931+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:17.180331+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 6)
+2016-06-23 13:23:40.549179+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:40.989850+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.558873+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 8)
+2016-06-23 13:23:55.361471+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.600876+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 10)
+2016-06-23 13:25:04.472112+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:05.183237+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:25:21.416023+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:22.106964+00:00 [INFO] (MainThread) Exiting

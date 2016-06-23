@@ -1,0 +1,46 @@
+2016-06-23 13:21:54.761497+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:55.060990+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:56.068780+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:57.070868+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:58.073030+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:59.076058+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:00.079569+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:01.081532+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:02.083687+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.084934+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:04.086080+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:05.087777+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:06.089895+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:07.091727+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.093360+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.095523+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.096941+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.099123+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.101248+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.103385+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.105526+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.107700+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.108813+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.109892+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.111802+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:24:32.411526+00:00 [ERROR] (MainThread) SCMP class not supported: 3(PATH)
+SCIONL4Packet(864B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 864B, IOF idx: 0, HOF idx: 3, next hdr: 0, hdr len: 56B
+  SCIONAddrHdr(16B): Src:<(2-26 (IPV4) 127.0.1.5)> Dst:<(2-26 (IPV4) 127.0.1.7)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:24:23+00:00, ISD: 2, hops: 3
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: f1ac15
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: 2b1c4e
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 2, egress: 0, mac: 7570cc
+    </A-Segment>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|HOPBYHOP
+  SCMPHeader(16B): class: PATH type: REVOKED_IF length: 800B checksum: 98fa timestamp: 2016-06-23 13:24:32.408351+00:00
+  Payload:
+    SCMPPayload(784B): L4 proto: UDP
+      SCMPInfoPktSize(712B): IOF offset:24B HOF offset: 32B IF id: 2 Ingress: False Rev token: 106e500204010203d912310d02011119f73381010201338d010201ffb7ce62c1136ebb7b03cc881c8191544cfc36d7d32737479a942fa9109f504746bb513c0101010131710201000031790201000031810201010131890201010131910201000031990201000031a10201010131a90201000031b10201000031b90201010131c10201000031c90201010131d10201010131d90201000031e10201ffd19dbb65f2ee690a43aef2d47961ef7fd7e8be261c45994f0f779c8d1b5e7b4e441f952ed99b9f87bdc19e6e2230b7691d0c4c463b94268762a553ef0d25c9ce72dcb6d100833589919c81fbc4e1bdc33f5311f5b4c9668013feaf6bca3eefcf42fc7315c07112c44d0260cc746a0cef74e35585b362861b08e7bb695358161c7bb63e8361e4e9c910a0fe2ad54741ec4d8a1b67a9cd772cfad385eb283f026d5228c0a2f98c75472318acfbeae8f9d2f5412985d52bb431499b2ff6474c81768900f8ad5292f80690c6d0a9dea4737d2d657219c4855a77ba1ed3687efe25d29acef2e6df0bf04f7a958609b58749dc766c94a457126a7ea6e4f8bbcfa2d9ed105f33c3fb90852ccf7e51a6d5ff013322574034d87596531534bf3840527768f7c97e0b51fc75313bb3382bbd60aa2ff57f9d71ad4000c2a85c980d97270a6da0dac951b66be777122b40ac44e071efd0f39073ca1a340ce0ad5d75644e7eabb875f21b08c58191d1dcd1c96f5c7a660dd11278e557eb4cc9d44bbe89acc5dd31f571e1d42d1030252167318d8e58344637b184b0250542b2f025f913055caaa32a0b40fcb529b258480d09b4faa9fde013f111e743bb564fded1f0bf5e09d8bff7193204206c21210333d873e6342baf16a66ea507b84cecfdda7e4093e7fca83e421bc4d196f5082cba830509d2c6d7ebc5d62dab3d5588eb1fa25a9ef0de5e183cce5f7419a13d900da3f35fe9865b7637c0f2c88127b9fb49340f6095b29a000000
+      Common Header(8B): 0043022218201138
+      Address Header(16B): 0020001a7f0001070020001600010000
+      Path Header(32B): 01576be307000203003f0020007570cc003f0010032b1c4e003f000003f1ac15
+      L4 Header(8B): 7558755800089cb5

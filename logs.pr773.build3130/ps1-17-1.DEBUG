@@ -1,0 +1,382 @@
+2016-06-23 13:22:08.463592+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS17/ps1-17-1/certs/ISD1-V0.trc
+2016-06-23 13:22:08.466490+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS17/ps1-17-1/certs/ISD2-V0.trc
+2016-06-23 13:22:08.467443+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS17/ps1-17-1/certs/ISD1-AS17-V0.crt
+2016-06-23 13:22:08.467910+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:08.472623+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:22:08.472816+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.485932+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:08.532567+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:22:08.534516+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:22:08.535875+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:22:08.536048+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753002f)
+2016-06-23 13:22:08.549856+00:00 [DEBUG] (MainThread) ZK connection available after 0.01s
+2016-06-23 13:22:08.576002+00:00 [DEBUG] (MainThread) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:22:08.576356+00:00 [INFO] (MainThread) Started ps1-17-1
+2016-06-23 13:22:08.627454+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:08.627693+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:08.627871+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.612972+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:22:09.629560+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:09.629820+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:09.630001+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.631209+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:10.631432+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:10.631586+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.633204+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:11.633469+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:11.633647+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.635248+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:12.635519+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:12.635694+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.636854+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:13.637107+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:13.637299+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.638963+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:14.639367+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:14.639553+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.641282+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:15.641518+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:15.641694+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.643244+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:16.643503+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:16.643702+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.645379+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:17.645637+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:17.645827+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.647242+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:18.647487+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:18.647670+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:19.648287+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:19.648533+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:19.649281+00:00 [DEBUG] (Elem.packet_recv) Registered to dispatcher for addr (1-17 (IPV4) 127.0.0.61):30040
+2016-06-23 13:22:50.254868+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-17: 40b7f17cac80, 2016-06-23 13:22:46+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:50.258051+00:00 [INFO] (MainThread) Up-Segment registered: 40b7f17cac80, 2016-06-23 13:22:46+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:50.649413+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:56.145384+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:22:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:56.654183+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:01.192532+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:22:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:01.451106+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:01.451774+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "2-23", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:22:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:01.549619+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-23: 99ddb820a3bc, 2016-06-23 13:22:55+00:00, 2-21 > 2-23
+2016-06-23 13:23:01.550510+00:00 [INFO] (MainThread) Down-Segment registered: 99ddb820a3bc, 2016-06-23 13:22:55+00:00, 2-21 > 2-23
+2016-06-23 13:23:01.551382+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: d88f6cbb952f, 2016-06-23 13:22:55+00:00, 2-21 > 1-11
+2016-06-23 13:23:01.552023+00:00 [INFO] (MainThread) Core-Segment registered: d88f6cbb952f, 2016-06-23 13:22:55+00:00, 2-21 > 1-11
+2016-06-23 13:23:01.553674+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:01.667282+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:05.172048+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:23:05.663196+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:05.737141+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:05.738700+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.170459+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:23:06.171198+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "1-18", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:22:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:06.202005+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-18: 68a3ddf641ee, 2016-06-23 13:22:58+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:06.203120+00:00 [INFO] (MainThread) Down-Segment registered: 68a3ddf641ee, 2016-06-23 13:22:58+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:23:06.203964+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-11: 0304fefb6cd6, 2016-06-23 13:22:58+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:06.210024+00:00 [INFO] (MainThread) Core-Segment registered: 0304fefb6cd6, 2016-06-23 13:22:58+00:00, 1-12 > 1-13 > 1-11
+2016-06-23 13:23:06.212615+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-11: 74cb4dbc1395, 2016-06-23 13:22:58+00:00, 1-12 > 1-11
+2016-06-23 13:23:06.213359+00:00 [INFO] (MainThread) Core-Segment registered: 74cb4dbc1395, 2016-06-23 13:22:58+00:00, 1-12 > 1-11
+2016-06-23 13:23:06.215305+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1108 in response to: (srcIA = "1-17", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:23:06.664130+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:07.396155+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:07.908914+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:23:07.909299+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:07.909476+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:08.380484+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-17: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+  SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+2016-06-23 13:23:08.381502+00:00 [INFO] (MainThread) Up-Segment registered: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+  SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+2016-06-23 13:23:08.756021+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:23:08.756346+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:08.756516+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300b5)
+2016-06-23 13:23:09.488353+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:23:09.793419+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 6)
+2016-06-23 13:23:10.436576+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:10.436839+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:10.437005+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:10.437262+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:10.437417+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300b5)
+2016-06-23 13:23:10.441864+00:00 [DEBUG] (PS.worker) ZK connection available after 3.78s
+2016-06-23 13:23:10.442093+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:10.442422+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:10.443417+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:10.457839+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.794s (should have been <= 1.000s)
+2016-06-23 13:23:10.458215+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:10.972515+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:10.972799+00:00 [DEBUG] (PS.worker) ZK connection available after 0.51s
+2016-06-23 13:23:11.421301+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 6)
+2016-06-23 13:23:13.768898+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:14.054611+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-21", flags = (sibra = false))
+2016-06-23 13:23:14.056155+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-17 (IPV4) 127.0.0.3) port:1042 in response to: (srcIA = "1-17", dstIA = "2-21", flags = (sibra = false))
+2016-06-23 13:23:14.596004+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:15.297470+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 7)
+2016-06-23 13:23:15.462346+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.172205+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:16.224715+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.462541+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:16.774279+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 8)
+2016-06-23 13:23:16.774636+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:16.774793+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:18.486283+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 9)
+2016-06-23 13:23:18.486613+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:18.486778+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753010b)
+2016-06-23 13:23:18.563703+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:18.563969+00:00 [DEBUG] (PS.worker) ZK connection available after 2.10s
+2016-06-23 13:23:18.801363+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 9)
+2016-06-23 13:23:18.801743+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.339s (should have been <= 1.000s)
+2016-06-23 13:23:19.005020+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:19.009294+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:19.009912+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "1-19", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:19.058850+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-19: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:19.059877+00:00 [INFO] (MainThread) Down-Segment registered: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:19.060648+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-11: f5998b8a9973, 2016-06-23 13:23:00+00:00, 1-13 > 1-11
+2016-06-23 13:23:19.061303+00:00 [INFO] (MainThread) Core-Segment registered: f5998b8a9973, 2016-06-23 13:23:00+00:00, 1-13 > 1-11
+2016-06-23 13:23:19.062126+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-11: e9c9d04f124f, 2016-06-23 13:22:55+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:19.062882+00:00 [INFO] (MainThread) Core-Segment registered: e9c9d04f124f, 2016-06-23 13:22:55+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:23:19.065493+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.3) port:1042 in response to: (srcIA = "1-17", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:19.514568+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:19.515292+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "2-24", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:19.881609+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-24: ac837c81296e, 2016-06-23 13:23:01+00:00, 2-22 > 2-24
+2016-06-23 13:23:19.882423+00:00 [INFO] (MainThread) Down-Segment registered: ac837c81296e, 2016-06-23 13:23:01+00:00, 2-22 > 2-24
+2016-06-23 13:23:19.883373+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 468fdf5291a8, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:19.884366+00:00 [INFO] (MainThread) Core-Segment registered: 468fdf5291a8, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:19.885206+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 31692ad2778c, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:19.886001+00:00 [INFO] (MainThread) Core-Segment registered: 31692ad2778c, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:23:19.886847+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-11: 98e36b196940, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:19.890763+00:00 [INFO] (MainThread) Core-Segment registered: 98e36b196940, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:23:19.894927+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1108 in response to: (srcIA = "1-17", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:20.466324+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:20.905495+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.101s (should have been <= 1.000s)
+2016-06-23 13:23:23.353596+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 10)
+2016-06-23 13:23:23.354129+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:23.354527+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:23.354684+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:23.850349+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 11)
+2016-06-23 13:23:23.853748+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:23.853929+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753010b)
+2016-06-23 13:23:23.907815+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:24.522132+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:24.523485+00:00 [DEBUG] (PS.worker) ZK connection available after 0.62s
+2016-06-23 13:23:24.652794+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:14+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:25.034857+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 11)
+2016-06-23 13:23:25.035667+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:25.171715+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.264s (should have been <= 1.000s)
+2016-06-23 13:23:27.366086+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 12)
+2016-06-23 13:23:27.366436+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:27.366946+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:27.371216+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:27.629838+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 13)
+2016-06-23 13:23:27.632135+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:27.632299+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753010b)
+2016-06-23 13:23:28.174693+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:28.568414+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:28.568713+00:00 [DEBUG] (PS.worker) ZK connection available after 0.39s
+2016-06-23 13:23:29.139416+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 13)
+2016-06-23 13:23:30.241870+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:14+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:30.530819+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:34.768939+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 14)
+2016-06-23 13:23:34.769755+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:34.770676+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:34.770838+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:35.178544+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:35.592867+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:35.799897+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 15)
+2016-06-23 13:23:35.800270+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:35.800436+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:36.293118+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 16)
+2016-06-23 13:23:36.293445+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:36.293606+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301c0)
+2016-06-23 13:23:36.953502+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:36.953908+00:00 [DEBUG] (PS.worker) ZK connection available after 1.78s
+2016-06-23 13:23:37.573714+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 16)
+2016-06-23 13:23:37.574082+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:37.797572+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.619s (should have been <= 1.000s)
+2016-06-23 13:23:38.516993+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 17)
+2016-06-23 13:23:38.517390+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:38.517558+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:38.798901+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:41.617409+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 18)
+2016-06-23 13:23:41.617774+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:41.617941+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:43.356423+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 19)
+2016-06-23 13:23:43.356769+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:43.356937+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301ee)
+2016-06-23 13:23:43.432974+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:43.433258+00:00 [DEBUG] (PS.worker) ZK connection available after 4.63s
+2016-06-23 13:23:43.643344+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 19)
+2016-06-23 13:23:43.701331+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:23:43.701591+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.903s (should have been <= 1.000s)
+2016-06-23 13:23:46.639230+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 20)
+2016-06-23 13:23:46.639590+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:46.639789+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:46.705283+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:46.758042+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:23:46.758717+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "2-25", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:46.802490+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-25: 02631019d61c, 2016-06-23 13:23:26+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:23:46.803528+00:00 [INFO] (MainThread) Down-Segment registered: 02631019d61c, 2016-06-23 13:23:26+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:23:46.804272+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:23:37+00:00, 2-21 > 1-11
+2016-06-23 13:23:46.805055+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: 2a0f21f6d943, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:46.805956+00:00 [INFO] (MainThread) Core-Segment registered: 2a0f21f6d943, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:23:46.806910+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-11: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:46.812240+00:00 [INFO] (MainThread) Core-Segment registered: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:23:46.814649+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:23:47.170910+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:32+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:47.308184+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:23:47.308902+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:32+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:47.424952+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 21)
+2016-06-23 13:23:47.425305+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:47.425478+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301ee)
+2016-06-23 13:23:47.472232+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-14: f8d1ed03e591, 2016-06-23 13:23:37+00:00, 1-11 > 1-14
+2016-06-23 13:23:47.473047+00:00 [INFO] (MainThread) Down-Segment registered: f8d1ed03e591, 2016-06-23 13:23:37+00:00, 1-11 > 1-14
+2016-06-23 13:23:47.474484+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:23:47.785586+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:47.785866+00:00 [DEBUG] (PS.worker) ZK connection available after 1.08s
+2016-06-23 13:23:48.118347+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 21)
+2016-06-23 13:23:48.222433+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:23:48.222699+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:48.319258+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.614s (should have been <= 1.000s)
+2016-06-23 13:23:51.647708+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:23:51.649333+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1108 in response to: (srcIA = "1-17", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:23:52.407829+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:37+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:52.463487+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:23:52.463745+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:52.732372+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:23:52.734069+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1610 in response to: (srcIA = "1-17", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:23:54.552019+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:23:54.553565+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1108 in response to: (srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:23:54.892650+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 22)
+2016-06-23 13:23:55.350467+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:55.372812+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.324905+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:56.326850+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:23:57.637072+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:47+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:58.538331+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 23)
+2016-06-23 13:23:58.538707+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:58.538875+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:59.477437+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 24)
+2016-06-23 13:23:59.477788+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:59.477949+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575302a0)
+2016-06-23 13:23:59.604589+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:23:59.604875+00:00 [DEBUG] (PS.worker) ZK connection available after 3.28s
+2016-06-23 13:23:59.802564+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 24)
+2016-06-23 13:23:59.802947+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:59.867269+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.540s (should have been <= 1.000s)
+2016-06-23 13:24:03.021441+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:03.117484+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:04.932393+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:05.964249+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:24:05.964928+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "2-26", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:06.081319+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-26: 958275c551f3, 2016-06-23 13:23:28+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:24:06.082676+00:00 [INFO] (MainThread) Down-Segment registered: 958275c551f3, 2016-06-23 13:23:28+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:24:06.087702+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-26: 37c0deb079c9, 2016-06-23 13:23:26+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:24:06.088550+00:00 [INFO] (MainThread) Down-Segment registered: 37c0deb079c9, 2016-06-23 13:23:26+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:24:06.089423+00:00 [DEBUG] (MainThread) Core-Segment updated: 468fdf5291a8, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:06.090028+00:00 [DEBUG] (MainThread) Core-Segment updated: d88f6cbb952f, 2016-06-23 13:23:54+00:00, 2-21 > 1-11
+2016-06-23 13:24:06.101048+00:00 [DEBUG] (MainThread) Core-Segment updated: 31692ad2778c, 2016-06-23 13:23:52+00:00, 2-22 > 2-21 > 1-11
+2016-06-23 13:24:06.101951+00:00 [DEBUG] (MainThread) Core-Segment updated: 0d1b1cb74889, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13 > 1-11
+2016-06-23 13:24:06.106222+00:00 [DEBUG] (MainThread) Core-Segment updated: 98e36b196940, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-11
+2016-06-23 13:24:06.106956+00:00 [DEBUG] (MainThread) Core-Segment updated: 2a0f21f6d943, 2016-06-23 13:23:49+00:00, 2-21 > 2-22 > 1-12 > 1-11
+2016-06-23 13:24:06.118560+00:00 [INFO] (MainThread) Sending PATH_REPLY with 9 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1108 in response to: (srcIA = "1-17", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:24:08.690327+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:23:58+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:08.898612+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:11.898412+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:11.939214+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:24:11.939911+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "1-16", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:58+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:12.023600+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-16: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:12.024327+00:00 [INFO] (MainThread) Down-Segment registered: 58b02717ad61, 2016-06-23 13:23:35+00:00, 1-13 > 1-16
+2016-06-23 13:24:12.025088+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:12.025770+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:12.029010+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:24:13.177538+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:13.178232+00:00 [INFO] (MainThread) Send request to core ((srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))) via 40b7f17cac80, 2016-06-23 13:23:58+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:13.210949+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-10: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:13.212136+00:00 [INFO] (MainThread) Down-Segment registered: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:24:13.212870+00:00 [DEBUG] (MainThread) Core-Segment updated: f5998b8a9973, 2016-06-23 13:23:35+00:00, 1-13 > 1-11
+2016-06-23 13:24:13.213575+00:00 [DEBUG] (MainThread) Core-Segment updated: e9c9d04f124f, 2016-06-23 13:23:35+00:00, 1-13 > 1-12 > 1-11
+2016-06-23 13:24:13.242243+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1108 in response to: (srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:13.756685+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:04+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:13.909138+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:15.899692+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:19.149806+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-22", flags = (sibra = false))
+2016-06-23 13:24:19.151633+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "2-22", flags = (sibra = false))
+2016-06-23 13:24:19.715674+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:09+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:19.895295+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:21.952964+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:22.553053+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:24:22.554849+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:24:24.750010+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:15+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:24.911546+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:26.886663+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:24:26.888375+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:24:27.902138+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:29.082834+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:24:29.084896+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1610 in response to: (srcIA = "1-17", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:24:29.808696+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:21+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:29.944020+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:30.937484+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:30.940031+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.3) port:1042 in response to: (srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:35.799797+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:35.916601+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:36.844271+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:36.846018+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1073 in response to: (srcIA = "1-17", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:37.484722+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+  SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? True
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:36+00:00
+2016-06-23 13:24:37.967717+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:38.942746+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:39.454994+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:24:39.456819+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(1-17 (IPV4) 127.0.0.3) port:1042 in response to: (srcIA = "1-17", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:24:41.710006+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:31+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:41.961540+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:42.928866+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:46.720564+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:41+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:46.929678+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:49.943764+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:51.722107+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:47+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:51.933624+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:53.912992+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:24:53.913921+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-17 (IPV4) 127.0.0.2) port:1610 in response to: (srcIA = "1-17", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:24:53.938722+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:24:56.770083+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:56.939739+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:00.150870+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 25)
+2016-06-23 13:25:00.304395+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:00.304777+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:00.151124+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:25:00.942964+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:25:01.292238+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 26)
+2016-06-23 13:25:01.292566+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:01.292731+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575302a0)
+2016-06-23 13:25:01.392358+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:25:01.393495+00:00 [DEBUG] (PS.worker) ZK connection available after 0.45s
+2016-06-23 13:25:01.625288+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 26)
+2016-06-23 13:25:01.642412+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:25:02.562214+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:24:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:02.958490+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:04.481041+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 27)
+2016-06-23 13:25:04.481259+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:25:04.490936+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:04.492171+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.949471+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:25:05.158979+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 28)
+2016-06-23 13:25:05.159341+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:05.159514+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575302a0)
+2016-06-23 13:25:05.198923+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/ps/party) members are: ['ps1-17-1']
+2016-06-23 13:25:05.199246+00:00 [DEBUG] (PS.worker) ZK connection available after 0.25s
+2016-06-23 13:25:05.238864+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 28)
+2016-06-23 13:25:05.244324+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:25:08.543521+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:25:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:08.953075+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:09.954567+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:25:13.555857+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:25:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:13.958716+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:14.959988+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:25:19.553477+00:00 [DEBUG] (MainThread) Up-Segment updated: 40b7f17cac80, 2016-06-23 13:25:13+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:19.971396+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:20.969297+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /1-17/ps/path_cache
+2016-06-23 13:25:23.463886+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:23.557812+00:00 [INFO] (MainThread) Exiting

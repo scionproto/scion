@@ -1,0 +1,133 @@
+2016-06-23 13:38:07.172677+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/cs2-24-3/certs/ISD1-V0.trc
+2016-06-23 13:38:07.173218+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/cs2-24-3/certs/ISD2-V0.trc
+2016-06-23 13:38:07.258070+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/cs2-24-3/certs/ISD2-AS24-V0.crt
+2016-06-23 13:38:07.258627+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:07.258997+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:07.259201+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:07.453569+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:07.664796+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:07.664999+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:07.665459+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:07.665656+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80002)
+2016-06-23 13:38:07.814629+00:00 [DEBUG] (MainThread) ZK connection available after 0.15s
+2016-06-23 13:38:07.898960+00:00 [DEBUG] (MainThread) Current party (/2-24/cs/party) members are: ['cs2-24-3']
+2016-06-23 13:38:07.899231+00:00 [INFO] (MainThread) Started cs2-24-3
+2016-06-23 13:38:07.994811+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:07.995043+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:07.995222+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:08.958252+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:38:08.996290+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:08.996527+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:08.996713+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:09.997494+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:09.997713+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:09.997887+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:10.999515+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:10.999771+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:10.999953+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:12.001521+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:12.001775+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:12.001963+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:13.003614+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:13.003846+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:13.004010+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:14.005560+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:14.005835+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:14.006032+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:15.007716+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:15.007970+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:15.008156+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:16.009768+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:16.010042+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:16.010231+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:17.011433+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:17.011708+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:17.011915+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:18.013536+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:18.013813+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:18.013999+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:19.015034+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:19.015287+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:19.015470+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:20.017163+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:20.017446+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:20.017629+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:21.019288+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:21.019543+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:21.019748+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:22.020861+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:22.021116+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:22.021301+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:23.022981+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:23.023228+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:23.023420+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:24.025086+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:24.025379+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:24.025570+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:25.026507+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:25.026755+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:25.026937+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:26.028087+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:26.028349+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:26.028547+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:27.029543+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:27.029823+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:27.030010+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:28.031702+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:28.031961+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:28.032171+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:29.034252+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:29.034503+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:29.034694+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:30.035665+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:30.035925+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:30.036117+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:31.037541+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:31.037798+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:31.038015+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:32.038721+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:32.038954+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:32.039134+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:33.040923+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:33.041182+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:33.041403+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:34.042062+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:34.042301+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:34.042483+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.044098+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:35.044354+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:35.044544+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:36.047221+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:36.047469+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:36.047665+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:37.051911+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:37.052118+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:37.150485+00:00 [DEBUG] (Elem.packet_recv) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.244):30040
+2016-06-23 13:38:38.343739+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:38:38.344087+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:38.344267+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:38.344548+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:38:39.019668+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:38:41.104854+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:38:41.105222+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:38:41.105511+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:41.856247+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:38:41.856571+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:38:41.856744+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80048)
+2016-06-23 13:38:42.220771+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/cs/party) members are: ['cs2-24-3']
+2016-06-23 13:38:42.221318+00:00 [DEBUG] (CS.worker) ZK connection available after 3.20s
+2016-06-23 13:38:42.648241+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:38:42.648643+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 3.629s (should have been <= 1.000s)
+2016-06-23 13:38:54.424832+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:38:54.425899+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:54.426076+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:54.657088+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:38:54.823153+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 6)
+2016-06-23 13:38:54.823478+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:38:54.823640+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80048)
+2016-06-23 13:38:55.635905+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/cs/party) members are: ['cs2-24-1', 'cs2-24-2', 'cs2-24-3']
+2016-06-23 13:38:55.636188+00:00 [DEBUG] (CS.worker) ZK connection available after 0.98s
+2016-06-23 13:38:56.398254+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 6)
+2016-06-23 13:38:56.398665+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.742s (should have been <= 1.000s)
+2016-06-23 13:40:08.454807+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:09.249397+00:00 [INFO] (MainThread) Exiting

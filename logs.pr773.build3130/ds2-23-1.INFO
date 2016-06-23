@@ -1,0 +1,30 @@
+2016-06-23 13:21:57.723520+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:57.859146+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:21:57.912787+00:00 [INFO] (MainThread) Started ds2-23-1
+2016-06-23 13:22:30.343809+00:00 [WARNING] (Thread-7) No instances found, returning SERVFAIL for bs.as23.isd2.scion.
+2016-06-23 13:22:30.344407+00:00 [WARNING] (Thread-7) Reply: [127.0.0.1:48785] (udp) / 'bs.as23.isd2.scion.' (A) / SERVFAIL
+2016-06-23 13:22:30.836591+00:00 [WARNING] (Thread-8) No instances found, returning SERVFAIL for bs.as23.isd2.scion.
+2016-06-23 13:22:30.837584+00:00 [WARNING] (Thread-8) Reply: [127.0.0.1:44805] (udp) / 'bs.as23.isd2.scion.' (A) / SERVFAIL
+2016-06-23 13:22:32.772474+00:00 [WARNING] (Thread-9) No instances found, returning SERVFAIL for bs.as23.isd2.scion.
+2016-06-23 13:22:32.772938+00:00 [WARNING] (Thread-9) Reply: [127.0.0.1:35609] (udp) / 'bs.as23.isd2.scion.' (A) / SERVFAIL
+2016-06-23 13:23:05.751541+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.637957+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:08.497464+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.233739+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:17.041937+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:20.639056+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:27.862097+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:29.327752+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:34.714298+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:35.614260+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:38.153376+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:44.791456+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:44.792010+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:55.376876+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:58.166068+00:00 [WARNING] (Thread-23) No instances found, returning SERVFAIL for ps.as23.isd2.scion.
+2016-06-23 13:23:58.166538+00:00 [WARNING] (Thread-23) Reply: [127.0.0.1:37726] (udp) / 'ps.as23.isd2.scion.' (A) / SERVFAIL
+2016-06-23 13:25:00.291844+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:01.298643+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:25:04.477732+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:22.925233+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:22.925610+00:00 [INFO] (MainThread) Exiting

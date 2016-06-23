@@ -1,0 +1,52 @@
+2016-06-23 13:23:09.852845+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:09.935705+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.003740+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.026687+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.028245+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.054695+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:16.826774+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:16.881481+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.167768+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.169434+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.227730+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.244444+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:27.894585+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:27.914713+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:27.996267+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.196516+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.222526+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.247928+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.216523+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.407944+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.514387+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:40.674373+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:41.140571+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:41.144879+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.074255+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.093750+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.488759+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.720652+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.920068+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:45.132820+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:24:27.134494+00:00 [CRITICAL] (BS.worker) Exception in BS.worker thread:
+2016-06-23 13:24:27.137237+00:00 [CRITICAL] (BS.worker) Traceback (most recent call last):
+2016-06-23 13:24:27.137763+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/lib/zookeeper.py", line 665, in expire
+2016-06-23 13:24:27.138287+00:00 [CRITICAL] (BS.worker)     self._kazoo.delete(full_path)
+2016-06-23 13:24:27.138790+00:00 [CRITICAL] (BS.worker)   File "/home/scion/.local/lib/python3.4/site-packages/kazoo/client.py", line 1293, in delete
+2016-06-23 13:24:27.139752+00:00 [CRITICAL] (BS.worker)     return self.delete_async(path, version).get()
+2016-06-23 13:24:27.140240+00:00 [CRITICAL] (BS.worker)   File "/home/scion/.local/lib/python3.4/site-packages/kazoo/handlers/utils.py", line 78, in get
+2016-06-23 13:24:27.141422+00:00 [CRITICAL] (BS.worker)     raise self._exception
+2016-06-23 13:24:27.141914+00:00 [CRITICAL] (BS.worker) kazoo.exceptions.NoNodeError: ((), {})
+2016-06-23 13:24:27.143277+00:00 [CRITICAL] (BS.worker) 
+2016-06-23 13:24:27.143800+00:00 [CRITICAL] (BS.worker) During handling of the above exception, another exception occurred:
+2016-06-23 13:24:27.144293+00:00 [CRITICAL] (BS.worker) 
+2016-06-23 13:24:27.144791+00:00 [CRITICAL] (BS.worker) Traceback (most recent call last):
+2016-06-23 13:24:27.145380+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/lib/thread.py", line 49, in thread_safety_net
+2016-06-23 13:24:27.145915+00:00 [CRITICAL] (BS.worker)     return func(*args, **kwargs)
+2016-06-23 13:24:27.146405+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/infrastructure/beacon_server/base.py", line 388, in worker
+2016-06-23 13:24:27.152910+00:00 [CRITICAL] (BS.worker)     self.pcb_cache.expire(self.config.propagation_time * 10)
+2016-06-23 13:24:27.153424+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/lib/zookeeper.py", line 668, in expire
+2016-06-23 13:24:27.153914+00:00 [CRITICAL] (BS.worker)     raise ZkNoNodeError
+2016-06-23 13:24:27.154417+00:00 [CRITICAL] (BS.worker) lib.zookeeper.ZkNoNodeError
+2016-06-23 13:24:27.154908+00:00 [CRITICAL] (BS.worker) 
+2016-06-23 13:24:27.169680+00:00 [ERROR] (MainThread) Received SIGUSR2

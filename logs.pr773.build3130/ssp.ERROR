@@ -1,0 +1,6 @@
+2016-06-23 13:22:54.604698+00:00 [ERROR] (SCIONDaemon API id:140583943272192 1-19 -> 1-17) Query timed out for 1-17
+2016-06-23 13:22:59.656694+00:00 [ERROR] (SCIONDaemon API id:140583943272192 1-19 -> 1-17) Query timed out for 1-17
+2016-06-23 13:24:45.674692+00:00 [ERROR] (SSP 2-21 > 2-26 main) Error during recv.
+2016-06-23 13:24:45.675245+00:00 [ERROR] (SSP 2-21 > 2-26 main) Connection prematurely terminated
+2016-06-23 13:24:45.675504+00:00 [ERROR] (SSP 2-21 > 2-26 main) Timeout waiting for response
+2016-06-23 13:24:45.708361+00:00 [ERROR] (SSP 2-21 > 2-26 main) Client success? False Server success? True

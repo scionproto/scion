@@ -1,0 +1,21 @@
+2016-06-23 13:38:53.813610+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:55.167928+00:00 [INFO] (MainThread) Started ps1-10-1
+2016-06-23 13:38:56.739217+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:39:04.230610+00:00 [INFO] (PS.worker) Sharing 1 revocation(s) via ZK
+2016-06-23 13:39:35.861619+00:00 [INFO] (MainThread) Up-Segment registered: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:36.259761+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:36.535168+00:00 [INFO] (MainThread) Up-Segment registered: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+  SibraPCBExt: id: 0010000a89f79793 (owner: 1-10) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:36+00:00
+2016-06-23 13:39:37.260871+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:41.263625+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:46.268501+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:52.272935+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:57.278163+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:02.282387+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:07.286808+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:12.292293+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:12.965012+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:40:13.424792+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.973000+00:00 [INFO] (MainThread) Exiting

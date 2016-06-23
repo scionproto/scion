@@ -1,0 +1,16 @@
+2016-06-23 13:23:05.656907+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:11.063944+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.992s (should have been <= 1.000s)
+2016-06-23 13:23:15.363351+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.246579+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.178s (should have been <= 1.000s)
+2016-06-23 13:23:19.040273+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.748s (should have been <= 1.000s)
+2016-06-23 13:23:23.553765+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:23.554137+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.512s (should have been <= 1.000s)
+2016-06-23 13:23:23.554602+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:28.918845+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.363s (should have been <= 1.000s)
+2016-06-23 13:23:38.944283+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.018s (should have been <= 1.000s)
+2016-06-23 13:23:40.147514+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:41.038862+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.092s (should have been <= 1.000s)
+2016-06-23 13:23:46.381152+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 5.330s (should have been <= 1.000s)
+2016-06-23 13:23:57.906520+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.512s (should have been <= 1.000s)
+2016-06-23 13:25:04.432757+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:25:25.511904+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory

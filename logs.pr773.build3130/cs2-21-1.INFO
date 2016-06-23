@@ -1,0 +1,75 @@
+2016-06-23 13:21:58.702285+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:58.889692+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:21:59.203207+00:00 [INFO] (MainThread) Started cs2-21-1
+2016-06-23 13:21:59.283808+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:00.232038+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:22:00.285959+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:01.287658+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:02.289396+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.291517+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:04.293680+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:05.295703+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:06.298019+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:07.299740+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.301393+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.304485+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.306042+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.307735+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.309866+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.311707+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.313783+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.315717+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.316908+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.318675+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.319679+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:47.541126+00:00 [INFO] (MainThread) Cert chain request received for 2-21v0
+2016-06-23 13:22:47.542994+00:00 [INFO] (CC Requests) Cert chain for 2-21v0 sent to (2-21 (IPV4) 127.0.0.2):1028
+2016-06-23 13:22:47.559827+00:00 [INFO] (MainThread) TRC request received for 2v0
+2016-06-23 13:22:47.561732+00:00 [INFO] (TRC Requests) TRC for 2v0 sent to (2-21 (IPV4) 127.0.0.2):1028
+2016-06-23 13:23:05.743479+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.285337+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:06.553055+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:08.761391+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:23:08.761814+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.474s (should have been <= 1.000s)
+2016-06-23 13:23:09.172402+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:09.172953+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:10.179498+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:13.027071+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 7)
+2016-06-23 13:23:13.027464+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 3.265s (should have been <= 1.000s)
+2016-06-23 13:23:15.272056+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.232119+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.252442+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.221s (should have been <= 1.000s)
+2016-06-23 13:23:16.862192+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:18.467976+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 10)
+2016-06-23 13:23:18.468358+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.171s (should have been <= 1.000s)
+2016-06-23 13:23:20.751624+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:20.752215+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:23.216675+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:23:23.217067+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.746s (should have been <= 1.000s)
+2016-06-23 13:23:23.548601+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:23.549182+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:24.613165+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:27.642447+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 15)
+2016-06-23 13:23:27.642839+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 3.425s (should have been <= 1.000s)
+2016-06-23 13:23:34.622226+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:37.025365+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 17)
+2016-06-23 13:23:37.025758+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.374s (should have been <= 1.000s)
+2016-06-23 13:23:38.509061+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:38.510168+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:40.419602+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:40.995341+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.012881+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.982s (should have been <= 1.000s)
+2016-06-23 13:23:42.017175+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:43.415497+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 22)
+2016-06-23 13:23:43.415869+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.384s (should have been <= 1.000s)
+2016-06-23 13:23:55.372243+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:56.905451+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:58.255986+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 25)
+2016-06-23 13:23:58.256376+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.825s (should have been <= 1.000s)
+2016-06-23 13:25:00.319428+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:01.428844+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 27)
+2016-06-23 13:25:01.429214+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.092s (should have been <= 1.000s)
+2016-06-23 13:25:04.429980+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:05.140824+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 29)
+2016-06-23 13:25:22.910471+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:23.746232+00:00 [INFO] (MainThread) Exiting

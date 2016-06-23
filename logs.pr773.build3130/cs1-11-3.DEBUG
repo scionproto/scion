@@ -1,0 +1,138 @@
+2016-06-23 13:22:24.185686+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/cs1-11-3/certs/ISD1-V0.trc
+2016-06-23 13:22:24.186291+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/cs1-11-3/certs/ISD2-V0.trc
+2016-06-23 13:22:24.186953+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/cs1-11-3/certs/ISD1-AS11-V0.crt
+2016-06-23 13:22:24.187474+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:24.187876+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:22:24.204167+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-11 (IPV4) 127.0.0.68):30040
+2016-06-23 13:22:24.334862+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:24.401343+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:22:24.401566+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:22:24.402136+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:22:24.402314+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530042)
+2016-06-23 13:22:24.416604+00:00 [DEBUG] (MainThread) ZK connection available after 0.01s
+2016-06-23 13:22:24.441309+00:00 [DEBUG] (MainThread) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:22:24.441593+00:00 [INFO] (MainThread) Started cs1-11-3
+2016-06-23 13:23:05.317821+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:23:05.761417+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:05.761827+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.523928+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:06.524647+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:06.527272+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:23:06.527583+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:06.527750+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:07.838927+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:23:07.841749+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:07.841937+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300a4)
+2016-06-23 13:23:08.392873+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-3']
+2016-06-23 13:23:08.393163+00:00 [DEBUG] (CS.worker) ZK connection available after 1.87s
+2016-06-23 13:23:09.080554+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:23:09.095749+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:09.095964+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:09.081358+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:09.096551+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.572s (should have been <= 1.000s)
+2016-06-23 13:23:09.096943+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:09.814701+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 6)
+2016-06-23 13:23:09.815061+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:09.815233+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300a4)
+2016-06-23 13:23:10.358475+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:23:10.358764+00:00 [DEBUG] (CS.worker) ZK connection available after 1.26s
+2016-06-23 13:23:10.804416+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 6)
+2016-06-23 13:23:10.804941+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.708s (should have been <= 1.000s)
+2016-06-23 13:23:14.982031+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 7)
+2016-06-23 13:23:14.982259+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.209413+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:16.223478+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.251873+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.441s (should have been <= 1.000s)
+2016-06-23 13:23:16.304976+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:16.760038+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 8)
+2016-06-23 13:23:16.760406+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:16.760573+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:17.876833+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 9)
+2016-06-23 13:23:17.877173+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:17.877337+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300f3)
+2016-06-23 13:23:17.930099+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-3']
+2016-06-23 13:23:17.930421+00:00 [DEBUG] (CS.worker) ZK connection available after 1.63s
+2016-06-23 13:23:18.215581+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.911s (should have been <= 1.000s)
+2016-06-23 13:23:20.917343+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.699s (should have been <= 1.000s)
+2016-06-23 13:23:22.321125+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.403s (should have been <= 1.000s)
+2016-06-23 13:23:23.876387+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 10)
+2016-06-23 13:23:23.876919+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:23.877157+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:23.877331+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:23.883480+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.562s (should have been <= 1.000s)
+2016-06-23 13:23:23.883818+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:26.306435+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 11)
+2016-06-23 13:23:26.307066+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:26.307240+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:27.301895+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 12)
+2016-06-23 13:23:27.302224+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:27.302388+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530184)
+2016-06-23 13:23:28.576619+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:23:28.576958+00:00 [DEBUG] (CS.worker) ZK connection available after 4.69s
+2016-06-23 13:23:29.194936+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:23:29.195376+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 5.312s (should have been <= 1.000s)
+2016-06-23 13:23:30.023757+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 13)
+2016-06-23 13:23:30.024101+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:30.024277+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:30.193876+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 14)
+2016-06-23 13:23:30.194189+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:30.194351+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530184)
+2016-06-23 13:23:30.196661+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:31.294749+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:23:31.295067+00:00 [DEBUG] (CS.worker) ZK connection available after 1.10s
+2016-06-23 13:23:32.474392+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.278s (should have been <= 1.000s)
+2016-06-23 13:23:33.978121+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.503s (should have been <= 1.000s)
+2016-06-23 13:23:35.928256+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.950s (should have been <= 1.000s)
+2016-06-23 13:23:37.137229+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.209s (should have been <= 1.000s)
+2016-06-23 13:23:38.171655+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.034s (should have been <= 1.000s)
+2016-06-23 13:23:39.694812+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 14)
+2016-06-23 13:23:39.695241+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.523s (should have been <= 1.000s)
+2016-06-23 13:23:40.291994+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 15)
+2016-06-23 13:23:40.975996+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:40.997284+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:40.696675+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:41.697042+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:41.968425+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 16)
+2016-06-23 13:23:41.968785+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:41.968950+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:43.650768+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 17)
+2016-06-23 13:23:43.651126+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:43.651312+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530201)
+2016-06-23 13:23:43.836434+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-2', 'cs1-11-3']
+2016-06-23 13:23:43.837152+00:00 [DEBUG] (CS.worker) ZK connection available after 2.14s
+2016-06-23 13:23:44.147727+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.451s (should have been <= 1.000s)
+2016-06-23 13:23:46.260347+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.111s (should have been <= 1.000s)
+2016-06-23 13:23:47.464127+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.203s (should have been <= 1.000s)
+2016-06-23 13:23:47.973675+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 17)
+2016-06-23 13:23:55.179601+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 18)
+2016-06-23 13:23:55.365358+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:55.375458+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.475236+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:23:55.858378+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 19)
+2016-06-23 13:23:55.858699+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:55.858875+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530201)
+2016-06-23 13:23:56.105622+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-2', 'cs1-11-3']
+2016-06-23 13:23:56.107655+00:00 [DEBUG] (CS.worker) ZK connection available after 0.63s
+2016-06-23 13:23:56.670678+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 19)
+2016-06-23 13:23:56.671152+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.196s (should have been <= 1.000s)
+2016-06-23 13:25:00.351065+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 20)
+2016-06-23 13:25:00.351927+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:00.352336+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:00.760218+00:00 [DEBUG] (CS.worker) Waiting for ZK connection
+2016-06-23 13:25:01.285487+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 21)
+2016-06-23 13:25:01.289372+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:01.289558+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530201)
+2016-06-23 13:25:01.412336+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:25:01.412613+00:00 [DEBUG] (CS.worker) ZK connection available after 0.65s
+2016-06-23 13:25:01.635222+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 21)
+2016-06-23 13:25:04.196998+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 22)
+2016-06-23 13:25:04.451563+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:04.451951+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.661768+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 23)
+2016-06-23 13:25:04.662108+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:04.662272+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530201)
+2016-06-23 13:25:04.741351+00:00 [DEBUG] (libZK._state_handler) Current party (/1-11/cs/party) members are: ['cs1-11-1', 'cs1-11-2', 'cs1-11-3']
+2016-06-23 13:25:04.806403+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 23)
+2016-06-23 13:25:24.845078+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:25.514646+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:25:25.520328+00:00 [INFO] (MainThread) Exiting

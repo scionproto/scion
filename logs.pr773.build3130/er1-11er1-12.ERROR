@@ -1,0 +1,41 @@
+2016-06-23 13:23:51.201554+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(129B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 129B, IOF idx: 3, HOF idx: 5, next hdr: 17, hdr len: 72B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:38+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 4e02a6
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 4, mac: f115e8
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:19+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 0, mac: 0cb049
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 83e805
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1595 dport: 0 length: 57B checksum: df74
+  Payload:
+    PayloadRaw(49B): 28312d313520284950563429203132372e302e302e32293c2d3e28312d313120[...]
+2016-06-23 13:24:24.193531+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(153B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 153B, IOF idx: 5, HOF idx: 8, next hdr: 17, hdr len: 96B
+  SCIONAddrHdr(16B): Src:<(1-10 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:35+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: c4a492
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 2, mac: 690b44
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: 1252ba
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 0, egress: 3, mac: 5f642f
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:19+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 0, mac: 7f2ba9
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 2, mac: 8b4b1c
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 1, mac: 83e805
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1972 dport: 0 length: 57B checksum: e7fb
+  Payload:
+    PayloadRaw(49B): 28312d313020284950563429203132372e302e302e32293c2d3e28312d313120[...]

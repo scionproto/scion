@@ -1,0 +1,754 @@
+2016-06-23 13:38:14.733971+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS16/er1-16er1-15/certs/ISD1-V0.trc
+2016-06-23 13:38:14.734465+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS16/er1-16er1-15/certs/ISD2-V0.trc
+2016-06-23 13:38:14.741859+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS16/er1-16er1-15/certs/ISD1-AS16-V0.crt
+2016-06-23 13:38:14.833087+00:00 [DEBUG] (MainThread) er1-16er1-15 bound to 127.0.0.153:30041
+2016-06-23 13:38:14.833417+00:00 [INFO] (MainThread) Interface: {'bandwidth': 1000, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f66ad85ee80>, 'to_udp_port': 50000, 'name': None, 'isd_as': ISD_AS(isd=1, as=15), 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f66ad864198>, 'udp_port': 50000, 'link_type': 'PEER', 'mtu': 1472, 'to_if_id': 0, 'if_id': 2}
+2016-06-23 13:38:15.879860+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-16#2 -> 1-15 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:15.880549+00:00 [INFO] (MainThread) IP 127.0.0.29:50000
+2016-06-23 13:38:15.880827+00:00 [INFO] (MainThread) Started er1-16er1-15
+2016-06-23 13:38:15.982913+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:38:29.743501+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:34.746330+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:34.748036+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:34.749687+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:34.751781+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:34.753429+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:35.752347+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:36.766671+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:37.767752+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:38.772144+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:39.772035+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:40.774360+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:41.774468+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:42.776259+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:43.777573+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:44.778532+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:45.780055+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:46.009469+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:38:46.781504+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:47.782517+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:48.783998+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:49.785461+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:50.787128+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:51.788116+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:52.789590+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:53.790523+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:54.791942+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:55.793128+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:56.794534+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:57.795625+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:58.797116+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:38:59.798931+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:00.800084+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:01.800480+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:02.801734+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:03.802427+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:04.803888+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:05.493855+00:00 [DEBUG] (MainThread) handle_request (from_local_as? True):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 747B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.147)> Dst:<(1-16 (IPV4) 127.0.0.153)>
+  handler: <bound method Router.process_path_mgmt_packet of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:05.494563+00:00 [DEBUG] (MainThread) Received IFState update:
+IFStatePayload: ( infos = [
+    ( ifID = 1,
+      active = true,
+      revInfo = (
+        ifID = 1,
+        epoch = 4914,
+        nonce = "#\x99\xa88zH\x8d\x97\xb6hC\x80u\rL[(\xad;\xe0\x1b9\x11\x89G\xdb\x93\xd2\xa2\x05\x85\xdf",
+        siblings = [
+          ( isLeft = false,
+            hash = "\xde\x00\xc2%$3\xc78\xac\x18\xd5\xb9\xbf\xec\xef3`\xca\x86\xf4\x83L\xa3\\d\xf9\xc5\x83W\xfb&8" ),
+          ( isLeft = true,
+            hash = "+_\x1b\xf0\xa3\r\xe8;\x9e\xdb\"\xeb\x06\xc4;\xab4\xb7\xeeX\xf7\xb2\xdf\x14\x9e\xce,>F\x1f\xc7r" ),
+          ( isLeft = false,
+            hash = "z\xd2\xddua:\xab@\x04\xeaC\x9d,\xe1M\xd7}KVF\xc4Z\x8d\\\x94\xfd\x01\x18\xd5\x15p\x13" ),
+          ( isLeft = false,
+            hash = "\xec\xef\xb8<\\\xec\ac_\xedn\x0eO!\xf0|L[,\xfa\xba\t\x01\x87\xe0\xb1\x8a\x12L(q\x00" ),
+          ( isLeft = true,
+            hash = "\xee\xae\xcd/y\xe5\xe3\xfb\x80\x8e\xda\x19\xe6\xb5\'\xb3|\xa7\x90\xf7NV\xe2\x89\x16\x81\x8a\x025M\x95\xb6" ),
+          ( isLeft = true,
+            hash = "7Zb\x89O9\x81\xb7\xa7\x9ba\xbf\xd3\x1e\xb1F6\xa6\f}6\xe5\x1f\xb7~\x9bA\v\x00Zv\x99" ),
+          ( isLeft = false,
+            hash = "\\;\xeb\x90\x82?0\x02\xec\x9c>H\x185\xee1\xa5\x86I\x81\xeb\xca\xd4P\'k\x1b\n\x9f*\xd3\x83" ),
+          ( isLeft = false,
+            hash = "T\x02m\xcdM\x82KEu\xac\xdfS8\xcfb\xf4u\x1f\a1\x97\x16\xd2q}\xa7\xb7YY}\xa4\xe7" ),
+          ( isLeft = true,
+            hash = "\xf4\xb1\xf0@\xf7\x147\ae\xc6*\xff\xcc\xf8FAU\x8d\x1c\x16\x8b\xcb\x11\f\xab\x8dQ`\v\xdd0\n" ),
+          ( isLeft = true,
+            hash = "Ew\xffy\x16\xcf\x8a67\x88=s~\x8f\xa9T\x99\x9d\xc2\xa0W\x84\xd3\xde\xea|\xb4t\xce\x0f\xe65" ),
+          ( isLeft = false,
+            hash = "\xec\xf2\x9f\xeav\xcd\x93z\xd9\xda\xcc.8\xea\xde;a+C\xff\xf8h\xd2yM\xfa\x9c\x00\xab\x92\x82" ),
+          ( isLeft = false,
+            hash = "T-N\xbf\x00`\xe8o|\xc8dn\xbe\xe7\xf6\x03xC\x01J\x96\x85m\x93\xc2\xad\xe0\x05T\x82\xc5" ),
+          ( isLeft = true,
+            hash = "\xd1z \xc7\xa56u\x18\x8a\x90\x90*>\x06\xc0J\xc03#\x16\xbcm\x1e!\xd9\x12s\xbeJ_\xd3" ),
+          ( isLeft = false,
+            hash = "\xe9\xbf\\\a\x060\x99t\x02\r\xe5i/6B\xd5/\x83O\xb1\x1b\x86\xf8\xe4{\xf31\x95\x1f\xce\xa4P" ),
+          ( isLeft = false,
+            hash = "\x16\x1e\f\x18\xb1\x86\x99@E\xc8{\xed,$\x02-\xac\xec\x02\xdf\x81\xa8\xa1:\x05<\x9f-~\"\xe2\x8b" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ) ] )
+2016-06-23 13:39:05.805329+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:06.806440+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:07.807945+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:08.809433+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:09.810460+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:10.811887+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:11.813047+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:12.814476+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:13.815923+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:14.817337+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:15.818503+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:16.037460+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:39:16.740710+00:00 [DEBUG] (MainThread) handle_request (from_local_as? True):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 747B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.145)> Dst:<(1-16 (IPV4) 127.0.0.153)>
+  handler: <bound method Router.process_path_mgmt_packet of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:16.741442+00:00 [DEBUG] (MainThread) Received IFState update:
+IFStatePayload: ( infos = [
+    ( ifID = 1,
+      active = true,
+      revInfo = (
+        ifID = 1,
+        epoch = 4915,
+        nonce = "\xde\xa5[\x931\xed\x12\v\vU\xbaN\xa7\xbdo\xf7\x80.\xb8\xf0\x8d\xb3\xa8\x86#\t\t\xe5\xe4f\xf5",
+        siblings = [
+          ( isLeft = true,
+            hash = "\x89\x045\xc7sQ\b\x0f^\x8b\xdb\x02\x9e\x00N\xb0\x8c\x94\xa8\x86\xf9\xd2\x8bE\xbe9v\x16#\xc2\x91\xd6" ),
+          ( isLeft = true,
+            hash = "+_\x1b\xf0\xa3\r\xe8;\x9e\xdb\"\xeb\x06\xc4;\xab4\xb7\xeeX\xf7\xb2\xdf\x14\x9e\xce,>F\x1f\xc7r" ),
+          ( isLeft = false,
+            hash = "z\xd2\xddua:\xab@\x04\xeaC\x9d,\xe1M\xd7}KVF\xc4Z\x8d\\\x94\xfd\x01\x18\xd5\x15p\x13" ),
+          ( isLeft = false,
+            hash = "\xec\xef\xb8<\\\xec\ac_\xedn\x0eO!\xf0|L[,\xfa\xba\t\x01\x87\xe0\xb1\x8a\x12L(q\x00" ),
+          ( isLeft = true,
+            hash = "\xee\xae\xcd/y\xe5\xe3\xfb\x80\x8e\xda\x19\xe6\xb5\'\xb3|\xa7\x90\xf7NV\xe2\x89\x16\x81\x8a\x025M\x95\xb6" ),
+          ( isLeft = true,
+            hash = "7Zb\x89O9\x81\xb7\xa7\x9ba\xbf\xd3\x1e\xb1F6\xa6\f}6\xe5\x1f\xb7~\x9bA\v\x00Zv\x99" ),
+          ( isLeft = false,
+            hash = "\\;\xeb\x90\x82?0\x02\xec\x9c>H\x185\xee1\xa5\x86I\x81\xeb\xca\xd4P\'k\x1b\n\x9f*\xd3\x83" ),
+          ( isLeft = false,
+            hash = "T\x02m\xcdM\x82KEu\xac\xdfS8\xcfb\xf4u\x1f\a1\x97\x16\xd2q}\xa7\xb7YY}\xa4\xe7" ),
+          ( isLeft = true,
+            hash = "\xf4\xb1\xf0@\xf7\x147\ae\xc6*\xff\xcc\xf8FAU\x8d\x1c\x16\x8b\xcb\x11\f\xab\x8dQ`\v\xdd0\n" ),
+          ( isLeft = true,
+            hash = "Ew\xffy\x16\xcf\x8a67\x88=s~\x8f\xa9T\x99\x9d\xc2\xa0W\x84\xd3\xde\xea|\xb4t\xce\x0f\xe65" ),
+          ( isLeft = false,
+            hash = "\xec\xf2\x9f\xeav\xcd\x93z\xd9\xda\xcc.8\xea\xde;a+C\xff\xf8h\xd2yM\xfa\x9c\x00\xab\x92\x82" ),
+          ( isLeft = false,
+            hash = "T-N\xbf\x00`\xe8o|\xc8dn\xbe\xe7\xf6\x03xC\x01J\x96\x85m\x93\xc2\xad\xe0\x05T\x82\xc5" ),
+          ( isLeft = true,
+            hash = "\xd1z \xc7\xa56u\x18\x8a\x90\x90*>\x06\xc0J\xc03#\x16\xbcm\x1e!\xd9\x12s\xbeJ_\xd3" ),
+          ( isLeft = false,
+            hash = "\xe9\xbf\\\a\x060\x99t\x02\r\xe5i/6B\xd5/\x83O\xb1\x1b\x86\xf8\xe4{\xf31\x95\x1f\xce\xa4P" ),
+          ( isLeft = false,
+            hash = "\x16\x1e\f\x18\xb1\x86\x99@E\xc8{\xed,$\x02-\xac\xec\x02\xdf\x81\xa8\xa1:\x05<\x9f-~\"\xe2\x8b" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ) ] )
+2016-06-23 13:39:16.819987+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:17.821384+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:18.822975+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:19.824531+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:20.825769+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:21.826751+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:22.032578+00:00 [DEBUG] (MainThread) handle_request (from_local_as? True):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 2157B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.146)> Dst:<(1-16 (IPV4) 127.0.0.153)>
+  handler: <bound method Router.process_path_mgmt_packet of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:22.033553+00:00 [DEBUG] (MainThread) Received IFState update:
+IFStatePayload: ( infos = [
+    ( ifID = 1,
+      active = true,
+      revInfo = (
+        ifID = 1,
+        epoch = 4916,
+        nonce = "\xcdB\xdb\xeb\x1ca\a\x8e\x99L\xcf\xb0\x1do\xda\xa87\x17\xdc\xe4\fq\xb85p\x87\xab\xd4\xfc\xe1\x98\"",
+        siblings = [
+          ( isLeft = false,
+            hash = "X\x92\xdb\xbf9\xc7X\xa3\xf1\xd8\x8f\xed>\xeaM3\x86\xac\xe9\xb9\xdb\x112\x9a\xebW\xf5\x95\xf4l\x0f" ),
+          ( isLeft = false,
+            hash = "\a<.\xd8\x1d\x9a\xfb\x16\xf3\x05\xd5\xe3\xa7\xd7t\xaf\xf5;\x13\xe2\xd6\xa7\x8f\xbe\xa1s$\x8d\x87-\x83\x12" ),
+          ( isLeft = true,
+            hash = "\xeej\ao\x1fw\xf8\xcb\xa4\xc8\x91\xcd\x8aE2X_\xc0\x1a\xba\xd5(b\xe6\x9cus\x8c\x80\xf6\xb3\xaf" ),
+          ( isLeft = false,
+            hash = "\xec\xef\xb8<\\\xec\ac_\xedn\x0eO!\xf0|L[,\xfa\xba\t\x01\x87\xe0\xb1\x8a\x12L(q\x00" ),
+          ( isLeft = true,
+            hash = "\xee\xae\xcd/y\xe5\xe3\xfb\x80\x8e\xda\x19\xe6\xb5\'\xb3|\xa7\x90\xf7NV\xe2\x89\x16\x81\x8a\x025M\x95\xb6" ),
+          ( isLeft = true,
+            hash = "7Zb\x89O9\x81\xb7\xa7\x9ba\xbf\xd3\x1e\xb1F6\xa6\f}6\xe5\x1f\xb7~\x9bA\v\x00Zv\x99" ),
+          ( isLeft = false,
+            hash = "\\;\xeb\x90\x82?0\x02\xec\x9c>H\x185\xee1\xa5\x86I\x81\xeb\xca\xd4P\'k\x1b\n\x9f*\xd3\x83" ),
+          ( isLeft = false,
+            hash = "T\x02m\xcdM\x82KEu\xac\xdfS8\xcfb\xf4u\x1f\a1\x97\x16\xd2q}\xa7\xb7YY}\xa4\xe7" ),
+          ( isLeft = true,
+            hash = "\xf4\xb1\xf0@\xf7\x147\ae\xc6*\xff\xcc\xf8FAU\x8d\x1c\x16\x8b\xcb\x11\f\xab\x8dQ`\v\xdd0\n" ),
+          ( isLeft = true,
+            hash = "Ew\xffy\x16\xcf\x8a67\x88=s~\x8f\xa9T\x99\x9d\xc2\xa0W\x84\xd3\xde\xea|\xb4t\xce\x0f\xe65" ),
+          ( isLeft = false,
+            hash = "\xec\xf2\x9f\xeav\xcd\x93z\xd9\xda\xcc.8\xea\xde;a+C\xff\xf8h\xd2yM\xfa\x9c\x00\xab\x92\x82" ),
+          ( isLeft = false,
+            hash = "T-N\xbf\x00`\xe8o|\xc8dn\xbe\xe7\xf6\x03xC\x01J\x96\x85m\x93\xc2\xad\xe0\x05T\x82\xc5" ),
+          ( isLeft = true,
+            hash = "\xd1z \xc7\xa56u\x18\x8a\x90\x90*>\x06\xc0J\xc03#\x16\xbcm\x1e!\xd9\x12s\xbeJ_\xd3" ),
+          ( isLeft = false,
+            hash = "\xe9\xbf\\\a\x060\x99t\x02\r\xe5i/6B\xd5/\x83O\xb1\x1b\x86\xf8\xe4{\xf31\x95\x1f\xce\xa4P" ),
+          ( isLeft = false,
+            hash = "\x16\x1e\f\x18\xb1\x86\x99@E\xc8{\xed,$\x02-\xac\xec\x02\xdf\x81\xa8\xa1:\x05<\x9f-~\"\xe2\x8b" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ),
+    ( ifID = 2,
+      active = true,
+      revInfo = (
+        ifID = 2,
+        epoch = 4916,
+        nonce = "\xd6h\xb0\x9c\xe5\xed)\xf8\xf9__b\xee\xf4\x9f\xd0\x14\xe1\xc6i+\xbd\x0e3\xc1\x8b\xe5\xfe$6\xcbj",
+        siblings = [
+          ( isLeft = false,
+            hash = "\xd8\xf0\x19\xa6V\xea\r\n\xf0\"\x9f\xbes\xc6\x87\xbamw8\x942\a\xda\xa7()\x1b/\\\x8f\xda\x02" ),
+          ( isLeft = false,
+            hash = "\xcf\x1e\x82\x95\xe6\xa5j\xc1\x8f\xd7\x85k\xf5\xe9D}\xae\x13\x89\x8fv.OAO\x91\xa2\xce\a\x05\xde\xa1" ),
+          ( isLeft = true,
+            hash = "\xe9\xa3\xe4\xdd\x93\xe1\xdcw\"S\xda9\x9d`\x99\xa2\xfa\x9d\x9c>.\x87\xbc\v\xe8.x\x01\xf9\xd9\xf8\xb3" ),
+          ( isLeft = false,
+            hash = "|\x00\xb6\x9d\xd8\x80?@7<\xc1\x8b\xb9\xf7<y\xf1\xa7\xb3\xb4Xai\xf655&\x1d\xb6\xd3\x02" ),
+          ( isLeft = true,
+            hash = "x\x04o\x90}\x01%\x9c\xc2\xd6x\x01\xb5]\xf4\xd2\xe4\xa9\x82\xd6\x80\xa9\xdc\xf1\x94w,\v\x9d\f\xae\xb5" ),
+          ( isLeft = true,
+            hash = "\xd2\xf0\x02\xa5\xc8\x1d\xe9&\xd3\xf1o\x94\x1a\xd5h\xbd\xcaf\x81\x96\xf9sv\xbd\x81{\x12\a\xda\x9c\xed\xb7" ),
+          ( isLeft = true,
+            hash = "\x87-}\xbaW=[\xc6W\xed\xf6\xcbIP=^b\xdc\x98\x82\xae\xc68\xc8\xf7\xc2zK\x18F\xab\a" ),
+          ( isLeft = true,
+            hash = "\xff\xe6\xd9\xec\xa4\xed\\B\x95c\xc0\"].p\xfd%g\x87\xd8\xfeE\xb4yK\"\x12\xa3\x82\xea\xa6U" ),
+          ( isLeft = false,
+            hash = "6\xe6a\xba\xdc\xe0;v\xcd v58\x12\x90\x99\xd5~\xc8\xd1\"\x06?\xd1\x13\xf6&\x01\'%\x8d\x8f" ),
+          ( isLeft = false,
+            hash = "\x99\xa6L\x00\xb8\x85\xbe\x88\xabX\xe8\xde\xc5\x81\xc8\x81\x0e\xf3\x8b\x1fFO\xba\xda\xe8\n0\xdb\xe1\xc4\xe1)" ),
+          ( isLeft = true,
+            hash = "\xa5\xdb\xb8\xff\x94K\\\xda\xed1u\x9c}\x89\x8e\xad.\xbe\x1e\xa8\x054\xbf\xe0x\xcd\x8eE\xa1w:\x8b" ),
+          ( isLeft = false,
+            hash = "\xec7\xfc\xe5\x95\xb4y\x94^y25\xbf\xf7\x8e^\xd8\x12w2o\x8bO\xbe\x94H<B\xb5\xa3,\xae" ),
+          ( isLeft = true,
+            hash = "X\x16b\x1fK\xb4\xbb \xc6\x16\f\x97t\x9c\xe7\x91x)\x8f\x1c\xd4\x18\x86\x8eAm\xa3\xfb\xfc\xe7\xa2" ),
+          ( isLeft = true,
+            hash = "$p]\xb6\xbf\x9b\xf3\xbc\x1bhF\xe3b@C\xb3\xd1\xa6\x00\xff\xd4\xfc\x03\x95\xe3\xf1\"\xd2\xf9H\xe2" ),
+          ( isLeft = false,
+            hash = "\x16\x1e\f\x18\xb1\x86\x99@E\xc8{\xed,$\x02-\xac\xec\x02\xdf\x81\xa8\xa1:\x05<\x9f-~\"\xe2\x8b" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ),
+    ( ifID = 3,
+      active = true,
+      revInfo = (
+        ifID = 3,
+        epoch = 4916,
+        nonce = "\xf9V\\_\xec\xfe\xcc\xcc\x18\x9c\xb41U\xf3\x13\x89H\"\x1c\x94\xf5\xd8ylo\xda\x98\xe6\xf7\x85\x80\x9c",
+        siblings = [
+          ( isLeft = false,
+            hash = "\x87ss\xa0D\x89=\xff\x05C\xad\xb8\xbb\x05\xa5\xe5v`\x04\xe88\xf9\x8a\xd0\x80\xf8$L\xe2\aG\xda" ),
+          ( isLeft = false,
+            hash = "\xa5\xd3\x10\xb2\xe1\xba(\xfeb\xae\xb8\xaf/\xe5\x02\xc3\xfc\xa7\b\x1b\x1aEy\xc1\xd1\x8e~f\x84N5\xe8" ),
+          ( isLeft = true,
+            hash = "\xaa\xbb\xe2+\x93k\xe4\xc4\t0\n?-\x93=v\xc4\xcez\xe1\x84\xf2\x10\xc1\xe8\xf1\xcf\x95E\xffm\xd0" ),
+          ( isLeft = false,
+            hash = "\xa1\xe7\xcb;\x9e!W\xd9+\xbb\xf0x\xb6\xbd\xea\xa6\xfb6\x01\x1c\xc9~\xf43\xa7\x9d)\xa7%\x96\xbd\x0e" ),
+          ( isLeft = true,
+            hash = "\xeb\xb4a\x1de\xc9^\x80\xd0\x86\x9c\xc3\n\x93u\n\x81\xc2r\xa6\xfb\xdc|\xb4\xfc5W\xc4{l\x85#" ),
+          ( isLeft = true,
+            hash = "o|\xfa\x99\xf8\x02%]3\t\x8aJf\xbe>\xef\xf5\xd6\x1e\xfe\x8fFQ\xde\xcd\xb6 ME.^" ),
+          ( isLeft = false,
+            hash = "\xee\xeb\"\f\x03\xec1)!!iYH\x86\x06h\x15\x8f\xf1\xbf\xa1C[\xa0\\\xe6\x8c9\xde\xfd\xbaE" ),
+          ( isLeft = true,
+            hash = "\xf1\xa2(D\xc7\xe9\xfa\xccW\x15\xb0\x87\xff1\x1d\v\x04u\xe7\xa2\xe0Ya\a\xc0M\x18\x83`Po\x0e" ),
+          ( isLeft = false,
+            hash = "\xee\x01\fI\xa7\x17&\xf6.\xd5\x8f\x91i0T\x19n\xd2\x036\xc9\x16\x14\v~s}\xfd\x0e\x94\x1a\x91" ),
+          ( isLeft = true,
+            hash = "bo\x873?u\x18\xc5 \xa5\a\xa0b@\xc6\x16\xec2\xa9Kw\xf7\xf4Z\xac\xb0\xa5\xec\x8a9\n" ),
+          ( isLeft = true,
+            hash = "\xbf\xf1Om\x94\r\xce4)\t\xc2\x99\x10\xeb,\xf4G~\x15iA\xce\xf0d=\x985\xde\xe1\xb8\x16\x19" ),
+          ( isLeft = false,
+            hash = "\\\xd7\xf2U\xb4\xdf\x91\xa3\xa9A\xf5\xc2\xf8\xdc\xd4a\xf1\x06H~8\xff?\xcf\xc8\x94\xba\x03\x9e\xf7\xf4\xac" ),
+          ( isLeft = true,
+            hash = "\x99u\xb3\xfc*\x89\x8b\x00\x97\xdfw\x1d1\xd6Q`/G.\x9d\xc0q\x9b\xc7\xec\xd1q3\xe2\xa4\xf9H" ),
+          ( isLeft = false,
+            hash = "\xbd!\xfd\x18q2\x03\xed\xd0\xe3k\x1b.0oJ\x8c\"jf\xefp\xea\xaf\b\xbb\xa1\x93\xda\xab\xb5j" ),
+          ( isLeft = true,
+            hash = "\x9a\x9d\xae\xe7st\x90i0\xb8\xac\x81\x99\x00\xe5\x8dG\x91\xcc\xba\x92\xd1\x13\xc8\xc5\x91\xbf\x8fPe3/" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ) ] )
+2016-06-23 13:39:22.828345+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:23.829884+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:24.830447+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:25.832070+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:26.833726+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:27.835200+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:28.834746+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:29.836804+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:30.838467+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:31.840015+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:32.840831+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:33.842471+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:34.843662+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:35.845376+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:36.846590+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:37.847661+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:38.849533+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:39.850347+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:40.851867+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:41.852808+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:42.853724+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:43.854253+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:44.855256+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:45.856898+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:46.066369+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:39:46.073758+00:00 [DEBUG] (MainThread) handle_request (from_local_as? True):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 2157B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.146)> Dst:<(1-16 (IPV4) 127.0.0.153)>
+  handler: <bound method Router.process_path_mgmt_packet of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:46.074617+00:00 [DEBUG] (MainThread) Received IFState update:
+IFStatePayload: ( infos = [
+    ( ifID = 1,
+      active = true,
+      revInfo = (
+        ifID = 1,
+        epoch = 4918,
+        nonce = "\xfd\xbaw\xc0y\xe8\x11\xc2\xb2zNB\xf0\x99%\n<\v\x83$\xf1\xb9\xda89\x8bx/!N\xe2*",
+        siblings = [
+          ( isLeft = false,
+            hash = "\x18[\xc1dj\xb8\xef\xb0\xfd\x15I\xbdp\xb0\xfc\x00\xe3\x17\xff/\xe7\xf9\xbf6\x80\xd5\xd3\xfd\x14R\x8a\x80" ),
+          ( isLeft = true,
+            hash = "\x18\xceE;T\x9b0\xd0\xe4|\nx\xa8\x8fo\xdb\x99\xbbx]\xd2r\vk\xe7\x85\xcaZ\x9fR\x01\"" ),
+          ( isLeft = true,
+            hash = "\xeej\ao\x1fw\xf8\xcb\xa4\xc8\x91\xcd\x8aE2X_\xc0\x1a\xba\xd5(b\xe6\x9cus\x8c\x80\xf6\xb3\xaf" ),
+          ( isLeft = false,
+            hash = "\xec\xef\xb8<\\\xec\ac_\xedn\x0eO!\xf0|L[,\xfa\xba\t\x01\x87\xe0\xb1\x8a\x12L(q\x00" ),
+          ( isLeft = true,
+            hash = "\xee\xae\xcd/y\xe5\xe3\xfb\x80\x8e\xda\x19\xe6\xb5\'\xb3|\xa7\x90\xf7NV\xe2\x89\x16\x81\x8a\x025M\x95\xb6" ),
+          ( isLeft = true,
+            hash = "7Zb\x89O9\x81\xb7\xa7\x9ba\xbf\xd3\x1e\xb1F6\xa6\f}6\xe5\x1f\xb7~\x9bA\v\x00Zv\x99" ),
+          ( isLeft = false,
+            hash = "\\;\xeb\x90\x82?0\x02\xec\x9c>H\x185\xee1\xa5\x86I\x81\xeb\xca\xd4P\'k\x1b\n\x9f*\xd3\x83" ),
+          ( isLeft = false,
+            hash = "T\x02m\xcdM\x82KEu\xac\xdfS8\xcfb\xf4u\x1f\a1\x97\x16\xd2q}\xa7\xb7YY}\xa4\xe7" ),
+          ( isLeft = true,
+            hash = "\xf4\xb1\xf0@\xf7\x147\ae\xc6*\xff\xcc\xf8FAU\x8d\x1c\x16\x8b\xcb\x11\f\xab\x8dQ`\v\xdd0\n" ),
+          ( isLeft = true,
+            hash = "Ew\xffy\x16\xcf\x8a67\x88=s~\x8f\xa9T\x99\x9d\xc2\xa0W\x84\xd3\xde\xea|\xb4t\xce\x0f\xe65" ),
+          ( isLeft = false,
+            hash = "\xec\xf2\x9f\xeav\xcd\x93z\xd9\xda\xcc.8\xea\xde;a+C\xff\xf8h\xd2yM\xfa\x9c\x00\xab\x92\x82" ),
+          ( isLeft = false,
+            hash = "T-N\xbf\x00`\xe8o|\xc8dn\xbe\xe7\xf6\x03xC\x01J\x96\x85m\x93\xc2\xad\xe0\x05T\x82\xc5" ),
+          ( isLeft = true,
+            hash = "\xd1z \xc7\xa56u\x18\x8a\x90\x90*>\x06\xc0J\xc03#\x16\xbcm\x1e!\xd9\x12s\xbeJ_\xd3" ),
+          ( isLeft = false,
+            hash = "\xe9\xbf\\\a\x060\x99t\x02\r\xe5i/6B\xd5/\x83O\xb1\x1b\x86\xf8\xe4{\xf31\x95\x1f\xce\xa4P" ),
+          ( isLeft = false,
+            hash = "\x16\x1e\f\x18\xb1\x86\x99@E\xc8{\xed,$\x02-\xac\xec\x02\xdf\x81\xa8\xa1:\x05<\x9f-~\"\xe2\x8b" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ),
+    ( ifID = 2,
+      active = true,
+      revInfo = (
+        ifID = 2,
+        epoch = 4918,
+        nonce = "\xba\xcf\xbc/=\xd0L*\\\xd8\x8d\xe8C\xaa\xe0\xbd\x95\xc5\\I\xf2s\xa9\xf7\x1eZ\xb1\x99\xf1~L",
+        siblings = [
+          ( isLeft = false,
+            hash = "/2f\x8c\xfa\x9b\xe1\x01f\xe8x\xaa E\x02\x8b\xeb\xbet\x04\xc7|\"\x92\x00\x97g\xee\xdd\xd2\x19\x9c" ),
+          ( isLeft = true,
+            hash = "\xe3\x9bE:G(\v\xba\xec\xc0\xf4:\xda\xe9fq[\x19\x98\x82\x11\x01$\xd0\x93\xb1\xa9g\xbau@\x91" ),
+          ( isLeft = true,
+            hash = "\xe9\xa3\xe4\xdd\x93\xe1\xdcw\"S\xda9\x9d`\x99\xa2\xfa\x9d\x9c>.\x87\xbc\v\xe8.x\x01\xf9\xd9\xf8\xb3" ),
+          ( isLeft = false,
+            hash = "|\x00\xb6\x9d\xd8\x80?@7<\xc1\x8b\xb9\xf7<y\xf1\xa7\xb3\xb4Xai\xf655&\x1d\xb6\xd3\x02" ),
+          ( isLeft = true,
+            hash = "x\x04o\x90}\x01%\x9c\xc2\xd6x\x01\xb5]\xf4\xd2\xe4\xa9\x82\xd6\x80\xa9\xdc\xf1\x94w,\v\x9d\f\xae\xb5" ),
+          ( isLeft = true,
+            hash = "\xd2\xf0\x02\xa5\xc8\x1d\xe9&\xd3\xf1o\x94\x1a\xd5h\xbd\xcaf\x81\x96\xf9sv\xbd\x81{\x12\a\xda\x9c\xed\xb7" ),
+          ( isLeft = true,
+            hash = "\x87-}\xbaW=[\xc6W\xed\xf6\xcbIP=^b\xdc\x98\x82\xae\xc68\xc8\xf7\xc2zK\x18F\xab\a" ),
+          ( isLeft = true,
+            hash = "\xff\xe6\xd9\xec\xa4\xed\\B\x95c\xc0\"].p\xfd%g\x87\xd8\xfeE\xb4yK\"\x12\xa3\x82\xea\xa6U" ),
+          ( isLeft = false,
+            hash = "6\xe6a\xba\xdc\xe0;v\xcd v58\x12\x90\x99\xd5~\xc8\xd1\"\x06?\xd1\x13\xf6&\x01\'%\x8d\x8f" ),
+          ( isLeft = false,
+            hash = "\x99\xa6L\x00\xb8\x85\xbe\x88\xabX\xe8\xde\xc5\x81\xc8\x81\x0e\xf3\x8b\x1fFO\xba\xda\xe8\n0\xdb\xe1\xc4\xe1)" ),
+          ( isLeft = true,
+            hash = "\xa5\xdb\xb8\xff\x94K\\\xda\xed1u\x9c}\x89\x8e\xad.\xbe\x1e\xa8\x054\xbf\xe0x\xcd\x8eE\xa1w:\x8b" ),
+          ( isLeft = false,
+            hash = "\xec7\xfc\xe5\x95\xb4y\x94^y25\xbf\xf7\x8e^\xd8\x12w2o\x8bO\xbe\x94H<B\xb5\xa3,\xae" ),
+          ( isLeft = true,
+            hash = "X\x16b\x1fK\xb4\xbb \xc6\x16\f\x97t\x9c\xe7\x91x)\x8f\x1c\xd4\x18\x86\x8eAm\xa3\xfb\xfc\xe7\xa2" ),
+          ( isLeft = true,
+            hash = "$p]\xb6\xbf\x9b\xf3\xbc\x1bhF\xe3b@C\xb3\xd1\xa6\x00\xff\xd4\xfc\x03\x95\xe3\xf1\"\xd2\xf9H\xe2" ),
+          ( isLeft = false,
+            hash = "\x16\x1e\f\x18\xb1\x86\x99@E\xc8{\xed,$\x02-\xac\xec\x02\xdf\x81\xa8\xa1:\x05<\x9f-~\"\xe2\x8b" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ),
+    ( ifID = 3,
+      active = true,
+      revInfo = (
+        ifID = 3,
+        epoch = 4918,
+        nonce = "+}gjh\x9d4\x8e\x10\xa6\x0e5\x8eH{\x87\xf3\xecP\v\x96(\x0e0\xf0\x16m\xf7|=\vx",
+        siblings = [
+          ( isLeft = false,
+            hash = "L\x1d\xa4X8\t\xa0[\xd7L\x8e-\x04\x86\xef\xb8\xf6~\xe6\xcc6 \xd9U\x94\x8aXg\xb1\xbe\x8c\xc1" ),
+          ( isLeft = true,
+            hash = "b\x87\xcca\x0f\xb8\x8fHr}:9o\v\"\x98\xbc\r\xf3\xe4\x82\x81\x8ee\x10\xa8\t\xb5\x94\x83\xc8\x8a" ),
+          ( isLeft = true,
+            hash = "\xaa\xbb\xe2+\x93k\xe4\xc4\t0\n?-\x93=v\xc4\xcez\xe1\x84\xf2\x10\xc1\xe8\xf1\xcf\x95E\xffm\xd0" ),
+          ( isLeft = false,
+            hash = "\xa1\xe7\xcb;\x9e!W\xd9+\xbb\xf0x\xb6\xbd\xea\xa6\xfb6\x01\x1c\xc9~\xf43\xa7\x9d)\xa7%\x96\xbd\x0e" ),
+          ( isLeft = true,
+            hash = "\xeb\xb4a\x1de\xc9^\x80\xd0\x86\x9c\xc3\n\x93u\n\x81\xc2r\xa6\xfb\xdc|\xb4\xfc5W\xc4{l\x85#" ),
+          ( isLeft = true,
+            hash = "o|\xfa\x99\xf8\x02%]3\t\x8aJf\xbe>\xef\xf5\xd6\x1e\xfe\x8fFQ\xde\xcd\xb6 ME.^" ),
+          ( isLeft = false,
+            hash = "\xee\xeb\"\f\x03\xec1)!!iYH\x86\x06h\x15\x8f\xf1\xbf\xa1C[\xa0\\\xe6\x8c9\xde\xfd\xbaE" ),
+          ( isLeft = true,
+            hash = "\xf1\xa2(D\xc7\xe9\xfa\xccW\x15\xb0\x87\xff1\x1d\v\x04u\xe7\xa2\xe0Ya\a\xc0M\x18\x83`Po\x0e" ),
+          ( isLeft = false,
+            hash = "\xee\x01\fI\xa7\x17&\xf6.\xd5\x8f\x91i0T\x19n\xd2\x036\xc9\x16\x14\v~s}\xfd\x0e\x94\x1a\x91" ),
+          ( isLeft = true,
+            hash = "bo\x873?u\x18\xc5 \xa5\a\xa0b@\xc6\x16\xec2\xa9Kw\xf7\xf4Z\xac\xb0\xa5\xec\x8a9\n" ),
+          ( isLeft = true,
+            hash = "\xbf\xf1Om\x94\r\xce4)\t\xc2\x99\x10\xeb,\xf4G~\x15iA\xce\xf0d=\x985\xde\xe1\xb8\x16\x19" ),
+          ( isLeft = false,
+            hash = "\\\xd7\xf2U\xb4\xdf\x91\xa3\xa9A\xf5\xc2\xf8\xdc\xd4a\xf1\x06H~8\xff?\xcf\xc8\x94\xba\x03\x9e\xf7\xf4\xac" ),
+          ( isLeft = true,
+            hash = "\x99u\xb3\xfc*\x89\x8b\x00\x97\xdfw\x1d1\xd6Q`/G.\x9d\xc0q\x9b\xc7\xec\xd1q3\xe2\xa4\xf9H" ),
+          ( isLeft = false,
+            hash = "\xbd!\xfd\x18q2\x03\xed\xd0\xe3k\x1b.0oJ\x8c\"jf\xefp\xea\xaf\b\xbb\xa1\x93\xda\xab\xb5j" ),
+          ( isLeft = true,
+            hash = "\x9a\x9d\xae\xe7st\x90i0\xb8\xac\x81\x99\x00\xe5\x8dG\x91\xcc\xba\x92\xd1\x13\xc8\xc5\x91\xbf\x8fPe3/" ) ],
+        prevRoot = "3\xb2\xc5\xfb\x0e\xc5\x17e\xc2]>\xc9-\xba{\xf4\xf1\xb2\xeb\xd5\xac\n,\xa3w1\xfcv\x0fCd\x14",
+        nextRoot = "\xb8\x9fc8\x12\xb6\x18W\xcd;\x1d\x05\xceN^5Wc\xf2\n,,\xfd`\xf9\xfe;\xf4\xeb|8\x03" ) ) ] )
+2016-06-23 13:39:46.858035+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:47.861501+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:48.862447+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:49.863614+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:50.864981+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:51.866318+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:52.872231+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:53.869341+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:54.870490+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:55.872204+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:56.872819+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:57.875570+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:58.876808+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:39:59.878243+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:00.879546+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:01.880582+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:02.882165+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:03.883411+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:04.884704+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:05.885272+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:06.886194+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:07.888929+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:08.890105+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:09.893872+00:00 [DEBUG] (MainThread) handle_request (from_local_as? False):
+  CH ver: 0, src type: IPV4, dst type: SVC, total len: 40B, IOF idx: 0, HOF idx: 0, next hdr: 17, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-15 (IPV4) 127.0.0.134)> Dst:<(1-16 (SVC) 0)>
+  handler: <bound method Router.process_ifid_request of <infrastructure.router.main.Router object at 0x7f66ad84f748>>
+2016-06-23 13:40:10.093602+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:10.894126+00:00 [INFO] (MainThread) Exiting

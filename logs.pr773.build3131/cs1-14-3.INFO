@@ -1,0 +1,25 @@
+2016-06-23 13:38:22.903201+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:23.105589+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:23.414147+00:00 [INFO] (MainThread) Started cs1-14-3
+2016-06-23 13:38:23.540523+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:24.542039+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:25.544239+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:26.545991+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:27.547077+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:28.549158+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:29.551258+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:30.553340+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:31.555501+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:32.557675+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:33.558745+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:34.560826+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.561939+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:38.199097+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:38.199377+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:38:41.042049+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:53.158742+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.160s (should have been <= 1.000s)
+2016-06-23 13:38:54.363058+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.204s (should have been <= 1.000s)
+2016-06-23 13:38:55.518284+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.155s (should have been <= 1.000s)
+2016-06-23 13:38:56.901067+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:40:11.218082+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:11.714738+00:00 [INFO] (MainThread) Exiting

@@ -1,0 +1,80 @@
+2016-06-23 13:38:33.167009+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS14/ps1-14-1/certs/ISD1-V0.trc
+2016-06-23 13:38:33.167557+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS14/ps1-14-1/certs/ISD2-V0.trc
+2016-06-23 13:38:33.168162+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS14/ps1-14-1/certs/ISD1-AS14-V0.crt
+2016-06-23 13:38:33.168606+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:33.168977+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:33.169164+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:33.330815+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:33.554414+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:33.554789+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:33.554959+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80036)
+2016-06-23 13:38:33.556511+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:33.590892+00:00 [DEBUG] (MainThread) ZK connection available after 0.03s
+2016-06-23 13:38:33.604950+00:00 [DEBUG] (MainThread) Current party (/1-14/ps/party) members are: ['ps1-14-1']
+2016-06-23 13:38:33.605271+00:00 [INFO] (MainThread) Started ps1-14-1
+2016-06-23 13:38:33.753829+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:33.754069+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:33.756551+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:34.688969+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:38:34.757730+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:34.757953+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:34.758151+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.782150+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:35.782371+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:35.782549+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:36.783530+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:36.783786+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:36.788806+00:00 [DEBUG] (Elem.packet_recv) Registered to dispatcher for addr (1-14 (IPV4) 127.0.0.122):30040
+2016-06-23 13:38:37.556798+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:38:37.557167+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:37.557332+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:37.683795+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:38:41.754394+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:38:41.755518+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:38:41.756119+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:44.854701+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:38:44.855695+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:38:44.855864+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f8008a)
+2016-06-23 13:38:45.162898+00:00 [DEBUG] (libZK._state_handler) Current party (/1-14/ps/party) members are: ['ps1-14-1']
+2016-06-23 13:38:45.163170+00:00 [DEBUG] (PS.worker) ZK connection available after 7.48s
+2016-06-23 13:38:45.573017+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:38:52.557522+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:38:52.558055+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:52.558228+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:52.579003+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:38:53.455942+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 6)
+2016-06-23 13:38:53.456299+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:38:53.456476+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f8008a)
+2016-06-23 13:38:54.024173+00:00 [DEBUG] (libZK._state_handler) Current party (/1-14/ps/party) members are: ['ps1-14-1']
+2016-06-23 13:38:54.024470+00:00 [DEBUG] (PS.worker) ZK connection available after 1.45s
+2016-06-23 13:38:54.876421+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 6)
+2016-06-23 13:39:25.626812+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-14: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+2016-06-23 13:39:25.627750+00:00 [INFO] (MainThread) Up-Segment registered: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+2016-06-23 13:39:25.909476+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:26.587276+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-14: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+  SibraPCBExt: id: 0010000e6608a1f4 (owner: 1-14) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:26.588187+00:00 [INFO] (MainThread) Up-Segment registered: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+  SibraPCBExt: id: 0010000e6608a1f4 (owner: 1-14) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:26.931931+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:30.632890+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:26+00:00, 1-11 > 1-14
+2016-06-23 13:39:30.915691+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:35.643315+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:31+00:00, 1-11 > 1-14
+2016-06-23 13:39:35.919065+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:41.637832+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:36+00:00, 1-11 > 1-14
+2016-06-23 13:39:41.934797+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:46.638215+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:41+00:00, 1-11 > 1-14
+2016-06-23 13:39:46.929239+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:51.654508+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:47+00:00, 1-11 > 1-14
+2016-06-23 13:39:51.934969+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:56.652466+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:52+00:00, 1-11 > 1-14
+2016-06-23 13:39:56.939326+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:01.665754+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:39:57+00:00, 1-11 > 1-14
+2016-06-23 13:40:01.943428+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:06.656089+00:00 [DEBUG] (MainThread) Up-Segment updated: 956384423c12, 2016-06-23 13:40:02+00:00, 1-11 > 1-14
+2016-06-23 13:40:06.950153+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:11.546552+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:11.660167+00:00 [INFO] (MainThread) Exiting

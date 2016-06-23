@@ -1,0 +1,50 @@
+2016-06-23 13:39:12.371026+00:00 [INFO] (End2End 1-15 > 2-24 main) Testing: 1-15 -> 2-24
+2016-06-23 13:39:12.371443+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Starting sciond for 2-24
+2016-06-23 13:39:12.701088+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Loaded: gen/ISD2/AS24/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:12.701616+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Loaded: gen/ISD2/AS24/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:12.702971+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Loaded: gen/ISD2/AS24/endhost/certs/ISD2-AS24-V0.crt
+2016-06-23 13:39:12.705814+00:00 [DEBUG] (End2End 1-15 > 2-24 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.706139+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Attempt connect
+2016-06-23 13:39:12.746019+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.3):1027
+2016-06-23 13:39:12.785700+00:00 [DEBUG] (End2End 1-15 > 2-24 main) sciond bound to /run/shm/sciond/End2End_2-24.sock
+2016-06-23 13:39:12.849699+00:00 [DEBUG] (End2End 1-15 > 2-24 main) sciond started with api_addr = /run/shm/sciond/End2End_2-24.sock
+2016-06-23 13:39:12.850041+00:00 [DEBUG] (End2End 1-15 > 2-24 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:12.850198+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Attempt connect
+2016-06-23 13:39:12.851171+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.3):1032
+2016-06-23 13:39:12.851444+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Starting sciond for 1-15
+2016-06-23 13:39:13.162968+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Loaded: gen/ISD1/AS15/endhost/certs/ISD1-V0.trc
+2016-06-23 13:39:13.163516+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Loaded: gen/ISD1/AS15/endhost/certs/ISD2-V0.trc
+2016-06-23 13:39:13.163914+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Loaded: gen/ISD1/AS15/endhost/certs/ISD1-AS15-V0.crt
+2016-06-23 13:39:13.164277+00:00 [DEBUG] (End2End 1-15 > 2-24 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:13.164438+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Attempt connect
+2016-06-23 13:39:13.164991+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Registered to dispatcher for addr (1-15 (IPV4) 127.0.0.2):1036
+2016-06-23 13:39:13.225753+00:00 [DEBUG] (End2End 1-15 > 2-24 main) sciond bound to /run/shm/sciond/End2End_1-15.sock
+2016-06-23 13:39:13.262290+00:00 [DEBUG] (End2End 1-15 > 2-24 main) sciond started with api_addr = /run/shm/sciond/End2End_1-15.sock
+2016-06-23 13:39:13.267780+00:00 [DEBUG] (End2End 1-15 > 2-24 main) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:39:13.267942+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Attempt connect
+2016-06-23 13:39:13.268511+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Registered to dispatcher for addr (1-15 (IPV4) 127.0.0.2):1039
+2016-06-23 13:39:13.268827+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Sending path request to local API at /run/shm/sciond/End2End_1-15.sock
+2016-06-23 13:39:13.323934+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:13.337565+00:00 [DEBUG] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Paths requested for 2-24 ()
+2016-06-23 13:39:13.404747+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:39:18.338672+00:00 [ERROR] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Query timed out for 2-24
+2016-06-23 13:39:18.339299+00:00 [DEBUG] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Replying to api request for 2-24 with 0 paths
+2016-06-23 13:39:18.339691+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Empty response from local api.
+2016-06-23 13:39:18.339855+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Sending path request to local API at /run/shm/sciond/End2End_1-15.sock
+2016-06-23 13:39:18.340606+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:18.367034+00:00 [DEBUG] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Paths requested for 2-24 ()
+2016-06-23 13:39:23.367486+00:00 [ERROR] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Query timed out for 2-24
+2016-06-23 13:39:23.368103+00:00 [DEBUG] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Replying to api request for 2-24 with 0 paths
+2016-06-23 13:39:23.368586+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Empty response from local api.
+2016-06-23 13:39:23.368741+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Sending path request to local API at /run/shm/sciond/End2End_1-15.sock
+2016-06-23 13:39:23.369036+00:00 [DEBUG] (SCIONDaemon.run 1-15) API: path request
+2016-06-23 13:39:23.397871+00:00 [DEBUG] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Paths requested for 2-24 ()
+2016-06-23 13:39:23.399882+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Expired 2 requests for (ISD_AS(isd=2, as=24), ())
+2016-06-23 13:39:23.400283+00:00 [DEBUG] (SCIONDaemon Requests 1-15) Sending path request: (srcIA = "1-15", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:39:28.401421+00:00 [ERROR] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Query timed out for 2-24
+2016-06-23 13:39:28.401810+00:00 [DEBUG] (SCIONDaemon API id:140207655479040 1-15 -> 2-24) Replying to api request for 2-24 with 0 paths
+2016-06-23 13:39:28.402034+00:00 [DEBUG] (End2End 1-15 > 2-24 main) Empty response from local api.
+2016-06-23 13:39:28.402138+00:00 [CRITICAL] (End2End 1-15 > 2-24 main) Unable to get path from local api.
+2016-06-23 13:39:28.402495+00:00 [ERROR] (End2End 1-15 > 2-24 main) Received SIGUSR2
+2016-06-23 13:39:28.402657+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:39:29.407056+00:00 [INFO] (End2End 1-15 > 2-24 main) Exiting

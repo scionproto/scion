@@ -1,0 +1,83 @@
+2016-06-23 13:38:53.618415+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS10/sb1-10-1/certs/ISD1-V0.trc
+2016-06-23 13:38:53.618947+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS10/sb1-10-1/certs/ISD2-V0.trc
+2016-06-23 13:38:53.619655+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS10/sb1-10-1/certs/ISD1-AS10-V0.crt
+2016-06-23 13:38:53.620104+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:53.620462+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:53.801474+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-10 (IPV4) 127.0.0.54):30040
+2016-06-23 13:38:53.802283+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-10 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:53.865569+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:54.331297+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:54.331780+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:54.331960+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f800ac)
+2016-06-23 13:38:54.332344+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:54.531322+00:00 [DEBUG] (MainThread) ZK connection available after 0.20s
+2016-06-23 13:38:55.274390+00:00 [DEBUG] (MainThread) Current party (/1-10/sb/party) members are: ['sb1-10-1']
+2016-06-23 13:38:55.274631+00:00 [INFO] (MainThread) Started sb1-10-1
+2016-06-23 13:38:55.745512+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:38:55.745894+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:55.746084+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:56.038513+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 3)
+2016-06-23 13:38:56.038832+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:38:56.039002+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f800ac)
+2016-06-23 13:38:56.364478+00:00 [DEBUG] (libZK._state_handler) Current party (/1-10/sb/party) members are: ['sb1-10-1']
+2016-06-23 13:39:35.867050+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 1-10: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:35.870311+00:00 [INFO] (MainThread) UP Segment added: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:35.870587+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 1-13
+2016-06-23 13:39:36.349599+00:00 [DEBUG] (SB.worker) Setting up steady path 1-10 -> 1-13 over 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:36.350130+00:00 [INFO] (SB.worker) Sending setup request using 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10:
+SibraExtSteady(56B):
+  SOF idx: 0 Hop: 0 (Total hops: 4) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000a89f79793 (Owner: 1-10)
+  Request block:
+    ResvBlockSteady(40B): Num hops: 4
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:36+00:00
+2016-06-23 13:39:36.402667+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:39:36.403147+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:11.0(512.0Kibit/s) rev:11.0(512.0Kibit/s)> denied
+2016-06-23 13:39:36.403628+00:00 [INFO] (MainThread) Sending setup request using 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10:
+SibraExtSteady(56B):
+  SOF idx: 0 Hop: 0 (Total hops: 4) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000a89f79793 (Owner: 1-10)
+  Request block:
+    ResvBlockSteady(40B): Num hops: 4
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:36+00:00
+2016-06-23 13:39:36.518331+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 56B
+2016-06-23 13:39:36.519014+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(40B): Num hops: 4
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:36+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 6a378e5b
+  SibraOpaqueField(8B): Ingress: 2 Egress: 1 Mac: 79137b3b
+  SibraOpaqueField(8B): Ingress: 3 Egress: 1 Mac: 9e4956c5
+  SibraOpaqueField(8B): Ingress: 3 Egress: 0 Mac: e920af5f
+2016-06-23 13:39:36.519785+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:39:36.522531+00:00 [DEBUG] (MainThread)   07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+    SibraPCBExt: id: 0010000a89f79793 (owner: 1-10) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:36+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 6a378e5b
+    SibraOpaqueField(8B): Ingress: 2 Egress: 1 Mac: 79137b3b
+    SibraOpaqueField(8B): Ingress: 3 Egress: 1 Mac: 9e4956c5
+    SibraOpaqueField(8B): Ingress: 3 Egress: 0 Mac: e920af5f
+2016-06-23 13:39:36.522904+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-13
+2016-06-23 13:39:36.525292+00:00 [DEBUG] (MainThread)   07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+    SibraPCBExt: id: 0010000a89f79793 (owner: 1-10) Up? False
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:36+00:00
+    SibraOpaqueField(8B): Ingress: 3 Egress: 0 Mac: e920af5f
+    SibraOpaqueField(8B): Ingress: 3 Egress: 1 Mac: 9e4956c5
+    SibraOpaqueField(8B): Ingress: 2 Egress: 1 Mac: 79137b3b
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 6a378e5b
+2016-06-23 13:39:40.864270+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:33+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:45.866390+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:38+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:51.852431+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:43+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:56.856192+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:48+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:40:01.858126+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:53+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:40:06.867558+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:59+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:40:11.875129+00:00 [DEBUG] (MainThread) UP Segment updated: 07871b14d697, 2016-06-23 13:39:59+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:40:12.962981+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:40:12.963339+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:40:12.963521+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:40:12.963679+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:40:13.413626+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.965489+00:00 [INFO] (MainThread) Exiting

@@ -1,0 +1,2 @@
+2016-06-23 13:23:09.883983+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:58.173040+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK

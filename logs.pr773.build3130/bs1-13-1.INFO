@@ -1,0 +1,486 @@
+2016-06-23 13:22:28.120552+00:00 [INFO] (MainThread) {'master_as_key': b'Wj\xa5\xa3\xa3+\xc8P8\xf4\t\xe2\xb8\x9e\xeeQ', 'registration_time': 5, 'cert_ver': 0, 'propagation_time': 5, 'registers_paths': True}
+2016-06-23 13:22:28.213182+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:28.270721+00:00 [INFO] (MainThread) Started bs1-13-1
+2016-06-23 13:22:28.520235+00:00 [INFO] (MainThread) IF 2 activated
+2016-06-23 13:22:28.521290+00:00 [INFO] (MainThread) IF 3 activated
+2016-06-23 13:22:29.289783+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:29.290430+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:29.290800+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:29.291681+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:29.292946+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:30.290861+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:30.291917+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:30.292279+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:30.292614+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:30.293982+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:31.291487+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:31.292138+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:31.292484+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:31.292821+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:31.295666+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:32.292573+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:32.293264+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:32.293616+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:32.293995+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:32.295375+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:33.293650+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:33.294273+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:33.294620+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:33.294947+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:33.296905+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:34.294726+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:34.295478+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:34.295813+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:34.296144+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:34.297305+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:35.295157+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:35.295801+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:35.296134+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:35.296456+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:35.343150+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:36.296175+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:36.296778+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:36.297111+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:36.297433+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:36.298475+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:37.296759+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:37.297344+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:37.297662+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:37.297970+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:37.299506+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:38.232839+00:00 [INFO] (MainThread) IF 1 activated
+2016-06-23 13:22:38.297803+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:38.298429+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:38.298739+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:38.299208+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:38.300173+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:39.298973+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:39.299663+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:39.299975+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:39.303616+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:39.306305+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:40.299130+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:40.299747+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:40.300076+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:40.300428+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:40.302021+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:41.299949+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:41.300571+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:41.300879+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:41.301232+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:41.303546+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:42.301029+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:42.301657+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:42.302104+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:42.302449+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:42.303968+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:43.302107+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:43.302857+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:43.303242+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:43.303549+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:43.304725+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:44.303124+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:44.303779+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:44.304093+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:44.304412+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:44.306102+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:45.303408+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:45.304076+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:45.304398+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:45.304716+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:45.307107+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:46.304512+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:46.305104+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:46.305422+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:46.305736+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:46.307509+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:47.305129+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:47.305756+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:47.306074+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:47.306387+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:47.307697+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:48.305630+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:48.306277+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:48.306595+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:48.306896+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:48.307867+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:49.306641+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:49.307592+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:49.307950+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:49.308299+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:49.312297+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:50.307323+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:50.307908+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:50.308236+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:50.308545+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:50.359069+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:51.307672+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:51.308272+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:51.308569+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:51.308866+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:51.313230+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:52.308764+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:52.309370+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:52.309685+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:52.309994+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:52.311535+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:53.309565+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:53.310160+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:53.310486+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:53.310786+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:53.321290+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:54.310449+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:54.314884+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:54.315533+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:54.315917+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:54.320106+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:55.311224+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:55.311849+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:55.312176+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:55.312509+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:55.327492+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:56.312173+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:56.312708+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:56.312885+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:56.313054+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:56.313786+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:57.313265+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:57.313869+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:57.314190+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:57.314506+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:57.316674+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:58.314329+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:58.314707+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:58.314882+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:58.315139+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:58.327269+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:22:59.315124+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:22:59.330634+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:22:59.330827+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:22:59.331004+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:22:59.331759+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:00.316228+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:00.316815+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:00.317127+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:00.317440+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:00.331410+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:01.319203+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:01.319772+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:01.320078+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:01.320408+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:01.322844+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:02.320274+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:02.320866+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:02.321181+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:02.321505+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:02.351184+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:03.323292+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:03.323874+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:03.324194+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:03.324531+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:03.754188+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:04.323799+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:04.421691+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:04.422026+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:04.422516+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:04.544813+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:05.324567+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:05.800289+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.809848+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:05.838975+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:06.561744+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:07.035853+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:07.048568+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:07.139869+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:23:07.140215+00:00 [WARNING] (BS.worker) Step 6
+2016-06-23 13:23:07.140556+00:00 [WARNING] (BS.worker) Before lock
+2016-06-23 13:23:07.140885+00:00 [WARNING] (BS.worker) Got lock
+2016-06-23 13:23:09.414372+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:09.852845+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:09.935705+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.003740+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.026687+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.028245+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.054695+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:10.626720+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:16.001937+00:00 [WARNING] (BS.worker) Made tree
+2016-06-23 13:23:16.236420+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.279918+00:00 [WARNING] (BS.worker) Step 7
+2016-06-23 13:23:16.280306+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 10.956s (should have been <= 1.000s)
+2016-06-23 13:23:16.280687+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:16.659756+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:16.660087+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:16.826774+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:16.881481+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.157914+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:17.167768+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.169434+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.227730+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:17.244444+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:18.216981+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:18.723980+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:18.937834+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 10)
+2016-06-23 13:23:18.938226+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:18.938587+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:18.938915+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:18.941425+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:19.323333+00:00 [INFO] (BS.worker) Propagated 8 Core PCBs
+2016-06-23 13:23:19.323700+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:20.313607+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:20.434070+00:00 [INFO] (BS.worker) Registered 12 Core paths
+2016-06-23 13:23:20.434403+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:20.434748+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 4.154s (should have been <= 1.000s)
+2016-06-23 13:23:20.478405+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:20.689225+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:20.690129+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:22.306315+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:22.497159+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:23.871038+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:23:23.872366+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:23.872737+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:23.873093+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:23.873413+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:23.873731+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:23.874069+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 3.396s (should have been <= 1.000s)
+2016-06-23 13:23:23.874445+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:23.898480+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:23.898823+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:23.899221+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:24.385580+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:24.448220+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:24.448629+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:24.448988+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:24.455150+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:24.918715+00:00 [INFO] (BS.worker) Propagated 8 Core PCBs
+2016-06-23 13:23:24.919085+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:25.623528+00:00 [INFO] (BS.worker) Registered 12 Core paths
+2016-06-23 13:23:25.623860+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:25.624210+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.750s (should have been <= 1.000s)
+2016-06-23 13:23:25.624567+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:25.639099+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:25.639545+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:25.639868+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:25.687183+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:25.719849+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:25.720236+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:25.720611+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:25.720921+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:25.721239+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:26.624762+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:26.625345+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:26.625676+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:26.626002+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:26.806167+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:26.860826+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:26.861261+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:26.861597+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:26.861919+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:26.862273+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:27.328544+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:27.627709+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:27.628259+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:27.628558+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:27.894585+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:27.914713+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:27.996267+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.196516+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.222526+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.247928+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:28.669013+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:29.421168+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:29.875977+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 14)
+2016-06-23 13:23:29.876376+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:29.876740+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:29.877082+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:29.884166+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:30.027324+00:00 [INFO] (BS.worker) Propagated 8 Core PCBs
+2016-06-23 13:23:30.027677+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:30.491911+00:00 [INFO] (BS.worker) Registered 12 Core paths
+2016-06-23 13:23:30.492254+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:30.492614+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 2.865s (should have been <= 1.000s)
+2016-06-23 13:23:30.492992+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:30.799756+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:30.800100+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:30.800424+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:31.134603+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:31.227172+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:31.227591+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:31.227916+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:31.228240+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:31.230558+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:31.493747+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:31.494334+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:31.494704+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:31.496443+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:31.640129+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:31.879418+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:31.879829+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:31.880163+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:31.880499+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:31.880828+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:32.494305+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:32.494910+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:32.495273+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:32.495581+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:32.604234+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:32.689740+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:32.690154+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:32.690495+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:32.690823+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:32.692655+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:33.495126+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:33.495764+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:33.496087+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:33.496413+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:34.219464+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:34.589020+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:34.589460+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:34.589785+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:34.590133+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:34.595590+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:34.595971+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 1.101s (should have been <= 1.000s)
+2016-06-23 13:23:34.596322+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:34.674630+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:34.674975+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:34.698764+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:35.399396+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:35.566472+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:35.566877+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:35.567242+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:35.569334+00:00 [INFO] (BS.worker) Downstream PCB propagated!
+2016-06-23 13:23:35.956982+00:00 [INFO] (BS.worker) Propagated 8 Core PCBs
+2016-06-23 13:23:35.957325+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:36.547834+00:00 [INFO] (BS.worker) Registered 12 Core paths
+2016-06-23 13:23:36.679065+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:36.679850+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 2.084s (should have been <= 1.000s)
+2016-06-23 13:23:36.680216+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:37.030166+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:37.030530+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:37.030862+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:37.294279+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:37.373702+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:37.374109+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:37.374436+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:37.374762+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:37.375116+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:37.680699+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:37.681297+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:37.681651+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:37.681973+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:37.787862+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:37.920167+00:00 [WARNING] (BS.worker) Step 8
+2016-06-23 13:23:37.920590+00:00 [WARNING] (BS.worker) Step 9
+2016-06-23 13:23:37.920921+00:00 [WARNING] (BS.worker) Step 10
+2016-06-23 13:23:37.921250+00:00 [WARNING] (BS.worker) Step 11
+2016-06-23 13:23:37.921568+00:00 [WARNING] (BS.worker) Step 12
+2016-06-23 13:23:38.417489+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:38.681138+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:38.681712+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:38.682032+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:39.216523+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.407944+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.514387+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:39.562378+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:40.674297+00:00 [WARNING] (BS.worker) Unable to retrieve entry from shared path /1-13/bs/pcb_cache: no connection to ZK
+2016-06-23 13:23:40.674373+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:40.999179+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.140571+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:41.144879+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:41.207756+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:41.208120+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 2.527s (should have been <= 1.000s)
+2016-06-23 13:23:41.208472+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:41.564397+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:41.564741+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:42.878653+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:44.074255+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.093750+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.488759+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.720652+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:44.920068+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:45.132820+00:00 [ERROR] (MainThread) Unable to store PCB in shared cache: no connection to ZK
+2016-06-23 13:23:46.216506+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:46.460660+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:47.438146+00:00 [WARNING] (BS.worker) BS.worker cycle took too long: 6.230s (should have been <= 1.000s)
+2016-06-23 13:23:47.438581+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:47.656804+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:47.657138+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:47.657460+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:47.869719+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:48.438819+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:48.439466+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:48.439787+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:48.440108+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:48.934196+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:49.439190+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:49.439823+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:49.440150+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:49.440457+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:49.514885+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:50.440163+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:50.585500+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:50.589061+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:50.589372+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:50.598901+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:51.440746+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:51.441350+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:51.441679+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:51.442005+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:51.497035+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:52.441209+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:52.441796+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:52.442131+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:52.442445+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:52.491968+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:53.442963+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:53.443622+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:53.443951+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:53.444319+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:53.572064+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:54.445932+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:54.446520+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:54.446833+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:54.447169+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:54.592556+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:55.365103+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.446537+00:00 [WARNING] (BS.worker) Step 1
+2016-06-23 13:23:55.448568+00:00 [WARNING] (BS.worker) Step 2
+2016-06-23 13:23:55.448861+00:00 [WARNING] (BS.worker) Step 3
+2016-06-23 13:23:56.101557+00:00 [WARNING] (BS.worker) Step 4
+2016-06-23 13:23:56.116708+00:00 [WARNING] (BS.worker) Step 5
+2016-06-23 13:23:56.672938+00:00 [INFO] (BS.worker) Successfully acquired ZK lock (epoch 21)
+2016-06-23 13:23:56.673305+00:00 [WARNING] (BS.worker) Step 6
+2016-06-23 13:23:56.673671+00:00 [WARNING] (BS.worker) Before lock
+2016-06-23 13:23:56.674475+00:00 [WARNING] (BS.worker) Got lock
+2016-06-23 13:24:12.932394+00:00 [INFO] (BS._handle_if_timeouts) IF 2 appears to be down.
+2016-06-23 13:24:27.043309+00:00 [WARNING] (BS.worker) Made tree
+2016-06-23 13:24:27.044121+00:00 [INFO] (BS._handle_if_timeouts) Issuing revocation for IF 2.
+2016-06-23 13:24:27.054906+00:00 [INFO] (BS._handle_if_timeouts) Storing revocation in ZK.
+2016-06-23 13:24:27.045913+00:00 [INFO] (MainThread) IF 3 came back up.
+2016-06-23 13:24:27.064462+00:00 [INFO] (MainThread) IF 1 activated
+2016-06-23 13:24:27.053518+00:00 [WARNING] (BS.worker) Step 7
+2016-06-23 13:24:27.077321+00:00 [INFO] (MainThread) IF 2 activated
+2016-06-23 13:24:27.134494+00:00 [CRITICAL] (BS.worker) Exception in BS.worker thread:
+2016-06-23 13:24:27.137237+00:00 [CRITICAL] (BS.worker) Traceback (most recent call last):
+2016-06-23 13:24:27.137763+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/lib/zookeeper.py", line 665, in expire
+2016-06-23 13:24:27.138287+00:00 [CRITICAL] (BS.worker)     self._kazoo.delete(full_path)
+2016-06-23 13:24:27.138790+00:00 [CRITICAL] (BS.worker)   File "/home/scion/.local/lib/python3.4/site-packages/kazoo/client.py", line 1293, in delete
+2016-06-23 13:24:27.139752+00:00 [CRITICAL] (BS.worker)     return self.delete_async(path, version).get()
+2016-06-23 13:24:27.140240+00:00 [CRITICAL] (BS.worker)   File "/home/scion/.local/lib/python3.4/site-packages/kazoo/handlers/utils.py", line 78, in get
+2016-06-23 13:24:27.141422+00:00 [CRITICAL] (BS.worker)     raise self._exception
+2016-06-23 13:24:27.141914+00:00 [CRITICAL] (BS.worker) kazoo.exceptions.NoNodeError: ((), {})
+2016-06-23 13:24:27.143277+00:00 [CRITICAL] (BS.worker) 
+2016-06-23 13:24:27.143800+00:00 [CRITICAL] (BS.worker) During handling of the above exception, another exception occurred:
+2016-06-23 13:24:27.144293+00:00 [CRITICAL] (BS.worker) 
+2016-06-23 13:24:27.144791+00:00 [CRITICAL] (BS.worker) Traceback (most recent call last):
+2016-06-23 13:24:27.145380+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/lib/thread.py", line 49, in thread_safety_net
+2016-06-23 13:24:27.145915+00:00 [CRITICAL] (BS.worker)     return func(*args, **kwargs)
+2016-06-23 13:24:27.146405+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/infrastructure/beacon_server/base.py", line 388, in worker
+2016-06-23 13:24:27.152910+00:00 [CRITICAL] (BS.worker)     self.pcb_cache.expire(self.config.propagation_time * 10)
+2016-06-23 13:24:27.153424+00:00 [CRITICAL] (BS.worker)   File "/home/scion/scion.git/lib/zookeeper.py", line 668, in expire
+2016-06-23 13:24:27.153914+00:00 [CRITICAL] (BS.worker)     raise ZkNoNodeError
+2016-06-23 13:24:27.154417+00:00 [CRITICAL] (BS.worker) lib.zookeeper.ZkNoNodeError
+2016-06-23 13:24:27.154908+00:00 [CRITICAL] (BS.worker) 
+2016-06-23 13:24:27.169680+00:00 [ERROR] (MainThread) Received SIGUSR2
+2016-06-23 13:24:27.226587+00:00 [INFO] (BS._handle_if_timeouts) Sending revocation to local PS.
+2016-06-23 13:24:27.230942+00:00 [WARNING] (BS._handle_if_timeouts) Handle IF timeouts took too long: 14.299s (should have been <= 1.000s)
+2016-06-23 13:24:27.453578+00:00 [INFO] (MainThread) Exiting

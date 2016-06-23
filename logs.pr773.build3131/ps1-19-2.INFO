@@ -1,0 +1,22 @@
+2016-06-23 13:38:33.677669+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:33.761718+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:34.045124+00:00 [INFO] (MainThread) Started ps1-19-2
+2016-06-23 13:38:34.169646+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.171459+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:36.173447+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:38.634616+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:38.634959+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:38:41.514240+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:39:30.877301+00:00 [INFO] (MainThread) Up-Segment registered: d2f9d7017c88, 2016-06-23 13:39:23+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:39:31.279806+00:00 [INFO] (MainThread) Up-Segment registered: d2f9d7017c88, 2016-06-23 13:39:23+00:00, 1-13 > 1-16 > 1-19
+  SibraPCBExt: id: 0010001328f9d8b5 (owner: 1-19) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:31.670772+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:36.675621+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:41.680252+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:46.684793+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:11.553002+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:11.710432+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:40:11.710810+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:11.874793+00:00 [INFO] (MainThread) Exiting

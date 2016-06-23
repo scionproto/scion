@@ -1,0 +1,317 @@
+2016-06-23 13:22:36.567979+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:36.584226+00:00 [INFO] (MainThread) Started ps2-22-1
+2016-06-23 13:22:37.611798+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:22:56.619599+00:00 [INFO] (MainThread) Core-Segment registered: 59d539b3d737, 2016-06-23 13:22:55+00:00, 2-21 > 2-22
+2016-06-23 13:22:56.622227+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:56.638915+00:00 [INFO] (MainThread) Core-Segment registered: 1c2597b601bd, 2016-06-23 13:22:53+00:00, 1-12 > 2-22
+2016-06-23 13:22:56.643940+00:00 [INFO] (MainThread) Core-Segment registered: ee62cf94b9f7, 2016-06-23 13:22:52+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:22:56.648232+00:00 [INFO] (MainThread) Core-Segment registered: 23c1b5771950, 2016-06-23 13:22:50+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:22:57.332883+00:00 [INFO] (MainThread) Core-Segment registered: 1c2597b601bd, 2016-06-23 13:22:53+00:00, 1-12 > 2-22
+  SibraPCBExt: id: 00200016052021e7 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:57.354175+00:00 [INFO] (MainThread) Core-Segment registered: 59d539b3d737, 2016-06-23 13:22:55+00:00, 2-21 > 2-22
+  SibraPCBExt: id: 00200016bc883165 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:57.498664+00:00 [INFO] (MainThread) Core-Segment registered: ee62cf94b9f7, 2016-06-23 13:22:52+00:00, 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 002000164af38006 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:57.586439+00:00 [INFO] (MainThread) Core-Segment registered: 23c1b5771950, 2016-06-23 13:22:50+00:00, 1-13 > 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 00200016cf76fe94 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:57.622432+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:57.856406+00:00 [INFO] (MainThread) Down-Segment registered: ac837c81296e, 2016-06-23 13:22:56+00:00, 2-22 > 2-24
+2016-06-23 13:22:58.626846+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:22:58.633063+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:22:58.648985+00:00 [INFO] (MainThread) Down-Segment registered: ac837c81296e, 2016-06-23 13:22:56+00:00, 2-22 > 2-24
+  SibraPCBExt: id: 00200018aa66c66a (owner: 2-24) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:56+00:00
+2016-06-23 13:22:59.631208+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:22:59.637162+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:00.325245+00:00 [INFO] (MainThread) Down-Segment registered: 99ddb820a3bc, 2016-06-23 13:22:55+00:00, 2-21 > 2-23
+2016-06-23 13:23:00.350461+00:00 [INFO] (MainThread) Down-Segment registered: 99ddb820a3bc, 2016-06-23 13:22:55+00:00, 2-21 > 2-23
+  SibraPCBExt: id: 002000175d08c336 (owner: 2-23) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:00.353129+00:00 [INFO] (MainThread) Down-Segment registered: 02631019d61c, 2016-06-23 13:22:55+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:23:00.648473+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:23:01.281217+00:00 [INFO] (MainThread) Down-Segment registered: 02631019d61c, 2016-06-23 13:22:55+00:00, 2-21 > 2-23 > 2-25
+  SibraPCBExt: id: 00200019c3efd052 (owner: 2-25) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:01.643068+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:01.720986+00:00 [INFO] (MainThread) Core-Segment registered: 1b9d35f033c6, 2016-06-23 13:22:56+00:00, 1-13 > 1-12 > 2-22
+  SibraPCBExt: id: 0010000d4a03d9f5 (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:01.974263+00:00 [INFO] (MainThread) Core-Segment registered: 7c8b45f4d9e7, 2016-06-23 13:22:53+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:23:01.987888+00:00 [INFO] (MainThread) Core-Segment registered: 96f274d941ca, 2016-06-23 13:22:53+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:23:02.101604+00:00 [INFO] (MainThread) Core-Segment registered: 9c6852fdfcc2, 2016-06-23 13:22:57+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:23:02.343356+00:00 [INFO] (MainThread) Core-Segment registered: 46f9ad580765, 2016-06-23 13:22:52+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:23:02.408640+00:00 [INFO] (MainThread) Core-Segment registered: 1b9d35f033c6, 2016-06-23 13:22:55+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:23:02.464987+00:00 [INFO] (MainThread) Core-Segment registered: cc2ef53f1b2d, 2016-06-23 13:22:55+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:23:02.634256+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:02.836193+00:00 [INFO] (MainThread) Down-Segment registered: 958275c551f3, 2016-06-23 13:22:56+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:23:03.257519+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:23:03.258523+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:22:58+00:00, 1-12 > 2-22
+2016-06-23 13:23:03.281558+00:00 [INFO] (MainThread) Down-Segment registered: 58b02717ad61, 2016-06-23 13:22:55+00:00, 1-13 > 1-16
+2016-06-23 13:23:03.288285+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:23:03.498421+00:00 [INFO] (MainThread) Down-Segment registered: 958275c551f3, 2016-06-23 13:22:56+00:00, 2-22 > 2-24 > 2-26
+  SibraPCBExt: id: 0020001a027771cc (owner: 2-26) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:03.531281+00:00 [INFO] (MainThread) Down-Segment registered: 37c0deb079c9, 2016-06-23 13:22:55+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:23:03.741577+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:23:03.771171+00:00 [INFO] (PS.worker) Propagating 3 segment(s) to other core ASes
+2016-06-23 13:23:04.262234+00:00 [INFO] (MainThread) Down-Segment registered: 37c0deb079c9, 2016-06-23 13:22:55+00:00, 2-21 > 2-23 > 2-26
+  SibraPCBExt: id: 0020001ae87a7aeb (owner: 2-26) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:04.632328+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:05.629681+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:05.749672+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.813598+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:05.843188+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:07.183910+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:07.186203+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:07.886047+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:08.241779+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-15", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:23:08.243311+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(1-12 (IPV4) 127.0.0.88) port:30040 in response to: (srcIA = "1-15", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:23:10.057865+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:23:10.059491+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "2-25", flags = (sibra = false))
+2016-06-23 13:23:10.729859+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:23:10.730894+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:23:03+00:00, 1-12 > 2-22
+2016-06-23 13:23:10.768440+00:00 [INFO] (MainThread) Down-Segment registered: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:10.770045+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:23:12.325842+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-18", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:12.327522+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(1-12 (IPV4) 127.0.0.88) port:30040 in response to: (srcIA = "1-18", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:23:13.005449+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:13.006434+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:23:03+00:00, 1-12 > 2-22
+2016-06-23 13:23:13.052411+00:00 [INFO] (MainThread) Down-Segment registered: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:23:13.059024+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:23:14.370983+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:14.371447+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:14.372434+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:14.440996+00:00 [WARNING] (PS.worker) No lock contenders found
+2016-06-23 13:23:14.441405+00:00 [WARNING] (PS.worker) _update_master(): current master is None.
+2016-06-23 13:23:14.441734+00:00 [INFO] (PS.worker) Sharing 8 segment(s) via ZK
+2016-06-23 13:23:14.444180+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:14.444569+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:14.446619+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 7.817s (should have been <= 1.000s)
+2016-06-23 13:23:14.760216+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 7)
+2016-06-23 13:23:16.235597+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:17.100272+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-18", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:17.101787+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(1-12 (IPV4) 127.0.0.88) port:30040 in response to: (srcIA = "1-18", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:23:19.052001+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:21.093090+00:00 [WARNING] (PS.worker) No lock contenders found
+2016-06-23 13:23:21.093492+00:00 [WARNING] (PS.worker) _update_master(): current master is None.
+2016-06-23 13:23:21.114224+00:00 [INFO] (PS.worker) Sharing 7 segment(s) via ZK
+2016-06-23 13:23:21.542897+00:00 [INFO] (PS.worker) Propagating 4 segment(s) to other core ASes
+2016-06-23 13:23:21.545024+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 7.098s (should have been <= 1.000s)
+2016-06-23 13:23:22.497603+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 10)
+2016-06-23 13:23:22.769430+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:23.004622+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:23.005012+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.460s (should have been <= 1.000s)
+2016-06-23 13:23:23.005487+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:23.006030+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:23.008249+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:23.008608+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:24.119879+00:00 [INFO] (MainThread) Core-Segment registered: d4265543c8aa, 2016-06-23 13:23:00+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:23:24.850067+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:23:24.983758+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:25.114488+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:25.117589+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.102s (should have been <= 1.000s)
+2016-06-23 13:23:25.196645+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:25.197633+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:23:09+00:00, 1-12 > 2-22
+2016-06-23 13:23:25.238091+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:25.264287+00:00 [INFO] (MainThread) Down-Segment registered: 4ffce3004a6b, 2016-06-23 13:23:09+00:00, 1-12 > 1-15
+2016-06-23 13:23:25.265927+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:26.308585+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:23:26.412330+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:28.354499+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.235s (should have been <= 1.000s)
+2016-06-23 13:23:28.796078+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:23:28.797637+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:23:29.557888+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:31.122256+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:32.050054+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:23:32.266840+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:23:33.231235+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:33.859904+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:23:33.861108+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:23:22+00:00, 1-12 > 2-22
+2016-06-23 13:23:33.919318+00:00 [INFO] (MainThread) Down-Segment registered: eccd6ac9e1ba, 2016-06-23 13:23:00+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:23:33.921082+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:23:36.808979+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:36.809395+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:36.816638+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:36.903427+00:00 [WARNING] (PS.worker) No lock contenders found
+2016-06-23 13:23:36.903825+00:00 [WARNING] (PS.worker) _update_master(): current master is None.
+2016-06-23 13:23:36.904167+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:36.904984+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:36.905335+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:36.906558+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 3.539s (should have been <= 1.000s)
+2016-06-23 13:23:37.795151+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 17)
+2016-06-23 13:23:38.027225+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:38.275714+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:38.277182+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:38.539836+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:38.541160+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.634s (should have been <= 1.000s)
+2016-06-23 13:23:39.207998+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:23:39.569551+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.028s (should have been <= 1.000s)
+2016-06-23 13:23:39.862803+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:40.278205+00:00 [WARNING] (PS.worker) Unable to store segment(s) in shared path: no connection to ZK
+2016-06-23 13:23:40.995860+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.016236+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.446s (should have been <= 1.000s)
+2016-06-23 13:23:42.238706+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:42.698075+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "1-12", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:23:42.699922+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(1-12 (IPV4) 127.0.0.88) port:30040 in response to: (srcIA = "1-12", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:23:43.083302+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:23:43.085013+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:23:43.835394+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 20)
+2016-06-23 13:23:43.916635+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 2.878s (should have been <= 1.000s)
+2016-06-23 13:23:47.380194+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:47.633482+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:48.223815+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:23:52.314070+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:23:52.438560+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:23:53.094063+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:23:54.013352+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:23:54.015012+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:23:55.284469+00:00 [WARNING] (PS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:55.384078+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.398980+00:00 [WARNING] (PS.worker) Disconnected from ZK.
+2016-06-23 13:23:55.425640+00:00 [WARNING] (PS.worker) _update_master(): ZkNoConnection.
+2016-06-23 13:23:56.056889+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:23:56.058584+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-17", flags = (sibra = false))
+2016-06-23 13:23:56.311962+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:23:56.312953+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:23:49+00:00, 1-12 > 2-22
+2016-06-23 13:23:56.414458+00:00 [INFO] (MainThread) Down-Segment registered: f8d1ed03e591, 2016-06-23 13:23:47+00:00, 1-11 > 1-14
+2016-06-23 13:23:56.416281+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:23:58.472115+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:58.473821+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-15", flags = (sibra = false))
+2016-06-23 13:23:58.581022+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:24:00.110479+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 23)
+2016-06-23 13:24:00.125339+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-11", flags = (sibra = false))
+2016-06-23 13:24:00.126793+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "1-11", flags = (sibra = false))
+2016-06-23 13:24:00.286674+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:24:00.478622+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:00.480005+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 4.553s (should have been <= 1.000s)
+2016-06-23 13:24:01.057822+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:01.059657+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:02.164619+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:24:02.165950+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:24:02.366588+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:24:02.368132+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:24:03.515814+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:03.520206+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:04.582201+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:24:05.242767+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:24:05.244328+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "2-26", flags = (sibra = false))
+2016-06-23 13:24:08.256932+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:24:08.258657+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1320 in response to: (srcIA = "2-22", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:24:09.530823+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:24:09.557857+00:00 [INFO] (MainThread) Sending PATH_REPLY with 2 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "2-23", flags = (sibra = false))
+2016-06-23 13:24:09.649129+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:24:09.674534+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:12.328260+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:24:12.329955+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "1-19", flags = (sibra = false))
+2016-06-23 13:24:12.339518+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:24:12.340528+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:24:06+00:00, 1-12 > 2-22
+2016-06-23 13:24:12.626008+00:00 [INFO] (MainThread) Down-Segment registered: 68a3ddf641ee, 2016-06-23 13:24:06+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:24:12.628659+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1119 in response to: (srcIA = "2-22", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:24:14.322684+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-21", flags = (sibra = false))
+2016-06-23 13:24:14.326102+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1320 in response to: (srcIA = "2-22", dstIA = "2-21", flags = (sibra = false))
+2016-06-23 13:24:14.531411+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:15.577936+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:15.600755+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:16.278201+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-19", flags = (sibra = true))
+2016-06-23 13:24:16.306082+00:00 [INFO] (MainThread) Down-Segment request for different ISD, forwarding request to CPS in 1-12 via 1c2597b601bd, 2016-06-23 13:24:11+00:00, 1-12 > 2-22
+2016-06-23 13:24:16.349540+00:00 [INFO] (MainThread) Down-Segment registered: ee9c92a3a503, 2016-06-23 13:22:55+00:00, 1-13 > 1-16 > 1-19
+  SibraPCBExt: id: 001000138b280f8d (owner: 1-19) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:24:16.428382+00:00 [INFO] (MainThread) Sending PATH_REPLY with 3 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-19", flags = (sibra = true))
+2016-06-23 13:24:19.533341+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:20.519322+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:21.368230+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:24:21.369539+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:24:21.583712+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:21.615624+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:23.236773+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-24", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:24:23.238530+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-24 (IPV4) 127.0.0.249) port:30040 in response to: (srcIA = "2-24", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:24:24.635402+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:25.522968+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:25.687363+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:24:25.688949+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:24:26.595068+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:27.513733+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:27.515913+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:29.806054+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:24:29.851845+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:30.520241+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:32.527319+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:32.532428+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:33.522850+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:24:34.348628+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:24:34.350003+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1320 in response to: (srcIA = "2-22", dstIA = "2-24", flags = (sibra = false))
+2016-06-23 13:24:34.402376+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:24:34.404070+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(2-22 (IPV4) 127.0.0.3) port:1145 in response to: (srcIA = "2-22", dstIA = "1-16", flags = (sibra = false))
+2016-06-23 13:24:35.525773+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:36.604096+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:37.584970+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:37.610588+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:38.551422+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:40.547586+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:41.531348+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:42.610779+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:43.535943+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:43.548913+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:46.537210+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:47.970037+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:24:47.971718+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:2295 in response to: (srcIA = "2-22", dstIA = "1-14", flags = (sibra = false))
+2016-06-23 13:24:48.555913+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:49.542505+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:49.547772+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:24:51.547327+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:52.544200+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:53.545552+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:54.557317+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:24:54.560815+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:24:55.547604+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:56.100610+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:24:56.102117+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:2295 in response to: (srcIA = "2-22", dstIA = "1-13", flags = (sibra = false))
+2016-06-23 13:24:56.547397+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:57.548185+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:24:58.177453+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:58.178430+00:00 [INFO] (MainThread) Sending PATH_REPLY with 5 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:2295 in response to: (srcIA = "2-22", dstIA = "1-10", flags = (sibra = false))
+2016-06-23 13:24:58.551367+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:00.315204+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:01.431237+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 25)
+2016-06-23 13:25:01.560389+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:25:01.613506+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:25:01.615202+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 1.067s (should have been <= 1.000s)
+2016-06-23 13:25:02.626132+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:03.642394+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:04.438138+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.745470+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 27)
+2016-06-23 13:25:05.303192+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:25:05.304307+00:00 [INFO] (MainThread) Sending PATH_REPLY with 4 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:2295 in response to: (srcIA = "2-22", dstIA = "1-18", flags = (sibra = false))
+2016-06-23 13:25:06.626322+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:25:06.631016+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:25:07.627264+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:08.627438+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:25:11.630822+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:25:11.632883+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:25:13.632601+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:25:16.635152+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:25:16.636934+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:25:18.636421+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:25:21.645182+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:25:21.647664+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:25:24.650989+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:25:25.509381+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:25:25.777128+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:26.515434+00:00 [INFO] (MainThread) Exiting

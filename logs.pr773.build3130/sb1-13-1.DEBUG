@@ -1,0 +1,736 @@
+2016-06-23 13:21:45.058664+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS13/sb1-13-1/certs/ISD1-V0.trc
+2016-06-23 13:21:45.135295+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS13/sb1-13-1/certs/ISD2-V0.trc
+2016-06-23 13:21:45.136097+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS13/sb1-13-1/certs/ISD1-AS13-V0.crt
+2016-06-23 13:21:45.136566+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:45.136935+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:21:45.137125+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:45.138113+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-13 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:45.138655+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-13 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:45.139012+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-13 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:45.175102+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:21:45.291272+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:21:45.291480+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:21:45.291930+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:21:45.292099+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530009)
+2016-06-23 13:21:45.298386+00:00 [DEBUG] (MainThread) ZK connection available after 0.01s
+2016-06-23 13:21:45.308085+00:00 [DEBUG] (MainThread) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:21:45.308320+00:00 [INFO] (MainThread) Started sb1-13-1
+2016-06-23 13:21:45.331362+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:45.331618+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:45.331805+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:46.333473+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:46.333739+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:46.333941+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:47.335209+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:47.335474+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:47.335661+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:48.337319+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:48.337582+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:48.337774+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:49.339251+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:49.339484+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:49.339662+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:50.340382+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:50.340618+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:50.340795+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:51.342616+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:51.342851+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:51.344259+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:52.345916+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:52.346143+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:52.346327+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:53.347223+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:53.347459+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:53.347633+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:54.349287+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:54.349532+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:54.349720+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:55.351284+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:55.351521+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:55.351708+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:56.353303+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:56.353553+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:56.353729+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:57.355248+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:57.355502+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:57.355683+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:58.357312+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:58.357526+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:58.357674+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:21:59.359222+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:21:59.359462+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:21:59.359669+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:00.361459+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:00.361705+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:00.362138+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:01.363190+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:01.363435+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:01.363619+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:02.365259+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:02.365488+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:02.365667+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.367222+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:03.367465+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:03.367641+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:04.369284+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:04.369516+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:04.369693+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:05.371217+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:05.371451+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:05.371629+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:06.372733+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:06.372966+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:06.373143+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:07.374786+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:07.375019+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:07.375234+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.376926+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:08.377156+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:08.377326+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.378721+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:09.378957+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:09.379168+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.380826+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:10.381032+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:10.381177+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.382744+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:11.382981+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:11.383199+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.384836+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:12.385088+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:12.385266+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.386912+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:13.387194+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:13.387372+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.389022+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:14.389275+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:14.389460+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.390596+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:15.390825+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:15.391005+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.392706+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:16.392946+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:16.393134+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.394794+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:17.395067+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:17.395248+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.396230+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:18.396469+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:18.396642+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:19.398281+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:19.398523+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:22:19.399810+00:00 [DEBUG] (Elem.packet_recv) Registered to dispatcher for addr (1-13 (IPV4) 127.0.0.108):30040
+2016-06-23 13:22:53.398445+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 40B
+2016-06-23 13:22:55.297873+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-13: 91fddcf06d32, 2016-06-23 13:22:52+00:00, 1-11 > 1-13
+2016-06-23 13:22:55.298223+00:00 [INFO] (MainThread) CORE Segment added: 91fddcf06d32, 2016-06-23 13:22:52+00:00, 1-11 > 1-13
+2016-06-23 13:22:55.298519+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 1-11
+2016-06-23 13:22:55.305151+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-13: 022adf91443f, 2016-06-23 13:22:53+00:00, 1-12 > 1-13
+2016-06-23 13:22:55.305498+00:00 [INFO] (MainThread) CORE Segment added: 022adf91443f, 2016-06-23 13:22:53+00:00, 1-12 > 1-13
+2016-06-23 13:22:55.305798+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 1-12
+2016-06-23 13:22:55.315820+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-13: 31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:22:55.316215+00:00 [INFO] (MainThread) CORE Segment added: 31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:22:55.316508+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 2-21
+2016-06-23 13:22:55.370518+00:00 [DEBUG] (SB.worker) Setting up steady path 1-13 -> 2-21 over 31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:22:55.371021+00:00 [INFO] (SB.worker) Sending setup request using 31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d546d6454 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.372821+00:00 [DEBUG] (SB.worker) Setting up steady path 1-13 -> 1-12 over 022adf91443f, 2016-06-23 13:22:53+00:00, 1-12 > 1-13
+2016-06-23 13:22:55.373221+00:00 [INFO] (SB.worker) Sending setup request using 022adf91443f, 2016-06-23 13:22:53+00:00, 1-12 > 1-13:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d72c1755e (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.374539+00:00 [DEBUG] (SB.worker) Setting up steady path 1-13 -> 1-11 over 91fddcf06d32, 2016-06-23 13:22:52+00:00, 1-11 > 1-13
+2016-06-23 13:22:55.374900+00:00 [INFO] (SB.worker) Sending setup request using 91fddcf06d32, 2016-06-23 13:22:52+00:00, 1-11 > 1-13:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d647e1c64 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.445418+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:55.446074+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:11.0(512.0Kibit/s) rev:11.0(512.0Kibit/s)> denied
+2016-06-23 13:22:55.446822+00:00 [INFO] (MainThread) Sending setup request using 91fddcf06d32, 2016-06-23 13:22:52+00:00, 1-11 > 1-13:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d647e1c64 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.458466+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 40B
+2016-06-23 13:22:55.462267+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 61877db5
+  SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: f380beb6
+2016-06-23 13:22:55.468250+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:22:55.471218+00:00 [DEBUG] (MainThread)   022adf91443f, 2016-06-23 13:22:53+00:00, 1-12 > 1-13
+    SibraPCBExt: id: 0010000d72c1755e (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 61877db5
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: f380beb6
+2016-06-23 13:22:55.471678+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-12
+2016-06-23 13:22:55.475070+00:00 [DEBUG] (MainThread)   4caf3806f017, 2016-06-23 13:22:53+00:00, 1-13 > 1-12
+    SibraPCBExt: id: 0010000d72c1755e (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:52+00:00
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: f380beb6
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 61877db5
+2016-06-23 13:22:55.475926+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:55.476541+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:11.0(512.0Kibit/s) rev:11.0(512.0Kibit/s)> denied
+2016-06-23 13:22:55.477355+00:00 [INFO] (MainThread) Sending setup request using 31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d546d6454 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.524141+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 40B
+2016-06-23 13:22:55.524809+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 7bdbeaf2
+  SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: a957ed53
+2016-06-23 13:22:55.525469+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:22:55.527544+00:00 [DEBUG] (MainThread)   91fddcf06d32, 2016-06-23 13:22:52+00:00, 1-11 > 1-13
+    SibraPCBExt: id: 0010000d647e1c64 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 7bdbeaf2
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: a957ed53
+2016-06-23 13:22:55.528884+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-11
+2016-06-23 13:22:55.536443+00:00 [DEBUG] (MainThread)   f5998b8a9973, 2016-06-23 13:22:52+00:00, 1-13 > 1-11
+    SibraPCBExt: id: 0010000d647e1c64 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:52+00:00
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: a957ed53
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 7bdbeaf2
+2016-06-23 13:22:55.538722+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:55.539375+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:10.0(362.0Kibit/s) rev:10.0(362.0Kibit/s)> denied
+2016-06-23 13:22:55.539987+00:00 [INFO] (MainThread) Sending setup request using 31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d546d6454 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+2016-06-23 13:22:55.573277+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 48B
+2016-06-23 13:22:55.573921+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 3d086349
+  SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 573e8246
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: ce305a3c
+2016-06-23 13:22:55.574305+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:22:55.576107+00:00 [DEBUG] (MainThread)   31eeae4b0829, 2016-06-23 13:22:50+00:00, 2-21 > 1-11 > 1-13
+    SibraPCBExt: id: 0010000d546d6454 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 3d086349
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 573e8246
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: ce305a3c
+2016-06-23 13:22:55.577496+00:00 [DEBUG] (MainThread) Registering path with remote path server in 2-21
+2016-06-23 13:22:55.582865+00:00 [DEBUG] (MainThread)   57978d111e11, 2016-06-23 13:22:50+00:00, 1-13 > 1-11 > 2-21
+    SibraPCBExt: id: 0010000d546d6454 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:25:52+00:00
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: ce305a3c
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 573e8246
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 3d086349
+2016-06-23 13:22:57.397733+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:57.488622+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:57.556137+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 56B
+2016-06-23 13:22:59.042346+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:59.145370+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 48B
+2016-06-23 13:22:59.914777+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:22:59.972805+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 40B
+2016-06-23 13:23:00.476707+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:22:57+00:00, 1-11 > 1-13
+2016-06-23 13:23:00.493474+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-13: 728257b4c397, 2016-06-23 13:22:57+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:23:00.493843+00:00 [INFO] (MainThread) CORE Segment added: 728257b4c397, 2016-06-23 13:22:57+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:23:00.516779+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:22:58+00:00, 1-12 > 1-13
+2016-06-23 13:23:00.529061+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 1-13: a88f20833f8a, 2016-06-23 13:22:53+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:23:00.529423+00:00 [INFO] (MainThread) CORE Segment added: a88f20833f8a, 2016-06-23 13:22:53+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:23:00.557194+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:22:55+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:23:00.610578+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-13: 630800c671e9, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:00.610955+00:00 [INFO] (MainThread) CORE Segment added: 630800c671e9, 2016-06-23 13:22:55+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:00.613413+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-13: 2ffc9b7ee758, 2016-06-23 13:22:55+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:00.614439+00:00 [INFO] (MainThread) CORE Segment added: 2ffc9b7ee758, 2016-06-23 13:22:55+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:00.719852+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 48B
+2016-06-23 13:23:00.760332+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-13: a05d01e04f13, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:00.799202+00:00 [INFO] (MainThread) CORE Segment added: a05d01e04f13, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:00.799573+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 2-22
+2016-06-23 13:23:00.968223+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-13: 02fff93924d4, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:00.968627+00:00 [INFO] (MainThread) CORE Segment added: 02fff93924d4, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:01.000544+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-13: cdc8ebfe3295, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:01.000954+00:00 [INFO] (MainThread) CORE Segment added: cdc8ebfe3295, 2016-06-23 13:22:51+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:01.379568+00:00 [DEBUG] (SB.worker) Setting up steady path 1-13 -> 2-22 over a05d01e04f13, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:01.379998+00:00 [INFO] (SB.worker) Sending setup request using a05d01e04f13, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d4a03d9f5 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:01.445920+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:23:01.446564+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:11.0(512.0Kibit/s) rev:11.0(512.0Kibit/s)> denied
+2016-06-23 13:23:01.447570+00:00 [INFO] (MainThread) Sending setup request using a05d01e04f13, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d4a03d9f5 (Owner: 1-13)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:00+00:00
+2016-06-23 13:23:01.567595+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 48B
+2016-06-23 13:23:01.568294+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:00+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 74099ff2
+  SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: ffd6c8d2
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 236ba301
+2016-06-23 13:23:01.568922+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:23:01.571024+00:00 [DEBUG] (MainThread)   a05d01e04f13, 2016-06-23 13:22:56+00:00, 2-22 > 1-12 > 1-13
+    SibraPCBExt: id: 0010000d4a03d9f5 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:00+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 74099ff2
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: ffd6c8d2
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 236ba301
+2016-06-23 13:23:01.591353+00:00 [DEBUG] (MainThread) Registering path with remote path server in 2-22
+2016-06-23 13:23:01.594284+00:00 [DEBUG] (MainThread)   1b9d35f033c6, 2016-06-23 13:22:56+00:00, 1-13 > 1-12 > 2-22
+    SibraPCBExt: id: 0010000d4a03d9f5 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:00+00:00
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 236ba301
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: ffd6c8d2
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 74099ff2
+2016-06-23 13:23:03.410962+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:23:03.587878+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 40B
+2016-06-23 13:23:05.302276+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:23:05.754678+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:05.755407+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.084826+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:23:06.233059+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 56B
+2016-06-23 13:23:06.260274+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:23:06.260655+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:06.260842+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:06.630095+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:23:06.630907+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:06.631104+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753005e)
+2016-06-23 13:23:06.698048+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:08.341192+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:23:08.343333+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:08.343504+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:08.505622+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 6)
+2016-06-23 13:23:08.505956+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:08.506125+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753005e)
+2016-06-23 13:23:09.393931+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:15.344905+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 7)
+2016-06-23 13:23:16.208443+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:16.228654+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:19.543849+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 8)
+2016-06-23 13:23:19.544213+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:19.544379+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:19.677169+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:23:00+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:23:19.681368+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:19.687463+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:00+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:19.716991+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 1-13: 870c6dd1aea7, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:19.717410+00:00 [INFO] (MainThread) CORE Segment added: 870c6dd1aea7, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:19.722923+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:23:14+00:00, 1-11 > 1-13
+2016-06-23 13:23:19.752055+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 9)
+2016-06-23 13:23:19.752918+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:19.753085+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753014b)
+2016-06-23 13:23:20.011762+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:08+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:23:20.105602+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:20.249046+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 1-13: 75ff975c7614, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:20.249443+00:00 [INFO] (MainThread) CORE Segment added: 75ff975c7614, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:20.253078+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:22:56+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:20.351141+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:22:56+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:20.411355+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:09+00:00, 1-12 > 1-13
+2016-06-23 13:23:20.437693+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:23:03+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:23:20.906503+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:22.125560+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 10)
+2016-06-23 13:23:22.125941+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:22.126120+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:22.460779+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 11)
+2016-06-23 13:23:22.461321+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:22.461500+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753014b)
+2016-06-23 13:23:23.298509+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:23:00+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:23:23.320589+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 12)
+2016-06-23 13:23:23.508666+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:23.591175+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:00+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:23.735148+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:23.839985+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:22:56+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:23.958958+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:22:56+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:23.988512+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 13)
+2016-06-23 13:23:24.436928+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:24.437184+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:24.437343+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:24.437619+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:24.437772+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753014b)
+2016-06-23 13:23:24.670646+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:25.179803+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:11+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:25.205132+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:23:00+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:23:25.271600+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:25.273132+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:23:00+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:25.274438+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:23:14+00:00, 1-11 > 1-13
+2016-06-23 13:23:25.425550+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:19+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:23:25.538686+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:10+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:25.592014+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:25.606318+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:23:01+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:25.656418+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:22:56+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:25.662266+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:22+00:00, 1-12 > 1-13
+2016-06-23 13:23:25.664752+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:23:03+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:23:27.512766+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 14)
+2016-06-23 13:23:27.513460+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:27.513631+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:28.279536+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 15)
+2016-06-23 13:23:28.281457+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:28.281633+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753014b)
+2016-06-23 13:23:28.725877+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:30.062800+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:23:19+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:23:30.101902+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:11+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:30.182284+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:30.222003+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:30.278892+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:23:26+00:00, 1-11 > 1-13
+2016-06-23 13:23:30.308904+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:19+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:23:30.317022+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:22+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:30.348409+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:23:22+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:30.394939+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:30.409482+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:30.469050+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:22+00:00, 1-12 > 1-13
+2016-06-23 13:23:30.504378+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:23:22+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:23:32.865487+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 16)
+2016-06-23 13:23:32.866457+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:32.866627+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:33.752902+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 17)
+2016-06-23 13:23:33.753231+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:33.753449+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:34.994546+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 18)
+2016-06-23 13:23:34.994997+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:34.995195+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301b7)
+2016-06-23 13:23:35.506653+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:36.081897+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:23:26+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:23:36.083323+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:19+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:36.148168+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:23:36.193012+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:23:11+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:36.258800+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:23:32+00:00, 1-11 > 1-13
+2016-06-23 13:23:36.289526+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:32+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:23:36.326397+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:23:36.397317+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:23:22+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:23:36.410203+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:23:22+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:23:36.556151+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:10+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:23:36.557476+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:33+00:00, 1-12 > 1-13
+2016-06-23 13:23:36.558729+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:23:27+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:23:38.198988+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 19)
+2016-06-23 13:23:38.199383+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:38.199553+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:38.981307+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 20)
+2016-06-23 13:23:38.981627+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:38.981797+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301b7)
+2016-06-23 13:23:39.546149+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:40.405143+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 21)
+2016-06-23 13:23:40.951373+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:40.995786+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:42.283840+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 22)
+2016-06-23 13:23:42.284288+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:42.284458+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:43.489258+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 23)
+2016-06-23 13:23:43.489650+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:43.489828+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301f9)
+2016-06-23 13:23:43.699839+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:45.231421+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 24)
+2016-06-23 13:23:45.231762+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:45.231922+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:45.855517+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 25)
+2016-06-23 13:23:45.855838+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:45.856009+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301f9)
+2016-06-23 13:23:46.247186+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:46.734854+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 26)
+2016-06-23 13:23:46.735684+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:46.735850+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:47.206230+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 27)
+2016-06-23 13:23:47.206599+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:47.206764+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301f9)
+2016-06-23 13:23:47.456272+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:23:54.966287+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 28)
+2016-06-23 13:23:55.339309+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:55.367396+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:58.360732+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 29)
+2016-06-23 13:23:58.361128+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:58.361300+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:59.446831+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 30)
+2016-06-23 13:23:59.447453+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:59.447630+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753029f)
+2016-06-23 13:23:59.567216+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:24:22.234002+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:23:37+00:00, 1-11 > 1-13
+2016-06-23 13:24:22.236625+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:32+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:24:22.277844+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:33+00:00, 1-12 > 1-13
+2016-06-23 13:24:22.308685+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:23:33+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:24:22.310083+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:24:22.340134+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:26+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:22.341699+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:19+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:24:22.343239+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:23:19+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:24:22.344588+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:24:22.357959+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:24:22.365262+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:23:28+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:24:22.374857+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:22+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:24.486733+00:00 [DEBUG] (SB.worker) Sending renewal request:
+SibraExtSteady(80B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:False request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d546d6454 (Owner: 1-13)
+  Active block 0:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+      SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 3d086349
+      SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 573e8246
+      SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: ce305a3c
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  1 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+2016-06-23 13:24:24.487867+00:00 [DEBUG] (SB.worker) Sending renewal request:
+SibraExtSteady(64B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:False request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d72c1755e (Owner: 1-13)
+  Active block 0:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+      SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 61877db5
+      SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: f380beb6
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+2016-06-23 13:24:24.488617+00:00 [DEBUG] (SB.worker) Sending renewal request:
+SibraExtSteady(64B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:False request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d647e1c64 (Owner: 1-13)
+  Active block 0:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:25:52+00:00
+      SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 7bdbeaf2
+      SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: a957ed53
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+2016-06-23 13:24:24.562304+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 64B
+2016-06-23 13:24:24.691633+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 64B
+2016-06-23 13:24:24.693078+00:00 [DEBUG] (MainThread) Renewal successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: b9be5586
+  SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: 8f438529
+2016-06-23 13:24:24.693427+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:24:24.695259+00:00 [DEBUG] (MainThread)   022adf91443f, 2016-06-23 13:23:33+00:00, 1-12 > 1-13
+    SibraPCBExt: id: 0010000d72c1755e (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: b9be5586
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: 8f438529
+2016-06-23 13:24:24.695638+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-12
+2016-06-23 13:24:24.698143+00:00 [DEBUG] (MainThread)   4caf3806f017, 2016-06-23 13:23:33+00:00, 1-13 > 1-12
+    SibraPCBExt: id: 0010000d72c1755e (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:24+00:00
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: 8f438529
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: b9be5586
+2016-06-23 13:24:24.892424+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 80B
+2016-06-23 13:24:24.893227+00:00 [DEBUG] (MainThread) Renewal successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 9f5d64e3
+  SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 7c66263f
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: eb9c34e8
+2016-06-23 13:24:24.893586+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:24:24.943902+00:00 [DEBUG] (MainThread)   31eeae4b0829, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-13
+    SibraPCBExt: id: 0010000d546d6454 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 9f5d64e3
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 7c66263f
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: eb9c34e8
+2016-06-23 13:24:24.946796+00:00 [DEBUG] (MainThread) Registering path with remote path server in 2-21
+2016-06-23 13:24:24.978822+00:00 [DEBUG] (MainThread)   57978d111e11, 2016-06-23 13:23:37+00:00, 1-13 > 1-11 > 2-21
+    SibraPCBExt: id: 0010000d546d6454 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:24+00:00
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: eb9c34e8
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: 7c66263f
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 9f5d64e3
+2016-06-23 13:24:24.981597+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 64B
+2016-06-23 13:24:24.982589+00:00 [DEBUG] (MainThread) Renewal successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 90995e05
+  SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: d9437661
+2016-06-23 13:24:24.982918+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:24:25.056831+00:00 [DEBUG] (MainThread)   91fddcf06d32, 2016-06-23 13:23:37+00:00, 1-11 > 1-13
+    SibraPCBExt: id: 0010000d647e1c64 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:24+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 90995e05
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: d9437661
+2016-06-23 13:24:25.070400+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-11
+2016-06-23 13:24:25.076571+00:00 [DEBUG] (MainThread)   f5998b8a9973, 2016-06-23 13:23:37+00:00, 1-13 > 1-11
+    SibraPCBExt: id: 0010000d647e1c64 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:24+00:00
+    SibraOpaqueField(8B): Ingress: 2 Egress: 0 Mac: d9437661
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 90995e05
+2016-06-23 13:24:28.159790+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 80B
+2016-06-23 13:24:29.008805+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 96B
+2016-06-23 13:24:29.027416+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 64B
+2016-06-23 13:24:32.500572+00:00 [DEBUG] (SB.worker) Sending renewal request:
+SibraExtSteady(80B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:False request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000d4a03d9f5 (Owner: 1-13)
+  Active block 0:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:00+00:00
+      SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 74099ff2
+      SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: ffd6c8d2
+      SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: 236ba301
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  1 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:32+00:00
+2016-06-23 13:24:32.727847+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 64B
+2016-06-23 13:24:32.740566+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 80B
+2016-06-23 13:24:32.741370+00:00 [DEBUG] (MainThread) Renewal successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:32+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 98ac57db
+  SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: a4e1510d
+  SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: a778a6b7
+2016-06-23 13:24:32.741774+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:24:32.744390+00:00 [DEBUG] (MainThread)   a05d01e04f13, 2016-06-23 13:23:28+00:00, 2-22 > 1-12 > 1-13
+    SibraPCBExt: id: 0010000d4a03d9f5 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:32+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 98ac57db
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: a4e1510d
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: a778a6b7
+2016-06-23 13:24:32.744838+00:00 [DEBUG] (MainThread) Registering path with remote path server in 2-22
+2016-06-23 13:24:32.752521+00:00 [DEBUG] (MainThread)   1b9d35f033c6, 2016-06-23 13:23:28+00:00, 1-13 > 1-12 > 2-22
+    SibraPCBExt: id: 0010000d4a03d9f5 (owner: 1-13) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:32+00:00
+    SibraOpaqueField(8B): Ingress: 1 Egress: 0 Mac: a778a6b7
+    SibraOpaqueField(8B): Ingress: 2 Egress: 3 Mac: a4e1510d
+    SibraOpaqueField(8B): Ingress: 0 Egress: 2 Mac: 98ac57db
+2016-06-23 13:24:32.769785+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 80B
+2016-06-23 13:24:36.346716+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 96B
+2016-06-23 13:24:44.726366+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:24:44.729644+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:24:44.738932+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:44.744558+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:24:44.756242+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:24:44.764475+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:50.057037+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:24:47+00:00, 1-11 > 1-13
+2016-06-23 13:24:50.063764+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:24:50.090051+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:24:43+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:24:50.096399+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:24:50.127195+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:24:43+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:24:50.180333+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:24:38+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:24:50.189766+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:50.198352+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:24:50.209047+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:24:40+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:24:50.217185+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:24:40+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:24:50.223465+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:24:50.229149+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:54.963984+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:24:52+00:00, 1-11 > 1-13
+2016-06-23 13:24:54.981578+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:24:54.982953+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:24:48+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:24:55.010199+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:24:55.021076+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:24:49+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:24:55.085706+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:24:43+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:24:55.087448+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:24:55.089461+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:24:55.090916+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:24:45+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:24:55.092406+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:24:45+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:24:55.093736+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:24:55.095227+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:00.275853+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 31)
+2016-06-23 13:25:00.289514+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:00.290235+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:00.885813+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 32)
+2016-06-23 13:25:00.886153+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:00.886320+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753029f)
+2016-06-23 13:25:01.099344+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:24:57+00:00, 1-11 > 1-13
+2016-06-23 13:25:01.114638+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:25:01.142264+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:25:01.145783+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:24:54+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:25:01.150217+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:25:01.157077+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:24:54+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:25:01.175229+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:24:49+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:01.208849+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:01.217747+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:25:01.241421+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:24:50+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:25:01.243202+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:24:50+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:01.244574+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:25:01.248683+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:04.223169+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 33)
+2016-06-23 13:25:04.460002+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:04.460392+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:04.766540+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 34)
+2016-06-23 13:25:04.766931+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:04.767135+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753029f)
+2016-06-23 13:25:04.807806+00:00 [DEBUG] (libZK._state_handler) Current party (/1-13/sb/party) members are: ['sb1-13-1']
+2016-06-23 13:25:06.356315+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:25:02+00:00, 1-11 > 1-13
+2016-06-23 13:25:06.360793+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:25:06.365391+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:25:00+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:25:06.368800+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:25:06.370795+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:25:01+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:25:06.374541+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:24:54+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:06.379302+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:06.388108+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:25:06.392472+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:24:55+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:25:06.395810+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:24:55+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:06.398905+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:25:06.401875+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:11.345165+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:25:08+00:00, 1-11 > 1-13
+2016-06-23 13:25:11.348320+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:25:11.354678+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:25:05+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:25:11.359649+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:25:11.363472+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:25:06+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:25:11.368091+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:24:54+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:11.378149+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:11.401398+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:25:11.402769+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:25:00+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:25:11.403705+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:25:00+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:11.404499+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:25:11.405334+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:16.341845+00:00 [DEBUG] (MainThread) CORE Segment updated: 91fddcf06d32, 2016-06-23 13:25:13+00:00, 1-11 > 1-13
+2016-06-23 13:25:16.351428+00:00 [DEBUG] (MainThread) CORE Segment updated: 728257b4c397, 2016-06-23 13:23:52+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:25:16.364854+00:00 [DEBUG] (MainThread) CORE Segment updated: a88f20833f8a, 2016-06-23 13:25:11+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:25:16.371441+00:00 [DEBUG] (MainThread) CORE Segment updated: 022adf91443f, 2016-06-23 13:23:49+00:00, 1-12 > 1-13
+2016-06-23 13:25:16.375297+00:00 [DEBUG] (MainThread) CORE Segment updated: 31eeae4b0829, 2016-06-23 13:25:12+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:25:16.380635+00:00 [DEBUG] (MainThread) CORE Segment updated: 870c6dd1aea7, 2016-06-23 13:25:06+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:16.385789+00:00 [DEBUG] (MainThread) CORE Segment updated: 2ffc9b7ee758, 2016-06-23 13:23:37+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:16.390220+00:00 [DEBUG] (MainThread) CORE Segment updated: 630800c671e9, 2016-06-23 13:23:37+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:25:16.396753+00:00 [DEBUG] (MainThread) CORE Segment updated: 02fff93924d4, 2016-06-23 13:25:06+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:25:16.402601+00:00 [DEBUG] (MainThread) CORE Segment updated: 75ff975c7614, 2016-06-23 13:25:06+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:25:16.408135+00:00 [DEBUG] (MainThread) CORE Segment updated: a05d01e04f13, 2016-06-23 13:23:57+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:25:16.413098+00:00 [DEBUG] (MainThread) CORE Segment updated: cdc8ebfe3295, 2016-06-23 13:23:33+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:25:20.977585+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:21.415867+00:00 [INFO] (MainThread) Exiting

@@ -1,0 +1,364 @@
+2016-06-23 13:38:54.684835+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS22/ps2-22-1/certs/ISD1-V0.trc
+2016-06-23 13:38:54.725516+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS22/ps2-22-1/certs/ISD2-V0.trc
+2016-06-23 13:38:54.726309+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS22/ps2-22-1/certs/ISD2-AS22-V0.crt
+2016-06-23 13:38:54.726808+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:54.727203+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:54.727793+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (2-22 (IPV4) 127.0.0.215):30040
+2016-06-23 13:38:54.789597+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:55.227018+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:55.227444+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:55.227879+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:55.228052+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f800ad)
+2016-06-23 13:38:55.381191+00:00 [DEBUG] (MainThread) ZK connection available after 0.15s
+2016-06-23 13:38:55.962105+00:00 [DEBUG] (MainThread) Current party (/2-22/ps/party) members are: ['ps2-22-1']
+2016-06-23 13:38:55.962401+00:00 [INFO] (MainThread) Started ps2-22-1
+2016-06-23 13:38:57.383967+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:38:57.475390+00:00 [DEBUG] (PS.worker) New master is: 127.0.0.215
+2016-06-23 13:38:57.475764+00:00 [DEBUG] (PS.worker) Syncing with 127.0.0.215
+2016-06-23 13:39:12.834461+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:12.834956+00:00 [DEBUG] (MainThread) I'm master, query abandoned.
+2016-06-23 13:39:12.835131+00:00 [DEBUG] (MainThread) Segs to 1-12 not found.
+2016-06-23 13:39:17.841848+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:17.842274+00:00 [DEBUG] (MainThread) I'm master, query abandoned.
+2016-06-23 13:39:17.842429+00:00 [DEBUG] (MainThread) Segs to 1-12 not found.
+2016-06-23 13:39:22.867028+00:00 [INFO] (MainThread) PATH_REQ received: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:22.867453+00:00 [DEBUG] (MainThread) I'm master, query abandoned.
+2016-06-23 13:39:22.867601+00:00 [DEBUG] (MainThread) Segs to 1-12 not found.
+2016-06-23 13:39:23.560459+00:00 [DEBUG] (MainThread) Received revocation from (2-22 (IPV4) 127.0.0.209):
+RevocationInfo: ( ifID = 1,
+  epoch = 4916,
+  nonce = "\xf0\x04F\xe7&>\xa1O\xa6\xa6\xefC\x8b\xd0\xd4\xfcXr\xe8\xef\xd0B\xa0\xac\x11\x82\'\xffr\xde I",
+  siblings = [
+    ( isLeft = false,
+      hash = "\x81Q\xe4m\xcf\xed\b\x843\x9a\xd2*\xf9\x89\xad\xbe#\xf1\b\xec#\x9d\xa97\x9d\x06h\xfd\xdaq]" ),
+    ( isLeft = false,
+      hash = "\xe1}J\xbb\xafD\xebDK\xf0?\xcf1\xec_Et\x97P\x12\xfa\xaa*\v$\x9f\x85\xa7V\xbb\xb6A" ),
+    ( isLeft = true,
+      hash = "\x0f`;g\x1f\xea\x927^\xb0\xe4\xbd\x82\xd2\xc3Y\xe3\xf7\xceS\x198\xa0)X\x97\x8d*\xc5g!p" ),
+    ( isLeft = false,
+      hash = "\xa1\'\x03i\xbfp\xa1\x13f\xbc\x89\xd10\xde\xb3\x9ax\xa8\xc72\xbdF\x88X\xdd\x93Pi\x0f\xfe\r^" ),
+    ( isLeft = true,
+      hash = " \xce\xda\xda\xeb\xffK\xf4\xf6;\xe8\xda8\xf8\xe07D\x8bS\xc0X\xb4O~%\x8a\xcc\x02\xb1[\xcfM" ),
+    ( isLeft = true,
+      hash = ")\x84\x8e\xd5\x9a\xbd\xa0\x134\xe2\xc3\xc4\xb1\xc0\xe4\xe5\x92\x90\xdf)q\x8c\x15\xb0\baF\xa7\xc0p<z" ),
+    ( isLeft = false,
+      hash = "S\x87q+g\xe7v\xe7\x11\xc3\xfe\x87\xbd\xe9\x1b\xcd\xc0\xc6i\\8\x90G&\t\xca\xf0\v)A>%" ),
+    ( isLeft = false,
+      hash = "\xa9V\xce)\v{\x8dh\xfd\x99K\xb8\x91hpre\x16LQ\x01:\xf6\x94x\x1b\xf2\x96\xeeX\a\xfd" ),
+    ( isLeft = true,
+      hash = "\x05\xa4\xba\xa9\x860\xdf\x998\x15NA}\xdd~\xa4\x88r\x8fp\xd6\xaew\x98\xbfs\x1f\xc2\xda/\xf5\xdf" ),
+    ( isLeft = true,
+      hash = "\xb5\xf0U\x18\xe2(#\x90\x9b\x96u7u[\xdeXD\xb9A\xa8\x84_\xe7QG\xa6\xb9\xcdU\a\xa7\xed" ),
+    ( isLeft = false,
+      hash = "\x94q\xbe\xe0\xcb#~$\xdb\xe7\x17\xb97\xbb\xf3J\xfd \xfcx\xc0\r\xe1\xc8\xef~\xa8Q\x86\xa80\\" ),
+    ( isLeft = false,
+      hash = "(\xbe\x96\r\xa2\xb5\x1a\xeeW\x96\xc3\xd7F\x99,\x87\xcf\x1eQ\v\x96\xe6\xf0\xe1\x94r\xad\xc49\x83\xde&" ),
+    ( isLeft = true,
+      hash = "\xa3\x8e~;\x10\xa5\x87\xd4\xe2j0d\x01\x01R-\xb0F\x90a\xe9\xb2\xf2\xb3\xbcv\x114:+[S" ),
+    ( isLeft = false,
+      hash = "<\xd1\xab=\xd3\xcf\xd5\xb1\xef\x0e\ak\xae\x17\xb6\xbe\xabI<\xad\b\xb95^\x0f\xfe\xe85\xdb\x17\'" ),
+    ( isLeft = false,
+      hash = "\x89\xd8G\x85\x88(sy\x8c1\xbb\xec\x05\x95p\x90.\xb7\x0e\xb2Gj\x1d\xa6p\x11\x8c\x05\xedW\xf8\x1c" ) ],
+  prevRoot = "a?M\x00\x8b:\xd0\x0e\x9a\x1b\x18N:\xbd\x93\x16\xab\x8f\xb3\xcd\x1d\xc9u\xb2\xec\x82\xe9x|&v\xa4",
+  nextRoot = "g\xee\xd7\x1da\xdd\xbc3?\x15V!\xa5\x8e\x05v\xd0}\x8a\xd5\b\xe8\xd3\v\x9c\xe0\xfcc\xc7\xa6\x9c\xfe" )
+2016-06-23 13:39:24.089437+00:00 [INFO] (PS.worker) Sharing 1 revocation(s) via ZK
+2016-06-23 13:39:25.875264+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-22: a554742e067b, 2016-06-23 13:39:23+00:00, 2-21 > 2-22
+  SibraPCBExt: id: 0020001589fb998a (owner: 2-21) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:25.875750+00:00 [INFO] (MainThread) Core-Segment registered: a554742e067b, 2016-06-23 13:39:23+00:00, 2-21 > 2-22
+  SibraPCBExt: id: 0020001589fb998a (owner: 2-21) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:26.088462+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:27.347806+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-24: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+2016-06-23 13:39:27.348280+00:00 [INFO] (MainThread) Down-Segment registered: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+2016-06-23 13:39:27.783695+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-24: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+  SibraPCBExt: id: 00200018e18c4d91 (owner: 2-24) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.784524+00:00 [INFO] (MainThread) Down-Segment registered: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+  SibraPCBExt: id: 00200018e18c4d91 (owner: 2-24) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.916919+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 2-22: 3b40c4d97fbb, 2016-06-23 13:39:23+00:00, 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 0010000bbbe33bfe (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.917955+00:00 [INFO] (MainThread) Core-Segment registered: 3b40c4d97fbb, 2016-06-23 13:39:23+00:00, 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 0010000bbbe33bfe (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:28.099596+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:28.103478+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:28.104296+00:00 [WARNING] (PS.worker) Segment to AS 2-21 not found.
+2016-06-23 13:39:28.594923+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-22: a554742e067b, 2016-06-23 13:39:25+00:00, 2-21 > 2-22
+2016-06-23 13:39:28.595602+00:00 [INFO] (MainThread) Core-Segment registered: a554742e067b, 2016-06-23 13:39:25+00:00, 2-21 > 2-22
+2016-06-23 13:39:28.620409+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 2-22: e5aeb478d3ae, 2016-06-23 13:39:24+00:00, 1-12 > 2-22
+2016-06-23 13:39:28.621166+00:00 [INFO] (MainThread) Core-Segment registered: e5aeb478d3ae, 2016-06-23 13:39:24+00:00, 1-12 > 2-22
+2016-06-23 13:39:28.623184+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1025 in response to: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:28.624786+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1025 in response to: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:28.629119+00:00 [INFO] (MainThread) Sending PATH_REPLY with 1 segment(s) to:(2-22 (IPV4) 127.0.0.2) port:1025 in response to: (srcIA = "2-22", dstIA = "1-12", flags = (sibra = false))
+2016-06-23 13:39:28.642565+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 2-22: 3b40c4d97fbb, 2016-06-23 13:39:21+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:28.650364+00:00 [INFO] (MainThread) Core-Segment registered: 3b40c4d97fbb, 2016-06-23 13:39:21+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:29.097868+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:29.531924+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 2-22: e5aeb478d3ae, 2016-06-23 13:39:24+00:00, 1-12 > 2-22
+  SibraPCBExt: id: 002000169e128d92 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:29.532691+00:00 [INFO] (MainThread) Core-Segment registered: e5aeb478d3ae, 2016-06-23 13:39:24+00:00, 1-12 > 2-22
+  SibraPCBExt: id: 002000169e128d92 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:29.674137+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:25+00:00, 2-21 > 2-22
+  SibraPCBExt: id: 00200016a6fedcf9 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 3.0(32.0Kibit/s) Rev: 3.0(32.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:29.905550+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:21+00:00, 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 00200016503e9969 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.139214+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:30.315919+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:28+00:00, 1-12 > 2-22
+  SibraPCBExt: id: 0010000ca3d45393 (owner: 1-12) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.331598+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 2-22: 47944529c492, 2016-06-23 13:39:23+00:00, 1-13 > 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 0010000db3853bad (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.332676+00:00 [INFO] (MainThread) Core-Segment registered: 47944529c492, 2016-06-23 13:39:23+00:00, 1-13 > 1-11 > 2-21 > 2-22
+  SibraPCBExt: id: 0010000db3853bad (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.366844+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-23: f3a142317117, 2016-06-23 13:39:30+00:00, 2-21 > 2-23
+2016-06-23 13:39:30.367766+00:00 [INFO] (MainThread) Down-Segment registered: f3a142317117, 2016-06-23 13:39:30+00:00, 2-21 > 2-23
+2016-06-23 13:39:31.095196+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:31.373302+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-26: 381e9a277bb3, 2016-06-23 13:39:23+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:31.374968+00:00 [INFO] (MainThread) Down-Segment registered: 381e9a277bb3, 2016-06-23 13:39:23+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:32.096247+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:32.102165+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:32.258351+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-23: f3a142317117, 2016-06-23 13:39:30+00:00, 2-21 > 2-23
+  SibraPCBExt: id: 00200017ec4e0b43 (owner: 2-23) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:32.259228+00:00 [INFO] (MainThread) Down-Segment registered: f3a142317117, 2016-06-23 13:39:30+00:00, 2-21 > 2-23
+  SibraPCBExt: id: 00200017ec4e0b43 (owner: 2-23) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:32.260138+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-26: 26a0e2f57f4b, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:32.261301+00:00 [INFO] (MainThread) Down-Segment registered: 26a0e2f57f4b, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:32.293105+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-26: 381e9a277bb3, 2016-06-23 13:39:23+00:00, 2-22 > 2-24 > 2-26
+  SibraPCBExt: id: 0020001a921ae3e6 (owner: 2-26) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:32.294697+00:00 [INFO] (MainThread) Down-Segment registered: 381e9a277bb3, 2016-06-23 13:39:23+00:00, 2-22 > 2-24 > 2-26
+  SibraPCBExt: id: 0020001a921ae3e6 (owner: 2-26) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:32.356063+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:28+00:00, 2-22 > 2-24
+2016-06-23 13:39:33.095797+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:39:33.100755+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:33.248924+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-26: 26a0e2f57f4b, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-26
+  SibraPCBExt: id: 0020001a7fd2b4b9 (owner: 2-26) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:33.249658+00:00 [INFO] (MainThread) Down-Segment registered: 26a0e2f57f4b, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-26
+  SibraPCBExt: id: 0020001a7fd2b4b9 (owner: 2-26) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:33.602086+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 2-22: 54a72b6c08f6, 2016-06-23 13:39:28+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:33.602957+00:00 [INFO] (MainThread) Core-Segment registered: 54a72b6c08f6, 2016-06-23 13:39:28+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:33.659079+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 2-22: bf7422f3d9bc, 2016-06-23 13:39:23+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:33.660087+00:00 [INFO] (MainThread) Core-Segment registered: bf7422f3d9bc, 2016-06-23 13:39:23+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:33.670822+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 2-22: 47944529c492, 2016-06-23 13:39:23+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:33.671777+00:00 [INFO] (MainThread) Core-Segment registered: 47944529c492, 2016-06-23 13:39:23+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:33.684354+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:30+00:00, 2-21 > 2-22
+2016-06-23 13:39:33.732249+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:29+00:00, 1-12 > 2-22
+2016-06-23 13:39:33.747587+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 2-22: 47d625ad1483, 2016-06-23 13:39:24+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:33.748550+00:00 [INFO] (MainThread) Core-Segment registered: 47d625ad1483, 2016-06-23 13:39:24+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:33.758876+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 2-22: bd28200b89d1, 2016-06-23 13:39:26+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:33.759662+00:00 [INFO] (MainThread) Core-Segment registered: bd28200b89d1, 2016-06-23 13:39:26+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:33.765834+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:26+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:33.796310+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 2-22: ad47d1e8eb43, 2016-06-23 13:39:26+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:33.797255+00:00 [INFO] (MainThread) Core-Segment registered: ad47d1e8eb43, 2016-06-23 13:39:26+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:34.095516+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:34.250053+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-25: 3107cddbfc95, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:39:34.250674+00:00 [INFO] (MainThread) Down-Segment registered: 3107cddbfc95, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:39:34.450670+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 2-22: 54a72b6c08f6, 2016-06-23 13:39:28+00:00, 1-13 > 1-12 > 2-22
+  SibraPCBExt: id: 00200016f9585c71 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:34.451681+00:00 [INFO] (MainThread) Core-Segment registered: 54a72b6c08f6, 2016-06-23 13:39:28+00:00, 1-13 > 1-12 > 2-22
+  SibraPCBExt: id: 00200016f9585c71 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:35.096623+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /2-22/ps/rev_cache
+2016-06-23 13:39:35.097524+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:35.250209+00:00 [DEBUG] (MainThread) Added segment from 2-21 to 2-25: 3107cddbfc95, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-25
+  SibraPCBExt: id: 00200019265595b5 (owner: 2-25) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:35.250804+00:00 [INFO] (MainThread) Down-Segment registered: 3107cddbfc95, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-25
+  SibraPCBExt: id: 00200019265595b5 (owner: 2-25) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:36.105775+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:36.250629+00:00 [DEBUG] (MainThread) Down-Segment updated: f3a142317117, 2016-06-23 13:39:36+00:00, 2-21 > 2-23
+2016-06-23 13:39:36.348622+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:28+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:37.111398+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:37.119178+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:37.250933+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:39:36+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:38.105686+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:38.339523+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:33+00:00, 2-22 > 2-24
+2016-06-23 13:39:38.631293+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:39:33+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:38.634336+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:28+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:38.641304+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:28+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.642667+00:00 [DEBUG] (MainThread) Added segment from 1-13 to 2-22: b9960feebe30, 2016-06-23 13:39:28+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.651468+00:00 [INFO] (MainThread) Core-Segment registered: b9960feebe30, 2016-06-23 13:39:28+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.652855+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:36+00:00, 2-21 > 2-22
+2016-06-23 13:39:38.660796+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:35+00:00, 1-12 > 2-22
+2016-06-23 13:39:38.701128+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:39:29+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.702067+00:00 [DEBUG] (MainThread) Added segment from 1-12 to 2-22: 661e4eb6d24c, 2016-06-23 13:39:24+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.702661+00:00 [INFO] (MainThread) Core-Segment registered: 661e4eb6d24c, 2016-06-23 13:39:24+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.703968+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:39:31+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:38.705132+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:31+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:38.706234+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:39:31+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:39.121091+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:39.126203+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:40.254518+00:00 [DEBUG] (MainThread) Down-Segment updated: 3107cddbfc95, 2016-06-23 13:39:36+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:39:41.141391+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:41.255427+00:00 [DEBUG] (MainThread) Down-Segment updated: f3a142317117, 2016-06-23 13:39:41+00:00, 2-21 > 2-23
+2016-06-23 13:39:41.354081+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:33+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:42.120003+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:42.136063+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:42.254922+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:39:41+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:43.116323+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:43.346182+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:38+00:00, 2-22 > 2-24
+2016-06-23 13:39:43.618694+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:39:38+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:43.628285+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:33+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:43.629513+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:33+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:43.647759+00:00 [DEBUG] (MainThread) Core-Segment updated: b9960feebe30, 2016-06-23 13:39:33+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:43.657037+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:41+00:00, 2-21 > 2-22
+2016-06-23 13:39:43.658243+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:40+00:00, 1-12 > 2-22
+2016-06-23 13:39:43.660049+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:39:35+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:43.663022+00:00 [DEBUG] (MainThread) Core-Segment updated: 661e4eb6d24c, 2016-06-23 13:39:29+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:43.687843+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:39:36+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:43.697496+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:36+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:43.760370+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:39:36+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:44.120509+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:44.124719+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:45.259586+00:00 [DEBUG] (MainThread) Down-Segment updated: 3107cddbfc95, 2016-06-23 13:39:41+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:39:46.113063+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:46.348710+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:38+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:47.190164+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:47.194748+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:47.258927+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:39:41+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:47.259346+00:00 [DEBUG] (MainThread) Down-Segment updated: f3a142317117, 2016-06-23 13:39:47+00:00, 2-21 > 2-23
+2016-06-23 13:39:48.123175+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:48.360414+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:43+00:00, 2-22 > 2-24
+2016-06-23 13:39:48.695549+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:39:43+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:48.696865+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:38+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:48.726680+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:38+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:48.728046+00:00 [DEBUG] (MainThread) Core-Segment updated: b9960feebe30, 2016-06-23 13:39:38+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:48.729149+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:47+00:00, 2-21 > 2-22
+2016-06-23 13:39:48.730712+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:45+00:00, 1-12 > 2-22
+2016-06-23 13:39:48.732466+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:39:40+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:48.734222+00:00 [DEBUG] (MainThread) Core-Segment updated: 661e4eb6d24c, 2016-06-23 13:39:35+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:48.735390+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:39:41+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:48.750960+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:39:41+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:48.756841+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:41+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:49.110231+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:49.115166+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:50.262846+00:00 [DEBUG] (MainThread) Down-Segment updated: 3107cddbfc95, 2016-06-23 13:39:47+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:39:51.112137+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:51.356433+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:43+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:52.118396+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:52.129714+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:52.263706+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:39:47+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:53.126035+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:53.264232+00:00 [DEBUG] (MainThread) Down-Segment updated: f3a142317117, 2016-06-23 13:39:52+00:00, 2-21 > 2-23
+2016-06-23 13:39:53.357855+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:48+00:00, 2-22 > 2-24
+2016-06-23 13:39:53.671574+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:39:48+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:53.675774+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:43+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:53.679259+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:43+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:53.683544+00:00 [DEBUG] (MainThread) Core-Segment updated: b9960feebe30, 2016-06-23 13:39:43+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:53.690122+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:52+00:00, 2-21 > 2-22
+2016-06-23 13:39:53.696717+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:50+00:00, 1-12 > 2-22
+2016-06-23 13:39:53.704376+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:39:45+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:53.715417+00:00 [DEBUG] (MainThread) Core-Segment updated: 661e4eb6d24c, 2016-06-23 13:39:40+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:53.723171+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:39:47+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:53.732932+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:39:47+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:53.787611+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:47+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:54.114670+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:54.126150+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:55.267924+00:00 [DEBUG] (MainThread) Down-Segment updated: 3107cddbfc95, 2016-06-23 13:39:52+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:39:56.117041+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:56.355176+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:48+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:57.132681+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:57.140834+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:57.272788+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:39:52+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:58.127002+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:58.270468+00:00 [DEBUG] (MainThread) Down-Segment updated: f3a142317117, 2016-06-23 13:39:57+00:00, 2-21 > 2-23
+2016-06-23 13:39:58.363100+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:53+00:00, 2-22 > 2-24
+2016-06-23 13:39:58.645316+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:39:53+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:39:58.684831+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:48+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:39:58.697635+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:48+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:58.714260+00:00 [DEBUG] (MainThread) Core-Segment updated: b9960feebe30, 2016-06-23 13:39:48+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:58.718185+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:39:57+00:00, 2-21 > 2-22
+2016-06-23 13:39:58.724064+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:39:55+00:00, 1-12 > 2-22
+2016-06-23 13:39:58.727605+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:39:50+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:58.732984+00:00 [DEBUG] (MainThread) Core-Segment updated: 661e4eb6d24c, 2016-06-23 13:39:45+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:39:58.737197+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:39:52+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:39:58.741632+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:39:52+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:39:58.744882+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:52+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:39:59.120444+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:59.128268+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:01.274496+00:00 [DEBUG] (MainThread) Down-Segment updated: 3107cddbfc95, 2016-06-23 13:39:57+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:40:01.394796+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:53+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:40:02.169386+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:02.175066+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:02.274200+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:39:57+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:40:03.122749+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:03.368342+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:39:58+00:00, 2-22 > 2-24
+2016-06-23 13:40:03.634224+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:39:59+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:40:03.663488+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:53+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:40:03.667764+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:53+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:03.672448+00:00 [DEBUG] (MainThread) Core-Segment updated: b9960feebe30, 2016-06-23 13:39:53+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:03.674147+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:40:02+00:00, 2-21 > 2-22
+2016-06-23 13:40:03.676985+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:40:00+00:00, 1-12 > 2-22
+2016-06-23 13:40:03.695217+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:39:55+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:03.711935+00:00 [DEBUG] (MainThread) Core-Segment updated: 661e4eb6d24c, 2016-06-23 13:39:50+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:03.718850+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:39:57+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:40:03.725490+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:39:57+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:40:03.736382+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:39:57+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:40:04.132134+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:04.134923+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:04.275176+00:00 [DEBUG] (MainThread) Down-Segment updated: f3a142317117, 2016-06-23 13:40:02+00:00, 2-21 > 2-23
+2016-06-23 13:40:05.124364+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:06.373652+00:00 [DEBUG] (MainThread) Down-Segment updated: 381e9a277bb3, 2016-06-23 13:39:58+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:40:07.145832+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:07.150116+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:07.284014+00:00 [DEBUG] (MainThread) Down-Segment updated: 26a0e2f57f4b, 2016-06-23 13:40:02+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:40:07.284466+00:00 [DEBUG] (MainThread) Down-Segment updated: 3107cddbfc95, 2016-06-23 13:40:02+00:00, 2-21 > 2-23 > 2-25
+2016-06-23 13:40:08.133316+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:08.388735+00:00 [DEBUG] (MainThread) Down-Segment updated: fe53b1034562, 2016-06-23 13:40:03+00:00, 2-22 > 2-24
+2016-06-23 13:40:08.849569+00:00 [DEBUG] (MainThread) Core-Segment updated: 54a72b6c08f6, 2016-06-23 13:40:04+00:00, 1-13 > 1-12 > 2-22
+2016-06-23 13:40:08.883163+00:00 [DEBUG] (MainThread) Core-Segment updated: bf7422f3d9bc, 2016-06-23 13:39:59+00:00, 1-13 > 1-11 > 1-12 > 2-22
+2016-06-23 13:40:08.899779+00:00 [DEBUG] (MainThread) Core-Segment updated: 47944529c492, 2016-06-23 13:39:59+00:00, 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:08.970521+00:00 [DEBUG] (MainThread) Core-Segment updated: b9960feebe30, 2016-06-23 13:39:59+00:00, 1-13 > 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:08.975246+00:00 [DEBUG] (MainThread) Core-Segment updated: a554742e067b, 2016-06-23 13:40:07+00:00, 2-21 > 2-22
+2016-06-23 13:40:08.987353+00:00 [DEBUG] (MainThread) Core-Segment updated: e5aeb478d3ae, 2016-06-23 13:40:05+00:00, 1-12 > 2-22
+2016-06-23 13:40:09.026264+00:00 [DEBUG] (MainThread) Core-Segment updated: 47d625ad1483, 2016-06-23 13:40:00+00:00, 1-12 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:09.046453+00:00 [DEBUG] (MainThread) Core-Segment updated: 661e4eb6d24c, 2016-06-23 13:39:55+00:00, 1-12 > 1-13 > 1-11 > 2-21 > 2-22
+2016-06-23 13:40:09.096994+00:00 [DEBUG] (MainThread) Core-Segment updated: bd28200b89d1, 2016-06-23 13:40:02+00:00, 1-11 > 1-12 > 2-22
+2016-06-23 13:40:09.117345+00:00 [DEBUG] (MainThread) Core-Segment updated: ad47d1e8eb43, 2016-06-23 13:40:02+00:00, 1-11 > 1-13 > 1-12 > 2-22
+2016-06-23 13:40:09.130892+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:09.147134+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:09.186570+00:00 [DEBUG] (MainThread) Core-Segment updated: 3b40c4d97fbb, 2016-06-23 13:40:02+00:00, 1-11 > 2-21 > 2-22
+2016-06-23 13:40:12.962520+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:40:12.992711+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:40:12.993223+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:40:12.993638+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:40:13.442424+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:13.997673+00:00 [INFO] (MainThread) Exiting

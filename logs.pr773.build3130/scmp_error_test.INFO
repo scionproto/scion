@@ -1,0 +1,1121 @@
+2016-06-23 13:22:49.293604+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) =======================> Testing: 1-16 -> 1-15
+2016-06-23 13:22:49.294089+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad host
+2016-06-23 13:22:54.662997+00:00 [ERROR] (SCIONDaemon API id:140446279919360 1-16 -> 1-15) Query timed out for 1-15
+2016-06-23 13:22:59.665458+00:00 [ERROR] (SCIONDaemon API id:140446279919360 1-16 -> 1-15) Query timed out for 1-15
+2016-06-23 13:23:03.509446+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:03.742006+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:03.949871+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:04.266954+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:04.292303+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:04.508818+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:04.676066+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:04.793621+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:06.052816+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: path required
+2016-06-23 13:23:06.168181+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:06.287023+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:06.387810+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:06.404700+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) Skipping non-core remote AS
+2016-06-23 13:23:06.404957+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:06.457872+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:06.722022+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:06.856132+00:00 [INFO] (SCMPErr 1-16 > 1-15 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:06.888447+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) =======================> Testing: 1-10 -> 1-16
+2016-06-23 13:23:06.888790+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad host
+2016-06-23 13:23:07.148348+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:07.245139+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:07.497868+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:07.658572+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:07.770080+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:07.919408+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:08.064791+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:08.246168+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:08.425137+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: path required
+2016-06-23 13:23:08.477951+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:08.601899+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:08.731863+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:08.957509+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) Skipping non-core remote AS
+2016-06-23 13:23:08.957772+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:09.041319+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:09.224203+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:09.378231+00:00 [INFO] (SCMPErr 1-10 > 1-16 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:09.524207+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) =======================> Testing: 2-24 -> 1-13
+2016-06-23 13:23:09.524566+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:23:10.258848+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:10.389068+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:10.587327+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:10.690453+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:10.816204+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:11.010909+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:11.115157+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:11.272030+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:11.356700+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:23:11.412931+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:11.591430+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:11.678381+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:11.832131+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:11.956750+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:12.062460+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:12.168158+00:00 [INFO] (SCMPErr 2-24 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:12.414413+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) =======================> Testing: 1-11 -> 1-10
+2016-06-23 13:23:12.433209+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad host
+2016-06-23 13:23:13.233382+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:13.296771+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:13.494709+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:13.619840+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:13.722200+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:13.915087+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:14.037455+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:14.097372+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:14.353212+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: path required
+2016-06-23 13:23:16.382799+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:16.623880+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:16.825538+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:16.858996+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) Skipping non-core remote AS
+2016-06-23 13:23:16.859357+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:17.056371+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:17.419343+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:17.529755+00:00 [INFO] (SCMPErr 1-11 > 1-10 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:17.761382+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) =======================> Testing: 2-21 -> 1-11
+2016-06-23 13:23:17.761752+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad host
+2016-06-23 13:23:18.760009+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:19.001103+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:19.304014+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:19.463338+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:19.602717+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:20.269175+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:20.443709+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:20.656708+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:20.819843+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: path required
+2016-06-23 13:23:21.183898+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:21.370562+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:21.728724+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:22.124306+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:22.200308+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:22.300039+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:22.490790+00:00 [INFO] (SCMPErr 2-21 > 1-11 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:22.676152+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) =======================> Testing: 1-15 -> 2-21
+2016-06-23 13:23:22.676518+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad host
+2016-06-23 13:23:23.885748+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:24.353262+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:24.737982+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:24.873920+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:24.998823+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:25.364909+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:25.458421+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:25.585350+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:25.725992+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: path required
+2016-06-23 13:23:25.937487+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:26.141991+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:26.335670+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:26.670525+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:26.902633+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:27.302028+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:27.693267+00:00 [INFO] (SCMPErr 1-15 > 2-21 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:28.078295+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) =======================> Testing: 1-12 -> 2-22
+2016-06-23 13:23:28.078658+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad host
+2016-06-23 13:23:29.254200+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:29.574258+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:29.796032+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:29.870896+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:30.173085+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:30.283222+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:30.431805+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:30.833425+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:30.955924+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: path required
+2016-06-23 13:23:31.097668+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:31.394177+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:31.561827+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:31.695332+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:31.804159+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:31.897668+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:32.070341+00:00 [INFO] (SCMPErr 1-12 > 2-22 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:32.501740+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) =======================> Testing: 1-11 -> 1-13
+2016-06-23 13:23:32.502106+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:23:32.649317+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:32.879418+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:33.080181+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:33.165476+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:33.442239+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:34.263001+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:34.718834+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:34.905006+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:35.104351+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:23:35.230648+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:35.423918+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:35.839536+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:36.364480+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:36.580250+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:36.724060+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:36.912781+00:00 [INFO] (SCMPErr 1-11 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:37.088741+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) =======================> Testing: 2-24 -> 2-22
+2016-06-23 13:23:37.089088+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad host
+2016-06-23 13:23:37.170263+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:37.237714+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:37.345312+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:37.496698+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:37.582053+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:38.132625+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:38.394144+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:38.625694+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:38.848855+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: path required
+2016-06-23 13:23:39.056006+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:39.262424+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:39.464422+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:39.659679+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:39.855565+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:41.227495+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:41.381665+00:00 [INFO] (SCMPErr 2-24 > 2-22 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:41.468597+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) =======================> Testing: 1-19 -> 1-12
+2016-06-23 13:23:41.468945+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad host
+2016-06-23 13:23:42.432318+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:42.588943+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:42.857343+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:43.044361+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:43.184549+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:43.711229+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:44.135735+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:44.540817+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:44.687829+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: path required
+2016-06-23 13:23:44.861450+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:45.054101+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:45.377004+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:46.093560+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:46.474504+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:46.725457+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:46.995596+00:00 [INFO] (SCMPErr 1-19 > 1-12 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:47.453437+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) =======================> Testing: 1-15 -> 1-11
+2016-06-23 13:23:47.453809+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad host
+2016-06-23 13:23:47.646792+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:47.822758+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:47.991433+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:48.152540+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:48.478238+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:48.858161+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:49.062165+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:49.734169+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:50.102229+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: path required
+2016-06-23 13:23:50.429305+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:50.887733+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:51.101597+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:51.264244+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:51.599704+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:51.723638+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:52.008229+00:00 [INFO] (SCMPErr 1-15 > 1-11 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:52.257140+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) =======================> Testing: 1-17 -> 1-12
+2016-06-23 13:23:52.257512+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad host
+2016-06-23 13:23:52.777020+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:53.001298+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:53.140418+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:53.249243+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:53.344143+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:53.642138+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:53.900313+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:23:53.985805+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:23:54.291003+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: path required
+2016-06-23 13:23:54.435088+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Bad MAC
+2016-06-23 13:23:54.602818+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Expired HOF
+2016-06-23 13:23:55.607957+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Bad Interface
+2016-06-23 13:23:55.926205+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:23:56.093832+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:23:56.281589+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Bad extension order
+2016-06-23 13:23:56.652521+00:00 [INFO] (SCMPErr 1-17 > 1-12 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:23:57.153247+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) =======================> Testing: 1-12 -> 2-26
+2016-06-23 13:23:57.153603+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad host
+2016-06-23 13:23:57.387536+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:23:57.762861+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:23:57.981193+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:23:58.245515+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:23:58.694560+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:23:59.240400+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:23:59.768974+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:00.143400+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:00.375287+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: path required
+2016-06-23 13:24:00.662750+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:00.958488+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:01.232178+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:01.501149+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) Skipping non-core remote AS
+2016-06-23 13:24:01.501405+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:01.859791+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:02.080687+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:02.562798+00:00 [INFO] (SCMPErr 1-12 > 2-26 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:02.869805+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) =======================> Testing: 2-26 -> 1-19
+2016-06-23 13:24:02.870144+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad host
+2016-06-23 13:24:03.949984+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:04.349029+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:04.695657+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:04.849748+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:05.253831+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:05.731974+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:05.958839+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:06.350270+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:06.977015+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: path required
+2016-06-23 13:24:07.140786+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:07.351737+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:07.716674+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:07.872293+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) Skipping non-core remote AS
+2016-06-23 13:24:07.872560+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:08.045847+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:08.588071+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:09.131855+00:00 [INFO] (SCMPErr 2-26 > 1-19 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:09.313386+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) =======================> Testing: 2-26 -> 1-10
+2016-06-23 13:24:09.313735+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad host
+2016-06-23 13:24:09.633286+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:09.961209+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:10.227895+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:10.727931+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:11.140124+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:11.483449+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:11.918794+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:12.293101+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:12.649205+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: path required
+2016-06-23 13:24:13.062251+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:13.529218+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:13.877264+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:14.181931+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) Skipping non-core remote AS
+2016-06-23 13:24:14.182187+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:14.507310+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:14.613310+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:14.951786+00:00 [INFO] (SCMPErr 2-26 > 1-10 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:15.241598+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) =======================> Testing: 1-19 -> 1-13
+2016-06-23 13:24:15.241947+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:24:15.511534+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:15.563598+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:15.681373+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:15.741421+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:15.806999+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:16.250900+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:16.510158+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:16.845909+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:17.167279+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:24:17.689938+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:17.944741+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:18.220534+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:18.542111+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:18.686672+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:18.873728+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:18.982588+00:00 [INFO] (SCMPErr 1-19 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:19.207668+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) =======================> Testing: 1-12 -> 1-18
+2016-06-23 13:24:19.208028+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad host
+2016-06-23 13:24:19.271572+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:19.337156+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:19.501914+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:19.621409+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:19.774822+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:19.885762+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:20.112208+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:20.267999+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:20.351899+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: path required
+2016-06-23 13:24:20.454009+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:20.629936+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:20.835931+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:20.874412+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) Skipping non-core remote AS
+2016-06-23 13:24:20.874656+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:21.024164+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:21.138207+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:21.229625+00:00 [INFO] (SCMPErr 1-12 > 1-18 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:21.361870+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) =======================> Testing: 1-10 -> 1-11
+2016-06-23 13:24:21.362221+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad host
+2016-06-23 13:24:21.647799+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:21.809222+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:21.958945+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:22.287453+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:22.396286+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:22.626089+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:22.805394+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:23.021615+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:23.430089+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: path required
+2016-06-23 13:24:23.557229+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:23.690284+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:23.816524+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:24.646686+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:24.769633+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:24.942066+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:25.036410+00:00 [INFO] (SCMPErr 1-10 > 1-11 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:25.353672+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) =======================> Testing: 2-26 -> 1-11
+2016-06-23 13:24:25.354045+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad host
+2016-06-23 13:24:25.539499+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:25.650094+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:25.781081+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:25.820605+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:26.008538+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:26.266501+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:26.370334+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:26.830273+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:27.018597+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: path required
+2016-06-23 13:24:27.302957+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:27.490576+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:27.784982+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:28.305775+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:28.404877+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:28.594032+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:28.843403+00:00 [INFO] (SCMPErr 2-26 > 1-11 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:29.007559+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) =======================> Testing: 1-17 -> 2-25
+2016-06-23 13:24:29.007919+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad host
+2016-06-23 13:24:29.309190+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:29.424157+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:29.776709+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:30.083280+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:30.157847+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:30.325595+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:30.541099+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:30.650049+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:30.746298+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: path required
+2016-06-23 13:24:30.802189+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:30.972285+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:31.251715+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:31.369317+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) Skipping non-core remote AS
+2016-06-23 13:24:31.369575+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:31.437396+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:31.744208+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:31.984628+00:00 [INFO] (SCMPErr 1-17 > 2-25 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:32.379860+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) =======================> Testing: 1-15 -> 1-10
+2016-06-23 13:24:32.380242+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad host
+2016-06-23 13:24:32.596882+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:32.758661+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:32.960955+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:33.035295+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:33.074033+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:33.574316+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:33.668257+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:33.787227+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:33.984807+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: path required
+2016-06-23 13:24:34.094074+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:34.206782+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:34.470655+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:34.545386+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) Skipping non-core remote AS
+2016-06-23 13:24:34.545677+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:34.665943+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:34.733520+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:34.881140+00:00 [INFO] (SCMPErr 1-15 > 1-10 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:35.115371+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) =======================> Testing: 1-18 -> 1-17
+2016-06-23 13:24:35.115746+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad host
+2016-06-23 13:24:35.308552+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:35.447854+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:35.582371+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:35.703694+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:35.943025+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:36.088171+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:36.334316+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:36.542594+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:36.825748+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: path required
+2016-06-23 13:24:37.113438+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:37.289431+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:37.448975+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:37.676347+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) Skipping non-core remote AS
+2016-06-23 13:24:37.677667+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:37.847495+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:37.974837+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:38.130653+00:00 [INFO] (SCMPErr 1-18 > 1-17 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:38.366966+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) =======================> Testing: 1-10 -> 1-17
+2016-06-23 13:24:38.367670+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad host
+2016-06-23 13:24:38.571551+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:38.818861+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:39.073275+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:39.162906+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:39.368568+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:39.570356+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:39.744163+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:39.797450+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:39.986330+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: path required
+2016-06-23 13:24:40.140153+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:40.302689+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:40.397773+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:40.429297+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) Skipping non-core remote AS
+2016-06-23 13:24:40.429568+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:40.517721+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:40.591636+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:40.671724+00:00 [INFO] (SCMPErr 1-10 > 1-17 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:40.864263+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) =======================> Testing: 2-26 -> 1-14
+2016-06-23 13:24:40.864614+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad host
+2016-06-23 13:24:40.945335+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:41.145405+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:41.269958+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:41.364400+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:41.477355+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:41.688992+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:41.860638+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:41.957899+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:42.116969+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: path required
+2016-06-23 13:24:42.231636+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:42.470018+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:42.569104+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:42.640602+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) Skipping non-core remote AS
+2016-06-23 13:24:42.640859+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:42.695667+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:42.817099+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:42.857537+00:00 [INFO] (SCMPErr 2-26 > 1-14 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:42.885893+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) =======================> Testing: 1-14 -> 1-18
+2016-06-23 13:24:42.886213+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad host
+2016-06-23 13:24:43.174980+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:43.262844+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:43.420629+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:43.439186+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:43.502803+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:43.546708+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:43.586535+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:43.622846+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:43.697694+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: path required
+2016-06-23 13:24:43.730648+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:43.779192+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:43.869395+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:43.956974+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) Skipping non-core remote AS
+2016-06-23 13:24:43.957243+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:44.065876+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:44.116168+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:44.154874+00:00 [INFO] (SCMPErr 1-14 > 1-18 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:44.190350+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) =======================> Testing: 2-25 -> 1-16
+2016-06-23 13:24:44.190709+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad host
+2016-06-23 13:24:44.303797+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:44.356835+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:44.405686+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:44.485609+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:44.545348+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:44.656327+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:44.751776+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:44.806695+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:44.896981+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: path required
+2016-06-23 13:24:44.926751+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:44.973986+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:45.008991+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:45.024550+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) Skipping non-core remote AS
+2016-06-23 13:24:45.025054+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:45.047800+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:45.075452+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:45.122479+00:00 [INFO] (SCMPErr 2-25 > 1-16 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:45.156875+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) =======================> Testing: 2-23 -> 1-10
+2016-06-23 13:24:45.157143+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad host
+2016-06-23 13:24:45.216550+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:45.237490+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:45.264320+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:45.287450+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:45.326543+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:45.391836+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:45.413379+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:45.456983+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:45.490864+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: path required
+2016-06-23 13:24:45.513879+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:45.545333+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:45.600733+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:45.635665+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) Skipping non-core remote AS
+2016-06-23 13:24:45.636413+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:45.662087+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:45.727602+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:45.766819+00:00 [INFO] (SCMPErr 2-23 > 1-10 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:45.793818+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) =======================> Testing: 2-25 -> 2-23
+2016-06-23 13:24:45.794090+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad host
+2016-06-23 13:24:45.817888+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:45.832687+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:45.914907+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:45.958273+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:46.002923+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:46.064214+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:46.088827+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:46.109803+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:46.155532+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: path required
+2016-06-23 13:24:46.181044+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:46.205477+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:46.219750+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:46.225697+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) Skipping non-core remote AS
+2016-06-23 13:24:46.225946+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:46.237730+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:46.257883+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:46.275157+00:00 [INFO] (SCMPErr 2-25 > 2-23 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:46.294541+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) =======================> Testing: 1-11 -> 1-17
+2016-06-23 13:24:46.294813+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad host
+2016-06-23 13:24:46.311084+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:46.331166+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:46.343160+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:46.351483+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:46.367269+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:46.384477+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:46.396641+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:46.419610+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:46.434511+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: path required
+2016-06-23 13:24:46.447751+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:46.481865+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:46.495626+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:46.499805+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) Skipping non-core remote AS
+2016-06-23 13:24:46.500253+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:46.509797+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:46.524490+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:46.543855+00:00 [INFO] (SCMPErr 1-11 > 1-17 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:46.555792+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) =======================> Testing: 1-11 -> 1-16
+2016-06-23 13:24:46.556374+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad host
+2016-06-23 13:24:46.597159+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:46.612794+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:46.626028+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:46.666380+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:46.685508+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:46.713435+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:46.752228+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:46.769849+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:46.784108+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: path required
+2016-06-23 13:24:46.796203+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:46.816986+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:46.834871+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:46.845175+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) Skipping non-core remote AS
+2016-06-23 13:24:46.845650+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:46.858929+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:46.874897+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:46.921118+00:00 [INFO] (SCMPErr 1-11 > 1-16 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:46.950332+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) =======================> Testing: 2-21 -> 1-14
+2016-06-23 13:24:46.950597+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad host
+2016-06-23 13:24:46.980806+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:47.015408+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:47.043756+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:47.057234+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:47.078239+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:47.115584+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:47.136136+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:47.167204+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:47.201791+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: path required
+2016-06-23 13:24:47.214716+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:47.232570+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:47.249436+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:47.262684+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) Skipping non-core remote AS
+2016-06-23 13:24:47.263182+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:47.277841+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:47.303427+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:47.345340+00:00 [INFO] (SCMPErr 2-21 > 1-14 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:47.361495+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) =======================> Testing: 1-15 -> 1-16
+2016-06-23 13:24:47.361767+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad host
+2016-06-23 13:24:47.382292+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:47.395561+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:47.408947+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:47.421456+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:47.434642+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:47.469573+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:47.514687+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:47.534635+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:47.555630+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: path required
+2016-06-23 13:24:47.626297+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:47.675857+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:47.814044+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:47.831354+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) Skipping non-core remote AS
+2016-06-23 13:24:47.831805+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:47.854229+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:47.873535+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:47.914071+00:00 [INFO] (SCMPErr 1-15 > 1-16 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:47.940545+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) =======================> Testing: 2-22 -> 1-14
+2016-06-23 13:24:47.940897+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad host
+2016-06-23 13:24:48.012385+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:48.087000+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:48.158868+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:48.232852+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:48.333543+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:48.401823+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:48.425994+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:48.463006+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:48.496961+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: path required
+2016-06-23 13:24:48.533365+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:48.564089+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:48.598481+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:48.606552+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) Skipping non-core remote AS
+2016-06-23 13:24:48.607016+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:48.640494+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:48.661314+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:48.677401+00:00 [INFO] (SCMPErr 2-22 > 1-14 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:48.695676+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) =======================> Testing: 2-21 -> 2-23
+2016-06-23 13:24:48.695973+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad host
+2016-06-23 13:24:48.711972+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:48.731666+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:48.748990+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:48.753743+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:48.760644+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:48.787372+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:48.799360+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:48.816147+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:48.827308+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: path required
+2016-06-23 13:24:48.838986+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:48.858037+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:48.869103+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:48.873983+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) Skipping non-core remote AS
+2016-06-23 13:24:48.874209+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:48.885115+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:48.903856+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:48.918852+00:00 [INFO] (SCMPErr 2-21 > 2-23 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:48.934980+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) =======================> Testing: 1-16 -> 1-17
+2016-06-23 13:24:48.935368+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad host
+2016-06-23 13:24:48.963852+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:48.983811+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:49.029574+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:49.050225+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:49.095903+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:49.130827+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:49.149471+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:49.167851+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:49.188612+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: path required
+2016-06-23 13:24:49.209813+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:49.234142+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:49.253562+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:49.267817+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) Skipping non-core remote AS
+2016-06-23 13:24:49.268283+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:49.286873+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:49.309721+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:49.344476+00:00 [INFO] (SCMPErr 1-16 > 1-17 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:49.362648+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) =======================> Testing: 1-10 -> 2-22
+2016-06-23 13:24:49.362941+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad host
+2016-06-23 13:24:49.388612+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:49.407028+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:49.424061+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:49.437390+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:49.468560+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:49.539876+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:49.590572+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:49.615586+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:49.641982+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: path required
+2016-06-23 13:24:49.663340+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:49.683913+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:49.708638+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:49.877074+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:50.036911+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:50.114443+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:50.189898+00:00 [INFO] (SCMPErr 1-10 > 2-22 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:50.231129+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) =======================> Testing: 1-16 -> 1-13
+2016-06-23 13:24:50.231445+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:24:50.240690+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:50.249944+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:50.262634+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:50.269588+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:50.284216+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:50.306303+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:50.317939+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:50.339756+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:50.365012+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:24:50.375424+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:50.386392+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:50.397227+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:50.414407+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:50.423923+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:50.434796+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:50.445156+00:00 [INFO] (SCMPErr 1-16 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:50.464417+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) =======================> Testing: 1-14 -> 2-22
+2016-06-23 13:24:50.464689+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad host
+2016-06-23 13:24:50.490427+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:50.513954+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:50.536119+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:50.579687+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:50.623284+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:50.656739+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:50.672640+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:50.730321+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:50.752715+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: path required
+2016-06-23 13:24:50.768421+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:50.790215+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:50.813944+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:50.884840+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:50.921763+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:51.029685+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:51.074049+00:00 [INFO] (SCMPErr 1-14 > 2-22 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:51.121342+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) =======================> Testing: 2-26 -> 1-12
+2016-06-23 13:24:51.121615+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad host
+2016-06-23 13:24:51.162933+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:51.178988+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:51.201433+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:51.218842+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:51.229168+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:51.253089+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:51.274585+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:51.297218+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:51.312276+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: path required
+2016-06-23 13:24:51.332682+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:51.360541+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:51.381189+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:51.430366+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:51.445124+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:51.471649+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:51.498268+00:00 [INFO] (SCMPErr 2-26 > 1-12 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:51.513468+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) =======================> Testing: 1-11 -> 2-26
+2016-06-23 13:24:51.513900+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad host
+2016-06-23 13:24:51.544363+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:51.584810+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:51.606318+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:51.654496+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:51.678620+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:51.758980+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:51.789015+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:51.817280+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:51.844416+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: path required
+2016-06-23 13:24:51.864215+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:51.886929+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:51.916150+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:51.942307+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) Skipping non-core remote AS
+2016-06-23 13:24:51.942578+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:51.969561+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:52.009460+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:52.032907+00:00 [INFO] (SCMPErr 1-11 > 2-26 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:52.053484+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) =======================> Testing: 1-15 -> 2-24
+2016-06-23 13:24:52.053829+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad host
+2016-06-23 13:24:52.088473+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:52.139441+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:52.165401+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:52.201287+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:52.216716+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:52.240502+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:52.260490+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:52.286007+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:52.309344+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: path required
+2016-06-23 13:24:52.330696+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:52.370831+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:52.390428+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:52.401475+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) Skipping non-core remote AS
+2016-06-23 13:24:52.402184+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:52.418320+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:52.438291+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:52.478729+00:00 [INFO] (SCMPErr 1-15 > 2-24 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:52.512912+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) =======================> Testing: 2-25 -> 2-24
+2016-06-23 13:24:52.513173+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad host
+2016-06-23 13:24:52.529865+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:52.546230+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:52.560825+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:52.599480+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:52.659858+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:52.774333+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:52.831003+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:52.866631+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:52.879806+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: path required
+2016-06-23 13:24:52.890885+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:52.937971+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:52.958414+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:52.964647+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) Skipping non-core remote AS
+2016-06-23 13:24:52.964807+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:52.989130+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:53.026401+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:53.041923+00:00 [INFO] (SCMPErr 2-25 > 2-24 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:53.054106+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) =======================> Testing: 1-19 -> 2-21
+2016-06-23 13:24:53.054454+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad host
+2016-06-23 13:24:53.095868+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:53.118897+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:53.154932+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:53.172395+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:53.216571+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:53.240963+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:53.266835+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:53.288598+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:53.312492+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: path required
+2016-06-23 13:24:53.338588+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:53.372070+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:53.392102+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:53.452355+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:53.490221+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:53.515457+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:53.541192+00:00 [INFO] (SCMPErr 1-19 > 2-21 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:53.567511+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) =======================> Testing: 2-21 -> 1-15
+2016-06-23 13:24:53.567768+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad host
+2016-06-23 13:24:53.598585+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:53.612071+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:53.628434+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:53.651255+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:53.668265+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:53.691337+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:53.711893+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:53.735788+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:53.764211+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: path required
+2016-06-23 13:24:53.788788+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:53.811824+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:53.831122+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:53.840360+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) Skipping non-core remote AS
+2016-06-23 13:24:53.840869+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:53.858337+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:53.874229+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:53.889734+00:00 [INFO] (SCMPErr 2-21 > 1-15 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:53.907259+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) =======================> Testing: 1-17 -> 1-14
+2016-06-23 13:24:53.907524+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad host
+2016-06-23 13:24:53.933403+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:53.954489+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:53.965391+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:53.975000+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:53.991661+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:54.236186+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:54.314518+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:54.349800+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:54.373240+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: path required
+2016-06-23 13:24:54.397960+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:54.420916+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:54.434247+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:54.440265+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) Skipping non-core remote AS
+2016-06-23 13:24:54.440718+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:54.455339+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:54.508176+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:54.521689+00:00 [INFO] (SCMPErr 1-17 > 1-14 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:54.533263+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) =======================> Testing: 2-24 -> 1-15
+2016-06-23 13:24:54.533878+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad host
+2016-06-23 13:24:54.580916+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:54.606319+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:54.631355+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:54.653107+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:54.674762+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:54.702996+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:54.733600+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:54.767958+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:54.858310+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: path required
+2016-06-23 13:24:54.960619+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:55.118242+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:55.140392+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:55.150956+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) Skipping non-core remote AS
+2016-06-23 13:24:55.151340+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:55.175464+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:55.206234+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:55.235867+00:00 [INFO] (SCMPErr 2-24 > 1-15 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:55.268172+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) =======================> Testing: 2-21 -> 1-12
+2016-06-23 13:24:55.268537+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad host
+2016-06-23 13:24:55.283129+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:55.301349+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:55.313730+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:55.328687+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:55.352355+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:55.378395+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:55.389935+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:55.402803+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:55.415845+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: path required
+2016-06-23 13:24:55.426521+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:55.439664+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:55.456868+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:55.503280+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:55.516353+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:55.543176+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:55.583475+00:00 [INFO] (SCMPErr 2-21 > 1-12 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:55.611698+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) =======================> Testing: 1-19 -> 1-16
+2016-06-23 13:24:55.611970+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad host
+2016-06-23 13:24:55.630948+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:55.647940+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:55.660856+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:55.670385+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:55.685534+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:55.768263+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:55.791442+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:55.805486+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:55.824555+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: path required
+2016-06-23 13:24:55.856039+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:55.932230+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:55.977339+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:56.031850+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) Skipping non-core remote AS
+2016-06-23 13:24:56.033258+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:56.047212+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:56.065530+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:56.081941+00:00 [INFO] (SCMPErr 1-19 > 1-16 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:56.095756+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) =======================> Testing: 2-22 -> 1-13
+2016-06-23 13:24:56.096108+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:24:56.121900+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:56.134385+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:56.150510+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:56.167104+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:56.185651+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:56.221308+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:56.243238+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:56.259093+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:56.291794+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:24:56.309659+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:56.327135+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:56.356332+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:56.398524+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:56.412984+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:56.428930+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:56.443797+00:00 [INFO] (SCMPErr 2-22 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:56.461967+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) =======================> Testing: 1-13 -> 2-25
+2016-06-23 13:24:56.462383+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad host
+2016-06-23 13:24:56.521098+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:56.541857+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:56.566023+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:56.588006+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:56.611261+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:56.639674+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:56.664357+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:56.685568+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:56.716430+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: path required
+2016-06-23 13:24:56.755465+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:56.809313+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:56.840643+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:56.867318+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) Skipping non-core remote AS
+2016-06-23 13:24:56.867879+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:56.884114+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:56.906200+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:56.925695+00:00 [INFO] (SCMPErr 1-13 > 2-25 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:56.952956+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) =======================> Testing: 1-19 -> 2-24
+2016-06-23 13:24:56.953266+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad host
+2016-06-23 13:24:56.991356+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:57.037499+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:57.062377+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:57.091206+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:57.128487+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:57.166852+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:57.190360+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:57.221310+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:57.256449+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: path required
+2016-06-23 13:24:57.294608+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:57.325174+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:57.377712+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:57.391714+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) Skipping non-core remote AS
+2016-06-23 13:24:57.392067+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:57.412322+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:57.434211+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:57.460226+00:00 [INFO] (SCMPErr 1-19 > 2-24 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:57.506878+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) =======================> Testing: 2-23 -> 1-14
+2016-06-23 13:24:57.507261+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad host
+2016-06-23 13:24:57.542992+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:57.569445+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:57.697891+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:57.740248+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:57.838065+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:57.880685+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:57.900934+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:57.936852+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:57.967998+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: path required
+2016-06-23 13:24:57.996066+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:58.034236+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:58.056526+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:58.078422+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) Skipping non-core remote AS
+2016-06-23 13:24:58.079124+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:58.100089+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:58.127753+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:58.150103+00:00 [INFO] (SCMPErr 2-23 > 1-14 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:58.173705+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) =======================> Testing: 2-22 -> 1-10
+2016-06-23 13:24:58.173980+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad host
+2016-06-23 13:24:58.202213+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:58.224619+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:58.253214+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:58.279306+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:58.306797+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:24:58.346528+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:24:58.373473+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:24:58.397161+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:24:58.415744+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: path required
+2016-06-23 13:24:58.433100+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Bad MAC
+2016-06-23 13:24:58.454088+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Expired HOF
+2016-06-23 13:24:58.490440+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Bad Interface
+2016-06-23 13:24:58.510946+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) Skipping non-core remote AS
+2016-06-23 13:24:58.511483+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:24:58.530665+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:24:58.560270+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Bad extension order
+2016-06-23 13:24:58.589937+00:00 [INFO] (SCMPErr 2-22 > 1-10 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:24:58.610661+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) =======================> Testing: 2-26 -> 2-25
+2016-06-23 13:24:58.610932+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad host
+2016-06-23 13:24:58.627815+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:24:58.650706+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:24:58.665128+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:24:58.674622+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:24:58.686326+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:00.415575+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:00.501831+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:00.559831+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:00.616268+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: path required
+2016-06-23 13:25:00.707613+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:00.847335+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:01.012739+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:01.088361+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) Skipping non-core remote AS
+2016-06-23 13:25:01.089164+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:01.199292+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:01.356095+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:01.410984+00:00 [INFO] (SCMPErr 2-26 > 2-25 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:01.449151+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) =======================> Testing: 1-13 -> 2-22
+2016-06-23 13:25:01.449508+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad host
+2016-06-23 13:25:01.541126+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:25:01.655048+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:25:01.750929+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:25:01.852448+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:25:01.914331+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:01.946825+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:01.962054+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:01.977801+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:01.995644+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: path required
+2016-06-23 13:25:02.012493+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:02.040337+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:02.057265+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:02.095321+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:02.121256+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:02.142176+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:02.156226+00:00 [INFO] (SCMPErr 1-13 > 2-22 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:02.175873+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) =======================> Testing: 2-23 -> 1-13
+2016-06-23 13:25:02.176150+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:25:02.193373+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:25:02.213624+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:25:02.235813+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:25:02.258764+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:25:02.274141+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:02.300695+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:02.327020+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:02.351763+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:02.371628+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:25:02.390639+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:02.412561+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:02.432578+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:02.513446+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:02.566604+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:02.631355+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:02.672152+00:00 [INFO] (SCMPErr 2-23 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:02.707548+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) =======================> Testing: 1-12 -> 1-10
+2016-06-23 13:25:02.707917+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad host
+2016-06-23 13:25:02.854556+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:25:02.926747+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:25:02.976715+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:25:02.993443+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:25:03.008830+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:03.039764+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:03.053616+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:03.068379+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:03.086253+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: path required
+2016-06-23 13:25:03.100112+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:03.128495+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:03.146891+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:03.154581+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) Skipping non-core remote AS
+2016-06-23 13:25:03.155055+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:03.171010+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:03.190807+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:03.207887+00:00 [INFO] (SCMPErr 1-12 > 1-10 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:03.222714+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) =======================> Testing: 2-25 -> 1-17
+2016-06-23 13:25:03.223083+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad host
+2016-06-23 13:25:03.264581+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:25:03.294872+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:25:03.320000+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:25:03.335336+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:25:03.359207+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:03.390584+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:03.414972+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:03.435019+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:03.453801+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: path required
+2016-06-23 13:25:03.480873+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:03.508381+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:03.584001+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:03.658172+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) Skipping non-core remote AS
+2016-06-23 13:25:03.658437+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:03.717593+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:03.746428+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:04.596660+00:00 [INFO] (SCMPErr 2-25 > 1-17 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:04.651399+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) =======================> Testing: 1-12 -> 1-13
+2016-06-23 13:25:04.651762+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad host
+2016-06-23 13:25:04.693975+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:25:04.739576+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:25:04.802803+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:25:04.862998+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:25:04.872463+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:04.954575+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:04.986488+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:05.013197+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:05.040342+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: path required
+2016-06-23 13:25:05.056078+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:05.067809+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:05.095397+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:05.140373+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:05.192076+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:05.226799+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:05.254556+00:00 [INFO] (SCMPErr 1-12 > 1-13 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:05.275114+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) =======================> Testing: 2-22 -> 1-18
+2016-06-23 13:25:05.275410+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad host
+2016-06-23 13:25:05.355947+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad pkt length (data missing)
+2016-06-23 13:25:05.407287+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad pkt length (extra data)
+2016-06-23 13:25:05.448791+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad hdr length (too short)
+2016-06-23 13:25:05.472174+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad hdr length (too long)
+2016-06-23 13:25:05.487188+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad IOF offset (too short)
+2016-06-23 13:25:05.517985+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad IOF offset (too long)
+2016-06-23 13:25:05.543532+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad HOF offset (too short)
+2016-06-23 13:25:05.561147+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: bad HOF offset (too long)
+2016-06-23 13:25:05.600640+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: path required
+2016-06-23 13:25:05.655152+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Bad MAC
+2016-06-23 13:25:05.682621+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Expired HOF
+2016-06-23 13:25:05.708274+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Bad Interface
+2016-06-23 13:25:05.729604+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) Skipping non-core remote AS
+2016-06-23 13:25:05.729886+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Non-routing HOF
+2016-06-23 13:25:05.748159+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Too many hop-by-hop extensions
+2016-06-23 13:25:05.769975+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Bad extension order
+2016-06-23 13:25:05.811904+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) ===========> Testing: Bad hop-by-hop extension
+2016-06-23 13:25:13.529991+00:00 [INFO] (SCMPErr 2-22 > 1-18 main) All tests successful

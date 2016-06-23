@@ -1,0 +1,35 @@
+2016-06-23 13:38:40.511833+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS19/ds1-19-1/certs/ISD1-V0.trc
+2016-06-23 13:38:40.512397+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS19/ds1-19-1/certs/ISD2-V0.trc
+2016-06-23 13:38:40.513087+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS19/ds1-19-1/certs/ISD1-AS19-V0.crt
+2016-06-23 13:38:40.561726+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:40.562169+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:40.562739+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-19 (IPV4) 127.0.0.181):30040
+2016-06-23 13:38:40.655237+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:41.519321+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:41.519669+00:00 [DEBUG] (MainThread) Joining parties
+2016-06-23 13:38:41.519845+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:41.520033+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:41.520195+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80041)
+2016-06-23 13:38:41.847468+00:00 [DEBUG] (MainThread) ZK connection available after 0.33s
+2016-06-23 13:38:42.243652+00:00 [DEBUG] (MainThread) Current party (/1-19/bs/party) members are: []
+2016-06-23 13:38:42.421887+00:00 [DEBUG] (MainThread) Current party (/1-19/cs/party) members are: ['cs1-19-2', 'cs1-19-3']
+2016-06-23 13:38:43.065818+00:00 [DEBUG] (MainThread) Current party (/1-19/ds/party) members are: ['ds1-19-1']
+2016-06-23 13:38:43.597020+00:00 [DEBUG] (MainThread) Current party (/1-19/ps/party) members are: ['ps1-19-1']
+2016-06-23 13:38:44.063853+00:00 [DEBUG] (MainThread) Current party (/1-19/sb/party) members are: ['sb1-19-1']
+2016-06-23 13:38:44.064095+00:00 [INFO] (MainThread) Started ds1-19-1
+2016-06-23 13:38:45.465818+00:00 [DEBUG] (Thread-6) Request: [127.0.0.1:42185] (udp) / 'bs.as19.isd1.scion.' (A)
+2016-06-23 13:38:45.961729+00:00 [DEBUG] (Thread-7) Request: [127.0.0.1:60587] (udp) / 'bs.as19.isd1.scion.' (A)
+2016-06-23 13:39:13.166400+00:00 [DEBUG] (Thread-8) Request: [127.0.0.1:36995] (udp) / 'cs.as19.isd1.scion.' (A)
+2016-06-23 13:39:13.166997+00:00 [DEBUG] (Thread-8) Reply: [127.0.0.1:36995] (udp) / 'cs.as19.isd1.scion.' (A) / RRs: A,A,A
+2016-06-23 13:39:30.851029+00:00 [DEBUG] (Thread-9) Request: [127.0.0.1:51885] (udp) / 'ps.as19.isd1.scion.' (A)
+2016-06-23 13:39:30.851486+00:00 [DEBUG] (Thread-9) Reply: [127.0.0.1:51885] (udp) / 'ps.as19.isd1.scion.' (A) / RRs: A,A
+2016-06-23 13:39:30.881417+00:00 [DEBUG] (Thread-10) Request: [127.0.0.1:43641] (udp) / 'sb.as19.isd1.scion.' (A)
+2016-06-23 13:39:30.881877+00:00 [DEBUG] (Thread-10) Reply: [127.0.0.1:43641] (udp) / 'sb.as19.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:31.257558+00:00 [DEBUG] (Thread-11) Request: [127.0.0.1:57786] (udp) / 'ps.as19.isd1.scion.' (A)
+2016-06-23 13:39:31.258409+00:00 [DEBUG] (Thread-11) Reply: [127.0.0.1:57786] (udp) / 'ps.as19.isd1.scion.' (A) / RRs: A,A
+2016-06-23 13:39:45.476749+00:00 [DEBUG] (Thread-12) Request: [127.0.0.1:55567] (udp) / 'bs.as19.isd1.scion.' (A)
+2016-06-23 13:39:45.477100+00:00 [DEBUG] (Thread-12) Reply: [127.0.0.1:55567] (udp) / 'bs.as19.isd1.scion.' (A) / RRs: A
+2016-06-23 13:39:46.616809+00:00 [DEBUG] (Thread-13) Request: [127.0.0.1:37691] (udp) / 'bs.as19.isd1.scion.' (A)
+2016-06-23 13:39:46.617170+00:00 [DEBUG] (Thread-13) Reply: [127.0.0.1:37691] (udp) / 'bs.as19.isd1.scion.' (A) / RRs: A
+2016-06-23 13:40:12.689933+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:12.690285+00:00 [INFO] (MainThread) Exiting

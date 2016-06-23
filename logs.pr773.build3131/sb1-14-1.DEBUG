@@ -1,0 +1,103 @@
+2016-06-23 13:38:25.848965+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS14/sb1-14-1/certs/ISD1-V0.trc
+2016-06-23 13:38:25.849545+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS14/sb1-14-1/certs/ISD2-V0.trc
+2016-06-23 13:38:25.850240+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS14/sb1-14-1/certs/ISD1-AS14-V0.crt
+2016-06-23 13:38:25.850724+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:25.851116+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:25.851308+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:25.852338+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-14 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:25.852853+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-14 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:25.853329+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-14 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:25.960219+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-14 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:26.038474+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:26.280262+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:26.280467+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:26.280910+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:26.281067+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f8002e)
+2016-06-23 13:38:26.307551+00:00 [DEBUG] (MainThread) ZK connection available after 0.03s
+2016-06-23 13:38:26.373620+00:00 [DEBUG] (MainThread) Current party (/1-14/sb/party) members are: ['sb1-14-1']
+2016-06-23 13:38:26.373868+00:00 [INFO] (MainThread) Started sb1-14-1
+2016-06-23 13:38:26.606641+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:26.606891+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:26.607076+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:27.607752+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:27.608009+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:27.608196+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:28.609672+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:28.609903+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:28.610085+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:29.610802+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:29.611037+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:29.611221+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:30.612893+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:30.613126+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:30.613296+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:31.613996+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:31.614243+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:31.614418+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:32.615322+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:32.615563+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:32.615774+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:33.617127+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:33.617345+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:33.617539+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:34.619297+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:34.619539+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:34.619715+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.621380+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:35.621615+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:35.621785+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:36.630280+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:36.630506+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:36.682915+00:00 [DEBUG] (Elem.packet_recv) Registered to dispatcher for addr (1-14 (IPV4) 127.0.0.123):30040
+2016-06-23 13:38:38.137406+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:38:38.137799+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:38.137952+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:41.177748+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:38:41.178237+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:38:41.178416+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:44.313565+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:38:44.313866+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:38:44.314043+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f8007e)
+2016-06-23 13:38:44.684422+00:00 [DEBUG] (libZK._state_handler) Current party (/1-14/sb/party) members are: ['sb1-14-1']
+2016-06-23 13:39:25.630403+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-14: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+2016-06-23 13:39:25.630746+00:00 [INFO] (MainThread) UP Segment added: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+2016-06-23 13:39:25.631000+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 1-11
+2016-06-23 13:39:26.507639+00:00 [DEBUG] (SB.worker) Setting up steady path 1-14 -> 1-11 over 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+2016-06-23 13:39:26.507989+00:00 [INFO] (SB.worker) Sending setup request using 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14:
+SibraExtSteady(40B):
+  SOF idx: 0 Hop: 0 (Total hops: 2) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010000e6608a1f4 (Owner: 1-14)
+  Request block:
+    ResvBlockSteady(24B): Num hops: 2
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:26.566555+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 40B
+2016-06-23 13:39:26.567263+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(24B): Num hops: 2
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 626f683b
+  SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 40372f67
+2016-06-23 13:39:26.568018+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:39:26.570389+00:00 [DEBUG] (MainThread)   956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+    SibraPCBExt: id: 0010000e6608a1f4 (owner: 1-14) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 626f683b
+    SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 40372f67
+2016-06-23 13:39:26.572015+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-11
+2016-06-23 13:39:26.578097+00:00 [DEBUG] (MainThread)   956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+    SibraPCBExt: id: 0010000e6608a1f4 (owner: 1-14) Up? False
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+    SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 40372f67
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 626f683b
+2016-06-23 13:39:30.634831+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:26+00:00, 1-11 > 1-14
+2016-06-23 13:39:35.644599+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:31+00:00, 1-11 > 1-14
+2016-06-23 13:39:41.639919+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:36+00:00, 1-11 > 1-14
+2016-06-23 13:39:46.639772+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:41+00:00, 1-11 > 1-14
+2016-06-23 13:39:51.645560+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:47+00:00, 1-11 > 1-14
+2016-06-23 13:39:56.652466+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:52+00:00, 1-11 > 1-14
+2016-06-23 13:40:01.665898+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:39:57+00:00, 1-11 > 1-14
+2016-06-23 13:40:06.663446+00:00 [DEBUG] (MainThread) UP Segment updated: 956384423c12, 2016-06-23 13:40:02+00:00, 1-11 > 1-14
+2016-06-23 13:40:11.262820+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:11.673684+00:00 [INFO] (MainThread) Exiting

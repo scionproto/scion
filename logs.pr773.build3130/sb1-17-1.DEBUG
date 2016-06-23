@@ -1,0 +1,243 @@
+2016-06-23 13:22:37.266651+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS17/sb1-17-1/certs/ISD1-V0.trc
+2016-06-23 13:22:37.267217+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS17/sb1-17-1/certs/ISD2-V0.trc
+2016-06-23 13:22:37.267866+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS17/sb1-17-1/certs/ISD1-AS17-V0.crt
+2016-06-23 13:22:37.268327+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:22:37.268695+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:22:37.378018+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-17 (IPV4) 127.0.0.62):30040
+2016-06-23 13:22:37.378873+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-17 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:22:37.412362+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:37.475874+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:22:37.476265+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:22:37.476444+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530059)
+2016-06-23 13:22:37.476845+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:22:37.479139+00:00 [DEBUG] (MainThread) ZK connection available after 0.00s
+2016-06-23 13:22:37.489448+00:00 [DEBUG] (MainThread) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:22:37.489909+00:00 [INFO] (MainThread) Started sb1-17-1
+2016-06-23 13:22:50.311689+00:00 [DEBUG] (MainThread) Added segment from 1-11 to 1-17: 40b7f17cac80, 2016-06-23 13:22:46+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:50.312071+00:00 [INFO] (MainThread) UP Segment added: 40b7f17cac80, 2016-06-23 13:22:46+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:22:50.312360+00:00 [DEBUG] (MainThread) Found new destination ISD-AS: 1-11
+2016-06-23 13:22:56.147696+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:22:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:01.190660+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:22:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:05.168800+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:23:05.738207+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:05.744677+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:06.647798+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:23:06.648170+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:06.648368+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:07.025187+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:23:07.025509+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:07.025669+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c5753007c)
+2016-06-23 13:23:07.143677+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:07.401180+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:07.558514+00:00 [DEBUG] (SB.worker) Setting up steady path 1-17 -> 1-11 over 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:07.559077+00:00 [INFO] (SB.worker) Sending setup request using 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010001151cb30a2 (Owner: 1-17)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+2016-06-23 13:23:07.723616+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 32B
+2016-06-23 13:23:07.724288+00:00 [INFO] (MainThread) Setup request for <BWClass fwd:11.0(512.0Kibit/s) rev:11.0(512.0Kibit/s)> denied
+2016-06-23 13:23:07.725051+00:00 [INFO] (MainThread) Sending setup request using 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17:
+SibraExtSteady(48B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:True request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010001151cb30a2 (Owner: 1-17)
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+2016-06-23 13:23:08.221762+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 48B
+2016-06-23 13:23:08.222444+00:00 [INFO] (MainThread) Setup successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 88a42731
+  SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: e46f4385
+  SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 7b661ee6
+2016-06-23 13:23:08.223278+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:23:08.256571+00:00 [DEBUG] (MainThread)   40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+    SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? True
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 88a42731
+    SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: e46f4385
+    SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 7b661ee6
+2016-06-23 13:23:08.257660+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-11
+2016-06-23 13:23:08.261047+00:00 [DEBUG] (MainThread)   40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+    SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? False
+    ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:26:04+00:00
+    SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 7b661ee6
+    SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: e46f4385
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 88a42731
+2016-06-23 13:23:09.586370+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 5)
+2016-06-23 13:23:09.586780+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:09.586937+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:12.642947+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 6)
+2016-06-23 13:23:12.643343+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:12.643593+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:13.604397+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 7)
+2016-06-23 13:23:13.605158+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:13.605329+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300e5)
+2016-06-23 13:23:13.677417+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:13.771170+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:15.202762+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 8)
+2016-06-23 13:23:16.170627+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:16.241150+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.753221+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 9)
+2016-06-23 13:23:16.753607+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:16.753786+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:17.540984+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 10)
+2016-06-23 13:23:17.541302+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:17.541460+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300e9)
+2016-06-23 13:23:17.643199+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:19.006961+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:20.794183+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 11)
+2016-06-23 13:23:20.794543+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:20.794703+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:21.101993+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 12)
+2016-06-23 13:23:21.102322+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:21.102507+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300e9)
+2016-06-23 13:23:21.807887+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:22.313622+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 13)
+2016-06-23 13:23:22.313988+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:22.314150+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:22.654316+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 14)
+2016-06-23 13:23:22.654615+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:22.654772+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575300e9)
+2016-06-23 13:23:23.779615+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:24.223669+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 15)
+2016-06-23 13:23:24.224041+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:24.224203+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:24.651413+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:14+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:25.807212+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 16)
+2016-06-23 13:23:25.807755+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:25.807923+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:26.399600+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 17)
+2016-06-23 13:23:26.401830+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:26.401986+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530164)
+2016-06-23 13:23:26.824964+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:27.386371+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 18)
+2016-06-23 13:23:27.386744+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:27.386905+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:27.649830+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 19)
+2016-06-23 13:23:27.650141+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:27.650310+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530164)
+2016-06-23 13:23:28.569469+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:30.242408+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:14+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:30.864550+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 20)
+2016-06-23 13:23:30.864868+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:30.865051+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:31.452352+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 21)
+2016-06-23 13:23:31.452663+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:31.452826+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530164)
+2016-06-23 13:23:32.076013+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:33.038316+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 22)
+2016-06-23 13:23:33.039510+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:33.039681+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:33.392457+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 23)
+2016-06-23 13:23:33.392773+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:33.392929+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530164)
+2016-06-23 13:23:34.277865+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:34.953140+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 24)
+2016-06-23 13:23:34.953510+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:34.953685+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:35.594852+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:35.617082+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 25)
+2016-06-23 13:23:35.618371+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:35.618545+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c57530164)
+2016-06-23 13:23:36.576607+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:38.422718+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 26)
+2016-06-23 13:23:38.423336+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:38.423496+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:41.758117+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 27)
+2016-06-23 13:23:41.758496+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:23:41.758682+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:43.580432+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 28)
+2016-06-23 13:23:43.583844+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:23:43.584008+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301fc)
+2016-06-23 13:23:43.721505+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:47.184347+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:32+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:52.498236+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:37+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:23:55.192962+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 29)
+2016-06-23 13:23:55.323221+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:55.376218+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:55.730089+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 30)
+2016-06-23 13:23:55.730456+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:55.730635+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301fc)
+2016-06-23 13:23:55.837360+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:56.567953+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 31)
+2016-06-23 13:23:56.568261+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:23:56.568427+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:57.287931+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 32)
+2016-06-23 13:23:57.291203+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:23:57.291420+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301fc)
+2016-06-23 13:23:57.583298+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:23:57.638624+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:47+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:03.022863+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:08.692518+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:23:58+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:13.758104+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:04+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:19.720572+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:09+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:24.751510+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:15+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:29.811860+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:21+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:35.801266+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:36.672415+00:00 [DEBUG] (SB.worker) Sending renewal request:
+SibraExtSteady(80B):
+  SOF idx: 0 Hop: 0 (Total hops: 3) Flags: setup:False request:True accepted:True error:False steady:True forward:True version:0
+  Steady path ID: 0010001151cb30a2 (Owner: 1-17)
+  Active block 0:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:26:04+00:00
+      SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: 88a42731
+      SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: e46f4385
+      SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: 7b661ee6
+  Request block:
+    ResvBlockSteady(32B): Num hops: 3
+      ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+        Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:36+00:00
+2016-06-23 13:24:37.308741+00:00 [DEBUG] (MainThread) Found extension hdr of type (0, 1) with len 80B
+2016-06-23 13:24:37.309755+00:00 [DEBUG] (MainThread) Renewal successful: ResvBlockSteady(32B): Num hops: 3
+  ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:36+00:00
+  SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: b1f199b4
+  SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: 971132ef
+  SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: c6114065
+2016-06-23 13:24:37.310101+00:00 [DEBUG] (MainThread) Registering path with local path server
+2016-06-23 13:24:37.312435+00:00 [DEBUG] (MainThread)   40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+    SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? True
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:27:36+00:00
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: b1f199b4
+    SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: 971132ef
+    SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: c6114065
+2016-06-23 13:24:37.316723+00:00 [DEBUG] (MainThread) Registering path with remote path server in 1-11
+2016-06-23 13:24:37.326670+00:00 [DEBUG] (MainThread)   40b7f17cac80, 2016-06-23 13:24:26+00:00, 1-11 > 1-14 > 1-17
+    SibraPCBExt: id: 0010001151cb30a2 (owner: 1-17) Up? False
+    ResvInfoSteady(8B): Resv idx:  1 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+      Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:27:36+00:00
+    SibraOpaqueField(8B): Ingress: 4 Egress: 0 Mac: c6114065
+    SibraOpaqueField(8B): Ingress: 4 Egress: 1 Mac: 971132ef
+    SibraOpaqueField(8B): Ingress: 0 Egress: 1 Mac: b1f199b4
+2016-06-23 13:24:41.712201+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:31+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:46.721682+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:41+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:51.723002+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:47+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:24:56.772746+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:52+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:02.570261+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:24:57+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:04.184902+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 33)
+2016-06-23 13:25:04.423079+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:25:04.423694+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:05.218189+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 34)
+2016-06-23 13:25:05.218507+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: CONNECTED
+2016-06-23 13:25:05.218670+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d6c575301fc)
+2016-06-23 13:25:05.244482+00:00 [DEBUG] (libZK._state_handler) Current party (/1-17/sb/party) members are: ['sb1-17-1']
+2016-06-23 13:25:08.545069+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:25:02+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:13.558199+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:25:08+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:19.553693+00:00 [DEBUG] (MainThread) UP Segment updated: 40b7f17cac80, 2016-06-23 13:25:13+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:25:25.507166+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:25:25.507524+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:25:25.507706+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:25:25.507884+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:25:26.284259+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:26.514200+00:00 [INFO] (MainThread) Exiting

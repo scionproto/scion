@@ -1,0 +1,26 @@
+2016-06-23 13:38:39.387158+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:40.946988+00:00 [INFO] (MainThread) Started ps2-26-1
+2016-06-23 13:38:42.494049+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:38:45.991685+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:47.587748+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 3)
+2016-06-23 13:39:31.338381+00:00 [INFO] (MainThread) Up-Segment registered: 26a0e2f57f4b, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-26
+2016-06-23 13:39:31.348774+00:00 [INFO] (MainThread) Up-Segment registered: 381e9a277bb3, 2016-06-23 13:39:23+00:00, 2-22 > 2-24 > 2-26
+2016-06-23 13:39:31.628418+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:32.274315+00:00 [INFO] (MainThread) Up-Segment registered: 381e9a277bb3, 2016-06-23 13:39:23+00:00, 2-22 > 2-24 > 2-26
+  SibraPCBExt: id: 0020001a921ae3e6 (owner: 2-26) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:32.292360+00:00 [INFO] (MainThread) Up-Segment registered: 26a0e2f57f4b, 2016-06-23 13:39:30+00:00, 2-21 > 2-23 > 2-26
+  SibraPCBExt: id: 0020001a7fd2b4b9 (owner: 2-26) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:32.629781+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:36.634150+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:41.642426+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:46.653763+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:51.656370+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:56.658534+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:01.669471+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:06.671681+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:40:11.824730+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:12.352875+00:00 [INFO] (MainThread) Exiting

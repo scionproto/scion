@@ -1,0 +1,10 @@
+2016-06-23 13:38:33.513362+00:00 [INFO] (MainThread) Interface: {'bandwidth': 1000, 'link_type': 'ROUTING', 'mtu': 1472, 'to_if_id': 0, 'to_udp_port': 50000, 'isd_as': ISD_AS(isd=2, as=22), 'udp_port': 50000, 'name': None, 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f2c7b5588d0>, 'if_id': 2, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f2c7b5589b0>}
+2016-06-23 13:38:34.763417+00:00 [INFO] (MainThread) Initialized SibraState: Link: 2-21#2 -> 2-22 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:38:34.764045+00:00 [INFO] (MainThread) IP 127.0.0.34:50000
+2016-06-23 13:38:34.764355+00:00 [INFO] (MainThread) Started er2-21er2-22
+2016-06-23 13:38:34.992247+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:39:05.021447+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:39:35.049551+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:40:05.078990+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:40:11.578633+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:11.884458+00:00 [INFO] (MainThread) Exiting

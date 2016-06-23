@@ -1,0 +1,61 @@
+2016-06-23 13:22:03.620991+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:03.862541+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:22:03.978810+00:00 [INFO] (MainThread) Started cs1-14-2
+2016-06-23 13:22:04.067811+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:05.069380+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:06.070686+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:07.072165+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:08.075622+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:09.077707+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:10.079704+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:11.081763+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:12.083781+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:13.085907+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:14.087723+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:15.089345+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:16.091761+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:17.093174+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:18.095480+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:22:49.552579+00:00 [INFO] (MainThread) Cert chain request received for 1-14v0
+2016-06-23 13:22:49.554790+00:00 [INFO] (CC Requests) Cert chain for 1-14v0 sent to (1-14 (IPV4) 127.0.0.2):1049
+2016-06-23 13:22:49.559445+00:00 [INFO] (MainThread) TRC request received for 1v0
+2016-06-23 13:22:49.562044+00:00 [INFO] (TRC Requests) TRC for 1v0 sent to (1-14 (IPV4) 127.0.0.2):1049
+2016-06-23 13:23:05.762914+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:05.495821+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:06.655427+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:09.690247+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.592s (should have been <= 1.000s)
+2016-06-23 13:23:09.690753+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:09.691382+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:12.775540+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:13.827248+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 3.136s (should have been <= 1.000s)
+2016-06-23 13:23:15.503478+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:16.224974+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:16.245413+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.417s (should have been <= 1.000s)
+2016-06-23 13:23:16.762569+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:18.663420+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 10)
+2016-06-23 13:23:18.663945+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.372s (should have been <= 1.000s)
+2016-06-23 13:23:20.445922+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:24.420584+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 3.754s (should have been <= 1.000s)
+2016-06-23 13:23:25.531492+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 12)
+2016-06-23 13:23:34.289587+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:34.913574+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:37.099578+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:37.100640+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:37.100992+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.669s (should have been <= 1.000s)
+2016-06-23 13:23:38.772913+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:38.769998+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.669s (should have been <= 1.000s)
+2016-06-23 13:23:45.696692+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:45.697085+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:45.698004+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:45.698343+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 6.925s (should have been <= 1.000s)
+2016-06-23 13:23:47.517253+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 1.819s (should have been <= 1.000s)
+2016-06-23 13:23:55.087179+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:23:55.379226+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:23:56.750380+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:23:57.924757+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 26)
+2016-06-23 13:23:57.925148+00:00 [WARNING] (CS.worker) CS.worker cycle took too long: 2.402s (should have been <= 1.000s)
+2016-06-23 13:25:00.306263+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:25:00.281782+00:00 [WARNING] (CS.worker) worker(): ZkNoConnection
+2016-06-23 13:25:05.018776+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 28)
+2016-06-23 13:25:23.123463+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:23.762551+00:00 [INFO] (MainThread) Exiting

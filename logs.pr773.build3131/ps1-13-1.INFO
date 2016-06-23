@@ -1,0 +1,137 @@
+2016-06-23 13:38:34.835371+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.052931+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:35.529646+00:00 [INFO] (MainThread) Started ps1-13-1
+2016-06-23 13:38:35.810232+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:36.698839+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:38:37.508305+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:42.049081+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:46.219877+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:39:27.108616+00:00 [INFO] (MainThread) Down-Segment registered: b0c84da45d71, 2016-06-23 13:39:23+00:00, 1-13 > 1-16
+2016-06-23 13:39:27.294934+00:00 [INFO] (MainThread) Down-Segment registered: 956384423c12, 2016-06-23 13:39:21+00:00, 1-11 > 1-14
+  SibraPCBExt: id: 0010000e6608a1f4 (owner: 1-14) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.434073+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:27.438943+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:27.439418+00:00 [WARNING] (PS.worker) Segment to AS 1-11 not found.
+2016-06-23 13:39:27.439809+00:00 [WARNING] (PS.worker) Segment to AS 1-12 not found.
+2016-06-23 13:39:27.678313+00:00 [INFO] (MainThread) Core-Segment registered: f740f07fe9ae, 2016-06-23 13:39:23+00:00, 1-11 > 1-13
+  SibraPCBExt: id: 0010000be3187ccd (owner: 1-11) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.951599+00:00 [INFO] (MainThread) Down-Segment registered: b0c84da45d71, 2016-06-23 13:39:23+00:00, 1-13 > 1-16
+  SibraPCBExt: id: 00100010dd207954 (owner: 1-16) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:28.435352+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:28.437475+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:28.437886+00:00 [WARNING] (PS.worker) Segment to AS 1-11 not found.
+2016-06-23 13:39:28.438136+00:00 [WARNING] (PS.worker) Segment to AS 1-12 not found.
+2016-06-23 13:39:28.728730+00:00 [INFO] (MainThread) Core-Segment registered: 27b236ddc557, 2016-06-23 13:39:23+00:00, 2-22 > 2-21 > 1-11 > 1-13
+2016-06-23 13:39:28.739780+00:00 [INFO] (MainThread) Core-Segment registered: 960a3b718576, 2016-06-23 13:39:25+00:00, 2-21 > 1-11 > 1-13
+2016-06-23 13:39:28.742743+00:00 [INFO] (MainThread) Core-Segment registered: 7741c6dc33d0, 2016-06-23 13:39:24+00:00, 1-12 > 1-13
+2016-06-23 13:39:28.746161+00:00 [INFO] (MainThread) Core-Segment registered: 206e20e6b1a8, 2016-06-23 13:39:24+00:00, 1-12 > 1-11 > 1-13
+2016-06-23 13:39:28.748917+00:00 [INFO] (MainThread) Core-Segment registered: f740f07fe9ae, 2016-06-23 13:39:26+00:00, 1-11 > 1-13
+2016-06-23 13:39:29.015660+00:00 [INFO] (MainThread) Down-Segment registered: aa047ee58709, 2016-06-23 13:39:21+00:00, 1-11 > 1-14 > 1-17
+  SibraPCBExt: id: 00100011d715142d (owner: 1-17) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:29.401736+00:00 [INFO] (MainThread) Core-Segment registered: 7741c6dc33d0, 2016-06-23 13:39:24+00:00, 1-12 > 1-13
+  SibraPCBExt: id: 0010000dc7cc40e1 (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:29.467008+00:00 [INFO] (PS.worker) Sharing 7 segment(s) via ZK
+2016-06-23 13:39:30.184381+00:00 [INFO] (MainThread) Core-Segment registered: 960a3b718576, 2016-06-23 13:39:25+00:00, 2-21 > 1-11 > 1-13
+  SibraPCBExt: id: 0010000dca6d5ee5 (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.205307+00:00 [INFO] (MainThread) Down-Segment registered: 28a33ef42aa7, 2016-06-23 13:39:24+00:00, 1-12 > 1-15
+  SibraPCBExt: id: 0010000f2f335e1f (owner: 1-15) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.271008+00:00 [INFO] (MainThread) Core-Segment registered: 27b236ddc557, 2016-06-23 13:39:23+00:00, 2-22 > 2-21 > 1-11 > 1-13
+  SibraPCBExt: id: 0010000db3853bad (owner: 1-13) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 0.0(0.0Kibit/s) Rev: 0.0(0.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:30.437555+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:30.901853+00:00 [INFO] (MainThread) Down-Segment registered: d2f9d7017c88, 2016-06-23 13:39:23+00:00, 1-13 > 1-16 > 1-19
+2016-06-23 13:39:31.052430+00:00 [INFO] (MainThread) Down-Segment registered: aa047ee58709, 2016-06-23 13:39:26+00:00, 1-11 > 1-14 > 1-17
+2016-06-23 13:39:31.298070+00:00 [INFO] (MainThread) Down-Segment registered: d2f9d7017c88, 2016-06-23 13:39:23+00:00, 1-13 > 1-16 > 1-19
+  SibraPCBExt: id: 0010001328f9d8b5 (owner: 1-19) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 10.0(362.0Kibit/s) Rev: 10.0(362.0Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:28+00:00
+2016-06-23 13:39:31.320949+00:00 [INFO] (MainThread) Down-Segment registered: 956384423c12, 2016-06-23 13:39:26+00:00, 1-11 > 1-14
+2016-06-23 13:39:31.438219+00:00 [INFO] (PS.worker) Sharing 7 segment(s) via ZK
+2016-06-23 13:39:31.441057+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:32.114784+00:00 [INFO] (MainThread) Down-Segment registered: 28a33ef42aa7, 2016-06-23 13:39:29+00:00, 1-12 > 1-15
+2016-06-23 13:39:32.439516+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:39:32.442274+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:33.108991+00:00 [INFO] (MainThread) Down-Segment registered: 1d0fe3c34527, 2016-06-23 13:39:29+00:00, 1-12 > 1-15 > 1-18
+2016-06-23 13:39:33.441219+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:33.754936+00:00 [INFO] (MainThread) Core-Segment registered: da9ffb6ae9df, 2016-06-23 13:39:28+00:00, 2-22 > 1-12 > 1-13
+2016-06-23 13:39:33.758104+00:00 [INFO] (MainThread) Core-Segment registered: e98e5a2a3383, 2016-06-23 13:39:28+00:00, 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:39:33.807087+00:00 [INFO] (MainThread) Core-Segment registered: 7c732080368f, 2016-06-23 13:39:23+00:00, 2-22 > 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:39:33.826382+00:00 [INFO] (MainThread) Core-Segment registered: ddc8da04244f, 2016-06-23 13:39:25+00:00, 2-21 > 1-11 > 1-12 > 1-13
+2016-06-23 13:39:33.842868+00:00 [INFO] (MainThread) Core-Segment registered: 2b49d591ce24, 2016-06-23 13:39:25+00:00, 2-21 > 2-22 > 1-12 > 1-13
+2016-06-23 13:39:33.845560+00:00 [INFO] (MainThread) Core-Segment registered: b98c26e7045c, 2016-06-23 13:39:25+00:00, 2-21 > 2-22 > 1-12 > 1-11 > 1-13
+2016-06-23 13:39:33.860778+00:00 [INFO] (MainThread) Core-Segment registered: fee2be726e00, 2016-06-23 13:39:26+00:00, 1-11 > 1-12 > 1-13
+2016-06-23 13:39:34.455842+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:39:34.478271+00:00 [INFO] (MainThread) Core-Segment registered: da9ffb6ae9df, 2016-06-23 13:39:28+00:00, 2-22 > 1-12 > 1-13
+  SibraPCBExt: id: 00200016f9585c71 (owner: 2-22) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:32+00:00
+2016-06-23 13:39:35.881883+00:00 [INFO] (MainThread) Down-Segment registered: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+2016-06-23 13:39:36.446522+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:39:36.450039+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:36.550615+00:00 [INFO] (MainThread) Down-Segment registered: 07871b14d697, 2016-06-23 13:39:28+00:00, 1-13 > 1-16 > 1-19 > 1-10
+  SibraPCBExt: id: 0010000a89f79793 (owner: 1-10) Up? False
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 6.0(90.5Kibit/s) Rev: 6.0(90.5Kibit/s)
+    Failhop: 0 Dir fwd: False Expiry: 2016-06-23 13:42:36+00:00
+2016-06-23 13:39:37.445411+00:00 [INFO] (PS.worker) Sharing 7 segment(s) via ZK
+2016-06-23 13:39:37.448074+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:39.448828+00:00 [INFO] (PS.worker) Sharing 5 segment(s) via ZK
+2016-06-23 13:39:41.450260+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:41.452232+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:42.451225+00:00 [INFO] (PS.worker) Sharing 6 segment(s) via ZK
+2016-06-23 13:39:42.453700+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:43.453313+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:44.453988+00:00 [INFO] (PS.worker) Sharing 5 segment(s) via ZK
+2016-06-23 13:39:46.452724+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:46.457502+00:00 [INFO] (PS.worker) Propagating 2 segment(s) to other core ASes
+2016-06-23 13:39:47.453734+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:47.457639+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:48.455100+00:00 [INFO] (PS.worker) Sharing 5 segment(s) via ZK
+2016-06-23 13:39:49.455423+00:00 [INFO] (PS.worker) Sharing 5 segment(s) via ZK
+2016-06-23 13:39:51.457224+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:51.459222+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:52.457841+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:52.459860+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:53.458790+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:53.460809+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:54.459091+00:00 [INFO] (PS.worker) Sharing 8 segment(s) via ZK
+2016-06-23 13:39:56.461271+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:56.463074+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:57.462628+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:57.464661+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:58.463063+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:39:58.465205+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:39:59.463110+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:40:00.465197+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:40:01.464802+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:01.467405+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:02.465016+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:40:02.470031+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:03.466130+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:40:03.468285+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:04.467092+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:40:05.468778+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:40:06.470065+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:06.472368+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:07.471045+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:40:07.473582+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:08.475912+00:00 [INFO] (PS.worker) Sharing 3 segment(s) via ZK
+2016-06-23 13:40:08.478615+00:00 [INFO] (PS.worker) Propagating 1 segment(s) to other core ASes
+2016-06-23 13:40:09.473187+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:40:10.472901+00:00 [INFO] (PS.worker) Sharing 4 segment(s) via ZK
+2016-06-23 13:40:11.574789+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:12.017765+00:00 [INFO] (MainThread) Exiting

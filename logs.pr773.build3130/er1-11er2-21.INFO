@@ -1,0 +1,14 @@
+2016-06-23 13:21:56.300067+00:00 [INFO] (MainThread) Interface: {'udp_port': 50000, 'bandwidth': 1000, 'if_id': 3, 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f789827a9b0>, 'name': None, 'to_udp_port': 50000, 'mtu': 1472, 'to_if_id': 0, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f789827a860>, 'link_type': 'ROUTING', 'isd_as': ISD_AS(isd=2, as=21)}
+2016-06-23 13:21:57.601098+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-11#3 -> 2-21 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:57.601739+00:00 [INFO] (MainThread) IP 127.0.0.12:50000
+2016-06-23 13:21:57.602021+00:00 [INFO] (MainThread) Started er1-11er2-21
+2016-06-23 13:21:57.683628+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:27.713456+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:57.762710+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:58.381499+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:23:27.791846+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:57.821671+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:27.851150+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:57.881630+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:22.884749+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:23.857928+00:00 [INFO] (MainThread) Exiting

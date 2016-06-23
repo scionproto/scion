@@ -1,0 +1,73 @@
+2016-06-23 13:24:18.346922+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(113B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 113B, IOF idx: 0, HOF idx: 3, next hdr: 17, hdr len: 56B
+  SCIONAddrHdr(16B): Src:<(1-19 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:23:00+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: cbda5f
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: a0e8ea
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: f71f02
+    </A-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1880 dport: 0 length: 57B checksum: d457
+  Payload:
+    PayloadRaw(49B): 28312d313920284950563429203132372e302e302e32293c2d3e28312d313320[...]
+2016-06-23 13:24:18.380809+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadIF'>
+2016-06-23 13:24:18.385818+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(80B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 80B, IOF idx: 0, HOF idx: 1, next hdr: 0, hdr len: 56B
+  SCIONAddrHdr(16B): Src:<(1-13 (IPV4) 127.0.0.106)> Dst:<(1-19 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:23:00+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: f71f02
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 3, mac: a0e8ea
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: cbda5f
+    </A-Segment>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: BAD_IF length: 16B checksum:  timestamp: 2016-06-23 13:24:18.385689+00:00
+  Payload:
+    SCMPPayload(80B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 24B HOF offset: 48B IF id: 0 Ingress: False
+      Common Header(8B): 0041007118301138
+      Address Header(16B): 001000137f000002003000217f000003
+      Path Header(32B): 01576be2b4000103003f001000cbda5f003f001003a0e8ea003f000003f71f02
+      L4 Header(8B): 0758000000087e90
+2016-06-23 13:24:38.626507+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:24:50.404668+00:00 [ERROR] (MainThread) Cannot forward packet, fwd_if is invalid (0):
+SCIONL4Packet(105B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 105B, IOF idx: 0, HOF idx: 2, next hdr: 17, hdr len: 48B
+  SCIONAddrHdr(16B): Src:<(1-16 (IPV4) 127.0.0.2)> Dst:<(3-33 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP, TS: 2016-06-23 13:24:44+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 18c16d
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: b4ff5a
+    </A-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 2382 dport: 0 length: 57B checksum: d861
+  Payload:
+    PayloadRaw(49B): 28312d313620284950563429203132372e302e302e32293c2d3e28312d313320[...]
+2016-06-23 13:24:50.406265+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadIF'>
+2016-06-23 13:24:50.407293+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(72B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 72B, IOF idx: 0, HOF idx: 1, next hdr: 0, hdr len: 48B
+  SCIONAddrHdr(16B): Src:<(1-13 (IPV4) 127.0.0.106)> Dst:<(1-16 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: DOWN, TS: 2016-06-23 13:24:44+00:00, ISD: 1, hops: 2
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 0, egress: 3, mac: b4ff5a
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 18c16d
+    </A-Segment>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: BAD_IF length: 16B checksum:  timestamp: 2016-06-23 13:24:50.407229+00:00
+  Payload:
+    SCMPPayload(72B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 24B HOF offset: 40B IF id: 0 Ingress: False
+      Common Header(8B): 0041006918281130
+      Address Header(16B): 001000107f000002003000217f000003
+      Path Header(24B): 01576be31c000102003f00100018c16d003f000003b4ff5a
+      L4 Header(8B): 094e000000087f9a

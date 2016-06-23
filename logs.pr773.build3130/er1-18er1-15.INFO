@@ -1,0 +1,419 @@
+2016-06-23 13:21:45.406523+00:00 [INFO] (MainThread) Interface: {'to_udp_port': 50000, 'addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f6f6812a3c8>, 'to_if_id': 0, 'if_id': 1, 'to_addr': <lib.packet.host_addr.HostAddrIPv4 object at 0x7f6f6812a668>, 'mtu': 1472, 'link_type': 'PARENT', 'udp_port': 50000, 'name': None, 'isd_as': ISD_AS(isd=1, as=15), 'bandwidth': 1000}
+2016-06-23 13:21:45.585222+00:00 [INFO] (MainThread) Initialized SibraState: Link: 1-18#1 -> 1-15 Used/Max bandwidth (Kibit/s): Fwd: 0.0/1000.0 Rev: 0.0/1000.0
+2016-06-23 13:21:45.585895+00:00 [INFO] (MainThread) IP 127.0.0.31:50000
+2016-06-23 13:21:45.586193+00:00 [INFO] (MainThread) Started er1-18er1-15
+2016-06-23 13:21:45.603361+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:15.634386+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:22:45.663710+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:15.692309+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:23:19.693778+00:00 [ERROR] (MainThread) DNS failure, using fallback value for bs: Unable to reach any working nameservers
+2016-06-23 13:23:45.721624+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:06.033786+00:00 [WARNING] (MainThread) SIBRA request failed, changing to offer block
+2016-06-23 13:24:15.751571+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:24:35.272110+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadHost'>
+2016-06-23 13:24:35.274544+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: ROUTING type: BAD_HOST length: 16B checksum:  timestamp: 2016-06-23 13:24:35.274408+00:00
+  Payload:
+    SCMPPayload(40B): L4 proto: UDP
+      Common Header(8B): 0043007818201168
+      Address Header(16B): 001000127f0000020010001100630000
+      L4 Header(8B): 0824000000084f43
+2016-06-23 13:24:35.437279+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadPktLen'>
+2016-06-23 13:24:35.441931+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: CMNHDR type: BAD_PKT_LEN length: 16B checksum:  timestamp: 2016-06-23 13:24:35.441807+00:00
+  Payload:
+    SCMPPayload(48B): L4 proto: UDP
+      SCMPInfoPktSize(8B): pkt size: 161B MTU: 0B
+      Common Header(8B): 004100a118201168
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 082600000008aec2
+2016-06-23 13:24:35.556308+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadPktLen'>
+2016-06-23 13:24:35.558301+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: CMNHDR type: BAD_PKT_LEN length: 16B checksum:  timestamp: 2016-06-23 13:24:35.558191+00:00
+  Payload:
+    SCMPPayload(48B): L4 proto: UDP
+      SCMPInfoPktSize(8B): pkt size: 161B MTU: 0B
+      Common Header(8B): 004100a118201168
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 082900000008aebf
+2016-06-23 13:24:35.706223+00:00 [ERROR] (MainThread) Error parsing packet: 004100a118201105001000127f000002001000117f00000307576be30b000104003f0010003618bd013f001004045b51013f00200465c382023f0000047d118806576be2b1000104023f000004ce9816013f0020048e8c05013f0010041c97ed003f0010007fbccc082a00000039018628312d313820284950563429203132372e302e302e32293c2d3e28312d313720284950563429203132372e302e302e3329
+2016-06-23 13:24:35.707909+00:00 [ERROR] (MainThread) Traceback (most recent call last):
+2016-06-23 13:24:35.708387+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/infrastructure/scion_elem.py", line 240, in _parse_packet
+2016-06-23 13:24:35.708784+00:00 [ERROR] (MainThread)     pkt = SCIONL4Packet(packet)
+2016-06-23 13:24:35.709198+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 572, in __init__
+2016-06-23 13:24:35.709650+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:35.710046+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 486, in __init__
+2016-06-23 13:24:35.711597+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:35.712061+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 316, in __init__
+2016-06-23 13:24:35.712473+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:35.712876+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 145, in __init__
+2016-06-23 13:24:35.718295+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:35.718719+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 32, in __init__
+2016-06-23 13:24:35.719147+00:00 [ERROR] (MainThread)     self._parse(raw)
+2016-06-23 13:24:35.719553+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 320, in _parse
+2016-06-23 13:24:35.719974+00:00 [ERROR] (MainThread)     self._inner_parse(data)
+2016-06-23 13:24:35.720309+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 575, in _inner_parse
+2016-06-23 13:24:35.720721+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:35.721073+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 489, in _inner_parse
+2016-06-23 13:24:35.721473+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:35.721890+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 324, in _inner_parse
+2016-06-23 13:24:35.722300+00:00 [ERROR] (MainThread)     self.cmn_hdr = SCIONCommonHdr(data.pop(SCIONCommonHdr.LEN))
+2016-06-23 13:24:35.722673+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 105, in __init__
+2016-06-23 13:24:35.723019+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:35.759592+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 32, in __init__
+2016-06-23 13:24:35.760031+00:00 [ERROR] (MainThread)     self._parse(raw)
+2016-06-23 13:24:35.760446+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 126, in _parse
+2016-06-23 13:24:35.760854+00:00 [ERROR] (MainThread)     (self.hdr_len, self.LEN, self.addrs_len))
+2016-06-23 13:24:35.847259+00:00 [ERROR] (MainThread) lib.errors.SCIONParseError: hdr_len (5B) < common header len (8B) + addrs len (16B)
+2016-06-23 13:24:35.847724+00:00 [ERROR] (MainThread) 
+2016-06-23 13:24:35.945892+00:00 [ERROR] (MainThread) Error parsing packet: 004100a1182011ff001000127f000002001000117f00000307576be30b000104003f0010003618bd013f001004045b51013f00200465c382023f0000047d118806576be2b1000104023f000004ce9816013f0020048e8c05013f0010041c97ed003f0010007fbccc082b00000039018528312d313820284950563429203132372e302e302e32293c2d3e28312d313720284950563429203132372e302e302e3329
+2016-06-23 13:24:35.946697+00:00 [ERROR] (MainThread) Traceback (most recent call last):
+2016-06-23 13:24:35.949002+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/infrastructure/scion_elem.py", line 240, in _parse_packet
+2016-06-23 13:24:35.949460+00:00 [ERROR] (MainThread)     pkt = SCIONL4Packet(packet)
+2016-06-23 13:24:35.949885+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 572, in __init__
+2016-06-23 13:24:36.000505+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:36.001122+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 486, in __init__
+2016-06-23 13:24:36.001531+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:36.001937+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 316, in __init__
+2016-06-23 13:24:36.002346+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:36.002761+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 145, in __init__
+2016-06-23 13:24:36.005387+00:00 [ERROR] (MainThread)     super().__init__(raw)
+2016-06-23 13:24:36.005812+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/packet_base.py", line 32, in __init__
+2016-06-23 13:24:36.006279+00:00 [ERROR] (MainThread)     self._parse(raw)
+2016-06-23 13:24:36.006890+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 320, in _parse
+2016-06-23 13:24:36.007359+00:00 [ERROR] (MainThread)     self._inner_parse(data)
+2016-06-23 13:24:36.007992+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 575, in _inner_parse
+2016-06-23 13:24:36.011105+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:36.011579+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 489, in _inner_parse
+2016-06-23 13:24:36.011988+00:00 [ERROR] (MainThread)     super()._inner_parse(data)
+2016-06-23 13:24:36.012391+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 326, in _inner_parse
+2016-06-23 13:24:36.012803+00:00 [ERROR] (MainThread)     self._parse_path(data)
+2016-06-23 13:24:36.013219+00:00 [ERROR] (MainThread)   File "/home/scion/scion.git/lib/packet/scion.py", line 347, in _parse_path
+2016-06-23 13:24:36.013645+00:00 [ERROR] (MainThread)     % (self.cmn_hdr.hdr_len, len(data) + data.offset())
+2016-06-23 13:24:36.015397+00:00 [ERROR] (MainThread) lib.errors.SCIONParseError: Bad header len field (255B), implies path is longer than packet (161B)
+2016-06-23 13:24:36.015820+00:00 [ERROR] (MainThread) 
+2016-06-23 13:24:36.053971+00:00 [WARNING] (MainThread) Invalid path metadata in packet from local source, sending SCMP error: Requested OF index (-1) is negative
+CH ver: 0, src type: IPV4, dst type: IPV4, total len: 161B, IOF idx: -1, HOF idx: 1, next hdr: 17, hdr len: 104B
+SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.3)>
+<SCION-Path>
+  <A-Segment>
+    InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:24:27+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 3618bd
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 65c382
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: 7d1188
+  </A-Segment>
+  <B-Segment>
+    InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:22:57+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: ce9816
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 8e8c05
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 1c97ed
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 7fbccc
+  </B-Segment>
+</SCION-Path>
+2016-06-23 13:24:36.082574+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: CMNHDR type: BAD_IOF_OFFSET length: 16B checksum:  timestamp: 2016-06-23 13:24:36.053869+00:00
+  Payload:
+    SCMPPayload(40B): L4 proto: UDP
+      Common Header(8B): 004100a110201168
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 083000000008aeb8
+2016-06-23 13:24:36.325992+00:00 [WARNING] (MainThread) Invalid path metadata in packet from local source, sending SCMP error: Requested OF index (28) is out of range (max 9)
+CH ver: 0, src type: IPV4, dst type: IPV4, total len: 161B, IOF idx: 28, HOF idx: 1, next hdr: 17, hdr len: 104B
+SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.3)>
+<SCION-Path>
+  <A-Segment>
+    InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:24:27+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 3618bd
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 65c382
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: 7d1188
+  </A-Segment>
+  <B-Segment>
+    InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:22:57+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: ce9816
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 8e8c05
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 1c97ed
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 7fbccc
+  </B-Segment>
+</SCION-Path>
+2016-06-23 13:24:36.328952+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: CMNHDR type: BAD_IOF_OFFSET length: 16B checksum:  timestamp: 2016-06-23 13:24:36.325900+00:00
+  Payload:
+    SCMPPayload(40B): L4 proto: UDP
+      Common Header(8B): 004100a1f8201168
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 083100000008aeb7
+2016-06-23 13:24:36.532016+00:00 [WARNING] (MainThread) Invalid path metadata in packet from local source, sending SCMP error: Requested OF index (-3) is negative
+CH ver: 0, src type: IPV4, dst type: IPV4, total len: 161B, IOF idx: 0, HOF idx: -3, next hdr: 17, hdr len: 104B
+SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.3)>
+<SCION-Path>
+  <A-Segment>
+    InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:24:27+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 3618bd
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 65c382
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: 7d1188
+  </A-Segment>
+  <B-Segment>
+    InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:22:57+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: ce9816
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 8e8c05
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 1c97ed
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 7fbccc
+  </B-Segment>
+</SCION-Path>
+2016-06-23 13:24:36.537516+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: CMNHDR type: BAD_HOF_OFFSET length: 16B checksum:  timestamp: 2016-06-23 13:24:36.531924+00:00
+  Payload:
+    SCMPPayload(40B): L4 proto: UDP
+      Common Header(8B): 004100a118001168
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 083400000008aeb4
+2016-06-23 13:24:36.809798+00:00 [WARNING] (MainThread) Invalid path metadata in packet from local source, sending SCMP error: Requested OF index (28) is out of range (max 9)
+CH ver: 0, src type: IPV4, dst type: IPV4, total len: 161B, IOF idx: 0, HOF idx: 28, next hdr: 17, hdr len: 104B
+SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.3)>
+<SCION-Path>
+  <A-Segment>
+    InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:24:27+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 3618bd
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 65c382
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: 7d1188
+  </A-Segment>
+  <B-Segment>
+    InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:22:57+00:00, ISD: 1, hops: 4
+    HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: ce9816
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 8e8c05
+    HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 1c97ed
+    HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 7fbccc
+  </B-Segment>
+</SCION-Path>
+2016-06-23 13:24:36.815963+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: CMNHDR type: BAD_HOF_OFFSET length: 16B checksum:  timestamp: 2016-06-23 13:24:36.809705+00:00
+  Payload:
+    SCMPPayload(40B): L4 proto: UDP
+      Common Header(8B): 004100a118f81168
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 083500000008aeb3
+2016-06-23 13:24:37.087945+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPPathRequired'>
+2016-06-23 13:24:37.089343+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: PATH_REQUIRED length: 16B checksum:  timestamp: 2016-06-23 13:24:37.089231+00:00
+  Payload:
+    SCMPPayload(40B): L4 proto: UDP
+      Common Header(8B): 0041005118181118
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 083800000008aeb0
+2016-06-23 13:24:37.247077+00:00 [ERROR] (MainThread) Dropping packet due to incorrect MAC.
+Header:
+SCIONL4Packet(161B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 161B, IOF idx: 0, HOF idx: 1, next hdr: 17, hdr len: 104B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:24:27+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 000000
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 65c382
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: 7d1188
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:22:57+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: ce9816
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 8e8c05
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 1c97ed
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 7fbccc
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 2105 dport: 0 length: 57B checksum: 0177
+  Payload:
+    PayloadRaw(49B): 28312d313820284950563429203132372e302e302e32293c2d3e28312d313720[...]
+Invalid OF: HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 000000
+Prev OF: HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+2016-06-23 13:24:37.252515+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadMAC'>
+2016-06-23 13:24:37.254559+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: BAD_MAC length: 16B checksum:  timestamp: 2016-06-23 13:24:37.254446+00:00
+  Payload:
+    SCMPPayload(128B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 24B HOF offset: 32B IF id: 0 Ingress: False
+      Common Header(8B): 004100a118201168
+      Address Header(16B): 001000127f000002001000117f000003
+      Path Header(80B): 07576be30b000104003f001000000000013f001004045b51013f00200465c382023f0000047d118806576be2b1000104023f000004ce9816013f0020048e8c05013f0010041c97ed003f0010007fbccc
+      L4 Header(8B): 083900000008aeaf
+2016-06-23 13:24:37.438055+00:00 [ERROR] (MainThread) Dropping packet due to expired OF.
+Header:
+SCIONL4Packet(161B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 161B, IOF idx: 0, HOF idx: 1, next hdr: 17, hdr len: 104B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.2)> Dst:<(1-17 (IPV4) 127.0.0.3)>
+  <SCION-Path>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 1970-01-01 00:00:00+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 3618bd
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 045b51
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 65c382
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: 7d1188
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-06-23 13:22:57+00:00, ISD: 1, hops: 4
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 4, mac: ce9816
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 2, egress: 4, mac: 8e8c05
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 1, egress: 4, mac: 1c97ed
+      HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 7fbccc
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 2106 dport: 0 length: 57B checksum: 0176
+  Payload:
+    PayloadRaw(49B): 28312d313820284950563429203132372e302e302e32293c2d3e28312d313720[...]
+Expired OF: HopOpaqueField(8B): flags: None, exp_time: 63, ingress: 1, egress: 0, mac: 3618bd
+2016-06-23 13:24:37.441735+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPExpiredHOF'>
+2016-06-23 13:24:37.444162+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: EXPIRED_HOF length: 16B checksum:  timestamp: 2016-06-23 13:24:37.444042+00:00
+  Payload:
+    SCMPPayload(128B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 24B HOF offset: 32B IF id: 0 Ingress: False
+      Common Header(8B): 004100a118201168
+      Address Header(16B): 001000127f000002001000117f000003
+      Path Header(80B): 0700000000000104003f0010003618bd013f001004045b51013f00200465c382023f0000047d118806576be2b1000104023f000004ce9816013f0020048e8c05013f0010041c97ed003f0010007fbccc
+      L4 Header(8B): 083a00000008aeae
+2016-06-23 13:24:37.838446+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPNonRoutingHOF'>
+2016-06-23 13:24:37.840488+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: PATH type: NON_ROUTING_HOF length: 16B checksum:  timestamp: 2016-06-23 13:24:37.840379+00:00
+  Payload:
+    SCMPPayload(128B): L4 proto: UDP
+      SCMPInfoPathOffsets(8B): IOF offset: 24B HOF offset: 32B IF id: 0 Ingress: False
+      Common Header(8B): 004100a118201168
+      Address Header(16B): 001000127f000002001000117f000003
+      Path Header(80B): 07576be30b000104023f0010003618bd013f001004045b51013f00200465c382023f0000047d118806576be2b1000104023f000004ce9816013f0020048e8c05013f0010041c97ed003f0010007fbccc
+      L4 Header(8B): 083c00000008aeac
+2016-06-23 13:24:37.958243+00:00 [ERROR] (MainThread) Too many hop-by-hop extensions.
+2016-06-23 13:24:37.958800+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPTooManyHopByHop'>
+2016-06-23 13:24:37.961617+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(192B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 192B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  TracerouteExt(48B):
+    hops:1
+      ISD-AS: 1-18 IFID: 1 TS: 3526
+  TracerouteExt(48B):
+    hops:1
+      ISD-AS: 1-18 IFID: 1 TS: 3526
+  TracerouteExt(48B):
+    hops:1
+      ISD-AS: 1-18 IFID: 1 TS: 3526
+  SCMPHeader(16B): class: EXT type: TOO_MANY_HOPBYHOP length: 16B checksum:  timestamp: 2016-06-23 13:24:37.961498+00:00
+  Payload:
+    SCMPPayload(240B): L4 proto: UDP
+      SCMPInfoExtIdx(8B): Ext index: 3
+      Common Header(8B): 0041016118200068
+      Address Header(16B): 001000127f000002001000117f000003
+      Extension Headers(192B): 00050001000000000010001200010dc6000000000000000000000000000000000000000000000000000000000000000000050001000000000010001200010dc6000000000000000000000000000000000000000000000000000000000000000000050001000000000010001200010dc60000000000000000000000000000000000000000000000000000000000000000110500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      L4 Header(8B): 083f00000008aea9
+2016-06-23 13:24:38.113979+00:00 [ERROR] (MainThread) SCMP ext header not first.
+2016-06-23 13:24:38.114424+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadExtOrder'>
+2016-06-23 13:24:38.117590+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(96B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 96B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  TracerouteExt(48B):
+    hops:1
+      ISD-AS: 1-18 IFID: 1 TS: 3681
+  SCMPHeader(16B): class: EXT type: BAD_EXT_ORDER length: 16B checksum:  timestamp: 2016-06-23 13:24:38.117464+00:00
+  Payload:
+    SCMPPayload(104B): L4 proto: UDP
+      SCMPInfoExtIdx(8B): Ext index: 1
+      Common Header(8B): 004100d918200068
+      Address Header(16B): 001000127f000002001000117f000003
+      Extension Headers(56B): 00050001000000000010001200010e6100000000000000000000000000000000000000000000000000000000000000001100020100000000
+      L4 Header(8B): 084200000008aea6
+2016-06-23 13:24:38.287515+00:00 [ERROR] (MainThread) Unknown extension: 0-255
+2016-06-23 13:24:38.288088+00:00 [WARNING] (MainThread) Error: <class 'lib.packet.scmp.errors.SCMPBadHopByHop'>
+2016-06-23 13:24:38.317021+00:00 [WARNING] (MainThread) Reply:
+SCIONL4Packet(48B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 48B, IOF idx: None, HOF idx: None, next hdr: 0, hdr len: 24B
+  SCIONAddrHdr(16B): Src:<(1-18 (IPV4) 127.0.0.164)> Dst:<(1-18 (IPV4) 127.0.0.2)>
+  <SCION-Path>
+  </SCION-Path>
+  SCMPExt(8B): flags: ERROR|END2END
+  SCMPHeader(16B): class: EXT type: BAD_HOPBYHOP length: 16B checksum:  timestamp: 2016-06-23 13:24:38.316879+00:00
+  Payload:
+    SCMPPayload(48B): L4 proto: UDP
+      SCMPInfoExtIdx(8B): Ext index: 0
+      Common Header(8B): 004100d118200068
+      Address Header(16B): 001000127f000002001000117f000003
+      L4 Header(8B): 084300000008aea5
+2016-06-23 13:24:45.779359+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:15.808992+00:00 [INFO] (ER.request_ifstates) Sending IFStateRequest for all interfaces.
+2016-06-23 13:25:21.226122+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:25:21.836811+00:00 [INFO] (MainThread) Exiting

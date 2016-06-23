@@ -1,0 +1,18 @@
+2016-06-23 13:38:41.431649+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/cs1-11-3/certs/ISD1-V0.trc
+2016-06-23 13:38:41.461982+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/cs1-11-3/certs/ISD2-V0.trc
+2016-06-23 13:38:41.469939+00:00 [DEBUG] (MainThread) Loaded: gen/ISD1/AS11/cs1-11-3/certs/ISD1-AS11-V0.crt
+2016-06-23 13:38:41.470922+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:41.471305+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:41.471932+00:00 [DEBUG] (MainThread) Registered to dispatcher for addr (1-11 (IPV4) 127.0.0.68):30040
+2016-06-23 13:38:41.764955+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:44.284069+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:44.284415+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:44.284626+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:44.284793+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80079)
+2016-06-23 13:38:44.499337+00:00 [DEBUG] (MainThread) ZK connection available after 0.21s
+2016-06-23 13:38:45.129985+00:00 [DEBUG] (MainThread) Current party (/1-11/cs/party) members are: ['cs1-11-3']
+2016-06-23 13:38:45.130247+00:00 [INFO] (MainThread) Started cs1-11-3
+2016-06-23 13:38:46.914217+00:00 [INFO] (CS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:40:12.740098+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:12.975164+00:00 [DEBUG] (Elem.packet_recv) recv returned nil, socket closed
+2016-06-23 13:40:12.980447+00:00 [INFO] (MainThread) Exiting

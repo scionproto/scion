@@ -1,0 +1,178 @@
+2016-06-23 13:38:10.519698+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/ps2-24-1/certs/ISD1-V0.trc
+2016-06-23 13:38:10.520220+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/ps2-24-1/certs/ISD2-V0.trc
+2016-06-23 13:38:10.520812+00:00 [DEBUG] (MainThread) Loaded: gen/ISD2/AS24/ps2-24-1/certs/ISD2-AS24-V0.crt
+2016-06-23 13:38:10.521279+00:00 [DEBUG] (MainThread) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:10.626331+00:00 [DEBUG] (MainThread) Attempt connect
+2016-06-23 13:38:10.626551+00:00 [WARNING] (MainThread) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:10.662603+00:00 [INFO] (MainThread) Connecting to Zookeeper
+2016-06-23 13:38:10.780584+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 1)
+2016-06-23 13:38:10.780959+00:00 [DEBUG] (MainThread) Waiting for ZK connection
+2016-06-23 13:38:10.781405+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: startup, new state: CONNECTED
+2016-06-23 13:38:10.781575+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f80010)
+2016-06-23 13:38:10.789417+00:00 [DEBUG] (MainThread) ZK connection available after 0.01s
+2016-06-23 13:38:10.796315+00:00 [DEBUG] (MainThread) Current party (/2-24/ps/party) members are: ['ps2-24-1']
+2016-06-23 13:38:10.796586+00:00 [INFO] (MainThread) Started ps2-24-1
+2016-06-23 13:38:10.855317+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:10.855567+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:10.855759+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:11.829885+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 1)
+2016-06-23 13:38:11.857476+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:11.857716+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:11.857910+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:12.859601+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:12.859855+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:12.860045+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:13.861512+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:13.861740+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:13.861920+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:14.863543+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:14.863788+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:14.863969+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:15.865564+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:15.865817+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:15.866007+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:16.867669+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:16.867919+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:16.868101+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:17.869524+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:17.869777+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:17.869959+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:18.871635+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:18.871880+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:18.872053+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:19.873526+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:19.873770+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:19.873946+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:20.874850+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:20.875100+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:20.875313+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:21.877560+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:21.877831+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:21.878013+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:22.879673+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:22.879934+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:22.880124+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:23.881540+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:23.881785+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:23.881955+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:24.883452+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:24.883697+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:24.883887+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:25.885502+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:25.885738+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:25.885927+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:26.887577+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:26.887814+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:26.887990+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:27.889510+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:27.889764+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:27.889942+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:28.891606+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:28.891862+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:28.892047+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:29.893548+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:29.893811+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:29.893995+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:30.895656+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:30.895920+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:30.896102+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:31.897537+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:31.897789+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:31.897974+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:32.898859+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:32.899113+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:32.899303+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:33.901017+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:33.901270+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:33.901487+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:34.903170+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:34.903416+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:34.903594+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:35.910029+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:35.910235+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:35.910382+00:00 [WARNING] (Elem.packet_recv) Connect error: [Errno 2] No such file or directory
+2016-06-23 13:38:36.911151+00:00 [DEBUG] (Elem.packet_recv) connect to dispatcher at path /run/shm/dispatcher.sock
+2016-06-23 13:38:36.911407+00:00 [DEBUG] (Elem.packet_recv) Attempt connect
+2016-06-23 13:38:36.949472+00:00 [DEBUG] (Elem.packet_recv) Registered to dispatcher for addr (2-24 (IPV4) 127.0.0.249):30040
+2016-06-23 13:38:37.318859+00:00 [DEBUG] (Thread-3) Kazoo state changed to SUSPENDED (epoch 2)
+2016-06-23 13:38:37.319475+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: CONNECTED, new state: SUSPENDED
+2016-06-23 13:38:37.319649+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper suspended
+2016-06-23 13:38:37.846810+00:00 [DEBUG] (PS.worker) Waiting for ZK connection
+2016-06-23 13:38:41.950438+00:00 [DEBUG] (Thread-3) Kazoo state changed to LOST (epoch 3)
+2016-06-23 13:38:41.952855+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: SUSPENDED, new state: LOST
+2016-06-23 13:38:41.953050+00:00 [INFO] (libZK._state_handler) Connection to Zookeeper lost
+2016-06-23 13:38:45.022968+00:00 [DEBUG] (Thread-3) Kazoo state changed to CONNECTED (epoch 4)
+2016-06-23 13:38:45.024391+00:00 [DEBUG] (libZK._state_handler) Kazoo old state: LOST, new state: CONNECTED
+2016-06-23 13:38:45.024566+00:00 [DEBUG] (libZK._state_handler) Connection to Zookeeper succeeded (Session: 0x1557d7b56f8008d)
+2016-06-23 13:38:45.293716+00:00 [DEBUG] (libZK._state_handler) Current party (/2-24/ps/party) members are: ['ps2-24-1']
+2016-06-23 13:38:45.294008+00:00 [DEBUG] (PS.worker) ZK connection available after 7.45s
+2016-06-23 13:38:45.868312+00:00 [INFO] (PS.worker) Successfully acquired ZK lock (epoch 4)
+2016-06-23 13:38:45.868718+00:00 [WARNING] (PS.worker) cPS.worker cycle took too long: 8.022s (should have been <= 1.000s)
+2016-06-23 13:39:22.342842+00:00 [DEBUG] (MainThread) Received revocation from (2-24 (IPV4) 127.0.0.241):
+RevocationInfo: ( ifID = 1,
+  epoch = 4916,
+  nonce = "\xb7\x06\xa3\x9cA\x19p\x06\xabbS\xdb\xe0\x9aS\xb2[$\xeb\xf1\xcd\xcfQL\x89\xda\x9d\x19\x82 @b",
+  siblings = [
+    ( isLeft = false,
+      hash = "D\x10\xc4\xd0\xc98.G\x9cjwD\xe1\xbe;\xf9w\"Q\xd4\x9e\xa4,L\x15h:C\xcb\xe3\xb5" ),
+    ( isLeft = false,
+      hash = "\x86*\x8ck\"2\x1c\xc6\x98\xfa/\x04\x17.\x1aW*\x8e\xe1j8\xb9V\x85uI\xab\xff\x19\x82\x8c\xa9" ),
+    ( isLeft = true,
+      hash = "\x9b\xa0Q\xf3\x92\xaf\x94\xdb\x86\x0fC\x0f?\xc9D\xb88\v\x89\x17\x87\x10\x8b\x95lM}\x18\x1b\xfd\x04u" ),
+    ( isLeft = false,
+      hash = "\xaa\x8e!\x83\xbb\xac\xb2Q\xc1\x98\xec\xf8\x0f\x8a\xc2U\x83\r{\\\x04&%\xf3\xc9\x84\x1eb\xb8\xd1\a\xae" ),
+    ( isLeft = true,
+      hash = "\x8eP\xc0/7\x17L!\x90P\x16\xbf\t\"\x95\bxdS\'r\xa1\xda$\x05 OCSbx\xf3" ),
+    ( isLeft = true,
+      hash = "-r\'x\x0e\xb0\xd3\x9d^\x91\x81\x15\b\x1d&\xda\xceb\xbb\f1L\x85\x0e\x00\x1b\xf0\xefN\xbbq\xf4" ),
+    ( isLeft = false,
+      hash = "\x15p\xa5_\xc51l#\xea\xf5\x15d\xf8n\x88{\x9c\x06\xe7\x02\v*\xee\xcas\xd0\xd1\x93\xabX\xf7*" ),
+    ( isLeft = false,
+      hash = "\xeb\xef\x90Z(!W*\x9e@D8?7\xbd\xa2\x04A\xba2\x06\x9f\xf7\xaa\x8cd\x9aj\xb9\x11\xc2n" ),
+    ( isLeft = true,
+      hash = "\xb0\xa0\xab\x94\x14@i\x86\xbe\x1b\x90\xa6_\b\xf9rk\x0e\xe8\x0fZi8\xbf\xc4\x83\xbe\x81HYE\xf5" ),
+    ( isLeft = true,
+      hash = "\xdbn<\x8b\xf6\x92)\x8cV\xb4\x9d\xcf\xa4\x02\x92\xe5nr\x19\x87\xc4G\"\xc2\xa6\xf6\xc8\xdeN%\xc8" ),
+    ( isLeft = false,
+      hash = "\f\x0ex\x89\\\x0f\xc5\x0e<\xae2=\x8a!\t\bfh\xad\x13\x8e\x14\xb4\a\xd5W\x9e\xa7i\xec9b" ),
+    ( isLeft = false,
+      hash = "\xfd\x00\x11\x9c\xe4\x92\x8b\xf8\xb3$\xd0\xfd*\x88\xd7\xfe\xd5\xdb#9\xfbk\xf3i\xa8\xa9]\xd4\xa1\xd3\xae" ),
+    ( isLeft = true,
+      hash = "\xb2\\u\x04!\xb4\x80\xd2\xc9&\x9f\xfc\xed;\x16b\xde{\v\xbdcf\x99+\x0e\xf2\xfa!W\xe6\xa1\xe4" ),
+    ( isLeft = false,
+      hash = "o\xd1>\xe6\xbezE\xe6\x84\xd8U\xac\'\xb7x\x88\xdc\xd0\f\xed\xdf\x1dH\xd7\xc3\xa7b\x97xnP&" ),
+    ( isLeft = false,
+      hash = "\x1d\x15\xd7\xb47mJ\x04\xb3\\\x11\xf6a\xea\xb6\xd73\xec\x04\xebQ\xe1\xb6\xf8W<l\x11/V4\x85" ) ],
+  prevRoot = "\x81\x92i<|]W\xf1l\x13\xcf\f\x86X\xf9^n\xc2\xa3\x86m\t\x83\xa1^\xcaUky\x99.;",
+  nextRoot = "\xcb\xbbe\xc3<z\xda\xe0\xd0\xc9\xe59\n\x93\x80q\xa0\a\x86d=^>\xf6\x91\xb4U\x81\xf1\x03\x0f\x12" )
+2016-06-23 13:39:22.913198+00:00 [INFO] (PS.worker) Sharing 1 revocation(s) via ZK
+2016-06-23 13:39:27.326009+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-24: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+2016-06-23 13:39:27.326824+00:00 [INFO] (MainThread) Up-Segment registered: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+2016-06-23 13:39:27.784049+00:00 [DEBUG] (MainThread) Added segment from 2-22 to 2-24: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+  SibraPCBExt: id: 00200018e18c4d91 (owner: 2-24) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.784890+00:00 [INFO] (MainThread) Up-Segment registered: fe53b1034562, 2016-06-23 13:39:23+00:00, 2-22 > 2-24
+  SibraPCBExt: id: 00200018e18c4d91 (owner: 2-24) Up? True
+  ResvInfoSteady(8B): Resv idx:  0 Fwd: 11.0(512.0Kibit/s) Rev: 11.0(512.0Kibit/s)
+    Failhop: 0 Dir fwd: True Expiry: 2016-06-23 13:42:24+00:00
+2016-06-23 13:39:27.929826+00:00 [INFO] (PS.worker) Sharing 2 segment(s) via ZK
+2016-06-23 13:39:32.345167+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:28+00:00, 2-22 > 2-24
+2016-06-23 13:39:32.924375+00:00 [DEBUG] (PS.worker) Expired 1 old entries from /2-24/ps/rev_cache
+2016-06-23 13:39:32.924538+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:38.333023+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:33+00:00, 2-22 > 2-24
+2016-06-23 13:39:38.930294+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:43.334356+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:38+00:00, 2-22 > 2-24
+2016-06-23 13:39:43.933820+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:48.353261+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:43+00:00, 2-22 > 2-24
+2016-06-23 13:39:48.937786+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:53.351098+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:48+00:00, 2-22 > 2-24
+2016-06-23 13:39:53.942567+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:39:58.355930+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:53+00:00, 2-22 > 2-24
+2016-06-23 13:39:58.947540+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:03.358090+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:39:58+00:00, 2-22 > 2-24
+2016-06-23 13:40:03.952738+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:08.389210+00:00 [DEBUG] (MainThread) Up-Segment updated: fe53b1034562, 2016-06-23 13:40:03+00:00, 2-22 > 2-24
+2016-06-23 13:40:08.958556+00:00 [INFO] (PS.worker) Sharing 1 segment(s) via ZK
+2016-06-23 13:40:09.805084+00:00 [INFO] (MainThread) Received SIGTERM
+2016-06-23 13:40:10.380722+00:00 [INFO] (MainThread) Exiting
