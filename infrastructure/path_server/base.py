@@ -195,8 +195,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
-        h = (rev_info.p.ifID, rev_info.p.epoch,
-             rev_info.p.prevRoot, rev_info.p.nextRoot)
+        h = rev_info.copy().pack()
         if h in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return

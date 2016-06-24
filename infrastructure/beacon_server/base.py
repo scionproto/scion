@@ -27,6 +27,7 @@ from threading import Lock
 
 # External packages
 from Crypto.Protocol.KDF import PBKDF2
+from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
@@ -37,6 +38,7 @@ from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     HASHTREE_EPOCH_TIME,
+    HASHTREE_EPOCH_TOLERANCE,
     PATH_POLICY_FILE,
     PATH_SERVICE,
     SCION_UDP_PORT,
@@ -121,6 +123,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info(self.config.__dict__)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
+        self._init_hash_tree()
         self.ifid_state = {}
         for ifid in self.ifid2er:
             self.ifid_state[ifid] = InterfaceState()
@@ -137,7 +140,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 PMT.REVOCATION: self._handle_revocation,
             },
         }
-
         self.SCMP_PLD_CLASS_MAP = {
             SCMPClass.PATH: {
                 SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
@@ -155,6 +157,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs)
         self.revobjs_cache = ZkSharedCache(
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
+        self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
+                                            HASHTREE_EPOCH_TOLERANCE)
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2er.keys())
@@ -369,23 +373,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
+                self.handle_rev_objs()
+
+                cur_ttl_window = ConnectedHashTree.get_ttl_window()
+                if cur_ttl_window != last_ttl_window:
+                    self._maintain_hash_tree()
+                    cur_ttl_window = last_ttl_window
+
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     was_master = False
-                    with self._hash_tree_lock:
-                        self._hash_tree = None
                     continue
                 if not was_master:
                     self._became_master()
-                    last_ttl_window = ConnectedHashTree.get_ttl_window()
                     was_master = True
                 self.pcb_cache.expire(self.config.propagation_time * 10)
                 self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
             except ZkNoConnection:
                 continue
-            cur_ttl_window = ConnectedHashTree.get_ttl_window()
-            if cur_ttl_window != last_ttl_window:
-                self._maintain_hash_tree()
-                cur_ttl_window = last_ttl_window
             now = time.time()
             if now - last_propagation >= self.config.propagation_time:
                 self.handle_pcbs_propagation()
@@ -405,8 +409,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rebuilt over time.
         """
         # Reset all timed-out and revoked interfaces to inactive.
-        with self._hash_tree_lock:
-            self._init_hash_tree()
         with self.ifid_state_lock:
             for (_, ifstate) in self.ifid_state.items():
                 if not ifstate.is_active():
@@ -540,11 +542,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for raw in rev_infos:
             try:
                 rev_info = RevocationInfo.from_raw(raw)
+                h = rev_info.copy().pack()
+                self.local_rev_cache[h] = rev_info.copy()
             except SCIONParseError as e:
                 logging.error("Error processing revocation info from ZK: %s",
                               e)
                 continue
-            self._remove_revoked_pcbs(rev_info)
 
     def _issue_revocation(self, if_id):
         """
@@ -567,6 +570,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             state_pkt.set_payload(pld.copy())
             self.send(state_pkt, er.addr)
         self._process_revocation(rev_info)
+        self._send_rev_to_local_ps(rev_info)
 
     def _send_rev_to_local_ps(self, rev_info):
         """
@@ -584,21 +588,22 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Sending revocation to local PS.")
             self.send(pkt, ps_addr)
 
-    # FIXME(SIVA): There is no real need for this handler, as everytime the
-    # beacon server receives an SCMP error message, the edge router would
-    # have forwarded a PathMgmt packet with the same RevInfo as the payload
     def _handle_scmp_revocation(self, spkt):
         pld = spkt.get_payload()
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.info("Received revocation via SCMP:\n%s", rev_info)
-        self._process_revocation(rev_info, False)
+        self._process_revocation(rev_info)
 
     def _handle_revocation(self, pkt):
         rev_info = pkt.get_payload()
         logging.info("Received revocation via UDP:\n%s", rev_info)
-        self._process_revocation(rev_info, False)
+        self._process_revocation(rev_info)
 
-    def _process_revocation(self, rev_info, send_to_ps=True):
+    def handle_rev_objs(self):
+        for rev_info in self.local_rev_cache.values():
+            self._remove_revoked_pcbs(rev_info)
+
+    def _process_revocation(self, rev_info):
         """
         Removes PCBs containing a revoked interface and sends the revocation
         to the local PS.
@@ -612,15 +617,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Trying to revoke IF with ID 0.")
             return
 
+        h = rev_info.copy().pack()
+        self.local_rev_cache[h] = rev_info.copy()
+
         logging.info("Storing revocation in ZK.")
         rev_token = rev_info.copy().pack()
         entry_name = "%s:%s" % (hash(rev_token), time.time())
         self.revobjs_cache.store(entry_name, rev_token)
-
         self._remove_revoked_pcbs(rev_info)
-        if send_to_ps:
-            # Send revocations to local PS.
-            self._send_rev_to_local_ps(rev_info)
 
     @abstractmethod
     def _remove_revoked_pcbs(self, rev_info):
@@ -651,11 +655,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                 continue
 
-            if self.zk.have_lock():
-                root_verify = ConnectedHashTree.verify(
-                                rev_info, self._get_ht_root())
-                if cand.pcb.p.ifID == rev_info.p.ifID and root_verify:
-                    to_remove.append(cand.id)
+            root_verify = ConnectedHashTree.verify(
+                            rev_info, self._get_ht_root())
+            if cand.pcb.p.ifID == rev_info.p.ifID and root_verify:
+                to_remove.append(cand.id)
 
             for asm in cand.pcb.iter_asms():
                 if self.verify_asm(asm, rev_info):
@@ -683,11 +686,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 for (if_id, if_state) in self.ifid_state.items():
                     cur_epoch = ConnectedHashTree.get_current_epoch()
                     # Check if interface has timed-out.
-                    if if_state.is_expired():
-                        if if_id_last_revoked[if_id] != cur_epoch:
+                    if ((if_state.is_expired() or if_state.is_revoked()) and
+                       (if_id_last_revoked[if_id] != cur_epoch)):
                             if_id_last_revoked[if_id] = cur_epoch
-                            logging.info("IF %d appears to be down.", if_id)
+                            if not if_state.is_revoked():
+                                logging.info("IF %d appears to be down.", if_id)
                             self._issue_revocation(if_id)
+                            if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
