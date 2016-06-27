@@ -27,7 +27,7 @@ from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
-from lib.zookeeper import ZkNoConnection
+from lib.zk.errors import ZkNoConnection
 
 
 class CorePathServer(PathServer):

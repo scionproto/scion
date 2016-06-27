@@ -57,7 +57,7 @@ from lib.util import (
     read_file,
     sleep_interval,
 )
-from lib.zookeeper import Zookeeper
+from lib.zk.zk import Zookeeper
 
 # How long to wait for path propagation before setting up steady paths over
 # routing links

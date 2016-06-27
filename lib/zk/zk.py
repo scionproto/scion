@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`zookeeper` --- Library for interfacing with Zookeeper
-===========================================================
+:mod:`zk` --- Main lib.zk class
+===============================
 """
 # Stdlib
 import logging
-import os.path
+import os
 import queue
 import threading
-from collections import deque
+import time
 
 # External packages
 from kazoo.client import KazooClient, KazooRetry, KazooState
@@ -28,35 +28,14 @@ from kazoo.exceptions import (
     ConnectionLoss,
     LockTimeout,
     NoNodeError,
-    NodeExistsError,
     SessionExpiredError,
 )
 from kazoo.handlers.threading import KazooTimeoutError
 
 # SCION
-from lib.errors import SCIONBaseError
 from lib.thread import kill_self, thread_safety_net
-from lib.util import SCIONTime
-
-
-class ZkBaseError(SCIONBaseError):
-    """Base exception class for all lib.zookeeper exceptions."""
-    pass
-
-
-class ZkNoConnection(ZkBaseError):
-    """No connection to Zookeeper."""
-    pass
-
-
-class ZkNoNodeError(ZkBaseError):
-    """A node doesn't exist."""
-    pass
-
-
-class ZkRetryLimit(ZkBaseError):
-    """Operation hit retry limit."""
-    pass
+from lib.zk.errors import ZkNoConnection, ZkRetryLimit
+from lib.zk.party import ZkParty
 
 
 class Zookeeper(object):
@@ -264,7 +243,7 @@ class Zookeeper(object):
         if self.is_connected():
             return
         logging.debug("Waiting for ZK connection")
-        start = SCIONTime.get_time()
+        start = time.time()
         total_time = 0.0
         if timeout is None:
             next_timeout = 10.0
@@ -272,7 +251,7 @@ class Zookeeper(object):
             if timeout is not None:
                 next_timeout = min(timeout - total_time, 10.0)
             ret = self._connected.wait(timeout=next_timeout)
-            total_time = SCIONTime.get_time() - start
+            total_time = time.time() - start
             if ret:
                 logging.debug("ZK connection available after %.2fs", total_time)
                 return
@@ -446,227 +425,3 @@ class Zookeeper(object):
                 logging.warning("%s: Connection to ZK dropped", desc)
         raise ZkRetryLimit("%s: Failed %s times, giving up" %
                            (desc, 1+_retries))
-
-
-class ZkParty(object):
-    """
-    A wrapper for a `Kazoo Party
-    <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
-    """
-    def __init__(self, zk, path, id_, autojoin_):
-        """
-        :param zk: A kazoo instance
-        :param str path: The absolute path of the party
-        :param str id_: The service id value to use in the party
-        :param bool autojoin_: Join the party automatically
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-        """
-        self._autojoin = autojoin_
-        self._path = path
-        try:
-            self._party = zk.Party(path, id_)
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-        self.autojoin()
-
-    def join(self):
-        """
-        Join Kazoo Party.
-
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-        """
-        try:
-            self._party.join()
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-
-    def autojoin(self):
-        """If the autojoin parameter was set to True, join the party."""
-        if self._autojoin:
-            self.join()
-        entries = self.list()
-        names = set([entry.split("\0")[0] for entry in entries])
-        logging.debug("Current party (%s) members are: %s", self._path,
-                      sorted(names))
-
-    def list(self):
-        """
-        List the current party member IDs
-
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-        """
-        try:
-            return set(self._party)
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-
-
-class ZkSharedCache(object):
-    """Class for handling ZK shared caches."""
-    def __init__(self, zk, path, handler):  # pragma: no cover
-        """
-        :param Zookeeper zk: A Zookeeper instance.
-        :param str path: The path of the shared cache.
-        :param function handler: Handler for a list of cache entries.
-        """
-        self._zk = zk
-        self._kazoo = zk.kazoo
-        self._path = os.path.join(self._zk.prefix, path)
-        self._handler = handler
-        # A mapping from entry name to the timestamp it was first encountered
-        # at.
-        self._entries = {}
-        # A queue for the store() thread to inform the process()/expire() thread
-        # about newly created entries.
-        self._incoming_entries = deque()
-
-    def store(self, name, value):
-        """
-        Store an entry in the cache.
-
-        :param str name: Name of the entry. E.g. ``"item01"``.
-        :param bytes value: The value of the entry.
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-        """
-        if not self._zk.is_connected():
-            raise ZkNoConnection
-        full_path = os.path.join(self._path, name)
-        # First, assume the entry already exists (the normal case)
-        try:
-            self._kazoo.set(full_path, value)
-            self._incoming_entries.append((name, SCIONTime.get_time()))
-            return
-        except NoNodeError:
-            pass
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-        # Entry doesn't exist, so create it instead.
-        try:
-            self._kazoo.create(full_path, value, makepath=True)
-            self._incoming_entries.append((name, SCIONTime.get_time()))
-            return
-        except NodeExistsError:
-            # Entry was created between our check and our create, so assume that
-            # the contents are recent, and return without error.
-            pass
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-
-    def process(self):
-        """
-        Look for new/updated entries, and pass them to the registered handler.
-
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-        """
-        if not self._zk.is_connected():
-            raise ZkNoConnection
-        # Update self._entries with any new entries we have created via store()
-        while self._incoming_entries:
-            name, ts = self._incoming_entries.popleft()
-            # If the entry already exists, don't change it.
-            self._entries.setdefault(name, ts)
-        previous = set(self._entries)
-        current = set(self._list_entries())
-        for entry in previous - current:
-            # Remove stale entry names
-            del self._entries[entry]
-        count = self._handle_entries(current - previous)
-        if count:
-            logging.debug("Processed %d new entries from %s", count,
-                          self._path)
-
-    def _get(self, name):
-        """
-        Get an entry from the cache.
-
-        :param str name: Name of the entry. E.g. ``"pcb0000002046"``.
-        :return: The value of the entry.
-        :rtype: :class:`bytes`
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-            ZkNoNodeError: if the entry does not exist.
-        """
-        full_path = os.path.join(self._path, name)
-        try:
-            data, _ = self._kazoo.get(full_path)
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-        except NoNodeError:
-            self._entries.pop(name, None)
-            raise ZkNoNodeError from None
-        self._entries.setdefault(name, SCIONTime.get_time())
-        return data
-
-    def _list_entries(self):
-        """
-        List all entries.
-
-        :return: A set of entry names.
-        :rtype: set(:class:`str`, ..)
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-        """
-        try:
-            return set(self._kazoo.get_children(self._path))
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-        except NoNodeError:
-            # This means the cache dir hasn't been created yet by store(),
-            # so just return an empty set.
-            return set()
-
-    def _handle_entries(self, entry_names):
-        """
-        Retrieve the data for a set of entries, and pass it to the registered
-        handler.
-
-        :param set entry_names: Entry names.
-        :returns: Number of entries passed to handler.
-        """
-        data = []
-        for name in entry_names:
-            try:
-                data.append(self._get(name))
-            except ZkNoConnection:
-                logging.warning("Unable to retrieve entry from shared "
-                                "path %s: no connection to ZK" % self._path)
-                break
-            except ZkNoNodeError:
-                logging.debug("Unable to retrieve entry from shared cache: "
-                              "no such entry (%s/%s)" % (self._path, name))
-                continue
-        self._handler(data)
-        return len(data)
-
-    def expire(self, ttl):
-        """
-        Delete entries first seen more than `ttl` seconds ago.
-
-        :param float ttl:
-            Age (in seconds) after which cache entries should be removed.
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-            ZkNoNodeError: if a node disappears unexpectedly.
-        """
-        if not self._zk.is_connected():
-            raise ZkNoConnection
-        now = SCIONTime.get_time()
-        count = 0
-        for entry, ts in self._entries.items():
-            if now - ts > ttl:
-                full_path = os.path.join(self._path, entry)
-                count += 1
-                try:
-                    self._kazoo.delete(full_path)
-                except NoNodeError:
-                    # This shouldn't happen, so raise an exception if it does.
-                    raise ZkNoNodeError
-                except (ConnectionLoss, SessionExpiredError):
-                    raise ZkNoConnection from None
-        if count:
-            logging.debug("Expired %d old entries from %s", count, self._path)

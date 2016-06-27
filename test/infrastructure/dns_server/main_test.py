@@ -33,7 +33,7 @@ from lib.defines import (
     SCION_DNS_PORT,
     SIBRA_SERVICE,
 )
-from lib.zookeeper import ZkNoConnection
+from lib.zk.errors import ZkNoConnection
 from test.testcommon import create_mock
 
 

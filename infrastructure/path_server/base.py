@@ -35,7 +35,9 @@ from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import SCIONTime, sleep_interval
-from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
+from lib.zk.cache import ZkSharedCache
+from lib.zk.errors import ZkNoConnection
+from lib.zk.zk import Zookeeper
 
 
 class PathServer(SCIONElement, metaclass=ABCMeta):
