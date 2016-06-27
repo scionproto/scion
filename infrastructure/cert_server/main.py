@@ -44,7 +44,9 @@ from lib.util import (
     SCIONTime,
     sleep_interval,
 )
-from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
+from lib.zk.cache import ZkSharedCache
+from lib.zk.errors import ZkNoConnection
+from lib.zk.zk import Zookeeper
 
 
 class CertServer(SCIONElement):
