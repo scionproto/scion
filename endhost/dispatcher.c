@@ -435,6 +435,7 @@ void register_ssp(uint8_t *buf, int len, int sock)
         if (old) {
             zlog_error(zc, "address-flow already registered");
             reply(sock, 1);
+            cleanup_socket(sock, num_sockets - 1, EINVAL);
             return;
         }
         e->list = &ssp_flow_list;
@@ -442,8 +443,8 @@ void register_ssp(uint8_t *buf, int len, int sock)
         zlog_info(zc, "flow registration success: %" PRIu64, e->l4_key.flow_id);
     } else {
         if (find_available_port(ssp_wildcard_list, &e->l4_key) < 0) {
-            free(e);
             reply(sock, 0);
+            cleanup_socket(sock, num_sockets - 1, EINVAL);
             return;
         }
         e->list = &ssp_wildcard_list;
@@ -460,8 +461,8 @@ void register_udp(uint8_t *buf, int len, int sock)
     if (!e)
         return;
     if (find_available_port(udp_port_list, &e->l4_key) < 0) {
-        free(e);
         reply(sock, 0);
+        cleanup_socket(sock, num_sockets - 1, EINVAL);
         return;
     }
     e->list = &udp_port_list;
@@ -883,7 +884,8 @@ void cleanup_socket(int sock, int index, int err)
     HASH_FIND(pollhh, poll_fd_list, &sock, sizeof(sock), e);
     if (e) {
         HASH_DELETE(pollhh, poll_fd_list, e);
-        HASH_DELETE(hh, *(e->list), e);
+        if (e->list)
+            HASH_DELETE(hh, *(e->list), e);
         if (e->se) {
             int i;
             for (i = 0; i < e->se->count; i++) {

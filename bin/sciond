@@ -44,7 +44,8 @@ def sciond_default():
                  console_level=logging.CRITICAL)
     addr = haddr_parse_interface(args.addr)
 
-    inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, run_local_api=True)
+    inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, run_local_api=True,
+                       port=0)
     logging.info("Started %s", args.sciond_id)
     inst.run()
 
