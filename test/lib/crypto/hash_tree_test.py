@@ -41,9 +41,7 @@ class TestHashTreeCalcTreeDepth(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test_for_non2power(self, _):
         # Setup
-        if_ids = [1, 2, 3]
-        seed = b"abc"
-        inst = HashTree(if_ids, seed)
+        inst = HashTree("if_ids", "seed")
         # Call
         inst.calc_tree_depth(6)
         # Tests
@@ -69,10 +67,9 @@ class TestHashTreeCreateTree(object):
     def test(self, _):
         # Setup
         if_ids = [1, 2, 3]
-        hash_func_side_effect = ["s10", "10s10", "s20", "20s20", "s30",
-                                 "30s30", "0", "30s300", "10s1020s20",
-                                 "10s1020s2030s300"]
-        hash_new = create_mock_full({"digest()...": hash_func_side_effect})
+        hashes = ["s10", "10s10", "s20", "20s20", "s30", "30s30", "0", "30s300",
+                  "10s1020s20", "10s1020s2030s300"]
+        hash_new = create_mock_full({"digest()...": hashes})
         hash_func = create_mock_full({"new()": hash_new})
         inst = HashTree(if_ids, "s", hash_func)
         inst._n_epochs = 1
@@ -124,7 +121,8 @@ class TestConnectedHashTreeUpdate(object):
         root1_before_update = inst._ht1._nodes[0]
         root2_before_update = inst._ht2._nodes[0]
         # Call
-        inst.update(if_ids, b"new!!seed")
+        new_tree = inst.get_next_tree(if_ids, b"new!!seed")
+        inst.update(new_tree)
         # Tests
         root0_after_update = inst._ht0_root
         root1_after_update = inst._ht1._nodes[0]
@@ -170,7 +168,8 @@ class TestConnectedHashTreeUpdateAndVerify(object):
         inst = ConnectedHashTree(if_ids, initial_seed)
         root = inst.get_root()
         # Call
-        inst.update(if_ids, b"new!!seed")
+        next_tree = inst.get_next_tree(if_ids, b"new!!seed")
+        inst.update(next_tree)
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
         ntools.eq_(ConnectedHashTree.verify(proof, root), True)
@@ -183,8 +182,10 @@ class TestConnectedHashTreeUpdateAndVerify(object):
         inst = ConnectedHashTree(if_ids, initial_seed)
         root = inst.get_root()
         # Call
-        inst.update(if_ids, b"newseed.@1")
-        inst.update(if_ids, b"newseed/.@2")
+        new_tree = inst.get_next_tree(if_ids, b"newseed.@1")
+        inst.update(new_tree)
+        new_tree = inst.get_next_tree(if_ids, b"newseed.@2")
+        inst.update(new_tree)
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
         ntools.eq_(ConnectedHashTree.verify(proof, root), False)

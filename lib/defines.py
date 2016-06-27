@@ -128,3 +128,5 @@ HASHTREE_EPOCH_TOLERANCE = 5
 HASHTREE_TTL = 15 * 60
 # Number of epochs in one TTL per interface
 HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
+# How much time in advance to compute the next hash tree
+HASHTREE_UPDATE_WINDOW = 3 * 60

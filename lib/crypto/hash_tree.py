@@ -174,15 +174,23 @@ class ConnectedHashTree(object):
     def get_time_since_epoch(cls):
         return time.time() % HASHTREE_EPOCH_TIME
 
-    def update(self, if_ids, seed):
-        """
-        Shift the connected hash-tree to the next time interval (T+1).
-        The 'if_ids' need to match that given during __init__.
-        """
-        seed += (self.get_ttl_window() + 1).to_bytes(8, 'big')
+    @classmethod
+    def get_time_since_ttl(cls):
+        return time.time() % HASHTREE_TTL
+
+    @classmethod
+    def get_time_till_next_ttl(cls):
+        return HASHTREE_TTL - cls.get_time_since_ttl()
+
+    @classmethod
+    def get_next_tree(cls, if_ids, seed, hash_func=SHA256):
+        seed += (cls.get_ttl_window() + 2).to_bytes(8, 'big')
+        return HashTree(if_ids, seed, hash_func)
+
+    def update(self, next_tree):
         self._ht0_root = self._ht1._nodes[0]
         self._ht1 = self._ht2
-        self._ht2 = HashTree(if_ids, seed, self._hash_func)
+        self._ht2 = next_tree
 
     def get_root(self):
         """

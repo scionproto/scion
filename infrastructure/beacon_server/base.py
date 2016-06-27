@@ -39,6 +39,8 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
+    HASHTREE_TTL,
+    HASHTREE_UPDATE_WINDOW,
     PATH_POLICY_FILE,
     PATH_SERVICE,
     SCION_UDP_PORT,
@@ -123,6 +125,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info(self.config.__dict__)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
+        self._next_tree = None
+        self._next_tree_lock = Lock()
         self._init_hash_tree()
         self.ifid_state = {}
         for ifid in self.ifid2er:
@@ -342,15 +346,47 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self._handle_if_timeouts,),
             name="BS._handle_if_timeouts", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._create_next_tree,),
+            name="BS._create_next_tree", daemon=True).start()
         super().run()
+
+    def _create_next_tree(self):
+        start = time.time()
+        time_to_sleep = (ConnectedHashTree.get_time_till_next_ttl() -
+                         HASHTREE_UPDATE_WINDOW)
+        if time_to_sleep > 0:
+            sleep_interval(start, time_to_sleep, "BS._create_next_tree",
+                           self._quiet_startup())
+        while self.run_flag.is_set():
+            # at this point, there should be HASHTREE_UPDATE_WINDOW
+            # seconds left in current ttl
+            logging.info("Started computing hashtree for next ttl")
+            last_ttl_window = ConnectedHashTree.get_ttl_window()
+
+            ifs = list(self.ifid2er.keys())
+            with self._next_tree_lock:
+                self._next_tree = ConnectedHashTree.get_next_tree(
+                                    ifs, self.hashtree_gen_key)
+            start = time.time()
+            cur_ttl_window = ConnectedHashTree.get_ttl_window()
+            time_to_sleep = (ConnectedHashTree.get_time_till_next_ttl() -
+                             HASHTREE_UPDATE_WINDOW)
+            if cur_ttl_window == last_ttl_window:
+                time_to_sleep += HASHTREE_TTL
+
+            if time_to_sleep > 0:
+                sleep_interval(start, time_to_sleep, "BS._create_next_tree",
+                               self._quiet_startup())
 
     def _maintain_hash_tree(self):
         """
         Maintain the hashtree. Update the the windows in the connected tree
         """
-        ifs = list(self.ifid2er.keys())
         with self._hash_tree_lock:
-            self._hash_tree.update(ifs, self.hashtree_gen_key)
+            with self._next_tree_lock:
+                self._hash_tree.update(self._next_tree)
+                self._next_tree = None
         logging.info("New Hash Tree TTL beginning")
 
     def worker(self):
@@ -378,11 +414,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 cur_ttl_window = ConnectedHashTree.get_ttl_window()
                 if cur_ttl_window != last_ttl_window:
                     self._maintain_hash_tree()
-                    cur_ttl_window = last_ttl_window
+                    last_ttl_window = cur_ttl_window
 
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     was_master = False
                     continue
+
                 if not was_master:
                     self._became_master()
                     was_master = True
@@ -542,12 +579,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for raw in rev_infos:
             try:
                 rev_info = RevocationInfo.from_raw(raw)
-                h = rev_info.copy().pack()
-                self.local_rev_cache[h] = rev_info.copy()
             except SCIONParseError as e:
                 logging.error("Error processing revocation info from ZK: %s",
                               e)
                 continue
+            self.local_rev_cache[rev_info] = rev_info.copy()
 
     def _issue_revocation(self, if_id):
         """
@@ -617,8 +653,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Trying to revoke IF with ID 0.")
             return
 
-        h = rev_info.copy().pack()
-        self.local_rev_cache[h] = rev_info.copy()
+        self.local_rev_cache[rev_info] = rev_info.copy()
 
         logging.info("Storing revocation in ZK.")
         rev_token = rev_info.copy().pack()

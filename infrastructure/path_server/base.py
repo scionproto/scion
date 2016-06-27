@@ -195,12 +195,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
-        h = rev_info.copy().pack()
-        if h in self.revocations:
+        if rev_info in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
         else:
-            self.revocations[h] = rev_info
+            self.revocations[rev_info] = rev_info
             logging.debug("Received revocation from %s:\n%s",
                           pkt.addrs.src, rev_info)
         # Remove segments that contain the revoked interface.
