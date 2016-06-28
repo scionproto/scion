@@ -94,47 +94,34 @@ cmd_clean() {
 
 SOCKDIR=endhost/ssp
 
-cmd_sock_cli() {
-    if [ $# -eq 2 ]
-    then
-        GENDIR=gen/ISD${1}/AS${2}/endhost
-        ADDR="127.${1}.${2}.254"
-        ISD=${1}
-        AS=${2}
-    else
-        GENDIR=gen/ISD1/AS19/endhost
-        ADDR="127.1.19.254"
-        ISD="1"
-        AS="19"
-    fi
-    # FIXME(aznair): Will become ISD_AS.sock in later PR
-    APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=.
-    exec bin/sciond --addr $ADDR --api-addr $APIADDR sspclient $GENDIR
-}
-
 cmd_run_cli() {
     export LD_LIBRARY_PATH=`pwd`/endhost/ssp
     $SOCKDIR/test/client
 }
 
-cmd_sock_ser() {
+cmd_run_sciond() {
     if [ $# -eq 2 ]
     then
-        GENDIR=gen/ISD${1}/AS${2}/endhost
-        ADDR="127.${1}.${2}.254"
-        ISD=${1}
-        AS=${2}
+        IFS='-' read -ra ARR <<< "${1}"
+        ISD=${ARR[0]}
+        AS=${ARR[1]}
+        ADDR=${2}
+    elif [ $# -eq 1 ]
+    then
+        # Assume localhost when only ISD-AS is provided.
+        IFS='-' read -ra ARR <<< "${1}"
+        ISD=${ARR[0]}
+        AS=${ARR[1]}
+        ADDR="127.${ISD}.${AS}.254"
     else
-        GENDIR=gen/ISD2/AS26/endhost
-        ADDR="127.2.26.254"
-        ISD="2"
-        AS="26"
+        echo "Wrong number of arguments. Provide ISD-AS [and ADDR]."
+        exit 1
     fi
+    GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
-    exec bin/sciond --addr $ADDR --api-addr $APIADDR sspserver $GENDIR
+    exec bin/sciond --addr $ADDR --api-addr $APIADDR sd-${ISD}-${AS} $GENDIR
 }
 
 cmd_run_ser() {
@@ -175,7 +162,7 @@ shift
 
 case "$COMMAND" in
     coverage|help|lint|run|stop|status|test|topology|version|\
-    sock_cli|sock_ser|build|clean|run_cli|run_ser)
+    build|clean|run_cli|run_ser|run_sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac
