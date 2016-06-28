@@ -36,6 +36,7 @@ RUN sudo apt-get update && APTARGS=-y ./deps.sh pkgs
 # Copy over requirements.txt. If it has changed, then re-run the remaining steps.
 COPY requirements.txt $BASE/
 RUN sudo chown -R scion: $HOME
+RUN ./deps.sh capnp
 RUN ./deps.sh zlog
 RUN ./deps.sh misc
 RUN ./deps.sh pip

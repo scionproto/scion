@@ -1,4 +1,5 @@
 cgroup-bin
+checkinstall
 curl
 dnsutils
 file
