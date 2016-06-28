@@ -67,7 +67,7 @@ from lib.packet.scion import SVCType
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_store import PathPolicy
-from lib.thread import thread_safety_net
+from lib.thread import thread_safety_net, kill_self
 from lib.types import (
     CertMgmtType,
     IFIDType,
@@ -126,7 +126,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._hash_tree = None
         self._hash_tree_lock = Lock()
         self._next_tree = None
-        self._next_tree_lock = Lock()
         self._init_hash_tree()
         self.ifid_state = {}
         for ifid in self.ifid2er:
@@ -370,18 +369,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             last_ttl_window = ConnectedHashTree.get_ttl_window()
 
             ifs = list(self.ifid2er.keys())
-            with self._next_tree_lock:
-                self._next_tree = ConnectedHashTree.get_next_tree(
-                                    ifs, self.hashtree_gen_key)
+            tree = ConnectedHashTree.get_next_tree(ifs, self.hashtree_gen_key)
+            with self._hash_tree_lock:
+                self._next_tree = tree
 
     def _maintain_hash_tree(self):
         """
         Maintain the hashtree. Update the the windows in the connected tree
         """
         with self._hash_tree_lock:
-            with self._next_tree_lock:
+            if self._next_tree is not None:
                 self._hash_tree.update(self._next_tree)
                 self._next_tree = None
+            else:
+                logging.critical("Did not create hashtree in time; dying")
+                kill_self()
         logging.info("New Hash Tree TTL beginning")
 
     def worker(self):
