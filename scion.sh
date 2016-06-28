@@ -61,12 +61,14 @@ cmd_coverage(){
 
 cmd_lint() {
     set -o pipefail
+    local ret=0
     for i in . sub/web; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       echo "============================================="
-      (cd "$i" && flake8 --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3
+      flake8 --config "$i/flake8.ini" "$i" | sort -t: -k1,1 -k2n,2 -k3n,3 || ret=1
     done
+    return $ret
 }
 
 cmd_version() {
