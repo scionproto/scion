@@ -521,7 +521,7 @@ def main():
                         default='127.0.0.1')
     parser.add_argument("--target_port",
                         help='Port of the target SCION Proxy',
-                         type=int, default=9090)
+                        type=int, default=9090)
     args = parser.parse_args()
 
     if args.forward:
