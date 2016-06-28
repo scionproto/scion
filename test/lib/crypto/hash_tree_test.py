@@ -67,18 +67,18 @@ class TestHashTreeCreateTree(object):
     def test(self, _):
         # Setup
         if_ids = [1, 2, 3]
-        hashes = ["s10", "10s10", "s20", "20s20", "s30", "30s30", "0", "30s300",
-                  "10s1020s20", "10s1020s2030s300"]
+        hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
+                  b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300"]
         hash_new = create_mock_full({"digest()...": hashes})
         hash_func = create_mock_full({"new()": hash_new})
-        inst = HashTree(if_ids, "s", hash_func)
+        inst = HashTree(if_ids, b"s", hash_func)
         inst._n_epochs = 1
         inst._depth = 2
         # Call
         inst.create_tree(if_ids)
         # Tests
-        expected = ["10s1020s2030s300", "10s1020s20", "30s300", "10s10",
-                    "20s20", "30s30", "0"]
+        expected = [b"10s1020s2030s300", b"10s1020s20", b"30s300", b"10s10",
+                    b"20s20", b"30s30", b"0"]
         ntools.eq_(inst._nodes, expected)
 
 
@@ -90,12 +90,11 @@ class TestHashTreeGetProof(object):
     def test(self, _):
         # Setup
         if_ids = [1, 2, 3]
-        hash_func_side_effect = ["s10", "10s10", "s20", "20s20", "s30",
-                                 "30s30", "0", "30s300", "10s1020s20",
-                                 "10s1020s2030s300", "s20"]
-        hash_new = create_mock_full({"digest()...": hash_func_side_effect})
+        hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
+                  b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300", b"s20"]
+        hash_new = create_mock_full({"digest()...": hashes})
         hash_func = create_mock_full({"new()": hash_new})
-        inst = HashTree(if_ids, "s", hash_func)
+        inst = HashTree(if_ids, b"s", hash_func)
         inst._n_epochs = 1
         inst._depth = 2
         inst.create_tree(if_ids)
@@ -140,12 +139,12 @@ class TestConnectedHashtreeGetPossibleHashes(object):
         siblings.append(create_mock_full({"isLeft": True, "hash": "10s10"}))
         siblings.append(create_mock_full({"isLeft": False, "hash": "30s300"}))
         p = create_mock_full(
-            {"ifID": 2, "epoch": 0, "nonce": "s20", "siblings": siblings,
+            {"ifID": 2, "epoch": 0, "nonce": b"s20", "siblings": siblings,
              "prevRoot": "p", "nextRoot": "n"})
         revProof = create_mock_full({"p": p})
-        hash_func_side_effect = ["20s20", "10s1020s20", "10s1020s2030s300",
-                                 "p10s1020s2030s300", "10s1020s2030s300n"]
-        hash_new = create_mock_full({"digest()...": hash_func_side_effect})
+        hashes = ["20s20", "10s1020s20", "10s1020s2030s300",
+                  "p10s1020s2030s300", "10s1020s2030s300n"]
+        hash_new = create_mock_full({"digest()...": hashes})
         hash_func = create_mock_full({"new()": hash_new})
         # Call
         hash01, hash12 = ConnectedHashTree.get_possible_hashes(

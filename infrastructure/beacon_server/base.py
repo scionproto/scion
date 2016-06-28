@@ -352,14 +352,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         super().run()
 
     def _create_next_tree(self):
-        start = time.time()
-        time_to_sleep = (ConnectedHashTree.get_time_till_next_ttl() -
-                         HASHTREE_UPDATE_WINDOW)
-        if time_to_sleep > 0:
-            sleep_interval(start, time_to_sleep, "BS._create_next_tree",
-                           self._quiet_startup())
+        last_ttl_window = 0
         while self.run_flag.is_set():
-            # at this point, there should be HASHTREE_UPDATE_WINDOW
+            start = time.time()
+            cur_ttl_window = ConnectedHashTree.get_ttl_window()
+            time_to_sleep = (ConnectedHashTree.get_time_till_next_ttl() -
+                             HASHTREE_UPDATE_WINDOW)
+            if cur_ttl_window == last_ttl_window:
+                time_to_sleep += HASHTREE_TTL
+            if time_to_sleep > 0:
+                sleep_interval(start, time_to_sleep, "BS._create_next_tree",
+                               self._quiet_startup())
+
+            # at this point, there should be <= HASHTREE_UPDATE_WINDOW
             # seconds left in current ttl
             logging.info("Started computing hashtree for next ttl")
             last_ttl_window = ConnectedHashTree.get_ttl_window()
@@ -368,16 +373,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             with self._next_tree_lock:
                 self._next_tree = ConnectedHashTree.get_next_tree(
                                     ifs, self.hashtree_gen_key)
-            start = time.time()
-            cur_ttl_window = ConnectedHashTree.get_ttl_window()
-            time_to_sleep = (ConnectedHashTree.get_time_till_next_ttl() -
-                             HASHTREE_UPDATE_WINDOW)
-            if cur_ttl_window == last_ttl_window:
-                time_to_sleep += HASHTREE_TTL
-
-            if time_to_sleep > 0:
-                sleep_interval(start, time_to_sleep, "BS._create_next_tree",
-                               self._quiet_startup())
 
     def _maintain_hash_tree(self):
         """

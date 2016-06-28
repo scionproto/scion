@@ -90,10 +90,11 @@ class HashTree(object):
         for if_id in if_ids:  # For given (if_id, epoch) leaves
             self._if2idx[if_id] = idx
             for i in range(self._n_epochs):
-                raw_nonce = str(self._seed) + str(if_id) + str(i)
-                raw_nonce = raw_nonce.encode('utf-8')
+                raw_nonce = (self._seed + if_id.to_bytes(8, 'big') +
+                             i.to_bytes(8, 'big'))
                 nonce = self._hash_func.new(raw_nonce).digest()
-                if_tuple = (str(if_id) + str(i) + str(nonce)).encode('utf-8')
+                if_tuple = (if_id.to_bytes(8, 'big') +
+                            i.to_bytes(8, 'big') + nonce)
                 self._nodes[idx] = self._hash_func.new(if_tuple).digest()
                 idx = idx + 1
         while idx < node_count:  # For extra leaves added to complete tree
@@ -116,7 +117,8 @@ class HashTree(object):
         """
         assert if_id in self._if2idx.keys(), "if_id not found in AS"
         # Obtain the nonce for the (if_id, epoch) pair using the seed.
-        raw_nonce = (str(self._seed) + str(if_id) + str(epoch)).encode('utf-8')
+        raw_nonce = (self._seed + if_id.to_bytes(8, 'big') +
+                     epoch.to_bytes(8, 'big'))
         nonce = self._hash_func.new(raw_nonce).digest()
 
         # Obtain the sibling hashes along with their left/right position info.
@@ -214,8 +216,8 @@ class ConnectedHashTree(object):
         """
         # Calculate the hashes upwards till the tree root (of T).
         proof = revProof.p
-        if_tuple = ((str(proof.ifID) + str(proof.epoch) + str(proof.nonce))
-                    .encode('utf-8'))
+        if_tuple = (proof.ifID.to_bytes(8, 'big') +
+                    proof.epoch.to_bytes(8, 'big') + proof.nonce)
         curr_hash = hash_func.new(if_tuple).digest()
 
         for i in range(len(proof.siblings)):
