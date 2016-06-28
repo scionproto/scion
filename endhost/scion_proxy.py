@@ -106,7 +106,6 @@ from lib.util import handle_signals, hex_str
 
 VERSION = '0.1.0'
 BUFLEN = 8192
-DEFAULT_SERVER_IP = '127.0.0.1'
 DEFAULT_SERVER_PORT = 8080
 LOG_BASE = 'logs/scion_proxy'
 CONN_ID_BYTES = 4
@@ -337,10 +336,10 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
     Handler class for the SCION forwarding (bridge) proxy.
     """
     server_version = "SCION HTTP Bridge Proxy/" + VERSION
-    target_proxy = '127.0.0.1', 9090
 
     def __init__(self, connection, address, conn_id,
-                 scion_mode, kbase, source_isd_as, target_isd_as):
+                 scion_mode, kbase, source_isd_as, target_isd_as,
+                 target_addr, target_port):
         """
         Create a ConnectionHandler class to handle the incoming
         HTTP(S) request.
@@ -351,10 +350,11 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         """
         self.scion_mode = scion_mode
         self.socket_kbase = kbase
+        self.target_proxy_addr = target_addr, target_port
         isd_as = ISD_AS(target_isd_as)
-        host = HostAddrIPv4(self.target_proxy[0])
+        host = HostAddrIPv4(self.target_proxy_addr[0])
         self.scion_target_proxy = SCIONAddr.from_values(isd_as, host)
-        self.scion_target_port = self.target_proxy[1]
+        self.scion_target_port = self.target_proxy_addr[1]
         self.isd_as = source_isd_as
         super().__init__(connection, address, conn_id)
 
@@ -421,16 +421,16 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
 
     def _unix_client_socket(self):
         soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        logging.debug("Connecting to %s:%s" % self.target_proxy)
+        logging.debug("Connecting to %s:%s" % self.target_proxy_addr)
         try:
-            soc.connect(self.target_proxy)
+            soc.connect(self.target_proxy_addr)
         except OSError:
             log_exception("Error while connecting to %s:%s" %
-                          self.target_proxy)
+                          self.target_proxy_addr)
             cleanup(soc)
             return None
         logging.debug("Connected to target proxy %s:%s" %
-                      self.target_proxy)
+                      self.target_proxy_addr)
         return soc
 
 
@@ -441,8 +441,8 @@ def cleanup(sock):
         pass
 
 
-def serve_forever(soc, bridge_mode, scion_mode, kbase,
-                  source_isd_as, target_isd_as):
+def serve_forever(soc, bridge_mode, scion_mode, kbase, source_isd_as,
+                  target_isd_as, target_addr, target_port):
     """
     Serve incoming HTTP requests until a KeyboardInterrupt is received.
     :param soc: Socket object that belongs to the server.
@@ -458,7 +458,8 @@ def serve_forever(soc, bridge_mode, scion_mode, kbase,
         conn_id = hex_str(os.urandom(CONN_ID_BYTES))
         if bridge_mode:
             params = (ForwardingProxyConnectionHandler, con, addr, conn_id,
-                      scion_mode, kbase, source_isd_as, target_isd_as)
+                      scion_mode, kbase, source_isd_as, target_isd_as,
+                      target_addr, target_port)
         else:
             params = ConnectionHandler, con, addr, conn_id
 
@@ -477,9 +478,10 @@ def scion_server_socket(server_address, isd_as):
     return soc
 
 
-def unix_server_socket(server_address):
+def unix_server_socket(port):
     soc = socket.socket(socket.AF_INET)
     soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_address = '', port
     soc.bind(server_address)
     logging.info("Starting server at (%s, %s), use <Ctrl-C> to stop" %
                  server_address)
@@ -514,9 +516,13 @@ def main():
     parser.add_argument("--target_isd_as",
                         help='ISD-AS of the target SCION Proxy',
                         default='3-3')
+    parser.add_argument("--target_address",
+                        help='IP address of the target SCION Proxy',
+                        default='127.0.0.1')
+    parser.add_argument("--target_port",
+                        help='Port of the target SCION Proxy',
+                         type=int, default=9090)
     args = parser.parse_args()
-
-    server_address = DEFAULT_SERVER_IP, args.port
 
     if args.forward:
         init_logging(LOG_BASE + "_forward", file_level=logging.DEBUG,
@@ -542,14 +548,16 @@ def main():
 
     if args.scion and not args.forward:
         logging.info("Starting the server with SCION multi-path socket.")
-        soc = scion_server_socket(server_address, args.target_isd_as)
+        soc = scion_server_socket((args.target_address, args.port),
+                                  args.target_isd_as)
     else:
         logging.info("Starting the server with UNIX socket.")
-        soc = unix_server_socket(server_address)
+        soc = unix_server_socket(args.port)
 
     try:
         serve_forever(soc, args.forward, args.scion, kbase,
-                      args.source_isd_as, args.target_isd_as)
+                      args.source_isd_as, args.target_isd_as,
+                      args.target_address, args.target_port)
     except KeyboardInterrupt:
         logging.info("Exiting")
         soc.close()
