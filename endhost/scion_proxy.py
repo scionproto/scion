@@ -358,7 +358,6 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         self.scion_target_proxy = SCIONAddr.from_values(isd_as, host)
         self.scion_target_port = self.target_proxy_addr[1]
         self.isd_as = source_isd_as
-
         super().__init__(connection, address, conn_id)
 
     def handle_request(self):
@@ -519,7 +518,7 @@ def main():
     parser.add_argument("--target_isd_as",
                         help='ISD-AS of the target SCION Proxy',
                         default='3-3')
-    parser.add_argument("--server_proxy",
+    parser.add_argument("--target_proxy",
                         help='IP address of the target SCION Proxy',
                         default='127.0.0.1')
     args = parser.parse_args()
@@ -548,7 +547,7 @@ def main():
 
     if args.scion and not args.forward:
         logging.info("Starting the server with SCION multi-path socket.")
-        soc = scion_server_socket((args.server_proxy, args.port),
+        soc = scion_server_socket((args.target_proxy, args.port),
                                   args.target_isd_as)
     else:
         logging.info("Starting the server with UNIX socket.")
@@ -557,7 +556,7 @@ def main():
     try:
         serve_forever(soc, args.forward, args.scion, kbase,
                       args.source_isd_as, args.target_isd_as,
-                      args.server_proxy)
+                      args.target_proxy)
     except KeyboardInterrupt:
         logging.info("Exiting")
         soc.close()
