@@ -1,6 +1,6 @@
+#include <uthash.h>
 #include "SCIONSocket.h"
 #include "SCIONWrapper.h"
-#include "uthash.h"
 #include "Utils.h"
 
 typedef struct SocketEntry {

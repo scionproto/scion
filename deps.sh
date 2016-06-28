@@ -4,6 +4,8 @@ set -e
 
 cmd_all() {
     cmd_pkgs
+    # Must be before cmd_pip, as pycapnp depends on capnp being installed.
+    cmd_capnp
     cmd_pip
     cmd_zlog
     cmd_golang
@@ -23,15 +25,16 @@ pkgs_debian() {
     local pkgs=""
     echo "Checking for necessary debian packages"
     for pkg in $(< pkgs_debian.txt); do
-        if ! dpkg-query -W --showformat='${Status}\n' $pkg 2> /dev/null | \
-            grep -q "install ok installed"; then
-            pkgs+="$pkg "
-        fi
+        pkg_deb_chk $pkg || pkgs+="$pkg "
     done
     if [ -n "$pkgs" ]; then
         echo "Installing missing necessary packages: $pkgs"
         sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
     fi
+}
+
+pkg_deb_chk() {
+    dpkg -s ${1:?} 2>/dev/null | grep -q "^Status: install ok installed";
 }
 
 cmd_pip() {
@@ -40,32 +43,36 @@ cmd_pip() {
 }
 
 cmd_zlog() {
-    ZLOG_DIR=~/.local/lib/zlog
-    if [ ! -d $ZLOG_DIR ]; then
-        echo "No libzlog directory, download and extract"
-        mkdir -p $ZLOG_DIR
-        curl -L https://github.com/HardySimpson/zlog/archive/latest-stable.tar.gz | tar xzf - --strip-components=1 -C $ZLOG_DIR
-    fi
-    if [ ! -e $ZLOG_DIR/src/libzlog.a ]; then
-        echo "Libzlog not built yet, building now"
-        make -C $ZLOG_DIR
-    fi
+    pkg_deb_chk zlog && return
+    local tmpdir=$(mktemp -d /tmp/zlog.XXXXXXX)
+    curl -L https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1 -C $tmpdir
+    (
+        cd $tmpdir
+        make -j6
+        echo "ldconfig" >> postinstall-pak
+        echo "ldconfig" >> postremove-pak
+        sudo checkinstall -D --pkgname zlog --nodoc -y --deldoc --deldesc --strip=no --stripso=no --pkgversion 1.2.12
+        sudo rm *deb
+    )
+    rm -r "${tmpdir:?}"
 }
 
 cmd_capnp() {
-    if type -P capnp &>/dev/null; then
-        return
-    fi
-    CP_DIR=~/.local/capnproto
-    if [ ! -d $CP_DIR ]; then
-        echo "No capnproto directory, download and extract"
-        mkdir -p $CP_DIR
-        curl -L https://capnproto.org/capnproto-c++-0.5.3.tar.gz | tar xzf - --strip-components=1 -C $CP_DIR
-    fi
-    cd "$CP_DIR"
-    ./configure
-    make -j6 check
-    sudo make install
+    pkg_deb_chk capnp && return
+    local tmpdir=$(mktemp -d /tmp/capnp.XXXXXXX)
+    curl -L https://capnproto.org/capnproto-c++-0.5.3.tar.gz | tar xzf - --strip-components=1 -C $tmpdir
+    (
+        cd $tmpdir
+        ./configure
+        make -j6 check
+        echo "ldconfig" >> postinstall-pak
+        echo "ldconfig" >> postremove-pak
+        mkdir doc-pak
+        cp README.txt LICENSE.txt doc-pak
+        sudo checkinstall -D --pkgname capnp --nodoc -y --deldoc --deldesc --strip=no --stripso=no --backup=no --pkgversion 0.5.3
+        find -mindepth 1 -delete
+    )
+    rmdir "${tmpdir:?}"
 }
 
 cmd_golang() {

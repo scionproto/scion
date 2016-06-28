@@ -17,10 +17,10 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "zlog.h"
+#include <zlog.h>
+#include <uthash.h>
 
 #include "scion.h"
-#include "uthash.h"
 
 #define APP_BUFSIZE 32
 #define DATA_BUFSIZE 65535
