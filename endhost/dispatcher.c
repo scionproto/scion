@@ -112,6 +112,7 @@ static inline uint16_t get_next_port();
 void handle_data(int v6);
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
+void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, HostAddr *from);
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, HostAddr *from);
@@ -725,43 +726,65 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     }
 
     if (DST_TYPE(sch) == ADDR_SVC_TYPE) {
-        SVCKey svc_key;
-        memset(&svc_key, 0, sizeof(SVCKey));
-        svc_key.addr = ntohs(*(uint16_t *)get_dst_addr(buf));
-        svc_key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
-        /* TODO: IPv6? */
-        memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
-        SVCEntry *se;
-        HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
-        if (!se) {
-            zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %d IP: %s",
-                    ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
-                    addr_to_str(dst->addr, dst->addr_type, NULL));
-            return;
-        }
-        sock = se->sockets[rand() % se->count];
-        zlog_debug(zc, "deliver UDP packet to (%d-%d):%s",
-                ISD(svc_key.isd_as), AS(svc_key.isd_as), addr_to_str(dst->addr, dst->addr_type, NULL));
-    } else {
-        L4Key key;
-        memset(&key, 0, sizeof(key));
-        /* Find dst info in packet */
-        key.port = ntohs(*(uint16_t *)(l4ptr + 2));
-        key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
-        memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
-
-        Entry *e;
-        HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
-        if (!e) {
-            zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
-                    ISD(key.isd_as), AS(key.isd_as),
-                    addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
-            return;
-        }
-        sock = e->sock;
+        deliver_udp_svc(buf, len, from, dst);
+        return;
     }
+    L4Key key;
+    memset(&key, 0, sizeof(key));
+    /* Find dst info in packet */
+    key.port = ntohs(*(uint16_t *)(l4ptr + 2));
+    key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
+    memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
+
+    Entry *e;
+    HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
+    if (!e) {
+        zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
+                ISD(key.isd_as), AS(key.isd_as),
+                addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
+        return;
+    }
+    sock = e->sock;
     send_dp_header(sock, from, len);
     send_all(sock, buf, len);
+}
+
+
+void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
+    int sock;
+    SVCKey svc_key;
+    memset(&svc_key, 0, sizeof(SVCKey));
+    uint16_t addr = ntohs(*(uint16_t *)get_dst_addr(buf));
+    svc_key.addr = addr & ~SVC_MULTICAST;  // Mask off top multicast bit
+    svc_key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
+    memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
+    SVCEntry *se;
+    HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
+    if (!se) {
+        zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %02x IP: %s",
+                ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
+                addr_to_str(dst->addr, dst->addr_type, NULL));
+        return;
+    }
+    char dststr[MAX_HOST_ADDR_STR];
+    char svcstr[MAX_HOST_ADDR_STR];
+    zlog_debug(zc, "deliver UDP packet to (%d-%d):%s SVC:%s",
+            ISD(svc_key.isd_as), AS(svc_key.isd_as),
+            addr_to_str(dst->addr, dst->addr_type, dststr),
+            addr_to_str(get_dst_addr(buf), ADDR_SVC_TYPE, svcstr));
+    if (!(addr & SVC_MULTICAST)) {  // Anycast SVC address
+        sock = se->sockets[rand() % se->count];
+        send_dp_header(sock, from, len);
+        send_all(sock, buf, len);
+        return;
+    }
+    // Multicast SVC address
+    int i;
+    for (i = 0; i < se->count; i++) {
+        sock = se->sockets[i];
+        send_dp_header(sock, from, len);
+        send_all(sock, buf, len);
+    }
 }
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)

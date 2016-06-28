@@ -20,26 +20,12 @@ import copy
 import struct
 
 # SCION
-from lib.defines import (
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
-    MAX_HOPBYHOP_EXT,
-    PATH_SERVICE,
-    SCION_PROTO_VERSION,
-    SIBRA_SERVICE,
-)
-from lib.errors import (
-    SCIONIndexError,
-    SCIONParseError,
-)
+from lib.defines import MAX_HOPBYHOP_EXT, SCION_PROTO_VERSION
+from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import parse_extensions
-from lib.packet.host_addr import (
-    HostAddrInvalidType,
-    HostAddrSVC,
-    haddr_get_type,
-)
+from lib.packet.host_addr import HostAddrInvalidType, haddr_get_type
 from lib.packet.ifid import parse_ifid_payload
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import (
@@ -67,6 +53,7 @@ from lib.packet.scmp.errors import (
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.hdr import SCMPHeader
 from lib.packet.scmp.payload import SCMPPayload
+from lib.packet.svc import SVCType
 from lib.sibra.payload import parse_sibra_payload
 from lib.types import (
     AddrType,
@@ -76,27 +63,6 @@ from lib.types import (
     PayloadClass,
 )
 from lib.util import Raw, calc_padding
-
-
-class SVCType(object):
-    """
-    Defines the recognised SVC addresses.
-    """
-    # Beacon service
-    BS = HostAddrSVC(0, raw=False)
-    # Path service
-    PS = HostAddrSVC(1, raw=False)
-    # Certificate service
-    CS = HostAddrSVC(2, raw=False)
-    # SIBRA service
-    SB = HostAddrSVC(3, raw=False)
-
-SVC_TO_SERVICE = {
-    SVCType.BS.addr: BEACON_SERVICE,
-    SVCType.PS.addr: PATH_SERVICE,
-    SVCType.CS.addr: CERTIFICATE_SERVICE,
-    SVCType.SB.addr: SIBRA_SERVICE,
-}
 
 
 class SCIONCommonHdr(Serializable):
@@ -270,7 +236,8 @@ class SCIONAddrHdr(Serializable):
 
     def validate(self):  # pragma: no cover
         if self.dst.host.TYPE == AddrType.SVC and self.dst.host not in [
-                SVCType.BS, SVCType.PS, SVCType.CS, SVCType.SB]:
+            SVCType.BS_A, SVCType.BS_M, SVCType.PS_A, SVCType.CS_A, SVCType.SB_A
+        ]:
             raise SCMPBadHost("Invalid dest SVC: %s" % self.dst.host.addr)
 
     def update(self):

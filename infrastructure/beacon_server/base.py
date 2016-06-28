@@ -60,8 +60,8 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
-from lib.packet.scion import SVCType
 from lib.packet.scion_addr import ISD_AS
+from lib.packet.svc import SVCType
 from lib.path_store import PathPolicy
 from lib.thread import thread_safety_net
 from lib.types import (
@@ -209,7 +209,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         asm = self._create_asm(pcb.p.ifID, egress_if, ts, pcb.last_hof())
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
-        return self._build_packet(SVCType.BS, dst_ia=dst_ia, payload=pcb)
+        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia, payload=pcb)
 
     def _mk_if_info(self, if_id):
         """

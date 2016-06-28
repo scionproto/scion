@@ -13,5 +13,6 @@ int recv_all(int sock, uint8_t *buf, int len);
 int send_all(int sock, uint8_t *buf, int len);
 
 const char * addr_to_str(uint8_t *addr, uint8_t type, char *buf);
+const char * svc_to_str(uint16_t svc, char *buf);
 
 #endif
