@@ -24,6 +24,7 @@ import getpass
 import logging
 import math
 import os
+import random
 import sys
 from collections import defaultdict
 from io import StringIO
@@ -33,7 +34,6 @@ from string import Template
 # External packages
 import yaml
 from Crypto import Random
-from dnslib.label import DNSLabel
 
 # SCION
 from lib.config import Config
@@ -51,8 +51,8 @@ from lib.defines import (
     LINK_PARENT,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
-    SCION_ROUTER_PORT,
     SCION_MIN_MTU,
+    SCION_ROUTER_PORT,
     TOPO_FILE,
 )
 from lib.path_store import PathPolicy
@@ -85,11 +85,9 @@ DEFAULT_LINK_BW = 1000
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
-DEFAULT_DNS_SERVERS = 1
 DEFAULT_SIBRA_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
-DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
@@ -97,7 +95,6 @@ DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 SCION_SERVICE_NAMES = (
     "BeaconServers",
     "CertificateServers",
-    "DNSServers",
     "EdgeRouters",
     "PathServers",
     "SibraServers",
@@ -361,7 +358,6 @@ class TopoGenerator(object):
         networks = self.subnet_gen.alloc_subnets()
         self._write_as_topos()
         self._write_as_list()
-        self._write_hosts()
         return self.topo_dicts, self.zookeepers, networks
 
     def _read_links(self):
@@ -378,47 +374,38 @@ class TopoGenerator(object):
             self.links[b].append((ltype_b, a, attrs))
 
     def _generate_as_topo(self, topo_id, as_conf):
-        dns_domain = DNSLabel(as_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
-        dns_domain = dns_domain.add(
-            "isd%s" % topo_id[0]).add("as%s" % topo_id[1])
         mtu = as_conf.get('mtu', self.default_mtu)
         assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
-            'DnsDomain': str(dns_domain), 'Zookeepers': {},
-            'MTU': mtu,
+            'Zookeepers': {}, 'MTU': mtu,
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
-        self._gen_srv_entries(topo_id, as_conf, dns_domain)
+        self._gen_srv_entries(topo_id, as_conf)
         self._gen_er_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
-    def _gen_srv_entries(self, topo_id, as_conf, dns_domain):
+    def _gen_srv_entries(self, topo_id, as_conf):
         for conf_key, def_num, nick, topo_key in (
             ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconServers"),
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateServers"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
-            ("dns_servers", DEFAULT_DNS_SERVERS, "ds", "DNSServers"),
             ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
-        self._gen_hosts_entries(topo_id, dns_domain)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
                        topo_key):
         count = as_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id, i)
-            self.topo_dicts[topo_id][topo_key][elem_id] = {
-                "Addr": self._reg_addr(topo_id, elem_id),
-            }
-
-    def _gen_hosts_entries(self, topo_id, dns_domain):
-        for dns_srv in self.topo_dicts[topo_id]["DNSServers"].values():
-            self.hosts.append((dns_srv["Addr"], dns_domain))
+            d = {}
+            d["Addr"] = self._reg_addr(topo_id, elem_id)
+            d["Port"] = random.randint(30050, 30100)
+            self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_er_entries(self, topo_id):
         er_id = 1
@@ -432,6 +419,7 @@ class TopoGenerator(object):
             local, remote)
         self.topo_dicts[local]["EdgeRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
+            'Port': random.randint(30050, 30100),
             'Interface': {
                 'IFID': er_id,
                 'ISD_AS': str(remote),
@@ -488,13 +476,6 @@ class TopoGenerator(object):
         list_path = os.path.join(self.out_dir, AS_LIST_FILE)
         write_file(list_path, yaml.dump(dict(self.as_list)))
 
-    def _write_hosts(self):
-        text = StringIO()
-        for intf, domain in self.hosts:
-            text.write("%s\tds.%s\n" % (intf.ip, str(domain).rstrip(".")))
-        hosts_path = os.path.join(self.out_dir, HOSTS_FILE)
-        write_file(hosts_path, text.getvalue())
-
 
 class SupervisorGenerator(object):
     def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet):
@@ -515,7 +496,6 @@ class SupervisorGenerator(object):
         for key, cmd in (
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "bin/cert_server"),
-            ("DNSServers", "bin/dns_server"),
             ("EdgeRouters", "bin/router"),
             ("PathServers", "bin/path_server"),
             ("SibraServers", "bin/sibra_server"),

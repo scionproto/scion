@@ -7,23 +7,21 @@
 
 #include "scion.h"
 
-/* 
+/*
  * Initialize SCION UDP header
  * buf: Pointer to start of SCION packet
- * payload_len: Length of payload data
+ * src_port: UDP source port, in network byte order.
+ * dst_port: UDP destination port, in network byte order.
+ * payload_len: Length of payload data in network byte order.
  */
-void build_scion_udp(uint8_t *buf, uint16_t payload_len)
+void build_scion_udp(uint8_t *buf, uint16_t src_port, uint16_t dst_port, uint16_t payload_len)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint8_t *ptr = (uint8_t *)sch + sch->header_len;
-    *(uint16_t *)ptr = htons(SCION_UDP_PORT);
-    ptr += 2;
-    *(uint16_t *)ptr = htons(SCION_UDP_PORT);
-    ptr += 2;
-    *(uint16_t *)ptr = htons(payload_len);
-    ptr += 2;
-    *(uint16_t *)ptr = 0; // checksum, calculate later
-    ptr += 2;
+    SCIONUDPHeader *uhdr = (SCIONUDPHeader *)(buf + sch->header_len);
+    uhdr->src_port = src_port;
+    uhdr->dst_port = dst_port;
+    uhdr->len = payload_len;
+    uhdr->checksum = 0;  // calculate later
 }
 
 /*

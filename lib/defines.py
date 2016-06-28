@@ -48,8 +48,6 @@ AS_LIST_FILE = "as_list.yml"
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535
-#: Default SCION server data port
-SCION_UDP_PORT = 30040
 #: Default SCION endhost data port
 SCION_UDP_EH_DATA_PORT = 30041
 #: Default DNS UDP/TCP port
