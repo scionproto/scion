@@ -102,15 +102,14 @@ const char * addr_to_str(uint8_t *addr, uint8_t type, char *buf)
         case ADDR_IPV6_TYPE:
             return inet_ntop(AF_INET6, addr, str, MAX_HOST_ADDR_STR);
         case ADDR_SVC_TYPE:
-            svc_to_str(ntohs(*(uint16_t *)addr), str);
-            return str;
+            return svc_to_str(ntohs(*(uint16_t *)addr), str);
         default:
             snprintf(str, MAX_HOST_ADDR_STR, "Unknown type %d", type);
             return str;
     }
 }
 
-void svc_to_str(uint16_t svc, char *buf) {
+const char * svc_to_str(uint16_t svc, char *buf) {
     char *service;
     switch (svc & ~SVC_MULTICAST) {
         case SVC_BEACON:
@@ -127,8 +126,9 @@ void svc_to_str(uint16_t svc, char *buf) {
             break;
         default:
             snprintf(buf, MAX_HOST_ADDR_STR, "Unknown svc %d", svc);
-            return;
+            return buf;
     }
     snprintf(buf, MAX_HOST_ADDR_STR, "%s %c", service,
             svc & SVC_MULTICAST ? 'M' : 'U');
+    return buf;
 }

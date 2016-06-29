@@ -305,7 +305,7 @@ class Router(SCIONElement):
         except SCIONServiceLookupError as e:
             logging.error("Unable to deliver ifid packet: %s", e)
             raise SCMPUnknownHost
-        # Only deliver once per address, as the multicase SVC address will cover
+        # Only deliver once per address, as the multicast SVC address will cover
         # all instances on that address.
         for addr in set([a for a, _ in bs_addrs]):
             pkt.set_payload(ifid_pld.copy())

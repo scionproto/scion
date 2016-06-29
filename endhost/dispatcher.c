@@ -773,7 +773,7 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
             ISD(svc_key.isd_as), AS(svc_key.isd_as),
             addr_to_str(dst->addr, dst->addr_type, dststr),
             addr_to_str(get_dst_addr(buf), ADDR_SVC_TYPE, svcstr));
-    if (!(addr & 0x80)) {  // Unicast SVC address
+    if (!(addr & SVC_MULTICAST)) {  // Unicast SVC address
         sock = se->sockets[rand() % se->count];
         send_dp_header(sock, from, len);
         send_all(sock, buf, len);
