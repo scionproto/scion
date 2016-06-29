@@ -26,6 +26,7 @@ from collections import defaultdict
 
 # SCION
 from lib.config import Config
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
@@ -498,3 +499,9 @@ class SCIONElement(object):
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)
         return results
+
+    def verify_asm(self, asm, rev_info):
+        hof = asm.pcbm(0).hof()
+        root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
+        return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and
+                root_verify)

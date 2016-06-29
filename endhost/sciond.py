@@ -264,12 +264,6 @@ class SCIONDaemon(SCIONElement):
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 
-    def verify_asm(self, asm, rev_info):
-        hof = asm.pcbm(0).hof()
-        root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
-        return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and
-                root_verify)
-
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""
         logging.debug("Paths requested for %s %s", dst_ia, flags)

@@ -698,14 +698,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         return to_remove
 
-    def verify_asm(self, asm, rev_info):
-        ingress_if_id = asm.pcbm(0).hof().ingress_if
-        egress_if_id = asm.pcbm(0).hof().egress_if
-        root = asm.p.hashTreeRoot
-        root_verify = ConnectedHashTree.verify(rev_info, root)
-        return (rev_info.p.ifID == ingress_if_id or
-                rev_info.p.ifID == egress_if_id) and root_verify
-
     def _handle_if_timeouts(self):
         """
         Periodically checks each interface state and issues an if revocation, if
