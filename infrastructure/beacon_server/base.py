@@ -76,7 +76,9 @@ from lib.util import (
     read_file,
     sleep_interval,
 )
-from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
+from lib.zk.cache import ZkSharedCache
+from lib.zk.errors import ZkNoConnection
+from lib.zk.zk import Zookeeper
 from external.expiring_dict import ExpiringDict
 
 
