@@ -412,11 +412,18 @@ class Router(SCIONElement):
         self.handle_data(spkt, from_local_as)
         if from_local_as:
             return
-        # Forward to local path server if we haven't recently.
+        # Forward to local path and beacon services if we haven't recently.
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        if (self.topology.path_servers and rev_info not in self.revocations):
+
+        snames = []
+        if self.topology.path_servers:
+            snames.append(PATH_SERVICE)
+        if self.topology.beacon_servers:
+            snames.append(BEACON_SERVICE)
+
+        if (rev_info not in self.revocations):
             self.revocations[rev_info] = True
-            for sname in [PATH_SERVICE, BEACON_SERVICE]:
+            for sname in snames:
                 try:
                     server = self.get_srv_addr(sname, spkt)
                 except SCIONServiceLookupError:

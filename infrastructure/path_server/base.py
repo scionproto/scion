@@ -365,7 +365,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return
         logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
         while self._revs_to_zk:
-                self._zk_write_rev(self._revs_to_zk.popleft())
+            self._zk_write_rev(self._revs_to_zk.popleft())
 
     def _zk_write(self, data):
         hash_ = SHA256.new(data).hexdigest()

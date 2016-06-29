@@ -501,6 +501,12 @@ class SCIONElement(object):
         return results
 
     def verify_asm(self, asm, rev_info):
+        # FIXME(siva): We are removing the PCB only if any of up/downstream
+        # interfaces are down, and not peer interfaces. If you do it for
+        # peer interfaces too, you will end up removing some PCBs which are
+        # still valid but contain that peer interface. So we need to add an
+        # extension to the PCBMarking to identify which peer interfaces are
+        # down
         hof = asm.pcbm(0).hof()
         root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
         return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and

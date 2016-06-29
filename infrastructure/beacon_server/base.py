@@ -162,6 +162,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
         self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
                                             HASHTREE_EPOCH_TOLERANCE)
+        self.local_rev_cache_lock = Lock()
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2er.keys())
@@ -573,14 +574,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Processes revocation infos stored in Zookeeper.
         """
-        for raw in rev_infos:
-            try:
-                rev_info = RevocationInfo.from_raw(raw)
-            except SCIONParseError as e:
-                logging.error("Error processing revocation info from ZK: %s",
-                              e)
-                continue
-            self.local_rev_cache[rev_info] = rev_info.copy()
+        with self.local_rev_cache_lock:
+            for raw in rev_infos:
+                try:
+                    rev_info = RevocationInfo.from_raw(raw)
+                except SCIONParseError as e:
+                    logging.error(
+                        "Error processing revocation info from ZK: %s", e)
+                    continue
+                self.local_rev_cache[rev_info] = rev_info.copy()
 
     def _issue_revocation(self, if_id):
         """
@@ -633,8 +635,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._process_revocation(rev_info)
 
     def handle_rev_objs(self):
-        for rev_info in self.local_rev_cache.values():
-            self._remove_revoked_pcbs(rev_info)
+        with self.local_rev_cache_lock:
+            for rev_info in self.local_rev_cache.values():
+                self._remove_revoked_pcbs(rev_info)
 
     def _process_revocation(self, rev_info):
         """
@@ -650,7 +653,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Trying to revoke IF with ID 0.")
             return
 
-        self.local_rev_cache[rev_info] = rev_info.copy()
+        with self.local_rev_cache_lock:
+            self.local_rev_cache[rev_info] = rev_info.copy()
 
         logging.info("Storing revocation in ZK.")
         rev_token = rev_info.copy().pack()
