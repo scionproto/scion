@@ -92,13 +92,6 @@ cmd_clean() {
     make -s clean
 }
 
-SOCKDIR=endhost/ssp
-
-cmd_run_cli() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
-    $SOCKDIR/test/client
-}
-
 cmd_sciond() {
     ISD=${1:?No ISD provided}
     AS=${2:?No AS provided}
@@ -108,11 +101,6 @@ cmd_sciond() {
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
     exec bin/sciond --addr $ADDR --api-addr $APIADDR sd-${ISD}-${AS} $GENDIR
-}
-
-cmd_run_ser() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
-    $SOCKDIR/test/server
 }
 
 cmd_help() {
@@ -150,8 +138,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|stop|status|test|topology|version|\
-    build|clean|run_cli|run_ser|sciond)
+    coverage|help|lint|run|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac
