@@ -757,7 +757,6 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     uint16_t addr = ntohs(*(uint16_t *)get_dst_addr(buf));
     svc_key.addr = addr & ~SVC_MULTICAST;  // Mask off top multicast bit
     svc_key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
-    /* TODO: IPv6? */
     memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
     SVCEntry *se;
     HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
