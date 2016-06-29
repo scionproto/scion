@@ -126,9 +126,9 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
-        $PROGRAM sciond ISD AS [ADDR]
-            Start sciond with provided ISD and AS parameters. A third optional
-            parameter is the address to bind when not running on localhost.
+	    $PROGRAM sciond ISD AS [ADDR]
+	        Start sciond with provided ISD and AS parameters. A third optional
+	        parameter is the address to bind when not running on localhost.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM status
