@@ -99,24 +99,10 @@ cmd_run_cli() {
     $SOCKDIR/test/client
 }
 
-cmd_run_sciond() {
-    if [ $# -eq 2 ]
-    then
-        IFS='-' read -ra ARR <<< "${1}"
-        ISD=${ARR[0]}
-        AS=${ARR[1]}
-        ADDR=${2}
-    elif [ $# -eq 1 ]
-    then
-        # Assume localhost when only ISD-AS is provided.
-        IFS='-' read -ra ARR <<< "${1}"
-        ISD=${ARR[0]}
-        AS=${ARR[1]}
-        ADDR="127.${ISD}.${AS}.254"
-    else
-        echo "Wrong number of arguments. Provide ISD-AS [and ADDR]."
-        exit 1
-    fi
+cmd_sciond() {
+    ISD=${1:?No ISD provided}
+    AS=${2:?No AS provided}
+    ADDR=${3:-127.${ISD}.${AS}.254}
     GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
@@ -140,6 +126,9 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
+        $PROGRAM sciond ISD AS [ADDR]
+            Start sciond with provided ISD and AS parameters. A third optional
+            parameter is the address to bind when not running on localhost.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM status
@@ -162,7 +151,7 @@ shift
 
 case "$COMMAND" in
     coverage|help|lint|run|stop|status|test|topology|version|\
-    build|clean|run_cli|run_ser|run_sciond)
+    build|clean|run_cli|run_ser|sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac
