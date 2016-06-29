@@ -66,7 +66,7 @@ cmd_lint() {
       [ -d "$i" ] || continue
       echo "Linting $i"
       echo "============================================="
-      flake8 --config "$i/flake8.ini" "$i" | sort -t: -k1,1 -k2n,2 -k3n,3 || ret=1
+      ( cd "$i" && flake8 --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
     return $ret
 }
