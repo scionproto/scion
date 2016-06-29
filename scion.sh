@@ -94,47 +94,20 @@ cmd_clean() {
 
 SOCKDIR=endhost/ssp
 
-cmd_sock_cli() {
-    if [ $# -eq 2 ]
-    then
-        GENDIR=gen/ISD${1}/AS${2}/endhost
-        ADDR="127.${1}.${2}.254"
-        ISD=${1}
-        AS=${2}
-    else
-        GENDIR=gen/ISD1/AS19/endhost
-        ADDR="127.1.19.254"
-        ISD="1"
-        AS="19"
-    fi
-    # FIXME(aznair): Will become ISD_AS.sock in later PR
-    APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=.
-    exec bin/sciond --addr $ADDR --api-addr $APIADDR sspclient $GENDIR
-}
-
 cmd_run_cli() {
     export LD_LIBRARY_PATH=`pwd`/endhost/ssp
     $SOCKDIR/test/client
 }
 
-cmd_sock_ser() {
-    if [ $# -eq 2 ]
-    then
-        GENDIR=gen/ISD${1}/AS${2}/endhost
-        ADDR="127.${1}.${2}.254"
-        ISD=${1}
-        AS=${2}
-    else
-        GENDIR=gen/ISD2/AS26/endhost
-        ADDR="127.2.26.254"
-        ISD="2"
-        AS="26"
-    fi
+cmd_sciond() {
+    ISD=${1:?No ISD provided}
+    AS=${2:?No AS provided}
+    ADDR=${3:-127.${ISD}.${AS}.254}
+    GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
-    exec bin/sciond --addr $ADDR --api-addr $APIADDR sspserver $GENDIR
+    exec bin/sciond --addr $ADDR --api-addr $APIADDR sd-${ISD}-${AS} $GENDIR
 }
 
 cmd_run_ser() {
@@ -153,6 +126,9 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
+	    $PROGRAM sciond ISD AS [ADDR]
+	        Start sciond with provided ISD and AS parameters. A third optional
+	        parameter is the address to bind when not running on localhost.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM status
@@ -175,7 +151,7 @@ shift
 
 case "$COMMAND" in
     coverage|help|lint|run|stop|status|test|topology|version|\
-    sock_cli|sock_ser|build|clean|run_cli|run_ser)
+    build|clean|run_cli|run_ser|sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac
