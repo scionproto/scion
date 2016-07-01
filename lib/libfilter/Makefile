@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS +=-Wall -g -fPIC
 
 LIBDIR=../libscion
-INC += -I../libscion
+INC += -I$(LIBDIR)
 LDFLAGS += -shared -L$(LIBDIR) -lscion -lzlog
 
 HDRS=$(wildcard *.h)

@@ -18,42 +18,50 @@ int get_scionaddr_from_fields(SCIONAddr *ha, char **fields, zlog_category_t *zc)
 void construct_filter_key(FilterKey *f, const SCIONAddr *src, const SCIONAddr *dst,
     const SCIONAddr *hop, uint8_t on_egress, uint8_t is_end2end, int l4);
 
-int init_filter_socket(FilterSocket **filter_socket, zlog_category_t *zc)
+FilterSocket * init_filter_socket(zlog_category_t *zc)
 {
-    *filter_socket = (FilterSocket *)malloc(sizeof(FilterSocket));
-    (*filter_socket)->zc = zc;
-    (*filter_socket)->filter_list = NULL;
+    FilterSocket *filter_socket = (FilterSocket *)malloc(sizeof(FilterSocket));
+    filter_socket->zc = zc;
+    filter_socket->filter_list = NULL;
     /* Create the filter socket */
-    (*filter_socket)->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if ((*filter_socket)->sockfd < 0) {
+    filter_socket->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (filter_socket->sockfd < 0) {
         zlog_fatal(zc, "failed to open filter socket");
-        return -1;
+        return NULL;
     }
-    /* Bind filter socket to SCION_UDP_EH_DATA_PORT */
-    if (bind_filter_socket((*filter_socket)) < 0) {
+    /* Bind filter socket to SCION_FILTER_CMD_PORT */
+    if (bind_filter_socket(filter_socket) < 0) {
         zlog_fatal(zc, "failed to bind filter socket");
-        return -1;
+        return NULL;
     }
-    (*filter_socket)->socket.fd = (*filter_socket)->sockfd;
-    (*filter_socket)->socket.events = POLLIN;
-    return 0;
+    filter_socket->socket.fd = filter_socket->sockfd;
+    filter_socket->socket.events = POLLIN;
+    return filter_socket;
 }
 
 int bind_filter_socket(FilterSocket *filter_socket)
 {
-    struct sockaddr_storage sa;
-    sockaddr_in *sin = (sockaddr_in *)&sa;
-    memset(sin, 0, sizeof(sockaddr_in));
-    sin->sin_family = AF_INET;
-    sin->sin_addr.s_addr = INADDR_ANY;
-    sin->sin_port = htons(SCION_FILTER_CMD_PORT);
-    if (bind(filter_socket->sockfd, (struct sockaddr *)sin, sizeof(sockaddr_in)) < 0) {
+    sockaddr_in sin;
+    memset(&sin, 0, sizeof(sockaddr_in));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_port = htons(SCION_FILTER_CMD_PORT);
+    if (bind(filter_socket->sockfd, (struct sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {
         zlog_fatal(filter_socket->zc, "failed to bind filter socket to %s:%d, %s",
-                inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), strerror(errno));
+                inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
         return -1;
     }
-    zlog_info(filter_socket->zc, "filter socket bound to %s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+    zlog_info(filter_socket->zc, "filter socket bound to %s:%d", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
     return 0;
+}
+
+void poll_filter(FilterSocket *filter_socket)
+{
+        int count = poll(&filter_socket->socket, 1, 0);
+        if (count < 0)
+            zlog_fatal(filter_socket->zc, "poll error: %s", strerror(errno));
+        if (count > 0)
+            handle_filter(filter_socket);
 }
 
 void handle_filter(FilterSocket *filter_socket)
@@ -68,15 +76,6 @@ void handle_filter(FilterSocket *filter_socket)
     }
     zlog_debug(filter_socket->zc, "msg received by filter socket: %s", buf);
     add_new_filter(buf, filter_socket);
-}
-
-void poll_filter(FilterSocket *filter_socket)
-{
-        int count = poll(&filter_socket->socket, 1, 0);
-        if (count < 0)
-            zlog_fatal(filter_socket->zc, "poll error: %s", strerror(errno));
-        if (count > 0)
-            handle_filter(filter_socket);
 }
 
 void add_new_filter(char *buf, FilterSocket *filter_socket)
@@ -189,7 +188,7 @@ int get_scionaddr_from_fields(SCIONAddr *ha, char **fields, zlog_category_t *zc)
 
     if (addr_type == ADDR_IPV4_TYPE || addr_type == ADDR_IPV6_TYPE) {
         sockaddr_in sa;
-        sa.sin_family = (addr_type == 1) ? AF_INET : AF_INET6;
+        sa.sin_family = (addr_type == ADDR_IPV4_TYPE) ? AF_INET : AF_INET6;
         sa.sin_port = port;
         /* IP address */
         if (inet_pton(sa.sin_family, fields[1], &sa.sin_addr) != 1) {
@@ -255,7 +254,7 @@ void print_scionaddr(SCIONAddr *addr, char *str, zlog_category_t *zc)
 }
 
 int is_blocked_by_filter(FilterSocket *filter_socket, uint8_t *buf, HostAddr hop, uint8_t called_from_send, struct msghdr *msg)
-{   
+{
     SCIONAddr src, dst, h;
     uint8_t *l4ptr = buf;
     int l4 = get_l4_proto(&l4ptr);
@@ -266,7 +265,7 @@ int is_blocked_by_filter(FilterSocket *filter_socket, uint8_t *buf, HostAddr hop
     src.isd_as = get_src_isd_as(buf);
     src.host.addr_type = SRC_TYPE((SCIONCommonHeader *) buf);
     memcpy(src.host.addr, get_src_addr(buf), get_src_len(buf));
-    src.host.port = udp->src_port;
+    src.host.port = ntohs(udp->src_port);
 
     /* Get dst address. */
     memset(&dst, 0, sizeof(SCIONAddr));
@@ -290,7 +289,7 @@ int is_blocked_by_filter(FilterSocket *filter_socket, uint8_t *buf, HostAddr hop
             }
         }
     }
-    dst.host.port = udp->dst_port;
+    dst.host.port = ntohs(udp->dst_port);
 
     /* Get hop address. */
     memset(&h, 0, sizeof(SCIONAddr));
@@ -303,50 +302,58 @@ int is_blocked_by_filter(FilterSocket *filter_socket, uint8_t *buf, HostAddr hop
     Filter *e;
     FilterKey f;
     if (called_from_send) {  // Called from handle_send()
+        zlog_debug(filter_socket->zc, "Inside handle_send() filter checking.");
         construct_filter_key(&f, &src, &dst, &src, BLOCK_EGRESS, BLOCK_END2END, l4);
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
         construct_filter_key(&f, &src, &dst, &h, BLOCK_INGRESS, BLOCK_END2END, l4);
-        zlog_debug(filter_socket->zc, "Inside handle_send() filter checking:");
-        print_filter_key(&f, filter_socket->zc);
+        print_filter_key(&f, filter_socket->zc);  // For debug (remove later).
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
         construct_filter_key(&f, &src, &h, &src, BLOCK_EGRESS, BLOCK_HOP_BY_HOP, l4);
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
         construct_filter_key(&f, &src, &h, &h, BLOCK_INGRESS, BLOCK_HOP_BY_HOP, l4);
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
     }
     else {  // Called from handle_data()
+        zlog_debug(filter_socket->zc, "Inside handle_data() filter checking.");
         construct_filter_key(&f, &src, &dst, &h, BLOCK_EGRESS, BLOCK_END2END, l4);
-        zlog_debug(filter_socket->zc, "Inside handle_data() filter checking:");
-        print_filter_key(&f, filter_socket->zc);
+        print_filter_key(&f, filter_socket->zc);  // For debug (remove later).
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
         construct_filter_key(&f, &src, &dst, &dst, BLOCK_INGRESS, BLOCK_END2END, l4);
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
         construct_filter_key(&f, &h, &dst, &h, BLOCK_EGRESS, BLOCK_HOP_BY_HOP, l4);
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
         construct_filter_key(&f, &h, &dst, &dst, BLOCK_INGRESS, BLOCK_HOP_BY_HOP, l4);
         HASH_FIND(hh, filter_socket->filter_list, &f, sizeof(FilterKey), e);
         if (e) {
+            print_filter_key(&f, filter_socket->zc);
             return 1;
         }
     }

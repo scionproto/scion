@@ -37,7 +37,7 @@ typedef struct {
 	zlog_category_t *zc;
 } FilterSocket;
 
-int init_filter_socket(FilterSocket **filter_socket, zlog_category_t *zc);
+FilterSocket * init_filter_socket(zlog_category_t *zc);
 void poll_filter(FilterSocket *filter_socket);
 int sockaddr_to_hostaddr(const sockaddr_in *sa, HostAddr *ha);
 void print_filter_key(FilterKey *f, zlog_category_t *zc);
