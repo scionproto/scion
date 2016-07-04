@@ -31,7 +31,7 @@ typedef SCIONCommonHeader sch_t;
 typedef struct {
     uint8_t len;
     uint8_t *raw_path;
-    struct sockaddr_storage first_hop;
+    HostAddr first_hop;
 } spath_t;
 
 typedef struct {
