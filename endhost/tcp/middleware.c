@@ -23,6 +23,7 @@ void *tcpmw_main_thread(void *unused) {
         exit(-1);
     }
 
+    errno = 0;
     if (mkdir(LWIP_SOCK_DIR, 0755)){
         if (errno != EEXIST){
             zlog_fatal(zc_tcp, "tcpmw_main_thread: mkdir(): %s", strerror(errno));
@@ -32,16 +33,13 @@ void *tcpmw_main_thread(void *unused) {
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
-    if (unlink(TCPMW_SOCKET)){
-        if (errno == ENOENT)
-            zlog_warn(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
-        else{
-            zlog_fatal(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
-            exit(-1);
-        }
+
+    if (atexit(remove_tcpmw_sock)){
+        zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
+        exit(-1);
     }
 
-
+    errno = 0;
     if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: bind(): %s", strerror(errno));
         exit(-1);
@@ -64,6 +62,19 @@ void *tcpmw_main_thread(void *unused) {
         tcpmw_socket(cl);
     }
     return NULL;
+}
+
+void remove_tcpmw_sock(void){
+    errno = 0;
+    if (unlink(TCPMW_SOCKET)){
+        if (errno == ENOENT)
+            zlog_warn(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
+        else{
+            zlog_fatal(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
+            exit(-1);
+        }
+    }
+
 }
 
 void tcpmw_socket(int fd){

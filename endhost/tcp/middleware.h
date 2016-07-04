@@ -86,5 +86,6 @@ void tcpmw_close(struct conn_args *);
 void tcpmw_reply(struct conn_args *, const char *);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
+void remove_tcpmw_sock(void);
 
 #endif
