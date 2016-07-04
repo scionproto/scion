@@ -476,7 +476,7 @@ class Router(SCIONElement):
                 raise SCMPNonRoutingHOF
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if addr == SVCType.PS_U:
+        if addr == SVCType.PS_A:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
             # Send request to any path server.
@@ -485,7 +485,7 @@ class Router(SCIONElement):
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver path mgmt packet: %s", e)
                 raise SCMPUnknownHost
-        elif addr == SVCType.SB_U:
+        elif addr == SVCType.SB_A:
             self.fwd_sibra_service_pkt(spkt, None)
             return
         self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)

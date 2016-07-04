@@ -29,32 +29,32 @@ class SVCType(object):
     """
     Defines the recognised SVC addresses.
 
-    `U` suffix stands for Unicast. It's used when the packet should go to a
+    `A` suffix stands for Anycast. It's used when the packet should go to a
     single instance of that service.
     `M` suffix stands for Multicast. It's used when the packet should go to all
     instances of that services.
     """
     # Beacon service
-    BS_U = HostAddrSVC(0, raw=False)
+    BS_A = HostAddrSVC(0, raw=False)
     BS_M = HostAddrSVC(0 | HostAddrSVC.MCAST, raw=False)
     # Path service
-    PS_U = HostAddrSVC(1, raw=False)
+    PS_A = HostAddrSVC(1, raw=False)
     # Certificate service
-    CS_U = HostAddrSVC(2, raw=False)
+    CS_A = HostAddrSVC(2, raw=False)
     # SIBRA service
-    SB_U = HostAddrSVC(3, raw=False)
+    SB_A = HostAddrSVC(3, raw=False)
 
 SVC_TO_SERVICE = {
-    SVCType.BS_U.addr: BEACON_SERVICE,
+    SVCType.BS_A.addr: BEACON_SERVICE,
     SVCType.BS_M.addr: BEACON_SERVICE,
-    SVCType.PS_U.addr: PATH_SERVICE,
-    SVCType.CS_U.addr: CERTIFICATE_SERVICE,
-    SVCType.SB_U.addr: SIBRA_SERVICE,
+    SVCType.PS_A.addr: PATH_SERVICE,
+    SVCType.CS_A.addr: CERTIFICATE_SERVICE,
+    SVCType.SB_A.addr: SIBRA_SERVICE,
 }
 
-SERVICE_TO_SVC_U = {
-    BEACON_SERVICE: SVCType.BS_U,
-    CERTIFICATE_SERVICE: SVCType.CS_U,
-    PATH_SERVICE: SVCType.PS_U,
-    SIBRA_SERVICE: SVCType.SB_U,
+SERVICE_TO_SVC_A = {
+    BEACON_SERVICE: SVCType.BS_A,
+    CERTIFICATE_SERVICE: SVCType.CS_A,
+    PATH_SERVICE: SVCType.PS_A,
+    SIBRA_SERVICE: SVCType.SB_A,
 }

@@ -209,7 +209,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         asm = self._create_asm(pcb.p.ifID, egress_if, ts, pcb.last_hof())
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
-        return self._build_packet(SVCType.BS_U, dst_ia=dst_ia, payload=pcb)
+        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia, payload=pcb)
 
     def _mk_if_info(self, if_id):
         """

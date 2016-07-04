@@ -89,7 +89,7 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
-        pkt = self._build_packet(SVCType.PS_U, dst_ia=dst_ia, path=core_path,
+        pkt = self._build_packet(SVCType.PS_A, dst_ia=dst_ia, path=core_path,
                                  payload=records)
         fwd_if = core_path.get_fwd_if()
         if fwd_if not in self.ifid2er:

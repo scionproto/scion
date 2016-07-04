@@ -317,7 +317,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         while targets:
             seg_req = targets.pop(0)
             req_pkt = self._build_packet(
-                SVCType.PS_U, dst_ia=src_ia, path=path, payload=seg_req)
+                SVCType.PS_A, dst_ia=src_ia, path=path, payload=seg_req)
             self._send_to_next_hop(req_pkt, path.get_fwd_if())
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())

@@ -169,7 +169,7 @@ class CertServer(SCIONElement):
         else:
             # Remote request
             next_hop, port = self._get_next_hop(src.isd_as, False, True, True)
-            dst_addr = SVCType.CS_U
+            dst_addr = SVCType.CS_A
         if next_hop:
             rep_pkt = self._build_packet(
                 dst_addr, dst_ia=src.isd_as, payload=payload, dst_port=src_port)
@@ -215,7 +215,7 @@ class CertServer(SCIONElement):
         isd_as, ver = key
         req = CertChainRequest.from_values(isd_as, ver)
         dst_addr, port = self._get_next_hop(isd_as, True)
-        req_pkt = self._build_packet(SVCType.CS_U, dst_ia=isd_as, payload=req)
+        req_pkt = self._build_packet(SVCType.CS_A, dst_ia=isd_as, payload=req)
         if dst_addr:
             self.send(req_pkt, dst_addr, port)
             logging.info("Cert chain request sent: %s", req.short_desc())
@@ -276,7 +276,7 @@ class CertServer(SCIONElement):
         isd, ver = key
         isd_as = ISD_AS.from_values(isd, info[2])
         trc_req = TRCRequest.from_values(isd_as, ver)
-        req_pkt = self._build_packet(SVCType.CS_U, payload=trc_req)
+        req_pkt = self._build_packet(SVCType.CS_A, payload=trc_req)
         next_hop, port = self._get_next_hop(isd_as, True, False, True)
         if next_hop:
             self.send(req_pkt, next_hop, port)
