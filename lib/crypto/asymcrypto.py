@@ -18,6 +18,7 @@
 # External
 from nacl.exceptions import BadSignatureError
 from nacl.signing import SigningKey, VerifyKey
+from nacl.public import PrivateKey
 
 
 def generate_sign_keypair():
@@ -29,6 +30,17 @@ def generate_sign_keypair():
     """
     sk = SigningKey.generate()
     return sk.verify_key.encode(), sk.encode()
+
+
+def generate_enc_keypair():
+    """
+    Generate Curve25519 keypair
+
+    :returns tuple: A byte pair containing the encryption key and decryption
+        key.
+    """
+    private_key = PrivateKey.generate()
+    return private_key.public_key.encode(), private_key.encode()
 
 
 def sign(msg, signing_key):

@@ -39,6 +39,7 @@ from Crypto import Random
 from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_sign_keypair,
+    generate_enc_keypair,
     sign,
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
@@ -62,6 +63,7 @@ from lib.util import (
     copy_file,
     get_cert_chain_file_path,
     get_sig_key_file_path,
+    get_enc_key_file_path,
     get_trc_file_path,
     load_yaml_file,
     read_file,
@@ -234,6 +236,7 @@ class CertGenerator(object):
         self.topo_config = topo_config
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
+        self.enc_priv_keys = {}
         self.enc_pub_keys = {}
         self.certs = {}
         self.trcs = {}
@@ -254,7 +257,8 @@ class CertGenerator(object):
         topo_id = TopoID.from_values(0, 0)
         self.sig_pub_keys[topo_id], self.sig_priv_keys[topo_id] = \
             generate_sign_keypair()
-        self.enc_pub_keys[topo_id], _ = generate_sign_keypair()
+        self.enc_pub_keys[topo_id], self.enc_priv_keys[topo_id] = \
+            generate_enc_keypair()
 
     def _iterate(self, f):
         for isd_as, as_conf in self.topo_config["ASes"].items():
@@ -262,12 +266,15 @@ class CertGenerator(object):
 
     def _gen_as_keys(self, topo_id, as_conf):
         sig_pub, sig_priv = generate_sign_keypair()
-        enc_pub, enc_priv = generate_sign_keypair()
+        enc_pub, enc_priv = generate_enc_keypair()
         self.sig_priv_keys[topo_id] = sig_priv
         self.sig_pub_keys[topo_id] = sig_pub
         self.enc_pub_keys[topo_id] = enc_pub
+        self.enc_priv_keys[topo_id] = enc_priv
         sig_path = get_sig_key_file_path("")
+        enc_path = get_enc_key_file_path("")
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
+        self.cert_files[topo_id][enc_path] = base64.b64encode(enc_priv).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
