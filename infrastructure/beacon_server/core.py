@@ -21,7 +21,7 @@ from _collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import PATH_SERVICE, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SCION_UDP_EH_DATA_PORT, SIBRA_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
@@ -67,7 +67,7 @@ class CoreBeaconServer(BeaconServer):
                 continue
             beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
                                           r.interface.if_id)
-            self.send(beacon, r.addr)
+            self.send(beacon, r.addr, r.port)
             count += 1
         return count
 
@@ -109,16 +109,16 @@ class CoreBeaconServer(BeaconServer):
         pcb.sign(self.signing_key)
         # Register core path with local core path server.
         try:
-            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+            addr, port = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError:
             # If there are no local path servers, stop here.
             return
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
-        pkt = self._build_packet(ps_addr, payload=records.copy())
-        self.send(pkt, ps_addr)
-        sb_host = self.dns_query_topo(SIBRA_SERVICE)[0]
-        pkt = self._build_packet(sb_host, payload=records)
-        self.send(pkt, sb_host)
+        pkt = self._build_packet(addr, dst_port=port, payload=records.copy())
+        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
+        pkt = self._build_packet(addr, dst_port=port, payload=records)
+        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def process_pcbs(self, pcbs, raw=True):
         """

@@ -92,7 +92,7 @@ class TestTopologyParseDict(object):
     """
     @patch("lib.topology.ISD_AS", autospec=True)
     def test(self, isd_as):
-        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'DnsDomain': 3, 'MTU': 440}
+        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'MTU': 440}
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()
@@ -102,7 +102,6 @@ class TestTopologyParseDict(object):
         # Tests
         ntools.eq_(inst.is_core_as, True)
         ntools.eq_(inst.isd_as, isd_as.return_value)
-        ntools.eq_(inst.dns_domain, 3)
         ntools.eq_(inst.mtu, 440)
         inst._parse_srv_dicts.assert_called_once_with(topo_dict)
         inst._parse_router_dicts.assert_called_once_with(topo_dict)
@@ -118,7 +117,6 @@ class TestTopologyParseSrvDicts(object):
         topo_dict = {
             'BeaconServers': {"bs1": "bs1 val"},
             'CertificateServers': {"cs1": "cs1 val"},
-            'DNSServers': {"ds1": "ds1 val"},
             'PathServers': {"ps1": "ps1 val", "ps2": "ps2 val"},
             'SibraServers': {"sb1": "sb1 val"},
         }
@@ -129,12 +127,11 @@ class TestTopologyParseSrvDicts(object):
         # Tests
         assert_these_calls(server, [
             call("bs1 val", "bs1"), call("cs1 val", "cs1"),
-            call("ds1 val", "ds1"), call("ps1 val", "ps1"),
-            call("ps2 val", "ps2"), call("sb1 val", "sb1"),
+            call("ps1 val", "ps1"), call("ps2 val", "ps2"),
+            call("sb1 val", "sb1"),
         ], any_order=True)
         ntools.eq_(inst.beacon_servers, ["bs1-bs1 val"])
         ntools.eq_(inst.certificate_servers, ["cs1-cs1 val"])
-        ntools.eq_(inst.dns_servers, ["ds1-ds1 val"])
         ntools.eq_(sorted(inst.path_servers),
                    sorted(["ps1-ps1 val", "ps2-ps2 val"]))
 

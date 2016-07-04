@@ -20,7 +20,14 @@ import copy
 import struct
 
 # SCION
-from lib.defines import SCION_PROTO_VERSION, MAX_HOPBYHOP_EXT
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    MAX_HOPBYHOP_EXT,
+    PATH_SERVICE,
+    SCION_PROTO_VERSION,
+    SIBRA_SERVICE,
+)
 from lib.errors import (
     SCIONIndexError,
     SCIONParseError,
@@ -85,6 +92,13 @@ class SVCType(object):
     SB = HostAddrSVC(3, raw=False)
     # No service, used e.g., in TCP socket.
     NONE = HostAddrSVC(0xffff, raw=False)
+
+SVC_TO_SERVICE = {
+    SVCType.BS.addr: BEACON_SERVICE,
+    SVCType.PS.addr: PATH_SERVICE,
+    SVCType.CS.addr: CERTIFICATE_SERVICE,
+    SVCType.SB.addr: SIBRA_SERVICE,
+}
 
 
 class SCIONCommonHdr(Serializable):

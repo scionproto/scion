@@ -30,7 +30,9 @@ cmd_run() {
         cmd_build || exit 1
     fi
     echo "Running the network..."
-    bash gen/zk_datalog_dirs.sh || exit 1
+    if [ -e gen/zk_datalog_dirs.sh ]; then
+        bash gen/zk_datalog_dirs.sh || exit 1
+    fi
     supervisor/supervisor.sh quickstart all
 }
 
@@ -59,12 +61,14 @@ cmd_coverage(){
 
 cmd_lint() {
     set -o pipefail
+    local ret=0
     for i in . sub/web; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       echo "============================================="
-      (cd "$i" && flake8 --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3
+      ( cd "$i" && flake8 --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
+    return $ret
 }
 
 cmd_version() {
@@ -88,54 +92,15 @@ cmd_clean() {
     make -s clean
 }
 
-SOCKDIR=endhost/ssp
-
-cmd_sock_cli() {
-    if [ $# -eq 2 ]
-    then
-        GENDIR=gen/ISD${1}/AS${2}/endhost
-        ADDR="127.${1}.${2}.254"
-        ISD=${1}
-        AS=${2}
-    else
-        GENDIR=gen/ISD1/AS19/endhost
-        ADDR="127.1.19.254"
-        ISD="1"
-        AS="19"
-    fi
+cmd_sciond() {
+    ISD=${1:?No ISD provided}
+    AS=${2:?No AS provided}
+    ADDR=${3:-127.${ISD}.${AS}.254}
+    GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
-    bin/sciond --addr $ADDR --api-addr $APIADDR sspclient $GENDIR
-}
-
-cmd_run_cli() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
-    $SOCKDIR/test/client
-}
-
-cmd_sock_ser() {
-    if [ $# -eq 2 ]
-    then
-        GENDIR=gen/ISD${1}/AS${2}/endhost
-        ADDR="127.${1}.${2}.254"
-        ISD=${1}
-        AS=${2}
-    else
-        GENDIR=gen/ISD2/AS26/endhost
-        ADDR="127.2.26.254"
-        ISD="2"
-        AS="26"
-    fi
-    # FIXME(aznair): Will become ISD_AS.sock in later PR
-    APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=.
-    bin/sciond --addr $ADDR --api-addr $APIADDR sspserver $GENDIR
-}
-
-cmd_run_ser() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
-    $SOCKDIR/test/server
+    exec bin/sciond --addr $ADDR --api-addr $APIADDR sd-${ISD}-${AS} $GENDIR
 }
 
 cmd_help() {
@@ -149,6 +114,9 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
+	    $PROGRAM sciond ISD AS [ADDR]
+	        Start sciond with provided ISD and AS parameters. A third optional
+	        parameter is the address to bind when not running on localhost.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM status
@@ -170,8 +138,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|stop|status|test|topology|version|\
-    sock_cli|sock_ser|build|clean|run_cli|run_ser)
+    coverage|help|lint|run|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

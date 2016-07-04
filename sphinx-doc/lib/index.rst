@@ -10,3 +10,4 @@ Contents:
    *
    crypto/index
    packet/index
+   zk/index

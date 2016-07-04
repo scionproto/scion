@@ -25,7 +25,7 @@ from Crypto.Hash import SHA256
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
+from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
 from lib.errors import SCIONParseError
 from lib.log import log_exception
 from lib.main import main_default, main_wrapper
@@ -44,7 +44,9 @@ from lib.util import (
     SCIONTime,
     sleep_interval,
 )
-from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
+from lib.zk.cache import ZkSharedCache
+from lib.zk.errors import ZkNoConnection
+from lib.zk.zk import Zookeeper
 
 
 class CertServer(SCIONElement):
@@ -80,8 +82,7 @@ class CertServer(SCIONElement):
         }
 
         # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host)])
+        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
         self.zk = Zookeeper(self.topology.isd_as, CERTIFICATE_SERVICE,
                             name_addrs, self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
@@ -162,16 +163,16 @@ class CertServer(SCIONElement):
     def _send_reply(self, src, src_port, payload):
         if src.isd_as == self.addr.isd_as:
             # Local request
-            next_hop = src.host
+            next_hop, port = src.host, SCION_UDP_EH_DATA_PORT
             dst_addr = next_hop
         else:
             # Remote request
-            next_hop = self._get_next_hop(src.isd_as, False, True, True)
+            next_hop, port = self._get_next_hop(src.isd_as, False, True, True)
             dst_addr = SVCType.CS
         if next_hop:
             rep_pkt = self._build_packet(
                 dst_addr, dst_ia=src.isd_as, payload=payload, dst_port=src_port)
-            self.send(rep_pkt, next_hop)
+            self.send(rep_pkt, next_hop, port)
         else:
             logging.warning("Reply not sent: no destination found")
 
@@ -212,10 +213,10 @@ class CertServer(SCIONElement):
     def _fetch_cc(self, key, _):
         isd_as, ver = key
         req = CertChainRequest.from_values(isd_as, ver)
-        dst_addr = self._get_next_hop(isd_as, True)
+        dst_addr, port = self._get_next_hop(isd_as, True)
         req_pkt = self._build_packet(SVCType.CS, dst_ia=isd_as, payload=req)
         if dst_addr:
-            self.send(req_pkt, dst_addr)
+            self.send(req_pkt, dst_addr, port)
             logging.info("Cert chain request sent: %s", req.short_desc())
         else:
             logging.warning("Cert chain request (for %s) not sent: "
@@ -275,9 +276,9 @@ class CertServer(SCIONElement):
         isd_as = ISD_AS.from_values(isd, info[2])
         trc_req = TRCRequest.from_values(isd_as, ver)
         req_pkt = self._build_packet(SVCType.CS, payload=trc_req)
-        next_hop = self._get_next_hop(isd_as, True, False, True)
+        next_hop, port = self._get_next_hop(isd_as, True, False, True)
         if next_hop:
-            self.send(req_pkt, next_hop)
+            self.send(req_pkt, next_hop, port)
             logging.info("TRC request sent for %sv%s.", *key)
         else:
             logging.warning("TRC request not sent for %sv%s: "
@@ -301,8 +302,8 @@ class CertServer(SCIONElement):
         for r in routers:
             r_ia = r.interface.isd_as
             if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):
-                return r.addr
-        return None
+                return r.addr, r.port
+        return None, None
 
     def run(self):
         """

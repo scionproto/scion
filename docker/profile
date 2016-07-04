@@ -8,8 +8,6 @@ exec >/dev/tty 2>/dev/tty </dev/tty
 
 # Setup environment
 sudo mount -t tmpfs -o size=25% none /run/shm
-cat /etc/hosts gen/hosts > /tmp/hosts
-sudo bash -c "umount /etc/hosts && mv /tmp/hosts /etc/hosts"
 
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828

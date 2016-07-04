@@ -21,13 +21,13 @@ from collections import deque
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.defines import PATH_FLAG_SIBRA
+from lib.defines import PATH_FLAG_SIBRA, SCION_UDP_EH_DATA_PORT
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
-from lib.zookeeper import ZkNoConnection
+from lib.zk.errors import ZkNoConnection
 
 
 class CorePathServer(PathServer):
@@ -82,7 +82,7 @@ class CorePathServer(PathServer):
                 core_segs.append(pcb)
         # Find down-segments from local ISD.
         down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
-        logging.debug("Syncing with %s" % master)
+        logging.debug("Syncing with %s", master)
         seen_ases = set()
         for seg_type, segs in [(PST.CORE, core_segs), (PST.DOWN, down_segs)]:
             for pcb in segs:
@@ -94,7 +94,8 @@ class CorePathServer(PathServer):
                 self._segs_to_master.append((seg_type, pcb))
 
     def _is_master(self):
-        return self._master_id == str(self.addr.host)
+        return self._master_id == (self.id, str(self._port),
+                                   str(self.addr.host))
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -185,9 +186,10 @@ class CorePathServer(PathServer):
         if not master:
             logging.warning("_send_to_master(): _master_id not set.")
             return
-        pkt = self._build_packet(haddr_parse_interface(master),
-                                 payload=pld.copy())
-        self.send(pkt, master)
+        port, addr = master[1:]
+        pkt = self._build_packet(haddr_parse_interface(addr),
+                                 dst_port=int(port), payload=pld.copy())
+        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
         """

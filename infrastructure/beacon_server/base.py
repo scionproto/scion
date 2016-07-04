@@ -39,7 +39,7 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     PATH_POLICY_FILE,
     PATH_SERVICE,
-    SCION_UDP_PORT,
+    SCION_UDP_EH_DATA_PORT,
 )
 from lib.errors import (
     SCIONIndexError,
@@ -76,7 +76,9 @@ from lib.util import (
     read_file,
     sleep_interval,
 )
-from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
+from lib.zk.cache import ZkSharedCache
+from lib.zk.errors import ZkNoConnection
+from lib.zk.zk import Zookeeper
 from external.expiring_dict import ExpiringDict
 
 
@@ -138,9 +140,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             PayloadClass.PATH: {PMT.IFSTATE_REQ: self._handle_ifstate_request},
         }
 
-        # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host)])
+        # FIXME(kormat): Add more IPs here when we support dual-stack
+        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
         self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, name_addrs,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
@@ -200,7 +201,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for r in self.topology.child_edge_routers:
             beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
                                           r.interface.if_id)
-            self.send(beacon, r.addr)
+            self.send(beacon, r.addr, r.port)
             logging.info("Downstream PCB propagated!")
 
     def _mk_prop_beacon(self, pcb, dst_ia, egress_if):
@@ -359,12 +360,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 state_info = IFStateInfo.from_values(
                     ifid, True, chain.current_element())
                 pld = IFStatePayload.from_values([state_info])
-                mgmt_packet = self._build_packet()
                 for er in self.topology.get_all_edge_routers():
-                    if er.interface.if_id != ifid:
-                        mgmt_packet.addrs.dst.host = er.addr
-                        mgmt_packet.set_payload(pld.copy())
-                        self.send(mgmt_packet, er.addr)
+                    mgmt_packet = self._build_packet(er.addr, dst_port=er.port,
+                                                     payload=pld.copy())
+                    self.send(mgmt_packet, er.addr, er.port)
 
     def run(self):
         """
@@ -486,12 +485,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 trc_req = TRCRequest.from_values(isd_as, trc_ver)
                 logging.info("Requesting %sv%s TRC", isd_as[0], trc_ver)
                 try:
-                    dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+                    addr, port = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                 except SCIONServiceLookupError as e:
                     logging.warning("Sending TRC request failed: %s", e)
                     return None
-                req_pkt = self._build_packet(dst_addr, payload=trc_req)
-                self.send(req_pkt, dst_addr)
+                req_pkt = self._build_packet(addr, dst_port=port,
+                                             payload=trc_req)
+                self.send(req_pkt, addr, SCION_UDP_EH_DATA_PORT)
                 self.trc_requests[trc_tuple] = now
                 return None
         return trc
@@ -603,11 +603,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
         pld = IFStatePayload.from_values([info])
-        state_pkt = self._build_packet()
         for er in self.topology.get_all_edge_routers():
-            state_pkt.addrs.dst.host = er.addr
-            state_pkt.set_payload(pld.copy())
-            self.send(state_pkt, er.addr)
+            state_pkt = self._build_packet(er.addr, dst_port=er.port,
+                                           payload=pld.copy())
+            self.send(state_pkt, er.addr, er.port)
         self._process_revocation(rev_info, if_id)
 
     def _send_rev_to_local_ps(self, rev_info):
@@ -618,13 +617,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         if self.zk.have_lock() and self.topology.path_servers:
             try:
-                ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+                addr, port = self.dns_query_topo(PATH_SERVICE)[0]
             except SCIONServiceLookupError:
                 # If there are no local path servers, stop here.
                 return
-            pkt = self._build_packet(ps_addr, payload=rev_info)
+            pkt = self._build_packet(addr, dst_port=port, payload=rev_info)
             logging.info("Sending revocation to local PS.")
-            self.send(pkt, ps_addr)
+            self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def _process_revocation(self, rev_info, if_id):
         """
@@ -690,7 +689,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 # However, worst, the valid beacon would get added within the
                 # next propagation period.
                 if (self.ifid_state[if_id].is_expired() and
-                        cand.pcb.if_id == if_id):
+                        cand.pcb.ifID == if_id):
                     to_remove.append(cand.id)
             else:  # if_id = None means that this is an AS in downstream
                 rtoken = rev_info.rev_token
@@ -757,5 +756,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
 
         payload = IFStatePayload.from_values(infos)
-        state_pkt = self._build_packet(mgmt_pkt.addrs.src.host, payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src.host)
+        state_pkt = self._build_packet(
+            mgmt_pkt.addrs.src.host, dst_port=mgmt_pkt.l4_hdr.src_port,
+            payload=payload)
+        self.send(state_pkt, mgmt_pkt.addrs.src.host, mgmt_pkt.l4_hdr.src_port)

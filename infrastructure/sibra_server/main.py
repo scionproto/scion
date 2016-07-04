@@ -29,21 +29,14 @@ from infrastructure.sibra_server.steady import (
     SteadyPathErrorNoReservation,
 )
 from infrastructure.sibra_server.util import find_last_ifid
-from lib.defines import (
-    PATH_SERVICE,
-    SCION_UDP_PORT,
-    SIBRA_SERVICE,
-)
-from lib.errors import SCIONServiceLookupError
+from lib.defines import SIBRA_SERVICE
 from lib.packet.ext_util import find_ext_hdr
-from lib.packet.scion import SVCType
 from lib.path_db import DBResult, PathSegmentDB
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.state.state import SibraState
 from lib.sibra.util import BWSnapshot
 from lib.thread import thread_safety_net
 from lib.types import (
-    AddrType,
     ExtensionClass,
     PathMgmtType as PMT,
     PathSegmentType as PST,
@@ -57,7 +50,7 @@ from lib.util import (
     read_file,
     sleep_interval,
 )
-from lib.zookeeper import Zookeeper
+from lib.zk.zk import Zookeeper
 
 # How long to wait for path propagation before setting up steady paths over
 # routing links
@@ -99,8 +92,7 @@ class SibraServerBase(SCIONElement):
                                  self.handle_sibra_pkt},
         }
         self._find_links()
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host)])
+        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
         self.zk = Zookeeper(self.addr.isd_as, SIBRA_SERVICE, name_addrs,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
@@ -140,28 +132,14 @@ class SibraServerBase(SCIONElement):
         """
         while self.run_flag.is_set():
             spkt = self.sendq.get()
-            dst, port = self._find_dest(spkt)
+            dst, port = self.get_first_hop(spkt)
             if not dst:
                 logging.error("Unable to determine first hop for packet:\n%s",
                               spkt)
                 continue
             spkt.addrs.src.host = self.addr.host
+            logging.warning("Dst: %s Port: %s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
-
-    def _find_dest(self, spkt):
-        dst = spkt.addrs.dst
-        if (dst.isd_as == self.addr.isd_as and
-                dst.host.TYPE == AddrType.SVC):
-            # Destined for a local service
-            try:
-                spkt.addrs.dst.host = self._svc_lookup(dst)
-            except SCIONServiceLookupError:
-                return None, None
-        return self.get_first_hop(spkt)
-
-    def _svc_lookup(self, addr):
-        if addr.host == SVCType.PS:
-            return self.dns_query_topo(PATH_SERVICE)[0]
 
     def handle_path_reg(self, pkt):
         """
@@ -284,7 +262,7 @@ class SibraServerBase(SCIONElement):
         link_type = self.link_types[ifid]
         # FIXME(kormat): un-hardcode these bandwidths
         bwsnap = BWSnapshot(500 * 1024, 500 * 1024)
-        steady = SteadyPath(self.addr, self.sendq, self.signing_key,
+        steady = SteadyPath(self.addr, self._port, self.sendq, self.signing_key,
                             link_type, link_state, seg, bwsnap)
         self.dests[isd_as][steady.id] = steady
         logging.debug("Setting up steady path %s -> %s over %s",
