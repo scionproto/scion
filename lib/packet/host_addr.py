@@ -162,7 +162,7 @@ class HostAddrSVC(HostAddrBase):
     TYPE = AddrType.SVC
     LEN = 2
     NAME = "HostAddrSVC"
-    MCAST = 0x80
+    MCAST = 0x8000
 
     def _parse(self, raw):
         """
