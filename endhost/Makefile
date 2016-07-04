@@ -5,7 +5,7 @@ FILTERDIR=../lib/libfilter
 INC += -I./ssp -I$(LIBDIR) -I$(FILTERDIR)
 LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -L$(FILTERDIR) -Wl,-Bdynamic -lpthread -lzlog
 LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h $(FILTERDIR)/*.c $(FILTERDIR)/*.h
-SRCS=dispatcher.c
+SRCS=dispatcher.c $(FILTERDIR)/*.c
 
 HDRS=$(wildcard *.h)
 

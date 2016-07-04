@@ -24,6 +24,7 @@
 #include <uthash.h>
 
 #include "scion.h"
+#include "filter.h"
 
 #define APP_BUFSIZE 32
 #define DATA_BUFSIZE 65535
@@ -42,6 +43,8 @@
 
 #define IS_REG_CMD(x) ((x) & 1)
 #define IS_SCMP_REQ(x) (((x) >> 1) & 1)
+
+#define USE_FILTER_SOCKET
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr_in6 sockaddr_in6;
@@ -96,9 +99,7 @@ static int app_socket;
 
 static zlog_category_t *zc;
 
-#define USE_FILTER_SOCKET
 #ifdef USE_FILTER_SOCKET
-#include "filter.c"
 FilterSocket *filter_socket = NULL;
 #endif
 
@@ -171,23 +172,24 @@ int main(int argc, char **argv)
     if (create_sockets() < 0)
         return -1;
 
-    zlog_debug(zc, "failed here!!");
     res = run();
 
     /* Would only get down here if poll failed */
 
-    close(data_v4_socket);
-    close(data_v6_socket);
+    if (data_v4_socket >= 0)
+        close(data_v4_socket);
+    if (data_v6_socket >= 0)
+        close(data_v6_socket);
     close(app_socket);
     int i;
     for (i = 0; i < num_sockets; i++)
         close(sockets[i].fd);
-    zlog_fini();
 
 #ifdef USE_FILTER_SOCKET
     close(filter_socket->sockfd);
 #endif
 
+    zlog_fini();
     return res;
 }
 
@@ -289,12 +291,6 @@ int set_sockopts()
         res |= setsockopt(data_v6_socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval, sizeof(optval));
         res |= setsockopt(data_v6_socket, SOL_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
     }
-#ifdef USE_FILTER_SOCKET
-    if (filter_socket->sockfd > 0) {
-        setsockopt(filter_socket->sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-        res |= setsockopt(filter_socket->sockfd, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
-    }
-#endif
     optval = 1 << 20;
     res |= fcntl(app_socket, F_SETFL, O_NONBLOCK);
     if (data_v4_socket > 0) {
@@ -305,10 +301,6 @@ int set_sockopts()
         res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
         res |= fcntl(data_v6_socket, F_SETFL, O_NONBLOCK);
     }
-#ifdef USE_FILTER_SOCKET
-    res |= setsockopt(filter_socket->sockfd, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
-    res |= fcntl(filter_socket->sockfd, F_SETFL, O_NONBLOCK);
-#endif
     return res;
 }
 
@@ -703,7 +695,7 @@ void handle_data(int v6)
 
 #ifdef USE_FILTER_SOCKET
     if (is_blocked_by_filter(filter_socket, buf, from, 0, &msg)) {
-        zlog_debug(zc, "Filtered packet at handle data");
+        zlog_debug(zc, "filtered packet at handle data");
         return;
     }
 #endif
@@ -912,8 +904,7 @@ void handle_send(int index)
 
 #ifdef USE_FILTER_SOCKET
     if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, hop, 1, NULL)) {
-        zlog_debug(zc, "%d byte packet (l4 = %d) to %s:%d has been filtered",
-            packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), ntohs(hop.port));
+        zlog_debug(zc, "filtered packet at handle send");
         return;
     }
 #endif
