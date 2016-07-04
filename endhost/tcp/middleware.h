@@ -60,6 +60,8 @@
 #define CMD_SET_OPT "SOPT"
 #define CMD_GET_OPT "GOPT"
 
+#define CMD_CMP(buf, cmd) (!strncmp(buf, cmd, CMD_SIZE))
+
 zlog_category_t *zc_tcp;
 s8_t lwip_err;
 

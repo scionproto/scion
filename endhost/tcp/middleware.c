@@ -89,7 +89,8 @@ void tcpmw_socket(int fd){
     }
     if (strncmp(buf, CMD_NEW_SOCK, CMD_SIZE) || pld_len){
         lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s", CMD_SIZE + pld_len, buf);
+        zlog_error(zc_tcp, "tcpmw_socket(): wrong command: %.*s (%dB payload)",
+                   CMD_SIZE, buf, pld_len);
         goto close;
     }
     zlog_info(zc_tcp, "NEWS received");
@@ -124,7 +125,6 @@ void tcpmw_socket(int fd){
 clean:
     lwip_err = ERR_SYS;
     netconn_delete(conn);
-    args->conn = NULL;
 close:
     close(fd);
 exit:
@@ -142,7 +142,7 @@ int tcpmw_read_cmd(int fd, char *buf){
     if (recvd < 0)
         return recvd;
     if (PLD_SIZE + recvd > TCPMW_BUFLEN){
-        zlog_error(zc_tcp, "tcpmw_read_cmd: incorrent command length (pld_len: %dB): %.*s",
+        zlog_error(zc_tcp, "tcpmw_read_cmd: incorrect payload length (%dB): %.*s",
                    pld_len, recvd, buf);
         return -1;
     }
@@ -161,39 +161,34 @@ void tcpmw_reply(struct conn_args *args, const char *cmd){
     }
 }
 
-void tcpmw_terminate(struct conn_args *args){
-    zlog_debug(zc_tcp, "tcpmw_terminate()");
-    tcpmw_close(args);
-    pthread_exit(NULL);
-}
-
 void *tcpmw_sock_thread(void *data){
     struct conn_args *args = data;
     int pld_len;
     char buf[TCPMW_BUFLEN];
     zlog_info(zc_tcp, "New sock thread started, waiting for requests");
     while ((pld_len=tcpmw_read_cmd(args->fd, buf)) >= 0) {
-        if (!strncmp(buf, CMD_SEND, CMD_SIZE))
-            tcpmw_send(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_RECV, CMD_SIZE) && !pld_len)
+        char *pld_ptr = buf + CMD_SIZE;
+        if (CMD_CMP(buf, CMD_SEND))
+            tcpmw_send(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_RECV) && !pld_len)
             tcpmw_recv(args);
-        else if (!strncmp(buf, CMD_BIND, CMD_SIZE))
-            tcpmw_bind(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_CONNECT, CMD_SIZE))
-            tcpmw_connect(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_LISTEN, CMD_SIZE) && !pld_len)
+        else if (CMD_CMP(buf, CMD_BIND))
+            tcpmw_bind(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_CONNECT))
+            tcpmw_connect(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_LISTEN) && !pld_len)
             tcpmw_listen(args);
-        else if (!strncmp(buf, CMD_ACCEPT, CMD_SIZE))
-            tcpmw_accept(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_SET_RECV_TOUT, CMD_SIZE))
-            tcpmw_set_recv_tout(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_GET_RECV_TOUT, CMD_SIZE) && !pld_len)
+        else if (CMD_CMP(buf, CMD_ACCEPT))
+            tcpmw_accept(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_SET_RECV_TOUT))
+            tcpmw_set_recv_tout(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_GET_RECV_TOUT) && !pld_len)
             tcpmw_get_recv_tout(args);
-        else if (!strncmp(buf, CMD_SET_OPT, CMD_SIZE))
-            tcpmw_set_sock_opt(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_GET_OPT, CMD_SIZE))
-            tcpmw_get_sock_opt(args, buf + CMD_SIZE, pld_len);
-        else if (!strncmp(buf, CMD_CLOSE, CMD_SIZE))
+        else if (CMD_CMP(buf, CMD_SET_OPT))
+            tcpmw_set_sock_opt(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_GET_OPT))
+            tcpmw_get_sock_opt(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_CLOSE))
             break;
         else{
             zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %.*s (%dB)",
@@ -217,7 +212,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     zlog_info(zc_tcp, "BIND received");
     if ((len < 5 + ADDR_NONE_LEN) || (len > 5 + ADDR_IPV6_LEN)){
         lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_bind(): wrong command");
+        zlog_error(zc_tcp, "tcpmw_bind(): wrong payload length");
         goto exit;
     }
 
@@ -267,7 +262,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     if (addr.type == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
         args->conn->pcb.ip->svc = *(u16_t*)(addr.addr + ISD_AS_LEN);
     /* Set first hop. */
-    p += 1 + ISD_AS_LEN + get_addr_len(p[0]);
+    p += 1 + ISD_AS_LEN + get_addr_len(addr.type);
     /* TODO(PSz): don't assume IPv4 */
     path->first_hop.addr_type = ADDR_IPV4_TYPE;
     memcpy(path->first_hop.addr, p, 4);
@@ -305,7 +300,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
 
     if ((lwip_err = netconn_accept(args->conn, &newconn)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
-        goto exit;
+        goto clean;  // TODO(PSz): check whether newconn needs to be freed here
     }
     zlog_info(zc_tcp, "tcpmw_accept(): waiting...");
 
@@ -314,7 +309,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     if ((new_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): socket(): %s", strerror(errno));
-        goto exit;
+        goto clean;
     }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
@@ -322,7 +317,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     if (connect(new_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): connect(%s): %s", accept_path, strerror(errno));
-        goto exit;
+        goto clean;
     }
 
     /* Create a detached thread. */
@@ -330,11 +325,11 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     pthread_t tid;
     if ((sys_err = pthread_attr_init(&attr))){
         zlog_error(zc_tcp, "tcpmw_accept(): pathread_attr_init(): %s", strerror(sys_err));
-        goto exit;
+        goto clean;
     }
     if ((sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED))){
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_attr_setdetachstate(): %s", strerror(sys_err));
-        goto exit;
+        goto clean;
     }
     struct conn_args *new_args = malloc(sizeof *new_args);
     new_args->fd = new_fd;
@@ -342,7 +337,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, new_args))){
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_create(): %s", strerror(sys_err));
         free(new_args);
-        goto exit;
+        goto clean;
     }
 
     /* Preparing a successful response. */
@@ -376,10 +371,14 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     }
     free(tmp);
     /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
+    goto exit;
 
-exit:
+clean:
+    netconn_close(newconn);
+    netconn_delete(newconn);
     if (sys_err)
         lwip_err = ERR_SYS;
+exit:
     tcpmw_reply(args, CMD_ACCEPT);
 }
 
@@ -518,6 +517,12 @@ void tcpmw_get_sock_opt(struct conn_args *args, char *buf, int len){
 
 exit:
     tcpmw_reply(args, CMD_GET_OPT);
+}
+
+void tcpmw_terminate(struct conn_args *args){
+    zlog_debug(zc_tcp, "tcpmw_terminate()");
+    tcpmw_close(args);
+    pthread_exit(NULL);
 }
 
 void tcpmw_close(struct conn_args *args){
