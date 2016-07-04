@@ -414,7 +414,7 @@ class Router(SCIONElement):
         snames = [BEACON_SERVICE]
         if self.topology.path_servers:
             snames.append(PATH_SERVICE)
-        
+
         self.revocations[rev_info] = True
         for sname in snames:
             try:
