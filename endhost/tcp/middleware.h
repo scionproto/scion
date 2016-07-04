@@ -61,7 +61,6 @@
 #define CMD_GET_OPT "GOPT"
 
 zlog_category_t *zc_tcp;
-int sys_err;
 s8_t lwip_err;
 
 struct conn_args{

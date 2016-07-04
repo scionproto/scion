@@ -53,9 +53,9 @@ void *tcpmw_main_thread(void *unused) {
     while (1) {
         if ((cl = accept(fd, NULL, NULL)) == -1) {
             err_t tmp_err = errno;
-            zlog_fatal(zc_tcp, "tcpmw_main_thread: accept(): %s", strerror(errno));
             if (tmp_err == EINTR)
                 continue;
+            zlog_fatal(zc_tcp, "tcpmw_main_thread: accept(): %s", strerror(errno));
             exit(-1);
         }
         /* socket() called by app. Create a netconn and a corresponding thread. */
@@ -82,7 +82,6 @@ void tcpmw_socket(int fd){
     pthread_t tid;
 
     lwip_err = 0;
-    sys_err = 0;
     if ((pld_len = tcpmw_read_cmd(fd, buf)) < 0){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_socket(): tcpmw_read_cmd(): %s", strerror(errno));
@@ -103,6 +102,7 @@ void tcpmw_socket(int fd){
 
     /* Create a detached thread. */
     pthread_attr_t attr;
+    int sys_err;
     if ((sys_err = pthread_attr_init(&attr))){
         zlog_error(zc_tcp, "tcpmw_socket(): pathread_attr_init(): %s", strerror(sys_err));
         goto clean;
@@ -122,6 +122,7 @@ void tcpmw_socket(int fd){
     goto exit;  /* OK */
 
 clean:
+    lwip_err = ERR_SYS;
     netconn_delete(conn);
     args->conn = NULL;
 close:
@@ -151,8 +152,6 @@ int tcpmw_read_cmd(int fd, char *buf){
 
 void tcpmw_reply(struct conn_args *args, const char *cmd){
     u8_t buf[PLD_SIZE + RESP_SIZE];
-    if (sys_err)
-        lwip_err = ERR_SYS;
     *(u16_t *)buf = 0;
     memcpy(buf + PLD_SIZE, cmd, CMD_SIZE);
     buf[PLD_SIZE + RESP_SIZE - 1] = lwip_err;  /* Set error code. */
@@ -215,7 +214,6 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     char *p = buf;
 
     lwip_err = 0;
-    sys_err = 0;
     zlog_info(zc_tcp, "BIND received");
     if ((len < 5 + ADDR_NONE_LEN) || (len > 5 + ADDR_IPV6_LEN)){
         lwip_err = ERR_MW;
@@ -250,7 +248,6 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     char *p = buf;
 
     lwip_err = 0;
-    sys_err = 0;
     zlog_info(zc_tcp, "CONN received");
     port = *((u16_t *)p);
     p += 2;  /* skip port */
@@ -284,7 +281,6 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
 
 void tcpmw_listen(struct conn_args *args){
     lwip_err = 0;
-    sys_err = 0;
     zlog_info(zc_tcp, "LIST received");
     if ((lwip_err = netconn_listen(args->conn)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_listen(): %s", lwip_strerr(lwip_err));
@@ -299,7 +295,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     struct netconn *newconn;
 
     lwip_err = 0;
-    sys_err = 0;
+    int sys_err = 0;
     zlog_info(zc_tcp, "ACCE received");
     if (len != SOCK_PATH_LEN){
         lwip_err = ERR_MW;
@@ -382,6 +378,8 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
 
 exit:
+    if (sys_err)
+        lwip_err = ERR_SYS;
     tcpmw_reply(args, CMD_ACCEPT);
 }
 
@@ -415,7 +413,6 @@ void tcpmw_recv(struct conn_args *args){
     u16_t len;
 
     lwip_err = 0;
-    sys_err = 0;
     /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
