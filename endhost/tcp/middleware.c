@@ -34,7 +34,7 @@ void *tcpmw_main_thread(void *unused) {
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
 
-    if (atexit(remove_tcpmw_sock)){
+    if (atexit(tcpmw_unlink_sock)){
         zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
         exit(-1);
     }
@@ -64,17 +64,14 @@ void *tcpmw_main_thread(void *unused) {
     return NULL;
 }
 
-void remove_tcpmw_sock(void){
+void tcpmw_unlink_sock(void){
     errno = 0;
     if (unlink(TCPMW_SOCKET)){
         if (errno == ENOENT)
             zlog_warn(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
-        else{
+        else
             zlog_fatal(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
-            exit(-1);
-        }
     }
-
 }
 
 void tcpmw_socket(int fd){
@@ -275,9 +272,9 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     /* Set first hop. */
     p += 1 + ISD_AS_LEN + get_addr_len(p[0]);
     /* TODO(PSz): don't assume IPv4 */
-    path->first_hop.sin_family = AF_INET;
-    memcpy(&(path->first_hop.sin_addr), p, 4);
-    path->first_hop.sin_port = *(uint16_t *)(p + 4);
+    path->first_hop.addr_type = ADDR_IPV4_TYPE;
+    memcpy(path->first_hop.addr, p, 4);
+    path->first_hop.port = *(uint16_t *)(p + 4);
 
     if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect(): %s", lwip_strerr(lwip_err));

@@ -113,8 +113,7 @@ static inline uint16_t get_next_port();
 
 void handle_data(int v6);
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
-void deliver_tcp(uint8_t *buf, int len, struct sockaddr_in *from);
-void overlay_output(uint8_t *buf, int len, struct sockaddr_in *first_hop);
+void deliver_tcp(uint8_t *buf, int len, HostAddr *from);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, HostAddr *from);
@@ -347,7 +346,7 @@ int bind_data_sockets()
 int init_tcpmw()
 {
     pthread_t tid;
-    tcp_scion_output = &overlay_output;
+    tcp_scion_output = &send_data;
     zc_tcp = zc;
     if (pthread_create(&tid, NULL, &tcpmw_main_thread, NULL)){
         zlog_fatal(zc, "pthread_create(): %s", strerror(errno));
@@ -692,7 +691,7 @@ void handle_data(int v6)
             deliver_udp(buf, len, &from, &dst);
             break;
         case L4_TCP:
-            deliver_tcp(buf, len, (sockaddr_in *)&src);  /* FIXME(Psz): for now... */
+            deliver_tcp(buf, len, &from);
             break;
     }
 }
@@ -786,23 +785,14 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     send_all(sock, buf, len);
 }
 
-void deliver_tcp(uint8_t *buf, int len, struct sockaddr_in *from)
+void deliver_tcp(uint8_t *buf, int len, HostAddr *from)
 {
     /* Allocate buffer for LWIP's processing. */
-    uint8_t sin_size = sizeof(struct sockaddr_in);
-    struct pbuf *p = pbuf_alloc(PBUF_RAW, len + 1 + sin_size, PBUF_RAM);
-    ((u8_t *)p->payload)[0] = sin_size;
-    memcpy(p->payload + 1, from, sin_size);
-    memcpy(p->payload + 1 + sin_size, buf, len);
-    /* Put [from_len (1B) || from (sockaddr_in) || raw_spkt] to the TCP queue. */
+    struct pbuf *p = pbuf_alloc(PBUF_RAW, sizeof(HostAddr) + len, PBUF_RAM);
+    memcpy(p->payload, from, sizeof(HostAddr));
+    memcpy(p->payload + sizeof(HostAddr), buf, len);
+    /* Put [from (HostAddr) || raw_spkt] to the TCP queue. */
     tcpip_input(p, (struct netif *)NULL);
-}
-
-void overlay_output(uint8_t *buf, int len, struct sockaddr_in *first_hop)
-{
-    /* FIXME(Psz): for now... */
-    sendto(data_v4_socket, buf, len, 0, (struct sockaddr *)first_hop,
-           sizeof(*first_hop));
 }
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
@@ -900,7 +890,7 @@ void handle_send(int index)
     memset(&hop, 0, sizeof(hop));
     hop.addr_type = addr_type;
     memcpy(hop.addr, buf, addr_len);
-    hop.port = htons(*(uint16_t *)(buf + addr_len));
+    hop.port = *(uint16_t *)(buf + addr_len);
     send_data(buf + addr_len + 2, packet_len, &hop);
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
@@ -960,14 +950,14 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop)
         sockaddr_in sa;
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
-        sa.sin_port = first_hop->port;
+        sa.sin_port = htons(first_hop->port);
         memcpy(&sa.sin_addr, first_hop->addr, ADDR_IPV4_LEN);
         ret = sendto(data_v4_socket, buf, len, 0, (struct sockaddr *)&sa, sizeof(sa));
     } else if (first_hop->addr_type == ADDR_IPV6_TYPE) {
         sockaddr_in6 sa6;
         memset(&sa6, 0, sizeof(sa6));
         sa6.sin6_family = AF_INET6;
-        sa6.sin6_port = first_hop->port;
+        sa6.sin6_port = htons(first_hop->port);
         memcpy(&sa6.sin6_addr, first_hop->addr, ADDR_IPV6_LEN);
         ret = sendto(data_v6_socket, buf, len, 0, (struct sockaddr *)&sa6, sizeof(sa6));
     } else {

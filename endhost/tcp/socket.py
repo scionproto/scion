@@ -202,7 +202,7 @@ class SCIONSocket(object):
         # TODO(PSz): change order of packing, don't assume ipv4
         req = (APICmd.CONNECT + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddr_type) + addr.pack() + first_ip.pack() +
-               struct.pack("!H", first_port))
+               struct.pack("H", first_port))
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req[:CMD_SIZE], rep)

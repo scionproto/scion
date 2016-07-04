@@ -74,7 +74,7 @@ def client(svc, counter):
         sd = start_sciond(myaddr)
         path = sd.get_paths(dst_isd_as)[0]
         if_id = path.get_fwd_if()
-        return (path, sd.ifid2er[if_id].addr, SCION_UDP_EH_DATA_PORT)
+        return (path, sd.ifid2er[if_id].addr, sd.ifid2er[if_id].port)
 
     print("client %d running:" % counter)
     s = socket.socket(socket.AF_SCION, socket.SOCK_STREAM, 0)
