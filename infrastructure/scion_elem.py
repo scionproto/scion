@@ -51,7 +51,7 @@ from lib.packet.scion import (
     SCIONL4Packet,
     build_base_hdrs,
 )
-from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_U
+from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_A
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scmp.errors import (
@@ -145,7 +145,7 @@ class SCIONElement(object):
         if self._port is None:
             # No scion socket desired.
             return
-        svc = SERVICE_TO_SVC_U.get(self.SERVICE_TYPE)
+        svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
         self._local_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
         if not self._local_sock.registered:
