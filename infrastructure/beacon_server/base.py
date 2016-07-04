@@ -692,6 +692,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                 continue
 
+            # If the interface on which we received the PCB is
+            # revoked, then the corresponding pcb needs to be removed, if
+            # the proof can be verified with the own AS's root for the current
+            # epoch and  the if_id of the interface on which pcb was received
+            # matches that in the rev_info
             root_verify = ConnectedHashTree.verify(
                             rev_info, self._get_ht_root())
             if cand.pcb.p.ifID == rev_info.p.ifID and root_verify:

@@ -409,25 +409,23 @@ class Router(SCIONElement):
             return
         # Forward to local path and beacon services if we haven't recently.
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-
-        snames = []
+        if rev_info in self.revocations:
+            return
+        snames = [BEACON_SERVICE]
         if self.topology.path_servers:
             snames.append(PATH_SERVICE)
-        if self.topology.beacon_servers:
-            snames.append(BEACON_SERVICE)
-
-        if (rev_info not in self.revocations):
-            self.revocations[rev_info] = True
-            for sname in snames:
-                try:
-                    addr, port = self.dns_query_topo(sname)[0]
-                except SCIONServiceLookupError:
-                    logging.error("Unable to find %s to forward revocation to.",
-                                  sname)
-                    continue
-                pkt = self._build_packet(addr, dst_port=port,
-                                         payload=rev_info.copy())
-                self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        
+        self.revocations[rev_info] = True
+        for sname in snames:
+            try:
+                addr, port = self.dns_query_topo(sname)[0]
+            except SCIONServiceLookupError:
+                logging.error("Unable to find %s to forward revocation to.",
+                              sname)
+                continue
+            pkt = self._build_packet(addr, dst_port=port,
+                                     payload=rev_info.copy())
+            self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
