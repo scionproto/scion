@@ -129,6 +129,6 @@ const char * svc_to_str(uint16_t svc, char *buf) {
             return buf;
     }
     snprintf(buf, MAX_HOST_ADDR_STR, "%s %c", service,
-            svc & SVC_MULTICAST ? 'M' : 'U');
+            svc & SVC_MULTICAST ? 'M' : 'A');
     return buf;
 }
