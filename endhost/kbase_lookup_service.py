@@ -30,7 +30,7 @@ from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import AddrType
 
-SERVER_ADDRESS = "127.0.0.1", 7777
+SERVER_ADDRESS = '', 7777
 
 
 class KnowledgeBaseLookupService(object):
