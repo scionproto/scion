@@ -78,6 +78,13 @@ def get_sig_key_file_path(conf_dir):  # pragma: no cover
     return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
 
 
+def get_enc_key_file_path(conf_dir):  # pragma: no cover
+    """
+    Return the encryption key file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "as-decrypt.key")
+
+
 def read_file(file_path):
     """
     Read and return contents of a file.
