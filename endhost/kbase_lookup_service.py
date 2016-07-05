@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# DISCLAIMER: This stats gathering service is currently used only as a
+# demonstrative tool. If you wish to deploy and use this software in a
+# production environment, then access control/authentication mechanisms
+# must be implemented.
+
 """
 :mod:`kbase_lookup_service` --- UDP Server to serve SCION socket stats
 ======================================================================
@@ -30,7 +35,7 @@ from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import AddrType
 
-SERVER_ADDRESS = "127.0.0.1", 7777
+SERVER_ADDRESS = '', 7777
 
 
 class KnowledgeBaseLookupService(object):
@@ -55,6 +60,11 @@ class KnowledgeBaseLookupService(object):
         # Bind the socket to the port
         logging.debug("Socket stats service starting up on %s port %s",
                       SERVER_ADDRESS[0], SERVER_ADDRESS[1])
+        # Print the disclaimer
+        logging.info("DISCLAIMER: This stats gathering service is currently "
+                     "used only as a demonstrative tool. If you wish to use "
+                     "it in a production environment, then proper access "
+                     "control mechanisms must be implemented.")
         self.service = threading.Thread(
             target=thread_safety_net,
             args=(self._run,),
