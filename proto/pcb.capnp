@@ -10,7 +10,6 @@ struct PCBMarking {
     outIA @3 :Text;  # Downstream ISD-AS
     outIF @4 :UInt64; # Interface ID on far end of egress link
     hof @5 :Data;
-    igRevToken @6 :Data;
 }
 
 struct ASMarking {
@@ -19,13 +18,10 @@ struct ASMarking {
     certVer @2 :UInt32;
     ifIDSize @3 :UInt8;  # Number of bits used for interface IDs in this AS.
     pcbms @4 :List(PCBMarking);
-    egRevToken @5 :Data;
-    exts :group {
-        revInfos @6 :List(Data);
-    }
-    sig @7 :Data;
-    mtu @8 :UInt16;  # Internal MTU
-    chain @9 :Data;  # FIXME(kormat): to be removed when propagation is over TCP.
+    hashTreeRoot @5 :Data;
+    sig @6 :Data;
+    mtu @7 :UInt16;  # Internal MTU
+    chain @8 :Data;  # FIXME(kormat): to be removed when propagation is over TCP.
 }
 
 struct PathSegment {
