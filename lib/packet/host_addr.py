@@ -97,7 +97,9 @@ class HostAddrNone(HostAddrBase):  # pragma: no cover
     TYPE = AddrType.NONE
     LEN = 0
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        if args or kwargs:
+            raise SCIONParseError("Trying to parse None host addr")
         self.addr = None
 
     def _parse(self, raw):
