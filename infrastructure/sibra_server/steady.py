@@ -34,10 +34,10 @@ from lib.errors import SCIONBaseError
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
-from lib.packet.scion import SVCType
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
+from lib.packet.svc import SVCType
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.payload import SIBRAPayload
@@ -224,7 +224,7 @@ class SteadyPath(object):
         """
         Create headers for a SCION packet
         """
-        dest = SCIONAddr.from_values(self.remote, SVCType.SB)
+        dest = SCIONAddr.from_values(self.remote, SVCType.SB_A)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         payload = SIBRAPayload.from_values()
         udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
@@ -271,7 +271,7 @@ class SteadyPath(object):
             path = SCIONPath()
         pcb = self._create_reg_pcb(remote)
         pld = PathRecordsReg.from_values({type_: [pcb]})
-        dest = SCIONAddr.from_values(dst_ia, SVCType.PS)
+        dest = SCIONAddr.from_values(dst_ia, SVCType.PS_A)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
         return SCIONL4Packet.from_values(

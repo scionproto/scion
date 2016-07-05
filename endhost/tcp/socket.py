@@ -24,8 +24,8 @@ import uuid
 
 # SCION
 from lib.packet.path import SCIONPath
-from lib.packet.scion import SVCType
 from lib.packet.scion_addr import SCIONAddr
+from lib.packet.svc import SVCType
 from lib.util import recv_all
 
 LWIP_SOCK_DIR = "/run/shm/lwip/"

@@ -23,7 +23,7 @@ from Crypto.Hash import SHA256
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.packet.scion import SVCType
+from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
 
@@ -176,6 +176,6 @@ class LocalPathServer(PathServer):
         logging.info('Send request to core (%s) via %s',
                      req.short_desc(), pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
-        req_pkt = self._build_packet(SVCType.PS, payload=req.copy(), path=path,
-                                     dst_ia=pcb.first_ia())
+        req_pkt = self._build_packet(SVCType.PS_A, payload=req.copy(),
+                                     path=path, dst_ia=pcb.first_ia())
         self._send_to_next_hop(req_pkt, path.get_fwd_if())

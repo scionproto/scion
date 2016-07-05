@@ -52,6 +52,8 @@ typedef struct {
 #define SVC_CERT_MGMT 2
 #define SVC_SIBRA 3
 
+#define SVC_MULTICAST 0x8000
+
 typedef struct {
     uint8_t addr[ISD_AS_LEN + MAX_HOST_ADDR_LEN];
     uint8_t type;

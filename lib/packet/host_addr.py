@@ -86,6 +86,9 @@ class HostAddrBase(Serializable):
     def __lt__(self, other):  # pragma: no cover
         return str(self) < str(other)
 
+    def __hash__(self):
+        return hash(self.pack())
+
 
 class HostAddrNone(HostAddrBase):  # pragma: no cover
     """
@@ -159,18 +162,23 @@ class HostAddrSVC(HostAddrBase):
     TYPE = AddrType.SVC
     LEN = 2
     NAME = "HostAddrSVC"
+    MCAST = 0x8000
 
     def _parse(self, raw):
-        """
-        Parse SVC address
-
-        :param bytes raw: Raw SVC address
-        """
         data = Raw(raw, self.NAME, self.LEN)
         self.addr = struct.unpack("!H", data.pop(self.LEN))[0]
 
     def pack(self):  # pragma: no cover
         return struct.pack("!H", self.addr)
+
+    def is_mcast(self):  # pragma: no cover
+        return self.addr & self.MCAST
+
+    def __str__(self):
+        s = "0x%02x" % (self.addr & ~self.MCAST)
+        if self.is_mcast():
+            return s + " M"
+        return s + " A"
 
 
 _map = {

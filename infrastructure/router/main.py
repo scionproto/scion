@@ -56,7 +56,7 @@ from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
-from lib.packet.scion import SVCType
+from lib.packet.svc import SVCType
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
     SCMPBadHopByHop,
@@ -256,7 +256,7 @@ class Router(SCIONElement):
         neighboring router.
         """
         ifid_pld = IFIDPayload.from_values(self.interface.if_id)
-        pkt = self._build_packet(SVCType.BS, dst_ia=self.interface.isd_as)
+        pkt = self._build_packet(SVCType.BS_M, dst_ia=self.interface.isd_as)
         while self.run_flag.is_set():
             pkt.set_payload(ifid_pld.copy())
             self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
@@ -294,7 +294,7 @@ class Router(SCIONElement):
         if from_local:
             logging.error("Received IFID packet from local AS, dropping")
             return
-        if pkt.addrs.dst.host != SVCType.BS:
+        if pkt.addrs.dst.host != SVCType.BS_M:
             raise SCMPBadHost("Invalid SVC address: %s", pkt.addrs.dst.host)
         ifid_pld = pkt.get_payload().copy()
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
@@ -305,9 +305,11 @@ class Router(SCIONElement):
         except SCIONServiceLookupError as e:
             logging.error("Unable to deliver ifid packet: %s", e)
             raise SCMPUnknownHost
-        for bs_addr, _ in bs_addrs:
+        # Only deliver once per address, as the multicast SVC address will cover
+        # all instances on that address.
+        for addr in set([a for a, _ in bs_addrs]):
             pkt.set_payload(ifid_pld.copy())
-            self.send(pkt, bs_addr, SCION_UDP_EH_DATA_PORT)
+            self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def get_srv_addr(self, service, pkt):
         """
@@ -474,7 +476,7 @@ class Router(SCIONElement):
                 raise SCMPNonRoutingHOF
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if addr == SVCType.PS:
+        if addr == SVCType.PS_A:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
             # Send request to any path server.
@@ -483,7 +485,7 @@ class Router(SCIONElement):
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver path mgmt packet: %s", e)
                 raise SCMPUnknownHost
-        elif addr == SVCType.SB:
+        elif addr == SVCType.SB_A:
             self.fwd_sibra_service_pkt(spkt, None)
             return
         self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
