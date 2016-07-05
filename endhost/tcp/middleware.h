@@ -58,6 +58,7 @@
 #define CMD_SEND "SEND"
 #define CMD_SET_RECV_TOUT "SRTO"
 #define CMD_SET_OPT "SOPT"
+#define CMD_RESET_OPT "ROPT"
 #define CMD_GET_OPT "GOPT"
 
 #define CMD_CMP(buf, cmd) (!strncmp(buf, cmd, CMD_SIZE))
@@ -75,13 +76,14 @@ void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
 void tcpmw_bind(struct conn_args *, char *, int);
 void tcpmw_connect(struct conn_args *, char *, int);
-void tcpmw_listen(struct conn_args *);
+void tcpmw_listen(struct conn_args *, int);
 void tcpmw_accept(struct conn_args *, char *, int);
 void tcpmw_send(struct conn_args *, char *, int);
-void tcpmw_recv(struct conn_args *);
+void tcpmw_recv(struct conn_args *, int);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
-void tcpmw_get_recv_tout(struct conn_args *);
+void tcpmw_get_recv_tout(struct conn_args *, int);
 void tcpmw_set_sock_opt(struct conn_args *, char *, int);
+void tcpmw_reset_sock_opt(struct conn_args *, char *, int);
 void tcpmw_get_sock_opt(struct conn_args *, char *, int);
 void tcpmw_close(struct conn_args *);
 void tcpmw_reply(struct conn_args *, const char *);

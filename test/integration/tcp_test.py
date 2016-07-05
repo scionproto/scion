@@ -25,7 +25,6 @@ import time
 
 # SCION
 from endhost.tcp import socket
-from lib.defines import SCION_UDP_EH_DATA_PORT
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion import SVCType
 from lib.packet.scion_addr import ISD_AS, SCIONAddr

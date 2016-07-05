@@ -137,15 +137,14 @@ int tcpmw_read_cmd(int fd, char *buf){
     if (recvd < 0)
         return recvd;
     u16_t pld_len = *(u16_t *)buf;
+    if (PLD_SIZE + CMD_SIZE + pld_len > TCPMW_BUFLEN){
+        zlog_fatal(zc_tcp, "tcpmw_read_cmd(): too large payload length (%dB)", pld_len);
+        return -1;
+    }
     /* Read command and the payload. */
     recvd = recv_all(fd, (u8_t*)buf, CMD_SIZE + pld_len);
     if (recvd < 0)
         return recvd;
-    if (PLD_SIZE + recvd > TCPMW_BUFLEN){
-        zlog_error(zc_tcp, "tcpmw_read_cmd: incorrect payload length (%dB): %.*s",
-                   pld_len, recvd, buf);
-        return -1;
-    }
     /* Return number of bytes after command code. */
     return pld_len;
 }
@@ -170,22 +169,24 @@ void *tcpmw_sock_thread(void *data){
         char *pld_ptr = buf + CMD_SIZE;
         if (CMD_CMP(buf, CMD_SEND))
             tcpmw_send(args, pld_ptr, pld_len);
-        else if (CMD_CMP(buf, CMD_RECV) && !pld_len)
-            tcpmw_recv(args);
+        else if (CMD_CMP(buf, CMD_RECV))
+            tcpmw_recv(args, pld_len);
         else if (CMD_CMP(buf, CMD_BIND))
             tcpmw_bind(args, pld_ptr, pld_len);
         else if (CMD_CMP(buf, CMD_CONNECT))
             tcpmw_connect(args, pld_ptr, pld_len);
-        else if (CMD_CMP(buf, CMD_LISTEN) && !pld_len)
-            tcpmw_listen(args);
+        else if (CMD_CMP(buf, CMD_LISTEN))
+            tcpmw_listen(args, pld_len);
         else if (CMD_CMP(buf, CMD_ACCEPT))
             tcpmw_accept(args, pld_ptr, pld_len);
         else if (CMD_CMP(buf, CMD_SET_RECV_TOUT))
             tcpmw_set_recv_tout(args, pld_ptr, pld_len);
-        else if (CMD_CMP(buf, CMD_GET_RECV_TOUT) && !pld_len)
-            tcpmw_get_recv_tout(args);
+        else if (CMD_CMP(buf, CMD_GET_RECV_TOUT))
+            tcpmw_get_recv_tout(args, pld_len);
         else if (CMD_CMP(buf, CMD_SET_OPT))
             tcpmw_set_sock_opt(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_RESET_OPT))
+            tcpmw_reset_sock_opt(args, pld_ptr, pld_len);
         else if (CMD_CMP(buf, CMD_GET_OPT))
             tcpmw_get_sock_opt(args, pld_ptr, pld_len);
         else if (CMD_CMP(buf, CMD_CLOSE))
@@ -204,6 +205,7 @@ void *tcpmw_sock_thread(void *data){
 }
 
 void tcpmw_bind(struct conn_args *args, char *buf, int len){
+    /* | port (2B) | svc (2B) | haddr_type (1B) | scion_addr (var) | */
     ip_addr_t addr;
     u16_t port, svc;
     char *p = buf;
@@ -238,9 +240,17 @@ exit:
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
+    /* | port (2B)  | path_len (2B) | path (var) | haddr_type (1B)  | */
+    /* | scion_addr (var) | first_hop_ip (4B) | first_hop_port (2B) | */
     ip_addr_t addr;
     u16_t port, path_len;
     char *p = buf;
+
+    if (len < 15){  /* Minimum length (with empty path and haddr) */
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_connect(): incorrect payload length: %dB", len);
+        goto exit;
+    }
 
     lwip_err = 0;
     zlog_info(zc_tcp, "CONN received");
@@ -249,6 +259,17 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     path_len = *((u16_t *)p);
     p += 2;  /* skip path_len */
 
+    if (len < 15 + path_len){  /* Minimum length (with empty haddr) */
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_connect(): incorrect payload length: %dB", len);
+        goto exit;
+    }
+    if (len != 15 + path_len + get_addr_len(p[path_len])){  /* Exact length */
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_connect(): incorrect payload length: %dB", len);
+        goto exit;
+    }
+
     /* Add path to the TCP/IP state */
     spath_t *path = malloc(sizeof *path);
     path->raw_path = malloc(path_len);
@@ -256,8 +277,8 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     path->len = path_len;
     args->conn->pcb.ip->path = path;
     zlog_info(zc_tcp, "Path added, len %d", path_len);
-
     p += path_len;  /* skip path */
+
     scion_addr_from_raw(&addr, p[0], p + 1);
     if (addr.type == ADDR_SVC_TYPE)  /* set svc for TCP/IP context */
         args->conn->pcb.ip->svc = *(u16_t*)(addr.addr + ISD_AS_LEN);
@@ -271,19 +292,27 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect(): %s", lwip_strerr(lwip_err));
 
+exit:
     tcpmw_reply(args, CMD_CONNECT);
 }
 
-void tcpmw_listen(struct conn_args *args){
+void tcpmw_listen(struct conn_args *args, int len){
     lwip_err = 0;
     zlog_info(zc_tcp, "LIST received");
+    if (len){
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_listen(): incorrect payload length %d", len);
+        goto exit;
+    }
     if ((lwip_err = netconn_listen(args->conn)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_listen(): %s", lwip_strerr(lwip_err));
 
+exit:
     tcpmw_reply(args, CMD_LISTEN);
 }
 
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
+    /* | sock_path (SOCK_PATH_LEN B) | */
     int new_fd;
     char accept_path[strlen(LWIP_SOCK_DIR) + SOCK_PATH_LEN];
     struct sockaddr_un addr;
@@ -294,16 +323,16 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     zlog_info(zc_tcp, "ACCE received");
     if (len != SOCK_PATH_LEN){
         lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_accept(): incorrect ACCE length %.*s", len, buf);
+        zlog_error(zc_tcp, "tcpmw_accept(): incorrect payload length %.*s", len, buf);
         goto exit;
     }
 
     if ((lwip_err = netconn_accept(args->conn, &newconn)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
-        goto clean;  // TODO(PSz): check whether newconn needs to be freed here
+        goto exit;
     }
-    zlog_info(zc_tcp, "tcpmw_accept(): waiting...");
 
+    zlog_info(zc_tcp, "tcpmw_accept(): waiting...");
     sprintf(accept_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf);
     zlog_info(zc_tcp, "connecting to %s", accept_path);
     if ((new_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
@@ -343,7 +372,8 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     /* Preparing a successful response. */
     u16_t  path_len = newconn->pcb.ip->path->len;
     u8_t haddr_len = get_addr_len(newconn->pcb.ip->remote_ip.type);
-    u16_t pld_len = 2 + path_len + 1 + 4 + haddr_len;
+    /* | path_len (2B) | path (var) | haddr_type (1B)  | scion_addr (var) | */
+    u16_t pld_len = 2 + path_len + 1 + ISD_AS_LEN + haddr_len;
     u16_t tot_len = PLD_SIZE + RESP_SIZE + pld_len;
 
     u8_t *tmp = malloc(tot_len);
@@ -363,7 +393,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     /* Encode address. */
     p[0] = newconn->pcb.ip->remote_ip.type;
     p++;
-    memcpy(p, newconn->pcb.ip->remote_ip.addr, 4 + haddr_len);
+    memcpy(p, newconn->pcb.ip->remote_ip.addr, ISD_AS_LEN + haddr_len);
     if (send_all(new_fd, tmp, tot_len) < 0){
         zlog_fatal(zc_tcp, "accept(): send_all(): %s", strerror(errno));
         free(tmp);
@@ -405,13 +435,19 @@ exit:
     tcpmw_reply(args, CMD_SEND);
 }
 
-void tcpmw_recv(struct conn_args *args){
+void tcpmw_recv(struct conn_args *args, int pld_len){
     u8_t *msg;
     struct netbuf *buf;
     void *data;
     u16_t len;
 
     lwip_err = 0;
+    if (pld_len){
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_recv(): incorrect payload length %d", pld_len);
+        goto exit;
+    }
+
     /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
@@ -459,20 +495,26 @@ exit:
     tcpmw_reply(args, CMD_SET_RECV_TOUT);
 }
 
-void tcpmw_get_recv_tout(struct conn_args *args){
+void tcpmw_get_recv_tout(struct conn_args *args, int len){
+    lwip_err = 0;
+    if (len){
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_get_recv_tout(): incorrect payload length %d", len);
+        tcpmw_reply(args, CMD_GET_RECV_TOUT);
+        return;
+    }
+
     zlog_info(zc_tcp, "GRTO received");
     int timeout = netconn_get_recvtimeout(args->conn);
-    u8_t *msg = malloc(PLD_SIZE + RESP_SIZE + 4);
+    u8_t msg[PLD_SIZE + RESP_SIZE + 4];
     *(u16_t*)msg = 4;  /* Payload size */
     memcpy(msg + PLD_SIZE, CMD_GET_RECV_TOUT, CMD_SIZE);
     msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
     *(u32_t *)(msg + PLD_SIZE + RESP_SIZE) = (u32_t)timeout;
     if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 4) < 0){
         zlog_fatal(zc_tcp, "tcpmw_get_recv_tout(): send_all(): %s", strerror(errno));
-        free(msg);
         tcpmw_terminate(args);
     }
-    free(msg);
 }
 
 void tcpmw_set_sock_opt(struct conn_args *args, char *buf, int len){
@@ -491,6 +533,22 @@ exit:
     tcpmw_reply(args, CMD_SET_OPT);
 }
 
+void tcpmw_reset_sock_opt(struct conn_args *args, char *buf, int len){
+    lwip_err = 0;
+    zlog_info(zc_tcp, "ROPT received");
+    if (len != 2){
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_set_sock_opt(): incorrect SOPT length");
+        goto exit;
+    }
+
+    u16_t opt = *(u16_t *)buf;
+    ip_reset_option(args->conn->pcb.ip, opt);
+
+exit:
+    tcpmw_reply(args, CMD_RESET_OPT);
+}
+
 void tcpmw_get_sock_opt(struct conn_args *args, char *buf, int len){
     lwip_err = 0;
     zlog_info(zc_tcp, "GOPT received");
@@ -502,17 +560,15 @@ void tcpmw_get_sock_opt(struct conn_args *args, char *buf, int len){
 
     u16_t ret, opt = *(u16_t *)buf;
     ret = ip_get_option(args->conn->pcb.ip, opt);
-    u8_t *msg = malloc(PLD_SIZE + RESP_SIZE + 2);
+    u8_t msg[PLD_SIZE + RESP_SIZE + 2];
     *(u16_t*)msg = 2;  /* Payload size */
     memcpy(msg + PLD_SIZE, CMD_GET_OPT, CMD_SIZE);
     msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
     *(u16_t *)(msg + PLD_SIZE + RESP_SIZE) = ret;
     if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE + 2) < 0){
         zlog_fatal(zc_tcp, "tcpmw_get_sock_opt(): send_all(): %s", strerror(errno));
-        free(msg);
         tcpmw_terminate(args);
     }
-    free(msg);
     return;
 
 exit:
@@ -527,10 +583,8 @@ void tcpmw_terminate(struct conn_args *args){
 
 void tcpmw_close(struct conn_args *args){
     close(args->fd);
-    if (args->conn){
-        netconn_close(args->conn);
-        netconn_delete(args->conn);
-        args->conn = NULL;
-    }
+    netconn_close(args->conn);
+    netconn_delete(args->conn);
+    args->conn = NULL;
     free(args);
 }

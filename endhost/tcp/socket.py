@@ -117,6 +117,7 @@ class APICmd(object):
     SEND = b"SEND"
     SET_RECV_TOUT = b"SRTO"
     SET_OPT = b"SOPT"
+    RESET_OPT = b"ROPT"
     GET_OPT = b"GOPT"
 
 
@@ -154,6 +155,12 @@ class SCIONSocket(object):
 
     def set_sock_opt(self, opt):
         req = APICmd.SET_OPT + struct.pack("H", opt)
+        self._to_lwip(req)
+        rep = self._from_lwip()
+        self._handle_reply(req[:CMD_SIZE], rep)
+
+    def reset_sock_opt(self, opt):
+        req = APICmd.RESET_OPT + struct.pack("H", opt)
         self._to_lwip(req)
         rep = self._from_lwip()
         self._handle_reply(req[:CMD_SIZE], rep)
