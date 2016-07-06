@@ -40,6 +40,4 @@ test:
         - find . -maxdepth 1 -name 'core*' | xargs -r mv -t artifacts
         - mv sphinx-doc/_build/html/sphinx-doc/ artifacts/docs
         - mv logs artifacts/
-        - ls -l; pwd
-        - mv gen artifacts/
         - tar czf "${CIRCLE_ARTIFACTS}/circleci.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}.tar.gz" -C artifacts .
