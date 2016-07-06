@@ -35,7 +35,10 @@ test:
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
         - ./docker.sh run -c "docker/integration_test.sh"
     post:
-        - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
-        - cp -a sphinx-doc/_build/html/sphinx-doc/ "$CIRCLE_ARTIFACTS"/docs
-        - cp -a logs "$CIRCLE_ARTIFACTS"/logs
-        - LOGS="logs.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}"; mv logs/ "$LOGS"; tar czf "${CIRCLE_ARTIFACTS}/$LOGS.tar.gz" "$LOGS"
+        - mkdir artifacts
+        - mv htmlcov artifacts/coverage
+        - [ -e core ] && mv core artifacts/
+        - mv sphinx-doc/_build/html/sphinx-doc/ artifacts/docs
+        - mv logs artifacts/logs
+        - mv gen artifacts/gen
+        - tar czf "${CIRCLE_ARTIFACTS}/circleci.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}.tar.gz" -C artifacts .
