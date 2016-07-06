@@ -37,7 +37,8 @@ test:
     post:
         - mkdir artifacts
         - mv htmlcov artifacts/coverage
-        - [ -e core ] && mv core artifacts/
+        - |
+          [ -e core ] && mv core artifacts/
         - mv sphinx-doc/_build/html/sphinx-doc/ artifacts/docs
         - mv logs artifacts/logs
         - mv gen artifacts/gen
