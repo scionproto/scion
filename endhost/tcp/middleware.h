@@ -16,6 +16,7 @@
 #ifndef _MIDDLEWARE_H_
 #define _MIDDLEWARE_H_
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>

@@ -314,7 +314,6 @@ exit:
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
     /* | sock_path (SOCK_PATH_LEN B) | */
     int new_fd;
-    char accept_path[strlen(LWIP_SOCK_DIR) + SOCK_PATH_LEN];
     struct sockaddr_un addr;
     struct netconn *newconn;
 
@@ -333,19 +332,20 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     }
 
     zlog_info(zc_tcp, "tcpmw_accept(): waiting...");
-    sprintf(accept_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf);
-    zlog_info(zc_tcp, "connecting to %s", accept_path);
+
+    assert(strlen(LWIP_SOCK_DIR) + SOCK_PATH_LEN < sizeof(addr.sun_path));
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    sprintf(addr.sun_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf);
+    zlog_info(zc_tcp, "connecting to %s", addr.sun_path);
     if ((new_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         sys_err = errno;
         zlog_error(zc_tcp, "tcpmw_accept(): socket(): %s", strerror(errno));
         goto clean;
     }
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, accept_path, sizeof(addr.sun_path)-1);
     if (connect(new_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         sys_err = errno;
-        zlog_error(zc_tcp, "tcpmw_accept(): connect(%s): %s", accept_path, strerror(errno));
+        zlog_error(zc_tcp, "tcpmw_accept(): connect(%s): %s", addr.sun_path, strerror(errno));
         goto clean;
     }
 
@@ -397,6 +397,8 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     if (send_all(new_fd, tmp, tot_len) < 0){
         zlog_fatal(zc_tcp, "accept(): send_all(): %s", strerror(errno));
         free(tmp);
+        netconn_close(newconn);
+        netconn_delete(newconn);
         tcpmw_terminate(args);
     }
     free(tmp);
