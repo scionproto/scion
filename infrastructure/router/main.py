@@ -51,12 +51,13 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.host_addr import HostAddrNone
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
-from lib.packet.svc import SVCType
 from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.scion import SCIONBasePacket
+from lib.packet.svc import SVCType
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
     SCMPBadHopByHop,
@@ -73,6 +74,7 @@ from lib.packet.scmp.errors import (
     SCMPUnknownHost,
 )
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.sibra.ext.ext import SibraExtBase
 from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -189,6 +191,9 @@ class Router(SCIONElement):
         :type addr: :class:`HostAddrBase`
         :param int port: The port number of the next hop.
         """
+        assert not isinstance(spkt.addrs.src.host, HostAddrNone)
+        assert not isinstance(spkt.addrs.dst.host, HostAddrNone)
+        assert isinstance(spkt, SCIONBasePacket)
         from_local_as = addr == self.interface.to_addr
         self.handle_extensions(spkt, False, from_local_as)
         if from_local_as:

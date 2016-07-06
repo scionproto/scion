@@ -645,6 +645,14 @@ void handle_data(int v6)
     }
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    if (SRC_TYPE(sch) == ADDR_NONE_TYPE) {
+        zlog_error(zc, "handle_data: src addr is of None type");
+        return;
+    }
+    if (DST_TYPE(sch) == ADDR_NONE_TYPE) {
+        zlog_error(zc, "handle_data: dst addr is of None type");
+        return;
+    }
     if (sch->header_len > len || ntohs(sch->total_len) > len) {
         zlog_error(zc, "invalid SCION packet");
         return;
@@ -938,6 +946,15 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop)
 {
     int ret = 0;
     errno = 0;
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    if (SRC_TYPE(sch) == ADDR_NONE_TYPE) {
+        zlog_error(zc, "send_data: src addr is of None type");
+        return -1;
+    }
+    if (DST_TYPE(sch) == ADDR_NONE_TYPE) {
+        zlog_error(zc, "send_data: dst addr is of None type");
+        return -1;
+    }
     if (first_hop->addr_type == ADDR_IPV4_TYPE) {
         sockaddr_in sa;
         memset(&sa, 0, sizeof(sa));
