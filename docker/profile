@@ -13,5 +13,6 @@ sudo mount -t tmpfs -o size=25% none /run/shm
 # https://github.com/docker/docker/issues/6828
 sudo chmod g+s /usr/bin/screen
 
-# Allow coredumps to be created
+# Allow coredumps to be created, with meaningful names
 ulimit -c unlimited
+sudo sysctl -q kernel.core_pattern=core.%e.%p.%t
