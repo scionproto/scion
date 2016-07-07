@@ -107,6 +107,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         worker_cycle = 1.0
         start = SCIONTime.get_time()
+        was_master = False
         while self.run_flag.is_set():
             sleep_interval(start, worker_cycle, "cPS.worker cycle",
                            self._quiet_startup())
@@ -118,8 +119,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 # Try to become a master.
                 is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
                 if is_master:
+                    if not was_master:
+                        logging.info("Became master")
                     self.path_cache.expire(self.config.propagation_time * 10)
                     self.rev_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
+                    was_master = True
+                else:
+                    was_master = False
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass
