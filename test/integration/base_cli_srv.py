@@ -297,7 +297,8 @@ class TestClientServerBase(object):
             logging.error("failed to create server")
             return
         try:
-            client = self._create_client(data, finished, src, dst, server.sock.port)
+            client = self._create_client(data, finished, src, dst,
+                                         server.sock.port)
         except:
             logging.error("failed to create client")
             return
