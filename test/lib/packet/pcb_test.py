@@ -16,7 +16,7 @@
 ========================================================
 """
 # Stdlib
-from unittest.mock import patch, call
+from unittest.mock import patch
 
 # External packages
 import nose
@@ -24,13 +24,13 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
-from test.testcommon import assert_these_calls, create_mock_full
+from test.testcommon import create_mock_full
 
 
 def mk_pcbm_p(inIF=22):
     return create_mock_full({
         "inIA": "in_ia", "inIF": inIF, "inMTU": 4000, "outIA": "out_ia",
-        "outIF": 33, "hof": b"hof", "igRevToken": b"revToken"},
+        "outIF": 33, "hof": b"hof"},
         class_=PCBMarking)
 
 
@@ -42,7 +42,7 @@ class TestPCBMarkingSigPack(object):
         inst = PCBMarking(mk_pcbm_p())
         expected = b"".join([
             b"in_ia", bytes.fromhex("0000000000000016 0fa0"), b"out_ia",
-            bytes.fromhex("0000000000000021"), b"hof", b"revToken"])
+            bytes.fromhex("0000000000000021"), b"hof"])
         # Call
         ntools.eq_(inst.sig_pack(6), expected)
 
@@ -58,23 +58,16 @@ class TestASMarkingFromValues(object):
         for i in range(3):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         cchain = create_mock_full({"pack()": "cchain"})
-        revs = []
-        for i in range(2):
-            revs.append(create_mock_full({"pack()": "rev %d" % i}))
         # Call
-        ASMarking.from_values("isdas", 2, 3, pcbms, "eg rev token", "mtu",
-                              cchain, ifid_size=14, rev_infos=revs)
+        ASMarking.from_values("isdas", 2, 3, pcbms, "root", "mtu",
+                              cchain, ifid_size=14)
         # Tests
         p_cls.new_message.assert_called_once_with(
             isdas="isdas", trcVer=2, certVer=3, ifIDSize=14,
-            egRevToken="eg rev token", mtu="mtu",
-            chain="cchain")
+            hashTreeRoot="root", mtu="mtu", chain="cchain")
         msg.init.assert_called_once_with("pcbms", 3)
-        msg.exts.init.assert_called_once_with("revInfos", 2)
         for i, pcbm in enumerate(msg.pcbms):
             ntools.eq_("pcbm %d" % i, pcbm)
-        for i, rev in enumerate(msg.exts.revInfos):
-            ntools.eq_("rev %d" % i, rev)
 
 
 class TestASMarkingSigPack(object):
@@ -86,19 +79,16 @@ class TestASMarkingSigPack(object):
         for i in range(3):
             pcbms.append(create_mock_full({
                 "sig_pack()": bytes("pcbm %i" % i, "ascii")}))
-        exts = create_mock_full({"revInfos": [b"rev0", b"rev1"]})
         inst = ASMarking(create_mock_full({
             "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
-            "egRevToken": b"eg rev", "exts": exts, "mtu": 1482, "chain":
-            b"chain",
-        }))
+            "hashTreeRoot": b"root", "mtu": 1482, "chain": b"chain"}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
         expected = b"".join([
             b"isdas", bytes.fromhex("00000002 00000003 04"),
-            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"eg rev", b"rev0", b"rev1",
+            b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",
             bytes.fromhex("05ca"), b"chain"])
         # Call
-        ntools.eq_(inst.sig_pack(9), expected)
+        ntools.eq_(inst.sig_pack(8), expected)
 
 
 class TestPathSegmentSigPack(object):
@@ -159,57 +149,6 @@ class TestPathSegmentGetPath(object):
         scion_path.from_values.assert_called_once_with(
             inst.p.info, ["hof 2", "hof 1", "hof 0"])
         ntools.eq_(inst.p.info.up_flag, False)
-
-
-class TestPathSegmentGetHopsHash(object):
-    """
-    Unit test for lib.packet.pcb.PathSegment.get_hops_hash
-    """
-    def _setup(self):
-        inst = PathSegment({})
-        inst.get_all_iftokens = create_mock_full(return_value=("t0", "t1"))
-        h = create_mock_full({'update()': None, 'digest()': "digest",
-                              'hexdigest()': "hexdigest"})
-        return inst, h
-
-    @patch("lib.packet.pcb.SHA256", autospec=True)
-    @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test_basic(self, _, sha):
-        inst, h = self._setup()
-        sha.new.return_value = h
-        # Call
-        ntools.eq_(inst.get_hops_hash(), 'digest')
-        # Tests
-        assert_these_calls(h.update, [call("t0"), call("t1")])
-
-    @patch("lib.packet.pcb.SHA256", autospec=True)
-    @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test_hex(self, _, sha):
-        inst, h = self._setup()
-        sha.new.return_value = h
-        # Call
-        ntools.eq_(inst.get_hops_hash(hex=True), 'hexdigest')
-
-
-class TestPathSegmentGetAllIftokens(object):
-    """
-    Unit test for lib.packet.pcb.PathSegment.get_all_iftokens
-    """
-    @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test(self, _):
-        asms = []
-        for i in range(3):
-            pcbms = []
-            for j in range(2):
-                pcbms.append(create_mock_full(
-                    {"igRevToken": "ig %d %d" % (i, j)}))
-            asms.append(create_mock_full({
-                "pcbms": pcbms, "egRevToken": "eg %d" % i}))
-        inst = PathSegment(create_mock_full({"asms": asms}))
-        expected = ['ig 0 0', 'ig 0 1', 'eg 0', 'ig 1 0', 'ig 1 1', 'eg 1',
-                    'ig 2 0', 'ig 2 1', 'eg 2']
-        # Call
-        ntools.eq_(inst.get_all_iftokens(), expected)
 
 
 if __name__ == "__main__":

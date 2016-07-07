@@ -211,7 +211,7 @@ int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidate
 {
     bool add = true;
     int pathLen = *ptr * 8;
-    if (pathLen > len)
+    if (pathLen + 1 > len)
         return -1;
     uint8_t addr_type = *(ptr + 1 + pathLen);
     int addr_len = get_addr_len(addr_type);
@@ -275,18 +275,33 @@ void PathManager::getPaths()
         fprintf(stderr, "out of sync with sciond\n");
         exit(1);
     }
-    recvlen = recv_all(mDaemonSocket, buf, recvlen);
-    if (recvlen > 0) {
-        DEBUG("%d byte response from daemon\n", recvlen);
+    int reallen = recvlen > buflen ? buflen : recvlen;
+    reallen = recv_all(mDaemonSocket, buf, reallen);
+    if (reallen > 0) {
+        DEBUG("%d byte response from daemon\n", reallen);
         int offset = 0;
-        while (offset < recvlen &&
+        while (offset < reallen &&
                 numPaths + candidates.size() < MAX_TOTAL_PATHS) {
             uint8_t *ptr = buf + offset;
-            offset += checkPath(ptr, buflen - offset, candidates);
+            int pathLen = checkPath(ptr, reallen - offset, candidates);
+            if (pathLen < 0)
+                break;
+            offset += pathLen;
         }
     }
     insertPaths(candidates);
     DEBUG("total %lu paths\n", mPaths.size() - mInvalid);
+
+    // If sciond sent excess data, consume it to sync state
+    if (reallen < recvlen) {
+        int remaining = recvlen - reallen;
+        while (remaining > 0) {
+            int read = recv(mDaemonSocket, buf, buflen, 0);
+            if (read < 0)
+                break;
+            remaining -= read;
+        }
+    }
 
     pthread_cond_broadcast(&mPathCond);
     pthread_mutex_unlock(&mPathMutex);
@@ -655,13 +670,14 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
             pthread_mutex_unlock(&mPathMutex);
             return -1;
         }
-        SCIONAddr saddr;
-        saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
-        // TODO: IPv6?
-        saddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(saddr.host.addr_type));
 
-        SSPPath *p = (SSPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
+        if (mDstAddr.isd_as == 0) {
+            mDstAddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
+            mDstAddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
+            memcpy(&(mDstAddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(mDstAddr.host.addr_type));
+        }
+
+        SSPPath *p = (SSPPath *)createPath(mDstAddr, packet->header.path, packet->header.pathLen);
         p->setFirstHop(&packet->firstHop);
         p->setInterfaces(sp->interfaces, sp->interfaceCount);
         if (mPolicy.validate(p)) {

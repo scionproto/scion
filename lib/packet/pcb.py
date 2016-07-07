@@ -15,6 +15,9 @@
 :mod:`pcb` --- SCION Beacon
 ===========================
 """
+# Stdlib
+import struct
+
 # External packages
 from Crypto.Hash import SHA256
 import capnp  # noqa
@@ -32,7 +35,7 @@ from lib.packet.path import SCIONPath  # , min_mtu
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
 from lib.types import PCBType, PayloadClass
-from lib.util import hex_str, iso_timestamp
+from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
@@ -43,12 +46,11 @@ class PCBMarking(Cerealizable):
     P_CLS = P.PCBMarking
 
     @classmethod
-    def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid, hof,
-                    ig_rev_token):  # pragma: no cover
+    def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid,
+                    hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
             inIA=str(in_ia), inIF=in_ifid, inMTU=in_mtu,
-            outIA=str(out_ia), outIF=out_ifid, hof=hof.pack(),
-            igRevToken=ig_rev_token))
+            outIA=str(out_ia), outIF=out_ifid, hof=hof.pack()))
 
     def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
@@ -64,14 +66,13 @@ class PCBMarking(Cerealizable):
         Pack for signing up for version 6 (defined by highest field number).
         """
         b = []
-        if ver >= 6:
+        if ver >= 5:
             b.append(self.p.inIA.encode("utf8"))
             b.append(self.p.inIF.to_bytes(8, 'big'))
             b.append(self.p.inMTU.to_bytes(2, 'big'))
             b.append(self.p.outIA.encode("utf8"))
             b.append(self.p.outIF.to_bytes(8, 'big'))
             b.append(self.p.hof)
-            b.append(self.p.igRevToken)
         return b"".join(b)
 
     def __str__(self):
@@ -79,7 +80,6 @@ class PCBMarking(Cerealizable):
         s.append("%s: From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
                  (self.NAME, self.isd_as(), self.p.ifID, self.p.mtu))
         s.append("  %s" % self.hof())
-        s.append("  ig_rev_token: %s" % hex_str(self.p.igRevToken))
         return "\n".join(s)
 
 
@@ -88,18 +88,15 @@ class ASMarking(Cerealizable):
     P_CLS = P.ASMarking
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, eg_rev_token, mtu,
-                    cert_chain, ifid_size=12, rev_infos=()):
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
+                    cert_chain, ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=str(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, egRevToken=eg_rev_token, mtu=mtu,
+            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
             chain=cert_chain.pack(lz4_=True))
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
-        p.exts.init("revInfos", len(rev_infos))
-        for i, rev_info in enumerate(rev_infos):
-            p.exts.revInfos[i] = rev_info.pack()
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
@@ -128,15 +125,14 @@ class ASMarking(Cerealizable):
         Pack for signing up for given version (defined by highest field number).
         """
         b = []
-        if ver >= 9:
+        if ver >= 8:
             b.append(self.p.isdas.encode("utf8"))
             b.append(self.p.trcVer.to_bytes(4, 'big'))
             b.append(self.p.certVer.to_bytes(4, 'big'))
             b.append(self.p.ifIDSize.to_bytes(1, 'big'))
             for pcbm in self.iter_pcbms():
-                b.append(pcbm.sig_pack(6))
-            b.append(self.p.egRevToken)
-            b.extend(self.p.exts.revInfos)
+                b.append(pcbm.sig_pack(5))
+            b.append(self.p.hashTreeRoot)
             b.append(self.p.mtu.to_bytes(2, 'big'))
             b.append(self.p.chain)
         return b"".join(b)
@@ -263,14 +259,16 @@ class PathSegment(SCIONPayloadBaseProto):
             return self.asm(-1).pcbm(0).hof()
         return None
 
-    def get_hops_hash(self, hex=False):
+    def get_hops_hash(self, hex=False):  # pragma: no cover
         """
         Returns the hash over all the interface revocation tokens included in
         the path segment.
         """
         h = SHA256.new()
-        for token in self.get_all_iftokens():
-            h.update(token)
+        for asm in self.iter_asms():
+            pcbm = asm.pcbm(0)
+            h.update(asm.isd_as().pack() +
+                     struct.pack("!QQ", pcbm.p.inIF, pcbm.p.outIF))
         if hex:
             return h.hexdigest()
         return h.digest()
@@ -305,17 +303,6 @@ class PathSegment(SCIONPayloadBaseProto):
         if self.is_sibra():
             return self.sibra_ext.exp_ts()
         return self.info.timestamp + int(self._min_exp * EXP_TIME_UNIT)
-
-    def get_all_iftokens(self):
-        """
-        Returns all interface revocation tokens included in the path segment.
-        """
-        tokens = []
-        for asm in self.p.asms:
-            for pcbm in asm.pcbms:
-                tokens.append(pcbm.igRevToken)
-            tokens.append(asm.egRevToken)
-        return tokens
 
     def flags(self):  # pragma: no cover
         f = 0

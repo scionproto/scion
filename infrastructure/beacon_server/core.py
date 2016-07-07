@@ -211,11 +211,11 @@ class CoreBeaconServer(BeaconServer):
             count += 1
         logging.info("Registered %d Core paths", count)
 
-    def _remove_revoked_pcbs(self, rev_info, if_id):
+    def _remove_revoked_pcbs(self, rev_info):
         candidates = []
         for ps in self.core_beacons.values():
             candidates += ps.candidates
-        to_remove = self._pcb_list_to_remove(candidates, rev_info, if_id)
+        to_remove = self._pcb_list_to_remove(candidates, rev_info)
         # Remove the affected segments from the path stores.
         for ps in self.core_beacons.values():
             ps.remove_segments(to_remove)

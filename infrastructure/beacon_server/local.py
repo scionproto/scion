@@ -136,11 +136,13 @@ class LocalBeaconServer(BeaconServer):
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]
 
-    def _remove_revoked_pcbs(self, rev_info, if_id):
+    def _remove_revoked_pcbs(self, rev_info):
         candidates = (self.down_segments.candidates +
-                      self.up_segments.candidates)
-        to_remove = self._pcb_list_to_remove(candidates, rev_info, if_id)
+                      self.up_segments.candidates +
+                      self.beacons.candidates)
+        to_remove = self._pcb_list_to_remove(candidates, rev_info)
         # Remove the affected segments from the path stores.
+        self.beacons.remove_segments(to_remove)
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
 

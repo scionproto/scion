@@ -16,7 +16,6 @@
 ===================================================
 """
 # Stdlib
-import unittest
 from unittest.mock import MagicMock
 
 # External
@@ -27,10 +26,6 @@ from lib.errors import SCIONBaseError
 
 
 class SCIONTestError(SCIONBaseError):
-    pass
-
-
-class SCIONCommonTest(unittest.TestCase):
     pass
 
 
