@@ -15,6 +15,9 @@
 :mod:`pcb` --- SCION Beacon
 ===========================
 """
+# Stdlib
+import struct
+
 # External packages
 from Crypto.Hash import SHA256
 import capnp  # noqa
@@ -256,14 +259,16 @@ class PathSegment(SCIONPayloadBaseProto):
             return self.asm(-1).pcbm(0).hof()
         return None
 
-    def get_hops_hash(self, hex=False):
+    def get_hops_hash(self, hex=False):  # pragma: no cover
         """
         Returns the hash over all the interface revocation tokens included in
         the path segment.
         """
         h = SHA256.new()
-        for token in self.get_all_iftokens():
-            h.update(token)
+        for asm in self.iter_asms():
+            pcbm = asm.pcbm(0)
+            h.update(asm.isd_as().pack() +
+                     struct.pack("!QQ", pcbm.p.inIF, pcbm.p.outIF))
         if hex:
             return h.hexdigest()
         return h.digest()
@@ -298,15 +303,6 @@ class PathSegment(SCIONPayloadBaseProto):
         if self.is_sibra():
             return self.sibra_ext.exp_ts()
         return self.info.timestamp + int(self._min_exp * EXP_TIME_UNIT)
-
-    def get_all_iftokens(self):
-        """
-        Returns all interface revocation tokens included in the path segment.
-        """
-        tokens = []
-        for asm in self.p.asms:
-            tokens.append(asm.hashTreeRoot)
-        return tokens
 
     def flags(self):  # pragma: no cover
         f = 0
