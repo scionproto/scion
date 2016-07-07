@@ -63,8 +63,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.addr = addr
         self._timeout = timeout
         self.sock = self._create_socket(addr)
-        if not self.sock:
-            raise Exception
+        assert self.sock
         self.success = None
 
     @abstractmethod
@@ -291,17 +290,8 @@ class TestClientServerBase(object):
         # are stopping.
         finished = threading.Event()
         data = self._create_data(src, dst)
-        try:
-            server = self._create_server(data, finished, dst)
-        except:
-            logging.error("failed to create server")
-            return
-        try:
-            client = self._create_client(data, finished, src, dst,
-                                         server.sock.port)
-        except:
-            logging.error("failed to create client")
-            return
+        server = self._create_server(data, finished, dst)
+        client = self._create_client(data, finished, src, dst, server.sock.port)
         server_name = "%s %s > %s server" % (self.NAME, src.isd_as, dst.isd_as)
         s_thread = threading.Thread(
             target=thread_safety_net, args=(server.run,), name=server_name,
