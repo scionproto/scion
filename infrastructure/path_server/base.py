@@ -43,6 +43,7 @@ from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import SCIONTime, sleep_interval
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
+from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
 
 
@@ -89,10 +90,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         }
         self._segs_to_zk = deque()
         self._revs_to_zk = deque()
-        # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
-        self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE, name_addrs,
-                            self.topology.zookeepers)
+        self._zkid = ZkID.from_values(self.addr.isd_as, self.id,
+                                      [(self.addr.host, self._port)])
+        self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE,
+                            self._zkid.copy().pack(), self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
                                         self._cached_entries_handler)

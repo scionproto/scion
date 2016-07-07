@@ -22,7 +22,6 @@ from collections import deque
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.defines import PATH_FLAG_SIBRA, SCION_UDP_EH_DATA_PORT
-from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
@@ -61,7 +60,7 @@ class CorePathServer(PathServer):
         if not curr_master:
             logging.warning("_update_master(): current master is None.")
             return
-        if curr_master != self._master_id:
+        if not self._master_id or curr_master != self._master_id:
             self._master_id = curr_master
             logging.debug("New master is: %s", self._master_id)
             self._sync_master()
@@ -94,8 +93,7 @@ class CorePathServer(PathServer):
                 self._segs_to_master.append((seg_type, pcb))
 
     def _is_master(self):
-        return self._master_id == (self.id, str(self._port),
-                                   str(self.addr.host))
+        return self._master_id == self._zkid
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -180,15 +178,13 @@ class CorePathServer(PathServer):
         """
         Send the payload to the master PS.
         """
-        master = self._master_id
         if self._is_master():
             return
-        if not master:
+        if not self._master_id:
             logging.warning("_send_to_master(): _master_id not set.")
             return
-        port, addr = master[1:]
-        pkt = self._build_packet(haddr_parse_interface(addr),
-                                 dst_port=int(port), payload=pld.copy())
+        addr, port = self._master_id.addr(0)
+        pkt = self._build_packet(addr, dst_port=port, payload=pld.copy())
         self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):

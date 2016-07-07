@@ -50,6 +50,7 @@ from lib.util import (
     read_file,
     sleep_interval,
 )
+from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
 
 # How long to wait for path propagation before setting up steady paths over
@@ -92,8 +93,9 @@ class SibraServerBase(SCIONElement):
                                  self.handle_sibra_pkt},
         }
         self._find_links()
-        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
-        self.zk = Zookeeper(self.addr.isd_as, SIBRA_SERVICE, name_addrs,
+        zkid = ZkID.from_values(self.addr.isd_as, self.id,
+                                [(self.addr.host, self._port)]).pack()
+        self.zk = Zookeeper(self.addr.isd_as, SIBRA_SERVICE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
 
