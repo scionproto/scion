@@ -8,7 +8,7 @@ INC += -I./ssp -I../lib/libscion -I$(LWIPDIR) -I$(LWIPDIR)/scion -I$(LWIPDIR)/ip
 LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -Wl,-Bdynamic -lpthread -lzlog \
 		   -L$(LWIPPORTDIR)/proj/scion -llwip
 LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
-SRCS=dispatcher.c tcp/middleware.c
+SRCS=dispatcher.c ../lib/tcp/middleware.c
 
 HDRS=$(wildcard *.h)
 

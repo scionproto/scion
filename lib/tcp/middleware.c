@@ -193,7 +193,7 @@ void *tcpmw_sock_thread(void *data){
             break;
         else{
             zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %.*s (%dB)",
-                       CMD_SIZE + pld_len, buf, pld_len);
+                       CMD_SIZE, buf, pld_len);
             break;
         }
     }

@@ -24,7 +24,7 @@ import threading
 import time
 
 # SCION
-from endhost.tcp import socket
+from lib.tcp import socket
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.svc import SVCType
