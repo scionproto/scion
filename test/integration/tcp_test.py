@@ -50,9 +50,9 @@ def set_MSG():
 def server(svc=False):
     print("server running")
     s = socket.socket(socket.AF_SCION, socket.SOCK_STREAM, 0)
-    print('set_sock_opt')
-    s.set_sock_opt(socket.SockOpt.SOF_REUSEADDR)
-    print(s.get_sock_opt(socket.SockOpt.SOF_REUSEADDR))
+    print('setsockopt')
+    s.setsockopt(socket.SockOpt.SOF_REUSEADDR)
+    print(s.getsockopt(socket.SockOpt.SOF_REUSEADDR))
     addr = SCIONAddr.from_values(s_isd_as, s_ip)
     if svc:
         s.bind((addr, 6000), svc=SVCType.PS)
