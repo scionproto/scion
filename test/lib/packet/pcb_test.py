@@ -16,7 +16,7 @@
 ========================================================
 """
 # Stdlib
-from unittest.mock import patch, call
+from unittest.mock import patch
 
 # External packages
 import nose
@@ -24,7 +24,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
-from test.testcommon import assert_these_calls, create_mock_full
+from test.testcommon import create_mock_full
 
 
 def mk_pcbm_p(inIF=22):
@@ -149,53 +149,6 @@ class TestPathSegmentGetPath(object):
         scion_path.from_values.assert_called_once_with(
             inst.p.info, ["hof 2", "hof 1", "hof 0"])
         ntools.eq_(inst.p.info.up_flag, False)
-
-
-class TestPathSegmentGetHopsHash(object):
-    """
-    Unit test for lib.packet.pcb.PathSegment.get_hops_hash
-    """
-    def _setup(self):
-        inst = PathSegment({})
-        inst.get_all_iftokens = create_mock_full(return_value=("t0", "t1"))
-        h = create_mock_full({'update()': None, 'digest()': "digest",
-                              'hexdigest()': "hexdigest"})
-        return inst, h
-
-    @patch("lib.packet.pcb.SHA256", autospec=True)
-    @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test_basic(self, _, sha):
-        inst, h = self._setup()
-        sha.new.return_value = h
-        # Call
-        ntools.eq_(inst.get_hops_hash(), 'digest')
-        # Tests
-        assert_these_calls(h.update, [call("t0"), call("t1")])
-
-    @patch("lib.packet.pcb.SHA256", autospec=True)
-    @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test_hex(self, _, sha):
-        inst, h = self._setup()
-        sha.new.return_value = h
-        # Call
-        ntools.eq_(inst.get_hops_hash(hex=True), 'hexdigest')
-
-
-class TestPathSegmentGetAllIftokens(object):
-    """
-    Unit test for lib.packet.pcb.PathSegment.get_all_iftokens
-    """
-    @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test(self, _):
-        asms = []
-        for i in range(3):
-            pcbms = []
-            asms.append(create_mock_full({
-                "pcbms": pcbms, "hashTreeRoot": "root %d" % i}))
-        inst = PathSegment(create_mock_full({"asms": asms}))
-        expected = ['root 0', 'root 1', 'root 2']
-        # Call
-        ntools.eq_(inst.get_all_iftokens(), expected)
 
 
 if __name__ == "__main__":
