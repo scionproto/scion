@@ -42,7 +42,7 @@ class BaseZookeeper(object):
     """
     Base class for lib.zk.zk.Zookeeper unit tests
     """
-    default_args = ["1-2", "srvtype", "srvid"]
+    default_args = ["1-2", "srvtype", b"srvid"]
     default_hosts = ["host1:9521", "host2:339"]
 
     def _init_basic_setup(self, **kwargs):
@@ -66,7 +66,7 @@ class TestZookeeperInit(BaseZookeeper):
             timeout=4.5, on_connect="on_conn", on_disconnect="on_dis")
         # Tests
         ntools.eq_(inst._isd_as, "1-2")
-        ntools.eq_(inst._srv_id, "srvid")
+        ntools.eq_(inst._srv_id, 'c3J2aWQ=')
         ntools.eq_(inst._timeout, 4.5)
         ntools.eq_(inst._on_connect, "on_conn")
         ntools.eq_(inst._on_disconnect, "on_dis")
@@ -709,11 +709,13 @@ class TestZookeeperGetLockHolder(BaseZookeeper):
         # Tests
         inst._zk_lock.contenders.assert_called_once_with()
 
+    @patch("lib.zk.zk.ZkID.from_raw", autospec=True)
     @patch("lib.zk.zk.Zookeeper.__init__", autospec=True, return_value=None)
-    def test_with_contenders(self, init):
-        inst = self._setup(["12\x0034\x0056", "78\x0090\x00ab"])
+    def test_with_contenders(self, init, zkid):
+        inst = self._setup([b"c3J2aWQx=", b"c3J2aWQy"])
+        zkid.side_effect = lambda x: x
         # Call
-        ntools.eq_(inst.get_lock_holder(), ["12", "34", "56"])
+        ntools.eq_(inst.get_lock_holder(), b"srvid1")
 
     @patch("lib.zk.zk.Zookeeper.__init__", autospec=True, return_value=None)
     def _check_error(self, excp, init):
