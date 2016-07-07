@@ -13,7 +13,7 @@
 #define DEBUG(...)
 #endif
 
-#define MAX_PATH_LEN 255
+#define MAX_PATH_LEN 231
 #define MAX_USED_PATHS 2
 #define MAX_DATA_PACKET 65535
 

@@ -13,6 +13,8 @@ typedef struct SocketEntry {
 
 SocketEntry *sockets = NULL;
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 extern "C" {
 
 void updateTable(SocketEntry *e)
@@ -37,22 +39,26 @@ SocketEntry * findSocket(int sock)
 
 int newSCIONSocket(int protocol, const char *sciond)
 {
+    pthread_mutex_lock(&mutex);
     SCIONSocket *s = new SCIONSocket(protocol, sciond);
     SocketEntry *e;
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
     e->fd = s->getReliableSocket();
     e->sock = s;
     updateTable(e);
+    pthread_mutex_unlock(&mutex);
     return e->fd;
 }
 
 void deleteSCIONSocket(int sock)
 {
+    pthread_mutex_lock(&mutex);
     SocketEntry *e = findSocket(sock);
     if (e) {
         delete e->sock;
         HASH_DELETE(hh, sockets, e);
     }
+    pthread_mutex_unlock(&mutex);
 }
 
 int SCIONAccept(int sock)
