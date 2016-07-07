@@ -47,6 +47,7 @@ from lib.util import (
 )
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
+from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
 
 
@@ -82,10 +83,10 @@ class CertServer(SCIONElement):
             },
         }
 
-        # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
+        zkid = ZkID.from_values(self.addr.isd_as, self.id,
+                                [(self.addr.host, self._port)]).pack()
         self.zk = Zookeeper(self.topology.isd_as, CERTIFICATE_SERVICE,
-                            name_addrs, self.topology.zookeepers)
+                            zkid, self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.trc_cache = ZkSharedCache(self.zk, self.ZK_TRC_CACHE_PATH,
                                        self._cached_entries_handler)

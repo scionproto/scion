@@ -21,6 +21,7 @@ import os
 import queue
 import threading
 import time
+from base64 import b64decode, b64encode
 
 # External packages
 from kazoo.client import KazooClient, KazooRetry, KazooState
@@ -35,6 +36,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 # SCION
 from lib.thread import kill_self, thread_safety_net
 from lib.zk.errors import ZkNoConnection, ZkRetryLimit
+from lib.zk.id import ZkID
 from lib.zk.party import ZkParty
 
 
@@ -78,7 +80,7 @@ class Zookeeper(object):
             A function called everytime a connection is lost to Zookeeper.
         """
         self._isd_as = isd_as
-        self._srv_id = srv_id
+        self._srv_id = b64encode(srv_id).decode("ascii")
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
@@ -390,7 +392,7 @@ class Zookeeper(object):
             if not contenders:
                 logging.warning('No lock contenders found')
                 return None
-            return contenders[0].split("\x00")
+            return ZkID.from_raw(b64decode(contenders[0]))
         except (ConnectionLoss, SessionExpiredError):
             logging.warning("Disconnected from ZK.")
             raise ZkNoConnection from None

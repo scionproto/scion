@@ -82,6 +82,7 @@ from lib.util import (
 )
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
+from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
 
 
@@ -151,9 +152,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             },
         }
 
-        # FIXME(kormat): Add more IPs here when we support dual-stack
-        name_addrs = "\0".join([self.id, str(self._port), str(self.addr.host)])
-        self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, name_addrs,
+        zkid = ZkID.from_values(self.addr.isd_as, self.id,
+                                [(self.addr.host, self._port)]).pack()
+        self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.incoming_pcbs = deque()
