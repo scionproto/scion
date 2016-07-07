@@ -49,7 +49,9 @@ class SSPClient(TestClientBase):
         sock = ScionClientSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
         sock.settimeout(API_TOUT)
         sock.bind(0, self.addr)
-        sock.connect(self.dst, self.dport)
+        if sock.connect(self.dst, self.dport) < 0:
+            sock.close()
+            return None
         sock.settimeout(self._timeout)
         return sock
 
