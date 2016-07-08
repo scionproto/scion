@@ -24,10 +24,10 @@ import threading
 import time
 
 # SCION
-from lib.tcp import socket
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.svc import SVCType
+from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from test.integration.base_cli_srv import start_sciond
 
 s_isd_as = ISD_AS("1-18")
@@ -49,10 +49,10 @@ def set_MSG():
 
 def server(svc=False):
     print("server running")
-    s = socket.socket(socket.AF_SCION, socket.SOCK_STREAM, 0)
+    s = SCIONTCPSocket()
     print('setsockopt')
-    s.setsockopt(socket.SockOpt.SOF_REUSEADDR)
-    print(s.getsockopt(socket.SockOpt.SOF_REUSEADDR))
+    s.setsockopt(SockOpt.SOF_REUSEADDR)
+    print(s.getsockopt(SockOpt.SOF_REUSEADDR))
     addr = SCIONAddr.from_values(s_isd_as, s_ip)
     if svc:
         s.bind((addr, 6000), svc=SVCType.PS)
@@ -76,7 +76,7 @@ def client(svc, counter):
         return (path, sd.ifid2er[if_id].addr, sd.ifid2er[if_id].port)
 
     print("client %d running:" % counter)
-    s = socket.socket(socket.AF_SCION, socket.SOCK_STREAM, 0)
+    s = SCIONTCPSocket()
     caddr = SCIONAddr.from_values(c_isd_as, c_ip)
     s.bind((caddr, 0))
     path_info = get_path_info(caddr, s_isd_as)
@@ -84,10 +84,10 @@ def client(svc, counter):
 
     if svc:
         saddr = SCIONAddr.from_values(s_isd_as, SVCType.PS)
-        s.connect((saddr, 0), path_info)  # SVC does not have a port specified
+        s.connect(saddr, 0, *path_info)  # SVC does not have a port specified
     else:
         saddr = SCIONAddr.from_values(s_isd_as, s_ip)
-        s.connect((saddr, 5000), path_info)
+        s.connect(saddr, 5000, *path_info)
     # s.set_recv_tout(5.0)
     # print(s.get_recv_tout())
     tmp = b''
