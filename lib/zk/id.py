@@ -51,6 +51,11 @@ class ZkID(Cerealizable):  # pragma: no cover
         for i in range(start, len(self.p.addrs)):
             yield self.addr(i)
 
+    def __eq__(self, other):
+        # XXX(kormat): comparing capnp objects always fails if they contain
+        # lists, even if the list contents are the same :(
+        return str(self) == str(other)
+
     def __str__(self):
         s = []
         for a, p in self.iter_addrs():
