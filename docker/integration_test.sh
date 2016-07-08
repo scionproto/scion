@@ -27,7 +27,6 @@ shutdown() {
     log "Stopping scion"
     ./scion.sh stop | grep -v "STOPPED"
     log "Scion stopped"
-    exit $result
 }
 
 run() {
@@ -72,4 +71,9 @@ result=$?
 
 shutdown
 
-return $result
+if [ $result -eq 0 ]; then
+    log "All tests successful"
+else
+    log "$result tests failed"
+fi
+exit $result

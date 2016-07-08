@@ -49,7 +49,9 @@ class SSPClient(TestClientBase):
         sock = ScionClientSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
         sock.settimeout(API_TOUT)
         sock.bind(0, self.addr)
-        sock.connect(self.dst, self.dport)
+        if sock.connect(self.dst, self.dport) < 0:
+            sock.close()
+            return None
         sock.settimeout(self._timeout)
         return sock
 
@@ -148,10 +150,12 @@ class TestSSP(TestClientServerBase):
     NAME = "SSP"
 
     def _create_server(self, data, finished, addr):
-        return SSPServer(self._run_sciond(addr), data, finished, addr)
+        return SSPServer(self._run_sciond(addr), data, finished, addr,
+                         timeout=6.0)
 
     def _create_client(self, data, finished, src, dst, port):
-        return SSPClient(self._run_sciond(src), data, finished, src, dst, port)
+        return SSPClient(self._run_sciond(src), data, finished, src, dst, port,
+                         timeout=6.0)
 
 
 def main():

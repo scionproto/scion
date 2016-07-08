@@ -63,6 +63,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.addr = addr
         self._timeout = timeout
         self.sock = self._create_socket(addr)
+        assert self.sock
         self.success = None
 
     @abstractmethod

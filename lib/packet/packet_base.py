@@ -19,7 +19,11 @@
 import struct
 from abc import ABCMeta, abstractmethod
 
+# External
+import capnp
+
 # SCION
+from lib.errors import SCIONParseError
 from lib.util import hex_str
 
 
@@ -62,12 +66,22 @@ class Cerealizable(object, metaclass=ABCMeta):
 
     @classmethod
     def from_raw(cls, raw):
-        return cls(cls.P_CLS.from_bytes_packed(raw).as_builder())
+        assert isinstance(raw, bytes), type(raw)
+        try:
+            return cls(cls.P_CLS.from_bytes_packed(raw).as_builder())
+        except capnp.lib.capnp.KjException as e:
+            raise SCIONParseError("Unable to parse %s capnp message: %s" %
+                                  (cls, e)) from None
 
     @classmethod
     def from_raw_multiple(cls, raw):
-        for p in cls.P_CLS.read_multiple_bytes_packed(raw):
-            yield cls(p.as_builder())
+        assert isinstance(raw, bytes), type(raw)
+        try:
+            for p in cls.P_CLS.read_multiple_bytes_packed(raw):
+                yield cls(p.as_builder())
+        except capnp.lib.capnp.KjException as e:
+            raise SCIONParseError("Unable to parse %s capnp message: %s" %
+                                  (cls, e)) from None
 
     @abstractmethod
     def from_values(self, *args, **kwargs):

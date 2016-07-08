@@ -165,7 +165,7 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
 
     double waitTime = timeout;
     struct timeval start, end;
-    gettimeofday(&start, NULL);
+
     pthread_mutex_lock(&mPathMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
         Path *p = mPaths[i];
@@ -173,34 +173,17 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
             delete p;
     }
     mPaths.clear();
-    pthread_mutex_unlock(&mPathMutex);
-    getPaths();
-    gettimeofday(&end, NULL);
-    long delta = elapsedTime(&start, &end);
-    waitTime -= delta / 1000000.0;
-    if (timeout > 0.0 && waitTime < 0)
-        return -ETIMEDOUT;
-    waitTime = floor(waitTime);
 
-    pthread_mutex_lock(&mPathMutex);
     while (mPaths.size() - mInvalid == 0) {
         DEBUG("%p: trying to connect but no paths available\n", this);
-        if (timeout > 0.0) {
-            gettimeofday(&start, NULL);
-            int ret;
-            if ((ret = timedWait(&mPathCond, &mPathMutex, waitTime)) == ETIMEDOUT) {
-                DEBUG("%p: timeout in setRemoteAddress\n", this);
-                pthread_mutex_unlock(&mPathMutex);
-                return -ETIMEDOUT;
-            }
-            gettimeofday(&end, NULL);
-            delta = elapsedTime(&start, &end);
-            waitTime -= delta / 1000000.0;
-            if (waitTime < 0)
-                return -ETIMEDOUT;
-            waitTime = floor(waitTime);
-        } else {
-            pthread_cond_wait(&mPathCond, &mPathMutex);
+        gettimeofday(&start, NULL);
+        getPaths(waitTime);
+        gettimeofday(&end, NULL);
+        long delta = elapsedTime(&start, &end);
+        waitTime -= delta / 1000000.0;
+        if (timeout > 0.0 && waitTime < 0) {
+            pthread_mutex_unlock(&mPathMutex);
+            return -ETIMEDOUT;
         }
     }
     pthread_mutex_unlock(&mPathMutex);
@@ -243,7 +226,7 @@ int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidate
     return interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN;
 }
 
-void PathManager::getPaths()
+void PathManager::getPaths(double timeout)
 {
     int buflen = (MAX_PATH_LEN + 15) * MAX_TOTAL_PATHS;
     int recvlen;
@@ -256,10 +239,15 @@ void PathManager::getPaths()
         queryLocalAddress();
     }
 
-    pthread_mutex_lock(&mPathMutex);
-
     prunePaths();
     int numPaths = mPaths.size() - mInvalid;
+
+    if (timeout > 0.0) {
+        struct timeval t;
+        t.tv_sec = (size_t)floor(timeout);
+        t.tv_usec = (size_t)((timeout - floor(timeout)) * 1000000);
+        setsockopt(mDaemonSocket, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+    }
 
     // Now get paths for remote address(es)
     std::vector<Path *> candidates;
@@ -269,7 +257,11 @@ void PathManager::getPaths()
     send_all(mDaemonSocket, buf, 5);
 
     memset(buf, 0, buflen);
-    recv_all(mDaemonSocket, buf, DP_HEADER_LEN);
+    recvlen = recv_all(mDaemonSocket, buf, DP_HEADER_LEN);
+    if (recvlen < 0) {
+        DEBUG("error while receiving header from sciond: %s\n", strerror(errno));
+        return;
+    }
     parse_dp_header(buf, NULL, &recvlen);
     if (recvlen == -1) {
         fprintf(stderr, "out of sync with sciond\n");
@@ -304,7 +296,6 @@ void PathManager::getPaths()
     }
 
     pthread_cond_broadcast(&mPathCond);
-    pthread_mutex_unlock(&mPathMutex);
 }
 
 void PathManager::prunePaths()
@@ -412,7 +403,9 @@ int PathManager::setISDWhitelist(void *data, size_t len)
     }
 
     mPolicy.setISDWhitelist(isds);
+    pthread_mutex_lock(&mPathMutex);
     getPaths();
+    pthread_mutex_unlock(&mPathMutex);
     return 0;
 }
 
@@ -594,12 +587,12 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
         }
     }
     refresh = refresh || mPaths.size() - mInvalid == 0;
-    pthread_mutex_unlock(&mPathMutex);
     if (refresh) {
         // One or more paths down for long time
         DEBUG("%p: get fresh paths\n", this);
         getPaths();
     }
+    pthread_mutex_unlock(&mPathMutex);
 }
 
 int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
@@ -1248,11 +1241,11 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
         }
     }
     bool refresh = (mPaths.size() - mInvalid == 0);
-    pthread_mutex_unlock(&mPathMutex);
     if (refresh) {
         DEBUG("no valid paths, periodically try fetching\n");
         getPaths();
     }
+    pthread_mutex_unlock(&mPathMutex);
 }
 
 void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index)

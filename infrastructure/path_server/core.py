@@ -22,7 +22,6 @@ from collections import deque
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.defines import PATH_FLAG_SIBRA, SCION_UDP_EH_DATA_PORT
-from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
@@ -53,28 +52,30 @@ class CorePathServer(PathServer):
         Read master's address from shared lock, and if new master is elected
         sync it with segments.
         """
+        if self.zk.have_lock():
+            self._segs_to_master.clear()
+            return
         try:
             curr_master = self.zk.get_lock_holder()
         except ZkNoConnection:
             logging.warning("_update_master(): ZkNoConnection.")
             return
+        if curr_master and curr_master == self._master_id:
+            return
+        self._master_id = curr_master
         if not curr_master:
             logging.warning("_update_master(): current master is None.")
             return
-        if curr_master != self._master_id:
-            self._master_id = curr_master
-            logging.debug("New master is: %s", self._master_id)
-            self._sync_master()
+        logging.debug("New master is: %s", self._master_id)
+        self._sync_master()
 
     def _sync_master(self):
         """
         Feed newly-elected master with segments.
         """
+        assert not self.zk.have_lock()
+        assert self._master_id
         # TODO(PSz): consider mechanism for avoiding a registration storm.
-        master = self._master_id
-        if (not master or self._is_master()) and not self._quiet_startup():
-            logging.warning('Sync abandoned: master not set or I am a master')
-            return
         core_segs = []
         # Find all core segments from remote ISDs
         for pcb in self.core_segments(full=True):
@@ -82,7 +83,7 @@ class CorePathServer(PathServer):
                 core_segs.append(pcb)
         # Find down-segments from local ISD.
         down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
-        logging.debug("Syncing with %s", master)
+        logging.debug("Syncing with %s", self._master_id)
         seen_ases = set()
         for seg_type, segs in [(PST.CORE, core_segs), (PST.DOWN, down_segs)]:
             for pcb in segs:
@@ -92,10 +93,6 @@ class CorePathServer(PathServer):
                     continue
                 seen_ases.add(key)
                 self._segs_to_master.append((seg_type, pcb))
-
-    def _is_master(self):
-        return self._master_id == (self.id, str(self._port),
-                                   str(self.addr.host))
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -130,7 +127,7 @@ class CorePathServer(PathServer):
             if first_ia[0] == self.addr.isd_as[0]:
                 # Local core segment, share via ZK
                 self._segs_to_zk.append((PST.CORE, pcb))
-            elif self._master_id:
+            else:
                 # Remote core segment, send to master
                 self._segs_to_master.append((PST.CORE, pcb))
         if not added:
@@ -154,10 +151,13 @@ class CorePathServer(PathServer):
 
     def _propagate_and_sync(self):
         super()._propagate_and_sync()
-        self._prop_to_core()
-        self._prop_to_master()
+        if self.zk.have_lock():
+            self._prop_to_core()
+        else:
+            self._prop_to_master()
 
     def _prop_to_core(self):
+        assert self.zk.have_lock()
         if not self._segs_to_prop:
             return
         logging.info("Propagating %d segment(s) to other core ASes",
@@ -166,13 +166,14 @@ class CorePathServer(PathServer):
             self._propagate_to_core_ases(PathRecordsReply.from_values(pcbs))
 
     def _prop_to_master(self):
-        if self._is_master():
+        assert not self.zk.have_lock()
+        if not self._master_id:
             self._segs_to_master.clear()
             return
         if not self._segs_to_master:
             return
-        logging.info("Propagating %d segment(s) to master PS",
-                     len(self._segs_to_master))
+        logging.info("Propagating %d segment(s) to master PS: %s",
+                     len(self._segs_to_master), self._master_id)
         for pcbs in self._gen_prop_recs(self._segs_to_master):
             self._send_to_master(PathRecordsReply.from_values(pcbs))
 
@@ -180,26 +181,28 @@ class CorePathServer(PathServer):
         """
         Send the payload to the master PS.
         """
+        # XXX(kormat): Both of these should be very rare, as they are guarded
+        # against in the two methods that call this one (_prop_to_master() and
+        # _query_master(), but a race-condition could cause this to happen when
+        # called from _query_master().
+        if self.zk.have_lock():
+            logging.warning("send_to_master: abandoning as we are master")
+            return
         master = self._master_id
-        if self._is_master():
-            return
         if not master:
-            logging.warning("_send_to_master(): _master_id not set.")
+            logging.warning("send_to_master: abandoning as there is no master")
             return
-        port, addr = master[1:]
-        pkt = self._build_packet(haddr_parse_interface(addr),
-                                 dst_port=int(port), payload=pld.copy())
+        addr, port = master.addr(0)
+        pkt = self._build_packet(addr, dst_port=port, payload=pld.copy())
         self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
         """
         Query master for a segment.
         """
-        if self._is_master():
-            logging.debug("I'm master, query abandoned.")
+        if self.zk.have_lock() or not self._master_id:
             return
-        if src_ia is None:
-            src_ia = self.addr.isd_as
+        src_ia = src_ia or self.addr.isd_as
         req = PathSegmentReq.from_values(src_ia, dst_ia, flags=flags)
         logging.debug("Asking master for segment: %s" % req.short_desc())
         self._send_to_master(req)

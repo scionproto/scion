@@ -26,7 +26,7 @@ public:
     void queryLocalAddress();
     int setLocalAddress(SCIONAddr addr);
     virtual int setRemoteAddress(SCIONAddr addr, double timeout=0.0);
-    void getPaths();
+    void getPaths(double timeout=0.0);
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
     virtual void handleTimeout();

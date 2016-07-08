@@ -248,7 +248,7 @@ class ReliableSocket(Socket):
         try:
             self.sock.sendall(data)
         except OSError as e:
-            logging.error("error sending to dispatcher: %s", e)
+            logging.error("error in send: %s", e)
 
     def recv(self, block=True):
         """
