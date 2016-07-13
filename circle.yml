@@ -5,7 +5,7 @@ machine:
         - docker
     environment:
       BASE_DIR: $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-      ARTIFACT_PREFIX: circleci.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}
+      ARTIFACT_PREFIX: circleci.${CIRCLE_PROJECT_REPONAME}.${CIRCLE_BRANCH:-$CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}
 
 general:
   build_dir:
