@@ -13,8 +13,7 @@ general:
 
 checkout:
     post:
-      - mkdir -p $(dirname $BASE_DIR) && ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $BASE_DIR:
-          pwd: /
+      - cd / && mkdir -p $(dirname ${BASE_DIR:?}) && ln -fs $HOME/$CIRCLE_PROJECT_REPONAME ${BASE_DIR:?}
       - echo 'export GOPATH=$GOPATH:$HOME/.go_project' >> ~/.circlerc
       - git submodule sync
       - git submodule update --init
