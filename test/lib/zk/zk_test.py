@@ -299,6 +299,15 @@ class TestZookeeperStateConnected(BaseZookeeper):
         # Tests
         inst._on_connect.assert_called_once_with()
 
+    @patch("lib.zk.zk.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_conn_flap(self, init):
+        inst = self._setup()
+        inst.kazoo.client_id = None
+        # Call
+        inst._state_connected()
+        # Tests
+        ntools.assert_false(inst.ensure_path.called)
+
 
 class TestZookeeperStateDisconnected(BaseZookeeper):
     """
