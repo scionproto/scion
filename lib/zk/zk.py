@@ -189,8 +189,12 @@ class Zookeeper(object):
     def _state_connected(self):
         """Handles the Kazoo 'connected' event."""
         # Might be first connection, or reconnecting after a problem.
+        clid = self.kazoo.client_id
+        if clid is None:
+            # Protect against a race-condition.
+            return
         logging.debug("Connection to Zookeeper succeeded (Session: %s)",
-                      hex(self.kazoo.client_id[0]))
+                      hex(clid[0]))
         try:
             self.ensure_path(self.prefix, abs=True)
             # Use a copy of the dictionary values, as the dictioary is changed
