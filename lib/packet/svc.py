@@ -43,6 +43,8 @@ class SVCType(object):
     CS_A = HostAddrSVC(2, raw=False)
     # SIBRA service
     SB_A = HostAddrSVC(3, raw=False)
+    # No service, used e.g., in TCP socket.
+    NONE = HostAddrSVC(0xffff, raw=False)
 
 SVC_TO_SERVICE = {
     SVCType.BS_A.addr: BEACON_SERVICE,

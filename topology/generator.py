@@ -578,7 +578,8 @@ class SupervisorGenerator(object):
             'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
             'redirect_stderr': 'true',
-            'environment': 'PYTHONPATH=.',
+            'environment': 'PYTHONPATH=.' +
+            ',LD_LIBRARY_PATH=./sub/lwip-contrib/ports/unix/proj/scion',
             'stdout_logfile_maxbytes': 0,
             'stdout_logfile': "logs/%s.OUT" % name,
             'startretries': 0,

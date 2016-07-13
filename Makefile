@@ -1,4 +1,4 @@
-.PHONY: all c clean dispatcher go install
+.PHONY: all c clean dispatcher go install lwip
 
 CC=gcc
 CFLAGS +=-Wall -g
@@ -10,12 +10,12 @@ DISPATCHER=$(DISPATCHER_DIR)/dispatcher
 SOCKET_DIR=endhost/ssp
 SOCKET=$(SOCKET_DIR)/libsocket.so
 TEST_DIR=$(SOCKET_DIR)/test
+LWIP_CONTRIB_DIR=sub/lwip-contrib
 
 all: c go
 
-c:
+c: lwip dispatcher
 	$(MAKE) -C $(LIB_DIR)
-	$(MAKE) -C $(DISPATCHER_DIR)
 	$(MAKE) -C $(SOCKET_DIR)
 	$(MAKE) -C $(TEST_DIR)
 
@@ -25,6 +25,9 @@ go:
 dispatcher:
 	$(MAKE) -C $(DISPATCHER_DIR)
 
+lwip:
+	$(MAKE) -C $(LWIP_CONTRIB_DIR)
+
 install:
 	cp $(DISPATCHER) bin/
 
@@ -33,4 +36,5 @@ clean:
 	$(MAKE) clean -C $(DISPATCHER_DIR)
 	$(MAKE) clean -C $(SOCKET_DIR)
 	$(MAKE) clean -C $(TEST_DIR)
+	$(MAKE) clean -C $(LWIP_CONTRIB_DIR)
 	rm -f bin/dispatcher bin/discovery

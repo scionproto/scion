@@ -250,7 +250,7 @@ void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
     sch->header_len = sizeof(SCIONCommonHeader) + addr_len + path_len;
     sch->total_len = htons(sch->header_len + exts_len + l4_len);
     /* Set of pointers to start of path (which has not been set yet) */
-    sch->current_iof = sch->header_len;
+    sch->current_iof = sizeof(SCIONCommonHeader) + addr_len;
     sch->current_hof = sch->current_iof;
 }
 

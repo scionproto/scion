@@ -71,5 +71,6 @@ uint32_t get_dst_isd_as(uint8_t *buf);
 uint8_t * get_dst_addr(uint8_t *buf);
 uint8_t get_dst_len(uint8_t *buf);
 void print_addresses(uint8_t *buf);
+void format_host(int, uint8_t *, char *, int);
 
 #endif
