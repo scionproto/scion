@@ -5,6 +5,7 @@ machine:
         - docker
     environment:
       BASE_DIR: $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+      ARTIFACT_PREFIX: circleci.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}
 
 general:
   build_dir:
@@ -35,9 +36,9 @@ test:
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
         - ./docker.sh run -c "docker/integration_test.sh"
     post:
-        - mkdir artifacts
-        - mv htmlcov artifacts/coverage
-        - mv sphinx-doc/_build/html/sphinx-doc/ artifacts/docs
-        - mv logs artifacts/
-        - docker run --privileged scion -c "tar -cf - gen" | tar -xf - -C artifacts/
-        - tar czf "${CIRCLE_ARTIFACTS}/circleci.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}.tar.gz" -C artifacts .
+        - mkdir "$ARTIFACT_PREFIX"
+        - mv htmlcov "$ARTIFACT_PREFIX"/coverage
+        - mv sphinx-doc/_build/html/sphinx-doc/ "$ARTIFACT_PREFIX"/docs
+        - mv logs "$ARTIFACT_PREFIX"/
+        - docker run --privileged scion -c "tar -cf - gen" | tar -xf - -C "$ARTIFACT_PREFIX"/
+        - tar czf "${CIRCLE_ARTIFACTS}/${ARTIFACT_PREFIX}.tar.gz" "${ARTIFACT_PREFIX}"
