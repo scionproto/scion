@@ -4,7 +4,7 @@ export PYTHONPATH="$HOME/scion.git"
 
 # Properly setup terminal to allow use of screen, etc.
 # Note: you still can't /re-attach/ to a screen session.
-exec >/dev/tty 2>/dev/tty </dev/tty
+tty &>/dev/null && exec >/dev/tty 2>/dev/tty </dev/tty
 
 # Setup environment
 sudo mount -t tmpfs -o size=25% none /run/shm
