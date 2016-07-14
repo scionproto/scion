@@ -38,7 +38,8 @@ from ctypes import (
 
 # SCION
 from lib.defines import MAX_HOST_ADDR_LEN
-from lib.packet.scion_addr import ISD_AS
+from lib.packet.host_addr import haddr_get_type, haddr_parse
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.util import Raw
 
 HostAddrBytes = c_ubyte * MAX_HOST_ADDR_LEN
@@ -255,6 +256,23 @@ def addr_py2c(saddr=None, port=None):
     return sa
 
 
+def addr_c2py(caddr):
+    """
+    Helper function to convert C_SCIONAddr to SCIONAddr
+    :param caddr: C_SCIONAddr to convert
+    :type caddr: C_SCIONAddr
+    :returns: Converted object
+    :rtype: SCIONAddr
+    """
+    isd_as = ISD_AS(caddr.isd_as.to_bytes(4, 'big'))
+    if caddr.host.addr_type == 0:
+        return None
+    htype = haddr_get_type(caddr.host.addr_type)
+    haddr = haddr_parse(caddr.host.addr_type,
+                        bytes(caddr.host.addr)[:htype.LEN])
+    return SCIONAddr.from_values(isd_as, haddr)
+
+
 class ScionBaseSocket(object):
     """
     Base class of the SCION Multi-Path Socket Python Wrapper.
@@ -311,12 +329,35 @@ class ScionBaseSocket(object):
         :returns: The number of bytes sent.
         :rtype: int
         """
+        return self.sendto(msg)
+
+    def sendto(self, msg, dst=None, port=None):
+        """
+        Send data to the specified destination. Returns number of bytes sent.
+        Applications are responsible for checking that all data has been sent;
+        if only some of the data was transmitted, the application needs to
+        attempt delivery of the remaining data.
+        :param msg: The data to be sent on the socket.
+        :type msg: bytes
+        :returns: The number of bytes sent.
+        :rtype: int
+        :param dst: Packet destination
+        :type dst: SCIONAddr
+        :param port: Destination port number
+        :type port: int
+        :rtype: int
+        """
         if self.fd == -1:
             logging.warning("Called send after close")
             return 0
         if msg is None or len(msg) == 0:
             return 0
-        return self.libssock.SCIONSend(self.fd, msg, len(msg), 0)
+        sa = None
+        ptr = None
+        if dst and port:
+            sa = addr_py2c(dst, port)
+            ptr = byref(sa)
+        return self.libssock.SCIONSend(self.fd, msg, len(msg), ptr)
 
     def sendall(self, msg):
         """
@@ -340,19 +381,33 @@ class ScionBaseSocket(object):
         :returns: A bytes object representing the data received.
         :rtype: bytes object
         """
+        return self.recvfrom(bufsize)[0]
+
+    def recvfrom(self, bufsize):
+        """
+        Receive data from the socket. The return value is a bytes object
+        representing the data received. The maximum amount of data to be
+        received at once is specified by bufsize.
+        :param bufsize: The maximum amount of data to be received at once.
+        :type bufsize: int
+        :returns: A tuple containing received data and sender information
+        :rtype: (bytes, (SCIONAddr, port))
+        """
         if self.fd == -1:
             logging.critical("Called recv after close")
-            return None
+            return None, None
         buf = (c_ubyte * bufsize)()
+        ca = C_SCIONAddr()
         num_bytes_rcvd = self.libssock.SCIONRecv(
-            self.fd, byref(buf), bufsize, None)
+            self.fd, byref(buf), bufsize, byref(ca))
         if num_bytes_rcvd < 0:
             logging.error("Error during recv.")
-            return None
+            return None, None
         elif num_bytes_rcvd == 0:
             logging.debug("Received 0 bytes on fd %d - remote socket closed",
                           self.fd)
-        return bytes(buf[:num_bytes_rcvd])
+        sa = addr_c2py(ca)
+        return bytes(buf[:num_bytes_rcvd]), (sa, ca.host.port)
 
     def recv_all(self, total):
         """

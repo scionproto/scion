@@ -139,7 +139,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
 {
     DEBUG("%p: bind to (%d-%d):%s\n",
             this, ISD(addr.isd_as), AS(addr.isd_as),
-            addr_to_str(addr.host.addr, addr.host.addr_type));
+            addr_to_str(addr.host.addr, addr.host.addr_type, NULL));
 
     if (mLocalAddr.isd_as == 0)
         queryLocalAddress();
@@ -1198,6 +1198,10 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
     Path *p = NULL;
     // TODO: Choose optimal path?
     pthread_mutex_lock(&mPathMutex);
+    if (mPaths.empty()) {
+        pthread_mutex_unlock(&mPathMutex);
+        return -1;
+    }
     int j = (mLastPath + 1) % mPaths.size();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[j] && mPaths[j]->isUp()) {
@@ -1209,7 +1213,6 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
     int ret = -1;
     if (p) {
         mLastPath = j;
-        printf("sending on path %d\n", j);
         ret = p->sendPacket(packet, mSendSocket);
     }
     pthread_mutex_unlock(&mPathMutex);
@@ -1219,6 +1222,8 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
 void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort)
 {
     DEBUG("send probes to dst port %d\n", dstPort);
+    if (mDstAddr.isd_as == 0)
+        return;
     int ret = 0;
     pthread_mutex_lock(&mPathMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {

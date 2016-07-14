@@ -49,7 +49,7 @@ int main(int argc, char **argv)
         FD_ZERO(&writefds);
         FD_SET(sock, &writefds);
         SCIONSelect(sock + 1, NULL, &writefds, NULL);
-        SCIONSend(sock, (uint8_t *)buf, BUFSIZE);
+        SCIONSend(sock, (uint8_t *)buf, BUFSIZE, NULL);
     }
 
     return 0;
