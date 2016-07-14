@@ -185,6 +185,11 @@ void SCIONProtocol::threadCleanup()
     pthread_mutex_unlock(&mStateMutex);
 }
 
+int SCIONProtocol::getPort()
+{
+    return mSrcPort;
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol(int sock, const char *sciond)
@@ -932,8 +937,12 @@ SUDPProtocol::~SUDPProtocol()
 int SUDPProtocol::bind(SCIONAddr addr, int sock)
 {
     int ret = SCIONProtocol::bind(addr, sock);
+    if (ret < 0)
+        return ret;
     mSrcPort = registerDispatcher(0, addr.host.port, sock);
-    return ret;
+    if (mSrcPort < 0)
+        return mSrcPort;
+    return 0;
 }
 
 int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeout)
@@ -972,9 +981,18 @@ int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double time
             pthread_mutex_unlock(&mReadMutex);
             return -1;
         }
-        pthread_cond_wait(&mReadCond, &mReadMutex);
+        if (timeout > 0.0) {
+            if (timedWait(&mReadCond, &mReadMutex, timeout) == ETIMEDOUT) {
+                pthread_mutex_unlock(&mReadMutex);
+                DEBUG("%p: timeout in recv\n", this);
+                return -ETIMEDOUT;
+            }
+        } else {
+            pthread_cond_wait(&mReadCond, &mReadMutex);
+        }
     }
-    SUDPPacket *sp = mReceivedPackets.front();
+    SCIONPacket *packet = mReceivedPackets.front();
+    SUDPPacket *sp = (SUDPPacket *)(packet->payload);
     DEBUG("queued packet with len %lu bytes\n", sp->payloadLen);
     if (sp->payloadLen > len) {
         DEBUG("user buffer too short to read\n");
@@ -987,6 +1005,14 @@ int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double time
     mTotalReceived -= sp->payloadLen + sizeof(SUDPPacket);
     pthread_mutex_unlock(&mReadMutex);
     DEBUG("recvd total %d bytes\n", size);
+    if (srcAddr) {
+        srcAddr->isd_as = ntohl(*(uint32_t *)packet->header.srcAddr);
+        srcAddr->host.addr_type = SRC_TYPE(&(packet->header.commonHeader));
+        memcpy(srcAddr->host.addr, packet->header.srcAddr + ISD_AS_LEN, MAX_HOST_ADDR_LEN);
+        srcAddr->host.port = sp->header.srcPort;
+    }
+    destroySUDPPacket(sp);
+    destroySCIONPacket(packet);
     return size;
 }
 
@@ -1031,15 +1057,15 @@ int SUDPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
             DEBUG("signal recv\n");
             pthread_mutex_lock(&mReadMutex);
             mTotalReceived += size;
-            mReceivedPackets.push_back(sp);
+            mReceivedPackets.push_back(packet);
             pthread_mutex_unlock(&mReadMutex);
             pthread_cond_signal(&mReadCond);
         }
     } else if (isProbe) {
         sp->payload = NULL;
         destroySUDPPacket(sp);
+        destroySCIONPacket(packet);
     }
-    destroySCIONPacket(packet);
     return 0;
 }
 

@@ -15,7 +15,7 @@ int SCIONAccept(int sock);
 int SCIONBind(int sock, SCIONAddr addr);
 int SCIONConnect(int sock, SCIONAddr addr);
 int SCIONListen(int sock);
-int SCIONSend(int sock, uint8_t *buf, size_t len);
+int SCIONSend(int sock, uint8_t *buf, size_t len, SCIONAddr *dstAddr);
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
                      SCIONAddr *dstAddr);
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
@@ -33,6 +33,8 @@ int SCIONGetOption(int sock, SCIONOption *option);
 uint32_t SCIONGetLocalIA(int sock);
 
 void SCIONSetTimeout(int sock, double timeout);
+
+int SCIONGetPort(int sock);
 
 #ifdef __cplusplus
 }

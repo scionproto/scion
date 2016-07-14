@@ -98,12 +98,12 @@ int SCIONListen(int sock)
     return e->sock->listen();
 }
 
-int SCIONSend(int sock, uint8_t *buf, size_t len)
+int SCIONSend(int sock, uint8_t *buf, size_t len, SCIONAddr *dstAddr)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    return e->sock->send(buf, len);
+    return e->sock->send(buf, len, dstAddr);
 }
 
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len, SCIONAddr *dstAddr)
@@ -298,6 +298,14 @@ double SCIONGetTimeout(int sock)
     if (!e)
         return 0.0;
     return e->sock->getTimeout();
+}
+
+int SCIONGetPort(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return 0;
+    return e->sock->getPort();
 }
 
 }

@@ -26,7 +26,11 @@ int main(int argc, char **argv)
     }
 
     sprintf(str, "/run/shm/sciond/%d-%d.sock", src_isd, src_as);
+#ifdef MPUDP
+    SCIONSocket s(L4_UDP, str);
+#else
     SCIONSocket s(L4_SSP, str);
+#endif
 
     SCIONAddr saddr;
     memset(&saddr, 0, sizeof(saddr));
@@ -37,8 +41,11 @@ int main(int argc, char **argv)
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
 
-    //s.bind(saddr);
+#ifdef MPUDP
+    s.bind(saddr);
+#else
     s.connect(saddr);
+#endif
     printf("connected to (%d, %d):%s\n", dst_isd, dst_as, str);
 
     /*
@@ -58,9 +65,12 @@ int main(int argc, char **argv)
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);
+#ifdef MPUDP
+        s.send((uint8_t *)buf, BUFSIZE, &saddr);
+        usleep(500000);
+#else
         s.send((uint8_t *)buf, BUFSIZE);
-        //s.send((uint8_t *)buf, BUFSIZE, &saddr);
-        //usleep(500000);
+#endif
     }
     exit(0);
 }

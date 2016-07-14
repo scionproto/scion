@@ -16,7 +16,11 @@ int main(int argc, char **argv)
     }
 
     sprintf(str, "/run/shm/sciond/%d-%d.sock", isd, as);
+#ifdef MPUDP
+    SCIONSocket s(L4_UDP, str);
+#else
     SCIONSocket s(L4_SSP, str);
+#endif
 
     SCIONAddr addr;
     memset(&addr, 0, sizeof(addr));
@@ -28,8 +32,10 @@ int main(int argc, char **argv)
     memcpy(addr.host.addr, &in, 4);
     s.bind(addr);
 
+#ifndef MPUDP
     s.listen();
     SCIONSocket *newSocket = s.accept();
+#endif
 
     char buf[BUFSIZE];
     int size = 0;
@@ -37,8 +43,11 @@ int main(int argc, char **argv)
     gettimeofday(&start, NULL);
     while (1) {
         memset(buf, 0, BUFSIZE);
+#ifdef MPUDP
+        int recvlen = s.recv((uint8_t *)buf, BUFSIZE, NULL);
+#else
         int recvlen = newSocket->recv((uint8_t *)buf, BUFSIZE, NULL);
-        //int recvlen = s.recv((uint8_t *)buf, BUFSIZE, NULL);
+#endif
         printf("received message: %s", buf);
         gettimeofday(&end, NULL);
         size += recvlen;

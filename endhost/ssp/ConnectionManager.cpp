@@ -139,7 +139,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
 {
     DEBUG("%p: bind to (%d-%d):%s\n",
             this, ISD(addr.isd_as), AS(addr.isd_as),
-            addr_to_str(addr.host.addr, addr.host.addr_type));
+            addr_to_str(addr.host.addr, addr.host.addr_type, NULL));
 
     if (mLocalAddr.isd_as == 0)
         queryLocalAddress();
@@ -1183,7 +1183,8 @@ void SSPConnectionManager::threadCleanup()
 // SUDP
 
 SUDPConnectionManager::SUDPConnectionManager(int sock, const char *sciond)
-    : PathManager(sock, sciond)
+    : PathManager(sock, sciond),
+    mLastPath(-1)
 {
     memset(&mLastProbeTime, 0, sizeof(struct timeval));
 }
@@ -1197,15 +1198,23 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
     Path *p = NULL;
     // TODO: Choose optimal path?
     pthread_mutex_lock(&mPathMutex);
+    if (mPaths.empty()) {
+        pthread_mutex_unlock(&mPathMutex);
+        return -1;
+    }
+    int j = (mLastPath + 1) % mPaths.size();
     for (size_t i = 0; i < mPaths.size(); i++) {
-        if (mPaths[i] && mPaths[i]->isUp()) {
-            p = mPaths[i];
+        if (mPaths[j] && mPaths[j]->isUp()) {
+            p = mPaths[j];
             break;
         }
+        j = (j + 1) % mPaths.size();
     }
     int ret = -1;
-    if (p)
+    if (p) {
+        mLastPath = j;
         ret = p->sendPacket(packet, mSendSocket);
+    }
     pthread_mutex_unlock(&mPathMutex);
     return ret;
 }
@@ -1213,6 +1222,8 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
 void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort)
 {
     DEBUG("send probes to dst port %d\n", dstPort);
+    if (mDstAddr.isd_as == 0)
+        return;
     int ret = 0;
     pthread_mutex_lock(&mPathMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
@@ -1287,13 +1298,13 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
         }
     }
     if (!found) {
-        SCIONAddr saddr;
-        saddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
-        // TODO: IPv6?
-        saddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
-        memcpy(&(saddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(saddr.host.addr_type));
+        if (mDstAddr.isd_as == 0) {
+            mDstAddr.isd_as = ntohl(*(uint32_t *)(packet->header.srcAddr));
+            mDstAddr.host.addr_type = SRC_TYPE(&packet->header.commonHeader);
+            memcpy(&(mDstAddr.host.addr), packet->header.srcAddr + ISD_AS_LEN, get_addr_len(mDstAddr.host.addr_type));
+        }
 
-        SUDPPath *p = (SUDPPath *)createPath(saddr, packet->header.path, packet->header.pathLen);
+        SUDPPath *p = (SUDPPath *)createPath(mDstAddr, packet->header.path, packet->header.pathLen);
         p->setFirstHop(&packet->firstHop);
         index = insertOnePath(p);
         mLastProbeAcked.resize(mPaths.size());

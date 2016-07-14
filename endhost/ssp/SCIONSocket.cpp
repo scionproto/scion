@@ -297,7 +297,7 @@ void SCIONSocket::signalSelect()
 void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
 {
     DEBUG("received SCION packet: %lu bytes\n", len);
-    DEBUG("sent from %s:%d\n", addr_to_str(addr->addr, addr->addr_type), addr->port);
+    DEBUG("sent from %s:%d\n", addr_to_str(addr->addr, addr->addr_type, NULL), addr->port);
     // SCION header
     SCIONPacket *packet = (SCIONPacket *)malloc(sizeof(SCIONPacket));
     memset(packet, 0, sizeof(SCIONPacket));
@@ -519,4 +519,11 @@ void SCIONSocket::threadCleanup()
     pthread_mutex_unlock(&mAcceptMutex);
     pthread_mutex_unlock(&mRegisterMutex);
     pthread_mutex_unlock(&mSelectMutex);
+}
+
+int SCIONSocket::getPort()
+{
+    if (mProtocol)
+        return mProtocol->getPort();
+    return 0;
 }

@@ -50,6 +50,8 @@ public:
 
     virtual void threadCleanup();
 
+    int getPort();
+
 protected:
     PathManager            *mPathManager;
 
@@ -172,7 +174,7 @@ public:
 
 protected:
     SUDPConnectionManager *mConnectionManager;
-    std::list<SUDPPacket *> mReceivedPackets;
+    std::list<SCIONPacket *> mReceivedPackets;
     size_t mTotalReceived;
 };
 

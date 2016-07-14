@@ -181,7 +181,7 @@ int registerFlow(int proto, DispatcherEntry *e, int sock)
         return -1;
     }
     uint16_t port = *(uint16_t *)(buf + DP_HEADER_LEN);
-    if (port != ntohs(e->port)) {
+    if (e->port > 0 && port != ntohs(e->port)) {
         fprintf(stderr, "CRITICAL: dispatcher registration failed: %d|%d\n", port, ntohs(e->port));
         return -1;
     }

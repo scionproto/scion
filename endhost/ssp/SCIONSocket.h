@@ -57,6 +57,8 @@ public:
 
     void threadCleanup();
 
+    int getPort();
+
 private:
     bool checkChildren(SCIONPacket *packet, uint8_t *ptr);
     void signalSelect();

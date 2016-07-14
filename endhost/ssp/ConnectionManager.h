@@ -154,6 +154,7 @@ protected:
 
     struct timeval mLastProbeTime;
     std::vector<uint32_t> mLastProbeAcked;
+    int mLastPath;
 };
 
 #endif // PATH_MANAGER_H
