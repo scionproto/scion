@@ -40,6 +40,7 @@ from ctypes import (
 from lib.defines import MAX_HOST_ADDR_LEN
 from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.types import L4Proto
 from lib.util import Raw
 
 HostAddrBytes = c_ubyte * MAX_HOST_ADDR_LEN
@@ -315,8 +316,10 @@ class ScionBaseSocket(object):
         :rtype: int
         """
         sa = addr_py2c(saddr, port)
-        self.port = port
-        return self.libssock.SCIONBind(self.fd, sa)
+        ret = self.libssock.SCIONBind(self.fd, sa)
+        if self.proto == L4Proto.UDP:
+            self.port = self.libssock.SCIONGetPort(self.fd)
+        return ret
 
     def send(self, msg):
         """
@@ -339,12 +342,11 @@ class ScionBaseSocket(object):
         attempt delivery of the remaining data.
         :param msg: The data to be sent on the socket.
         :type msg: bytes
-        :returns: The number of bytes sent.
-        :rtype: int
         :param dst: Packet destination
         :type dst: SCIONAddr
         :param port: Destination port number
         :type port: int
+        :returns: The number of bytes sent.
         :rtype: int
         """
         if self.fd == -1:
@@ -352,7 +354,6 @@ class ScionBaseSocket(object):
             return 0
         if msg is None or len(msg) == 0:
             return 0
-        sa = None
         ptr = None
         if dst and port:
             sa = addr_py2c(dst, port)
@@ -566,7 +567,9 @@ class ScionServerSocket(ScionBaseSocket):
         :returns: 0 on success, -1 on failure
         :rtype: int
         """
-        return self.libssock.SCIONListen(self.fd)
+        ret = self.libssock.SCIONListen(self.fd)
+        self.port = self.libssock.SCIONGetPort(self.fd)
+        return ret
 
     def accept(self):
         """
@@ -612,4 +615,6 @@ class ScionClientSocket(ScionBaseSocket):
         :rtype: int
         """
         sa = addr_py2c(saddr, port)
-        return self.libssock.SCIONConnect(self.fd, sa)
+        ret = self.libssock.SCIONConnect(self.fd, sa)
+        self.port = self.libssock.SCIONGetPort(self.fd)
+        return ret

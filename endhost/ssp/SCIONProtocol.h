@@ -50,6 +50,8 @@ public:
 
     virtual void threadCleanup();
 
+    int getPort();
+
 protected:
     PathManager            *mPathManager;
 

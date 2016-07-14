@@ -34,6 +34,8 @@ uint32_t SCIONGetLocalIA(int sock);
 
 void SCIONSetTimeout(int sock, double timeout);
 
+int SCIONGetPort(int sock);
+
 #ifdef __cplusplus
 }
 #endif

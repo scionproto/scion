@@ -520,3 +520,10 @@ void SCIONSocket::threadCleanup()
     pthread_mutex_unlock(&mRegisterMutex);
     pthread_mutex_unlock(&mSelectMutex);
 }
+
+int SCIONSocket::getPort()
+{
+    if (mProtocol)
+        return mProtocol->getPort();
+    return 0;
+}

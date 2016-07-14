@@ -18,7 +18,6 @@
 """
 # Stdlib
 import logging
-import random
 
 # SCION
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
@@ -92,7 +91,7 @@ class MPUDPServer(TestServerBase):
     def _create_socket(self, addr):
         sock = ScionServerSocket(L4Proto.UDP, bytes(self.sd.api_addr, 'ascii'))
         sock.settimeout(5.0)
-        if sock.bind(random.randint(1025, 65535), self.addr) < 0:
+        if sock.bind(0, self.addr) < 0:
             return None
         return sock
 

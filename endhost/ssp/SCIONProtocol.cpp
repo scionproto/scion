@@ -185,6 +185,11 @@ void SCIONProtocol::threadCleanup()
     pthread_mutex_unlock(&mStateMutex);
 }
 
+int SCIONProtocol::getPort()
+{
+    return mSrcPort;
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol(int sock, const char *sciond)

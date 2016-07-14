@@ -18,7 +18,6 @@
 """
 # Stdlib
 import logging
-import random
 
 # SCION
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
@@ -100,7 +99,7 @@ class SSPServer(TestServerBase):
     def _create_socket(self, addr):
         sock = ScionServerSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
         sock.settimeout(5.0)
-        sock.bind(random.randint(1025, 65535), self.addr)
+        sock.bind(0, self.addr)
         sock.listen()
         return sock
 

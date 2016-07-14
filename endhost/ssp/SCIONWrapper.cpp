@@ -300,4 +300,12 @@ double SCIONGetTimeout(int sock)
     return e->sock->getTimeout();
 }
 
+int SCIONGetPort(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return 0;
+    return e->sock->getPort();
+}
+
 }
