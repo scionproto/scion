@@ -174,7 +174,6 @@ int main(int argc, char **argv)
     if (create_sockets() < 0)
         return -1;
 
-    populate_test_filter_hashmaps(filter_socket);
     res = run();
 
     /* Would only get down here if poll failed */
@@ -697,7 +696,7 @@ void handle_data(int v6)
     uint8_t l4 = get_l4_proto(&l4ptr);
 
 #ifdef USE_FILTER_SOCKET
-    if (is_blocked_by_filter(filter_socket, buf, from, 0, &msg)) {
+    if (is_blocked_by_filter(filter_socket, buf, &from, EGRESS)) {
         zlog_debug(zc, "filtered packet at handle data");
         return;
     }
@@ -906,7 +905,7 @@ void handle_send(int index)
     uint8_t l4 = get_l4_proto(&l4ptr);
 
 #ifdef USE_FILTER_SOCKET
-    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, hop, 1, NULL)) {
+    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, &hop, INGRESS)) {
         zlog_debug(zc, "filtered packet at handle send");
         return;
     }
