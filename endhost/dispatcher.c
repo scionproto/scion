@@ -1,4 +1,5 @@
 #define _GNU_SOURCE // required to get struct in6_pktinfo definition
+#define USE_FILTER_SOCKET // required to run libfilter code
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
@@ -36,7 +37,6 @@
 #define DATA_V4_INDEX 1
 #define DATA_V6_INDEX 2
 
-#define USE_FILTER_SOCKET
 #ifdef USE_FILTER_SOCKET
 #include "filter.h"
 #define FILTER_INDEX 3
@@ -688,10 +688,10 @@ void handle_data(int v6)
     uint8_t l4 = get_l4_proto(&l4ptr);
 
 #ifdef USE_FILTER_SOCKET
-    SCIONAddr hop_;
-    hop_.isd_as = get_dst_isd_as(buf);
-    memcpy(&hop_.host, &from, sizeof(HostAddr));
-    if (is_blocked_by_filter(filter_socket, buf, &hop_, EGRESS)) {
+    SCIONAddr s_hop;
+    s_hop.isd_as = get_dst_isd_as(buf);
+    memcpy(&s_hop.host, &from, sizeof(HostAddr));
+    if (is_blocked_by_filter(filter_socket, buf, &s_hop, EGRESS)) {
         zlog_debug(zc, "filtered packet at handle data");
         return;
     }
@@ -900,10 +900,10 @@ void handle_send(int index)
     uint8_t l4 = get_l4_proto(&l4ptr);
 
 #ifdef USE_FILTER_SOCKET
-    SCIONAddr hop_;
-    hop_.isd_as = get_src_isd_as(buf + addr_len + 2);
-    memcpy(&hop_.host, &hop, sizeof(HostAddr));
-    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, &hop_, INGRESS)) {
+    SCIONAddr s_hop;
+    s_hop.isd_as = get_src_isd_as(buf + addr_len + 2);
+    memcpy(&s_hop.host, &hop, sizeof(HostAddr));
+    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, &s_hop, INGRESS)) {
         zlog_debug(zc, "filtered packet at handle send");
         return;
     }

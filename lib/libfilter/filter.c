@@ -110,7 +110,7 @@ void handle_filter(FilterSocket *fs)
         num_filters += num_filters_for_l4[i];
     }
     /*
-     * Filter command format (follows host byte order):
+     * Filter command format (follows network byte order):
      * [
      *  l4_protocol (1B) |
      *  src: isd_as (4B) | addr_type (1B) | addr (MAX_HOST_ADDR_LEN) | port (2B) |
@@ -236,12 +236,12 @@ void format_scionaddr(SCIONAddr *addr, char **str)
              ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
 }
 
-int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop_, int on_egress)
+int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop, int on_egress)
 {
     struct timeval t1, t2;  // For profiling
     gettimeofday(&t1, NULL);
 
-    SCIONAddr src, dst, hop;
+    SCIONAddr src, dst;
     uint8_t *l4ptr = buf;
     uint8_t l4 = get_l4_proto(&l4ptr);
     SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
@@ -260,17 +260,9 @@ int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop_, int on
     memcpy(dst.host.addr, get_dst_addr(buf), get_dst_len(buf));
     dst.host.port = ntohs(udp->dst_port);
 
-    /* Get hop address. */
-    memset(&hop, 0, sizeof(SCIONAddr));
-    hop.isd_as = hop_->isd_as;
-    hop.host.addr_type = hop_->host.addr_type;
-    memcpy(hop.host.addr, hop_->host.addr, get_addr_len(hop_->host.addr_type));
-    hop.host.port = hop_->host.port;
-
     /* Check if the packet is blocked by any filter for the L4 proto */
     Filter *f;
     int l4_idx = l4_index(l4);
-
     if (l4_idx < 0) {
         zlog_debug(zc, "filtering logic neglected : unknown l4 protocol number '%d'", l4);
         return 0;
@@ -284,7 +276,7 @@ int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop_, int on
         int filter_addrs_match =
             (scionaddrs_match(&f->src, &src) != IS_SRC_NEGATED(f->options)) &&
             (scionaddrs_match(&f->dst, &dst) != IS_DST_NEGATED(f->options)) &&
-            (scionaddrs_match(&f->hop, &hop) != IS_HOP_NEGATED(f->options));
+            (scionaddrs_match(&f->hop,  hop) != IS_HOP_NEGATED(f->options));
         if (filter_addrs_match != IS_FILTER_NEGATED(f->options))
             return 1;
     }
