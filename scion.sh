@@ -50,6 +50,16 @@ cmd_status() {
 
 cmd_test(){
     nosetests "$@"
+    go_test
+}
+
+go_test() {
+    # http://stackoverflow.com/a/20012536
+    if grep -qE 'docker|lxc' /proc/1/cgroup; then
+        echo "Running in docker, so skipping go tests"
+        return
+    fi
+    go test ./go/...
 }
 
 cmd_coverage(){
@@ -57,6 +67,7 @@ cmd_coverage(){
     nosetests --with-cov --cov-report html "$@"
     coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
+    go_test
 }
 
 cmd_lint() {

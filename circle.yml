@@ -23,7 +23,7 @@ dependencies:
     cache_directories:
         - "~/cache"
     override:
-        - go get -d -v ./go/...
+        - go get -d -v -t ./go/...
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
         - ./docker.sh build
@@ -31,6 +31,7 @@ dependencies:
 
 test:
     override:
+        - go test ./go/...
         - ./docker.sh run -c "./scion.sh coverage -v"
         - ./docker.sh run -c "./scion.sh lint"
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
