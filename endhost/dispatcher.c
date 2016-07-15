@@ -25,11 +25,6 @@
 
 #include "scion.h"
 
-#define USE_FILTER_SOCKET
-#ifdef USE_FILTER_SOCKET
-#include "filter.h"
-#endif
-
 #define APP_BUFSIZE 32
 #define DATA_BUFSIZE 65535
 
@@ -40,6 +35,13 @@
 #define APP_INDEX 0
 #define DATA_V4_INDEX 1
 #define DATA_V6_INDEX 2
+
+#define USE_FILTER_SOCKET
+#ifdef USE_FILTER_SOCKET
+#include "filter.h"
+#define FILTER_INDEX 3
+FilterSocket *filter_socket = NULL;
+#endif
 
 #define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
@@ -100,10 +102,6 @@ static int data_v6_socket;
 static int app_socket;
 
 static zlog_category_t *zc;
-
-#ifdef USE_FILTER_SOCKET
-FilterSocket *filter_socket = NULL;
-#endif
 
 void handle_signal(int signal);
 int run();
@@ -177,19 +175,17 @@ int main(int argc, char **argv)
     res = run();
 
     /* Would only get down here if poll failed */
-
     if (data_v4_socket >= 0)
         close(data_v4_socket);
     if (data_v6_socket >= 0)
         close(data_v6_socket);
     close(app_socket);
-    int i;
-    for (i = 0; i < num_sockets; i++)
-        close(sockets[i].fd);
-
 #ifdef USE_FILTER_SOCKET
     close_filter_socket(filter_socket);
 #endif
+    int i;
+    for (i = 0; i < num_sockets; i++)
+        close(sockets[i].fd);
 
     zlog_fini();
     return res;
@@ -226,14 +222,6 @@ int create_sockets()
     if (data_v6_socket < 0)
         zlog_info(zc, "IPv6 not supported on this host");
 
-#ifdef USE_FILTER_SOCKET
-    filter_socket = init_filter_socket(zc);
-    if (filter_socket == NULL) {
-        zlog_fatal(zc, "Failed to initialize filter socket");
-        return -1;
-    }
-#endif
-
     if (set_sockopts() < 0) {
         zlog_fatal(zc, "failed to set socket options");
         return -1;
@@ -265,6 +253,17 @@ int create_sockets()
         zlog_fatal(zc, "Could not open any IP sockets");
         return -1;
     }
+
+#ifdef USE_FILTER_SOCKET
+    filter_socket = init_filter_socket(zc);
+    if (filter_socket == NULL) {
+        zlog_fatal(zc, "Failed to initialize filter socket");
+        return -1;
+    }
+    sockets[FILTER_INDEX].fd = filter_socket->sock;
+    sockets[FILTER_INDEX].events = POLLIN;
+    num_sockets++;
+#endif
 
     int i;
     for (i = num_sockets; i < MAX_SOCKETS; i++) {
@@ -388,15 +387,16 @@ int run()
                 case DATA_V6_INDEX:
                     handle_data(1);
                     break;
+#ifdef USE_FILTER_SOCKET
+                case FILTER_INDEX:
+                    handle_filter(filter_socket);
+                    break;
+#endif
                 default:
                     handle_send(i);
                     break;
             }
         }
-
-#ifdef USE_FILTER_SOCKET
-        poll_filter(filter_socket);
-#endif
     }
     return 0; // shouldn't get here
 }
@@ -696,7 +696,10 @@ void handle_data(int v6)
     uint8_t l4 = get_l4_proto(&l4ptr);
 
 #ifdef USE_FILTER_SOCKET
-    if (is_blocked_by_filter(filter_socket, buf, &from, EGRESS)) {
+    SCIONAddr hop_;
+    hop_.isd_as = get_dst_isd_as(buf);
+    memcpy(&hop_.host, &from, sizeof(HostAddr));
+    if (is_blocked_by_filter(filter_socket, buf, &hop_, EGRESS)) {
         zlog_debug(zc, "filtered packet at handle data");
         return;
     }
@@ -905,7 +908,10 @@ void handle_send(int index)
     uint8_t l4 = get_l4_proto(&l4ptr);
 
 #ifdef USE_FILTER_SOCKET
-    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, &hop, INGRESS)) {
+    SCIONAddr hop_;
+    hop_.isd_as = get_src_isd_as(buf + addr_len + 2);
+    memcpy(&hop_.host, &hop, sizeof(HostAddr));
+    if (is_blocked_by_filter(filter_socket, buf + addr_len + 2, &hop_, INGRESS)) {
         zlog_debug(zc, "filtered packet at handle send");
         return;
     }

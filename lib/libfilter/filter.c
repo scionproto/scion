@@ -12,17 +12,16 @@ static zlog_category_t *zc;
 static uint8_t zerobuf[MAX_HOST_ADDR_LEN] = { 0 };
 
 int bind_filter_socket(FilterSocket *fs);
-void handle_filter(FilterSocket *fs);
 void set_filters(uint8_t *buf, uint8_t *num_filters_for_l4, FilterSocket *fs);
 int l4_index(uint8_t l4);
 uint8_t * set_scionaddr(SCIONAddr *addr, uint8_t *ptr);
-void format_filter(Filter *f, char *str);
-void format_scionaddr(SCIONAddr *addr, char *str);
+void format_filter(Filter *f, char **str);
+void format_scionaddr(SCIONAddr *addr, char **str);
 int scionaddrs_match(const SCIONAddr *a, const SCIONAddr *b);
 
-FilterSocket * init_filter_socket(zlog_category_t *zc_t)
+FilterSocket * init_filter_socket(zlog_category_t *parent_zc)
 {
-    zc = zc_t;
+    zc = parent_zc;
 
     FilterSocket *fs = (FilterSocket *)malloc(sizeof(FilterSocket));
     int i;
@@ -34,6 +33,7 @@ FilterSocket * init_filter_socket(zlog_category_t *zc_t)
     fs->sock = socket(AF_INET6, SOCK_STREAM, 0);
     if (fs->sock < 0) {
         zlog_fatal(zc, "failed to open filter socket");
+        free(fs);
         return NULL;
     }
     /* Set socket options */
@@ -43,15 +43,15 @@ FilterSocket * init_filter_socket(zlog_category_t *zc_t)
     res |= setsockopt(fs->sock, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
     if (res < 0) {
         zlog_fatal(zc, "failed to set filter socket options");
+        free(fs);
         return NULL;
     }
     /* Bind filter socket to SCION_FILTER_CMD_PORT and listen for connections*/
     if (bind_filter_socket(fs) < 0) {
         zlog_fatal(zc, "failed to open filter socket to connections");
+        free(fs);
         return NULL;
     }
-    fs->pollfd.fd = fs->sock;
-    fs->pollfd.events = POLLIN;
     fs->conn_sock = 0;
     return fs;
 }
@@ -82,15 +82,6 @@ void close_filter_socket(FilterSocket *fs)
 {
     close(fs->conn_sock);
     close(fs->sock);
-}
-
-void poll_filter(FilterSocket *fs)
-{
-    int count = poll(&fs->pollfd, 1, 0);
-    if (count < 0)
-        zlog_fatal(zc, "poll error: %s", strerror(errno));
-    if (count > 0)
-        handle_filter(fs);
 }
 
 void handle_filter(FilterSocket *fs)
@@ -128,7 +119,7 @@ void handle_filter(FilterSocket *fs)
         num_filters += num_filters_for_l4[i];
     }
     /*
-     * Filter command format (follows byte order):
+     * Filter command format (follows host byte order):
      * [
      *  l4_protocol (1B) |
      *  src: isd_as (4B) | addr_type (1B) | addr (MAX_HOST_ADDR_LEN) | port (2B) |
@@ -200,8 +191,9 @@ void set_filters(uint8_t *buf, uint8_t *num_filters_for_l4, FilterSocket *fs)
         fs->num_filters_for_l4[l4_idx]++;
         /* Log the newly added filter */
         char *filter_str = NULL;
-        format_filter(f, filter_str);
+        format_filter(f, &filter_str);
         zlog_debug(zc, "adding a new filter:\n%s", filter_str);
+        free(filter_str);
     }
 }
 
@@ -231,24 +223,27 @@ uint8_t * set_scionaddr(SCIONAddr *addr, uint8_t *ptr)
     return (ptr + 7 + MAX_HOST_ADDR_LEN);
 }
 
-void format_filter(Filter *f, char *str)
+void format_filter(Filter *f, char **str)
 {
     char *src = NULL, *dst = NULL, *hop = NULL;
-    format_scionaddr(&f->src, src);
-    format_scionaddr(&f->dst, dst);
-    format_scionaddr(&f->hop, hop);
-    sprintf(str, "src = %s\ndst = %s\nhop = %s\noptions = %d", src, dst, hop, f->options);
+    format_scionaddr(&f->src, &src);
+    format_scionaddr(&f->dst, &dst);
+    format_scionaddr(&f->hop, &hop);
+    asprintf(str, "src = %s\ndst = %s\nhop = %s\noptions = %d", src, dst, hop, f->options);
+    free(src);
+    free(dst);
+    free(hop);
 }
 
-void format_scionaddr(SCIONAddr *addr, char *str)
+void format_scionaddr(SCIONAddr *addr, char **str)
 {
     char buf[MAX_HOST_ADDR_STR];
     format_host(addr->host.addr_type, addr->host.addr, buf, MAX_HOST_ADDR_STR);
-    sprintf(str, "[ISD-AS : %d-%d, IP : %s, Port : %d]",
-            ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
+    asprintf(str, "[ISD-AS : %d-%d, IP : %s, Port : %d]",
+             ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
 }
 
-int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, HostAddr *_hop, int on_egress)
+int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop_, int on_egress)
 {
     struct timeval t1, t2;  // For profiling
     gettimeofday(&t1, NULL);
@@ -274,10 +269,10 @@ int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, HostAddr *_hop, int on_
 
     /* Get hop address. */
     memset(&hop, 0, sizeof(SCIONAddr));
-    hop.isd_as = on_egress ? dst.isd_as : src.isd_as;  // Change this for non-terminal ERs
-    hop.host.addr_type = _hop->addr_type;
-    memcpy(hop.host.addr, _hop->addr, get_addr_len(_hop->addr_type));
-    hop.host.port = _hop->port;
+    hop.isd_as = hop_->isd_as;
+    hop.host.addr_type = hop_->host.addr_type;
+    memcpy(hop.host.addr, hop_->host.addr, get_addr_len(hop_->host.addr_type));
+    hop.host.port = hop_->host.port;
 
     /* Check if the packet is blocked by any filter for the L4 proto */
     Filter *f;
@@ -309,9 +304,13 @@ int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, HostAddr *_hop, int on_
 
 int scionaddrs_match(const SCIONAddr *a, const SCIONAddr *b)
 {
-    if (a->isd_as == 0)
+    if (ISD(a->isd_as) == 0)
         return 1;
-    if (a->isd_as != b->isd_as)
+    if (ISD(a->isd_as) != ISD(b->isd_as))
+        return 0;
+    if (AS(a->isd_as) == 0)
+        return 1;
+    if (AS(a->isd_as) != AS(b->isd_as))
         return 0;
     if (a->host.addr_type == 0)
         return 1;
@@ -326,5 +325,4 @@ int scionaddrs_match(const SCIONAddr *a, const SCIONAddr *b)
     if (a->host.port != b->host.port)
         return 0;
     return 1;
-
 }
