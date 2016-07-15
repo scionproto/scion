@@ -36,11 +36,6 @@ FilterSocket * init_filter_socket(zlog_category_t *zc_t)
         zlog_fatal(zc, "failed to open filter socket");
         return NULL;
     }
-    /* Bind filter socket to SCION_FILTER_CMD_PORT */
-    if (bind_filter_socket(fs) < 0) {
-        zlog_fatal(zc, "failed to bind filter socket");
-        return NULL;
-    }
     /* Set socket options */
     int optval = 1, res = 0;
     res |= setsockopt(fs->sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
@@ -48,6 +43,11 @@ FilterSocket * init_filter_socket(zlog_category_t *zc_t)
     res |= setsockopt(fs->sock, SOL_SOCKET, SO_RCVBUF, &optval, sizeof(optval));
     if (res < 0) {
         zlog_fatal(zc, "failed to set filter socket options");
+        return NULL;
+    }
+    /* Bind filter socket to SCION_FILTER_CMD_PORT and listen for connections*/
+    if (bind_filter_socket(fs) < 0) {
+        zlog_fatal(zc, "failed to open filter socket to connections");
         return NULL;
     }
     fs->pollfd.fd = fs->sock;
@@ -68,6 +68,10 @@ int bind_filter_socket(FilterSocket *fs)
     if (bind(fs->sock, (struct sockaddr *)&sin6, sizeof(struct sockaddr_in6)) < 0) {
         zlog_fatal(zc, "failed to bind filter socket to %s : %d, %s",
                 str, ntohs(sin6.sin6_port), strerror(errno));
+        return -1;
+    }
+    if (listen(fs->sock, MAX_FILTER_BACKLOG) < 0) {
+        zlog_fatal(zc, "failed to listen on filter socket");
         return -1;
     }
     zlog_info(zc, "filter socket bound to %s:%d", str, ntohs(sin6.sin6_port));
@@ -91,13 +95,14 @@ void poll_filter(FilterSocket *fs)
 
 void handle_filter(FilterSocket *fs)
 {
+    /* Accept a new connection if there isn't one already */
     if (fs->conn_sock <= 0) {
         fs->conn_sock = accept(fs->sock, NULL, NULL);
         if (fs->conn_sock < 0) {
-            zlog_error(zc, "error in accept: %s", strerror(errno));
+            zlog_error(zc, "error in filter socket accept: %s", strerror(errno));
             return;
         }
-        zlog_info(zc, "new socket created: %d", fs->conn_sock);
+        zlog_info(zc, "new filter connection socket created: %d", fs->conn_sock);
     }
 
     uint8_t buf[FILTER_BUFSIZE];
