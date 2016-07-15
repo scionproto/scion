@@ -40,11 +40,13 @@ docker_build() {
     set -o pipefail
     local log_file="$1"; shift
     local image_name="scion"
+    local args=""
     echo "Image: $image_name:$image_tag"
     echo "Log: $build_dir/$log_file"
     echo "============================"
     echo
-    docker build -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
+    [ -n "$CIRCLECI" ] && args+=" --rm=false"
+    docker build $args -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
         tee "$build_dir/${log_file:?}"
     docker tag -f "$image_name:$image_tag" "$image_name:latest"
 }

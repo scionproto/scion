@@ -4,7 +4,7 @@ machine:
     services:
         - docker
     environment:
-      BASE_DIR: $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+      BASE_DIR: $HOME/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
       ARTIFACTS: circleci.${CIRCLE_PROJECT_REPONAME}.${CIRCLE_PR_NUMBER:-$CIRCLE_BRANCH}.build${CIRCLE_BUILD_NUM}
 
 general:
@@ -15,7 +15,12 @@ checkout:
     post:
       - mkdir -p $(dirname $BASE_DIR) && ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $BASE_DIR:
           pwd: /
-      - echo 'export GOPATH=$GOPATH:$HOME/.go_project' >> ~/.circlerc
+      - |
+        echo '
+        export GOPATH=$GOPATH:$HOME/go
+        export GOBIN=${GOPATH%%:*}/bin
+        export PATH=$GOBIN:$PATH
+        ' >> ~/.circlerc
       - git submodule sync
       - git submodule update --init sub/lwip sub/lwip-contrib/
 
@@ -23,7 +28,7 @@ dependencies:
     cache_directories:
         - "~/cache"
     override:
-        - go get -d -v -t ./go/...
+        - go get -v -t ./go/... $(<go/deps.txt)
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
         - ./docker.sh build
@@ -31,8 +36,8 @@ dependencies:
 
 test:
     override:
-        - go test ./go/...
-        - ./docker.sh run -c "./scion.sh coverage -v"
+        - ./scion.sh coverage go  # Go isn't installed in docker, so run the tests outside.
+        - ./docker.sh run -c "./scion.sh coverage py"
         - ./docker.sh run -c "./scion.sh lint"
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
         - ./docker.sh run -c "docker/integration_test.sh"
@@ -41,5 +46,6 @@ test:
         - mv htmlcov "$ARTIFACTS"/coverage
         - mv sphinx-doc/_build/html/ "$ARTIFACTS"/docs
         - mv logs "$ARTIFACTS"/
+        - mv go/gocover.html "$ARTIFACTS"/
         - docker run --privileged scion -c "tar -cf - gen" | tar -xf - -C "$ARTIFACTS"/
         - tar czf "${CIRCLE_ARTIFACTS}/${ARTIFACTS}.tar.gz" "${ARTIFACTS}"

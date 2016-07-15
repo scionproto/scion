@@ -50,6 +50,7 @@ topology/mininet/*.pyc
 ##########################
 /.coverage
 /htmlcov/
+/go/gocover.html
 
 # C library binaries
 ##########################
