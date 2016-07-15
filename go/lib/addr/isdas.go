@@ -21,8 +21,7 @@ import (
 )
 
 type ISD_AS struct {
-	isd int
-	as  int
+	isd, as int
 }
 
 func (ia ISD_AS) String() string {
