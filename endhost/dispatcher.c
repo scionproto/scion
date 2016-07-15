@@ -175,14 +175,6 @@ int main(int argc, char **argv)
     res = run();
 
     /* Would only get down here if poll failed */
-    if (data_v4_socket >= 0)
-        close(data_v4_socket);
-    if (data_v6_socket >= 0)
-        close(data_v6_socket);
-    close(app_socket);
-#ifdef USE_FILTER_SOCKET
-    close_filter_socket(filter_socket);
-#endif
     int i;
     for (i = 0; i < num_sockets; i++)
         close(sockets[i].fd);

@@ -22,8 +22,8 @@ int scionaddrs_match(const SCIONAddr *a, const SCIONAddr *b);
 FilterSocket * init_filter_socket(zlog_category_t *parent_zc)
 {
     zc = parent_zc;
-
     FilterSocket *fs = (FilterSocket *)malloc(sizeof(FilterSocket));
+
     int i;
     for (i = 0; i < L4_PROTOCOL_COUNT; i++) {
         fs->filter_list[i] = NULL;
@@ -52,7 +52,6 @@ FilterSocket * init_filter_socket(zlog_category_t *parent_zc)
         free(fs);
         return NULL;
     }
-    fs->conn_sock = 0;
     return fs;
 }
 
@@ -78,23 +77,15 @@ int bind_filter_socket(FilterSocket *fs)
     return 0;
 }
 
-void close_filter_socket(FilterSocket *fs)
-{
-    close(fs->conn_sock);
-    close(fs->sock);
-}
-
 void handle_filter(FilterSocket *fs)
 {
-    /* Accept a new connection if there isn't one already */
-    if (fs->conn_sock <= 0) {
-        fs->conn_sock = accept(fs->sock, NULL, NULL);
-        if (fs->conn_sock < 0) {
-            zlog_error(zc, "error in filter socket accept: %s", strerror(errno));
-            return;
-        }
-        zlog_info(zc, "new filter connection socket created: %d", fs->conn_sock);
+    /* Accept a new connection for receving the filter */
+    int sock = accept(fs->sock, NULL, NULL);
+    if (sock < 0) {
+        zlog_error(zc, "error in filter socket accept: %s", strerror(errno));
+        return;
     }
+    zlog_info(zc, "new filter connection socket created: %d", sock);
 
     uint8_t buf[FILTER_BUFSIZE];
     /*
@@ -104,10 +95,10 @@ void handle_filter(FilterSocket *fs)
      * No. of filter commands for UDP  (1B)
      * No. of filter commands for SSP  (1B)
      */
-    int len = recv_all(fs->conn_sock, buf, L4_PROTOCOL_COUNT);
+    int len = recv_all(sock, buf, L4_PROTOCOL_COUNT);
     if (len < 0) {
         zlog_error(zc, "error receiving filter header");
-        close(fs->conn_sock);
+        close(sock);
         return;
     }
 
@@ -134,14 +125,16 @@ void handle_filter(FilterSocket *fs)
     int packet_len = num_filters * FILTER_CMD_SIZE;
     if (packet_len > FILTER_BUFSIZE) {
         zlog_error(zc, "cannot read so many filter commands into the buffer");
-        close(fs->conn_sock);
+        close(sock);
         return;
     }
-    len = recv_all(fs->conn_sock, buf, packet_len);
+    len = recv_all(sock, buf, packet_len);
     if (len != packet_len) {
         zlog_error(zc, "invalid filter packet size");
-        close(fs->conn_sock);
+        close(sock);
+        return;
     }
+    close(sock);
 
     /* Clear existing filters and set the new batch of filters */
     for (i = 0; i < L4_PROTOCOL_COUNT; i++) {

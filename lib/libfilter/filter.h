@@ -26,12 +26,10 @@ typedef struct {
 
 typedef struct {
     int sock;
-    int conn_sock;
     Filter *filter_list[L4_PROTOCOL_COUNT];
     uint8_t num_filters_for_l4[L4_PROTOCOL_COUNT];
 } FilterSocket;
 
 FilterSocket * init_filter_socket(zlog_category_t *zc_t);
-void close_filter_socket(FilterSocket *fs);
 void handle_filter(FilterSocket *fs);
 int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop_, int on_egress);
