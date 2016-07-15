@@ -50,11 +50,13 @@ cmd_status() {
 
 cmd_test(){
     nosetests "$@"
+    go test ./...
 }
 
 cmd_coverage(){
     set -e
     nosetests --with-cov --cov-report html "$@"
+    go test ./...
     coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
