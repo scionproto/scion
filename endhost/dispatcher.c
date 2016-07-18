@@ -481,6 +481,13 @@ void register_ssp(uint8_t *buf, int len, int sock)
             cleanup_socket(sock, num_sockets - 1, EINVAL);
             return;
         }
+        if (e->l4_key.flow_id == 0) {
+            if (find_available_port(ssp_anyaddr_list, &e->l4_key) < 0) {
+                reply(sock, 0);
+                cleanup_socket(sock, num_sockets - 1, EINVAL);
+                return;
+            }
+        }
         e->list = &ssp_anyaddr_list;
         HASH_ADD(hh, ssp_anyaddr_list, l4_key, sizeof(L4Key), e);
         zlog_info(zc, "ANYADDR registration success for flow:port %" PRIu64 ":%d",

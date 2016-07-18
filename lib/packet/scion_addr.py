@@ -185,6 +185,15 @@ class SCIONAddr(object):
         class_ = haddr_get_type(type_)
         return ISD_AS.LEN + class_.LEN
 
+    @classmethod
+    def any_addr(cls, addr_type):
+        addr = cls()
+        addr.isd_as = ISD_AS("0-0")
+        haddr_type = haddr_get_type(addr_type)
+        raw = b'\0' * haddr_type.LEN
+        addr.host = haddr_type(raw)
+        return addr
+
     def __len__(self):  # pragma: no cover
         return len(self.isd_as) + len(self.host)
 
