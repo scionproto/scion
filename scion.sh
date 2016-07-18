@@ -49,25 +49,44 @@ cmd_status() {
 }
 
 cmd_test(){
+    set -e
+    case "$1" in
+        py) shift; py_test "$@";;
+        go) shift; go_test "$@";;
+        *) py_test; go_test;;
+    esac
+}
+
+py_test() {
     nosetests "$@"
-    go_test
 }
 
 go_test() {
-    # http://stackoverflow.com/a/20012536
-    if grep -qE 'docker|lxc' /proc/1/cgroup; then
-        echo "Running in docker, so skipping go tests"
-        return
-    fi
-    go test ./go/...
+    go test "$@" ./go/...
 }
 
 cmd_coverage(){
     set -e
+    case "$1" in
+        py) shift; py_cover "$@";;
+        go) shift; go_cover "$@";;
+        *) py_cover;
+           echo "============================================="
+           go_cover;;
+    esac
+}
+
+py_cover() {
     nosetests --with-cov --cov-report html "$@"
-    coverage report
-    echo "Coverage report here: file://$PWD/htmlcov/index.html"
-    go_test
+    echo
+    echo "Python coverage report here: file://$PWD/htmlcov/index.html"
+}
+
+go_cover() {
+    set -o pipefail
+    gocov test ./go/... | gocov-html > go/gocover.html
+    echo
+    echo "Go coverage report here: file://$PWD/go/gocover.html"
 }
 
 cmd_lint() {
