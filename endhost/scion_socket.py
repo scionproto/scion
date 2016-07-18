@@ -334,7 +334,7 @@ class ScionBaseSocket(object):
         """
         return self.sendto(msg)
 
-    def sendto(self, msg, dst=None, port=None):
+    def sendto(self, msg, dst_port=None):
         """
         Send data to the specified destination. Returns number of bytes sent.
         Applications are responsible for checking that all data has been sent;
@@ -355,7 +355,8 @@ class ScionBaseSocket(object):
         if msg is None or len(msg) == 0:
             return 0
         ptr = None
-        if dst and port:
+        if dst_port:
+            dst, port = dst_port
             sa = addr_py2c(dst, port)
             ptr = byref(sa)
         return self.libssock.SCIONSend(self.fd, msg, len(msg), ptr)
