@@ -950,7 +950,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     /* Find src info in payload */
     key.port = ntohs(*(uint16_t *)(pld->l4hdr));
     key.isd_as = ntohl(*(uint32_t *)(pld->addr));
-    key.addr_type = DST_TYPE(sch);
+    key.addr_type = SRC_TYPE(sch);
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
 
     Entry *e;

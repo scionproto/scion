@@ -23,7 +23,7 @@ import logging
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.main import main_wrapper
 from lib.packet.scion_addr import SCIONAddr
-from lib.types import AddrType, L4Proto
+from lib.types import L4Proto
 from test.integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -88,7 +88,7 @@ class MPUDPServer(TestServerBase):
     def _create_socket(self, addr):
         sock = ScionServerSocket(L4Proto.UDP, bytes(self.sd.api_addr, 'ascii'))
         sock.settimeout(5.0)
-        if sock.bind(0, SCIONAddr.any_addr(AddrType.IPV4)) < 0:
+        if sock.bind(0, SCIONAddr.any_addr(self.addr.host.TYPE)) < 0:
             return None
         return sock
 
