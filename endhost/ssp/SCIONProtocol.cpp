@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <limits.h>
 
 #include "Extensions.h"
 #include "ProtocolConfigs.h"
@@ -172,7 +173,7 @@ uint32_t SCIONProtocol::getLocalIA()
     if (!mPathManager)
         return 0;
     SCIONAddr *addr = mPathManager->localAddress();
-    if (addr->isd_as == 0)
+    if (addr->isd_as == UINT_MAX)
         mPathManager->queryLocalAddress();
     return addr->isd_as;
 }
@@ -260,7 +261,7 @@ int SSPProtocol::connect(SCIONAddr addr, double timeout)
 int SSPProtocol::listen(int sock)
 {
     SCIONAddr *addr = mConnectionManager->localAddress();
-    if (addr->isd_as == 0) {
+    if (addr->isd_as == UINT_MAX) {
         DEBUG("socket not bound yet\n");
         return -1;
     }
@@ -393,6 +394,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
         mIsReceiver = true;
         mFlowID = be64toh(*(uint64_t *)buf) & ~1;
     } else {
+        mSrcPort = 0;
         mIsReceiver = false;
         mFlowID = createRandom(64) & ~1;
     }
@@ -893,7 +895,7 @@ void SSPProtocol::notifyFinAck()
 int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
 {
     SCIONAddr *localAddr = mConnectionManager->localAddress();
-    if (localAddr->isd_as == 0)
+    if (localAddr->isd_as == UINT_MAX)
         mConnectionManager->queryLocalAddress();
     DispatcherEntry de;
     memset(&de, 0, sizeof(de));

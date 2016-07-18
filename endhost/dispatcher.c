@@ -86,8 +86,10 @@ typedef struct Entry {
 } Entry;
 
 Entry *ssp_flow_list = NULL;
-Entry *ssp_wildcard_list = NULL;
+Entry *ssp_port_list = NULL;
+Entry *ssp_anyaddr_list = NULL;
 Entry *udp_port_list = NULL;
+Entry *udp_anyaddr_list = NULL;
 Entry *poll_fd_list = NULL;
 
 SVCEntry *svc_list = NULL;
@@ -469,7 +471,20 @@ void register_ssp(uint8_t *buf, int len, int sock)
     if (!e)
         return;
     Entry *old = NULL;
-    if (e->l4_key.flow_id != 0) {
+    if (e->l4_key.isd_as == 0) {
+        HASH_FIND(hh, ssp_anyaddr_list, &e->l4_key, sizeof(L4Key), old);
+        if (old) {
+            zlog_error(zc, "ANYADDR already registered for flow:port %" PRIu64 ":%d",
+                    e->l4_key.flow_id, e->l4_key.port);
+            reply(sock, 1);
+            cleanup_socket(sock, num_sockets - 1, EINVAL);
+            return;
+        }
+        e->list = &ssp_anyaddr_list;
+        HASH_ADD(hh, ssp_anyaddr_list, l4_key, sizeof(L4Key), e);
+        zlog_info(zc, "ANYADDR registration success for flow:port %" PRIu64 ":%d",
+                e->l4_key.flow_id, e->l4_key.port);
+    } else if (e->l4_key.flow_id != 0) {
         /* Find registered flow ID */
         HASH_FIND(hh, ssp_flow_list, &e->l4_key, sizeof(L4Key), old);
         if (old) {
@@ -482,14 +497,14 @@ void register_ssp(uint8_t *buf, int len, int sock)
         HASH_ADD(hh, ssp_flow_list, l4_key, sizeof(L4Key), e);
         zlog_info(zc, "flow registration success: %" PRIu64, e->l4_key.flow_id);
     } else {
-        if (find_available_port(ssp_wildcard_list, &e->l4_key) < 0) {
+        if (find_available_port(ssp_port_list, &e->l4_key) < 0) {
             reply(sock, 0);
             cleanup_socket(sock, num_sockets - 1, EINVAL);
             return;
         }
-        e->list = &ssp_wildcard_list;
-        HASH_ADD(hh, ssp_wildcard_list, l4_key, sizeof(L4Key), e);
-        zlog_info(zc, "wildcard registration success: %d", e->l4_key.port);
+        e->list = &ssp_port_list;
+        HASH_ADD(hh, ssp_port_list, l4_key, sizeof(L4Key), e);
+        zlog_info(zc, "port registration success: %d", e->l4_key.port);
     }
     reply(sock, e->l4_key.port);
 }
@@ -505,8 +520,23 @@ void register_udp(uint8_t *buf, int len, int sock)
         cleanup_socket(sock, num_sockets - 1, EINVAL);
         return;
     }
-    e->list = &udp_port_list;
-    HASH_ADD(hh, udp_port_list, l4_key, sizeof(L4Key), e);
+    if (e->l4_key.isd_as == 0) {
+        zlog_debug(zc, "ANYADDR UDP registration");
+        Entry *old = NULL;
+        HASH_FIND(hh, udp_anyaddr_list, &e->l4_key, sizeof(L4Key), old);
+        if (old) {
+            zlog_error(zc, "ANYADDR already registered for port %d", e->l4_key.port);
+            reply(sock, 0);
+            cleanup_socket(sock, num_sockets - 1, EINVAL);
+            return;
+        }
+        e->list = &udp_anyaddr_list;
+        HASH_ADD(hh, udp_anyaddr_list, l4_key, sizeof(L4Key), e);
+        zlog_info(zc, "ANYADDR registration success");
+    } else {
+        e->list = &udp_port_list;
+        HASH_ADD(hh, udp_port_list, l4_key, sizeof(L4Key), e);
+    }
     reply(sock, e->l4_key.port);
 }
 
@@ -549,7 +579,8 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common + 8, addr_len);
         end = addr_len + common + 8;
-        zlog_info(zc, "registration for %s:%d:%" PRIu64,
+        zlog_info(zc, "registration for (%d-%d) %s:%d:%" PRIu64,
+                ISD(isd_as), AS(isd_as),
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
@@ -557,7 +588,8 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
-        zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
+        zlog_info(zc, "registration for (%d-%d) %s:%d",
+                ISD(isd_as), AS(isd_as), addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
     }
     if (IS_SCMP_REQ(*buf)) {
         zlog_info(zc, "SCMP registration included");
@@ -742,19 +774,31 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
     key.isd_as = ntohl(*(uint32_t *)(dst_ptr - ISD_AS_LEN));
     memcpy(key.host, dst_ptr, dst_len);
     if (key.port != 0) {
-        HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
+        HASH_FIND(hh, ssp_port_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
-                    key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL));
-            return;
+            /* Try ANYADDR */
+            key.isd_as = 0;
+            memset(key.host, 0, MAX_HOST_ADDR_LEN);
+            HASH_FIND(hh, ssp_anyaddr_list, &key, sizeof(key), e);
+            if (!e) {
+                zlog_warn(zc, "no port entry found for port %d at %s",
+                        key.port, addr_to_str(key.host, dst_type, NULL));
+                return;
+            }
         }
     } else {
         key.flow_id = be64toh(*(uint64_t *)l4ptr);
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
-                    ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL), key.flow_id);
-            return;
+            /* Try ANYADDR */
+            key.isd_as = 0;
+            memset(key.host, 0, MAX_HOST_ADDR_LEN);
+            HASH_FIND(hh, ssp_anyaddr_list, &key, sizeof(key), e);
+            if (!e) {
+                zlog_warn(zc, "no flow entry found for %s:%" PRIu64,
+                        addr_to_str(key.host, dst_type, NULL), key.flow_id);
+                return;
+            }
         }
     }
     zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64, 
@@ -792,10 +836,15 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     Entry *e;
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
-        zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
-                ISD(key.isd_as), AS(key.isd_as),
-                addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
-        return;
+        /* Try ANYADDR */
+        key.isd_as = 0;
+        memset(key.host, 0, MAX_HOST_ADDR_LEN);
+        HASH_FIND(hh, udp_anyaddr_list, &key, sizeof(key), e);
+        if (!e) {
+            zlog_warn(zc, "entry for %s:%d not found",
+                    addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
+            return;
+        }
     }
     sock = e->sock;
     send_dp_header(sock, from, len);
