@@ -17,7 +17,6 @@
 ==================================================
 """
 # Stdlib
-import argparse
 import ipaddress
 import logging
 import os
@@ -47,8 +46,8 @@ SERVICE_ALIAS = {"er": "EdgeRouters", "bs": "BeaconServers",
                  "cs": "CertificateServers", "ps": "PathServers",
                  "sb": "SibraServers"}
 IP_ADDRESS_NUM = {4: AddrType.IPV4, 6: AddrType.IPV6}
-L4_PROTOCOL_NUM = {"SCMP": L4Proto.SCMP, "TCP": L4Proto.TCP,
-                   "UDP": L4Proto.UDP, "SSP": L4Proto.SSP}
+L4_PROTOCOL_NUM = {"scmp": L4Proto.SCMP, "tcp": L4Proto.TCP,
+                   "udp": L4Proto.UDP, "ssp": L4Proto.SSP}
 
 # Filter options
 EGRESS = 1 << 4
@@ -58,133 +57,221 @@ HOP_NEGATED = 1 << 1
 FILTER_NEGATED = 1 << 0
 
 # Filter restrictions
-ALLOWED_FILTER_MODES = ['ALLOW', 'BLOCK']
-ALLOWED_L4_PROTOS = ['SCMP', 'TCP', 'UDP', 'SSP']  # Order is important
-ALLOWED_DIRECTIONS = ['INGRESS', 'EGRESS']
-ALLOWED_FILTER_LEVELS = ['ISD', 'AS', 'ADDR', 'PORT']  # Order is important
+ALLOWED_FILTER_MODES = ['accept', 'reject']
+ALLOWED_L4_PROTOS = ['scmp', 'tcp', 'udp', 'ssp']
+ALLOWED_DIRECTIONS = ['ingress', 'egress']
+ALLOWED_FILTER_LEVELS = ['isd', 'as', 'addr', 'port']
 MAX_FILTERS_PER_L4 = 255
+HELP_COMMAND = 'help'
 EXIT_COMMAND = 'exit'
 
 
-def init_filter_parser():
-    parser = argparse.ArgumentParser(description='''
-        Input filter commands following the format specified by the parser.
-        Type 'exit' (without quotes) if there are no more commands to be given.
-        ''')
-    parser.add_argument(dest='filter_mode', action='store',
-                        choices=ALLOWED_FILTER_MODES,
-                        help='Filter allows/blocks matching packets')
-    parser.add_argument(dest='l4_proto', action='store',
-                        choices=ALLOWED_L4_PROTOS,
-                        help='L4 protocol to be filtered')
-    parser.add_argument(dest='direction', action='store',
-                        choices=ALLOWED_DIRECTIONS,
-                        help='Filtering at the hop\'s ingress/egress interface')
-    parser.add_argument('-S', dest='src', action='store', default='',
-                        help='Source of the packets to be filtered',
-                        metavar='(!)NODE:LEVEL')
-    parser.add_argument('-D', dest='dst', action='store', default='',
-                        help='Destination of the packets to be filtered',
-                        metavar='(!)NODE:LEVEL')
-    parser.add_argument('-H', dest='hop', action='store', default='',
-                        help='Hop of the packets to be filtered',
-                        metavar='(!)NODE:LEVEL')
-    return parser
+class FilterCommandParser(object):
+    """
+    Parser for filter commands.
+    Helps in converting the commands from a high-level language described in
+    the function print_help() below, to a low-level bytestream.
+    """
 
+    def print_help(self):
+        print('''
+The following is the filter command format:
+filter_mode direction l4_protocol [src_spec] [dst_spec] [hop_spec])
 
-def get_addrs_and_ports(node_topo):
-    addrs = [node_topo['Addr']]
-    ports = [node_topo['Port']]
-    if 'Interface' in node_topo:
-        addrs += node_topo['Interface']['Addr']
-        ports += node_topo['Interface']['UdpPort']
-    return (addrs, ports)
+Where,
+    filter_mode = accept/reject
+    direction   = ingress/egress
+    l4_protocol = scmp/tcp/udp/ssp
+    src_spec    = src [not] <node> [<level>]
+    dst_spec    = dst [not] <node> [<level>]
+    hop_spec    = hop [not] <node> [<level>]
 
+Note:
+    If src_spec/dst_spec/hop_spec is absent, then the filter does not
+    match src/dst/hop (respectively) of packets while filtering
 
-def get_filter_addrs(pattern):
-    filter_addr = bytearray(SCION_ADDR_LEN)
-    offset = 0
+    <node> should be a SCION node present in the topology (eg. bs1-11-1)
 
-    if (pattern == ''):  # No pattern specified
-        return ([filter_addr], False)
+    <level> is the level at which filtering should happen wrt the node:
+    Following are the allowed values for it:
+    isd/as/addr/port(default)
 
-    # Find if the pattern has been negated
-    pattern_negated = False
-    if pattern[0] == '!':
-        pattern_negated = True
-        pattern = pattern[1:]
+Examples:
+    reject egress tcp
+    reject ingress udp src not bs1-11-1 isd
+    accept egress ssp dst ps1-11-1 as hop not sb1-11-1
+    accept ingress scmp src bs1-11-1 addr dst ps1-12-1 port hop not er1-12er1-11
+    ''')
 
-    # Obtain the name of the node and the filter level (seperated by a ':')
-    if pattern.count(':') != 1:
-        logging.error("Badly formatted filter address pattern: "
-                      "incorrect number of ':' seperators given")
-        return ([], '')
-    node, level = pattern.split(':')
-    if level not in ALLOWED_FILTER_LEVELS:
-        logging.error("Unknown filter level specified in the address pattern")
-        return ([], '')
+    def parse_cmd(self, command):
+        output = {}
+        args = command.split()
 
-    # Obtain ISD and AS of the node
-    s_type = node[:2]
-    if s_type not in SERVICE_TYPES:
-        logging.error("Unknown service type of node in the pattern")
-        return ([], '')
-    try:
-        isd_as_num = node.split(s_type)[1].split('-')
-        isd_id = int(isd_as_num[0])
-        as_id = int(isd_as_num[1])
-    except:
-        logging.error("Unknown format for the node name [%s]", node)
-        return ([], '')
+        # Set mandatory arguments after sanctity checks
+        if len(args) < 3:
+            logging.error("Insufficient arguments in the filter command")
+            return None
+        # filter_mode
+        output['options'] = 0
+        if args[0] not in ALLOWED_FILTER_MODES:
+            logging.error("Unknown filter mode specified")
+            return None
+        if args[0] == 'accept':
+            output['options'] |= FILTER_NEGATED
+        # direction
+        if args[1] not in ALLOWED_DIRECTIONS:
+            logging.error("Unknown filter direction specified")
+            return None
+        if args[1] == 'egress':
+            output['options'] |= EGRESS
+        # l4_protocol
+        if args[2] not in ALLOWED_L4_PROTOS:
+            logging.error("Unknown L4 protocol specified")
+            return None
+        output['l4'] = L4_PROTOCOL_NUM[args[2]]
 
-    # Fill in ISD and AS into the filter address
-    if level == 'ISD':
-        as_id = 0
-    isd_as = ISD_AS.from_values(isd_id, as_id).int()
-    struct.pack_into('!I', filter_addr, offset, isd_as)
-    offset += ISD_AS.LEN
-    if level in ['ISD', 'AS']:
-        return (filter_addr, pattern_negated)
+        # Set src, dst and hop arguments after sanctity checks
+        src_pos = args.index("src") if ("src" in args) else len(args)
+        dst_pos = args.index("dst") if ("dst" in args) else len(args)
+        hop_pos = args.index("hop") if ("hop" in args) else len(args)
+        if min(src_pos, dst_pos, hop_pos) > 4:
+            logging.error("Unknown argument provided in the filter command")
+            return None
+        if src_pos != len(args) and src_pos > min(dst_pos, hop_pos):
+            logging.error("Src details should preceed those of dst and hop")
+            return None
+        if dst_pos != len(args) and dst_pos > hop_pos:
+            logging.error("Dst details should preceed those of hop")
+            return None
+        src_args = args[(src_pos + 1):min(dst_pos, hop_pos)]
+        dst_args = args[(dst_pos + 1):hop_pos]
+        hop_args = args[(hop_pos + 1):]
+        # src
+        output['srcs'], pattern_negated = self.get_addr_patterns(src_args)
+        if output['srcs'] is None:
+            logging.error("Invalid src details provided")
+            return None
+        if pattern_negated:
+            output['options'] |= SRC_NEGATED
+        # dst
+        output['dsts'], pattern_negated = self.get_addr_patterns(dst_args)
+        if output['dsts'] is None:
+            logging.error("Invalid dst details provided")
+            return None
+        if pattern_negated:
+            output['options'] |= DST_NEGATED
+        # hop
+        output['hops'], pattern_negated = self.get_addr_patterns(hop_args)
+        if output['hops'] is None:
+            logging.error("Invalid hop details provided")
+            return None
+        if pattern_negated:
+            output['options'] |= HOP_NEGATED
 
-    # Open the topology file corresponding to the node
-    topo_file = os.path.join(PROJECT_ROOT,
-                             GEN_PATH,
-                             'ISD{}/AS{}'.format(isd_id, as_id),
-                             node,
-                             TOPO_FILE)
-    if not os.path.isfile(topo_file):
-        logging.error("Node does not exist in the topology")
-        return ([], '')
-    stream = open(topo_file, "r")
-    topology = next(yaml.load_all(stream))
-    s_type_full = SERVICE_ALIAS[s_type]
+        return output
 
-    # Obtain the address(es) and port(s) corresponding to the node
-    addrs, ports = get_addrs_and_ports(topology[s_type_full][node])
-    filter_addrs = []
+    def get_addr_patterns(self, args):
+        if args == []:  # No pattern specified
+            return ([bytearray(SCION_ADDR_LEN)], False)
 
-    for i in range(len(addrs)):
-        filter_addr_tmp = filter_addr
-        addr = addrs[i].split('/')[0]
+        # Obtain the address pattern parameters and perform sanctity checks
+        pattern_negated = False
+        node = ''
+        level = 'port'
+
+        if len(args) == 1:
+            node = args[0]
+        if len(args) == 2:
+            if args[0] == 'not':
+                pattern_negated = True
+                node = args[1]
+            else:
+                node = args[0]
+                level = args[1]
+        if len(args) == 3:
+            if args[0] != 'not':
+                logging.error("Unknown address pattern field instead of not")
+                return (None, None)
+            pattern_negated = True
+            node = args[1]
+            level = args[2]
+
+        if level not in ALLOWED_FILTER_LEVELS:
+            logging.error("Unknown filter level specified in address pattern")
+            return (None, None)
+
+        # Generate the possible address patterns from the above parameters.
+        # Obtain parts of the the address patterns in a hierarchial order as
+        # defined by ALLOWED_FILTER_LEVELS.
+        filter_pattern = bytearray(SCION_ADDR_LEN)
+        offset = 0
+
+        # Obtain ISD and AS of the node
+        s_type = node[:2]
+        if s_type not in SERVICE_TYPES:
+            logging.error("Unknown service type of node in address pattern")
+            return (None, None)
         try:
-            addr = ipaddress.ip_address(addr)
-            addr_type = ipaddress.ip_address(addr).version
-            addr_type = IP_ADDRESS_NUM[addr_type]
-            addr = addr.packed
+            isd_as_num = node.split(s_type)[1].split('-')
+            isd_id = int(isd_as_num[0])
+            as_id = int(isd_as_num[1])
         except:
-            addr_type = AddrType.SVC
-            addr = struct.pack('!H', int(addr))
-        struct.pack_into('B', filter_addr_tmp, offset, addr_type)
-        filter_addr_tmp[(offset + 1):(offset + 1 + len(addr))] = addr
-        filter_addrs += [filter_addr_tmp]
+            logging.error("Unknown format for the node name '%s'", node)
+            return (None, None)
 
-    if level == 'ADDR':
-        return (filter_addrs, pattern_negated)
+        # Fill in ISD and AS into the address pattern
+        if level == 'isd':
+            as_id = 0
+        isd_as = ISD_AS.from_values(isd_id, as_id).int()
+        struct.pack_into('!I', filter_pattern, offset, isd_as)
+        offset += ISD_AS.LEN
+        if level in ['isd', 'as']:
+            return ([filter_pattern], pattern_negated)
 
-    offset = offset + 1 + MAX_HOST_ADDR_LEN
-    for i in range(len(ports)):
-        struct.pack_into('!H', filter_addrs[i], offset, int(ports[i]))
-    return (filter_addrs, pattern_negated)
+        # Obtain Addr(s) and Port(s) of the node from its topology file
+        topo_file = os.path.join(PROJECT_ROOT,
+                                 GEN_PATH,
+                                 'ISD{}/AS{}'.format(isd_id, as_id),
+                                 node,
+                                 TOPO_FILE)
+        if not os.path.isfile(topo_file):
+            logging.error("Node does not exist in the topology")
+            return (None, None)
+        stream = open(topo_file, "r")
+        topology = next(yaml.load_all(stream))
+        s_type_full = SERVICE_ALIAS[s_type]
+        addrs, ports = self.get_addrs_and_ports(topology[s_type_full][node])
+
+        # Fill in the (Addr, Port) pairs obtained into the address patterns
+        filter_patterns = []
+        for i in range(len(addrs)):
+            filter_pattern_tmp = bytearray(bytes(filter_pattern))
+            addr = addrs[i].split('/')[0]
+            try:
+                addr = ipaddress.ip_address(addr)
+                addr_type = IP_ADDRESS_NUM[addr.version]
+                addr = addr.packed
+            except:
+                addr = struct.pack('!H', int(addr))
+                addr_type = AddrType.SVC
+            struct.pack_into('B', filter_pattern_tmp, offset, addr_type)
+            filter_pattern_tmp[(offset + 1):(offset + 1 + len(addr))] = addr
+            filter_patterns += [filter_pattern_tmp]
+        if level == 'addr':
+            return (filter_patterns, pattern_negated)
+
+        offset = offset + 1 + MAX_HOST_ADDR_LEN
+        for i in range(len(ports)):
+            struct.pack_into('!H', filter_patterns[i], offset, int(ports[i]))
+        return (filter_patterns, pattern_negated)
+
+    def get_addrs_and_ports(self, node_topo):
+        addrs = [node_topo['Addr']]
+        ports = [node_topo['Port']]
+        if 'Interface' in node_topo:
+            addrs += [node_topo['Interface']['Addr']]
+            ports += [node_topo['Interface']['UdpPort']]
+        return (addrs, ports)
 
 
 def send_filters(header, payload):
@@ -213,85 +300,59 @@ def send_filters(header, payload):
 
 
 def main():
-    # Initialize the filter command parser and filter counts for the l4 protos
-    parser = init_filter_parser()
-    filter_count = {}
-    for l4_proto in ALLOWED_L4_PROTOS:
-        filter_count[l4_proto] = 0
-    logging.info("Initialized the filter client")
-
-    # Initialize the filter command batch's header and payload
+    # Initialize the filter client
+    parser = FilterCommandParser()
     header = bytearray()
     payload = bytearray()
+    l4_filter_count = {}
+    for l4_proto in ALLOWED_L4_PROTOS:
+        l4_filter_count[L4_PROTOCOL_NUM[l4_proto]] = 0
+
+    logging.info("Initialized the filter client")
+    print("Started the filter client.\n"
+          "Enter filter commands one per line. Type 'exit' when you are done.\n"
+          "Type 'help' for filter command format info.")
 
     # Input the filter commands and generate the payload
     while True:
-        cmd = input()
+        cmd = input('>>> ')
         if cmd == EXIT_COMMAND:
             logging.info("Finished reading filter commands")
             break
-        try:
-            args = cmd.split()
-            args = parser.parse_args(args)
-        except:
-            logging.error("Neglecting filter: "
-                          "Badly formatted filter command [%s]", cmd)
+        if cmd == HELP_COMMAND:
+            parser.print_help()
             continue
 
-        # Obtain src, dst and hop address patterns
-        srcs, srcs_negated = get_filter_addrs(args.src)
-        if srcs == []:
-            logging.error("Neglecting filter: "
-                          "Badly formatted src specification: [%s]", args.src)
-            continue
-        dsts, dsts_negated = get_filter_addrs(args.dst)
-        if dsts == []:
-            logging.error("Neglecting filter: "
-                          "Badly formatted dst specification: [%s]", args.dst)
-            continue
-        hops, hops_negated = get_filter_addrs(args.hop)
-        if hops == []:
-            logging.error("Neglecting filter: "
-                          "Badly formatted hop specification: [%s]", args.hop)
+        # Obtain the filter arguments from the command
+        args = parser.parse_cmd(cmd)
+        if not args:
+            logging.error("Neglecting filter: bad format")
             continue
 
-        # Check that the filter limit has not been reached for the L4 proto
-        new_filters_count = (filter_count[args.l4_proto] +
-                             len(srcs) * len(dsts) * len(hops))
-        if (new_filters_count > MAX_FILTERS_PER_L4):
-            logging.error("Neglecting filter(s): "
-                          "Exceeding limit of %d filters for %s protocol",
-                          MAX_FILTERS_PER_L4, args.l4_proto)
-
-        # Obtain the filter options.
-        # default = (BLOCK, INGRESS, src/dst/hop addrs not negated)
-        options = 0
-        if args.filter_mode == 'ALLOW':
-            options |= FILTER_NEGATED
-        if args.direction == 'EGRESS':
-            options |= EGRESS
-        if srcs_negated:
-            options |= SRC_NEGATED
-        if dsts_negated:
-            options |= DST_NEGATED
-        if hops_negated:
-            options |= HOP_NEGATED
+        # Check that filter command limit doesn't exceed for the protocol
+        new_filters_count = (l4_filter_count[args['l4']] +
+                             (len(args['srcs']) *
+                              len(args['dsts']) *
+                              len(args['hops'])))
+        if new_filters_count > MAX_FILTERS_PER_L4:
+            logging.error("Neglecting filter: limit exceeded for protocol %d",
+                          args['l4'])
+            continue
 
         # Add the filters to the payload
-        l4 = L4_PROTOCOL_NUM[args.l4_proto]
-        for src in srcs:
-            for dst in dsts:
-                for hop in hops:
-                    payload.append(l4)
+        for src in args['srcs']:
+            for dst in args['dsts']:
+                for hop in args['hops']:
+                    payload.append(args['l4'])
                     payload += src
                     payload += dst
                     payload += hop
-                    payload.append(options)
-        filter_count[args.l4_proto] = new_filters_count
+                    payload.append(args['options'])
+        l4_filter_count[args['l4']] = new_filters_count
 
     # Generate the filter header
     for l4 in ALLOWED_L4_PROTOS:
-        header.append(filter_count[l4])
+        header.append(l4_filter_count[L4_PROTOCOL_NUM[l4]])
 
     send_filters(header, payload)
 
