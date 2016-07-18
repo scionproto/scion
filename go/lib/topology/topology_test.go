@@ -15,41 +15,67 @@
 package topology
 
 import (
-	"fmt"
+	"net"
 	"testing"
 
-	"github.com/netsec-ethz/scion/go/lib/test"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/util"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func Test_TopoIP_UnmarshalYAML_YAMLParseError(t *testing.T) {
-	Convey("YAML parse error", t, func() {
-		tip := TopoIP{}
-		err := fmt.Errorf("failed")
-		So(tip.UnmarshalYAML(test.UnmarshalToError(err)), ShouldEqual, err)
+func Test_Topo(t *testing.T) {
+	// Lots of setup
+	bses := map[string]BasicElem{
+		"bs1-11-1": BasicElem{mkYIP("127.0.0.65"), 30054},
+	}
+	cses := map[string]BasicElem{
+		"cs1-11-1": BasicElem{mkYIP("127.0.0.66"), 30081},
+		"cs1-11-2": BasicElem{mkYIP("127.0.0.67"), 30073},
+	}
+	ers := map[string]TopoER{
+		"er1-11er1-12": TopoER{
+			BasicElem{mkYIP("127.0.0.69"), 30097},
+			TopoIF{mkYIP("127.0.0.6"), 50001, mkYIP("127.0.0.7"), 50000,
+				1, addr.ISD_AS{I: 1, A: 12}, 1472, "ROUTING"},
+		},
+	}
+	pses := map[string]BasicElem{
+		"ps1-11-1": BasicElem{mkYIP("127.0.0.73"), 30091},
+	}
+	sbs := map[string]BasicElem{
+		"sb1-11-1": BasicElem{mkYIP("127.0.0.76"), 30058},
+	}
+	zks := map[int]BasicElem{
+		1: BasicElem{mkYIP("127.0.0.1"), 2181},
+	}
+	core := true
+	ia := addr.ISD_AS{I: 1, A: 11}
+	mtu := 1472
+
+	// Finally testing
+	Convey("Loading test config `testdata/basic.yml`", t, func() {
+		if err := Load("testdata/basic.yml"); err != nil {
+			t.Fatalf("Error loading config: %v", err)
+		}
+		c := CurrTopo
+		So(c.BS, ShouldResemble, bses)
+		So(c.CS, ShouldResemble, cses)
+		So(c.ER, ShouldResemble, ers)
+		So(c.PS, ShouldResemble, pses)
+		So(c.SB, ShouldResemble, sbs)
+		So(c.ZK, ShouldResemble, zks)
+		So(c.Core, ShouldEqual, core)
+		So(c.IA, ShouldResemble, ia)
+		So(c.MTU, ShouldEqual, mtu)
+		// And finally, the whole thing combined. This ensures that any fields
+		// that are forgotten get noticed.
+		So(c, ShouldResemble, &Topo{
+			BS: bses, CS: cses, ER: ers, PS: pses, SB: sbs, ZK: zks,
+			Core: core, IA: ia, MTU: mtu,
+		})
 	})
 }
 
-func Test_TopoIP_UnmarshalYAML_IPParseError(t *testing.T) {
-	Convey("IP parse error", t, func() {
-		tip := TopoIP{}
-		So(tip.UnmarshalYAML(test.UnmarshalToString("ip addr")), ShouldNotBeNil)
-	})
-}
-
-func Test_TopoIP_UnmarshalYAML_ValidIPs(t *testing.T) {
-	Convey("Valid IPs", t, func() {
-		tip := TopoIP{}
-		cases := [][2]string{
-			{"127.0.0.1", "8"}, {"198.51.100.0", "24"},
-			{"::1", "128"}, {"2001:db8:a0b:12f0::1", "64"},
-		}
-		for _, ip_mask := range cases {
-			full := fmt.Sprintf("%v/%v", ip_mask[0], ip_mask[1])
-			Convey(full, func() {
-				So(tip.UnmarshalYAML(test.UnmarshalToString(full)), ShouldBeNil)
-				So(tip.String(), ShouldEqual, ip_mask[0])
-			})
-		}
-	})
+func mkYIP(ip string) util.YamlIP {
+	return util.YamlIP{IP: net.ParseIP(ip)}
 }

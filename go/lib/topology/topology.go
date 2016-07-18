@@ -16,10 +16,10 @@ package topology
 
 import (
 	"io/ioutil"
-	"net"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/util"
 	"gopkg.in/yaml.v2"
 )
 
@@ -36,12 +36,8 @@ type Topo struct {
 }
 
 type BasicElem struct {
-	Addr TopoIP `yaml:"Addr"`
-	Port int    `yaml:"Port"`
-}
-
-type TopoIP struct {
-	net.IP
+	Addr util.YamlIP `yaml:"Addr"`
+	Port int         `yaml:"Port"`
 }
 
 type TopoER struct {
@@ -50,9 +46,9 @@ type TopoER struct {
 }
 
 type TopoIF struct {
-	Addr      TopoIP      `yaml:"Addr"`
+	Addr      util.YamlIP `yaml:"Addr"`
 	UdpPort   int         `yaml:"UdpPort"`
-	ToAddr    TopoIP      `yaml:"ToAddr"`
+	ToAddr    util.YamlIP `yaml:"ToAddr"`
 	ToUdpPort int         `yaml:"ToUdpPort"`
 	IFID      int         `yaml:"IFID"`
 	IA        addr.ISD_AS `yaml:"ISD_AS"`
@@ -83,14 +79,4 @@ func Parse(data []byte) error {
 	}
 	CurrTopo = t
 	return nil
-}
-
-func (tip *TopoIP) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	var err error
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	tip.IP, _, err = net.ParseCIDR(s)
-	return err
 }
