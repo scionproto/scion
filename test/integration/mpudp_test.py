@@ -50,10 +50,6 @@ class MPUDPClient(TestClientBase):
         sock.settimeout(self._timeout)
         return sock
 
-    def _get_path(self, api):
-        # Libssock takes care of this internally
-        pass
-
     def _recv(self):
         return self.sock.recvfrom(DATA_LEN)[0]
 
