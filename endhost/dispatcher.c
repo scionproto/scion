@@ -54,6 +54,7 @@ typedef struct sockaddr_in6 sockaddr_in6;
 typedef struct {
     uint16_t port;
     uint32_t isd_as;
+    uint8_t addr_type;
     uint8_t host[MAX_HOST_ADDR_LEN];
     uint64_t flow_id;
 } L4Key;
@@ -572,11 +573,12 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     int addr_len = get_addr_len(type);
     int end;
 
+    e->l4_key.port = port;
+    e->l4_key.isd_as = isd_as;
+    e->l4_key.addr_type = *(buf + common - 1);
     if (proto == L4_SSP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | flow ID (8B) | addr (?B) | SVC (2B, optional) */
         e->l4_key.flow_id = *(uint64_t *)(buf + common);
-        e->l4_key.port = port;
-        e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common + 8, addr_len);
         end = addr_len + common + 8;
         zlog_info(zc, "registration for (%d-%d) %s:%d:%" PRIu64,
@@ -584,8 +586,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
     /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
-        e->l4_key.port = port;
-        e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
         zlog_info(zc, "registration for (%d-%d) %s:%d",
@@ -772,6 +772,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
     memset(&key, 0, sizeof(key));
     key.port = ntohs(*(uint16_t *)(l4ptr + 8));
     key.isd_as = ntohl(*(uint32_t *)(dst_ptr - ISD_AS_LEN));
+    key.addr_type = DST_TYPE(sch);
     memcpy(key.host, dst_ptr, dst_len);
     if (key.port != 0) {
         HASH_FIND(hh, ssp_port_list, &key, sizeof(key), e);
@@ -831,6 +832,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     /* Find dst info in packet */
     key.port = ntohs(*(uint16_t *)(l4ptr + 2));
     key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
+    key.addr_type = DST_TYPE(sch);
     memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
 
     Entry *e;
@@ -941,6 +943,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     /* Find src info in payload */
     key.port = ntohs(*(uint16_t *)(pld->l4hdr));
     key.isd_as = ntohl(*(uint32_t *)(pld->addr));
+    key.addr_type = DST_TYPE(sch);
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
 
     Entry *e;
