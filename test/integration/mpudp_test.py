@@ -143,7 +143,7 @@ class TestMPUDP(TestClientServerBase):
 
 
 def main():
-    args, srcs, dsts = setup_main("ssp")
+    args, srcs, dsts = setup_main("mpudp")
     TestMPUDP(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
 
 
