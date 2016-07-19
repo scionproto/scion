@@ -34,18 +34,20 @@ int main(int argc, char **argv)
 
     SCIONAddr saddr;
     memset(&saddr, 0, sizeof(saddr));
-    saddr.isd_as = ISD_AS(dst_isd, dst_as);
-    saddr.host.addr_type = ADDR_IPV4_TYPE;
     saddr.host.port = 8080;
-    sprintf(str, "127.%d.%d.254", dst_isd, dst_as);
+    saddr.isd_as = ISD_AS(src_isd, src_as);
+    saddr.host.addr_type = ADDR_IPV4_TYPE;
+    sprintf(str, "127.%d.%d.254", src_isd, src_as);
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
-
-#ifdef MPUDP
     s.bind(saddr);
-#else
+
+    saddr.isd_as = ISD_AS(dst_isd, dst_as);
+    saddr.host.addr_type = ADDR_IPV4_TYPE;
+    sprintf(str, "127.%d.%d.254", dst_isd, dst_as);
+    in = inet_addr(str);
+    memcpy(saddr.host.addr, &in, 4);
     s.connect(saddr);
-#endif
     printf("connected to (%d, %d):%s\n", dst_isd, dst_as, str);
 
     /*

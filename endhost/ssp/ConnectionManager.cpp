@@ -27,6 +27,7 @@ PathManager::PathManager(int sock, const char *sciond)
         exit(1);
     }
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
+    mLocalAddr.isd_as = UINT_MAX;
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     pthread_mutex_init(&mPathMutex, NULL);
     pthread_condattr_t ca;
@@ -141,12 +142,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
             this, ISD(addr.isd_as), AS(addr.isd_as),
             addr_to_str(addr.host.addr, addr.host.addr_type, NULL));
 
-    if (mLocalAddr.isd_as == 0)
-        queryLocalAddress();
-
-    if (addr.isd_as == 0) /* bind to any address */
-        return 0;
-
+    mLocalAddr.isd_as = addr.isd_as;
     mLocalAddr.host.addr_type = addr.host.addr_type;
     memcpy(mLocalAddr.host.addr, addr.host.addr, get_addr_len(addr.host.addr_type));
 
@@ -235,7 +231,7 @@ void PathManager::getPaths(double timeout)
     memset(buf, 0, buflen);
 
     // Get local address first
-    if (mLocalAddr.isd_as == 0) {
+    if (mLocalAddr.isd_as == UINT_MAX) {
         queryLocalAddress();
     }
 
@@ -375,7 +371,7 @@ int PathManager::setISDWhitelist(void *data, size_t len)
         return -EINVAL;
     }
 
-    if (mLocalAddr.isd_as == 0) {
+    if (mLocalAddr.isd_as == UINT_MAX) {
         queryLocalAddress();
     }
 
@@ -562,7 +558,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
 
     bool refresh = false;
     pthread_mutex_lock(&mPathMutex);
-    if (mInitAcked) {
+    if (mInitAcked && mLocalAddr.isd_as != 0) {
         for (size_t i = 0; i < mPaths.size(); i++) {
             SSPPath *p = (SSPPath *)mPaths[i];
             if (!p || p->isUp() || !p->isValid())
