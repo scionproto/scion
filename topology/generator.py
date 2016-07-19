@@ -523,11 +523,11 @@ class SupervisorGenerator(object):
         for key, cmd in (
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "bin/cert_server"),
-            ("BorderRouters", "bin/router"),
             ("PathServers", "bin/path_server"),
             ("SibraServers", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
+        entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._zk_entries(topo_id))
         self._write_as_conf(topo_id, entries)
 
@@ -536,6 +536,13 @@ class SupervisorGenerator(object):
         for elem in topo.get(topo_key, {}):
             conf_dir = os.path.join(base, elem)
             entries.append((elem, [cmd, elem, conf_dir]))
+        return entries
+
+    def _br_entries(self, topo, cmd, base):
+        entries = []
+        for elem in topo.get("BorderRouters", {}):
+            conf_dir = os.path.join(base, elem)
+            entries.append((elem, [cmd, "-id", elem, "-confd", conf_dir]))
         return entries
 
     def _zk_entries(self, topo_id):

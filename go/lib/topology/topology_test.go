@@ -15,12 +15,16 @@
 package topology
 
 import (
+	// Stdlib
 	"net"
 	"testing"
 
+	// External
+	. "github.com/smartystreets/goconvey/convey"
+
+	// Local
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/util"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func Test_Topo(t *testing.T) {
@@ -35,8 +39,8 @@ func Test_Topo(t *testing.T) {
 	brs := map[string]TopoBR{
 		"br1-11-1": TopoBR{
 			BasicElem{mkYIP("127.0.0.69"), 30097},
-			TopoIF{mkYIP("127.0.0.6"), 50001, mkYIP("127.0.0.7"), 50000,
-				1, addr.ISD_AS{I: 1, A: 12}, 1472, "ROUTING"},
+			&TopoIF{mkYIP("127.0.0.6"), 50001, mkYIP("127.0.0.7"), 50000,
+				1, &addr.ISD_AS{I: 1, A: 12}, 1472, 1000, "ROUTING"},
 		},
 	}
 	pses := map[string]BasicElem{
@@ -49,7 +53,7 @@ func Test_Topo(t *testing.T) {
 		1: BasicElem{mkYIP("127.0.0.1"), 2181},
 	}
 	core := true
-	ia := addr.ISD_AS{I: 1, A: 11}
+	ia := &addr.ISD_AS{I: 1, A: 11}
 	mtu := 1472
 
 	// Finally testing
@@ -57,7 +61,7 @@ func Test_Topo(t *testing.T) {
 		if err := Load("testdata/basic.yml"); err != nil {
 			t.Fatalf("Error loading config: %v", err)
 		}
-		c := CurrTopo
+		c := Curr.T
 		So(c.BS, ShouldResemble, bses)
 		So(c.CS, ShouldResemble, cses)
 		So(c.BR, ShouldResemble, brs)
@@ -69,13 +73,13 @@ func Test_Topo(t *testing.T) {
 		So(c.MTU, ShouldEqual, mtu)
 		// And finally, the whole thing combined. This ensures that any fields
 		// that are forgotten get noticed.
-		So(c, ShouldResemble, &Topo{
+		So(c, ShouldResemble, Topo{
 			BS: bses, CS: cses, BR: brs, PS: pses, SB: sbs, ZK: zks,
 			Core: core, IA: ia, MTU: mtu,
 		})
 	})
 }
 
-func mkYIP(ip string) util.YamlIP {
-	return util.YamlIP{IP: net.ParseIP(ip)}
+func mkYIP(ip string) *util.YamlIP {
+	return &util.YamlIP{IP: net.ParseIP(ip)}
 }

@@ -22,7 +22,7 @@ topology/mininet/*.pyc
 # Go generated files #
 #########################
 proto/go.capnp
-go/proto/*.go
+go/proto/*.capnp.go
 
 # vim generated files #
 #########################
@@ -56,6 +56,7 @@ go/proto/*.go
 
 # Executable binaries
 ##########################
+bin/border
 bin/discovery
 bin/dispatcher
 endhost/dispatcher

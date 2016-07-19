@@ -26,6 +26,24 @@ import (
 var _ fmt.Stringer = (*ISD_AS)(nil)
 var _ yaml.Unmarshaler = (*ISD_AS)(nil)
 
+func Test_IAFromRaw(t *testing.T) {
+	Convey("IAFromRaw should parse bytes correctly", t, func() {
+		input := []byte{0x02, 0x10, 0x00, 0x2c}
+		ia := IAFromRaw(input)
+		So(ia.I, ShouldEqual, 33)
+		So(ia.A, ShouldEqual, 44)
+	})
+}
+
+func Test_IA_Write(t *testing.T) {
+	Convey("ISD_AS.Write() should output bytes correctly", t, func() {
+		output := make([]byte, 4)
+		ia := &ISD_AS{I: 33, A: 44}
+		ia.Write(output)
+		So(output, ShouldResemble, []byte{0x02, 0x10, 0x00, 0x2c})
+	})
+}
+
 func Test_IA_String(t *testing.T) {
 	Convey("String() should return ISD-AS", t, func() {
 		ia := ISD_AS{33, 55}
