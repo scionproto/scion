@@ -25,7 +25,7 @@ import struct
 from ctypes import (
     addressof,
     byref,
-    CDLL,
+    cdll,
     c_double,
     c_int,
     c_short,
@@ -46,7 +46,7 @@ from lib.util import Raw
 HostAddrBytes = c_ubyte * MAX_HOST_ADDR_LEN
 MAX_PATHS = 20
 MAX_OPTION_LEN = 20
-SHARED_LIB_FILE = os.path.join("endhost", "ssp", "libssocket.so")
+SHARED_LIB_FILE = os.path.join("libssocket.so")
 
 
 class C_HostAddr(Structure):
@@ -283,20 +283,20 @@ class ScionBaseSocket(object):
     # map option to minimum data length for that option
     LONG_OPTIONS = {SCION_OPTION_ISD_WLIST: 0}
 
-    def __init__(self, proto, sciond_addr, libssock, fd=None):
+    def __init__(self, proto, sciond_addr, fd=None):
         """
         This class can be used if the fd and libssock are known in
         advance. See accept() in ScionServerSocket for an example
         usage.
         :param proto: Protocol number to use for socket
         :type proto: int
-        :param libssock: The relevant SCION Multi-Path Socket library.
-        :type: Dynamically loaded shared library (.so).
+        :param sciond_addr: Path to the sciond socket
+        :type sciond_addr: string
         :param fd: Underlying file descriptor of the socket.
         :type fd: int
         """
         self.proto = proto
-        self.libssock = libssock
+        self.libssock = cdll.LoadLibrary(SHARED_LIB_FILE)
         self.sciond_addr = sciond_addr
         self.port = 0
         if fd:
@@ -558,7 +558,7 @@ class ScionServerSocket(ScionBaseSocket):
         :param server_port: The port number that the server will listen on.
         :type server_port: int
         """
-        super().__init__(proto, sciond_addr, CDLL(SHARED_LIB_FILE))
+        super().__init__(proto, sciond_addr)
         logging.debug("ScionServerSocket fd = %d" % self.fd)
 
     def listen(self):
@@ -584,8 +584,7 @@ class ScionServerSocket(ScionBaseSocket):
         """
         newfd = self.libssock.SCIONAccept(self.fd)
         logging.debug("Accepted socket %d" % newfd)
-        return ScionBaseSocket(self.proto, self.sciond_addr,
-                               self.libssock, newfd), None
+        return ScionBaseSocket(self.proto, self.sciond_addr, newfd), None
 
 
 class ScionClientSocket(ScionBaseSocket):
@@ -601,7 +600,7 @@ class ScionClientSocket(ScionBaseSocket):
         :param target_address: The address of the server to connect to.
         :type target_address: (string, int) tuple
         """
-        super().__init__(proto, sciond_addr, CDLL(SHARED_LIB_FILE))
+        super().__init__(proto, sciond_addr)
         logging.debug("ScionClientSocket fd = %d" % self.fd)
 
     def connect(self, saddr, port):

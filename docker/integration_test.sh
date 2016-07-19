@@ -53,7 +53,7 @@ log "Scion status:"
 
 sleep 5
 
-cat << EOF | parallel -n2 -j0 run
+cat << EOF | LD_LIBRARY_PATH=endhost/ssp parallel -n2 -j0 run
 End2End
 test/integration/end2end_test.py -l ERROR
 C2S_extn
