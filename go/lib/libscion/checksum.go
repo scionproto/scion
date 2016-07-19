@@ -12,33 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package liblog
+package libscion
+
+/*
+ #cgo CFLAGS: -I../../../lib
+ #cgo LDFLAGS: -lscion
+ #include <stdint.h>
+ #include "libscion/scion.h"
+*/
+import "C"
 
 import (
-	"bytes"
-	"fmt"
-	"sort"
-	"strings"
+	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-const tsFmt = "2006-01-02T15:04:05.999"
-
-type UTCFormatter struct{}
-
-func (u *UTCFormatter) Format(e *log.Entry) ([]byte, error) {
-	var keys []string = make([]string, 0, len(e.Data))
-	for k := range e.Data {
-		keys = append(keys, k)
+func Checksum(srcs ...util.RawBytes) uint16 {
+	chkin := C.mk_chk_input(C.int(len(srcs)))
+	for i, src := range srcs {
+		C.chk_add_chunk(chkin, C.int(i), (*C.uint8_t)(unsafe.Pointer(&src[0])), C.int(len(src)))
 	}
-	sort.Strings(keys)
-	b := &bytes.Buffer{}
-	fmt.Fprintf(b, "%-5s[%s] %-44s ", strings.ToUpper(e.Level.String()),
-		e.Time.UTC().Format(tsFmt), e.Message)
-	for _, k := range keys {
-		fmt.Fprintf(b, " %s=%+v", k, e.Data[k])
-	}
-	b.WriteByte('\n')
-	return b.Bytes(), nil
+	val := uint16(C.ntohs(C.checksum(chkin)))
+	C.rm_chk_input(chkin)
+	return val
 }

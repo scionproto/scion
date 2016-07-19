@@ -17,9 +17,9 @@ package as_conf
 import (
 	"io/ioutil"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/netsec-ethz/scion/go/lib/util"
 	"gopkg.in/yaml.v2"
+
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 type ASConf struct {
@@ -30,26 +30,30 @@ type ASConf struct {
 	RegisterTime     int           `yaml:"RegisterTime"`
 }
 
+const CfgName = "as.yml"
+
+const (
+	ErrorOpen  = "Unable to open AS conf"
+	ErrorParse = "Unable to parse AS conf"
+)
+
 var CurrConf *ASConf
 
-func Load(path string) error {
+func Load(path string) *util.Error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.WithFields(log.Fields{"err": err}).Error("Unable to open AS conf")
+		return util.NewError(ErrorOpen, "err", err)
+	}
+	if err := Parse(b, path); err != nil {
 		return err
 	}
-	if err = Parse(b); err != nil {
-		return err
-	}
-	log.WithField("path", path).Info("Loaded AS conf")
 	return nil
 }
 
-func Parse(data []byte) error {
+func Parse(data []byte, path string) *util.Error {
 	c := &ASConf{}
 	if err := yaml.Unmarshal(data, c); err != nil {
-		log.WithFields(log.Fields{"err": err}).Error("Unable to parse AS conf")
-		return err
+		return util.NewError(ErrorParse, "err", err, "path", path)
 	}
 	CurrConf = c
 	return nil

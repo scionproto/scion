@@ -16,12 +16,24 @@ package topology
 
 import (
 	"io/ioutil"
+	"sort"
 
-	log "github.com/Sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/util"
-	"gopkg.in/yaml.v2"
 )
+
+type TopoMeta struct {
+	T       Topo
+	BRNames []string
+	BSNames []string
+	PSNames []string
+	CSNames []string
+	SBNames []string
+	ZKIDs   []int
+	IFMap   map[int]TopoBR
+}
 
 type Topo struct {
 	BR   map[string]TopoBR    `yaml:"BorderRouters"`
@@ -31,52 +43,87 @@ type Topo struct {
 	SB   map[string]BasicElem `yaml:"SibraServers"`
 	ZK   map[int]BasicElem    `yaml:"Zookeepers"`
 	Core bool                 `yaml:"Core"`
-	IA   addr.ISD_AS          `yaml:"ISD_AS"`
+	IA   *addr.ISD_AS         `yaml:"ISD_AS"`
 	MTU  int                  `yaml:"MTU"`
 }
 
 type BasicElem struct {
-	Addr util.YamlIP `yaml:"Addr"`
-	Port int         `yaml:"Port"`
+	Addr *util.YamlIP `yaml:"Addr"`
+	Port int          `yaml:"Port"`
 }
 
 type TopoBR struct {
 	BasicElem `yaml:",inline"`
-	IF        TopoIF `yaml:"Interface"`
+	IF        *TopoIF `yaml:"Interface"`
 }
 
 type TopoIF struct {
-	Addr      util.YamlIP `yaml:"Addr"`
-	UdpPort   int         `yaml:"UdpPort"`
-	ToAddr    util.YamlIP `yaml:"ToAddr"`
-	ToUdpPort int         `yaml:"ToUdpPort"`
-	IFID      int         `yaml:"IFID"`
-	IA        addr.ISD_AS `yaml:"ISD_AS"`
-	MTU       int         `yaml:"MTU"`
-	LinkType  string      `yaml:"LinkType"`
+	Addr      *util.YamlIP `yaml:"Addr"`
+	UdpPort   int          `yaml:"UdpPort"`
+	ToAddr    *util.YamlIP `yaml:"ToAddr"`
+	ToUdpPort int          `yaml:"ToUdpPort"`
+	IFID      int          `yaml:"IFID"`
+	IA        *addr.ISD_AS `yaml:"ISD_AS"`
+	MTU       int          `yaml:"MTU"`
+	BW        int          `yaml:"Bandwidth"`
+	LinkType  string       `yaml:"LinkType"`
 }
 
-var CurrTopo *Topo
+const CfgName = "topology.yml"
 
-func Load(path string) error {
+const (
+	ErrorOpen  = "Unable to open topology"
+	ErrorParse = "Unable to parse topology"
+)
+
+var Curr *TopoMeta
+
+func Load(path string) *util.Error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.WithFields(log.Fields{"err": err}).Error("Unable to open topology")
+		return util.NewError(ErrorOpen, "err", err)
+	}
+	if err := Parse(b, path); err != nil {
 		return err
 	}
-	if err = Parse(b); err != nil {
-		return err
-	}
-	log.WithField("path", path).Info("Loaded topology")
 	return nil
 }
 
-func Parse(data []byte) error {
-	t := &Topo{}
-	if err := yaml.Unmarshal(data, t); err != nil {
-		log.WithFields(log.Fields{"err": err}).Error("Unable to parse topology")
-		return err
+func Parse(data []byte, path string) *util.Error {
+	tm := &TopoMeta{}
+	tm.IFMap = make(map[int]TopoBR)
+	if err := yaml.Unmarshal(data, &tm.T); err != nil {
+		return util.NewError(ErrorParse, "err", err, "path", path)
 	}
-	CurrTopo = t
+	tm.populateMeta()
+	Curr = tm
 	return nil
+}
+
+func (tm *TopoMeta) populateMeta() {
+	for k, v := range tm.T.BR {
+		tm.BRNames = append(tm.BRNames, k)
+		tm.IFMap[v.IF.IFID] = v
+	}
+	for k := range tm.T.BS {
+		tm.BSNames = append(tm.BSNames, k)
+	}
+	for k := range tm.T.PS {
+		tm.PSNames = append(tm.PSNames, k)
+	}
+	for k := range tm.T.CS {
+		tm.CSNames = append(tm.CSNames, k)
+	}
+	for k := range tm.T.SB {
+		tm.SBNames = append(tm.SBNames, k)
+	}
+	for k := range tm.T.ZK {
+		tm.ZKIDs = append(tm.ZKIDs, k)
+	}
+	sort.Strings(tm.BRNames)
+	sort.Strings(tm.BSNames)
+	sort.Strings(tm.PSNames)
+	sort.Strings(tm.CSNames)
+	sort.Strings(tm.SBNames)
+	sort.Ints(tm.ZKIDs)
 }

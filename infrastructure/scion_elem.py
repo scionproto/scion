@@ -332,7 +332,7 @@ class SCIONElement(object):
         if if_id in self.ifid2br:
             br = self.ifid2br[if_id]
             return br.addr, br.port
-        logging.error("Unable to find first hop:\n", spkt.path)
+        logging.error("Unable to find first hop:\n%s", spkt.path)
         return None, None
 
     def _ext_first_hop(self, spkt):

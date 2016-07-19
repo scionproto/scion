@@ -7,7 +7,7 @@ all: clibs dispatcher go
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 
-go: goproto
+go: goproto libscion
 	GOBIN=$$PWD/bin go install -v ./go/...
 
 # Order is important

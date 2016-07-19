@@ -26,7 +26,7 @@ cmd_topology() {
 
 cmd_run() {
     if [ "$1" != "nobuild" ]; then
-        echo "Compiling C code..."
+        echo "Compiling..."
         cmd_build || exit 1
     fi
     echo "Running the network..."
@@ -104,7 +104,7 @@ cmd_lint() {
 cmd_gofmt() {
     echo "Running gofmt"
     echo "============================================="
-    local fmtout=$(gofmt -d ./go)
+    local fmtout=$(gofmt -d -s ./go)
     if [ -n "$fmtout" ]; then
         echo "$fmtout"
         return 1
@@ -141,7 +141,7 @@ cmd_sciond() {
     # FIXME(aznair): Will become ISD_AS.sock in later PR
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=.
-    exec bin/sciond --addr $ADDR --api-addr $APIADDR sd-${ISD}-${AS} $GENDIR
+    exec bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR
 }
 
 cmd_help() {

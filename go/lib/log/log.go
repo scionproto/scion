@@ -15,28 +15,76 @@
 package liblog
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"runtime/debug"
+	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/inconshreveable/log15"
+	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var logDir = flag.String("log.dir", "logs", "Log directory")
+var logLevel = flag.String("log.level", "debug", "Logging level")
+var logConsole = flag.String("log.console", "crit", "Console logging level")
+var logSize = flag.Int("log.size", 50, "Max size of log file in MiB")
+var logAge = flag.Int("log.age", 7, "Max age of log file in days")
+
+var logBuf *bufio.Writer
+
+func init() {
+	os.Setenv("TZ", "UTC")
+	fmt15.TimeFmt = "2006-01-02T15:04:05.000000000-0700"
+}
 
 func Setup(name string) {
-	log.SetFormatter(&UTCFormatter{})
-	lj := &lumberjack.Logger{
+	logLvl, consLvl := parseLvls()
+	logBuf = bufio.NewWriter(mkLogfile(name))
+	handler := log.MultiHandler(
+		log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
+		log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
+			fmt15.Fmt15Format(fmt15.ColorMap))),
+	)
+	log.Root().SetHandler(handler)
+	go func() {
+		for range time.Tick(5 * time.Second) {
+			Flush()
+		}
+	}()
+}
+
+func parseLvls() (log.Lvl, log.Lvl) {
+	logLvl, err := log.LvlFromString(*logLevel)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to parse log.Level flag: %v", err)
+		os.Exit(1)
+	}
+	consLvl, err := log.LvlFromString(*logConsole)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to parse log.Console flag: %v", err)
+		os.Exit(1)
+	}
+	return logLvl, consLvl
+}
+
+func mkLogfile(name string) io.Writer {
+	return &lumberjack.Logger{
 		Filename: fmt.Sprintf("%s/%s.log", *logDir, name),
 		MaxSize:  50, // MiB
 		MaxAge:   7,  // days
 	}
-	log.SetOutput(lj)
 }
 
 func PanicLog() {
-	if err := recover(); err != nil {
-		log.Fatalf("Panic: %s\n%s", err, debug.Stack())
+	if msg := recover(); msg != nil {
+		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 	}
+}
+
+func Flush() {
+	logBuf.Flush()
 }
