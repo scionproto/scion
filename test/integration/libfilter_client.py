@@ -260,7 +260,7 @@ def send_filters(header, payload):
         sock.connect(('', port))
         logging.info("Client connected to libfilter")
     except Exception as e:
-        loggin.error(e)
+        logging.error(e)
         logging.error("Connection to libfilter failed")
         sock.close()
         sys.exit(1)
