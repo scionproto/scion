@@ -2,12 +2,18 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared
+LDFLAGS ?= -shared -lscion -lzlog -llwip
+
+LIB_DIR = ..
+LWIP_DIR = ../../sub/lwip/src/include
+LWIPPORT_DIR = ../../sub/lwip-contrib/ports/unix
+INC = -I$(LIB_DIR) -I$(LWIP_DIR) -I$(LWIP_DIR)/scion -I$(LWIP_DIR)/ipv4
+INC += -I$(LWIPPORT_DIR)/include -I$(LWIPPORT_DIR)/proj/scion
 
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
-STATIC = libscion.a
-DYNAMIC = libscion.so
+STATIC = libtcpmw.a
+DYNAMIC = libtcpmw.so
 TARGETS = $(STATIC) $(DYNAMIC)
 PREFIX ?= /usr/local
 
@@ -20,7 +26,7 @@ clean:
 # can be recompiled if any of the included header files changed.
 -include *.d
 %.o: %.c
-	$(CC) $(CFLAGS) -MMD -c -o $@ $<
+	$(CC) $(CFLAGS) $(INC) -MMD -c -o $@ $<
 
 $(STATIC): $(OBJS)
 	ar rcs $@ $(OBJS)

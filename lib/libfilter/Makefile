@@ -1,23 +1,44 @@
-CC=gcc
-CFLAGS +=-Wall -g -fPIC
+.PHONY: all clean install uninstall
 
-LIBDIR=../libscion
-INC += -I$(LIBDIR)
-LDFLAGS += -shared -L$(LIBDIR) -lscion -lzlog
+CC = clang
+CFLAGS ?= -Wall -Werror -g -fPIC
+LDFLAGS ?= -shared -lscion -lzlog
 
-HDRS=$(wildcard *.h)
-FILES=$(wildcard *.c)
-OBJS=$(FILES:.c=.o)
-LIB=libfilter.a
+LIB_DIR = ..
+INC = -I$(LIB_DIR)
 
-all: $(LIB)
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+STATIC = libfilter.a
+DYNAMIC = libfilter.so
+TARGETS = $(STATIC) $(DYNAMIC)
+PREFIX ?= /usr/local
 
-%.o: %.c $(HDRS)
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $< $(LDFLAGS)
-
-$(LIB): $(OBJS)
-	$(MAKE) -C $(LIBDIR)
-	ar rcs $@ $(OBJS)
+all: $(TARGETS)
 
 clean:
-	-rm -f *.o $(LIB)
+	rm -f *.d *.so *.a *.o .installstamp $(TARGETS)
+
+# Compile .c files, while also automatically generating dependencies so they
+# can be recompiled if any of the included header files changed.
+-include *.d
+%.o: %.c
+	$(CC) $(CFLAGS) $(INC) -MMD -c -o $@ $<
+
+$(STATIC): $(OBJS)
+	ar rcs $@ $(OBJS)
+
+$(DYNAMIC): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+
+install: .installstamp
+
+.installstamp: $(TARGETS)
+	sudo cp $(TARGETS) $(PREFIX)/lib/
+	sudo ldconfig
+	touch .installstamp
+
+uninstall:
+	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
+	sudo ldconfig
+	rm -f .installstamp

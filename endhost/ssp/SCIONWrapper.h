@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-typedef struct SCIONSocket SCIONSocket;
-
 int newSCIONSocket(int protocol, const char *sciond);
 void deleteSCIONSocket(int sock);
 int SCIONAccept(int sock);

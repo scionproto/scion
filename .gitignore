@@ -1,17 +1,3 @@
-# LaTeX output #
-#########################
-*-eps-converted-to.pdf
-*.aux
-*.bbl
-*.blg
-*.dvi
-*.log
-*.ps
-*.synctex.gz
-*.toc
-*.idx
-*.out
-
 # OS generated files #
 #########################
 .DS_Store
@@ -36,6 +22,11 @@ topology/mininet/*.pyc
 # vim generated files #
 #########################
 .*.swp
+
+# build files
+#########################
+.installstamp
+*.d
 
 # Documentation and Environment files
 #########################

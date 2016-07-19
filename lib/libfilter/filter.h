@@ -2,7 +2,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include "scion.h"
+#include "libscion/scion.h"
 
 #define FILTER_BUFSIZE 10000
 #define FILTER_CMD_SIZE 71  // See the filter cmd format in handle_filter()
