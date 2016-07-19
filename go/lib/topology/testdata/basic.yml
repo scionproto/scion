@@ -1,0 +1,40 @@
+BeaconServers:
+  bs1-11-1:
+    Addr: 127.0.0.65/28
+    Port: 30054
+CertificateServers:
+  cs1-11-1:
+    Addr: 127.0.0.66/28
+    Port: 30081
+  cs1-11-2:
+    Addr: 127.0.0.67/28
+    Port: 30073
+Core: true
+EdgeRouters:
+  er1-11er1-12:
+    Addr: 127.0.0.69/28
+    Interface:
+      Addr: 127.0.0.6/31
+      Bandwidth: 1000
+      IFID: 1
+      ISD_AS: 1-12
+      LinkType: ROUTING
+      MTU: 1472
+      ToAddr: 127.0.0.7/31
+      ToUdpPort: 50000
+      UdpPort: 50001
+    Port: 30097
+ISD_AS: 1-11
+MTU: 1472
+PathServers:
+  ps1-11-1:
+    Addr: 127.0.0.73/28
+    Port: 30091
+SibraServers:
+  sb1-11-1:
+    Addr: 127.0.0.76/28
+    Port: 30058
+Zookeepers:
+  1:
+    Addr: 127.0.0.1/32
+    Port: 2181

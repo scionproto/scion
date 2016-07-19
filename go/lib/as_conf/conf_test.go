@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package as_conf
 
-func UnmarshalToError(err error) func(interface{}) error {
-	return func(s interface{}) error {
-		return err
-	}
-}
-func UnmarshalToString(v string) func(interface{}) error {
-	return func(s interface{}) error {
-		sptr := s.(*string)
-		*sptr = v
-		return nil
-	}
+import (
+	"testing"
+
+	"github.com/netsec-ethz/scion/go/lib/util"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func Test_ASConf(t *testing.T) {
+	Convey("Loading test config `testdata/basic.yml`", t, func() {
+		if err := Load("testdata/basic.yml"); err != nil {
+			t.Fatalf("Error loading config: %v", err)
+		}
+		c := CurrConf
+		So(c, ShouldResemble, &ASConf{
+			1, util.B64Bytes("VV?=tJ\xae\x85s\r8\x9d\xfc\xe5\x94\xa5"), 5, true, 60,
+		})
+	})
 }

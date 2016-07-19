@@ -12,43 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package addr
+package util
 
 import (
+	"encoding/base64"
 	"fmt"
-	"strconv"
-	"strings"
+	"net"
 )
 
-type ISD_AS struct {
-	I int
-	A int
+type B64Bytes []byte
+
+func (b B64Bytes) String() string {
+	return fmt.Sprintf("%x", []byte(b))
 }
 
-func (ia ISD_AS) String() string {
-	return fmt.Sprintf("%d-%d", ia.I, ia.A)
+func (b B64Bytes) MarshalYAML() (interface{}, error) {
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func (ia *ISD_AS) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (b *B64Bytes) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	parts := strings.Split(s, "-")
-	if len(parts) != 2 {
-		return fmt.Errorf("Invalid ISD-AS %q", s)
-	}
-	isd, err := strconv.Atoi(parts[0])
+	data, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		e := err.(*strconv.NumError)
-		return fmt.Errorf("Unable to parse ISD from %q: %v", s, e.Err)
+		return err
 	}
-	as, err := strconv.Atoi(parts[1])
-	if err != nil {
-		e := err.(*strconv.NumError)
-		return fmt.Errorf("Unable to parse AS from %q: %v", s, e.Err)
-	}
-	ia.I = isd
-	ia.A = as
+	*b = B64Bytes(data)
 	return nil
+}
+
+type YamlIP struct {
+	net.IP
+}
+
+func (y *YamlIP) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	var err error
+	if err = unmarshal(&s); err != nil {
+		return err
+	}
+	y.IP, _, err = net.ParseCIDR(s)
+	return err
 }
