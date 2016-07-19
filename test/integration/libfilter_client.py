@@ -271,7 +271,7 @@ def send_filters(header, payload):
         sock.send(payload)
         logging.info("Sent the filters successfully to libfilter")
     except Exception as e:
-        loggin.error(e)
+        logging.error(e)
         logging.error("Failed to send the filters to libfilter")
         sock.close()
         sys.exit(1)
