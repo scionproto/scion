@@ -54,7 +54,7 @@ class MPUDPClient(TestClientBase):
         return self.sock.recvfrom(DATA_LEN)[0]
 
     def _send_pkt(self, spkt, next_=None):
-        self.sock.sendto(spkt, self.dst, self.dport)
+        self.sock.sendto(spkt, (self.dst, self.dport))
 
     def _build_pkt(self, path=None):
         return pad_data(b"ping " + self.data)
@@ -103,7 +103,7 @@ class MPUDPServer(TestServerBase):
         return self.sock.recvfrom(DATA_LEN)
 
     def _send_pkt(self, spkt, next_=None):
-        self.sock.sendto(spkt, *self.sender)
+        self.sock.sendto(spkt, self.sender)
 
     def _build_pkt(self, path=None):
         return pad_data(b"pong " + self.data)
