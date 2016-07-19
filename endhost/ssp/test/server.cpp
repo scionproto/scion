@@ -39,20 +39,23 @@ int main(int argc, char **argv)
 
     char buf[BUFSIZE];
     int size = 0;
+    int count = 0;
     struct timeval start, end;
     gettimeofday(&start, NULL);
     while (1) {
-        memset(buf, 0, BUFSIZE);
 #ifdef MPUDP
         int recvlen = s.recv((uint8_t *)buf, BUFSIZE, NULL);
 #else
         int recvlen = newSocket->recv((uint8_t *)buf, BUFSIZE, NULL);
 #endif
-        printf("received message: %s", buf);
-        gettimeofday(&end, NULL);
         size += recvlen;
-        long us = end.tv_usec - start.tv_usec + (end.tv_sec - start.tv_sec) * 1000000;
-        fprintf(stderr, "%d bytes: %f Mbps\n", size, (double)size / us * 1000000 / 1024 / 1024 * 8);
+        count++;
+        if (count > 1000) {
+            count = 0;
+            gettimeofday(&end, NULL);
+            long us = end.tv_usec - start.tv_usec + (end.tv_sec - start.tv_sec) * 1000000;
+            fprintf(stderr, "%d bytes: %f Mbps\n", size, (double)size / us * 1000000 / 1024 / 1024 * 8);
+        }
     }
     exit(0);
 }

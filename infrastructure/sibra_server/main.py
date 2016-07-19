@@ -136,7 +136,7 @@ class SibraServerBase(SCIONElement):
                               spkt)
                 continue
             spkt.addrs.src.host = self.addr.host
-            logging.warning("Dst: %s Port: %s\n%s", dst, port, spkt)
+            logging.debug("Dst: %s Port: %s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
 
     def handle_path_reg(self, pkt):

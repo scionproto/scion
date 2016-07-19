@@ -1,5 +1,5 @@
 #define _GNU_SOURCE // required to get struct in6_pktinfo definition
-#define USE_FILTER_SOCKET // required to run libfilter code
+//#define USE_FILTER_SOCKET // required to run libfilter code
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>

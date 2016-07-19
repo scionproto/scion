@@ -11,6 +11,6 @@ all: $(OUTS)
 	capnp compile -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std -ogo --src-prefix=$(PROTO_DIR) $<
 
 clean:
-	rm -f *.go
+	rm -f *.capnp.go
 
 uninstall:
