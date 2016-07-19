@@ -1,26 +1,33 @@
-CC=gcc
-CFLAGS +=-Wall -g
-LIBDIR=../lib/libscion
-FILTERDIR=../lib/libfilter
-LWIPDIR=../sub/lwip/src/include
-LWIPPORTDIR=../sub/lwip-contrib/ports/unix/
-INC += -I./ssp -I../lib/libscion -I$(LWIPDIR) -I$(LWIPDIR)/scion -I$(LWIPDIR)/ipv4 \
-	   -I$(LWIPPORTDIR)/include -I$(LWIPPORTDIR)/proj/scion -I../lib -I$(FILTERDIR)
-LDFLAGS += -Wl,-Bstatic -L$(LIBDIR) -lscion -L$(FILTERDIR) -Wl,-Bdynamic -lpthread -lzlog \
-		   -L$(LWIPPORTDIR)/proj/scion -llwip
-LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h $(FILTERDIR)/*.c $(FILTERDIR)/*.h
-SRCS=dispatcher.c ../lib/tcp/middleware.c $(FILTERDIR)/*.c
-HDRS=$(wildcard *.h)
+.PHONY: all clean install uninstall
 
-all: dispatcher
+CC = clang
+CFLAGS ?= -Wall -Werror -g
+LDFLAGS ?= -lscion -lfilter -lpthread -lzlog -ltcpmw -llwip
 
-dispatcher: dispatcher.c $(LIBHSRC)
-	$(MAKE) -C $(LIBDIR)
-	$(MAKE) -C $(FILTERDIR)
-	$(CC) $(CFLAGS) $(INC) $(SRCS) -o $@ $(LDFLAGS)
+LIB_DIR = ../lib
+LWIPDIR = ../sub/lwip/src/include
+LWIPPORTDIR = ../sub/lwip-contrib/ports/unix
+INC = -I$(LIB_DIR) -I$(LWIPDIR) -I$(LWIPDIR)/scion -I$(LWIPDIR)/ipv4
+INC += -I$(LWIPPORTDIR)/include -I$(LWIPPORTDIR)/proj/scion
 
-install:
-	cp dispatcher ../bin
+TARGETS = dispatcher
+INSTALL = ../bin/dispatcher
+PREFIX = ..
+all: $(TARGETS)
 
 clean:
-	-rm -f dispatcher
+	rm -f *.d $(TARGETS)
+
+# Compile .c files, while also automatically generating dependencies so they
+# can be recompiled if any of the included header files changed.
+-include *.d
+dispatcher: dispatcher.c
+	$(CC) $(CFLAGS) $(INC) $(LDFLAGS) -MMD -o $@ $<
+
+install: $(INSTALL)
+
+$(INSTALL): dispatcher
+	cp dispatcher $@
+
+uninstall:
+	rm -f $(INSTALL)

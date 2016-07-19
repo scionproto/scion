@@ -77,7 +77,7 @@ void tcpmw_unlink_sock(void){
 void tcpmw_socket(int fd){
     char buf[TCPMW_BUFLEN];
     int pld_len;
-    struct conn_args *args;
+    struct conn_args *args = NULL;
     struct netconn *conn;
     pthread_t tid;
 

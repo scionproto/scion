@@ -40,7 +40,7 @@ test:
         - ./docker.sh run -c "./scion.sh coverage py"
         - ./docker.sh run -c "./scion.sh lint"
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
-        - ./docker.sh run -c "docker/integration_test.sh"
+        - ./docker.sh run -c "make -s install clean && docker/integration_test.sh"
     post:
         - mkdir "$ARTIFACTS"
         - mv htmlcov "$ARTIFACTS"/coverage
