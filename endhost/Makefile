@@ -16,7 +16,7 @@ PREFIX = ..
 all: $(TARGETS)
 
 clean:
-	rm -f *.d $(TARGETS) $(INSTALL)
+	rm -f *.d $(TARGETS)
 
 # Compile .c files, while also automatically generating dependencies so they
 # can be recompiled if any of the included header files changed.
