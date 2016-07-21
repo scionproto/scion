@@ -1,7 +1,7 @@
 .PHONY: all clean clibs clibs_install dispatcher clean go install
 
 # Order is important:
-CLIB_DIRS = lib/libscion lib/libfilter sub/lwip-contrib endhost/ssp
+CLIB_DIRS = lib/libscion lib/libfilter lib/tcp sub/lwip-contrib endhost/ssp
 
 all: clibs dispatcher go
 
