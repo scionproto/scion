@@ -1,23 +1,29 @@
-.PHONY: all c clean go install
+.PHONY: all clean clibs clibs_install dispatcher clean go install
 
 # Order is important:
-C_DIRS = lib/libscion lib/libfilter sub/lwip-contrib endhost endhost/ssp
-FILES = bin/dispatcher
+CLIB_DIRS = lib/libscion lib/libfilter sub/lwip-contrib endhost/ssp
 
-all: c go
-
-c:
-	$(foreach var,$(C_DIRS),$(MAKE) -C $(var) || exit 1;)
+all: clibs dispatcher go
 
 clean:
-	$(foreach var,$(C_DIRS),$(MAKE) -C $(var) clean || exit 1;)
-	$(foreach var,$(FILES),rm -f $(var);)
+	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) clean || exit 1;)
+	$(MAKE) -C endhost clean
 
-install:
-	$(foreach var,$(C_DIRS),$(MAKE) -C $(var) install || exit 1;)
+clibs:
+	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) || exit 1;)
+
+clibs_install:
+	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) install || exit 1;)
+
+dispatcher: clibs_install
+	$(MAKE) -C endhost
+
+install: clibs_install
+	$(MAKE) -C endhost install
 
 uninstall:
-	$(foreach var,$(C_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
+	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
+	$(MAKE) -C endhost uninstall
 
 go:
 	GOBIN=$$PWD/bin go install -v ./go/...
