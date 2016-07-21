@@ -1,8 +1,10 @@
 .PHONY: all clean install uninstall
 
 CC = clang
-CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared -lscion -lzlog -llwip
+CFLAGS ?= -Wall -g -fPIC
+# FIXME(kormat): reenable -Werror when tcpmw is fixed
+#CFLAGS ?= -Wall -Werror -g -fPIC
+LDFLAGS ?= -shared
 
 LIB_DIR = ..
 LWIP_DIR = ../../sub/lwip/src/include
