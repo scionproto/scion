@@ -20,7 +20,6 @@
 # Stdlib
 import errno
 import logging
-import os
 import struct
 from ctypes import (
     addressof,
@@ -46,7 +45,7 @@ from lib.util import Raw
 HostAddrBytes = c_ubyte * MAX_HOST_ADDR_LEN
 MAX_PATHS = 20
 MAX_OPTION_LEN = 20
-SHARED_LIB_FILE = os.path.join("endhost", "ssp", "libssocket.so")
+SHARED_LIB_FILE = "libssocket.so"
 
 
 class C_HostAddr(Structure):
