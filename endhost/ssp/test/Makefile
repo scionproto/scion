@@ -3,7 +3,7 @@
 CC = clang
 CFLAGS ?= -g
 CXX = clang++
-CXXFLAGS ?= $(CFLAGS) -std=c++11 -lscion
+CXXFLAGS ?= $(CFLAGS) -std=c++11
 LIB = -L..
 INC = -I.. -I../../../lib/libscion
 HDRS=$(wildcard ../*.h)
