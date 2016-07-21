@@ -2,7 +2,7 @@
 
 CXX = clang++
 CXXFLAGS ?= -Wall -Werror -g -fPIC -std=c++11
-LDFLAGS ?= -shared -lpthread -lscion
+LDFLAGS ?= -shared -lpthread
 
 LIB_DIR = ../../lib/libscion
 INC = -I$(LIB_DIR)
