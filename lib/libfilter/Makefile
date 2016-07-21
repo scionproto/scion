@@ -2,7 +2,7 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared
+LDFLAGS ?= -shared -Wl,-z,defs -lscion -lzlog
 
 LIB_DIR = ..
 INC = -I$(LIB_DIR)

@@ -2,7 +2,7 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared
+LDFLAGS ?= -shared -Wl,-z,defs
 
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)

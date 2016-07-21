@@ -3,7 +3,19 @@
 # Order is important:
 CLIB_DIRS = lib/libscion lib/libfilter lib/tcp sub/lwip-contrib endhost/ssp
 
-all: clibs dispatcher go
+all: go libscion
+
+libscion:
+	$(MAKE) -C lib/libscion
+
+libscion_install:
+	$(MAKE) -C lib/libscion install
+
+libfilter:
+	$(MAKE) -C lib/libfilter
+
+libfilter_install:
+	$(MAKE) -C lib/libfilter install
 
 clean:
 	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) clean || exit 1;)
