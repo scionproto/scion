@@ -1,41 +1,38 @@
-.PHONY: all clean clibs clibs_install dispatcher clean go install
+.PHONY: all clean go clibs libscion libfilter liblwip libtcpmw libssocket dispatcher install uninstall
 
-# Order is important:
-CLIB_DIRS = lib/libscion lib/libfilter lib/tcp sub/lwip-contrib endhost/ssp
+SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
 
-all: go libscion
-
-libscion:
-	$(MAKE) -C lib/libscion
-
-libscion_install:
-	$(MAKE) -C lib/libscion install
-
-libfilter:
-	$(MAKE) -C lib/libfilter
-
-libfilter_install:
-	$(MAKE) -C lib/libfilter install
+all: go clibs dispatcher
 
 clean:
-	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) clean || exit 1;)
-	$(MAKE) -C endhost clean
-
-clibs:
-	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) || exit 1;)
-
-clibs_install:
-	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) install || exit 1;)
-
-dispatcher: clibs_install
-	$(MAKE) -C endhost
-
-install: clibs_install
-	$(MAKE) -C endhost install
-
-uninstall:
-	$(foreach var,$(CLIB_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
-	$(MAKE) -C endhost uninstall
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 
 go:
 	GOBIN=$$PWD/bin go install -v ./go/...
+
+# Order is important
+clibs: libscion libfilter libssocket liblwip libtcpmw
+
+libscion:
+	$(MAKE) -C lib/libscion install
+
+libfilter: libscion
+	$(MAKE) -C lib/libfilter install
+
+liblwip: libscion
+	$(MAKE) -C sub/lwip-contrib install
+
+libtcpmw: libscion liblwip
+	$(MAKE) -C lib/tcp install
+
+libssocket: libscion
+	$(MAKE) -C endhost/ssp install
+
+dispatcher: clibs
+	$(MAKE) -C endhost install
+
+install: clibs dispatcher
+
+uninstall:
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
+

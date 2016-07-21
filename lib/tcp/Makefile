@@ -2,7 +2,7 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared -Wl,-z,defs
+LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion -lzlog -llwip
 
 LIB_DIR = ..
 LWIP_DIR = ../../sub/lwip/src/include
