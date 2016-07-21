@@ -1,19 +1,41 @@
-CC=gcc
-CFLAGS=-Wall -g -fPIC
-LDFLAGS=-shared
+.PHONY: all clean install uninstall
 
-HDRS=$(wildcard *.h)
-FILES=$(wildcard *.c)
-OBJS=$(FILES:.c=.o)
-LIB=libscion.a
+CC = clang
+CFLAGS ?= -Wall -Werror -g -fPIC
+LDFLAGS ?= -shared -Wl,-z,defs
 
-all: $(LIB)
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+STATIC = libscion.a
+DYNAMIC = libscion.so
+TARGETS = $(STATIC) $(DYNAMIC)
+PREFIX ?= /usr/local
 
-%.o: %.c $(HDRS)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(LIB): $(OBJS)
-	ar rcs $@ $(OBJS)
+all: $(TARGETS)
 
 clean:
-	-rm -f *.o $(LIB)
+	rm -f *.d *.so *.a *.o .installstamp $(TARGETS)
+
+# Compile .c files, while also automatically generating dependencies so they
+# can be recompiled if any of the included header files changed.
+-include *.d
+%.o: %.c
+	$(CC) $(CFLAGS) -MMD -c -o $@ $<
+
+$(STATIC): $(OBJS)
+	ar rcs $@ $(OBJS)
+
+$(DYNAMIC): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+
+install: .installstamp
+
+.installstamp: $(TARGETS)
+	sudo cp $(TARGETS) $(PREFIX)/lib/
+	sudo ldconfig
+	touch .installstamp
+
+uninstall:
+	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
+	sudo ldconfig
+	rm -f .installstamp

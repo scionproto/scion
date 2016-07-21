@@ -1,28 +1,44 @@
-CC=g++
-CFLAGS=-Wall -g -std=c++11 -fPIC
-LDFLAGS=-shared -lpthread -lscion
-LIBDIR=../../lib/libscion
-INC=-I$(LIBDIR)
-LIBFLAG=-L$(LIBDIR)
-LIBHSRC=$(LIBDIR)/*.c $(LIBDIR)/*.h
-LIBSOCK=libssocket.so
+.PHONY: all clean install uninstall
 
-HDRS=$(wildcard *.h) $(wildcard ../../lib/libscion/*.h)
+CXX = clang++
+CXXFLAGS ?= -Wall -Werror -g -fPIC -std=c++11
+LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion
 
-SOCKET_SRCS=SCIONSocket.cpp SCIONProtocol.cpp Path.cpp PathState.cpp\
-	   		OrderedList.cpp Extensions.cpp PathPolicy.cpp SCIONWrapper.cpp\
-			ConnectionManager.cpp Utils.cpp
+LIB_DIR = ../../lib/libscion
+INC = -I$(LIB_DIR)
 
-SOCKET_OBJS=$(SOCKET_SRCS:.cpp=.o)
+SRCS = $(wildcard *.cpp)
+OBJS = $(SRCS:.cpp=.o)
+STATIC = libssocket.a
+DYNAMIC = libssocket.so
+TARGETS = $(STATIC) $(DYNAMIC)
+PREFIX ?= /usr/local
 
-all: $(LIBSOCK)
-
-%.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -c -o $@ $<
-
-$(LIBSOCK): $(SOCKET_OBJS) $(HDRS) $(LIBHSRC)
-	$(MAKE) -C $(LIBDIR)
-	$(CC) -o $@ $(SOCKET_OBJS) $(LDFLAGS) $(LIBFLAG)
+all: $(TARGETS)
 
 clean:
-	rm -f *.so *.o
+	rm -f *.d *.so *.a *.o .installstamp $(TARGETS)
+
+# Compile .cpp files, while also automatically generating dependencies so they
+# can be recompiled if any of the included header files changed.
+-include *.d
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -MMD -c -o $@ $<
+
+$(STATIC): $(OBJS)
+	ar rcs $@ $(OBJS)
+
+$(DYNAMIC): $(OBJS)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJS)
+
+install: .installstamp
+
+.installstamp: $(TARGETS)
+	sudo cp $(TARGETS) $(PREFIX)/lib/
+	sudo ldconfig
+	touch .installstamp
+
+uninstall:
+	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
+	sudo ldconfig
+	rm -f .installstamp

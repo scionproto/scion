@@ -21,7 +21,7 @@
 #include <zlog.h>
 #include <uthash.h>
 
-#include "scion.h"
+#include "libscion/scion.h"
 #include "tcp/middleware.h"
 
 #define APP_BUFSIZE 32
@@ -36,7 +36,7 @@
 #define DATA_V6_INDEX 2
 
 #ifdef USE_FILTER_SOCKET
-#include "filter.h"
+#include "libfilter/filter.h"
 #define FILTER_INDEX 3
 FilterSocket *filter_socket = NULL;
 #endif
@@ -525,14 +525,11 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
     memset(e, 0, sizeof(Entry));
     e->sock = sock;
-    sockets[num_sockets].fd = sock;
-    sockets[num_sockets].events = POLLIN;
-    num_sockets++;
-    HASH_ADD(pollhh, poll_fd_list, sock, sizeof(int), e);
 
     uint8_t type = *(uint8_t *)(buf + 8);
     if (type < ADDR_IPV4_TYPE || type > ADDR_IPV6_TYPE) {
         zlog_error(zc, "Invalid address type: %d", type);
+        close(sock);
         return NULL;
     }
 
@@ -558,7 +555,17 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
         zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
+    } else {
+        zlog_error(zc, "unsupported L4 proto %d", proto);
+        close(sock);
+        free(e);
+        return NULL;
     }
+    sockets[num_sockets].fd = sock;
+    sockets[num_sockets].events = POLLIN;
+    num_sockets++;
+    HASH_ADD(pollhh, poll_fd_list, sock, sizeof(int), e);
+
     if (IS_SCMP_REQ(*buf)) {
         zlog_info(zc, "SCMP registration included");
         e->scmp = 1;

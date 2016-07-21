@@ -1,45 +1,38 @@
-.PHONY: all c clean dispatcher go install lwip
+.PHONY: all clean go clibs libscion libfilter liblwip libtcpmw libssocket dispatcher install uninstall
 
-CC=gcc
-CFLAGS +=-Wall -g
-LIB_DIR=lib/libscion
-FILTER_DIR=lib/libfilter
-LIBFILE=$(LIB_DIR)/libscion.a
-LIB_H_SRC=$(LIB_DIR)/*.c $(LIB_DIR)/*.h
-FILTERFILE=$(FILTER_DIR)/libfilter.a
-FILTER_H_SRC=$(FILTER_DIR)/*.c $(FILTER_DIR)/*.h
-DISPATCHER_DIR=endhost
-DISPATCHER=$(DISPATCHER_DIR)/dispatcher
-SOCKET_DIR=endhost/ssp
-SOCKET=$(SOCKET_DIR)/libsocket.so
-TEST_DIR=$(SOCKET_DIR)/test
-LWIP_CONTRIB_DIR=sub/lwip-contrib
+SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
 
-all: c go
+all: go clibs dispatcher
 
-c: lwip dispatcher
-	$(MAKE) -C $(LIB_DIR)
-	$(MAKE) -C $(FILTER_DIR)
-	$(MAKE) -C $(SOCKET_DIR)
-	$(MAKE) -C $(TEST_DIR)
+clean:
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 
 go:
 	GOBIN=$$PWD/bin go install -v ./go/...
 
-dispatcher:
-	$(MAKE) -C $(DISPATCHER_DIR)
+# Order is important
+clibs: libscion libfilter libssocket liblwip libtcpmw
 
-lwip:
-	$(MAKE) -C $(LWIP_CONTRIB_DIR)
+libscion:
+	$(MAKE) -C lib/libscion install
 
-install:
-	cp $(DISPATCHER) bin/
+libfilter: libscion
+	$(MAKE) -C lib/libfilter install
 
-clean:
-	$(MAKE) clean -C $(LIB_DIR)
-	$(MAKE) clean -C $(FILTER_DIR)
-	$(MAKE) clean -C $(DISPATCHER_DIR)
-	$(MAKE) clean -C $(SOCKET_DIR)
-	$(MAKE) clean -C $(TEST_DIR)
-	$(MAKE) clean -C $(LWIP_CONTRIB_DIR)
-	rm -f bin/dispatcher bin/discovery
+liblwip: libscion
+	$(MAKE) -C sub/lwip-contrib install
+
+libtcpmw: libscion liblwip
+	$(MAKE) -C lib/tcp install
+
+libssocket: libscion
+	$(MAKE) -C endhost/ssp install
+
+dispatcher: clibs
+	$(MAKE) -C endhost install
+
+install: clibs dispatcher
+
+uninstall:
+	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
+

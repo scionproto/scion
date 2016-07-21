@@ -2,15 +2,18 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared -Wl,-z,defs -lscion -lzlog
+LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion -lzlog -llwip
 
 LIB_DIR = ..
-INC = -I$(LIB_DIR)
+LWIP_DIR = ../../sub/lwip/src/include
+LWIPPORT_DIR = ../../sub/lwip-contrib/ports/unix
+INC = -I$(LIB_DIR) -I$(LWIP_DIR) -I$(LWIP_DIR)/scion -I$(LWIP_DIR)/ipv4
+INC += -I$(LWIPPORT_DIR)/include -I$(LWIPPORT_DIR)/proj/scion
 
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
-STATIC = libfilter.a
-DYNAMIC = libfilter.so
+STATIC = libtcpmw.a
+DYNAMIC = libtcpmw.so
 TARGETS = $(STATIC) $(DYNAMIC)
 PREFIX ?= /usr/local
 
