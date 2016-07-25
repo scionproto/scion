@@ -322,6 +322,9 @@ class SCIONPath(Serializable):
         s.append("</SCION-Path>")
         return "\n".join(s)
 
+    def __eq__(self, other):
+        return self.interfaces == other.interfaces
+
 
 def valid_mtu(mtu):
     """
@@ -355,13 +358,14 @@ class PathCombinator(object):
         paths = []
         for up in up_segments:
             for down in down_segments:
-                path = cls._build_shortcut_path(up, down)
-                if path and path not in paths:
-                    paths.append(path)
+                shortcuts = cls._build_shortcuts(up, down)
+                for path in shortcuts:
+                    if path and path not in paths:
+                        paths.append(path)
         return paths
 
     @classmethod
-    def _build_shortcut_path(cls, up_segment, down_segment):
+    def _build_shortcuts(cls, up_segment, down_segment):
         """
         Takes :any:`PathSegment`\s and tries to combine them into short path via
         any cross-over or peer links found.
@@ -373,13 +377,13 @@ class PathCombinator(object):
         # TODO check if stub ASs are the same...
         if (not up_segment or not down_segment or
                 not up_segment.p.asms or not down_segment.p.asms):
-            return None
+            return []
 
         # looking for xovr and peer points
         xovr, peer = cls._get_xovr_peer(up_segment, down_segment)
 
         if not xovr and not peer:
-            return None
+            return []
 
         def _sum_pt(pt):
             if pt is None:
@@ -388,10 +392,10 @@ class PathCombinator(object):
 
         if _sum_pt(peer) > _sum_pt(xovr):
             # Peer is best.
-            return cls._join_shortcuts(up_segment, down_segment, peer, True)
+            return cls._join_peer(up_segment, down_segment, peer)
         else:
             # Xovr is best
-            return cls._join_shortcuts(up_segment, down_segment, xovr, False)
+            return cls._join_xovr(up_segment, down_segment, xovr)
 
     @classmethod
     def _add_interfaces(cls, path, asms, up=True):
@@ -455,7 +459,7 @@ class PathCombinator(object):
                 if up_ia == down_ia:
                     xovrs.append((up_i, down_i))
                     continue
-                if cls._join_shortcuts_peer(up_asm, down_asm):
+                if cls._find_peer_hfs(up_asm, down_asm):
                     peers.append((up_i, down_i))
         xovr = peer = None
         if xovrs:
@@ -465,19 +469,14 @@ class PathCombinator(object):
         return xovr, peer
 
     @classmethod
-    def _join_shortcuts(cls, up_segment, down_segment, point, peer=True):
+    def _join_xovr(cls, up_segment, down_segment, point):
         """
         Joins the supplied segments into a shortcut fullpath.
 
         :param list up_segment: `up` :any:`PathSegment`.
         :param list down_segment: `down` :any:`PathSegment`.
-        :param tuple point: Indexes of peer/xovr point.
-        :param bool peer:
-            ``True`` if the shortcut uses a peering link, ``False`` if it uses a
-            cross-over link
-        :returns:
-            :any:`PeerPath` if using a peering link, otherwise
-            :any:`CrossOverPath`.
+        :param tuple point: Indexes of xovr point.
+        :returns: :any:`CrossOverPath`.
 
         FIXME(kormat): this is an untestable mess.
         """
@@ -489,22 +488,9 @@ class PathCombinator(object):
             cls._copy_segment_shortcut(down_segment, down_index, up=False)
 
         up_iof.shortcut = down_iof.shortcut = True
-        if not peer:
-            # It's a cross-over path.
-            up_iof.peer = down_iof.peer = False
-            up_hofs.append(up_upstream_hof)
-            down_hofs.insert(0, down_upstream_hof)
-        else:
-            # It's a peer path.
-            up_iof.peer = down_iof.peer = True
-            up_peering_hof, down_peering_hof, peering_mtu = \
-                cls._join_shortcuts_peer(up_segment.asm(up_index),
-                                         down_segment.asm(down_index))
-            up_hofs.extend([up_peering_hof, up_upstream_hof])
-            down_hofs.insert(0, down_peering_hof)
-            down_hofs.insert(0, down_upstream_hof)
-            up_mtu = min(up_mtu, peering_mtu)
-            down_mtu = min(down_mtu, peering_mtu)
+        up_iof.peer = down_iof.peer = False
+        up_hofs.append(up_upstream_hof)
+        down_hofs.insert(0, down_upstream_hof)
         args = []
         for iof, hofs in [(up_iof, up_hofs), (down_iof, down_hofs)]:
             l = len(hofs)
@@ -513,25 +499,54 @@ class PathCombinator(object):
                 iof.hops = l
                 args.extend([iof, hofs])
         path = SCIONPath.from_values(*args)
-        for i, asm in enumerate(reversed(list(up_segment.iter_asms(up_index)))):
-            hof = asm.pcbm(0).hof()
-            if hof.egress_if:
-                path.interfaces.append((asm.isd_as(), hof.egress_if))
-            if i:
-                path.interfaces.append((asm.isd_as(), hof.ingress_if))
-        if peer:
+        asm_list = reversed(list(up_segment.iter_asms(up_index + 1)))
+        cls._add_interfaces(path, asm_list)
+        asm_list = list(down_segment.iter_asms(down_index + 1))
+        cls._add_interfaces(path, asm_list, up=False)
+        path.mtu = min_mtu(up_mtu, down_mtu)
+        return [path]
+
+    @classmethod
+    def _join_peer(cls, up_segment, down_segment, point):
+        (up_index, down_index) = point
+
+        up_iof, up_hofs, up_upstream_hof, up_mtu = \
+            cls._copy_segment_shortcut(up_segment, up_index)
+        down_iof, down_hofs, down_upstream_hof, down_mtu = \
+            cls._copy_segment_shortcut(down_segment, down_index, up=False)
+        up_iof.shortcut = down_iof.shortcut = True
+        up_iof.peer = down_iof.peer = True
+        up_hofs.extend([None, None])  # placeholder
+        down_hofs.insert(0, None)  # placeholder
+        down_hofs.insert(0, None)  # placeholder
+        paths = []
+        for uph, dph, pm in cls._find_peer_hfs(up_segment.asm(up_index),
+                                               down_segment.asm(down_index)):
+            up_hofs = copy.deepcopy(up_hofs)
+            up_hofs[-2:] = [uph, up_upstream_hof]
+            down_hofs = copy.deepcopy(down_hofs)
+            down_hofs[:2] = [down_upstream_hof, dph]
+            um = min(up_mtu, pm)
+            dm = min(down_mtu, pm)
+            args = []
+            for iof, hofs in [(up_iof, up_hofs), (down_iof, down_hofs)]:
+                l = len(hofs)
+                # Any shortcut path with 2 HOFs is redundant, and can be dropped.
+                if l > 2:
+                    iof.hops = l
+                    args.extend([iof, hofs])
+            path = SCIONPath.from_values(*args)
+            asm_list = reversed(list(up_segment.iter_asms(up_index + 1)))
+            cls._add_interfaces(path, asm_list)
             up_ia = up_segment.asm(up_index).isd_as()
             down_ia = down_segment.asm(down_index).isd_as()
-            path.interfaces.append((up_ia, up_peering_hof.ingress_if))
-            path.interfaces.append((down_ia, down_peering_hof.ingress_if))
-        for i, asm in enumerate(down_segment.iter_asms(down_index)):
-            hof = asm.pcbm(0).hof()
-            if i:
-                path.interfaces.append((asm.isd_as(), hof.ingress_if))
-            if hof.egress_if:
-                path.interfaces.append((asm.isd_as(), hof.egress_if))
-        path.mtu = min_mtu(up_mtu, down_mtu)
-        return path
+            path.interfaces.append((up_ia, uph.ingress_if))
+            path.interfaces.append((down_ia, dph.ingress_if))
+            asm_list = list(down_segment.iter_asms(down_index + 1))
+            cls._add_interfaces(path, asm_list, up=False)
+            path.mtu = min_mtu(um, dm)
+            paths.append(path)
+        return paths
 
     @classmethod
     def _check_connected(cls, up_segment, core_segment, down_segment):
@@ -607,10 +622,11 @@ class PathCombinator(object):
         return info, hofs, upstream_hof, mtu
 
     @classmethod
-    def _join_shortcuts_peer(cls, up_asm, down_asm):
+    def _find_peer_hfs(cls, up_asm, down_asm):
         """
         Finds the peering :any:`HopOpaqueField` of the shortcut path.
         """
+        hfs = []
         up_ia = up_asm.isd_as()
         down_ia = down_asm.isd_as()
         for up_peer in up_asm.iter_pcbms(1):
@@ -620,7 +636,8 @@ class PathCombinator(object):
                 if (up_peer.inIA() == down_ia and down_peer.inIA() == up_ia and
                         up_peer.p.inIF == down_hof.ingress_if and
                         up_hof.ingress_if == down_peer.p.inIF):
-                    return up_peer.hof(), down_peer.hof(), up_peer.p.inMTU
+                    hfs.append((up_peer.hof(), down_peer.hof(), up_peer.p.inMTU))
+        return hfs
 
     @classmethod
     def tuples_to_full_paths(cls, tuples):
