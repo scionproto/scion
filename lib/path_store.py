@@ -77,6 +77,11 @@ class PathPolicy(object):
             logging.info("PathStore: pcb discarded(%s): %s",
                          ", ".join(reasons), pcb.short_desc())
             return False
+        ia = self._check_remote_ifid(pcb)
+        if ia:
+            logging.info("PathStore: pcb discarded, remote IFID of %s unknown",
+                         ia)
+            return False
         return True
 
     def _check_unwanted_ases(self, pcb):  # pragma: no cover
@@ -115,6 +120,15 @@ class PathPolicy(object):
         _check_range("AvailableBandwidth", 10)
         _check_range("TotalBandwidth", 10)
         return reasons
+
+    def _check_remote_ifid(self, pcb):
+        for asm in pcb.iter_asms():
+            for pcbm in asm.iter_pcbms():
+                if pcbm.inIA().int() and not pcbm.p.inIF:
+                    return pcbm.inIA()
+                if pcbm.outIA().int() and not pcbm.p.outIF:
+                    return pcbm.outIA()
+        return None
 
     @classmethod
     def from_file(cls, policy_file):  # pragma: no cover
