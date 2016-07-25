@@ -342,16 +342,18 @@ class TopoGenerator(object):
         self.virt_addrs = set()
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
+        self.router_pairs = defaultdict(int)
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
         return subnet.register(elem_id)
 
-    def _reg_link_addrs(self, as1, as2):
+    def _reg_link_addrs(self, as1, as2, id_):
         link_name = "%s<->%s" % tuple(sorted((as1, as2)))
+        link_name += "_%d" % id_
         subnet = self.subnet_gen.register(link_name)
-        as1_name = "er%ser%s" % (as1, as2)
-        as2_name = "er%ser%s" % (as2, as1)
+        as1_name = "er%ser%s_%d" % (as1, as2, id_)
+        as2_name = "er%ser%s_%d" % (as2, as1, id_)
         return subnet.register(as1_name), subnet.register(as2_name)
 
     def _iterate(self, f):
@@ -377,6 +379,7 @@ class TopoGenerator(object):
             if ltype == LINK_PARENT:
                 ltype_a = LINK_CHILD
                 ltype_b = LINK_PARENT
+            attrs["id"] = random.randint(0, 1 << 20)
             self.links[a].append((ltype_a, b, attrs))
             self.links[b].append((ltype_b, a, attrs))
 
@@ -421,9 +424,9 @@ class TopoGenerator(object):
             er_id += 1
 
     def _gen_er_entry(self, local, er_id, remote, remote_type, attrs):
-        elem_id = "er%ser%s" % (local, remote)
         public_addr, remote_addr = self._reg_link_addrs(
-            local, remote)
+            local, remote, attrs["id"])
+        elem_id = "er%s_%d" % (local, er_id)
         self.topo_dicts[local]["EdgeRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
             'Port': random.randint(30050, 30100),
