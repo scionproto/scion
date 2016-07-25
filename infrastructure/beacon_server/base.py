@@ -208,7 +208,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return d
         er = self.ifid2er[if_id]
         d["remote_ia"] = er.interface.isd_as
-        d["remote_if"] = er.interface.if_id
+        d["remote_if"] = er.interface.to_if_id
         d["mtu"] = er.interface.mtu
         return d
 
