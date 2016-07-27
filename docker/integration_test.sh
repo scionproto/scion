@@ -51,7 +51,7 @@ log "Scion status:"
 
 sleep 5
 
-cat << EOF | parallel -n2 -j0 run
+cat << EOF | parallel -n2 -j2 run
 End2End
 test/integration/end2end_test.py -l ERROR
 C2S_extn
