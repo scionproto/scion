@@ -426,7 +426,7 @@ class TopoGenerator(object):
     def _gen_er_entry(self, local, br_id, remote, remote_type, attrs):
         public_addr, remote_addr = self._reg_link_addrs(
             local, remote, attrs["id"])
-        elem_id = "br%s_%d" % (local, br_id)
+        elem_id = "br%s-%d" % (local, br_id)
         self.topo_dicts[local]["BorderRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
             'Port': random.randint(30050, 30100),

@@ -407,7 +407,7 @@ class PathCombinator(object):
         Add interface IDs of segment ASMarkings to path. Order of IDs depends on
         up flag.
         """
-        for asm in asms:
+        for i, asm in enumerate(asms):
             isd_as = asm.isd_as()
             hof = asm.pcbm(0).hof()
             egress = hof.egress_if
@@ -415,10 +415,10 @@ class PathCombinator(object):
             if up:
                 if egress:
                     path.interfaces.append((isd_as, egress))
-                if ingress:
+                if ingress and i != len(asms) - 1:
                     path.interfaces.append((isd_as, ingress))
             else:
-                if ingress:
+                if ingress and i != 0:
                     path.interfaces.append((isd_as, ingress))
                 if egress:
                     path.interfaces.append((isd_as, egress))
@@ -527,7 +527,8 @@ class PathCombinator(object):
                                                down_segment.asm(down_index)):
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
-            args = cls._path_args(up_iof, up_hofs + [uph, up_upstream_hof],
+            args = cls._path_args(up_iof,
+                                  up_hofs + [uph, up_upstream_hof],
                                   down_iof,
                                   [down_upstream_hof, dph] + down_hofs)
             path = SCIONPath.from_values(*args)
@@ -555,7 +556,7 @@ class PathCombinator(object):
         :param tuple peers:
             Tuple of up segment peer HOF, down segment peer HOF
         """
-        asm_list = reversed(list(up_seg.iter_asms(up_idx + 1)))
+        asm_list = list(reversed(list(up_seg.iter_asms(up_idx))))
         cls._add_interfaces(path, asm_list)
         if peers:
             up_peer_hof, down_peer_hof = peers
@@ -564,7 +565,7 @@ class PathCombinator(object):
             down_ia = down_seg.asm(down_idx).isd_as()
             path.interfaces.append((up_ia, up_peer_hof.ingress_if))
             path.interfaces.append((down_ia, down_peer_hof.ingress_if))
-        asm_list = list(down_seg.iter_asms(down_idx + 1))
+        asm_list = list(down_seg.iter_asms(down_idx))
         cls._add_interfaces(path, asm_list, up=False)
 
     @classmethod
