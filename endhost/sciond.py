@@ -216,8 +216,8 @@ class SCIONDaemon(SCIONElement):
             if fwd_if == 0:
                 haddr, port = HostAddrNone(), SCION_UDP_EH_DATA_PORT
             else:
-                er = self.ifid2er[fwd_if]
-                haddr, port = er.addr, er.port
+                br = self.ifid2br[fwd_if]
+                haddr, port = br.addr, br.port
             path_len = len(raw_path) // 8
             reply.append(struct.pack("!B", path_len) + raw_path +
                          struct.pack("!B", haddr.TYPE) + haddr.pack() +

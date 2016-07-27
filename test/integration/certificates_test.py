@@ -90,7 +90,7 @@ class TestCertificates(object):
         print("Sending TRC request (ISD:1-V:0) to local CS.")
         msg = TRCRequest.from_values(
             PT.TRC_REQ_LOCAL, src_addr,
-            topology.parent_edge_routers[0].interface.if_id,
+            topology.parent_border_routers[0].interface.if_id,
             topology.isd_id, topology.ad_id, 1, 0).pack()
         sock.sendto(msg, (str(dst_addr), SCION_UDP_PORT))
 
@@ -113,7 +113,7 @@ class TestCertificates(object):
         print("Sending cert chain request (ISD:1-AD:16-V:0) to local CS.")
         msg = CertChainRequest.from_values(
             PT.CERT_CHAIN_REQ_LOCAL, src_addr,
-            topology.parent_edge_routers[0].interface.if_id,
+            topology.parent_border_routers[0].interface.if_id,
             topology.isd_id, topology.ad_id, 1, 16, 0).pack()
         sock.sendto(msg, (str(dst_addr), SCION_UDP_PORT))
 

@@ -1,5 +1,5 @@
-Edge Router
-===========
+Border Router
+=============
 
 Contents:
 

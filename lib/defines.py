@@ -65,7 +65,7 @@ BEACON_SERVICE = "bs"
 CERTIFICATE_SERVICE = "cs"
 DNS_SERVICE = "ds"
 PATH_SERVICE = "ps"
-ROUTER_SERVICE = "er"
+ROUTER_SERVICE = "br"
 SIBRA_SERVICE = "sb"
 #: All the service types
 SERVICE_TYPES = (

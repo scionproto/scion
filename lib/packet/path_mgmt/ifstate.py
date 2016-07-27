@@ -28,8 +28,8 @@ from lib.types import PathMgmtType as PMT
 
 class IFStateInfo(Cerealizable):  # pragma: no cover
     """
-    StateInfo is used by the beacon server to inform edge routers about any
-    state changes of other edge routers. It contains the ID of the router, the
+    StateInfo is used by the beacon server to inform border routers about any
+    state changes of other border routers. It contains the ID of the router, the
     state (up or down), and the current revocation token and proof.
     """
     NAME = "IFStateInfo"

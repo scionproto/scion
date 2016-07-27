@@ -19,7 +19,7 @@
 
 class InterfaceState(object):
     """
-    Class to store the interface state of the other edge routers, along with
+    Class to store the interface state of the other border routers, along with
     the corresponding current revocation token and proof.
     """
     def __init__(self):

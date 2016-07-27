@@ -97,7 +97,7 @@ DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 SCION_SERVICE_NAMES = (
     "BeaconServers",
     "CertificateServers",
-    "EdgeRouters",
+    "BorderRouters",
     "PathServers",
     "SibraServers",
 )
@@ -352,8 +352,8 @@ class TopoGenerator(object):
         link_name = "%s<->%s" % tuple(sorted((as1, as2)))
         link_name += "_%d" % id_
         subnet = self.subnet_gen.register(link_name)
-        as1_name = "er%ser%s_%d" % (as1, as2, id_)
-        as2_name = "er%ser%s_%d" % (as2, as1, id_)
+        as1_name = "br%ser%s_%d" % (as1, as2, id_)
+        as2_name = "br%ser%s_%d" % (as2, as1, id_)
         return subnet.register(as1_name), subnet.register(as2_name)
 
     def _iterate(self, f):
@@ -426,8 +426,8 @@ class TopoGenerator(object):
     def _gen_er_entry(self, local, er_id, remote, remote_type, attrs):
         public_addr, remote_addr = self._reg_link_addrs(
             local, remote, attrs["id"])
-        elem_id = "er%s_%d" % (local, er_id)
-        self.topo_dicts[local]["EdgeRouters"][elem_id] = {
+        elem_id = "br%s_%d" % (local, er_id)
+        self.topo_dicts[local]["BorderRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
             'Port': random.randint(30050, 30100),
             'Interface': {
@@ -506,7 +506,7 @@ class SupervisorGenerator(object):
         for key, cmd in (
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "bin/cert_server"),
-            ("EdgeRouters", "bin/router"),
+            ("BorderRouters", "bin/router"),
             ("PathServers", "bin/path_server"),
             ("SibraServers", "bin/sibra_server"),
         ):
@@ -551,7 +551,7 @@ class SupervisorGenerator(object):
     def _write_elem_conf(self, elem, entry, conf_path):
         config = configparser.ConfigParser(interpolation=None)
         config["program:%s" % elem] = self._common_entry(elem, entry)
-        if self.mininet and not elem.startswith("er"):
+        if self.mininet and not elem.startswith("br"):
             disp = "dp-" + elem
             config["program:%s" % disp] =\
                 self._common_entry(disp, ["bin/dispatcher"])

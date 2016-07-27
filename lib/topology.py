@@ -41,7 +41,7 @@ class Element(object):
     The Element class is the base class for elements specified in the topology
     file.
 
-    :ivar HostAddrBase addr: Host address of a server or edge router.
+    :ivar HostAddrBase addr: Host address of a server or border router.
     :ivar str name: element name or id
     """
     def __init__(self, addr=None, port=None, name=None):
@@ -70,7 +70,7 @@ class ServerElement(Element):
 
 class InterfaceElement(Element):
     """
-    The InterfaceElement class represents one of the interfaces of an edge
+    The InterfaceElement class represents one of the interfaces of an border
     router.
 
     :ivar int if_id: the interface ID.
@@ -101,11 +101,11 @@ class InterfaceElement(Element):
 
 class RouterElement(Element):
     """
-    The RouterElement class represents one of the edge routers.
+    The RouterElement class represents one of the border routers.
     """
     def __init__(self, router_dict, name=None):  # pragma: no cover
         """
-        :param dict router_dict: contains information about an edge router.
+        :param dict router_dict: contains information about an border router.
         :param str name: router element name or id
         """
         super().__init__(router_dict['Addr'], router_dict['Port'], name)
@@ -125,11 +125,13 @@ class Topology(object):
     :ivar list beacon_servers: beacons servers in the AS.
     :ivar list certificate_servers: certificate servers in the AS.
     :ivar list path_servers: path servers in the AS.
-    :ivar list parent_edge_routers: edge routers linking the AS to its parents.
-    :ivar list child_edge_routers: edge routers linking the AS to its children.
-    :ivar list peer_edge_routers: edge router linking the AS to its peers.
-    :ivar list routing_edge_routers:
-        edge router linking the core AS to another core AS.
+    :ivar list parent_border_routers:
+        border routers linking the AS to its parents.
+    :ivar list child_border_routers:
+        border routers linking the AS to its children.
+    :ivar list peer_border_routers: border router linking the AS to its peers.
+    :ivar list routing_border_routers:
+        border router linking the core AS to another core AS.
     """
     def __init__(self):  # pragma: no cover
         self.is_core_as = False
@@ -139,10 +141,10 @@ class Topology(object):
         self.certificate_servers = []
         self.path_servers = []
         self.sibra_servers = []
-        self.parent_edge_routers = []
-        self.child_edge_routers = []
-        self.peer_edge_routers = []
-        self.routing_edge_routers = []
+        self.parent_border_routers = []
+        self.child_border_routers = []
+        self.peer_border_routers = []
+        self.routing_border_routers = []
         self.zookeepers = []
 
     @classmethod
@@ -191,13 +193,13 @@ class Topology(object):
                 list_.append(ServerElement(v, k))
 
     def _parse_router_dicts(self, topology):
-        for k, v in topology['EdgeRouters'].items():
+        for k, v in topology['BorderRouters'].items():
             router = RouterElement(v, k)
             ntype_map = {
-                LINK_PARENT: self.parent_edge_routers,
-                LINK_CHILD: self.child_edge_routers,
-                LINK_PEER: self.peer_edge_routers,
-                LINK_ROUTING: self.routing_edge_routers,
+                LINK_PARENT: self.parent_border_routers,
+                LINK_CHILD: self.child_border_routers,
+                LINK_PEER: self.peer_border_routers,
+                LINK_ROUTING: self.routing_border_routers,
             }
             ntype_map[router.interface.link_type].append(router)
 
@@ -207,26 +209,26 @@ class Topology(object):
             zk_host = "[%s]:%s" % (haddr, zk['Port'])
             self.zookeepers.append(zk_host)
 
-    def get_all_edge_routers(self):
+    def get_all_border_routers(self):
         """
-        Return all edge routers associated to the AS.
+        Return all border routers associated to the AS.
 
-        :returns: all edge routers associated to the AS.
+        :returns: all border routers associated to the AS.
         :rtype: list
         """
-        all_edge_routers = []
-        all_edge_routers.extend(self.parent_edge_routers)
-        all_edge_routers.extend(self.child_edge_routers)
-        all_edge_routers.extend(self.peer_edge_routers)
-        all_edge_routers.extend(self.routing_edge_routers)
-        return all_edge_routers
+        all_border_routers = []
+        all_border_routers.extend(self.parent_border_routers)
+        all_border_routers.extend(self.child_border_routers)
+        all_border_routers.extend(self.peer_border_routers)
+        all_border_routers.extend(self.routing_border_routers)
+        return all_border_routers
 
     def get_own_config(self, server_type, server_id):
         type_map = {
             BEACON_SERVICE: self.beacon_servers,
             CERTIFICATE_SERVICE: self.certificate_servers,
             PATH_SERVICE: self.path_servers,
-            ROUTER_SERVICE: self.get_all_edge_routers(),
+            ROUTER_SERVICE: self.get_all_border_routers(),
             SIBRA_SERVICE: self.sibra_servers,
         }
         try:

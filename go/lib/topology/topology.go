@@ -24,7 +24,7 @@ import (
 )
 
 type Topo struct {
-	ER   map[string]TopoER    `yaml:"EdgeRouters"`
+	BR   map[string]TopoBR    `yaml:"BorderRouters"`
 	BS   map[string]BasicElem `yaml:"BeaconServers"`
 	PS   map[string]BasicElem `yaml:"PathServers"`
 	CS   map[string]BasicElem `yaml:"CertificateServers"`
@@ -40,7 +40,7 @@ type BasicElem struct {
 	Port int         `yaml:"Port"`
 }
 
-type TopoER struct {
+type TopoBR struct {
 	BasicElem `yaml:",inline"`
 	IF        TopoIF `yaml:"Interface"`
 }
