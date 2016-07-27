@@ -56,7 +56,7 @@ class PathPolicy(object):
             'property_weights': self.property_weights
         }
 
-    def check_filters(self, pcb):
+    def check_filters(self, pcb, quiet_startup=False):
         """
         Runs some checks, including: unwanted ASes and min/max property values.
 
@@ -79,8 +79,12 @@ class PathPolicy(object):
             return False
         ia = self._check_remote_ifid(pcb)
         if ia:
-            logging.info("PathStore: pcb discarded, remote IFID of %s unknown",
-                         ia)
+            if quiet_startup:
+                logging.info(
+                    "PathStore: pcb discarded, remote IFID of %s unknown", ia)
+            else:
+                logging.error(
+                    "PathStore: pcb discarded, remote IFID of %s unknown", ia)
             return False
         return True
 
@@ -122,6 +126,14 @@ class PathPolicy(object):
         return reasons
 
     def _check_remote_ifid(self, pcb):
+        """
+        Checkes whether any PCB markings have unset remote IFID values for
+        up/downstream ASes. This can happen during normal startup depending
+        on the timing of PCB propagation vs IFID keep-alives, but should
+        not happen once the infrastructure is settled.
+        Remote IFID is only allowed to be 0 if the corresponding ISD-AS is
+        0-0.
+        """
         for asm in pcb.iter_asms():
             for pcbm in asm.iter_pcbms():
                 if pcbm.inIA().int() and not pcbm.p.inIF:

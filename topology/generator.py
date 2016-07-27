@@ -352,8 +352,8 @@ class TopoGenerator(object):
         link_name = "%s<->%s" % tuple(sorted((as1, as2)))
         link_name += "_%d" % id_
         subnet = self.subnet_gen.register(link_name)
-        as1_name = "br%ser%s_%d" % (as1, as2, id_)
-        as2_name = "br%ser%s_%d" % (as2, as1, id_)
+        as1_name = "br%sbr%s_%d" % (as1, as2, id_)
+        as2_name = "br%sbr%s_%d" % (as2, as1, id_)
         return subnet.register(as1_name), subnet.register(as2_name)
 
     def _iterate(self, f):
@@ -418,20 +418,20 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_er_entries(self, topo_id):
-        er_id = 1
+        br_id = 1
         for ltype, remote, attrs in self.links[topo_id]:
-            self._gen_er_entry(topo_id, er_id, remote, ltype, attrs)
-            er_id += 1
+            self._gen_er_entry(topo_id, br_id, remote, ltype, attrs)
+            br_id += 1
 
-    def _gen_er_entry(self, local, er_id, remote, remote_type, attrs):
+    def _gen_er_entry(self, local, br_id, remote, remote_type, attrs):
         public_addr, remote_addr = self._reg_link_addrs(
             local, remote, attrs["id"])
-        elem_id = "br%s_%d" % (local, er_id)
+        elem_id = "br%s_%d" % (local, br_id)
         self.topo_dicts[local]["BorderRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
             'Port': random.randint(30050, 30100),
             'Interface': {
-                'IFID': er_id,
+                'IFID': br_id,
                 'ISD_AS': str(remote),
                 'LinkType': remote_type,
                 'Addr': public_addr,

@@ -11,7 +11,7 @@ CertificateServers:
     Port: 30073
 Core: true
 BorderRouters:
-  br1_11_1:
+  br1-11-1:
     Addr: 127.0.0.69/28
     Interface:
       Addr: 127.0.0.6/31
