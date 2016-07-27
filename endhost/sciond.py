@@ -224,7 +224,6 @@ class SCIONDaemon(SCIONElement):
                          struct.pack("!H", port) +
                          struct.pack("!H", path.mtu) +
                          struct.pack("!B", len(path.interfaces)))
-            logging.debug("interfaces: %s", path.interfaces)
             for interface in path.interfaces:
                 isd_as, link = interface
                 reply.append(isd_as.pack())
