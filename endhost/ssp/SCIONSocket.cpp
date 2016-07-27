@@ -527,3 +527,10 @@ int SCIONSocket::getPort()
         return mProtocol->getPort();
     return 0;
 }
+
+int SCIONSocket::maxPayloadSize(double timeout)
+{
+    if (!mProtocol)
+        return -1;
+    return mProtocol->maxPayloadSize(timeout);
+}
