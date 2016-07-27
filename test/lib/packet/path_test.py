@@ -461,12 +461,12 @@ class TestPathCombinatorBuildShortcutPaths(object):
     """
     Unit tests for lib.packet.path.PathCombinator.build_shortcut_paths
     """
-    @patch("lib.packet.path.PathCombinator._build_shortcut_path",
+    @patch("lib.packet.path.PathCombinator._build_shortcuts",
            new_callable=create_mock)
     def test(self, build_path):
         up_segments = ['up0', 'up1']
         down_segments = ['down0', 'down1']
-        build_path.side_effect = ['path0', 'path1', None, 'path1']
+        build_path.side_effect = [['path0'], ['path1'], [], ['path1']]
         ntools.eq_(
             PathCombinator.build_shortcut_paths(up_segments, down_segments),
             ["path0", "path1"])
@@ -476,11 +476,10 @@ class TestPathCombinatorBuildShortcutPaths(object):
 
 class TestPathCombinatorBuildShortcutPath(PathCombinatorBase):
     """
-    Unit tests for lib.packet.path.PathCombinator._build_shortcut_path
+    Unit tests for lib.packet.path.PathCombinator._build_shortcuts
     """
     def _check_none(self, up_seg, down_seg):
-        ntools.assert_is_none(
-            PathCombinator._build_shortcut_path(up_seg, down_seg))
+        ntools.eq_(PathCombinator._build_shortcuts(up_seg, down_seg), [])
 
     def test_none(self):
         for up, down in self._generate_none():
@@ -493,27 +492,35 @@ class TestPathCombinatorBuildShortcutPath(PathCombinatorBase):
         down = self._mk_seg(True)
         get_xovr_peer.return_value = None, None
         # Call
-        ntools.assert_is_none(PathCombinator._build_shortcut_path(up, down))
+        ntools.eq_(PathCombinator._build_shortcuts(up, down), [])
         # Tests
         get_xovr_peer.assert_called_once_with(up, down)
 
-    @patch("lib.packet.path.PathCombinator._join_shortcuts",
+    @patch("lib.packet.path.PathCombinator._join_xovr",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._join_peer",
            new_callable=create_mock)
     @patch("lib.packet.path.PathCombinator._get_xovr_peer",
            new_callable=create_mock)
     def _check_xovrs_peers(self, xovr, peer, is_peer, get_xovr_peer,
-                           join_shortcuts):
+                           join_peer, join_xovr):
         up = self._mk_seg(True)
         down = self._mk_seg(True)
         get_xovr_peer.return_value = xovr, peer
         # Call
-        ntools.eq_(PathCombinator._build_shortcut_path(up, down),
-                   join_shortcuts.return_value)
+        if is_peer:
+            ntools.eq_(PathCombinator._build_shortcuts(up, down),
+                       join_peer.return_value)
+        else:
+            ntools.eq_(PathCombinator._build_shortcuts(up, down),
+                       join_xovr.return_value)
         # Tests
-        expected = xovr
         if is_peer:
             expected = peer
-        join_shortcuts.assert_called_once_with(up, down, expected, is_peer)
+            join_peer.assert_called_once_with(up, down, expected)
+        else:
+            expected = xovr
+            join_xovr.assert_called_once_with(up, down, expected)
 
     def test_with_both(self):
         for xovr, peer, is_peer in (
