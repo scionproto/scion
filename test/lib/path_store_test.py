@@ -37,12 +37,14 @@ class TestPathPolicyCheckFilters(object):
     """
     Unit tests for lib.path_store.PathPolicy.check_filters
     """
-    def _setup(self, unwanted=None, reasons=None):
+    def _setup(self, unwanted=None, reasons=None, remote_ia=None):
         inst = PathPolicy()
         inst._check_unwanted_ases = create_mock()
         inst._check_unwanted_ases.return_value = unwanted
         inst._check_property_ranges = create_mock()
         inst._check_property_ranges.return_value = reasons
+        inst._check_remote_ifid = create_mock()
+        inst._check_remote_ifid.return_value = remote_ia
         pcb = create_mock(["short_desc"], class_=PathSegment)
         return inst, pcb
 
