@@ -100,8 +100,8 @@ class SibraServerBase(SCIONElement):
         self.zk.retry("Joining party", self.zk.party_setup)
 
     def _find_links(self):
-        for er in self.topology.get_all_edge_routers():
-            iface = er.interface
+        for br in self.topology.get_all_border_routers():
+            iface = br.interface
             self.link_states[iface.if_id] = SibraState(
                 iface.bandwidth, self.addr.isd_as)
             self.link_types[iface.if_id] = iface.link_type
@@ -219,7 +219,7 @@ class SibraServerBase(SCIONElement):
         bwhint = state.add_steady(path_id, req_info.index, bwsnap,
                                   req_info.exp_tick, True, ext.setup)
         if bwhint is not None:
-            # This shouldn't happen - if the local ER accepted the reservation,
+            # This shouldn't happen - if the local BR accepted the reservation,
             # then there should be enough bandwidth available for it. This means
             # our state is out of sync.
             logging.critical("Requested: %s Available bandwidth: %s\n%s",

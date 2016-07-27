@@ -131,7 +131,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._next_tree = None
         self._init_hash_tree()
         self.ifid_state = {}
-        for ifid in self.ifid2er:
+        for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
@@ -167,7 +167,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.local_rev_cache_lock = Lock()
 
     def _init_hash_tree(self):
-        ifs = list(self.ifid2er.keys())
+        ifs = list(self.ifid2br.keys())
         self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
 
     def _get_ht_proof(self, if_id):
@@ -185,7 +185,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param pcb: path segment.
         :type pcb: PathSegment
         """
-        for r in self.topology.child_edge_routers:
+        for r in self.topology.child_border_routers:
             beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
                                           r.interface.if_id)
             self.send(beacon, r.addr, r.port)
@@ -206,10 +206,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         d = {"remote_ia": ISD_AS.from_values(0, 0), "remote_if": 0, "mtu": 0}
         if not if_id:
             return d
-        er = self.ifid2er[if_id]
-        d["remote_ia"] = er.interface.isd_as
-        d["remote_if"] = er.interface.to_if_id
-        d["mtu"] = er.interface.mtu
+        br = self.ifid2br[if_id]
+        d["remote_ia"] = br.interface.isd_as
+        d["remote_if"] = br.interface.to_if_id
+        d["mtu"] = br.interface.mtu
         return d
 
     @abstractmethod
@@ -272,8 +272,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
         yield pcbm
-        for er in sorted(self.topology.peer_edge_routers):
-            in_if = er.interface.if_id
+        for br in sorted(self.topology.peer_border_routers):
+            in_if = br.interface.if_id
             with self.ifid_state_lock:
                 if (not self.ifid_state[in_if].is_active() and
                         not self._quiet_startup()):
@@ -317,8 +317,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
-            er = self.ifid2er[ifid]
-            er.interface.to_if_id = payload.p.origIF
+            br = self.ifid2br[ifid]
+            br.interface.to_if_id = payload.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
                 logging.info("IF %d activated", ifid)
@@ -327,14 +327,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 logging.info("IF %d came back up.", ifid)
             if not prev_state == InterfaceState.ACTIVE:
                 if self.zk.have_lock():
-                    # Inform ERs about the interface coming up.
+                    # Inform BRs about the interface coming up.
                     state_info = IFStateInfo.from_values(
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
-                    for er in self.topology.get_all_edge_routers():
+                    for br in self.topology.get_all_border_routers():
                         mgmt_packet = self._build_packet(
-                                er.addr, dst_port=er.port, payload=pld.copy())
-                        self.send(mgmt_packet, er.addr, er.port)
+                                br.addr, dst_port=br.port, payload=pld.copy())
+                        self.send(mgmt_packet, br.addr, br.port)
 
     def run(self):
         """
@@ -370,7 +370,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Started computing hashtree for next ttl")
             last_ttl_window = ConnectedHashTree.get_ttl_window()
 
-            ifs = list(self.ifid2er.keys())
+            ifs = list(self.ifid2br.keys())
             tree = ConnectedHashTree.get_next_tree(ifs, self.hashtree_gen_key)
             with self._hash_tree_lock:
                 self._next_tree = tree
@@ -588,7 +588,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _issue_revocation(self, if_id):
         """
-        Store a RevocationInfo in ZK and send a revocation to all ERs.
+        Store a RevocationInfo in ZK and send a revocation to all BRs.
 
         :param if_id: The interface that needs to be revoked.
         :type if_id: int
@@ -598,13 +598,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         rev_info = self._get_ht_proof(if_id)
         logging.info("Issuing revocation for IF %d.", if_id)
-        # Issue revocation to all ERs.
+        # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
-        for er in self.topology.get_all_edge_routers():
-            state_pkt = self._build_packet(er.addr, dst_port=er.port,
+        for br in self.topology.get_all_border_routers():
+            state_pkt = self._build_packet(br.addr, dst_port=br.port,
                                            payload=pld.copy())
-            self.send(state_pkt, er.addr, er.port)
+            self.send(state_pkt, br.addr, br.port)
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
 

@@ -150,19 +150,20 @@ class TestTopologyParseRouterDicts(object):
             return m
         routers = defaultdict(list)
         router_dict = {
-            "er-parent": "PARENT", "er-child": "CHILD",
-            "er-peer": "PEER", "er-routing0": "ROUTING",
-            "er-routing1": "ROUTING",
+            "br-parent": "PARENT", "br-child": "CHILD",
+            "br-peer": "PEER", "br-routing0": "ROUTING",
+            "br-routing1": "ROUTING",
         }
         inst = Topology()
         router.side_effect = lambda v, k: _mk_router(v)
         # Call
-        inst._parse_router_dicts({"EdgeRouters": router_dict})
+        inst._parse_router_dicts({"BorderRouters": router_dict})
         # Tests
-        ntools.assert_count_equal(inst.parent_edge_routers, routers["PARENT"])
-        ntools.assert_count_equal(inst.child_edge_routers, routers["CHILD"])
-        ntools.assert_count_equal(inst.peer_edge_routers, routers["PEER"])
-        ntools.assert_count_equal(inst.routing_edge_routers, routers["ROUTING"])
+        ntools.assert_count_equal(inst.parent_border_routers, routers["PARENT"])
+        ntools.assert_count_equal(inst.child_border_routers, routers["CHILD"])
+        ntools.assert_count_equal(inst.peer_border_routers, routers["PEER"])
+        ntools.assert_count_equal(inst.routing_border_routers,
+                                  routers["ROUTING"])
 
 
 class TestTopologyParseZkDicts(object):
@@ -184,24 +185,24 @@ class TestTopologyParseZkDicts(object):
                                   ["[zkv4]:2181", "[zkv6]:2182"])
 
 
-class TestTopologyGetAllEdgeRouters(object):
+class TestTopologyGetAllBorderRouters(object):
     """
-    Unit tests for lib.topology.Topology.get_all_edge_routers
+    Unit tests for lib.topology.Topology.get_all_border_routers
     """
     def test(self):
         topology = Topology()
-        topology.parent_edge_routers = [0, 1]
-        topology.child_edge_routers = [2]
-        topology.peer_edge_routers = [3, 4, 5]
-        topology.routing_edge_routers = [6, 7]
-        ntools.eq_(topology.get_all_edge_routers(), list(range(8)))
+        topology.parent_border_routers = [0, 1]
+        topology.child_border_routers = [2]
+        topology.peer_border_routers = [3, 4, 5]
+        topology.routing_border_routers = [6, 7]
+        ntools.eq_(topology.get_all_border_routers(), list(range(8)))
 
 
 class TestTopologyGetOwnConfig(object):
     """
     Unit tests for lib.topology.Topology.get_own_config
     """
-    @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
+    @patch("lib.topology.Topology.get_all_border_routers", autospec=True)
     def test_basic(self, _):
         inst = Topology()
         for i in range(4):
@@ -212,13 +213,13 @@ class TestTopologyGetOwnConfig(object):
         ntools.eq_(inst.get_own_config("bs", "bs3"),
                    inst.beacon_servers[3])
 
-    @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
+    @patch("lib.topology.Topology.get_all_border_routers", autospec=True)
     def test_unknown_type(self, _):
         inst = Topology()
         # Call
         ntools.assert_raises(SCIONKeyError, inst.get_own_config, "asdf", 1)
 
-    @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
+    @patch("lib.topology.Topology.get_all_border_routers", autospec=True)
     def test_unknown_server(self, _):
         inst = Topology()
         # Call

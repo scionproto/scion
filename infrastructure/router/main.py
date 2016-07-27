@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`router` --- SCION edge router
+:mod:`router` --- SCION border router
 ===========================================
 """
 # Stdlib
@@ -108,9 +108,9 @@ class Router(SCIONElement):
         """
         super().__init__(server_id, conf_dir, )
         self.interface = None
-        for edge_router in self.topology.get_all_edge_routers():
-            if edge_router.addr == self.addr.host:
-                self.interface = edge_router.interface
+        for border_router in self.topology.get_all_border_routers():
+            if border_router.addr == self.addr.host:
+                self.interface = border_router.interface
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
@@ -168,13 +168,13 @@ class Router(SCIONElement):
         """
         threading.Thread(
             target=thread_safety_net, args=(self.sync_interface,),
-            name="ER.sync_interface", daemon=True).start()
+            name="BR.sync_interface", daemon=True).start()
         threading.Thread(
             target=thread_safety_net, args=(self.request_ifstates,),
-            name="ER.request_ifstates", daemon=True).start()
+            name="BR.request_ifstates", daemon=True).start()
         threading.Thread(
             target=thread_safety_net, args=(self.sibra_worker,),
-            name="ER.sibra_worker", daemon=True).start()
+            name="BR.sibra_worker", daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, spkt, addr, port):
@@ -562,8 +562,8 @@ class Router(SCIONElement):
             fwd_if = path.get_fwd_if()
             path_incd = False
         try:
-            er = self.ifid2er[fwd_if]
-            if_addr, port = er.addr, er.port
+            br = self.ifid2br[fwd_if]
+            if_addr, port = br.addr, br.port
         except KeyError:
             # So that the error message will show the current state of the
             # packet.
@@ -645,7 +645,7 @@ class Router(SCIONElement):
             logging.error("Extension asked to forward this to interface 0:\n%s",
                           pkt)
             return
-        next_hop = self.ifid2er[ifid]
+        next_hop = self.ifid2br[ifid]
         logging.debug("Packet forwarded by extension via %s:%s",
                       next_hop.addr, next_hop.port)
         self.send(pkt, next_hop.addr, next_hop.port)

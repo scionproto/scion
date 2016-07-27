@@ -296,11 +296,11 @@ class CertServer(SCIONElement):
     def _get_next_hop(self, isd_as, parent=False, child=False, routing=False):
         routers = []
         if parent:
-            routers += self.topology.parent_edge_routers
+            routers += self.topology.parent_border_routers
         if child:
-            routers += self.topology.child_edge_routers
+            routers += self.topology.child_border_routers
         if routing:
-            routers += self.topology.routing_edge_routers
+            routers += self.topology.routing_border_routers
         for r in routers:
             r_ia = r.interface.isd_as
             if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):

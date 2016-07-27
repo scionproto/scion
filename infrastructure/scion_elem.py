@@ -90,7 +90,7 @@ class SCIONElement(object):
     :ivar `Topology` topology: the topology of the AS as seen by the server.
     :ivar `Config` config:
         the configuration of the AS in which the server is located.
-    :ivar dict ifid2er: map of interface ID to RouterElement.
+    :ivar dict ifid2br: map of interface ID to RouterElement.
     :ivar `SCIONAddr` addr: the server's address.
     """
     SERVICE_TYPE = None
@@ -108,7 +108,7 @@ class SCIONElement(object):
         """
         self.id = server_id
         self.conf_dir = conf_dir
-        self.ifid2er = {}
+        self.ifid2br = {}
         self._port = port
         self.topology = Topology.from_file(
             os.path.join(self.conf_dir, TOPO_FILE))
@@ -125,7 +125,7 @@ class SCIONElement(object):
             if self._port is None:
                 self._port = own_config.port
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
-        self.init_ifid2er()
+        self.init_ifid2br()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
@@ -155,9 +155,9 @@ class SCIONElement(object):
         self._port = self._local_sock.port
         self._socks.add(self._local_sock, self.handle_recv)
 
-    def init_ifid2er(self):
-        for er in self.topology.get_all_edge_routers():
-            self.ifid2er[er.interface.if_id] = er
+    def init_ifid2br(self):
+        for br in self.topology.get_all_border_routers():
+            self.ifid2br[br.interface.if_id] = br
 
     def init_core_ases(self):
         """
@@ -330,9 +330,9 @@ class SCIONElement(object):
             if len(spkt.path) == 0:
                 return self._empty_first_hop(spkt)
             if_id = spkt.path.get_fwd_if()
-        if if_id in self.ifid2er:
-            er = self.ifid2er[if_id]
-            return er.addr, er.port
+        if if_id in self.ifid2br:
+            br = self.ifid2br[if_id]
+            return br.addr, br.port
         logging.error("Unable to find first hop:\n", spkt.path)
         return None, None
 
