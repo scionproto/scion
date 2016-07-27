@@ -308,4 +308,12 @@ int SCIONGetPort(int sock)
     return e->sock->getPort();
 }
 
+int SCIONMaxPayloadSize(int sock, double timeout)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return -1;
+    return e->sock->maxPayloadSize(timeout);
+}
+
 }

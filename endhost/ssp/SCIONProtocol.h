@@ -51,6 +51,7 @@ public:
     virtual void threadCleanup();
 
     int getPort();
+    int maxPayloadSize(double timeout=0.0);
 
 protected:
     PathManager            *mPathManager;

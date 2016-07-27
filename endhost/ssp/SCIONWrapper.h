@@ -33,6 +33,7 @@ uint32_t SCIONGetLocalIA(int sock);
 void SCIONSetTimeout(int sock, double timeout);
 
 int SCIONGetPort(int sock);
+int SCIONMaxPayloadSize(int sock, double timeout);
 
 #ifdef __cplusplus
 }
