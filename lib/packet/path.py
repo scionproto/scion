@@ -528,7 +528,8 @@ class PathCombinator(object):
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
             args = cls._path_args(up_iof, up_hofs + [uph, up_upstream_hof],
-                                  down_iof, [down_upstream_hof, dph] + down_hofs)
+                                  down_iof,
+                                  [down_upstream_hof, dph] + down_hofs)
             path = SCIONPath.from_values(*args)
             cls._build_interface_list(path, up_segment, up_index,
                                       down_segment, down_index, (uph, dph))
