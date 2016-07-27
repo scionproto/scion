@@ -299,6 +299,11 @@ class SCIONPath(Serializable):
         else:
             return True
 
+    def compare_interfaces(self, other):
+        if not self.interfaces or other.interfaces:
+            return False
+        return self.interfaces == other.interfaces
+
     def __len__(self):  # pragma: no cover
         """Return the path length in bytes."""
         return len(self._ofs) * OpaqueField.LEN
@@ -358,8 +363,7 @@ class PathCombinator(object):
         paths = []
         for up in up_segments:
             for down in down_segments:
-                shortcuts = cls._build_shortcuts(up, down)
-                for path in shortcuts:
+                for path in cls._build_shortcuts(up, down):
                     if path and path not in paths:
                         paths.append(path)
         return paths
@@ -518,19 +522,13 @@ class PathCombinator(object):
             cls._copy_segment_shortcut(down_segment, down_index, up=False)
         up_iof.shortcut = down_iof.shortcut = True
         up_iof.peer = down_iof.peer = True
-        up_hofs.extend([None, None])  # placeholder
-        down_hofs.insert(0, None)  # placeholder
-        down_hofs.insert(0, None)  # placeholder
         paths = []
         for uph, dph, pm in cls._find_peer_hfs(up_segment.asm(up_index),
                                                down_segment.asm(down_index)):
-            up_hofs = copy.deepcopy(up_hofs)
-            up_hofs[-2:] = [uph, up_upstream_hof]
-            down_hofs = copy.deepcopy(down_hofs)
-            down_hofs[:2] = [down_upstream_hof, dph]
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
-            args = cls._path_args(up_iof, up_hofs, down_iof, down_hofs)
+            args = cls._path_args(up_iof, up_hofs + [uph, up_upstream_hof],
+                                  down_iof, [down_upstream_hof, dph] + down_hofs)
             path = SCIONPath.from_values(*args)
             cls._build_interface_list(path, up_segment, up_index,
                                       down_segment, down_index, (uph, dph))

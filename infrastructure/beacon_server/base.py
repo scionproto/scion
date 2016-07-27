@@ -222,7 +222,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def handle_pcb(self, pkt):
         """Receives beacon and stores it for processing."""
         pcb = pkt.get_payload()
-        if not self.path_policy.check_filters(pcb):
+        if not self.path_policy.check_filters(pcb, self._quiet_startup()):
             return
         self.incoming_pcbs.append(pcb)
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
