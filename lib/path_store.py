@@ -79,12 +79,8 @@ class PathPolicy(object):
             return False
         ia = self._check_remote_ifid(pcb)
         if ia:
-            if quiet_startup:
-                logging.info(
-                    "PathStore: pcb discarded, remote IFID of %s unknown", ia)
-            else:
-                logging.error(
-                    "PathStore: pcb discarded, remote IFID of %s unknown", ia)
+            logging.error("PathStore: pcb discarded, remote IFID of %s unknown",
+                          ia)
             return False
         return True
 

@@ -67,6 +67,8 @@ class CoreBeaconServer(BeaconServer):
                 continue
             beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
                                           r.interface.if_id)
+            if not beacon:
+                continue
             self.send(beacon, r.addr, r.port)
             count += 1
         return count
@@ -206,6 +208,8 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
+            if not pcb:
+                continue
             pcb.sign(self.signing_key)
             self.register_core_segment(pcb)
             count += 1
