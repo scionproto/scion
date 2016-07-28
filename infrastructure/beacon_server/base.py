@@ -229,7 +229,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def handle_pcb(self, pkt):
         """Receives beacon and stores it for processing."""
         pcb = pkt.get_payload()
-        if not self.path_policy.check_filters(pcb, self._quiet_startup()):
+        if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
@@ -291,7 +291,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         not self._quiet_startup()):
                     logging.warning('Peer ifid:%d inactive (not added).', in_if)
                     continue
-            peer_pcbm = self._create_pcbm(in_if, out_if, ts, pcbm.hof(), xover=True)
+            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
+                                          xover=True)
             if peer_pcbm:
                 yield peer_pcbm
 
