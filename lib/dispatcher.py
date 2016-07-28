@@ -25,7 +25,11 @@ import struct
 import time
 
 # SCION
-from lib.defines import DISPATCHER_TIMEOUT, SCION_DISPATCHER_ADDR
+from lib.defines import (
+    DISPATCHER_DIR,
+    DISPATCHER_TIMEOUT,
+    SCION_DISPATCHER_ADDR,
+)
 from lib.thread import kill_self
 from lib.types import L4Proto
 
