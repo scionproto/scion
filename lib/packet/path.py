@@ -290,7 +290,7 @@ class SCIONPath(Serializable):
             return iof.hops - 1
         return iof.hops - 2
 
-    def is_on_last_segment(self):
+    def is_on_last_segment(self):  # pragma: no cover
         label = self._ofs.get_label_by_idx(self._hof_idx)
         if label == self.A_HOFS:
             return self._ofs.count(self.B_HOFS) == 0
@@ -299,7 +299,7 @@ class SCIONPath(Serializable):
         else:
             return True
 
-    def compare_interfaces(self, other):
+    def compare_interfaces(self, other):  # pragma: no cover
         if not self.interfaces or other.interfaces:
             return False
         return self.interfaces == other.interfaces
@@ -327,7 +327,7 @@ class SCIONPath(Serializable):
         s.append("</SCION-Path>")
         return "\n".join(s)
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # pragma: no cover
         return self.interfaces == other.interfaces
 
 
@@ -481,8 +481,6 @@ class PathCombinator(object):
         :param list down_segment: `down` :any:`PathSegment`.
         :param tuple point: Indexes of xovr point.
         :returns: :any:`CrossOverPath`.
-
-        FIXME(kormat): this is an untestable mess.
         """
         (up_index, down_index) = point
 
@@ -511,8 +509,6 @@ class PathCombinator(object):
         :param list down_segment: `down` :any:`PathSegment`.
         :param tuple point: Indexes of peer point.
         :returns: :any:`CrossOverPath`.
-
-        FIXME(kormat): this is an untestable mess.
         """
         (up_index, down_index) = point
 
@@ -669,8 +665,7 @@ class PathCombinator(object):
                 if (up_peer.inIA() == down_ia and down_peer.inIA() == up_ia and
                         up_peer.p.inIF == down_hof.ingress_if and
                         up_hof.ingress_if == down_peer.p.inIF):
-                    hfs.append(
-                        (up_peer.hof(), down_peer.hof(), up_peer.p.inMTU))
+                    hfs.append((up_hof, down_hof, up_peer.p.inMTU))
         return hfs
 
     @classmethod

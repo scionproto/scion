@@ -474,7 +474,7 @@ class TestPathCombinatorBuildShortcutPaths(object):
         assert_these_calls(build_path, calls)
 
 
-class TestPathCombinatorBuildShortcutPath(PathCombinatorBase):
+class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
     """
     Unit tests for lib.packet.path.PathCombinator._build_shortcuts
     """
@@ -696,6 +696,157 @@ class TestPathCombinatorCopySegmentShortcut(object):
                                           reverse=False)
         ntools.eq_(hofs[0].xover, True)
         ntools.eq_(upstream_hof.verify_only, True)
+
+
+class TestPathCombinatorJoinCrossoverPeer(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_xovr and
+    lib.packet.path.pathCombinator._join_peer
+    """
+    def _setup(self, path_args, copy_segment):
+        up_segment = create_mock(["asm"])
+        up_segment.asm = create_mock()
+        down_segment = create_mock(["asm"])
+        down_segment.asm = create_mock()
+        point = (1, 2)
+        up_iof = create_mock(["shortcut", "peer"])
+        down_iof = create_mock(["shortcut", "peer"])
+        copy_segment.side_effect = [(up_iof, ["A", "B"], "up hof", 1500),
+                                    (down_iof, ["C"], "down hof", 1400)]
+        path_args.return_value = ()
+        return up_segment, down_segment, point
+
+    @patch("lib.packet.path.PathCombinator._copy_segment_shortcut",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._path_args",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._build_interface_list",
+           new_callable=create_mock)
+    def test_xovr(self, build_list, path_args, copy_segment):
+        up_segment, down_segment, point = self._setup(path_args, copy_segment)
+        path = SCIONPath.from_values()
+        path.mtu = 1400
+        ntools.eq_(
+            PathCombinator._join_xovr(up_segment, down_segment, point)[0], path)
+        copy_segment.assert_any_call(up_segment, 1)
+        copy_segment.assert_any_call(down_segment, 2, up=False)
+        ntools.eq_(build_list.call_count, 1)
+
+    @patch("lib.packet.path.PathCombinator._copy_segment_shortcut",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._path_args",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._build_interface_list",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._find_peer_hfs",
+           new_callable=create_mock)
+    def test_peer(self, find_peers, build_list, path_args, copy_segment):
+        up_segment, down_segment, point = self._setup(path_args, copy_segment)
+        find_peers.return_value = [("uph1", "dph1", 1500),
+                                   ("uph2", "dph2", 1500)]
+
+        path = SCIONPath.from_values()
+        path.mtu = 1400
+        ntools.eq_(
+            PathCombinator._join_peer(up_segment, down_segment, point)[0], path)
+        copy_segment.assert_any_call(up_segment, 1)
+        copy_segment.assert_any_call(down_segment, 2, up=False)
+        ntools.eq_(build_list.call_count, 2)
+
+
+class TestPathCombinatorBuildInterfaceList(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._build_interface_list
+    """
+    @patch("lib.packet.path.PathCombinator._add_interfaces",
+           new_callable=create_mock)
+    def _check_xovr_peers(self, peers, add_ifs):
+        path = create_mock(["interfaces"])
+        path.interfaces = []
+        up_seg = create_mock(["iter_asms", "asm"])
+        up_seg.iter_asms.return_value = ["A", "B"]
+        up_asm = create_mock(["isd_as"])
+        up_asm.isd_as.return_value = 11
+        up_seg.asm.return_value = up_asm
+        up_idx = 1
+        down_seg = create_mock(["iter_asms", "asm"])
+        down_seg.iter_asms.return_value = ["C", "D"]
+        down_asm = create_mock(["isd_as"])
+        down_asm.isd_as.return_value = 12
+        down_seg.asm.return_value = down_asm
+        down_idx = 2
+
+        PathCombinator._build_interface_list(path, up_seg, up_idx,
+                                             down_seg, down_idx, peers)
+        add_ifs.assert_any_call(path, ["B", "A"])
+        add_ifs.assert_any_call(path, ["C", "D"], up=False)
+        ntools.eq_(add_ifs.call_count, 2)
+        if peers:
+            up_hof, down_hof = peers
+            ntools.eq_(path.interfaces, [(11, up_hof.ingress_if),
+                                         (12, down_hof.ingress_if)])
+
+    def test_xovr(self):
+        yield self._check_xovr_peers, None
+
+    def test_peers(self):
+        up_hof = create_mock(["ingress_if"])
+        up_hof.ingress_if = 3
+        down_hof = create_mock(["ingress_if"])
+        down_hof.ingress_if = 4
+        yield self._check_xovr_peers, (up_hof, down_hof)
+
+
+class TestPathCombinatorAddInterfaces(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._add_interfaces
+    """
+    def _check_up_down(self, up):
+        asms = []
+        ifid = 1
+        for i in range(3):
+            asm = create_mock(["isd_as", "pcbm"])
+            asm.isd_as.return_value = i
+            pcbm = create_mock(["hof"])
+            hof = create_mock(["egress_if", "ingress_if"])
+            hof.egress_if = ifid
+            ifid += 1
+            hof.ingress_if = ifid
+            ifid += 1
+            pcbm.hof.return_value = hof
+            asm.pcbm.return_value = pcbm
+            asms.append(asm)
+        path = create_mock(["interfaces"])
+        path.interfaces = []
+
+        PathCombinator._add_interfaces(path, asms, up)
+        if up:
+            ntools.eq_(path.interfaces,
+                       [(0, 1), (0, 2), (1, 3), (1, 4), (2, 5)])
+        else:
+            ntools.eq_(path.interfaces,
+                       [(0, 1), (1, 4), (1, 3), (2, 6), (2, 5)])
+
+    def test_up(self):
+        yield self._check_up_down, True
+
+    def test_down(self):
+        yield self._check_up_down, False
+
+
+class TestPathCombinatorPathArgs(object):
+    """
+    Unit test for lib.packet.path.PathCombinator._path_args
+    """
+    def test(self):
+        up_iof = create_mock(["hops"])
+        up_hofs = ["up hof 1", "up hof 2", "up hof 3"]
+        down_iof = create_mock(["hops"])
+        down_hofs = ["down hof"]
+        ntools.eq_(
+            PathCombinator._path_args(up_iof, up_hofs, down_iof, down_hofs),
+            [up_iof, up_hofs])
+        ntools.eq_(up_iof.hops, 3)
 
 
 if __name__ == "__main__":
