@@ -18,6 +18,8 @@
 void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
     int fd, cl;
+    char *env;
+
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: socket(): %s", strerror(errno));
         exit(-1);
@@ -32,7 +34,11 @@ void *tcpmw_main_thread(void *unused) {
     }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
+    env = getenv("DISPATCHER_PREFIX");
+    if (env)
+        snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s_lwip.sock", LWIP_SOCK_DIR, env);
+    else
+        strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
 
     if (atexit(tcpmw_unlink_sock)){
         zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
