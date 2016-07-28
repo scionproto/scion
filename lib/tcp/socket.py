@@ -212,7 +212,12 @@ class SCIONTCPSocket(object):
         assert self._lwip_sock is None
         # Create a socket to LWIP
         self._lwip_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self._lwip_sock.connect(TCPMW_SOCKET)
+        env = os.getenv("DISPATCHER_PREFIX")
+        if env:
+            path = os.join(LWIP_SOCK_DIR, env, "_lwip.sock")
+            self._lwip_sock.connect(path)
+        else:
+            self._lwip_sock.connect(TCPMW_SOCKET)
         # Register it
         req = APICmd.NEW_SOCK
         self._to_lwip(req)

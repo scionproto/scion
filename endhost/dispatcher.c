@@ -306,9 +306,9 @@ int bind_app_socket()
     struct sockaddr_un su;
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
-    char *env = getenv("DISPATCHER_PATH");
+    char *env = getenv("DISPATCHER_PREFIX");
     if (env)
-        sprintf(su.sun_path, "%s.sock", env);
+        sprintf(su.sun_path, "%s/%s_dispatcher.sock", DISPATCHER_DIR, env);
     else
         strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
     strcpy(socket_path, su.sun_path);
