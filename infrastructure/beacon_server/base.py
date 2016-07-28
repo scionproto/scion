@@ -280,10 +280,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         up_pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
-        if up_pcbm:
-            yield up_pcbm
-        else:
+        if not up_pcbm:
             return
+        yield up_pcbm
         for br in sorted(self.topology.peer_border_routers):
             in_if = br.interface.if_id
             with self.ifid_state_lock:
