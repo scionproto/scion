@@ -194,7 +194,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 continue
             self.send(beacon, r.addr, r.port)
             logging.info("Downstream PCB propagated to %s via IF %s",
-                         r.interface.isdas, r.interface.if_id)
+                         r.interface.isd_as, r.interface.if_id)
 
     def _mk_prop_beacon(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
