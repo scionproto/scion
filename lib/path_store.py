@@ -56,7 +56,7 @@ class PathPolicy(object):
             'property_weights': self.property_weights
         }
 
-    def check_filters(self, pcb, quiet_startup=False):
+    def check_filters(self, pcb):
         """
         Runs some checks, including: unwanted ASes and min/max property values.
 
