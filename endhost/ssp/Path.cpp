@@ -615,7 +615,7 @@ int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
     sch.total_len = htons(packet_len);
 
     if (packet_len > mMTU)
-        return -1;
+        return -EMSGSIZE;
 
     uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
