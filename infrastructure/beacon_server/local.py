@@ -170,6 +170,8 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
+            if not pcb:
+                continue
             pcb.remove_crypto()
             pcb.sign(self.signing_key)
             try:
@@ -186,6 +188,8 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
+            if not pcb:
+                continue
             pcb.remove_crypto()
             pcb.sign(self.signing_key)
             self.register_down_segment(pcb)

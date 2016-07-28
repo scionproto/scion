@@ -186,14 +186,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         for r in self.topology.child_border_routers:
+            if not r.interface.to_if_id:
+                continue
             beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
                                           r.interface.if_id)
+            if not beacon:
+                continue
             self.send(beacon, r.addr, r.port)
-            logging.info("Downstream PCB propagated!")
+            logging.info("Downstream PCB propagated to %s via IF %s",
+                         r.interface.isdas, r.interface.if_id)
 
     def _mk_prop_beacon(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
         asm = self._create_asm(pcb.p.ifID, egress_if, ts, pcb.last_hof())
+        if not asm:
+            return None
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         return self._build_packet(SVCType.BS_A, dst_ia=dst_ia, payload=pcb)
@@ -263,6 +270,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
+        if not pcbms:
+            return None
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
         return ASMarking.from_values(
@@ -270,8 +279,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self._get_ht_root(), self.topology.mtu, chain)
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
-        pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
-        yield pcbm
+        up_pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
+        if up_pcbm:
+            yield up_pcbm
+        else:
+            return
         for br in sorted(self.topology.peer_border_routers):
             in_if = br.interface.if_id
             with self.ifid_state_lock:
@@ -279,14 +291,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         not self._quiet_startup()):
                     logging.warning('Peer ifid:%d inactive (not added).', in_if)
                     continue
-            yield self._create_pcbm(in_if, out_if, ts, pcbm.hof(), xover=True)
+            peer_pcbm = self._create_pcbm(in_if, out_if, ts, pcbm.hof(), xover=True)
+            if peer_pcbm:
+                yield peer_pcbm
 
     def _create_pcbm(self, in_if, out_if, ts, prev_hof, xover=False):
+        in_info = self._mk_if_info(in_if)
+        if in_info["remote_ia"].int() and not in_info["remote_if"]:
+            return None
+        out_info = self._mk_if_info(out_if)
+        if out_info["remote_ia"].int() and not out_info["remote_if"]:
+            return None
         hof = HopOpaqueField.from_values(
             self.HOF_EXP_TIME, in_if, out_if, xover=xover)
         hof.set_mac(self.of_gen_key, ts, prev_hof)
-        in_info = self._mk_if_info(in_if)
-        out_info = self._mk_if_info(out_if)
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
             out_info["remote_ia"], out_info["remote_if"], hof)
@@ -302,6 +320,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb = pcb.copy()
         asm = self._create_asm(pcb.p.ifID, 0, pcb.get_timestamp(),
                                pcb.last_hof())
+        if not asm:
+            return None
         pcb.add_asm(asm)
         return pcb
 
