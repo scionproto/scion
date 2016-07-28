@@ -584,116 +584,58 @@ class TestPathCombinatorCopySegment(object):
                                           reverse=False)
 
 
-class TestPathCombinatorCheckConnected(object):
+class TestPathCombinatorGetXovrPeer(object):
     """
-    Unit tests for lib.packet.path.PathCombinator._check_connected
+    Unit tests for lib.packet.path.PathCombinator._get_xovr_peer
     """
-    def _setup(self, up_first, core_last, core_first, down_first):
-        up = create_mock(['first_ia'])
-        up.first_ia.return_value = up_first
-        yield up
-        core = create_mock(['first_ia', 'last_ia'])
-        core.first_ia.return_value = core_first
-        core.last_ia.return_value = core_last
-        yield core
-        down = create_mock(['first_ia'])
-        down.first_ia.return_value = down_first
-        yield down
-
-    def test_with_core_up_discon(self):
-        up, core, down = self._setup(1, 2, 3, 3)
-        ntools.assert_false(PathCombinator._check_connected(up, core, down))
-
-    def test_with_core_down_discon(self):
-        up, core, down = self._setup(1, 1, 2, 3)
-        ntools.assert_false(PathCombinator._check_connected(up, core, down))
-
-    def test_with_core_conn(self):
-        up, core, down = self._setup(1, 1, 2, 2)
-        ntools.assert_true(PathCombinator._check_connected(up, core, down))
-
-    def test_without_core_discon(self):
-        up, core, down = self._setup(1, 0, 0, 2)
-        ntools.assert_false(PathCombinator._check_connected(up, None, down))
-
-    def test_without_core_conn(self):
-        up, core, down = self._setup(1, 0, 0, 1)
-        ntools.assert_true(PathCombinator._check_connected(up, None, down))
-
-
-class TestPathCombinatorCopyHofs(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator._copy_hofs
-    """
-    def test_full(self):
-        asms = []
-        for i in range(4):
-            pcbm = create_mock(["hof", "p"])
-            pcbm.hof.return_value = i
-            pcbm.p = create_mock(["inMTU"])
-            pcbm.p.inMTU = (i + 1) * 2
-            asm = create_mock(["pcbm", "p"])
-            asm.pcbm.return_value = pcbm
-            asm.p = create_mock(["mtu"])
-            asm.p.mtu = (i + 1) * 0.5
-            asms.append(asm)
+    def test_none(self):
+        seg = create_mock_full({"iter_asms()": []})
         # Call
-        ntools.eq_(PathCombinator._copy_hofs(asms), ([3, 2, 1, 0], 0.5))
+        ntools.eq_(PathCombinator._get_xovr_peer(seg, seg), (None, None))
 
-
-class TestPathCombinatorCopySegmentShortcut(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator._copy_segment_shortcut
-    """
-    def _setup(self, deepcopy, copy_hofs):
-        info = create_mock(["hops", "up_flag"])
-        info.hops = 10
-        upstream_hof = create_mock(["verify_only", "xover"])
-        pcbm = create_mock(["hof"])
-        pcbm.hof.return_value = upstream_hof
-        asm = create_mock(["pcbm"])
-        asm.pcbm.return_value = pcbm
-        seg = create_mock(["asm", "info", "iter_asms"])
-        seg.asm.return_value = asm
-        hofs = []
-        for _ in range(6):
-            hofs.append(create_mock(["xover"]))
-        copy_hofs.return_value = hofs, "mtu"
-        deepcopy.side_effect = info, upstream_hof
-        return seg, info, hofs, upstream_hof
-
-    @patch("lib.packet.path.PathCombinator._copy_hofs",
+    @patch("lib.packet.path.PathCombinator._find_peer_hfs",
            new_callable=create_mock)
-    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
-    def test_up(self, deepcopy, copy_hofs):
-        seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+    def test_xovr(self, find):
+        up_asms = [
+            create_mock_full({"isd_as()": "1-1"}),
+            create_mock_full({"isd_as()": "1-2"}),
+            create_mock_full({"isd_as()": "1-3"}),
+        ]
+        up_seg = create_mock_full({"iter_asms()": up_asms})
+        down_asms = [
+            create_mock_full({"isd_as()": "1-1"}),
+            create_mock_full({"isd_as()": "1-2"}),
+            create_mock_full({"isd_as()": "1-4"}),
+        ]
+        down_seg = create_mock_full({"iter_asms()": down_asms})
+        find.return_value = False
         # Call
-        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
-                   (info, hofs, upstream_hof, "mtu"))
-        # Tests
-        deepcopy.assert_called_once_with(seg.info)
-        ntools.eq_(info.hops, 6)
-        ntools.ok_(info.up_flag)
-        copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
-                                          reverse=True)
-        ntools.eq_(hofs[-1].xover, True)
-        ntools.eq_(upstream_hof.xover, False)
-        ntools.eq_(upstream_hof.verify_only, True)
+        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg),
+                   ((2, 2), None))
 
-    @patch("lib.packet.path.PathCombinator._copy_hofs",
+    @patch("lib.packet.path.PathCombinator._find_peer_hfs",
            new_callable=create_mock)
-    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
-    def test_down(self, deepcopy, copy_hofs):
-        seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+    def test_peer(self, find):
+        up_asms = [
+            create_mock_full({"isd_as()": "1-1"}),  # peers with 1-10
+            create_mock_full({"isd_as()": "1-2"}),  # peers with 1-12
+            create_mock_full({"isd_as()": "1-3"}),
+        ]
+        up_seg = create_mock_full({"iter_asms()": up_asms})
+        down_asms = [
+            create_mock_full({"isd_as()": "1-10"}),  # peers with 1-1
+            create_mock_full({"isd_as()": "1-11"}),
+            create_mock_full({"isd_as()": "1-12"}),  # peers with 1-2
+        ]
+        down_seg = create_mock_full({"iter_asms()": down_asms})
+
+        def matching_peers(a, b):
+            return (a == up_asms[0] and b == down_asms[0]) or (
+                a == up_asms[1] and b == down_asms[2])
+        find.side_effect = matching_peers
         # Call
-        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 7, up=False),
-                   (info, hofs, upstream_hof, "mtu"))
-        # Tests
-        ntools.assert_false(info.up_flag)
-        copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
-                                          reverse=False)
-        ntools.eq_(hofs[0].xover, True)
-        ntools.eq_(upstream_hof.verify_only, True)
+        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg),
+                   (None, (2, 3)))
 
 
 class PathCombinatorJoinShortcutsBase(object):
@@ -841,6 +783,152 @@ class TestPathCombinatorAddInterfaces(object):
 
     def test_down(self):
         yield self._check_up_down, False
+
+
+class TestPathCombinatorCheckConnected(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._check_connected
+    """
+    def _setup(self, up_first, core_last, core_first, down_first):
+        up = create_mock(['first_ia'])
+        up.first_ia.return_value = up_first
+        yield up
+        core = create_mock(['first_ia', 'last_ia'])
+        core.first_ia.return_value = core_first
+        core.last_ia.return_value = core_last
+        yield core
+        down = create_mock(['first_ia'])
+        down.first_ia.return_value = down_first
+        yield down
+
+    def test_with_core_up_discon(self):
+        up, core, down = self._setup(1, 2, 3, 3)
+        ntools.assert_false(PathCombinator._check_connected(up, core, down))
+
+    def test_with_core_down_discon(self):
+        up, core, down = self._setup(1, 1, 2, 3)
+        ntools.assert_false(PathCombinator._check_connected(up, core, down))
+
+    def test_with_core_conn(self):
+        up, core, down = self._setup(1, 1, 2, 2)
+        ntools.assert_true(PathCombinator._check_connected(up, core, down))
+
+    def test_without_core_discon(self):
+        up, core, down = self._setup(1, 0, 0, 2)
+        ntools.assert_false(PathCombinator._check_connected(up, None, down))
+
+    def test_without_core_conn(self):
+        up, core, down = self._setup(1, 0, 0, 1)
+        ntools.assert_true(PathCombinator._check_connected(up, None, down))
+
+
+class TestPathCombinatorCopyHofs(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._copy_hofs
+    """
+    def test_full(self):
+        asms = []
+        for i in range(4):
+            pcbm = create_mock(["hof", "p"])
+            pcbm.hof.return_value = i
+            pcbm.p = create_mock(["inMTU"])
+            pcbm.p.inMTU = (i + 1) * 2
+            asm = create_mock(["pcbm", "p"])
+            asm.pcbm.return_value = pcbm
+            asm.p = create_mock(["mtu"])
+            asm.p.mtu = (i + 1) * 0.5
+            asms.append(asm)
+        # Call
+        ntools.eq_(PathCombinator._copy_hofs(asms), ([3, 2, 1, 0], 0.5))
+
+
+class TestPathCombinatorCopySegmentShortcut(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._copy_segment_shortcut
+    """
+    def _setup(self, deepcopy, copy_hofs):
+        info = create_mock(["hops", "up_flag"])
+        info.hops = 10
+        upstream_hof = create_mock(["verify_only", "xover"])
+        pcbm = create_mock(["hof"])
+        pcbm.hof.return_value = upstream_hof
+        asm = create_mock(["pcbm"])
+        asm.pcbm.return_value = pcbm
+        seg = create_mock(["asm", "info", "iter_asms"])
+        seg.asm.return_value = asm
+        hofs = []
+        for _ in range(6):
+            hofs.append(create_mock(["xover"]))
+        copy_hofs.return_value = hofs, "mtu"
+        deepcopy.side_effect = info, upstream_hof
+        return seg, info, hofs, upstream_hof
+
+    @patch("lib.packet.path.PathCombinator._copy_hofs",
+           new_callable=create_mock)
+    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
+    def test_up(self, deepcopy, copy_hofs):
+        seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+        # Call
+        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
+                   (info, hofs, upstream_hof, "mtu"))
+        # Tests
+        deepcopy.assert_called_once_with(seg.info)
+        ntools.eq_(info.hops, 6)
+        ntools.ok_(info.up_flag)
+        copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
+                                          reverse=True)
+        ntools.eq_(hofs[-1].xover, True)
+        ntools.eq_(upstream_hof.xover, False)
+        ntools.eq_(upstream_hof.verify_only, True)
+
+    @patch("lib.packet.path.PathCombinator._copy_hofs",
+           new_callable=create_mock)
+    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
+    def test_down(self, deepcopy, copy_hofs):
+        seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+        # Call
+        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 7, up=False),
+                   (info, hofs, upstream_hof, "mtu"))
+        # Tests
+        ntools.assert_false(info.up_flag)
+        copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
+                                          reverse=False)
+        ntools.eq_(hofs[0].xover, True)
+        ntools.eq_(upstream_hof.verify_only, True)
+
+
+class TestPathCombinatorFindPeerHfs(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._find_peer_hfs
+    """
+    def _mk_pcbms(self):
+        up_pcbms = [
+            self._mk_pcbm("2-1", 1, 1, 500),
+            self._mk_pcbm("2-1", 2, 2, 600),  # Not reciprocated
+            self._mk_pcbm("2-1", 3, 3, 700),
+        ]
+        down_pcbms = [
+            # Local 2-1
+            self._mk_pcbm("1-1", 1, 1, 500),
+            self._mk_pcbm("1-1", 3, 3, 700),
+        ]
+        return up_pcbms, down_pcbms
+
+    def _mk_pcbm(self, inIA, inIF, hof_ingress, mtu):
+        hof = create_mock_full({"ingress_if": hof_ingress})
+        p = create_mock_full({"inIF": inIF, "inMTU": mtu})
+        return create_mock_full({"inIA()": inIA, "p": p, "hof()": hof})
+
+    def test(self):
+        up_pcbms, down_pcbms = self._mk_pcbms()
+        up_asm = create_mock_full({"isd_as()": "1-1", "iter_pcbms()": up_pcbms})
+        down_asm = create_mock_full({"isd_as()": "2-1",
+                                     "iter_pcbms()": down_pcbms})
+        # Call
+        ntools.eq_(PathCombinator._find_peer_hfs(up_asm, down_asm), [
+            (up_pcbms[0].hof(), down_pcbms[0].hof(), 500),
+            (up_pcbms[2].hof(), down_pcbms[1].hof(), 700),
+        ])
 
 
 if __name__ == "__main__":
