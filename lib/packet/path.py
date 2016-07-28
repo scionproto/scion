@@ -402,28 +402,6 @@ class PathCombinator(object):
             return cls._join_xovr(up_segment, down_segment, xovr)
 
     @classmethod
-    def _add_interfaces(cls, path, asms, up=True):
-        """
-        Add interface IDs of segment ASMarkings to path. Order of IDs depends on
-        up flag.
-        """
-        for i, asm in enumerate(asms):
-            isd_as = asm.isd_as()
-            hof = asm.pcbm(0).hof()
-            egress = hof.egress_if
-            ingress = hof.ingress_if
-            if up:
-                if egress:
-                    path.interfaces.append((isd_as, egress))
-                if ingress and i != len(asms) - 1:
-                    path.interfaces.append((isd_as, ingress))
-            else:
-                if ingress and i != 0:
-                    path.interfaces.append((isd_as, ingress))
-                if egress:
-                    path.interfaces.append((isd_as, egress))
-
-    @classmethod
     def _copy_segment(cls, segment, xover_start, xover_end, up=True):
         """
         Copy a :any:`PathSegment`, setting the up flag, the crossover point
@@ -493,7 +471,7 @@ class PathCombinator(object):
         up_iof.peer = down_iof.peer = False
         up_hofs.append(up_upstream_hof)
         down_hofs.insert(0, down_upstream_hof)
-        args = cls._path_args(up_iof, up_hofs, down_iof, down_hofs)
+        args = cls._shortcut_path_args(up_iof, up_hofs, down_iof, down_hofs)
         path = SCIONPath.from_values(*args)
         cls._build_interface_list(path, up_segment, up_index,
                                   down_segment, down_index)
@@ -523,7 +501,7 @@ class PathCombinator(object):
                                                down_segment.asm(down_index)):
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
-            args = cls._path_args(
+            args = cls._shortcut_path_args(
                 up_iof, up_hofs + [uph, up_upstream_hof],
                 down_iof, [down_upstream_hof, dph] + down_hofs)
             path = SCIONPath.from_values(*args)
@@ -532,6 +510,20 @@ class PathCombinator(object):
             path.mtu = min_mtu(um, dm)
             paths.append(path)
         return paths
+
+    @classmethod
+    def _shortcut_path_args(cls, up_iof, up_hofs, down_iof, down_hofs):
+        """
+        Helper function to build args list passed to path constructor
+        """
+        args = []
+        for iof, hofs in [(up_iof, up_hofs), (down_iof, down_hofs)]:
+            l = len(hofs)
+            # Any shortcut path with 2 HOFs is redundant, and can be dropped.
+            if l > 2:
+                iof.hops = l
+                args.extend([iof, hofs])
+        return args
 
     @classmethod
     def _build_interface_list(cls, path, up_seg, up_idx, down_seg, down_idx,
@@ -564,18 +556,26 @@ class PathCombinator(object):
         cls._add_interfaces(path, asm_list, up=False)
 
     @classmethod
-    def _path_args(cls, up_iof, up_hofs, down_iof, down_hofs):
+    def _add_interfaces(cls, path, asms, up=True):
         """
-        Helper function to build args list passed to path constructor
+        Add interface IDs of segment ASMarkings to path. Order of IDs depends on
+        up flag.
         """
-        args = []
-        for iof, hofs in [(up_iof, up_hofs), (down_iof, down_hofs)]:
-            l = len(hofs)
-            # Any shortcut path with 2 HOFs is redundant, and can be dropped.
-            if l > 2:
-                iof.hops = l
-                args.extend([iof, hofs])
-        return args
+        for i, asm in enumerate(asms):
+            isd_as = asm.isd_as()
+            hof = asm.pcbm(0).hof()
+            egress = hof.egress_if
+            ingress = hof.ingress_if
+            if up:
+                if egress:
+                    path.interfaces.append((isd_as, egress))
+                if ingress and i != len(asms) - 1:
+                    path.interfaces.append((isd_as, ingress))
+            else:
+                if ingress and i != 0:
+                    path.interfaces.append((isd_as, ingress))
+                if egress:
+                    path.interfaces.append((isd_as, egress))
 
     @classmethod
     def _check_connected(cls, up_segment, core_segment, down_segment):
