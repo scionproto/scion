@@ -18,7 +18,7 @@
 #ifndef UNIX_PATH_MAX
 #define UNIX_PATH_MAX 108
 #endif
-char sock_path[UNIX_PATH_MAX];
+static char sock_path[UNIX_PATH_MAX];
 
 void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
@@ -42,8 +42,8 @@ void *tcpmw_main_thread(void *unused) {
     env = getenv("DISPATCHER_ID");
     if (!env)
         env = DEFAULT_DISPATCHER_ID;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s.tcpmw.sock", LWIP_SOCK_DIR, env);
-    strncpy(sock_path, addr.sun_path, UNIX_PATH_MAX);
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s.sock", LWIP_SOCK_DIR, env);
+    strncpy(sock_path, addr.sun_path, sizeof(addr.sun_path));
 
     if (atexit(tcpmw_unlink_sock)){
         zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
