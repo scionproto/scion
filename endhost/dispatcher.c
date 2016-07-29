@@ -306,12 +306,17 @@ int bind_app_socket()
     struct sockaddr_un su;
     memset(&su, 0, sizeof(su));
     su.sun_family = AF_UNIX;
-    char *env = getenv("DISPATCHER_PATH");
-    if (env)
-        sprintf(su.sun_path, "%s.sock", env);
-    else
-        strcpy(su.sun_path, SCION_DISPATCHER_ADDR);
-    strcpy(socket_path, su.sun_path);
+    char *env = getenv("DISPATCHER_ID");
+    if (!env)
+        env = (char *)DEFAULT_DISPATCHER_ID;
+    snprintf(su.sun_path, sizeof(su.sun_path), "%s/%s.sock", DISPATCHER_DIR, env);
+    strncpy(socket_path, su.sun_path, sizeof(su.sun_path));
+    if (mkdir(DISPATCHER_DIR, 0755)) {
+        if (errno != EEXIST) {
+            zlog_fatal(zc, "failed to create dispatcher socket directory: %s", strerror(errno));
+            return -1;
+        }
+    }
     if (bind(app_socket, (struct sockaddr *)&su, sizeof(su)) < 0) {
         zlog_fatal(zc, "failed to bind app socket to %s", su.sun_path);
         return -1;

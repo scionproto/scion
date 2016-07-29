@@ -15,9 +15,16 @@
  */
 #include "middleware.h"
 
+#ifndef UNIX_PATH_MAX
+#define UNIX_PATH_MAX 108
+#endif
+static char sock_path[UNIX_PATH_MAX];
+
 void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
     int fd, cl;
+    char *env;
+
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: socket(): %s", strerror(errno));
         exit(-1);
@@ -32,7 +39,11 @@ void *tcpmw_main_thread(void *unused) {
     }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
+    env = getenv("DISPATCHER_ID");
+    if (!env)
+        env = DEFAULT_DISPATCHER_ID;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s.sock", LWIP_SOCK_DIR, env);
+    strncpy(sock_path, addr.sun_path, sizeof(addr.sun_path));
 
     if (atexit(tcpmw_unlink_sock)){
         zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
@@ -44,6 +55,7 @@ void *tcpmw_main_thread(void *unused) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: bind(): %s", strerror(errno));
         exit(-1);
     }
+    zlog_info(zc_tcp, "tcpmw_main_thread: bound to %s", sock_path);
 
     if (listen(fd, 5) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: listen(): %s", strerror(errno));
@@ -66,7 +78,7 @@ void *tcpmw_main_thread(void *unused) {
 
 void tcpmw_unlink_sock(void){
     errno = 0;
-    if (unlink(TCPMW_SOCKET)){
+    if (unlink(sock_path)){
         if (errno == ENOENT)
             zlog_warn(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
         else

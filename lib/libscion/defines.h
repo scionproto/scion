@@ -2,7 +2,8 @@
 #define _DEFINES_H_
 
 #define SCIOND_API_PORT 3333
-#define SCION_DISPATCHER_ADDR "/run/shm/dispatcher.sock"
+#define DISPATCHER_DIR "/run/shm/dispatcher"
+#define DEFAULT_DISPATCHER_ID "default"
 
 #define DISPATCHER_BUF_SIZE 65535
 

@@ -32,12 +32,10 @@
 #include "lwip/ip_addr.h"
 #include "lwip/sys.h"
 #include "lwip/tcpip.h"
-#include "libscion/address.h"
-#include "libscion/utils.h"
+#include "libscion/scion.h"
 #include "zlog.h"
 
-#define LWIP_SOCK_DIR "/run/shm/lwip/"
-#define TCPMW_SOCKET "/run/shm/lwip/lwip.sock"
+#define LWIP_SOCK_DIR (DISPATCHER_DIR "/lwip")
 #define SOCK_PATH_LEN 36  /* of "accept" socket */
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 1)
