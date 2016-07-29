@@ -97,7 +97,7 @@ DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 SCION_SERVICE_NAMES = (
     "BeaconServers",
     "CertificateServers",
-    "EdgeRouters",
+    "BorderRouters",
     "PathServers",
     "SibraServers",
 )
@@ -342,16 +342,18 @@ class TopoGenerator(object):
         self.virt_addrs = set()
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
+        self.router_pairs = defaultdict(int)
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
         return subnet.register(elem_id)
 
-    def _reg_link_addrs(self, as1, as2):
+    def _reg_link_addrs(self, as1, as2, id_):
         link_name = "%s<->%s" % tuple(sorted((as1, as2)))
+        link_name += "_%d" % id_
         subnet = self.subnet_gen.register(link_name)
-        as1_name = "er%ser%s" % (as1, as2)
-        as2_name = "er%ser%s" % (as2, as1)
+        as1_name = "br%sbr%s_%d" % (as1, as2, id_)
+        as2_name = "br%sbr%s_%d" % (as2, as1, id_)
         return subnet.register(as1_name), subnet.register(as2_name)
 
     def _iterate(self, f):
@@ -377,6 +379,7 @@ class TopoGenerator(object):
             if ltype == LINK_PARENT:
                 ltype_a = LINK_CHILD
                 ltype_b = LINK_PARENT
+            attrs["id"] = random.randint(0, 1 << 20)
             self.links[a].append((ltype_a, b, attrs))
             self.links[b].append((ltype_b, a, attrs))
 
@@ -415,20 +418,20 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_er_entries(self, topo_id):
-        er_id = 1
+        br_id = 1
         for ltype, remote, attrs in self.links[topo_id]:
-            self._gen_er_entry(topo_id, er_id, remote, ltype, attrs)
-            er_id += 1
+            self._gen_er_entry(topo_id, br_id, remote, ltype, attrs)
+            br_id += 1
 
-    def _gen_er_entry(self, local, er_id, remote, remote_type, attrs):
-        elem_id = "er%ser%s" % (local, remote)
+    def _gen_er_entry(self, local, br_id, remote, remote_type, attrs):
         public_addr, remote_addr = self._reg_link_addrs(
-            local, remote)
-        self.topo_dicts[local]["EdgeRouters"][elem_id] = {
+            local, remote, attrs["id"])
+        elem_id = "br%s-%d" % (local, br_id)
+        self.topo_dicts[local]["BorderRouters"][elem_id] = {
             'Addr': self._reg_addr(local, elem_id),
             'Port': random.randint(30050, 30100),
             'Interface': {
-                'IFID': er_id,
+                'IFID': br_id,
                 'ISD_AS': str(remote),
                 'LinkType': remote_type,
                 'Addr': public_addr,
@@ -503,7 +506,7 @@ class SupervisorGenerator(object):
         for key, cmd in (
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "bin/cert_server"),
-            ("EdgeRouters", "bin/router"),
+            ("BorderRouters", "bin/router"),
             ("PathServers", "bin/path_server"),
             ("SibraServers", "bin/sibra_server"),
         ):
@@ -548,7 +551,7 @@ class SupervisorGenerator(object):
     def _write_elem_conf(self, elem, entry, conf_path):
         config = configparser.ConfigParser(interpolation=None)
         config["program:%s" % elem] = self._common_entry(elem, entry)
-        if self.mininet and not elem.startswith("er"):
+        if self.mininet and not elem.startswith("br"):
             disp = "dp-" + elem
             config["program:%s" % disp] =\
                 self._common_entry(disp, ["bin/dispatcher"])

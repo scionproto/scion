@@ -239,10 +239,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param if_id: The interface ID of the corresponding interface.
         :type if_id: int.
         """
-        if if_id not in self.ifid2er:
+        if if_id not in self.ifid2br:
             logging.error("Unknown Interface ID: %d", if_id)
             return
-        next_hop = self.ifid2er[if_id]
+        next_hop = self.ifid2br[if_id]
         self.send(pkt, next_hop.addr, next_hop.port)
 
     def _send_path_segments(self, pkt, up=None, core=None, down=None):

@@ -77,6 +77,11 @@ class PathPolicy(object):
             logging.info("PathStore: pcb discarded(%s): %s",
                          ", ".join(reasons), pcb.short_desc())
             return False
+        ia = self._check_remote_ifid(pcb)
+        if ia:
+            logging.error("PathStore: pcb discarded, remote IFID of %s unknown",
+                          ia)
+            return False
         return True
 
     def _check_unwanted_ases(self, pcb):  # pragma: no cover
@@ -115,6 +120,23 @@ class PathPolicy(object):
         _check_range("AvailableBandwidth", 10)
         _check_range("TotalBandwidth", 10)
         return reasons
+
+    def _check_remote_ifid(self, pcb):
+        """
+        Checkes whether any PCB markings have unset remote IFID values for
+        up/downstream ASes. This can happen during normal startup depending
+        on the timing of PCB propagation vs IFID keep-alives, but should
+        not happen once the infrastructure is settled.
+        Remote IFID is only allowed to be 0 if the corresponding ISD-AS is
+        0-0.
+        """
+        for asm in pcb.iter_asms():
+            for pcbm in asm.iter_pcbms():
+                if pcbm.inIA().int() and not pcbm.p.inIF:
+                    return pcbm.inIA()
+                if pcbm.outIA().int() and not pcbm.p.outIF:
+                    return pcbm.outIA()
+        return None
 
     @classmethod
     def from_file(cls, policy_file):  # pragma: no cover

@@ -418,7 +418,7 @@ class SibraExtBase(HopByHopExtension):
         assert self.curr_hop >= self.req_block.info.fail_hop
         if dir_fwd:
             # Req was already rejected, and this is on egress, so update the
-            # offer that the ingress ER made.
+            # offer that the ingress BR made.
             offer_hop = self.curr_hop - self.req_block.info.fail_hop
             curr_offer = self.req_block.offers[offer_hop]
             curr_offer.min(bw_hint)

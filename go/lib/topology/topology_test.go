@@ -32,8 +32,8 @@ func Test_Topo(t *testing.T) {
 		"cs1-11-1": BasicElem{mkYIP("127.0.0.66"), 30081},
 		"cs1-11-2": BasicElem{mkYIP("127.0.0.67"), 30073},
 	}
-	ers := map[string]TopoER{
-		"er1-11er1-12": TopoER{
+	brs := map[string]TopoBR{
+		"br1-11-1": TopoBR{
 			BasicElem{mkYIP("127.0.0.69"), 30097},
 			TopoIF{mkYIP("127.0.0.6"), 50001, mkYIP("127.0.0.7"), 50000,
 				1, addr.ISD_AS{I: 1, A: 12}, 1472, "ROUTING"},
@@ -60,7 +60,7 @@ func Test_Topo(t *testing.T) {
 		c := CurrTopo
 		So(c.BS, ShouldResemble, bses)
 		So(c.CS, ShouldResemble, cses)
-		So(c.ER, ShouldResemble, ers)
+		So(c.BR, ShouldResemble, brs)
 		So(c.PS, ShouldResemble, pses)
 		So(c.SB, ShouldResemble, sbs)
 		So(c.ZK, ShouldResemble, zks)
@@ -70,7 +70,7 @@ func Test_Topo(t *testing.T) {
 		// And finally, the whole thing combined. This ensures that any fields
 		// that are forgotten get noticed.
 		So(c, ShouldResemble, &Topo{
-			BS: bses, CS: cses, ER: ers, PS: pses, SB: sbs, ZK: zks,
+			BS: bses, CS: cses, BR: brs, PS: pses, SB: sbs, ZK: zks,
 			Core: core, IA: ia, MTU: mtu,
 		})
 	})

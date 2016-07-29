@@ -10,8 +10,8 @@ CertificateServers:
     Addr: 127.0.0.67/28
     Port: 30073
 Core: true
-EdgeRouters:
-  er1-11er1-12:
+BorderRouters:
+  br1-11-1:
     Addr: 127.0.0.69/28
     Interface:
       Addr: 127.0.0.6/31

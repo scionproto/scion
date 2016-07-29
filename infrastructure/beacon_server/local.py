@@ -92,11 +92,11 @@ class LocalBeaconServer(BeaconServer):
         pkt = self._build_packet(SVCType.PS_A, dst_ia=dst_ia, path=core_path,
                                  payload=records)
         fwd_if = core_path.get_fwd_if()
-        if fwd_if not in self.ifid2er:
+        if fwd_if not in self.ifid2br:
             raise SCIONKeyError(
                 "Invalid IF %d in CorePath" % fwd_if)
 
-        next_hop = self.ifid2er[fwd_if]
+        next_hop = self.ifid2br[fwd_if]
         self.send(pkt, next_hop.addr, next_hop.port)
 
     def register_segments(self):
@@ -170,6 +170,8 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
+            if not pcb:
+                continue
             pcb.remove_crypto()
             pcb.sign(self.signing_key)
             try:
@@ -186,6 +188,8 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
+            if not pcb:
+                continue
             pcb.remove_crypto()
             pcb.sign(self.signing_key)
             self.register_down_segment(pcb)
