@@ -1183,8 +1183,7 @@ void SSPConnectionManager::threadCleanup()
 // SUDP
 
 SUDPConnectionManager::SUDPConnectionManager(int sock, const char *sciond)
-    : PathManager(sock, sciond),
-    mLastPath(-1)
+    : PathManager(sock, sciond)
 {
     memset(&mLastProbeTime, 0, sizeof(struct timeval));
 }
@@ -1202,19 +1201,15 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
         pthread_mutex_unlock(&mPathMutex);
         return -1;
     }
-    int j = (mLastPath + 1) % mPaths.size();
     for (size_t i = 0; i < mPaths.size(); i++) {
-        if (mPaths[j] && mPaths[j]->isUp()) {
-            p = mPaths[j];
+        if (mPaths[i] && mPaths[i]->isUp()) {
+            p = mPaths[i];
             break;
         }
-        j = (j + 1) % mPaths.size();
     }
     int ret = -1;
-    if (p) {
-        mLastPath = j;
+    if (p)
         ret = p->sendPacket(packet, mSendSocket);
-    }
     pthread_mutex_unlock(&mPathMutex);
     return ret;
 }

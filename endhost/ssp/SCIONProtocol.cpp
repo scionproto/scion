@@ -190,6 +190,13 @@ int SCIONProtocol::getPort()
     return mSrcPort;
 }
 
+int SCIONProtocol::maxPayloadSize(double timeout)
+{
+    if (!mPathManager)
+        return -1;
+    return mPathManager->maxPayloadSize(timeout);
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol(int sock, const char *sciond)

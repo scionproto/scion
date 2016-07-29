@@ -543,6 +543,12 @@ class ScionBaseSocket(object):
         """
         self.libssock.SCIONSetTimeout(self.fd, c_double(timeout))
 
+    def max_payload_size(self, timeout=0.0):
+        """
+        Get max payload size that can be used on any path known by socket.
+        """
+        return self.libssock.SCIONMaxPayloadSize(self.fd, c_double(timeout))
+
 
 class ScionServerSocket(ScionBaseSocket):
     """

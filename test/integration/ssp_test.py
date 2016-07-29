@@ -52,6 +52,10 @@ class SSPClient(TestClientBase):
             sock.close()
             return None
         sock.settimeout(self._timeout)
+        payload_size = sock.max_payload_size()
+        logging.debug("Max payload size = %d", payload_size)
+        global DATA_LEN
+        DATA_LEN = payload_size * 2
         return sock
 
     def _get_path(self, api):

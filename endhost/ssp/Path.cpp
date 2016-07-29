@@ -543,7 +543,10 @@ int SSPPath::timeUntilReady()
 int SSPPath::getPayloadLen(bool ack)
 {
     int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
-    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * (ISD_AS_LEN + MAX_HOST_ADDR_LEN) + mPathLen + hlen);
+    int src_len = ISD_AS_LEN + get_addr_len(mLocalAddr.host.addr_type);
+    int dst_len = ISD_AS_LEN + get_addr_len(mDstAddr.host.addr_type);
+    int padded_len = ((src_len + dst_len) + SCION_ADDR_PAD - 1) & ~(SCION_ADDR_PAD - 1);
+    return mMTU - (sizeof(SCIONCommonHeader) + padded_len + mPathLen + hlen);
 }
 
 void SSPPath::setIndex(int index)
@@ -612,6 +615,9 @@ int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
     }
     sch.total_len = htons(packet_len);
 
+    if (packet_len > mMTU)
+        return -EMSGSIZE;
+
     uint8_t *buf = (uint8_t *)malloc(packet_len);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &sh);
@@ -634,9 +640,10 @@ int SUDPPath::sendPacket(SCIONPacket *packet, int sock)
 
 int SUDPPath::getPayloadLen(bool ack)
 {
-    return mMTU -
-        (28 + sizeof(SCIONCommonHeader) + 2 * (ISD_AS_LEN + MAX_HOST_ADDR_LEN) +
-         mPathLen + sizeof(SUDPHeader));
+    int src_len = ISD_AS_LEN + get_addr_len(mLocalAddr.host.addr_type);
+    int dst_len = ISD_AS_LEN + get_addr_len(mDstAddr.host.addr_type);
+    int padded_len = ((src_len + dst_len) + SCION_ADDR_PAD - 1) & ~(SCION_ADDR_PAD - 1);
+    return mMTU - (sizeof(SCIONCommonHeader) + padded_len + mPathLen + sizeof(SUDPHeader));
 }
 
 void SUDPPath::handleTimeout(struct timeval *current)

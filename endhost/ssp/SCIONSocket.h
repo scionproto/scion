@@ -58,6 +58,7 @@ public:
     void threadCleanup();
 
     int getPort();
+    int maxPayloadSize(double timeout=0.0);
 
 private:
     bool checkChildren(SCIONPacket *packet, uint8_t *ptr);
