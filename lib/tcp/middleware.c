@@ -424,12 +424,12 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
         lwip_err = netconn_write_partly(args->conn, buf + sent, len - sent, NETCONN_COPY, &tmp_sent);
         if (lwip_err != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send(): netconn_write(): %s", lwip_strerr(lwip_err));
-            zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %lu/%lu/%d",
+            zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
                        sent, tmp_sent, len);
             goto exit;
         }
         sent += tmp_sent;
-        zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %lu/%lu/%d",
+        zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
                    sent, tmp_sent, len);
     }
 

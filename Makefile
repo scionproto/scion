@@ -2,7 +2,7 @@
 
 SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
 
-all: go clibs dispatcher
+all: clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
