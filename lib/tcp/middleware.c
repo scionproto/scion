@@ -39,11 +39,10 @@ void *tcpmw_main_thread(void *unused) {
     }
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    env = getenv("DISPATCHER_PREFIX");
-    if (env)
-        snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s_lwip.sock", LWIP_SOCK_DIR, env);
-    else
-        strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
+    env = getenv("DISPATCHER_ID");
+    if (!env)
+        env = DEFAULT_DISPATCHER_ID;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s.tcpmw.sock", LWIP_SOCK_DIR, env);
     strncpy(sock_path, addr.sun_path, UNIX_PATH_MAX);
 
     if (atexit(tcpmw_unlink_sock)){
@@ -56,6 +55,7 @@ void *tcpmw_main_thread(void *unused) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: bind(): %s", strerror(errno));
         exit(-1);
     }
+    zlog_info(zc_tcp, "tcpmw_main_thread: bound to %s", sock_path);
 
     if (listen(fd, 5) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: listen(): %s", strerror(errno));

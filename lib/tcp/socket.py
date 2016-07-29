@@ -23,13 +23,13 @@ import struct
 import uuid
 
 # SCION
+from lib.defines import DEFAULT_DISPATCHER_ID, DISPATCHER_DIR
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.svc import SVCType
 from lib.util import recv_all
 
-LWIP_SOCK_DIR = "/run/shm/lwip/"
-TCPMW_SOCKET = "/run/shm/lwip/lwip.sock"
+LWIP_SOCK_DIR = os.path.join(DISPATCHER_DIR, "lwip")
 AF_SCION = 11
 SOCK_STREAM = socket.SOCK_STREAM
 MAX_MSG_LEN = 2 << 31  # u32_t is used as size_t at middleware
@@ -212,12 +212,9 @@ class SCIONTCPSocket(object):
         assert self._lwip_sock is None
         # Create a socket to LWIP
         self._lwip_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        env = os.getenv("DISPATCHER_PREFIX")
-        if env:
-            path = os.join(LWIP_SOCK_DIR, env, "_lwip.sock")
-            self._lwip_sock.connect(path)
-        else:
-            self._lwip_sock.connect(TCPMW_SOCKET)
+        env = os.getenv("DISPATCHER_ID") or DEFAULT_DISPATCHER_ID
+        path = os.path.join(LWIP_SOCK_DIR, env + ".tcpmw.sock")
+        self._lwip_sock.connect(path)
         # Register it
         req = APICmd.NEW_SOCK
         self._to_lwip(req)

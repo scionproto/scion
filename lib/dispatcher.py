@@ -26,9 +26,9 @@ import time
 
 # SCION
 from lib.defines import (
+    DEFAULT_DISPATCHER_ID,
     DISPATCHER_DIR,
     DISPATCHER_TIMEOUT,
-    SCION_DISPATCHER_ADDR,
 )
 from lib.thread import kill_self
 from lib.types import L4Proto
@@ -82,11 +82,8 @@ def _pack_dispatcher_msg(addr, port, svc, scmp):
 def _connect_dispatcher(sock, init):
     start = time.time()
     now = start
-    env = os.getenv("DISPATCHER_PREFIX")
-    if env:
-        path = os.join(DISPATCHER_DIR, env, "_dispatcher.sock")
-    else:
-        path = SCION_DISPATCHER_ADDR
+    dispatcher_id = os.getenv("DISPATCHER_ID") or DEFAULT_DISPATCHER_ID
+    path = os.path.join(DISPATCHER_DIR, dispatcher_id + ".sock")
     logging.debug("connect to dispatcher at path %s", path)
     while True:
         try:
