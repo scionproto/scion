@@ -15,6 +15,11 @@
  */
 #include "middleware.h"
 
+#ifndef UNIX_PATH_MAX
+#define UNIX_PATH_MAX 108
+#endif
+char sock_path[UNIX_PATH_MAX];
+
 void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
     int fd, cl;
@@ -39,6 +44,7 @@ void *tcpmw_main_thread(void *unused) {
         snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s_lwip.sock", LWIP_SOCK_DIR, env);
     else
         strncpy(addr.sun_path, TCPMW_SOCKET, sizeof(addr.sun_path)-1);
+    strncpy(sock_path, addr.sun_path, UNIX_PATH_MAX);
 
     if (atexit(tcpmw_unlink_sock)){
         zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
@@ -72,7 +78,7 @@ void *tcpmw_main_thread(void *unused) {
 
 void tcpmw_unlink_sock(void){
     errno = 0;
-    if (unlink(TCPMW_SOCKET)){
+    if (unlink(sock_path)){
         if (errno == ENOENT)
             zlog_warn(zc_tcp, "tcpmw_main_thread: unlink(): %s", strerror(errno));
         else
