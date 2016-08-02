@@ -342,19 +342,15 @@ class TopoGenerator(object):
         self.virt_addrs = set()
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
-        self.router_pairs = defaultdict(int)
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
         return subnet.register(elem_id)
 
-    def _reg_link_addrs(self, as1, as2, id_):
-        link_name = "%s<->%s" % tuple(sorted((as1, as2)))
-        link_name += "_%d" % id_
+    def _reg_link_addrs(self, local_br, remote_br):
+        link_name = str(sorted((local_br, remote_br)))
         subnet = self.subnet_gen.register(link_name)
-        as1_name = "br%sbr%s_%d" % (as1, as2, id_)
-        as2_name = "br%sbr%s_%d" % (as2, as1, id_)
-        return subnet.register(as1_name), subnet.register(as2_name)
+        return subnet.register(local_br), subnet.register(remote_br)
 
     def _iterate(self, f):
         for isd_as, as_conf in self.topo_config["ASes"].items():
@@ -370,6 +366,7 @@ class TopoGenerator(object):
         return self.topo_dicts, self.zookeepers, networks
 
     def _read_links(self):
+        br_ids = defaultdict(int)
         for attrs in self.topo_config["links"]:
             # Pop the basic attributes, then append the remainder to the link
             # entry.
@@ -379,9 +376,12 @@ class TopoGenerator(object):
             if ltype == LINK_PARENT:
                 ltype_a = LINK_CHILD
                 ltype_b = LINK_PARENT
-            attrs["id"] = random.randint(0, 1 << 20)
-            self.links[a].append((ltype_a, b, attrs))
-            self.links[b].append((ltype_b, a, attrs))
+            br_ids[a] += 1
+            a_br = "br%s-%d" % (a, br_ids[a])
+            br_ids[b] += 1
+            b_br = "br%s-%d" % (b, br_ids[b])
+            self.links[a].append((ltype_a, b, attrs, a_br, b_br))
+            self.links[b].append((ltype_b, a, attrs, b_br, a_br))
 
     def _generate_as_topo(self, topo_id, as_conf):
         mtu = as_conf.get('mtu', self.default_mtu)
@@ -418,20 +418,23 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_er_entries(self, topo_id):
-        br_id = 1
-        for ltype, remote, attrs in self.links[topo_id]:
-            self._gen_er_entry(topo_id, br_id, remote, ltype, attrs)
-            br_id += 1
+        links = self.links[topo_id]
+        random.shuffle(links)
+        ifid = 1
+        for ltype, remote, attrs, local_br, remote_br in links:
+            self._gen_er_entry(topo_id, ifid, remote, ltype, attrs, local_br,
+                               remote_br)
+            ifid += 1
 
-    def _gen_er_entry(self, local, br_id, remote, remote_type, attrs):
+    def _gen_er_entry(self, local, ifid, remote, remote_type, attrs, local_br,
+                      remote_br):
         public_addr, remote_addr = self._reg_link_addrs(
-            local, remote, attrs["id"])
-        elem_id = "br%s-%d" % (local, br_id)
-        self.topo_dicts[local]["BorderRouters"][elem_id] = {
-            'Addr': self._reg_addr(local, elem_id),
+            local_br, remote_br)
+        self.topo_dicts[local]["BorderRouters"][local_br] = {
+            'Addr': self._reg_addr(local, local_br),
             'Port': random.randint(30050, 30100),
             'Interface': {
-                'IFID': br_id,
+                'IFID': ifid,
                 'ISD_AS': str(remote),
                 'LinkType': remote_type,
                 'Addr': public_addr,
