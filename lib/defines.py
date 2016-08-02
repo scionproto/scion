@@ -43,6 +43,8 @@ AS_CONF_FILE = "as.yml"
 PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
+#: IFIDs list
+IFIDS_FILE = "ifids.yml"
 #: AS list
 AS_LIST_FILE = "as_list.yml"
 
