@@ -342,7 +342,8 @@ class TopoGenerator(object):
         self.virt_addrs = set()
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
-        self.router_pairs = defaultdict(int)
+        self.link_br_ids = defaultdict(int)
+        self.next_br_ids = defaultdict(int)
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -352,9 +353,19 @@ class TopoGenerator(object):
         link_name = "%s<->%s" % tuple(sorted((as1, as2)))
         link_name += "_%d" % id_
         subnet = self.subnet_gen.register(link_name)
-        as1_name = "br%sbr%s_%d" % (as1, as2, id_)
-        as2_name = "br%sbr%s_%d" % (as2, as1, id_)
-        return subnet.register(as1_name), subnet.register(as2_name)
+        as1_id = self._get_br_id(as1, id_)
+        as2_id = self._get_br_id(as2, id_)
+        as1_name = "br%s-%d" % (as1, as1_id)
+        as2_name = "br%s-%d" % (as2, as2_id)
+        return subnet.register(as1_name), subnet.register(as2_name), as1_id
+
+    def _get_br_id(self, as_, id_):
+        as_id = self.link_br_ids["%s_%d" % (as_, id_)]
+        if not as_id:
+            as_id = self.next_br_ids[as_] + 1
+            self.next_br_ids[as_] = as_id
+            self.link_br_ids["%s_%d" % (as_, id_)] = as_id
+        return as_id
 
     def _iterate(self, f):
         for isd_as, as_conf in self.topo_config["ASes"].items():
@@ -393,7 +404,7 @@ class TopoGenerator(object):
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
-        self._gen_er_entries(topo_id)
+        self._gen_br_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
@@ -417,14 +428,12 @@ class TopoGenerator(object):
             d["Port"] = random.randint(30050, 30100)
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
-    def _gen_er_entries(self, topo_id):
-        br_id = 1
+    def _gen_br_entries(self, topo_id):
         for ltype, remote, attrs in self.links[topo_id]:
-            self._gen_er_entry(topo_id, br_id, remote, ltype, attrs)
-            br_id += 1
+            self._gen_br_entry(topo_id, remote, ltype, attrs)
 
-    def _gen_er_entry(self, local, br_id, remote, remote_type, attrs):
-        public_addr, remote_addr = self._reg_link_addrs(
+    def _gen_br_entry(self, local, remote, remote_type, attrs):
+        public_addr, remote_addr, br_id = self._reg_link_addrs(
             local, remote, attrs["id"])
         elem_id = "br%s-%d" % (local, br_id)
         self.topo_dicts[local]["BorderRouters"][elem_id] = {
