@@ -32,7 +32,7 @@ Necessary steps in order to run SCION:
    ```
    mkdir -p "$GOPATH/src/github.com/netsec-ethz"
    cd "$GOPATH/src/github.com/netsec-ethz"
-   git clone https://github.com/netsec-ethz/scion
+   git clone --recursive https://github.com/netsec-ethz/scion
    cd scion
    ```
 
