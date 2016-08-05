@@ -213,7 +213,7 @@ class SCIONTCPSocket(object):
         # Create a socket to LWIP
         self._lwip_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         env = os.getenv("DISPATCHER_ID") or DEFAULT_DISPATCHER_ID
-        path = os.path.join(LWIP_SOCK_DIR, env + ".tcpmw.sock")
+        path = os.path.join(LWIP_SOCK_DIR, env + ".sock")
         self._lwip_sock.connect(path)
         # Register it
         req = APICmd.NEW_SOCK
