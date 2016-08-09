@@ -16,7 +16,6 @@
 ==========================================
 """
 # Stdlib
-import ipaddress
 import logging
 import os
 import selectors
@@ -34,6 +33,9 @@ from socket import (
     SO_REUSEADDR,
     socket,
 )
+
+# External
+from external import ipaddress
 
 # SCION
 from lib.defines import SCION_BUFLEN

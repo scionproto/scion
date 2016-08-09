@@ -16,7 +16,7 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
-    topology/generator.py "$@"
+    topology/generator.py "$@" || exit 1
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
         rm -rf /run/shm/scion-zk

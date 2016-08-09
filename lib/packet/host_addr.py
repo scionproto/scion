@@ -18,7 +18,9 @@
 
 # Stdlib
 import struct
-from ipaddress import (
+
+# External
+from external.ipaddress import (
     AddressValueError,
     IPV4LENGTH,
     IPV6LENGTH,
