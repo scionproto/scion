@@ -16,12 +16,12 @@
 ====================================================================
 """
 # Stdlib
-import ipaddress
 from unittest.mock import call, patch
 
 # External packages
 import nose
 import nose.tools as ntools
+from external import ipaddress
 
 # SCION
 from lib.errors import SCIONParseError

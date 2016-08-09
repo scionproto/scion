@@ -6,7 +6,7 @@ import sys
 
 # External
 import configparser
-import ipaddress
+from external import ipaddress
 from mininet.cli import CLI
 from mininet.log import lg
 from mininet.link import Link, TCIntf

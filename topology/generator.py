@@ -28,12 +28,12 @@ import random
 import sys
 from collections import defaultdict
 from io import StringIO
-from ipaddress import ip_interface, ip_network
 from string import Template
 
 # External packages
 import yaml
 from Crypto import Random
+from external.ipaddress import ip_interface, ip_network
 
 # SCION
 from lib.config import Config
