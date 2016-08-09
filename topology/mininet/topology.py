@@ -1,12 +1,12 @@
 #!/usr/bin/python2
 
 # Stdlib
+import ipaddress
 import os
 import sys
 
 # External
 import configparser
-import ipaddress
 from mininet.cli import CLI
 from mininet.log import lg
 from mininet.link import Link, TCIntf

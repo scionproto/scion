@@ -22,10 +22,10 @@ import logging
 import os
 import select
 import socket
-from ipaddress import IPv4Address
 
 # External packages
 import nose
+from external.ipaddress import IPv4Address
 
 # SCION
 from lib.crypto.asymcrypto import sign
