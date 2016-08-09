@@ -80,12 +80,9 @@ from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
-    IFIDType,
-    PCBType,
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
-    SIBRAPayloadType,
 )
 from lib.util import SCIONTime, hex_str, sleep_interval
 
@@ -132,14 +129,13 @@ class Router(SCIONElement):
             "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
                              self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
-            PayloadClass.IFID: {IFIDType.PAYLOAD: self.process_ifid_request},
+            PayloadClass.PCB: {None: self.process_pcb},
+            PayloadClass.IFID: {None: self.process_ifid_request},
             PayloadClass.CERT: defaultdict(
                 lambda: self.relay_cert_server_packet),
             PayloadClass.PATH: defaultdict(
                 lambda: self.process_path_mgmt_packet),
-            PayloadClass.SIBRA: {SIBRAPayloadType.EMPTY:
-                                 self.fwd_sibra_service_pkt},
+            PayloadClass.SIBRA: {None: self.fwd_sibra_service_pkt},
         }
         self.SCMP_PLD_CLASS_MAP = {
             SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.process_revocation},
@@ -393,7 +389,7 @@ class Router(SCIONElement):
             whether or not the packet is from the local AS.
         """
         payload = mgmt_pkt.get_payload()
-        if payload.PAYLOAD_TYPE == PMT.IFSTATE_INFO:
+        if payload.PAYLOAD_TYPE == PMT.IFSTATE_INFOS:
             # handle state update
             logging.debug("Received IFState update:\n%s",
                           str(mgmt_pkt.get_payload()))

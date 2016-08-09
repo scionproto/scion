@@ -17,3 +17,13 @@ struct TRCReq {
 struct TRCRep {
     trc @0 :Data;
 }
+
+struct CertMgmt {
+    union {
+        unset @0 :Void;
+        certChainReq @1 :CertChainReq;
+        certChainRep @2 :CertChainRep;
+        trcReq @3 :TRCReq;
+        trcRep @4 :TRCRep;
+    }
+}

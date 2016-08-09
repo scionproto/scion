@@ -26,22 +26,14 @@ from lib.packet.path_mgmt.seg_recs import (
     PathRecordsSync,
 )
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
-from lib.types import PathMgmtType as PMT
 
 
-_TYPE_MAP = {
-    PMT.REQUEST: PathSegmentReq,
-    PMT.REPLY: PathRecordsReply,
-    PMT.REG: PathRecordsReg,
-    PMT.SYNC: PathRecordsSync,
-    PMT.REVOCATION: RevocationInfo,
-    PMT.IFSTATE_INFO: IFStatePayload,
-    PMT.IFSTATE_REQ: IFStateRequest,
-}
-
-
-def parse_pathmgmt_payload(type_, data):
-    if type_ not in _TYPE_MAP:
-        raise SCIONParseError("Unsupported path management type: %s", type_)
-    handler = _TYPE_MAP[type_]
-    return handler.from_raw(data.pop())
+def parse_pathmgmt_payload(wrapper):
+    type_ = wrapper.which()
+    for cls_ in (
+        PathSegmentReq, PathRecordsReply, PathRecordsReg, PathRecordsSync,
+        RevocationInfo, IFStatePayload, IFStateRequest
+    ):
+        if cls_.PAYLOAD_TYPE == type_:
+            return cls_(getattr(wrapper, type_))
+    raise SCIONParseError("Unsupported path management type: %s", type_)

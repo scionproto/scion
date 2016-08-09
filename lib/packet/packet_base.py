@@ -23,6 +23,7 @@ from abc import ABCMeta, abstractmethod
 import capnp
 
 # SCION
+import proto.scion_capnp as P
 from lib.errors import SCIONParseError
 from lib.util import hex_str
 
@@ -217,16 +218,20 @@ class PayloadRaw(PayloadBase):  # pragma: no cover
 
 class SCIONPayloadBaseProto(Cerealizable):  # pragma: no cover
     """
-    All child classes must define two attributes:
-        PAYLOAD_CLASS: Global payload class, defined by PayloadClass.
-        PAYLOAD_TYPE: Payload type specific to that class. Defined by the
-        various payload classes
+    All child classes must define the PAYLOAD_CLASS attributed, defined by
+    lib.types.PayloadClass
     """
-    # 1B each for payload class and type.
-    METADATA_LEN = 2
+    # 4B length prepended to the capnp block
+    METADATA_LEN = 4
+    PAYLOAD_TYPE = None
 
     def pack_full(self):
-        return self.pack_meta() + self.pack()
+        assert not self._packed, "May only be packed once"
+        self._packed = True
+        return self._pack_full(self.p)
 
-    def pack_meta(self):
-        return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
+    def _pack_full(self, p):
+        wrapper = P.SCION.new_message(**{self.PAYLOAD_CLASS: p})
+        raw = wrapper.to_bytes_packed()
+        meta = struct.pack("!I", len(raw))
+        return meta + raw

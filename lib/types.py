@@ -73,32 +73,31 @@ class L4Proto(TypeBase):
 ############################
 # Payload class/types
 ############################
-class PayloadClass(TypeBase):
-    PCB = 0
-    IFID = 1
-    CERT = 2
-    PATH = 3
-    SIBRA = 4
+class PayloadClass(object):
+    PCB = "pcb"
+    IFID = "ifid"
+    CERT = "certMgmt"
+    PATH = "pathMgmt"
+    SIBRA = "sibra"
 
 
-class CertMgmtType(TypeBase):
-    CERT_CHAIN_REQ = 0
-    CERT_CHAIN_REPLY = 1
-    TRC_REQ = 2
-    TRC_REPLY = 3
+class CertMgmtType(object):
+    CERT_CHAIN_REQ = "certChainReq"
+    CERT_CHAIN_REPLY = "certChainRep"
+    TRC_REQ = "trcReq"
+    TRC_REPLY = "trcRep"
 
 
-class PathMgmtType(TypeBase):
-    """
-    Enum of path management packet types.
-    """
-    REQUEST = 0
-    REPLY = 1
-    REG = 2  # Path registration (sent by Beacon Server).
-    SYNC = 3  # For records synchronization purposes (used by Path Servers).
-    REVOCATION = 4
-    IFSTATE_INFO = 5
-    IFSTATE_REQ = 6
+class PathMgmtType(object):
+    REQUEST = "segReq"
+    REPLY = "segReply"
+    # Path registration (sent by Beacon Server).
+    REG = "segReg"
+    # For records synchronization purposes (used by Path Servers).
+    SYNC = "segSync"
+    REVOCATION = "revInfo"
+    IFSTATE_REQ = "ifStateReq"
+    IFSTATE_INFOS = "ifStateInfos"
 
 
 class PathSegmentType(TypeBase):
@@ -109,18 +108,6 @@ class PathSegmentType(TypeBase):
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
     GENERIC = 3  # FIXME(PSz): experimental for now.
-
-
-class PCBType(TypeBase):
-    SEGMENT = 0
-
-
-class IFIDType(object):
-    PAYLOAD = 0
-
-
-class SIBRAPayloadType(TypeBase):
-    EMPTY = 0
 
 
 ############################

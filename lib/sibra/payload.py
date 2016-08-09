@@ -20,9 +20,8 @@ import capnp  # noqa
 
 # SCION
 import proto.sibra_capnp as P
-from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBaseProto
-from lib.types import PayloadClass, SIBRAPayloadType
+from lib.types import PayloadClass
 
 
 class SIBRAPayload(SCIONPayloadBaseProto):  # pragma: no cover
@@ -32,18 +31,11 @@ class SIBRAPayload(SCIONPayloadBaseProto):  # pragma: no cover
     NAME = "SIBRAPayload"
     P_CLS = P.SibraPayload
     PAYLOAD_CLASS = PayloadClass.SIBRA
-    PAYLOAD_TYPE = SIBRAPayloadType.EMPTY
 
     @classmethod
     def from_values(cls):
         return cls(cls.P_CLS.new_message())
 
 
-def parse_sibra_payload(type_, data):  # pragma: no cover
-    type_map = {
-        SIBRAPayloadType.EMPTY: SIBRAPayload,
-    }
-    if type_ not in type_map:
-        raise SCIONParseError("Unsupported sibra payload type: %s", type_)
-    handler = type_map[type_]
-    return handler.from_raw(data.pop())
+def parse_sibra_payload(p):  # pragma: no cover
+    return SIBRAPayload(p)
