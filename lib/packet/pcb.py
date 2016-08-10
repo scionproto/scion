@@ -27,14 +27,13 @@ import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain
 from lib.defines import EXP_TIME_UNIT
-from lib.errors import SCIONParseError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
 from lib.packet.path import SCIONPath  # , min_mtu
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
-from lib.types import PCBType, PayloadClass
+from lib.types import PayloadClass
 from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
@@ -153,7 +152,6 @@ class ASMarking(Cerealizable):
 class PathSegment(SCIONPayloadBaseProto):
     NAME = "PathSegment"
     PAYLOAD_CLASS = PayloadClass.PCB
-    PAYLOAD_TYPE = PCBType.SEGMENT
     P_CLS = P.PathSegment
 
     def __init__(self, p):  # pragma: no cover
@@ -347,11 +345,5 @@ class PathSegment(SCIONPayloadBaseProto):
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
 
-def parse_pcb_payload(type_, data):  # pragma: no cover
-    type_map = {
-        PCBType.SEGMENT: PathSegment.from_raw,
-    }
-    if type_ not in type_map:
-        raise SCIONParseError("Unsupported pcb type: %s", type_)
-    handler = type_map[type_]
-    return handler(data.pop())
+def parse_pcb_payload(p):  # pragma: no cover
+    return PathSegment(p)

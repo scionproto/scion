@@ -70,8 +70,6 @@ from lib.path_store import PathPolicy
 from lib.thread import thread_safety_net, kill_self
 from lib.types import (
     CertMgmtType,
-    IFIDType,
-    PCBType,
     PathMgmtType as PMT,
     PayloadClass,
 )
@@ -135,8 +133,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.PCB: {PCBType.SEGMENT: self.handle_pcb},
-            PayloadClass.IFID: {IFIDType.PAYLOAD: self.handle_ifid_packet},
+            PayloadClass.PCB: {None: self.handle_pcb},
+            PayloadClass.IFID: {None: self.handle_ifid_packet},
             PayloadClass.CERT: {
                 CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_rep,
                 CertMgmtType.TRC_REPLY: self.process_trc_rep,

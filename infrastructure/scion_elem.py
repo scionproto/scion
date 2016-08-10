@@ -74,7 +74,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import AddrType, L4Proto, PayloadClass
+from lib.types import AddrType, L4Proto
 from lib.topology import Topology
 from lib.util import hex_str
 
@@ -205,14 +205,13 @@ class SCIONElement(object):
             type_map = self.CTRL_PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
         except KeyError:
             logging.error("Control payload class not supported: %s\n%s",
-                          PayloadClass.to_str(pld.PAYLOAD_CLASS), pkt)
+                          pld.PAYLOAD_CLASS, pkt)
             return None
         try:
             return type_map[pld.PAYLOAD_TYPE]
         except KeyError:
             logging.error("%s control payload type not supported: %s\n%s",
-                          PayloadClass.to_str(pld.PAYLOAD_CLASS),
-                          pld.PAYLOAD_TYPE, pkt)
+                          pld.PAYLOAD_CLASS, pld.PAYLOAD_TYPE, pkt)
         return None
 
     def _get_scmp_handler(self, pkt):

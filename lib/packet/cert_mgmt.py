@@ -27,8 +27,12 @@ from lib.packet.scion_addr import ISD_AS
 from lib.types import CertMgmtType, PayloadClass
 
 
-class CertMgmtBase(SCIONPayloadBaseProto):
+class CertMgmtBase(SCIONPayloadBaseProto):  # pragma: no cover
     PAYLOAD_CLASS = PayloadClass.CERT
+
+    def _pack_full(self, p):
+        wrapper = P.CertMgmt.new_message(**{self.PAYLOAD_TYPE: p})
+        return super()._pack_full(wrapper)
 
 
 class CertMgmtRequest(CertMgmtBase):  # pragma: no cover
@@ -101,16 +105,9 @@ class TRCReply(CertMgmtBase):  # pragma: no cover
             self.NAME, isd, ver, self.trc)
 
 
-_TYPE_MAP = {
-    CertMgmtType.CERT_CHAIN_REQ: CertChainRequest,
-    CertMgmtType.CERT_CHAIN_REPLY: CertChainReply,
-    CertMgmtType.TRC_REQ: TRCRequest,
-    CertMgmtType.TRC_REPLY: TRCReply,
-}
-
-
-def parse_certmgmt_payload(type_, data):  # pragma: no cover
-    if type_ not in _TYPE_MAP:
-        raise SCIONParseError("Unsupported cert management type: %s" % type_)
-    cls_ = _TYPE_MAP[type_]
-    return cls_.from_raw(data.pop())
+def parse_certmgmt_payload(wrapper):  # pragma: no cover
+    type_ = wrapper.which()
+    for cls_ in CertChainRequest, CertChainReply,  TRCRequest, TRCReply:
+        if cls_.PAYLOAD_TYPE == type_:
+            return cls_(getattr(wrapper, type_))
+    raise SCIONParseError("Unsupported cert management type: %s" % type_)

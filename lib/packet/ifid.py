@@ -20,18 +20,16 @@ import capnp  # noqa
 
 # SCION
 import proto.ifid_capnp as P
-from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBaseProto
-from lib.types import IFIDType, PayloadClass
+from lib.types import PayloadClass
 
 
 class IFIDPayload(SCIONPayloadBaseProto):  # pragma: no cover
     """
     IFID packet.
     """
-    PAYLOAD_CLASS = PayloadClass.IFID
-    PAYLOAD_TYPE = IFIDType.PAYLOAD
     NAME = "IFIDPayload"
+    PAYLOAD_CLASS = PayloadClass.IFID
     P_CLS = P.IFID
 
     @classmethod
@@ -39,11 +37,5 @@ class IFIDPayload(SCIONPayloadBaseProto):  # pragma: no cover
         return cls(cls.P_CLS.new_message(origIF=orig_if))
 
 
-def parse_ifid_payload(type_, data):
-    type_map = {
-        IFIDType.PAYLOAD: IFIDPayload.from_raw,
-    }
-    if type_ not in type_map:
-        raise SCIONParseError("Unsupported IFID type: %s", type_)
-    handler = type_map[type_]
-    return handler(data.pop())
+def parse_ifid_payload(p):  # pragma: no cover
+    return IFIDPayload(p)

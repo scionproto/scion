@@ -50,7 +50,7 @@ class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
     Payload for state info messages. List of IFStateInfo objects.
     """
     NAME = "IFStatePayload"
-    PAYLOAD_TYPE = PMT.IFSTATE_INFO
+    PAYLOAD_TYPE = PMT.IFSTATE_INFOS
     P_CLS = P.Infos
 
     @classmethod

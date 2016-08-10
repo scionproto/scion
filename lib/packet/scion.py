@@ -19,7 +19,11 @@
 import copy
 import struct
 
+# External
+import capnp
+
 # SCION
+import proto.scion_capnp as P
 from lib.defines import MAX_HOPBYHOP_EXT, SCION_PROTO_VERSION
 from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
@@ -617,7 +621,17 @@ class SCIONL4Packet(SCIONExtPacket):
         return pld
 
     def _parse_pld_ctrl(self, data):
-        pld_class = data.pop(1)
+        plen = struct.unpack("!I", data.pop(4))[0]
+        if len(data) != plen:
+            raise SCIONParseError(
+                "Payload length mismatch. Reported: %s Actual: %s" %
+                (plen, len(data)))
+        try:
+            wrapper = P.SCION.from_bytes_packed(data.pop()).as_builder()
+        except capnp.lib.capnp.KjException as e:
+            raise SCIONParseError(
+                "Unable to parse SCION capnp message: %s" % e) from None
+        pld_class = wrapper.which()
         class_map = {
             PayloadClass.PCB: parse_pcb_payload,
             PayloadClass.IFID: parse_ifid_payload,
@@ -628,7 +642,7 @@ class SCIONL4Packet(SCIONExtPacket):
         handler = class_map.get(pld_class)
         if not handler:
             raise SCIONParseError("Unsupported payload class: %s" % pld_class)
-        return handler(data.pop(1), data)
+        return handler(getattr(wrapper, pld_class))
 
     def _parse_pld_scmp(self, data):  # pragma: no cover
         return SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, data.pop()))

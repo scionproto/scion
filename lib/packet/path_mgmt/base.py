@@ -15,10 +15,18 @@
 :mod:`base` --- Base class for path mgmt packets
 ================================================
 """
+# External
+import capnp  # noqa
+
 # SCION
+import proto.path_mgmt_capnp as P
 from lib.packet.packet_base import SCIONPayloadBaseProto
 from lib.types import PayloadClass
 
 
-class PathMgmtPayloadBase(SCIONPayloadBaseProto):
+class PathMgmtPayloadBase(SCIONPayloadBaseProto):  # pragma: no cover
     PAYLOAD_CLASS = PayloadClass.PATH
+
+    def _pack_full(self, p):
+        wrapper = P.PathMgmt.new_message(**{self.PAYLOAD_TYPE: p})
+        return super()._pack_full(wrapper)
