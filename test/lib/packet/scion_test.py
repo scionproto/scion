@@ -19,6 +19,7 @@
 from unittest.mock import patch, MagicMock, call
 
 # External packages
+import capnp  # noqa
 import nose
 import nose.tools as ntools
 
@@ -53,7 +54,7 @@ from lib.types import (
     L4Proto,
     PayloadClass,
 )
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
 class TestSCIONCommonHdrParse(object):
@@ -925,13 +926,41 @@ class TestSCIONL4PacketParsePldCtrl(object):
     """
     Unit tests for lib.packet.scion.SCIONL4Packet._parse_pld_ctrl
     """
+    def _mk_data(self, len_=4):
+        return create_mock_full({
+            "pop()...": [bytes((0, 0, 0, 4)), "outer"], "__len__()": len_
+        })
+
+    def test_bad_len(self):
+        inst = SCIONL4Packet()
+        data = self._mk_data(3)
+        # Call
+        ntools.assert_raises(SCIONParseError, inst._parse_pld_ctrl, data)
+
+    def _raise_parse_error(self, _):
+        raise capnp.lib.capnp.KjException("error")
+
+    @patch("lib.packet.scion.P.SCION.from_bytes_packed", autospec=True)
+    def test_parse_error(self, from_bytes):
+        inst = SCIONL4Packet()
+        data = self._mk_data(4)
+        from_bytes.side_effect = self._raise_parse_error
+        # Call
+        ntools.assert_raises(SCIONParseError, inst._parse_pld_ctrl, data)
+
+    def _mk_proto_obj(self, class_):
+        builder = create_mock_full({"which()": class_, class_: "inner"})
+        return create_mock_full({"as_builder()": builder})
+
     @patch("lib.packet.scion.parse_sibra_payload", autospec=True)
     @patch("lib.packet.scion.parse_pathmgmt_payload", autospec=True)
     @patch("lib.packet.scion.parse_certmgmt_payload", autospec=True)
     @patch("lib.packet.scion.parse_ifid_payload", autospec=True)
     @patch("lib.packet.scion.parse_pcb_payload", autospec=True)
-    def _check_known(self, class_, parse_pcb, parse_ifid, parse_cert,
-                     parse_path, parse_sibra):
+    @patch("lib.packet.scion.P.SCION.from_bytes_packed", autospec=True)
+    def _check_known(self, class_, from_bytes, parse_pcb, parse_ifid,
+                     parse_cert, parse_path, parse_sibra):
+        from_bytes.return_value = self._mk_proto_obj(class_)
         class_map = {
             PayloadClass.PCB: parse_pcb, PayloadClass.IFID: parse_ifid,
             PayloadClass.CERT: parse_cert, PayloadClass.PATH: parse_path,
@@ -939,12 +968,11 @@ class TestSCIONL4PacketParsePldCtrl(object):
         }
         handler = class_map[class_]
         inst = SCIONL4Packet()
-        data = create_mock(["pop"])
-        data.pop.side_effect = class_, 42
+        data = self._mk_data()
         # Call
         ntools.eq_(inst._parse_pld_ctrl(data), handler.return_value)
         # Tests
-        handler.assert_called_once_with(42, data)
+        handler.assert_called_once_with("inner")
 
     def test_known(self):
         for class_ in (
@@ -953,10 +981,11 @@ class TestSCIONL4PacketParsePldCtrl(object):
         ):
             yield self._check_known, class_
 
-    def test_unknown(self):
+    @patch("lib.packet.scion.P.SCION.from_bytes_packed", autospec=True)
+    def test_unknown(self, from_bytes):
+        from_bytes.return_value = self._mk_proto_obj("unknown")
         inst = SCIONL4Packet()
-        data = create_mock(["pop"])
-        data.pop.return_value = 42
+        data = self._mk_data()
         # Call
         ntools.assert_raises(SCIONParseError, inst._parse_pld_ctrl, data)
 

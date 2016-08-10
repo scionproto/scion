@@ -27,7 +27,7 @@ from lib.packet.scion_addr import ISD_AS
 from lib.types import CertMgmtType, PayloadClass
 
 
-class CertMgmtBase(SCIONPayloadBaseProto):
+class CertMgmtBase(SCIONPayloadBaseProto):  # pragma: no cover
     PAYLOAD_CLASS = PayloadClass.CERT
 
     def _pack_full(self, p):

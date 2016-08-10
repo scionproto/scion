@@ -24,7 +24,7 @@ from lib.packet.packet_base import SCIONPayloadBaseProto
 from lib.types import PayloadClass
 
 
-class PathMgmtPayloadBase(SCIONPayloadBaseProto):
+class PathMgmtPayloadBase(SCIONPayloadBaseProto):  # pragma: no cover
     PAYLOAD_CLASS = PayloadClass.PATH
 
     def _pack_full(self, p):

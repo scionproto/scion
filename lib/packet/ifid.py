@@ -37,5 +37,5 @@ class IFIDPayload(SCIONPayloadBaseProto):  # pragma: no cover
         return cls(cls.P_CLS.new_message(origIF=orig_if))
 
 
-def parse_ifid_payload(p):
+def parse_ifid_payload(p):  # pragma: no cover
     return IFIDPayload(p)

@@ -28,7 +28,7 @@ from lib.packet.path_mgmt.seg_recs import (
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 
 
-def parse_pathmgmt_payload(wrapper):
+def parse_pathmgmt_payload(wrapper):  # pragma: no cover
     type_ = wrapper.which()
     for cls_ in (
         PathSegmentReq, PathRecordsReply, PathRecordsReg, PathRecordsSync,
