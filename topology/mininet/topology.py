@@ -9,9 +9,10 @@ import sys
 import configparser
 from mininet.cli import CLI
 from mininet.log import lg
+# node needs to come before link to avoid circular dependency
+from mininet.node import RemoteController
 from mininet.link import Link, TCIntf
 from mininet.net import Mininet
-from mininet.node import RemoteController
 from mininet.topo import Topo
 
 MAX_INTF_LEN = 15
@@ -90,15 +91,18 @@ class ScionTopo(Topo):
         return tcItems
 
     def addLink(self, node1, node2, params=None, intfName=None):
-        self.addPort(node1, node2, None, None)
+        port1, port2 = self.addPort(node1, node2, None, None)
         key = tuple(self.sorted([node1, node2]))
         # Map the supplied params to the node1 interface, even if sorting turns
         # it into the second interface.
+        opts = {"port1": port1, "port2": port2}
         if key[0] == node1:
-            self.link_info[key] = {"params1": params, "intfName1": intfName}
+            opts.update(params1=params, intfName1=intfName,
+                        node1=node1, node2=node2)
         else:
-            self.link_info[key] = {"params2": params, "intfName2": intfName}
-        self.g.add_edge(*key)
+            opts.update(params2=params, intfName2=intfName,
+                        node1=node2, node2=node1)
+        self.g.add_edge(node1, node2, key, opts)
         return key
 
 
@@ -130,6 +134,7 @@ def main():
     for switch in net.switches:
         for k, v in topo.switch_map.items():
             if v == switch.name:
+                os.system('ip link set dev %s up' % switch.name)
                 os.system('ip route add %s dev %s src 169.254.0.1'
                           % (k, switch.name))
     for host in net.hosts:
