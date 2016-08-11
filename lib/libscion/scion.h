@@ -13,7 +13,6 @@ extern "C" {
 #include "checksum.h"
 #include "defines.h"
 #include "extensions.h"
-#include "interface.h"
 #include "opaque_field.h"
 #include "packet.h"
 #include "path.h"
