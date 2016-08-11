@@ -348,7 +348,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     assert(strlen(LWIP_SOCK_DIR) + SOCK_PATH_LEN < sizeof(addr.sun_path));
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    sprintf(addr.sun_path, "%s%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf);
+    sprintf(addr.sun_path, "%s/%.*s", LWIP_SOCK_DIR, SOCK_PATH_LEN, buf);
     zlog_info(zc_tcp, "connecting to %s", addr.sun_path);
     if ((new_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         sys_err = errno;
