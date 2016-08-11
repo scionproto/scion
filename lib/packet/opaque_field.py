@@ -44,8 +44,7 @@ class HopOpaqueField(OpaqueField):
     """
     NAME = "HopOpaqueField"
     MAC_LEN = 3  # MAC length in bytes.
-    MAC_BLOCK_LEN = 32
-    MAC_BLOCK_PADDING = MAC_LEN + 4 + 8
+    MAC_BLOCK_LEN = 16
     VERIFY_FLAGS = HopOFFlags.FORWARD_ONLY
 
     def __init__(self, raw=None):  # pragma: no cover
@@ -117,17 +116,12 @@ class HopOpaqueField(OpaqueField):
 
     def calc_mac(self, key, ts, prev_hof=None):
         """Generates MAC for newly created OF."""
-        raw = []
-        raw.append(self.pack(mac=True))
+        raw = bytearray()
+        raw += struct.pack("!I", ts)
+        raw += self.pack(mac=True)
         if prev_hof:
-            raw.append(prev_hof.pack(mac=True))
-            raw.append(prev_hof.mac)
-        else:
-            raw.append(bytes(self.LEN))
-        raw.append(struct.pack("!I", ts))
-        raw.append(bytes(self.MAC_BLOCK_PADDING))
-        to_mac = b"".join(raw)
-        assert len(to_mac) == self.MAC_BLOCK_LEN
+            raw += prev_hof.pack()[1:]  # Ignore flag byte
+        to_mac = bytes(raw.zfill(self.MAC_BLOCK_LEN))
         return cbcmac(key, to_mac)[:self.MAC_LEN]
 
     def verify_mac(self, *args, **kwargs):  # pragma: no cover
