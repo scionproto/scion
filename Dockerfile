@@ -1,16 +1,19 @@
-FROM ubuntu:14.04
+FROM ubuntu:16.04
 ENV HOME /home/scion
 ENV BASE /home/scion/go/src/github.com/netsec-ethz/scion
 
 WORKDIR $BASE
 
-RUN cd /etc/apt/apt.conf.d/ && rm 01autoremove 01autoremove-kernels 20changelog
+# TODO(klausman): check if this is still needed;
+# RUN cd /etc/apt/apt.conf.d/ && rm 01autoremove 01autoremove-kernels
+
 # Remove 'essential' packages that we don't need
 COPY docker/pkgs_purge_essential.txt $BASE/docker/
 RUN echo 'Yes, do as I say!' | bash -c 'DEBIAN_FRONTEND=noninteractive apt-get purge -y --force-yes $(< docker/pkgs_purge_essential.txt)'
 # Remove normal packages that we don't need
 COPY docker/pkgs_purge.txt $BASE/docker/
 RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get purge --auto-remove -y $(< docker/pkgs_purge.txt)'
+RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge'
 
 # Pre-install some of the largest indirect dependencies, to speed up rebuild when
 # deps.sh changes for any reason.
