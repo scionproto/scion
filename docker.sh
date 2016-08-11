@@ -49,7 +49,7 @@ docker_build() {
     docker build $args -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
         tee "$build_dir/${log_file:?}"
     # Newer versions of docker don't know about -f
-    docker tag "$image_name:$image_tag" "$image_name:latest" || docker tag -f "$image_name:$image_tag" "$image_name:latest"
+    docker tag "$image_name:$image_tag" "$image_name:latest"
 }
 
 cmd_clean() {
