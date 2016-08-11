@@ -270,7 +270,7 @@ class SCIONTCPSocket(object):
     def _init_accept_sock(self):
         if self._lwip_accept:
             return
-        fname = "%s%s" % (LWIP_SOCK_DIR, uuid.uuid4())
+        fname = os.path.join(LWIP_SOCK_DIR, str(uuid.uuid4()))
         while os.path.exists(fname):  # TODO(PSz): add max_tries
             fname = "%s%s" % (LWIP_SOCK_DIR, uuid.uuid4())
         logging.debug("_init_accept_sock(): %s", fname)
