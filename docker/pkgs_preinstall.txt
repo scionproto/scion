@@ -6,4 +6,5 @@ python-minimal
 python3-dev
 python3-minimal
 screen
+sudo
 zookeeperd
