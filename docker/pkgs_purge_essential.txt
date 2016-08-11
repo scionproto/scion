@@ -1,4 +1,2 @@
-anacron
-cron
 e2fsprogs
 ncurses-bin
