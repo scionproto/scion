@@ -25,7 +25,7 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONIndexError, SCIONKeyError
 from lib.packet.opaque_field import HopOpaqueField, OpaqueFieldList
-from test.testcommon import create_mock
+from test.testcommon import create_mock, create_mock_full
 
 
 class TestHopOpaqueFieldParse(object):
@@ -87,12 +87,11 @@ class TestHopOpaqueFieldCalcMac(object):
     def test_no_prev(self, cbcmac):
         inst = HopOpaqueField()
         inst.pack = create_mock()
-        pack_mac = bytes.fromhex('02 2a 0a0b0c')
+        pack_mac = bytes.fromhex('02 2a0a 0b0c')
         inst.pack.return_value = pack_mac
         ts = 0x01020304
         expected = b"".join([
-            pack_mac, bytes(inst.LEN), ts.to_bytes(4, "big"),
-            bytes(inst.MAC_BLOCK_PADDING),
+            ts.to_bytes(4, "big"), pack_mac, bytes(7),
         ])
         cbcmac.return_value = "mac_data"
         # Call
@@ -105,22 +104,18 @@ class TestHopOpaqueFieldCalcMac(object):
     def test_prev(self, cbcmac):
         inst = HopOpaqueField()
         inst.pack = create_mock()
-        pack_mac = bytes.fromhex('02 2a 0a0b0c')
+        pack_mac = bytes.fromhex('02 2a0a 0b0c')
         inst.pack.return_value = pack_mac
-        prev = create_mock(["mac", "pack"])
-        prev.mac = bytes.fromhex('050607')
-        prev.pack = create_mock()
-        prev_pack_mac = bytes.fromhex('10 11 121314')
-        prev.pack.return_value = prev_pack_mac
+        prev_pack_mac = bytes.fromhex('10 1112 1314')
+        prev = create_mock_full({"pack()": prev_pack_mac})
         ts = 0x01020304
         expected = b"".join([
-            pack_mac, prev_pack_mac, prev.mac, ts.to_bytes(4, "big"),
-            bytes(inst.MAC_BLOCK_PADDING),
+            ts.to_bytes(4, "big"), pack_mac, prev_pack_mac[1:],
         ])
         # Call
         inst.calc_mac("key", ts, prev)
         # Tests
-        prev.pack.assert_called_once_with(mac=True)
+        prev.pack.assert_called_once_with()
         cbcmac.assert_called_once_with("key", expected)
 
 

@@ -121,8 +121,9 @@ class HopOpaqueField(OpaqueField):
         raw += self.pack(mac=True)
         if prev_hof:
             raw += prev_hof.pack()[1:]  # Ignore flag byte
-        to_mac = bytes(raw.zfill(self.MAC_BLOCK_LEN))
-        return cbcmac(key, to_mac)[:self.MAC_LEN]
+        else:
+            raw += bytes(self.LEN-1)
+        return cbcmac(key, bytes(raw))[:self.MAC_LEN]
 
     def verify_mac(self, *args, **kwargs):  # pragma: no cover
         return self.mac == self.calc_mac(*args, **kwargs)
