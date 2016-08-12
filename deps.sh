@@ -85,6 +85,9 @@ cmd_golang() {
     fi
     echo "Installing go dependencies"
     go get -v $(tools/godeps.py) $(<go/deps.txt)
+    echo "Copying go-capnproto2's go.capnp into proto/"
+    local srcdir=$(go list -f "{{.Dir}}" zombiezen.com/go/capnproto2)
+    cp ${srcdir:?}/std/go.capnp proto/go.capnp
 }
 
 chk_go() {

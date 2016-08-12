@@ -19,6 +19,11 @@ Thumbs.db
 __pycache__
 topology/mininet/*.pyc
 
+# Go generated files #
+#########################
+proto/go.capnp
+go/proto/*.go
+
 # vim generated files #
 #########################
 .*.swp
