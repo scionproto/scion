@@ -64,7 +64,7 @@ cmd_capnp() {
     (
         cd $tmpdir
         ./configure
-        make -j6 check
+        make -j6
         echo "ldconfig" >> postinstall-pak
         echo "ldconfig" >> postremove-pak
         mkdir doc-pak
@@ -77,11 +77,18 @@ cmd_capnp() {
 
 cmd_golang() {
     echo "Checking for go 1.6"
-    if type -P go &>/dev/null && go version | grep -q ' go1.6'; then
-        return
+    if ! chk_go; then
+        echo "Installing golang-1.6 from apt"
+        # Include git, as it's needed for fetching go deps. Relevant for
+        # testing building Go code inside docker.
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang-1.6 git
     fi
-    echo "Installing golang-1.6 from apt"
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang-1.6
+    echo "Installing go dependencies"
+    go get -v $(tools/godeps.py) $(<go/deps.txt)
+}
+
+chk_go() {
+    type -P go &>/dev/null && go version | grep -q ' go1.6'
 }
 
 cmd_misc() {

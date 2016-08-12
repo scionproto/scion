@@ -1,7 +1,8 @@
 FROM ubuntu:14.04
 ENV HOME /home/scion
-ENV BASE /home/scion/scion.git
-WORKDIR /home/scion/scion.git
+ENV BASE /home/scion/go/src/github.com/netsec-ethz/scion
+
+WORKDIR $BASE
 
 RUN cd /etc/apt/apt.conf.d/ && rm 01autoremove 01autoremove-kernels 20changelog
 # Remove 'essential' packages that we don't need
