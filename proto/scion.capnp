@@ -1,4 +1,7 @@
 @0xdf42b02816bdc1bf;
+using Go = import "go.capnp";
+$Go.package("proto");
+$Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using PCB = import "pcb.capnp";
 using CertMgmt = import "cert_mgmt.capnp";
