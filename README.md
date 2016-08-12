@@ -39,7 +39,6 @@ Necessary steps in order to run SCION:
 1. Install required packages with dependencies:
     ```
     ./deps.sh all
-    go get -u -t -v ./go/...
     ```
 
 1. Configure the host Zookeeper instance. At a minimum, add `maxClientCnxns=0`

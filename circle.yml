@@ -28,9 +28,9 @@ dependencies:
     cache_directories:
         - "~/cache"
     override:
-        - go get -v -t ./go/... $(<go/deps.txt)
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
+        - ./deps.sh golang
         - ./docker.sh build
         - docker/cache.sh save
 
