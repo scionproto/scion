@@ -31,6 +31,8 @@ dependencies:
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
         - ./deps.sh golang
+        - sudo apt-get install -y checkinstall
+        - ./deps.sh capnp
         - ./docker.sh build
         - docker/cache.sh save
 

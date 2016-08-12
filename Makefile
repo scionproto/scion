@@ -1,13 +1,13 @@
-.PHONY: all clean go clibs libscion libfilter liblwip libtcpmw libssocket dispatcher install uninstall
+.PHONY: all clean go clibs libscion libfilter liblwip libtcpmw libssocket dispatcher install uninstall goproto
 
-SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
+SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost go/proto
 
 all: clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 
-go:
+go: goproto
 	GOBIN=$$PWD/bin go install -v ./go/...
 
 # Order is important
@@ -36,3 +36,5 @@ install: clibs dispatcher
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
 
+goproto:
+	$(MAKE) -C go/proto

@@ -1,4 +1,7 @@
 @0xfb8053d9fb34b837;
+using Go = import "go.capnp";
+$Go.package("proto");
+$Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
 using Sibra = import "sibra.capnp";
