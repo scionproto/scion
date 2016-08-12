@@ -1,6 +1,10 @@
-export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:/usr/lib/go-1.6/bin:$PATH"
+export GOPATH="$HOME/go"
+export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:/usr/lib/go-1.6/bin:$GOPATH/bin:$PATH"
 export SHELL
-export PYTHONPATH="$HOME/scion.git"
+export BASEDIR="$GOPATH/src/github.com/netsec-ethz/scion"
+export PYTHONPATH="$BASEDIR"
+
+alias cdscion="cd $BASEDIR"
 
 # Properly setup terminal to allow use of screen, etc.
 # Note: you still can't /re-attach/ to a screen session.
