@@ -3,7 +3,7 @@
 
 #include "SCIONSocket.h"
 
-#define BUFSIZE 1024
+#define BUFSIZE 10240
 
 int main(int argc, char **argv)
 {

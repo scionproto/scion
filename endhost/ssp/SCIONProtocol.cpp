@@ -414,8 +414,8 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 void SSPProtocol::getWindowSize()
 {
     // Eventually determine based on system resources
-    mLocalReceiveWindow = SSP_DEFAULT_WINDOW_SIZE;
-    mLocalSendWindow = SSP_DEFAULT_WINDOW_SIZE;
+    mLocalReceiveWindow = SSP_DEFAULT_SEND_WINDOW_SIZE;
+    mLocalSendWindow = SSP_DEFAULT_RECV_WINDOW_SIZE;
 }
 
 int SSPProtocol::getDeadlineFromProfile(DataProfile profile)
