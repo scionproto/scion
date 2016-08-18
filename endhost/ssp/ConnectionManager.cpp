@@ -303,6 +303,7 @@ void PathManager::prunePaths()
     for (size_t i = 0; i < mPaths.size(); i++) {
         Path *p = mPaths[i];
         if (p && (!p->isValid() || !mPolicy.validate(p))) {
+            DEBUG("path %lu not valid\n", i);
             mPaths[i] = NULL;
             delete p;
             mInvalid++;
@@ -505,13 +506,13 @@ void SSPConnectionManager::setRemoteWindow(uint32_t window)
 
 bool SSPConnectionManager::bufferFull(int window)
 {
-    return window - totalQueuedSize() < maxPayloadSize();
+    return window - mTotalSize < maxPayloadSize();
 }
 
 int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double timeout)
 {
-    while (totalQueuedSize() + len > windowSize) {
-        pthread_mutex_lock(&mSentMutex);
+    pthread_mutex_lock(&mSentMutex);
+    while (mTotalSize + len > windowSize) {
         if (timeout > 0.0) {
             if (timedWait(&mSentCond, &mSentMutex, timeout) == ETIMEDOUT) {
                 DEBUG("%p: timeout waiting for send buffer\n", this);
@@ -521,8 +522,8 @@ int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double time
         } else {
             pthread_cond_wait(&mSentCond, &mSentMutex);
         }
-        pthread_mutex_unlock(&mSentMutex);
     }
+    pthread_mutex_unlock(&mSentMutex);
     return 0;
 }
 
@@ -543,6 +544,7 @@ void SSPConnectionManager::queuePacket(SCIONPacket *packet)
     pthread_mutex_lock(&mPacketMutex);
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     mTotalSize += sp->len;
+    DEBUG("packet %lu queued\n", sp->getOffset());
     pthread_cond_broadcast(&mPacketCond);
     pthread_mutex_unlock(&mPacketMutex);
 }
@@ -682,14 +684,14 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
         }
     }
     packet->pathIndex = index;
-    mPaths[index]->setUp();
-    int used = 0;
-    for (size_t i = 0; i < mPaths.size(); i++)
-        if (mPaths[i] && mPaths[i]->isUsed())
-            used++;
-    if (used < MAX_USED_PATHS)
-        mPaths[index]->setUsed(true);
     if (sp->len > 0) {
+        mPaths[index]->setUp();
+        int used = 0;
+        for (size_t i = 0; i < mPaths.size(); i++)
+            if (mPaths[i] && mPaths[i]->isUsed())
+                used++;
+        if (used < MAX_USED_PATHS)
+            mPaths[index]->setUsed(true);
         mInitAcked = true;
         ret = ((SSPPath *)(mPaths[index]))->handleData(packet);
     }
@@ -719,8 +721,10 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
         sp->ack.L = pn;
         handleAckOnPath(sent, false, sent->pathIndex);
     }
-    if (pn == 0)
+    if (pn == 0) {
         mInitAcked = true;
+        mPaths[ack->pathIndex]->setUp();
+    }
     DEBUG("notify scheduler: successful ack\n");
     pthread_cond_broadcast(&mPathCond);
     if (sh.flags & SSP_FIN) {
@@ -729,7 +733,9 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
         mFinAcked = true;
     }
     if (sp->data.use_count() == 1) {
+        pthread_mutex_lock(&mPacketMutex);
         mTotalSize -= sp->len;
+        pthread_mutex_unlock(&mPacketMutex);
         mProtocol->signalSelect();
     }
     destroySSPPacket(sp);
@@ -1011,6 +1017,7 @@ void * SSPConnectionManager::workerHelper(void *arg)
 
 bool SSPConnectionManager::readyToSend()
 {
+    DEBUG("%p: readyToSend?\n", this);
     bool ready = false;
     pthread_mutex_lock(&mRetryMutex);
     ready = !mRetryPackets->empty();
@@ -1065,6 +1072,10 @@ void SSPConnectionManager::schedule()
         uint64_t offset = sp->getOffset();
         if (offset > 0 && offset <= mHighestAcked) {
             DEBUG("%p: packet %lu already received on remote end\n", this, offset);
+            pthread_mutex_lock(&mPacketMutex);
+            mTotalSize -= sp->len;
+            pthread_mutex_unlock(&mPacketMutex);
+            pthread_cond_broadcast(&mSentCond);
             destroySSPPacketFull(packet);
             continue;
         }
