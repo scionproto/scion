@@ -231,7 +231,6 @@ class Router(SCIONElement):
         return flags
 
     def handle_traceroute(self, hdr, spkt, _):
-        # Truncate milliseconds to 2B
         hdr.append_hop(self.addr.isd_as, self.interface.if_id)
         return []
 
