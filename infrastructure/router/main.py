@@ -250,7 +250,8 @@ class Router(SCIONElement):
                 logging.error("OneHopPathExt: interface mismatch.")
                 return [(RouterFlag.ERROR,)]
             ts = int(SCIONTime.get_time())
-            hdr.info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0])
+            hdr.info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0],
+                                                   hops=2)
             hf = HopOpaqueField.from_values(exp_time, 0, self.interface.if_id)
             hf.set_mac(self.of_gen_key, ts, None)
             hdr.hf1 = hf

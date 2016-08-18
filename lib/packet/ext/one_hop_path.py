@@ -52,11 +52,16 @@ class OneHopPathExt(HopByHopExtension):
         self.hf1 = HopOpaqueField()
         self.hf2 = HopOpaqueField()
         super().__init__(raw)
+        self._init_size(3)  # Allocate 3 additional lines.
 
     def _parse(self, raw):
         super()._parse(raw)
         data = Raw(raw, self.NAME, self.LEN)
         self.ifid = struct.unpack("!I", data.pop(4))[0]
+        data.pop(1)  # Padding
+        self.info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
+        self.hf1 = HopOpaqueField(data.pop(HopOpaqueField.LEN))
+        self.hf2 = HopOpaqueField(data.pop(HopOpaqueField.LEN))
 
     @classmethod
     def from_values(cls, ifid):  # pragma: no cover
@@ -68,6 +73,7 @@ class OneHopPathExt(HopByHopExtension):
         raw = struct.pack("!I", self.ifid)
         raw += b"\x00"  # Padding
         raw += self.to_path().pack()
+        self._check_len(raw)
         return raw
 
     def to_path(self):

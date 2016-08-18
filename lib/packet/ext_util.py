@@ -21,6 +21,7 @@ import struct
 from collections import defaultdict
 
 # SCION
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.path_probe import PathProbeExt
 from lib.packet.ext.path_transport import PathTransportExt
 from lib.packet.ext.traceroute import TracerouteExt
@@ -33,6 +34,7 @@ from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType, L4Proto
 EXTENSION_MAP = {
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SIBRA): parse_sibra_ext,
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.TRACEROUTE): TracerouteExt,
+    (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.ONE_HOP_PATH): OneHopPathExt,
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SCMP): SCMPExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
