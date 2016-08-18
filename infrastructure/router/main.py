@@ -238,16 +238,15 @@ class Router(SCIONElement):
         return []
 
     def handle_one_hop_path(self, hdr, spkt, from_local_as):
-        if len(pkt.path):
+        if len(spkt.path):
             logging.error("OneHopPathExt: non-empty path.")
             return [(RouterFlag.ERROR,)]
-        #FIXME(PSz): enable the code below when BS is ready.
-        # if pkt.addrs.dst.host != SVCType.BS_A:
-        #     logging.error("OneHopPathExt: dst host != beacon service.")
-        #     return [(RouterFlag.ERROR,)]
+        if spkt.addrs.dst.host != SVCType.BS_A:
+            logging.error("OneHopPathExt: dst host != beacon service.")
+            return [(RouterFlag.ERROR,)]
         exp_time = OneHopPathExt.HOF_EXP_TIME
         if from_local_as:  # Packet from local BS, create Info and 1st Hop Field
-            if hdr.ifid != self.interface.if_id
+            if hdr.ifid != self.interface.if_id:
                 logging.error("OneHopPathExt: interface mismatch.")
                 return [(RouterFlag.ERROR,)]
             ts = int(SCIONTime.get_time())
