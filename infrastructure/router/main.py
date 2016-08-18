@@ -52,10 +52,11 @@ from lib.errors import (
 )
 from lib.log import log_exception
 from lib.sibra.ext.ext import SibraExtBase
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
+from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
-from lib.packet.svc import SVCType
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
@@ -73,6 +74,7 @@ from lib.packet.scmp.errors import (
     SCMPUnknownHost,
 )
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.packet.svc import SVCType
 from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -118,11 +120,12 @@ class Router(SCIONElement):
         self.pre_ext_handlers = {
             SibraExtBase.EXT_TYPE: self.handle_sibra,
             TracerouteExt.EXT_TYPE: self.handle_traceroute,
+            OneHopPathExt.EXT_TYPE: self.handle_one_hop_path,
             ExtHopByHopType.SCMP: self.handle_scmp,
         }
         self.post_ext_handlers = {
             SibraExtBase.EXT_TYPE: False, TracerouteExt.EXT_TYPE: False,
-            ExtHopByHopType.SCMP: False,
+            ExtHopByHopType.SCMP: False, OneHopPathExt.EXT_TYPE: False,
         }
         self.sibra_state = SibraState(
             self.interface.bandwidth,
@@ -232,6 +235,30 @@ class Router(SCIONElement):
 
     def handle_traceroute(self, hdr, spkt, _):
         hdr.append_hop(self.addr.isd_as, self.interface.if_id)
+        return []
+
+    def handle_one_hop_path(self, hdr, spkt, from_local_as):
+        if len(pkt.path):
+            logging.error("OneHopPathExt: non-empty path.")
+            return [(RouterFlag.ERROR,)]
+        #FIXME(PSz): enable the code below when BS is ready.
+        # if pkt.addrs.dst.host != SVCType.BS_A:
+        #     logging.error("OneHopPathExt: dst host != beacon service.")
+        #     return [(RouterFlag.ERROR,)]
+        exp_time = OneHopPathExt.HOF_EXP_TIME
+        if from_local_as:  # Packet from local BS, create Info and 1st Hop Field
+            if hdr.ifid != self.interface.if_id
+                logging.error("OneHopPathExt: interface mismatch.")
+                return [(RouterFlag.ERROR,)]
+            ts = int(SCIONTime.get_time())
+            hdr.info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0])
+            hf = HopOpaqueField.from_values(exp_time, 0, self.interface.if_id)
+            hf.set_mac(self.of_gen_key, ts, None)
+            hdr.hf1 = hf
+        else:  # Remote packet, create 2nd Hop Field
+            hf = HopOpaqueField.from_values(exp_time, self.interface.if_id, 0)
+            hf.set_mac(self.of_gen_key, hdr.info.timestamp, hdr.hf1)
+            hdr.hf2 = hf
         return []
 
     def handle_sibra(self, hdr, spkt, from_local_as):

@@ -42,6 +42,8 @@ class OneHopPathExt(HopByHopExtension):
     NAME = "OneHopPath"
     EXT_TYPE = ExtHopByHopType.ONE_HOP_PATH
     LEN = 5 + InfoOpaqueField.LEN + 2*HopOpaqueField.LEN
+    # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
+    HOF_EXP_TIME = 63
 
     def __init__(self, raw=None):
         self.ifid = 0
