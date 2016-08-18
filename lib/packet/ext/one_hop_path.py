@@ -59,12 +59,9 @@ class OneHopPathExt(HopByHopExtension):
         self.ifid = struct.unpack("!I", data.pop(4))[0]
 
     @classmethod
-    def from_values(cls, ifid, info, hf1, hf2):  # pragma: no cover
+    def from_values(cls, ifid):  # pragma: no cover
         inst = cls()
         inst.ifid = ifid
-        inst.info = info
-        inst.hf1 = hf1
-        inst.hf2 = hf2
         return inst
 
     def pack(self):

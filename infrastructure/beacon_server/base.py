@@ -51,6 +51,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.packet.cert_mgmt import TRCRequest
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.path_mgmt.ifstate import (
     IFStateInfo,
@@ -201,7 +202,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return None
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
-        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia, payload=pcb)
+        exts = [OneHopPathExt.from_values(egress_if)]
+        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia, payload=pcb,
+                                  ext_hdrs=exts)
 
     def _mk_if_info(self, if_id):
         """
