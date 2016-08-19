@@ -28,7 +28,7 @@ cmd_build() {
         git ls-files;
         git submodule --quiet foreach 'git ls-files | sed "s|^|$path/|"';
     } | rsync -a --files-from=- . "${build_dir}/scion.git/"
-    cp bin/discovery "${build_dir}/scion.git/bin"
+    cp bin/border bin/discovery "${build_dir}/scion.git/bin"
     # Needed so that the go.capnp references in proto/*.capnp don't break
     cp proto/go.capnp "${build_dir}/scion.git/proto"
     echo
