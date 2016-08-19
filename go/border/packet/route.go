@@ -60,6 +60,9 @@ func (p *Packet) routeResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult,
 	names, elemMap := getSVCNamesMap(svc)
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
+	if elemMap == nil {
+		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
+	}
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
@@ -69,6 +72,9 @@ func (p *Packet) routeResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult,
 
 func (p *Packet) routeResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	_, elemMap := getSVCNamesMap(svc)
+	if elemMap == nil {
+		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
+	}
 	for _, elem := range elemMap {
 		dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
 		p.Egress = append(p.Egress, EgressPair{f, dst})
