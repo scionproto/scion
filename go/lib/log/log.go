@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"runtime/debug"
 
@@ -40,25 +41,13 @@ func init() {
 }
 
 func Setup(name string) {
-	// logLvl, consLvl := parseLvls()
-	//var handlers []log.Handler
-	logFile, err := os.OpenFile(fmt.Sprintf("%s/%s.log", *logDir, name),
-		os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		panic(err)
-	}
-	logBuf = bufio.NewWriter(logFile)
-	//handler := log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil)))
-	handler := log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))
-	/*
-				lvls := []log.Lvl{log.LvlCrit, log.LvlError, log.LvlWarn, log.LvlInfo, log.LvlDebug}
-				for _, lvl := range lvls[:logLvl+1] {
-					handlers = append(handlers, mkFilterCallerStreamFile(lvl, name))
-				}
-			stdoutH := log.StreamHandler(os.Stdout, fmt15.Fmt15Format(fmt15.ColorMap))
-			handlers = append(handlers, mkFilterCaller(consLvl, stdoutH))
-		handler := log.CallerFileHandler(log.MultiHandler(handlers...))
-	*/
+	logLvl, consLvl := parseLvls()
+	logBuf = bufio.NewWriter(mkLogfile(name))
+	handler := log.MultiHandler(
+		log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
+		log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
+			fmt15.Fmt15Format(fmt15.ColorMap))),
+	)
 	log.Root().SetHandler(handler)
 }
 
@@ -76,43 +65,17 @@ func parseLvls() (log.Lvl, log.Lvl) {
 	return logLvl, consLvl
 }
 
-func mkStreamHandler(lvl log.Lvl, name string) log.Handler {
-	out := &lumberjack.Logger{
-		Filename: fmt.Sprintf("%s/%s.%s", *logDir, name, lvlName(lvl)),
+func mkLogfile(name string) io.Writer {
+	return &lumberjack.Logger{
+		Filename: fmt.Sprintf("%s/%s.log", *logDir, name),
 		MaxSize:  50, // MiB
 		MaxAge:   7,  // days
 	}
-	return log.StreamHandler(out, fmt15.Fmt15Format(nil))
-}
-
-func mkFilterCaller(lvl log.Lvl, out log.Handler) log.Handler {
-	return log.LvlFilterHandler(lvl, out)
-}
-
-func mkFilterCallerStreamFile(lvl log.Lvl, name string) log.Handler {
-	out := mkStreamHandler(lvl, name)
-	return mkFilterCaller(lvl, out)
-}
-
-func lvlName(lvl log.Lvl) string {
-	switch lvl {
-	case log.LvlCrit:
-		return "CRITICAL"
-	case log.LvlError:
-		return "ERROR"
-	case log.LvlWarn:
-		return "WARNING"
-	case log.LvlInfo:
-		return "INFO"
-	case log.LvlDebug:
-		return "DEBUG"
-	}
-	return "UNKNOWN"
 }
 
 func PanicLog() {
 	if msg := recover(); msg != nil {
-		log.Crit("Panic", "msg", msg, "stack", log.CustomString(debug.Stack()))
+		log.Crit("Panic", "msg", msg, "stack", debug.Stack())
 	}
 }
 
