@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"time"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/kormat/fmt15"
@@ -49,6 +50,11 @@ func Setup(name string) {
 			fmt15.Fmt15Format(fmt15.ColorMap))),
 	)
 	log.Root().SetHandler(handler)
+	go func() {
+		for _ = range time.Tick(5 * time.Second) {
+			Flush()
+		}
+	}()
 }
 
 func parseLvls() (log.Lvl, log.Lvl) {
