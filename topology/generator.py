@@ -94,6 +94,7 @@ INITIAL_TRC_VERSION = 0
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
+DEFAULT_ROUTER = "py"
 
 SCION_SERVICE_NAMES = (
     "BeaconServers",
@@ -111,7 +112,7 @@ class ConfigGenerator(object):
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False):
+                 use_mininet=False, router="py"):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -130,6 +131,7 @@ class ConfigGenerator(object):
         self.mininet = use_mininet
         self.default_zookeepers = {}
         self.default_mtu = None
+        self.router = router
         self._read_defaults(network)
 
     def _read_defaults(self, network):
@@ -177,8 +179,9 @@ class ConfigGenerator(object):
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
-        super_gen = SupervisorGenerator(self.out_dir, topo_dicts, zookeepers,
-                                        self.zk_config, self.mininet)
+        super_gen = SupervisorGenerator(
+            self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet,
+            self.router)
         super_gen.generate()
 
     def _generate_zk_conf(self, zookeepers):
@@ -505,12 +508,14 @@ class TopoGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet):
+    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet,
+                 router):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
         self.mininet = mininet
+        self.router = router
 
     def generate(self):
         self._write_dispatcher_conf()
@@ -527,7 +532,11 @@ class SupervisorGenerator(object):
             ("SibraServers", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
-        entries.extend(self._br_entries(topo, "bin/border", base))
+        if self.router == "go":
+            entries.extend(self._br_entries(topo, "bin/border", base))
+        else:
+            entries.extend(self._std_entries(topo, "BorderRouters",
+                                             "bin/router", base))
         entries.extend(self._zk_entries(topo_id))
         self._write_as_conf(topo_id, entries)
 
@@ -862,10 +871,12 @@ def main():
                         help='Output directory')
     parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
                         help='Zookeeper configuration file')
+    parser.add_argument('-r', '--router', default=DEFAULT_ROUTER,
+                        help='Router implementation to use ("py" or "go"')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet)
+        args.network, args.mininet, args.router)
     confgen.generate_all()
 
 
