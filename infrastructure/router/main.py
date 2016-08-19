@@ -56,6 +56,7 @@ from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.errors import (
@@ -238,27 +239,20 @@ class Router(SCIONElement):
         return []
 
     def handle_one_hop_path(self, hdr, spkt, from_local_as):
-        if len(spkt.path):
+        if len(spkt.path) != InfoOpaqueField.LEN + 2*HopOpaqueField.LEN:
             logging.error("OneHopPathExt: non-empty path.")
             return [(RouterFlag.ERROR,)]
         if spkt.addrs.dst.host != SVCType.BS_A:
             logging.error("OneHopPathExt: dst host != beacon service.")
             return [(RouterFlag.ERROR,)]
-        exp_time = OneHopPathExt.HOF_EXP_TIME
-        if from_local_as:  # Packet from local BS, create Info and 1st Hop Field
-            if hdr.ifid != self.interface.if_id:
-                logging.error("OneHopPathExt: interface mismatch.")
-                return [(RouterFlag.ERROR,)]
-            ts = int(SCIONTime.get_time())
-            hdr.info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0],
-                                                   hops=2)
-            hf = HopOpaqueField.from_values(exp_time, 0, self.interface.if_id)
-            hf.set_mac(self.of_gen_key, ts, None)
-            hdr.hf1 = hf
-        else:  # Remote packet, create 2nd Hop Field
-            hf = HopOpaqueField.from_values(exp_time, self.interface.if_id, 0)
-            hf.set_mac(self.of_gen_key, hdr.info.timestamp, hdr.hf1)
-            hdr.hf2 = hf
+        if not from_local_as:  # Remote packet, create the 2nd Hop Field
+            info = spkt.path.get_iof()
+            hf1 = spkt.path.get_hof_ver(ingress=True)
+            exp_time = OneHopPathExt.HOF_EXP_TIME
+            hf2 = HopOpaqueField.from_values(exp_time, self.interface.if_id, 0)
+            hf2.set_mac(self.of_gen_key, info.timestamp, hf1)
+            # FIXME(PSz): quite brutal for now:
+            spkt.path = SCIONPath.from_values(info, [hf1, hf2])
         return []
 
     def handle_sibra(self, hdr, spkt, from_local_as):

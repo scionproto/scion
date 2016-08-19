@@ -52,7 +52,8 @@ from lib.errors import (
 )
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
-from lib.packet.opaque_field import HopOpaqueField
+from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.ifstate import (
     IFStateInfo,
     IFStatePayload,
@@ -75,6 +76,7 @@ from lib.types import (
     PayloadClass,
 )
 from lib.util import (
+    SCIONTime,
     get_sig_key_file_path,
     read_file,
     sleep_interval,
@@ -202,9 +204,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return None
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
-        exts = [OneHopPathExt.from_values(egress_if)]
-        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia, payload=pcb,
-                                  ext_hdrs=exts)
+        one_hop_path = self._create_one_hop_path(egress_if)
+        exts = [OneHopPathExt()]
+        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia,
+                                  path=one_hop_path, payload=pcb, ext_hdrs=exts)
+
+    def _create_one_hop_path(self, egress_if):
+        ts = int(SCIONTime.get_time())
+        info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0], hops=2)
+        hf1 = HopOpaqueField.from_values(self.HOF_EXP_TIME, 0, egress_if)
+        hf1.set_mac(self.of_gen_key, ts, None)
+        # Return a path where second HF is empty.
+        return SCIONPath.from_values(info, [hf1, HopOpaqueField()])
 
     def _mk_if_info(self, if_id):
         """

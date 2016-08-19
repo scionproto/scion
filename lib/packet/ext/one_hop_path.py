@@ -30,54 +30,27 @@ class OneHopPathExt(HopByHopExtension):
     """
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    | xxxxxxxxxxxxxxxxxxxxxxxx |               IFID                |  0x00  |
-    +--------+--------+--------+--------+--------+--------+--------+--------+
-    |                             Info Field                                |
-    +--------+--------+--------+--------+--------+--------+--------+--------+
-    |                             Hop Field 1                               |
-    +--------+--------+--------+--------+--------+--------+--------+--------+
-    |                             Hop Field 2                               |
+    | xxxxxxxxxxxxxxxxxxxxxxxx |  0x00     0x00     0x00     0x00     0x00  |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     """
     NAME = "OneHopPath"
     EXT_TYPE = ExtHopByHopType.ONE_HOP_PATH
-    LEN = 5 + InfoOpaqueField.LEN + 2*HopOpaqueField.LEN
+    LEN = 5
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
 
     def __init__(self, raw=None):
-        self.ifid = 0
-        self.info = InfoOpaqueField()
-        self.info.hops = 2
-        self.hf1 = HopOpaqueField()
-        self.hf2 = HopOpaqueField()
         super().__init__(raw)
-        self._init_size(3)  # Allocate 3 additional lines.
 
     def _parse(self, raw):
         super()._parse(raw)
-        data = Raw(raw, self.NAME, self.LEN)
-        self.ifid = struct.unpack("!I", data.pop(4))[0]
-        data.pop(1)  # Padding
-        self.info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        self.hf1 = HopOpaqueField(data.pop(HopOpaqueField.LEN))
-        self.hf2 = HopOpaqueField(data.pop(HopOpaqueField.LEN))
 
     @classmethod
-    def from_values(cls, ifid):  # pragma: no cover
-        inst = cls()
-        inst.ifid = ifid
-        return inst
+    def from_values(cls):
+        return cls()
 
     def pack(self):
-        raw = struct.pack("!I", self.ifid)
-        raw += b"\x00"  # Padding
-        raw += self.to_path().pack()
-        self._check_len(raw)
-        return raw
-
-    def to_path(self):
-        return SCIONPath.from_values(self.info, [self.hf1, self.hf2])
+        return b"\x00" * self.LEN
 
     def __str__(self):
-        return "One-hop path: %s" % self.to_path()
+        return "One-hop Path Extension"
