@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"net"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -48,8 +49,8 @@ func (p *Packet) RouteResolveSVC() (HookResult, *util.Error) {
 		return HookError, util.NewError("Destination host is NOT an SVC address",
 			"actual", p.dstHost, "type", fmt.Sprintf("%T", p.dstHost))
 	}
-	intf := conf.net.IFs[*p.ifCurr]
-	f := conf.locOut[intf.LocAddrIdx]
+	intf := conf.C.Net.IFs[*p.ifCurr]
+	f := callbacks.locOutFs[intf.LocAddrIdx]
 	if svc.IsMulticast() {
 		return p.RouteResolveSVCMulti(*svc, f)
 	}
@@ -104,15 +105,15 @@ func (p *Packet) forwardFromExternal() (HookResult, *util.Error) {
 	if p.hopF.VerifyOnly {
 		return HookError, util.NewError("Non-routing HopF, refusing to forward", "hopF", p.hopF)
 	}
-	intf := conf.net.IFs[*p.ifCurr]
-	if *p.dstIA == *conf.ia {
+	intf := conf.C.Net.IFs[*p.ifCurr]
+	if *p.dstIA == *conf.C.IA {
 		// Destination is local host
 		if p.hopF.ForwardOnly {
 			return HookError, util.NewError("Delivery forbidden for Forward-only HopF",
 				"hopF", p.hopF)
 		}
 		dst := &net.UDPAddr{IP: p.dstHost.IP(), Port: overlay.EndhostPort}
-		p.Egress = append(p.Egress, EgressPair{conf.locOut[intf.LocAddrIdx], dst})
+		p.Egress = append(p.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 		return HookContinue, nil
 	}
 	if p.hopF.Xover {
@@ -131,12 +132,18 @@ func (p *Packet) forwardFromExternal() (HookResult, *util.Error) {
 	if nextIF == nil || *nextIF == 0 {
 		return HookError, util.NewError("Invalid next IF", "ifid", *nextIF)
 	}
-	nextBR, ok := conf.tm.IFMap[int(*nextIF)]
+	nextBR, ok := conf.C.TopoMeta.IFMap[int(*nextIF)]
 	if !ok {
 		return HookError, util.NewError("Unknown next IF", "ifid", nextIF)
 	}
+	conf.C.IFStates.RLock()
+	info, ok := conf.C.IFStates.M[*nextIF]
+	conf.C.IFStates.RUnlock()
+	if ok && !info.Active() {
+		return HookError, util.NewError(ErrorIntfRevoked, "ifid", *nextIF)
+	}
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
-	p.Egress = append(p.Egress, EgressPair{conf.locOut[intf.LocAddrIdx], dst})
+	p.Egress = append(p.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
 }
 
@@ -146,6 +153,6 @@ func (p *Packet) forwardFromLocal() (HookResult, *util.Error) {
 			return HookError, err
 		}
 	}
-	p.Egress = append(p.Egress, EgressPair{F: conf.intfOut[*p.ifCurr]})
+	p.Egress = append(p.Egress, EgressPair{F: callbacks.intfOutFs[*p.ifCurr]})
 	return HookContinue, nil
 }

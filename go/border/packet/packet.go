@@ -15,38 +15,30 @@
 package packet
 
 import (
-	"crypto/cipher"
 	"encoding/binary"
 	"net"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var conf struct {
-	tm      *topology.TopoMeta
-	ia      *addr.ISD_AS
-	net     *netconf.NetConf
-	block   cipher.Block
-	locOut  map[int]OutputFunc
-	intfOut map[path.IntfID]OutputFunc
+var callbacks struct {
+	locOutFs   map[int]OutputFunc
+	intfOutFs  map[path.IntfID]OutputFunc
+	ifStateUpd func(proto.IFStateInfos)
 }
 
-func Init(tm *topology.TopoMeta, netConf *netconf.NetConf, locOut map[int]OutputFunc,
-	intfOut map[path.IntfID]OutputFunc, block cipher.Block) {
-	conf.tm = tm
-	conf.ia = conf.tm.T.IA
-	conf.net = netConf
-	conf.block = block
-	conf.locOut = locOut
-	conf.intfOut = intfOut
+func Init(locOut map[int]OutputFunc, intfOut map[path.IntfID]OutputFunc,
+	ifStateUpd func(proto.IFStateInfos)) {
+	callbacks.locOutFs = locOut
+	callbacks.intfOutFs = intfOut
+	callbacks.ifStateUpd = ifStateUpd
 }
 
 type Packet struct {

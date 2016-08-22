@@ -17,6 +17,7 @@ package packet
 import (
 	"time"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -49,7 +50,7 @@ func (p *Packet) validatePath(dirFrom Dir) *util.Error {
 	if err != nil {
 		return err
 	}
-	return p.hopF.Verify(conf.block, p.infoF.TsInt, prevHopF)
+	return p.hopF.Verify(conf.C.HFGenBlock, p.infoF.TsInt, prevHopF)
 }
 
 func (p *Packet) InfoF() (*path.InfoField, *util.Error) {
@@ -277,14 +278,14 @@ func (p *Packet) IFCurr() (*path.IntfID, *util.Error) {
 	addr := p.Ingress.Dst.String()
 	switch p.DirFrom {
 	case DirLocal:
-		ifids, ok := conf.net.LocAddrIFIDMap[addr]
+		ifids, ok := conf.C.Net.LocAddrIFIDMap[addr]
 		if !ok {
 			return nil, util.NewError(ErrorLocAddrInvalid, "addr", addr)
 		}
 		// Just pick the first matching IFID
 		p.ifCurr = &ifids[0]
 	case DirExternal:
-		if ifid, ok := conf.net.IFAddrMap[addr]; ok {
+		if ifid, ok := conf.C.Net.IFAddrMap[addr]; ok {
 			p.ifCurr = &ifid
 		}
 	default:

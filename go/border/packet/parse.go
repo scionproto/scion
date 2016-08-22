@@ -15,6 +15,7 @@
 package packet
 
 import (
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -37,7 +38,7 @@ func (p *Packet) Parse() *util.Error {
 	if _, err := p.DstIA(); err != nil {
 		return err
 	}
-	if *p.dstIA == *conf.ia {
+	if *p.dstIA == *conf.C.IA {
 		if _, err := p.DstHost(); err != nil {
 			return err
 		}
@@ -54,7 +55,7 @@ func (p *Packet) Parse() *util.Error {
 	if _, err := p.IFCurr(); err != nil {
 		return err
 	}
-	if *p.dstIA != *conf.ia {
+	if *p.dstIA != *conf.C.IA {
 		if _, err := p.IFNext(); err != nil {
 			return err
 		}
@@ -111,7 +112,7 @@ func (p *Packet) parseHopExtns() *util.Error {
 			return util.NewError(ErrorTooManyHBH, "max", ExtMaxHopByHop, "actual", count)
 		}
 		hdrLen := int((p.Raw[offset+1] + 1) * spkt.LineLen)
-		e, err := ExtnParse(p.Raw[offset:offset+hdrLen], currExtn, &p.hooks, p.Logger)
+		e, err := p.ExtnParse(currExtn, offset, offset+hdrLen)
 		if err != nil {
 			return err
 		}

@@ -17,7 +17,7 @@ package packet
 import (
 	"fmt"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -41,11 +41,12 @@ var ExtHBHKnown = map[spkt.ExtnType]bool{
 	spkt.ExtnSIBRAType:      true,
 }
 
-func ExtnParse(b []byte, extType spkt.ExtnType, hooks *Hooks,
-	logger log.Logger) (Extension, *util.Error) {
+func (p *Packet) ExtnParse(extType spkt.ExtnType, start, end int) (Extension, *util.Error) {
 	switch {
 	case extType == spkt.ExtnTracerouteType:
-		return TracerouteFromRaw(b, logger)
+		return TracerouteFromRaw(p.Raw[start:end], p.Logger)
+	case extType == spkt.ExtnOneHopPathType:
+		return OneHopPathFromRaw(p.Raw[start:end], p.Logger, p)
 	case ExtHBHKnown[extType]:
 		return nil, util.NewError("Known but unsupported extension", "type", extType)
 	default:

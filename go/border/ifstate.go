@@ -15,11 +15,15 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/topology"
@@ -38,7 +42,7 @@ func (r *Router) IFStateUpdate() {
 
 func (r *Router) GenIFStateReq() {
 	// Pick first local address as source
-	srcAddr := r.NetConf.LocAddr[0].PublicAddr()
+	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
 	pkt, err := packet.CreateCtrlPacket(packet.DirLocal,
@@ -59,9 +63,34 @@ func (r *Router) GenIFStateReq() {
 	}
 	pkt.AddL4UDP(srcAddr.Port, 0)
 	pkt.AddCtrlPld(scion)
-	_, err = pkt.RouteResolveSVCMulti(dstHost, r.locOutQs[0])
+	_, err = pkt.RouteResolveSVCMulti(dstHost, r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route IFStateReq packet", err.Ctx...)
 	}
 	pkt.Route()
+}
+
+func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
+	infos, err := ifStates.Infos()
+	if err != nil {
+		log.Error("Unable to extract IFStateInfos from message", "err", err)
+		return
+	}
+	// Convert to map
+	m := make(map[path.IntfID]proto.IFStateInfo)
+	for i := 0; i < infos.Len(); i++ {
+		info := infos.At(i)
+		ifid := path.IntfID(info.IfID())
+		m[ifid] = info
+		gauge := metrics.IFState.WithLabelValues(fmt.Sprint(ifid))
+		if info.Active() {
+			gauge.Set(1)
+		} else {
+			gauge.Set(0)
+		}
+	}
+	// Lock for writing, and replace existing map
+	conf.C.IFStates.Lock()
+	conf.C.IFStates.M = m
+	conf.C.IFStates.Unlock()
 }
