@@ -31,6 +31,8 @@ const (
 	ErrorSCMPHdrUnpack = "Failed to unpack SCMP header"
 )
 
+// TODO(kormat): lots and lots of work needed for SCMP support.
+
 //var _ Extension = (*SCMP)(nil)
 
 type SCMP struct {

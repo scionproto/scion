@@ -25,10 +25,10 @@ import (
 const (
 	ErrorHopFieldExpired    = "Hop field expired"
 	ErrorHopFieldVerifyOnly = "Hop field is VERIFY_ONLY"
-	ErrorGetInfoFTooSmall   = "InfoF offset too small"
-	ErrorGetInfoFTooLarge   = "InfoF offset too large"
-	ErrorGetHopFTooSmall    = "HopF offset too small"
-	ErrorGetHopFTooLarge    = "HopF offset too large"
+	ErrorGetInfoFTooSmall   = "Info field offset too small"
+	ErrorGetInfoFTooLarge   = "Info field offset too large"
+	ErrorGetHopFTooSmall    = "Hop field offset too small"
+	ErrorGetHopFTooLarge    = "Hop field offset too large"
 	ErrorDirFromUnsupported = "DirFrom value unsupported"
 	ErrorLocAddrInvalid     = "Invalid local address"
 )
@@ -131,7 +131,7 @@ func (p *Packet) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
 			case ingress && p.infoF.Up:
 				offset = +2
 			case ingress && !p.infoF.Up:
-				offset = 1
+				offset = +1
 			case !ingress && p.infoF.Up:
 				offset = -1
 			case !ingress && !p.infoF.Up:
@@ -144,7 +144,7 @@ func (p *Packet) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
 			case ingress && !p.infoF.Up:
 				offset = -1
 			case !ingress && p.infoF.Up:
-				offset = 1
+				offset = +1
 			}
 		}
 	}
@@ -206,7 +206,6 @@ func (p *Packet) incPath() *util.Error {
 	p.CmnHdr.UpdatePathOffsets(p.Raw, iOff, hOff)
 	p.infoF = infoF
 	p.hopF = hopF
-	//p.CmnHdr.Write(p.Raw)
 	p.upFlag = nil
 	if _, err = p.UpFlag(); err != nil {
 		return err
@@ -296,7 +295,6 @@ func (p *Packet) IFCurr() (*path.IntfID, *util.Error) {
 
 func (p *Packet) IFNext() (*path.IntfID, *util.Error) {
 	if p.ifNext == nil && p.upFlag != nil {
-		//p.Debug("IFNext()", "upflag", *p.upFlag)
 		var err *util.Error
 		if p.ifNext, err = p.hookIF(*p.upFlag, p.hooks.IFNext); err != nil {
 			return nil, err

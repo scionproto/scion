@@ -27,8 +27,9 @@ import (
 )
 
 var (
-	id      = flag.String("id", "", "Element ID (Required. E.g. 'er1-23er4-21')")
-	confDir = flag.String("confd", ".", "Configuration directory")
+	id       = flag.String("id", "", "Element ID (Required. E.g. 'er1-23er4-21')")
+	confDir  = flag.String("confd", ".", "Configuration directory")
+	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
 )
 
 func main() {
@@ -39,7 +40,9 @@ func main() {
 	}
 	liblog.Setup(*id)
 	defer liblog.PanicLog()
-	//profile.Start(*id)
+	if *profFlag {
+		profile.Start(*id)
+	}
 	setupSignals()
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {

@@ -102,6 +102,7 @@ func (t *Traceroute) Validate() (HookResult, *util.Error) {
 }
 
 func (t *Traceroute) Process() (HookResult, *util.Error) {
+	// FIXME(kormat): finish implementing this.
 	/*
 		if err := t.Add(localIA,...); err != nil {
 			t.Error("Unable to add entry", err)

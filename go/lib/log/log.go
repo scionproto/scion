@@ -24,7 +24,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/kormat/fmt15"
+	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
