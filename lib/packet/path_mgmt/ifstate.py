@@ -33,7 +33,7 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
     state (up or down), and the current revocation token and proof.
     """
     NAME = "IFStateInfo"
-    P_CLS = P.Info
+    P_CLS = P.IFStateInfo
 
     def __init__(self, p):
         super().__init__(p)
@@ -51,7 +51,7 @@ class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
     """
     NAME = "IFStatePayload"
     PAYLOAD_TYPE = PMT.IFSTATE_INFOS
-    P_CLS = P.Infos
+    P_CLS = P.IFStateInfos
 
     @classmethod
     def from_values(cls, infos):
@@ -72,7 +72,7 @@ class IFStateRequest(PathMgmtPayloadBase):  # pragma: no cover
     """
     NAME = "IFStateRequest"
     PAYLOAD_TYPE = PMT.IFSTATE_REQ
-    P_CLS = P.Req
+    P_CLS = P.IFStateReq
     ALL_INTERFACES = 0
 
     @classmethod

@@ -42,7 +42,7 @@ func (p *Packet) Route() *util.Error {
 	return nil
 }
 
-func (p *Packet) routeResolveSVC() (HookResult, *util.Error) {
+func (p *Packet) RouteResolveSVC() (HookResult, *util.Error) {
 	svc, ok := p.dstHost.(*addr.HostSVC)
 	if !ok {
 		return HookError, util.NewError("Destination host is NOT an SVC address",
@@ -51,12 +51,12 @@ func (p *Packet) routeResolveSVC() (HookResult, *util.Error) {
 	intf := conf.net.IFs[*p.ifCurr]
 	f := conf.locOut[intf.LocAddrIdx]
 	if svc.IsMulticast() {
-		return p.routeResolveSVCMulti(*svc, f)
+		return p.RouteResolveSVCMulti(*svc, f)
 	}
-	return p.routeResolveSVCAny(*svc, f)
+	return p.RouteResolveSVCAny(*svc, f)
 }
 
-func (p *Packet) routeResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
+func (p *Packet) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	names, elemMap := getSVCNamesMap(svc)
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
@@ -70,7 +70,7 @@ func (p *Packet) routeResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult,
 	return HookContinue, nil
 }
 
-func (p *Packet) routeResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
+func (p *Packet) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	_, elemMap := getSVCNamesMap(svc)
 	if elemMap == nil {
 		return HookError, util.NewError("No instances found for SVC address", "svc", svc)

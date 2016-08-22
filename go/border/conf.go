@@ -76,6 +76,7 @@ func (r *Router) startup() *util.Error {
 		return err
 	}
 	go r.SyncInterface()
+	go r.IFStateUpdate()
 	return nil
 }
 

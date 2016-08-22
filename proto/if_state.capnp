@@ -5,16 +5,16 @@ $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
 
-struct Info {
+struct IFStateInfo {
     ifID @0 :UInt16;
     active @1 :Bool;
     revInfo @2 :RevInfo.RevInfo;
 }
 
-struct Infos {
-    infos @0 :List(Info);
+struct IFStateInfos {
+    infos @0 :List(IFStateInfo);
 }
 
-struct Req {
+struct IFStateReq {
     ifID @0 :UInt16;
 }
