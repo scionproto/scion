@@ -52,10 +52,12 @@ from lib.errors import (
 )
 from lib.log import log_exception
 from lib.sibra.ext.ext import SibraExtBase
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ifid import IFIDPayload
+from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
-from lib.packet.svc import SVCType
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
@@ -73,6 +75,7 @@ from lib.packet.scmp.errors import (
     SCMPUnknownHost,
 )
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.packet.svc import SVCType
 from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -118,11 +121,12 @@ class Router(SCIONElement):
         self.pre_ext_handlers = {
             SibraExtBase.EXT_TYPE: self.handle_sibra,
             TracerouteExt.EXT_TYPE: self.handle_traceroute,
+            OneHopPathExt.EXT_TYPE: self.handle_one_hop_path,
             ExtHopByHopType.SCMP: self.handle_scmp,
         }
         self.post_ext_handlers = {
             SibraExtBase.EXT_TYPE: False, TracerouteExt.EXT_TYPE: False,
-            ExtHopByHopType.SCMP: False,
+            ExtHopByHopType.SCMP: False, OneHopPathExt.EXT_TYPE: False,
         }
         self.sibra_state = SibraState(
             self.interface.bandwidth,
@@ -231,8 +235,21 @@ class Router(SCIONElement):
         return flags
 
     def handle_traceroute(self, hdr, spkt, _):
-        # Truncate milliseconds to 2B
         hdr.append_hop(self.addr.isd_as, self.interface.if_id)
+        return []
+
+    def handle_one_hop_path(self, hdr, spkt, from_local_as):
+        if len(spkt.path) != InfoOpaqueField.LEN + 2*HopOpaqueField.LEN:
+            logging.error("OneHopPathExt: incorrect path length.")
+            return [(RouterFlag.ERROR,)]
+        if not from_local_as:  # Remote packet, create the 2nd Hop Field
+            info = spkt.path.get_iof()
+            hf1 = spkt.path.get_hof_ver(ingress=True)
+            exp_time = OneHopPathExt.HOF_EXP_TIME
+            hf2 = HopOpaqueField.from_values(exp_time, self.interface.if_id, 0)
+            hf2.set_mac(self.of_gen_key, info.timestamp, hf1)
+            # FIXME(PSz): quite brutal for now:
+            spkt.path = SCIONPath.from_values(info, [hf1, hf2])
         return []
 
     def handle_sibra(self, hdr, spkt, from_local_as):
