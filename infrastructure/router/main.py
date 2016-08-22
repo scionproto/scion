@@ -240,7 +240,7 @@ class Router(SCIONElement):
 
     def handle_one_hop_path(self, hdr, spkt, from_local_as):
         if len(spkt.path) != InfoOpaqueField.LEN + 2*HopOpaqueField.LEN:
-            logging.error("OneHopPathExt: non-empty path.")
+            logging.error("OneHopPathExt: incorrect path length.")
             return [(RouterFlag.ERROR,)]
         if spkt.addrs.dst.host != SVCType.BS_A:
             logging.error("OneHopPathExt: dst host != beacon service.")

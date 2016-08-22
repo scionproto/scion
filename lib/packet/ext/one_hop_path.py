@@ -15,15 +15,9 @@
 :mod:`one_hop_path` --- one_hop_path extension header
 =====================================================
 """
-# Stdlib
-import struct
-
 # SCION
 from lib.packet.ext_hdr import HopByHopExtension
-from lib.packet.path import SCIONPath
-from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.types import ExtHopByHopType
-from lib.util import Raw
 
 
 class OneHopPathExt(HopByHopExtension):
