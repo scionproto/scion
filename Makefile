@@ -31,6 +31,9 @@ libssocket: libscion
 dispatcher: clibs
 	$(MAKE) -C endhost install
 
+libhsr: libscion
+	$(MAKE) -C lib/libhsr
+
 install: clibs dispatcher
 
 uninstall:
