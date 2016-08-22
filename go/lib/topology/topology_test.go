@@ -30,27 +30,27 @@ import (
 func Test_Topo(t *testing.T) {
 	// Lots of setup
 	bses := map[string]BasicElem{
-		"bs1-11-1": BasicElem{mkYIP("127.0.0.65"), 30054},
+		"bs1-11-1": {mkYIP("127.0.0.65"), 30054},
 	}
 	cses := map[string]BasicElem{
-		"cs1-11-1": BasicElem{mkYIP("127.0.0.66"), 30081},
-		"cs1-11-2": BasicElem{mkYIP("127.0.0.67"), 30073},
+		"cs1-11-1": {mkYIP("127.0.0.66"), 30081},
+		"cs1-11-2": {mkYIP("127.0.0.67"), 30073},
 	}
 	brs := map[string]TopoBR{
-		"br1-11-1": TopoBR{
+		"br1-11-1": {
 			BasicElem{mkYIP("127.0.0.69"), 30097},
 			&TopoIF{mkYIP("127.0.0.6"), 50001, mkYIP("127.0.0.7"), 50000,
 				1, &addr.ISD_AS{I: 1, A: 12}, 1472, 1000, "ROUTING"},
 		},
 	}
 	pses := map[string]BasicElem{
-		"ps1-11-1": BasicElem{mkYIP("127.0.0.73"), 30091},
+		"ps1-11-1": {mkYIP("127.0.0.73"), 30091},
 	}
 	sbs := map[string]BasicElem{
-		"sb1-11-1": BasicElem{mkYIP("127.0.0.76"), 30058},
+		"sb1-11-1": {mkYIP("127.0.0.76"), 30058},
 	}
 	zks := map[int]BasicElem{
-		1: BasicElem{mkYIP("127.0.0.1"), 2181},
+		1: {mkYIP("127.0.0.1"), 2181},
 	}
 	core := true
 	ia := &addr.ISD_AS{I: 1, A: 11}

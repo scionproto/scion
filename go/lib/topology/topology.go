@@ -105,19 +105,19 @@ func (tm *TopoMeta) populateMeta() {
 		tm.BRNames = append(tm.BRNames, k)
 		tm.IFMap[v.IF.IFID] = v
 	}
-	for k, _ := range tm.T.BS {
+	for k := range tm.T.BS {
 		tm.BSNames = append(tm.BSNames, k)
 	}
-	for k, _ := range tm.T.PS {
+	for k := range tm.T.PS {
 		tm.PSNames = append(tm.PSNames, k)
 	}
-	for k, _ := range tm.T.CS {
+	for k := range tm.T.CS {
 		tm.CSNames = append(tm.CSNames, k)
 	}
-	for k, _ := range tm.T.SB {
+	for k := range tm.T.SB {
 		tm.SBNames = append(tm.SBNames, k)
 	}
-	for k, _ := range tm.T.ZK {
+	for k := range tm.T.ZK {
 		tm.ZKIDs = append(tm.ZKIDs, k)
 	}
 	sort.Strings(tm.BRNames)

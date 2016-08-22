@@ -31,7 +31,7 @@ const IFIDFreq = 1 * time.Second
 func (r *Router) SyncInterface() {
 	defer liblog.PanicLog()
 	for range time.Tick(IFIDFreq) {
-		for ifid, _ := range r.NetConf.IFs {
+		for ifid := range r.NetConf.IFs {
 			r.GenIFIDPkt(ifid)
 		}
 	}

@@ -51,7 +51,7 @@ func Setup(name string) {
 	)
 	log.Root().SetHandler(handler)
 	go func() {
-		for _ = range time.Tick(5 * time.Second) {
+		for range time.Tick(5 * time.Second) {
 			Flush()
 		}
 	}()
