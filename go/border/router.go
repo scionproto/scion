@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/as_conf"
+	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
@@ -70,6 +71,7 @@ func (r *Router) Run() *util.Error {
 }
 
 func (r *Router) handleQueue(q chan *packet.Packet) {
+	defer liblog.PanicLog()
 	for p := range q {
 		metrics.PktsRecv.Inc()
 		metrics.BytesRecv.Add(float64(len(p.Raw)))
@@ -102,6 +104,7 @@ func (r *Router) processPacket(p *packet.Packet) {
 }
 
 func (r *Router) readInput(in *net.UDPConn, dirFrom packet.Dir, q chan *packet.Packet) {
+	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
 	for {
