@@ -242,9 +242,6 @@ class Router(SCIONElement):
         if len(spkt.path) != InfoOpaqueField.LEN + 2*HopOpaqueField.LEN:
             logging.error("OneHopPathExt: incorrect path length.")
             return [(RouterFlag.ERROR,)]
-        if spkt.addrs.dst.host != SVCType.BS_A:
-            logging.error("OneHopPathExt: dst host != beacon service.")
-            return [(RouterFlag.ERROR,)]
         if not from_local_as:  # Remote packet, create the 2nd Hop Field
             info = spkt.path.get_iof()
             hf1 = spkt.path.get_hof_ver(ingress=True)
