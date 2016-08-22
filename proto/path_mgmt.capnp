@@ -27,7 +27,7 @@ struct PathMgmt {
         segReg @3 :SegRecs;
         segSync @4 :SegRecs;
         revInfo @5 :RevInfo.RevInfo;
-        ifStateReq @6 :IFState.Req;
-        ifStateInfos @7 :IFState.Infos;
+        ifStateReq @6 :IFState.IFStateReq;
+        ifStateInfos @7 :IFState.IFStateInfos;
     }
 }

@@ -20,43 +20,48 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/packet"
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-const IFIDFreq = 1 * time.Second
+const IFStateFreq = 30 * time.Second
 
-func (r *Router) SyncInterface() {
+func (r *Router) IFStateUpdate() {
 	defer liblog.PanicLog()
-	for range time.Tick(IFIDFreq) {
-		for ifid, _ := range r.NetConf.IFs {
-			r.GenIFIDPkt(ifid)
-		}
+	r.GenIFStateReq()
+	for range time.Tick(IFStateFreq) {
+		r.GenIFStateReq()
 	}
 }
 
-func (r *Router) GenIFIDPkt(ifid path.IntfID) {
-	logger := log.New("ifid", ifid)
-	intf := r.NetConf.IFs[ifid]
-	srcAddr := intf.IFAddr.PublicAddr()
+func (r *Router) GenIFStateReq() {
+	// Pick first local address as source
+	srcAddr := r.NetConf.LocAddr[0].PublicAddr()
+	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
-	pkt, err := packet.CreateCtrlPacket(packet.DirExternal,
-		addr.HostFromIP(srcAddr.IP), intf.RemoteIA, addr.SvcBS.Multicast())
+	pkt, err := packet.CreateCtrlPacket(packet.DirLocal,
+		addr.HostFromIP(srcAddr.IP), topology.Curr.T.IA, dstHost)
 	if err != nil {
-		logger.Error("Error creating IFID packet", err.Ctx...)
+		log.Error("Error creating IFStateReq packet", err.Ctx...)
 	}
-	// Set egress
-	pkt.Egress = append(pkt.Egress, packet.EgressPair{F: r.intfOutQs[ifid], Dst: intf.RemoteAddr})
-	// Create IFID msg
-	scion, ifidMsg, err := proto.NewIFIDMsg()
+	// Create payload
+	scion, pathMgmt, err := proto.NewPathMgmtMsg()
 	if err != nil {
-		logger.Error("Error creating IFID payload", err.Ctx...)
+		log.Error("Error creating PathMgmt payload", err.Ctx...)
 		return
 	}
-	ifidMsg.SetOrigIF(uint16(ifid))
+	_, cerr := pathMgmt.NewIfStateReq()
+	if cerr != nil {
+		log.Error("Unable to create IFStateReq struct", "err", cerr)
+		return
+	}
 	pkt.AddL4UDP(srcAddr.Port, 0)
 	pkt.AddCtrlPld(scion)
+	_, err = pkt.RouteResolveSVCMulti(dstHost, r.locOutQs[0])
+	if err != nil {
+		log.Error("Unable to route IFStateReq packet", err.Ctx...)
+	}
 	pkt.Route()
 }

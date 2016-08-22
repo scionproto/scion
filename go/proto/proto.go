@@ -51,3 +51,15 @@ func NewIFIDMsg() (*SCION, *IFID, *util.Error) {
 	}
 	return scion, &ifid, nil
 }
+
+func NewPathMgmtMsg() (*SCION, *PathMgmt, *util.Error) {
+	scion, err := NewSCIONMsg()
+	if err != nil {
+		return nil, nil, err
+	}
+	pathMgmt, cerr := scion.NewPathMgmt()
+	if cerr != nil {
+		return nil, nil, util.NewError("Unable to create PathMgmt struct", "err", err)
+	}
+	return scion, &pathMgmt, nil
+}

@@ -46,7 +46,7 @@ func (p *Packet) NeedsLocalProcessing() *util.Error {
 			p.hooks.Process = append(p.hooks.Process, p.processPathlessSVC)
 		}
 		// Resolve SVC address for delivery.
-		p.hooks.Route = append(p.hooks.Route, p.routeResolveSVC)
+		p.hooks.Route = append(p.hooks.Route, p.RouteResolveSVC)
 		return nil
 	}
 	dstIP := p.dstHost.IP()
