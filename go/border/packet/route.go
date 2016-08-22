@@ -75,7 +75,14 @@ func (p *Packet) routeResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResul
 	if elemMap == nil {
 		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
 	}
+	// Only send once per IP
+	seen := make(map[string]bool)
 	for _, elem := range elemMap {
+		strIP := string(elem.Addr.IP)
+		if _, ok := seen[strIP]; ok {
+			continue
+		}
+		seen[strIP] = true
 		dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
 		p.Egress = append(p.Egress, EgressPair{f, dst})
 	}
