@@ -104,7 +104,7 @@ cmd_lint() {
 cmd_gofmt() {
     echo "Running gofmt"
     echo "============================================="
-    local fmtout=$(gofmt -d ./go)
+    local fmtout=$(gofmt -d -s ./go)
     if [ -n "$fmtout" ]; then
         echo "$fmtout"
         return 1
