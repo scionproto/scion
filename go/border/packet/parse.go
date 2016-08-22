@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	ErrorHdrTooShort = "Cmn hdr header len is less than length of common + address headers"
+	ErrorHdrTooShort = "Header length indicated in common header is too small"
 	ErrorExtOrder    = "Extension order is illegal"
 	ErrorTooManyHBH  = "Too many hop-by-hop extensions"
 )

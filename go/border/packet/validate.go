@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	ErrorTotalLenTooLong = "Cmn hdr total len longer than packet"
+	ErrorTotalLenTooLong = "Total length specified in common header doesn't match bytes received"
 	ErrorCurrIntfInvalid = "Invalid current interface"
 	ErrorIntfRevoked     = "Interface revoked"
 	ErrorHookResponse    = "Extension hook return value unrecognised"
