@@ -81,7 +81,7 @@ func mkLogfile(name string) io.Writer {
 
 func PanicLog() {
 	if msg := recover(); msg != nil {
-		log.Crit("Panic", "msg", msg, "stack", debug.Stack())
+		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 	}
 }
 

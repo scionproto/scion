@@ -22,12 +22,14 @@ import (
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
 const IFIDFreq = 1 * time.Second
 
 func (r *Router) SyncInterface() {
+	defer liblog.PanicLog()
 	for range time.Tick(IFIDFreq) {
 		for ifid, _ := range r.NetConf.IFs {
 			r.GenIFIDPkt(ifid)
