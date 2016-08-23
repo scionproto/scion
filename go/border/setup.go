@@ -15,12 +15,17 @@
 package main
 
 import (
+	"fmt"
+
 	log "github.com/inconshreveable/log15"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/border/path"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -29,6 +34,17 @@ const (
 	ErrorListenLocal    = "Unable to listen on local socket"
 	ErrorListenExternal = "Unable to listen on external socket"
 )
+
+type setupNetHook func(r *Router) (packet.HookResult, *util.Error)
+type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
+	packet.HookResult, *util.Error)
+type setupAddExtHook func(r *Router, intf *netconf.Interface, labels prometheus.Labels) (
+	packet.HookResult, *util.Error)
+
+var setupNetStartHooks []setupNetHook
+var setupAddLocalHooks []setupAddLocalHook
+var setupAddExtHooks []setupAddExtHook
+var setupNetFinishHooks []setupNetHook
 
 func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]packet.OutputFunc)
@@ -47,26 +63,89 @@ func (r *Router) setup(confDir string) *util.Error {
 }
 
 func (r *Router) setupNet() *util.Error {
+	// If there are other hooks, they should install themselves via init(), so
+	// they appear before the posix ones.
+	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
+	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
+	for _, f := range setupNetStartHooks {
+		ret, err := f(r)
+		switch {
+		case err != nil:
+			return err
+		case ret == packet.HookContinue:
+			continue
+		case ret == packet.HookFinish:
+			break
+		}
+	}
 	var addrs []string
 	for i, a := range conf.C.Net.LocAddr {
-		if err := a.Listen(); err != nil {
-			return util.NewError(ErrorListenLocal, "err", err)
-		}
 		addrs = append(addrs, a.BindAddr().String())
-		q := make(chan *packet.Packet)
-		r.inQs = append(r.inQs, q)
-		go r.readInput(a.Conn, packet.DirLocal, q)
-		r.locOutFs[i] = func(p *packet.Packet) { r.writeLocalOutput(a.Conn, p) }
+		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
+		for _, f := range setupAddLocalHooks {
+			ret, err := f(r, i, a, labels)
+			switch {
+			case err != nil:
+				return err
+			case ret == packet.HookContinue:
+				continue
+			case ret == packet.HookFinish:
+				break
+			}
+		}
 	}
 	metrics.Export(addrs)
-	for _, a := range conf.C.Net.IFs {
-		if err := a.IFAddr.Connect(a.RemoteAddr); err != nil {
-			return util.NewError(ErrorListenExternal, "err", err)
+	for _, intf := range conf.C.Net.IFs {
+		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", intf.Id)}
+	InnerLoop:
+		for _, f := range setupAddExtHooks {
+			ret, err := f(r, intf, labels)
+			switch {
+			case err != nil:
+				return err
+			case ret == packet.HookContinue:
+				continue
+			case ret == packet.HookFinish:
+				break InnerLoop
+			}
 		}
-		q := make(chan *packet.Packet)
-		r.inQs = append(r.inQs, q)
-		go r.readInput(a.IFAddr.Conn, packet.DirExternal, q)
-		r.intfOutFs[a.Id] = func(p *packet.Packet) { r.writeIntfOutput(a.IFAddr.Conn, p) }
+	}
+	for _, f := range setupNetFinishHooks {
+		ret, err := f(r)
+		switch {
+		case err != nil:
+			return err
+		case ret == packet.HookContinue:
+			continue
+		case ret == packet.HookFinish:
+			break
+		}
 	}
 	return nil
+}
+
+func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
+	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	if err := over.Listen(); err != nil {
+		return packet.HookError, util.NewError(ErrorListenLocal, "err", err)
+	}
+	q := make(chan *packet.Packet)
+	r.inQs = append(r.inQs, q)
+	go r.readPosixInput(over.Conn, packet.DirLocal, labels, q)
+	r.locOutFs[idx] = func(p *packet.Packet) { r.writeLocalOutput(over.Conn, labels, p) }
+	return packet.HookFinish, nil
+}
+
+func setupPosixAddExt(r *Router, intf *netconf.Interface,
+	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
+		return packet.HookError, util.NewError(ErrorListenExternal, "err", err)
+	}
+	q := make(chan *packet.Packet)
+	r.inQs = append(r.inQs, q)
+	go r.readPosixInput(intf.IFAddr.Conn, packet.DirExternal, labels, q)
+	r.intfOutFs[intf.Id] = func(p *packet.Packet) {
+		r.writeIntfOutput(intf.IFAddr.Conn, labels, p)
+	}
+	return packet.HookFinish, nil
 }

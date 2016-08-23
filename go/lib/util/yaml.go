@@ -53,6 +53,8 @@ func (y *YamlIP) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err = unmarshal(&s); err != nil {
 		return err
 	}
-	y.IP, _, err = net.ParseCIDR(s)
-	return err
+	if y.IP = net.ParseIP(s); y.IP == nil {
+		return fmt.Errorf("Invalid IP '%v'", s)
+	}
+	return nil
 }

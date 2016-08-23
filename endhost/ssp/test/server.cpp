@@ -48,6 +48,10 @@ int main(int argc, char **argv)
 #else
         int recvlen = newSocket->recv((uint8_t *)buf, BUFSIZE, NULL);
 #endif
+        if (recvlen < 1) {
+            fprintf(stderr, "Connection closed (%d)\n", recvlen);
+            break;
+        }
         size += recvlen;
         count++;
         if (count > 1000) {

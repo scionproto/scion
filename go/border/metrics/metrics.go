@@ -22,26 +22,38 @@ import (
 )
 
 var (
-	PktsRecv = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "pkts_recv_total",
-		Help:      "Number of packets received.",
-	})
-	PktsSent = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "pkts_sent_total",
-		Help:      "Number of packets sent.",
-	})
-	BytesRecv = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "bytes_recv_total",
-		Help:      "Number of bytes received.",
-	})
-	BytesSent = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "bytes_sent_total",
-		Help:      "Number of bytes sent.",
-	})
+	PktsRecv = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "pkts_recv_total",
+			Help:      "Number of packets received.",
+		},
+		[]string{"id"},
+	)
+	PktsSent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "pkts_sent_total",
+			Help:      "Number of packets sent.",
+		},
+		[]string{"id"},
+	)
+	BytesRecv = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "bytes_recv_total",
+			Help:      "Number of bytes received.",
+		},
+		[]string{"id"},
+	)
+	BytesSent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "bytes_sent_total",
+			Help:      "Number of bytes sent.",
+		},
+		[]string{"id"},
+	)
 	PktBufNew = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "border",
 		Name:      "pbuf_created_total",
@@ -68,7 +80,31 @@ var (
 			Name:      "interface_active",
 			Help:      "Interface is active.",
 		},
-		[]string{"ifid"},
+		[]string{"id"},
+	)
+	InputLoops = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "input_loops",
+			Help:      "Number of input loop runs.",
+		},
+		[]string{"id"},
+	)
+	InputProcessTime = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "input_process_seconds",
+			Help:      "Input processing time.",
+		},
+		[]string{"id"},
+	)
+	OutputProcessTime = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "output_process_seconds",
+			Help:      "Output processing time.",
+		},
+		[]string{"id"},
 	)
 )
 
@@ -82,6 +118,9 @@ func init() {
 	prometheus.MustRegister(PktBufDiscard)
 	prometheus.MustRegister(PktProcessTime)
 	prometheus.MustRegister(IFState)
+	prometheus.MustRegister(InputLoops)
+	prometheus.MustRegister(InputProcessTime)
+	prometheus.MustRegister(OutputProcessTime)
 }
 
 func Export(addresses []string) {

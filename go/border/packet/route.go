@@ -153,6 +153,7 @@ func (p *Packet) forwardFromLocal() (HookResult, *util.Error) {
 			return HookError, err
 		}
 	}
-	p.Egress = append(p.Egress, EgressPair{F: callbacks.intfOutFs[*p.ifCurr]})
+	intf := conf.C.Net.IFs[*p.ifCurr]
+	p.Egress = append(p.Egress, EgressPair{callbacks.intfOutFs[*p.ifCurr], intf.RemoteAddr})
 	return HookContinue, nil
 }

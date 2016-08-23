@@ -134,39 +134,41 @@ func (h *HostIPv6) String() string {
 // *****************************************
 type HostSVC uint16
 
-func (h HostSVC) Size() int {
+func (h *HostSVC) Size() int {
 	return HostLenSVC
 }
 
-func (h HostSVC) Type() uint8 {
+func (h *HostSVC) Type() uint8 {
 	return HostTypeSVC
 }
 
-func (h HostSVC) Pack() util.RawBytes {
+func (h *HostSVC) Pack() util.RawBytes {
 	out := make(util.RawBytes, HostLenSVC)
-	binary.BigEndian.PutUint16(out, uint16(h))
+	binary.BigEndian.PutUint16(out, uint16(*h))
 	return out
 }
 
-func (h HostSVC) IP() net.IP {
+func (h *HostSVC) IP() net.IP {
 	return nil
 }
 
-func (h HostSVC) IsMulticast() bool {
-	return (h & SVCMcast) != 0
+func (h *HostSVC) IsMulticast() bool {
+	return (*h & SVCMcast) != 0
 }
 
-func (h HostSVC) Base() HostSVC {
-	return h & ^HostSVC(SVCMcast)
+func (h *HostSVC) Base() *HostSVC {
+	base := *h & ^HostSVC(SVCMcast)
+	return &base
 }
 
-func (h HostSVC) Multicast() HostSVC {
-	return h | HostSVC(SVCMcast)
+func (h *HostSVC) Multicast() *HostSVC {
+	mcast := *h | HostSVC(SVCMcast)
+	return &mcast
 }
 
 func (h HostSVC) String() string {
 	var name string
-	switch h.Base() {
+	switch *h.Base() {
 	case SvcBS:
 		name = "BS"
 	case SvcPS:
@@ -227,4 +229,8 @@ func HostLen(htype uint8) (uint8, *util.Error) {
 		return 0, util.NewError(ErrorUnknownHostAddrType, "type", htype)
 	}
 	return length, nil
+}
+
+func HostEq(a, b HostAddr) bool {
+	return a.Type() == b.Type() && a.String() == b.String()
 }

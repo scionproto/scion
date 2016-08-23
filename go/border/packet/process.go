@@ -90,26 +90,9 @@ func (p *Packet) processPathlessSVC() (HookResult, *util.Error) {
 			"pldType", fmt.Sprintf("%T", p.pld), "pld", p.pld)
 	}
 	switch pld.Which() {
-	case proto.SCION_Which_ifid:
-		ifid, err := pld.Ifid()
-		if err != nil {
-			return HookError, util.NewError(ErrorPldGet, "err", err)
-		}
-		return p.processIFID(ifid)
 	default:
-		// TODO(kormat): when the other payloads are implemented, change this to an error.
-		//return HookError, util.NewError("Unsupported payload type", "type", pld.Which())
-		p.Warn("Unsupported payload type", "type", pld.Which())
-		return HookContinue, nil
+		return HookError, util.NewError("Unsupported payload type", "type", pld.Which())
 	}
-}
-
-func (p *Packet) processIFID(pld proto.IFID) (HookResult, *util.Error) {
-	pld.SetRelayIF(uint16(*p.ifCurr))
-	if err := p.updateCtrlPld(); err != nil {
-		return HookError, err
-	}
-	return HookContinue, nil
 }
 
 func (p *Packet) processDestSelf() (HookResult, *util.Error) {
@@ -122,6 +105,12 @@ func (p *Packet) processDestSelf() (HookResult, *util.Error) {
 			"pldType", fmt.Sprintf("%T", p.pld), "pld", p.pld)
 	}
 	switch pld.Which() {
+	case proto.SCION_Which_ifid:
+		ifid, err := pld.Ifid()
+		if err != nil {
+			return HookError, util.NewError(ErrorPldGet, "err", err)
+		}
+		return p.processIFID(ifid)
 	case proto.SCION_Which_pathMgmt:
 		pathMgmt, err := pld.PathMgmt()
 		if err != nil {
@@ -132,6 +121,34 @@ func (p *Packet) processDestSelf() (HookResult, *util.Error) {
 		p.Error("Unsupported destination payload", "type", pld.Which())
 		return HookError, nil
 	}
+}
+
+func (p *Packet) processIFID(pld proto.IFID) (HookResult, *util.Error) {
+	pld.SetRelayIF(uint16(*p.ifCurr))
+	if err := p.updateCtrlPld(); err != nil {
+		return HookError, err
+	}
+	intf := conf.C.Net.IFs[*p.ifCurr]
+	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
+	// Create base packet
+	pkt, err := CreateCtrlPacket(DirLocal, addr.HostFromIP(srcAddr.IP),
+		conf.C.IA, addr.SvcBS.Multicast())
+	if err != nil {
+		p.Error("Error creating IFID forwarding packet", err.Ctx...)
+	}
+	pkt.AddL4UDP(srcAddr.Port, 0)
+	// Set payload
+	if err := pkt.AddCtrlPld(p.pld.(*proto.SCION)); err != nil {
+		return HookError, util.NewError("Error setting IFID forwarding payload", err.Ctx...)
+	}
+	pkt.ifCurr = p.ifCurr
+	_, err = pkt.RouteResolveSVC()
+	if err != nil {
+		p.Error("Error resolving SVC address", err.Ctx...)
+		return HookError, nil
+	}
+	pkt.Route()
+	return HookFinish, nil
 }
 
 func (p *Packet) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
@@ -153,7 +170,7 @@ func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem) 
 	var names []string
 	var elemMap map[string]topology.BasicElem
 	tm := conf.C.TopoMeta
-	switch svc.Base() {
+	switch *svc.Base() {
 	case addr.SvcBS:
 		names = tm.BSNames
 		elemMap = tm.T.BS

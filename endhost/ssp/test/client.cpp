@@ -60,17 +60,22 @@ int main(int argc, char **argv)
     */
 
     int count = 0;
+    int retval;
     char buf[BUFSIZE];
     memset(buf, 0, BUFSIZE);
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);
 #ifdef MPUDP
-        s.send((uint8_t *)buf, BUFSIZE, &saddr);
+        retval = s.send((uint8_t *)buf, BUFSIZE, &saddr);
         usleep(500000);
 #else
-        s.send((uint8_t *)buf, BUFSIZE);
+        retval = s.send((uint8_t *)buf, BUFSIZE);
 #endif
+        if (retval <1 ) {
+            printf("Connection closed (%d)\n", retval);
+            break;
+        }
     }
     exit(0);
 }

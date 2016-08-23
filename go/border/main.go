@@ -46,12 +46,12 @@ func main() {
 	setupSignals()
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
-		log.Crit("Startup failed", err.Ctx)
+		log.Crit("Startup failed", err.Ctx...)
 		os.Exit(1)
 	}
 	log.Info("Starting up", "id", *id)
 	if err := r.Run(); err != nil {
-		log.Crit("Run failed", err.Ctx)
+		log.Crit("Run failed", err.Ctx...)
 		os.Exit(1)
 	}
 }

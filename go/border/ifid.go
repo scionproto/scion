@@ -48,7 +48,7 @@ func (r *Router) GenIFIDPkt(ifid path.IntfID) {
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
 	pkt, err := packet.CreateCtrlPacket(packet.DirExternal,
-		addr.HostFromIP(srcAddr.IP), intf.RemoteIA, addr.SvcBS.Multicast())
+		addr.HostFromIP(srcAddr.IP), intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP))
 	if err != nil {
 		logger.Error("Error creating IFID packet", err.Ctx...)
 	}
@@ -61,7 +61,7 @@ func (r *Router) GenIFIDPkt(ifid path.IntfID) {
 		return
 	}
 	ifidMsg.SetOrigIF(uint16(ifid))
-	pkt.AddL4UDP(srcAddr.Port, 0)
+	pkt.AddL4UDP(srcAddr.Port, intf.RemoteAddr.Port)
 	pkt.AddCtrlPld(scion)
 	pkt.Route()
 }

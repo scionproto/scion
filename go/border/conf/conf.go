@@ -38,6 +38,7 @@ type Conf struct {
 	AS         *as_conf.ASConf
 	HFGenBlock cipher.Block
 	Net        *netconf.NetConf
+	Dir        string
 	IFStates   struct {
 		sync.RWMutex
 		M map[path.IntfID]proto.IFStateInfo
@@ -50,7 +51,8 @@ func Load(id, confDir string) *util.Error {
 	var err *util.Error
 
 	conf := &Conf{}
-	topoPath := filepath.Join(confDir, topology.CfgName)
+	conf.Dir = confDir
+	topoPath := filepath.Join(conf.Dir, topology.CfgName)
 	if err = topology.Load(topoPath); err != nil {
 		return err
 	}
@@ -63,7 +65,7 @@ func Load(id, confDir string) *util.Error {
 	}
 	conf.BR = &topoBR
 
-	asConfPath := filepath.Join(confDir, as_conf.CfgName)
+	asConfPath := filepath.Join(conf.Dir, as_conf.CfgName)
 	if err = as_conf.Load(asConfPath); err != nil {
 		return err
 	}

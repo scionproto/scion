@@ -19,49 +19,64 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-func (r *Router) readInput(in *net.UDPConn, dirFrom packet.Dir, q chan *packet.Packet) {
+func (r *Router) getPktBuf() *packet.Packet {
+	// https://golang.org/doc/effective_go.html#leaky_buffer
+	var p *packet.Packet
+	select {
+	case p = <-r.freePkts:
+		// Got one
+		metrics.PktBufReuse.Inc()
+		return p
+	default:
+		// None available, allocate a new one
+		metrics.PktBufNew.Inc()
+		p = new(packet.Packet)
+		p.Raw = make([]byte, pktBufSize)
+		return p
+	}
+}
+
+func (r *Router) readPosixInput(in *net.UDPConn, dirFrom packet.Dir, labels prometheus.Labels,
+	q chan *packet.Packet) {
 	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
 	for {
-		// https://golang.org/doc/effective_go.html#leaky_buffer
-		var p *packet.Packet
-		select {
-		case p = <-r.freePkts:
-			// Got one
-			metrics.PktBufReuse.Inc()
-		default:
-			// None available, allocate a new one
-			metrics.PktBufNew.Inc()
-			p = new(packet.Packet)
-			p.Raw = make([]byte, pktBufSize)
-		}
+		metrics.InputLoops.With(labels).Inc()
+		p := r.getPktBuf()
 		p.DirFrom = dirFrom
+		start := time.Now()
 		length, src, err := in.ReadFromUDP(p.Raw)
 		if err != nil {
 			log.Error("Error reading from socket", "socket", dst, "err", err)
 			continue
 		}
+		t := time.Now().Sub(start).Seconds()
+		metrics.InputProcessTime.With(labels).Add(t)
 		p.TimeIn = time.Now()
 		p.Raw = p.Raw[:length] // Set the length of the slice
 		p.Ingress.Src = src
 		p.Ingress.Dst = dst
+		metrics.PktsRecv.With(labels).Inc()
+		metrics.BytesRecv.With(labels).Add(float64(length))
 		q <- p
 	}
 }
 
-func (r *Router) writeLocalOutput(out *net.UDPConn, p *packet.Packet) {
+func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, p *packet.Packet) {
 	if len(p.Egress) == 0 {
 		p.Error("Destination not specified")
 		return
 	}
 	for _, epair := range p.Egress {
+		start := time.Now()
 		if count, err := out.WriteToUDP(p.Raw, epair.Dst); err != nil {
 			p.Error("Error sending packet", "err", err)
 			return
@@ -69,16 +84,19 @@ func (r *Router) writeLocalOutput(out *net.UDPConn, p *packet.Packet) {
 			p.Error("Unable to write full packet", "len", count)
 			return
 		}
-		metrics.BytesSent.Add(float64(len(p.Raw)))
-		metrics.PktsSent.Inc()
+		t := time.Now().Sub(start).Seconds()
+		metrics.OutputProcessTime.With(labels).Add(t)
+		metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
+		metrics.PktsSent.With(labels).Inc()
 	}
 }
 
-func (r *Router) writeIntfOutput(out *net.UDPConn, p *packet.Packet) {
+func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *packet.Packet) {
 	if len(p.Egress) == 0 {
 		p.Error("Destination not specified")
 		return
 	}
+	start := time.Now()
 	if count, err := out.Write(p.Raw); err != nil {
 		p.Error("Error sending packet", "err", err)
 		return
@@ -86,6 +104,8 @@ func (r *Router) writeIntfOutput(out *net.UDPConn, p *packet.Packet) {
 		p.Error("Unable to write full packet", "len", count)
 		return
 	}
-	metrics.BytesSent.Add(float64(len(p.Raw)))
-	metrics.PktsSent.Inc()
+	t := time.Now().Sub(start).Seconds()
+	metrics.OutputProcessTime.With(labels).Add(t)
+	metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
+	metrics.PktsSent.With(labels).Inc()
 }
