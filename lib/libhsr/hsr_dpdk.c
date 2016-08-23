@@ -681,6 +681,8 @@ int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port
         zlog_debug(zc, "type: %d, src ip: %s, dst ip: %s",
                 ntohs(arp_hdr->arp_op), buf1, buf2);
     }
+    if (!kni_objs[0])
+        return 0;
     zlog_debug(zc, "Forward to kernel");
     pthread_mutex_lock(&kni_mutex);
     rte_kni_tx_burst(kni_objs[dpdk_rx_port], &m, 1);
@@ -760,6 +762,10 @@ struct udp_hdr *get_udp_hdr(struct rte_mbuf *m)
 void * handle_kni(void *arg)
 {
     uint8_t nb_ports = rte_eth_dev_count();
+    if (!kni_objs[0]) {
+        zlog_info(zc, "nothing for KNI to do");
+        return NULL;
+    }
     while (1) {
         unsigned i;
         for (i = 0; i < nb_ports; i++) {
@@ -842,6 +848,8 @@ int kni_alloc(uint8_t port_id)
 
     memset(&dev_info, 0, sizeof(dev_info));
     rte_eth_dev_info_get(port_id, &dev_info);
+    if (!dev_info.pci_dev)
+        return -1;
     conf.addr = dev_info.pci_dev->addr;
     conf.id = dev_info.pci_dev->id;
 
