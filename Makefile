@@ -1,6 +1,6 @@
 .PHONY: all clean go clibs libscion libfilter liblwip libtcpmw libssocket dispatcher install uninstall goproto
 
-SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost go/proto lib/libhsr
+SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost go/proto
 
 all: clibs dispatcher go
 
