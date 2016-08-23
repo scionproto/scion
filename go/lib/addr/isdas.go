@@ -15,14 +15,40 @@
 package addr
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/netsec-ethz/scion/go/lib/util"
+)
+
+const (
+	IABytes = 4
 )
 
 type ISD_AS struct {
 	I int
 	A int
+}
+
+const (
+	ErrorIAUnpack = "Unable to unpack ISD-AS"
+)
+
+var order = binary.BigEndian
+
+func IAFromRaw(b util.RawBytes) *ISD_AS {
+	iaInt := order.Uint32(b)
+	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
+}
+
+func (ia *ISD_AS) Write(b util.RawBytes) {
+	order.PutUint32(b, uint32((ia.I<<20)|(ia.A&0x000FFFFF)))
+}
+
+func (ia *ISD_AS) SizeOf() int {
+	return IABytes
 }
 
 func (ia ISD_AS) String() string {
