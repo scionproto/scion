@@ -26,6 +26,7 @@ import math
 import os
 import random
 import sys
+import textwrap
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -369,6 +370,7 @@ class TopoGenerator(object):
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
+        self._write_zlog_confs()
         return self.topo_dicts, self.zookeepers, networks
 
     def _read_links(self):
@@ -408,7 +410,7 @@ class TopoGenerator(object):
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
-        self._gen_er_entries(topo_id)
+        self._gen_br_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
@@ -432,13 +434,13 @@ class TopoGenerator(object):
             d["Port"] = random.randint(30050, 30100)
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
-    def _gen_er_entries(self, topo_id):
+    def _gen_br_entries(self, topo_id):
         for (ltype, remote, attrs, local_br,
              remote_br, ifid) in self.links[topo_id]:
-            self._gen_er_entry(topo_id, ifid, remote, ltype, attrs, local_br,
+            self._gen_br_entry(topo_id, ifid, remote, ltype, attrs, local_br,
                                remote_br)
 
-    def _gen_er_entry(self, local, ifid, remote, remote_type, attrs, local_br,
+    def _gen_br_entry(self, local, ifid, remote, remote_type, attrs, local_br,
                       remote_br):
         public_addr, remote_addr = self._reg_link_addrs(
             local_br, remote_br)
@@ -505,6 +507,25 @@ class TopoGenerator(object):
         list_path = os.path.join(self.out_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
+
+    def _write_zlog_confs(self):
+        tmpl = textwrap.dedent(
+            '''\
+            [global]
+            default format = "%d(%F %T).%us%d(%z) [%V] (%p:%c:%F:%L) %m%n"
+            file perms = 644
+
+            [rules]
+            default.* >stdout
+            ''')
+        for topo_id, as_topo in self.topo_dicts.items():
+            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            for elem in as_topo["BorderRouters"]:
+                with open(os.path.join(base, elem, "zlog.conf"), "w") as f:
+                    f.write(tmpl)
+                    for lvl in ("DEBUG", "INFO", "WARN", "ERROR", "FATAL"):
+                        f.write('libhsr.%s "logs/%s.libhsr.%s", 10MB*2\n' %
+                                (lvl, elem, lvl))
 
 
 class SupervisorGenerator(object):
@@ -590,6 +611,8 @@ class SupervisorGenerator(object):
             dp['environment'] += ',DISPATCHER_ID="%s"' % elem
             config["program:%s" % dp_name] = dp
             self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
+        if elem.startswith("br") and self.router == "go":
+            prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)

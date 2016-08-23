@@ -15,9 +15,16 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	log "github.com/inconshreveable/log15"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/border/path"
@@ -29,6 +36,8 @@ const (
 	ErrorListenLocal    = "Unable to listen on local socket"
 	ErrorListenExternal = "Unable to listen on external socket"
 )
+
+const ZlogConf = "zlog.conf"
 
 func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]packet.OutputFunc)
@@ -47,26 +56,63 @@ func (r *Router) setup(confDir string) *util.Error {
 }
 
 func (r *Router) setupNet() *util.Error {
+	dpdkIPMap := make(map[string]bool)
+	for _, ip := range strings.Split(*dpdkIPs, ",") {
+		dpdkIPMap[ip] = true
+	}
 	var addrs []string
+	var dpdkAddrMs []hsr.AddrMeta
 	for i, a := range conf.C.Net.LocAddr {
-		if err := a.Listen(); err != nil {
+		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
+		bind := a.BindAddr()
+		_, dpdk := dpdkIPMap[bind.IP.String()]
+		if dpdk {
+			dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{GoAddr: bind,
+				DirFrom: packet.DirLocal, Labels: labels})
+		} else if err := a.Listen(); err != nil {
 			return util.NewError(ErrorListenLocal, "err", err)
 		}
 		addrs = append(addrs, a.BindAddr().String())
-		q := make(chan *packet.Packet)
-		r.inQs = append(r.inQs, q)
-		go r.readInput(a.Conn, packet.DirLocal, q)
-		r.locOutFs[i] = func(p *packet.Packet) { r.writeLocalOutput(a.Conn, p) }
+		if dpdk {
+			r.locOutFs[i] = func(p *packet.Packet) {
+				r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
+			}
+		} else {
+			q := make(chan *packet.Packet)
+			r.inQs = append(r.inQs, q)
+			go r.readPosixInput(a.Conn, packet.DirLocal, labels, q)
+			r.locOutFs[i] = func(p *packet.Packet) { r.writeLocalOutput(a.Conn, labels, p) }
+		}
 	}
 	metrics.Export(addrs)
 	for _, a := range conf.C.Net.IFs {
-		if err := a.IFAddr.Connect(a.RemoteAddr); err != nil {
+		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", a.Id)}
+		bind := a.IFAddr.BindAddr()
+		_, dpdk := dpdkIPMap[bind.IP.String()]
+		if dpdk {
+			dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{
+				GoAddr: bind, DirFrom: packet.DirExternal, Labels: labels})
+		} else if err := a.IFAddr.Connect(a.RemoteAddr); err != nil {
 			return util.NewError(ErrorListenExternal, "err", err)
 		}
+		if dpdk {
+			r.intfOutFs[a.Id] = func(p *packet.Packet) {
+				r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
+			}
+		} else {
+			q := make(chan *packet.Packet)
+			r.inQs = append(r.inQs, q)
+			go r.readPosixInput(a.IFAddr.Conn, packet.DirExternal, labels, q)
+			r.intfOutFs[a.Id] = func(p *packet.Packet) {
+				r.writeIntfOutput(a.IFAddr.Conn, labels, p)
+			}
+		}
+	}
+	if len(dpdkAddrMs) > 0 {
+		hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), dpdkAddrMs)
 		q := make(chan *packet.Packet)
 		r.inQs = append(r.inQs, q)
-		go r.readInput(a.IFAddr.Conn, packet.DirExternal, q)
-		r.intfOutFs[a.Id] = func(p *packet.Packet) { r.writeIntfOutput(a.IFAddr.Conn, p) }
+		go r.readDPDKInput(q)
 	}
 	return nil
 }

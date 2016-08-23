@@ -66,8 +66,6 @@ func (r *Router) Run() *util.Error {
 func (r *Router) handleQueue(q chan *packet.Packet) {
 	defer liblog.PanicLog()
 	for p := range q {
-		metrics.PktsRecv.Inc()
-		metrics.BytesRecv.Add(float64(len(p.Raw)))
 		r.processPacket(p)
 		metrics.PktProcessTime.Add(time.Now().Sub(p.TimeIn).Seconds())
 		r.recyclePkt(p)

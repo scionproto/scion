@@ -16,6 +16,7 @@ package packet
 
 import (
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -39,7 +40,17 @@ func (p *Packet) Validate() *util.Error {
 	info, ok := conf.C.IFStates.M[*p.ifCurr]
 	conf.C.IFStates.RUnlock()
 	if ok && !info.Active() {
-		return util.NewError(ErrorIntfRevoked, "ifid", *p.ifCurr)
+		// If the destination is this router, then ignore revocation.
+		intf := conf.C.Net.IFs[*p.ifCurr]
+		var intfHost addr.HostAddr
+		if p.DirFrom == DirExternal {
+			intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
+		} else {
+			intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
+		}
+		if !(*p.dstIA == *conf.C.IA && addr.HostEq(p.dstHost, intfHost)) {
+			return util.NewError(ErrorIntfRevoked, "ifid", *p.ifCurr)
+		}
 	}
 	if err := p.validatePath(p.DirFrom); err != nil {
 		return err

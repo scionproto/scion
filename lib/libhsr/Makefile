@@ -52,3 +52,18 @@ CFLAGS += -O3 -I$(S)/.. -I$(S)/../libscion -Wall -fno-strict-aliasing -g
 EXTRA_LDFLAGS += -lscion -lrte_lpm
 
 include $(RTE_SDK)/mk/rte.extshared.mk
+
+.PHONY: doinstall
+doinstall: .installstamp
+
+PREFIX ?= /usr/local
+build/$(SHARED): $(SHARED)
+.installstamp: build/$(SHARED)
+	sudo cp build/$(SHARED) $(PREFIX)/lib/
+	sudo ldconfig
+	touch .installstamp
+
+uninstall:
+	sudo rm -r $(PREFIX)/lib/$(SHARED)
+	sudo ldconfig
+	rm -f .installstamp

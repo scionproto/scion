@@ -30,6 +30,7 @@ var (
 	id       = flag.String("id", "", "Element ID (Required. E.g. 'er1-23er4-21')")
 	confDir  = flag.String("confd", ".", "Configuration directory")
 	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
+	dpdkIPs  = flag.String("dpdk-ips", "", "Comma-separated list of IPs for DPDK")
 )
 
 func main() {
@@ -46,12 +47,12 @@ func main() {
 	setupSignals()
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
-		log.Crit("Startup failed", err.Ctx)
+		log.Crit("Startup failed", err.Ctx...)
 		os.Exit(1)
 	}
 	log.Info("Starting up", "id", *id)
 	if err := r.Run(); err != nil {
-		log.Crit("Run failed", err.Ctx)
+		log.Crit("Run failed", err.Ctx...)
 		os.Exit(1)
 	}
 }
