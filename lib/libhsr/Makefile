@@ -34,21 +34,21 @@ $(error "Please define RTE_SDK environment variable")
 endif
 
 # Default target, can be overriden by command line or environment
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
+RTE_TARGET ?= x86_64-native-linuxapp-clang
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-LIB = libhsr.a
-LIBABIVER := 0
+SHARED = libhsr.so
+LIBABIVER := 1
 
 # all source are stored in SRCS-y
 SRCS-y := hsr_dpdk.c
 
 #CFLAGS += -O3 -w
-CFLAGS += -O9 -Wall -fno-strict-aliasing -I$(S)/../libscion
+CFLAGS += -O3 -I$(S)/.. -I$(S)/../libscion -Wall -fno-strict-aliasing -g
 #CFLAGS += $(WERROR_FLAGS)
 
-EXTRA_LDFLAGS += -lscion
+EXTRA_LDFLAGS += -lscion -lrte_lpm
 
-include $(RTE_SDK)/mk/rte.extlib.mk
+include $(RTE_SDK)/mk/rte.extshared.mk

@@ -3,7 +3,7 @@
 
 #include <sys/socket.h>
 
-#define MAX_PACKET_LEN 1500
+#define MAX_PACKET_LEN 2048
 
 typedef struct {
     uint8_t buf[MAX_PACKET_LEN]; // Packet data starting at SCH
@@ -15,7 +15,7 @@ typedef struct {
  * Create threads needed by router library (if any)
  * router_threads: Number of worker threads created by application for packet handling
  */
-void create_lib_threads(size_t router_threads);
+void create_lib_threads();
 /*
  * Wait on threads created by router library (if any)
  */
@@ -27,10 +27,6 @@ void join_lib_threads();
  * returns: Number of command line args consumed
  */
 int router_init(int argc, char **argv);
-/*
- * Cleanup router library
- */
-void router_cleanup();
 
 /*
  * Get packets from router library

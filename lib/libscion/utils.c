@@ -143,7 +143,6 @@ int family_to_type(int family)
         default:
             return 0;
     }
-    return 0;
 }
 
 int type_to_family(int type)
@@ -156,7 +155,6 @@ int type_to_family(int type)
         default:
             return 0;
     }
-    return 0;
 }
 
 uint8_t * get_ss_addr(struct sockaddr_storage *ss)

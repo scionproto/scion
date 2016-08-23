@@ -93,8 +93,6 @@ struct rte_mempool * hsr_pktmbuf_pool = NULL;
 
 #define MAX_KNI_OBJS 2
 struct rte_kni *kni_objs[MAX_KNI_OBJS];
-/* Max size of a single packet */
-#define MAX_PACKET_SZ           2048
 
 /* ARP cache */
 typedef struct {
@@ -149,10 +147,6 @@ zlog_category_t *zc;
 #define IPV6_HDR(m) (struct ipv6_hdr *)(ETH_HDR(m) + 1)
 #define UDP_HDR(m) (struct udp_hdr *)(IPV4_HDR(m) + 1)
 #define CMN_HDR(m) (SCIONCommonHeader *)(UDP_HDR(m) + 1)
-
-//DPDK port
-#define DPDK_EGRESS 0
-#define DPDK_LOCAL 1
 
 #define IP_DEFTTL  64   /* from RFC 1340. */
 #define IP_VERSION 0x40
@@ -354,9 +348,9 @@ void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
 
 pthread_t kni_thread, netlink_thread;
 
-void create_lib_threads(size_t router_threads)
+void create_lib_threads()
 {
-    pthread_create(&kni_thread, NULL, handle_kni, (void *)router_threads);
+    pthread_create(&kni_thread, NULL, handle_kni, NULL);
     pthread_create(&netlink_thread, NULL, run_netlink_core, NULL);
     setup_kni();
     open_sockets();
@@ -375,7 +369,7 @@ int router_init(int argc, char **argv)
     uint8_t portid;
     int args_parsed;
 
-    if (zlog_init("hsr.conf") < 0) {
+    if (argc < 2 || zlog_init(argv[1]) < 0) {
         fprintf(stderr, "failed to init zlog\n");
         exit(1);
     }
@@ -385,12 +379,15 @@ int router_init(int argc, char **argv)
         zlog_fini();
         exit(1);
     }
+    argv[1] = argv[0];
+    argc--;
+    argv++;
 
     /* init EAL */
     ret = rte_eal_init(argc, argv);
     if (ret < 0)
         rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
-    args_parsed = ret + 1;
+    args_parsed = ret + 2;
 
     /* create the mbuf pool */
     hsr_pktmbuf_pool =
@@ -416,7 +413,6 @@ int router_init(int argc, char **argv)
     for (portid = 0; portid < nb_ports; portid++) {
         /* init port */
         zlog_info(zc, "Initializing port %u... ", (unsigned) portid);
-        fflush(stdout);
         ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
         if (ret < 0)
             rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
@@ -425,7 +421,6 @@ int router_init(int argc, char **argv)
         rte_eth_macaddr_get(portid,&hsr_ports_eth_addr[portid]);
 
         /* init one RX queue */
-        fflush(stdout);
         ret = rte_eth_rx_queue_setup(portid, 0, RTE_TEST_RX_DESC_DEFAULT,
                 rte_eth_dev_socket_id(portid),
                 NULL,
@@ -435,7 +430,6 @@ int router_init(int argc, char **argv)
                     ret, (unsigned) portid);
 
         /* init one TX queue on each port */
-        fflush(stdout);
         ret = rte_eth_tx_queue_setup(portid, 0, RTE_TEST_TX_DESC_DEFAULT,
                 rte_eth_dev_socket_id(portid),
                 NULL);
@@ -466,17 +460,6 @@ int router_init(int argc, char **argv)
     }
 
     return args_parsed;
-}
-
-void router_cleanup()
-{
-    unsigned nb_ports = rte_eth_dev_count();
-    unsigned portid;
-    for (portid = 0; portid < nb_ports; portid++) {
-        printf("close dev %d/%d\n", portid, nb_ports);
-        rte_eth_dev_stop(portid);
-        rte_eth_dev_close(portid);
-    }
 }
 
 /* End of initialization functions */
@@ -853,7 +836,7 @@ int kni_alloc(uint8_t port_id)
     conf.core_id = port_id + nb_ports;
     conf.force_bind = 1;
     conf.group_id = (uint16_t)port_id;
-    conf.mbuf_size = MAX_PACKET_SZ;
+    conf.mbuf_size = MAX_PACKET_LEN;
     struct rte_kni_ops ops;
     struct rte_eth_dev_info dev_info;
 
