@@ -133,7 +133,7 @@ class Router(SCIONElement):
             "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
                              self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.PCB: {None: self.process_pcb},
+            PayloadClass.PCB: {None: self.handle_data},
             PayloadClass.IFID: {None: self.process_ifid_request},
             PayloadClass.CERT: defaultdict(
                 lambda: self.relay_cert_server_packet),
@@ -337,17 +337,6 @@ class Router(SCIONElement):
         addrs = self.dns_query_topo(service)
         addrs.sort()  # To not rely on order of DNS replies.
         return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)][0]
-
-    def process_pcb(self, pkt, from_local_as):
-        """
-        Depending on scenario: a) send PCB to a local beacon server, or b) to
-        neighboring router.
-
-        :param beacon: The PCB.
-        :type beacon: :class:`lib.packet.pcb.PathConstructionBeacon`
-        :param bool from_local_as: True, if the pcb was received from local AS.
-        """
-        self.handle_data(pkt, from_local_as)
 
     def relay_cert_server_packet(self, spkt, from_local_as):
         """
