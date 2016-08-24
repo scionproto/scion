@@ -75,7 +75,7 @@ from lib.packet.scmp.errors import (
     SCMPUnknownHost,
 )
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.packet.svc import SVCType
+from lib.packet.svc import SVCType, SVC_TO_SERVICE
 from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -250,6 +250,7 @@ class Router(SCIONElement):
             hf2.set_mac(self.of_gen_key, info.timestamp, hf1)
             # FIXME(PSz): quite brutal for now:
             spkt.path = SCIONPath.from_values(info, [hf1, hf2])
+            spkt.path.inc_hof_idx()
         return []
 
     def handle_sibra(self, hdr, spkt, from_local_as):
@@ -337,29 +338,16 @@ class Router(SCIONElement):
         addrs.sort()  # To not rely on order of DNS replies.
         return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)][0]
 
-    def process_pcb(self, pkt, from_bs):
+    def process_pcb(self, pkt, from_local_as):
         """
         Depending on scenario: a) send PCB to a local beacon server, or b) to
         neighboring router.
 
         :param beacon: The PCB.
         :type beacon: :class:`lib.packet.pcb.PathConstructionBeacon`
-        :param bool from_bs: True, if the beacon was received from local BS.
+        :param bool from_local_as: True, if the pcb was received from local AS.
         """
-        pcb = pkt.get_payload()
-        if from_bs:
-            if self.interface.if_id != pcb.last_hof().egress_if:
-                logging.error("Wrong interface set by BS.")
-                return
-            self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
-        else:
-            pcb.p.ifID = self.interface.if_id
-            try:
-                bs_addr = self.get_srv_addr(BEACON_SERVICE, pkt)
-            except SCIONServiceLookupError as e:
-                logging.error("Unable to deliver PCB: %s", e)
-                raise SCMPUnknownHost
-            self.send(pkt, bs_addr, SCION_UDP_EH_DATA_PORT)
+        self.handle_data(pkt, from_local_as)
 
     def relay_cert_server_packet(self, spkt, from_local_as):
         """
@@ -490,12 +478,11 @@ class Router(SCIONElement):
                 raise SCMPNonRoutingHOF
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if addr == SVCType.PS_A:
-            # FIXME(PSz): that should be changed when replies are send as
-            # standard data packets.
+        if addr in [SVCType.PS_A, SVCType.BS_A]:
             # Send request to any path server.
             try:
-                addr = self.get_srv_addr(PATH_SERVICE, spkt)
+                service = SVC_TO_SERVICE[addr.addr]
+                addr = self.get_srv_addr(service, spkt)
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver path mgmt packet: %s", e)
                 raise SCMPUnknownHost
