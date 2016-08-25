@@ -311,28 +311,28 @@ void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp;
-    int addr_type = eth_addr_type(packet->src.ss_family);
+    int addr_type = eth_addr_type(packet->src->ss_family);
     int ip_size = 0;
 
     initialize_eth_header(
             eth, &hsr_ports_eth_addr[dpdk_port], dst_mac, addr_type, 0, 0);
     if (addr_type == ETHER_TYPE_IPv4) {
         initialize_ipv4_header(ipv4,
-                *(uint32_t *)get_ss_addr(&packet->src),
-                *(uint32_t *)get_ss_addr(&packet->dst),
+                *(uint32_t *)get_ss_addr(packet->src),
+                *(uint32_t *)get_ss_addr(packet->dst),
                 size - sizeof(struct ether_hdr) - sizeof(struct ipv4_hdr));
         ip_size = sizeof(struct ipv4_hdr);
     } else if (addr_type == ETHER_TYPE_IPv6) {
         initialize_ipv6_header(ipv6,
-                get_ss_addr(&packet->src), get_ss_addr(&packet->dst),
+                get_ss_addr(packet->src), get_ss_addr(packet->dst),
                 size - sizeof(struct ether_hdr) - sizeof(struct ipv6_hdr));
         ip_size = sizeof(struct ipv6_hdr);
     }
     udp = get_udp_hdr(m);
     // port is at the same offset for sockaddr_in and sockaddr_in6
     initialize_udp_header(udp,
-            ((struct sockaddr_in *)&packet->src)->sin_port,
-            ((struct sockaddr_in *)&packet->dst)->sin_port,
+            ((struct sockaddr_in *)packet->src)->sin_port,
+            ((struct sockaddr_in *)packet->dst)->sin_port,
             size - sizeof(struct ether_hdr) - ip_size - sizeof(struct udp_hdr));
 
     m->nb_segs = 1;
@@ -578,7 +578,7 @@ int send_packet(RouterPacket *packet)
     uint8_t *hop_addr;
     uint8_t hop_addr_type;
 
-    ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(&packet->dst)), &hop_index);
+    ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(packet->dst)), &hop_index);
     if (ret == 0) {
         if (!is_addr_empty(forwarding_table[hop_index].ip, MAX_HOST_ADDR_LEN)) {
             hop_addr_type = forwarding_table[hop_index].addr_type;
@@ -586,8 +586,8 @@ int send_packet(RouterPacket *packet)
             if (!is_addr_empty(forwarding_table[hop_index].mac.addr_bytes, ETHER_ADDR_LEN))
                 mac = &forwarding_table[hop_index].mac;
         } else {
-            hop_addr_type = family_to_type(packet->dst.ss_family);
-            hop_addr = get_ss_addr(&packet->dst);
+            hop_addr_type = family_to_type(packet->dst->ss_family);
+            hop_addr = get_ss_addr(packet->dst);
             zlog_debug(zc, "LPM entry with no gateway: %s", inet_ntoa(*(struct in_addr *)hop_addr));
             HASH_FIND(hh, arp_table, hop_addr, ADDR_IPV4_LEN, e);
             if (e)
@@ -595,12 +595,12 @@ int send_packet(RouterPacket *packet)
         }
     } else {
 #ifdef MININET
-        hop_addr_type = family_to_type(packet->dst.ss_family);
-        hop_addr = get_ss_addr(&packet->dst);
+        hop_addr_type = family_to_type(packet->dst->ss_family);
+        hop_addr = get_ss_addr(packet->dst);
         zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
 #else
         zlog_error(zc, "do not know how to reach %s (error %d)", 
-                addr_to_str(get_ss_addr(&packet->dst), family_to_type(packet->dst.ss_family), NULL),
+                addr_to_str(get_ss_addr(packet->dst), family_to_type(packet->dst->ss_family), NULL),
                 ret);
         return -1;
 #endif
@@ -610,7 +610,7 @@ int send_packet(RouterPacket *packet)
         memset(&sin6, 0, sizeof(sin6));
         sin6.sin6_family = AF_INET6;
         // port is at the same offset for sockaddr_in and sockaddr_in6
-        sin6.sin6_port = ((struct sockaddr_in *)&packet->dst)->sin_port;
+        sin6.sin6_port = ((struct sockaddr_in *)packet->dst)->sin_port;
         if (hop_addr_type == ADDR_IPV4_TYPE) {
             *(uint16_t *)(sin6.sin6_addr.s6_addr + 10) = 0xffff;
             memcpy(sin6.sin6_addr.s6_addr + 12, hop_addr, ADDR_IPV4_LEN);
@@ -632,7 +632,7 @@ int send_packet(RouterPacket *packet)
     udp = get_udp_hdr(m);
     uint8_t *payload = (uint8_t *)(udp + 1);
     memcpy(payload, packet->buf, ntohs(sch->total_len));
-    if (packet->src.ss_family == AF_INET)
+    if (packet->src->ss_family == AF_INET)
         udp->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4, udp);
     else
         udp->dgram_cksum = rte_ipv6_udptcp_cksum(ipv6, udp);
@@ -695,20 +695,20 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
     packet->port_id = dpdk_rx_port;
 
     if (ntohs(eth->ether_type) == ETHER_TYPE_IPv4) {
-        struct sockaddr_in *sin = (struct sockaddr_in *)&packet->src;
+        struct sockaddr_in *sin = (struct sockaddr_in *)packet->src;
         sin->sin_family = AF_INET;
         sin->sin_port = udp->src_port;
         memcpy(&sin->sin_addr, &ipv4->src_addr, ADDR_IPV4_LEN);
-        sin = (struct sockaddr_in *)&packet->dst;
+        sin = (struct sockaddr_in *)packet->dst;
         sin->sin_family = AF_INET;
         sin->sin_port = udp->dst_port;
         memcpy(&sin->sin_addr, &ipv4->dst_addr, ADDR_IPV4_LEN);
     } else if (ntohs(eth->ether_type) == ETHER_TYPE_IPv6) {
-        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&packet->src;
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)packet->src;
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = udp->src_port;
         memcpy(&sin6->sin6_addr, &ipv6->src_addr, ADDR_IPV6_LEN);
-        sin6 = (struct sockaddr_in6 *)&packet->dst;
+        sin6 = (struct sockaddr_in6 *)packet->dst;
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = udp->dst_port;
         memcpy(&sin6->sin6_addr, &ipv6->dst_addr, ADDR_IPV6_LEN);

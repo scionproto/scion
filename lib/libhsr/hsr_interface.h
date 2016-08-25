@@ -6,9 +6,9 @@
 #define MAX_PACKET_LEN 2048
 
 typedef struct {
-    uint8_t buf[MAX_PACKET_LEN]; // Packet data starting at SCH
-    struct sockaddr_storage src; // Overlay src addr
-    struct sockaddr_storage dst; // Overlay dst addr
+    uint8_t *buf; // Packet data starting at SCH, size MAX_PACKET_LEN
+    struct sockaddr_storage *src; // Overlay src addr
+    struct sockaddr_storage *dst; // Overlay dst addr
     uint8_t port_id; // DPDK port index packet came through
 } RouterPacket;
 
