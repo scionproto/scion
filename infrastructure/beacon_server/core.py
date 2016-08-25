@@ -186,7 +186,7 @@ class CoreBeaconServer(BeaconServer):
         """
         return bool(self._get_trc(isd_as, trc_ver))
 
-    def process_cert_chain_rep(self, cert_chain_rep):
+    def process_cert_chain_rep(self, cert_chain_rep, meta):
         raise NotImplementedError
 
     def _handle_verified_beacon(self, pcb):

@@ -131,7 +131,7 @@ class SCIONDaemon(SCIONElement):
             return
         super().handle_request(packet, sender, from_local_socket)
 
-    def handle_path_reply(self, pkt):
+    def handle_path_reply(self, pkt, meta):
         """
         Handle path reply from local path server.
         """
@@ -230,7 +230,7 @@ class SCIONDaemon(SCIONElement):
                 reply.append(struct.pack("!H", link))
         sock.send(b"".join(reply))
 
-    def handle_revocation(self, pkt):
+    def handle_revocation(self, pkt, meta):
         rev_info = pkt.get_payload()
         logging.debug("Received revocation:\n%s", rev_info)
 

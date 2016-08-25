@@ -136,9 +136,9 @@ class CertServer(SCIONElement):
                 continue
             payload = pkt.get_payload()
             if isinstance(payload, CertChainReply):
-                self.process_cert_chain_reply(pkt, from_zk=True)
+                self.process_cert_chain_reply(pkt, None, from_zk=True)
             elif isinstance(payload, TRCReply):
-                self.process_trc_reply(pkt, from_zk=True)
+                self.process_trc_reply(pkt, None, from_zk=True)
             else:
                 logging.warning("Entry with unsupported type: %s" % entry)
 
@@ -178,7 +178,7 @@ class CertServer(SCIONElement):
         else:
             logging.warning("Reply not sent: no destination found")
 
-    def process_cert_chain_request(self, pkt):
+    def process_cert_chain_request(self, pkt, meta):
         """Process a certificate chain request."""
         req = pkt.get_payload()
         assert isinstance(req, CertChainRequest)
@@ -192,7 +192,7 @@ class CertServer(SCIONElement):
                 pkt.addrs.src, *key)
         self.cc_requests.put((key, (pkt.addrs.src, pkt.l4_hdr.src_port)))
 
-    def process_cert_chain_reply(self, pkt, from_zk=False):
+    def process_cert_chain_reply(self, pkt, meta, from_zk=False):
         """Process a certificate chain reply."""
         rep = pkt.get_payload()
         assert isinstance(rep, CertChainReply)
@@ -232,7 +232,7 @@ class CertServer(SCIONElement):
         logging.info("Cert chain for %sv%s sent to %s:%s",
                      isd_as, ver, src, port)
 
-    def process_trc_request(self, pkt):
+    def process_trc_request(self, pkt, meta):
         """Process a TRC request."""
         req = pkt.get_payload()
         assert isinstance(req, TRCRequest)
@@ -248,7 +248,7 @@ class CertServer(SCIONElement):
             key, (pkt.addrs.src, pkt.l4_hdr.src_port, req.isd_as()[1]),
         ))
 
-    def process_trc_reply(self, pkt, from_zk=False):
+    def process_trc_reply(self, pkt, meta, from_zk=False):
         """
         Process a TRC reply.
 

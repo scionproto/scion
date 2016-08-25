@@ -139,7 +139,7 @@ class SibraServerBase(SCIONElement):
             logging.debug("Dst: %s Port: %s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
 
-    def handle_path_reg(self, pkt):
+    def handle_path_reg(self, pkt, meta):
         """
         Handle path registration packets from the local beacon service. First
         determine which interface the segments use, then pass the segment to the
@@ -165,7 +165,7 @@ class SibraServerBase(SCIONElement):
         for steady in self.dests[isd_as].values():
             steady.update_seg(pcb)
 
-    def handle_sibra_pkt(self, pkt):
+    def handle_sibra_pkt(self, pkt, meta):
         """
         Handle SIBRA packets. First determine which interface they came from,
         then pass them to the appropriate Link.

@@ -121,7 +121,7 @@ class LocalBeaconServer(BeaconServer):
                 self._try_to_verify_beacon(pcb)
                 self.handle_ext(pcb)
 
-    def process_cert_chain_rep(self, pkt):
+    def process_cert_chain_rep(self, pkt, meta):
         """
         Process the Certificate chain reply.
 

@@ -44,6 +44,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
+from lib.msg_meta import UDPMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
@@ -185,8 +186,22 @@ class SCIONElement(object):
         handler = self._get_handler(pkt)
         if not handler:
             return
+        # Create metadata:
+        rev_pkt = pkt.reversed_copy()
+        if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
+            dst_port = rev_pkt.l4_hdr.dst_port
+        else:
+            dst_port = 0
+        # Do not copy extensions. It is also passed to SCMP handlers.
+        meta = UDPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
+                                       dst_host=rev_pkt.addrs.dst.host,
+                                       path=rev_pkt.path, dst_port=dst_port)
         try:
-            handler(pkt)
+            # FIXME(PSz): hack to get python router working
+            if hasattr(self, "_remote_sock"):
+                handler(pkt)
+            else:
+                handler(pkt, meta)
         except SCIONBaseError:
             log_exception("Error handling packet:\n%s" % pkt)
 

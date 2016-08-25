@@ -286,7 +286,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not self.pending_req[key]:
             del self.pending_req[key]
 
-    def handle_path_segment_record(self, pkt):
+    def handle_path_segment_record(self, pkt, meta):
         seg_recs = pkt.get_payload()
         params = self._dispatch_params(pkt)
         added = set()

@@ -238,7 +238,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_pcb(self, pkt):
+    def handle_pcb(self, pkt, meta):
         """Receives beacon and stores it for processing."""
         pcb = pkt.get_payload()
         if not self.path_policy.check_filters(pcb):
@@ -337,7 +337,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         return pcb
 
-    def handle_ifid_packet(self, pkt):
+    def handle_ifid_packet(self, pkt, meta):
         """
         Update the interface state for the corresponding interface.
 
@@ -575,13 +575,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def process_cert_chain_rep(self, cert_chain_rep):
+    def process_cert_chain_rep(self, cert_chain_rep, meta):
         """
         Process the Certificate chain reply.
         """
         raise NotImplementedError
 
-    def process_trc_rep(self, pkt):
+    def process_trc_rep(self, pkt, meta):
         """
         Process the TRC reply.
 
@@ -657,13 +657,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Sending revocation to local PS.")
             self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
-    def _handle_scmp_revocation(self, spkt):
+    def _handle_scmp_revocation(self, spkt, meta):
         pld = spkt.get_payload()
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.info("Received revocation via SCMP:\n%s", rev_info)
         self._process_revocation(rev_info)
 
-    def _handle_revocation(self, pkt):
+    def _handle_revocation(self, pkt, meta):
         rev_info = pkt.get_payload()
         logging.info("Received revocation via UDP:\n%s", rev_info)
         self._process_revocation(rev_info)
@@ -763,7 +763,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
-    def _handle_ifstate_request(self, mgmt_pkt):
+    def _handle_ifstate_request(self, mgmt_pkt, meta):
         # Only master replies to ifstate requests.
         if not self.zk.have_lock():
             return
