@@ -175,7 +175,6 @@ void setup_kni();
 void * run_netlink_core(void *arg);
 
 int dpdk_output_packet(struct rte_mbuf *m, uint8_t port);
-int get_dpdk_port(RouterPacket *packet);
 int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port);
 int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet);
 struct udp_hdr *get_udp_hdr(struct rte_mbuf *m);
@@ -572,20 +571,12 @@ int send_packet(RouterPacket *packet)
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)packet->buf;
-    int dpdk_port = get_dpdk_port(packet);
     struct ether_addr *mac = NULL;
     ARPEntry *e;
     uint32_t hop_index;
     int ret;
     uint8_t *hop_addr;
     uint8_t hop_addr_type;
-    char str[50];
-
-    if (dpdk_port == -1) {
-        inet_ntop(packet->src.ss_family, get_ss_addr(&packet->src), str, sizeof(str));
-        zlog_error(zc, "could not find DPDK port for address %s", str);
-        return -1;
-    }
 
     ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(&packet->dst)), &hop_index);
     if (ret == 0) {
@@ -608,8 +599,9 @@ int send_packet(RouterPacket *packet)
         hop_addr = get_ss_addr(&packet->dst);
         zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
 #else
-        inet_ntop(packet->dst.ss_family, get_ss_addr(&packet->dst), str, sizeof(str));
-        zlog_error(zc, "do not know how to reach %s (error %d)", str, ret);
+        zlog_error(zc, "do not know how to reach %s (error %d)", 
+                addr_to_str(get_ss_addr(&packet->dst), family_to_type(packet->dst.ss_family), NULL),
+                ret);
         return -1;
 #endif
     }
@@ -628,13 +620,13 @@ int send_packet(RouterPacket *packet)
         zlog_debug(zc, "no MAC for %s (port %d), let kernel handle it",
                 addr_to_str(hop_addr, hop_addr_type, NULL),
                 ntohs(sin6.sin6_port));
-        return sendto(sockets[dpdk_port], sch, ntohs(sch->total_len), 0,
+        return sendto(sockets[packet->port_id], sch, ntohs(sch->total_len), 0,
                 (struct sockaddr *)&sin6, sizeof(sin6));
     }
 
     m->data_len = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
         sizeof(struct udp_hdr) + ntohs(sch->total_len);
-    build_lower_layers(m, dpdk_port, mac, packet, m->data_len);
+    build_lower_layers(m, packet->port_id, mac, packet, m->data_len);
     // update checksum
     // TODO hardware offloading
     udp = get_udp_hdr(m);
@@ -645,21 +637,12 @@ int send_packet(RouterPacket *packet)
     else
         udp->dgram_cksum = rte_ipv6_udptcp_cksum(ipv6, udp);
 
-    zlog_info(zc, "send_packet() dpdk_port=%d, %s:%d",
-            dpdk_port,
+    zlog_info(zc, "send_packet() packet->port_id=%d, %s:%d",
+            packet->port_id,
             inet_ntoa(*(struct in_addr *)&ipv4->dst_addr),
             ntohs(udp->dst_port));
 
-    return dpdk_output_packet(m, dpdk_port);
-}
-
-int get_dpdk_port(RouterPacket *packet)
-{
-    PortEntry *e;
-    HASH_FIND(hh, addr2port, get_ss_addr(&packet->src), MAX_HOST_ADDR_LEN, e);
-    if (!e)
-        return -1;
-    return e->portid;
+    return dpdk_output_packet(m, packet->port_id);
 }
 
 int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port)
@@ -708,6 +691,8 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
         zlog_debug(zc, "Incorrect UDP port: %d", ntohs(udp->dst_port));
         return -1;
     }
+
+    packet->port_id = dpdk_rx_port;
 
     if (ntohs(eth->ether_type) == ETHER_TYPE_IPv4) {
         struct sockaddr_in *sin = (struct sockaddr_in *)&packet->src;
@@ -815,6 +800,9 @@ void setup_kni()
     int i;
     int res;
     uint8_t ports = rte_eth_dev_count();
+
+    if (!kni_objs[0])
+        return;
 
     pthread_mutex_lock(&netlink_mutex);
     while (!netlink_ready)

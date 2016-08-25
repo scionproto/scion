@@ -15,7 +15,7 @@ GENPATH=../scion/gen/ISD1/AS11/br1-11-2
 
 # Use first line for DPDK drivers, second line for libpcap drivers
 sudo LD_LIBRARY_PATH=../scion/lib/libhsr/build/lib ./hsr hsr.conf -c 0x1 -n 4 -- br1-11-2 $GENPATH/topology.yml $GENPATH/as.yml
-#sudo ./build/hsr -c 0xf -n 4 --vdev 'eth_pcap0,iface=$IF1' --vdev='eth_pcap1,iface=$IF2' -- br1-11-2 $GENPATH/topology.yml $GENPATH/as.yml
+#sudo ./build/hsr -c 0xf -n 4 -d librte_pmd_pcap.so --vdev='eth_pcap0,iface=$IF1' --vdev='eth_pcap1,iface=$IF2' -- br1-11-2 $GENPATH/topology.yml $GENPATH/as.yml
 
 echo "Restore kernel drivers"
 sudo $RTE_SDK/tools/dpdk-devbind.py -b $DRIVER1 $BUS1

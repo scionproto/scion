@@ -9,6 +9,7 @@ typedef struct {
     uint8_t buf[MAX_PACKET_LEN]; // Packet data starting at SCH
     struct sockaddr_storage src; // Overlay src addr
     struct sockaddr_storage dst; // Overlay dst addr
+    uint8_t port_id; // DPDK port index packet came through
 } RouterPacket;
 
 /*

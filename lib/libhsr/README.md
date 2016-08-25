@@ -89,6 +89,7 @@ Any NICs to be used with DPDK must be bound to the igb_uio driver before running
 $RTE_SDK/tools/dpdk-devbind.py --status
 ```
 These interfaces should have their kernel drivers restored upon termination of HSR.
+Note: These binding/restoring steps should be skipped when using the pcap drivers.
 
 ## Example
 The included file "exec_dpdk.sh" shows an example of setting up and running HSR.
