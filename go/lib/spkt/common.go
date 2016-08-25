@@ -15,7 +15,7 @@
 package spkt
 
 import (
-//"fmt"
+	"fmt"
 )
 
 const (
@@ -54,7 +54,7 @@ func (p L4ProtoType) String() string {
 	case End2EndClass:
 		return "End2End"
 	}
-	return "UNKNOWN"
+	return fmt.Sprintf("UNKNOWN (%d)", p)
 }
 
 type ExtnType struct {
@@ -66,6 +66,7 @@ var (
 	ExtnTracerouteType = ExtnType{HopByHopClass, 0}
 	ExtnSIBRAType      = ExtnType{HopByHopClass, 1}
 	ExtnSCMPType       = ExtnType{HopByHopClass, 2}
+	ExtnOneHopPathType = ExtnType{HopByHopClass, 3}
 	ExtnPathTransType  = ExtnType{End2EndClass, 0}
 	ExtnPathProbeType  = ExtnType{End2EndClass, 1}
 )
@@ -78,10 +79,12 @@ func (e ExtnType) String() string {
 		return "SIBRA"
 	case ExtnSCMPType:
 		return "SCMP"
+	case ExtnOneHopPathType:
+		return "OneHopPath"
 	case ExtnPathTransType:
 		return "PathTrans"
 	case ExtnPathProbeType:
 		return "PathProbe"
 	}
-	return "UNKNOWN"
+	return fmt.Sprintf("UNKNOWN (%d)", e)
 }

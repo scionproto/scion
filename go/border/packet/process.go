@@ -17,9 +17,9 @@ package packet
 import (
 	"fmt"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/path"
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -29,12 +29,10 @@ import (
 const (
 	ErrorProcessPldUnsupported = "Unable to process unsupported payload type"
 	ErrorPldGet                = "Unable to retrieve payload"
-	ErrorPCBWrongIF            = "Incorrect egress IFID in outgoing PCB"
-	ErrorPCBWrongDir           = "Unsupported PCB DirFrom value"
 )
 
 func (p *Packet) NeedsLocalProcessing() *util.Error {
-	if *p.dstIA != *conf.ia {
+	if *p.dstIA != *conf.C.IA {
 		// Packet isn't to this IA, so just forward.
 		p.hooks.Route = append(p.hooks.Route, p.forward)
 		return nil
@@ -50,9 +48,9 @@ func (p *Packet) NeedsLocalProcessing() *util.Error {
 		return nil
 	}
 	dstIP := p.dstHost.IP()
-	intf := conf.net.IFs[*p.ifCurr]
+	intf := conf.C.Net.IFs[*p.ifCurr]
 	extPub := intf.IFAddr.PublicAddr().IP
-	locPub := conf.net.IntfLocalAddr(*p.ifCurr).PublicAddr().IP
+	locPub := conf.C.Net.IntfLocalAddr(*p.ifCurr).PublicAddr().IP
 	if p.DirFrom == DirExternal && extPub.Equal(dstIP) ||
 		(p.DirFrom == DirLocal && locPub.Equal(dstIP)) {
 		// Packet is meant for this router
@@ -98,12 +96,6 @@ func (p *Packet) processPathlessSVC() (HookResult, *util.Error) {
 			return HookError, util.NewError(ErrorPldGet, "err", err)
 		}
 		return p.processIFID(ifid)
-	case proto.SCION_Which_pcb:
-		pcb, err := pld.Pcb()
-		if err != nil {
-			return HookError, util.NewError(ErrorPldGet, "err", err)
-		}
-		return p.processPCB(pcb)
 	default:
 		// TODO(kormat): when the other payloads are implemented, change this to an error.
 		//return HookError, util.NewError("Unsupported payload type", "type", pld.Which())
@@ -120,52 +112,60 @@ func (p *Packet) processIFID(pld proto.IFID) (HookResult, *util.Error) {
 	return HookContinue, nil
 }
 
-func (p *Packet) processPCB(pld proto.PathSegment) (HookResult, *util.Error) {
-	switch p.DirFrom {
-	case DirExternal:
-		pld.SetIfID(uint64(*p.ifCurr))
-		if err := p.updateCtrlPld(); err != nil {
-			return HookError, err
-		}
-	case DirLocal:
-		rawH, err := pld.LastHopF()
-		if err != nil {
-			return HookError, err
-		}
-		hopF, err := path.HopFFromRaw(rawH)
-		if err != nil {
-			return HookError, err
-		}
-		if hopF.Egress != *p.ifCurr {
-			return HookError, util.NewError(ErrorPCBWrongIF,
-				log.Ctx{"expected": *p.ifCurr, "actual": hopF.Egress})
-		}
-	default:
-		return HookError, util.NewError(ErrorPCBWrongDir, "DirFrom", p.DirFrom)
+func (p *Packet) processDestSelf() (HookResult, *util.Error) {
+	if _, err := p.Payload(); err != nil {
+		return HookError, err
 	}
-	return HookContinue, nil
+	pld, ok := p.pld.(*proto.SCION)
+	if !ok {
+		return HookError, util.NewError(ErrorProcessPldUnsupported,
+			"pldType", fmt.Sprintf("%T", p.pld), "pld", p.pld)
+	}
+	switch pld.Which() {
+	case proto.SCION_Which_pathMgmt:
+		pathMgmt, err := pld.PathMgmt()
+		if err != nil {
+			return HookError, util.NewError(ErrorPldGet, "err", err)
+		}
+		return p.processPathMgmtSelf(pathMgmt)
+	default:
+		p.Error("Unsupported destination payload", "type", pld.Which())
+		return HookError, nil
+	}
 }
 
-func (p *Packet) processDestSelf() (HookResult, *util.Error) {
-	return HookContinue, nil
+func (p *Packet) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
+	switch pathMgmt.Which() {
+	case proto.PathMgmt_Which_ifStateInfos:
+		ifStates, err := pathMgmt.IfStateInfos()
+		if err != nil {
+			return HookError, util.NewError(ErrorPldGet, "err", err)
+		}
+		callbacks.ifStateUpd(ifStates)
+	default:
+		p.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
+		return HookError, nil
+	}
+	return HookFinish, nil
 }
 
 func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem) {
 	var names []string
 	var elemMap map[string]topology.BasicElem
+	tm := conf.C.TopoMeta
 	switch svc.Base() {
 	case addr.SvcBS:
-		names = conf.tm.BSNames
-		elemMap = conf.tm.T.BS
+		names = tm.BSNames
+		elemMap = tm.T.BS
 	case addr.SvcPS:
-		names = conf.tm.PSNames
-		elemMap = conf.tm.T.PS
+		names = tm.PSNames
+		elemMap = tm.T.PS
 	case addr.SvcCS:
-		names = conf.tm.CSNames
-		elemMap = conf.tm.T.CS
+		names = tm.CSNames
+		elemMap = tm.T.CS
 	case addr.SvcSB:
-		names = conf.tm.SBNames
-		elemMap = conf.tm.T.SB
+		names = tm.SBNames
+		elemMap = tm.T.SB
 	}
 	return names, elemMap
 }

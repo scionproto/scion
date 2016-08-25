@@ -94,8 +94,19 @@ type HopField struct {
 const (
 	HopFieldVerifyFlags = 0x4 // Forward-only
 	HopFieldLength      = spkt.LineLen
+	DefaultHopFExpiry   = 63
 	MacLen              = 3
 )
+
+func NewHopField(b util.RawBytes, in IntfID, out IntfID) *HopField {
+	h := &HopField{}
+	h.data = b
+	h.ExpTime = DefaultHopFExpiry
+	h.Ingress = in
+	h.Egress = out
+	h.Write()
+	return h
+}
 
 func HopFFromRaw(b []byte) (*HopField, *util.Error) {
 	if len(b) < HopFieldLength {
@@ -111,16 +122,35 @@ func HopFFromRaw(b []byte) (*HopField, *util.Error) {
 	offset := 1
 	h.ExpTime = h.data[offset]
 	offset += 1
-	ifids := int(h.data[offset]) << 16
-	offset += 1
-	ifids |= int(h.data[offset]) << 8
-	offset += 1
-	ifids |= int(h.data[offset])
-	offset += 1
-	h.Ingress = IntfID(ifids >> 12)
-	h.Egress = IntfID(ifids & 0x000FFF)
+	// Interface IDs are 12b each, encoded into 3B
+	h.Ingress = IntfID(h.data[offset]<<4 | h.data[offset+1]>>4)
+	h.Egress = IntfID((h.data[offset+1]&0xF)<<4 | h.data[offset+2])
+	offset += 3
 	h.Mac = h.data[offset:]
 	return h, nil
+}
+
+func (h *HopField) Write() {
+	var flags uint8
+	if h.Xover {
+		flags |= 0x1
+	}
+	if h.VerifyOnly {
+		flags |= 0x2
+	}
+	if h.ForwardOnly {
+		flags |= 0x4
+	}
+	if h.Recurse {
+		flags |= 0x8
+	}
+	h.data[0] = flags
+	h.data[1] = h.ExpTime
+	// Interface IDs are 12b each, encoded into 3B
+	h.data[2] = byte(h.Ingress >> 4)
+	h.data[3] = byte((h.Ingress&0x0F)<<4 | h.Egress>>4)
+	h.data[4] = byte(h.Egress & 0xFF)
+	copy(h.data[5:], h.Mac)
 }
 
 func (h *HopField) String() string {
