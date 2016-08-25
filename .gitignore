@@ -67,3 +67,7 @@ endhost/ssp/test/*file
 # CTags
 ##########################
 tags
+
+# HSR
+##########################
+lib/libhsr/build

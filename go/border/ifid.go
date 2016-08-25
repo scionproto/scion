@@ -19,6 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -31,15 +32,19 @@ const IFIDFreq = 1 * time.Second
 func (r *Router) SyncInterface() {
 	defer liblog.PanicLog()
 	for range time.Tick(IFIDFreq) {
-		for ifid := range r.NetConf.IFs {
-			r.GenIFIDPkt(ifid)
-		}
+		r.GenIFIDPkts()
+	}
+}
+
+func (r *Router) GenIFIDPkts() {
+	for ifid := range conf.C.Net.IFs {
+		r.GenIFIDPkt(ifid)
 	}
 }
 
 func (r *Router) GenIFIDPkt(ifid path.IntfID) {
 	logger := log.New("ifid", ifid)
-	intf := r.NetConf.IFs[ifid]
+	intf := conf.C.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
 	pkt, err := packet.CreateCtrlPacket(packet.DirExternal,
@@ -48,7 +53,7 @@ func (r *Router) GenIFIDPkt(ifid path.IntfID) {
 		logger.Error("Error creating IFID packet", err.Ctx...)
 	}
 	// Set egress
-	pkt.Egress = append(pkt.Egress, packet.EgressPair{F: r.intfOutQs[ifid], Dst: intf.RemoteAddr})
+	pkt.Egress = append(pkt.Egress, packet.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
 	// Create IFID msg
 	scion, ifidMsg, err := proto.NewIFIDMsg()
 	if err != nil {

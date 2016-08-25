@@ -66,7 +66,6 @@ type Interface struct {
 	BW         int
 	MTU        int
 	Type       string
-	Revocation []byte
 }
 
 func intfFromTopoIF(t *topology.TopoIF) *Interface {
@@ -81,8 +80,4 @@ func intfFromTopoIF(t *topology.TopoIF) *Interface {
 	intf.MTU = t.MTU
 	intf.Type = t.LinkType
 	return &intf
-}
-
-func (intf *Interface) IsRevoked() bool {
-	return len(intf.Revocation) > 0
 }

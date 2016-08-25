@@ -15,6 +15,7 @@
 package packet
 
 import (
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -31,9 +32,13 @@ func (p *Packet) Validate() *util.Error {
 		return util.NewError(ErrorTotalLenTooLong,
 			"totalLen", p.CmnHdr.TotalLen, "max", len(p.Raw))
 	}
-	if intf, ok := conf.net.IFs[*p.ifCurr]; !ok {
+	if _, ok := conf.C.Net.IFs[*p.ifCurr]; !ok {
 		return util.NewError(ErrorCurrIntfInvalid, "ifid", *p.ifCurr)
-	} else if intf.IsRevoked() {
+	}
+	conf.C.IFStates.RLock()
+	info, ok := conf.C.IFStates.M[*p.ifCurr]
+	conf.C.IFStates.RUnlock()
+	if ok && !info.Active() {
 		return util.NewError(ErrorIntfRevoked, "ifid", *p.ifCurr)
 	}
 	if err := p.validatePath(p.DirFrom); err != nil {

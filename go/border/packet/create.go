@@ -20,6 +20,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -49,7 +50,7 @@ func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
 	p.CmnHdr.Write(p.Raw)
 	// Fill in address header and indexes
 	p.idxs.srcIA = spkt.CmnHdrLen
-	p.srcIA = conf.ia
+	p.srcIA = conf.C.IA
 	p.idxs.srcHost = p.idxs.srcIA + addr.IABytes
 	p.srcHost = srcHost
 	p.idxs.dstIA = p.idxs.srcHost + p.srcHost.Size()

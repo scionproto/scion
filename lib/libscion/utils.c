@@ -132,3 +132,39 @@ const char * svc_to_str(uint16_t svc, char *buf) {
             svc & SVC_MULTICAST ? 'M' : 'A');
     return buf;
 }
+
+int family_to_type(int family)
+{
+    switch (family) {
+        case AF_INET:
+            return ADDR_IPV4_TYPE;
+        case AF_INET6:
+            return ADDR_IPV6_TYPE;
+        default:
+            return 0;
+    }
+}
+
+int type_to_family(int type)
+{
+    switch (type) {
+        case ADDR_IPV4_TYPE:
+            return AF_INET;
+        case ADDR_IPV6_TYPE:
+            return AF_INET6;
+        default:
+            return 0;
+    }
+}
+
+uint8_t * get_ss_addr(struct sockaddr_storage *ss)
+{
+    if (ss->ss_family == AF_INET) {
+        struct sockaddr_in *sin = (struct sockaddr_in *)ss;
+        return (uint8_t *)&sin->sin_addr;
+    } else if (ss->ss_family == AF_INET6) {
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ss;
+        return (uint8_t *)&sin6->sin6_addr;
+    }
+    return NULL;
+}

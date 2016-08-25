@@ -15,4 +15,8 @@ int send_all(int sock, uint8_t *buf, int len);
 const char * addr_to_str(uint8_t *addr, uint8_t type, char *buf);
 const char * svc_to_str(uint16_t svc, char *buf);
 
+int family_to_type(int family);
+int type_to_family(int type);
+uint8_t * get_ss_addr(struct sockaddr_storage *ss);
+
 #endif

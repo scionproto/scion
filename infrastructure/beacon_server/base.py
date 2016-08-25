@@ -240,6 +240,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def handle_pcb(self, pcb, meta):
         """Receives beacon and stores it for processing."""
+        pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)

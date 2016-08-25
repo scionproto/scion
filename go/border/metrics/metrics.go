@@ -62,6 +62,14 @@ var (
 		Name:      "pkt_process_seconds",
 		Help:      "Packet processing time.",
 	})
+	IFState = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "border",
+			Name:      "interface_active",
+			Help:      "Interface is active.",
+		},
+		[]string{"ifid"},
+	)
 )
 
 func init() {
@@ -73,6 +81,7 @@ func init() {
 	prometheus.MustRegister(PktBufReuse)
 	prometheus.MustRegister(PktBufDiscard)
 	prometheus.MustRegister(PktProcessTime)
+	prometheus.MustRegister(IFState)
 }
 
 func Export(addresses []string) {
