@@ -202,7 +202,7 @@ class SCIONElement(object):
             if hasattr(self, "_remote_sock"):
                 handler(pkt)
             elif pld.PAYLOAD_CLASS in [PayloadClass.IFID, PayloadClass.PCB,
-                                       PayloadClass.CERT]:
+                                       PayloadClass.CERT, SCMPClass.PATH]:
                 handler(pld, meta)
             else:
                 handler(pkt, meta)

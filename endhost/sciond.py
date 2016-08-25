@@ -230,8 +230,7 @@ class SCIONDaemon(SCIONElement):
                 reply.append(struct.pack("!H", link))
         sock.send(b"".join(reply))
 
-    def handle_revocation(self, pkt, meta):
-        rev_info = pkt.get_payload()
+    def handle_revocation(self, rev_info, meta):
         logging.debug("Received revocation:\n%s", rev_info)
 
         # Go through all segment databases and remove affected segments.

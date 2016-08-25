@@ -654,8 +654,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Sending revocation to local PS.")
             self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
 
-    def _handle_scmp_revocation(self, spkt, meta):
-        pld = spkt.get_payload()
+    def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.info("Received revocation via SCMP:\n%s", rev_info)
         self._process_revocation(rev_info)
