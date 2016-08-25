@@ -679,6 +679,7 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp = get_udp_hdr(m);
+    size_t len;
 
     memset(packet, 0, sizeof(RouterPacket));
 
@@ -714,7 +715,9 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
         memcpy(&sin6->sin6_addr, &ipv6->dst_addr, ADDR_IPV6_LEN);
     }
 
-    memcpy(packet->buf, udp + 1, ntohs(udp->dgram_len));
+    len = ntohl(udp->dgram_len);
+    memcpy(packet->buf, udp + 1, len);
+    packet->buflen = len;
     rte_pktmbuf_free(m);
     return 0;
 }
