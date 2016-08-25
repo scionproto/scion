@@ -173,6 +173,7 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
             delete p;
     }
     mPaths.clear();
+    mInvalid = 0;
 
     while (mPaths.size() - mInvalid == 0) {
         DEBUG("%p: trying to connect but no paths available\n", this);
@@ -706,6 +707,12 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
     SSPHeader &sh = sp->header;
     uint64_t pn = sp->getOffset();
     uint64_t offset = acksp->getAckNum();
+
+    if (!mPaths[ack->pathIndex]) {
+        DEBUG("ACK on a path that has been removed (%d)\n", ack->pathIndex);
+        return;
+    }
+
     if (match) {
         ack->sendTime = sent->sendTime;
         DEBUG("got ack for packet %lu (path %d), mark: %d|%d\n",
