@@ -31,7 +31,7 @@ Build DPDK:
 cd dpdk-16.07
 export RTE_SDK=`pwd`
 export RTE_TARGET=x86_64-native-linuxapp-clang
-printf "CONFIG_RTE_LIBRTE_PMD_PCAP=y\nCONFIG_RTE_BUILD_SHARED_LIB=y" >> $RTE_SDK/config/defconfig_$RTE_TARGET
+printf "CONFIG_RTE_LIBRTE_PMD_PCAP=y\nCONFIG_RTE_BUILD_SHARED_LIB=y\n" >> $RTE_SDK/config/defconfig_$RTE_TARGET
 make config T=${RTE_TARGET}
 sudo make -j2 install T=${RTE_TARGET} DESTDIR=/usr/local
 sudo ldconfig
