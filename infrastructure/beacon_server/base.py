@@ -238,9 +238,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_pcb(self, pkt, meta):
+    def handle_pcb(self, pcb, meta):
         """Receives beacon and stores it for processing."""
-        pcb = pkt.get_payload()
         if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)
@@ -337,20 +336,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         return pcb
 
-    def handle_ifid_packet(self, pkt, meta):
+    def handle_ifid_packet(self, pld, meta):
         """
         Update the interface state for the corresponding interface.
 
-        :param ipkt: The IFIDPayload.
-        :type ipkt: IFIDPayload
+        :param pld: The IFIDPayload.
+        :type pld: IFIDPayload
         """
-        payload = pkt.get_payload()
-        ifid = payload.p.relayIF
+        ifid = pld.p.relayIF
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
             br = self.ifid2br[ifid]
-            br.interface.to_if_id = payload.p.origIF
+            br.interface.to_if_id = pld.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
                 logging.info("IF %d activated", ifid)
@@ -581,14 +579,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def process_trc_rep(self, pkt, meta):
+    def process_trc_rep(self, rep, meta):
         """
         Process the TRC reply.
 
-        :param trc_rep: TRC reply.
-        :type trc_rep: TRCReply
+        :param rep: TRC reply.
+        :type rep: TRCReply
         """
-        rep = pkt.get_payload()
         logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
         self.trust_store.add_trc(rep.trc)
 

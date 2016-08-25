@@ -121,14 +121,13 @@ class LocalBeaconServer(BeaconServer):
                 self._try_to_verify_beacon(pcb)
                 self.handle_ext(pcb)
 
-    def process_cert_chain_rep(self, pkt, meta):
+    def process_cert_chain_rep(self, rep, meta):
         """
         Process the Certificate chain reply.
 
-        :param cert_chain_rep: certificate chain reply.
-        :type cert_chain_rep: CertChainReply
+        :param rep: certificate chain reply.
+        :type rep: CertChainReply
         """
-        rep = pkt.get_payload()
         logging.info("Certificate chain reply received for %s",
                      rep.short_desc())
         rep_key = rep.cert_chain.get_leaf_isd_as_ver()

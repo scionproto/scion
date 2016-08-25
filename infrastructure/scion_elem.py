@@ -75,7 +75,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import AddrType, L4Proto
+from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
 from lib.util import hex_str
 
@@ -192,6 +192,7 @@ class SCIONElement(object):
             dst_port = rev_pkt.l4_hdr.dst_port
         else:
             dst_port = 0
+        pld = pkt.get_payload()
         # Do not copy extensions. It is also passed to SCMP handlers.
         meta = UDPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
                                        dst_host=rev_pkt.addrs.dst.host,
@@ -200,6 +201,9 @@ class SCIONElement(object):
             # FIXME(PSz): hack to get python router working
             if hasattr(self, "_remote_sock"):
                 handler(pkt)
+            elif pld.PAYLOAD_CLASS in [PayloadClass.IFID, PayloadClass.PCB,
+                                       PayloadClass.CERT]:
+                handler(pld, meta)
             else:
                 handler(pkt, meta)
         except SCIONBaseError:

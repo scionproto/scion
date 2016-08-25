@@ -626,23 +626,7 @@ class SCIONL4Packet(SCIONExtPacket):
             raise SCIONParseError(
                 "Payload length mismatch. Reported: %s Actual: %s" %
                 (plen, len(data)))
-        try:
-            wrapper = P.SCION.from_bytes_packed(data.pop()).as_builder()
-        except capnp.lib.capnp.KjException as e:
-            raise SCIONParseError(
-                "Unable to parse SCION capnp message: %s" % e) from None
-        pld_class = wrapper.which()
-        class_map = {
-            PayloadClass.PCB: parse_pcb_payload,
-            PayloadClass.IFID: parse_ifid_payload,
-            PayloadClass.CERT: parse_certmgmt_payload,
-            PayloadClass.PATH: parse_pathmgmt_payload,
-            PayloadClass.SIBRA: parse_sibra_payload,
-        }
-        handler = class_map.get(pld_class)
-        if not handler:
-            raise SCIONParseError("Unsupported payload class: %s" % pld_class)
-        return handler(getattr(wrapper, pld_class))
+        return pld_from_raw(data.pop())
 
     def _parse_pld_scmp(self, data):  # pragma: no cover
         return SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, data.pop()))
@@ -663,3 +647,23 @@ def build_base_hdrs(src, dst, l4=L4Proto.UDP):
     cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE, l4)
     addr_hdr = SCIONAddrHdr.from_values(src, dst)
     return cmn_hdr, addr_hdr
+
+
+def pld_from_raw(raw):
+    try:
+        wrapper = P.SCION.from_bytes_packed(raw).as_builder()
+    except capnp.lib.capnp.KjException as e:
+        raise SCIONParseError(
+            "Unable to parse SCION capnp message: %s" % e) from None
+    pld_class = wrapper.which()
+    class_map = {
+        PayloadClass.PCB: parse_pcb_payload,
+        PayloadClass.IFID: parse_ifid_payload,
+        PayloadClass.CERT: parse_certmgmt_payload,
+        PayloadClass.PATH: parse_pathmgmt_payload,
+        PayloadClass.SIBRA: parse_sibra_payload,
+    }
+    handler = class_map.get(pld_class)
+    if not handler:
+        raise SCIONParseError("Unsupported payload class: %s" % pld_class)
+    return handler(getattr(wrapper, pld_class))
