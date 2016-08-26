@@ -75,7 +75,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import AddrType, L4Proto, PayloadClass
+from lib.types import AddrType, L4Proto, PayloadClass,PathMgmtType
 from lib.topology import Topology
 from lib.util import hex_str
 
@@ -203,6 +203,9 @@ class SCIONElement(object):
                 handler(pkt)
             elif pld.PAYLOAD_CLASS in [PayloadClass.IFID, PayloadClass.PCB,
                                        PayloadClass.CERT, SCMPClass.PATH]:
+                handler(pld, meta)
+            elif (pld.PAYLOAD_CLASS == PayloadClass.PATH and
+                    pld.PAYLOAD_TYPE in [PathMgmtType.IFSTATE_REQ]):
                 handler(pld, meta)
             else:
                 handler(pkt, meta)
@@ -404,6 +407,15 @@ class SCIONElement(object):
         if not self._local_sock:
             return
         self._local_sock.send(packet.pack(), (dst, dst_port))
+
+    def send_meta(self, pld, meta):
+        pkt = self._build_packet(meta.dst_host, meta.path, meta.ext_hdrs,
+                                 meta.dst_ia, pld, meta.dst_port)
+        if meta.dst_ia != self.addr.isd_as:
+            pass
+        else:
+            self.send(pkt, meta.dst_host, meta.dst_port) #check first hop
+
 
     def run(self):
         """

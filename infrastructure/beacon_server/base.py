@@ -760,13 +760,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
-    def _handle_ifstate_request(self, mgmt_pkt, meta):
+    def _handle_ifstate_request(self, req, meta):
         # Only master replies to ifstate requests.
         if not self.zk.have_lock():
             return
-        req = mgmt_pkt.get_payload()
         assert isinstance(req, IFStateRequest)
-        logging.debug("Received ifstate req:\n%s", mgmt_pkt)
+        logging.debug("Received ifstate req:\n%s", req)
         infos = []
         with self.ifid_state_lock:
             if req.p.ifID == IFStateRequest.ALL_INTERFACES:
@@ -775,7 +774,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
             else:
                 logging.error("Received ifstate request from %s for unknown "
-                              "interface %s.", mgmt_pkt.addrs.src, req.p.ifID)
+                              "interface %s.", meta.get_dst(), req.p.ifID)
                 return
 
             for (ifid, state) in ifid_states:
@@ -788,9 +787,5 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not infos and not self._quiet_startup():
             logging.warning("No IF state info to put in response.")
             return
-
         payload = IFStatePayload.from_values(infos)
-        state_pkt = self._build_packet(
-            mgmt_pkt.addrs.src.host, dst_port=mgmt_pkt.l4_hdr.src_port,
-            payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src.host, mgmt_pkt.l4_hdr.src_port)
+        self.send_meta(payload, meta)

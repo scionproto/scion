@@ -173,7 +173,7 @@ class CertServer(SCIONElement):
             logging.warning(
                 "Dropping CC request from %s for %sv%s: "
                 "CC not found && requester is not local)",
-                (meta.dst_ia, meta.dst_host), *key)
+                meta.get_dst(), *key)
         self.cc_requests.put((key, meta))
 
     def process_cert_chain_reply(self, rep, meta, from_zk=False):
@@ -209,7 +209,7 @@ class CertServer(SCIONElement):
 
     def _reply_cc(self, key, meta):
         isd_as, ver = key
-        dst = SCIONAddr.from_values(meta.dst_ia, meta.dst_host)
+        dst = meta.get_dst()
         port = meta.dst_port
         cert_chain = self.trust_store.get_cert(isd_as, ver)
         self._send_reply(dst, port, CertChainReply.from_values(cert_chain))
@@ -226,7 +226,7 @@ class CertServer(SCIONElement):
             logging.warning(
                 "Dropping TRC request from %s for %sv%s: "
                 "TRC not found && requester is not local)",
-                (meta.dst_ia, meta.dst_host), *key)
+                meta.get_dst(), *key)
         self.trc_requests.put((key, (meta, req.isd_as()[1]),))
 
     def process_trc_reply(self, trc_rep, meta, from_zk=False):
@@ -269,7 +269,7 @@ class CertServer(SCIONElement):
     def _reply_trc(self, key, info):
         isd, ver = key
         meta = info[0]
-        dst = SCIONAddr.from_values(meta.dst_ia, meta.dst_host)
+        dst = meta.get_dst()
         port = meta.dst_port
         trc = self.trust_store.get_trc(isd, ver)
         self._send_reply(dst, port, TRCReply.from_values(trc))
