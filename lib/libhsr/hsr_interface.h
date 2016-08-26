@@ -33,9 +33,12 @@ int router_init(int argc, char **argv);
 /*
  * Get packets from router library
  * packets: Array of packets (data filled in by router library)
+ * min_packets: Minimum number of packets to read before returning
+ * max_packets: Maximum capacity of packets array
+ * timeout: Timeout to return whether min_packets are ready or not, in microseconds (-1 for no timeout)
  * returns: Number of packets filled in
  */
-int get_packets(RouterPacket *packets, int max_packets);
+int get_packets(RouterPacket *packets, int min_packets, int max_packets, int timeout);
 /*
  * Send packet
  * Before calling, packet->src/dst must both be updated to reflect the addresses

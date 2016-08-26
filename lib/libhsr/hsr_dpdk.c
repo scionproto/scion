@@ -506,19 +506,21 @@ int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
 }
 
 /* main processing loop */
-int get_packets(RouterPacket *packets, int max_packets)
+int get_packets(RouterPacket *packets, int min_packets, int max_packets, int timeout)
 {
     struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
     struct rte_mbuf *m;
     struct rte_mbuf *m_next;
-    uint64_t prev_tsc, diff_tsc, cur_tsc;
+    uint64_t prev_tsc, diff_tsc, cur_tsc, start_tsc;
     unsigned i, portid, nb_rx, nb_ports;
     const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * BURST_TX_DRAIN_US;
+    const uint64_t timeout_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * timeout;
     int count = 0;
 
     prev_tsc = 0;
 
     cur_tsc = rte_rdtsc();
+    start_tsc = cur_tsc;
     /*
      * TX burst queue drain
      */
@@ -533,33 +535,40 @@ int get_packets(RouterPacket *packets, int max_packets)
         prev_tsc = cur_tsc;
     }
 
-    /*
-     * NIC lcore
-     * Read packet from RX queues
-     */
-    nb_ports = rte_eth_dev_count();
-    for (portid = 0; portid < nb_ports; portid++) {
-        pthread_mutex_lock(&eth_mutex);
-        nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
-                pkts_burst, max_packets - count);
-        pthread_mutex_unlock(&eth_mutex);
-        for (i = 0; i < nb_rx; i++) {
-            m = pkts_burst[i];
-            //rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-            if(i < nb_rx -1){
-                m_next = pkts_burst[i+1];
-                rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
-                rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
+    while (count < min_packets) {
+        /*
+         * NIC lcore
+         * Read packet from RX queues
+         */
+        nb_ports = rte_eth_dev_count();
+        for (portid = 0; portid < nb_ports; portid++) {
+            pthread_mutex_lock(&eth_mutex);
+            nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
+                    pkts_burst, max_packets - count);
+            pthread_mutex_unlock(&eth_mutex);
+            for (i = 0; i < nb_rx; i++) {
+                m = pkts_burst[i];
+                //rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+                if(i < nb_rx -1){
+                    m_next = pkts_burst[i+1];
+                    rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
+                    rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
+                }
+                if (!handle_packet(&packets[count], m, portid)) {
+                    rte_pktmbuf_free(m);
+                    pkts_burst[i] = NULL;
+                } else {
+                    count++;
+                }
             }
-            if (!handle_packet(&packets[count], m, portid)) {
-                rte_pktmbuf_free(m);
-                pkts_burst[i] = NULL;
-            } else {
-                count++;
-            }
+            if (count == max_packets)
+                break;
         }
-        if (count == max_packets)
-            break;
+        if (timeout != -1) {
+            cur_tsc = rte_rdtsc();
+            if (unlikely(cur_tsc - start_tsc > timeout_tsc))
+                break;
+        }
     }
     return count;
 }
