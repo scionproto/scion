@@ -141,11 +141,9 @@ class CorePathServer(PathServer):
             ret.add((first_ia.any_as(), pcb.is_sibra()))
         return ret
 
-    def _dispatch_params(self, pkt):
-        pld = pkt.get_payload()
+    def _dispatch_params(self, pld, meta):
         params = {}
-        if (pkt.addrs.src.isd_as == self.addr.isd_as and
-                pld.PAYLOAD_TYPE == PMT.REPLY):
+        if (meta.dst_ia == self.addr.isd_as and pld.PAYLOAD_TYPE == PMT.REPLY):
             params["from_master"] = True
         return params
 

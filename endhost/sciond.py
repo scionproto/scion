@@ -32,6 +32,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
+from lib.msg_meta import UDPMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -131,12 +132,11 @@ class SCIONDaemon(SCIONElement):
             return
         super().handle_request(packet, sender, from_local_socket)
 
-    def handle_path_reply(self, pkt, meta):
+    def handle_path_reply(self, path_reply, meta):
         """
         Handle path reply from local path server.
         """
         added = set()
-        path_reply = pkt.get_payload()
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,
@@ -456,8 +456,8 @@ class SCIONDaemon(SCIONElement):
             return
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request: %s", req.short_desc())
-        path_request = self._build_packet(addr, dst_port=port, payload=req)
-        self.send(path_request, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        self.send_meta(req, meta)
 
     def _reply_segments(self, key, e):
         """

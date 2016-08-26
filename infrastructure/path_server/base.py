@@ -285,9 +285,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not self.pending_req[key]:
             del self.pending_req[key]
 
-    def handle_path_segment_record(self, pkt, meta):
-        seg_recs = pkt.get_payload()
-        params = self._dispatch_params(pkt)
+    def handle_path_segment_record(self, seg_recs, meta):
+        params = self._dispatch_params(seg_recs, meta)
         added = set()
         for type_, pcb in seg_recs.iter_pcbs():
             added.update(self._dispatch_segment_record(type_, pcb, **params))
@@ -303,7 +302,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         }
         return handle_map[type_](seg, **kwargs)
 
-    def _dispatch_params(self, pkt):
+    def _dispatch_params(self, pld, meta):
         return {}
 
     def _propagate_and_sync(self):

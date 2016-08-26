@@ -206,6 +206,9 @@ class SCIONElement(object):
                 handler(pld, meta)
             elif (pld.PAYLOAD_CLASS == PayloadClass.PATH and
                     pld.PAYLOAD_TYPE in [PathMgmtType.IFSTATE_REQ,
+                                         PathMgmtType.REPLY,
+                                         PathMgmtType.SYNC,
+                                         PathMgmtType.REG,
                                          PathMgmtType.REVOCATION]):
                 handler(pld, meta)
             else:
@@ -410,6 +413,7 @@ class SCIONElement(object):
         self._local_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, pld, meta):
+        assert isinstance(meta, UDPMetadata)
         pkt = self._build_packet(meta.dst_host, meta.path, meta.ext_hdrs,
                                  meta.dst_ia, pld, meta.dst_port)
 
