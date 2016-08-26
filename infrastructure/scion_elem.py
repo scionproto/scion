@@ -198,10 +198,10 @@ class SCIONElement(object):
                                        dst_host=rev_pkt.addrs.dst.host,
                                        path=rev_pkt.path, dst_port=dst_port)
         try:
-            # FIXME(PSz): hack to get python router working
+            # FIXME(PSz): hack to get python router working.
             if hasattr(self, "_remote_sock"):
                 handler(pkt)
-            # Omit SIBRA
+            # SIBRA operates on raw packets.
             elif pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
                 handler(pkt)
             else:
