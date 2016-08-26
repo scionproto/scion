@@ -201,9 +201,9 @@ class SCIONElement(object):
             # FIXME(PSz): hack to get python router working
             if hasattr(self, "_remote_sock"):
                 handler(pkt)
-            # FIXME(PSz): omit SIBRA for now
+            # Omit SIBRA
             elif pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
-                handler(pkt, meta)
+                handler(pkt)
             else:
                 handler(pld, meta)
         except SCIONBaseError:
