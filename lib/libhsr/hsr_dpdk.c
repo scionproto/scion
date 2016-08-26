@@ -690,8 +690,6 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
     struct udp_hdr *udp = get_udp_hdr(m);
     size_t len;
 
-    memset(packet, 0, sizeof(RouterPacket));
-
     if (!udp) {
         zlog_debug(zc, "Not UDP packet");
         return -1;
