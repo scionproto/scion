@@ -626,11 +626,17 @@ int send_packet(RouterPacket *packet)
         } else {
             memcpy(&sin6.sin6_addr, hop_addr, sizeof(sin6.sin6_addr));
         }
-        zlog_debug(zc, "no MAC for %s (port %d), let kernel handle it",
+        zlog_debug(zc, "no MAC for %s (port %d), send through socket %d (fd %d)",
                 addr_to_str(hop_addr, hop_addr_type, NULL),
-                ntohs(sin6.sin6_port));
-        return sendto(sockets[packet->port_id], sch, ntohs(sch->total_len), 0,
+                ntohs(sin6.sin6_port), packet->port_id, sockets[packet->port_id]);
+        ret = sendto(sockets[packet->port_id], sch, ntohs(sch->total_len), 0,
                 (struct sockaddr *)&sin6, sizeof(sin6));
+        if (ret < 0) {
+            zlog_error(zc, "error in sendto: %s", strerror(errno));
+            return -1;
+        }
+        zlog_debug(zc, "sent %d bytes", ret);
+        return 1;
     }
 
     m->data_len = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
@@ -641,7 +647,7 @@ int send_packet(RouterPacket *packet)
     udp = get_udp_hdr(m);
     uint8_t *payload = (uint8_t *)(udp + 1);
     memcpy(payload, packet->buf, ntohs(sch->total_len));
-    if (packet->src->ss_family == AF_INET)
+    if (packet->dst->ss_family == AF_INET)
         udp->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4, udp);
     else
         udp->dgram_cksum = rte_ipv6_udptcp_cksum(ipv6, udp);
@@ -696,7 +702,9 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
     }
 
     if (udp->dst_port != ((struct sockaddr_in *)&local_addrs[dpdk_rx_port])->sin_port) {
-        zlog_debug(zc, "Incorrect UDP port: %d", ntohs(udp->dst_port));
+        zlog_debug(zc, "Incorrect UDP port: %d, expected %d",
+                ntohs(udp->dst_port),
+                ntohs(((struct sockaddr_in *)&local_addrs[dpdk_rx_port])->sin_port));
         return -1;
     }
 
@@ -707,22 +715,14 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
         sin->sin_family = AF_INET;
         sin->sin_port = udp->src_port;
         memcpy(&sin->sin_addr, &ipv4->src_addr, ADDR_IPV4_LEN);
-        sin = (struct sockaddr_in *)packet->dst;
-        sin->sin_family = AF_INET;
-        sin->sin_port = udp->dst_port;
-        memcpy(&sin->sin_addr, &ipv4->dst_addr, ADDR_IPV4_LEN);
     } else if (ntohs(eth->ether_type) == ETHER_TYPE_IPv6) {
         struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)packet->src;
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = udp->src_port;
         memcpy(&sin6->sin6_addr, &ipv6->src_addr, ADDR_IPV6_LEN);
-        sin6 = (struct sockaddr_in6 *)packet->dst;
-        sin6->sin6_family = AF_INET6;
-        sin6->sin6_port = udp->dst_port;
-        memcpy(&sin6->sin6_addr, &ipv6->dst_addr, ADDR_IPV6_LEN);
     }
 
-    len = ntohl(udp->dgram_len);
+    len = ntohs(udp->dgram_len) - sizeof(struct udp_hdr);
     memcpy(packet->buf, udp + 1, len);
     packet->buflen = len;
     rte_pktmbuf_free(m);
