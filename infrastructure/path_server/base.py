@@ -34,6 +34,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
+from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.svc import SVCType
@@ -232,18 +233,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     if not self.topology.is_core_as:
                         self.up_segments.delete(sid)
 
-    def _send_to_next_hop(self, pkt, if_id):
-        """
-        Sends the packet to the next hop of the given if_id.
-        :param if_id: The interface ID of the corresponding interface.
-        :type if_id: int.
-        """
-        if if_id not in self.ifid2br:
-            logging.error("Unknown Interface ID: %d", if_id)
-            return
-        next_hop = self.ifid2br[if_id]
-        self.send(pkt, next_hop.addr, next_hop.port)
-
     def _send_path_segments(self, pkt, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
@@ -350,9 +339,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         src_ia = pcb.first_ia()
         while targets:
             seg_req = targets.pop(0)
-            req_pkt = self._build_packet(
-                SVCType.PS_A, dst_ia=src_ia, path=path, payload=seg_req)
-            self._send_to_next_hop(req_pkt, path.get_fwd_if())
+            meta = UDPMetadata.from_values(dst_ia=src_ia, path=path,
+                                           dst_host=SVCType.PS_A)
+            self.send_meta(seg_req, meta)
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())
 

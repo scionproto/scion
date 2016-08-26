@@ -22,6 +22,7 @@ from collections import deque
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.defines import PATH_FLAG_SIBRA, SCION_UDP_EH_DATA_PORT
+from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
@@ -218,9 +219,9 @@ class CorePathServer(PathServer):
                 logging.warning("Segment to AS %s not found.", isd_as)
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
-            pkt = self._build_packet(SVCType.PS_A, dst_ia=isd_as, path=cseg,
-                                     payload=rep_recs.copy())
-            self._send_to_next_hop(pkt, cseg.get_fwd_if())
+            meta = UDPMetadata.from_values(dst_ia=isd_as, path=cseg,
+                                           dst_host=SVCType.PS_A)
+            self.send_meta(rep_recs.copy(), meta)
 
     def path_resolution(self, pkt, new_request=True):
         """
@@ -333,12 +334,12 @@ class CorePathServer(PathServer):
             cseg = csegs[0]
             path = cseg.get_path(reverse_direction=True)
             dst_ia = cseg.first_ia()
-            req_pkt = self._build_packet(SVCType.PS_A, dst_ia=dst_ia,
-                                         path=path, payload=seg_req)
             logging.info("Down-Segment request for different ISD, "
                          "forwarding request to CPS in %s via %s",
                          dst_ia, cseg.short_desc())
-            self._send_to_next_hop(req_pkt, path.get_fwd_if())
+            meta = UDPMetadata.from_values(dst_ia=dst_ia, path=path,
+                                           dst_host=SVCType.PS_A)
+            self.send_meta(seg_req, meta)
         else:
             # If no core segment was available, add request to waiting targets.
             logging.info("Waiting for core segment to ISD %s", dst_ia[0])
