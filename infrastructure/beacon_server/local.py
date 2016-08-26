@@ -22,6 +22,7 @@ import logging
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SCION_UDP_EH_DATA_PORT, SIBRA_SERVICE
 from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
+from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.svc import SVCType
@@ -76,11 +77,11 @@ class LocalBeaconServer(BeaconServer):
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
         addr, port = self.dns_query_topo(PATH_SERVICE)[0]
-        pkt = self._build_packet(addr, dst_port=port, payload=records.copy())
-        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        pkt = self._build_packet(addr, dst_port=port, payload=records)
-        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        self.send_meta(records, meta)
 
     def register_down_segment(self, pcb):
         """
@@ -89,15 +90,10 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
-        pkt = self._build_packet(SVCType.PS_A, dst_ia=dst_ia, path=core_path,
-                                 payload=records)
-        fwd_if = core_path.get_fwd_if()
-        if fwd_if not in self.ifid2br:
-            raise SCIONKeyError(
-                "Invalid IF %d in CorePath" % fwd_if)
-
-        next_hop = self.ifid2br[fwd_if]
-        self.send(pkt, next_hop.addr, next_hop.port)
+        meta = UDPMetadata.from_values(dst_ia=dst_ia,
+                                       dst_host=SVCType.PS_A,
+                                       path=core_path)
+        self.send_meta(records, meta)
 
     def register_segments(self):
         """

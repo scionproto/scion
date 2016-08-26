@@ -366,9 +366,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
                     for br in self.topology.get_all_border_routers():
-                        mgmt_packet = self._build_packet(
-                                br.addr, dst_port=br.port, payload=pld.copy())
-                        self.send(mgmt_packet, br.addr, br.port)
+                        meta = UDPMetadata.from_values(dst_host=br.addr,
+                                                       dst_port=br.port)
+                        self.send_meta(pld.copy(), meta)
 
     def run(self):
         """
@@ -543,9 +543,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 except SCIONServiceLookupError as e:
                     logging.warning("Sending TRC request failed: %s", e)
                     return None
-                req_pkt = self._build_packet(addr, dst_port=port,
-                                             payload=trc_req)
-                self.send(req_pkt, addr, SCION_UDP_EH_DATA_PORT)
+                meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+                self.send_meta(trc_req, meta)
                 self.trc_requests[trc_tuple] = now
                 return None
         return trc
@@ -635,9 +634,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
         for br in self.topology.get_all_border_routers():
-            state_pkt = self._build_packet(br.addr, dst_port=br.port,
-                                           payload=pld.copy())
-            self.send(state_pkt, br.addr, br.port)
+            meta = UDPMetadata.from_values(dst_host=br.addr, dst_port=br.port)
+            self.send_meta(pld.copy(), meta)
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
 
@@ -653,10 +651,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONServiceLookupError:
                 # If there are no local path servers, stop here.
                 return
-            pkt = self._build_packet(addr, dst_port=port,
-                                     payload=rev_info.copy())
             logging.info("Sending revocation to local PS.")
-            self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+            meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+            self.send_meta(rev_info.copy(), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
