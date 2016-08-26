@@ -75,7 +75,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import AddrType, L4Proto, PayloadClass,PathMgmtType
+from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
 from lib.util import hex_str
 
@@ -201,6 +201,9 @@ class SCIONElement(object):
             # FIXME(PSz): hack to get python router working
             if hasattr(self, "_remote_sock"):
                 handler(pkt)
+            # FIXME(PSz): omit SIBRA for now
+            elif pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
+                handler(pkt, meta)
             else:
                 handler(pld, meta)
         except SCIONBaseError:

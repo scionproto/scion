@@ -20,8 +20,8 @@ import logging
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import PATH_SERVICE, SCION_UDP_EH_DATA_PORT, SIBRA_SERVICE
-from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
+from lib.defines import PATH_SERVICE, SIBRA_SERVICE
+from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment

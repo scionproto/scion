@@ -34,7 +34,7 @@ from lib.packet.cert_mgmt import (
     TRCRequest,
 )
 from lib.packet.scion import pld_from_raw
-from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
 from lib.thread import thread_safety_net

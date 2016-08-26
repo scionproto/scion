@@ -21,7 +21,7 @@ from _collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import PATH_SERVICE, SCION_UDP_EH_DATA_PORT, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.msg_meta import UDPMetadata
 from lib.packet.opaque_field import InfoOpaqueField

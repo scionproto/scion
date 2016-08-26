@@ -43,7 +43,6 @@ from lib.defines import (
     HASHTREE_UPDATE_WINDOW,
     PATH_POLICY_FILE,
     PATH_SERVICE,
-    SCION_UDP_EH_DATA_PORT,
 )
 from lib.errors import (
     SCIONKeyError,

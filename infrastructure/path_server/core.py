@@ -21,7 +21,7 @@ from collections import deque
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.defines import PATH_FLAG_SIBRA, SCION_UDP_EH_DATA_PORT
+from lib.defines import PATH_FLAG_SIBRA
 from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
