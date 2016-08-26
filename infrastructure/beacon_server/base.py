@@ -50,6 +50,7 @@ from lib.errors import (
     SCIONParseError,
     SCIONServiceLookupError,
 )
+from lib.msg_meta import UDPMetadata
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -189,25 +190,27 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for r in self.topology.child_border_routers:
             if not r.interface.to_if_id:
                 continue
-            beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
-                                          r.interface.if_id)
-            if not beacon:
+            pcb2, meta = self._mk_prop_pcb_meta(pcb.copy(), r.interface.isd_as,
+                                                r.interface.if_id)
+            if not pcb2:
                 continue
-            self.send(beacon, r.addr, r.port)
+            self.send_meta(pcb2, meta)
             logging.info("Downstream PCB propagated to %s via IF %s",
                          r.interface.isd_as, r.interface.if_id)
 
-    def _mk_prop_beacon(self, pcb, dst_ia, egress_if):
+    def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
         asm = self._create_asm(pcb.p.ifID, egress_if, ts, pcb.last_hof())
         if not asm:
-            return None
+            return None, None
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
-        exts = [OneHopPathExt()]
-        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia,
-                                  path=one_hop_path, payload=pcb, ext_hdrs=exts)
+        meta = UDPMetadata.from_values(dst_ia=dst_ia,
+                                       dst_host=SVCType.BS_A,
+                                       path=one_hop_path,
+                                       ext_hdrs=[OneHopPathExt()])
+        return pcb, meta
 
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())

@@ -412,10 +412,15 @@ class SCIONElement(object):
     def send_meta(self, pld, meta):
         pkt = self._build_packet(meta.dst_host, meta.path, meta.ext_hdrs,
                                  meta.dst_ia, pld, meta.dst_port)
-        if meta.dst_ia != self.addr.isd_as:
-            pass
+        if pkt.addrs.src.isd_as != pkt.addrs.dst.isd_as:
+            if_id = pkt.path.get_fwd_if()
+            if if_id not in self.ifid2br:
+                logging.error("Unknown Interface ID: %d", if_id)
+                return
+            next_hop = self.ifid2br[if_id]
+            self.send(pkt, next_hop.addr, next_hop.port)
         else:
-            self.send(pkt, meta.dst_host, meta.dst_port) #check first hop
+            self.send(pkt, meta.dst_host, meta.dst_port)
 
 
     def run(self):
