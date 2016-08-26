@@ -205,7 +205,8 @@ class SCIONElement(object):
                                        PayloadClass.CERT, SCMPClass.PATH]:
                 handler(pld, meta)
             elif (pld.PAYLOAD_CLASS == PayloadClass.PATH and
-                    pld.PAYLOAD_TYPE in [PathMgmtType.IFSTATE_REQ]):
+                    pld.PAYLOAD_TYPE in [PathMgmtType.IFSTATE_REQ,
+                                         PathMgmtType.REVOCATION]):
                 handler(pld, meta)
             else:
                 handler(pkt, meta)

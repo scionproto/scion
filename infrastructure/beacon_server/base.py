@@ -660,8 +660,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info("Received revocation via SCMP:\n%s", rev_info)
         self._process_revocation(rev_info)
 
-    def _handle_revocation(self, pkt, meta):
-        rev_info = pkt.get_payload()
+    def _handle_revocation(self, rev_info, meta):
         logging.info("Received revocation via UDP:\n%s", rev_info)
         self._process_revocation(rev_info)
 

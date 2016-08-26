@@ -192,14 +192,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
         return False
 
-    def _handle_revocation(self, pkt):
+    def _handle_revocation(self, rev_info, meta):
         """
         Handles a revocation of a segment, interface or hop.
 
-        :param pkt: The packet containing the revocation info.
-        :type pkt: PathMgmtPacket
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
         """
-        rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         if rev_info in self.revocations:
@@ -208,7 +207,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         else:
             self.revocations[rev_info] = rev_info
             logging.debug("Received revocation from %s:\n%s",
-                          pkt.addrs.src, rev_info)
+                          meta.get_dst(), rev_info)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
