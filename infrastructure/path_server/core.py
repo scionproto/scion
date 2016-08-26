@@ -192,8 +192,8 @@ class CorePathServer(PathServer):
             logging.warning("send_to_master: abandoning as there is no master")
             return
         addr, port = master.addr(0)
-        pkt = self._build_packet(addr, dst_port=port, payload=pld.copy())
-        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        self.send_meta(pld.copy(), meta)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
         """
