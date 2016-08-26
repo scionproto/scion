@@ -201,18 +201,8 @@ class SCIONElement(object):
             # FIXME(PSz): hack to get python router working
             if hasattr(self, "_remote_sock"):
                 handler(pkt)
-            elif pld.PAYLOAD_CLASS in [PayloadClass.IFID, PayloadClass.PCB,
-                                       PayloadClass.CERT, SCMPClass.PATH]:
-                handler(pld, meta)
-            elif (pld.PAYLOAD_CLASS == PayloadClass.PATH and
-                    pld.PAYLOAD_TYPE in [PathMgmtType.IFSTATE_REQ,
-                                         PathMgmtType.REPLY,
-                                         PathMgmtType.SYNC,
-                                         PathMgmtType.REG,
-                                         PathMgmtType.REVOCATION]):
-                handler(pld, meta)
             else:
-                handler(pkt, meta)
+                handler(pld, meta)
         except SCIONBaseError:
             log_exception("Error handling packet:\n%s" % pkt)
 

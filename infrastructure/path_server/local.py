@@ -62,11 +62,10 @@ class LocalPathServer(PathServer):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
-    def path_resolution(self, pkt, new_request=True):
+    def path_resolution(self, req, meta, new_request=True):
         """
         Handle generic type of a path request.
         """
-        req = pkt.get_payload()
         dst_ia = req.dst_ia()
         if new_request:
             logging.info("PATH_REQ received: %s", req.short_desc())
@@ -82,11 +81,11 @@ class LocalPathServer(PathServer):
         else:
             self._resolve_not_core(req, up_segs, core_segs, down_segs)
         if (up_segs | core_segs | down_segs):
-            self._send_path_segments(pkt, up_segs, core_segs, down_segs)
+            self._send_path_segments(req, meta, up_segs, core_segs, down_segs)
             return True
         if new_request:
             self._request_paths_from_core(req)
-            self.pending_req[(dst_ia, req.p.flags.sibra)].append(pkt)
+            self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta))
         else:
             # That could happend when needed segment expired.
             logging.warning("Handling pending request and needed seg "

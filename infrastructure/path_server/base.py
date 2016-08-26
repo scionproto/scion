@@ -233,7 +233,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     if not self.topology.is_core_as:
                         self.up_segments.delete(sid)
 
-    def _send_path_segments(self, pkt, up=None, core=None, down=None):
+    def _send_path_segments(self, req, meta, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
         """
@@ -243,34 +243,26 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not (up | core | down):
             logging.warning("No segments to send")
             return
-        req = pkt.get_payload()
-        rep_pkt = pkt.reversed_copy()
-        rep_pkt.set_payload(PathRecordsReply.from_values(
+        pld = PathRecordsReply.from_values(
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
-        ))
-        rep_pkt.addrs.src.host = self.addr.host
-        next_hop, port = self.get_first_hop(rep_pkt)
-        if next_hop is None:
-            logging.error("Next hop is None for Interface %s",
-                          rep_pkt.path.get_fwd_if())
-            return
+        )
+        self.send_meta(pld, meta)
         logging.info(
             "Sending PATH_REPLY with %d segment(s) to:%s "
             "port:%s in response to: %s", len(up | core | down),
-            rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port, req.short_desc(),
+            meta.get_dst(), meta.dst_port, req.short_desc(),
         )
-        self.send(rep_pkt, next_hop, port)
 
     def _handle_pending_requests(self, dst_ia, sibra):
         to_remove = []
         key = dst_ia, sibra
         # Serve pending requests.
-        for pkt in self.pending_req[key]:
-            if self.path_resolution(pkt, new_request=False):
-                to_remove.append(pkt)
+        for req, meta in self.pending_req[key]:
+            if self.path_resolution(req, meta, new_request=False):
+                to_remove.append((req, meta))
         # Clean state.
-        for pkt in to_remove:
-            self.pending_req[key].remove(pkt)
+        for req_meta in to_remove:
+            self.pending_req[key].remove(req_meta)
         if not self.pending_req[key]:
             del self.pending_req[key]
 
@@ -313,7 +305,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             yield(pcbs)
 
     @abstractmethod
-    def path_resolution(self, path_request):
+    def path_resolution(self, path_request, meta, new_request):
         """
         Handles all types of path request.
         """
