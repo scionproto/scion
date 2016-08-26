@@ -1,21 +1,31 @@
 '''
+https://github.com/mailgun/expiringdict/blob/master/expiringdict/__init__.py
+Apache 2.0 license
+
 Dictionary with auto-expiring values for caching purposes.
+
 Expiration happens on any access, object is locked during cleanup from expired
 values. Can not store more than max_len elements - the oldest will be deleted.
+
 >>> ExpiringDict(max_len=100, max_age_seconds=10)
+
 The values stored in the following way:
 {
     key1: (value1, created_time1),
     key2: (value2, created_time2)
 }
+
 NOTE: iteration over dict and also keys() do not remove expired values!
 '''
-# Stdlib
-from collections import OrderedDict
+
+import time
 from threading import RLock
 
-# SCION
-from lib.util import SCIONTime
+try:
+    from collections import OrderedDict
+except ImportError:
+    # Python < 2.7
+    from ordereddict import OrderedDict
 
 
 class ExpiringDict(OrderedDict):
@@ -33,7 +43,7 @@ class ExpiringDict(OrderedDict):
         try:
             with self.lock:
                 item = OrderedDict.__getitem__(self, key)
-                if SCIONTime.get_time() - item[1] < self.max_age:
+                if time.time() - item[1] < self.max_age:
                     return True
                 else:
                     del self[key]
@@ -43,11 +53,12 @@ class ExpiringDict(OrderedDict):
 
     def __getitem__(self, key, with_age=False):
         """ Return the item of the dict.
+
         Raises a KeyError if key is not in the map.
         """
         with self.lock:
             item = OrderedDict.__getitem__(self, key)
-            item_age = SCIONTime.get_time() - item[1]
+            item_age = time.time() - item[1]
             if item_age < self.max_age:
                 if with_age:
                     return item[0], item_age
@@ -62,10 +73,11 @@ class ExpiringDict(OrderedDict):
         with self.lock:
             if len(self) == self.max_len:
                 self.popitem(last=False)
-            OrderedDict.__setitem__(self, key, (value, SCIONTime.get_time()))
+            OrderedDict.__setitem__(self, key, (value, time.time()))
 
     def pop(self, key, default=None):
         """ Get item from the dict and remove it.
+
         Return default if expired or does not exist. Never raise KeyError.
         """
         with self.lock:
@@ -78,6 +90,7 @@ class ExpiringDict(OrderedDict):
 
     def ttl(self, key):
         """ Return TTL of the `key` (in seconds).
+
         Returns None for non-existent or expired keys.
         """
         key_value, key_age = self.get(key, with_age=True)
@@ -100,7 +113,7 @@ class ExpiringDict(OrderedDict):
     def items(self):
         """ Return a copy of the dictionary's list of (key, value) pairs. """
         r = []
-        for key in self:
+        for key in list(self):
             try:
                 r.append((key, self[key]))
             except KeyError:
@@ -111,7 +124,7 @@ class ExpiringDict(OrderedDict):
         """ Return a copy of the dictionary's list of values.
         See the note for dict.items(). """
         r = []
-        for key in self:
+        for key in list(self):
             try:
                 r.append(self[key])
             except KeyError:
