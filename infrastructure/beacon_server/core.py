@@ -66,11 +66,12 @@ class CoreBeaconServer(BeaconServer):
             dst_ia = r.interface.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
                 continue
-            pcb2, meta = self._mk_prop_pcb_meta(pcb.copy(), r.interface.isd_as,
-                                                r.interface.if_id)
-            if not pcb2:
+            new_pcb, meta = self._mk_prop_pcb_meta(pcb.copy(),
+                                                   r.interface.isd_as,
+                                                   r.interface.if_id)
+            if not new_pcb:
                 continue
-            self.send_meta(pcb2, meta)
+            self.send_meta(new_pcb, meta)
             count += 1
         return count
 

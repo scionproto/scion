@@ -44,7 +44,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.msg_meta import UDPMetadata
+from lib.msg_meta import SCMPMetadata, MetadataBase, UDPMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
@@ -189,14 +189,21 @@ class SCIONElement(object):
         # Create metadata:
         rev_pkt = pkt.reversed_copy()
         if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
-            dst_port = rev_pkt.l4_hdr.dst_port
+            meta = UDPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
+                                           dst_host=rev_pkt.addrs.dst.host,
+                                           path=rev_pkt.path,
+                                           ext_hdrs=rev_pkt.ext_hdrs,
+                                           dst_port=rev_pkt.l4_hdr.dst_port)
+        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
+            meta = SCMPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
+                                            dst_host=rev_pkt.addrs.dst.host,
+                                            path=rev_pkt.path,
+                                            ext_hdrs=rev_pkt.ext_hdrs)
         else:
-            dst_port = 0
+            logging.error("Cannot create metadata for:\n%s" % pkt)
+            return
+
         pld = pkt.get_payload()
-        # Do not copy extensions. It is also passed to SCMP handlers.
-        meta = UDPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
-                                       dst_host=rev_pkt.addrs.dst.host,
-                                       path=rev_pkt.path, dst_port=dst_port)
         try:
             # FIXME(PSz): hack to get python router working.
             if hasattr(self, "_remote_sock"):
@@ -406,10 +413,17 @@ class SCIONElement(object):
         self._local_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, pld, meta):
-        assert isinstance(meta, UDPMetadata)
-        pkt = self._build_packet(meta.dst_host, meta.path, meta.ext_hdrs,
-                                 meta.dst_ia, pld, meta.dst_port)
+        assert isinstance(meta, MetadataBase)
+        if isinstance(meta, SCMPMetadata):
+            dst_port = 0
+        elif isinstance(meta, UDPMetadata):
+            dst_port = meta.dst_port
+        else:
+            logging.error("Unsupported metadata for:\n%s" % meta.__name__)
+            return
 
+        pkt = self._build_packet(meta.dst_host, meta.path, meta.ext_hdrs,
+                                 meta.dst_ia, pld, dst_port)
         next_hop, port = self.get_first_hop(pkt)
         self.send(pkt, next_hop, port)
 

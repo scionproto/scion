@@ -189,11 +189,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for r in self.topology.child_border_routers:
             if not r.interface.to_if_id:
                 continue
-            pcb2, meta = self._mk_prop_pcb_meta(pcb.copy(), r.interface.isd_as,
-                                                r.interface.if_id)
-            if not pcb2:
+            new_pcb, meta = self._mk_prop_pcb_meta(pcb.copy(),
+                                                   r.interface.isd_as,
+                                                   r.interface.if_id)
+            if not new_pcb:
                 continue
-            self.send_meta(pcb2, meta)
+            self.send_meta(new_pcb, meta)
             logging.info("Downstream PCB propagated to %s via IF %s",
                          r.interface.isd_as, r.interface.if_id)
 
