@@ -44,6 +44,7 @@ from lib.errors import SCIONIOError
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
+from lib.tcp.socket import timeout
 from lib.thread import kill_self
 from lib.types import AddrType
 
@@ -341,3 +342,54 @@ class SocketMgr(object):
                 self.remove(sock)
                 sock.close()
         self._sel.close()
+
+
+class TCPServerSocket(object):
+    """
+    Base class for "accepted" TCP sockets used by SCION services.
+    """
+    POLLING_TOUT = 0.005
+    RECV_SIZE = 1024
+
+    def __init__(self, sock, addr, path):
+        self._buf = b""
+        self._sock = sock
+        self._sock.set_recv_tout(self.POLLING_TOUT)
+        self._addr = addr
+        self._path = path
+        self.active = True
+
+    def get_meta(self):
+        # Create TCP meta here
+        return None
+
+    def get_msg(self):
+        if len(self._buf) < 4:
+            return None
+        msg_len = struct.unpack("!I", self._buf[:4])[0]
+        if len(self._buf) - 4 < msg_len:
+            return None
+        msg = self._buf[4:4 + msg_len]
+        self._buf = self._buf[:4 + msg_len]
+        return msg
+
+    def get_msg_meta(self):
+        msg = self.get_msg()
+        if msg:
+            return msg, self.get_meta()
+        try:
+            read = self._sock.recv(self.RECV_SIZE)
+            if not read:
+                self.close()
+                return None, None
+            self._buf += read
+        except timeout:
+            pass
+        return self.get_msg(), self.get_meta()
+
+    def send_msg(self, raw):
+        self._sock.send(struct.pack("!I", len(raw)) + raw)
+
+    def close(self):
+        self._sock.close()
+        self.active = False

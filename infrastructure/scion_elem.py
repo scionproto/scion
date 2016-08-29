@@ -72,7 +72,8 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.socket import ReliableSocket, SocketMgr
+from lib.socket import ReliableSocket, SocketMgr, TCPServerSocket
+from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
 from lib.types import AddrType, L4Proto, PayloadClass
@@ -146,8 +147,15 @@ class SCIONElement(object):
         """
         if self._port is None:
             # No scion socket desired.
+            self._tcp_sock = None
             return
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
+        # Setup TCP "accept" socket.
+        self._tcp_sock = SCIONTCPSocket()
+        self._tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
+        self._tcp_sock.bind((self.addr, self._port), svc=svc)
+        self._tcp_sock.listen()
+        # Other sockets
         self._local_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
         if not self._local_sock.registered:
@@ -218,26 +226,25 @@ class SCIONElement(object):
 
     def _get_handler(self, pkt):
         if pkt.l4_hdr.TYPE == L4Proto.UDP:
-            return self._get_ctrl_handler(pkt)
+            return self._get_ctrl_handler(pkt.get_payload())
         elif pkt.l4_hdr.TYPE == L4Proto.SCMP:
             return self._get_scmp_handler(pkt)
         logging.error("L4 header type not supported: %s(%s)\n",
                       pkt.l4_hdr.TYPE, L4Proto.to_str(pkt.l4_hdr.TYPE))
         return None
 
-    def _get_ctrl_handler(self, pkt):
-        pld = pkt.get_payload()
+    def _get_ctrl_handler(self, pld):
         try:
             type_map = self.CTRL_PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
         except KeyError:
             logging.error("Control payload class not supported: %s\n%s",
-                          pld.PAYLOAD_CLASS, pkt)
+                          pld.PAYLOAD_CLASS, pld)
             return None
         try:
             return type_map[pld.PAYLOAD_TYPE]
         except KeyError:
             logging.error("%s control payload type not supported: %s\n%s",
-                          pld.PAYLOAD_CLASS, pld.PAYLOAD_TYPE, pkt)
+                          pld.PAYLOAD_CLASS, pld.PAYLOAD_TYPE, pld)
         return None
 
     def _get_scmp_handler(self, pkt):
@@ -505,6 +512,48 @@ class SCIONElement(object):
                 self.handle_request(*self._in_buf.get(timeout=1.0))
             except queue.Empty:
                 continue
+
+    def _tcp_start(self):
+        if not self._tcp_sock:
+            logging.warning("TCP socket is unset.")
+            return
+        self._tcp_conns = queue.Queue(MAX_QUEUE)  # For incoming connections.
+
+    def _tcp_accept_loop(self):
+        while self.run_flag.is_set():
+            try:
+                self._tcp_conns.put(TCPServerSocket(*self._tcp_sock.accept()))
+            except queue.Full:
+                sock, _, _ = self._tcp_conns.get_nowait()
+                sock.close()
+                logging.warning("TCP connections queue is full.")
+            else:
+                break
+
+    def _tcp_recv_loop(self):
+        while self.run_flag.is_set():
+            try:
+                tcp_srv_sock = self._tcp_conns.get(timeout=1.0)
+            except queue.Empty:
+                continue
+            if not tcp_srv_sock.active:
+                continue  # Do not put it into the queue.
+
+            msg, meta = tcp_srv_sock.get_msg_meta()
+            if msg:  # Only control handlers for now.
+                handler = self._get_ctrl_handler(msg)
+                if not handler:
+                    return
+                try:
+                    handler(msg, meta)
+                except SCIONBaseError:
+                    log_exception("Error handling message:\n%s" % msg)
+            try:
+                self._tcp_conns.put(tcp_srv_sock)
+            except queue.Full:
+                old = self._tcp_conns.get_nowait()
+                old.close()
+                logging.warning("TCP connections queue is full.")
 
     def stop(self):
         """Shut down the daemon thread."""
