@@ -414,10 +414,10 @@ class SCIONElement(object):
 
     def send_meta(self, pld, meta):
         assert isinstance(meta, MetadataBase)
-        if isinstance(meta, SCMPMetadata):
-            dst_port = 0
-        elif isinstance(meta, UDPMetadata):
+        if isinstance(meta, UDPMetadata):
             dst_port = meta.dst_port
+        elif isinstance(meta, SCMPMetadata):
+            dst_port = 0
         else:
             logging.error("Unsupported metadata for:\n%s" % meta.__name__)
             return

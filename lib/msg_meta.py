@@ -48,7 +48,7 @@ class SCMPMetadata(MetadataBase):
     pass
 
 
-class UDPMetadata(SCMPMetadata):
+class UDPMetadata(MetadataBase):
     """
     Base class for UDP message metadata
     """
