@@ -21,7 +21,8 @@ from collections import deque
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.defines import PATH_FLAG_SIBRA, SCION_UDP_EH_DATA_PORT
+from lib.defines import PATH_FLAG_SIBRA
+from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
@@ -141,11 +142,9 @@ class CorePathServer(PathServer):
             ret.add((first_ia.any_as(), pcb.is_sibra()))
         return ret
 
-    def _dispatch_params(self, pkt):
-        pld = pkt.get_payload()
+    def _dispatch_params(self, pld, meta):
         params = {}
-        if (pkt.addrs.src.isd_as == self.addr.isd_as and
-                pld.PAYLOAD_TYPE == PMT.REPLY):
+        if (meta.ia == self.addr.isd_as and pld.PAYLOAD_TYPE == PMT.REPLY):
             params["from_master"] = True
         return params
 
@@ -193,8 +192,8 @@ class CorePathServer(PathServer):
             logging.warning("send_to_master: abandoning as there is no master")
             return
         addr, port = master.addr(0)
-        pkt = self._build_packet(addr, dst_port=port, payload=pld.copy())
-        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(host=addr, port=port)
+        self.send_meta(pld.copy(), meta)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
         """
@@ -220,18 +219,17 @@ class CorePathServer(PathServer):
                 logging.warning("Segment to AS %s not found.", isd_as)
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
-            pkt = self._build_packet(SVCType.PS_A, dst_ia=isd_as, path=cseg,
-                                     payload=rep_recs.copy())
-            self._send_to_next_hop(pkt, cseg.get_fwd_if())
+            meta = UDPMetadata.from_values(ia=isd_as, path=cseg,
+                                           host=SVCType.PS_A)
+            self.send_meta(rep_recs.copy(), meta)
 
-    def path_resolution(self, pkt, new_request=True):
+    def path_resolution(self, req, meta, new_request=True):
         """
         Handle generic type of a path request.
         new_request informs whether a pkt is a new request (True), or is a
         pending request (False).
         Return True when resolution succeeded, False otherwise.
         """
-        req = pkt.get_payload()
         dst_ia = req.dst_ia()
         if new_request:
             logging.info("PATH_REQ received: %s", req.short_desc())
@@ -241,12 +239,12 @@ class CorePathServer(PathServer):
         # dst as==0 means any core AS in the specified ISD
         dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
         if dst_is_core:
-            core_segs = self._resolve_core(pkt, dst_ia, new_request,
+            core_segs = self._resolve_core(req, meta, dst_ia, new_request,
                                            req.flags())
             down_segs = set()
         else:
             core_segs, down_segs = self._resolve_not_core(
-                pkt, dst_ia, new_request, req.flags())
+                req, meta, dst_ia, new_request, req.flags())
 
         if not (core_segs | down_segs):
             if new_request:
@@ -257,10 +255,10 @@ class CorePathServer(PathServer):
                                 "is missing. Shouldn't be here (too often).")
             return False
 
-        self._send_path_segments(pkt, core=core_segs, down=down_segs)
+        self._send_path_segments(req, meta, core=core_segs, down=down_segs)
         return True
 
-    def _resolve_core(self, pkt, dst_ia, new_request, flags):
+    def _resolve_core(self, req, meta, dst_ia, new_request, flags):
         """
         Dst is core AS.
         """
@@ -271,24 +269,23 @@ class CorePathServer(PathServer):
         core_segs = set(self.core_segments(**params))
         if not core_segs and new_request:
             # Segments not found and it is a new request.
-            self.pending_req[(dst_ia, sibra)].append(pkt)
+            self.pending_req[(dst_ia, sibra)].append((req, meta))
             # If dst is in remote ISD then a segment may be kept by master.
             if dst_ia[0] != self.addr.isd_as[0]:
                 self._query_master(dst_ia, flags=flags)
         return core_segs
 
-    def _resolve_not_core(self, pkt, dst_ia, new_request, flags):
+    def _resolve_not_core(self, seg_req, meta, dst_ia, new_request, flags):
         """
         Dst is regular AS.
         """
-        seg_req = pkt.get_payload()
         sibra = PATH_FLAG_SIBRA in flags
         core_segs = set()
         down_segs = set()
         # Check if there exists any down-segs to dst.
         tmp_down_segs = self.down_segments(last_ia=dst_ia, sibra=sibra)
         if not tmp_down_segs and new_request:
-            self._resolve_not_core_failed(pkt, dst_ia, flags)
+            self._resolve_not_core_failed(seg_req, meta, dst_ia, flags)
 
         for dseg in tmp_down_segs:
             dseg_ia = dseg.first_ia()
@@ -303,7 +300,7 @@ class CorePathServer(PathServer):
                 first_ia=dseg_ia, last_ia=self.addr.isd_as, sibra=sibra)
             if not tmp_core_segs and new_request:
                 # Core segment not found and it is a new request.
-                self.pending_req[(dseg_ia, sibra)].append(pkt)
+                self.pending_req[(dseg_ia, sibra)].append((seg_req, meta))
                 if dst_ia[0] != self.addr.isd_as[0]:
                     # Master may know a segment.
                     self._query_master(dseg_ia, flags=flags)
@@ -312,20 +309,19 @@ class CorePathServer(PathServer):
                 core_segs.update(tmp_core_segs)
         return core_segs, down_segs
 
-    def _resolve_not_core_failed(self, pkt, dst_ia, flags):
+    def _resolve_not_core_failed(self, seg_req, meta, dst_ia, flags):
         """
         Execute after _resolve_not_core() cannot resolve a new request, due to
         lack of corresponding down segment(s).
         This must not be executed for a pending request.
         """
         sibra = PATH_FLAG_SIBRA in flags
-        self.pending_req[(dst_ia, sibra)].append(pkt)
+        self.pending_req[(dst_ia, sibra)].append((seg_req, meta))
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.
             self._query_master(dst_ia, flags=flags)
             return
 
-        seg_req = pkt.get_payload()
         # Dst is in a remote ISD, ask any core AS from there. Don't use a SIBRA
         # segment, even if the request has the SIBRA flag set, as this is just
         # for basic internal communication.
@@ -335,12 +331,12 @@ class CorePathServer(PathServer):
             cseg = csegs[0]
             path = cseg.get_path(reverse_direction=True)
             dst_ia = cseg.first_ia()
-            req_pkt = self._build_packet(SVCType.PS_A, dst_ia=dst_ia,
-                                         path=path, payload=seg_req)
             logging.info("Down-Segment request for different ISD, "
                          "forwarding request to CPS in %s via %s",
                          dst_ia, cseg.short_desc())
-            self._send_to_next_hop(req_pkt, path.get_fwd_if())
+            meta = UDPMetadata.from_values(ia=dst_ia, path=path,
+                                           host=SVCType.PS_A)
+            self.send_meta(seg_req, meta)
         else:
             # If no core segment was available, add request to waiting targets.
             logging.info("Waiting for core segment to ISD %s", dst_ia[0])

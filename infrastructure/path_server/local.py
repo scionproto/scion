@@ -20,6 +20,7 @@ import logging
 
 # SCION
 from infrastructure.path_server.base import PathServer
+from lib.msg_meta import UDPMetadata
 from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -61,11 +62,10 @@ class LocalPathServer(PathServer):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
-    def path_resolution(self, pkt, new_request=True):
+    def path_resolution(self, req, meta, new_request=True):
         """
         Handle generic type of a path request.
         """
-        req = pkt.get_payload()
         dst_ia = req.dst_ia()
         if new_request:
             logging.info("PATH_REQ received: %s", req.short_desc())
@@ -81,11 +81,11 @@ class LocalPathServer(PathServer):
         else:
             self._resolve_not_core(req, up_segs, core_segs, down_segs)
         if (up_segs | core_segs | down_segs):
-            self._send_path_segments(pkt, up_segs, core_segs, down_segs)
+            self._send_path_segments(req, meta, up_segs, core_segs, down_segs)
             return True
         if new_request:
             self._request_paths_from_core(req)
-            self.pending_req[(dst_ia, req.p.flags.sibra)].append(pkt)
+            self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta))
         else:
             # That could happend when needed segment expired.
             logging.warning("Handling pending request and needed seg "
@@ -152,6 +152,6 @@ class LocalPathServer(PathServer):
         logging.info('Send request to core (%s) via %s',
                      req.short_desc(), pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
-        req_pkt = self._build_packet(SVCType.PS_A, payload=req.copy(),
-                                     path=path, dst_ia=pcb.first_ia())
-        self._send_to_next_hop(req_pkt, path.get_fwd_if())
+        meta = UDPMetadata.from_values(ia=pcb.first_ia(), path=path,
+                                       host=SVCType.PS_A)
+        self.send_meta(req.copy(), meta)

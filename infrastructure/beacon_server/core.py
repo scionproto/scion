@@ -21,8 +21,9 @@ from _collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import PATH_SERVICE, SCION_UDP_EH_DATA_PORT, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
+from lib.msg_meta import UDPMetadata
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
@@ -65,11 +66,11 @@ class CoreBeaconServer(BeaconServer):
             dst_ia = r.interface.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
                 continue
-            beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
-                                          r.interface.if_id)
-            if not beacon:
+            new_pcb, meta = self._mk_prop_pcb_meta(
+                pcb.copy(), r.interface.isd_as, r.interface.if_id)
+            if not new_pcb:
                 continue
-            self.send(beacon, r.addr, r.port)
+            self.send_meta(new_pcb, meta)
             count += 1
         return count
 
@@ -116,11 +117,11 @@ class CoreBeaconServer(BeaconServer):
             # If there are no local path servers, stop here.
             return
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
-        pkt = self._build_packet(addr, dst_port=port, payload=records.copy())
-        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(host=addr, port=port)
+        self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        pkt = self._build_packet(addr, dst_port=port, payload=records)
-        self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+        meta = UDPMetadata.from_values(host=addr, port=port)
+        self.send_meta(records, meta)
 
     def process_pcbs(self, pcbs, raw=True):
         """
@@ -186,7 +187,7 @@ class CoreBeaconServer(BeaconServer):
         """
         return bool(self._get_trc(isd_as, trc_ver))
 
-    def process_cert_chain_rep(self, cert_chain_rep):
+    def process_cert_chain_rep(self, cert_chain_rep, meta):
         raise NotImplementedError
 
     def _handle_verified_beacon(self, pcb):

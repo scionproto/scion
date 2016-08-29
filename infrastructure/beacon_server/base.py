@@ -43,13 +43,13 @@ from lib.defines import (
     HASHTREE_UPDATE_WINDOW,
     PATH_POLICY_FILE,
     PATH_SERVICE,
-    SCION_UDP_EH_DATA_PORT,
 )
 from lib.errors import (
     SCIONKeyError,
     SCIONParseError,
     SCIONServiceLookupError,
 )
+from lib.msg_meta import UDPMetadata
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -189,25 +189,27 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for r in self.topology.child_border_routers:
             if not r.interface.to_if_id:
                 continue
-            beacon = self._mk_prop_beacon(pcb.copy(), r.interface.isd_as,
-                                          r.interface.if_id)
-            if not beacon:
+            new_pcb, meta = self._mk_prop_pcb_meta(
+                pcb.copy(), r.interface.isd_as, r.interface.if_id)
+            if not new_pcb:
                 continue
-            self.send(beacon, r.addr, r.port)
+            self.send_meta(new_pcb, meta)
             logging.info("Downstream PCB propagated to %s via IF %s",
                          r.interface.isd_as, r.interface.if_id)
 
-    def _mk_prop_beacon(self, pcb, dst_ia, egress_if):
+    def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
         asm = self._create_asm(pcb.p.ifID, egress_if, ts, pcb.last_hof())
         if not asm:
-            return None
+            return None, None
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
-        exts = [OneHopPathExt()]
-        return self._build_packet(SVCType.BS_A, dst_ia=dst_ia,
-                                  path=one_hop_path, payload=pcb, ext_hdrs=exts)
+        meta = UDPMetadata.from_values(ia=dst_ia,
+                                       host=SVCType.BS_A,
+                                       path=one_hop_path,
+                                       ext_hdrs=[OneHopPathExt()])
+        return pcb, meta
 
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())
@@ -238,10 +240,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_pcb(self, pkt):
+    def handle_pcb(self, pcb, meta):
         """Receives beacon and stores it for processing."""
-        pcb = pkt.get_payload()
-        pcb.p.ifID = pkt.path.get_hof().ingress_if
+        pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)
@@ -338,20 +339,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         return pcb
 
-    def handle_ifid_packet(self, pkt):
+    def handle_ifid_packet(self, pld, meta):
         """
         Update the interface state for the corresponding interface.
 
-        :param ipkt: The IFIDPayload.
-        :type ipkt: IFIDPayload
+        :param pld: The IFIDPayload.
+        :type pld: IFIDPayload
         """
-        payload = pkt.get_payload()
-        ifid = payload.p.relayIF
+        ifid = pld.p.relayIF
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
             br = self.ifid2br[ifid]
-            br.interface.to_if_id = payload.p.origIF
+            br.interface.to_if_id = pld.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
                 logging.info("IF %d activated", ifid)
@@ -365,9 +365,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
                     for br in self.topology.get_all_border_routers():
-                        mgmt_packet = self._build_packet(
-                                br.addr, dst_port=br.port, payload=pld.copy())
-                        self.send(mgmt_packet, br.addr, br.port)
+                        meta = UDPMetadata.from_values(host=br.addr,
+                                                       port=br.port)
+                        self.send_meta(pld.copy(), meta)
 
     def run(self):
         """
@@ -542,9 +542,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 except SCIONServiceLookupError as e:
                     logging.warning("Sending TRC request failed: %s", e)
                     return None
-                req_pkt = self._build_packet(addr, dst_port=port,
-                                             payload=trc_req)
-                self.send(req_pkt, addr, SCION_UDP_EH_DATA_PORT)
+                meta = UDPMetadata.from_values(host=addr, port=port)
+                self.send_meta(trc_req, meta)
                 self.trc_requests[trc_tuple] = now
                 return None
         return trc
@@ -576,20 +575,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def process_cert_chain_rep(self, cert_chain_rep):
+    def process_cert_chain_rep(self, cert_chain_rep, meta):
         """
         Process the Certificate chain reply.
         """
         raise NotImplementedError
 
-    def process_trc_rep(self, pkt):
+    def process_trc_rep(self, rep, meta):
         """
         Process the TRC reply.
 
-        :param trc_rep: TRC reply.
-        :type trc_rep: TRCReply
+        :param rep: TRC reply.
+        :type rep: TRCReply
         """
-        rep = pkt.get_payload()
         logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
         self.trust_store.add_trc(rep.trc)
 
@@ -635,9 +633,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
         for br in self.topology.get_all_border_routers():
-            state_pkt = self._build_packet(br.addr, dst_port=br.port,
-                                           payload=pld.copy())
-            self.send(state_pkt, br.addr, br.port)
+            meta = UDPMetadata.from_values(host=br.addr, port=br.port)
+            self.send_meta(pld.copy(), meta)
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
 
@@ -653,19 +650,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONServiceLookupError:
                 # If there are no local path servers, stop here.
                 return
-            pkt = self._build_packet(addr, dst_port=port,
-                                     payload=rev_info.copy())
             logging.info("Sending revocation to local PS.")
-            self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+            meta = UDPMetadata.from_values(host=addr, port=port)
+            self.send_meta(rev_info.copy(), meta)
 
-    def _handle_scmp_revocation(self, spkt):
-        pld = spkt.get_payload()
+    def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.info("Received revocation via SCMP:\n%s", rev_info)
         self._process_revocation(rev_info)
 
-    def _handle_revocation(self, pkt):
-        rev_info = pkt.get_payload()
+    def _handle_revocation(self, rev_info, meta):
         logging.info("Received revocation via UDP:\n%s", rev_info)
         self._process_revocation(rev_info)
 
@@ -764,13 +758,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
-    def _handle_ifstate_request(self, mgmt_pkt):
+    def _handle_ifstate_request(self, req, meta):
         # Only master replies to ifstate requests.
         if not self.zk.have_lock():
             return
-        req = mgmt_pkt.get_payload()
         assert isinstance(req, IFStateRequest)
-        logging.debug("Received ifstate req:\n%s", mgmt_pkt)
+        logging.debug("Received ifstate req:\n%s", req)
         infos = []
         with self.ifid_state_lock:
             if req.p.ifID == IFStateRequest.ALL_INTERFACES:
@@ -779,7 +772,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
             else:
                 logging.error("Received ifstate request from %s for unknown "
-                              "interface %s.", mgmt_pkt.addrs.src, req.p.ifID)
+                              "interface %s.", meta.get_addr(), req.p.ifID)
                 return
 
             for (ifid, state) in ifid_states:
@@ -792,9 +785,5 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not infos and not self._quiet_startup():
             logging.warning("No IF state info to put in response.")
             return
-
         payload = IFStatePayload.from_values(infos)
-        state_pkt = self._build_packet(
-            mgmt_pkt.addrs.src.host, dst_port=mgmt_pkt.l4_hdr.src_port,
-            payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src.host, mgmt_pkt.l4_hdr.src_port)
+        self.send_meta(payload, meta)

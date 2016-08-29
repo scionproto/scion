@@ -44,6 +44,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
+from lib.msg_meta import SCMPMetadata, MetadataBase, UDPMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
@@ -74,7 +75,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
-from lib.types import AddrType, L4Proto
+from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
 from lib.util import hex_str
 
@@ -185,8 +186,33 @@ class SCIONElement(object):
         handler = self._get_handler(pkt)
         if not handler:
             return
+        # Create metadata:
+        rev_pkt = pkt.reversed_copy()
+        if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
+            meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                           host=rev_pkt.addrs.dst.host,
+                                           path=rev_pkt.path,
+                                           ext_hdrs=rev_pkt.ext_hdrs,
+                                           port=rev_pkt.l4_hdr.dst_port)
+        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
+            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                            host=rev_pkt.addrs.dst.host,
+                                            path=rev_pkt.path,
+                                            ext_hdrs=rev_pkt.ext_hdrs)
+        else:
+            logging.error("Cannot create metadata for:\n%s" % pkt)
+            return
+
+        pld = pkt.get_payload()
         try:
-            handler(pkt)
+            # FIXME(PSz): hack to get python router working.
+            if hasattr(self, "_remote_sock"):
+                handler(pkt)
+            # SIBRA operates on raw packets.
+            elif pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
+                handler(pkt)
+            else:
+                handler(pld, meta)
         except SCIONBaseError:
             log_exception("Error handling packet:\n%s" % pkt)
 
@@ -385,6 +411,21 @@ class SCIONElement(object):
         if not self._local_sock:
             return
         self._local_sock.send(packet.pack(), (dst, dst_port))
+
+    def send_meta(self, pld, meta):
+        assert isinstance(meta, MetadataBase)
+        if isinstance(meta, UDPMetadata):
+            dst_port = meta.port
+        elif isinstance(meta, SCMPMetadata):
+            dst_port = 0
+        else:
+            logging.error("Unsupported metadata for:\n%s" % meta.__name__)
+            return
+
+        pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,
+                                 meta.ia, pld, dst_port)
+        next_hop, port = self.get_first_hop(pkt)
+        self.send(pkt, next_hop, port)
 
     def run(self):
         """

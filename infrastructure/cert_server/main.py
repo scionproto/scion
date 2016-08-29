@@ -26,8 +26,6 @@ from Crypto.Hash import SHA256
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
-from lib.errors import SCIONParseError
-from lib.log import log_exception
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainReply,
@@ -35,7 +33,7 @@ from lib.packet.cert_mgmt import (
     TRCReply,
     TRCRequest,
 )
-from lib.packet.scion import SCIONL4Packet
+from lib.packet.scion import pld_from_raw
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
@@ -121,46 +119,33 @@ class CertServer(SCIONElement):
         Handles cached (through ZK) TRCs and Cert Chains.
         """
         for entry in raw_entries:
-            try:
-                pkt = SCIONL4Packet(raw=entry)
-                pkt.parse_payload()
-                # FIXME(PSz): some checks are necessary, as filesystem may not
-                # be synced with ZK. Also, when we change topology, new TRCs and
-                # certs are generated, while old ones are still in ZK. It looks
-                # to CS like an attack.  This will be fixed when more elements
-                # of trust infrastructure are specified and implemented (like
-                # TRC cross-signing).
-            except SCIONParseError:
-                log_exception("Error parsing cached entry: %s" % entry,
-                              level=logging.ERROR)
-                continue
-            payload = pkt.get_payload()
+            payload = pld_from_raw(entry)
             if isinstance(payload, CertChainReply):
-                self.process_cert_chain_reply(pkt, from_zk=True)
+                self.process_cert_chain_reply(payload, None, from_zk=True)
             elif isinstance(payload, TRCReply):
-                self.process_trc_reply(pkt, from_zk=True)
+                self.process_trc_reply(payload, None, from_zk=True)
             else:
                 logging.warning("Entry with unsupported type: %s" % entry)
 
-    def _share_object(self, pkt, is_trc):
+    def _share_object(self, pld, is_trc):
         """
         Share path segments (via ZK) with other path servers.
         """
-        pkt_packed = pkt.pack()
-        pkt_hash = SHA256.new(pkt_packed).hexdigest()
+        pld_packed = pld.pack()
+        pld_hash = SHA256.new(pld_packed).hexdigest()
         try:
             if is_trc:
-                self.trc_cache.store("%s-%s" % (pkt_hash, SCIONTime.get_time()),
-                                     pkt_packed)
+                self.trc_cache.store("%s-%s" % (pld_hash, SCIONTime.get_time()),
+                                     pld_packed)
             else:
-                self.cc_cache.store("%s-%s" % (pkt_hash, SCIONTime.get_time()),
-                                    pkt_packed)
+                self.cc_cache.store("%s-%s" % (pld_hash, SCIONTime.get_time()),
+                                    pld_packed)
         except ZkNoConnection:
             logging.warning("Unable to store %s in shared path: "
                             "no connection to ZK" % "TRC" if is_trc else "CC")
             return
         logging.debug("%s stored in ZK: %s" % ("TRC" if is_trc else "CC",
-                                               pkt_hash))
+                                               pld_hash))
 
     def _send_reply(self, src, src_port, payload):
         if src.isd_as == self.addr.isd_as:
@@ -178,30 +163,28 @@ class CertServer(SCIONElement):
         else:
             logging.warning("Reply not sent: no destination found")
 
-    def process_cert_chain_request(self, pkt):
+    def process_cert_chain_request(self, req, meta):
         """Process a certificate chain request."""
-        req = pkt.get_payload()
         assert isinstance(req, CertChainRequest)
         key = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s", *key)
-        local = pkt.addrs.src.isd_as == self.addr.isd_as
+        local = meta.ia == self.addr.isd_as
         if not self._check_cc(key) and not local:
             logging.warning(
                 "Dropping CC request from %s for %sv%s: "
                 "CC not found && requester is not local)",
-                pkt.addrs.src, *key)
-        self.cc_requests.put((key, (pkt.addrs.src, pkt.l4_hdr.src_port)))
+                meta.get_addr(), *key)
+        self.cc_requests.put((key, meta))
 
-    def process_cert_chain_reply(self, pkt, from_zk=False):
+    def process_cert_chain_reply(self, rep, meta, from_zk=False):
         """Process a certificate chain reply."""
-        rep = pkt.get_payload()
         assert isinstance(rep, CertChainReply)
         ia_ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
                      (ia_ver[0], ia_ver[1], from_zk))
         self.trust_store.add_cert(rep.chain)
         if not from_zk:
-            self._share_object(pkt, is_trc=False)
+            self._share_object(rep, is_trc=False)
         # Reply to all requests for this certificate chain
         self.cc_requests.put((ia_ver, None))
 
@@ -224,45 +207,42 @@ class CertServer(SCIONElement):
             logging.warning("Cert chain request (for %s) not sent: "
                             "no destination found", req.short_desc())
 
-    def _reply_cc(self, key, info):
+    def _reply_cc(self, key, meta):
         isd_as, ver = key
-        src, port = info
+        dst = meta.get_addr()
+        port = meta.port
         cert_chain = self.trust_store.get_cert(isd_as, ver)
-        self._send_reply(src, port, CertChainReply.from_values(cert_chain))
+        self._send_reply(dst, port, CertChainReply.from_values(cert_chain))
         logging.info("Cert chain for %sv%s sent to %s:%s",
-                     isd_as, ver, src, port)
+                     isd_as, ver, dst, port)
 
-    def process_trc_request(self, pkt):
+    def process_trc_request(self, req, meta):
         """Process a TRC request."""
-        req = pkt.get_payload()
         assert isinstance(req, TRCRequest)
         key = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s", *key)
-        local = pkt.addrs.src.isd_as == self.addr.isd_as
+        local = meta.ia == self.addr.isd_as
         if not self._check_trc(key) and not local:
             logging.warning(
                 "Dropping TRC request from %s for %sv%s: "
                 "TRC not found && requester is not local)",
-                pkt.addrs.src, *key)
-        self.trc_requests.put((
-            key, (pkt.addrs.src, pkt.l4_hdr.src_port, req.isd_as()[1]),
-        ))
+                meta.get_addr(), *key)
+        self.trc_requests.put((key, (meta, req.isd_as()[1]),))
 
-    def process_trc_reply(self, pkt, from_zk=False):
+    def process_trc_reply(self, trc_rep, meta, from_zk=False):
         """
         Process a TRC reply.
 
         :param trc_rep: TRC reply.
         :type trc_rep: TRCReply
         """
-        trc_rep = pkt.get_payload()
         assert isinstance(trc_rep, TRCReply)
         isd, ver = trc_rep.trc.get_isd_ver()
         logging.info("TRCReply received for ISD %sv%s, ZK: %s",
                      isd, ver, from_zk)
         self.trust_store.add_trc(trc_rep.trc)
         if not from_zk:
-            self._share_object(pkt, is_trc=True)
+            self._share_object(trc_rep, is_trc=True)
         # Reply to all requests for this TRC
         self.trc_requests.put(((isd, ver), None))
 
@@ -288,10 +268,12 @@ class CertServer(SCIONElement):
 
     def _reply_trc(self, key, info):
         isd, ver = key
-        src, port, _ = info
+        meta = info[0]
+        dst = meta.get_addr()
+        port = meta.port
         trc = self.trust_store.get_trc(isd, ver)
-        self._send_reply(src, port, TRCReply.from_values(trc))
-        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, src, port)
+        self._send_reply(dst, port, TRCReply.from_values(trc))
+        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, dst, port)
 
     def _get_next_hop(self, isd_as, parent=False, child=False, routing=False):
         routers = []

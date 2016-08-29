@@ -34,6 +34,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
+from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.svc import SVCType
@@ -192,14 +193,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
         return False
 
-    def _handle_revocation(self, pkt):
+    def _handle_revocation(self, rev_info, meta):
         """
         Handles a revocation of a segment, interface or hop.
 
-        :param pkt: The packet containing the revocation info.
-        :type pkt: PathMgmtPacket
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
         """
-        rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         if rev_info in self.revocations:
@@ -208,7 +208,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         else:
             self.revocations[rev_info] = rev_info
             logging.debug("Received revocation from %s:\n%s",
-                          pkt.addrs.src, rev_info)
+                          meta.get_addr(), rev_info)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
@@ -233,19 +233,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     if not self.topology.is_core_as:
                         self.up_segments.delete(sid)
 
-    def _send_to_next_hop(self, pkt, if_id):
-        """
-        Sends the packet to the next hop of the given if_id.
-        :param if_id: The interface ID of the corresponding interface.
-        :type if_id: int.
-        """
-        if if_id not in self.ifid2br:
-            logging.error("Unknown Interface ID: %d", if_id)
-            return
-        next_hop = self.ifid2br[if_id]
-        self.send(pkt, next_hop.addr, next_hop.port)
-
-    def _send_path_segments(self, pkt, up=None, core=None, down=None):
+    def _send_path_segments(self, req, meta, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
         """
@@ -255,40 +243,31 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not (up | core | down):
             logging.warning("No segments to send")
             return
-        req = pkt.get_payload()
-        rep_pkt = pkt.reversed_copy()
-        rep_pkt.set_payload(PathRecordsReply.from_values(
+        pld = PathRecordsReply.from_values(
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
-        ))
-        rep_pkt.addrs.src.host = self.addr.host
-        next_hop, port = self.get_first_hop(rep_pkt)
-        if next_hop is None:
-            logging.error("Next hop is None for Interface %s",
-                          rep_pkt.path.get_fwd_if())
-            return
+        )
+        self.send_meta(pld, meta)
         logging.info(
             "Sending PATH_REPLY with %d segment(s) to:%s "
             "port:%s in response to: %s", len(up | core | down),
-            rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port, req.short_desc(),
+            meta.get_addr(), meta.port, req.short_desc(),
         )
-        self.send(rep_pkt, next_hop, port)
 
     def _handle_pending_requests(self, dst_ia, sibra):
         to_remove = []
         key = dst_ia, sibra
         # Serve pending requests.
-        for pkt in self.pending_req[key]:
-            if self.path_resolution(pkt, new_request=False):
-                to_remove.append(pkt)
+        for req, meta in self.pending_req[key]:
+            if self.path_resolution(req, meta, new_request=False):
+                to_remove.append((req, meta))
         # Clean state.
-        for pkt in to_remove:
-            self.pending_req[key].remove(pkt)
+        for req_meta in to_remove:
+            self.pending_req[key].remove(req_meta)
         if not self.pending_req[key]:
             del self.pending_req[key]
 
-    def handle_path_segment_record(self, pkt):
-        seg_recs = pkt.get_payload()
-        params = self._dispatch_params(pkt)
+    def handle_path_segment_record(self, seg_recs, meta):
+        params = self._dispatch_params(seg_recs, meta)
         added = set()
         for type_, pcb in seg_recs.iter_pcbs():
             added.update(self._dispatch_segment_record(type_, pcb, **params))
@@ -304,7 +283,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         }
         return handle_map[type_](seg, **kwargs)
 
-    def _dispatch_params(self, pkt):
+    def _dispatch_params(self, pld, meta):
         return {}
 
     def _propagate_and_sync(self):
@@ -326,7 +305,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             yield(pcbs)
 
     @abstractmethod
-    def path_resolution(self, path_request):
+    def path_resolution(self, path_request, meta, new_request):
         """
         Handles all types of path request.
         """
@@ -352,9 +331,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         src_ia = pcb.first_ia()
         while targets:
             seg_req = targets.pop(0)
-            req_pkt = self._build_packet(
-                SVCType.PS_A, dst_ia=src_ia, path=path, payload=seg_req)
-            self._send_to_next_hop(req_pkt, path.get_fwd_if())
+            meta = UDPMetadata.from_values(ia=src_ia, path=path,
+                                           host=SVCType.PS_A)
+            self.send_meta(seg_req, meta)
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())
 
