@@ -44,7 +44,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.msg_meta import SCMPMetadata, MetadataBase, UDPMetadata
+from lib.msg_meta import SCMPMetadata, MetadataBase, UDPMetadata, TCPMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
@@ -421,7 +421,9 @@ class SCIONElement(object):
 
     def send_meta(self, pld, meta):
         assert isinstance(meta, MetadataBase)
-        if isinstance(meta, UDPMetadata):
+        if isinstance(meta, TCPMetadata):
+            self._send_meta_tcp(pld, meta)
+        elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
         elif isinstance(meta, SCMPMetadata):
             dst_port = 0
@@ -433,6 +435,49 @@ class SCIONElement(object):
                                  meta.ia, pld, dst_port)
         next_hop, port = self.get_first_hop(pkt)
         self.send(pkt, next_hop, port)
+
+    def _send_meta_tcp(self, pld, meta):
+        if not meta.sock:
+            tcp_srv_sock = self._tcp_srv_sock_from_meta(meta)
+            try:
+                self._tcp_conns.put(tcp_srv_sock)
+            except queue.Full:
+                old_tcp_srv_sock = self._tcp_conns.get_nowait()
+                old_tcp_srv_sock.close()
+                logging.warning("TCP connections queue is full.")
+        meta.sock.send(pld.pack())
+
+    def _tcp_srv_sock_from_meta(self, meta):
+        if meta.host is None:
+            meta.host = HostAddrNone()
+        if meta.ia is None:
+            meta.ia = self.addr.isd_as
+        if meta.path is None:
+            meta.path = SCIONPath()
+        # Create low-level TCP socket and connect
+        sock = SCIONTCPSocket()
+        sock.bind((self.addr, 0))
+        dst = meta.get_addr()
+        first_ip, first_port = self.get_first_hop2(meta.path, dst)
+        sock.connect(dst, 0, meta.path, first_ip, first_port)
+        # Create and return TCPServerSocket
+        return TCPServerSocket(sock, meta.path, dst)
+
+    def get_first_hop2(self, path, host):
+        if not len(path):
+            if host.ia != self.addr.isd_as:
+                logging.error("No path but different src/dst ASes")
+                return None, None
+            if host.TYPE == AddrType.SVC:
+                host = self.dns_query_topo(SVC_TO_SERVICE[host.addr])[0][0]
+            return host, SCION_UDP_EH_DATA_PORT
+
+        if_id = path.get_fwd_if()
+        if if_id in self.ifid2br:
+            br = self.ifid2br[if_id]
+            return br.addr, br.port
+        logging.error("Unable to find first hop:\n%s", path)
+        return None, None
 
     def run(self):
         """
@@ -524,8 +569,8 @@ class SCIONElement(object):
             try:
                 self._tcp_conns.put(TCPServerSocket(*self._tcp_sock.accept()))
             except queue.Full:
-                sock, _, _ = self._tcp_conns.get_nowait()
-                sock.close()
+                old_tcp_srv_sock = self._tcp_conns.get_nowait()
+                old_tcp_srv_sock.close()
                 logging.warning("TCP connections queue is full.")
             else:
                 break
@@ -551,8 +596,8 @@ class SCIONElement(object):
             try:
                 self._tcp_conns.put(tcp_srv_sock)
             except queue.Full:
-                old = self._tcp_conns.get_nowait()
-                old.close()
+                old_tcp_srv_sock = self._tcp_conns.get_nowait()
+                old_tcp_srv_sock.close()
                 logging.warning("TCP connections queue is full.")
 
     def stop(self):

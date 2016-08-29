@@ -64,7 +64,7 @@ class TCPMetadata(MetadataBase):
     Base class for TCP message metadata
     """
     @classmethod
-    def from_values(cls, ia=None, host=None, path=None, 
+    def from_values(cls, ia=None, host=None, path=None,
                     ext_hdrs=(), port=0, sock=None):
         inst = super().from_values(ia, host, path, ext_hdrs)
         inst.port = port

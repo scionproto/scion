@@ -346,7 +346,7 @@ class SocketMgr(object):
 
 class TCPServerSocket(object):
     """
-    Base class for "accepted" TCP sockets used by SCION services.
+    Base class for accepted and connected TCP sockets used by SCION services.
     """
     POLLING_TOUT = 0.005
     RECV_SIZE = 1024

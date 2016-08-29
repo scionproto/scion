@@ -261,6 +261,7 @@ class SCIONTCPSocket(object):
         path_len, = struct.unpack("H", rep[:2])
         rep = rep[2:]
         path = SCIONPath(rep[:path_len])
+        path.reverse()
         rep = rep[path_len:]
         addr = SCIONAddr((rep[0], rep[1:]))
         # Everything is ok, create new SCION TCP socket.
