@@ -563,6 +563,12 @@ class SCIONElement(object):
             logging.warning("TCP socket is unset.")
             return
         self._tcp_conns = queue.Queue(MAX_QUEUE)  # For incoming connections.
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_accept_loop,),
+            name="Elem._tcp_accept_loop", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_recv_loop,),
+            name="Elem._tcp_recv_loop", daemon=True).start()
 
     def _tcp_accept_loop(self):
         while self.run_flag.is_set():
