@@ -606,6 +606,12 @@ class SCIONElement(object):
                 old_tcp_srv_sock.close()
                 logging.warning("TCP connections queue is full.")
 
+    def _tcp_stop(self):
+        if not self._tcp_sock:
+            return
+        # close all sockets.
+        self._tcp_sock.close()
+
     def stop(self):
         """Shut down the daemon thread."""
         # Signal that the thread should stop
