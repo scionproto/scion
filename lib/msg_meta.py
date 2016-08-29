@@ -40,6 +40,9 @@ class MetadataBase(object):
     def get_addr(self):
         return SCIONAddr.from_values(self.ia, self.host)
 
+    def close(self):  # Close communication between peers.
+        pass
+
 
 class SCMPMetadata(MetadataBase):
     """
@@ -70,3 +73,6 @@ class TCPMetadata(MetadataBase):
         inst.port = port
         inst.sock = sock
         return inst
+
+    def close(self):
+        inst.sock.close()
