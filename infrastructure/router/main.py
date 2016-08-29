@@ -59,10 +59,10 @@ from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.ifstate import IFStateInfo, IFStateRequest
 from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scmp.errors import (
     SCMPBadExtOrder,
     SCMPBadHopByHop,
-    SCMPBadHost,
     SCMPBadIF,
     SCMPBadMAC,
     SCMPDeliveryFwdOnly,
@@ -270,7 +270,8 @@ class Router(SCIONElement):
         neighboring router.
         """
         ifid_pld = IFIDPayload.from_values(self.interface.if_id)
-        pkt = self._build_packet(SVCType.BS_M, dst_ia=self.interface.isd_as)
+        pkt = self._build_packet(self.interface.to_addr,
+                                 dst_ia=self.interface.isd_as)
         while self.run_flag.is_set():
             pkt.set_payload(ifid_pld.copy())
             self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
@@ -308,8 +309,6 @@ class Router(SCIONElement):
         if from_local:
             logging.error("Received IFID packet from local AS, dropping")
             return
-        if pkt.addrs.dst.host != SVCType.BS_M:
-            raise SCMPBadHost("Invalid SVC address: %s", pkt.addrs.dst.host)
         ifid_pld = pkt.get_payload().copy()
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         # BS must determine interface.
@@ -321,6 +320,7 @@ class Router(SCIONElement):
             raise SCMPUnknownHost
         # Only deliver once per address, as the multicast SVC address will cover
         # all instances on that address.
+        pkt = self._build_packet(SVCType.BS_M)
         for addr in set([a for a, _ in bs_addrs]):
             pkt.set_payload(ifid_pld.copy())
             self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
@@ -587,8 +587,11 @@ class Router(SCIONElement):
             if pkt.addrs.dst.host.TYPE == AddrType.SVC:
                 # Always process packets with SVC destinations and no path
                 return True
-            elif pkt.addrs.dst == self.addr:
-                # Destination is the internal address of this router.
+            elif pkt.addrs.dst in [
+                self.addr,
+                SCIONAddr.from_values(self.addr.isd_as, self.interface.addr),
+            ]:
+                # Destination is this this router.
                 return True
             raise SCMPPathRequired
         if (pkt.addrs.dst.isd_as == self.addr.isd_as and
