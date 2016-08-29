@@ -448,8 +448,7 @@ class SCIONElement(object):
         meta.sock.send(pld.pack())
 
     def _tcp_srv_sock_from_meta(self, meta):
-        if meta.host is None:
-            meta.host = HostAddrNone()
+        assert meta.host
         if meta.ia is None:
             meta.ia = self.addr.isd_as
         if meta.path is None:
@@ -459,7 +458,7 @@ class SCIONElement(object):
         sock.bind((self.addr, 0))
         dst = meta.get_addr()
         first_ip, first_port = self.get_first_hop2(meta.path, dst)
-        sock.connect(dst, 0, meta.path, first_ip, first_port)
+        sock.connect(dst, meta.port, meta.path, first_ip, first_port)
         # Create and return TCPServerSocket
         return TCPServerSocket(sock, meta.path, dst)
 
