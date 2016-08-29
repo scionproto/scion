@@ -43,7 +43,7 @@ class MetadataBase(object):
 
 class SCMPMetadata(MetadataBase):
     """
-    Base class for UDP message metadata
+    Base class for SCMP message metadata
     """
     pass
 
@@ -56,4 +56,17 @@ class UDPMetadata(MetadataBase):
     def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
         inst = super().from_values(ia, host, path, ext_hdrs)
         inst.port = port
+        return inst
+
+
+class TCPMetadata(MetadataBase):
+    """
+    Base class for TCP message metadata
+    """
+    @classmethod
+    def from_values(cls, ia=None, host=None, path=None, 
+                    ext_hdrs=(), port=0, sock=None):
+        inst = super().from_values(ia, host, path, ext_hdrs)
+        inst.port = port
+        inst.sock = sock
         return inst
