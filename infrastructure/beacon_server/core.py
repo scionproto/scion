@@ -66,9 +66,8 @@ class CoreBeaconServer(BeaconServer):
             dst_ia = r.interface.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
                 continue
-            new_pcb, meta = self._mk_prop_pcb_meta(pcb.copy(),
-                                                   r.interface.isd_as,
-                                                   r.interface.if_id)
+            new_pcb, meta = self._mk_prop_pcb_meta(
+                pcb.copy(), r.interface.isd_as, r.interface.if_id)
             if not new_pcb:
                 continue
             self.send_meta(new_pcb, meta)
@@ -118,10 +117,10 @@ class CoreBeaconServer(BeaconServer):
             # If there are no local path servers, stop here.
             return
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
-        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        meta = UDPMetadata.from_values(host=addr, port=port)
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        meta = UDPMetadata.from_values(host=addr, port=port)
         self.send_meta(records, meta)
 
     def process_pcbs(self, pcbs, raw=True):

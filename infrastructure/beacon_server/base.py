@@ -189,9 +189,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for r in self.topology.child_border_routers:
             if not r.interface.to_if_id:
                 continue
-            new_pcb, meta = self._mk_prop_pcb_meta(pcb.copy(),
-                                                   r.interface.isd_as,
-                                                   r.interface.if_id)
+            new_pcb, meta = self._mk_prop_pcb_meta(
+                pcb.copy(), r.interface.isd_as, r.interface.if_id)
             if not new_pcb:
                 continue
             self.send_meta(new_pcb, meta)
@@ -206,8 +205,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
-        meta = UDPMetadata.from_values(dst_ia=dst_ia,
-                                       dst_host=SVCType.BS_A,
+        meta = UDPMetadata.from_values(ia=dst_ia,
+                                       host=SVCType.BS_A,
                                        path=one_hop_path,
                                        ext_hdrs=[OneHopPathExt()])
         return pcb, meta
@@ -366,8 +365,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
                     for br in self.topology.get_all_border_routers():
-                        meta = UDPMetadata.from_values(dst_host=br.addr,
-                                                       dst_port=br.port)
+                        meta = UDPMetadata.from_values(host=br.addr,
+                                                       port=br.port)
                         self.send_meta(pld.copy(), meta)
 
     def run(self):
@@ -543,7 +542,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 except SCIONServiceLookupError as e:
                     logging.warning("Sending TRC request failed: %s", e)
                     return None
-                meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+                meta = UDPMetadata.from_values(host=addr, port=port)
                 self.send_meta(trc_req, meta)
                 self.trc_requests[trc_tuple] = now
                 return None
@@ -634,7 +633,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
         for br in self.topology.get_all_border_routers():
-            meta = UDPMetadata.from_values(dst_host=br.addr, dst_port=br.port)
+            meta = UDPMetadata.from_values(host=br.addr, port=br.port)
             self.send_meta(pld.copy(), meta)
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
@@ -652,7 +651,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 # If there are no local path servers, stop here.
                 return
             logging.info("Sending revocation to local PS.")
-            meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+            meta = UDPMetadata.from_values(host=addr, port=port)
             self.send_meta(rev_info.copy(), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
@@ -773,7 +772,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
             else:
                 logging.error("Received ifstate request from %s for unknown "
-                              "interface %s.", meta.get_dst(), req.p.ifID)
+                              "interface %s.", meta.get_addr(), req.p.ifID)
                 return
 
             for (ifid, state) in ifid_states:

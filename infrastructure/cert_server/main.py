@@ -168,12 +168,12 @@ class CertServer(SCIONElement):
         assert isinstance(req, CertChainRequest)
         key = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s", *key)
-        local = meta.dst_ia == self.addr.isd_as
+        local = meta.ia == self.addr.isd_as
         if not self._check_cc(key) and not local:
             logging.warning(
                 "Dropping CC request from %s for %sv%s: "
                 "CC not found && requester is not local)",
-                meta.get_dst(), *key)
+                meta.get_addr(), *key)
         self.cc_requests.put((key, meta))
 
     def process_cert_chain_reply(self, rep, meta, from_zk=False):
@@ -209,8 +209,8 @@ class CertServer(SCIONElement):
 
     def _reply_cc(self, key, meta):
         isd_as, ver = key
-        dst = meta.get_dst()
-        port = meta.dst_port
+        dst = meta.get_addr()
+        port = meta.port
         cert_chain = self.trust_store.get_cert(isd_as, ver)
         self._send_reply(dst, port, CertChainReply.from_values(cert_chain))
         logging.info("Cert chain for %sv%s sent to %s:%s",
@@ -221,12 +221,12 @@ class CertServer(SCIONElement):
         assert isinstance(req, TRCRequest)
         key = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s", *key)
-        local = meta.dst_ia == self.addr.isd_as
+        local = meta.ia == self.addr.isd_as
         if not self._check_trc(key) and not local:
             logging.warning(
                 "Dropping TRC request from %s for %sv%s: "
                 "TRC not found && requester is not local)",
-                meta.get_dst(), *key)
+                meta.get_addr(), *key)
         self.trc_requests.put((key, (meta, req.isd_as()[1]),))
 
     def process_trc_reply(self, trc_rep, meta, from_zk=False):
@@ -269,8 +269,8 @@ class CertServer(SCIONElement):
     def _reply_trc(self, key, info):
         isd, ver = key
         meta = info[0]
-        dst = meta.get_dst()
-        port = meta.dst_port
+        dst = meta.get_addr()
+        port = meta.port
         trc = self.trust_store.get_trc(isd, ver)
         self._send_reply(dst, port, TRCReply.from_values(trc))
         logging.info("TRC for %sv%s sent to %s:%s", isd, ver, dst, port)

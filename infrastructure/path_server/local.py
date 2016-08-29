@@ -152,6 +152,6 @@ class LocalPathServer(PathServer):
         logging.info('Send request to core (%s) via %s',
                      req.short_desc(), pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
-        meta = UDPMetadata.from_values(dst_ia=pcb.first_ia(), path=path,
-                                       dst_host=SVCType.PS_A)
+        meta = UDPMetadata.from_values(ia=pcb.first_ia(), path=path,
+                                       host=SVCType.PS_A)
         self.send_meta(req.copy(), meta)

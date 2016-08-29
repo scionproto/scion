@@ -189,14 +189,14 @@ class SCIONElement(object):
         # Create metadata:
         rev_pkt = pkt.reversed_copy()
         if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
-            meta = UDPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
-                                           dst_host=rev_pkt.addrs.dst.host,
+            meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                           host=rev_pkt.addrs.dst.host,
                                            path=rev_pkt.path,
                                            ext_hdrs=rev_pkt.ext_hdrs,
-                                           dst_port=rev_pkt.l4_hdr.dst_port)
+                                           port=rev_pkt.l4_hdr.dst_port)
         elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
-            meta = SCMPMetadata.from_values(dst_ia=rev_pkt.addrs.dst.isd_as,
-                                            dst_host=rev_pkt.addrs.dst.host,
+            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                            host=rev_pkt.addrs.dst.host,
                                             path=rev_pkt.path,
                                             ext_hdrs=rev_pkt.ext_hdrs)
         else:
@@ -415,15 +415,15 @@ class SCIONElement(object):
     def send_meta(self, pld, meta):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, UDPMetadata):
-            dst_port = meta.dst_port
+            dst_port = meta.port
         elif isinstance(meta, SCMPMetadata):
             dst_port = 0
         else:
             logging.error("Unsupported metadata for:\n%s" % meta.__name__)
             return
 
-        pkt = self._build_packet(meta.dst_host, meta.path, meta.ext_hdrs,
-                                 meta.dst_ia, pld, dst_port)
+        pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,
+                                 meta.ia, pld, dst_port)
         next_hop, port = self.get_first_hop(pkt)
         self.send(pkt, next_hop, port)
 

@@ -77,10 +77,10 @@ class LocalBeaconServer(BeaconServer):
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
         addr, port = self.dns_query_topo(PATH_SERVICE)[0]
-        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        meta = UDPMetadata.from_values(host=addr, port=port)
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        meta = UDPMetadata.from_values(host=addr, port=port)
         self.send_meta(records, meta)
 
     def register_down_segment(self, pcb):
@@ -90,9 +90,8 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
-        meta = UDPMetadata.from_values(dst_ia=dst_ia,
-                                       dst_host=SVCType.PS_A,
-                                       path=core_path)
+        meta = UDPMetadata.from_values(
+            ia=dst_ia, host=SVCType.PS_A, path=core_path)
         self.send_meta(records, meta)
 
     def register_segments(self):

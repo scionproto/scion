@@ -144,7 +144,7 @@ class CorePathServer(PathServer):
 
     def _dispatch_params(self, pld, meta):
         params = {}
-        if (meta.dst_ia == self.addr.isd_as and pld.PAYLOAD_TYPE == PMT.REPLY):
+        if (meta.ia == self.addr.isd_as and pld.PAYLOAD_TYPE == PMT.REPLY):
             params["from_master"] = True
         return params
 
@@ -192,7 +192,7 @@ class CorePathServer(PathServer):
             logging.warning("send_to_master: abandoning as there is no master")
             return
         addr, port = master.addr(0)
-        meta = UDPMetadata.from_values(dst_host=addr, dst_port=port)
+        meta = UDPMetadata.from_values(host=addr, port=port)
         self.send_meta(pld.copy(), meta)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
@@ -219,8 +219,8 @@ class CorePathServer(PathServer):
                 logging.warning("Segment to AS %s not found.", isd_as)
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
-            meta = UDPMetadata.from_values(dst_ia=isd_as, path=cseg,
-                                           dst_host=SVCType.PS_A)
+            meta = UDPMetadata.from_values(ia=isd_as, path=cseg,
+                                           host=SVCType.PS_A)
             self.send_meta(rep_recs.copy(), meta)
 
     def path_resolution(self, req, meta, new_request=True):
@@ -334,8 +334,8 @@ class CorePathServer(PathServer):
             logging.info("Down-Segment request for different ISD, "
                          "forwarding request to CPS in %s via %s",
                          dst_ia, cseg.short_desc())
-            meta = UDPMetadata.from_values(dst_ia=dst_ia, path=path,
-                                           dst_host=SVCType.PS_A)
+            meta = UDPMetadata.from_values(ia=dst_ia, path=path,
+                                           host=SVCType.PS_A)
             self.send_meta(seg_req, meta)
         else:
             # If no core segment was available, add request to waiting targets.

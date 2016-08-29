@@ -208,7 +208,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         else:
             self.revocations[rev_info] = rev_info
             logging.debug("Received revocation from %s:\n%s",
-                          meta.get_dst(), rev_info)
+                          meta.get_addr(), rev_info)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
@@ -250,7 +250,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         logging.info(
             "Sending PATH_REPLY with %d segment(s) to:%s "
             "port:%s in response to: %s", len(up | core | down),
-            meta.get_dst(), meta.dst_port, req.short_desc(),
+            meta.get_addr(), meta.port, req.short_desc(),
         )
 
     def _handle_pending_requests(self, dst_ia, sibra):
@@ -331,8 +331,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         src_ia = pcb.first_ia()
         while targets:
             seg_req = targets.pop(0)
-            meta = UDPMetadata.from_values(dst_ia=src_ia, path=path,
-                                           dst_host=SVCType.PS_A)
+            meta = UDPMetadata.from_values(ia=src_ia, path=path,
+                                           host=SVCType.PS_A)
             self.send_meta(seg_req, meta)
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())

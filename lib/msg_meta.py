@@ -23,22 +23,22 @@ class MetadataBase(object):
     Base class for message metadata
     """
     def __init__(self):
-        self.dst_ia = None
-        self.dst_host = None
+        self.ia = None
+        self.host = None
         self.path = None  # Ready for sending (i.e., in correct direction)
         self.ext_hdr = ()
 
     @classmethod
-    def from_values(cls, dst_ia=None, dst_host=None, path=None, ext_hdrs=()):
+    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=()):
         inst = cls()
-        inst.dst_ia = dst_ia
-        inst.dst_host = dst_host
+        inst.ia = ia
+        inst.host = host
         inst.path = path
         inst.ext_hdrs = ext_hdrs
         return inst
 
-    def get_dst(self):
-        return SCIONAddr.from_values(self.dst_ia, self.dst_host)
+    def get_addr(self):
+        return SCIONAddr.from_values(self.ia, self.host)
 
 
 class SCMPMetadata(MetadataBase):
@@ -52,12 +52,8 @@ class UDPMetadata(MetadataBase):
     """
     Base class for UDP message metadata
     """
-    def __init__(self):
-        super().__init__()
-
     @classmethod
-    def from_values(cls, dst_ia=None, dst_host=None, path=None,
-                    ext_hdrs=(), dst_port=0):
-        inst = super().from_values(dst_ia, dst_host, path, ext_hdrs)
-        inst.dst_port = dst_port
+    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
+        inst = super().from_values(ia, host, path, ext_hdrs)
+        inst.port = port
         return inst
