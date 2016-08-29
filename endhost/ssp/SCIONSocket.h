@@ -32,6 +32,7 @@ public:
 
     // construct SCION packet from incoming data
     void handlePacket(uint8_t *buf, size_t len, HostAddr *addr);
+    void handleSCMP(SCIONPacket *packet, uint8_t *l4ptr);
 
     // data profile: VoIP, streaming video, etc
     void setDataProfile(DataProfile profile);

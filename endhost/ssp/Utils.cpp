@@ -133,7 +133,7 @@ int registerFlow(int proto, DispatcherEntry *e, int sock)
     uint8_t buf[128];
     write_dp_header(buf, NULL, len);
     uint8_t *ptr = buf + DP_HEADER_LEN;
-    ptr[0] = 1;
+    ptr[0] = 0x3; // SCMP | reg
     ptr[1] = proto;
     memcpy(ptr + 2, &e->isd_as, ISD_AS_LEN);
     *(uint16_t *)(ptr + 2 + ISD_AS_LEN) = e->port;

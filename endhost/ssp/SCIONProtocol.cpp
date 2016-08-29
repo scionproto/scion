@@ -90,6 +90,11 @@ void SCIONProtocol::handleTimerEvent()
 {
 }
 
+void SCIONProtocol::handlePathError(SCIONPacket *packet)
+{
+    mPathManager->handlePathError(packet);
+}
+
 bool SCIONProtocol::isReceiver()
 {
     return mIsReceiver;
