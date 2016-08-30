@@ -458,7 +458,7 @@ class SCIONElement(object):
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
                 logging.warning("TCP: connections queue is full.")
-        print("TCP: sending message to %s", meta.get_addr())
+        print("TCP: sending message to", meta.get_addr(), meta.port)
         meta.sock.send_msg(pld.pack())
 
     def _tcp_srv_sock_from_meta(self, meta):
@@ -498,6 +498,7 @@ class SCIONElement(object):
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
+        self._tcp_start()
         threading.Thread(
             target=thread_safety_net, args=(self.packet_recv,),
             name="Elem.packet_recv", daemon=True).start()
