@@ -574,6 +574,9 @@ class SCIONElement(object):
                 continue
 
     def _tcp_start(self):
+        # FIXME(PSz): hack to get python router working.
+        if hasattr(self, "_remote_sock"):
+            return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_recv_loop,),
             name="Elem._tcp_recv_loop", daemon=True).start()
