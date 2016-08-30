@@ -2,6 +2,8 @@
 
 export PYTHONPATH=.
 
+EXTRA_NOSE_ARGS="--with-xunit --xunit-file=logs/nosetests.xml"
+
 # BEGIN subcommand functions
 
 cmd_topology() {
@@ -58,7 +60,7 @@ cmd_test(){
 }
 
 py_test() {
-    nosetests "$@"
+    nosetests ${EXTRA_NOSE_ARGS} "$@"
 }
 
 go_test() {
@@ -77,7 +79,7 @@ cmd_coverage(){
 }
 
 py_cover() {
-    nosetests --with-cov --cov-report html "$@"
+    nosetests ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
     echo
     echo "Python coverage report here: file://$PWD/htmlcov/index.html"
 }
