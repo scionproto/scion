@@ -92,8 +92,8 @@ void tcpmw_socket(int fd){
     struct conn_args *args = NULL;
     struct netconn *conn;
     pthread_t tid;
+    s8_t lwip_err = 0;
 
-    lwip_err = 0;
     if ((pld_len = tcpmw_read_cmd(fd, buf)) < 0){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_socket(): tcpmw_read_cmd(): %s", strerror(errno));
@@ -140,7 +140,7 @@ clean:
 close:
     close(fd);
 exit:
-    tcpmw_reply(args, CMD_NEW_SOCK);
+    tcpmw_reply(args, CMD_NEW_SOCK, lwip_err);
 }
 
 int tcpmw_read_cmd(int fd, char *buf){
@@ -161,7 +161,7 @@ int tcpmw_read_cmd(int fd, char *buf){
     return pld_len;
 }
 
-void tcpmw_reply(struct conn_args *args, const char *cmd){
+void tcpmw_reply(struct conn_args *args, const char *cmd, s8_t lwip_err){
     u8_t buf[PLD_SIZE + RESP_SIZE];
     *(u16_t *)buf = 0;
     memcpy(buf + PLD_SIZE, cmd, CMD_SIZE);
@@ -221,8 +221,8 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     ip_addr_t addr;
     u16_t port, svc;
     char *p = buf;
+    s8_t lwip_err = 0;
 
-    lwip_err = 0;
     zlog_info(zc_tcp, "BIND received");
     if ((len < 5 + ADDR_NONE_LEN) || (len > 5 + ADDR_IPV6_LEN)){
         lwip_err = ERR_MW;
@@ -248,7 +248,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
               ISD(isd_as), AS(isd_as), host_str, port, svc);
 
 exit:
-    tcpmw_reply(args, CMD_BIND);
+    tcpmw_reply(args, CMD_BIND, lwip_err);
 }
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
@@ -257,6 +257,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     ip_addr_t addr;
     u16_t port, path_len;
     char *p = buf;
+    s8_t lwip_err = 0;
 
     if (len < 15){  /* Minimum length (with empty path and haddr) */
         lwip_err = ERR_MW;
@@ -264,7 +265,6 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
         goto exit;
     }
 
-    lwip_err = 0;
     zlog_info(zc_tcp, "CONN received");
     port = *((u16_t *)p);
     p += 2;  /* skip port */
@@ -305,11 +305,11 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect(): %s", lwip_strerr(lwip_err));
 
 exit:
-    tcpmw_reply(args, CMD_CONNECT);
+    tcpmw_reply(args, CMD_CONNECT, lwip_err);
 }
 
 void tcpmw_listen(struct conn_args *args, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     zlog_info(zc_tcp, "LIST received");
     if (len){
         lwip_err = ERR_MW;
@@ -320,7 +320,7 @@ void tcpmw_listen(struct conn_args *args, int len){
         zlog_error(zc_tcp, "tcpmw_bind(): netconn_listen(): %s", lwip_strerr(lwip_err));
 
 exit:
-    tcpmw_reply(args, CMD_LISTEN);
+    tcpmw_reply(args, CMD_LISTEN, lwip_err);
 }
 
 void tcpmw_accept(struct conn_args *args, char *buf, int len){
@@ -328,8 +328,8 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     int new_fd;
     struct sockaddr_un addr;
     struct netconn *newconn;
+    s8_t lwip_err = 0;
 
-    lwip_err = 0;
     int sys_err = 0;
     zlog_info(zc_tcp, "ACCE received");
     if (len != SOCK_PATH_LEN){
@@ -423,11 +423,11 @@ clean:
     if (sys_err)
         lwip_err = ERR_SYS;
 exit:
-    tcpmw_reply(args, CMD_ACCEPT);
+    tcpmw_reply(args, CMD_ACCEPT, lwip_err);
 }
 
 void tcpmw_send(struct conn_args *args, char *buf, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     size_t tmp_sent, sent = 0;
     zlog_info(zc_tcp, "SEND received (%dB to send)", len);
 
@@ -446,7 +446,7 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
     }
 
 exit:
-    tcpmw_reply(args, CMD_SEND);
+    tcpmw_reply(args, CMD_SEND, lwip_err);
 }
 
 void tcpmw_recv(struct conn_args *args, int pld_len){
@@ -454,8 +454,8 @@ void tcpmw_recv(struct conn_args *args, int pld_len){
     struct netbuf *buf;
     void *data;
     u16_t len;
+    s8_t lwip_err = 0;
 
-    lwip_err = 0;
     if (pld_len){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_recv(): incorrect payload length %d", pld_len);
@@ -490,11 +490,11 @@ void tcpmw_recv(struct conn_args *args, int pld_len){
     return;
 
 exit:
-    tcpmw_reply(args, CMD_RECV);
+    tcpmw_reply(args, CMD_RECV, lwip_err);
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     zlog_info(zc_tcp, "SRTO received");
     if (len != 4){
         lwip_err = ERR_MW;
@@ -506,15 +506,15 @@ void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){
     netconn_set_recvtimeout(args->conn, timeout);
 
 exit:
-    tcpmw_reply(args, CMD_SET_RECV_TOUT);
+    tcpmw_reply(args, CMD_SET_RECV_TOUT, lwip_err);
 }
 
 void tcpmw_get_recv_tout(struct conn_args *args, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     if (len){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_get_recv_tout(): incorrect payload length %d", len);
-        tcpmw_reply(args, CMD_GET_RECV_TOUT);
+        tcpmw_reply(args, CMD_GET_RECV_TOUT, lwip_err);
         return;
     }
 
@@ -532,7 +532,7 @@ void tcpmw_get_recv_tout(struct conn_args *args, int len){
 }
 
 void tcpmw_set_sock_opt(struct conn_args *args, char *buf, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     zlog_info(zc_tcp, "SOPT received");
     if (len != 2){
         lwip_err = ERR_MW;
@@ -544,11 +544,11 @@ void tcpmw_set_sock_opt(struct conn_args *args, char *buf, int len){
     ip_set_option(args->conn->pcb.ip, opt);
 
 exit:
-    tcpmw_reply(args, CMD_SET_OPT);
+    tcpmw_reply(args, CMD_SET_OPT, lwip_err);
 }
 
 void tcpmw_reset_sock_opt(struct conn_args *args, char *buf, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     zlog_info(zc_tcp, "ROPT received");
     if (len != 2){
         lwip_err = ERR_MW;
@@ -560,11 +560,11 @@ void tcpmw_reset_sock_opt(struct conn_args *args, char *buf, int len){
     ip_reset_option(args->conn->pcb.ip, opt);
 
 exit:
-    tcpmw_reply(args, CMD_RESET_OPT);
+    tcpmw_reply(args, CMD_RESET_OPT, lwip_err);
 }
 
 void tcpmw_get_sock_opt(struct conn_args *args, char *buf, int len){
-    lwip_err = 0;
+    s8_t lwip_err = 0;
     zlog_info(zc_tcp, "GOPT received");
     if (len != 2){
         lwip_err = ERR_MW;
@@ -586,7 +586,7 @@ void tcpmw_get_sock_opt(struct conn_args *args, char *buf, int len){
     return;
 
 exit:
-    tcpmw_reply(args, CMD_GET_OPT);
+    tcpmw_reply(args, CMD_GET_OPT, lwip_err);
 }
 
 void tcpmw_terminate(struct conn_args *args){
