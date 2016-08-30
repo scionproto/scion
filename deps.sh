@@ -44,6 +44,7 @@ cmd_pip() {
 
 cmd_zlog() {
     pkg_deb_chk zlog && return
+    [ -f /usr/lib/libzlog.so ] && return
     local tmpdir=$(mktemp -d /tmp/zlog.XXXXXXX)
     curl -L https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1 -C $tmpdir
     (
@@ -59,6 +60,7 @@ cmd_zlog() {
 
 cmd_capnp() {
     pkg_deb_chk capnp && return
+    [ -f /usr/local/lib/libcapnpc.so ] && return
     local tmpdir=$(mktemp -d /tmp/capnp.XXXXXXX)
     curl -L https://capnproto.org/capnproto-c++-0.5.3.tar.gz | tar xzf - --strip-components=1 -C $tmpdir
     (
@@ -91,7 +93,7 @@ cmd_golang() {
 }
 
 chk_go() {
-    type -P go &>/dev/null && go version | grep -q ' go1.6'
+    type -P go &>/dev/null && go version | grep -Eq ' (go1.6|go1.7)'
 }
 
 cmd_misc() {
