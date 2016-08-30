@@ -575,17 +575,27 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
 
 int send_packet(RouterPacket *packet)
 {
-    struct rte_mbuf *m = rte_pktmbuf_alloc(hsr_pktmbuf_pool);
-    struct ipv4_hdr *ipv4 = IPV4_HDR(m);
-    struct ipv6_hdr *ipv6 = IPV6_HDR(m);
+    struct rte_mbuf *m;
+    struct ipv4_hdr *ipv4;
+    struct ipv6_hdr *ipv6;
     struct udp_hdr *udp;
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)packet->buf;
+    SCIONCommonHeader *sch;
     struct ether_addr *mac = NULL;
     ARPEntry *e;
     uint32_t hop_index;
     int ret;
     uint8_t *hop_addr;
     uint8_t hop_addr_type;
+
+    m = rte_pktmbuf_alloc(hsr_pktmbuf_pool);
+    if (!m) {
+        zlog_error(zc, "Unable to allocate mbuf");
+        return -1;
+    }
+
+    ipv4 = IPV4_HDR(m);
+    ipv6 = IPV6_HDR(m);
+    sch = (SCIONCommonHeader *)packet->buf;
 
     memcpy(packet->src, &local_addrs[packet->port_id], sizeof(struct sockaddr_storage));
 
