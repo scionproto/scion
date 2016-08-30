@@ -52,6 +52,7 @@ from lib.packet.scion import (
     SCIONBasePacket,
     SCIONL4Packet,
     build_base_hdrs,
+    pld_from_raw,
 )
 from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_A
 from lib.packet.scion_addr import SCIONAddr
@@ -151,6 +152,8 @@ class SCIONElement(object):
             # No scion socket desired.
             return
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
+        # Setup TCP "accept" socket.
+        self._setup_tcp_accept_socket(svc)
         # Setup local socket
         self._local_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
@@ -159,7 +162,8 @@ class SCIONElement(object):
             return
         self._port = self._local_sock.port
         self._socks.add(self._local_sock, self.handle_recv)
-        # Setup TCP "accept" socket.
+
+    def _setup_tcp_accept_socket(self, svc):
         MAX_TRIES = 20
         for i in range(MAX_TRIES):
             try:
@@ -170,10 +174,10 @@ class SCIONElement(object):
                 break
             except (FileNotFoundError, ConnectionResetError,
                     ConnectionRefusedError):
-                logging.warning("Cannot connect to LWIP socket.")
+                logging.warning("TCP: Cannot connect to LWIP socket.")
             time.sleep(1)  # Wait for dispatcher
         else:
-            logging.error("SCIONTCPSocket() failed.")
+            logging.error("TCP: cannot init TCP socket.")
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
@@ -459,7 +463,7 @@ class SCIONElement(object):
                 old_tcp_srv_sock.close()
                 logging.warning("TCP: connections queue is full.")
         print("TCP: sending message to", meta.get_addr(), meta.port)
-        meta.sock.send_msg(pld.pack())
+        meta.sock.send_msg(pld.pack_full())
 
     def _tcp_srv_sock_from_meta(self, meta):
         assert meta.host
@@ -474,7 +478,7 @@ class SCIONElement(object):
         first_ip, first_port = self.get_first_hop2(meta.path, dst)
         sock.connect(dst, meta.port, meta.path, first_ip, first_port)
         # Create and return TCPServerSocket
-        return TCPServerSocket(sock, meta.path, dst)
+        return TCPServerSocket(sock, dst, meta.path)
 
     def get_first_hop2(self, path, scion_addr):
         if not len(path):
@@ -581,7 +585,7 @@ class SCIONElement(object):
             target=thread_safety_net, args=(self._tcp_recv_loop,),
             name="Elem._tcp_recv_loop", daemon=True).start()
         if not self._tcp_sock:
-            logging.warning("TCP: accept socket is unset.")
+            logging.warning("TCP: accept socket is unset., port:%d", self._port)
             return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_accept_loop,),
@@ -611,14 +615,16 @@ class SCIONElement(object):
 
             msg, meta = tcp_srv_sock.get_msg_meta()
             if msg:  # Only control handlers for now.
-                handler = self._get_ctrl_handler(msg)
+                logging.debug("received\n%s", msg)
+                pld = pld_from_raw(msg)
+                handler = self._get_ctrl_handler(pld)
                 if not handler:
                     return
                 try:
-                    logging.debug("TCP: calling handler")
-                    handler(msg, meta)
+                    logging.debug("TCP: calling handler, meta:%s", meta)
+                    handler(pld, meta)
                 except SCIONBaseError:
-                    log_exception("Error handling message:\n%s" % msg)
+                    log_exception("Error handling message:\n%s" % pld)
             try:
                 self._tcp_conns.put(tcp_srv_sock)
             except queue.Full:
