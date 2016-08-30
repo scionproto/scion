@@ -457,7 +457,8 @@ class SCIONElement(object):
             except queue.Full:
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
-                logging.warning("TCP connections queue is full.")
+                logging.warning("TCP: connections queue is full.")
+        print("TCP: sending message to %s", meta.get_addr())
         meta.sock.send_msg(pld.pack())
 
     def _tcp_srv_sock_from_meta(self, meta):
@@ -572,25 +573,26 @@ class SCIONElement(object):
                 continue
 
     def _tcp_start(self):
-        if not self._tcp_sock:
-            logging.warning("TCP socket is unset.")
-            return
-        logging.debug("Starting TCP")
-        threading.Thread(
-            target=thread_safety_net, args=(self._tcp_accept_loop,),
-            name="Elem._tcp_accept_loop", daemon=True).start()
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_recv_loop,),
             name="Elem._tcp_recv_loop", daemon=True).start()
+        if not self._tcp_sock:
+            logging.warning("TCP: accept socket is unset.")
+            return
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_accept_loop,),
+            name="Elem._tcp_accept_loop", daemon=True).start()
 
     def _tcp_accept_loop(self):
         while self.run_flag.is_set():
             try:
+                logging.debug("TCP: waiting for connections")
                 self._tcp_conns.put(TCPServerSocket(*self._tcp_sock.accept()))
+                logging.debug("TCP: accepted connection")
             except queue.Full:
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
-                logging.warning("TCP connections queue is full.")
+                logging.warning("TCP: connections queue is full.")
             else:
                 break
 
@@ -618,7 +620,7 @@ class SCIONElement(object):
             except queue.Full:
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
-                logging.warning("TCP connections queue is full.")
+                logging.warning("TCP: connections queue is full.")
 
     def _tcp_stop(self):
         if not self._tcp_sock:
