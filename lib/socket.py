@@ -41,6 +41,7 @@ from external import ipaddress
 from lib.defines import SCION_BUFLEN
 from lib.dispatcher import reg_dispatcher
 from lib.errors import SCIONIOError
+from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
@@ -348,7 +349,7 @@ class TCPServerSocket(object):
     """
     Base class for accepted and connected TCP sockets used by SCION services.
     """
-    POLLING_TOUT = 0.005
+    POLLING_TOUT = 0.01
     RECV_SIZE = 1024
 
     def __init__(self, sock, addr, path):
@@ -359,24 +360,25 @@ class TCPServerSocket(object):
         self._path = path
         self.active = True
 
-    def get_meta(self):
-        # Create TCP meta here
-        return None
+    def _get_meta(self):
+        return TCPMetadata.from_values(ia=self._addr.isd_as,
+                                       host=self._addr.host, path=self._path,
+                                       sock=self)
 
-    def get_msg(self):
+    def _get_msg(self):
         if len(self._buf) < 4:
             return None
         msg_len = struct.unpack("!I", self._buf[:4])[0]
         if len(self._buf) - 4 < msg_len:
             return None
         msg = self._buf[4:4 + msg_len]
-        self._buf = self._buf[:4 + msg_len]
+        self._buf = self._buf[4 + msg_len:]
         return msg
 
     def get_msg_meta(self):
-        msg = self.get_msg()
+        msg = self._get_msg()
         if msg:
-            return msg, self.get_meta()
+            return msg, self._get_meta()
         try:
             read = self._sock.recv(self.RECV_SIZE)
             if not read:
@@ -385,10 +387,10 @@ class TCPServerSocket(object):
             self._buf += read
         except timeout:
             pass
-        return self.get_msg(), self.get_meta()
+        return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
-        self._sock.send(struct.pack("!I", len(raw)) + raw)
+        self._sock.send(raw)
 
     def close(self):
         self._sock.close()
