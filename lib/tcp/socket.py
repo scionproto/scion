@@ -20,6 +20,7 @@ import logging
 import os
 import socket
 import struct
+import threading
 import uuid
 
 # SCION
@@ -147,26 +148,21 @@ class SCIONTCPSocket(object):
         self._lwip_sock = sock
         self._lwip_accept = None
         self._recv_buf = b''
+        self._lock = threading.Lock()
         if sock is None:
             self._create_socket()
 
     def setsockopt(self, opt):
         req = APICmd.SET_OPT + struct.pack("H", opt)
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        self._exec_cmd(req, True)
 
     def resetsockopt(self, opt):
         req = APICmd.RESET_OPT + struct.pack("H", opt)
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        self._exec_cmd(req, True)
 
     def getsockopt(self, opt):
         req = APICmd.GET_OPT + struct.pack("H", opt)
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        rep = self._exec_cmd(req, True)
         return struct.unpack("H", rep[RESP_SIZE:])[0]
 
     def _handle_reply(self, cmd, reply):
@@ -193,9 +189,7 @@ class SCIONTCPSocket(object):
         haddrtype = addr.host.TYPE
         req = (APICmd.BIND + struct.pack("H", port) + svc.pack() +
                struct.pack("B", haddrtype) + addr.pack())
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        self._exec_cmd(req, True)
 
     def connect(self, addr, port, path, first_ip, first_port):
         haddrtype = addr.host.TYPE
@@ -204,9 +198,7 @@ class SCIONTCPSocket(object):
         req = (APICmd.CONNECT + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddrtype) + addr.pack() + first_ip.pack() +
                struct.pack("H", first_port))
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        self._exec_cmd(req, True)
 
     def _create_socket(self):
         assert self._lwip_sock is None
@@ -217,9 +209,7 @@ class SCIONTCPSocket(object):
         self._lwip_sock.connect(path)
         # Register it
         req = APICmd.NEW_SOCK
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req, rep)
+        self._exec_cmd(req)
 
     def _to_lwip(self, req):
         logging.debug("Sending to LWIP(%dB): %.*s..." % (len(req), 20, req))
@@ -236,21 +226,27 @@ class SCIONTCPSocket(object):
         logging.debug("Reading from LWIP(%dB): %.*s..." % (replen, 20, rep))
         return rep
 
+    def _exec_cmd(self, req, cmd_size=False):
+        with self._lock:
+            self._to_lwip(req)
+            rep = self._from_lwip()
+            if cmd_size:
+                self._handle_reply(req[:CMD_SIZE], rep)
+            else:
+                self._handle_reply(req, rep)
+        return rep
+
     def listen(self):  # w/o backlog for now, let's use LWIP's default
         req = APICmd.LISTEN
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req, rep)
+        self._exec_cmd(req)
 
     def accept(self):
         self._init_accept_sock()
         sockname = self._lwip_accept.getsockname()[-SOCK_PATH_LEN:]
         sockname = sockname.encode('ascii')
-        req = APICmd.ACCEPT + sockname
-        self._to_lwip(req)
         # Confirmation from old (UNIX) socket.
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        req = APICmd.ACCEPT + sockname
+        self._exec_cmd(req, True)
 
         new_sock, _ = self._lwip_accept.accept()
         # Metadata (path and addr) from new (UNIX) socket.
@@ -290,9 +286,7 @@ class SCIONTCPSocket(object):
         start = 0
         while start < len(msg):
             req = APICmd.SEND + msg[start:start+MAX_CHUNK]
-            self._to_lwip(req)
-            rep = self._from_lwip()
-            self._handle_reply(req[:CMD_SIZE], rep)
+            self._exec_cmd(req, True)
             start += MAX_CHUNK
         return len(msg)
 
@@ -305,9 +299,7 @@ class SCIONTCPSocket(object):
 
     def _fill_recv_buf(self):
         req = APICmd.RECV
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req, rep)
+        rep = self._exec_cmd(req)
         self._recv_buf += rep[RESP_SIZE:]
 
     def set_recv_tout(self, timeout):  # Timeout is given as a float
@@ -316,22 +308,19 @@ class SCIONTCPSocket(object):
         # Convert to miliseconds
         timeout = int(timeout * 1000)
         req = APICmd.SET_RECV_TOUT + struct.pack("I", timeout)
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req[:CMD_SIZE], rep)
+        self._exec_cmd(req, True)
 
     def get_recv_tout(self):
         req = APICmd.GET_RECV_TOUT
-        self._to_lwip(req)
-        rep = self._from_lwip()
-        self._handle_reply(req, rep)
+        rep = self._exec_cmd(req)
         timeout, = struct.unpack("I", rep[RESP_SIZE:])
         # Convert to seconds
         return timeout / 1000.0
 
     def close(self):
-        req = APICmd.CLOSE
-        self._to_lwip(req)
+        with self._lock:
+            req = APICmd.CLOSE
+            self._to_lwip(req)
         self._lwip_sock.close()
         if self._lwip_accept:
             fname = self._lwip_accept.getsockname()
