@@ -387,6 +387,8 @@ class TCPServerSocket(object):
             self._buf += read
         except timeout:
             pass
+        # except:  # FIXME(PSz)
+        #     self.close()
         return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
