@@ -32,7 +32,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
-from lib.msg_meta import UDPMetadata
+from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -456,7 +456,7 @@ class SCIONDaemon(SCIONElement):
             return
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request: %s", req.short_desc())
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = TCPMetadata.from_values(host=addr, port=port)
         self.send_meta(req, meta)
 
     def _reply_segments(self, key, e):

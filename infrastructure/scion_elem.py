@@ -146,6 +146,7 @@ class SCIONElement(object):
         Setup incoming socket and register with dispatcher
         """
         self._tcp_sock = None
+        self._tcp_conns = queue.Queue(MAX_QUEUE)  # For active TCP connections.
         if self._port is None:
             # No scion socket desired.
             return
@@ -433,6 +434,7 @@ class SCIONElement(object):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
             self._send_meta_tcp(pld, meta)
+            return
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
         elif isinstance(meta, SCMPMetadata):
@@ -449,13 +451,14 @@ class SCIONElement(object):
     def _send_meta_tcp(self, pld, meta):
         if not meta.sock:
             tcp_srv_sock = self._tcp_srv_sock_from_meta(meta)
+            meta.sock = tcp_srv_sock
             try:
                 self._tcp_conns.put(tcp_srv_sock)
             except queue.Full:
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
                 logging.warning("TCP connections queue is full.")
-        meta.sock.send(pld.pack())
+        meta.sock.send_msg(pld.pack())
 
     def _tcp_srv_sock_from_meta(self, meta):
         assert meta.host
@@ -472,11 +475,12 @@ class SCIONElement(object):
         # Create and return TCPServerSocket
         return TCPServerSocket(sock, meta.path, dst)
 
-    def get_first_hop2(self, path, host):
+    def get_first_hop2(self, path, scion_addr):
         if not len(path):
-            if host.ia != self.addr.isd_as:
+            if scion_addr.isd_as != self.addr.isd_as:
                 logging.error("No path but different src/dst ASes")
                 return None, None
+            host = scion_addr.host
             if host.TYPE == AddrType.SVC:
                 host = self.dns_query_topo(SVC_TO_SERVICE[host.addr])[0][0]
             return host, SCION_UDP_EH_DATA_PORT
@@ -571,7 +575,6 @@ class SCIONElement(object):
         if not self._tcp_sock:
             logging.warning("TCP socket is unset.")
             return
-        self._tcp_conns = queue.Queue(MAX_QUEUE)  # For incoming connections.
         logging.debug("Starting TCP")
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_accept_loop,),
@@ -606,6 +609,7 @@ class SCIONElement(object):
                 if not handler:
                     return
                 try:
+                    logging.debug("TCP: calling handler")
                     handler(msg, meta)
                 except SCIONBaseError:
                     log_exception("Error handling message:\n%s" % msg)
