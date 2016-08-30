@@ -55,7 +55,7 @@ def server(svc=False):
     print(s.getsockopt(SockOpt.SOF_REUSEADDR))
     addr = SCIONAddr.from_values(s_isd_as, s_ip)
     if svc:
-        s.bind((addr, 6000), svc=SVCType.PS)
+        s.bind((addr, 6000), svc=SVCType.PS_A)
     else:
         s.bind((addr, 5000))
     s.listen()
@@ -83,7 +83,7 @@ def client(svc, counter):
     print(path_info)
 
     if svc:
-        saddr = SCIONAddr.from_values(s_isd_as, SVCType.PS)
+        saddr = SCIONAddr.from_values(s_isd_as, SVCType.PS_A)
         s.connect(saddr, 0, *path_info)  # SVC does not have a port specified
     else:
         saddr = SCIONAddr.from_values(s_isd_as, s_ip)
@@ -99,14 +99,13 @@ def client(svc, counter):
 
 
 threading.Thread(target=server, args=[False]).start()
-# threading.Thread(target=server, args=[True]).start()
+threading.Thread(target=server, args=[True]).start()
 time.sleep(0.5)
-for i in range(100):
+for i in range(10):
     # input()
     # time.sleep(0.005)
     # threading.Thread(target=client, args=[False, i]).start()
     svc = (i % 2 == 0)
-    svc = False  # Router is not ready to test SVC
     start = time.time()
     client(svc, i)
     print("Time elapsed: %s\n" % (time.time()-start))
