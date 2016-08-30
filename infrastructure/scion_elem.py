@@ -145,17 +145,12 @@ class SCIONElement(object):
         """
         Setup incoming socket and register with dispatcher
         """
+        self._tcp_sock = None
         if self._port is None:
             # No scion socket desired.
-            self._tcp_sock = None
             return
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
-        # Setup TCP "accept" socket.
-        self._tcp_sock = SCIONTCPSocket()
-        self._tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
-        self._tcp_sock.bind((self.addr, self._port), svc=svc)
-        self._tcp_sock.listen()
-        # Other sockets
+        # Setup local socket
         self._local_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
         if not self._local_sock.registered:
@@ -163,6 +158,21 @@ class SCIONElement(object):
             return
         self._port = self._local_sock.port
         self._socks.add(self._local_sock, self.handle_recv)
+        # Setup TCP "accept" socket.
+        MAX_TRIES = 20
+        for i in range(MAX_TRIES):
+            try:
+                self._tcp_sock = SCIONTCPSocket()
+                self._tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
+                self._tcp_sock.bind((self.addr, self._port), svc=svc)
+                self._tcp_sock.listen()
+                break
+            except (FileNotFoundError, ConnectionResetError,
+                    ConnectionRefusedError):
+                logging.warning("Cannot connect to LWIP socket.")
+            time.sleep(1)  # Wait for dispatcher
+        else:
+            logging.error("SCIONTCPSocket() failed.")
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
@@ -562,6 +572,7 @@ class SCIONElement(object):
             logging.warning("TCP socket is unset.")
             return
         self._tcp_conns = queue.Queue(MAX_QUEUE)  # For incoming connections.
+        logging.debug("Starting TCP")
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_accept_loop,),
             name="Elem._tcp_accept_loop", daemon=True).start()

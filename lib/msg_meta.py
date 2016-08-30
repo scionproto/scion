@@ -75,4 +75,4 @@ class TCPMetadata(MetadataBase):
         return inst
 
     def close(self):
-        inst.sock.close()
+        self.sock.close()
