@@ -83,6 +83,7 @@ from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
+    L4Proto,
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
@@ -583,6 +584,8 @@ class Router(SCIONElement):
         return path.get_fwd_if(), incd
 
     def _needs_local_processing(self, pkt):
+        if not pkt.l4_hdr or pkt.l4_hdr.TYPE == L4Proto.TCP:
+            return False
         if len(pkt.path) == 0:
             if pkt.addrs.dst.host.TYPE == AddrType.SVC:
                 # Always process packets with SVC destinations and no path
