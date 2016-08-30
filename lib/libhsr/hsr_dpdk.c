@@ -587,6 +587,8 @@ int send_packet(RouterPacket *packet)
     uint8_t *hop_addr;
     uint8_t hop_addr_type;
 
+    memcpy(packet->src, &local_addrs[packet->port_id], sizeof(struct sockaddr_storage));
+
     ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(packet->dst)), &hop_index);
     if (ret == 0) {
         if (!is_addr_empty(forwarding_table[hop_index].ip, MAX_HOST_ADDR_LEN)) {
@@ -611,6 +613,7 @@ int send_packet(RouterPacket *packet)
         zlog_error(zc, "do not know how to reach %s (error %d)", 
                 addr_to_str(get_ss_addr(packet->dst), family_to_type(packet->dst->ss_family), NULL),
                 ret);
+        rte_pktmbuf_free(m);
         return -1;
 #endif
     }
@@ -636,6 +639,7 @@ int send_packet(RouterPacket *packet)
             return -1;
         }
         zlog_debug(zc, "sent %d bytes", ret);
+        rte_pktmbuf_free(m);
         return 1;
     }
 
