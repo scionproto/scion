@@ -616,7 +616,6 @@ class SCIONElement(object):
                 logging.debug("TCP: Not active, dropping")
                 continue  # Do not put it into the queue.
 
-            logging.debug("TCP: Active: %s", tcp_srv_sock.active)
             msg, meta = tcp_srv_sock.get_msg_meta()
             if msg:  # Only control handlers for now.
                 logging.debug("received\n%s", msg)
@@ -630,6 +629,7 @@ class SCIONElement(object):
                 except SCIONBaseError:
                     log_exception("Error handling message:\n%s" % pld)
             try:
+                logging.debug("TCP: Active: %s", tcp_srv_sock.active)
                 if tcp_srv_sock.active:
                     self._tcp_conns.put(tcp_srv_sock)
             except queue.Full:
