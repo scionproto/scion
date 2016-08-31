@@ -510,6 +510,7 @@ class SCIONElement(object):
             self._packet_process()
         finally:
             self.stop()
+            self._tcp_sock.close()
 
     def packet_put(self, packet, addr, sock):
         """
@@ -604,6 +605,7 @@ class SCIONElement(object):
 
     def _tcp_recv_loop(self):
         while self.run_flag.is_set():
+            logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
             try:
                 tcp_srv_sock = self._tcp_conns.get(timeout=1.0)
             except queue.Empty:
@@ -639,9 +641,11 @@ class SCIONElement(object):
             return
         # Close all TCP sockets.
         while not self._tcp_conns.empty():
-            tcp_srv_sock = self._tcp_conns.get()
-            tcp_srv_sock.close()
-        self._tcp_sock.close()
+            try:
+                tcp_srv_sock = self._tcp_conns.get_nowait()
+                tcp_srv_sock.close()
+            except queue.Empty:
+                break
 
     def stop(self):
         """Shut down the daemon thread."""

@@ -349,7 +349,7 @@ class TCPServerSocket(object):
     """
     Base class for accepted and connected TCP sockets used by SCION services.
     """
-    POLLING_TOUT = 0.01
+    POLLING_TOUT = 0.05
     RECV_SIZE = 1024
 
     def __init__(self, sock, addr, path):

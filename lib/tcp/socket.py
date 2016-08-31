@@ -50,6 +50,20 @@ class timeout(socket.timeout):
     pass
 
 
+class logging(object):
+    def error(*args):
+        pass
+
+    def warning(*args):
+        pass
+
+    def debug(*args):
+        pass
+
+    def info(*args):
+        pass
+
+
 class LWIPError(object):
     # LWIP error codes.
     ERR_OK = 0  # No error, everything OK.
