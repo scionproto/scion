@@ -215,10 +215,17 @@ class SCIONTCPSocket(object):
         logging.debug("Sending to LWIP(%dB): %.*s..." % (len(req), 20, req))
         assert PLD_SIZE + len(req) <= TCPMW_BUFLEN, "Cmd too long"
         pld_len = len(req) - CMD_SIZE
-        self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
+        if self._lwip_sock:
+            self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
+        else:
+            logging.warning("Sending via non-existing socket (_lwip_sock)")
 
     def _from_lwip(self):
-        rep = get_lwip_reply(self._lwip_sock)
+        if self._lwip_sock
+            rep = get_lwip_reply(self._lwip_sock)
+        else:
+            logging.warning("Reading from non-existing socket (_lwip_sock)")
+            rep = None
         if rep is None:
             replen = 0
         else:
@@ -323,8 +330,12 @@ class SCIONTCPSocket(object):
             if self._lwip_sock:
                 self._lwip_sock.close()
                 self._lwip_sock = None
+            else:
+                logging.warning("Closing non-existing socket (_lwip_sock)")
             if self._lwip_accept:
                 fname = self._lwip_accept.getsockname()
                 self._lwip_accept.close()
                 os.unlink(fname)
                 self._lwip_accept = None
+            else:
+                logging.warning("Closing non-existing socket (_lwip_accept)")
