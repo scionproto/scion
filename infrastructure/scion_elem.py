@@ -637,7 +637,10 @@ class SCIONElement(object):
     def _tcp_stop(self):
         if not self._tcp_sock:
             return
-        # close all sockets.
+        # Close all TCP sockets.
+        while not self._tcp_conns.empty():
+            tcp_srv_sock = self._tcp_conns.get()
+            tcp_srv_sock.close()
         self._tcp_sock.close()
 
     def stop(self):
@@ -646,6 +649,8 @@ class SCIONElement(object):
         self.run_flag.clear()
         # Wait for the thread to finish
         self.stopped_flag.wait(5)
+        # Close tcp sockets.
+        self._tcp_stop()
 
     def _quiet_startup(self):
         return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD
