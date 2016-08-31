@@ -221,7 +221,7 @@ class SCIONTCPSocket(object):
             logging.warning("Sending via non-existing socket (_lwip_sock)")
 
     def _from_lwip(self):
-        if self._lwip_sock
+        if self._lwip_sock:
             rep = get_lwip_reply(self._lwip_sock)
         else:
             logging.warning("Reading from non-existing socket (_lwip_sock)")
