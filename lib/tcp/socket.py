@@ -50,7 +50,7 @@ class timeout(socket.timeout):
     pass
 
 
-class logging(object):
+class logging1(object):
     def error(*args):
         pass
 
