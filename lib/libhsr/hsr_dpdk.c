@@ -517,25 +517,25 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
     const uint64_t timeout_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * timeout;
     int count = 0;
 
-    prev_tsc = 0;
-
-    cur_tsc = rte_rdtsc();
-    start_tsc = cur_tsc;
-    /*
-     * TX burst queue drain
-     */
-    diff_tsc = cur_tsc - prev_tsc;
-    if (unlikely(diff_tsc > drain_tsc)) {
-        for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
-            if (tx_mbufs[portid].len == 0)
-                continue;
-            dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
-            tx_mbufs[portid].len = 0;
-        }
-        prev_tsc = cur_tsc;
-    }
+    prev_tsc = rte_rdtsc();
+    start_tsc = prev_tsc;
 
     while (count < min_packets) {
+        /*
+         * TX burst queue drain
+         */
+        cur_tsc = rte_rdtsc();
+        diff_tsc = cur_tsc - prev_tsc;
+        if (unlikely(diff_tsc > drain_tsc)) {
+            for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
+                if (tx_mbufs[portid].len == 0)
+                    continue;
+                dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
+                tx_mbufs[portid].len = 0;
+            }
+            prev_tsc = cur_tsc;
+        }
+
         /*
          * NIC lcore
          * Read packet from RX queues
