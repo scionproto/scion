@@ -45,7 +45,7 @@ from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
-from lib.tcp.socket import timeout
+from lib.tcp.socket import error, timeout
 from lib.thread import kill_self
 from lib.types import AddrType
 
@@ -381,14 +381,12 @@ class TCPServerSocket(object):
             return msg, self._get_meta()
         try:
             read = self._sock.recv(self.RECV_SIZE)
-            if not read:
-                self.close()
-                return None, None
             self._buf += read
         except timeout:
             pass
-        # except:  # FIXME(PSz)
-        #     self.close()
+        except error:
+            logging.warning("TCP: calling close() after socket error")
+            self.close()
         return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):

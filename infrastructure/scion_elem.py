@@ -601,18 +601,19 @@ class SCIONElement(object):
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
                 logging.warning("TCP: connections queue is full.")
-            else:
-                break
 
     def _tcp_recv_loop(self):
         while self.run_flag.is_set():
             try:
                 tcp_srv_sock = self._tcp_conns.get(timeout=1.0)
             except queue.Empty:
+                logging.debug("TCP: empty queue")
                 continue
             if not tcp_srv_sock.active:
+                logging.debug("TCP: Not active, dropping")
                 continue  # Do not put it into the queue.
 
+            logging.debug("TCP: Active: %s", tcp_srv_sock.active)
             msg, meta = tcp_srv_sock.get_msg_meta()
             if msg:  # Only control handlers for now.
                 logging.debug("received\n%s", msg)
@@ -626,7 +627,8 @@ class SCIONElement(object):
                 except SCIONBaseError:
                     log_exception("Error handling message:\n%s" % pld)
             try:
-                self._tcp_conns.put(tcp_srv_sock)
+                if tcp_srv_sock.active:
+                    self._tcp_conns.put(tcp_srv_sock)
             except queue.Full:
                 old_tcp_srv_sock = self._tcp_conns.get_nowait()
                 old_tcp_srv_sock.close()
