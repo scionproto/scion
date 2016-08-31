@@ -30,6 +30,7 @@ public:
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
     virtual void handleTimeout();
+    virtual void handlePathError(SCIONPacket *packet);
     virtual void getStats(SCIONStats *stats);
 
     int setISDWhitelist(void *data, size_t len);

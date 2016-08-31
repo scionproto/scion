@@ -890,7 +890,8 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 {
     SCMPPayload *pld;
     pld = scmp_parse_payload(scmp);
-    if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_NONE) {
+    if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_SSP &&
+            pld->meta->l4_proto != L4_NONE) {
         zlog_error(zc, "SCMP not supported for protocol %d\n", pld->meta->l4_proto);
         return;
     }
@@ -899,22 +900,35 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
         zlog_error(zc, "SCMP does not support SVC source.\n");
         return;
     }
-    L4Key key;
-    memset(&key, 0, sizeof(key));
-    /* Find src info in payload */
-    key.port = ntohs(*(uint16_t *)(pld->l4hdr));
-    key.isd_as = ntohl(*(uint32_t *)(pld->addr));
-    memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
 
     Entry *e;
-    HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
-    if (!e) {
-        zlog_error(zc, "SCMP entry for %s:%d not found\n",
+    L4Key key;
+    memset(&key, 0, sizeof(key));
+    key.isd_as = ntohl(*(uint32_t *)(pld->addr));
+    memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
+    if (pld->meta->l4_proto == L4_SSP) {
+        // reverse direction bit in flow id as this is a packet returned to sender
+        key.flow_id = be64toh(*(uint64_t *)(pld->l4hdr)) ^ 1;
+        HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
+        if (!e) {
+            zlog_error(zc, "SCMP entry for %s:%" PRIu64 " not found",
+                    addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
+            return;
+        }
+        zlog_debug(zc, "SCMP entry for %s:%" PRIu64 " found",
+                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
+    } else {
+        /* Find src info in payload */
+        key.port = ntohs(*(uint16_t *)(pld->l4hdr));
+        HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
+        if (!e) {
+            zlog_info(zc, "SCMP entry for %s:%d not found",
+                    addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
+            return;
+        }
+        zlog_debug(zc, "SCMP entry for %s:%d found",
                 addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
-        return;
     }
-    zlog_debug(zc, "SCMP entry for %s:%d found\n",
-            addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
 
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);

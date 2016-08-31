@@ -110,7 +110,7 @@ class SCMPPayload(PayloadBase):
                 payload = pkt.get_payload()
                 pld = payload.pack()[:LINE_LEN * 4]
                 inst._l4_hdr = pld + bytes(calc_padding(len(pld), LINE_LEN))
-                inst.l4_proto = L4Proto.NONE
+                inst.l4_proto = pkt.get_l4_proto()
         else:
             inst.l4_proto = L4Proto.NONE
         return inst

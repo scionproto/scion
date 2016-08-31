@@ -23,6 +23,7 @@ public:
 
     virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
     virtual void handleTimerEvent();
+    virtual void handlePathError(SCIONPacket *packet);
 
     bool isReceiver();
     void setReceiver(bool receiver);
