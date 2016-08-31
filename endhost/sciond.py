@@ -151,6 +151,7 @@ class SCIONDaemon(SCIONElement):
         logging.debug("Added: %s", added)
         for dst_ia, flags in added:
             self.requests.put(((dst_ia, flags), None))
+        meta.close()
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
