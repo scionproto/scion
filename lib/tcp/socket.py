@@ -320,8 +320,11 @@ class SCIONTCPSocket(object):
         with self._lock:
             req = APICmd.CLOSE
             self._to_lwip(req)
-            self._lwip_sock.close()
-        if self._lwip_accept:
-            fname = self._lwip_accept.getsockname()
-            self._lwip_accept.close()
-            os.unlink(fname)
+            if self._lwip_sock:
+                self._lwip_sock.close()
+                self._lwip_sock = None
+            if self._lwip_accept:
+                fname = self._lwip_accept.getsockname()
+                self._lwip_accept.close()
+                os.unlink(fname)
+                self._lwip_accept = None
