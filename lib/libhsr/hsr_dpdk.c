@@ -91,9 +91,6 @@ static const struct rte_eth_conf port_conf = {
 
 struct rte_mempool * hsr_pktmbuf_pool = NULL;
 
-#define MAX_KNI_OBJS 2
-struct rte_kni *kni_objs[MAX_KNI_OBJS];
-
 /* ARP cache */
 typedef struct {
     UT_hash_handle hh;
@@ -108,7 +105,6 @@ static int netlink_ready = 0;
 
 static pthread_mutex_t tx_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t eth_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t kni_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t netlink_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t netlink_cond = PTHREAD_COND_INITIALIZER;
 
@@ -122,6 +118,7 @@ static PortEntry *addr2port;
 
 #define MAX_DPDK_PORTS 10
 static struct sockaddr_storage local_addrs[MAX_DPDK_PORTS];
+struct rte_kni *kni_objs[MAX_DPDK_PORTS];
 
 /* Dummy sockets to hand packets off to kernel */
 static int sockets[MAX_DPDK_PORTS];
@@ -680,9 +677,7 @@ static inline int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_
     if (!kni_objs[0])
         return 0;
     zlog_debug(zc, "Forward to kernel");
-    pthread_mutex_lock(&kni_mutex);
     rte_kni_tx_burst(kni_objs[dpdk_rx_port], &m, 1);
-    pthread_mutex_unlock(&kni_mutex);
     return 0;
 }
 
