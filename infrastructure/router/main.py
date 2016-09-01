@@ -51,6 +51,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
+from lib.msg_meta import UDPMetadata  # FIXME(raw meta)
 from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.traceroute import TracerouteExt
@@ -653,6 +654,19 @@ class Router(SCIONElement):
             return
         logging.debug("Packet delivered by extension")
         self.deliver(pkt)
+
+    def _get_msg_meta(self, packet, addr, sock):
+        meta = UDPMetadata()
+        meta.packet = packet
+        meta.addr = addr
+        meta.from_local_as = sock == self._local_sock
+        return packet, meta
+
+    def handle_msg_meta(self, msg, meta):
+        """
+        Main routine to handle incoming SCION messages.
+        """
+        self.handle_request(meta.packet, meta.addr, meta.from_local_as)
 
     def handle_request(self, packet, _, from_local_socket=True, sock=None):
         """

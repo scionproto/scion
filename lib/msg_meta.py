@@ -84,7 +84,7 @@ class UNIXMetadata(MetadataBase):
     """
     @classmethod
     def from_values(cls, sock=None):
-        inst = super()
+        inst = super().from_values()
         inst.sock = sock
         return inst
 

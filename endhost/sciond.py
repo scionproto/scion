@@ -32,6 +32,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
+from lib.msg_meta import UNIXMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -119,17 +120,21 @@ class SCIONDaemon(SCIONElement):
         logging.debug("sciond started with api_addr = %s", inst.api_addr)
         return inst
 
-    def handle_request(self, packet, sender, from_local_socket=True, sock=None):
-        # PSz: local_socket may be misleading, especially that we have
-        # api_socket which is local (in the localhost sense). What do you think
-        # about changing local_socket to as_socket
+    def _get_msg_meta(self, packet, addr, sock):
+        if sock != self._local_sock:
+            return packet, UNIXMetadata.from_values(sock=sock)
+        else:
+            return super()._get_msg_meta(packet, addr, sock)
+
+    def handle_msg_meta(self, msg, meta):
         """
-        Main routine to handle incoming SCION packets.
+        Main routine to handle incoming SCION messages.
         """
-        if not from_local_socket:  # From localhost (SCIONDaemon API)
-            self.api_handle_request(packet, sock)
+        if isinstance(meta, UNIXMetadata):  # From localhost (SCIONDaemon API)
+            self.api_handle_request(msg, meta.sock)
             return
-        super().handle_request(packet, sender, from_local_socket)
+        logging.debug("handle_msg_meta()")
+        super().handle_msg_meta(msg, meta)
 
     def handle_path_reply(self, path_reply, meta):
         """
