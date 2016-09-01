@@ -46,14 +46,14 @@ class MetadataBase(object):
 
 class SCMPMetadata(MetadataBase):
     """
-    Base class for SCMP message metadata
+    Class for SCMP message metadata
     """
     pass
 
 
 class UDPMetadata(MetadataBase):
     """
-    Base class for UDP message metadata
+    Class for UDP message metadata
     """
     @classmethod
     def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
@@ -64,13 +64,27 @@ class UDPMetadata(MetadataBase):
 
 class TCPMetadata(MetadataBase):
     """
-    Base class for TCP message metadata
+    Class for TCP message metadata
     """
     @classmethod
     def from_values(cls, ia=None, host=None, path=None,
                     ext_hdrs=(), port=0, sock=None):
         inst = super().from_values(ia, host, path, ext_hdrs)
         inst.port = port
+        inst.sock = sock
+        return inst
+
+    def close(self):
+        self.sock.close()
+
+
+class UNIXMetadata(MetadataBase):
+    """
+    Class for UNIX socket metadata
+    """
+    @classmethod
+    def from_values(cls, sock=None):
+        inst = super()
         inst.sock = sock
         return inst
 

@@ -66,6 +66,10 @@ class Socket(object):
     def recv(self, block=True):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_msg_meta(self):
+        raise NotImplementedError
+
     def close(self):  # pragma: no cover
         """
         Close the socket.
