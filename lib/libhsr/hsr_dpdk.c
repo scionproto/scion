@@ -136,6 +136,8 @@ typedef struct {
     uint8_t ip[MAX_HOST_ADDR_LEN];
     struct ether_addr mac;
     uint8_t addr_type;
+    uint8_t has_ip;
+    uint8_t has_mac;
 } ForwardingEntry;
 #define MAX_FORWARDING_ENTRIES 256
 static ForwardingEntry forwarding_table[MAX_FORWARDING_ENTRIES];
@@ -156,42 +158,38 @@ zlog_category_t *zc;
 
 //#define MININET // Comment out for physical deployment
 
-void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
+static inline void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
         uint8_t vlan_enabled, uint16_t van_id);
-uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
+static inline uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
         uint32_t dst_addr, uint16_t pkt_data_len);
-uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
+static inline uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
 		uint8_t *dst_addr, uint16_t pkt_data_len);
-uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
+static inline uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
         uint16_t dst_port, uint16_t pkt_data_len);
-void copy_buf_to_pkt_segs(void *buf, unsigned len, struct rte_mbuf *pkt,
-        unsigned offset);
-void copy_buf_to_pkt(void *buf, unsigned len, struct rte_mbuf *pkt, unsigned offset);
-void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
+static inline void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
         struct ether_addr *dst_mac, RouterPacket *packet, size_t size);
 
 void * handle_kni(void *arg);
-void setup_kni();
+static inline void setup_kni();
 void * run_netlink_core(void *arg);
 
-int dpdk_output_packet(struct rte_mbuf *m, uint8_t port);
-int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port);
-int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet);
-struct udp_hdr *get_udp_hdr(struct rte_mbuf *m);
+static inline int dpdk_output_packet(struct rte_mbuf *m, uint8_t port);
+static inline int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port);
+static inline int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet);
+static inline struct udp_hdr *get_udp_hdr(struct rte_mbuf *m);
 
-int kni_alloc(uint8_t port_id);
+static inline int kni_alloc(uint8_t port_id);
 
-unsigned setup_netlink_socket(unsigned seq);
-int handle_message(const struct nlmsghdr *nlh, void *data);
-int handle_attributes(const struct nlattr *attr, void *data);
-void handle_arp_update(const struct nlmsghdr *nlh);
-void handle_route_update(const struct nlmsghdr *nlh);
+static inline unsigned setup_netlink_socket(unsigned seq);
+static inline int handle_message(const struct nlmsghdr *nlh, void *data);
+static inline int handle_attributes(const struct nlattr *attr, void *data);
+static inline void handle_arp_update(const struct nlmsghdr *nlh);
+static inline void handle_route_update(const struct nlmsghdr *nlh);
 
-void open_sockets();
+static inline void open_sockets();
 
-int eth_addr_type(int family);
-int is_addr_empty(uint8_t *addr, int addr_len);
+static inline int eth_addr_type(int family);
 
 /*
  * Utility functions to deal with low-level headers (eth and overlay)
@@ -199,7 +197,7 @@ int is_addr_empty(uint8_t *addr, int addr_len);
  * app/test/packet_burst_generator.c
  */
 
-void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
+static inline void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
         uint8_t vlan_enabled, uint16_t van_id)
 {
@@ -219,7 +217,7 @@ void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
     }
 }
 
-uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
+static inline uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
         uint32_t dst_addr, uint16_t pkt_data_len)
 {
     uint16_t pkt_len;
@@ -243,7 +241,7 @@ uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
     return pkt_len;
 }
 
-uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
+static inline uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
 		uint8_t *dst_addr, uint16_t pkt_data_len)
 {
 	ip_hdr->vtc_flow = 0;
@@ -257,7 +255,7 @@ uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
 	return (uint16_t) (pkt_data_len + sizeof(struct ipv6_hdr));
 }
 
-uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
+static inline uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
         uint16_t dst_port, uint16_t pkt_data_len)
 {
     uint16_t pkt_len;
@@ -272,67 +270,35 @@ uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
     return pkt_len;
 }
 
-void copy_buf_to_pkt_segs(void *buf, unsigned len, struct rte_mbuf *pkt,
-        unsigned offset)
-{
-    struct rte_mbuf *seg;
-    void *seg_buf;
-    unsigned copy_len;
-
-    seg = pkt;
-    while (offset >= seg->data_len) {
-        offset -= seg->data_len;
-        seg = seg->next;
-    }
-    copy_len = seg->data_len - offset;
-    seg_buf = rte_pktmbuf_mtod(seg, char *) + offset;
-    while (len > copy_len) {
-        rte_memcpy(seg_buf, buf, (size_t) copy_len);
-        len -= copy_len;
-        buf = ((char *) buf + copy_len);
-        seg = seg->next;
-        seg_buf = rte_pktmbuf_mtod(seg, void *);
-    }
-    rte_memcpy(seg_buf, buf, (size_t) len);
-}
-
-void copy_buf_to_pkt(void *buf, unsigned len, struct rte_mbuf *pkt, unsigned offset)
-{
-    if (offset + len <= pkt->data_len) {
-        rte_memcpy(rte_pktmbuf_mtod(pkt, char *) + offset, buf, (size_t) len);
-        return;
-    }
-    copy_buf_to_pkt_segs(buf, len, pkt, offset);
-}
-
-void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
+static inline void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
         struct ether_addr *dst_mac, RouterPacket *packet, size_t size)
 {
     struct ether_hdr *eth = ETH_HDR(m);
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp;
-    int addr_type = eth_addr_type(packet->src->ss_family);
     int ip_size = 0;
+    struct sockaddr_storage *src = &local_addrs[dpdk_port];
+    int addr_type = eth_addr_type(src->ss_family);
 
     initialize_eth_header(
             eth, &hsr_ports_eth_addr[dpdk_port], dst_mac, addr_type, 0, 0);
     if (addr_type == ETHER_TYPE_IPv4) {
         initialize_ipv4_header(ipv4,
-                *(uint32_t *)get_ss_addr(packet->src),
+                *(uint32_t *)get_ss_addr(src),
                 *(uint32_t *)get_ss_addr(packet->dst),
                 size - sizeof(struct ether_hdr) - sizeof(struct ipv4_hdr));
         ip_size = sizeof(struct ipv4_hdr);
     } else if (addr_type == ETHER_TYPE_IPv6) {
         initialize_ipv6_header(ipv6,
-                get_ss_addr(packet->src), get_ss_addr(packet->dst),
+                get_ss_addr(src), get_ss_addr(packet->dst),
                 size - sizeof(struct ether_hdr) - sizeof(struct ipv6_hdr));
         ip_size = sizeof(struct ipv6_hdr);
     }
     udp = get_udp_hdr(m);
     // port is at the same offset for sockaddr_in and sockaddr_in6
     initialize_udp_header(udp,
-            ((struct sockaddr_in *)packet->src)->sin_port,
+            ((struct sockaddr_in *)src)->sin_port,
             ((struct sockaddr_in *)packet->dst)->sin_port,
             size - sizeof(struct ether_hdr) - ip_size - sizeof(struct udp_hdr));
 
@@ -467,7 +433,7 @@ int router_init(int argc, char **argv)
 /* Packet handling functions */
 
 /* Send the burst of packets on an output interface */
-static int dpdk_output_burst(unsigned n, uint8_t port)
+static inline int dpdk_output_burst(unsigned n, uint8_t port)
 {
     struct rte_mbuf **m_table;
     unsigned ret;
@@ -488,7 +454,7 @@ static int dpdk_output_burst(unsigned n, uint8_t port)
 }
 
 /* Enqueue packets for TX and prepare them to be sent */
-int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
+static inline int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
 {
     unsigned len;
 
@@ -575,6 +541,7 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
                 break;
         }
     }
+
     return count;
 }
 
@@ -590,7 +557,6 @@ int send_packet(RouterPacket *packet)
     uint32_t hop_index;
     int ret;
     uint8_t *hop_addr;
-    uint8_t hop_addr_type;
 
     m = rte_pktmbuf_alloc(hsr_pktmbuf_pool);
     if (!m) {
@@ -602,17 +568,14 @@ int send_packet(RouterPacket *packet)
     ipv6 = IPV6_HDR(m);
     sch = (SCIONCommonHeader *)packet->buf;
 
-    memcpy(packet->src, &local_addrs[packet->port_id], sizeof(struct sockaddr_storage));
-
     ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(packet->dst)), &hop_index);
+
     if (ret == 0) {
-        if (!is_addr_empty(forwarding_table[hop_index].ip, MAX_HOST_ADDR_LEN)) {
-            hop_addr_type = forwarding_table[hop_index].addr_type;
+        if (forwarding_table[hop_index].has_ip) {
             hop_addr = forwarding_table[hop_index].ip;
-            if (!is_addr_empty(forwarding_table[hop_index].mac.addr_bytes, ETHER_ADDR_LEN))
+            if (forwarding_table[hop_index].has_mac)
                 mac = &forwarding_table[hop_index].mac;
         } else {
-            hop_addr_type = family_to_type(packet->dst->ss_family);
             hop_addr = get_ss_addr(packet->dst);
             zlog_debug(zc, "LPM entry with no gateway: %s", inet_ntoa(*(struct in_addr *)hop_addr));
             HASH_FIND(hh, arp_table, hop_addr, ADDR_IPV4_LEN, e);
@@ -621,7 +584,6 @@ int send_packet(RouterPacket *packet)
         }
     } else {
 #ifdef MININET
-        hop_addr_type = family_to_type(packet->dst->ss_family);
         hop_addr = get_ss_addr(packet->dst);
         zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
 #else
@@ -632,20 +594,21 @@ int send_packet(RouterPacket *packet)
         return -1;
 #endif
     }
-    if (!mac) {
+
+    if (unlikely(!mac)) {
         struct sockaddr_in6 sin6;
         memset(&sin6, 0, sizeof(sin6));
         sin6.sin6_family = AF_INET6;
         // port is at the same offset for sockaddr_in and sockaddr_in6
         sin6.sin6_port = ((struct sockaddr_in *)packet->dst)->sin_port;
-        if (hop_addr_type == ADDR_IPV4_TYPE) {
+        if (packet->dst->ss_family == AF_INET) {
             *(uint16_t *)(sin6.sin6_addr.s6_addr + 10) = 0xffff;
             memcpy(sin6.sin6_addr.s6_addr + 12, hop_addr, ADDR_IPV4_LEN);
         } else {
             memcpy(&sin6.sin6_addr, hop_addr, sizeof(sin6.sin6_addr));
         }
         zlog_debug(zc, "no MAC for %s (port %d), send through socket %d (fd %d)",
-                addr_to_str(hop_addr, hop_addr_type, NULL),
+                addr_to_str(hop_addr, family_to_type(packet->dst->ss_family), NULL),
                 ntohs(sin6.sin6_port), packet->port_id, sockets[packet->port_id]);
         ret = sendto(sockets[packet->port_id], sch, ntohs(sch->total_len), 0,
                 (struct sockaddr *)&sin6, sizeof(sin6));
@@ -661,6 +624,7 @@ int send_packet(RouterPacket *packet)
     m->data_len = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
         sizeof(struct udp_hdr) + ntohs(sch->total_len);
     build_lower_layers(m, packet->port_id, mac, packet, m->data_len);
+
     // update checksum
     // TODO hardware offloading
     udp = get_udp_hdr(m);
@@ -694,7 +658,7 @@ int send_packets(RouterPacket *packets, int count)
     return sent;
 }
 
-int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port)
+static inline int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port)
 {
     struct ether_hdr *eth = ETH_HDR(m);
 
@@ -722,7 +686,7 @@ int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port
     return 0;
 }
 
-int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
+static inline int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
 {
     struct ether_hdr *eth = ETH_HDR(m);
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
@@ -763,7 +727,7 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
     return 0;
 }
 
-struct udp_hdr *get_udp_hdr(struct rte_mbuf *m)
+static inline struct udp_hdr *get_udp_hdr(struct rte_mbuf *m)
 {
     struct ether_hdr *eth = ETH_HDR(m);
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
@@ -838,7 +802,7 @@ void * handle_kni(void *arg)
     return NULL;
 }
 
-void setup_kni()
+static inline void setup_kni()
 {
     char cmd[100];
     int i;
@@ -863,7 +827,7 @@ void setup_kni()
     }
 }
 
-int kni_alloc(uint8_t port_id)
+static inline int kni_alloc(uint8_t port_id)
 {
     struct rte_kni *kni;
     struct rte_kni_conf conf;
@@ -898,12 +862,14 @@ int kni_alloc(uint8_t port_id)
     return 0;
 }
 
-int kni_free(uint8_t port_id)
+/*
+static inline int kni_free(uint8_t port_id)
 {
 	rte_kni_release(kni_objs[port_id]);
 	rte_eth_dev_stop(port_id);
 	return 0;
 }
+*/
 
 /* End of KNI functions */
 
@@ -941,7 +907,7 @@ void * run_netlink_core(void *arg)
     return NULL;
 }
 
-unsigned setup_netlink_socket(unsigned seq)
+static inline unsigned setup_netlink_socket(unsigned seq)
 {
     char buf[MNL_SOCKET_BUFFER_SIZE];
     struct nlmsghdr *nlh;
@@ -1022,7 +988,7 @@ int handle_attributes(const struct nlattr *attr, void *data)
     return MNL_CB_OK;
 }
 
-void handle_arp_update(const struct nlmsghdr *nlh)
+static inline void handle_arp_update(const struct nlmsghdr *nlh)
 {
     struct nlattr *attrs[NDA_MAX + 1] = {};
     struct ndmsg *ndm = mnl_nlmsg_get_payload(nlh);
@@ -1059,7 +1025,7 @@ void handle_arp_update(const struct nlmsghdr *nlh)
     }
 }
 
-void handle_route_update(const struct nlmsghdr *nlh)
+static inline void handle_route_update(const struct nlmsghdr *nlh)
 {
     struct nlattr *attrs[RTA_MAX + 1] = {};
     struct rtmsg *rtm = mnl_nlmsg_get_payload(nlh);
@@ -1085,10 +1051,13 @@ void handle_route_update(const struct nlmsghdr *nlh)
         if (attrs[RTA_GATEWAY]) {
             struct in_addr *gateway = mnl_attr_get_payload(attrs[RTA_GATEWAY]);
             memcpy(forwarding_table[index].ip, gateway, ADDR_IPV4_LEN);
+            forwarding_table[index].has_ip = 1;
             ARPEntry *e;
             HASH_FIND(hh, arp_table, gateway, ADDR_IPV4_LEN, e);
-            if (e)
+            if (e) {
                 ether_addr_copy(&forwarding_table[index].mac, &e->mac);
+                forwarding_table[index].has_mac = 1;
+            }
         }
         ret = rte_lpm_add(next_hop_v4, ntohl(*(uint32_t *)dst), rtm->rtm_dst_len, index);
         if (ret < 0)
@@ -1137,7 +1106,7 @@ void setup_network(struct sockaddr_storage *addrs, int num_addrs)
     }
 }
 
-void open_sockets()
+static inline void open_sockets()
 {
     int i;
     for (i = 0; i < MAX_DPDK_PORTS; i++) {
@@ -1170,7 +1139,7 @@ void open_sockets()
 
 /* End of network setup functions */
 
-int eth_addr_type(int family)
+static inline int eth_addr_type(int family)
 {
     switch (family) {
         case AF_INET:
@@ -1181,11 +1150,4 @@ int eth_addr_type(int family)
             return 0;
     }
     return 0;
-}
-
-int is_addr_empty(uint8_t *addr, int addr_len)
-{
-    uint8_t zero[addr_len];
-    memset(zero, 0, addr_len);
-    return !memcmp(addr, zero, addr_len);
 }
