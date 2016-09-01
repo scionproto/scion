@@ -154,7 +154,7 @@ zlog_category_t *zc;
 #define IP_HDRLEN  0x05 /* default IP header length == five 32-bits words. */
 #define IP_VHL_DEF (IP_VERSION | IP_HDRLEN)
 
-#define MININET // Comment out for physical deployment
+//#define MININET // Comment out for physical deployment
 
 void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
@@ -655,7 +655,7 @@ int send_packet(RouterPacket *packet)
         }
         zlog_debug(zc, "sent %d bytes", ret);
         rte_pktmbuf_free(m);
-        return 1;
+        return 0;
     }
 
     m->data_len = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
@@ -677,6 +677,21 @@ int send_packet(RouterPacket *packet)
             ntohs(udp->dst_port));
 
     return dpdk_output_packet(m, packet->port_id);
+}
+
+int send_packets(RouterPacket *packets, int count)
+{
+    int sent = 0;
+    int ret;
+    int i;
+    for (i = 0; i < count; i++) {
+        ret = send_packet(&packets[i]);
+        if (ret < 0)
+            zlog_error(zc, "error occurred while sending packet %d", i);
+        else
+            sent++;
+    }
+    return sent;
 }
 
 int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port)

@@ -47,6 +47,14 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
  * returns: 0 on success, -1 on error
  */
 int send_packet(RouterPacket *packet);
+/*
+ * Send burst of packets
+ * Same conditions as send_packet
+ * packets: Array of packets to send
+ * count: Number of packets in array
+ * returns: Number of packets successfully sent
+ */
+int send_packets(RouterPacket *packets, int count);
 
 /*
  * Miscellaneous network setup - store local/neighbor addresses, setup KNI, etc.
