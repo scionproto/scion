@@ -106,6 +106,7 @@ ARPEntry *arp_table = NULL;
 static struct mnl_socket *netlink_socket;
 static int netlink_ready = 0;
 
+static pthread_mutex_t tx_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t eth_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t kni_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t netlink_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -491,6 +492,7 @@ int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
 {
     unsigned len;
 
+    pthread_mutex_lock(&tx_mutex);
     len = tx_mbufs[port].len;
     tx_mbufs[port].m_table[len] = m;
     len++;
@@ -502,6 +504,7 @@ int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
     }
 
     tx_mbufs[port].len = len;
+    pthread_mutex_unlock(&tx_mutex);
     return 0;
 }
 
@@ -527,12 +530,14 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
         cur_tsc = rte_rdtsc();
         diff_tsc = cur_tsc - prev_tsc;
         if (unlikely(diff_tsc > drain_tsc)) {
+            pthread_mutex_lock(&tx_mutex);
             for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
                 if (tx_mbufs[portid].len == 0)
                     continue;
                 dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
                 tx_mbufs[portid].len = 0;
             }
+            pthread_mutex_unlock(&tx_mutex);
             prev_tsc = cur_tsc;
         }
 
