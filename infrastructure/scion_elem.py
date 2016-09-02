@@ -440,12 +440,7 @@ class SCIONElement(object):
         if not meta.sock:
             tcp_srv_sock = self._tcp_srv_sock_from_meta(meta)
             meta.sock = tcp_srv_sock
-            try:
-                self._tcp_conns.put(tcp_srv_sock)
-            except queue.Full:
-                old_tcp_srv_sock = self._tcp_conns.get_nowait()
-                old_tcp_srv_sock.close()
-                logging.warning("TCP: connections queue is full.")
+            self._tcp_conns_put(tcp_srv_sock)
         meta.sock.send_msg(pld.pack_full())
 
     def _tcp_srv_sock_from_meta(self, meta):
@@ -462,6 +457,21 @@ class SCIONElement(object):
         sock.connect(dst, meta.port, meta.path, first_ip, first_port)
         # Create and return TCPServerSocket
         return TCPServerSocket(sock, dst, meta.path)
+
+    def _tcp_conns_put(self, sock):
+        dropped = 0
+        while True:
+            try:
+                self._tcp_conns.put(sock, block=False)
+            except queue.Full:
+                old_sock = self._tcp_conns.get_nowait()
+                old_sock.close()
+                logging.warning("TCP: connections queue is full.")
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            logging.warning("%d TCP connection(s) dropped" % dropped)
 
     def get_first_hop2(self, path, scion_addr):
         if not len(path):
@@ -596,7 +606,7 @@ class SCIONElement(object):
 
     def _tcp_start(self):
         # FIXME(PSz): hack to get python router working.
-        if hasattr(self, "_remote_sock"):
+        if not hasattr(self, "_tcp_sock"):
             return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_recv_loop,),
@@ -610,14 +620,9 @@ class SCIONElement(object):
 
     def _tcp_accept_loop(self):
         while self.run_flag.is_set():
-            try:
-                logging.debug("TCP: waiting for connections")
-                self._tcp_conns.put(TCPServerSocket(*self._tcp_sock.accept()))
-                logging.debug("TCP: accepted connection")
-            except queue.Full:
-                old_tcp_srv_sock = self._tcp_conns.get_nowait()
-                old_tcp_srv_sock.close()
-                logging.warning("TCP: connections queue is full.")
+            logging.debug("TCP: waiting for connections")
+            self._tcp_conns_put(TCPServerSocket(*self._tcp_sock.accept()))
+            logging.debug("TCP: accepted connection")
 
     def _tcp_recv_loop(self):
         while self.run_flag.is_set():
@@ -634,14 +639,9 @@ class SCIONElement(object):
             if pld:
                 logging.debug("received\n%s", pld)
                 self._in_buf_put((pld, meta))
-            try:
-                logging.debug("TCP: Active: %s", tcp_srv_sock.active)
-                if tcp_srv_sock.active:
-                    self._tcp_conns.put(tcp_srv_sock)
-            except queue.Full:
-                old_tcp_srv_sock = self._tcp_conns.get_nowait()
-                old_tcp_srv_sock.close()
-                logging.warning("TCP: connections queue is full.")
+            logging.debug("TCP: Active: %s", tcp_srv_sock.active)
+            if tcp_srv_sock.active:
+                self._tcp_conns_put(tcp_srv_sock)
 
     def _tcp_stop(self):
         if not self._tcp_sock:
