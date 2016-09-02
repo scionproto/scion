@@ -653,7 +653,7 @@ class SCIONElement(object):
                 tcp_srv_sock.close()
             except queue.Empty:
                 break
-        # self._tcp_sock.close()  # It deadlock if accept() holds the lock
+        # self._tcp_sock.close()  # It deadlocks if accept() holds the lock
 
     def stop(self):
         """Shut down the daemon thread."""
