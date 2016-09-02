@@ -154,6 +154,7 @@ class SCIONDaemon(SCIONElement):
         logging.debug("Added: %s", added)
         for dst_ia, flags in added:
             self.requests.put(((dst_ia, flags), None))
+        logging.debug("Closing meta")
         meta.close()
 
     def _handle_up_seg(self, pcb):
