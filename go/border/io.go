@@ -64,9 +64,9 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom packet.Dir, labels prom
 		p.Raw = p.Raw[:length] // Set the length of the slice
 		p.Ingress.Src = src
 		p.Ingress.Dst = dst
-		q <- p
 		metrics.PktsRecv.With(labels).Inc()
 		metrics.BytesRecv.With(labels).Add(float64(length))
+		q <- p
 	}
 }
 
@@ -131,10 +131,10 @@ func (r *Router) readDPDKInput(q chan *packet.Packet) {
 		for i := range pkts[:len(portIds)] {
 			p := pkts[i]
 			p.TimeIn = timeIn
-			q <- p
 			labels := hsr.AddrMs[portIds[i]].Labels
 			metrics.PktsRecv.With(labels).Inc()
 			metrics.BytesRecv.With(labels).Add(float64(len(p.Raw)))
+			q <- p
 			pkts[i] = nil
 		}
 		for _, id := range portIds {
