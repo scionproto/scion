@@ -642,6 +642,9 @@ class SCIONL4Packet(SCIONExtPacket):
         s.append("  %s" % self.l4_hdr)
         return s
 
+    def get_l4_proto(self):  # pragma: no cover
+        return self._l4_proto
+
 
 def build_base_hdrs(src, dst, l4=L4Proto.UDP):
     cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE, l4)

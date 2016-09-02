@@ -25,6 +25,7 @@ import uuid
 
 # SCION
 from lib.defines import DEFAULT_DISPATCHER_ID, DISPATCHER_DIR
+from lib.errors import SCIONIOError
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.svc import SVCType
@@ -229,10 +230,18 @@ class SCIONTCPSocket(object):
         logging.debug("Sending to LWIP(%dB): %.*s..." % (len(req), 20, req))
         assert PLD_SIZE + len(req) <= TCPMW_BUFLEN, "Cmd too long"
         pld_len = len(req) - CMD_SIZE
-        self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
+        if self._lwip_sock:
+            self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
+        else:
+            logging.error("Sending via non-existing socket (_lwip_sock)")
+            raise SCIONIOError
 
     def _from_lwip(self):
-        rep = get_lwip_reply(self._lwip_sock)
+        if self._lwip_sock:
+            rep = get_lwip_reply(self._lwip_sock)
+        else:
+            logging.error("Reading from non-existing socket (_lwip_sock)")
+            raise SCIONIOError
         if rep is None:
             replen = 0
         else:
@@ -333,10 +342,15 @@ class SCIONTCPSocket(object):
 
     def close(self):
         with self._lock:
-            req = APICmd.CLOSE
-            self._to_lwip(req)
-        self._lwip_sock.close()
-        if self._lwip_accept:
-            fname = self._lwip_accept.getsockname()
-            self._lwip_accept.close()
-            os.unlink(fname)
+            if self._lwip_sock:
+                req = APICmd.CLOSE
+                self._to_lwip(req)
+                self._lwip_sock.close()
+                self._lwip_sock = None
+            else:
+                logging.warning("Closing non-existing socket (_lwip_sock)")
+            if self._lwip_accept:
+                fname = self._lwip_accept.getsockname()
+                self._lwip_accept.close()
+                os.unlink(fname)
+                self._lwip_accept = None

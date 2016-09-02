@@ -50,6 +50,7 @@ test:
         - mkdir "$ARTIFACTS"
         - mv htmlcov "$ARTIFACTS"/coverage
         - mv sphinx-doc/_build/html/ "$ARTIFACTS"/docs
+        - cp logs/nosetests.xml "$CIRCLE_TEST_REPORTS"
         - mv logs "$ARTIFACTS"/
         - mv go/gocover.html "$ARTIFACTS"/
         - docker run --privileged scion -c "tar -cf - gen" | tar -xf - -C "$ARTIFACTS"/

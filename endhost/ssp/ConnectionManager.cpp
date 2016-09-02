@@ -366,6 +366,22 @@ void PathManager::handleTimeout()
 {
 }
 
+void PathManager::handlePathError(SCIONPacket *packet)
+{
+    pthread_mutex_lock(&mPathMutex);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i] && mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
+            DEBUG("path %lu is invalid\n", i);
+            delete mPaths[i];
+            mPaths[i] = NULL;
+            mInvalid++;
+            break;
+        }
+    }
+    getPaths();
+    pthread_mutex_unlock(&mPathMutex);
+}
+
 void PathManager::getStats(SCIONStats *stats)
 {
 }
@@ -967,7 +983,7 @@ void SSPConnectionManager::handleTimeout()
     }
 
     for (size_t j = 0; j < mPaths.size(); j++) {
-        if (timeout[j] > 0) {
+        if (timeout[j]) {
             DEBUG("%lu.%06lu: path %lu timed out after rto %d\n",
                     current.tv_sec, current.tv_usec, j, ((SSPPath *)(mPaths[j]))->getRTO());
             mPaths[j]->handleTimeout(&current);

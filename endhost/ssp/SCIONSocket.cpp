@@ -329,11 +329,17 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
         }
 #endif
     }
+    parseExtensions(&packet->header, buf + sch->header_len);
+    uint8_t *ptr = buf;
+    uint8_t l4 = get_l4_proto(&ptr);
+
     packet->firstHop = *addr;
 
-    uint8_t *ptr = parseExtensions(&packet->header, buf + sch->header_len);
-
     if (mIsListener) {
+        if (l4 == L4_SCMP) {
+            DEBUG("SCMP packet on listener socket\n");
+            return;
+        }
         bool claimed = checkChildren(packet, ptr);
         if (!claimed) {
             // accept: create new socket to handle connection
@@ -355,7 +361,32 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
         return;
     }
 
-    mProtocol->handlePacket(packet, ptr);
+    if (l4 == L4_SCMP)
+        handleSCMP(packet, ptr);
+    else
+        mProtocol->handlePacket(packet, ptr);
+}
+
+void SCIONSocket::handleSCMP(SCIONPacket *packet, uint8_t *l4ptr)
+{
+    SCMPPacket scmp;
+    memset(&scmp, 0, sizeof(scmp));
+    scmp.header = (SCMPL4Header *)l4ptr;
+    scmp.payload = scmp_parse_payload(scmp.header);
+    packet->payload = &scmp;
+    switch (htons(scmp.header->class_)) {
+        case SCMP_PATH_CLASS:
+            mProtocol->handlePathError(packet);
+            break;
+        case SCMP_GENERAL_CLASS:
+        case SCMP_ROUTING_CLASS:
+        case SCMP_CMNHDR_CLASS:
+        case SCMP_EXT_CLASS:
+        default:
+            DEBUG("SCMP class %d type %d\n", htons(scmp.header->class_), htons(scmp.header->type));
+            break;
+    }
+    free(scmp.payload);
 }
 
 void SCIONSocket::setDataProfile(DataProfile profile)

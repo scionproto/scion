@@ -50,6 +50,11 @@ typedef struct {
     int pathIndex;
 } SCIONPacket;
 
+typedef struct {
+    SCMPL4Header *header;
+    SCMPPayload *payload;
+} SCMPPacket;
+
 #pragma pack(push)
 #pragma pack(1)
 
