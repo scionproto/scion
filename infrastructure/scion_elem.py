@@ -57,7 +57,6 @@ from lib.packet.scion import (
     SCIONBasePacket,
     SCIONL4Packet,
     build_base_hdrs,
-    pld_from_raw,
 )
 from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_A
 from lib.packet.scion_addr import SCIONAddr
@@ -506,10 +505,10 @@ class SCIONElement(object):
         Try to put incoming packet in queue
         If queue is full, drop oldest packet in queue
         """
-        msg, meta = self._get_msg_meta(packet, addr, sock)
-        if msg is None:
+        pld, meta = self._get_pld_meta(packet, addr, sock)
+        if pld is None:
             return
-        self._in_buf_put((msg, meta))
+        self._in_buf_put((pld, meta))
 
     def _in_buf_put(self, item):
         dropped = 0
@@ -526,8 +525,8 @@ class SCIONElement(object):
             logging.debug("%d packet(s) dropped (%d total dropped so far)",
                           dropped, self.total_dropped)
 
-    def _get_msg_meta(self, packet, addr, sock):
-        logging.debug("_get_msg_meta() called")
+    def _get_pld_meta(self, packet, addr, sock):
+        logging.debug("_get_pld_meta() called")
         pkt = self._parse_packet(packet)
         if not pkt:
             logging.error("Cannot parse packet:\n%s" % packet)
@@ -550,8 +549,6 @@ class SCIONElement(object):
 
         # FIXME(PSz): this should be gone with python router:
         meta.packet = packet
-        meta.from_local_as = sock == self._local_sock
-        meta.addr = addr
 
         pkt.parse_payload()
         return pkt.get_payload(), meta
@@ -637,10 +634,10 @@ class SCIONElement(object):
                 logging.debug("TCP: Not active, dropping")
                 continue  # Do not put it into the queue.
 
-            msg, meta = tcp_srv_sock.get_msg_meta()
-            if msg:
-                logging.debug("received\n%s", msg)
-                self._in_buf_put((pld_from_raw(msg), meta))
+            pld, meta = tcp_srv_sock.get_pld_meta()
+            if pld:
+                logging.debug("received\n%s", pld)
+                self._in_buf_put((pld, meta))
             try:
                 logging.debug("TCP: Active: %s", tcp_srv_sock.active)
                 if tcp_srv_sock.active:

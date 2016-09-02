@@ -32,7 +32,6 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
-from lib.msg_meta import UNIXMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -120,18 +119,18 @@ class SCIONDaemon(SCIONElement):
         logging.debug("sciond started with api_addr = %s", inst.api_addr)
         return inst
 
-    def _get_msg_meta(self, packet, addr, sock):
+    def _get_pld_meta(self, packet, addr, sock):
         if sock != self._local_sock:
-            return packet, UNIXMetadata.from_values(sock=sock)
+            return packet, sock  # API socket, pld is bytes and no meta needed.
         else:
-            return super()._get_msg_meta(packet, addr, sock)
+            return super()._get_pld_meta(packet, addr, sock)
 
     def handle_msg_meta(self, msg, meta):
         """
         Main routine to handle incoming SCION messages.
         """
-        if isinstance(meta, UNIXMetadata):  # From localhost (SCIONDaemon API)
-            self.api_handle_request(msg, meta.sock)
+        if isinstance(meta, ReliableSocket):  # From localhost (SCIONDaemon API)
+            self.api_handle_request(msg, meta)
             return
         logging.debug("handle_msg_meta()")
         super().handle_msg_meta(msg, meta)

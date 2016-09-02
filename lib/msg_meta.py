@@ -78,15 +78,17 @@ class TCPMetadata(MetadataBase):
         self.sock.close()
 
 
-class UNIXMetadata(MetadataBase):
-    """
-    Class for UNIX socket metadata
-    """
-    @classmethod
-    def from_values(cls, sock=None):
-        inst = super().from_values()
-        inst.sock = sock
-        return inst
+class RawMetadata(object):
+    # FIXME(PSz): needed only by python router.
+    def __init__(self):
+        self.packet = None
+        self.addr = None
+        self.from_local_as = None
 
-    def close(self):
-        self.sock.close()
+    @classmethod
+    def from_values(cls, packet, addr, from_local_as):
+        inst = RawMetadata()
+        inst.packet = packet
+        inst.addr = addr
+        inst.from_local_as = from_local_as
+        return inst

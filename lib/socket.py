@@ -43,6 +43,7 @@ from lib.dispatcher import reg_dispatcher
 from lib.errors import SCIONIOError
 from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
+from lib.packet.scion import pld_from_raw
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
 from lib.tcp.socket import error, timeout
@@ -365,7 +366,7 @@ class TCPServerSocket(object):
                                        host=self._addr.host, path=self._path,
                                        sock=self)
 
-    def _get_msg(self):
+    def _get_pld(self):
         if len(self._buf) < 4:
             return None
         msg_len = struct.unpack("!I", self._buf[:4])[0]
@@ -373,12 +374,12 @@ class TCPServerSocket(object):
             return None
         msg = self._buf[4:4 + msg_len]
         self._buf = self._buf[4 + msg_len:]
-        return msg
+        return pld_from_raw(msg)
 
-    def get_msg_meta(self):
-        msg = self._get_msg()
-        if msg:
-            return msg, self._get_meta()
+    def get_pld_meta(self):
+        pld = self._get_pld()
+        if pld:
+            return pld, self._get_meta()
         try:
             read = self._sock.recv(self.RECV_SIZE)
             self._buf += read
@@ -387,7 +388,7 @@ class TCPServerSocket(object):
         except error:
             logging.warning("TCP: calling close() after socket error")
             self.close()
-        return self._get_msg(), self._get_meta()
+        return self._get_pld(), self._get_meta()
 
     def send_msg(self, raw):
         self._sock.send(raw)
