@@ -619,8 +619,8 @@ class SCIONElement(object):
             except (SCIONIOError, error):
                 log_exception("TCP: error on accept()")
                 logging.error("TCP: leaving the accept loop")
-                self._tcp_sock.close()
-                return
+                break
+        self._tcp_sock.close()
 
     def _tcp_recv_loop(self):
         while self.run_flag.is_set():
@@ -641,7 +641,7 @@ class SCIONElement(object):
             if tcp_srv_sock.active:
                 self._tcp_conns_put(tcp_srv_sock)
 
-    def _tcp_stop(self):
+    def _tcp_clean(self):
         if not self._tcp_sock:
             return
         # Close all TCP sockets.
@@ -651,7 +651,6 @@ class SCIONElement(object):
                 tcp_srv_sock.close()
             except queue.Empty:
                 break
-        self._tcp_sock.close()
 
     def stop(self):
         """Shut down the daemon thread."""
@@ -660,7 +659,7 @@ class SCIONElement(object):
         # Wait for the thread to finish
         self.stopped_flag.wait(5)
         # Close tcp sockets.
-        self._tcp_stop()
+        self._tcp_clean()
 
     def _quiet_startup(self):
         return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD
