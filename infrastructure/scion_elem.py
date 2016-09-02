@@ -426,6 +426,7 @@ class SCIONElement(object):
     def send_meta(self, pld, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
+            assert not next_hop_port
             self._send_meta_tcp(pld, meta)
             return
         elif isinstance(meta, UDPMetadata):
