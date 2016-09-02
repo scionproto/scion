@@ -63,7 +63,6 @@
 #define CMD_CMP(buf, cmd) (!strncmp(buf, cmd, CMD_SIZE))
 
 zlog_category_t *zc_tcp;
-s8_t lwip_err;
 
 struct conn_args{
     int fd;
@@ -85,7 +84,7 @@ void tcpmw_set_sock_opt(struct conn_args *, char *, int);
 void tcpmw_reset_sock_opt(struct conn_args *, char *, int);
 void tcpmw_get_sock_opt(struct conn_args *, char *, int);
 void tcpmw_close(struct conn_args *);
-void tcpmw_reply(struct conn_args *, const char *);
+void tcpmw_reply(struct conn_args *, const char *, s8_t);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
