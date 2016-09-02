@@ -477,14 +477,14 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
     struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
     struct rte_mbuf *m;
     struct rte_mbuf *m_next;
-    uint64_t prev_tsc, diff_tsc, cur_tsc, start_tsc;
+    uint64_t diff_tsc, cur_tsc, start_tsc;
+    static uint64_t prev_tsc;
     unsigned i, portid, nb_rx, nb_ports;
     const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * BURST_TX_DRAIN_US;
     const uint64_t timeout_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * timeout;
     int count = 0;
 
-    prev_tsc = rte_rdtsc();
-    start_tsc = prev_tsc;
+    start_tsc = rte_rdtsc();
 
     while (count < min_packets) {
         /*
