@@ -38,7 +38,7 @@ from socket import (
 from external import ipaddress
 
 # SCION
-from lib.defines import SCION_BUFLEN
+from lib.defines import SCION_BUFLEN, TCP_RECV_POLLING_TOUT
 from lib.dispatcher import reg_dispatcher
 from lib.errors import SCIONBaseError, SCIONIOError
 from lib.log import log_exception
@@ -352,13 +352,12 @@ class TCPServerSocket(object):
     """
     Base class for accepted and connected TCP sockets used by SCION services.
     """
-    POLLING_TOUT = 0.05
     RECV_SIZE = 1024
 
     def __init__(self, sock, addr, path):
         self._buf = b""
         self._sock = sock
-        self._sock.set_recv_tout(self.POLLING_TOUT)
+        self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
         self.active = True

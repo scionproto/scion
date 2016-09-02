@@ -136,3 +136,7 @@ HASHTREE_TTL = 15 * 60
 HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
 # How much time in advance to compute the next hash tree
 HASHTREE_UPDATE_WINDOW = HASHTREE_TTL / 3
+
+# TCP polling timeouts, used by accept() and recv().
+TCP_ACCEPT_POLLING_TOUT = 1.0
+TCP_RECV_POLLING_TOUT = 0.05
