@@ -40,7 +40,8 @@ from external import ipaddress
 # SCION
 from lib.defines import SCION_BUFLEN
 from lib.dispatcher import reg_dispatcher
-from lib.errors import SCIONIOError
+from lib.errors import SCIONBaseError, SCIONIOError
+from lib.log import log_exception
 from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
 from lib.packet.scion import pld_from_raw
@@ -49,6 +50,7 @@ from lib.util import recv_all
 from lib.tcp.socket import error, timeout
 from lib.thread import kill_self
 from lib.types import AddrType
+from lib.util import hex_str
 
 
 class Socket(object):
@@ -374,7 +376,12 @@ class TCPServerSocket(object):
             return None
         msg = self._buf[4:4 + msg_len]
         self._buf = self._buf[4 + msg_len:]
-        return pld_from_raw(msg)
+        try:
+            return pld_from_raw(msg)
+        except SCIONBaseError:
+            log_exception("Error parsing message: %s" % hex_str(msg),
+                          level=logging.ERROR)
+            return None
 
     def get_pld_meta(self):
         pld = self._get_pld()
@@ -385,14 +392,19 @@ class TCPServerSocket(object):
             self._buf += read
         except timeout:
             pass
-        except error:
+        except (SCIONIOError, error):
             logging.warning("TCP: calling close() after socket error")
             self.close()
         return self._get_pld(), self._get_meta()
 
     def send_msg(self, raw):
-        self._sock.send(raw)
+        try:
+            self._sock.send(raw)
+        except (SCIONIOError, error):
+            logging.warning("TCP: calling close() after socket error")
+            self.close()
 
     def close(self):
         self._sock.close()
         self.active = False
+        logging.debug("Leaving close()")

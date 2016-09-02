@@ -495,7 +495,6 @@ class SCIONElement(object):
             log_exception("Error processing packet.")
         finally:
             self.stop()
-            self._tcp_sock.close()
 
     def packet_put(self, packet, addr, sock):
         """
@@ -654,6 +653,7 @@ class SCIONElement(object):
                 tcp_srv_sock.close()
             except queue.Empty:
                 break
+        # self._tcp_sock.close()  # It deadlock if accept() holds the lock
 
     def stop(self):
         """Shut down the daemon thread."""
