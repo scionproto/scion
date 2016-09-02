@@ -25,6 +25,7 @@ import uuid
 
 # SCION
 from lib.defines import DEFAULT_DISPATCHER_ID, DISPATCHER_DIR
+from lib.errors import SCIONIOError
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.svc import SVCType
@@ -218,14 +219,15 @@ class SCIONTCPSocket(object):
         if self._lwip_sock:
             self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
         else:
-            logging.warning("Sending via non-existing socket (_lwip_sock)")
+            logging.error("Sending via non-existing socket (_lwip_sock)")
+            raise SCIONIOError
 
     def _from_lwip(self):
         if self._lwip_sock:
             rep = get_lwip_reply(self._lwip_sock)
         else:
-            logging.warning("Reading from non-existing socket (_lwip_sock)")
-            rep = None
+            logging.error("Reading from non-existing socket (_lwip_sock)")
+            raise SCIONIOError
         if rep is None:
             replen = 0
         else:
@@ -337,5 +339,3 @@ class SCIONTCPSocket(object):
                 self._lwip_accept.close()
                 os.unlink(fname)
                 self._lwip_accept = None
-            else:
-                logging.warning("Closing non-existing socket (_lwip_accept)")
