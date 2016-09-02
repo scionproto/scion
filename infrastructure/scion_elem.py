@@ -524,17 +524,18 @@ class SCIONElement(object):
             logging.error("Cannot parse packet:\n%s" % packet)
             return None, None
         # Create metadata:
-        path = pkt.path
-        path.reverse()
-        if pkt.l4_hdr.TYPE == L4Proto.UDP:
-            meta = UDPMetadata.from_values(ia=pkt.addrs.src.isd_as,
-                                           host=pkt.addrs.src.host,
-                                           path=path, ext_hdrs=pkt.ext_hdrs,
-                                           port=pkt.l4_hdr.src_port)
-        elif pkt.l4_hdr.TYPE == L4Proto.SCMP:
-            meta = SCMPMetadata.from_values(ia=pkt.addrs.src.isd_as,
-                                            host=pkt.addrs.src.host,
-                                            path=path, ext_hdrs=pkt.ext_hdrs)
+        rev_pkt = pkt.reversed_copy()
+        if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
+            meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                           host=rev_pkt.addrs.dst.host,
+                                           path=rev_pkt.path,
+                                           ext_hdrs=rev_pkt.ext_hdrs,
+                                           port=rev_pkt.l4_hdr.dst_port)
+        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
+            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                            host=rev_pkt.addrs.dst.host,
+                                            path=rev_pkt.path,
+                                            ext_hdrs=rev_pkt.ext_hdrs)
         else:
             logging.error("Cannot create meta for: %s" % pkt)
             return None, None
