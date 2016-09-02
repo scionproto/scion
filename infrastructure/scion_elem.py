@@ -420,7 +420,7 @@ class SCIONElement(object):
             return
         self._local_sock.send(packet.pack(), (dst, dst_port))
 
-    def send_meta(self, pld, meta):
+    def send_meta(self, pld, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
             self._send_meta_tcp(pld, meta)
@@ -435,9 +435,9 @@ class SCIONElement(object):
 
         pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,
                                  meta.ia, pld, dst_port)
-        next_hop, port = self.get_first_hop(pkt)
-        logging.debug("Sending: %s to: %s:%s", pkt, next_hop, port)
-        self.send(pkt, next_hop, port)
+        if not next_hop_port:
+            next_hop_port = self.get_first_hop(pkt)
+        self.send(pkt, *next_hop_port)
 
     def _send_meta_tcp(self, pld, meta):
         if not meta.sock:
