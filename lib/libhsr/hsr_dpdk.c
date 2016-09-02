@@ -233,6 +233,7 @@ static inline uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t 
     ip_hdr->total_length   = rte_cpu_to_be_16(pkt_len);
     ip_hdr->src_addr = src_addr;
     ip_hdr->dst_addr = dst_addr;
+    ip_hdr->hdr_checksum = 0;
     ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
 
     return pkt_len;
