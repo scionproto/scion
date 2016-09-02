@@ -510,6 +510,7 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
     int count = 0;
 
     start_tsc = rte_rdtsc();
+    nb_ports = rte_eth_dev_count();
 
     while (count < min_packets) {
         /*
@@ -519,7 +520,7 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
         diff_tsc = cur_tsc - prev_tsc;
         if (unlikely(diff_tsc > drain_tsc)) {
             pthread_mutex_lock(&tx_mutex);
-            for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
+            for (portid = 0; portid < nb_ports; portid++) {
                 if (tx_mbufs[portid].len == 0)
                     continue;
                 dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
@@ -533,7 +534,6 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
          * NIC lcore
          * Read packet from RX queues
          */
-        nb_ports = rte_eth_dev_count();
         for (portid = 0; portid < nb_ports; portid++) {
             pthread_mutex_lock(&eth_mutex);
             nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
