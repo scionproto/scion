@@ -367,7 +367,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     for br in self.topology.get_all_border_routers():
                         meta = UDPMetadata.from_values(host=br.addr,
                                                        port=br.port)
-                        self.send_meta(pld.copy(), meta)
+                        self.send_meta(pld.copy(), meta, (br.addr, br.port))
 
     def run(self):
         """
@@ -628,13 +628,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.zk.have_lock():
             return
         rev_info = self._get_ht_proof(if_id)
-        logging.info("Issuing revocation for IF %d.", if_id)
+        logging.error("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
         for br in self.topology.get_all_border_routers():
             meta = UDPMetadata.from_values(host=br.addr, port=br.port)
-            self.send_meta(pld.copy(), meta)
+            self.send_meta(pld.copy(), meta, (br.addr, br.port))
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
 
@@ -786,4 +786,4 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.warning("No IF state info to put in response.")
             return
         payload = IFStatePayload.from_values(infos)
-        self.send_meta(payload, meta)
+        self.send_meta(payload, meta, (meta.host, meta.port))
