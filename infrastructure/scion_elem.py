@@ -212,13 +212,10 @@ class SCIONElement(object):
             logging.warning("handler not found: %s", pld)
             return
         try:
-            # SIBRA operates on parsed packets.
             logging.debug("Calling handler, meta:%s", meta)
+            # SIBRA operates on parsed packets.
             if pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
-                pkt = self._parse_packet(meta.packet)
-                if not pkt:
-                    return
-                handler(pkt)
+                handler(meta.pkt)
             else:
                 handler(pld, meta)
         except:
@@ -532,23 +529,23 @@ class SCIONElement(object):
             logging.error("Cannot parse packet:\n%s" % packet)
             return None, None
         # Create metadata:
-        rev_pkt = pkt.reversed_copy()
-        if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
-            meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
-                                           host=rev_pkt.addrs.dst.host,
-                                           path=rev_pkt.path,
-                                           ext_hdrs=rev_pkt.ext_hdrs,
-                                           port=rev_pkt.l4_hdr.dst_port)
-        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
-            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
-                                            host=rev_pkt.addrs.dst.host,
-                                            path=rev_pkt.path,
-                                            ext_hdrs=rev_pkt.ext_hdrs)
+        path = pkt.path
+        path.reverse()
+        if pkt.l4_hdr.TYPE == L4Proto.UDP:
+            meta = UDPMetadata.from_values(ia=pkt.addrs.src.isd_as,
+                                           host=pkt.addrs.src.host,
+                                           path=path, ext_hdrs=pkt.ext_hdrs,
+                                           port=pkt.l4_hdr.src_port)
+        elif pkt.l4_hdr.TYPE == L4Proto.SCMP:
+            meta = SCMPMetadata.from_values(ia=pkt.addrs.src.isd_as,
+                                            host=pkt.addrs.src.host,
+                                            path=path, ext_hdrs=pkt.ext_hdrs)
         else:
+            logging.error("Cannot create meta for: %s" % pkt)
             return None, None
 
-        # FIXME(PSz): this should be gone with python router:
-        meta.packet = packet
+        # FIXME(PSz): for now it is needed by SIBRA service.
+        meta.pkt = pkt
 
         pkt.parse_payload()
         return pkt.get_payload(), meta
