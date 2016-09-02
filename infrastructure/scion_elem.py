@@ -355,30 +355,33 @@ class SCIONElement(object):
         """
         Returns first hop addr of down-path or end-host addr.
         """
-        if_id = self._ext_first_hop(spkt)
+        return self._get_first_hop(spkt.path, spkt.addrs.dst, spkt.ext_hdrs)
+
+    def _get_first_hop(self, path, dst, ext_hdrs=()):
+        if_id = self._ext_first_hop(ext_hdrs)
         if if_id is None:
-            if len(spkt.path) == 0:
-                return self._empty_first_hop(spkt)
-            if_id = spkt.path.get_fwd_if()
+            if len(path) == 0:
+                return self._empty_first_hop(dst)
+            if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
             br = self.ifid2br[if_id]
             return br.addr, br.port
-        logging.error("Unable to find first hop:\n%s", spkt.path)
+        logging.error("Unable to find first hop:\n%s", path)
         return None, None
 
-    def _ext_first_hop(self, spkt):
-        for hdr in spkt.ext_hdrs:
+    def _ext_first_hop(self, ext_hdrs):
+        for hdr in ext_hdrs:
             if_id = hdr.get_next_ifid()
             if if_id is not None:
                 return if_id
 
-    def _empty_first_hop(self, spkt):
-        if spkt.addrs.src.isd_as != spkt.addrs.dst.isd_as:
-            logging.error("Packet has no path but different src/dst ASes")
-            logging.error(spkt)
+    def _empty_first_hop(self, dst):
+        if dst.isd_as != self.addr.isd_as:
+            logging.error("Packet to remote AS w/o path")
+            logging.error(dst)
             return None, None
-        host = spkt.addrs.dst.host
-        if spkt.addrs.dst.host.TYPE == AddrType.SVC:
+        host = dst.host
+        if host.TYPE == AddrType.SVC:
             host = self.dns_query_topo(SVC_TO_SERVICE[host.addr])[0][0]
         return host, SCION_UDP_EH_DATA_PORT
 
@@ -453,7 +456,7 @@ class SCIONElement(object):
         sock = SCIONTCPSocket()
         sock.bind((self.addr, 0))
         dst = meta.get_addr()
-        first_ip, first_port = self.get_first_hop2(meta.path, dst)
+        first_ip, first_port = self._get_first_hop(meta.path, dst)
         sock.connect(dst, meta.port, meta.path, first_ip, first_port)
         # Create and return TCPServerSocket
         return TCPServerSocket(sock, dst, meta.path)
@@ -472,23 +475,6 @@ class SCIONElement(object):
                 break
         if dropped > 0:
             logging.warning("%d TCP connection(s) dropped" % dropped)
-
-    def get_first_hop2(self, path, scion_addr):
-        if not len(path):
-            if scion_addr.isd_as != self.addr.isd_as:
-                logging.error("No path but different src/dst ASes")
-                return None, None
-            host = scion_addr.host
-            if host.TYPE == AddrType.SVC:
-                host = self.dns_query_topo(SVC_TO_SERVICE[host.addr])[0][0]
-            return host, SCION_UDP_EH_DATA_PORT
-
-        if_id = path.get_fwd_if()
-        if if_id in self.ifid2br:
-            br = self.ifid2br[if_id]
-            return br.addr, br.port
-        logging.error("Unable to find first hop:\n%s", path)
-        return None, None
 
     def run(self):
         """
