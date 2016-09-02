@@ -90,7 +90,7 @@ func GetPackets(pkts []*packet.Packet) ([]int, *util.Error) {
 	for i, pkt := range pkts {
 		InRPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&pkt.Raw[0]))
 	}
-	count := int(C.get_packets(unsafe.Pointer(&InRPkts), 1, C.int(len(pkts)), -1))
+	count := int(C.get_packets(unsafe.Pointer(&InRPkts), 20, C.int(len(pkts)), 10))
 	portIds := make([]int, count)
 	for i := 0; i < count; i++ {
 		p := pkts[i]
