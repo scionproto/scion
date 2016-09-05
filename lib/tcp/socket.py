@@ -174,7 +174,9 @@ class SCIONTCPSocket(object):
         if err_code:
             err_str = LWIPError.err2str(err_code)
             msg = "%s: (%d) %s" % (cmd, err_code, err_str)
-            if LWIPError.is_fatal(err_code):
+            if err_code in [LWIPError.ERR_CLSD, LWIPError.ERR_TIMEOUT]:
+                logging.debug(msg)
+            elif LWIPError.is_fatal(err_code):
                 logging.error(msg)
             else:
                 logging.warning(msg)
@@ -219,14 +221,14 @@ class SCIONTCPSocket(object):
         if self._lwip_sock:
             self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
         else:
-            logging.error("Sending via non-existing socket (_lwip_sock)")
+            logging.debug("Sending via non-existing socket (_lwip_sock)")
             raise SCIONIOError
 
     def _from_lwip(self):
         if self._lwip_sock:
             rep = get_lwip_reply(self._lwip_sock)
         else:
-            logging.error("Reading from non-existing socket (_lwip_sock)")
+            logging.debug("Reading from non-existing socket (_lwip_sock)")
             raise SCIONIOError
         if rep is None:
             replen = 0
@@ -334,7 +336,7 @@ class SCIONTCPSocket(object):
                 self._lwip_sock.close()
                 self._lwip_sock = None
             else:
-                logging.warning("Closing non-existing socket (_lwip_sock)")
+                logging.debug("Closing non-existing socket (_lwip_sock)")
             if self._lwip_accept:
                 fname = self._lwip_accept.getsockname()
                 self._lwip_accept.close()

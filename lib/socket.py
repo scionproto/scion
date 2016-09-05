@@ -392,7 +392,7 @@ class TCPServerSocket(object):
         except timeout:
             pass
         except (SCIONIOError, error):
-            logging.warning("TCP: calling close() after socket error")
+            logging.debug("TCP: calling close() after socket error")
             self.close()
         return self._get_pld(), self._get_meta()
 
@@ -400,7 +400,7 @@ class TCPServerSocket(object):
         try:
             self._sock.send(raw)
         except (SCIONIOError, error):
-            logging.warning("TCP: calling close() after socket error")
+            logging.debug("TCP: calling close() after socket error")
             self.close()
 
     def close(self):
