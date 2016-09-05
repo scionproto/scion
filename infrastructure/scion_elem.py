@@ -147,7 +147,7 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_socket(True)
         self._startup = time.time()
-        self.DefaultMeta = TCPMetadata
+        self.DefaultMeta = UDPMetadata
 
     def _setup_socket(self, init):
         """
@@ -201,11 +201,11 @@ class SCIONElement(object):
     def is_core_as(self, isd_as):
         return isd_as in self._core_ases[isd_as[0]]
 
-    def handle_msg_meta(self, pld, meta):
+    def handle_pld_meta(self, pld, meta):
         """
         Main routine to handle incoming SCION messages.
         """
-        logging.debug("handle_msg_meta() started: %s %s" % (pld, meta))
+        logging.debug("handle_pld_meta() started: %s %s" % (pld, meta))
 
         if isinstance(meta, SCMPMetadata):
             handler = self._get_scmp_handler(pld)
@@ -591,7 +591,7 @@ class SCIONElement(object):
         """
         while self.run_flag.is_set():
             try:
-                self.handle_msg_meta(*self._in_buf.get(timeout=1.0))
+                self.handle_pld_meta(*self._in_buf.get(timeout=1.0))
             except queue.Empty:
                 continue
 

@@ -659,7 +659,7 @@ class Router(SCIONElement):
         meta = RawMetadata.from_values(packet, addr, sock == self._local_sock)
         return packet, meta
 
-    def handle_msg_meta(self, msg, meta):
+    def handle_pld_meta(self, msg, meta):
         """
         Main routine to handle incoming SCION messages.
         """

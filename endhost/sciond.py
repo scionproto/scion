@@ -125,15 +125,15 @@ class SCIONDaemon(SCIONElement):
         else:
             return super()._get_pld_meta(packet, addr, sock)
 
-    def handle_msg_meta(self, msg, meta):
+    def handle_pld_meta(self, msg, meta):
         """
         Main routine to handle incoming SCION messages.
         """
         if isinstance(meta, ReliableSocket):  # From localhost (SCIONDaemon API)
             self.api_handle_request(msg, meta)
             return
-        logging.debug("handle_msg_meta()")
-        super().handle_msg_meta(msg, meta)
+        logging.debug("handle_pld_meta()")
+        super().handle_pld_meta(msg, meta)
 
     def handle_path_reply(self, path_reply, meta):
         """
