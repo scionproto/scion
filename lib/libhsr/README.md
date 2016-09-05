@@ -39,6 +39,12 @@ sudo ldconfig
 ```
 This will install the DPDK libraries into /usr/local/lib
 
+Add envvars to .profile so that they are set on login
+```
+echo "export RTE_SDK=$RTE_SDK" >> $HOME/.profile
+echo "export RTE_TARGET=$RTE_TARGET" >> $HOME/.profile
+```
+
 Setup DPDK drivers:
 ```
 echo 'ACTION=="add", SUBSYSTEM=="uio", GROUP="dpdk", MODE="0660"' | sudo tee /etc/udev/rules.d/99-uio.rules
@@ -49,12 +55,6 @@ sudo ln -sf ${RTE_SDK}/${RTE_TARGET}/kmod/igb_uio.ko /lib/modules/`uname -r`
 sudo ln -sf ${RTE_SDK}/${RTE_TARGET}/kmod/rte_kni.ko /lib/modules/`uname -r`
 sudo depmod -a
 sudo modprobe -a igb_uio rte_kni
-```
-
-Add envvars to .profile so that they are set on login
-```
-echo "export RTE_SDK=$RTE_SDK" >> $HOME/.profile
-echo "export RTE_TARGET=$RTE_TARGET" >> $HOME/.profile
 ```
 
 ## Network setup
