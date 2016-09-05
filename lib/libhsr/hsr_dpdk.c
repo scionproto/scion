@@ -1021,8 +1021,10 @@ static inline void handle_arp_update(const struct nlmsghdr *nlh)
                     inet_ntoa(*(struct in_addr *)ip));
             size_t i;
             for (i = 0; i < MAX_FORWARDING_ENTRIES; i++) {
-                if (!memcmp(forwarding_table[i].ip, ip, ADDR_IPV4_LEN))
+                if (!memcmp(forwarding_table[i].ip, ip, ADDR_IPV4_LEN)) {
                     ether_addr_copy(&e->mac, &forwarding_table[i].mac);
+                    forwarding_table[i].has_mac = 1;
+                }
             }
         }
     }
