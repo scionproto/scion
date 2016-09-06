@@ -111,6 +111,7 @@ func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *
 func (r *Router) readDPDKInput(q chan *packet.Packet) {
 	defer liblog.PanicLog()
 	pkts := make([]*packet.Packet, hsr.MaxPkts)
+	h := hsr.NewHSR()
 	for {
 		usedPortIdxs := make(map[int]bool)
 		pkts = pkts[:cap(pkts)]
@@ -120,7 +121,7 @@ func (r *Router) readDPDKInput(q chan *packet.Packet) {
 			}
 		}
 		start := time.Now()
-		portIds, err := hsr.GetPackets(pkts)
+		portIds, err := h.GetPackets(pkts)
 		duration := time.Now().Sub(start).Seconds()
 
 		if err != nil {
