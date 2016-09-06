@@ -390,7 +390,7 @@ class TCPServerSocket(object):
             read = self._sock.recv(self.RECV_SIZE)
             self._buf += read
         except timeout:
-            pass
+            return None, self._get_meta()
         except (SCIONIOError, error):
             logging.debug("TCP: calling close() after socket error")
             self.close()

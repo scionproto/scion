@@ -32,6 +32,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
+from lib.msg_meta import SockOnlyMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -121,7 +122,7 @@ class SCIONDaemon(SCIONElement):
 
     def _get_pld_meta(self, packet, addr, sock):
         if sock != self._local_sock:
-            return packet, sock  # API socket, pld is bytes and no meta needed.
+            return packet, SockOnlyMetadata.from_values(sock)  # API socket
         else:
             return super()._get_pld_meta(packet, addr, sock)
 
@@ -129,7 +130,7 @@ class SCIONDaemon(SCIONElement):
         """
         Main routine to handle incoming SCION messages.
         """
-        if isinstance(meta, ReliableSocket):  # From localhost (SCIONDaemon API)
+        if isinstance(meta, SockOnlyMetadata):  # From SCIOND API
             self.api_handle_request(msg, meta)
             return
         logging.debug("handle_pld_meta()")
@@ -180,7 +181,7 @@ class SCIONDaemon(SCIONElement):
             return pcb.first_ia()
         return None
 
-    def api_handle_request(self, packet, sock):
+    def api_handle_request(self, packet, meta):
         """
         Handle local API's requests.
         """
@@ -188,15 +189,15 @@ class SCIONDaemon(SCIONElement):
             logging.debug('API: path request')
             threading.Thread(
                 target=thread_safety_net,
-                args=(self._api_handle_path_request, packet, sock),
+                args=(self._api_handle_path_request, packet, meta),
                 daemon=True).start()
         elif packet[0] == 1:  # address request
             logging.debug('API: local ISD-AS request')
-            sock.send(self.addr.isd_as.pack())
+            self.send_meta(self.addr.isd_as.pack(), meta)
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
-    def _api_handle_path_request(self, packet, sock):
+    def _api_handle_path_request(self, packet, meta):
         """
         Path request:
           | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
@@ -233,7 +234,7 @@ class SCIONDaemon(SCIONElement):
                 isd_as, link = interface
                 reply.append(isd_as.pack())
                 reply.append(struct.pack("!H", link))
-        sock.send(b"".join(reply))
+        self.send_meta(b"".join(reply), meta)
 
     def handle_revocation(self, rev_info, meta):
         logging.debug("Received revocation:\n%s", rev_info)

@@ -153,7 +153,7 @@ class Router(SCIONElement):
         self._socks.add(self._remote_sock, self.handle_recv)
         logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
 
-    def _setup_socket(self, init=True):
+    def _setup_sockets(self, init=True):
         """
         Setup incoming socket
         """

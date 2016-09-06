@@ -47,8 +47,9 @@ from lib.errors import (
 )
 from lib.log import log_exception
 from lib.msg_meta import (
-    SCMPMetadata,
     MetadataBase,
+    SCMPMetadata,
+    SockOnlyMetadata,
     TCPMetadata,
     UDPMetadata,
 )
@@ -145,11 +146,11 @@ class SCIONElement(object):
         self.stopped_flag.clear()
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
-        self._setup_socket(True)
+        self._setup_sockets(True)
         self._startup = time.time()
-        self.DefaultMeta = UDPMetadata
+        self.DefaultMeta = TCPMetadata
 
-    def _setup_socket(self, init):
+    def _setup_sockets(self, init):
         """
         Setup incoming socket and register with dispatcher
         """
@@ -185,7 +186,7 @@ class SCIONElement(object):
                 logging.warning("TCP: Cannot connect to LWIP socket.")
             time.sleep(1)  # Wait for dispatcher
         else:
-            logging.error("TCP: cannot init TCP socket.")
+            logging.fatal("TCP: cannot init TCP socket.")
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
@@ -221,7 +222,7 @@ class SCIONElement(object):
                 handler(meta.pkt)
             else:
                 handler(pld, meta)
-        except:
+        except SCIONBaseError:
             log_exception("Error handling message:\n%s" % pld)
 
     def _get_handler(self, pkt):
@@ -380,8 +381,7 @@ class SCIONElement(object):
 
     def _empty_first_hop(self, dst):
         if dst.isd_as != self.addr.isd_as:
-            logging.error("Packet to remote AS w/o path")
-            logging.error(dst)
+            logging.error("Packet to remote AS w/o path, dst: %s", dst)
             return None, None
         host = dst.host
         if host.TYPE == AddrType.SVC:
@@ -426,8 +426,12 @@ class SCIONElement(object):
     def send_meta(self, pld, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
-            assert not next_hop_port
+            assert not next_hop_port, next_hop_port
             self._send_meta_tcp(pld, meta)
+            return
+        elif isinstance(meta, SockOnlyMetadata):
+            assert not next_hop_port, next_hop_port
+            meta.sock.send(pld)
             return
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
@@ -579,7 +583,7 @@ class SCIONElement(object):
         """
         while self.run_flag.is_set():
             if not self._local_sock:
-                self._setup_socket(False)
+                self._setup_sockets(False)
             for sock, callback in self._socks.select_(timeout=1.0):
                 callback(sock)
         self._socks.close()
@@ -603,7 +607,7 @@ class SCIONElement(object):
             target=thread_safety_net, args=(self._tcp_recv_loop,),
             name="Elem._tcp_recv_loop", daemon=True).start()
         if not self._tcp_sock:
-            logging.warning("TCP: accept socket is unset., port:%d", self._port)
+            logging.warning("TCP: accept socket is unset, port:%d", self._port)
             return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_accept_loop,),
@@ -649,9 +653,9 @@ class SCIONElement(object):
         while not self._tcp_conns.empty():
             try:
                 tcp_srv_sock = self._tcp_conns.get_nowait()
-                tcp_srv_sock.close()
             except queue.Empty:
                 break
+            tcp_srv_sock.close()  # FIXME(PSz)
 
     def stop(self):
         """Shut down the daemon thread."""

@@ -78,7 +78,7 @@ class TCPMetadata(MetadataBase):
         self.sock.close()
 
 
-class RawMetadata(object):
+class RawMetadata(MetadataBase):
     # FIXME(PSz): needed only by python router.
     def __init__(self):
         self.packet = None
@@ -91,4 +91,15 @@ class RawMetadata(object):
         inst.packet = packet
         inst.addr = addr
         inst.from_local_as = from_local_as
+        return inst
+
+
+class SockOnlyMetadata(MetadataBase):
+    def __init__(self):
+        self.sock = None
+
+    @classmethod
+    def from_values(cls, sock):
+        inst = SockOnlyMetadata()
+        inst.sock = sock
         return inst
