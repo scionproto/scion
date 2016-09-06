@@ -74,27 +74,31 @@ func Finish() {
 	C.zlog_fini()
 }
 
-var InRPkts [MaxPkts]C.RouterPacket
-
-func init() {
-	for i := range InRPkts {
-		InRPkts[i].src = &C.saddr_storage{}
-		InRPkts[i].dst = &C.saddr_storage{}
-	}
+type HSR struct {
+	InPkts [MaxPkts]C.RouterPacket
 }
 
-func GetPackets(pkts []*packet.Packet) ([]int, *util.Error) {
+func NewHSR() *HSR {
+	h := HSR{}
+	for i := range h.InPkts {
+		h.InPkts[i].src = &C.saddr_storage{}
+		h.InPkts[i].dst = &C.saddr_storage{}
+	}
+	return &h
+}
+
+func (h *HSR) GetPackets(pkts []*packet.Packet) ([]int, *util.Error) {
 	if len(pkts) > MaxPkts {
 		return nil, util.NewError("Too many packets requested", "max", MaxPkts, "actual", len(pkts))
 	}
 	for i, pkt := range pkts {
-		InRPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&pkt.Raw[0]))
+		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&pkt.Raw[0]))
 	}
-	count := int(C.get_packets(unsafe.Pointer(&InRPkts), 20, C.int(len(pkts)), 10))
+	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), 20, C.int(len(pkts)), 10))
 	portIds := make([]int, count)
 	for i := 0; i < count; i++ {
 		p := pkts[i]
-		r := InRPkts[i]
+		r := h.InPkts[i]
 		p.Raw = p.Raw[:int(r.buflen)]
 		p.Ingress.Src = &net.UDPAddr{}
 		if err := saddrToUDPAddr(p.Ingress.Src, r.src); err != nil {
