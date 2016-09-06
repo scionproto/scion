@@ -27,6 +27,7 @@ from collections import defaultdict
 # SCION
 from lib.config import Config
 from lib.crypto.hash_tree import ConnectedHashTree
+from lib.errors import SCIONParseError
 from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
@@ -48,7 +49,6 @@ from lib.errors import (
 from lib.log import log_exception
 from lib.msg_meta import (
     MetadataBase,
-    SCMPMetadata,
     SockOnlyMetadata,
     TCPMetadata,
     UDPMetadata,
@@ -80,7 +80,7 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.socket import ReliableSocket, SocketMgr, TCPServerSocket
+from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt, error, timeout
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
@@ -208,10 +208,7 @@ class SCIONElement(object):
         """
         logging.debug("handle_pld_meta() started: %s %s" % (pld, meta))
 
-        if isinstance(meta, SCMPMetadata):
-            handler = self._get_scmp_handler(pld)
-        else:
-            handler = self._get_ctrl_handler(pld)
+        handler = self._get_ctrl_handler(pld)
         if not handler:
             logging.warning("handler not found: %s", pld)
             return
@@ -435,8 +432,6 @@ class SCIONElement(object):
             return
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
-        elif isinstance(meta, SCMPMetadata):
-            dst_port = 0
         else:
             logging.error("Unsupported metadata for:\n%s" % meta.__name__)
             return
@@ -449,12 +444,12 @@ class SCIONElement(object):
 
     def _send_meta_tcp(self, pld, meta):
         if not meta.sock:
-            tcp_srv_sock = self._tcp_srv_sock_from_meta(meta)
-            meta.sock = tcp_srv_sock
-            self._tcp_conns_put(tcp_srv_sock)
+            tcp_sock = self._tcp_sock_from_meta(meta)
+            meta.sock = tcp_sock
+            self._tcp_conns_put(tcp_sock)
         meta.sock.send_msg(pld.pack_full())
 
-    def _tcp_srv_sock_from_meta(self, meta):
+    def _tcp_sock_from_meta(self, meta):
         assert meta.host
         if meta.ia is None:
             meta.ia = self.addr.isd_as
@@ -466,8 +461,8 @@ class SCIONElement(object):
         dst = meta.get_addr()
         first_ip, first_port = self._get_first_hop(meta.path, dst)
         sock.connect(dst, meta.port, meta.path, first_ip, first_port)
-        # Create and return TCPServerSocket
-        return TCPServerSocket(sock, dst, meta.path)
+        # Create and return TCPSocketWrapper
+        return TCPSocketWrapper(sock, dst, meta.path)
 
     def _tcp_conns_put(self, sock):
         dropped = 0
@@ -539,11 +534,6 @@ class SCIONElement(object):
                                            path=rev_pkt.path,
                                            ext_hdrs=rev_pkt.ext_hdrs,
                                            port=rev_pkt.l4_hdr.dst_port)
-        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
-            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
-                                            host=rev_pkt.addrs.dst.host,
-                                            path=rev_pkt.path,
-                                            ext_hdrs=rev_pkt.ext_hdrs)
         else:
             logging.error("Cannot create meta for: %s" % pkt)
             return None, None
@@ -551,7 +541,11 @@ class SCIONElement(object):
         # FIXME(PSz): for now it is needed by SIBRA service.
         meta.pkt = pkt
 
-        pkt.parse_payload()
+        try:
+            pkt.parse_payload()
+        except SCIONParseError:
+            logging.error("Cannot parse payload of: %s" % pkt)
+            return None, meta
         return pkt.get_payload(), meta
 
     def handle_accept(self, sock):
@@ -617,7 +611,7 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             try:
                 logging.debug("TCP: waiting for connections")
-                self._tcp_conns_put(TCPServerSocket(*self._tcp_sock.accept()))
+                self._tcp_conns_put(TCPSocketWrapper(*self._tcp_sock.accept()))
                 logging.debug("TCP: accepted connection")
             except timeout:
                 pass
@@ -631,20 +625,21 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
             try:
-                tcp_srv_sock = self._tcp_conns.get(timeout=1.0)
+                tcp_sock = self._tcp_conns.get(timeout=1.0)
             except queue.Empty:
                 continue
-            if not tcp_srv_sock.active:
+            if not tcp_sock.active:
                 logging.debug("TCP: Not active, dropping")
                 continue  # Do not put it into the queue.
 
-            pld, meta = tcp_srv_sock.get_pld_meta()
+            pld, meta = tcp_sock.get_pld_meta()
             if pld:
                 logging.debug("received\n%s", pld)
                 self._in_buf_put((pld, meta))
-            logging.debug("TCP: Active: %s", tcp_srv_sock.active)
-            if tcp_srv_sock.active:
-                self._tcp_conns_put(tcp_srv_sock)
+            logging.debug("TCP: Active: %s", tcp_sock.active)
+            if tcp_sock.active:
+                self._tcp_conns_put(tcp_sock)
+        #close here
 
     def _tcp_clean(self):
         if not self._tcp_sock:
@@ -652,10 +647,10 @@ class SCIONElement(object):
         # Close all TCP sockets.
         while not self._tcp_conns.empty():
             try:
-                tcp_srv_sock = self._tcp_conns.get_nowait()
+                tcp_sock = self._tcp_conns.get_nowait()
             except queue.Empty:
                 break
-            tcp_srv_sock.close()  # FIXME(PSz)
+            tcp_sock.close()  # FIXME(PSz)
 
     def stop(self):
         """Shut down the daemon thread."""

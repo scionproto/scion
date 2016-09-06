@@ -26,15 +26,17 @@ class MetadataBase(object):
         self.ia = None
         self.host = None
         self.path = None  # Ready for sending (i.e., in correct direction)
+        self.port = 0
         self.ext_hdr = ()
 
     @classmethod
-    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=()):
+    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
         inst = cls()
         inst.ia = ia
         inst.host = host
         inst.path = path
         inst.ext_hdrs = ext_hdrs
+        inst.port = port
         return inst
 
     def get_addr(self):
@@ -44,22 +46,11 @@ class MetadataBase(object):
         pass
 
 
-class SCMPMetadata(MetadataBase):
-    """
-    Class for SCMP message metadata
-    """
-    pass
-
-
 class UDPMetadata(MetadataBase):
     """
     Class for UDP message metadata
     """
-    @classmethod
-    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
-        inst = super().from_values(ia, host, path, ext_hdrs)
-        inst.port = port
-        return inst
+    pass
 
 
 class TCPMetadata(MetadataBase):
@@ -69,8 +60,7 @@ class TCPMetadata(MetadataBase):
     @classmethod
     def from_values(cls, ia=None, host=None, path=None,
                     ext_hdrs=(), port=0, sock=None):
-        inst = super().from_values(ia, host, path, ext_hdrs)
-        inst.port = port
+        inst = super().from_values(ia, host, path, ext_hdrs, port)
         inst.sock = sock
         return inst
 

@@ -348,14 +348,14 @@ class SocketMgr(object):
         self._sel.close()
 
 
-class TCPServerSocket(object):
+class TCPSocketWrapper(object):
     """
     Base class for accepted and connected TCP sockets used by SCION services.
     """
-    RECV_SIZE = 1024
+    RECV_SIZE = 8092
 
     def __init__(self, sock, addr, path):
-        self._buf = b""
+        self._buf = bytearray()
         self._sock = sock
         self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
@@ -371,7 +371,7 @@ class TCPServerSocket(object):
         if len(self._buf) < 4:
             return None
         msg_len = struct.unpack("!I", self._buf[:4])[0]
-        if len(self._buf) - 4 < msg_len:
+        if msg_len + 4 > len(self._buf):
             return None
         msg = self._buf[4:4 + msg_len]
         self._buf = self._buf[4 + msg_len:]
