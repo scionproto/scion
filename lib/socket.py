@@ -404,6 +404,6 @@ class TCPSocketWrapper(object):
             self.close()
 
     def close(self):
-        self._sock.close()
+        self._sock.close() #FIXME
         self.active = False
         logging.debug("Leaving close()")

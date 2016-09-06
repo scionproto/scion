@@ -38,6 +38,7 @@ from lib.defines import (
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TCP_ACCEPT_POLLING_TOUT,
+    TCP_TIMEOUT,
     TOPO_FILE,
 )
 from lib.errors import (
@@ -622,24 +623,35 @@ class SCIONElement(object):
         self._tcp_sock.close()
 
     def _tcp_recv_loop(self):
+        active_conns = {}
         while self.run_flag.is_set():
+            # Get new connections.
             logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
             try:
-                tcp_sock = self._tcp_conns.get(timeout=1.0)
+                active_conns[self._tcp_conns.get_nowait()] = time.time()
             except queue.Empty:
-                continue
-            if not tcp_sock.active:
-                logging.debug("TCP: Not active, dropping")
-                continue  # Do not put it into the queue.
-
-            pld, meta = tcp_sock.get_pld_meta()
-            if pld:
-                logging.debug("received\n%s", pld)
-                self._in_buf_put((pld, meta))
-            logging.debug("TCP: Active: %s", tcp_sock.active)
-            if tcp_sock.active:
-                self._tcp_conns_put(tcp_sock)
-        #close here
+                pass
+            # Handle active connections.
+            to_remove = []
+            for tcp_sock in active_conns:
+                pld, meta = tcp_sock.get_pld_meta()
+                if pld:
+                    self._in_buf_put((pld, meta))
+                    active_conns[tcp_sock] = time.time()
+                idle = time.time() - active_conns[tcp_sock]
+                if idle > TCP_TIMEOUT or not tcp_sock.active:
+                    to_remove.append(tcp_sock)
+                logging.debug("TCP: Active: %s", tcp_sock.active)
+            # Remove inactive connections.
+            for tcp_sock in to_remove:
+                tcp_sock.close()
+                del active_conns[tcp_sock]
+            # Don't consume too much CPU.
+            if not self._tcp_conns.qsize() and not len(active_conns):
+                time.sleep(0.05)
+        # Is not running anymore.
+        for tcp_sock in active_conns:
+            tcp_sock.close()
 
     def _tcp_clean(self):
         if not self._tcp_sock:
@@ -650,7 +662,7 @@ class SCIONElement(object):
                 tcp_sock = self._tcp_conns.get_nowait()
             except queue.Empty:
                 break
-            tcp_sock.close()  # FIXME(PSz)
+            tcp_sock.close()
 
     def stop(self):
         """Shut down the daemon thread."""
