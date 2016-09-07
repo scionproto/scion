@@ -41,14 +41,18 @@ from external import ipaddress
 # SCION
 from lib.defines import SCION_BUFLEN, TCP_RECV_POLLING_TOUT
 from lib.dispatcher import reg_dispatcher
-from lib.errors import SCIONBaseError, SCIONIOError
+from lib.errors import (
+    SCIONBaseError,
+    SCIONIOError,
+    SCIONTCPError,
+    SCIONTCPTimeout,
+)
 from lib.log import log_exception
 from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
 from lib.packet.scion import msg_from_raw
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
-from lib.tcp.socket import error, timeout
 from lib.thread import kill_self
 from lib.types import AddrType
 from lib.util import hex_str
@@ -392,9 +396,9 @@ class TCPSocketWrapper(object):
             with self._lock:
                 read = self._sock.recv(self.RECV_SIZE)
             self._buf += read
-        except timeout:
+        except SCIONTCPTimeout:
             return None, self._get_meta()
-        except (SCIONIOError, error):
+        except SCIONTCPError:
             logging.debug("TCP: calling close() after socket error")
             self.close()
         return self._get_msg(), self._get_meta()
@@ -403,11 +407,14 @@ class TCPSocketWrapper(object):
         try:
             with self._lock:
                 self._sock.send(raw)
-        except (SCIONIOError, error):
+        except SCIONTCPError:
             logging.debug("TCP: calling close() after socket error")
             self.close()
 
     def close(self):
-        self._sock.close() #FIXME
+        try:
+            self._sock.close()
+        except SCIONTCPError as e:
+            logging.warning("Error on close(): %s", e)
         self.active = False
         logging.debug("Leaving close()")

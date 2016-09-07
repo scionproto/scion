@@ -44,7 +44,8 @@ from lib.defines import (
 from lib.errors import (
     SCIONBaseError,
     SCIONChecksumFailed,
-    SCIONIOError,
+    SCIONTCPError,
+    SCIONTCPTimeout,
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
@@ -82,7 +83,7 @@ from lib.packet.scmp.errors import (
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
-from lib.tcp.socket import SCIONTCPSocket, SockOpt, error, timeout
+from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net
 from lib.trust_store import TrustStore
 from lib.types import AddrType, L4Proto, PayloadClass
@@ -182,8 +183,7 @@ class SCIONElement(object):
                 self._tcp_sock.bind((self.addr, self._port), svc=svc)
                 self._tcp_sock.listen()
                 break
-            except (FileNotFoundError, ConnectionResetError,
-                    ConnectionRefusedError):
+            except SCIONTCPError:
                 logging.warning("TCP: Cannot connect to LWIP socket.")
             time.sleep(1)  # Wait for dispatcher
         else:
@@ -614,9 +614,9 @@ class SCIONElement(object):
                 logging.debug("TCP: waiting for connections")
                 self._tcp_conns_put(TCPSocketWrapper(*self._tcp_sock.accept()))
                 logging.debug("TCP: accepted connection")
-            except timeout:
+            except SCIONTCPTimeout:
                 pass
-            except (SCIONIOError, error):
+            except SCIONTCPError:
                 log_exception("TCP: error on accept()")
                 logging.error("TCP: leaving the accept loop")
                 break
