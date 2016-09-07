@@ -365,7 +365,7 @@ class TCPSocketWrapper(object):
         self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.active = True
 
     def _get_meta(self):
@@ -389,32 +389,33 @@ class TCPSocketWrapper(object):
             return None
 
     def get_msg_meta(self):
-        msg = self._get_msg()
-        if msg:
-            return msg, self._get_meta()
-        try:
-            with self._lock:
+        with self._lock:
+            msg = self._get_msg()
+            if msg:
+                return msg, self._get_meta()
+            try:
                 read = self._sock.recv(self.RECV_SIZE)
-            self._buf += read
-        except SCIONTCPTimeout:
-            return None, self._get_meta()
-        except SCIONTCPError:
-            logging.debug("TCP: calling close() after socket error")
-            self.close()
-        return self._get_msg(), self._get_meta()
+                self._buf += read
+            except SCIONTCPTimeout:
+                return None, self._get_meta()
+            except SCIONTCPError:
+                logging.debug("TCP: calling close() after socket error")
+                self.close()
+            return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
-        try:
-            with self._lock:
+        with self._lock:
+            try:
                 self._sock.send(raw)
-        except SCIONTCPError:
-            logging.debug("TCP: calling close() after socket error")
-            self.close()
+            except SCIONTCPError:
+                logging.debug("TCP: calling close() after socket error")
+                self.close()
 
     def close(self):
-        try:
-            self._sock.close()
-        except SCIONTCPError as e:
-            logging.warning("Error on close(): %s", e)
-        self.active = False
-        logging.debug("Leaving close()")
+        with self._lock:
+            try:
+                self._sock.close()
+            except SCIONTCPError as e:
+                logging.warning("Error on close(): %s", e)
+            self.active = False
+            logging.debug("Leaving close()")

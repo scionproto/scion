@@ -628,9 +628,14 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             if not active_conns:
                 # Have nothing to do, so block until another connection comes in
-                active_conns[self._tcp_conns.get()] = time.time()
+                tcp_sock = self._tcp_conns.get()
+                active_conns[tcp_sock] = time.time()
+            logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
             while not self._tcp_conns.empty():
-                active_conns[self._tcp_conns.get()] = time.time()
+                try:
+                    active_conns[self._tcp_conns.get_nowait()] = time.time()
+                except queue.Empty:
+                    pass
             # Handle active connections.
             to_remove = []
             for tcp_sock in active_conns:
