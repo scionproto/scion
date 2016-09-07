@@ -625,6 +625,9 @@ class SCIONElement(object):
     def _tcp_recv_loop(self):
         active_conns = {}
         while self.run_flag.is_set():
+            # Don't consume too much CPU.
+            while self._tcp_conns.empty() and not len(active_conns):
+                time.sleep(0.15)
             # Get new connections.
             logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
             try:
@@ -646,9 +649,6 @@ class SCIONElement(object):
             for tcp_sock in to_remove:
                 tcp_sock.close()
                 del active_conns[tcp_sock]
-            # Don't consume too much CPU.
-            if not self._tcp_conns.qsize() and not len(active_conns):
-                time.sleep(0.05)
         # Is not running anymore.
         for tcp_sock in active_conns:
             tcp_sock.close()
