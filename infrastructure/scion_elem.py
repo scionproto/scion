@@ -150,7 +150,7 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_sockets(True)
         self._startup = time.time()
-        self.DefaultMeta = TCPMetadata
+        self.DefaultMeta = UDPMetadata
 
     def _setup_sockets(self, init):
         """
