@@ -37,14 +37,12 @@ from infrastructure.router.errors import (
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import (
     BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
     MAX_HOPBYHOP_EXT,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SIBRA_SERVICE,
 )
 from lib.errors import (
     SCIONBaseError,
@@ -71,7 +69,6 @@ from lib.packet.scmp.errors import (
     SCMPError,
     SCMPExpiredHOF,
     SCMPNonRoutingHOF,
-    SCMPPathRequired,
     SCMPTooManyHopByHop,
     SCMPUnknownHost,
 )
@@ -84,7 +81,6 @@ from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
-    L4Proto,
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
@@ -135,13 +131,9 @@ class Router(SCIONElement):
             "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
                              self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.PCB: {None: self.handle_data},
             PayloadClass.IFID: {None: self.process_ifid_request},
-            PayloadClass.CERT: defaultdict(
-                lambda: self.relay_cert_server_packet),
             PayloadClass.PATH: defaultdict(
                 lambda: self.process_path_mgmt_packet),
-            PayloadClass.SIBRA: {None: self.fwd_sibra_service_pkt},
         }
         self.SCMP_PLD_CLASS_MAP = {
             SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.process_revocation},
@@ -339,41 +331,6 @@ class Router(SCIONElement):
         addrs = self.dns_query_topo(service)
         addrs.sort()  # To not rely on order of DNS replies.
         return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)][0]
-
-    def relay_cert_server_packet(self, spkt, from_local_as):
-        """
-        Relay packets for certificate servers.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param bool from_local_as:
-            whether or not the packet is from the local AS.
-        """
-        if from_local_as:
-            addr = self.interface.to_addr
-            port = self.interface.to_udp_port
-        else:
-            try:
-                addr = self.get_srv_addr(CERTIFICATE_SERVICE, spkt)
-            except SCIONServiceLookupError as e:
-                logging.error("Unable to deliver cert packet: %s", e)
-                raise SCMPUnknownHost
-            port = SCION_UDP_EH_DATA_PORT
-        self.send(spkt, addr, port)
-
-    def fwd_sibra_service_pkt(self, spkt, _):
-        """
-        Forward SIBRA service packets to a SIBRA server.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        """
-        try:
-            addr = self.get_srv_addr(SIBRA_SERVICE, spkt)
-        except SCIONServiceLookupError as e:
-            logging.error("Unable to deliver sibra service packet: %s", e)
-            raise SCMPUnknownHost
-        self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def process_path_mgmt_packet(self, mgmt_pkt, from_local_as):
         """
@@ -582,24 +539,10 @@ class Router(SCIONElement):
         return path.get_fwd_if(), incd
 
     def _needs_local_processing(self, pkt):
-        if not pkt.l4_hdr or pkt.l4_hdr.TYPE == L4Proto.TCP:
-            return False
-        if len(pkt.path) == 0:
-            if pkt.addrs.dst.host.TYPE == AddrType.SVC:
-                # Always process packets with SVC destinations and no path
-                return True
-            elif pkt.addrs.dst in [
-                self.addr,
-                SCIONAddr.from_values(self.addr.isd_as, self.interface.addr),
-            ]:
-                # Destination is this this router.
-                return True
-            raise SCMPPathRequired
-        if (pkt.addrs.dst.isd_as == self.addr.isd_as and
-                pkt.addrs.dst.host.TYPE == AddrType.SVC):
-            # Destination is a local SVC address.
-            return True
-        return False
+        return pkt.addrs.dst in [
+            self.addr,
+            SCIONAddr.from_values(self.addr.isd_as, self.interface.addr),
+        ]
 
     def _process_flags(self, flags, pkt, from_local_as):
         """
