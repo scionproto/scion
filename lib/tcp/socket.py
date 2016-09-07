@@ -130,16 +130,14 @@ def get_lwip_reply(sock):
     try:
         raw_len = recv_all(sock, PLD_SIZE, 0)
     except OSError as e:
-        logging.critical("Cannot read from LWIP's socket: %s", e)
-        raise SCIONTCPError("Cannot read from LWIP's socket")
+        raise SCIONTCPError("Cannot read from LWIP's socket: %s", e)
     if not raw_len:
         return None
     pld_len, = struct.unpack("H", raw_len)
     try:
         return recv_all(sock, RESP_SIZE + pld_len, 0)
     except OSError as e:
-        logging.critical("Cannot read from LWIP's socket: %s", e)
-        raise SCIONTCPError("Cannot read from LWIP's socket")
+        raise SCIONTCPError("Cannot read from LWIP's socket: %s", e)
 
 
 class SCIONTCPSocket(object):
@@ -154,8 +152,7 @@ class SCIONTCPSocket(object):
             try:
                 self._create_socket()
             except OSError as e:
-                logging.error("Cannot create new socket: %s", e)
-                raise SCIONTCPError("Cannot create new socket.")
+                raise SCIONTCPError("Cannot create new socket: %s", e)
 
     def setsockopt(self, opt):
         req = APICmd.SET_OPT + struct.pack("H", opt)
@@ -172,7 +169,6 @@ class SCIONTCPSocket(object):
 
     def _handle_reply(self, cmd, reply):
         if reply is None or len(reply) < RESP_SIZE or cmd != reply[:CMD_SIZE]:
-            logging.error("%s: incorrect reply: %s" % (cmd, reply))
             raise SCIONTCPError("%s: incorrect reply: %s" % (cmd, reply))
         err_code, = struct.unpack("b", reply[RESP_SIZE-1:RESP_SIZE])
         if err_code:
@@ -226,17 +222,14 @@ class SCIONTCPSocket(object):
             try:
                 self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
             except OSError as e:
-                logging.critical("Cannot send via _lwip_sock: %s", e)
-                raise SCIONTCPError("Cannot send via _lwip_sock")
+                raise SCIONTCPError("Cannot send via _lwip_sock: %s", e)
         else:
-            logging.debug("Sending via non-existing socket (_lwip_sock)")
             raise SCIONTCPError("Sending via non-existing socket (_lwip_sock)")
 
     def _from_lwip(self):
         if self._lwip_sock:
             rep = get_lwip_reply(self._lwip_sock)
         else:
-            logging.debug("Reading from non-existing socket (_lwip_sock)")
             raise SCIONTCPError("Reading from non-existing socket (_lwip_sock)")
         if rep is None:
             replen = 0
@@ -299,7 +292,6 @@ class SCIONTCPSocket(object):
         # of msg if it is sent, or throws exception otherwise.  Thus it might be
         # safer to use it with smaller msgs.
         if len(msg) > MAX_MSG_LEN:
-            logging.error("send() msg too long: %d" % len(msg))
             raise SCIONTCPError("send() msg too long: %d" % len(msg))
 
         start = 0
