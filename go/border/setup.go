@@ -15,20 +15,17 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"path/filepath"
-	"runtime"
-	"strings"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/border/path"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -39,6 +36,14 @@ const (
 )
 
 const ZlogConf = "zlog.conf"
+
+type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
+	packet.HookResult, *util.Error)
+type setupAddExtHook func(r *Router, intf *netconf.Interface, labels prometheus.Labels) (
+	packet.HookResult, *util.Error)
+
+var setupAddLocalHooks []setupAddLocalHook
+var setupAddExtHooks []setupAddExtHook
 
 func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]packet.OutputFunc)
@@ -57,65 +62,66 @@ func (r *Router) setup(confDir string) *util.Error {
 }
 
 func (r *Router) setupNet() *util.Error {
-	dpdkIPMap := make(map[string]bool)
-	for _, ip := range strings.Split(*dpdkIPs, ",") {
-		dpdkIPMap[ip] = true
-	}
+	// If there are other hooks, they should install themselves via init(), so
+	// they appear before the posix ones.
+	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
+	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
 	var addrs []string
-	var dpdkAddrMs []hsr.AddrMeta
 	for i, a := range conf.C.Net.LocAddr {
-		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
-		bind := a.BindAddr()
-		_, dpdk := dpdkIPMap[bind.IP.String()]
-		if dpdk {
-			dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{GoAddr: bind,
-				DirFrom: packet.DirLocal, Labels: labels})
-		} else if err := a.Listen(); err != nil {
-			return util.NewError(ErrorListenLocal, "err", err)
-		}
 		addrs = append(addrs, a.BindAddr().String())
-		if dpdk {
-			r.locOutFs[i] = func(p *packet.Packet) {
-				r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
+		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
+		for _, f := range setupAddLocalHooks {
+			ret, err := f(r, i, a, labels)
+			switch {
+			case err != nil:
+				return err
+			case ret == packet.HookContinue:
+				continue
+			case ret == packet.HookFinish:
+				break
 			}
-		} else {
-			q := make(chan *packet.Packet)
-			r.inQs = append(r.inQs, q)
-			go r.readPosixInput(a.Conn, packet.DirLocal, labels, q)
-			r.locOutFs[i] = func(p *packet.Packet) { r.writeLocalOutput(a.Conn, labels, p) }
 		}
 	}
 	metrics.Export(addrs)
-	for _, a := range conf.C.Net.IFs {
-		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", a.Id)}
-		bind := a.IFAddr.BindAddr()
-		_, dpdk := dpdkIPMap[bind.IP.String()]
-		if dpdk {
-			dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{
-				GoAddr: bind, DirFrom: packet.DirExternal, Labels: labels})
-		} else if err := a.IFAddr.Connect(a.RemoteAddr); err != nil {
-			return util.NewError(ErrorListenExternal, "err", err)
-		}
-		if dpdk {
-			r.intfOutFs[a.Id] = func(p *packet.Packet) {
-				r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
+	for _, intf := range conf.C.Net.IFs {
+		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", intf.Id)}
+		for _, f := range setupAddExtHooks {
+			ret, err := f(r, intf, labels)
+			switch {
+			case err != nil:
+				return err
+			case ret == packet.HookContinue:
+				continue
+			case ret == packet.HookFinish:
+				break
 			}
-		} else {
-			q := make(chan *packet.Packet)
-			r.inQs = append(r.inQs, q)
-			go r.readPosixInput(a.IFAddr.Conn, packet.DirExternal, labels, q)
-			r.intfOutFs[a.Id] = func(p *packet.Packet) {
-				r.writeIntfOutput(a.IFAddr.Conn, labels, p)
-			}
-		}
-	}
-	if len(dpdkAddrMs) > 0 {
-		hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), dpdkAddrMs)
-		for i := 0; i < runtime.NumCPU(); i++ {
-			q := make(chan *packet.Packet)
-			r.inQs = append(r.inQs, q)
-			go r.readDPDKInput(q)
 		}
 	}
 	return nil
+}
+
+func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
+	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	if err := over.Listen(); err != nil {
+		return packet.HookError, util.NewError(ErrorListenLocal, "err", err)
+	}
+	q := make(chan *packet.Packet)
+	r.inQs = append(r.inQs, q)
+	go r.readPosixInput(over.Conn, packet.DirLocal, labels, q)
+	r.locOutFs[idx] = func(p *packet.Packet) { r.writeLocalOutput(over.Conn, labels, p) }
+	return packet.HookFinish, nil
+}
+
+func setupPosixAddExt(r *Router, intf *netconf.Interface,
+	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
+		return packet.HookError, util.NewError(ErrorListenExternal, "err", err)
+	}
+	q := make(chan *packet.Packet)
+	r.inQs = append(r.inQs, q)
+	go r.readPosixInput(intf.IFAddr.Conn, packet.DirExternal, labels, q)
+	r.intfOutFs[intf.Id] = func(p *packet.Packet) {
+		r.writeIntfOutput(intf.IFAddr.Conn, labels, p)
+	}
+	return packet.HookFinish, nil
 }
