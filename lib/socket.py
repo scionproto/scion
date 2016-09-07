@@ -33,6 +33,7 @@ from socket import (
     SO_REUSEADDR,
     socket,
 )
+import threading
 
 # External
 from external import ipaddress
@@ -44,7 +45,7 @@ from lib.errors import SCIONBaseError, SCIONIOError
 from lib.log import log_exception
 from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
-from lib.packet.scion import pld_from_raw
+from lib.packet.scion import msg_from_raw
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
 from lib.tcp.socket import error, timeout
@@ -360,6 +361,7 @@ class TCPSocketWrapper(object):
         self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
+        self._lock = threading.Lock()
         self.active = True
 
     def _get_meta(self):
@@ -367,7 +369,7 @@ class TCPSocketWrapper(object):
                                        host=self._addr.host, path=self._path,
                                        sock=self)
 
-    def _get_pld(self):
+    def _get_msg(self):
         if len(self._buf) < 4:
             return None
         msg_len = struct.unpack("!I", self._buf[:4])[0]
@@ -376,29 +378,31 @@ class TCPSocketWrapper(object):
         msg = self._buf[4:4 + msg_len]
         self._buf = self._buf[4 + msg_len:]
         try:
-            return pld_from_raw(msg)
+            return msg_from_raw(msg)
         except SCIONBaseError:
             log_exception("Error parsing message: %s" % hex_str(msg),
                           level=logging.ERROR)
             return None
 
-    def get_pld_meta(self):
-        pld = self._get_pld()
-        if pld:
-            return pld, self._get_meta()
+    def get_msg_meta(self):
+        msg = self._get_msg()
+        if msg:
+            return msg, self._get_meta()
         try:
-            read = self._sock.recv(self.RECV_SIZE)
+            with self._lock:
+                read = self._sock.recv(self.RECV_SIZE)
             self._buf += read
         except timeout:
             return None, self._get_meta()
         except (SCIONIOError, error):
             logging.debug("TCP: calling close() after socket error")
             self.close()
-        return self._get_pld(), self._get_meta()
+        return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
         try:
-            self._sock.send(raw)
+            with self._lock:
+                self._sock.send(raw)
         except (SCIONIOError, error):
             logging.debug("TCP: calling close() after socket error")
             self.close()

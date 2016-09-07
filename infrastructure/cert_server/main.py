@@ -33,7 +33,7 @@ from lib.packet.cert_mgmt import (
     TRCReply,
     TRCRequest,
 )
-from lib.packet.scion import pld_from_raw
+from lib.packet.scion import msg_from_raw
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
@@ -119,7 +119,7 @@ class CertServer(SCIONElement):
         Handles cached (through ZK) TRCs and Cert Chains.
         """
         for entry in raw_entries:
-            payload = pld_from_raw(entry)
+            payload = msg_from_raw(entry)
             if isinstance(payload, CertChainReply):
                 self.process_cert_chain_reply(payload, None, from_zk=True)
             elif isinstance(payload, TRCReply):

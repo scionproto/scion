@@ -120,21 +120,21 @@ class SCIONDaemon(SCIONElement):
         logging.debug("sciond started with api_addr = %s", inst.api_addr)
         return inst
 
-    def _get_pld_meta(self, packet, addr, sock):
+    def _get_msg_meta(self, packet, addr, sock):
         if sock != self._local_sock:
             return packet, SockOnlyMetadata.from_values(sock)  # API socket
         else:
-            return super()._get_pld_meta(packet, addr, sock)
+            return super()._get_msg_meta(packet, addr, sock)
 
-    def handle_pld_meta(self, msg, meta):
+    def handle_msg_meta(self, msg, meta):
         """
         Main routine to handle incoming SCION messages.
         """
         if isinstance(meta, SockOnlyMetadata):  # From SCIOND API
             self.api_handle_request(msg, meta)
             return
-        logging.debug("handle_pld_meta()")
-        super().handle_pld_meta(msg, meta)
+        logging.debug("handle_msg_meta()")
+        super().handle_msg_meta(msg, meta)
 
     def handle_path_reply(self, path_reply, meta):
         """

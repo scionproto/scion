@@ -203,25 +203,25 @@ class SCIONElement(object):
     def is_core_as(self, isd_as):
         return isd_as in self._core_ases[isd_as[0]]
 
-    def handle_pld_meta(self, pld, meta):
+    def handle_msg_meta(self, msg, meta):
         """
         Main routine to handle incoming SCION messages.
         """
-        logging.debug("handle_pld_meta() started: %s %s" % (pld, meta))
+        logging.debug("handle_msg_meta() started: %s %s" % (msg, meta))
 
-        handler = self._get_ctrl_handler(pld)
+        handler = self._get_ctrl_handler(msg)
         if not handler:
-            logging.warning("handler not found: %s", pld)
+            logging.warning("handler not found: %s", msg)
             return
         try:
             logging.debug("Calling handler, meta:%s", meta)
             # SIBRA operates on parsed packets.
-            if pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
+            if msg.PAYLOAD_CLASS == PayloadClass.SIBRA:
                 handler(meta.pkt)
             else:
-                handler(pld, meta)
+                handler(msg, meta)
         except SCIONBaseError:
-            log_exception("Error handling message:\n%s" % pld)
+            log_exception("Error handling message:\n%s" % msg)
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.
@@ -233,18 +233,18 @@ class SCIONElement(object):
                       pkt.l4_hdr.TYPE, L4Proto.to_str(pkt.l4_hdr.TYPE))
         return None
 
-    def _get_ctrl_handler(self, pld):
+    def _get_ctrl_handler(self, msg):
         try:
-            type_map = self.CTRL_PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
+            type_map = self.CTRL_PLD_CLASS_MAP[msg.PAYLOAD_CLASS]
         except KeyError:
             logging.error("Control payload class not supported: %s\n%s",
-                          pld.PAYLOAD_CLASS, pld)
+                          msg.PAYLOAD_CLASS, msg)
             return None
         try:
-            return type_map[pld.PAYLOAD_TYPE]
+            return type_map[msg.PAYLOAD_TYPE]
         except KeyError:
             logging.error("%s control payload type not supported: %s\n%s",
-                          pld.PAYLOAD_CLASS, pld.PAYLOAD_TYPE, pld)
+                          msg.PAYLOAD_CLASS, msg.PAYLOAD_TYPE, msg)
         return None
 
     def _get_scmp_handler(self, pkt):
@@ -421,15 +421,15 @@ class SCIONElement(object):
             return
         self._local_sock.send(packet.pack(), (dst, dst_port))
 
-    def send_meta(self, pld, meta, next_hop_port=None):
+    def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
             assert not next_hop_port, next_hop_port
-            self._send_meta_tcp(pld, meta)
+            self._send_meta_tcp(msg, meta)
             return
         elif isinstance(meta, SockOnlyMetadata):
             assert not next_hop_port, next_hop_port
-            meta.sock.send(pld)
+            meta.sock.send(msg)
             return
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
@@ -438,17 +438,17 @@ class SCIONElement(object):
             return
 
         pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,
-                                 meta.ia, pld, dst_port)
+                                 meta.ia, msg, dst_port)
         if not next_hop_port:
             next_hop_port = self.get_first_hop(pkt)
         self.send(pkt, *next_hop_port)
 
-    def _send_meta_tcp(self, pld, meta):
+    def _send_meta_tcp(self, msg, meta):
         if not meta.sock:
             tcp_sock = self._tcp_sock_from_meta(meta)
             meta.sock = tcp_sock
             self._tcp_conns_put(tcp_sock)
-        meta.sock.send_msg(pld.pack_full())
+        meta.sock.send_msg(msg.pack_full())
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host
@@ -501,10 +501,10 @@ class SCIONElement(object):
         Try to put incoming packet in queue
         If queue is full, drop oldest packet in queue
         """
-        pld, meta = self._get_pld_meta(packet, addr, sock)
-        if pld is None:
+        msg, meta = self._get_msg_meta(packet, addr, sock)
+        if msg is None:
             return
-        self._in_buf_put((pld, meta))
+        self._in_buf_put((msg, meta))
 
     def _in_buf_put(self, item):
         dropped = 0
@@ -521,8 +521,8 @@ class SCIONElement(object):
             logging.debug("%d packet(s) dropped (%d total dropped so far)",
                           dropped, self.total_dropped)
 
-    def _get_pld_meta(self, packet, addr, sock):
-        logging.debug("_get_pld_meta() called")
+    def _get_msg_meta(self, packet, addr, sock):
+        logging.debug("_get_msg_meta() called")
         pkt = self._parse_packet(packet)
         if not pkt:
             logging.error("Cannot parse packet:\n%s" % packet)
@@ -590,7 +590,7 @@ class SCIONElement(object):
         """
         while self.run_flag.is_set():
             try:
-                self.handle_pld_meta(*self._in_buf.get(timeout=1.0))
+                self.handle_msg_meta(*self._in_buf.get(timeout=1.0))
             except queue.Empty:
                 continue
 
@@ -634,9 +634,9 @@ class SCIONElement(object):
             # Handle active connections.
             to_remove = []
             for tcp_sock in active_conns:
-                pld, meta = tcp_sock.get_pld_meta()
-                if pld:
-                    self._in_buf_put((pld, meta))
+                msg, meta = tcp_sock.get_msg_meta()
+                if msg:
+                    self._in_buf_put((msg, meta))
                     active_conns[tcp_sock] = time.time()
                 idle = time.time() - active_conns[tcp_sock]
                 if idle > TCP_TIMEOUT or not tcp_sock.active:
