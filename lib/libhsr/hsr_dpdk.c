@@ -53,6 +53,30 @@
 #include "hsr_interface.h"
 #include "scion.h"
 
+// change value to control amount of logging (heavily affects performance)
+// can result in compile warnings for unused variables
+#define LOGLEVEL 1
+#if LOGLEVEL > 1
+#undef zlog_debug
+#define zlog_debug(...)
+#if LOGLEVEL > 2
+#undef zlog_info
+#define zlog_info(...)
+#if LOGLEVEL > 3
+#undef zlog_warn
+#define zlog_warn(...)
+#if LOGLEVEL > 4
+#undef zlog_error
+#define zlog_error(...)
+#if LOGLEVEL > 5
+#undef zlog_fatal
+#define zlog_fatal(...)
+#endif // LOGLEVEL > 5
+#endif // LOGLEVEL > 4
+#endif // LOGLEVEL > 3
+#endif // LOGLEVEL > 2
+#endif // LOGLEVEL > 1
+
 #define MBUF_SIZE (2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
 #define NB_MBUF   8192
 
