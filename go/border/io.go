@@ -21,7 +21,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/lib/log"
@@ -106,62 +105,4 @@ func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *
 	metrics.OutputProcessTime.With(labels).Add(time.Now().Sub(start).Seconds())
 	metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
 	metrics.PktsSent.With(labels).Inc()
-}
-
-func (r *Router) readDPDKInput(q chan *packet.Packet) {
-	defer liblog.PanicLog()
-	pkts := make([]*packet.Packet, hsr.MaxPkts)
-	h := hsr.NewHSR()
-	for {
-		usedPortIdxs := make(map[int]bool)
-		pkts = pkts[:cap(pkts)]
-		for i, p := range pkts {
-			if p == nil {
-				pkts[i] = r.getPktBuf()
-			}
-		}
-		start := time.Now()
-		portIds, err := h.GetPackets(pkts)
-		duration := time.Now().Sub(start).Seconds()
-
-		if err != nil {
-			log.Error("Error getting packets from DPDK", "err", err)
-			continue
-		}
-		timeIn := time.Now()
-		for i := range pkts[:len(portIds)] {
-			p := pkts[i]
-			p.TimeIn = timeIn
-			labels := hsr.AddrMs[portIds[i]].Labels
-			metrics.PktsRecv.With(labels).Inc()
-			metrics.BytesRecv.With(labels).Add(float64(len(p.Raw)))
-			//q <- p
-			r.processPacket(p)
-			metrics.PktProcessTime.Add(time.Now().Sub(p.TimeIn).Seconds())
-			r.recyclePkt(p)
-			pkts[i] = nil
-		}
-		for _, id := range portIds {
-			if _, ok := usedPortIdxs[id]; !ok {
-				usedPortIdxs[id] = true
-				labels := hsr.AddrMs[id].Labels
-				metrics.InputLoops.With(labels).Inc()
-				metrics.InputProcessTime.With(labels).Add(duration)
-			}
-		}
-	}
-}
-
-func (r *Router) writeDPDKOutput(p *packet.Packet, portID int, labels prometheus.Labels) {
-	for _, epair := range p.Egress {
-		if epair.Dst == nil {
-			p.Crit("No dst address set")
-			continue
-		}
-		start := time.Now()
-		hsr.SendPacket(epair.Dst, portID, p.Raw)
-		metrics.OutputProcessTime.With(labels).Add(time.Now().Sub(start).Seconds())
-		metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
-		metrics.PktsSent.With(labels).Inc()
-	}
 }

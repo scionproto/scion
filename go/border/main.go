@@ -30,7 +30,6 @@ var (
 	id       = flag.String("id", "", "Element ID (Required. E.g. 'er1-23er4-21')")
 	confDir  = flag.String("confd", ".", "Configuration directory")
 	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
-	dpdkIPs  = flag.String("dpdk-ips", "", "Comma-separated list of IPs for DPDK")
 )
 
 func main() {
