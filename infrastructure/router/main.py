@@ -37,20 +37,19 @@ from infrastructure.router.errors import (
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import (
     BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
     MAX_HOPBYHOP_EXT,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SIBRA_SERVICE,
 )
 from lib.errors import (
     SCIONBaseError,
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
+from lib.msg_meta import RawMetadata
 from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.traceroute import TracerouteExt
@@ -133,13 +132,9 @@ class Router(SCIONElement):
             "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
                              self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.PCB: {None: self.handle_data},
             PayloadClass.IFID: {None: self.process_ifid_request},
-            PayloadClass.CERT: defaultdict(
-                lambda: self.relay_cert_server_packet),
             PayloadClass.PATH: defaultdict(
                 lambda: self.process_path_mgmt_packet),
-            PayloadClass.SIBRA: {None: self.fwd_sibra_service_pkt},
         }
         self.SCMP_PLD_CLASS_MAP = {
             SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.process_revocation},
@@ -151,16 +146,16 @@ class Router(SCIONElement):
         self._socks.add(self._remote_sock, self.handle_recv)
         logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
 
-    def _setup_socket(self, init=True):
+    def _setup_sockets(self, init=True):
         """
         Setup incoming socket
         """
-        self._local_sock = UDPSocket(
+        self._udp_sock = UDPSocket(
             bind=(str(self.addr.host), self._port, self.id),
             addr_type=self.addr.host.TYPE,
         )
-        self._port = self._local_sock.port
-        self._socks.add(self._local_sock, self.handle_recv)
+        self._port = self._udp_sock.port
+        self._socks.add(self._udp_sock, self.handle_recv)
 
     def run(self):
         """
@@ -194,7 +189,7 @@ class Router(SCIONElement):
         if from_local_as:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
         else:
-            self._local_sock.send(spkt.pack(), (str(addr), port))
+            self._udp_sock.send(spkt.pack(), (str(addr), port))
 
     def handle_extensions(self, spkt, pre_routing_phase, from_local_as):
         """
@@ -338,41 +333,6 @@ class Router(SCIONElement):
         addrs.sort()  # To not rely on order of DNS replies.
         return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)][0]
 
-    def relay_cert_server_packet(self, spkt, from_local_as):
-        """
-        Relay packets for certificate servers.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param bool from_local_as:
-            whether or not the packet is from the local AS.
-        """
-        if from_local_as:
-            addr = self.interface.to_addr
-            port = self.interface.to_udp_port
-        else:
-            try:
-                addr = self.get_srv_addr(CERTIFICATE_SERVICE, spkt)
-            except SCIONServiceLookupError as e:
-                logging.error("Unable to deliver cert packet: %s", e)
-                raise SCMPUnknownHost
-            port = SCION_UDP_EH_DATA_PORT
-        self.send(spkt, addr, port)
-
-    def fwd_sibra_service_pkt(self, spkt, _):
-        """
-        Forward SIBRA service packets to a SIBRA server.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        """
-        try:
-            addr = self.get_srv_addr(SIBRA_SERVICE, spkt)
-        except SCIONServiceLookupError as e:
-            logging.error("Unable to deliver sibra service packet: %s", e)
-            raise SCMPUnknownHost
-        self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
-
     def process_path_mgmt_packet(self, mgmt_pkt, from_local_as):
         """
         Process path management packets.
@@ -467,17 +427,14 @@ class Router(SCIONElement):
                 raise SCMPNonRoutingHOF
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if addr in [SVCType.PS_A, SVCType.BS_A]:
-            # Send request to any path server.
+        if addr.TYPE == AddrType.SVC:
+            # Send request to any server.
             try:
                 service = SVC_TO_SERVICE[addr.addr]
                 addr = self.get_srv_addr(service, spkt)
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver path mgmt packet: %s", e)
                 raise SCMPUnknownHost
-        elif addr == SVCType.SB_A:
-            self.fwd_sibra_service_pkt(spkt, None)
-            return
         self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def verify_hof(self, path, ingress=True):
@@ -505,6 +462,8 @@ class Router(SCIONElement):
         :param from_local_as:
             Whether or not the packet is from the local AS.
         """
+        if len(spkt.path) == 0:
+            raise SCMPPathRequired
         ingress = not from_local_as
         try:
             self._process_data(spkt, ingress, drop_on_error)
@@ -583,22 +542,10 @@ class Router(SCIONElement):
         return path.get_fwd_if(), incd
 
     def _needs_local_processing(self, pkt):
-        if len(pkt.path) == 0:
-            if pkt.addrs.dst.host.TYPE == AddrType.SVC:
-                # Always process packets with SVC destinations and no path
-                return True
-            elif pkt.addrs.dst in [
-                self.addr,
-                SCIONAddr.from_values(self.addr.isd_as, self.interface.addr),
-            ]:
-                # Destination is this this router.
-                return True
-            raise SCMPPathRequired
-        if (pkt.addrs.dst.isd_as == self.addr.isd_as and
-                pkt.addrs.dst.host.TYPE == AddrType.SVC):
-            # Destination is a local SVC address.
-            return True
-        return False
+        return pkt.addrs.dst in [
+            self.addr,
+            SCIONAddr.from_values(self.addr.isd_as, self.interface.addr),
+        ]
 
     def _process_flags(self, flags, pkt, from_local_as):
         """
@@ -650,6 +597,16 @@ class Router(SCIONElement):
             return
         logging.debug("Packet delivered by extension")
         self.deliver(pkt)
+
+    def _get_msg_meta(self, packet, addr, sock):
+        meta = RawMetadata.from_values(packet, addr, sock == self._udp_sock)
+        return packet, meta
+
+    def handle_msg_meta(self, msg, meta):
+        """
+        Main routine to handle incoming SCION messages.
+        """
+        self.handle_request(meta.packet, meta.addr, meta.from_local_as)
 
     def handle_request(self, packet, _, from_local_socket=True, sock=None):
         """

@@ -33,19 +33,29 @@ from socket import (
     SO_REUSEADDR,
     socket,
 )
+import threading
 
 # External
 from external import ipaddress
 
 # SCION
-from lib.defines import SCION_BUFLEN
+from lib.defines import SCION_BUFLEN, TCP_RECV_POLLING_TOUT
 from lib.dispatcher import reg_dispatcher
-from lib.errors import SCIONIOError
+from lib.errors import (
+    SCIONBaseError,
+    SCIONIOError,
+    SCIONTCPError,
+    SCIONTCPTimeout,
+)
+from lib.log import log_exception
+from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
+from lib.packet.scion import msg_from_raw
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
 from lib.thread import kill_self
 from lib.types import AddrType
+from lib.util import hex_str
 
 
 class Socket(object):
@@ -341,3 +351,71 @@ class SocketMgr(object):
                 self.remove(sock)
                 sock.close()
         self._sel.close()
+
+
+class TCPSocketWrapper(object):
+    """
+    Base class for accepted and connected TCP sockets used by SCION services.
+    """
+    RECV_SIZE = 8092
+
+    def __init__(self, sock, addr, path):
+        self._buf = bytearray()
+        self._sock = sock
+        self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
+        self._addr = addr
+        self._path = path
+        self._lock = threading.RLock()
+        self.active = True
+
+    def _get_meta(self):
+        return TCPMetadata.from_values(ia=self._addr.isd_as,
+                                       host=self._addr.host, path=self._path,
+                                       sock=self)
+
+    def _get_msg(self):
+        if len(self._buf) < 4:
+            return None
+        msg_len = struct.unpack("!I", self._buf[:4])[0]
+        if msg_len + 4 > len(self._buf):
+            return None
+        msg = self._buf[4:4 + msg_len]
+        self._buf = self._buf[4 + msg_len:]
+        try:
+            return msg_from_raw(msg)
+        except SCIONBaseError:
+            log_exception("Error parsing message: %s" % hex_str(msg),
+                          level=logging.ERROR)
+            return None
+
+    def get_msg_meta(self):
+        with self._lock:
+            msg = self._get_msg()
+            if msg:
+                return msg, self._get_meta()
+            try:
+                read = self._sock.recv(self.RECV_SIZE)
+                self._buf += read
+            except SCIONTCPTimeout:
+                return None, self._get_meta()
+            except SCIONTCPError:
+                logging.debug("TCP: calling close() after socket error")
+                self.close()
+            return self._get_msg(), self._get_meta()
+
+    def send_msg(self, raw):
+        with self._lock:
+            try:
+                self._sock.send(raw)
+            except SCIONTCPError:
+                logging.debug("TCP: calling close() after socket error")
+                self.close()
+
+    def close(self):
+        with self._lock:
+            try:
+                self._sock.close()
+            except SCIONTCPError as e:
+                logging.warning("Error on close(): %s", e)
+            self.active = False
+            logging.debug("Leaving close()")

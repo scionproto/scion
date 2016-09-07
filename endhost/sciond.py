@@ -32,7 +32,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
-from lib.msg_meta import UDPMetadata
+from lib.msg_meta import SockOnlyMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -120,17 +120,21 @@ class SCIONDaemon(SCIONElement):
         logging.debug("sciond started with api_addr = %s", inst.api_addr)
         return inst
 
-    def handle_request(self, packet, sender, from_local_socket=True, sock=None):
-        # PSz: local_socket may be misleading, especially that we have
-        # api_socket which is local (in the localhost sense). What do you think
-        # about changing local_socket to as_socket
+    def _get_msg_meta(self, packet, addr, sock):
+        if sock != self._udp_sock:
+            return packet, SockOnlyMetadata.from_values(sock)  # API socket
+        else:
+            return super()._get_msg_meta(packet, addr, sock)
+
+    def handle_msg_meta(self, msg, meta):
         """
-        Main routine to handle incoming SCION packets.
+        Main routine to handle incoming SCION messages.
         """
-        if not from_local_socket:  # From localhost (SCIONDaemon API)
-            self.api_handle_request(packet, sock)
+        if isinstance(meta, SockOnlyMetadata):  # From SCIOND API
+            self.api_handle_request(msg, meta)
             return
-        super().handle_request(packet, sender, from_local_socket)
+        logging.debug("handle_msg_meta()")
+        super().handle_msg_meta(msg, meta)
 
     def handle_path_reply(self, path_reply, meta):
         """
@@ -151,6 +155,8 @@ class SCIONDaemon(SCIONElement):
         logging.debug("Added: %s", added)
         for dst_ia, flags in added:
             self.requests.put(((dst_ia, flags), None))
+        logging.debug("Closing meta")
+        meta.close()
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
@@ -175,23 +181,23 @@ class SCIONDaemon(SCIONElement):
             return pcb.first_ia()
         return None
 
-    def api_handle_request(self, packet, sock):
+    def api_handle_request(self, msg, meta):
         """
         Handle local API's requests.
         """
-        if packet[0] == 0:  # path request
+        if msg[0] == 0:  # path request
             logging.debug('API: path request')
             threading.Thread(
                 target=thread_safety_net,
-                args=(self._api_handle_path_request, packet, sock),
+                args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
-        elif packet[0] == 1:  # address request
+        elif msg[0] == 1:  # address request
             logging.debug('API: local ISD-AS request')
-            sock.send(self.addr.isd_as.pack())
+            self.send_meta(self.addr.isd_as.pack(), meta)
         else:
-            logging.warning("API: type %d not supported.", packet[0])
+            logging.warning("API: type %d not supported.", msg[0])
 
-    def _api_handle_path_request(self, packet, sock):
+    def _api_handle_path_request(self, msg, meta):
         """
         Path request:
           | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
@@ -201,7 +207,7 @@ class SCIONDaemon(SCIONElement):
            p2_len(1B)|...
          or b"" when no path found.
         """
-        dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
+        dst_ia = ISD_AS(msg[1:ISD_AS.LEN + 1])
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, self.addr.isd_as, dst_ia)
@@ -228,7 +234,7 @@ class SCIONDaemon(SCIONElement):
                 isd_as, link = interface
                 reply.append(isd_as.pack())
                 reply.append(struct.pack("!H", link))
-        sock.send(b"".join(reply))
+        self.send_meta(b"".join(reply), meta)
 
     def handle_revocation(self, rev_info, meta):
         logging.debug("Received revocation:\n%s", rev_info)
@@ -456,7 +462,7 @@ class SCIONDaemon(SCIONElement):
             return
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request: %s", req.short_desc())
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(req, meta)
 
     def _reply_segments(self, key, e):

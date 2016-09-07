@@ -26,34 +26,70 @@ class MetadataBase(object):
         self.ia = None
         self.host = None
         self.path = None  # Ready for sending (i.e., in correct direction)
+        self.port = 0
         self.ext_hdr = ()
 
     @classmethod
-    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=()):
+    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
         inst = cls()
         inst.ia = ia
         inst.host = host
         inst.path = path
         inst.ext_hdrs = ext_hdrs
+        inst.port = port
         return inst
 
     def get_addr(self):
         return SCIONAddr.from_values(self.ia, self.host)
 
-
-class SCMPMetadata(MetadataBase):
-    """
-    Base class for UDP message metadata
-    """
-    pass
+    def close(self):  # Close communication between peers.
+        pass
 
 
 class UDPMetadata(MetadataBase):
     """
-    Base class for UDP message metadata
+    Class for UDP message metadata
+    """
+    pass
+
+
+class TCPMetadata(MetadataBase):
+    """
+    Class for TCP message metadata
     """
     @classmethod
-    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
-        inst = super().from_values(ia, host, path, ext_hdrs)
-        inst.port = port
+    def from_values(cls, ia=None, host=None, path=None,
+                    ext_hdrs=(), port=0, sock=None):
+        inst = super().from_values(ia, host, path, ext_hdrs, port)
+        inst.sock = sock
+        return inst
+
+    def close(self):
+        self.sock.close()
+
+
+class RawMetadata(MetadataBase):
+    # FIXME(PSz): needed only by python router.
+    def __init__(self):
+        self.packet = None
+        self.addr = None
+        self.from_local_as = None
+
+    @classmethod
+    def from_values(cls, packet, addr, from_local_as):
+        inst = RawMetadata()
+        inst.packet = packet
+        inst.addr = addr
+        inst.from_local_as = from_local_as
+        return inst
+
+
+class SockOnlyMetadata(MetadataBase):
+    def __init__(self):
+        self.sock = None
+
+    @classmethod
+    def from_values(cls, sock):
+        inst = SockOnlyMetadata()
+        inst.sock = sock
         return inst

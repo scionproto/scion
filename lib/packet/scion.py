@@ -626,7 +626,7 @@ class SCIONL4Packet(SCIONExtPacket):
             raise SCIONParseError(
                 "Payload length mismatch. Reported: %s Actual: %s" %
                 (plen, len(data)))
-        return pld_from_raw(data.pop())
+        return msg_from_raw(data.pop())
 
     def _parse_pld_scmp(self, data):  # pragma: no cover
         return SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, data.pop()))
@@ -652,7 +652,7 @@ def build_base_hdrs(src, dst, l4=L4Proto.UDP):
     return cmn_hdr, addr_hdr
 
 
-def pld_from_raw(raw):
+def msg_from_raw(raw):
     try:
         wrapper = P.SCION.from_bytes_packed(raw).as_builder()
     except capnp.lib.capnp.KjException as e:

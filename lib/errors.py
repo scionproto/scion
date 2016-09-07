@@ -67,3 +67,11 @@ class SCIONServiceLookupError(SCIONBaseError):
 
 class SCIONChecksumFailed(SCIONBaseError):
     """Checksum failed"""
+
+
+class SCIONTCPError(SCIONBaseError):
+    """SCION TCP error"""
+
+
+class SCIONTCPTimeout(SCIONBaseError):
+    """SCION TCP timeout"""

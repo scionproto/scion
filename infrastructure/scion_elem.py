@@ -27,6 +27,7 @@ from collections import defaultdict
 # SCION
 from lib.config import Config
 from lib.crypto.hash_tree import ConnectedHashTree
+from lib.errors import SCIONParseError
 from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
@@ -36,15 +37,24 @@ from lib.defines import (
     SERVICE_TYPES,
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
+    TCP_ACCEPT_POLLING_TOUT,
+    TCP_TIMEOUT,
     TOPO_FILE,
 )
 from lib.errors import (
     SCIONBaseError,
     SCIONChecksumFailed,
+    SCIONTCPError,
+    SCIONTCPTimeout,
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.msg_meta import SCMPMetadata, MetadataBase, UDPMetadata
+from lib.msg_meta import (
+    MetadataBase,
+    SockOnlyMetadata,
+    TCPMetadata,
+    UDPMetadata,
+)
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
@@ -72,8 +82,9 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.socket import ReliableSocket, SocketMgr
-from lib.thread import thread_safety_net
+from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
+from lib.tcp.socket import SCIONTCPSocket, SockOpt
+from lib.thread import thread_safety_net, kill_self
 from lib.trust_store import TrustStore
 from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
@@ -137,24 +148,47 @@ class SCIONElement(object):
         self.stopped_flag.clear()
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
-        self._setup_socket(True)
+        self._setup_sockets(True)
         self._startup = time.time()
+        self.DefaultMeta = UDPMetadata
 
-    def _setup_socket(self, init):
+    def _setup_sockets(self, init):
         """
         Setup incoming socket and register with dispatcher
         """
+        self._tcp_sock = None
+        self._tcp_conns = queue.Queue(MAX_QUEUE)  # For active TCP connections.
         if self._port is None:
             # No scion socket desired.
             return
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
-        self._local_sock = ReliableSocket(
+        # Setup TCP "accept" socket.
+        self._setup_tcp_accept_socket(svc)
+        # Setup UDP socket
+        self._udp_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
-        if not self._local_sock.registered:
-            self._local_sock = None
+        if not self._udp_sock.registered:
+            self._udp_sock = None
             return
-        self._port = self._local_sock.port
-        self._socks.add(self._local_sock, self.handle_recv)
+        self._port = self._udp_sock.port
+        self._socks.add(self._udp_sock, self.handle_recv)
+
+    def _setup_tcp_accept_socket(self, svc):
+        MAX_TRIES = 20
+        for i in range(MAX_TRIES):
+            try:
+                self._tcp_sock = SCIONTCPSocket()
+                self._tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
+                self._tcp_sock.set_recv_tout(TCP_ACCEPT_POLLING_TOUT)
+                self._tcp_sock.bind((self.addr, self._port), svc=svc)
+                self._tcp_sock.listen()
+                break
+            except SCIONTCPError:
+                logging.warning("TCP: Cannot connect to LWIP socket.")
+            time.sleep(1)  # Wait for dispatcher
+        else:
+            logging.critical("TCP: cannot init TCP socket.")
+            kill_self()
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
@@ -170,74 +204,48 @@ class SCIONElement(object):
     def is_core_as(self, isd_as):
         return isd_as in self._core_ases[isd_as[0]]
 
-    def handle_request(self, packet, sender, from_local_socket=True, sock=None):
+    def handle_msg_meta(self, msg, meta):
         """
-        Main routine to handle incoming SCION packets. Subclasses may
-        override this to provide their own functionality.
+        Main routine to handle incoming SCION messages.
         """
-        pkt = self._parse_packet(packet)
-        if not pkt:
-            return
-        try:
-            pkt.parse_payload()
-        except SCIONBaseError:
-            log_exception("Error parsing payload:\n%s" % pkt)
-            return
-        handler = self._get_handler(pkt)
-        if not handler:
-            return
-        # Create metadata:
-        rev_pkt = pkt.reversed_copy()
-        if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
-            meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
-                                           host=rev_pkt.addrs.dst.host,
-                                           path=rev_pkt.path,
-                                           ext_hdrs=rev_pkt.ext_hdrs,
-                                           port=rev_pkt.l4_hdr.dst_port)
-        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
-            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
-                                            host=rev_pkt.addrs.dst.host,
-                                            path=rev_pkt.path,
-                                            ext_hdrs=rev_pkt.ext_hdrs)
-        else:
-            logging.error("Cannot create metadata for:\n%s" % pkt)
-            return
+        logging.debug("handle_msg_meta() started: %s %s" % (msg, meta))
 
-        pld = pkt.get_payload()
+        handler = self._get_ctrl_handler(msg)
+        if not handler:
+            logging.warning("handler not found: %s", msg)
+            return
         try:
-            # FIXME(PSz): hack to get python router working.
-            if hasattr(self, "_remote_sock"):
-                handler(pkt)
-            # SIBRA operates on raw packets.
-            elif pld.PAYLOAD_CLASS == PayloadClass.SIBRA:
-                handler(pkt)
+            logging.debug("Calling handler, meta:%s", meta)
+            # SIBRA operates on parsed packets.
+            if msg.PAYLOAD_CLASS == PayloadClass.SIBRA:
+                handler(meta.pkt)
             else:
-                handler(pld, meta)
+                handler(msg, meta)
         except SCIONBaseError:
-            log_exception("Error handling packet:\n%s" % pkt)
+            log_exception("Error handling message:\n%s" % msg)
 
     def _get_handler(self, pkt):
+        # FIXME(PSz): needed only by python router.
         if pkt.l4_hdr.TYPE == L4Proto.UDP:
-            return self._get_ctrl_handler(pkt)
+            return self._get_ctrl_handler(pkt.get_payload())
         elif pkt.l4_hdr.TYPE == L4Proto.SCMP:
             return self._get_scmp_handler(pkt)
         logging.error("L4 header type not supported: %s(%s)\n",
                       pkt.l4_hdr.TYPE, L4Proto.to_str(pkt.l4_hdr.TYPE))
         return None
 
-    def _get_ctrl_handler(self, pkt):
-        pld = pkt.get_payload()
+    def _get_ctrl_handler(self, msg):
         try:
-            type_map = self.CTRL_PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
+            type_map = self.CTRL_PLD_CLASS_MAP[msg.PAYLOAD_CLASS]
         except KeyError:
             logging.error("Control payload class not supported: %s\n%s",
-                          pld.PAYLOAD_CLASS, pkt)
+                          msg.PAYLOAD_CLASS, msg)
             return None
         try:
-            return type_map[pld.PAYLOAD_TYPE]
+            return type_map[msg.PAYLOAD_TYPE]
         except KeyError:
             logging.error("%s control payload type not supported: %s\n%s",
-                          pld.PAYLOAD_CLASS, pld.PAYLOAD_TYPE, pkt)
+                          msg.PAYLOAD_CLASS, msg.PAYLOAD_TYPE, msg)
         return None
 
     def _get_scmp_handler(self, pkt):
@@ -350,30 +358,32 @@ class SCIONElement(object):
         """
         Returns first hop addr of down-path or end-host addr.
         """
-        if_id = self._ext_first_hop(spkt)
+        return self._get_first_hop(spkt.path, spkt.addrs.dst, spkt.ext_hdrs)
+
+    def _get_first_hop(self, path, dst, ext_hdrs=()):
+        if_id = self._ext_first_hop(ext_hdrs)
         if if_id is None:
-            if len(spkt.path) == 0:
-                return self._empty_first_hop(spkt)
-            if_id = spkt.path.get_fwd_if()
+            if len(path) == 0:
+                return self._empty_first_hop(dst)
+            if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
             br = self.ifid2br[if_id]
             return br.addr, br.port
-        logging.error("Unable to find first hop:\n%s", spkt.path)
+        logging.error("Unable to find first hop:\n%s", path)
         return None, None
 
-    def _ext_first_hop(self, spkt):
-        for hdr in spkt.ext_hdrs:
+    def _ext_first_hop(self, ext_hdrs):
+        for hdr in ext_hdrs:
             if_id = hdr.get_next_ifid()
             if if_id is not None:
                 return if_id
 
-    def _empty_first_hop(self, spkt):
-        if spkt.addrs.src.isd_as != spkt.addrs.dst.isd_as:
-            logging.error("Packet has no path but different src/dst ASes")
-            logging.error(spkt)
+    def _empty_first_hop(self, dst):
+        if dst.isd_as != self.addr.isd_as:
+            logging.error("Packet to remote AS w/o path, dst: %s", dst)
             return None, None
-        host = spkt.addrs.dst.host
-        if spkt.addrs.dst.host.TYPE == AddrType.SVC:
+        host = dst.host
+        if host.TYPE == AddrType.SVC:
             host = self.dns_query_topo(SVC_TO_SERVICE[host.addr])[0][0]
         return host, SCION_UDP_EH_DATA_PORT
 
@@ -408,36 +418,82 @@ class SCIONElement(object):
         assert not isinstance(packet.addrs.dst.host, HostAddrNone)
         assert isinstance(packet, SCIONBasePacket)
         assert isinstance(dst_port, int), dst_port
-        if not self._local_sock:
+        if not self._udp_sock:
             return
-        self._local_sock.send(packet.pack(), (dst, dst_port))
+        self._udp_sock.send(packet.pack(), (dst, dst_port))
 
-    def send_meta(self, pld, meta, next_hop_port=None):
+    def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
-        if isinstance(meta, UDPMetadata):
+        if isinstance(meta, TCPMetadata):
+            assert not next_hop_port, next_hop_port
+            self._send_meta_tcp(msg, meta)
+            return
+        elif isinstance(meta, SockOnlyMetadata):
+            assert not next_hop_port, next_hop_port
+            meta.sock.send(msg)
+            return
+        elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
-        elif isinstance(meta, SCMPMetadata):
-            dst_port = 0
         else:
             logging.error("Unsupported metadata for:\n%s" % meta.__name__)
             return
 
         pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,
-                                 meta.ia, pld, dst_port)
+                                 meta.ia, msg, dst_port)
         if not next_hop_port:
             next_hop_port = self.get_first_hop(pkt)
         self.send(pkt, *next_hop_port)
+
+    def _send_meta_tcp(self, msg, meta):
+        if not meta.sock:
+            tcp_sock = self._tcp_sock_from_meta(meta)
+            meta.sock = tcp_sock
+            self._tcp_conns_put(tcp_sock)
+        meta.sock.send_msg(msg.pack_full())
+
+    def _tcp_sock_from_meta(self, meta):
+        assert meta.host
+        if meta.ia is None:
+            meta.ia = self.addr.isd_as
+        if meta.path is None:
+            meta.path = SCIONPath()
+        # Create low-level TCP socket and connect
+        sock = SCIONTCPSocket()
+        sock.bind((self.addr, 0))
+        dst = meta.get_addr()
+        first_ip, first_port = self._get_first_hop(meta.path, dst)
+        sock.connect(dst, meta.port, meta.path, first_ip, first_port)
+        # Create and return TCPSocketWrapper
+        return TCPSocketWrapper(sock, dst, meta.path)
+
+    def _tcp_conns_put(self, sock):
+        dropped = 0
+        while True:
+            try:
+                self._tcp_conns.put(sock, block=False)
+            except queue.Full:
+                old_sock = self._tcp_conns.get_nowait()
+                old_sock.close()
+                logging.error("TCP: _tcp_conns is full. Closing an old socket.")
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            logging.warning("%d TCP connection(s) dropped" % dropped)
 
     def run(self):
         """
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
+        self._tcp_start()
         threading.Thread(
             target=thread_safety_net, args=(self.packet_recv,),
             name="Elem.packet_recv", daemon=True).start()
         try:
             self._packet_process()
+        except SCIONBaseError:
+            log_exception("Error processing packet.")
         finally:
             self.stop()
 
@@ -446,12 +502,16 @@ class SCIONElement(object):
         Try to put incoming packet in queue
         If queue is full, drop oldest packet in queue
         """
-        from_local_as = sock == self._local_sock
+        msg, meta = self._get_msg_meta(packet, addr, sock)
+        if msg is None:
+            return
+        self._in_buf_put((msg, meta))
+
+    def _in_buf_put(self, item):
         dropped = 0
         while True:
             try:
-                self._in_buf.put((packet, addr, from_local_as, sock),
-                                 block=False)
+                self._in_buf.put(item, block=False)
             except queue.Full:
                 self._in_buf.get_nowait()
                 dropped += 1
@@ -461,6 +521,34 @@ class SCIONElement(object):
             self.total_dropped += dropped
             logging.debug("%d packet(s) dropped (%d total dropped so far)",
                           dropped, self.total_dropped)
+
+    def _get_msg_meta(self, packet, addr, sock):
+        logging.debug("_get_msg_meta() called")
+        pkt = self._parse_packet(packet)
+        if not pkt:
+            logging.error("Cannot parse packet:\n%s" % packet)
+            return None, None
+        # Create metadata:
+        rev_pkt = pkt.reversed_copy()
+        if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
+            meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                           host=rev_pkt.addrs.dst.host,
+                                           path=rev_pkt.path,
+                                           ext_hdrs=rev_pkt.ext_hdrs,
+                                           port=rev_pkt.l4_hdr.dst_port)
+        else:
+            logging.error("Cannot create meta for: %s" % pkt)
+            return None, None
+
+        # FIXME(PSz): for now it is needed by SIBRA service.
+        meta.pkt = pkt
+
+        try:
+            pkt.parse_payload()
+        except SCIONParseError:
+            logging.error("Cannot parse payload of: %s" % pkt)
+            return None, meta
+        return pkt.get_payload(), meta
 
     def handle_accept(self, sock):
         """
@@ -480,8 +568,8 @@ class SCIONElement(object):
         if packet is None:
             self._socks.remove(sock)
             sock.close()
-            if sock == self._local_sock:
-                self._local_sock = None
+            if sock == self._udp_sock:
+                self._udp_sock = None
             return
         self.packet_put(packet, addr, sock)
 
@@ -490,8 +578,8 @@ class SCIONElement(object):
         Read packets from sockets, and put them into a :class:`queue.Queue`.
         """
         while self.run_flag.is_set():
-            if not self._local_sock:
-                self._setup_socket(False)
+            if not self._udp_sock:
+                self._setup_sockets(False)
             for sock, callback in self._socks.select_(timeout=1.0):
                 callback(sock)
         self._socks.close()
@@ -503,9 +591,80 @@ class SCIONElement(object):
         """
         while self.run_flag.is_set():
             try:
-                self.handle_request(*self._in_buf.get(timeout=1.0))
+                self.handle_msg_meta(*self._in_buf.get(timeout=1.0))
             except queue.Empty:
                 continue
+
+    def _tcp_start(self):
+        # FIXME(PSz): hack to get python router working.
+        if not hasattr(self, "_tcp_sock"):
+            return
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_recv_loop,),
+            name="Elem._tcp_recv_loop", daemon=True).start()
+        if not self._tcp_sock:
+            logging.warning("TCP: accept socket is unset, port:%d", self._port)
+            return
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_accept_loop,),
+            name="Elem._tcp_accept_loop", daemon=True).start()
+
+    def _tcp_accept_loop(self):
+        while self.run_flag.is_set():
+            try:
+                logging.debug("TCP: waiting for connections")
+                self._tcp_conns_put(TCPSocketWrapper(*self._tcp_sock.accept()))
+                logging.debug("TCP: accepted connection")
+            except SCIONTCPTimeout:
+                pass
+            except SCIONTCPError:
+                log_exception("TCP: error on accept()")
+                logging.error("TCP: leaving the accept loop")
+                break
+        self._tcp_sock.close()
+
+    def _tcp_recv_loop(self):
+        active_conns = {}
+        while self.run_flag.is_set():
+            if not active_conns:
+                # Have nothing to do, so block until another connection comes in
+                tcp_sock = self._tcp_conns.get()
+                active_conns[tcp_sock] = time.time()
+            logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
+            while not self._tcp_conns.empty():
+                try:
+                    active_conns[self._tcp_conns.get_nowait()] = time.time()
+                except queue.Empty:
+                    pass
+            # Handle active connections.
+            to_remove = []
+            for tcp_sock in active_conns:
+                msg, meta = tcp_sock.get_msg_meta()
+                if msg:
+                    self._in_buf_put((msg, meta))
+                    active_conns[tcp_sock] = time.time()
+                idle = time.time() - active_conns[tcp_sock]
+                if idle > TCP_TIMEOUT or not tcp_sock.active:
+                    to_remove.append(tcp_sock)
+                logging.debug("TCP: Active: %s", tcp_sock.active)
+            # Remove inactive connections.
+            for tcp_sock in to_remove:
+                tcp_sock.close()
+                del active_conns[tcp_sock]
+        # Is not running anymore.
+        for tcp_sock in active_conns:
+            tcp_sock.close()
+
+    def _tcp_clean(self):
+        if not hasattr(self, "_tcp_sock") or not self._tcp_sock:
+            return
+        # Close all TCP sockets.
+        while not self._tcp_conns.empty():
+            try:
+                tcp_sock = self._tcp_conns.get_nowait()
+            except queue.Empty:
+                break
+            tcp_sock.close()
 
     def stop(self):
         """Shut down the daemon thread."""
@@ -513,6 +672,8 @@ class SCIONElement(object):
         self.run_flag.clear()
         # Wait for the thread to finish
         self.stopped_flag.wait(5)
+        # Close tcp sockets.
+        self._tcp_clean()
 
     def _quiet_startup(self):
         return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD

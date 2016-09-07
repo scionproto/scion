@@ -339,7 +339,10 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     }
 
     if ((lwip_err = netconn_accept(args->conn, &newconn)) != ERR_OK){
-        zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
+        if (lwip_err == ERR_TIMEOUT)
+            zlog_debug(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
+        else
+            zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
         goto exit;
     }
 
@@ -464,7 +467,10 @@ void tcpmw_recv(struct conn_args *args, int pld_len){
 
     /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
-        zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
+        if (lwip_err == ERR_TIMEOUT || lwip_err == ERR_CLSD)
+            zlog_debug(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
+        else
+            zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
         goto exit;
     }
 
