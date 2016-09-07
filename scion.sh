@@ -137,6 +137,8 @@ cmd_clean() {
 
 cmd_sciond() {
     [ -n "$1" ] || { echo "ISD-AS argument required"; exit 1; }
+    # Convert the ISD-AS argument into an array, where the first element is the
+    # ISD, and the second is the AS.
     IFS=- read -a ia <<< $1
     ISD=${ia[0]:?No ISD provided}
     AS=${ia[1]:?No AS provided}
@@ -145,7 +147,7 @@ cmd_sciond() {
     [ -d "$GENDIR" ] || { echo "Topology directory for $ISD-$AS doesn't exist: $GENDIR"; exit 1; }
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
     PYTHONPATH=. bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
-    echo "Sciond running for $ISD-$AS"
+    echo "Sciond running for $ISD-$AS (pid $!)"
     wait
     exit $?
 }
