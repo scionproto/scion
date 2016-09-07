@@ -838,10 +838,10 @@ static inline void setup_kni()
     pthread_mutex_unlock(&netlink_mutex);
 
     for (i = 0; i < ports; i++) {
-        sprintf(cmd, "brctl addif br%d vEth%d", i, i);
+        sprintf(cmd, "sudo brctl addif br%d vEth%d", i, i);
         res = system(cmd);
         zlog_debug(zc, "cmd = %s: res = %d", cmd, res);
-        sprintf(cmd, "ip link set vEth%d up address %02x:%02x:%02x:%02x:%02x:%02x",
+        sprintf(cmd, "sudo ip link set vEth%d up address %02x:%02x:%02x:%02x:%02x:%02x",
                 i,
                 hsr_ports_eth_addr[i].addr_bytes[0],
                 hsr_ports_eth_addr[i].addr_bytes[1],
