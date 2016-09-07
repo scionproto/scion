@@ -180,8 +180,8 @@ uint8_t * pack_spkt_extensions(spkt_t *spkt, uint8_t *ptr)
         *ptr++ = next_header;
         *ptr++ = seh->len / SCION_EXT_LINE - 1;
         *ptr++ = seh->ext_type;
-        memcpy(ptr, seh->payload, seh->len - 3);
-        ptr += seh->len - 3;
+        memcpy(ptr, seh->payload, seh->len - SCION_EXT_SUBHDR);
+        ptr += seh->len - SCION_EXT_SUBHDR;
     }
     return ptr;
 }
