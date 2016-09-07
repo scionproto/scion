@@ -69,6 +69,7 @@ from lib.packet.scmp.errors import (
     SCMPError,
     SCMPExpiredHOF,
     SCMPNonRoutingHOF,
+    SCMPPathRequired,
     SCMPTooManyHopByHop,
     SCMPUnknownHost,
 )
@@ -461,6 +462,8 @@ class Router(SCIONElement):
         :param from_local_as:
             Whether or not the packet is from the local AS.
         """
+        if len(spkt.path) == 0:
+            raise SCMPPathRequired
         ingress = not from_local_as
         try:
             self._process_data(spkt, ingress, drop_on_error)
