@@ -157,12 +157,12 @@ class Router(SCIONElement):
         """
         Setup incoming socket
         """
-        self._local_sock = UDPSocket(
+        self._udp_sock = UDPSocket(
             bind=(str(self.addr.host), self._port, self.id),
             addr_type=self.addr.host.TYPE,
         )
-        self._port = self._local_sock.port
-        self._socks.add(self._local_sock, self.handle_recv)
+        self._port = self._udp_sock.port
+        self._socks.add(self._udp_sock, self.handle_recv)
 
     def run(self):
         """
@@ -196,7 +196,7 @@ class Router(SCIONElement):
         if from_local_as:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
         else:
-            self._local_sock.send(spkt.pack(), (str(addr), port))
+            self._udp_sock.send(spkt.pack(), (str(addr), port))
 
     def handle_extensions(self, spkt, pre_routing_phase, from_local_as):
         """
@@ -656,7 +656,7 @@ class Router(SCIONElement):
         self.deliver(pkt)
 
     def _get_msg_meta(self, packet, addr, sock):
-        meta = RawMetadata.from_values(packet, addr, sock == self._local_sock)
+        meta = RawMetadata.from_values(packet, addr, sock == self._udp_sock)
         return packet, meta
 
     def handle_msg_meta(self, msg, meta):

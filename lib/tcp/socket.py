@@ -130,7 +130,7 @@ def get_lwip_reply(sock):
     try:
         raw_len = recv_all(sock, PLD_SIZE, 0)
     except OSError as e:
-        logging.fatal("Cannot read from LWIP's socket: %s", e)
+        logging.critical("Cannot read from LWIP's socket: %s", e)
         raise SCIONTCPError("Cannot read from LWIP's socket")
     if not raw_len:
         return None
@@ -138,7 +138,7 @@ def get_lwip_reply(sock):
     try:
         return recv_all(sock, RESP_SIZE + pld_len, 0)
     except OSError as e:
-        logging.fatal("Cannot read from LWIP's socket: %s", e)
+        logging.critical("Cannot read from LWIP's socket: %s", e)
         raise SCIONTCPError("Cannot read from LWIP's socket")
 
 
@@ -226,7 +226,7 @@ class SCIONTCPSocket(object):
             try:
                 self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
             except OSError as e:
-                logging.fatal("Cannot send via _lwip_sock: %s", e)
+                logging.critical("Cannot send via _lwip_sock: %s", e)
                 raise SCIONTCPError("Cannot send via _lwip_sock")
         else:
             logging.debug("Sending via non-existing socket (_lwip_sock)")

@@ -121,7 +121,7 @@ class SCIONDaemon(SCIONElement):
         return inst
 
     def _get_msg_meta(self, packet, addr, sock):
-        if sock != self._local_sock:
+        if sock != self._udp_sock:
             return packet, SockOnlyMetadata.from_values(sock)  # API socket
         else:
             return super()._get_msg_meta(packet, addr, sock)
@@ -181,23 +181,23 @@ class SCIONDaemon(SCIONElement):
             return pcb.first_ia()
         return None
 
-    def api_handle_request(self, packet, meta):
+    def api_handle_request(self, msg, meta):
         """
         Handle local API's requests.
         """
-        if packet[0] == 0:  # path request
+        if msg[0] == 0:  # path request
             logging.debug('API: path request')
             threading.Thread(
                 target=thread_safety_net,
-                args=(self._api_handle_path_request, packet, meta),
+                args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
-        elif packet[0] == 1:  # address request
+        elif msg[0] == 1:  # address request
             logging.debug('API: local ISD-AS request')
             self.send_meta(self.addr.isd_as.pack(), meta)
         else:
-            logging.warning("API: type %d not supported.", packet[0])
+            logging.warning("API: type %d not supported.", msg[0])
 
-    def _api_handle_path_request(self, packet, meta):
+    def _api_handle_path_request(self, msg, meta):
         """
         Path request:
           | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
@@ -207,7 +207,7 @@ class SCIONDaemon(SCIONElement):
            p2_len(1B)|...
          or b"" when no path found.
         """
-        dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
+        dst_ia = ISD_AS(msg[1:ISD_AS.LEN + 1])
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, self.addr.isd_as, dst_ia)

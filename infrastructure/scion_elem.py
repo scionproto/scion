@@ -84,7 +84,7 @@ from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
-from lib.thread import thread_safety_net
+from lib.thread import thread_safety_net, kill_self
 from lib.trust_store import TrustStore
 from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
@@ -164,14 +164,14 @@ class SCIONElement(object):
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
         # Setup TCP "accept" socket.
         self._setup_tcp_accept_socket(svc)
-        # Setup local socket
-        self._local_sock = ReliableSocket(
+        # Setup UDP socket
+        self._udp_sock = ReliableSocket(
             reg=(self.addr, self._port, init, svc))
-        if not self._local_sock.registered:
-            self._local_sock = None
+        if not self._udp_sock.registered:
+            self._udp_sock = None
             return
-        self._port = self._local_sock.port
-        self._socks.add(self._local_sock, self.handle_recv)
+        self._port = self._udp_sock.port
+        self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
         MAX_TRIES = 20
@@ -187,7 +187,8 @@ class SCIONElement(object):
                 logging.warning("TCP: Cannot connect to LWIP socket.")
             time.sleep(1)  # Wait for dispatcher
         else:
-            logging.fatal("TCP: cannot init TCP socket.")
+            logging.critical("TCP: cannot init TCP socket.")
+            kill_self()
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
@@ -417,9 +418,9 @@ class SCIONElement(object):
         assert not isinstance(packet.addrs.dst.host, HostAddrNone)
         assert isinstance(packet, SCIONBasePacket)
         assert isinstance(dst_port, int), dst_port
-        if not self._local_sock:
+        if not self._udp_sock:
             return
-        self._local_sock.send(packet.pack(), (dst, dst_port))
+        self._udp_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
@@ -473,7 +474,7 @@ class SCIONElement(object):
             except queue.Full:
                 old_sock = self._tcp_conns.get_nowait()
                 old_sock.close()
-                logging.warning("TCP: connections queue is full.")
+                logging.error("TCP: _tcp_conns is full. Closing an old socket.")
                 dropped += 1
             else:
                 break
@@ -567,8 +568,8 @@ class SCIONElement(object):
         if packet is None:
             self._socks.remove(sock)
             sock.close()
-            if sock == self._local_sock:
-                self._local_sock = None
+            if sock == self._udp_sock:
+                self._udp_sock = None
             return
         self.packet_put(packet, addr, sock)
 
@@ -577,7 +578,7 @@ class SCIONElement(object):
         Read packets from sockets, and put them into a :class:`queue.Queue`.
         """
         while self.run_flag.is_set():
-            if not self._local_sock:
+            if not self._udp_sock:
                 self._setup_sockets(False)
             for sock, callback in self._socks.select_(timeout=1.0):
                 callback(sock)
@@ -625,15 +626,11 @@ class SCIONElement(object):
     def _tcp_recv_loop(self):
         active_conns = {}
         while self.run_flag.is_set():
-            # Don't consume too much CPU.
-            while self._tcp_conns.empty() and not len(active_conns):
-                time.sleep(0.15)
-            # Get new connections.
-            logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
-            try:
-                active_conns[self._tcp_conns.get_nowait()] = time.time()
-            except queue.Empty:
-                pass
+            if not active_conns:
+                # Have nothing to do, so block until another connection comes in
+                active_conns[self._tcp_conns.get()] = time.time()
+            while not self._tcp_conns.empty():
+                active_conns[self._tcp_conns.get()] = time.time()
             # Handle active connections.
             to_remove = []
             for tcp_sock in active_conns:
