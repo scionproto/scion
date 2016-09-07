@@ -654,7 +654,7 @@ class SCIONElement(object):
             tcp_sock.close()
 
     def _tcp_clean(self):
-        if not self._tcp_sock:
+        if not hasattr(self, "_tcp_sock") or not self._tcp_sock:
             return
         # Close all TCP sockets.
         while not self._tcp_conns.empty():
