@@ -136,14 +136,18 @@ cmd_clean() {
 }
 
 cmd_sciond() {
-    ISD=${1:?No ISD provided}
-    AS=${2:?No AS provided}
-    ADDR=${3:-127.${ISD}.${AS}.254}
+    [ -n "$1" ] || { echo "ISD-AS argument required"; exit 1; }
+    IFS=- read -a ia <<< $1
+    ISD=${ia[0]:?No ISD provided}
+    AS=${ia[1]:?No AS provided}
+    ADDR=${2:-127.${ISD}.${AS}.254}
     GENDIR=gen/ISD${ISD}/AS${AS}/endhost
-    # FIXME(aznair): Will become ISD_AS.sock in later PR
+    [ -d "$GENDIR" ] || { echo "Topology directory for $ISD-$AS doesn't exist: $GENDIR"; exit 1; }
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=.
-    exec bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR
+    PYTHONPATH=. bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
+    echo "Sciond running for $ISD-$AS"
+    wait
+    exit $?
 }
 
 cmd_help() {
