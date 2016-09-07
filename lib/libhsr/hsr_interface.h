@@ -6,9 +6,11 @@
 #define MAX_PACKET_LEN 2048
 
 typedef struct {
-    uint8_t buf[MAX_PACKET_LEN]; // Packet data starting at SCH
-    struct sockaddr_storage src; // Overlay src addr
-    struct sockaddr_storage dst; // Overlay dst addr
+    uint8_t *buf; // Packet data starting at SCH, size MAX_PACKET_LEN
+    size_t buflen; // Length of data actually written in buf
+    struct sockaddr_storage *src; // Overlay src addr
+    struct sockaddr_storage *dst; // Overlay dst addr
+    uint8_t port_id; // DPDK port index packet came through
 } RouterPacket;
 
 /*
@@ -31,9 +33,12 @@ int router_init(int argc, char **argv);
 /*
  * Get packets from router library
  * packets: Array of packets (data filled in by router library)
+ * min_packets: Minimum number of packets to read before returning
+ * max_packets: Maximum capacity of packets array
+ * timeout: Timeout to return whether min_packets are ready or not, in microseconds (-1 for no timeout)
  * returns: Number of packets filled in
  */
-int get_packets(RouterPacket *packets, int max_packets);
+int get_packets(RouterPacket *packets, int min_packets, int max_packets, int timeout);
 /*
  * Send packet
  * Before calling, packet->src/dst must both be updated to reflect the addresses
@@ -42,6 +47,14 @@ int get_packets(RouterPacket *packets, int max_packets);
  * returns: 0 on success, -1 on error
  */
 int send_packet(RouterPacket *packet);
+/*
+ * Send burst of packets
+ * Same conditions as send_packet
+ * packets: Array of packets to send
+ * count: Number of packets in array
+ * returns: Number of packets successfully sent
+ */
+int send_packets(RouterPacket *packets, int count);
 
 /*
  * Miscellaneous network setup - store local/neighbor addresses, setup KNI, etc.

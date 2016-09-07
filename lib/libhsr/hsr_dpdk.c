@@ -53,6 +53,30 @@
 #include "hsr_interface.h"
 #include "scion.h"
 
+// change value to control amount of logging (heavily affects performance)
+// can result in compile warnings for unused variables
+#define LOGLEVEL 1
+#if LOGLEVEL > 1
+#undef zlog_debug
+#define zlog_debug(...)
+#if LOGLEVEL > 2
+#undef zlog_info
+#define zlog_info(...)
+#if LOGLEVEL > 3
+#undef zlog_warn
+#define zlog_warn(...)
+#if LOGLEVEL > 4
+#undef zlog_error
+#define zlog_error(...)
+#if LOGLEVEL > 5
+#undef zlog_fatal
+#define zlog_fatal(...)
+#endif // LOGLEVEL > 5
+#endif // LOGLEVEL > 4
+#endif // LOGLEVEL > 3
+#endif // LOGLEVEL > 2
+#endif // LOGLEVEL > 1
+
 #define MBUF_SIZE (2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
 #define NB_MBUF   8192
 
@@ -91,9 +115,6 @@ static const struct rte_eth_conf port_conf = {
 
 struct rte_mempool * hsr_pktmbuf_pool = NULL;
 
-#define MAX_KNI_OBJS 2
-struct rte_kni *kni_objs[MAX_KNI_OBJS];
-
 /* ARP cache */
 typedef struct {
     UT_hash_handle hh;
@@ -106,8 +127,8 @@ ARPEntry *arp_table = NULL;
 static struct mnl_socket *netlink_socket;
 static int netlink_ready = 0;
 
+static pthread_mutex_t tx_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t eth_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t kni_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t netlink_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t netlink_cond = PTHREAD_COND_INITIALIZER;
 
@@ -121,6 +142,7 @@ static PortEntry *addr2port;
 
 #define MAX_DPDK_PORTS 10
 static struct sockaddr_storage local_addrs[MAX_DPDK_PORTS];
+struct rte_kni *kni_objs[MAX_DPDK_PORTS];
 
 /* Dummy sockets to hand packets off to kernel */
 static int sockets[MAX_DPDK_PORTS];
@@ -135,6 +157,8 @@ typedef struct {
     uint8_t ip[MAX_HOST_ADDR_LEN];
     struct ether_addr mac;
     uint8_t addr_type;
+    uint8_t has_ip;
+    uint8_t has_mac;
 } ForwardingEntry;
 #define MAX_FORWARDING_ENTRIES 256
 static ForwardingEntry forwarding_table[MAX_FORWARDING_ENTRIES];
@@ -153,45 +177,40 @@ zlog_category_t *zc;
 #define IP_HDRLEN  0x05 /* default IP header length == five 32-bits words. */
 #define IP_VHL_DEF (IP_VERSION | IP_HDRLEN)
 
-#define MININET // Comment out for physical deployment
+//#define MININET // Comment out for physical deployment
 
-void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
+static inline void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
         uint8_t vlan_enabled, uint16_t van_id);
-uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
+static inline uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
         uint32_t dst_addr, uint16_t pkt_data_len);
-uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
+static inline uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
 		uint8_t *dst_addr, uint16_t pkt_data_len);
-uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
+static inline uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
         uint16_t dst_port, uint16_t pkt_data_len);
-void copy_buf_to_pkt_segs(void *buf, unsigned len, struct rte_mbuf *pkt,
-        unsigned offset);
-void copy_buf_to_pkt(void *buf, unsigned len, struct rte_mbuf *pkt, unsigned offset);
-void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
+static inline void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
         struct ether_addr *dst_mac, RouterPacket *packet, size_t size);
 
 void * handle_kni(void *arg);
-void setup_kni();
+static inline void setup_kni();
 void * run_netlink_core(void *arg);
 
-int dpdk_output_packet(struct rte_mbuf *m, uint8_t port);
-int get_dpdk_port(RouterPacket *packet);
-int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port);
-int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet);
-struct udp_hdr *get_udp_hdr(struct rte_mbuf *m);
+static inline int dpdk_output_packet(struct rte_mbuf *m, uint8_t port);
+static inline int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port);
+static inline int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet);
+static inline struct udp_hdr *get_udp_hdr(struct rte_mbuf *m);
 
-int kni_alloc(uint8_t port_id);
+static inline int kni_alloc(uint8_t port_id);
 
-unsigned setup_netlink_socket(unsigned seq);
-int handle_message(const struct nlmsghdr *nlh, void *data);
-int handle_attributes(const struct nlattr *attr, void *data);
-void handle_arp_update(const struct nlmsghdr *nlh);
-void handle_route_update(const struct nlmsghdr *nlh);
+static inline unsigned setup_netlink_socket(unsigned seq);
+static inline int handle_message(const struct nlmsghdr *nlh, void *data);
+static inline int handle_attributes(const struct nlattr *attr, void *data);
+static inline void handle_arp_update(const struct nlmsghdr *nlh);
+static inline void handle_route_update(const struct nlmsghdr *nlh);
 
-void open_sockets();
+static inline void open_sockets();
 
-int eth_addr_type(int family);
-int is_addr_empty(uint8_t *addr, int addr_len);
+static inline int eth_addr_type(int family);
 
 /*
  * Utility functions to deal with low-level headers (eth and overlay)
@@ -199,7 +218,7 @@ int is_addr_empty(uint8_t *addr, int addr_len);
  * app/test/packet_burst_generator.c
  */
 
-void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
+static inline void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
         uint8_t vlan_enabled, uint16_t van_id)
 {
@@ -219,7 +238,7 @@ void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
     }
 }
 
-uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
+static inline uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
         uint32_t dst_addr, uint16_t pkt_data_len)
 {
     uint16_t pkt_len;
@@ -238,12 +257,13 @@ uint16_t initialize_ipv4_header(struct ipv4_hdr *ip_hdr, uint32_t src_addr,
     ip_hdr->total_length   = rte_cpu_to_be_16(pkt_len);
     ip_hdr->src_addr = src_addr;
     ip_hdr->dst_addr = dst_addr;
+    ip_hdr->hdr_checksum = 0;
     ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
 
     return pkt_len;
 }
 
-uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
+static inline uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
 		uint8_t *dst_addr, uint16_t pkt_data_len)
 {
 	ip_hdr->vtc_flow = 0;
@@ -257,7 +277,7 @@ uint16_t initialize_ipv6_header(struct ipv6_hdr *ip_hdr, uint8_t *src_addr,
 	return (uint16_t) (pkt_data_len + sizeof(struct ipv6_hdr));
 }
 
-uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
+static inline uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
         uint16_t dst_port, uint16_t pkt_data_len)
 {
     uint16_t pkt_len;
@@ -272,68 +292,36 @@ uint16_t initialize_udp_header(struct udp_hdr *udp, uint16_t src_port,
     return pkt_len;
 }
 
-void copy_buf_to_pkt_segs(void *buf, unsigned len, struct rte_mbuf *pkt,
-        unsigned offset)
-{
-    struct rte_mbuf *seg;
-    void *seg_buf;
-    unsigned copy_len;
-
-    seg = pkt;
-    while (offset >= seg->data_len) {
-        offset -= seg->data_len;
-        seg = seg->next;
-    }
-    copy_len = seg->data_len - offset;
-    seg_buf = rte_pktmbuf_mtod(seg, char *) + offset;
-    while (len > copy_len) {
-        rte_memcpy(seg_buf, buf, (size_t) copy_len);
-        len -= copy_len;
-        buf = ((char *) buf + copy_len);
-        seg = seg->next;
-        seg_buf = rte_pktmbuf_mtod(seg, void *);
-    }
-    rte_memcpy(seg_buf, buf, (size_t) len);
-}
-
-void copy_buf_to_pkt(void *buf, unsigned len, struct rte_mbuf *pkt, unsigned offset)
-{
-    if (offset + len <= pkt->data_len) {
-        rte_memcpy(rte_pktmbuf_mtod(pkt, char *) + offset, buf, (size_t) len);
-        return;
-    }
-    copy_buf_to_pkt_segs(buf, len, pkt, offset);
-}
-
-void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
+static inline void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
         struct ether_addr *dst_mac, RouterPacket *packet, size_t size)
 {
     struct ether_hdr *eth = ETH_HDR(m);
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp;
-    int addr_type = eth_addr_type(packet->src.ss_family);
     int ip_size = 0;
+    struct sockaddr_storage *src = &local_addrs[dpdk_port];
+    int addr_type = eth_addr_type(src->ss_family);
 
     initialize_eth_header(
             eth, &hsr_ports_eth_addr[dpdk_port], dst_mac, addr_type, 0, 0);
     if (addr_type == ETHER_TYPE_IPv4) {
         initialize_ipv4_header(ipv4,
-                *(uint32_t *)get_ss_addr(&packet->src),
-                *(uint32_t *)get_ss_addr(&packet->dst),
+                *(uint32_t *)get_ss_addr(src),
+                *(uint32_t *)get_ss_addr(packet->dst),
                 size - sizeof(struct ether_hdr) - sizeof(struct ipv4_hdr));
         ip_size = sizeof(struct ipv4_hdr);
     } else if (addr_type == ETHER_TYPE_IPv6) {
         initialize_ipv6_header(ipv6,
-                get_ss_addr(&packet->src), get_ss_addr(&packet->dst),
+                get_ss_addr(src), get_ss_addr(packet->dst),
                 size - sizeof(struct ether_hdr) - sizeof(struct ipv6_hdr));
         ip_size = sizeof(struct ipv6_hdr);
     }
     udp = get_udp_hdr(m);
     // port is at the same offset for sockaddr_in and sockaddr_in6
     initialize_udp_header(udp,
-            ((struct sockaddr_in *)&packet->src)->sin_port,
-            ((struct sockaddr_in *)&packet->dst)->sin_port,
+            ((struct sockaddr_in *)src)->sin_port,
+            ((struct sockaddr_in *)packet->dst)->sin_port,
             size - sizeof(struct ether_hdr) - ip_size - sizeof(struct udp_hdr));
 
     m->nb_segs = 1;
@@ -467,7 +455,7 @@ int router_init(int argc, char **argv)
 /* Packet handling functions */
 
 /* Send the burst of packets on an output interface */
-static int dpdk_output_burst(unsigned n, uint8_t port)
+static inline int dpdk_output_burst(unsigned n, uint8_t port)
 {
     struct rte_mbuf **m_table;
     unsigned ret;
@@ -488,10 +476,11 @@ static int dpdk_output_burst(unsigned n, uint8_t port)
 }
 
 /* Enqueue packets for TX and prepare them to be sent */
-int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
+static inline int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
 {
     unsigned len;
 
+    pthread_mutex_lock(&tx_mutex);
     len = tx_mbufs[port].len;
     tx_mbufs[port].m_table[len] = m;
     len++;
@@ -503,100 +492,113 @@ int dpdk_output_packet(struct rte_mbuf *m, uint8_t port)
     }
 
     tx_mbufs[port].len = len;
+    pthread_mutex_unlock(&tx_mutex);
     return 0;
 }
 
 /* main processing loop */
-int get_packets(RouterPacket *packets, int max_packets)
+int get_packets(RouterPacket *packets, int min_packets, int max_packets, int timeout)
 {
     struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
     struct rte_mbuf *m;
     struct rte_mbuf *m_next;
-    uint64_t prev_tsc, diff_tsc, cur_tsc;
+    uint64_t diff_tsc, cur_tsc, start_tsc;
+    static uint64_t prev_tsc;
     unsigned i, portid, nb_rx, nb_ports;
     const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * BURST_TX_DRAIN_US;
+    const uint64_t timeout_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * timeout;
     int count = 0;
 
-    prev_tsc = 0;
+    start_tsc = rte_rdtsc();
 
-    cur_tsc = rte_rdtsc();
-    /*
-     * TX burst queue drain
-     */
-    diff_tsc = cur_tsc - prev_tsc;
-    if (unlikely(diff_tsc > drain_tsc)) {
-        for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
-            if (tx_mbufs[portid].len == 0)
-                continue;
-            dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
-            tx_mbufs[portid].len = 0;
+    while (count < min_packets) {
+        /*
+         * TX burst queue drain
+         */
+        cur_tsc = rte_rdtsc();
+        diff_tsc = cur_tsc - prev_tsc;
+        if (unlikely(diff_tsc > drain_tsc)) {
+            pthread_mutex_lock(&tx_mutex);
+            for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
+                if (tx_mbufs[portid].len == 0)
+                    continue;
+                dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
+                tx_mbufs[portid].len = 0;
+            }
+            pthread_mutex_unlock(&tx_mutex);
+            prev_tsc = cur_tsc;
         }
-        prev_tsc = cur_tsc;
+
+        /*
+         * NIC lcore
+         * Read packet from RX queues
+         */
+        nb_ports = rte_eth_dev_count();
+        for (portid = 0; portid < nb_ports; portid++) {
+            pthread_mutex_lock(&eth_mutex);
+            nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
+                    pkts_burst, max_packets - count);
+            pthread_mutex_unlock(&eth_mutex);
+            for (i = 0; i < nb_rx; i++) {
+                m = pkts_burst[i];
+                //rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+                if(i < nb_rx -1){
+                    m_next = pkts_burst[i+1];
+                    rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
+                    rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
+                }
+                if (!handle_packet(&packets[count], m, portid)) {
+                    rte_pktmbuf_free(m);
+                    pkts_burst[i] = NULL;
+                } else {
+                    count++;
+                }
+            }
+            if (count == max_packets)
+                break;
+        }
+        if (timeout != -1) {
+            cur_tsc = rte_rdtsc();
+            if (unlikely(cur_tsc - start_tsc > timeout_tsc))
+                break;
+        }
     }
 
-    /*
-     * NIC lcore
-     * Read packet from RX queues
-     */
-    nb_ports = rte_eth_dev_count();
-    for (portid = 0; portid < nb_ports; portid++) {
-        pthread_mutex_lock(&eth_mutex);
-        nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
-                pkts_burst, max_packets - count);
-        pthread_mutex_unlock(&eth_mutex);
-        for (i = 0; i < nb_rx; i++) {
-            m = pkts_burst[i];
-            //rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-            if(i < nb_rx -1){
-                m_next = pkts_burst[i+1];
-                rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
-                rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
-            }
-            if (!handle_packet(&packets[count], m, portid)) {
-                rte_pktmbuf_free(m);
-                pkts_burst[i] = NULL;
-            } else {
-                count++;
-            }
-        }
-        if (count == max_packets)
-            break;
-    }
     return count;
 }
 
 int send_packet(RouterPacket *packet)
 {
-    struct rte_mbuf *m = rte_pktmbuf_alloc(hsr_pktmbuf_pool);
-    struct ipv4_hdr *ipv4 = IPV4_HDR(m);
-    struct ipv6_hdr *ipv6 = IPV6_HDR(m);
+    struct rte_mbuf *m;
+    struct ipv4_hdr *ipv4;
+    struct ipv6_hdr *ipv6;
     struct udp_hdr *udp;
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)packet->buf;
-    int dpdk_port = get_dpdk_port(packet);
+    SCIONCommonHeader *sch;
     struct ether_addr *mac = NULL;
     ARPEntry *e;
     uint32_t hop_index;
     int ret;
     uint8_t *hop_addr;
-    uint8_t hop_addr_type;
-    char str[50];
 
-    if (dpdk_port == -1) {
-        inet_ntop(packet->src.ss_family, get_ss_addr(&packet->src), str, sizeof(str));
-        zlog_error(zc, "could not find DPDK port for address %s", str);
+    m = rte_pktmbuf_alloc(hsr_pktmbuf_pool);
+    if (!m) {
+        zlog_error(zc, "Unable to allocate mbuf");
         return -1;
     }
 
-    ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(&packet->dst)), &hop_index);
+    ipv4 = IPV4_HDR(m);
+    ipv6 = IPV6_HDR(m);
+    sch = (SCIONCommonHeader *)packet->buf;
+
+    ret = rte_lpm_lookup(next_hop_v4, ntohl(*(uint32_t *)get_ss_addr(packet->dst)), &hop_index);
+
     if (ret == 0) {
-        if (!is_addr_empty(forwarding_table[hop_index].ip, MAX_HOST_ADDR_LEN)) {
-            hop_addr_type = forwarding_table[hop_index].addr_type;
+        if (forwarding_table[hop_index].has_ip) {
             hop_addr = forwarding_table[hop_index].ip;
-            if (!is_addr_empty(forwarding_table[hop_index].mac.addr_bytes, ETHER_ADDR_LEN))
+            if (forwarding_table[hop_index].has_mac)
                 mac = &forwarding_table[hop_index].mac;
         } else {
-            hop_addr_type = family_to_type(packet->dst.ss_family);
-            hop_addr = get_ss_addr(&packet->dst);
+            hop_addr = get_ss_addr(packet->dst);
             zlog_debug(zc, "LPM entry with no gateway: %s", inet_ntoa(*(struct in_addr *)hop_addr));
             HASH_FIND(hh, arp_table, hop_addr, ADDR_IPV4_LEN, e);
             if (e)
@@ -604,65 +606,81 @@ int send_packet(RouterPacket *packet)
         }
     } else {
 #ifdef MININET
-        hop_addr_type = family_to_type(packet->dst.ss_family);
-        hop_addr = get_ss_addr(&packet->dst);
+        hop_addr = get_ss_addr(packet->dst);
         zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
 #else
-        inet_ntop(packet->dst.ss_family, get_ss_addr(&packet->dst), str, sizeof(str));
-        zlog_error(zc, "do not know how to reach %s (error %d)", str, ret);
+        zlog_error(zc, "do not know how to reach %s (error %d)", 
+                addr_to_str(get_ss_addr(packet->dst), family_to_type(packet->dst->ss_family), NULL),
+                ret);
+        rte_pktmbuf_free(m);
         return -1;
 #endif
     }
-    if (!mac) {
+
+    if (unlikely(!mac)) {
         struct sockaddr_in6 sin6;
         memset(&sin6, 0, sizeof(sin6));
         sin6.sin6_family = AF_INET6;
         // port is at the same offset for sockaddr_in and sockaddr_in6
-        sin6.sin6_port = ((struct sockaddr_in *)&packet->dst)->sin_port;
-        if (hop_addr_type == ADDR_IPV4_TYPE) {
+        sin6.sin6_port = ((struct sockaddr_in *)packet->dst)->sin_port;
+        if (packet->dst->ss_family == AF_INET) {
             *(uint16_t *)(sin6.sin6_addr.s6_addr + 10) = 0xffff;
             memcpy(sin6.sin6_addr.s6_addr + 12, hop_addr, ADDR_IPV4_LEN);
         } else {
             memcpy(&sin6.sin6_addr, hop_addr, sizeof(sin6.sin6_addr));
         }
-        zlog_debug(zc, "no MAC for %s (port %d), let kernel handle it",
-                addr_to_str(hop_addr, hop_addr_type, NULL),
-                ntohs(sin6.sin6_port));
-        return sendto(sockets[dpdk_port], sch, ntohs(sch->total_len), 0,
+        zlog_debug(zc, "no MAC for %s (port %d), send through socket %d (fd %d)",
+                addr_to_str(hop_addr, family_to_type(packet->dst->ss_family), NULL),
+                ntohs(sin6.sin6_port), packet->port_id, sockets[packet->port_id]);
+        ret = sendto(sockets[packet->port_id], sch, ntohs(sch->total_len), 0,
                 (struct sockaddr *)&sin6, sizeof(sin6));
+        if (ret < 0) {
+            zlog_error(zc, "error in sendto: %s", strerror(errno));
+            return -1;
+        }
+        zlog_debug(zc, "sent %d bytes", ret);
+        rte_pktmbuf_free(m);
+        return 0;
     }
 
     m->data_len = sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +
         sizeof(struct udp_hdr) + ntohs(sch->total_len);
-    build_lower_layers(m, dpdk_port, mac, packet, m->data_len);
+    build_lower_layers(m, packet->port_id, mac, packet, m->data_len);
+
     // update checksum
     // TODO hardware offloading
     udp = get_udp_hdr(m);
     uint8_t *payload = (uint8_t *)(udp + 1);
     memcpy(payload, packet->buf, ntohs(sch->total_len));
-    if (packet->src.ss_family == AF_INET)
+    if (packet->dst->ss_family == AF_INET)
         udp->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4, udp);
     else
         udp->dgram_cksum = rte_ipv6_udptcp_cksum(ipv6, udp);
 
-    zlog_info(zc, "send_packet() dpdk_port=%d, %s:%d",
-            dpdk_port,
+    zlog_info(zc, "send_packet() packet->port_id=%d, %s:%d",
+            packet->port_id,
             inet_ntoa(*(struct in_addr *)&ipv4->dst_addr),
             ntohs(udp->dst_port));
 
-    return dpdk_output_packet(m, dpdk_port);
+    return dpdk_output_packet(m, packet->port_id);
 }
 
-int get_dpdk_port(RouterPacket *packet)
+int send_packets(RouterPacket *packets, int count)
 {
-    PortEntry *e;
-    HASH_FIND(hh, addr2port, get_ss_addr(&packet->src), MAX_HOST_ADDR_LEN, e);
-    if (!e)
-        return -1;
-    return e->portid;
+    int sent = 0;
+    int ret;
+    int i;
+    for (i = 0; i < count; i++) {
+        ret = send_packet(&packets[i]);
+        if (ret < 0)
+            zlog_error(zc, "error occurred while sending packet %d", i);
+        else
+            sent++;
+    }
+    return sent;
 }
 
-int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port)
+static inline int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port)
 {
     struct ether_hdr *eth = ETH_HDR(m);
 
@@ -684,20 +702,17 @@ int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_t dpdk_rx_port
     if (!kni_objs[0])
         return 0;
     zlog_debug(zc, "Forward to kernel");
-    pthread_mutex_lock(&kni_mutex);
     rte_kni_tx_burst(kni_objs[dpdk_rx_port], &m, 1);
-    pthread_mutex_unlock(&kni_mutex);
     return 0;
 }
 
-int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
+static inline int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
 {
     struct ether_hdr *eth = ETH_HDR(m);
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp = get_udp_hdr(m);
-
-    memset(packet, 0, sizeof(RouterPacket));
+    size_t len;
 
     if (!udp) {
         zlog_debug(zc, "Not UDP packet");
@@ -705,36 +720,34 @@ int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPacket *packet)
     }
 
     if (udp->dst_port != ((struct sockaddr_in *)&local_addrs[dpdk_rx_port])->sin_port) {
-        zlog_debug(zc, "Incorrect UDP port: %d", ntohs(udp->dst_port));
+        zlog_debug(zc, "Incorrect UDP port: %d, expected %d",
+                ntohs(udp->dst_port),
+                ntohs(((struct sockaddr_in *)&local_addrs[dpdk_rx_port])->sin_port));
         return -1;
     }
 
+    packet->port_id = dpdk_rx_port;
+
     if (ntohs(eth->ether_type) == ETHER_TYPE_IPv4) {
-        struct sockaddr_in *sin = (struct sockaddr_in *)&packet->src;
+        struct sockaddr_in *sin = (struct sockaddr_in *)packet->src;
         sin->sin_family = AF_INET;
         sin->sin_port = udp->src_port;
         memcpy(&sin->sin_addr, &ipv4->src_addr, ADDR_IPV4_LEN);
-        sin = (struct sockaddr_in *)&packet->dst;
-        sin->sin_family = AF_INET;
-        sin->sin_port = udp->dst_port;
-        memcpy(&sin->sin_addr, &ipv4->dst_addr, ADDR_IPV4_LEN);
     } else if (ntohs(eth->ether_type) == ETHER_TYPE_IPv6) {
-        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&packet->src;
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)packet->src;
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = udp->src_port;
         memcpy(&sin6->sin6_addr, &ipv6->src_addr, ADDR_IPV6_LEN);
-        sin6 = (struct sockaddr_in6 *)&packet->dst;
-        sin6->sin6_family = AF_INET6;
-        sin6->sin6_port = udp->dst_port;
-        memcpy(&sin6->sin6_addr, &ipv6->dst_addr, ADDR_IPV6_LEN);
     }
 
-    memcpy(packet->buf, udp + 1, ntohs(udp->dgram_len));
+    len = ntohs(udp->dgram_len) - sizeof(struct udp_hdr);
+    memcpy(packet->buf, udp + 1, len);
+    packet->buflen = len;
     rte_pktmbuf_free(m);
     return 0;
 }
 
-struct udp_hdr *get_udp_hdr(struct rte_mbuf *m)
+static inline struct udp_hdr *get_udp_hdr(struct rte_mbuf *m)
 {
     struct ether_hdr *eth = ETH_HDR(m);
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
@@ -809,12 +822,15 @@ void * handle_kni(void *arg)
     return NULL;
 }
 
-void setup_kni()
+static inline void setup_kni()
 {
     char cmd[100];
     int i;
     int res;
     uint8_t ports = rte_eth_dev_count();
+
+    if (!kni_objs[0])
+        return;
 
     pthread_mutex_lock(&netlink_mutex);
     while (!netlink_ready)
@@ -822,16 +838,23 @@ void setup_kni()
     pthread_mutex_unlock(&netlink_mutex);
 
     for (i = 0; i < ports; i++) {
-        sprintf(cmd, "brctl addif br%d vEth%d", i, i);
+        sprintf(cmd, "sudo brctl addif br%d vEth%d", i, i);
         res = system(cmd);
         zlog_debug(zc, "cmd = %s: res = %d", cmd, res);
-        sprintf(cmd, "ip link set vEth%d up", i);
+        sprintf(cmd, "sudo ip link set vEth%d up address %02x:%02x:%02x:%02x:%02x:%02x",
+                i,
+                hsr_ports_eth_addr[i].addr_bytes[0],
+                hsr_ports_eth_addr[i].addr_bytes[1],
+                hsr_ports_eth_addr[i].addr_bytes[2],
+                hsr_ports_eth_addr[i].addr_bytes[3],
+                hsr_ports_eth_addr[i].addr_bytes[4],
+                hsr_ports_eth_addr[i].addr_bytes[5]);
         res = system(cmd);
         zlog_debug(zc, "cmd = %s: res = %d", cmd, res);
     }
 }
 
-int kni_alloc(uint8_t port_id)
+static inline int kni_alloc(uint8_t port_id)
 {
     struct rte_kni *kni;
     struct rte_kni_conf conf;
@@ -866,12 +889,14 @@ int kni_alloc(uint8_t port_id)
     return 0;
 }
 
-int kni_free(uint8_t port_id)
+/*
+static inline int kni_free(uint8_t port_id)
 {
 	rte_kni_release(kni_objs[port_id]);
 	rte_eth_dev_stop(port_id);
 	return 0;
 }
+*/
 
 /* End of KNI functions */
 
@@ -909,7 +934,7 @@ void * run_netlink_core(void *arg)
     return NULL;
 }
 
-unsigned setup_netlink_socket(unsigned seq)
+static inline unsigned setup_netlink_socket(unsigned seq)
 {
     char buf[MNL_SOCKET_BUFFER_SIZE];
     struct nlmsghdr *nlh;
@@ -990,7 +1015,7 @@ int handle_attributes(const struct nlattr *attr, void *data)
     return MNL_CB_OK;
 }
 
-void handle_arp_update(const struct nlmsghdr *nlh)
+static inline void handle_arp_update(const struct nlmsghdr *nlh)
 {
     struct nlattr *attrs[NDA_MAX + 1] = {};
     struct ndmsg *ndm = mnl_nlmsg_get_payload(nlh);
@@ -1020,14 +1045,16 @@ void handle_arp_update(const struct nlmsghdr *nlh)
                     inet_ntoa(*(struct in_addr *)ip));
             size_t i;
             for (i = 0; i < MAX_FORWARDING_ENTRIES; i++) {
-                if (!memcmp(forwarding_table[i].ip, ip, ADDR_IPV4_LEN))
+                if (!memcmp(forwarding_table[i].ip, ip, ADDR_IPV4_LEN)) {
                     ether_addr_copy(&e->mac, &forwarding_table[i].mac);
+                    forwarding_table[i].has_mac = 1;
+                }
             }
         }
     }
 }
 
-void handle_route_update(const struct nlmsghdr *nlh)
+static inline void handle_route_update(const struct nlmsghdr *nlh)
 {
     struct nlattr *attrs[RTA_MAX + 1] = {};
     struct rtmsg *rtm = mnl_nlmsg_get_payload(nlh);
@@ -1053,10 +1080,13 @@ void handle_route_update(const struct nlmsghdr *nlh)
         if (attrs[RTA_GATEWAY]) {
             struct in_addr *gateway = mnl_attr_get_payload(attrs[RTA_GATEWAY]);
             memcpy(forwarding_table[index].ip, gateway, ADDR_IPV4_LEN);
+            forwarding_table[index].has_ip = 1;
             ARPEntry *e;
             HASH_FIND(hh, arp_table, gateway, ADDR_IPV4_LEN, e);
-            if (e)
+            if (e) {
                 ether_addr_copy(&forwarding_table[index].mac, &e->mac);
+                forwarding_table[index].has_mac = 1;
+            }
         }
         ret = rte_lpm_add(next_hop_v4, ntohl(*(uint32_t *)dst), rtm->rtm_dst_len, index);
         if (ret < 0)
@@ -1105,7 +1135,7 @@ void setup_network(struct sockaddr_storage *addrs, int num_addrs)
     }
 }
 
-void open_sockets()
+static inline void open_sockets()
 {
     int i;
     for (i = 0; i < MAX_DPDK_PORTS; i++) {
@@ -1138,7 +1168,7 @@ void open_sockets()
 
 /* End of network setup functions */
 
-int eth_addr_type(int family)
+static inline int eth_addr_type(int family)
 {
     switch (family) {
         case AF_INET:
@@ -1149,11 +1179,4 @@ int eth_addr_type(int family)
             return 0;
     }
     return 0;
-}
-
-int is_addr_empty(uint8_t *addr, int addr_len)
-{
-    uint8_t zero[addr_len];
-    memset(zero, 0, addr_len);
-    return !memcmp(addr, zero, addr_len);
 }
