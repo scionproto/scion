@@ -18,12 +18,16 @@ package main
 
 import (
 	"flag"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/hsr"
+	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/packet"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -50,7 +54,7 @@ func ioHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	}
 	dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: packet.DirLocal, Labels: labels})
-	r.locOutFs[i] = func(p *packet.Packet) {
+	r.locOutFs[idx] = func(p *packet.Packet) {
 		r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
 	}
 	return packet.HookFinish, nil
@@ -58,13 +62,13 @@ func ioHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 
 func ioPosixAddExt(r *Router, intf *netconf.Interface,
 	labels prometheus.Labels) (packet.HookResult, *util.Error) {
-	bind := a.IFAddr.BindAddr()
+	bind := intf.IFAddr.BindAddr()
 	if _, dpdk := dpdkIPMap[bind.IP.String()]; !dpdk {
 		return packet.HookContinue, nil
 	}
 	dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: packet.DirExternal, Labels: labels})
-	r.intfOutFs[a.Id] = func(p *packet.Packet) {
+	r.intfOutFs[intf.Id] = func(p *packet.Packet) {
 		r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
 	}
 	return packet.HookFinish, nil
