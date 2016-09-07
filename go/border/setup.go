@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	log "github.com/inconshreveable/log15"
@@ -110,9 +111,11 @@ func (r *Router) setupNet() *util.Error {
 	}
 	if len(dpdkAddrMs) > 0 {
 		hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), dpdkAddrMs)
-		q := make(chan *packet.Packet)
-		r.inQs = append(r.inQs, q)
-		go r.readDPDKInput(q)
+		for i := 0; i < runtime.NumCPU(); i++ {
+			q := make(chan *packet.Packet)
+			r.inQs = append(r.inQs, q)
+			go r.readDPDKInput(q)
+		}
 	}
 	return nil
 }

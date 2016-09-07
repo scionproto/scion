@@ -135,7 +135,10 @@ func (r *Router) readDPDKInput(q chan *packet.Packet) {
 			labels := hsr.AddrMs[portIds[i]].Labels
 			metrics.PktsRecv.With(labels).Inc()
 			metrics.BytesRecv.With(labels).Add(float64(len(p.Raw)))
-			q <- p
+			//q <- p
+			r.processPacket(p)
+			metrics.PktProcessTime.Add(time.Now().Sub(p.TimeIn).Seconds())
+			r.recyclePkt(p)
 			pkts[i] = nil
 		}
 		for _, id := range portIds {
