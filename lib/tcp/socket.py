@@ -130,14 +130,14 @@ def get_lwip_reply(sock):
     try:
         raw_len = recv_all(sock, PLD_SIZE, 0)
     except OSError as e:
-        raise SCIONTCPError("Cannot read from LWIP's socket: %s", e)
+        raise SCIONTCPError("Cannot read from LWIP's socket: %s" % e)
     if not raw_len:
         return None
     pld_len, = struct.unpack("H", raw_len)
     try:
         return recv_all(sock, RESP_SIZE + pld_len, 0)
     except OSError as e:
-        raise SCIONTCPError("Cannot read from LWIP's socket: %s", e)
+        raise SCIONTCPError("Cannot read from LWIP's socket: %s" % e)
 
 
 class SCIONTCPSocket(object):
@@ -152,7 +152,7 @@ class SCIONTCPSocket(object):
             try:
                 self._create_socket()
             except OSError as e:
-                raise SCIONTCPError("Cannot create new socket: %s", e)
+                raise SCIONTCPError("Cannot create new socket: %s" % e)
 
     def setsockopt(self, opt):
         req = APICmd.SET_OPT + struct.pack("H", opt)
@@ -222,7 +222,7 @@ class SCIONTCPSocket(object):
             try:
                 self._lwip_sock.sendall(struct.pack("H", pld_len) + req)
             except OSError as e:
-                raise SCIONTCPError("Cannot send via _lwip_sock: %s", e)
+                raise SCIONTCPError("Cannot send via _lwip_sock: %s" % e)
         else:
             raise SCIONTCPError("Sending via non-existing socket (_lwip_sock)")
 
