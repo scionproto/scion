@@ -469,17 +469,14 @@ class Router(SCIONElement):
                 raise SCMPNonRoutingHOF
         # Forward packet to destination.
         addr = spkt.addrs.dst.host
-        if addr in [SVCType.PS_A, SVCType.BS_A]:
-            # Send request to any path server.
+        if addr.TYPE == AddrType.SVC:
+            # Send request to any server.
             try:
                 service = SVC_TO_SERVICE[addr.addr]
                 addr = self.get_srv_addr(service, spkt)
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver path mgmt packet: %s", e)
                 raise SCMPUnknownHost
-        elif addr == SVCType.SB_A:
-            self.fwd_sibra_service_pkt(spkt, None)
-            return
         self.send(spkt, addr, SCION_UDP_EH_DATA_PORT)
 
     def verify_hof(self, path, ingress=True):
