@@ -599,7 +599,7 @@ int send_packet(RouterPacket *packet)
                 mac = &forwarding_table[hop_index].mac;
         } else {
             hop_addr = get_ss_addr(packet->dst);
-            //zlog_debug(zc, "LPM entry with no gateway: %s", inet_ntoa(*(struct in_addr *)hop_addr));
+            zlog_debug(zc, "LPM entry with no gateway: %s", inet_ntoa(*(struct in_addr *)hop_addr));
             HASH_FIND(hh, arp_table, hop_addr, ADDR_IPV4_LEN, e);
             if (e)
                 mac = &e->mac;
@@ -607,7 +607,7 @@ int send_packet(RouterPacket *packet)
     } else {
 #ifdef MININET
         hop_addr = get_ss_addr(packet->dst);
-        //zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
+        zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
 #else
         zlog_error(zc, "do not know how to reach %s (error %d)", 
                 addr_to_str(get_ss_addr(packet->dst), family_to_type(packet->dst->ss_family), NULL),
@@ -629,18 +629,16 @@ int send_packet(RouterPacket *packet)
         } else {
             memcpy(&sin6.sin6_addr, hop_addr, sizeof(sin6.sin6_addr));
         }
-        /*
         zlog_debug(zc, "no MAC for %s (port %d), send through socket %d (fd %d)",
                 addr_to_str(hop_addr, family_to_type(packet->dst->ss_family), NULL),
                 ntohs(sin6.sin6_port), packet->port_id, sockets[packet->port_id]);
-                */
         ret = sendto(sockets[packet->port_id], sch, ntohs(sch->total_len), 0,
                 (struct sockaddr *)&sin6, sizeof(sin6));
         if (ret < 0) {
             zlog_error(zc, "error in sendto: %s", strerror(errno));
             return -1;
         }
-        //zlog_debug(zc, "sent %d bytes", ret);
+        zlog_debug(zc, "sent %d bytes", ret);
         rte_pktmbuf_free(m);
         return 0;
     }
@@ -659,12 +657,10 @@ int send_packet(RouterPacket *packet)
     else
         udp->dgram_cksum = rte_ipv6_udptcp_cksum(ipv6, udp);
 
-    /*
     zlog_info(zc, "send_packet() packet->port_id=%d, %s:%d",
             packet->port_id,
             inet_ntoa(*(struct in_addr *)&ipv4->dst_addr),
             ntohs(udp->dst_port));
-            */
 
     return dpdk_output_packet(m, packet->port_id);
 }
@@ -688,26 +684,24 @@ static inline int handle_packet(RouterPacket *packet, struct rte_mbuf *m, uint8_
 {
     struct ether_hdr *eth = ETH_HDR(m);
 
-    //zlog_info(zc, "==== packet received, dpdk port %d", dpdk_rx_port);
+    zlog_info(zc, "==== packet received, dpdk port %d", dpdk_rx_port);
 
     if (!fill_packet(m, dpdk_rx_port, packet))
         return 1;
 
-    //zlog_debug(zc, "Non SCION packet: ether_type=%x", ntohs(eth->ether_type));
+    zlog_debug(zc, "Non SCION packet: ether_type=%x", ntohs(eth->ether_type));
     if (ntohs(eth->ether_type) == ETHER_TYPE_ARP) {
         struct arp_hdr *arp_hdr = (struct arp_hdr *)(eth + 1);
-        //zlog_debug(zc, "ARP packet");
+        zlog_debug(zc, "ARP packet");
         char buf1[30], buf2[30];
         inet_ntop(AF_INET, &arp_hdr->arp_data.arp_sip, buf1, 30);
         inet_ntop(AF_INET, &arp_hdr->arp_data.arp_tip, buf2, 30);
-        /*
         zlog_debug(zc, "type: %d, src ip: %s, dst ip: %s",
                 ntohs(arp_hdr->arp_op), buf1, buf2);
-            */
     }
     if (!kni_objs[0])
         return 0;
-    //zlog_debug(zc, "Forward to kernel");
+    zlog_debug(zc, "Forward to kernel");
     rte_kni_tx_burst(kni_objs[dpdk_rx_port], &m, 1);
     return 0;
 }
@@ -721,16 +715,14 @@ static inline int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPa
     uint16_t len;
 
     if (!udp) {
-        //zlog_debug(zc, "Not UDP packet");
+        zlog_debug(zc, "Not UDP packet");
         return -1;
     }
 
     if (udp->dst_port != ((struct sockaddr_in *)&local_addrs[dpdk_rx_port])->sin_port) {
-        /*
         zlog_debug(zc, "Incorrect UDP port: %d, expected %d",
                 ntohs(udp->dst_port),
                 ntohs(((struct sockaddr_in *)&local_addrs[dpdk_rx_port])->sin_port));
-                */
         return -1;
     }
 
@@ -798,7 +790,6 @@ void * handle_kni(void *arg)
                 zlog_error(zc, "Error receiving from KNI");
                 return NULL;
             }
-#if 0
             if (num > 0) {
                 zlog_debug(zc, "%d outgoing packets through KNI", num);
                 struct ether_hdr *eth =
@@ -822,7 +813,6 @@ void * handle_kni(void *arg)
                             ntohs(arp_hdr->arp_op), buf1, buf2);
                 }
             }
-#endif
             unsigned j;
             for (j = 0; j < num; j++)
                 dpdk_output_packet(pkts_burst[j], i);
@@ -997,10 +987,8 @@ static inline unsigned setup_netlink_socket(unsigned seq)
 
 int handle_message(const struct nlmsghdr *nlh, void *data)
 {
-    /*
     zlog_debug(zc, ">>>>> received message %d (type %d) on netlink socket <<<<<",
             nlh->nlmsg_seq, nlh->nlmsg_type);
-            */
     switch (nlh->nlmsg_type) {
         case RTM_NEWNEIGH:
             handle_arp_update(nlh);
@@ -1031,12 +1019,10 @@ static inline void handle_arp_update(const struct nlmsghdr *nlh)
 {
     struct nlattr *attrs[NDA_MAX + 1] = {};
     struct ndmsg *ndm = mnl_nlmsg_get_payload(nlh);
-    /*
     zlog_debug(zc, "new neighbor entry");
     zlog_debug(zc, "family = %d, ifindex = %d, state = %d, flags = %#x, type = %d",
             ndm->ndm_family, ndm->ndm_ifindex, ndm->ndm_state,
             ndm->ndm_flags, ndm->ndm_type);
-            */
     attr_max = NDA_MAX;
     if (mnl_attr_parse(nlh, sizeof(*ndm), handle_attributes, attrs) < 0)
         return;
@@ -1055,10 +1041,8 @@ static inline void handle_arp_update(const struct nlmsghdr *nlh)
                 ether_addr_copy((struct ether_addr *)mac, &e->mac);
                 HASH_ADD(hh, arp_table, ip, ADDR_IPV4_LEN, e);
             }
-            /*
             zlog_debug(zc, "cached ARP entry for %s",
                     inet_ntoa(*(struct in_addr *)ip));
-                    */
             size_t i;
             for (i = 0; i < MAX_FORWARDING_ENTRIES; i++) {
                 if (!memcmp(forwarding_table[i].ip, ip, ADDR_IPV4_LEN)) {
@@ -1074,11 +1058,9 @@ static inline void handle_route_update(const struct nlmsghdr *nlh)
 {
     struct nlattr *attrs[RTA_MAX + 1] = {};
     struct rtmsg *rtm = mnl_nlmsg_get_payload(nlh);
-    /*
     zlog_debug(zc, "new route entry");
     zlog_debug(zc, "family = %d, src len = %d, dst len = %d, table = %d, type = %d",
             rtm->rtm_family, rtm->rtm_src_len, rtm->rtm_dst_len, rtm->rtm_table, rtm->rtm_type);
-            */
     attr_max = RTA_MAX;
     if (mnl_attr_parse(nlh, sizeof(struct rtmsg), handle_attributes, attrs) < 0)
         return;
@@ -1109,10 +1091,8 @@ static inline void handle_route_update(const struct nlmsghdr *nlh)
         ret = rte_lpm_add(next_hop_v4, ntohl(*(uint32_t *)dst), rtm->rtm_dst_len, index);
         if (ret < 0)
             zlog_error(zc, "error adding to lpm: %d", ret);
-        /*
         else
             zlog_debug(zc, "rule added to lpm for %s/%d", inet_ntoa(*dst), rtm->rtm_dst_len);
-            */
     }
 }
 
