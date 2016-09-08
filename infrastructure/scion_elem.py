@@ -51,6 +51,7 @@ from lib.errors import (
 from lib.log import log_exception
 from lib.msg_meta import (
     MetadataBase,
+    SCMPMetadata,
     SockOnlyMetadata,
     TCPMetadata,
     UDPMetadata,
@@ -210,14 +211,18 @@ class SCIONElement(object):
         """
         logging.debug("handle_msg_meta() started: %s %s" % (msg, meta))
 
-        handler = self._get_ctrl_handler(msg)
+        if isinstance(meta, SCMPMetadata):
+            handler = self._get_scmp_handler(msg)
+        else:
+            handler = self._get_ctrl_handler(msg)
         if not handler:
             logging.warning("handler not found: %s", msg)
             return
         try:
             logging.debug("Calling handler, meta:%s", meta)
             # SIBRA operates on parsed packets.
-            if msg.PAYLOAD_CLASS == PayloadClass.SIBRA:
+            if (isinstance(meta, UDPMetadata) and
+                    msg.PAYLOAD_CLASS == PayloadClass.SIBRA):
                 handler(meta.pkt)
             else:
                 handler(msg, meta)
@@ -536,6 +541,12 @@ class SCIONElement(object):
                                            path=rev_pkt.path,
                                            ext_hdrs=rev_pkt.ext_hdrs,
                                            port=rev_pkt.l4_hdr.dst_port)
+        elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
+            meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
+                                            host=rev_pkt.addrs.dst.host,
+                                            path=rev_pkt.path,
+                                            ext_hdrs=rev_pkt.ext_hdrs)
+
         else:
             logging.error("Cannot create meta for: %s" % pkt)
             return None, None

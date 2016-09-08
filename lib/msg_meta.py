@@ -53,6 +53,13 @@ class UDPMetadata(MetadataBase):
     pass
 
 
+class SCMPMetadata(MetadataBase):
+    """
+    Class for SCMP message metadata
+    """
+    pass
+
+
 class TCPMetadata(MetadataBase):
     """
     Class for TCP message metadata
