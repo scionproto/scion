@@ -55,3 +55,16 @@ int get_total_ext_len(uint8_t *buf)
     }
     return size;
 }
+
+/*
+ * Create one hop path extensions.
+ * ext: Pointer to the extension. Required memory is allocated here.
+ */
+void build_one_hop_path_ext(seh_t *ext)
+{
+    ext->ext_class = HOP_BY_HOP;
+    ext->ext_type = ONE_HOP_PATH;
+    ext->len = SCION_EXT_LINE;
+    ext->payload = malloc(ONE_HOP_PATH_PLDLEN);
+    memset(ext->payload, 0, ONE_HOP_PATH_PLDLEN);
+}
