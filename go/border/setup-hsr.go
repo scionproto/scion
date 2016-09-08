@@ -33,9 +33,9 @@ import (
 )
 
 var (
-	dpdkIPs    = flag.String("dpdk-ips", "", "Comma-separated list of IPs for DPDK")
-	dpdkIPMap  = make(map[string]bool)
-	dpdkAddrMs []hsr.AddrMeta
+	hsrIPs    = flag.String("hsr.ips", "", "Comma-separated list of IPs for HSR")
+	hsrIPMap  = make(map[string]bool)
+	hsrAddrMs []hsr.AddrMeta
 )
 
 func init() {
@@ -46,8 +46,8 @@ func init() {
 }
 
 func setupHSRNetStart(r *Router) (packet.HookResult, *util.Error) {
-	for _, ip := range strings.Split(*dpdkIPs, ",") {
-		dpdkIPMap[ip] = true
+	for _, ip := range strings.Split(*hsrIPs, ",") {
+		hsrIPMap[ip] = true
 	}
 	return packet.HookContinue, nil
 }
@@ -55,13 +55,13 @@ func setupHSRNetStart(r *Router) (packet.HookResult, *util.Error) {
 func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	labels prometheus.Labels) (packet.HookResult, *util.Error) {
 	bind := over.BindAddr()
-	if _, dpdk := dpdkIPMap[bind.IP.String()]; !dpdk {
+	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return packet.HookContinue, nil
 	}
-	dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{GoAddr: bind,
+	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: packet.DirLocal, Labels: labels})
 	r.locOutFs[idx] = func(p *packet.Packet) {
-		r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
+		r.writeHSROutput(p, len(hsrAddrMs)-1, labels)
 	}
 	return packet.HookFinish, nil
 }
@@ -69,24 +69,24 @@ func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	labels prometheus.Labels) (packet.HookResult, *util.Error) {
 	bind := intf.IFAddr.BindAddr()
-	if _, dpdk := dpdkIPMap[bind.IP.String()]; !dpdk {
+	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return packet.HookContinue, nil
 	}
-	dpdkAddrMs = append(dpdkAddrMs, hsr.AddrMeta{
+	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: packet.DirExternal, Labels: labels})
 	r.intfOutFs[intf.Id] = func(p *packet.Packet) {
-		r.writeDPDKOutput(p, len(dpdkAddrMs)-1, labels)
+		r.writeHSROutput(p, len(hsrAddrMs)-1, labels)
 	}
 	return packet.HookFinish, nil
 }
 
 func setupHSRNetFinish(r *Router) (packet.HookResult, *util.Error) {
-	if len(dpdkAddrMs) == 0 {
+	if len(hsrAddrMs) == 0 {
 		return packet.HookContinue, nil
 	}
-	hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), dpdkAddrMs)
+	hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), hsrAddrMs)
 	q := make(chan *packet.Packet)
 	r.inQs = append(r.inQs, q)
-	go r.readDPDKInput(q)
+	go r.readHSRInput(q)
 	return packet.HookContinue, nil
 }

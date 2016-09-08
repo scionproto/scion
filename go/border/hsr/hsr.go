@@ -32,6 +32,7 @@ typedef struct sockaddr_storage saddr_storage;
 import "C"
 
 import (
+	"flag"
 	"net"
 	"unsafe"
 
@@ -42,6 +43,10 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
+
+var hsrInMin = flag.Int("hsr.in.min_pkts", 20, "Minimum packets to read per loop")
+var hsrInTout = flag.Int("hsr.in.tout", 10,
+	"Maximum time (in us) to wait for packets. -1 means no timeout.")
 
 const MaxPkts = 32
 
@@ -96,7 +101,8 @@ func (h *HSR) GetPackets(pkts []*packet.Packet) ([]int, *util.Error) {
 	for i, pkt := range pkts {
 		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&pkt.Raw[0]))
 	}
-	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), 20, C.int(len(pkts)), 10))
+	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), C.int(*hsrInMin),
+		C.int(len(pkts)), C.int(*hsrInTout)))
 	portIds := make([]int, count)
 	for i := 0; i < count; i++ {
 		p := pkts[i]
@@ -122,7 +128,7 @@ func SendPacket(dst *net.UDPAddr, portID int, buf util.RawBytes) *util.Error {
 	udpAddrToSaddr(dst, rPkt.dst)
 	rPkt.port_id = C.uint8_t(portID)
 	if C.send_packet(&rPkt) != 0 {
-		return util.NewError("Error sending packet through DPDK")
+		return util.NewError("Error sending packet through HSR")
 	}
 	return nil
 }

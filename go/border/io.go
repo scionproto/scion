@@ -58,7 +58,8 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom packet.Dir, labels prom
 			log.Error("Error reading from socket", "socket", dst, "err", err)
 			continue
 		}
-		metrics.InputProcessTime.With(labels).Add(time.Now().Sub(start).Seconds())
+		t := time.Now().Sub(start).Seconds()
+		metrics.InputProcessTime.With(labels).Add(t)
 		p.TimeIn = time.Now()
 		p.Raw = p.Raw[:length] // Set the length of the slice
 		p.Ingress.Src = src
@@ -83,7 +84,8 @@ func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, p 
 			p.Error("Unable to write full packet", "len", count)
 			return
 		}
-		metrics.OutputProcessTime.With(labels).Add(time.Now().Sub(start).Seconds())
+		t := time.Now().Sub(start).Seconds()
+		metrics.OutputProcessTime.With(labels).Add(t)
 		metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
 		metrics.PktsSent.With(labels).Inc()
 	}
@@ -102,7 +104,8 @@ func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *
 		p.Error("Unable to write full packet", "len", count)
 		return
 	}
-	metrics.OutputProcessTime.With(labels).Add(time.Now().Sub(start).Seconds())
+	t := time.Now().Sub(start).Seconds()
+	metrics.OutputProcessTime.With(labels).Add(t)
 	metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
 	metrics.PktsSent.With(labels).Inc()
 }
