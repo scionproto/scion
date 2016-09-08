@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	//log "github.com/inconshreveable/log15"
@@ -40,13 +39,20 @@ var (
 )
 
 func init() {
+	setupNetStartHooks = append(setupNetStartHooks, setupHSRNetStart)
+	setupAddLocalHooks = append(setupAddLocalHooks, setupHSRAddLocal)
+	setupAddExtHooks = append(setupAddExtHooks, setupHSRAddExt)
+	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
+}
+
+func setupHSRNetStart(r *Router) (packet.HookResult, *util.Error) {
 	for _, ip := range strings.Split(*dpdkIPs, ",") {
 		dpdkIPMap[ip] = true
 	}
-	setupAddLocalHooks = append(setupAddLocalHooks, ioHSRAddLocal)
+	return packet.HookContinue, nil
 }
 
-func ioHSRAddLocal(r *Router, idx int, over *overlay.UDP,
+func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	labels prometheus.Labels) (packet.HookResult, *util.Error) {
 	bind := over.BindAddr()
 	if _, dpdk := dpdkIPMap[bind.IP.String()]; !dpdk {
@@ -60,7 +66,7 @@ func ioHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	return packet.HookFinish, nil
 }
 
-func ioPosixAddExt(r *Router, intf *netconf.Interface,
+func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	labels prometheus.Labels) (packet.HookResult, *util.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, dpdk := dpdkIPMap[bind.IP.String()]; !dpdk {
@@ -74,15 +80,13 @@ func ioPosixAddExt(r *Router, intf *netconf.Interface,
 	return packet.HookFinish, nil
 }
 
-func setupHSRNet(r *Router) *util.Error {
+func setupHSRNetFinish(r *Router) (packet.HookResult, *util.Error) {
 	if len(dpdkAddrMs) == 0 {
-		return nil
+		return packet.HookContinue, nil
 	}
 	hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), dpdkAddrMs)
-	for i := 0; i < runtime.NumCPU(); i++ {
-		q := make(chan *packet.Packet)
-		r.inQs = append(r.inQs, q)
-		go r.readDPDKInput(q)
-	}
-	return nil
+	q := make(chan *packet.Packet)
+	r.inQs = append(r.inQs, q)
+	go r.readDPDKInput(q)
+	return packet.HookContinue, nil
 }

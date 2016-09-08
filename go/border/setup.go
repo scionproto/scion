@@ -37,13 +37,16 @@ const (
 
 const ZlogConf = "zlog.conf"
 
+type setupNetHook func(r *Router) (packet.HookResult, *util.Error)
 type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
 	packet.HookResult, *util.Error)
 type setupAddExtHook func(r *Router, intf *netconf.Interface, labels prometheus.Labels) (
 	packet.HookResult, *util.Error)
 
+var setupNetStartHooks []setupNetHook
 var setupAddLocalHooks []setupAddLocalHook
 var setupAddExtHooks []setupAddExtHook
+var setupNetFinishHooks []setupNetHook
 
 func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]packet.OutputFunc)
@@ -66,6 +69,17 @@ func (r *Router) setupNet() *util.Error {
 	// they appear before the posix ones.
 	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
 	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
+	for _, f := range setupNetStartHooks {
+		ret, err := f(r)
+		switch {
+		case err != nil:
+			return err
+		case ret == packet.HookContinue:
+			continue
+		case ret == packet.HookFinish:
+			break
+		}
+	}
 	var addrs []string
 	for i, a := range conf.C.Net.LocAddr {
 		addrs = append(addrs, a.BindAddr().String())
@@ -85,6 +99,7 @@ func (r *Router) setupNet() *util.Error {
 	metrics.Export(addrs)
 	for _, intf := range conf.C.Net.IFs {
 		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", intf.Id)}
+	InnerLoop:
 		for _, f := range setupAddExtHooks {
 			ret, err := f(r, intf, labels)
 			switch {
@@ -93,8 +108,19 @@ func (r *Router) setupNet() *util.Error {
 			case ret == packet.HookContinue:
 				continue
 			case ret == packet.HookFinish:
-				break
+				break InnerLoop
 			}
+		}
+	}
+	for _, f := range setupNetFinishHooks {
+		ret, err := f(r)
+		switch {
+		case err != nil:
+			return err
+		case ret == packet.HookContinue:
+			continue
+		case ret == packet.HookFinish:
+			break
 		}
 	}
 	return nil
