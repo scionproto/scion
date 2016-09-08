@@ -19,6 +19,9 @@
 #define PATH_TRANSPORT 0
 #define PATH_PROBE 1
 
+// Max number of supported HopByHop extensions (does not include SCMP)
+#define MAX_HOPBYHOP_EXT 3
+
 #define TRACEROUTE_HOP_LEN 8
 // Payload length of one hop path extension.
 #define ONE_HOP_PATH_PLDLEN 5
