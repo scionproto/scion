@@ -205,10 +205,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
-        meta = UDPMetadata.from_values(ia=dst_ia,
-                                       host=SVCType.BS_A,
-                                       path=one_hop_path,
-                                       ext_hdrs=[OneHopPathExt()])
+        exts = []
+        if self.DefaultMeta == UDPMetadata:  # TCP stack will add it.
+            exts.append(OneHopPathExt())
+        meta = self.DefaultMeta.from_values(ia=dst_ia, host=SVCType.BS_A,
+                                            path=one_hop_path, ext_hdrs=exts)
         return pcb, meta
 
     def _create_one_hop_path(self, egress_if):
@@ -246,6 +247,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)
+        meta.close()  # Beacon accepted, can close connection here.
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:
             self.pcb_cache.store(entry_name, pcb.copy().pack())
