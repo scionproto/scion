@@ -179,6 +179,8 @@ class SCIONElement(object):
         self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
+        if not USE_TCP:
+            return
         MAX_TRIES = 20
         for i in range(MAX_TRIES):
             try:
