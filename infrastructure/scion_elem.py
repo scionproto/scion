@@ -93,6 +93,7 @@ from lib.util import hex_str
 
 
 MAX_QUEUE = 30
+USE_TCP = False
 
 
 class SCIONElement(object):
@@ -151,7 +152,10 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_sockets(True)
         self._startup = time.time()
-        self.DefaultMeta = UDPMetadata
+        if USE_TCP:
+            self.DefaultMeta = TCPMetadata
+        else:
+            self.DefaultMeta = UDPMetadata
 
     def _setup_sockets(self, init):
         """
@@ -608,7 +612,7 @@ class SCIONElement(object):
 
     def _tcp_start(self):
         # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock"):
+        if not hasattr(self, "_tcp_sock") or not USE_TCP:
             return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_recv_loop,),
