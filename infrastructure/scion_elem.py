@@ -179,6 +179,8 @@ class SCIONElement(object):
         self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
+        if not USE_TCP:
+            return
         MAX_TRIES = 20
         for i in range(MAX_TRIES):
             try:
@@ -188,8 +190,8 @@ class SCIONElement(object):
                 self._tcp_sock.bind((self.addr, self._port), svc=svc)
                 self._tcp_sock.listen()
                 break
-            except SCIONTCPError:
-                logging.warning("TCP: Cannot connect to LWIP socket.")
+            except SCIONTCPError as e:
+                logging.warning("TCP: Cannot connect to LWIP socket: %s" % e)
             time.sleep(1)  # Wait for dispatcher
         else:
             logging.critical("TCP: cannot init TCP socket.")
