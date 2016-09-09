@@ -49,7 +49,8 @@ from lib.errors import (
     SCIONParseError,
     SCIONServiceLookupError,
 )
-from lib.msg_meta import UDPMetadata
+from lib.flagtypes import TCPFlags
+from lib.msg_meta import TCPMetadata, UDPMetadata
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -108,6 +109,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
+    USE_TCP = False
 
     def __init__(self, server_id, conf_dir):
         """
@@ -205,11 +207,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
-        meta = UDPMetadata.from_values(ia=dst_ia,
-                                       host=SVCType.BS_A,
-                                       path=one_hop_path,
-                                       ext_hdrs=[OneHopPathExt()])
-        return pcb, meta
+        if self.DefaultMeta == TCPMetadata:
+            return pcb, self.DefaultMeta.from_values(
+                ia=dst_ia, host=SVCType.BS_A, path=one_hop_path,
+                flags=TCPFlags.ONEHOPPATH)
+        return pcb, UDPMetadata.from_values(
+            ia=dst_ia, host=SVCType.BS_A, path=one_hop_path,
+            ext_hdrs=[OneHopPathExt()])
 
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())
@@ -246,6 +250,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)
+        meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:
             self.pcb_cache.store(entry_name, pcb.copy().pack())

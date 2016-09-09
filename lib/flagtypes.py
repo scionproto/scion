@@ -60,3 +60,7 @@ HopOFFlags = FlagBase((
     # a given hop. Set by the endhost.
     (8, "RECURSE", ""),
 ))
+
+TCPFlags = FlagBase((
+    (1, "ONEHOPPATH", ""),
+))

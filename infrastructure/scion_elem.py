@@ -93,7 +93,6 @@ from lib.util import hex_str
 
 
 MAX_QUEUE = 30
-USE_TCP = False
 
 
 class SCIONElement(object):
@@ -109,6 +108,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
+    USE_TCP = False
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
@@ -152,7 +152,7 @@ class SCIONElement(object):
         self._socks = SocketMgr()
         self._setup_sockets(True)
         self._startup = time.time()
-        if USE_TCP:
+        if self.USE_TCP:
             self.DefaultMeta = TCPMetadata
         else:
             self.DefaultMeta = UDPMetadata
@@ -179,7 +179,7 @@ class SCIONElement(object):
         self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
-        if not USE_TCP:
+        if not self.USE_TCP:
             return
         MAX_TRIES = 20
         for i in range(MAX_TRIES):
@@ -473,7 +473,8 @@ class SCIONElement(object):
         sock.bind((self.addr, 0))
         dst = meta.get_addr()
         first_ip, first_port = self._get_first_hop(meta.path, dst)
-        sock.connect(dst, meta.port, meta.path, first_ip, first_port)
+        sock.connect(dst, meta.port, meta.path, first_ip, first_port,
+                     flags=meta.flags)
         # Create and return TCPSocketWrapper
         return TCPSocketWrapper(sock, dst, meta.path)
 
@@ -614,7 +615,7 @@ class SCIONElement(object):
 
     def _tcp_start(self):
         # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock") or not USE_TCP:
+        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
             return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_recv_loop,),

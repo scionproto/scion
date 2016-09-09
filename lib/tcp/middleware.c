@@ -253,13 +253,13 @@ exit:
 
 void tcpmw_connect(struct conn_args *args, char *buf, int len){
     /* | port (2B)  | path_len (2B) | path (var) | haddr_type (1B)  | */
-    /* | scion_addr (var) | first_hop_ip (4B) | first_hop_port (2B) | */
+    /* | scion_addr (var) | first_hop_ip (4B) | first_hop_port (2B) | flags (1B) */
     ip_addr_t addr;
     u16_t port, path_len;
     char *p = buf;
     s8_t lwip_err = 0;
 
-    if (len < 15){  /* Minimum length (with empty path and haddr) */
+    if (len < 16){  /* Minimum length (with empty path and haddr) */
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_connect(): incorrect payload length: %dB", len);
         goto exit;
@@ -271,12 +271,12 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     path_len = *((u16_t *)p);
     p += 2;  /* skip path_len */
 
-    if (len < 15 + path_len){  /* Minimum length (with empty haddr) */
+    if (len < 16 + path_len){  /* Minimum length (with empty haddr) */
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_connect(): incorrect payload length: %dB", len);
         goto exit;
     }
-    if (len != 15 + path_len + get_addr_len(p[path_len])){  /* Exact length */
+    if (len != 16 + path_len + get_addr_len(p[path_len])){  /* Exact length */
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_connect(): incorrect payload length: %dB", len);
         goto exit;
@@ -300,6 +300,7 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     path->first_hop.addr_type = ADDR_IPV4_TYPE;
     memcpy(path->first_hop.addr, p, 4);
     path->first_hop.port = *(uint16_t *)(p + 4);
+    args->conn->pcb.ip->scion_flags = *(p + 6);
 
     if ((lwip_err = netconn_connect(args->conn, &addr, port)) != ERR_OK)
         zlog_error(zc_tcp, "tcpmw_connect(): netconn_connect(): %s", lwip_strerr(lwip_err));

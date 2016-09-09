@@ -194,13 +194,13 @@ class SCIONTCPSocket(object):
                struct.pack("B", haddrtype) + addr.pack())
         self._exec_cmd(req, True)
 
-    def connect(self, addr, port, path, first_ip, first_port):
+    def connect(self, addr, port, path, first_ip, first_port, flags=0):
         haddrtype = addr.host.TYPE
         path = path.pack()
         # TODO(PSz): change order of packing, don't assume ipv4
         req = (APICmd.CONNECT + struct.pack("HH", port, len(path)) + path +
                struct.pack("B", haddrtype) + addr.pack() + first_ip.pack() +
-               struct.pack("H", first_port))
+               struct.pack("HB", first_port, flags))
         self._exec_cmd(req, True)
 
     def _create_socket(self):
