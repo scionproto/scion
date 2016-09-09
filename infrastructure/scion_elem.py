@@ -81,7 +81,6 @@ from lib.packet.scmp.errors import (
     SCMPTooManyHopByHop,
     SCMPUnspecified,
 )
-from lib.packet.scmp.payload import SCMPPayload
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
@@ -213,7 +212,7 @@ class SCIONElement(object):
         logging.debug("handle_msg_meta() started: %s %s" % (msg, meta))
 
         if isinstance(meta, SCMPMetadata):
-            handler = self._get_scmp_handler(msg)
+            handler = self._get_scmp_handler(meta.pkt)
         else:
             handler = self._get_ctrl_handler(msg)
         if not handler:
@@ -255,10 +254,7 @@ class SCIONElement(object):
         return None
 
     def _get_scmp_handler(self, pkt):
-        if isinstance(pkt, SCMPPayload):
-            scmp = pkt
-        else:
-            scmp = pkt.l4_hdr
+        scmp = pkt.l4_hdr
         try:
             type_map = self.SCMP_PLD_CLASS_MAP[scmp.class_]
         except KeyError:
