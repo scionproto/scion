@@ -216,7 +216,7 @@ class SCIONElement(object):
         else:
             handler = self._get_ctrl_handler(msg)
         if not handler:
-            logging.warning("handler not found: %s", msg)
+            logging.error("handler not found: %s", msg)
             return
         try:
             logging.debug("Calling handler, meta:%s", meta)
