@@ -254,7 +254,10 @@ class SCIONElement(object):
         return None
 
     def _get_scmp_handler(self, pkt):
-        scmp = pkt.l4_hdr
+        if isinstance(pkt, SCMPPayload)
+            scmp = pkt
+        else:
+            scmp = pkt.l4_hdr
         try:
             type_map = self.SCMP_PLD_CLASS_MAP[scmp.class_]
         except KeyError:
