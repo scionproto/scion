@@ -254,7 +254,7 @@ class SCIONElement(object):
         return None
 
     def _get_scmp_handler(self, pkt):
-        if isinstance(pkt, SCMPPayload)
+        if isinstance(pkt, SCMPPayload):
             scmp = pkt
         else:
             scmp = pkt.l4_hdr
