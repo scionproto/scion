@@ -81,6 +81,7 @@ from lib.packet.scmp.errors import (
     SCMPTooManyHopByHop,
     SCMPUnspecified,
 )
+from lib.packet.scmp.payload import SCMPPayload
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
