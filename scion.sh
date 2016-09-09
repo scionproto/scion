@@ -60,7 +60,7 @@ cmd_test(){
 }
 
 py_test() {
-    nosetests ${EXTRA_NOSE_ARGS} "$@"
+    nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
 
 go_test() {
@@ -79,7 +79,7 @@ cmd_coverage(){
 }
 
 py_cover() {
-    nosetests ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
+    nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
     echo
     echo "Python coverage report here: file://$PWD/htmlcov/index.html"
 }

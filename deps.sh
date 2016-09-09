@@ -4,8 +4,6 @@ set -e
 
 cmd_all() {
     cmd_pkgs
-    # Must be before cmd_pip, as pycapnp depends on capnp being installed.
-    cmd_capnp
     cmd_pip
     cmd_zlog
     cmd_golang
@@ -58,25 +56,6 @@ cmd_zlog() {
     rm -r "${tmpdir:?}"
 }
 
-cmd_capnp() {
-    pkg_deb_chk capnp && return
-    [ -f /usr/local/lib/libcapnpc.so ] && return
-    local tmpdir=$(mktemp -d /tmp/capnp.XXXXXXX)
-    curl -L https://capnproto.org/capnproto-c++-0.5.3.tar.gz | tar xzf - --strip-components=1 -C $tmpdir
-    (
-        cd $tmpdir
-        ./configure
-        make -j6
-        echo "ldconfig" >> postinstall-pak
-        echo "ldconfig" >> postremove-pak
-        mkdir doc-pak
-        cp README.txt LICENSE.txt doc-pak
-        sudo checkinstall -D --pkgname capnp --nodoc -y --deldoc --deldesc --strip=no --stripso=no --backup=no --pkgversion 0.5.3
-        find -mindepth 1 -delete
-    )
-    rmdir "${tmpdir:?}"
-}
-
 cmd_golang() {
     echo "Checking for go 1.6"
     if ! chk_go; then
@@ -117,8 +96,6 @@ cmd_help() {
 	        access required)
 	    $PROGRAM zlog
 	        Install libzlog
-	    $PROGRAM capnp
-	        Install capnproto
 	    $PROGRAM golang
 	        Install golang-1.6
 	    $PROGRAM misc
@@ -134,7 +111,8 @@ COMMAND="$1"
 shift || { cmd_help; exit; }
 
 case "$COMMAND" in
-    all|pkgs|pip|capnp|golang|zlog|misc)
+    all|pkgs|pip|golang|zlog|misc)
             "cmd_$COMMAND" "$@" ;;
-    help|*)  cmd_help ;;
+    help)  cmd_help ;;
+    *)  cmd_help; exit 1 ;;
 esac

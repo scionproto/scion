@@ -1,6 +1,6 @@
 machine:
     python:
-        version: 3.4.3
+        version: 3.5.1
     services:
         - docker
     environment:
@@ -31,8 +31,7 @@ dependencies:
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
         - ./deps.sh golang
-        - sudo apt-get install -y checkinstall clang-3.4
-        - ./deps.sh capnp
+        - sudo apt-get install -y clang-3.4 capnproto
         - make -s go
         - ./docker.sh build
         - docker/cache.sh save

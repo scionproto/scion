@@ -47,10 +47,16 @@ docker_build() {
     echo "Log: $build_dir/$log_file"
     echo "============================"
     echo
-    [ -n "$CIRCLECI" ] && args+=" --rm=false"
-    docker build $args -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
-        tee "$build_dir/${log_file:?}"
-    docker tag -f "$image_name:$image_tag" "$image_name:latest"
+    if [ -n "$CIRCLECI" ]; then
+        # We're running on CircleCI, so don't rm images and *do* use -f during tagging
+        docker build --rm=false -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
+            tee "$build_dir/${log_file:?}"
+        docker tag -f "$image_name:$image_tag" "$image_name:latest"
+    else
+        docker build $args -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
+            tee "$build_dir/${log_file:?}"
+        docker tag "$image_name:$image_tag" "$image_name:latest"
+    fi
 }
 
 cmd_clean() {
