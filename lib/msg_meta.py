@@ -66,9 +66,10 @@ class TCPMetadata(MetadataBase):
     """
     @classmethod
     def from_values(cls, ia=None, host=None, path=None,
-                    ext_hdrs=(), port=0, sock=None):
+                    ext_hdrs=(), port=0, sock=None, flags=0):
         inst = super().from_values(ia, host, path, ext_hdrs, port)
         inst.sock = sock
+        inst.flags = flags
         return inst
 
     def close(self):
