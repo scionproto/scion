@@ -565,15 +565,13 @@ class SupervisorGenerator(object):
     def _write_as_conf(self, topo_id, entries):
         config = configparser.ConfigParser(interpolation=None)
         names = []
-        includes = []
         base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
-            conf_path = os.path.join(base, elem, SUPERVISOR_CONF)
-            includes.append(os.path.join(elem, SUPERVISOR_CONF))
-            self._write_elem_conf(elem, entry, conf_path)
+            elem_dir = os.path.join(base, elem)
+            self._write_elem_conf(elem, entry, elem_dir)
             if self.mininet:
-                self._write_elem_mininet_conf(elem, conf_path)
+                self._write_elem_mininet_conf(elem, elem_dir)
         config["group:as%s" % topo_id] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
@@ -581,40 +579,53 @@ class SupervisorGenerator(object):
                                  SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
-    def _write_elem_conf(self, elem, entry, conf_path):
+    def _write_elem_conf(self, elem, entry, elem_dir):
         config = configparser.ConfigParser(interpolation=None)
-        config["program:%s" % elem] = self._common_entry(elem, entry)
+        prog = self._common_entry(elem, entry, elem_dir)
+        self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
         if self.mininet and not elem.startswith("br"):
-            disp = "dp-" + elem
-            config["program:%s" % disp] =\
-                self._common_entry(disp, ["bin/dispatcher"])
+            prog['environment'] += ',DISPATCHER_ID="%s"' % elem
+            dp_name = "dp-" + elem
+            dp = self._common_entry(dp_name, ["bin/dispatcher"], elem_dir)
+            dp['environment'] += ',DISPATCHER_ID="%s"' % elem
+            config["program:%s" % dp_name] = dp
+            self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
+        config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)
-        write_file(conf_path, text.getvalue())
+        write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
 
-    def _write_elem_mininet_conf(self, elem, conf_path):
+    def _write_elem_mininet_conf(self, elem, elem_dir):
         tmpl = Template(read_file("topology/mininet/supervisord.conf"))
         mn_conf_path = os.path.join(self.out_dir, "mininet", "%s.conf" % elem)
         rel_conf_path = os.path.relpath(
-            conf_path, os.path.join(self.out_dir, "mininet"))
+            os.path.join(elem_dir, SUPERVISOR_CONF),
+            os.path.join(self.out_dir, "mininet")
+        )
         write_file(mn_conf_path,
                    tmpl.substitute(elem=elem, conf_path=rel_conf_path,
                                    user=getpass.getuser()))
 
+    def _write_zlog_cfg(self, name, elem, elem_dir):
+        tmpl = Template(read_file("topology/zlog.tmpl"))
+        cfg = os.path.join(elem_dir, "%s.zlog.conf" % elem)
+        write_file(cfg, tmpl.substitute(name=name, elem=elem))
+
     def _write_dispatcher_conf(self):
         elem = "dispatcher"
-        conf_path = os.path.join(self.out_dir, elem, SUPERVISOR_CONF)
-        self._write_elem_conf(elem, ["bin/dispatcher"], conf_path)
+        elem_dir = os.path.join(self.out_dir, elem)
+        self._write_elem_conf(elem, ["bin/dispatcher"], elem_dir)
 
     def _get_base_path(self, topo_id):
         return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
 
-    def _common_entry(self, name, cmd_args):
+    def _common_entry(self, name, cmd_args, elem_dir):
+        zlog = os.path.join(elem_dir, "%s.zlog.conf" % name)
         entry = {
             'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
             'redirect_stderr': 'true',
-            'environment': 'PYTHONPATH=.',
+            'environment': 'PYTHONPATH=.,ZLOG_CFG="%s"' % zlog,
             'stdout_logfile_maxbytes': 0,
             'stdout_logfile': "logs/%s.OUT" % name,
             'startretries': 0,
@@ -827,7 +838,7 @@ class AddressProxy(yaml.YAMLObject):
 
     @classmethod
     def to_yaml(cls, dumper, inst):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst))
+        return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst.ip))
 
 
 class IFIDGenerator(object):
