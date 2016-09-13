@@ -20,7 +20,6 @@ import logging
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.msg_meta import UDPMetadata
 from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -152,6 +151,6 @@ class LocalPathServer(PathServer):
         logging.info('Send request to core (%s) via %s',
                      req.short_desc(), pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
-        meta = UDPMetadata.from_values(ia=pcb.first_ia(), path=path,
-                                       host=SVCType.PS_A)
+        meta = self.DefaultMeta.from_values(ia=pcb.first_ia(), path=path,
+                                            host=SVCType.PS_A)
         self.send_meta(req.copy(), meta)

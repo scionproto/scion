@@ -23,7 +23,6 @@ from _collections import defaultdict
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
-from lib.msg_meta import UDPMetadata
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
@@ -117,10 +116,10 @@ class CoreBeaconServer(BeaconServer):
             # If there are no local path servers, stop here.
             return
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(records, meta)
 
     def process_pcbs(self, pcbs, raw=True):
