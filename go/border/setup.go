@@ -35,8 +35,6 @@ const (
 	ErrorListenExternal = "Unable to listen on external socket"
 )
 
-const ZlogConf = "zlog.conf"
-
 type setupNetHook func(r *Router) (packet.HookResult, *util.Error)
 type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
 	packet.HookResult, *util.Error)

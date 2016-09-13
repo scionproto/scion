@@ -26,7 +26,6 @@ import math
 import os
 import random
 import sys
-import textwrap
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -370,7 +369,6 @@ class TopoGenerator(object):
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
-        self._write_zlog_confs()
         return self.topo_dicts, self.zookeepers, networks
 
     def _read_links(self):
@@ -507,25 +505,6 @@ class TopoGenerator(object):
         list_path = os.path.join(self.out_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
-
-    def _write_zlog_confs(self):
-        tmpl = textwrap.dedent(
-            '''\
-            [global]
-            default format = "%d(%F %T).%us%d(%z) [%V] (%p:%c:%F:%L) %m%n"
-            file perms = 644
-
-            [rules]
-            default.* >stdout
-            ''')
-        for topo_id, as_topo in self.topo_dicts.items():
-            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
-            for elem in as_topo["BorderRouters"]:
-                with open(os.path.join(base, elem, "zlog.conf"), "w") as f:
-                    f.write(tmpl)
-                    for lvl in ("DEBUG", "INFO", "WARN", "ERROR", "FATAL"):
-                        f.write('libhsr.%s "logs/%s.libhsr.%s", 10MB*2\n' %
-                                (lvl, elem, lvl))
 
 
 class SupervisorGenerator(object):

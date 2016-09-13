@@ -59,22 +59,29 @@ type AddrMeta struct {
 
 var AddrMs []AddrMeta
 
-func Init(name, conf string, args []string, addrMs []AddrMeta) {
+func Init(conf string, args []string, addrMs []AddrMeta) *util.Error {
 	defer liblog.PanicLog()
-	argv := []*C.char{C.CString(name), C.CString(conf)}
+	argv := make([]*C.char, 0, len(args))
 	for _, arg := range args {
 		argv = append(argv, C.CString(arg))
 	}
-	C.router_init(C.int(len(argv)), &argv[0])
+	if C.router_init(C.CString(conf), C.CString("border"), C.int(len(argv)), &argv[0]) != 0 {
+		return util.NewError("Failure initialising libhsr (router_init)")
+	}
 	AddrMs = addrMs
 	cAddrs := make([]C.saddr_storage, len(AddrMs))
 	for i, addrM := range AddrMs {
 		udpAddrToSaddr(addrM.GoAddr, &addrM.CAddr)
 		cAddrs[i] = addrM.CAddr
 	}
-	C.setup_network(&cAddrs[0], C.int(len(cAddrs)))
-	C.create_lib_threads()
+	if C.setup_network(&cAddrs[0], C.int(len(cAddrs))) != 0 {
+		return util.NewError("Failure initialising libhsr (setup_network)")
+	}
+	if C.create_lib_threads() != 0 {
+		return util.NewError("Failure initialising libhsr (create_lib_threads)")
+	}
 	// TODO(kormat): drop cap privileges
+	return nil
 }
 
 func Finish() {

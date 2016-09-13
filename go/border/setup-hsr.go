@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -84,7 +85,11 @@ func setupHSRNetFinish(r *Router) (packet.HookResult, *util.Error) {
 	if len(hsrAddrMs) == 0 {
 		return packet.HookContinue, nil
 	}
-	hsr.Init(r.Id, filepath.Join(conf.C.Dir, ZlogConf), flag.Args(), hsrAddrMs)
+	err := hsr.Init(filepath.Join(conf.C.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
+		flag.Args(), hsrAddrMs)
+	if err != nil {
+		return packet.HookError, err
+	}
 	q := make(chan *packet.Packet)
 	r.inQs = append(r.inQs, q)
 	go r.readHSRInput(q)
