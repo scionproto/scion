@@ -10,6 +10,10 @@ clean:
 go: goproto libscion
 	GOBIN=$$PWD/bin go install -v ./go/...
 
+gohsr: libhsr
+	GOBIN=$$PWD/bin go install -tags hsr -v ./go/border/...
+	sudo setcap cap_dac_read_search,cap_dac_override,cap_sys_admin,cap_net_raw+ep bin/border
+
 # Order is important
 clibs: libscion libfilter libssocket liblwip libtcpmw
 
@@ -32,7 +36,7 @@ dispatcher: clibs
 	$(MAKE) -C endhost install
 
 libhsr: libscion
-	$(MAKE) -C lib/libhsr
+	$(MAKE) -C lib/libhsr doinstall
 
 install: clibs dispatcher
 

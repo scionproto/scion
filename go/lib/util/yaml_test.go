@@ -15,7 +15,6 @@
 package util
 
 import (
-	"fmt"
 	"net"
 	"testing"
 
@@ -88,15 +87,13 @@ func Test_YamlIP_UnmarshalYAML_IPParseError(t *testing.T) {
 func Test_YamlIP_UnmarshalYAML_Success(t *testing.T) {
 	Convey("Valid IPs", t, func() {
 		var y YamlIP
-		cases := [][2]string{
-			{"127.0.0.1", "8"}, {"198.51.100.0", "24"},
-			{"::1", "128"}, {"2001:db8:a0b:12f0::1", "64"},
+		cases := []string{"127.0.0.1", "198.51.100.0",
+			"::1", "2001:db8:a0b:12f0::1",
 		}
-		for _, ip_mask := range cases {
-			full := fmt.Sprintf("%v/%v", ip_mask[0], ip_mask[1])
-			Convey(full, func() {
-				So(yaml.Unmarshal([]byte(full), &y), ShouldBeNil)
-				So(y.IP, ShouldResemble, net.ParseIP(ip_mask[0]))
+		for _, ip := range cases {
+			Convey(ip, func() {
+				So(yaml.Unmarshal([]byte(ip), &y), ShouldBeNil)
+				So(y.IP, ShouldResemble, net.ParseIP(ip))
 			})
 		}
 	})

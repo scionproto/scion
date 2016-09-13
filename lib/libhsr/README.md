@@ -6,29 +6,30 @@ You will need to install the following packages:
 sudo apt-get install hugepages sysfsutils libmnl-dev libpcap-dev bridge-utils
 ```
 
+### User permissions
+sudo groupadd -r dpdk
+sudo usermod -a -G dpdk $LOGNAME
+
 ## Hugepages
 Setup hugepages as follows:
 ```
 sudo bash -c 'echo "kernel/mm/hugepages/hugepages-2048kB/nr_hugepages = 256" > /etc/sysfs.d/hugepages.conf'
 sudo service sysfsutils restart
-sudo bash -c 'echo "nodev /mnt/huge hugetlbfs defaults 0 0" >> /etc/fstab'
 HUGEPAGE_MOUNT=/mnt/huge
+gid=$(getent group dpdk | cut -f3 -d:)
+sudo bash -c "echo \"nodev $HUGEPAGE_MOUNT hugetlbfs gid=$gid,mode=1775 0 0\" >> /etc/fstab"
 sudo mkdir $HUGEPAGE_MOUNT
 sudo mount $HUGEPAGE_MOUNT
+sudo bash -c "echo \"vm.hugetlb_shm_group = $gid\" >> /etc/sysctl.d/60-hugepage.conf"
+sudo service procps restart
 ```
 
 ## DPDK
 This library requires DPDK 16.07 to be downloaded and built on the machine.
-
-Download DPDK source code:
 ```
-wget http://fast.dpdk.org/rel/dpdk-16.07.tar.xz
-tar xf dpdk-16.07.tar.xz
-```
-
-Build DPDK:
-```
-cd dpdk-16.07
+git clone git://dpdk.org/dpdk
+cd dpdk
+git checkout v16.07
 export RTE_SDK=`pwd`
 export RTE_TARGET=x86_64-native-linuxapp-clang
 printf "CONFIG_RTE_LIBRTE_PMD_PCAP=y\nCONFIG_RTE_BUILD_SHARED_LIB=y\n" >> $RTE_SDK/config/defconfig_$RTE_TARGET
@@ -38,22 +39,22 @@ sudo ldconfig
 ```
 This will install the DPDK libraries into /usr/local/lib
 
-Setup DPDK drivers:
-```
-sudo modprobe uio
-sudo insmod $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko
-sudo insmod $RTE_SDK/$RTE_TARGET/kmod/rte_kni.ko
-sudo ln -s ${RTE_SDK}/${RTE_TARGET}/kmod/igb_uio.ko /lib/modules/`uname -r`
-sudo ln -s ${RTE_SDK}/${RTE_TARGET}/kmod/rte_kni.ko /lib/modules/`uname -r`
-sudo depmod -a
-sudo modprobe igb_uio rte_kni
-printf "uio\nigb_uio\nrte_kni\n" | sudo tee -a /etc/modules
-```
-
 Add envvars to .profile so that they are set on login
 ```
 echo "export RTE_SDK=$RTE_SDK" >> $HOME/.profile
 echo "export RTE_TARGET=$RTE_TARGET" >> $HOME/.profile
+```
+
+Setup DPDK drivers:
+```
+echo 'ACTION=="add", SUBSYSTEM=="uio", GROUP="dpdk", MODE="0660"' | sudo tee /etc/udev/rules.d/99-uio.rules
+echo 'ACTION=="add", KERNEL=="kni", SUBSYSTEM=="misc", GROUP="dpdk", MODE="0660"' | sudo tee /etc/udev/rules.d/99-kni.rules
+sudo udevadm control --reload
+sudo udevadm trigger
+sudo ln -sf ${RTE_SDK}/${RTE_TARGET}/kmod/igb_uio.ko /lib/modules/`uname -r`
+sudo ln -sf ${RTE_SDK}/${RTE_TARGET}/kmod/rte_kni.ko /lib/modules/`uname -r`
+sudo depmod -a
+sudo modprobe -a igb_uio rte_kni
 ```
 
 ## Network setup

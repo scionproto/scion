@@ -63,7 +63,7 @@ func (r *Router) GenIFStateReq() {
 	}
 	pkt.AddL4UDP(srcAddr.Port, 0)
 	pkt.AddCtrlPld(scion)
-	_, err = pkt.RouteResolveSVCMulti(dstHost, r.locOutFs[0])
+	_, err = pkt.RouteResolveSVCMulti(*dstHost, r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route IFStateReq packet", err.Ctx...)
 	}
@@ -82,7 +82,7 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 		info := infos.At(i)
 		ifid := path.IntfID(info.IfID())
 		m[ifid] = info
-		gauge := metrics.IFState.WithLabelValues(fmt.Sprint(ifid))
+		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
 		if info.Active() {
 			gauge.Set(1)
 		} else {

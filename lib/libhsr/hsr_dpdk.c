@@ -192,7 +192,7 @@ static inline void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
         struct ether_addr *dst_mac, RouterPacket *packet, size_t size);
 
 void * handle_kni(void *arg);
-static inline void setup_kni();
+static inline int setup_kni();
 void * run_netlink_core(void *arg);
 
 static inline int dpdk_output_packet(struct rte_mbuf *m, uint8_t port);
@@ -208,7 +208,7 @@ static inline int handle_attributes(const struct nlattr *attr, void *data);
 static inline void handle_arp_update(const struct nlmsghdr *nlh);
 static inline void handle_route_update(const struct nlmsghdr *nlh);
 
-static inline void open_sockets();
+static inline int open_sockets();
 
 static inline int eth_addr_type(int family);
 
@@ -336,12 +336,17 @@ static inline void build_lower_layers(struct rte_mbuf *m, int dpdk_port,
 
 pthread_t kni_thread, netlink_thread;
 
-void create_lib_threads()
+int create_lib_threads()
 {
     pthread_create(&kni_thread, NULL, handle_kni, NULL);
     pthread_create(&netlink_thread, NULL, run_netlink_core, NULL);
-    setup_kni();
-    open_sockets();
+    if (setup_kni() != 0) {
+        return 1;
+    }
+    if (open_sockets() != 0) {
+        return 1;
+    }
+    return 0;
 }
 
 void join_lib_threads()
@@ -350,32 +355,29 @@ void join_lib_threads()
     pthread_join(netlink_thread, NULL);
 }
 
-int router_init(int argc, char **argv)
+int router_init(char *zlog_cfg, char *zlog_cat, int argc, char **argv)
 {
     int ret;
     uint8_t nb_ports;
     uint8_t portid;
-    int args_parsed;
 
-    if (argc < 2 || zlog_init(argv[1]) < 0) {
-        fprintf(stderr, "failed to init zlog\n");
-        exit(1);
+    if (zlog_init(zlog_cfg) < 0) {
+        fprintf(stderr, "failed to load zlog config (%s)\n", zlog_cfg);
+        return 1;
     }
-    zc = zlog_get_category("HSR");
+    zc = zlog_get_category(zlog_cat);
     if (!zc) {
-        fprintf(stderr, "failed to get hsr zlog category\n");
+        fprintf(stderr, "failed to get zlog category '%s' from %s\n", zlog_cat, zlog_cfg);
         zlog_fini();
-        exit(1);
+        return 1;
     }
-    argv[1] = argv[0];
-    argc--;
-    argv++;
 
     /* init EAL */
     ret = rte_eal_init(argc, argv);
-    if (ret < 0)
-        rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
-    args_parsed = ret + 2;
+    if (ret < 0) {
+        zlog_fatal(zc, "Invalid EAL argumentsn");
+        return 1;
+    }
 
     /* create the mbuf pool */
     hsr_pktmbuf_pool =
@@ -385,15 +387,21 @@ int router_init(int argc, char **argv)
                 rte_pktmbuf_pool_init, NULL,
                 rte_pktmbuf_init, NULL,
                 rte_socket_id(), 0);
-    if (hsr_pktmbuf_pool == NULL)
-        rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
+    if (hsr_pktmbuf_pool == NULL) {
+        zlog_fatal(zc, "Cannot init mbuf pool");
+        return 1;
+    }
 
     nb_ports = rte_eth_dev_count();
-    if (nb_ports == 0)
-        rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
+    if (nb_ports == 0) {
+        zlog_fatal(zc, "No Ethernet ports available");
+        return 1;
+    }
 
-    if (nb_ports > RTE_MAX_ETHPORTS)
-        nb_ports = RTE_MAX_ETHPORTS;
+    if (nb_ports > RTE_MAX_ETHPORTS) {
+        zlog_fatal(zc, "Found Ethernet ports (%d) > Max (%d)", nb_ports, RTE_MAX_ETHPORTS);
+        return 1;
+    }
 
     rte_kni_init(nb_ports);
 
@@ -402,9 +410,10 @@ int router_init(int argc, char **argv)
         /* init port */
         zlog_info(zc, "Initializing port %u... ", (unsigned) portid);
         ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
-        if (ret < 0)
-            rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
-                    ret, (unsigned) portid);
+        if (ret < 0) {
+            zlog_fatal(zc, "Cannot configure device: err=%d, port=%u", ret, (unsigned) portid);
+            return 1;
+        }
 
         rte_eth_macaddr_get(portid,&hsr_ports_eth_addr[portid]);
 
@@ -413,23 +422,26 @@ int router_init(int argc, char **argv)
                 rte_eth_dev_socket_id(portid),
                 NULL,
                 hsr_pktmbuf_pool);
-        if (ret < 0)
-            rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
-                    ret, (unsigned) portid);
+        if (ret < 0) {
+            zlog_fatal(zc, "rte_eth_rx_queue_setup:err=%d, port=%u", ret, (unsigned) portid);
+            return 1;
+        }
 
         /* init one TX queue on each port */
         ret = rte_eth_tx_queue_setup(portid, 0, RTE_TEST_TX_DESC_DEFAULT,
                 rte_eth_dev_socket_id(portid),
                 NULL);
-        if (ret < 0)
-            rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
-                    ret, (unsigned) portid);
+        if (ret < 0) {
+            zlog_fatal(zc, "rte_eth_tx_queue_setup:err=%d, port=%u\n", ret, (unsigned) portid);
+            return 1;
+        }
 
         /* Start device */
         ret = rte_eth_dev_start(portid);
-        if (ret < 0)
-            rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
-                    ret, (unsigned) portid);
+        if (ret < 0) {
+            zlog_fatal(zc, "rte_eth_dev_start:err=%d, port=%u\n", ret, (unsigned) portid);
+            return 1;
+        }
 
         zlog_info(zc, "done:");
 
@@ -444,10 +456,12 @@ int router_init(int argc, char **argv)
                 hsr_ports_eth_addr[portid].addr_bytes[4],
                 hsr_ports_eth_addr[portid].addr_bytes[5]);
 
-        kni_alloc(portid);
+        if (kni_alloc(portid) != 0) {
+            return 1;
+        }
     }
 
-    return args_parsed;
+    return 0;
 }
 
 /* End of initialization functions */
@@ -510,6 +524,7 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
     int count = 0;
 
     start_tsc = rte_rdtsc();
+    nb_ports = rte_eth_dev_count();
 
     while (count < min_packets) {
         /*
@@ -519,7 +534,7 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
         diff_tsc = cur_tsc - prev_tsc;
         if (unlikely(diff_tsc > drain_tsc)) {
             pthread_mutex_lock(&tx_mutex);
-            for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
+            for (portid = 0; portid < nb_ports; portid++) {
                 if (tx_mbufs[portid].len == 0)
                     continue;
                 dpdk_output_burst(tx_mbufs[portid].len, (uint8_t) portid);
@@ -533,7 +548,6 @@ int get_packets(RouterPacket *packets, int min_packets, int max_packets, int tim
          * NIC lcore
          * Read packet from RX queues
          */
-        nb_ports = rte_eth_dev_count();
         for (portid = 0; portid < nb_ports; portid++) {
             pthread_mutex_lock(&eth_mutex);
             nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
@@ -712,7 +726,7 @@ static inline int fill_packet(struct rte_mbuf *m, uint8_t dpdk_rx_port, RouterPa
     struct ipv4_hdr *ipv4 = IPV4_HDR(m);
     struct ipv6_hdr *ipv6 = IPV6_HDR(m);
     struct udp_hdr *udp = get_udp_hdr(m);
-    size_t len;
+    uint16_t len;
 
     if (!udp) {
         zlog_debug(zc, "Not UDP packet");
@@ -822,7 +836,7 @@ void * handle_kni(void *arg)
     return NULL;
 }
 
-static inline void setup_kni()
+static inline int setup_kni()
 {
     char cmd[100];
     int i;
@@ -830,7 +844,7 @@ static inline void setup_kni()
     uint8_t ports = rte_eth_dev_count();
 
     if (!kni_objs[0])
-        return;
+        return 0;
 
     pthread_mutex_lock(&netlink_mutex);
     while (!netlink_ready)
@@ -841,6 +855,10 @@ static inline void setup_kni()
         sprintf(cmd, "sudo brctl addif br%d vEth%d", i, i);
         res = system(cmd);
         zlog_debug(zc, "cmd = %s: res = %d", cmd, res);
+        if (res != 0) {
+            zlog_fatal(zc, "Error adding interface to bridge. (%s returned %d)", cmd, res);
+            return 1;
+        }
         sprintf(cmd, "sudo ip link set vEth%d up address %02x:%02x:%02x:%02x:%02x:%02x",
                 i,
                 hsr_ports_eth_addr[i].addr_bytes[0],
@@ -851,7 +869,12 @@ static inline void setup_kni()
                 hsr_ports_eth_addr[i].addr_bytes[5]);
         res = system(cmd);
         zlog_debug(zc, "cmd = %s: res = %d", cmd, res);
+        if (res != 0) {
+            zlog_fatal(zc, "Error bringing up interface. (%s returned %d)", cmd, res);
+            return 1;
+        }
     }
+    return 0;
 }
 
 static inline int kni_alloc(uint8_t port_id)
@@ -871,8 +894,10 @@ static inline int kni_alloc(uint8_t port_id)
 
     memset(&dev_info, 0, sizeof(dev_info));
     rte_eth_dev_info_get(port_id, &dev_info);
-    if (!dev_info.pci_dev)
-        return -1;
+    if (!dev_info.pci_dev) {
+        // Probably using PCAP driver
+        return 0;
+    }
     conf.addr = dev_info.pci_dev->addr;
     conf.id = dev_info.pci_dev->id;
 
@@ -881,11 +906,11 @@ static inline int kni_alloc(uint8_t port_id)
 
     kni = rte_kni_alloc(hsr_pktmbuf_pool, &conf, &ops);
 
-    if (!kni)
-        rte_exit(EXIT_FAILURE, "Fail to create kni for "
-                "port: %d\n", port_id);
+    if (!kni) {
+        zlog_fatal(zc, "Fail to create kni for port: %d", port_id);
+        return 1;
+    }
     kni_objs[port_id] = kni;
-
     return 0;
 }
 
@@ -1100,7 +1125,7 @@ static inline void handle_route_update(const struct nlmsghdr *nlh)
 
 /* Network setup functions */
 
-void setup_network(struct sockaddr_storage *addrs, int num_addrs)
+int setup_network(struct sockaddr_storage *addrs, int num_addrs)
 {
     struct rte_lpm_config config_v4;
     struct rte_lpm6_config config_v6;
@@ -1122,7 +1147,7 @@ void setup_network(struct sockaddr_storage *addrs, int num_addrs)
     next_hop_v4 = rte_lpm_create("HSR_IPv4_LPM", 0, &config_v4);
     if (!next_hop_v4) {
         zlog_fatal(zc, "failed to create IPv4 LPM table");
-        exit(1);
+        return 1;
     }
 
     config_v6.max_rules = LPM_V6_MAX_RULES;
@@ -1131,11 +1156,12 @@ void setup_network(struct sockaddr_storage *addrs, int num_addrs)
     next_hop_v6 = rte_lpm6_create("HSR_IPv6_LPM", 0, &config_v6);
     if (!next_hop_v6) {
         zlog_fatal(zc, "failed to create IPV6 LPM table");
-        exit(1);
+        return 1;
     }
+    return 0;
 }
 
-static inline void open_sockets()
+static inline int open_sockets()
 {
     int i;
     for (i = 0; i < MAX_DPDK_PORTS; i++) {
@@ -1146,7 +1172,7 @@ static inline void open_sockets()
         sockets[i] = socket(AF_INET6, SOCK_DGRAM, 0);
         if (sockets[i] < 0) {
             zlog_fatal(zc, "unable to open socket: %s", strerror(errno));
-            exit(1);
+            return 1;
         }
 
         struct sockaddr_in6 sin6;
@@ -1161,9 +1187,10 @@ static inline void open_sockets()
         }
         if (bind(sockets[i], (struct sockaddr *)&sin6, sizeof(sin6)) < 0) {
             zlog_fatal(zc, "error binding socket to addr %s", strerror(errno));
-            exit(1);
+            return 1;
         }
     }
+    return 0;
 }
 
 /* End of network setup functions */

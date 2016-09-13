@@ -123,8 +123,8 @@ func HopFFromRaw(b []byte) (*HopField, *util.Error) {
 	h.ExpTime = h.data[offset]
 	offset += 1
 	// Interface IDs are 12b each, encoded into 3B
-	h.Ingress = IntfID(h.data[offset]<<4 | h.data[offset+1]>>4)
-	h.Egress = IntfID((h.data[offset+1]&0xF)<<4 | h.data[offset+2])
+	h.Ingress = IntfID(int(h.data[offset])<<4 | int(h.data[offset+1])>>4)
+	h.Egress = IntfID((int(h.data[offset+1])&0xF)<<8 | int(h.data[offset+2]))
 	offset += 3
 	h.Mac = h.data[offset:]
 	return h, nil

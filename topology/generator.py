@@ -408,7 +408,7 @@ class TopoGenerator(object):
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
-        self._gen_er_entries(topo_id)
+        self._gen_br_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
@@ -432,13 +432,13 @@ class TopoGenerator(object):
             d["Port"] = random.randint(30050, 30100)
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
-    def _gen_er_entries(self, topo_id):
+    def _gen_br_entries(self, topo_id):
         for (ltype, remote, attrs, local_br,
              remote_br, ifid) in self.links[topo_id]:
-            self._gen_er_entry(topo_id, ifid, remote, ltype, attrs, local_br,
+            self._gen_br_entry(topo_id, ifid, remote, ltype, attrs, local_br,
                                remote_br)
 
-    def _gen_er_entry(self, local, ifid, remote, remote_type, attrs, local_br,
+    def _gen_br_entry(self, local, ifid, remote, remote_type, attrs, local_br,
                       remote_br):
         public_addr, remote_addr = self._reg_link_addrs(
             local_br, remote_br)
@@ -590,6 +590,8 @@ class SupervisorGenerator(object):
             dp['environment'] += ',DISPATCHER_ID="%s"' % elem
             config["program:%s" % dp_name] = dp
             self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
+        if elem.startswith("br") and self.router == "go":
+            prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)
