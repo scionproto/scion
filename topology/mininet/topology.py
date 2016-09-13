@@ -95,13 +95,8 @@ class ScionTopo(Topo):
         key = tuple(self.sorted([node1, node2]))
         # Map the supplied params to the node1 interface, even if sorting turns
         # it into the second interface.
-        opts = {"port1": port1, "port2": port2}
-        if key[0] == node1:
-            opts.update(params1=params, intfName1=intfName,
-                        node1=node1, node2=node2)
-        else:
-            opts.update(params2=params, intfName2=intfName,
-                        node1=node2, node2=node1)
+        opts = {"port1": port1, "port2": port2, "params1": params,
+                "intfName1": intfName, "node1": node1, "node2": node2}
         self.g.add_edge(node1, node2, key, opts)
         return key
 
