@@ -22,7 +22,6 @@ import logging
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
-from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.svc import SVCType
@@ -77,10 +76,10 @@ class LocalBeaconServer(BeaconServer):
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
         addr, port = self.dns_query_topo(PATH_SERVICE)[0]
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(records, meta)
 
     def register_down_segment(self, pcb):
@@ -90,7 +89,7 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
-        meta = UDPMetadata.from_values(
+        meta = self.DefaultMeta.from_values(
             ia=dst_ia, host=SVCType.PS_A, path=core_path)
         self.send_meta(records, meta)
 

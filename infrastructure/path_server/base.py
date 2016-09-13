@@ -34,7 +34,6 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
-from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.svc import SVCType
@@ -64,6 +63,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     ZK_SHARE_LIMIT = 10
     # Time to store revocations in zookeeper
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
+    USE_TCP = True
 
     def __init__(self, server_id, conf_dir):
         """
@@ -259,6 +259,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Serve pending requests.
         for req, meta in self.pending_req[key]:
             if self.path_resolution(req, meta, new_request=False):
+                meta.close()
                 to_remove.append((req, meta))
         # Clean state.
         for req_meta in to_remove:
@@ -274,6 +275,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Handling pending requests, basing on added segments.
         for dst_ia, sibra in added:
             self._handle_pending_requests(dst_ia, sibra)
+        meta.close()
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         handle_map = {
@@ -331,8 +333,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         src_ia = pcb.first_ia()
         while targets:
             seg_req = targets.pop(0)
-            meta = UDPMetadata.from_values(ia=src_ia, path=path,
-                                           host=SVCType.PS_A)
+            meta = self.DefaultMeta.from_values(ia=src_ia, path=path,
+                                                host=SVCType.PS_A)
             self.send_meta(seg_req, meta)
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())

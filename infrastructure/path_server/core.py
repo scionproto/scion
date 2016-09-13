@@ -22,7 +22,6 @@ from collections import deque
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.defines import PATH_FLAG_SIBRA
-from lib.msg_meta import UDPMetadata
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
@@ -192,7 +191,7 @@ class CorePathServer(PathServer):
             logging.warning("send_to_master: abandoning as there is no master")
             return
         addr, port = master.addr(0)
-        meta = UDPMetadata.from_values(host=addr, port=port)
+        meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(pld.copy(), meta)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
@@ -219,8 +218,8 @@ class CorePathServer(PathServer):
                 logging.warning("Segment to AS %s not found.", isd_as)
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
-            meta = UDPMetadata.from_values(ia=isd_as, path=cseg,
-                                           host=SVCType.PS_A)
+            meta = self.DefaultMeta.from_values(ia=isd_as, path=cseg,
+                                                host=SVCType.PS_A)
             self.send_meta(rep_recs.copy(), meta)
 
     def path_resolution(self, req, meta, new_request=True):
@@ -334,8 +333,8 @@ class CorePathServer(PathServer):
             logging.info("Down-Segment request for different ISD, "
                          "forwarding request to CPS in %s via %s",
                          dst_ia, cseg.short_desc())
-            meta = UDPMetadata.from_values(ia=dst_ia, path=path,
-                                           host=SVCType.PS_A)
+            meta = self.DefaultMeta.from_values(ia=dst_ia, path=path,
+                                                host=SVCType.PS_A)
             self.send_meta(seg_req, meta)
         else:
             # If no core segment was available, add request to waiting targets.
