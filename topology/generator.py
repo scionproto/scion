@@ -33,7 +33,7 @@ from string import Template
 # External packages
 import yaml
 from Crypto import Random
-from external.ipaddress import ip_interface, ip_network
+from external.ipaddress import ip_address, ip_interface, ip_network
 
 # SCION
 from lib.config import Config
@@ -227,8 +227,8 @@ class ConfigGenerator(object):
         config = configparser.ConfigParser(interpolation=None)
         for i, net in enumerate(networks):
             sub_conf = {}
-            for prog, ip in networks[net].items():
-                sub_conf[prog] = ip
+            for prog, ip_net in networks[net].items():
+                sub_conf[prog] = ip_net.ip
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
@@ -713,7 +713,7 @@ class ZKTopo(object):
         self.manage = self.topo_config.get("manage", False)
         if not self.manage:
             # A ZK we don't manage must have an assigned IP in the topology
-            self.addr = ip_interface(self.topo_config["addr"])
+            self.addr = ip_address(self.topo_config["addr"])
         self.clientPort = self._get_def("clientPort")
         self.leaderPort = self._get_def("leaderPort")
         self.electionPort = self._get_def("electionPort")
