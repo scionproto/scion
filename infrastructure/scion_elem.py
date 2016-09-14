@@ -647,7 +647,10 @@ class SCIONElement(object):
                 log_exception("TCP: error on accept()")
                 logging.error("TCP: leaving the accept loop")
                 break
-        self._tcp_sock.close()
+        try:
+            self._tcp_sock.close()
+        except SCIONTCPError:
+            log_exception("TCP: error on closing _tcp_sock")
 
     def _tcp_recv_loop(self):
         active_conns = {}
