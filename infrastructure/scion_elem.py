@@ -471,17 +471,18 @@ class SCIONElement(object):
             meta.ia = self.addr.isd_as
         if meta.path is None:
             meta.path = SCIONPath()
-        # Create low-level TCP socket and connect
-        sock = SCIONTCPSocket()
-        sock.bind((self.addr, 0))
         dst = meta.get_addr()
         first_ip, first_port = self._get_first_hop(meta.path, dst)
         active = True
         try:
+            # Create low-level TCP socket and connect
+            sock = SCIONTCPSocket()
+            sock.bind((self.addr, 0))
             sock.connect(dst, meta.port, meta.path, first_ip, first_port,
                          flags=meta.flags)
         except SCIONTCPError:
             log_exception("Error on connect(), marking socket inactive")
+            sock = None
             active = False
         # Create and return TCPSocketWrapper
         return TCPSocketWrapper(sock, dst, meta.path, active)

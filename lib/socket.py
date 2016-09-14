@@ -362,7 +362,8 @@ class TCPSocketWrapper(object):
     def __init__(self, sock, addr, path, active=True):
         self._buf = bytearray()
         self._sock = sock
-        self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
+        if active:
+            self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
         self._lock = threading.RLock()
@@ -420,9 +421,12 @@ class TCPSocketWrapper(object):
 
     def close(self):
         with self._lock:
-            try:
-                self._sock.close()
-            except SCIONTCPError as e:
-                logging.warning("Error on close(): %s", e)
-            self.active = False
-            logging.debug("Leaving close()")
+            if self.active:
+                try:
+                    self._sock.close()
+                except SCIONTCPError as e:
+                    logging.warning("Error on close(): %s", e)
+                self.active = False
+                logging.debug("Leaving close()")
+            else:
+                logging.debug("TCP: close(): inactive socket")
