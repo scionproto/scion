@@ -481,7 +481,7 @@ class SCIONElement(object):
             sock.connect(dst, meta.port, meta.path, first_ip, first_port,
                          flags=meta.flags)
         except SCIONTCPError:
-            log_exception("Error on connect()")
+            log_exception("Error on connect(), marking socket inactive")
             active = False
         # Create and return TCPSocketWrapper
         return TCPSocketWrapper(sock, dst, meta.path, active)

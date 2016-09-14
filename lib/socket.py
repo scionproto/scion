@@ -403,7 +403,7 @@ class TCPSocketWrapper(object):
                     logging.debug("TCP: calling close() after socket error")
                     self.close()
             else:
-                logging.warning("TCP: get_msg_meta(): inactive socket")
+                logging.debug("TCP: get_msg_meta(): inactive socket")
             return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
@@ -415,7 +415,7 @@ class TCPSocketWrapper(object):
                     logging.debug("TCP: calling close() after socket error")
                     self.close()
             else:
-                logging.warning("TCP: send_msg(): inactive socket")
+                logging.debug("TCP: send_msg(): inactive socket")
 
 
     def close(self):
