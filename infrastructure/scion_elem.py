@@ -476,10 +476,15 @@ class SCIONElement(object):
         sock.bind((self.addr, 0))
         dst = meta.get_addr()
         first_ip, first_port = self._get_first_hop(meta.path, dst)
-        sock.connect(dst, meta.port, meta.path, first_ip, first_port,
-                     flags=meta.flags)
+        active = True
+        try:
+            sock.connect(dst, meta.port, meta.path, first_ip, first_port,
+                         flags=meta.flags)
+        except SCIONTCPError:
+            log_exception("Error on connect()")
+            active = False
         # Create and return TCPSocketWrapper
-        return TCPSocketWrapper(sock, dst, meta.path)
+        return TCPSocketWrapper(sock, dst, meta.path, active)
 
     def _tcp_conns_put(self, sock):
         dropped = 0
