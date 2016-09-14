@@ -626,19 +626,22 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
-            'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=.,ZLOG_CFG="%s"' % zlog,
-            'stdout_logfile_maxbytes': 0,
-            'stdout_logfile': "logs/%s.OUT" % name,
+            'stdout_logfile': "NONE",
+            'stderr_logfile': "NONE",
             'startretries': 0,
             'startsecs': 5,
-            'command': " ".join(['"%s"' % arg for arg in cmd_args]),
+            'command': self._mk_cmd(name, cmd_args),
         }
         if name == "dispatcher":
             entry['startsecs'] = 1
         if self.mininet:
             entry['autostart'] = 'true'
         return entry
+
+    def _mk_cmd(self, name, cmd_args):
+        return "bash -c 'exec %s &>logs/%s.OUT'" % (
+            " ".join(['"%s"' % arg for arg in cmd_args]), name)
 
 
 class ZKConfGenerator(object):
