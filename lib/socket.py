@@ -417,7 +417,6 @@ class TCPSocketWrapper(object):
             else:
                 logging.debug("TCP: send_msg(): inactive socket")
 
-
     def close(self):
         with self._lock:
             try:

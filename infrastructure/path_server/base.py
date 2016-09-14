@@ -63,7 +63,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     ZK_SHARE_LIMIT = 10
     # Time to store revocations in zookeeper
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
-    USE_TCP = True
 
     def __init__(self, server_id, conf_dir):
         """

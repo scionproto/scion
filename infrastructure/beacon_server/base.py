@@ -109,7 +109,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
-    USE_TCP = True
 
     def __init__(self, server_id, conf_dir):
         """
