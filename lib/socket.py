@@ -404,6 +404,7 @@ class TCPSocketWrapper(object):
                     self.close()
             else:
                 logging.debug("TCP: get_msg_meta(): inactive socket")
+                return None, self._get_meta()
             return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
