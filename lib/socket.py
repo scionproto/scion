@@ -156,9 +156,11 @@ class UDPSocket(Socket):
                 raise SCMPUnreachNet(dst)
             elif errno == EHOSTUNREACH:
                 raise SCMPUnreachHost(dst)
-            return
+            return False
         if ret != len(data):
             logging.error("Wanted to send %dB, only sent %dB", len(data), ret)
+            return False
+        return True
 
     def recv(self, block=True):
         """
@@ -259,8 +261,10 @@ class ReliableSocket(Socket):
         data = b"".join([self.COOKIE, addr_type, data_len, packed_dst, data])
         try:
             self.sock.sendall(data)
+            return True
         except OSError as e:
             logging.error("error in send: %s", e)
+            return False
 
     def recv(self, block=True):
         """

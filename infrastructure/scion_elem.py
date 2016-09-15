@@ -431,8 +431,7 @@ class SCIONElement(object):
         assert isinstance(dst_port, int), dst_port
         if not self._udp_sock:
             return False
-        self._udp_sock.send(packet.pack(), (dst, dst_port))
-        return True
+        return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
@@ -441,8 +440,7 @@ class SCIONElement(object):
             return self._send_meta_tcp(msg, meta)
         elif isinstance(meta, SockOnlyMetadata):
             assert not next_hop_port, next_hop_port
-            meta.sock.send(msg)
-            return True
+            return meta.sock.send(msg)
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
         else:
