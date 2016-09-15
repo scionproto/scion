@@ -63,7 +63,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     ZK_SHARE_LIMIT = 10
     # Time to store revocations in zookeeper
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
-    USE_TCP = False
 
     def __init__(self, server_id, conf_dir):
         """
@@ -268,6 +267,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             del self.pending_req[key]
 
     def handle_path_segment_record(self, seg_recs, meta):
+        meta.close()  # FIXME(PSz): validate before
         params = self._dispatch_params(seg_recs, meta)
         added = set()
         for type_, pcb in seg_recs.iter_pcbs():
@@ -275,7 +275,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Handling pending requests, basing on added segments.
         for dst_ia, sibra in added:
             self._handle_pending_requests(dst_ia, sibra)
-        meta.close()
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         handle_map = {

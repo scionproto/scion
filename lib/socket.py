@@ -359,14 +359,15 @@ class TCPSocketWrapper(object):
     """
     RECV_SIZE = 8092
 
-    def __init__(self, sock, addr, path):
+    def __init__(self, sock, addr, path, active=True):
         self._buf = bytearray()
         self._sock = sock
-        self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
+        if active:
+            self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
         self._lock = threading.RLock()
-        self.active = True
+        self.active = active
 
     def _get_meta(self):
         return TCPMetadata.from_values(ia=self._addr.isd_as,
@@ -393,29 +394,39 @@ class TCPSocketWrapper(object):
             msg = self._get_msg()
             if msg:
                 return msg, self._get_meta()
-            try:
-                read = self._sock.recv(self.RECV_SIZE)
-                self._buf += read
-            except SCIONTCPTimeout:
+            if self.active:
+                try:
+                    read = self._sock.recv(self.RECV_SIZE)
+                    self._buf += read
+                except SCIONTCPTimeout:
+                    return None, self._get_meta()
+                except SCIONTCPError:
+                    logging.debug("TCP: calling close() after socket error")
+                    self.close()
+            else:
+                logging.debug("TCP: get_msg_meta(): inactive socket")
                 return None, self._get_meta()
-            except SCIONTCPError:
-                logging.debug("TCP: calling close() after socket error")
-                self.close()
             return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
         with self._lock:
-            try:
-                self._sock.send(raw)
-            except SCIONTCPError:
-                logging.debug("TCP: calling close() after socket error")
-                self.close()
+            if self.active:
+                try:
+                    self._sock.send(raw)
+                except SCIONTCPError:
+                    logging.debug("TCP: calling close() after socket error")
+                    self.close()
+            else:
+                logging.debug("TCP: send_msg(): inactive socket")
 
     def close(self):
         with self._lock:
-            try:
-                self._sock.close()
-            except SCIONTCPError as e:
-                logging.warning("Error on close(): %s", e)
-            self.active = False
-            logging.debug("Leaving close()")
+            if self.active:
+                try:
+                    self._sock.close()
+                except SCIONTCPError as e:
+                    logging.warning("Error on close(): %s", e)
+                self.active = False
+                logging.debug("Leaving close()")
+            else:
+                logging.debug("TCP: close(): inactive socket")

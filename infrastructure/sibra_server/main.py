@@ -145,6 +145,7 @@ class SibraServerBase(SCIONElement):
         determine which interface the segments use, then pass the segment to the
         appropriate Link.
         """
+        meta.close()
         name = PST.to_str(self.PST_TYPE)
         with self.lock:
             for type_, pcb in payload.iter_pcbs():

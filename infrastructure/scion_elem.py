@@ -471,15 +471,21 @@ class SCIONElement(object):
             meta.ia = self.addr.isd_as
         if meta.path is None:
             meta.path = SCIONPath()
-        # Create low-level TCP socket and connect
-        sock = SCIONTCPSocket()
-        sock.bind((self.addr, 0))
         dst = meta.get_addr()
         first_ip, first_port = self._get_first_hop(meta.path, dst)
-        sock.connect(dst, meta.port, meta.path, first_ip, first_port,
-                     flags=meta.flags)
+        active = True
+        try:
+            # Create low-level TCP socket and connect
+            sock = SCIONTCPSocket()
+            sock.bind((self.addr, 0))
+            sock.connect(dst, meta.port, meta.path, first_ip, first_port,
+                         flags=meta.flags)
+        except SCIONTCPError:
+            log_exception("TCP: connection init error, marking socket inactive")
+            sock = None
+            active = False
         # Create and return TCPSocketWrapper
-        return TCPSocketWrapper(sock, dst, meta.path)
+        return TCPSocketWrapper(sock, dst, meta.path, active)
 
     def _tcp_conns_put(self, sock):
         dropped = 0
@@ -642,7 +648,10 @@ class SCIONElement(object):
                 log_exception("TCP: error on accept()")
                 logging.error("TCP: leaving the accept loop")
                 break
-        self._tcp_sock.close()
+        try:
+            self._tcp_sock.close()
+        except SCIONTCPError:
+            log_exception("TCP: error on closing _tcp_sock")
 
     def _tcp_recv_loop(self):
         active_conns = {}
