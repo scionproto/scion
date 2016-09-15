@@ -411,12 +411,14 @@ class TCPSocketWrapper(object):
         with self._lock:
             if not self.active:
                 logging.debug("TCP: send_msg(): inactive socket")
-                return
+                return False
             try:
                 self._sock.send(raw)
+                return True
             except SCIONTCPError:
                 logging.debug("TCP: calling close() after socket error")
                 self.close()
+        return False
 
     def close(self):
         with self._lock:
