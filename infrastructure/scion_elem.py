@@ -181,7 +181,7 @@ class SCIONElement(object):
     def _setup_tcp_accept_socket(self, svc):
         if not self.USE_TCP:
             return
-        MAX_TRIES = 20
+        MAX_TRIES = 40
         for i in range(MAX_TRIES):
             try:
                 self._tcp_sock = SCIONTCPSocket()
