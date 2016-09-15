@@ -430,24 +430,22 @@ class SCIONElement(object):
         assert isinstance(packet, SCIONBasePacket)
         assert isinstance(dst_port, int), dst_port
         if not self._udp_sock:
-            return
-        self._udp_sock.send(packet.pack(), (dst, dst_port))
+            return False
+        return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
             assert not next_hop_port, next_hop_port
-            self._send_meta_tcp(msg, meta)
-            return
+            return self._send_meta_tcp(msg, meta)
         elif isinstance(meta, SockOnlyMetadata):
             assert not next_hop_port, next_hop_port
-            meta.sock.send(msg)
-            return
+            return meta.sock.send(msg)
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
         else:
             logging.error("Unsupported metadata for:\n%s" % meta.__name__)
-            return
+            return False
 
         pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,
                                  meta.ia, msg, dst_port)
@@ -455,15 +453,15 @@ class SCIONElement(object):
             next_hop_port = self.get_first_hop(pkt)
         if not next_hop_port:
             logging.error("Can't find first hop, dropping packet\n%s", pkt)
-            return
-        self.send(pkt, *next_hop_port)
+            return False
+        return self.send(pkt, *next_hop_port)
 
     def _send_meta_tcp(self, msg, meta):
         if not meta.sock:
             tcp_sock = self._tcp_sock_from_meta(meta)
             meta.sock = tcp_sock
             self._tcp_conns_put(tcp_sock)
-        meta.sock.send_msg(msg.pack_full())
+        return meta.sock.send_msg(msg.pack_full())
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host
