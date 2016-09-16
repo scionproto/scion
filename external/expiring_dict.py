@@ -72,7 +72,13 @@ class ExpiringDict(OrderedDict):
         """ Set d[key] to value. """
         with self.lock:
             if len(self) == self.max_len:
-                self.popitem(last=False)
+                try:
+                    self.popitem(last=False)
+                except KeyError:
+                    # This can happen if the item to be evicted actually expires
+                    # during eviction. In any case it means the item was
+                    # removed, so we can continue.
+                    pass
             OrderedDict.__setitem__(self, key, (value, time.time()))
 
     def pop(self, key, default=None):

@@ -80,7 +80,6 @@ func Init(conf string, args []string, addrMs []AddrMeta) *util.Error {
 	if C.create_lib_threads() != 0 {
 		return util.NewError("Failure initialising libhsr (create_lib_threads)")
 	}
-	// TODO(kormat): drop cap privileges
 	return nil
 }
 
