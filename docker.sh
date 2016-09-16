@@ -63,12 +63,6 @@ cmd_clean() {
     stop_cntrs
     del_cntrs
     del_imgs
-}
-
-cmd_clean_full() {
-    stop_cntrs
-    del_cntrs
-    del_imgs_full
     rm -rf docker/_build/
 }
 
@@ -119,18 +113,7 @@ del_cntrs() {
 
 del_imgs() {
     local images
-    images=$(docker images | grep -E '^(<none>)' | awk '{print $3;}')
-    if [ -n "$images" ]; then
-        echo
-        echo "Deleting unused images"
-        echo "======================"
-        docker rmi $images
-    fi
-}
-
-del_imgs_full() {
-    local images
-    images=$(docker images | grep -E '^(<none>|scion)' | awk '{print $3;}')
+    images=$(docker images | awk '/^scion/ {print $1":"$2}; /^<none>/ {print $3}')
     if [ -n "$images" ]; then
         echo
         echo "Deleting all generated images"
@@ -146,8 +129,6 @@ cmd_help() {
 	    $PROGRAM run
 	        Run the Docker image.
 	    $PROGRAM clean
-	        Remove all Docker containers and unused images.
-	    $PROGRAM clean_full
 	        Remove all Docker containers and all generated images.
 	    $PROGRAM help
 	        Show this text.
@@ -172,7 +153,6 @@ fi
 case $COMMAND in
     build)              cmd_build ;;
     clean)              cmd_clean ;;
-    clean_full)         cmd_clean_full ;;
     run)                shift; cmd_run "$@" ;;
     help)               cmd_help ;;
     *)                  cmd_help ;;
