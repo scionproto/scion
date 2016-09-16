@@ -26,35 +26,35 @@ import (
 var _ Extension = (*SCMPExt)(nil)
 
 type SCMPExt struct {
-	data     []byte
+	p        *Packet
+	raw      util.RawBytes
 	Error    bool
 	HopByHop bool
 	log.Logger
 }
 
-func SCMPExtFromRaw(b []byte, logger log.Logger) (*SCMPExt, *util.Error) {
-	s := &SCMPExt{}
-	s.data = b
-	flags := b[3] // Index past ext subheader
+func SCMPExtFromRaw(p *Packet, start, end int) (*SCMPExt, *util.Error) {
+	s := &SCMPExt{p: p, raw: p.Raw[start:end]}
+	flags := s.raw[3] // Index past ext subheader
 	s.Error = (flags & 0x01) != 0
 	s.HopByHop = (flags & 0x02) != 0
-	s.Logger = logger
+	s.Logger = p.Logger.New("ext", "scmp")
 	s.Debug("SCMP extension found", "error", s.Error, "hopbyhop", s.HopByHop)
+	if s.Error {
+		// SCMP Errors should never generate an error response.
+		p.SCMPError = true
+	}
 	return s, nil
 }
 
 func (s *SCMPExt) RegisterHooks(h *Hooks) *util.Error {
 	if s.HopByHop {
-		h.Process = append(h.Process, s.Process)
+		h.Payload = append(h.Payload, s.p.parseSCMPPayload)
+		h.Process = append(h.Process, s.p.processSCMP)
 	}
 	return nil
 }
 
 func (s *SCMPExt) String() string {
 	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v", spkt.LineLen, s.Error, s.HopByHop)
-}
-
-func (s *SCMPExt) Process() (HookResult, *util.Error) {
-
-	return HookFinish, nil
 }

@@ -64,7 +64,10 @@ func (u *UDP) CalcChecksum(srcAddr, dstAddr, pld util.RawBytes) (util.RawBytes, 
 	if err != nil {
 		return nil, err
 	}
-	sum := libscion.Checksum(srcAddr, dstAddr, []byte{byte(spkt.L4UDP)}, hdr[:6], pld)
+	// Zero checksum
+	hdr[6] = 0
+	hdr[7] = 0
+	sum := libscion.Checksum(srcAddr, dstAddr, []byte{byte(spkt.L4UDP)}, hdr, pld)
 	order.PutUint16(out, sum)
 	return out, nil
 }

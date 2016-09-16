@@ -21,6 +21,7 @@ import logging
 
 # SCION
 from lib.main import main_wrapper
+from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.info import SCMPInfoEcho
 from lib.packet.scmp.payload import SCMPPayload
 from lib.packet.scmp.hdr import SCMPHeader
@@ -39,9 +40,12 @@ class SCMPEchoClient(TestClientBase):
     """
     SCMP Echo client app
     """
+    def _create_extensions(self):
+        return [SCMPExt.from_values(True, True)]
+
     def _create_l4_hdr(self):
         return SCMPHeader.from_values(
-            self.src, self.dst, SCMPClass.GENERAL,
+            self.addr, self.dst, SCMPClass.GENERAL,
             SCMPGeneralClass.ECHO_REQUEST)
 
     def _create_payload(self, _):
@@ -68,8 +72,14 @@ class SCMPEchoServer(TestServerBase):
     SCMP Echo server app
     Since SCMP Echo is handled directly by the dispatcher, do nothing
     """
-    def run(self):
-        self.done = True
+    def _handle_request(self, spkt):
+        logging.info("Got:\n%s", spkt)
+        self.success = True
+        self.finished.set()
+        return True
+
+    #def run(self):
+    #    self.done = True
 
 
 class TestSCMPEcho(TestClientServerBase):
@@ -77,6 +87,8 @@ class TestSCMPEcho(TestClientServerBase):
     End to end packet transmission test.
     For this test a infrastructure must be running.
     """
+    NAME = "SCMPEcho"
+
     def __init__(self, client, server, sources, destinations, local=True):
         super().__init__(client, server, sources, destinations)
         self.src = client
@@ -85,14 +97,12 @@ class TestSCMPEcho(TestClientServerBase):
         self.server_name = "E2E Server"
         self.thread_name = "E2E.MainThread"
 
-    def _create_data(self):
-        return ("%s<->%s" % (self.src, self.dst)).encode("UTF-8")
+    def _create_server(self, data, finished, addr):
+        return SCMPEchoServer(self._run_sciond(addr), data, finished, addr)
 
-    def _create_server(self, addr, data):
-        return SCMPEchoServer(addr, data)
-
-    def _create_client(self, src, dst, port, data):
-        return SCMPEchoClient(src, dst, port, data)
+    def _create_client(self, data, finished, src, dst, port):
+        return SCMPEchoClient(self._run_sciond(src), data, finished, src, dst,
+                              port)
 
 
 def main():

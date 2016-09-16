@@ -15,34 +15,14 @@
 package packet
 
 import (
+	"github.com/netsec-ethz/scion/go/border/scmp"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-const (
-	ErrorPayloadLenWrong = "Payload length is wrong"
-	ErrorPayloadDecode   = "Payload decoding failed"
-	ErrorPayloadParse    = "Payload parseing failed"
-)
-
-// No fallback for payload - a hook must be registered to read it.
-func (p *Packet) Payload() (interface{}, *util.Error) {
-	if p.pld == nil && len(p.hooks.Payload) > 0 {
-		_, err := p.L4Hdr()
-		if err != nil {
-			return nil, err
-		}
-		for _, f := range p.hooks.Payload {
-			ret, pld, err := f()
-			switch {
-			case err != nil:
-				return nil, err
-			case ret == HookContinue:
-				continue
-			case ret == HookFinish:
-				p.pld = pld
-				return p.pld, nil
-			}
-		}
+func (p *Packet) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
+	pld, err := scmp.PldFromRaw(p.Raw[p.idxs.pld:], p.l4.(*scmp.Hdr))
+	if err != nil {
+		return HookError, nil, err
 	}
-	return p.pld, nil
+	return HookFinish, pld, nil
 }

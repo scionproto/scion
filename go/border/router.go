@@ -34,6 +34,7 @@ type Router struct {
 	locOutFs  map[int]packet.OutputFunc
 	intfOutFs map[path.IntfID]packet.OutputFunc
 	freePkts  chan *packet.Packet
+	revInfoQ  chan util.RawBytes
 }
 
 // FIXME(kormat): this should be reduced as soon as we respect the actual link
@@ -54,6 +55,7 @@ func (r *Router) Run() *util.Error {
 	}
 	go r.SyncInterface()
 	go r.IFStateUpdate()
+	go r.RevInfoFwd()
 	var wg sync.WaitGroup
 	for _, q := range r.inQs {
 		wg.Add(1)
@@ -84,6 +86,10 @@ func (r *Router) processPacket(p *packet.Packet) {
 	}
 	if err := p.NeedsLocalProcessing(); err != nil {
 		p.Error("Error checking for local processing", err.Ctx...)
+		return
+	}
+	if _, err := p.Payload(); err != nil {
+		p.Error("Error parsing payload", err.Ctx...)
 		return
 	}
 	if err := p.Process(); err != nil {

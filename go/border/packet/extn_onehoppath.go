@@ -27,9 +27,9 @@ type OneHopPath struct {
 	p *Packet
 }
 
-func OneHopPathFromRaw(_ []byte, logger log.Logger, p *Packet) (*OneHopPath, *util.Error) {
-	o := &OneHopPath{}
-	o.Logger = logger.New("ext", "OneHopPath")
+func OneHopPathFromRaw(p *Packet) (*OneHopPath, *util.Error) {
+	o := &OneHopPath{p: p}
+	o.Logger = p.Logger.New("ext", "OneHopPath")
 	o.p = p
 	return o, nil
 }

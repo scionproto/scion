@@ -20,6 +20,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/scmp"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -162,6 +163,17 @@ func (p *Packet) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util
 	default:
 		p.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
 		return HookError, nil
+	}
+	return HookFinish, nil
+}
+
+func (p *Packet) processSCMP() (HookResult, *util.Error) {
+	// FIXME(kormat): rate-limit revocations
+	hdr := p.l4.(*scmp.Hdr)
+	switch {
+	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+		pld := p.pld.(*scmp.Payload)
+		callbacks.revTokenF(pld.Info.(*scmp.InfoRevocation).RevToken)
 	}
 	return HookFinish, nil
 }
