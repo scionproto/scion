@@ -30,8 +30,8 @@ import (
 
 func Checksum(srcs ...util.RawBytes) uint16 {
 	chkin := C.mk_chk_input(C.int(len(srcs)))
-	for i, src := range srcs {
-		C.chk_add_chunk(chkin, C.int(i), (*C.uint8_t)(unsafe.Pointer(&src[0])), C.int(len(src)))
+	for _, src := range srcs {
+		C.chk_add_chunk(chkin, (*C.uint8_t)(unsafe.Pointer(&src[0])), C.int(len(src)))
 	}
 	val := uint16(C.ntohs(C.checksum(chkin)))
 	C.rm_chk_input(chkin)
