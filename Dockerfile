@@ -58,6 +58,13 @@ RUN sudo du -hsx /
 # Now copy over the current branch
 COPY . $BASE/
 RUN sudo chown -R scion: $HOME
+
+# Install scion-web dependencies
+RUN ./deps.sh pipweb
+# Setup scion-web
+RUN cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/private.py
+RUN sub/web/manage.py makemigrations
+
 # Build topology files
 RUN ./scion.sh topology
 # Install bash config
