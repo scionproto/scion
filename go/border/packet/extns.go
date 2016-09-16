@@ -44,7 +44,7 @@ var ExtHBHKnown = map[spkt.ExtnType]bool{
 func (p *Packet) ExtnParse(extType spkt.ExtnType, start, end int) (Extension, *util.Error) {
 	switch {
 	case extType == spkt.ExtnTracerouteType:
-		return TracerouteFromRaw(p.Raw[start:end], p.Logger)
+		return TracerouteFromRaw(p, start, end)
 	case extType == spkt.ExtnOneHopPathType:
 		return OneHopPathFromRaw(p.Raw[start:end], p.Logger, p)
 	case ExtHBHKnown[extType]:

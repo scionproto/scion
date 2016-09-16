@@ -16,12 +16,12 @@ package packet
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"time"
 
 	log "github.com/inconshreveable/log15"
-	"gopkg.in/restruct.v1"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -30,7 +30,8 @@ import (
 var _ Extension = (*Traceroute)(nil)
 
 type Traceroute struct {
-	data      []uint8
+	p         *Packet
+	raw       util.RawBytes
 	NumHops   uint8
 	TotalHops uint8
 	log.Logger
@@ -46,15 +47,13 @@ const (
 
 var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", spkt.LineLen)
 
-func TracerouteFromRaw(b []byte, logger log.Logger) (*Traceroute, *util.Error) {
-	t := &Traceroute{data: b}
+func TracerouteFromRaw(p *Packet, start, end int) (*Traceroute, *util.Error) {
+	t := &Traceroute{p: p, raw: p.Raw[start:end]}
 	// Index past ext subheader:
-	t.NumHops = t.data[3]
+	t.NumHops = t.raw[3]
 	// Ignore subheader line:
-	t.TotalHops = uint8(len(t.data)/spkt.LineLen) - 1
-	t.Logger = logger.New("ext", "traceroute")
-	t.Debug("Traceroute extension found", "len", len(b), "numHops", t.NumHops,
-		"totalHops", t.TotalHops)
+	t.TotalHops = uint8(len(t.raw)/spkt.LineLen) - 1
+	t.Logger = p.Logger.New("ext", "traceroute")
 	return t, nil
 }
 
@@ -64,11 +63,11 @@ func (t *Traceroute) Add(entry *TracerouteEntry) *util.Error {
 	}
 	t.NumHops += 1
 	offset := spkt.LineLen * t.NumHops
-	out, err := restruct.Pack(binary.BigEndian, entry)
-	if err != nil {
-		return util.NewError(ErrorPack, "err", err)
-	}
-	copy(t.data[offset:], out)
+	entry.IA.Write(t.raw[offset:])
+	offset += addr.IABytes
+	order.PutUint16(t.raw[offset:], entry.IfID)
+	offset += 2
+	order.PutUint16(t.raw[offset:], entry.TimeStamp)
 	return nil
 }
 
@@ -78,9 +77,11 @@ func (t *Traceroute) Entry(idx int) (*TracerouteEntry, *util.Error) {
 	}
 	entry := TracerouteEntry{}
 	offset := spkt.LineLen * (idx + 1)
-	if err := restruct.Unpack(t.data[offset:], binary.BigEndian, &entry); err != nil {
-		return nil, util.NewError(ErrorUnpack, "idx", idx, "err", err)
-	}
+	entry.IA = *addr.IAFromRaw(t.raw[offset:])
+	offset += addr.IABytes
+	entry.IfID = order.Uint16(t.raw[offset:])
+	offset += 2
+	entry.TimeStamp = order.Uint16(t.raw[offset:])
 	return &entry, nil
 }
 
@@ -91,8 +92,8 @@ func (t *Traceroute) RegisterHooks(h *Hooks) *util.Error {
 }
 
 func (t *Traceroute) Validate() (HookResult, *util.Error) {
-	if len(t.data)%spkt.LineLen != 0 {
-		return HookError, util.NewError(ErrorLenMultiple, "len", len(t.data))
+	if len(t.raw)%spkt.LineLen != 0 {
+		return HookError, util.NewError(ErrorLenMultiple, "len", len(t.raw))
 	}
 	if t.NumHops > t.TotalHops {
 		return HookError, util.NewError(ErrorTooManyEntries,
@@ -102,19 +103,19 @@ func (t *Traceroute) Validate() (HookResult, *util.Error) {
 }
 
 func (t *Traceroute) Process() (HookResult, *util.Error) {
-	// FIXME(kormat): finish implementing this.
-	/*
-		if err := t.Add(localIA,...); err != nil {
-			t.Error("Unable to add entry", err)
-		}
-	*/
+	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
+	entry := TracerouteEntry{*conf.C.IA, uint16(*t.p.ifCurr), uint16(ts)}
+	if err := t.Add(&entry); err != nil {
+		t.Error("Unable to add entry", err)
+	}
+	t.raw[3] = t.NumHops
 	return HookContinue, nil
 }
 
 func (t *Traceroute) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "Traceroute (%dB): Hops filled/total: %d/%d\n",
-		len(t.data), t.NumHops, t.TotalHops)
+		len(t.raw), t.NumHops, t.TotalHops)
 	for i := 0; i < int(t.NumHops); i++ {
 		entry, err := t.Entry(i)
 		if err != nil {

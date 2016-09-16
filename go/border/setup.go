@@ -19,6 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/syndtr/gocapability/capability"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
@@ -121,6 +122,16 @@ func (r *Router) setupNet() *util.Error {
 			break
 		}
 	}
+	// drop cap privileges, if any
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		return util.NewError("Error retrieving capabilities", "err", err)
+	}
+	log.Debug("Startup capabilities", "caps", caps)
+	caps.Clear(capability.CAPS)
+	caps.Apply(capability.CAPS)
+	caps.Load()
+	log.Debug("Cleared capabilities", "caps", caps)
 	return nil
 }
 
