@@ -5,6 +5,7 @@ set -e
 cmd_all() {
     cmd_pkgs
     cmd_pip
+    cmd_pipweb
     cmd_zlog
     cmd_golang
     cmd_misc
@@ -38,6 +39,11 @@ pkg_deb_chk() {
 cmd_pip() {
     echo "Installing necessary packages from pip3"
     pip3 install --user -r requirements.txt
+}
+
+cmd_pipweb() {
+    echo "Installing necessary packages from pip3 for scion-web"
+    pip3 install --user -r sub/web/requirements.txt
 }
 
 cmd_zlog() {
@@ -94,6 +100,9 @@ cmd_help() {
 	    $PROGRAM pip
 	        Install all pip package dependencies (using --user, so no root
 	        access required)
+	    $PROGRAM pipweb
+	        Install all pip package dependencies of scion-web (using --user, so
+	        no root access required)
 	    $PROGRAM zlog
 	        Install libzlog
 	    $PROGRAM golang
@@ -111,7 +120,7 @@ COMMAND="$1"
 shift || { cmd_help; exit; }
 
 case "$COMMAND" in
-    all|pkgs|pip|golang|zlog|misc)
+    all|pkgs|pip|pipweb|golang|zlog|misc)
             "cmd_$COMMAND" "$@" ;;
     help)  cmd_help ;;
     *)  cmd_help; exit 1 ;;
