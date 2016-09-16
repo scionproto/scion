@@ -45,6 +45,10 @@ RUN sudo chown -R scion: $HOME
 RUN ./deps.sh zlog
 RUN ./deps.sh misc
 RUN ./deps.sh pip
+# Copy over scion-web requirements.txt. If it has changed, then re-run the remaining steps.
+COPY sub/web/requirements.txt $BASE/sub/web/
+# Install scion-web dependencies
+RUN ./deps.sh pipweb
 
 RUN sudo rm -rf /usr/share/man
 # Clean out the cached packages now they're no longer necessary
@@ -58,6 +62,11 @@ RUN sudo du -hsx /
 # Now copy over the current branch
 COPY . $BASE/
 RUN sudo chown -R scion: $HOME
+
+# Setup scion-web
+RUN cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/private.py
+RUN sub/web/manage.py makemigrations
+
 # Build topology files
 RUN ./scion.sh topology
 # Install bash config

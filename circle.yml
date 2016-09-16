@@ -22,7 +22,7 @@ checkout:
         export PATH=$GOBIN:$PATH
         ' >> ~/.circlerc
       - git submodule sync
-      - git submodule update --init sub/lwip sub/lwip-contrib/
+      - git submodule update --init sub/web sub/lwip sub/lwip-contrib/
 
 dependencies:
     cache_directories:
@@ -45,6 +45,7 @@ test:
         - ./docker.sh run -c "./scion.sh lint"
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"
         - ./docker.sh run -c "make -s install clean && docker/integration_test.sh"
+        - ./docker.sh run -c "cd sub/web && ./manage.py test"
     post:
         - mkdir "$ARTIFACTS"
         - mv htmlcov "$ARTIFACTS"/coverage
