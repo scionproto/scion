@@ -868,8 +868,8 @@ void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 {
     int calc_chk = scmp_checksum(buf);
     if (calc_chk != scmp->checksum) {
-        zlog_error(zc, "SCMP header checksum (%x) doesn't match computed checksum (%x)\n",
-                scmp->checksum, calc_chk);
+        zlog_error(zc, "SCMP header checksum (%x) doesn't match computed checksum (%x)",
+                ntohs(scmp->checksum), ntohs(calc_chk));
         return;
     }
     if (htons(scmp->class_) == SCMP_GENERAL_CLASS && htons(scmp->type) == SCMP_ECHO_REQUEST) {
@@ -885,7 +885,7 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
     reverse_packet(buf);
     scmp->type = htons(SCMP_ECHO_REPLY);
     update_scmp_checksum(buf);
-    zlog_debug(zc, "send echo reply to %s:%d\n", addr_to_str(from->addr, from->addr_type, NULL), ntohs(from->port));
+    zlog_debug(zc, "send echo reply to %s:%d", addr_to_str(from->addr, from->addr_type, NULL), ntohs(from->port));
     send_data(buf, ntohs(sch->total_len), from);
 }
 
@@ -895,12 +895,16 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     pld = scmp_parse_payload(scmp);
     if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_SSP &&
             pld->meta->l4_proto != L4_NONE) {
-        zlog_error(zc, "SCMP not supported for protocol %d\n", pld->meta->l4_proto);
+        zlog_error(zc, "SCMP not supported for protocol %d", pld->meta->l4_proto);
         return;
     }
     SCIONCommonHeader *sch = pld->cmnhdr;
+    if (sch == NULL) {
+        zlog_info(zc, "SCMP payload has no common header snippet, ignoring");
+        return;
+    }
     if (SRC_TYPE(sch) == ADDR_SVC_TYPE) {
-        zlog_error(zc, "SCMP does not support SVC source.\n");
+        zlog_error(zc, "SCMP does not support SVC source.");
         return;
     }
 

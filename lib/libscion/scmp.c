@@ -10,29 +10,30 @@
 uint16_t scmp_checksum(uint8_t *buf)
 {
     uint8_t *ptr = buf + sizeof(SCIONCommonHeader);
-    chk_input *input = mk_chk_input(6);
+    chk_input *input = mk_chk_input(7);
     SCMPL4Header *scmp_l4;
     uint8_t l4_type;
-    uint16_t payload_len, ret;
+    uint16_t payload_len, ret, blank_sum = 0;
 
     // Src ISD-AS & host address
-    ptr = chk_add_chunk(input, 0, ptr, ISD_AS_LEN + get_src_len(buf));
+    ptr = chk_add_chunk(input, ptr, ISD_AS_LEN + get_src_len(buf));
     // Dest ISD-AS & host address
-    chk_add_chunk(input, 1, ptr, ISD_AS_LEN + get_dst_len(buf));
+    chk_add_chunk(input, ptr, ISD_AS_LEN + get_dst_len(buf));
     ptr = buf;
     l4_type = get_l4_proto(&ptr);
     scmp_l4 = (SCMPL4Header *)ptr;
     // L4 protocol type
-    chk_add_chunk(input, 2, &l4_type, 1);
+    chk_add_chunk(input, &l4_type, 1);
     // SCMP class, type & length
-    ptr = chk_add_chunk(input, 3, ptr, 6);
-    // Skip checksum field
+    ptr = chk_add_chunk(input, ptr, 6);
+    // Use blank checksum field
+    chk_add_chunk(input, (uint8_t *)(&blank_sum), 2);
     ptr += 2;
     // SCMP Timestamp
-    ptr = chk_add_chunk(input, 4, ptr, 8);
+    ptr = chk_add_chunk(input, ptr, 8);
     // Length in SCMP header includes header size, so subtract it.
     payload_len = ntohs(scmp_l4->len) - sizeof(SCMPL4Header);
-    chk_add_chunk(input, 5, ptr, payload_len);
+    chk_add_chunk(input, ptr, payload_len);
 
     ret = checksum(input);
     rm_chk_input(input);
@@ -43,7 +44,7 @@ void update_scmp_checksum(uint8_t *buf)
 {
     SCMPL4Header *scmp_hdr = (SCMPL4Header *)buf;
     get_l4_proto((uint8_t **)&scmp_hdr);
-    scmp_hdr->checksum = htons(scmp_checksum(buf));
+    scmp_hdr->checksum = scmp_checksum(buf);
 }
 
 

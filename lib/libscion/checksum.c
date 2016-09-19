@@ -1,11 +1,6 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#if 0
-#include <stdint.h>
-#include <string.h>
-#include <sys/types.h>
-#endif
 #include "checksum.h"
 
 void _add_sum(uint32_t *sum, uint16_t val);
@@ -22,7 +17,7 @@ uint16_t checksum(chk_input *in) {
     uint8_t *carry = NULL;
 
     // Iterate over the chunks
-    for (i=0; i < in->count; i++){
+    for (i=0; i < in->total; i++){
         int j = 0;
         int len = in->len[i];
         uint8_t *ptr = in->ptr[i];
@@ -59,14 +54,15 @@ void _add_sum(uint32_t *sum, uint16_t val) {
 
 /*
  * Helper function to allocate a chk_input struct for checksum.
- * count: number of input chunks.
+ * total: number of input chunks.
  */
-chk_input *mk_chk_input(int count){
+chk_input *mk_chk_input(int total){
     chk_input *input;
     input = (chk_input *)malloc(sizeof(chk_input));
-    input->count = count;
-    input->len = (uint16_t *)malloc(sizeof(uint16_t) * input->count);
-    input->ptr = (uint8_t **)malloc(sizeof(uint8_t *) * input->count);
+    input->idx = 0;
+    input->total = total;
+    input->len = (uint16_t *)malloc(sizeof(uint16_t) * input->total);
+    input->ptr = (uint8_t **)malloc(sizeof(uint8_t *) * input->total);
     return input;
 }
 
@@ -87,8 +83,13 @@ void rm_chk_input(chk_input *in) {
  * len: Length of data chunk.
  * return value: a pointer to the data following the current chunk.
  */
-uint8_t * chk_add_chunk(chk_input *in, int idx, uint8_t *ptr, int len) {
-    in->len[idx] = len;
-    in->ptr[idx] = ptr;
+uint8_t * chk_add_chunk(chk_input *in, uint8_t *ptr, int len) {
+    if (in->idx >= in->total) {
+        fprintf(stderr, "ERROR chk_add_chunk: in->idx (%d) >= in->total (%d)\n", in->idx, in->total);
+        exit(1);
+    }
+    in->len[in->idx] = len;
+    in->ptr[in->idx] = ptr;
+    in->idx++;
     return ptr + len;
 }

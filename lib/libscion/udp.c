@@ -55,27 +55,28 @@ uint8_t get_payload_type(uint8_t *buf)
 uint16_t scion_udp_checksum(uint8_t *buf)
 {
     uint8_t *ptr = buf + sizeof(SCIONCommonHeader);
-    chk_input *input = mk_chk_input(5);
+    chk_input *input = mk_chk_input(6);
     SCIONUDPHeader *udp_hdr;
     uint8_t l4_type;
-    uint16_t payload_len, ret;
+    uint16_t payload_len, ret, blank_sum = 0;
 
     // Src ISD-AS & host address
-    ptr = chk_add_chunk(input, 0, ptr, ISD_AS_LEN + get_src_len(buf));
+    ptr = chk_add_chunk(input, ptr, ISD_AS_LEN + get_src_len(buf));
     // Dest ISD-AS & host address
-    chk_add_chunk(input, 1, ptr, ISD_AS_LEN + get_dst_len(buf));
+    chk_add_chunk(input, ptr, ISD_AS_LEN + get_dst_len(buf));
     ptr = buf;
     l4_type = get_l4_proto(&ptr);
     udp_hdr = (SCIONUDPHeader *)ptr;
     // L4 protocol type
-    chk_add_chunk(input, 2, &l4_type, 1);
+    chk_add_chunk(input, &l4_type, 1);
     // udp src+dst port and len fields.
-    ptr = chk_add_chunk(input, 3, ptr, 6);
-    // Skip checksum field
+    ptr = chk_add_chunk(input, ptr, 6);
+    // Use blank checksum field
+    chk_add_chunk(input, (uint8_t *)(&blank_sum), 2);
     ptr += 2;
     // Length in UDP header includes header size, so subtract it.
     payload_len = ntohs(udp_hdr->len) - sizeof(SCIONUDPHeader);
-    chk_add_chunk(input, 4, ptr, payload_len);
+    chk_add_chunk(input, ptr, payload_len);
 
     ret = checksum(input);
     rm_chk_input(input);
