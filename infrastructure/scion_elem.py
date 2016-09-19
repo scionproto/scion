@@ -108,7 +108,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = False
+    USE_TCP = True
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
@@ -179,8 +179,6 @@ class SCIONElement(object):
         self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
-        if not self.USE_TCP:
-            return
         MAX_TRIES = 20
         for i in range(MAX_TRIES):
             try:
@@ -622,7 +620,7 @@ class SCIONElement(object):
 
     def _tcp_start(self):
         # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+        if not hasattr(self, "_tcp_sock"):
             return
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_recv_loop,),

@@ -640,8 +640,11 @@ class SupervisorGenerator(object):
         return entry
 
     def _mk_cmd(self, name, cmd_args):
+        nice = []
+        if "dispatcher" not in cmd_args[0]:
+            nice = ['nice -n 1']
         return "bash -c 'exec %s &>logs/%s.OUT'" % (
-            " ".join(['"%s"' % arg for arg in cmd_args]), name)
+            " ".join(nice + ['"%s"' % arg for arg in cmd_args]), name)
 
 
 class ZKConfGenerator(object):
