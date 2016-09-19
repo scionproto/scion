@@ -59,7 +59,7 @@ RUN sudo du -hsx /
 COPY . $BASE/
 RUN sudo chown -R scion: $HOME
 # Build topology files
-RUN ./scion.sh topology
+RUN ./scion.sh topology -r go
 # Install bash config
 COPY docker/profile $HOME/.profile
 # Install basic screen config
