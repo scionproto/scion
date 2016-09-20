@@ -876,7 +876,10 @@ void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
         if (ntohs(scmp->type) == SCMP_ECHO_REQUEST) {
             send_scmp_echo_reply(buf, scmp, from);
             return;
-        } /*else if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
+        } /*
+            TODO(kormat): not implemented yet. Needs a hashmap so map SCMP echo IDs to programs
+
+            else if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
             deliver_scmp_echo_reply(buf, scmp, from);
             return;
         }

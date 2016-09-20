@@ -78,6 +78,7 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 		addr.HostFromIP(srcAddr.IP), conf.C.IA, dstHost)
 	if err != nil {
 		log.Error("Error creating RevInfo packet", err.Ctx...)
+		return
 	}
 	scion, pathMgmt, err := proto.NewPathMgmtMsg()
 	if err != nil {
@@ -90,6 +91,7 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	_, err = pkt.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route RevInfo packet", err.Ctx...)
+		return
 	}
 	pkt.Route()
 	log.Debug("Forwarded RevInfo")

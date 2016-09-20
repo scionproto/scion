@@ -88,6 +88,7 @@ func (p *Payload) parseInfo(b util.RawBytes) *util.Error {
 			return err
 		}
 		/*
+			TODO(kormat): Ext and SIBRA errors not handled yet.
 			case C_Ext:
 				return InfoExtIdxFromRaw(b)
 		*/
