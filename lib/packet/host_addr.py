@@ -176,6 +176,12 @@ class HostAddrSVC(HostAddrBase):
     def is_mcast(self):  # pragma: no cover
         return self.addr & self.MCAST
 
+    def multicast(self):
+        return HostAddrSVC(self.addr | self.MCAST, raw=False)
+
+    def anycast(self):
+        return HostAddrSVC(self.addr & ~self.MCAST, raw=False)
+
     def __str__(self):
         s = "0x%02x" % (self.addr & ~self.MCAST)
         if self.is_mcast():

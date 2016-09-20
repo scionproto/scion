@@ -46,7 +46,9 @@ func (p *Packet) ExtnParse(extType spkt.ExtnType, start, end int) (Extension, *u
 	case extType == spkt.ExtnTracerouteType:
 		return TracerouteFromRaw(p, start, end)
 	case extType == spkt.ExtnOneHopPathType:
-		return OneHopPathFromRaw(p.Raw[start:end], p.Logger, p)
+		return OneHopPathFromRaw(p)
+	case extType == spkt.ExtnSCMPType:
+		return SCMPExtFromRaw(p, start, end)
 	case ExtHBHKnown[extType]:
 		return nil, util.NewError("Known but unsupported extension", "type", extType)
 	default:

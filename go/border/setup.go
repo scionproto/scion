@@ -51,6 +51,7 @@ func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]packet.OutputFunc)
 	r.intfOutFs = make(map[path.IntfID]packet.OutputFunc)
 	r.freePkts = make(chan *packet.Packet, 1024)
+	r.revInfoQ = make(chan util.RawBytes)
 
 	if err := conf.Load(r.Id, confDir); err != nil {
 		return err
@@ -59,7 +60,7 @@ func (r *Router) setup(confDir string) *util.Error {
 	log.Debug("AS Conf loaded", "conf", conf.C.AS)
 	log.Debug("NetConf", "conf", conf.C.Net)
 
-	packet.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates)
+	packet.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback)
 	return nil
 }
 

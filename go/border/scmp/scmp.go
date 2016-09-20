@@ -12,59 +12,112 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package scmp
 
 import (
 	"encoding/binary"
-
-	log "github.com/inconshreveable/log15"
-	"gopkg.in/restruct.v1"
-
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"fmt"
+	//log "github.com/inconshreveable/log15"
 )
+
+// https://github.com/netsec-ethz/scion/blob/master/lib/packet/scmp/types.py
+
+var order = binary.BigEndian
+
+type Class uint16
 
 const (
-	SCMPHdrLen = 16
+	C_General Class = iota
+	C_Routing
+	C_CmnHdr
+	C_Path
+	C_Ext
+	C_Sibra
 )
 
-const (
-	ErrorSCMPHdrUnpack = "Failed to unpack SCMP header"
-)
+var classNames = []string{"GENERAL", "ROUTING", "CMNHDR", "PATH", "EXT", "SIBRA"}
 
-// TODO(kormat): lots and lots of work needed for SCMP support.
-
-//var _ Extension = (*SCMP)(nil)
-
-type SCMP struct {
-	data util.RawBytes
-	Hdr  *SCMPHeader
-	Info *SCMPInfo
-	log.Logger
-}
-
-func SCMPFromRaw(b []byte, logger log.Logger) (*SCMP, *util.Error) {
-	s := &SCMP{}
-	s.data = b
-	s.Logger = logger
-	s.Debug("SCMP header found")
-	return s, nil
-}
-
-type SCMPHeader struct {
-	Class     uint16
-	Type      uint16
-	Len       uint16
-	Checksum  [2]byte
-	Timestamp [8]byte
-}
-
-func SCMPHdrFromRaw(b []byte) (*SCMPHeader, *util.Error) {
-	s := &SCMPHeader{}
-	if err := restruct.Unpack(b, binary.BigEndian, s); err != nil {
-		return nil, util.NewError(ErrorSCMPHdrUnpack, "err", err)
+func (c Class) String() string {
+	if int(c) > len(classNames) {
+		return fmt.Sprintf("Class(%d)", c)
 	}
-	return s, nil
+	return fmt.Sprintf("%s(%d)", classNames[c], c)
 }
 
-type SCMPInfo struct {
+type Type uint16
+
+// C_General types
+const (
+	T_G_Unspecified Type = iota
+	T_G_EchoRequest
+	T_G_EchoReply
+)
+
+// C_Routing types
+const (
+	T_R_UnreachNet Type = iota
+	T_R_UnreachHost
+	T_R_L2Error
+	T_R_UnreachProto
+	T_R_UnreachPort
+	T_R_UnknownHost
+	T_R_BadHost
+	T_R_OversizePkt
+	T_R_AdminDenied
+)
+
+// C_CmnHdr types
+const (
+	T_C_BadVersion Type = iota
+	T_C_BadSrcType
+	T_C_BadDstType
+	T_C_BadPktLen
+	T_C_BadInfoFOffset
+	T_C_BadHopFOffset
+)
+
+// C_Path types
+const (
+	T_P_PathRequired Type = iota
+	T_P_BadMac
+	T_P_ExpiredHopF
+	T_P_BadIF
+	T_P_RevokedIF
+	T_P_NonRoutingHopF
+	T_P_DeliveryFwdOnly
+	T_P_DeliveryNonLocal
+)
+
+// C_Ext types
+const (
+	T_E_TooManyHopbyHop Type = iota
+	T_E_BadExtOrder
+	T_E_BadHopByHop
+	T_E_BadEnd2End
+)
+
+// C_Sibra types
+const (
+	T_S_BadVersion Type = iota
+	T_S_SetupNoReq
+)
+
+var typeNameMap = map[Class][]string{
+	C_General: {"UNSPECIFIED", "ECHO_REQEST", "ECHO_REPLY"},
+	C_Routing: {"UNREACH_NET", "UNREACH_HOST", "L2_ERROR", "UNREACH_PROTO",
+		"UNREACH_PORT", "UNKNOWN_HOST", "BAD_HOST", "OVERSIZE_PKT", "ADMIN_DENIED"},
+	C_CmnHdr: {"BAD_VERSION", "BAD_SRC_TYPE", "BAD_DST_TYPE",
+		"BAD_PKT_LEN", "BAD_IOF_OFFSET", "BAD_HOF_OFFSET"},
+	C_Path: {"PATH_REQUIRED", "BAD_MAC", "EXPIRED_HOPF", "BAD_IF", "REVOKED_IF",
+		"NON_ROUTING_HOPF", "DELIVERY_FWD_ONLY", "DELIVERY_NON_LOCAL"},
+	C_Ext:   {"TOO_MANY_HOPBYHOP", "BAD_EXT_ORDER", "BAD_HOPBYHOP", "BAD_END2END"},
+	C_Sibra: {"SIBRA_BAD_VERSION", "SIBRA_SETUP_NO_REQ"},
+}
+
+func (t Type) Name(c Class) string {
+	names, ok := typeNameMap[c]
+	if !ok || int(t) > len(names) {
+		return fmt.Sprintf("Type(%d)", t)
+	}
+	return fmt.Sprintf("%s(%d)", names[t], t)
 }

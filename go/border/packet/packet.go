@@ -32,39 +32,42 @@ var callbacks struct {
 	locOutFs   map[int]OutputFunc
 	intfOutFs  map[path.IntfID]OutputFunc
 	ifStateUpd func(proto.IFStateInfos)
+	revTokenF  func(util.RawBytes)
 }
 
 func Init(locOut map[int]OutputFunc, intfOut map[path.IntfID]OutputFunc,
-	ifStateUpd func(proto.IFStateInfos)) {
+	ifStateUpd func(proto.IFStateInfos), revTokenF func(util.RawBytes)) {
 	callbacks.locOutFs = locOut
 	callbacks.intfOutFs = intfOut
 	callbacks.ifStateUpd = ifStateUpd
+	callbacks.revTokenF = revTokenF
 }
 
 type Packet struct {
-	Raw     util.RawBytes
-	TimeIn  time.Time
-	DirFrom Dir
-	DirTo   Dir
-	Ingress AddrPair
-	Egress  []EgressPair
-	CmnHdr  spkt.CmnHdr
-	idxs    packetIdxs
-	srcIA   *addr.ISD_AS
-	srcHost addr.HostAddr
-	dstIA   *addr.ISD_AS
-	dstHost addr.HostAddr
-	infoF   *path.InfoField
-	hopF    *path.HopField
-	ifCurr  *path.IntfID
-	ifNext  *path.IntfID
-	upFlag  *bool
-	HBHExt  []Extension
-	E2EExt  []Extension
-	L4Type  spkt.L4ProtoType
-	l4      L4Header
-	pld     interface{}
-	hooks   Hooks
+	Raw       util.RawBytes
+	TimeIn    time.Time
+	DirFrom   Dir
+	DirTo     Dir
+	Ingress   AddrPair
+	Egress    []EgressPair
+	CmnHdr    spkt.CmnHdr
+	idxs      packetIdxs
+	srcIA     *addr.ISD_AS
+	srcHost   addr.HostAddr
+	dstIA     *addr.ISD_AS
+	dstHost   addr.HostAddr
+	infoF     *path.InfoField
+	hopF      *path.HopField
+	ifCurr    *path.IntfID
+	ifNext    *path.IntfID
+	upFlag    *bool
+	HBHExt    []Extension
+	E2EExt    []Extension
+	L4Type    spkt.L4ProtoType
+	l4        L4Header
+	pld       interface{}
+	hooks     Hooks
+	SCMPError bool
 	log.Logger
 }
 
@@ -152,5 +155,6 @@ func (p *Packet) Reset() {
 	p.l4 = nil
 	p.pld = nil
 	p.hooks = Hooks{}
+	p.SCMPError = false
 	p.Logger = nil
 }
