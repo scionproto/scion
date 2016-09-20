@@ -73,13 +73,10 @@ class SCMPEchoServer(TestServerBase):
     Since SCMP Echo is handled directly by the dispatcher, do nothing
     """
     def _handle_request(self, spkt):
-        logging.info("Got:\n%s", spkt)
-        self.success = True
-        self.finished.set()
-        return True
+        pass
 
-    #def run(self):
-    #    self.done = True
+    def run(self):
+        self.done = True
 
 
 class TestSCMPEcho(TestClientServerBase):
