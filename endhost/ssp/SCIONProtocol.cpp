@@ -980,7 +980,10 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double time
     sp.payload = malloc(len);
     sp.payloadLen = len;
     memcpy(sp.payload, buf, len);
-    return mConnectionManager->sendPacket(&packet);
+    int ret = mConnectionManager->sendPacket(&packet);
+    if (ret < 0)
+        return ret;
+    return len;
 }
 
 int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
