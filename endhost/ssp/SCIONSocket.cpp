@@ -81,7 +81,7 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
     struct sigaction signew, sigold;
-    memset(&signew, 0, sizeof(sigold));
+    memset(&sigold, 0, sizeof(sigold));
     memset(&signew, 0, sizeof(signew));
     signew.sa_handler = signalHandler;
     sigaction(SIGINT, NULL, &sigold);
