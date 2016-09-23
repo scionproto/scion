@@ -102,7 +102,7 @@ from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.types import L4Proto
-from lib.util import handle_signals, hex_str
+from lib.util import hex_str
 
 VERSION = '0.1.0'
 BUFLEN = 8192
@@ -493,7 +493,6 @@ def main():
     """
     Parse the command-line arguments and start the proxy server.
     """
-    handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port",
                         help='Port number to run SCION Proxy on',
@@ -554,12 +553,16 @@ def main():
         logging.info("Starting the server with UNIX socket.")
         soc = unix_server_socket(args.port)
 
+    worker = threading.Thread(target=serve_forever,
+                              args=(soc, args.forward, args.scion, kbase,
+                                    args.source_isd_as, args.target_isd_as,
+                                    args.target_address, args.target_port),
+                              daemon=True)
+    worker.start()
     try:
-        serve_forever(soc, args.forward, args.scion, kbase,
-                      args.source_isd_as, args.target_isd_as,
-                      args.target_address, args.target_port)
+        worker.join()
     except KeyboardInterrupt:
-        logging.info("Exiting")
+        logging.info("Exiting from keyboard interrupt")
         soc.close()
 
 
