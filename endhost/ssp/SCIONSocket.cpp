@@ -80,7 +80,15 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     mParent(NULL),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
-    signal(SIGINT, signalHandler);
+    struct sigaction signew, sigold;
+    memset(&sigold, 0, sizeof(sigold));
+    memset(&signew, 0, sizeof(signew));
+    signew.sa_handler = signalHandler;
+    sigaction(SIGINT, NULL, &sigold);
+    if (!sigold.sa_handler) {
+        DEBUG("install SIGINT handler as none exists\n");
+        sigaction(SIGINT, &signew, NULL);
+    }
 
     strcpy(mSCIONDAddr, sciond);
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
