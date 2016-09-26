@@ -104,7 +104,7 @@ from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.types import L4Proto
-from lib.util import hex_str
+from lib.util import handle_signals, hex_str
 
 VERSION = '0.1.0'
 BUFLEN = 8192
@@ -500,6 +500,7 @@ def main():
     """
     Parse the command-line arguments and start the proxy server.
     """
+    handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument("--address",
                         help='IP address of the source SCION Proxy',
@@ -580,7 +581,7 @@ def main():
     worker.start()
     try:
         worker.join()
-    except KeyboardInterrupt:
+    finally:
         # Exit gracefully
         logging.info("Closing the socket.")
         soc.close()
