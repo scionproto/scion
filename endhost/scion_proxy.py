@@ -94,9 +94,11 @@ from http.client import HTTPMessage
 from urllib.parse import urlparse, urlunparse
 
 # SCION
+from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from endhost.scion_socket import SCION_OPTION_ISD_WLIST
 from endhost.socket_kbase import SocketKnowledgeBase
+from lib.defines import GEN_PATH
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
@@ -467,12 +469,11 @@ def serve_forever(soc, bridge_mode, scion_mode, kbase, source_isd_as,
                          daemon=True).start()
 
 
-def scion_server_socket(server_address, isd_as):
+def scion_server_socket(server_address, api_addr, isd_as):
     logging.info("Starting SCION test server application.")
-    sockdir = "/run/shm/sciond/%s.sock" % isd_as
-    soc = ScionServerSocket(L4Proto.SSP, bytes(sockdir, 'ascii'))
+    soc = ScionServerSocket(L4Proto.SSP, bytes(api_addr, 'ascii'))
     host = HostAddrIPv4(server_address[0])
-    saddr = SCIONAddr.from_values(ISD_AS(isd_as), host)
+    saddr = SCIONAddr.from_values(isd_as, host)
     soc.bind(server_address[1], saddr)
     soc.listen()
     return soc
@@ -489,11 +490,20 @@ def unix_server_socket(port):
     return soc
 
 
+def start_sciond(host, api_addr, isd_as):
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, isd_as[0], isd_as[1])
+    return SCIONDaemon.start(
+        conf_dir, host, api_addr=api_addr, run_local_api=True, port=0)
+
+
 def main():
     """
     Parse the command-line arguments and start the proxy server.
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument("--address",
+                        help='IP address of the source SCION Proxy',
+                        default='127.0.0.1')
     parser.add_argument("-p", "--port",
                         help='Port number to run SCION Proxy on',
                         type=int, default=DEFAULT_SERVER_PORT)
@@ -527,10 +537,19 @@ def main():
         init_logging(LOG_BASE + "_forward", file_level=logging.DEBUG,
                      console_level=logging.INFO)
         logging.info("Operating in forwarding (bridge) mode.")
+        isd_as = ISD_AS(args.source_isd_as)
+        host = HostAddrIPv4(args.address)
     else:
         init_logging(LOG_BASE, file_level=logging.DEBUG,
                      console_level=logging.INFO)
         logging.info("Operating in normal proxy mode.")
+        isd_as = ISD_AS(args.target_isd_as)
+        host = HostAddrIPv4(args.target_address)
+
+    # start sciond
+    logging.info("Starting sciond for %s", isd_as)
+    api_addr = SCIOND_API_SOCKDIR + "%s-%s.sock" % (isd_as[0], isd_as[1])
+    sciond = start_sciond(host, api_addr, isd_as)
 
     kbase = None
     if args.scion:
@@ -547,8 +566,8 @@ def main():
 
     if args.scion and not args.forward:
         logging.info("Starting the server with SCION multi-path socket.")
-        soc = scion_server_socket((args.target_address, args.port),
-                                  args.target_isd_as)
+        soc = scion_server_socket((args.target_address, args.port), api_addr,
+                                  ISD_AS(args.target_isd_as))
     else:
         logging.info("Starting the server with UNIX socket.")
         soc = unix_server_socket(args.port)
@@ -562,8 +581,11 @@ def main():
     try:
         worker.join()
     except KeyboardInterrupt:
-        logging.info("Exiting from keyboard interrupt")
+        # Exit gracefully
+        logging.info("Closing the socket.")
         soc.close()
+        logging.info("Stopping sciond.")
+        sciond.stop()
 
 
 if __name__ == '__main__':
