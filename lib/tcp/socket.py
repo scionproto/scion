@@ -297,7 +297,7 @@ class SCIONTCPSocket(object):
             assert not self._cmd_mode, "Called sendall() in cmd mode"
             return self._lwip_sock.sendall(msg)
 
-    def recv(self, bufsize):
+    def recv(self, bufsize, flags=None):
         with self._lock:
             assert not self._cmd_mode, "Called recv() in cmd mode"
             return self._lwip_sock.recv(bufsize)
