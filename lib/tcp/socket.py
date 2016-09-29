@@ -139,18 +139,18 @@ def get_lwip_reply(sock):
 
 class SCIONTCPSocket(object):
 
-    def __init__(self, sock=None, cmd_mode=True):
+    def __init__(self, sock=None, rpc_mode=True):
         self._lwip_sock = sock
         self._lwip_accept = None
         self._lock = threading.Lock()
-        self._cmd_mode = True  # False denotes "pipe mode"
+        self._rpc_mode = True  # False denotes "pipe mode"
         if sock is None:
             try:
                 self._create_socket()
             except OSError as e:
                 raise SCIONTCPError("Cannot create new socket: %s" % e)
         # Now, when socket is created, set desired mode.
-        self._cmd_mode = cmd_mode
+        self._rpc_mode = rpc_mode
 
     def setsockopt(self, opt):
         req = APICmd.SET_OPT + struct.pack("H", opt)
@@ -200,7 +200,7 @@ class SCIONTCPSocket(object):
                struct.pack("B", haddrtype) + addr.pack() + first_ip.pack() +
                struct.pack("HB", first_port, flags))
         self._exec_cmd(req, True)
-        self._cmd_mode = False
+        self._rpc_mode = False
 
     def _create_socket(self):
         assert self._lwip_sock is None
@@ -238,7 +238,7 @@ class SCIONTCPSocket(object):
         return rep
 
     def _exec_cmd(self, req, cmd_size=False):
-        assert self._cmd_mode, "Cannot send cmd in pipe mode"
+        assert self._rpc_mode, "Cannot send cmd in pipe mode"
         with self._lock:
             self._to_lwip(req)
             rep = self._from_lwip()
@@ -273,7 +273,7 @@ class SCIONTCPSocket(object):
         rep = rep[path_len:]
         addr = SCIONAddr((rep[0], rep[1:]))
         # Everything is ok, create new SCION TCP socket.
-        sock = SCIONTCPSocket(new_sock, cmd_mode=False)
+        sock = SCIONTCPSocket(new_sock, rpc_mode=False)
         return sock, addr, path
 
     def _init_accept_sock(self):
@@ -289,17 +289,17 @@ class SCIONTCPSocket(object):
 
     def send(self, msg):
         with self._lock:
-            assert not self._cmd_mode, "Called send() in cmd mode"
+            assert not self._rpc_mode, "Called send() in RPC mode"
             return self._lwip_sock.send(msg)
 
     def sendall(self, msg):
         with self._lock:
-            assert not self._cmd_mode, "Called sendall() in cmd mode"
+            assert not self._rpc_mode, "Called sendall() in RPC mode"
             return self._lwip_sock.sendall(msg)
 
     def recv(self, bufsize, flags=None):
         with self._lock:
-            assert not self._cmd_mode, "Called recv() in cmd mode"
+            assert not self._rpc_mode, "Called recv() in RPC mode"
             return self._lwip_sock.recv(bufsize)
 
     def set_recv_tout(self, timeout):  # Timeout is given as a float
@@ -320,7 +320,7 @@ class SCIONTCPSocket(object):
     def close(self):
         with self._lock:
             if self._lwip_sock:
-                if self._cmd_mode:
+                if self._rpc_mode:
                     req = APICmd.CLOSE
                     self._to_lwip(req)
                 self._lwip_sock.close()
