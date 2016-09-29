@@ -109,8 +109,6 @@ class APICmd(object):
     GET_RECV_TOUT = b"GRTO"
     LISTEN = b"LIST"
     NEW_SOCK = b"NEWS"
-    RECV = b"RECV"
-    SEND = b"SEND"
     SET_RECV_TOUT = b"SRTO"
     SET_OPT = b"SOPT"
     RESET_OPT = b"ROPT"

@@ -53,8 +53,6 @@
 #define CMD_GET_RECV_TOUT "GRTO"
 #define CMD_LISTEN "LIST"
 #define CMD_NEW_SOCK "NEWS"
-#define CMD_RECV "RECV"
-#define CMD_SEND "SEND"
 #define CMD_SET_RECV_TOUT "SRTO"
 #define CMD_SET_OPT "SOPT"
 #define CMD_RESET_OPT "ROPT"
@@ -76,8 +74,6 @@ void tcpmw_bind(struct conn_args *, char *, int);
 void tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
 void tcpmw_accept(struct conn_args *, char *, int);
-void tcpmw_send(struct conn_args *, char *, int);
-void tcpmw_recv(struct conn_args *, int);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
 void tcpmw_get_recv_tout(struct conn_args *, int);
 void tcpmw_set_sock_opt(struct conn_args *, char *, int);
