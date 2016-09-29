@@ -20,6 +20,7 @@
 
 # Stdlib
 import random
+import struct
 import threading
 import time
 
@@ -28,6 +29,7 @@ from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.svc import SVCType
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
+from lib.util import recv_all
 from test.integration.base_cli_srv import start_sciond
 
 s_isd_as = ISD_AS("1-18")
@@ -36,15 +38,11 @@ c_isd_as = ISD_AS("2-26")
 c_ip = haddr_parse(1, "127.2.2.2")
 # TODO(PSz): test with 0
 MAX_MSG_SIZE = 500000
-MSG_SIZE = None
-MSG = None
 
 
-def set_MSG():
-    global MSG_SIZE
-    global MSG
-    MSG_SIZE = random.randint(1, MAX_MSG_SIZE)
-    MSG = b"A"*MSG_SIZE
+def get_msg():
+    size = random.randint(1, MAX_MSG_SIZE)
+    return struct.pack("!I", size) + b"A"*size
 
 
 def server(svc=False):
@@ -62,9 +60,9 @@ def server(svc=False):
     while True:
         new_sock, addr, path = s.accept()
         print("Accepted: addr and path:", addr, path)
-        set_MSG()
+        msg = get_msg()
         # time.sleep(10)
-        new_sock.send(MSG)
+        new_sock.send(msg)
         new_sock.close()
 
 
@@ -90,11 +88,17 @@ def client(svc, counter):
         s.connect(saddr, 5000, *path_info)
     # s.set_recv_tout(5.0)
     # print(s.get_recv_tout())
+    start = time.time()
+    size = struct.unpack("!I", recv_all(s, 4, 0))[0]
     tmp = b''
-    while len(tmp) != MSG_SIZE:
+    print("To receive: %dB" % size)
+    while len(tmp) != size:
         tmp += s.recv(1024)
         print('.', end="", flush=True)
     print("\nMSG received, len, svc", len(tmp), svc)
+    time_elapsed = time.time()-start
+    print("Time elapsed: %s, speed %.2fkB/s\n" % (time_elapsed,
+                                                  size/time_elapsed/1000))
     s.close()
 
 
@@ -108,4 +112,3 @@ for i in range(10):
     svc = (i % 2 == 0)
     start = time.time()
     client(svc, i)
-    print("Time elapsed: %s\n" % (time.time()-start))
