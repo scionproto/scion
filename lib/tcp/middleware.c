@@ -430,11 +430,44 @@ exit:
     tcpmw_reply(args, CMD_ACCEPT, lwip_err);
 }
 
-void tcpmw_send(struct conn_args *args, char *buf, int len){
+void tcpmw_pipe_loop(struct conn_args *args){
+    /* Set timeouts for receiving from app and TCP socket */
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = TCP_POLLING_TOUT*1000;
+    if (setsockopt(args->fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0){
+        zlog_error(zc_tcp, "tcpmw_pipe_loop(): setsockopt(): %s", strerror(errno));
+        tcpmw_terminate(args);
+    }
+    netconn_set_recvtimeout(args->conn, TCP_POLLING_TOUT);
+
+    /* Main loop */
+    while (1){
+        if (tcpmw_from_app_sock(args))
+            break;
+        if (tcpmw_from_tcp_sock(args))
+            break;
+    }
+
+    tcpm_terminate(args);
+}
+
+int tcpmw_from_app_sock(struct conn_args *args){
+    char buf[TCPMW_BUFLEN];
     s8_t lwip_err = 0;
     size_t tmp_sent, sent = 0;
-    zlog_info(zc_tcp, "SEND received (%dB to send)", len);
-
+    /* zlog_info(zc_tcp, "SEND received (%dB to send)", len); */
+    int len = recv(args->fd, buf, TCPMW_BUFLEN);
+    if (len == 0)  /* Done */
+        return -1;
+    if (len < 0){
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)
+            return 0;
+        else{
+            zlog_error(zc_tcp, "tcpmw_from_app_sock(): recv(): %s", strerror(errno));
+            return -1;
+        }
+    }
     /* This is implemented more like send_all(). */
     while (sent < len){
         lwip_err = netconn_write_partly(args->conn, buf + sent, len - sent, NETCONN_COPY, &tmp_sent);
@@ -442,29 +475,21 @@ void tcpmw_send(struct conn_args *args, char *buf, int len){
             zlog_error(zc_tcp, "tcpmw_send(): netconn_write(): %s", lwip_strerr(lwip_err));
             zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
                        sent, tmp_sent, len);
-            goto exit;
+            return -1;
         }
         sent += tmp_sent;
         zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
                    sent, tmp_sent, len);
     }
-
-exit:
-    tcpmw_reply(args, CMD_SEND, lwip_err);
+    return 0;
 }
 
-void tcpmw_recv(struct conn_args *args, int pld_len){
+void tcpmw_from_tcp_sock(struct conn_args *args){
     u8_t *msg;
     struct netbuf *buf;
     void *data;
     u16_t len;
     s8_t lwip_err = 0;
-
-    if (pld_len){
-        lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_recv(): incorrect payload length %d", pld_len);
-        goto exit;
-    }
 
     /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
@@ -472,32 +497,25 @@ void tcpmw_recv(struct conn_args *args, int pld_len){
             zlog_debug(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
         else
             zlog_error(zc_tcp, "tcpmw_recv(): netconn_recv(): %s", lwip_strerr(lwip_err));
-        goto exit;
+        return -1;
     }
 
     /* Get the pointer to the data and its length. */
     if ((lwip_err = netbuf_data(buf, &data, &len)) != ERR_OK){
         zlog_error(zc_tcp, "tcpmw_recv(): netbuf_data(): %s", lwip_strerr(lwip_err));
-        goto exit;
+        return -1;
     }
 
-    msg = malloc(PLD_SIZE + RESP_SIZE);
-    *(u16_t *)msg = len;
-    memcpy(msg + PLD_SIZE, CMD_RECV, CMD_SIZE);
-    msg[PLD_SIZE + RESP_SIZE - 1] = ERR_OK;
-    if (send_all(args->fd, msg, PLD_SIZE + RESP_SIZE) < 0 || send_all(args->fd, data, len) < 0){
+    /* Now pass data to app's socket */
+    int ret = 0;
+    if (send_all(args->fd, data, len) < 0){
         zlog_fatal(zc_tcp, "tcpmw_recv(): send_all(): %s", strerror(errno));
-        netbuf_delete(buf);
-        free(msg);
-        tcpmw_terminate(args);
+        ret = -1;
     }
 
     netbuf_delete(buf);
     free(msg);
-    return;
-
-exit:
-    tcpmw_reply(args, CMD_RECV, lwip_err);
+    return ret;
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){

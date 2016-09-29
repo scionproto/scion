@@ -44,6 +44,7 @@
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
+#define TCP_POLLING_TOUT 2 /* In milliseconds */
 
 /* Middleware API commands */
 #define CMD_ACCEPT "ACCE"
@@ -84,5 +85,8 @@ void tcpmw_reply(struct conn_args *, const char *, s8_t);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
+void tcpmw_pipe_loop(struct conn_args *);
+int tcpmw_from_app_sock(struct conn_args *);
+int tcpmw_from_tcp_sock(struct conn_args *);
 
 #endif
