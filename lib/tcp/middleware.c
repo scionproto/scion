@@ -377,7 +377,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     struct conn_args *new_args = malloc(sizeof *new_args);
     new_args->fd = new_fd;
     new_args->conn = newconn;
-    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, new_args))){
+    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_pipe_loop, new_args))){
         zlog_error(zc_tcp, "tcpmw_accept(): pthread_create(): %s", strerror(sys_err));
         free(new_args);
         goto clean;
@@ -428,7 +428,8 @@ exit:
     tcpmw_reply(args, CMD_ACCEPT, lwip_err);
 }
 
-void tcpmw_pipe_loop(struct conn_args *args){
+void *tcpmw_pipe_loop(void *data){
+    struct conn_args *args = data;
     /* Set timeouts for receiving from app and TCP socket */
     struct timeval timeout;
     timeout.tv_sec = 0;
@@ -448,6 +449,7 @@ void tcpmw_pipe_loop(struct conn_args *args){
     }
 
     tcpmw_terminate(args);
+    return NULL;
 }
 
 int tcpmw_from_app_sock(struct conn_args *args){
