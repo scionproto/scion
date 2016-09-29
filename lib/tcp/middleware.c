@@ -432,6 +432,8 @@ void *tcpmw_pipe_loop(void *data){
     struct conn_args *args = data;
     /* Set timeouts for receiving from app and TCP socket */
     struct timeval timeout;
+
+    zlog_debug(zc_tcp, "Entered pipe mode");
     timeout.tv_sec = 0;
     timeout.tv_usec = TCP_POLLING_TOUT*1000;
     if (setsockopt(args->fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0){
@@ -461,18 +463,21 @@ int tcpmw_from_app_sock(struct conn_args *args){
     if (len == 0)  /* Done */
         return -1;
     if (len < 0){
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT){
+            zlog_debug(zc_tcp, "tcpmw_from_app_sock(): timeout");
             return 0;
+        }
         else{
             zlog_error(zc_tcp, "tcpmw_from_app_sock(): recv(): %s", strerror(errno));
             return -1;
         }
     }
+    zlog_debug(zc_tcp, "tcpmw_from_app_sock(): received from app %dB.", len);
     /* This is implemented more like send_all(). */
     while (sent < len){
         lwip_err = netconn_write_partly(args->conn, buf + sent, len - sent, NETCONN_COPY, &tmp_sent);
         if (lwip_err != ERR_OK){
-            zlog_error(zc_tcp, "tcpmw_from_app_sock(): netconn_write(): %s", lwip_strerr(lwip_err));
+            zlog_error(zc_tcp, "tcpmw_from_app_sock(): netconn_write(): %s %d", lwip_strerr(lwip_err), lwip_err);
             zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
                        sent, tmp_sent, len);
             return -1;
@@ -492,7 +497,9 @@ int tcpmw_from_tcp_sock(struct conn_args *args){
 
     /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
-        if (lwip_err == ERR_TIMEOUT || lwip_err == ERR_CLSD)
+        if (lwip_err == ERR_TIMEOUT)
+           return 0; 
+        if(lwip_err == ERR_CLSD)
             zlog_debug(zc_tcp, "tcpmw_from_tcp_sock(): netconn_recv(): %s", lwip_strerr(lwip_err));
         else
             zlog_error(zc_tcp, "tcpmw_from_tcp_sock(): netconn_recv(): %s", lwip_strerr(lwip_err));
@@ -612,7 +619,7 @@ exit:
 }
 
 void tcpmw_terminate(struct conn_args *args){
-    zlog_debug(zc_tcp, "tcpmw_terminate()");
+    zlog_fatal(zc_tcp, "tcpmw_terminate()");
     tcpmw_close(args);
     pthread_exit(NULL);
 }

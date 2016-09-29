@@ -141,16 +141,18 @@ def get_lwip_reply(sock):
 class SCIONTCPSocket(object):
     BUFLEN = 1024
 
-    def __init__(self, sock=None, cmd_mode=False):
+    def __init__(self, sock=None, cmd_mode=True):
         self._lwip_sock = sock
         self._lwip_accept = None
         self._lock = threading.Lock()
-        self._cmd_mode = cmd_mode  # False denotes "pipe mode"
+        self._cmd_mode = True  # False denotes "pipe mode"
         if sock is None:
             try:
                 self._create_socket()
             except OSError as e:
                 raise SCIONTCPError("Cannot create new socket: %s" % e)
+        # Now, when socket is created, set desired mode.
+        self._cmd_mode = cmd_mode
 
     def setsockopt(self, opt):
         req = APICmd.SET_OPT + struct.pack("H", opt)
