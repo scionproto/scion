@@ -143,11 +143,11 @@ def get_lwip_reply(sock):
 class SCIONTCPSocket(object):
     BUFLEN = 1024
 
-    def __init__(self, sock=None):
+    def __init__(self, sock=None, cmd_mode=False):
         self._lwip_sock = sock
         self._lwip_accept = None
-        self._recv_buf = b''
         self._lock = threading.Lock()
+        self._cmd_mode = cmd_mode  # False denotes "pipe mode"
         if sock is None:
             try:
                 self._create_socket()
@@ -202,6 +202,7 @@ class SCIONTCPSocket(object):
                struct.pack("B", haddrtype) + addr.pack() + first_ip.pack() +
                struct.pack("HB", first_port, flags))
         self._exec_cmd(req, True)
+        self._cmd_mode = False
 
     def _create_socket(self):
         assert self._lwip_sock is None
@@ -239,6 +240,7 @@ class SCIONTCPSocket(object):
         return rep
 
     def _exec_cmd(self, req, cmd_size=False):
+        assert self._cmd_mode, "Cannot send cmd in pipe mode"
         with self._lock:
             self._to_lwip(req)
             rep = self._from_lwip()
@@ -273,7 +275,7 @@ class SCIONTCPSocket(object):
         rep = rep[path_len:]
         addr = SCIONAddr((rep[0], rep[1:]))
         # Everything is ok, create new SCION TCP socket.
-        sock = SCIONTCPSocket(new_sock)
+        sock = SCIONTCPSocket(new_sock, cmd_mode=False)
         return sock, addr, path
 
     def _init_accept_sock(self):
@@ -288,30 +290,19 @@ class SCIONTCPSocket(object):
         self._lwip_accept.listen(5)  # FIXME(PSz): consistent with LWIP backlog
 
     def send(self, msg):
-        # Due to underlying LWIP this method is quite binary: it returns length
-        # of msg if it is sent, or throws exception otherwise.  Thus it might be
-        # safer to use it with smaller msgs.
-        if len(msg) > MAX_MSG_LEN:
-            raise SCIONTCPError("send() msg too long: %d" % len(msg))
+        with self._lock:
+            assert not self._cmd_mode, "Called send() in cmd mode"
+            return self._lwip_sock.send(bufsize)
 
-        start = 0
-        while start < len(msg):
-            req = APICmd.SEND + msg[start:start+MAX_CHUNK]
-            self._exec_cmd(req, True)
-            start += MAX_CHUNK
-        return len(msg)
+    def sendall(self, msg):
+        with self._lock:
+            assert not self._cmd_mode, "Called sendall() in cmd mode"
+            return self._lwip_sock.sendall(bufsize)
 
     def recv(self, bufsize):
-        if len(self._recv_buf) < bufsize:
-            self._fill_recv_buf()
-        ret = self._recv_buf[:bufsize]
-        self._recv_buf = self._recv_buf[bufsize:]
-        return ret
-
-    def _fill_recv_buf(self):
-        req = APICmd.RECV
-        rep = self._exec_cmd(req)
-        self._recv_buf += rep[RESP_SIZE:]
+        with self._lock:
+            assert not self._cmd_mode, "Called recv() in cmd mode"
+            return self._lwip_sock.recv(bufsize)
 
     def set_recv_tout(self, timeout):  # Timeout is given as a float
         if 0.0 < timeout < 0.001:
@@ -331,8 +322,9 @@ class SCIONTCPSocket(object):
     def close(self):
         with self._lock:
             if self._lwip_sock:
-                req = APICmd.CLOSE
-                self._to_lwip(req)
+                if self._cmd_mode:
+                    req = APICmd.CLOSE
+                    self._to_lwip(req)
                 self._lwip_sock.close()
                 self._lwip_sock = None
             else:
