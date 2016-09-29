@@ -91,6 +91,10 @@ def client(svc, counter):
     # s.set_recv_tout(5.0)
     # print(s.get_recv_tout())
     tmp = b''
+    if not MSG_SIZE:
+        print("MSG not set, leaving")
+        s.close()
+        return
     while len(tmp) != MSG_SIZE:
         tmp += s.recv(1024)
         print('.', end="", flush=True)
@@ -108,6 +112,8 @@ for i in range(10):
     svc = (i % 2 == 0)
     start = time.time()
     client(svc, i)
+    if not MSG_SIZE:
+        continue
     time_elapsed = time.time()-start
     print("Time elapsed: %s, speed %.2fB/s\n" % (time_elapsed,
                                                  MSG_SIZE/time_elapsed))
