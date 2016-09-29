@@ -108,4 +108,6 @@ for i in range(10):
     svc = (i % 2 == 0)
     start = time.time()
     client(svc, i)
-    print("Time elapsed: %s\n" % (time.time()-start))
+    time_elapsed = time.time()-start
+    print("Time elapsed: %s, speed %.2fB/s\n" % (time_elapsed,
+                                                 MSG_SIZE/time_elapsed))

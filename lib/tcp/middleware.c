@@ -498,7 +498,7 @@ int tcpmw_from_tcp_sock(struct conn_args *args){
     /* Receive data and put it within buf. Note that we cannot specify max_len. */
     if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
         if (lwip_err == ERR_TIMEOUT)
-           return 0; 
+           return 0;
         if(lwip_err == ERR_CLSD)
             zlog_debug(zc_tcp, "tcpmw_from_tcp_sock(): netconn_recv(): %s", lwip_strerr(lwip_err));
         else
@@ -619,7 +619,6 @@ exit:
 }
 
 void tcpmw_terminate(struct conn_args *args){
-    zlog_fatal(zc_tcp, "tcpmw_terminate()");
     tcpmw_close(args);
     pthread_exit(NULL);
 }
