@@ -290,12 +290,12 @@ class SCIONTCPSocket(object):
     def send(self, msg):
         with self._lock:
             assert not self._cmd_mode, "Called send() in cmd mode"
-            return self._lwip_sock.send(bufsize)
+            return self._lwip_sock.send(msg)
 
     def sendall(self, msg):
         with self._lock:
             assert not self._cmd_mode, "Called sendall() in cmd mode"
-            return self._lwip_sock.sendall(bufsize)
+            return self._lwip_sock.sendall(msg)
 
     def recv(self, bufsize):
         with self._lock:
