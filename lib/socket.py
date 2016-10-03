@@ -39,7 +39,7 @@ import threading
 from external import ipaddress
 
 # SCION
-from lib.defines import SCION_BUFLEN, TCP_RECV_POLLING_TOUT
+from lib.defines import SCION_BUFLEN
 from lib.dispatcher import reg_dispatcher
 from lib.errors import (
     SCIONBaseError,
@@ -115,6 +115,7 @@ class UDPSocket(Socket):
         self.port = None
         if bind:
             self.bind(*bind)
+        self.active = True
 
     def bind(self, addr, port=0, desc=None):
         """
@@ -210,6 +211,7 @@ class ReliableSocket(Socket):
             self.registered = reg_dispatcher(self, addr, port, init, svc)
         if bind:
             self.bind(*bind)
+        self.active = True
 
     @classmethod
     def from_socket(cls, sock):
@@ -323,6 +325,8 @@ class SocketMgr(object):
 
         :param UDPSocket sock: UDPSocket to add.
         """
+        # TODO(PSz): locking..
+        self.remove_inactive()
         self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
 
     def remove(self, sock):  # pragma: no cover
@@ -344,6 +348,18 @@ class SocketMgr(object):
         for key, _ in self._sel.select(timeout=timeout):
             yield key.data
 
+    def remove_inactive(self):
+        """
+        Removes inactive TCP sockets.
+        """
+        mapping = self._sel.get_map()
+        if mapping:
+            for entry in list(mapping.values()):
+                sock = entry.data[0]
+                if not sock.active:
+                    self.remove(sock)
+                    sock.close()
+
     def close(self):
         """
         Close all sockets.
@@ -357,7 +373,7 @@ class SocketMgr(object):
         self._sel.close()
 
 
-class TCPSocketWrapper(object):
+class TCPSocketWrapper(Socket):
     """
     Base class for accepted and connected TCP sockets used by SCION services.
     """
@@ -366,9 +382,8 @@ class TCPSocketWrapper(object):
     def __init__(self, sock, addr, path, active=True):
         self._buf = bytearray()
         self._sock = sock
+        self.sock = self._sock._lwip_sock  # self.sock is used by selectors
         self.active = active
-        if self.active:
-            self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
         self._lock = threading.RLock()
@@ -393,7 +408,7 @@ class TCPSocketWrapper(object):
                           level=logging.ERROR)
             return None
 
-    def get_msg_meta(self):
+    def get_msg_meta(self, flags=0):
         with self._lock:
             msg = self._get_msg()
             if msg:
@@ -403,6 +418,9 @@ class TCPSocketWrapper(object):
                 return None, self._get_meta()
             try:
                 read = self._sock.recv(self.RECV_SIZE)
+                if read is None:
+                    self.close()
+                    return None, None
                 self._buf += read
             except SCIONTCPTimeout:
                 return None, self._get_meta()
@@ -410,6 +428,17 @@ class TCPSocketWrapper(object):
                 logging.debug("TCP: calling close() after socket error")
                 self.close()
             return self._get_msg(), self._get_meta()
+
+    def recv(self, block=True):
+        """
+        Read data from socket.
+
+        :returns: bytestring containing received data.
+        """
+        flags = 0
+        if not block:
+            flags = MSG_DONTWAIT
+        return self.get_msg_meta(flags)
 
     def send_msg(self, raw):
         with self._lock:
