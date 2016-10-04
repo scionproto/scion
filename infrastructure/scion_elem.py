@@ -655,10 +655,12 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             for sock, callback in self._tcp_socks.select_(timeout=0.1):
                 callback(sock)
-                self._tcp_socks.remove_inactive()
-                self._tcp_add_waiting()
-            self._tcp_socks.remove_inactive()
-            self._tcp_add_waiting()
+                self._tcp_socks_update()
+            self._tcp_socks_update()
+
+    def _tcp_socks_update(self):
+        self._tcp_socks.remove_inactive()
+        self._tcp_add_waiting()
 
     def _tcp_add_waiting(self):
         while not self._tcp_conns.empty():
