@@ -20,6 +20,7 @@ import logging
 import os
 import selectors
 import struct
+import time
 from abc import abstractmethod
 from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
@@ -39,7 +40,7 @@ import threading
 from external import ipaddress
 
 # SCION
-from lib.defines import SCION_BUFLEN, TCP_RECV_POLLING_TOUT
+from lib.defines import SCION_BUFLEN, TCP_TIMEOUT
 from lib.dispatcher import reg_dispatcher
 from lib.errors import (
     SCIONBaseError,
@@ -85,6 +86,9 @@ class Socket(object):
         self.sock.settimeout(timeout)
         return prev
 
+    def is_active(self):
+        return True
+
 
 class UDPSocket(Socket):
     """
@@ -115,6 +119,7 @@ class UDPSocket(Socket):
         self.port = None
         if bind:
             self.bind(*bind)
+        self.active = True
 
     def bind(self, addr, port=0, desc=None):
         """
@@ -210,6 +215,7 @@ class ReliableSocket(Socket):
             self.registered = reg_dispatcher(self, addr, port, init, svc)
         if bind:
             self.bind(*bind)
+        self.active = True
 
     @classmethod
     def from_socket(cls, sock):
@@ -323,6 +329,10 @@ class SocketMgr(object):
 
         :param UDPSocket sock: UDPSocket to add.
         """
+        if not sock.is_active():
+            return
+        if isinstance(sock, TCPSocketWrapper):
+            sock.sock.setblocking(False)
         self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
 
     def remove(self, sock):  # pragma: no cover
@@ -332,6 +342,18 @@ class SocketMgr(object):
         :param UDPSocket sock: UDPSocket to remove.
         """
         self._sel.unregister(sock.sock)
+
+    def remove_inactive(self):
+        """
+        Removes inactive TCP sockets.
+        """
+        mapping = self._sel.get_map()
+        if mapping:
+            for entry in list(mapping.values()):
+                sock = entry.data[0]
+                if not sock.is_active():
+                    self.remove(sock)
+                    sock.close()
 
     def select_(self, timeout=None):
         """
@@ -366,12 +388,14 @@ class TCPSocketWrapper(object):
     def __init__(self, sock, addr, path, active=True):
         self._buf = bytearray()
         self._sock = sock
+        self.sock = None  # Used by the selector.
+        if self._sock:
+            self.sock = self._sock._lwip_sock
         self.active = active
-        if self.active:
-            self._sock.set_recv_tout(TCP_RECV_POLLING_TOUT)
         self._addr = addr
         self._path = path
         self._lock = threading.RLock()
+        self._last_read = time.time()
 
     def _get_meta(self):
         return TCPMetadata.from_values(ia=self._addr.isd_as,
@@ -403,12 +427,16 @@ class TCPSocketWrapper(object):
                 return None, self._get_meta()
             try:
                 read = self._sock.recv(self.RECV_SIZE)
+                if not read:
+                    self.active = False
+                    return None, None
                 self._buf += read
+                self._last_read = time.time()
             except SCIONTCPTimeout:
                 return None, self._get_meta()
             except SCIONTCPError:
-                logging.debug("TCP: calling close() after socket error")
-                self.close()
+                logging.debug("TCP: inactivating socket after socket error")
+                self.active = False
             return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
@@ -420,8 +448,8 @@ class TCPSocketWrapper(object):
                 self._sock.send(raw)
                 return True
             except SCIONTCPError:
-                logging.debug("TCP: calling close() after socket error")
-                self.close()
+                logging.debug("TCP: inactivating after socket error")
+                self.active = False
         return False
 
     def close(self):
@@ -435,3 +463,6 @@ class TCPSocketWrapper(object):
                 logging.warning("Error on close(): %s", e)
             self.active = False
             logging.debug("Leaving close()")
+
+    def is_active(self):
+        return self.active and (time.time() - self._last_read <= TCP_TIMEOUT)
