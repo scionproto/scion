@@ -325,8 +325,6 @@ class SocketMgr(object):
 
         :param UDPSocket sock: UDPSocket to add.
         """
-        if not sock.active:
-            return
         if isinstance(sock, TCPSocketWrapper):
             sock.sock.setblocking(False)
         self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
@@ -349,7 +347,7 @@ class SocketMgr(object):
                 sock = entry.data[0]
                 if not sock.active:
                     self.remove(sock)
-                    # sock.close()
+                    sock.close()
 
     def select_(self, timeout=None):
         """
@@ -423,14 +421,14 @@ class TCPSocketWrapper(object):
             try:
                 read = self._sock.recv(self.RECV_SIZE)
                 if not read:
-                    self.close()
+                    self.active = False
                     return None, None
                 self._buf += read
             except SCIONTCPTimeout:
                 return None, self._get_meta()
             except SCIONTCPError:
-                logging.debug("TCP: calling close() after socket error")
-                self.close()
+                logging.debug("TCP: inactivating socket after socket error")
+                self.active = False
             return self._get_msg(), self._get_meta()
 
     def send_msg(self, raw):
@@ -442,8 +440,8 @@ class TCPSocketWrapper(object):
                 self._sock.send(raw)
                 return True
             except SCIONTCPError:
-                logging.debug("TCP: calling close() after socket error")
-                self.close()
+                logging.debug("TCP: inactivating after socket error")
+                self.active = False
         return False
 
     def close(self):

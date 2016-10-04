@@ -149,7 +149,6 @@ class SCIONElement(object):
         self.stopped_flag.clear()
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
-        self._tcp_socks = SocketMgr()
         self._setup_sockets(True)
         self._startup = time.time()
         if self.USE_TCP:
@@ -605,8 +604,10 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             if not self._udp_sock:
                 self._setup_sockets(False)
-            for sock, callback in self._socks.select_(timeout=1.0):
+            for sock, callback in self._socks.select_(timeout=0.1):
                 callback(sock)
+                self._tcp_socks_update()
+            self._tcp_socks_update()
         self._socks.close()
         self.stopped_flag.set()
 
@@ -624,9 +625,6 @@ class SCIONElement(object):
         # FIXME(PSz): hack to get python router working.
         if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
             return
-        threading.Thread(
-            target=thread_safety_net, args=(self._tcp_recv_loop,),
-            name="Elem._tcp_recv_loop", daemon=True).start()
         if not self._tcp_sock:
             logging.warning("TCP: accept socket is unset, port:%d", self._port)
             return
@@ -651,22 +649,18 @@ class SCIONElement(object):
         except SCIONTCPError:
             log_exception("TCP: error on closing _tcp_sock")
 
-    def _tcp_recv_loop(self):
-        while self.run_flag.is_set():
-            for sock, callback in self._tcp_socks.select_(timeout=0.1):
-                callback(sock)
-                self._tcp_socks_update()
-            self._tcp_socks_update()
-
     def _tcp_socks_update(self):
-        self._tcp_socks.remove_inactive()
+        # FIXME(PSz): hack to get python router working.
+        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+            return
+        self._socks.remove_inactive()
         self._tcp_add_waiting()
 
     def _tcp_add_waiting(self):
         while not self._tcp_conns.empty():
             try:
-                self._tcp_socks.add(self._tcp_conns.get_nowait(),
-                                    self._tcp_handle_recv)
+                self._socks.add(self._tcp_conns.get_nowait(),
+                                self._tcp_handle_recv)
             except queue.Empty:
                 pass
 
@@ -677,7 +671,7 @@ class SCIONElement(object):
         msg, meta = sock.get_msg_meta()
         logging.debug("tcp_handle_recv:%s, %s", msg, meta)
         if msg is None and meta is None:
-            self._tcp_socks.remove(sock)
+            self._socks.remove(sock)
             sock.close()
             return
         if msg:

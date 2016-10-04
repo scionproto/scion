@@ -73,7 +73,7 @@ class TCPMetadata(MetadataBase):
         return inst
 
     def close(self):
-        self.sock.close()
+        self.sock.active = False
 
 
 class RawMetadata(MetadataBase):
