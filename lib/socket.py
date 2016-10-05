@@ -20,6 +20,7 @@ import logging
 import os
 import selectors
 import struct
+import time
 from abc import abstractmethod
 from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
@@ -39,7 +40,7 @@ import threading
 from external import ipaddress
 
 # SCION
-from lib.defines import SCION_BUFLEN
+from lib.defines import SCION_BUFLEN, TCP_TIMEOUT
 from lib.dispatcher import reg_dispatcher
 from lib.errors import (
     SCIONBaseError,
@@ -84,6 +85,9 @@ class Socket(object):
         prev = self.sock.gettimeout()
         self.sock.settimeout(timeout)
         return prev
+
+    def is_active(self):
+        return True
 
 
 class UDPSocket(Socket):
@@ -345,7 +349,7 @@ class SocketMgr(object):
         if mapping:
             for entry in list(mapping.values()):
                 sock = entry.data[0]
-                if not sock.active:
+                if not sock.is_active():
                     self.remove(sock)
                     sock.close()
 
@@ -389,6 +393,7 @@ class TCPSocketWrapper(object):
         self._addr = addr
         self._path = path
         self._lock = threading.RLock()
+        self._last_read = time.time()
 
     def _get_meta(self):
         return TCPMetadata.from_values(ia=self._addr.isd_as,
@@ -424,6 +429,7 @@ class TCPSocketWrapper(object):
                     self.active = False
                     return None, None
                 self._buf += read
+                self._last_read = time.time()
             except SCIONTCPTimeout:
                 return None, self._get_meta()
             except SCIONTCPError:
@@ -455,3 +461,6 @@ class TCPSocketWrapper(object):
                 logging.warning("Error on close(): %s", e)
             self.active = False
             logging.debug("Leaving close()")
+
+    def is_active(self):
+        return self.active and (time.time() - self._last_read <= TCP_TIMEOUT)

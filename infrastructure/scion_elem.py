@@ -161,7 +161,7 @@ class SCIONElement(object):
         Setup incoming socket and register with dispatcher
         """
         self._tcp_sock = None
-        self._tcp_conns = queue.Queue(10*MAX_QUEUE)  # Waiting TCP connections.
+        self._tcp_new_conns = queue.Queue(MAX_QUEUE)  # New TCP connections.
         if self._port is None:
             # No scion socket desired.
             return
@@ -488,11 +488,11 @@ class SCIONElement(object):
         dropped = 0
         while True:
             try:
-                self._tcp_conns.put(sock, block=False)
+                self._tcp_new_conns.put(sock, block=False)
             except queue.Full:
-                old_sock = self._tcp_conns.get_nowait()
+                old_sock = self._tcp_new_conns.get_nowait()
                 old_sock.close()
-                logging.error("TCP: _tcp_conns is full. Closing an old socket.")
+                logging.error("TCP: _tcp_new_conns is full. Closing old socket")
                 dropped += 1
             else:
                 break
@@ -657,9 +657,9 @@ class SCIONElement(object):
         self._tcp_add_waiting()
 
     def _tcp_add_waiting(self):
-        while not self._tcp_conns.empty():
+        while not self._tcp_new_conns.empty():
             try:
-                self._socks.add(self._tcp_conns.get_nowait(),
+                self._socks.add(self._tcp_new_conns.get_nowait(),
                                 self._tcp_handle_recv)
             except queue.Empty:
                 pass
@@ -681,9 +681,9 @@ class SCIONElement(object):
         if not hasattr(self, "_tcp_sock") or not self._tcp_sock:
             return
         # Close all TCP sockets.
-        while not self._tcp_conns.empty():
+        while not self._tcp_new_conns.empty():
             try:
-                tcp_sock = self._tcp_conns.get_nowait()
+                tcp_sock = self._tcp_new_conns.get_nowait()
             except queue.Empty:
                 break
             tcp_sock.close()
