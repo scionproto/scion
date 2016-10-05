@@ -329,6 +329,8 @@ class SocketMgr(object):
 
         :param UDPSocket sock: UDPSocket to add.
         """
+        if not sock.sock:
+            return
         if isinstance(sock, TCPSocketWrapper):
             sock.sock.setblocking(False)
         self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
