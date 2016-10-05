@@ -329,7 +329,7 @@ class SocketMgr(object):
 
         :param UDPSocket sock: UDPSocket to add.
         """
-        if not sock.sock:
+        if not sock.is_active():
             return
         if isinstance(sock, TCPSocketWrapper):
             sock.sock.setblocking(False)
