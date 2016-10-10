@@ -1,15 +1,28 @@
 SCION
 =====
 
-Python implementation of [SCION](http://www.scion-architecture.net), a future
+An implementation of [SCION](http://www.scion-architecture.net), a future
 Internet architecture.
 
-* [doc/](/doc) contains documentation and specification of the SCION
-  implementation
-* [infrastructure/](/infrastructure) contains the code of the SCION
-  infrastructure elements (servers, routers)
-* [lib/](/lib) contains the most relevant SCION libraries
-* [topology/](/topology) contains the scripts to generate the SCION
+* [docker/](/docker): support files to run SCION inside of Docker
+  containers.
+* [endhost/](/endhost): the parts of the code used on end hosts, e.g.
+  `sciond`.
+* [go/](/go): parts of the implementation that are written in
+  [Go](http://golang.org).
+* [infrastructure/](/infrastructure): the parts of the infrastructure
+  implemented in Python.
+* [lib/](/lib): the most relevant SCION libraries.
+* [proto/](/proto): the protocol definitions for use with [Cap’n
+  Proto](https://capnproto.org/).
+* [sphinx-doc/](/sphinx-doc): the tools to generate the API
+  documentation for the Python code.
+* [sub/](/sub): the git submodules used by SCION
+* [supervisor/](/supervisor): the configuration for
+  [supervisord](http://supervisord.org/).
+* [test/](/test): the unit tests for the Python code.
+* [tools/](/tools): assorted support tools.
+* [topology/](/topology): the scripts to generate the SCION
   configuration and topology files, as well as the certificates and ROT files
 
 Necessary steps in order to run SCION:
