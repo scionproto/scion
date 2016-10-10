@@ -4,25 +4,25 @@ SCION
 An implementation of [SCION](http://www.scion-architecture.net), a future
 Internet architecture.
 
-* [docker/](/docker) contains support files to run SCION inside of Docker
+* [docker/](/docker): support files to run SCION inside of Docker
   containers.
-* [endhost/](/endhost) contains the parts of the code used on end hosts, e.g.
+* [endhost/](/endhost): the parts of the code used on end hosts, e.g.
   `sciond`.
-* [go/](/go) contains parts of the implementation that are written in
+* [go/](/go): parts of the implementation that are written in
   [Go](http://golang.org).
-* [infrastructure/](/infrastructure) contains the parts of the infrastructure
+* [infrastructure/](/infrastructure): the parts of the infrastructure
   implemented in Python.
-* [lib/](/lib) contains the most relevant SCION libraries.
-* [proto/](/proto) contains the protocol definitions for use with [Cap’n
+* [lib/](/lib): the most relevant SCION libraries.
+* [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
-* [sphinx-doc/](/sphinx-doc) contains the tools to generate the API
+* [sphinx-doc/](/sphinx-doc): the tools to generate the API
   documentation for the Python code.
-* [sub/](/sub) contains the git submodules used by SCION
-* [supervisor/](/supervisor) contains the configuration for
+* [sub/](/sub): the git submodules used by SCION
+* [supervisor/](/supervisor): the configuration for
   [supervisord](http://supervisord.org/).
-* [test/](/test) contains the unit tests for the Python code.
-* [tools/](/tools) contains assorted support tools.
-* [topology/](/topology) contains the scripts to generate the SCION
+* [test/](/test): the unit tests for the Python code.
+* [tools/](/tools): assorted support tools.
+* [topology/](/topology): the scripts to generate the SCION
   configuration and topology files, as well as the certificates and ROT files
 
 Necessary steps in order to run SCION:

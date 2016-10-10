@@ -25,12 +25,14 @@ import (
 
 var zkHost = flag.String("zk-host", "127.0.0.1", "Zookeeper host")
 var zkPort = flag.Int("zk-port", 2181, "Zookeeper port")
-var zkTimeout = flag.Int("zk-timeout", 2000, "Zookeeper connect timeout (in ms)")
+var zkTimeout = flag.Int("zk-timeout", 2000,
+	"Zookeeper connect timeout (in ms)")
 
 func main() {
 	flag.Parse()
 	targets := []string{fmt.Sprintf("%v:%v", *zkHost, *zkPort)}
-	c, _, err := zk.Connect(targets, time.Millisecond*(time.Duration(*zkTimeout)))
+	c, _, err := zk.Connect(targets,
+		time.Millisecond*(time.Duration(*zkTimeout)))
 	if err != nil {
 		panic(err)
 	}
@@ -39,4 +41,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(p)
 }
