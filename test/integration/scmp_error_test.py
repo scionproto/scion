@@ -93,7 +93,6 @@ class ErrorGenBase(TestClientBase):
 #        padding = self.path.mtu - len(spkt) - len(self.data) + 1
 #        return PayloadRaw(self.data + bytes(padding))
 
-
 class ErrorGenBadHost(ErrorGenBase):
     CLASS = SCMPClass.ROUTING
     TYPE = SCMPRoutingClass.BAD_HOST
@@ -104,6 +103,36 @@ class ErrorGenBadHost(ErrorGenBase):
         pkt.set_payload(IFIDPayload.from_values(77))
         pkt.addrs.dst.host = HostAddrSVC(99, raw=False)
         return pkt
+
+
+class ErrorGenBadVersion(ErrorGenBase):
+    DESC = "bad version"
+
+    def _send_pkt(self, spkt):
+        next_hop, port = self.sd.get_first_hop(spkt)
+        raw = bytearray(spkt.pack())
+        raw[0] |= 0x80
+        self._send_raw_pkt(raw, next_hop, port)
+
+
+class ErrorGenBadSrcType(ErrorGenBase):
+    DESC = "bad src type"
+
+    def _send_pkt(self, spkt):
+        next_hop, port = self.sd.get_first_hop(spkt)
+        raw = bytearray(spkt.pack())
+        raw[0] |= 0x1
+        self._send_raw_pkt(raw, next_hop, port)
+
+
+class ErrorGenBadDstType(ErrorGenBase):
+    DESC = "bad dst type"
+
+    def _send_pkt(self, spkt):
+        next_hop, port = self.sd.get_first_hop(spkt)
+        raw = bytearray(spkt.pack())
+        raw[1] |= 0x4
+        self._send_raw_pkt(raw, next_hop, port)
 
 
 class ErrorGenBadPktLenShort(ErrorGenBase):
@@ -305,6 +334,9 @@ class ErrorGenBadHopByHop(ErrorGenBase):
 GEN_LIST = (
     # ErrorGenOversizePkt,
     ErrorGenBadHost,
+    ErrorGenBadVersion,
+    ErrorGenBadSrcType,
+    ErrorGenBadDstType,
     ErrorGenBadPktLenShort,
     ErrorGenBadPktLenLong,
     ErrorGenBadHdrLenShort,

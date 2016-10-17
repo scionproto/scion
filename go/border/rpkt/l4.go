@@ -15,26 +15,17 @@
 package rpkt
 
 import (
-	"bytes"
-	"fmt"
-
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
-	ErrorL4Unsupported   = "Unsupported L4 header type"
-	ErrorL4InvalidChksum = "Invalid L4 checksum"
+	ErrorL4Unsupported = "Unsupported L4 header type"
 )
 
-type L4Header interface {
-	fmt.Stringer
-}
-
-func (rp *RPkt) L4Hdr() (L4Header, *util.Error) {
+func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 	if rp.l4 == nil {
 		if found, err := rp.findL4(); !found || err != nil {
 			return nil, err
@@ -55,20 +46,23 @@ func (rp *RPkt) L4Hdr() (L4Header, *util.Error) {
 			rp.l4 = udp
 			rp.idxs.pld = rp.idxs.l4 + l4.UDPLen
 		case common.L4SSP:
-			rp.l4 = &l4.SSP{}
+			//rp.l4 = &l4.SSP{}
 		case common.L4TCP:
-			rp.l4 = &l4.TCP{}
+			//rp.l4 = &l4.TCP{}
 		default:
-			return nil, util.NewError(ErrorL4Unsupported, "type", rp.L4Type)
+			// Can't return an SCMP error as we don't understand the L4 header
+			return nil, common.NewError(ErrorL4Unsupported, "type", rp.L4Type)
 		}
 	}
-	if err := rp.verifyL4Chksum(); err != nil {
-		return nil, err
+	if verify {
+		if err := rp.verifyL4(); err != nil {
+			return nil, err
+		}
 	}
 	return rp.l4, nil
 }
 
-func (rp *RPkt) findL4() (bool, *util.Error) {
+func (rp *RtrPkt) findL4() (bool, *common.Error) {
 	nextHdr := rp.idxs.nextHdrIdx.Type
 	offset := rp.idxs.nextHdrIdx.Index
 	for offset < len(rp.Raw) {
@@ -84,32 +78,36 @@ func (rp *RPkt) findL4() (bool, *util.Error) {
 		rp.idxs.e2eExt = append(rp.idxs.e2eExt, extnIdx{currExtn, offset})
 		nextHdr = common.L4ProtocolType(rp.Raw[offset])
 		offset += hdrLen
+		if hdrLen == 0 {
+			// Can't return an SCMP error as we can't parse the headers
+			return false, common.NewError("0-length header", "nextHdr", nextHdr, "offset", offset)
+		}
 	}
 	if offset > len(rp.Raw) {
-		return false, util.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		// Can't generally return an SCMP error as parsing the headers has failed.
+		return false, common.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	rp.idxs.nextHdrIdx.Type = nextHdr
 	rp.idxs.nextHdrIdx.Index = offset
 	return true, nil
 }
 
-func (rp *RPkt) verifyL4Chksum() *util.Error {
-	switch v := rp.l4.(type) {
-	case *l4.UDP:
+func (rp *RtrPkt) verifyL4() *common.Error {
+	if err := rp.l4.Validate(len(rp.Raw[rp.idxs.pld:])); err != nil {
+		return err
+	}
+	if err := rp.verifyL4Chksum(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (rp *RtrPkt) verifyL4Chksum() *common.Error {
+	switch h := rp.l4.(type) {
+	case *l4.UDP, *scmp.Hdr:
 		src, dst, pld := rp.getChksumInput()
-		if csum, err := v.CalcChecksum(src, dst, pld); err != nil {
+		if err := l4.CheckCSum(h, src, dst, pld); err != nil {
 			return err
-		} else if bytes.Compare(v.Checksum, csum) != 0 {
-			return util.NewError(ErrorL4InvalidChksum,
-				"expected", v.Checksum, "actual", csum, "proto", rp.L4Type)
-		}
-	case *scmp.Hdr:
-		src, dst, pld := rp.getChksumInput()
-		if csum, err := v.CalcChecksum(src, dst, pld); err != nil {
-			return err
-		} else if bytes.Compare(v.Checksum, csum) != 0 {
-			return util.NewError(ErrorL4InvalidChksum,
-				"expected", v.Checksum, "actual", csum, "proto", rp.L4Type)
 		}
 	default:
 		rp.Debug("Skipping checksum verification of L4 header", "type", rp.L4Type)
@@ -117,7 +115,7 @@ func (rp *RPkt) verifyL4Chksum() *util.Error {
 	return nil
 }
 
-func (rp *RPkt) getChksumInput() (src, dst, pld util.RawBytes) {
+func (rp *RtrPkt) getChksumInput() (src, dst, pld common.RawBytes) {
 	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
 	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
 	src = rp.Raw[rp.idxs.srcIA : rp.idxs.srcIA+addr.IABytes+int(srcLen)]
@@ -126,23 +124,19 @@ func (rp *RPkt) getChksumInput() (src, dst, pld util.RawBytes) {
 	return
 }
 
-func (rp *RPkt) updateL4() *util.Error {
-	switch v := rp.l4.(type) {
-	case *l4.UDP:
+func (rp *RtrPkt) updateL4() *common.Error {
+	switch h := rp.l4.(type) {
+	case *l4.UDP, *scmp.Hdr:
 		src, dst, pld := rp.getChksumInput()
-		v.SetPldLen(len(pld))
-		csum, err := v.CalcChecksum(src, dst, pld)
-		if err != nil {
+		h.SetPldLen(len(pld))
+		if err := l4.SetCSum(h, src, dst, pld); err != nil {
 			return err
 		}
-		v.Checksum = csum
-		rawUdp, err := v.Pack()
-		if err != nil {
+		if err := h.Write(rp.Raw[rp.idxs.l4:]); err != nil {
 			return err
 		}
-		copy(rp.Raw[rp.idxs.l4:], rawUdp)
 	default:
-		return util.NewError("Updating l4 payload not supported", "type", rp.L4Type)
+		return common.NewError("Updating l4 payload not supported", "type", rp.L4Type)
 	}
 	return nil
 }

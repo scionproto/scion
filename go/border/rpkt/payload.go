@@ -15,7 +15,7 @@
 package rpkt
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -25,9 +25,9 @@ const (
 )
 
 // No fallback for payload - a hook must be registered to read it.
-func (rp *RPkt) Payload() (interface{}, *util.Error) {
+func (rp *RtrPkt) Payload(verify bool) (common.Payload, *common.Error) {
 	if rp.pld == nil && len(rp.hooks.Payload) > 0 {
-		_, err := rp.L4Hdr()
+		_, err := rp.L4Hdr(verify)
 		if err != nil {
 			return nil, err
 		}

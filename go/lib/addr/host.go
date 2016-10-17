@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -39,7 +39,7 @@ const (
 const SVCMcast = 0x8000
 
 const (
-	ErrorUnknownHostAddrType = "Unknown host address type"
+	ErrorBadHostAddrType = "Unsupported host address type"
 )
 
 var (
@@ -53,13 +53,16 @@ var (
 type HostAddr interface {
 	Size() int
 	Type() uint8
-	Pack() util.RawBytes
+	Pack() common.RawBytes
 	IP() net.IP
+	Copy() HostAddr
 	fmt.Stringer
 }
 
 // Host None type
 // *****************************************
+var _ HostAddr = (HostNone)(nil)
+
 type HostNone net.IP
 
 func (h HostNone) Size() int {
@@ -70,12 +73,16 @@ func (h HostNone) Type() uint8 {
 	return HostTypeNone
 }
 
-func (h HostNone) Pack() util.RawBytes {
-	return util.RawBytes{}
+func (h HostNone) Pack() common.RawBytes {
+	return common.RawBytes{}
 }
 
 func (h HostNone) IP() net.IP {
 	return nil
+}
+
+func (h HostNone) Copy() HostAddr {
+	return HostNone{}
 }
 
 func (h HostNone) String() string {
@@ -84,91 +91,107 @@ func (h HostNone) String() string {
 
 // Host IPv4 type
 // *****************************************
+var _ HostAddr = (HostIPv4)(nil)
+
 type HostIPv4 net.IP
 
-func (h *HostIPv4) Size() int {
+func (h HostIPv4) Size() int {
 	return HostLenIPv4
 }
 
-func (h *HostIPv4) Type() uint8 {
+func (h HostIPv4) Type() uint8 {
 	return HostTypeIPv4
 }
 
-func (h *HostIPv4) Pack() util.RawBytes {
-	return util.RawBytes(net.IP(*h).To4())
+func (h HostIPv4) Pack() common.RawBytes {
+	return common.RawBytes(net.IP(h).To4())
 }
 
-func (h *HostIPv4) IP() net.IP {
-	return net.IP(*h)
+func (h HostIPv4) IP() net.IP {
+	return net.IP(h)
 }
 
-func (h *HostIPv4) String() string {
+func (h HostIPv4) Copy() HostAddr {
+	return HostIPv4(append(net.IP(nil), h...))
+}
+
+func (h HostIPv4) String() string {
 	return h.IP().String()
 }
 
 // Host IPv6 type
 // *****************************************
+var _ HostAddr = (HostIPv6)(nil)
+
 type HostIPv6 net.IP
 
-func (h *HostIPv6) Size() int {
+func (h HostIPv6) Size() int {
 	return HostLenIPv6
 }
 
-func (h *HostIPv6) Type() uint8 {
+func (h HostIPv6) Type() uint8 {
 	return HostTypeIPv6
 }
 
-func (h *HostIPv6) Pack() util.RawBytes {
-	return util.RawBytes(*h)[:HostLenIPv6]
+func (h HostIPv6) Pack() common.RawBytes {
+	return common.RawBytes(h)[:HostLenIPv6]
 }
 
-func (h *HostIPv6) IP() net.IP {
-	return net.IP(*h)
+func (h HostIPv6) IP() net.IP {
+	return net.IP(h)
 }
 
-func (h *HostIPv6) String() string {
+func (h HostIPv6) Copy() HostAddr {
+	return HostIPv6(append(net.IP(nil), h...))
+}
+
+func (h HostIPv6) String() string {
 	return h.IP().String()
 }
 
 // Host SVC type
 // *****************************************
+var _ HostAddr = (*HostSVC)(nil)
+
 type HostSVC uint16
 
-func (h *HostSVC) Size() int {
+func (h HostSVC) Size() int {
 	return HostLenSVC
 }
 
-func (h *HostSVC) Type() uint8 {
+func (h HostSVC) Type() uint8 {
 	return HostTypeSVC
 }
 
-func (h *HostSVC) Pack() util.RawBytes {
-	out := make(util.RawBytes, HostLenSVC)
-	binary.BigEndian.PutUint16(out, uint16(*h))
+func (h HostSVC) Pack() common.RawBytes {
+	out := make(common.RawBytes, HostLenSVC)
+	binary.BigEndian.PutUint16(out, uint16(h))
 	return out
 }
 
-func (h *HostSVC) IP() net.IP {
+func (h HostSVC) IP() net.IP {
 	return nil
 }
 
-func (h *HostSVC) IsMulticast() bool {
-	return (*h & SVCMcast) != 0
+func (h HostSVC) IsMulticast() bool {
+	return (h & SVCMcast) != 0
 }
 
-func (h *HostSVC) Base() *HostSVC {
-	base := *h & ^HostSVC(SVCMcast)
-	return &base
+func (h HostSVC) Base() HostSVC {
+	return h & ^HostSVC(SVCMcast)
 }
 
-func (h *HostSVC) Multicast() *HostSVC {
-	mcast := *h | HostSVC(SVCMcast)
-	return &mcast
+func (h HostSVC) Multicast() HostSVC {
+	return h | HostSVC(SVCMcast)
+}
+
+func (h HostSVC) Copy() HostAddr {
+	return h
 }
 
 func (h HostSVC) String() string {
 	var name string
-	switch *h.Base() {
+	switch h.Base() {
 	case SvcBS:
 		name = "BS"
 	case SvcPS:
@@ -187,21 +210,18 @@ func (h HostSVC) String() string {
 	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
 }
 
-func HostFromRaw(b util.RawBytes, htype uint8) (HostAddr, *util.Error) {
+func HostFromRaw(b common.RawBytes, htype uint8) (HostAddr, *common.Error) {
 	switch htype {
 	case HostTypeNone:
-		return &HostNone{}, nil
+		return HostNone{}, nil
 	case HostTypeIPv4:
-		h := HostIPv4(b[:HostLenIPv4])
-		return &h, nil
+		return HostIPv4(b[:HostLenIPv4]), nil
 	case HostTypeIPv6:
-		h := HostIPv6(b[:HostLenIPv6])
-		return &h, nil
+		return HostIPv6(b[:HostLenIPv6]), nil
 	case HostTypeSVC:
-		h := HostSVC(binary.BigEndian.Uint16(b))
-		return &h, nil
+		return HostSVC(binary.BigEndian.Uint16(b)), nil
 	default:
-		return nil, util.NewError(ErrorUnknownHostAddrType, "type", htype)
+		return nil, common.NewError(ErrorBadHostAddrType, "type", htype)
 	}
 }
 
@@ -214,7 +234,7 @@ func HostFromIP(ip net.IP) HostAddr {
 	return &h
 }
 
-func HostLen(htype uint8) (uint8, *util.Error) {
+func HostLen(htype uint8) (uint8, *common.Error) {
 	var length uint8
 	switch htype {
 	case HostTypeNone:
@@ -226,11 +246,19 @@ func HostLen(htype uint8) (uint8, *util.Error) {
 	case HostTypeSVC:
 		length = HostLenSVC
 	default:
-		return 0, util.NewError(ErrorUnknownHostAddrType, "type", htype)
+		return 0, common.NewError(ErrorBadHostAddrType, "type", htype)
 	}
 	return length, nil
 }
 
 func HostEq(a, b HostAddr) bool {
 	return a.Type() == b.Type() && a.String() == b.String()
+}
+
+func HostTypeCheck(t uint8) bool {
+	switch t {
+	case HostTypeIPv6, HostTypeIPv4, HostTypeSVC:
+		return true
+	}
+	return false
 }

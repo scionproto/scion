@@ -22,9 +22,10 @@ import (
 	"gopkg.in/restruct.v1"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/libscion"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/l4"
 )
+
+var _ l4.L4Header = (*Hdr)(nil)
 
 const (
 	HdrLen = 16
@@ -35,46 +36,93 @@ const (
 )
 
 type Hdr struct {
-	Class     Class
-	Type      Type
-	Len       uint16
-	Checksum  util.RawBytes `struct:"[2]byte"`
-	Timestamp uint64        // Time in µs since unix epoch
+	Class     Class           // SCMP message class
+	Type      Type            // SCMP message type
+	TotalLen  uint16          // Length of SCMP header + payload
+	Checksum  common.RawBytes `struct:"[2]byte"`
+	Timestamp uint64          // Time in µs since unix epoch
 }
 
-func HdrFromRaw(b util.RawBytes) (*Hdr, *util.Error) {
+func NewHdr(ct ClassType, len int) *Hdr {
+	now := uint64(time.Now().UnixNano())
+	return &Hdr{
+		Class: ct.Class, Type: ct.Type, TotalLen: HdrLen + uint16(len),
+		Checksum: common.RawBytes{0, 0}, Timestamp: now / 1000,
+	}
+}
+
+func HdrFromRaw(b common.RawBytes) (*Hdr, *common.Error) {
 	h := &Hdr{}
-	if err := restruct.Unpack(b, order, h); err != nil {
-		return nil, util.NewError(ErrorSCMPHdrUnpack, "err", err)
+	if err := restruct.Unpack(b, common.Order, h); err != nil {
+		return nil, common.NewError(ErrorSCMPHdrUnpack, "err", err)
 	}
 	return h, nil
 }
 
-func (h *Hdr) Pack() (util.RawBytes, *util.Error) {
-	out, err := restruct.Pack(order, h)
-	if err != nil {
-		return nil, util.NewError("Error packing SCMP header", "err", err)
+func (h *Hdr) Validate(plen int) *common.Error {
+	if plen+HdrLen != int(h.TotalLen) {
+		return common.NewError("SCMP header total length doesn't match",
+			"expected", h.TotalLen, "actual", plen)
 	}
-	return out, nil
+	return nil
 }
 
-func (h *Hdr) CalcChecksum(srcAddr, dstAddr, pld util.RawBytes) (util.RawBytes, *util.Error) {
-	out := make([]byte, 2)
-	hdr, err := h.Pack()
+func (h *Hdr) SetPldLen(l int) {
+	h.TotalLen = uint16(HdrLen + l)
+}
+
+func (h *Hdr) Write(b common.RawBytes) *common.Error {
+	out, err := restruct.Pack(common.Order, h)
 	if err != nil {
+		return common.NewError("Error packing SCMP header", "err", err)
+	}
+	if count := copy(b, out); count != HdrLen {
+		return common.NewError("Partial write of SCMP header",
+			"expected(B)", HdrLen, "actual(B)", count)
+	}
+	return nil
+}
+
+func (h *Hdr) Pack(csum bool) (common.RawBytes, *common.Error) {
+	b := make(common.RawBytes, HdrLen)
+	if err := h.Write(b); err != nil {
 		return nil, err
 	}
-	// Zero checksum
-	hdr[6] = 0
-	hdr[7] = 0
-	sum := libscion.Checksum(srcAddr, dstAddr, []byte{byte(common.L4SCMP)}, hdr, pld)
-	order.PutUint16(out, sum)
-	return out, nil
+	if csum {
+		// Zero out the checksum field if this is being used for checksum calculation.
+		b[6] = 0
+		b[7] = 0
+	}
+	return b, nil
+}
+
+func (h *Hdr) GetCSum() common.RawBytes {
+	return h.Checksum
+}
+
+func (h *Hdr) SetCSum(csum common.RawBytes) {
+	h.Checksum = csum
 }
 
 func (h *Hdr) String() string {
 	secs := int64(h.Timestamp / 1000000)
 	nanos := int64((h.Timestamp % 1000000) * 1000)
-	return fmt.Sprintf("Class=%v Type=%v Len=%vB Checksum=%v Timestamp=%v",
-		h.Class, h.Type.Name(h.Class), h.Len, h.Checksum, time.Unix(secs, nanos))
+	return fmt.Sprintf("Class=%v Type=%v TotalLen=%vB Checksum=%v Timestamp=%v",
+		h.Class, h.Type.Name(h.Class), h.TotalLen, h.Checksum, time.Unix(secs, nanos))
+}
+
+func (h *Hdr) L4Type() common.L4ProtocolType {
+	return common.L4SCMP
+}
+
+func (h *Hdr) L4Len() int {
+	return HdrLen
+}
+
+func (h *Hdr) Reverse() {}
+
+func (h *Hdr) Copy() l4.L4Header {
+	return &Hdr{
+		h.Class, h.Type, h.TotalLen, append(common.RawBytes(nil), h.Checksum...), h.Timestamp,
+	}
 }

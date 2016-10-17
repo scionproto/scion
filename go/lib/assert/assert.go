@@ -12,41 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package assert
 
 import (
-	"io"
-
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"fmt"
 )
 
-var _ io.ReadWriter = (*Raw)(nil)
-
-type Raw struct {
-	B      common.RawBytes
-	Offset int
-}
-
-func (r *Raw) Peek(p []byte) (int, error) {
-	if len(r.B[r.Offset:]) <= 0 {
-		return 0, io.EOF
+func Must(condition bool, s string, args ...interface{}) {
+	if !condition {
+		panic(fmt.Sprintf(s, args...))
 	}
-	return copy(p, r.B[r.Offset:]), nil
-}
-
-func (r *Raw) Read(p []byte) (int, error) {
-	n, err := r.Peek(p)
-	if err == nil {
-		r.Offset += n
-	}
-	return n, err
-}
-
-func (r *Raw) Write(p []byte) (int, error) {
-	if len(r.B[r.Offset:]) == 0 {
-		return 0, io.EOF
-	}
-	count := copy(r.B[r.Offset:], p)
-	r.Offset += count
-	return count, nil
 }

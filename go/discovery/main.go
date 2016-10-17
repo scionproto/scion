@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/netsec-ethz/scion/go/zkutil"
 	"github.com/samuel/go-zookeeper/zk"
+
+	"github.com/netsec-ethz/scion/go/zkutil"
 )
 
 var zkHost = flag.String("zk-host", "127.0.0.1", "Zookeeper host")

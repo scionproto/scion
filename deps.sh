@@ -63,7 +63,7 @@ cmd_zlog() {
 }
 
 cmd_golang() {
-    if ! type -P go >/dev/null; then
+    if ! check_path go git; then
         echo "Installing go from apt"
         # Include git, as it's needed for fetching go deps. Relevant for
         # testing building Go code inside docker.
@@ -73,24 +73,17 @@ cmd_golang() {
         echo "ERROR: Unsupported go version - requires at least go 1.6: $(go version)"
         exit 1
     fi
-    if ! type -P govendor &>/dev/null; then
-        (
-            echo "Installing govendor"
-            HOST=github.com
-            USER=kardianos
-            PROJECT=govendor
-            COMMIT=120a6099270fc9360236f4383430e2adda6181cc
-            GOPATH_BASE=${GOPATH%%:*}
-            echo "Installing govendor dep manager"
-            mkdir -p "${GOPATH_BASE}/src/$HOST/$USER"
-            cd "${GOPATH_BASE}/src/$HOST/$USER/"
-            [ ! -d "$PROJECT" ] && git clone "git@$HOST:$USER/$PROJECT.git"
-            cd "$PROJECT"
-            git fetch
-            git checkout "$COMMIT"
-            go install -v
-        );
-    fi
+    echo "Installing/updating govendor dep manager"
+    (
+        HOST=github.com USER=kardianos PROJECT=govendor COMMIT=fbbc78e8d1b533dfcf81c2a4be2cec2617a926f7 GOPATH_BASE=${GOPATH%%:*}
+        mkdir -p "${GOPATH_BASE}/src/$HOST/$USER"
+        cd "${GOPATH_BASE}/src/$HOST/$USER/"
+        [ ! -d "$PROJECT" ] && git clone "git@$HOST:$USER/$PROJECT.git"
+        cd "$PROJECT"
+        git fetch
+        git checkout "$COMMIT"
+        go install -v
+    )
     echo "Downloading go dependencies (via govendor)"
     # `make -C go` breaks if there are symlinks in $PWD
     ( cd go && make deps )
@@ -104,6 +97,13 @@ cmd_misc() {
         'https://pypi.python.org/packages/b6/ae/e6d731e4b9661642c1b20591d8054855bb5b8281cbfa18f561c2edd783f7/meld3-1.0.2-py2.py3-none-any.whl#sha256=b28a9bfac342aadb4557aa144bea9f8e6208bfb0596190570d10a892d35ff7dc' \
         'https://pypi.python.org/packages/80/37/964c0d53cbd328796b1aeb7abea4c0f7b0e8c7197ea9b0b9967b7d004def/supervisor-3.3.1.tar.gz#sha256=fc3af22e5a7af2f6c3be787acf055c1c17777f5607cd4dc935fe633ab97061fd' \
         'https://pypi.python.org/packages/cb/78/ce6bf00c3310660ab9ebd7c4656a9ebf888a42a58b95a7565b03d40c2f00/supervisor-wildcards-0.1.3.tar.gz#sha256=02f532bf059e99aa38a3170cf4295f9dd123cfb16f209240575d853fd90710f8'
+}
+
+check_path() {
+    for i in "$@"; do
+        type -P "$i" > /dev/null || { echo "Not found in path: $1"; return 1; }
+    done
+    return 0
 }
 
 cmd_help() {

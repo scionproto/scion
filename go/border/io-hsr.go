@@ -28,9 +28,9 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-func (r *Router) readHSRInput(q chan *rpkt.RPkt) {
+func (r *Router) readHSRInput(q chan *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
-	rpkts := make([]*rpkt.RPkt, hsr.MaxPkts)
+	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)
 	h := hsr.NewHSR()
 	for {
 		usedPortIdxs := make(map[int]bool)
@@ -72,7 +72,7 @@ func (r *Router) readHSRInput(q chan *rpkt.RPkt) {
 	}
 }
 
-func (r *Router) writeHSROutput(rp *rpkt.RPkt, portID int, labels prometheus.Labels) {
+func (r *Router) writeHSROutput(rp *rpkt.RtrPkt, portID int, labels prometheus.Labels) {
 	for _, epair := range rp.Egress {
 		if epair.Dst == nil {
 			rp.Crit("No dst address set")

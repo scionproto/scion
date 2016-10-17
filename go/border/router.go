@@ -23,25 +23,22 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/assert"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 type Router struct {
 	Id        string
-	inQs      []chan *rpkt.RPkt
+	inQs      []chan *rpkt.RtrPkt
 	locOutFs  map[int]rpkt.OutputFunc
 	intfOutFs map[spath.IntfID]rpkt.OutputFunc
-	freePkts  chan *rpkt.RPkt
-	revInfoQ  chan util.RawBytes
+	freePkts  chan *rpkt.RtrPkt
+	revInfoQ  chan common.RawBytes
 }
 
-// FIXME(kormat): this should be reduced as soon as we respect the actual link
-// MTU.
-const pktBufSize = 1 << 16
-
-func NewRouter(id, confDir string) (*Router, *util.Error) {
+func NewRouter(id, confDir string) (*Router, *common.Error) {
 	r := &Router{Id: id}
 	if err := r.setup(confDir); err != nil {
 		return nil, err
@@ -49,7 +46,7 @@ func NewRouter(id, confDir string) (*Router, *util.Error) {
 	return r, nil
 }
 
-func (r *Router) Run() *util.Error {
+func (r *Router) Run() *common.Error {
 	if err := r.setupNet(); err != nil {
 		return err
 	}
@@ -65,7 +62,7 @@ func (r *Router) Run() *util.Error {
 	return nil
 }
 
-func (r *Router) handleQueue(q chan *rpkt.RPkt) {
+func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
 	for rp := range q {
 		r.processPacket(rp)
@@ -74,41 +71,46 @@ func (r *Router) handleQueue(q chan *rpkt.RPkt) {
 	}
 }
 
-func (r *Router) processPacket(rp *rpkt.RPkt) {
-	rp.Logger = log.New("rpkt", logext.RandId(4))
+func (r *Router) processPacket(rp *rpkt.RtrPkt) {
+	defer liblog.PanicLog()
+	if assert.On {
+		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
+		assert.Must(rp.DirFrom != rpkt.DirUnset, "DirFrom must be set")
+		assert.Must(rp.TimeIn != time.Time{}, "TimeIn must be set")
+		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
+		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
+		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
+	}
+	rp.Id = logext.RandId(4)
+	rp.Logger = log.New("rpkt", rp.Id)
 	if err := rp.Parse(); err != nil {
-		rp.Error("Error during parsing", err.Ctx...)
+		r.handlePktError(rp, err, "Error parsing packet")
 		return
 	}
 	if err := rp.Validate(); err != nil {
-		rp.Error("Error validating packet", err.Ctx...)
+		r.handlePktError(rp, err, "Error validating packet")
 		return
 	}
 	if err := rp.NeedsLocalProcessing(); err != nil {
 		rp.Error("Error checking for local processing", err.Ctx...)
 		return
 	}
-	if _, err := rp.Payload(); err != nil {
+	if _, err := rp.Payload(true); err != nil {
 		rp.Error("Error parsing payload", err.Ctx...)
 		return
 	}
 	if err := rp.Process(); err != nil {
-		rp.Error("Error processing packet", err.Ctx...)
+		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
-	if err := rp.Route(); err != nil {
-		rp.Error("Error routing packet", err.Ctx...)
+	if rp.DirTo != rpkt.DirSelf {
+		if err := rp.Route(); err != nil {
+			r.handlePktError(rp, err, "Error routing packet")
+		}
 	}
 }
 
-func (r *Router) recyclePkt(rp *rpkt.RPkt) {
-	if rp.DirFrom == rpkt.DirSelf {
-		return
-	}
-	if cap(rp.Raw) != pktBufSize {
-		rp.Crit("Raw", "len", len(rp.Raw), "cap", cap(rp.Raw))
-		return
-	}
+func (r *Router) recyclePkt(rp *rpkt.RtrPkt) {
 	rp.Reset()
 	select {
 	case r.freePkts <- rp:

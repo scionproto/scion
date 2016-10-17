@@ -310,7 +310,7 @@ class SCIONPath(Serializable):
 
     def __str__(self):
         s = []
-        s.append("<SCION-Path>")
+        s.append("<SCION-Path(%sB)>" % len(self))
 
         for name, iof_label, hofs_label in (
             ("A", self.A_IOF, self.A_HOFS), ("B", self.B_IOF, self.B_HOFS),

@@ -36,6 +36,7 @@ from lib.defines import (
 )
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
+from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
@@ -86,6 +87,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 PMT.REG: self.handle_path_segment_record,
                 PMT.REVOCATION: self._handle_revocation,
                 PMT.SYNC: self.handle_path_segment_record,
+            },
+        }
+        self.SCMP_PLD_CLASS_MAP = {
+            SCMPClass.PATH: {
+                SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
             },
         }
         self._segs_to_zk = deque()
@@ -191,6 +197,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         elif res == DBResult.ENTRY_UPDATED:
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
         return False
+
+    def _handle_scmp_revocation(self, pld, meta):
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        self._handle_revocation(rev_info, meta)
 
     def _handle_revocation(self, rev_info, meta):
         """

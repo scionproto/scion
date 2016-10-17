@@ -22,8 +22,10 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -47,10 +49,14 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 	intf := conf.C.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
-	rp, err := rpkt.CreateCtrlPacket(rpkt.DirExternal,
-		addr.HostFromIP(srcAddr.IP), intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP))
+	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
+		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: intf.RemoteIA, DstHost: addr.HostFromIP(intf.RemoteAddr.IP),
+		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(intf.RemoteAddr.Port)},
+	}, rpkt.DirExternal)
 	if err != nil {
 		logger.Error("Error creating IFID packet", err.Ctx...)
+		return
 	}
 	// Set egress
 	rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
@@ -61,7 +67,6 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 		return
 	}
 	ifidMsg.SetOrigIF(uint16(ifid))
-	rp.AddL4UDP(srcAddr.Port, intf.RemoteAddr.Port)
-	rp.AddCtrlPld(scion)
+	rp.SetPld(&spkt.CtrlPld{SCION: scion})
 	rp.Route()
 }

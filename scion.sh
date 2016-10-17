@@ -101,15 +101,8 @@ cmd_lint() {
     return $ret
 }
 
-cmd_gofmt() {
-    echo "Running gofmt"
-    echo "============================================="
-    local fmtout=$(cd go && make -s fmt)
-    if [ -n "$fmtout" ]; then
-        echo "$fmtout"
-        return 1
-    fi
-    return 0
+cmd_golint() {
+    ( cd go && make -s lint )
 }
 
 cmd_version() {
@@ -185,7 +178,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|gofmt|run|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|golint|run|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

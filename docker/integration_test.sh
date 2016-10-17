@@ -60,8 +60,6 @@ SCMP error
 test/integration/scmp_error_test.py -l ERROR --runs 60
 Cert/TRC request
 test/integration/cert_req_test.py -l ERROR
-Sibra Ext
-test/integration/sibra_ext_test.py -l ERROR --wait 30 --runs 10
 EOF
 result=$?
 

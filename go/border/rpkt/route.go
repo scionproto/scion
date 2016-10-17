@@ -21,11 +21,12 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/assert"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func (rp *RPkt) Route() *util.Error {
+func (rp *RtrPkt) Route() *common.Error {
 	for _, f := range rp.hooks.Route {
 		ret, err := f()
 		switch {
@@ -37,33 +38,37 @@ func (rp *RPkt) Route() *util.Error {
 			return nil
 		}
 	}
+	if len(rp.Egress) == 0 {
+		return common.NewError("No routing information found", "egress", rp.Egress,
+			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
+	}
 	for _, epair := range rp.Egress {
 		epair.F(rp)
 	}
 	return nil
 }
 
-func (rp *RPkt) RouteResolveSVC() (HookResult, *util.Error) {
-	svc, ok := rp.dstHost.(*addr.HostSVC)
+func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
+	svc, ok := rp.dstHost.(addr.HostSVC)
 	if !ok {
-		return HookError, util.NewError("Destination host is NOT an SVC address",
+		return HookError, common.NewError("Destination host is NOT an SVC address",
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	f := callbacks.locOutFs[intf.LocAddrIdx]
 	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(*svc, f)
+		return rp.RouteResolveSVCMulti(svc, f)
 	}
-	return rp.RouteResolveSVCAny(*svc, f)
+	return rp.RouteResolveSVCAny(svc, f)
 }
 
-func (rp *RPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
-	names, elemMap := getSVCNamesMap(svc)
+func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
+	names, elemMap, err := getSVCNamesMap(svc)
+	if err != nil {
+		return HookError, err
+	}
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
-	if elemMap == nil {
-		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
-	}
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
@@ -71,10 +76,10 @@ func (rp *RPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, 
 	return HookContinue, nil
 }
 
-func (rp *RPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
-	_, elemMap := getSVCNamesMap(svc)
-	if elemMap == nil {
-		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
+func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
+	_, elemMap, err := getSVCNamesMap(svc)
+	if err != nil {
+		return HookError, err
 	}
 	// Only send once per IP
 	seen := make(map[string]bool)
@@ -90,26 +95,30 @@ func (rp *RPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult
 	return HookContinue, nil
 }
 
-func (rp *RPkt) forward() (HookResult, *util.Error) {
+func (rp *RtrPkt) forward() (HookResult, *common.Error) {
 	switch rp.DirFrom {
 	case DirExternal:
 		return rp.forwardFromExternal()
 	case DirLocal:
 		return rp.forwardFromLocal()
 	default:
-		return HookError, util.NewError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
+		return HookError, common.NewError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
 	}
 }
 
-func (rp *RPkt) forwardFromExternal() (HookResult, *util.Error) {
-	if rp.hopF.VerifyOnly {
-		return HookError, util.NewError("Non-routing HopF, refusing to forward", "hopF", rp.hopF)
+func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
+	if assert.On {
+		assert.Must(rp.hopF != nil, rp.ErrStr("rp.hopF must not be nil"))
+	}
+	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
+		return HookError, common.NewError(
+			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	if *rp.dstIA == *conf.C.IA {
-		// Destination is local host
-		if rp.hopF.ForwardOnly {
-			return HookError, util.NewError("Delivery forbidden for Forward-only HopF",
+		// Destination is a local host
+		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
+			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
 				"hopF", rp.hopF)
 		}
 		dst := &net.UDPAddr{IP: rp.dstHost.IP(), Port: overlay.EndhostPort}
@@ -117,7 +126,7 @@ func (rp *RPkt) forwardFromExternal() (HookResult, *util.Error) {
 		return HookContinue, nil
 	}
 	if rp.hopF.Xover {
-		if err := rp.incPath(); err != nil {
+		if err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
 		if err := rp.validatePath(DirLocal); err != nil {
@@ -129,27 +138,18 @@ func (rp *RPkt) forwardFromExternal() (HookResult, *util.Error) {
 	if err != nil {
 		return HookError, err
 	}
-	if nextIF == nil || *nextIF == 0 {
-		return HookError, util.NewError("Invalid next IF", "ifid", *nextIF)
+	if err := rp.validateLocalIF(*nextIF); err != nil {
+		return HookError, err
 	}
-	nextBR, ok := conf.C.TopoMeta.IFMap[int(*nextIF)]
-	if !ok {
-		return HookError, util.NewError("Unknown next IF", "ifid", nextIF)
-	}
-	conf.C.IFStates.RLock()
-	info, ok := conf.C.IFStates.M[*nextIF]
-	conf.C.IFStates.RUnlock()
-	if ok && !info.Active() {
-		return HookError, util.NewError(ErrorIntfRevoked, "ifid", *nextIF)
-	}
+	nextBR := conf.C.TopoMeta.IFMap[int(*nextIF)]
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
 	rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
 }
 
-func (rp *RPkt) forwardFromLocal() (HookResult, *util.Error) {
+func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
-		if err := rp.incPath(); err != nil {
+		if err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
 	}

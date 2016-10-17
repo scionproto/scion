@@ -222,10 +222,28 @@
 			"revisionTime": "2016-10-22T18:22:21Z"
 		},
 		{
+			"checksumSHA1": "1zpt0fHadgwtjKfBJA0I3YiffYs=",
+			"path": "golang.org/x/tools/cmd/goimports",
+			"revision": "5e2ae75eb72a62985e086eed33a5982a929e4fff",
+			"revisionTime": "2016-11-11T21:39:39Z"
+		},
+		{
 			"checksumSHA1": "O5eYI3n1WdaC30AxQjETe3dAQHU=",
 			"path": "golang.org/x/tools/cover",
 			"revision": "0db92ca630c08f00e3ba4b5abea93836ca04b42e",
 			"revisionTime": "2016-10-25T20:43:39Z"
+		},
+		{
+			"checksumSHA1": "SoOfjYDw7R1N1P2aHxIjXYFmWUo=",
+			"path": "golang.org/x/tools/go/ast/astutil",
+			"revision": "5e2ae75eb72a62985e086eed33a5982a929e4fff",
+			"revisionTime": "2016-11-11T21:39:39Z"
+		},
+		{
+			"checksumSHA1": "+mjMyJPLBPu7vIHaXkDuvqcDk0s=",
+			"path": "golang.org/x/tools/imports",
+			"revision": "5e2ae75eb72a62985e086eed33a5982a929e4fff",
+			"revisionTime": "2016-11-11T21:39:39Z"
 		},
 		{
 			"checksumSHA1": "dsQ5n+qfjPnd1P5wA0y9LSwbs4A=",

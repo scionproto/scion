@@ -23,12 +23,14 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-func (r *Router) RevTokenCallback(b util.RawBytes) {
+func (r *Router) RevTokenCallback(b common.RawBytes) {
 	select {
 	case r.revInfoQ <- b:
 	default:
@@ -49,7 +51,7 @@ func (r *Router) RevInfoFwd() {
 
 }
 
-func (r *Router) decodeRevToken(b util.RawBytes) *proto.RevInfo {
+func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 	buf := bytes.NewBuffer(b)
 	msg, err := capnp.NewPackedDecoder(buf).Decode()
 	if err != nil {
@@ -74,8 +76,11 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	// Pick first local address as source
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	// Create base packet
-	rp, err := rpkt.CreateCtrlPacket(rpkt.DirLocal,
-		addr.HostFromIP(srcAddr.IP), conf.C.IA, dstHost)
+	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
+		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: conf.C.IA, DstHost: dstHost,
+		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
+	}, rpkt.DirLocal)
 	if err != nil {
 		log.Error("Error creating RevInfo packet", err.Ctx...)
 		return
@@ -86,8 +91,7 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 		return
 	}
 	pathMgmt.SetRevInfo(*revInfo)
-	rp.AddL4UDP(srcAddr.Port, 0)
-	rp.AddCtrlPld(scion)
+	rp.SetPld(&spkt.CtrlPld{SCION: scion})
 	_, err = rp.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route RevInfo packet", err.Ctx...)

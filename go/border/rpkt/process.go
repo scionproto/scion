@@ -21,9 +21,11 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/topology"
-	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -32,18 +34,13 @@ const (
 	ErrorPldGet                = "Unable to retrieve payload"
 )
 
-func (rp *RPkt) NeedsLocalProcessing() *util.Error {
+func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	if *rp.dstIA != *conf.C.IA {
 		// Packet isn't to this IA, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
 	}
 	if rp.CmnHdr.DstType == addr.HostTypeSVC {
-		if rp.infoF == nil && len(rp.idxs.hbhExt) == 0 {
-			// To SVC address, no path - needs processing.
-			rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
-			rp.hooks.Process = append(rp.hooks.Process, rp.processPathlessSVC)
-		}
 		// Resolve SVC address for delivery.
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 		return nil
@@ -55,6 +52,7 @@ func (rp *RPkt) NeedsLocalProcessing() *util.Error {
 	if rp.DirFrom == DirExternal && extPub.Equal(dstIP) ||
 		(rp.DirFrom == DirLocal && locPub.Equal(dstIP)) {
 		// Packet is meant for this router
+		rp.DirTo = DirSelf
 		rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
 		rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 		return nil
@@ -65,7 +63,7 @@ func (rp *RPkt) NeedsLocalProcessing() *util.Error {
 }
 
 // No fallback for process - a hook must be registered to read it.
-func (rp *RPkt) Process() *util.Error {
+func (rp *RtrPkt) Process() *common.Error {
 	for _, f := range rp.hooks.Process {
 		ret, err := f()
 		switch {
@@ -80,42 +78,27 @@ func (rp *RPkt) Process() *util.Error {
 	return nil
 }
 
-func (rp *RPkt) processPathlessSVC() (HookResult, *util.Error) {
-	_, err := rp.Payload()
-	if err != nil {
+func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
+	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
-	pld, ok := rp.pld.(*proto.SCION)
+	cpld, ok := rp.pld.(*spkt.CtrlPld)
 	if !ok {
-		return HookError, util.NewError(ErrorProcessPldUnsupported,
+		return HookError, common.NewError(ErrorProcessPldUnsupported,
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
-	switch pld.Which() {
-	default:
-		return HookError, util.NewError("Unsupported payload type", "type", pld.Which())
-	}
-}
-
-func (rp *RPkt) processDestSelf() (HookResult, *util.Error) {
-	if _, err := rp.Payload(); err != nil {
-		return HookError, err
-	}
-	pld, ok := rp.pld.(*proto.SCION)
-	if !ok {
-		return HookError, util.NewError(ErrorProcessPldUnsupported,
-			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
-	}
+	pld := cpld.SCION
 	switch pld.Which() {
 	case proto.SCION_Which_ifid:
 		ifid, err := pld.Ifid()
 		if err != nil {
-			return HookError, util.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(ErrorPldGet, "err", err)
 		}
 		return rp.processIFID(ifid)
 	case proto.SCION_Which_pathMgmt:
 		pathMgmt, err := pld.PathMgmt()
 		if err != nil {
-			return HookError, util.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(ErrorPldGet, "err", err)
 		}
 		return rp.processPathMgmtSelf(pathMgmt)
 	default:
@@ -124,40 +107,40 @@ func (rp *RPkt) processDestSelf() (HookResult, *util.Error) {
 	}
 }
 
-func (rp *RPkt) processIFID(pld proto.IFID) (HookResult, *util.Error) {
+func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	pld.SetRelayIF(uint16(*rp.ifCurr))
-	if err := rp.updateCtrlPld(); err != nil {
+	if err := rp.SetPld(rp.pld); err != nil {
 		return HookError, err
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
 	// Create base packet
-	fwdrp, err := CreateCtrlPacket(DirLocal, addr.HostFromIP(srcAddr.IP),
-		conf.C.IA, addr.SvcBS.Multicast())
+	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
+		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: conf.C.IA, DstHost: addr.SvcBS.Multicast(),
+		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
+	}, DirLocal)
 	if err != nil {
-		rp.Error("Error creating IFID forwarding packet", err.Ctx...)
+		return HookError, err
 	}
-	fwdrp.AddL4UDP(srcAddr.Port, 0)
 	// Set payload
-	if err := fwdrp.AddCtrlPld(rp.pld.(*proto.SCION)); err != nil {
-		return HookError, util.NewError("Error setting IFID forwarding payload", err.Ctx...)
+	if err := fwdrp.SetPld(rp.pld); err != nil {
+		return HookError, common.NewError("Error setting IFID forwarding payload", err.Ctx...)
 	}
 	fwdrp.ifCurr = rp.ifCurr
-	_, err = fwdrp.RouteResolveSVC()
-	if err != nil {
-		rp.Error("Error resolving SVC address", err.Ctx...)
-		return HookError, nil
+	if _, err := fwdrp.RouteResolveSVC(); err != nil {
+		return HookError, err
 	}
 	fwdrp.Route()
 	return HookFinish, nil
 }
 
-func (rp *RPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
+func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *common.Error) {
 	switch pathMgmt.Which() {
 	case proto.PathMgmt_Which_ifStateInfos:
 		ifStates, err := pathMgmt.IfStateInfos()
 		if err != nil {
-			return HookError, util.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(ErrorPldGet, "err", err)
 		}
 		callbacks.ifStateUpd(ifStates)
 	default:
@@ -167,7 +150,7 @@ func (rp *RPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.
 	return HookFinish, nil
 }
 
-func (rp *RPkt) processSCMP() (HookResult, *util.Error) {
+func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(kormat): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
@@ -178,23 +161,27 @@ func (rp *RPkt) processSCMP() (HookResult, *util.Error) {
 	return HookFinish, nil
 }
 
-func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem) {
+func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, *common.Error) {
+	tm := conf.C.TopoMeta
 	var names []string
 	var elemMap map[string]topology.BasicElem
-	tm := conf.C.TopoMeta
-	switch *svc.Base() {
+	switch svc.Base() {
 	case addr.SvcBS:
-		names = tm.BSNames
-		elemMap = tm.T.BS
+		names, elemMap = tm.BSNames, tm.T.BS
 	case addr.SvcPS:
-		names = tm.PSNames
-		elemMap = tm.T.PS
+		names, elemMap = tm.PSNames, tm.T.PS
 	case addr.SvcCS:
-		names = tm.CSNames
-		elemMap = tm.T.CS
+		names, elemMap = tm.CSNames, tm.T.CS
 	case addr.SvcSB:
-		names = tm.SBNames
-		elemMap = tm.T.SB
+		names, elemMap = tm.SBNames, tm.T.SB
+	default:
+		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
+		return nil, nil, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)
 	}
-	return names, elemMap
+	if len(elemMap) == 0 {
+		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_UnreachHost, nil)
+		return nil, nil, common.NewErrorData(
+			"No instances found for SVC address", sdata, "svc", svc)
+	}
+	return names, elemMap, nil
 }

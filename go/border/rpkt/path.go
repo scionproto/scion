@@ -18,9 +18,10 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
@@ -34,26 +35,75 @@ const (
 	ErrorLocAddrInvalid     = "Invalid local address"
 )
 
-func (rp *RPkt) validatePath(dirFrom Dir) *util.Error {
+func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
+	if assert.On {
+		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil"))
+	}
+	// First check to make sure the current interface is known and not revoked.
+	if err := rp.validateLocalIF(*rp.ifCurr); err != nil {
+		return err
+	}
+	// If there's no path, then there's nothing to check.
 	if rp.infoF == nil || rp.hopF == nil {
-		return nil
+		if rp.DirTo == DirSelf {
+			// An empty path is legimate when the packet's destination is this router.
+			return nil
+		}
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_PathRequired, nil)
+		return common.NewErrorData("Path required", sdata)
 	}
 	if rp.hopF.VerifyOnly {
-		return util.NewError(ErrorHopFieldVerifyOnly)
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
+		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
+	}
+	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
+		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
 	}
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
-		return util.NewError(ErrorHopFieldExpired, "expiry", hopfExpiry)
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
+		return common.NewErrorData(ErrorHopFieldExpired, sdata, "expiry", hopfExpiry)
 	}
-	prevHopF, err := rp.getHopFVer(dirFrom)
-	if err != nil {
-		return err
+	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	if err != nil && err.Desc == spath.ErrorHopFBadMac {
+		err.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
 	}
-	return rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, prevHopF)
+	return err
 }
 
-func (rp *RPkt) InfoF() (*spath.InfoField, *util.Error) {
+func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
+	if _, ok := conf.C.TopoMeta.IFMap[int(ifid)]; !ok {
+		// No such interface.
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
+		return common.NewErrorData("Unknown IF", sdata, "ifid", ifid)
+	}
+	conf.C.IFStates.RLock()
+	info, ok := conf.C.IFStates.M[ifid]
+	conf.C.IFStates.RUnlock()
+	if !ok || info.P.Active() || rp.DirTo == DirSelf {
+		// Either the interface isn't revoked, or the packet is to this
+		// router, in which case revocations are ignored to allow communication
+		// with the router.
+		return nil
+	}
+	// Interface is revoked.
+	sinfo := scmp.NewInfoRevocation(
+		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(ifid),
+		rp.DirFrom == DirExternal, info.RawRev)
+	sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
+	return common.NewErrorData(ErrorIntfRevoked, sdata, "ifid", ifid)
+}
+
+func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
+	return &scmp.InfoPathOffsets{
+		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
+		IfID: uint16(*rp.ifCurr), Ingress: rp.DirFrom == DirExternal,
+	}
+}
+
+func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 	if rp.infoF == nil {
 		for _, f := range rp.hooks.Infof {
 			ret, infof, err := f()
@@ -69,13 +119,15 @@ func (rp *RPkt) InfoF() (*spath.InfoField, *util.Error) {
 		}
 		switch {
 		case int(rp.CmnHdr.CurrInfoF) < rp.idxs.path:
-			return nil, util.NewError(ErrorGetInfoFTooSmall,
+			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
+			return nil, common.NewErrorData(ErrorGetInfoFTooSmall, sdata,
 				"min", rp.idxs.path, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen:
-			return nil, util.NewError(ErrorGetInfoFTooLarge,
+			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
+			return nil, common.NewErrorData(ErrorGetInfoFTooLarge, sdata,
 				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen:
-			var err *util.Error
+			var err *common.Error
 			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[rp.CmnHdr.CurrInfoF:]); err != nil {
 				return nil, err
 			}
@@ -84,7 +136,7 @@ func (rp *RPkt) InfoF() (*spath.InfoField, *util.Error) {
 	return rp.infoF, nil
 }
 
-func (rp *RPkt) HopF() (*spath.HopField, *util.Error) {
+func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 	if rp.hopF == nil {
 		for _, f := range rp.hooks.HopF {
 			ret, hopf, err := f()
@@ -102,22 +154,24 @@ func (rp *RPkt) HopF() (*spath.HopField, *util.Error) {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
 			// Do nothing
 		case rp.CmnHdr.CurrHopF < rp.CmnHdr.CurrInfoF+spath.InfoFieldLength:
-			return nil, util.NewError(ErrorGetHopFTooSmall,
+			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
+			return nil, common.NewErrorData(ErrorGetHopFTooSmall, sdata,
 				"min", rp.CmnHdr.CurrInfoF+spath.InfoFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		case rp.CmnHdr.CurrHopF < rp.CmnHdr.HdrLen:
-			var err *util.Error
+			var err *common.Error
 			if rp.hopF, err = spath.HopFFromRaw(rp.Raw[rp.CmnHdr.CurrHopF:]); err != nil {
 				return nil, err
 			}
-		case rp.CmnHdr.CurrHopF > rp.CmnHdr.HdrLen:
-			return nil, util.NewError(ErrorGetHopFTooLarge,
-				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrHopF)
+		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen:
+			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
+			return nil, common.NewErrorData(ErrorGetHopFTooLarge, sdata,
+				"max", rp.CmnHdr.HdrLen-spath.HopFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		}
 	}
 	return rp.hopF, nil
 }
 
-func (rp *RPkt) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
+func (rp *RtrPkt) getHopFVer(dirFrom Dir) common.RawBytes {
 	ingress := dirFrom == DirExternal
 	var offset int
 	if !rp.hopF.Xover || (rp.infoF.Shortcut && !rp.infoF.Peer) {
@@ -149,10 +203,10 @@ func (rp *RPkt) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
 			}
 		}
 	}
-	return rp.hopFVerFromRaw(offset), nil
+	return rp.hopFVerFromRaw(offset)
 }
 
-func (rp *RPkt) getHopFVerNormalOffset() int {
+func (rp *RtrPkt) getHopFVerNormalOffset() int {
 	// If this is the last hop of an Up path, or the first hop of a Down path,
 	// there's no previous HOF to verify against.
 	iOff := int(rp.CmnHdr.CurrInfoF)
@@ -169,8 +223,8 @@ func (rp *RPkt) getHopFVerNormalOffset() int {
 	return -1
 }
 
-func (rp *RPkt) hopFVerFromRaw(offset int) util.RawBytes {
-	ans := make(util.RawBytes, common.LineLen-1)
+func (rp *RtrPkt) hopFVerFromRaw(offset int) common.RawBytes {
+	ans := make(common.RawBytes, common.LineLen-1)
 	if offset != 0 {
 		b := rp.Raw[int(rp.CmnHdr.CurrHopF)+offset*common.LineLen:]
 		copy(ans, b[1:common.LineLen])
@@ -178,8 +232,12 @@ func (rp *RPkt) hopFVerFromRaw(offset int) util.RawBytes {
 	return ans
 }
 
-func (rp *RPkt) incPath() *util.Error {
-	var err *util.Error
+func (rp *RtrPkt) IncPath() *common.Error {
+	if rp.infoF == nil {
+		// Path is empty, nothing to increment.
+		return nil
+	}
+	var err *common.Error
 	var hopF *spath.HopField
 	infoF := rp.infoF
 	iOff := rp.CmnHdr.CurrInfoF
@@ -202,7 +260,7 @@ func (rp *RPkt) incPath() *util.Error {
 		}
 	}
 	if hOff > rp.CmnHdr.HdrLen {
-		return util.NewError("New HopF offset > header length", "max", rp.CmnHdr.HdrLen,
+		return common.NewError("New HopF offset > header length", "max", rp.CmnHdr.HdrLen,
 			"actual", hOff)
 	}
 	rp.CmnHdr.UpdatePathOffsets(rp.Raw, iOff, hOff)
@@ -219,7 +277,7 @@ func (rp *RPkt) incPath() *util.Error {
 	return nil
 }
 
-func (rp *RPkt) UpFlag() (*bool, *util.Error) {
+func (rp *RtrPkt) UpFlag() (*bool, *common.Error) {
 	if rp.upFlag != nil {
 		return rp.upFlag, nil
 	}
@@ -244,17 +302,16 @@ func (rp *RPkt) UpFlag() (*bool, *util.Error) {
 	return rp.upFlag, nil
 }
 
-func (rp *RPkt) IFCurr() (*spath.IntfID, *util.Error) {
+func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 	if rp.ifCurr != nil {
 		return rp.ifCurr, nil
 	}
-	var err *util.Error
 	if rp.upFlag != nil {
 		// Try to get IFID from HopByHop extensions
-		if rp.ifCurr, err = rp.hookIF(*rp.upFlag, rp.hooks.IFCurr); err != nil {
+		if ifid, err := rp.hookIF(*rp.upFlag, rp.hooks.IFCurr); err != nil {
 			return nil, err
-		} else if rp.ifCurr != nil {
-			return rp.ifCurr, nil
+		} else if ifid != nil {
+			return rp.checkSetCurrIF(ifid)
 		}
 		// Try to get IFID from HopField
 		if rp.hopF != nil {
@@ -265,39 +322,32 @@ func (rp *RPkt) IFCurr() (*spath.IntfID, *util.Error) {
 			case DirExternal:
 				ingress = !*rp.upFlag
 			default:
-				return nil, util.NewError(ErrorDirFromUnsupported, "val", rp.DirFrom)
+				return nil, common.NewError(ErrorDirFromUnsupported, "val", rp.DirFrom)
 			}
 			if ingress {
-				rp.ifCurr = &rp.hopF.Ingress
-			} else {
-				rp.ifCurr = &rp.hopF.Egress
+				return rp.checkSetCurrIF(&rp.hopF.Ingress)
 			}
-			return rp.ifCurr, nil
+			return rp.checkSetCurrIF(&rp.hopF.Egress)
 		}
 	}
-	// Try to get IFID from Ingress.Dst
-	addr := rp.Ingress.Dst.String()
-	switch rp.DirFrom {
-	case DirLocal:
-		ifids, ok := conf.C.Net.LocAddrIFIDMap[addr]
-		if !ok {
-			return nil, util.NewError(ErrorLocAddrInvalid, "addr", addr)
-		}
-		// Just pick the first matching IFID
-		rp.ifCurr = &ifids[0]
-	case DirExternal:
-		if ifid, ok := conf.C.Net.IFAddrMap[addr]; ok {
-			rp.ifCurr = &ifid
-		}
-	default:
-		return nil, util.NewError(ErrorDirFromUnsupported, "val", rp.DirFrom)
+	// Use first IfID from Ingress.IfIDs
+	return rp.checkSetCurrIF(&rp.Ingress.IfIDs[0])
+}
+
+func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Error) {
+	if ifid == nil {
+		return nil, common.NewError("No interface found")
 	}
+	if _, ok := conf.C.Net.IFs[*ifid]; !ok {
+		return nil, common.NewError("Unknown interface", "ifid", *ifid)
+	}
+	rp.ifCurr = ifid
 	return rp.ifCurr, nil
 }
 
-func (rp *RPkt) IFNext() (*spath.IntfID, *util.Error) {
+func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 	if rp.ifNext == nil && rp.upFlag != nil {
-		var err *util.Error
+		var err *common.Error
 		if rp.ifNext, err = rp.hookIF(*rp.upFlag, rp.hooks.IFNext); err != nil {
 			return nil, err
 		} else if rp.ifNext != nil {
@@ -312,7 +362,7 @@ func (rp *RPkt) IFNext() (*spath.IntfID, *util.Error) {
 	return rp.ifNext, nil
 }
 
-func (rp *RPkt) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *util.Error) {
+func (rp *RtrPkt) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *common.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, rp.DirFrom, rp.DirTo)
 		switch {

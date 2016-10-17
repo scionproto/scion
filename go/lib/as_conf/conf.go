@@ -19,6 +19,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -39,10 +40,10 @@ const (
 
 var CurrConf *ASConf
 
-func Load(path string) *util.Error {
+func Load(path string) *common.Error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return util.NewError(ErrorOpen, "err", err)
+		return common.NewError(ErrorOpen, "err", err)
 	}
 	if err := Parse(b, path); err != nil {
 		return err
@@ -50,10 +51,10 @@ func Load(path string) *util.Error {
 	return nil
 }
 
-func Parse(data []byte, path string) *util.Error {
+func Parse(data []byte, path string) *common.Error {
 	c := &ASConf{}
 	if err := yaml.Unmarshal(data, c); err != nil {
-		return util.NewError(ErrorParse, "err", err, "path", path)
+		return common.NewError(ErrorParse, "err", err, "path", path)
 	}
 	CurrConf = c
 	return nil
