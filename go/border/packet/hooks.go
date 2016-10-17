@@ -15,17 +15,17 @@
 package packet
 
 import (
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 type HookIA func() (HookResult, *addr.ISD_AS, *util.Error)
 type HookHost func() (HookResult, addr.HostAddr, *util.Error)
-type HookInfoF func() (HookResult, *path.InfoField, *util.Error)
-type HookHopF func() (HookResult, *path.HopField, *util.Error)
+type HookInfoF func() (HookResult, *spath.InfoField, *util.Error)
+type HookHopF func() (HookResult, *spath.HopField, *util.Error)
 type HookBool func() (HookResult, bool, *util.Error)
-type HookIntf func(up bool, dirFrom, dirTo Dir) (HookResult, path.IntfID, *util.Error)
+type HookIntf func(up bool, dirFrom, dirTo Dir) (HookResult, spath.IntfID, *util.Error)
 type HookValidate func() (HookResult, *util.Error)
 type HookL4 func() (HookResult, interface{}, *util.Error)
 type HookPayload func() (HookResult, interface{}, *util.Error)

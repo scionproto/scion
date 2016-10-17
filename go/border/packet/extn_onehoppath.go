@@ -18,7 +18,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/path"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -39,7 +39,7 @@ func (o *OneHopPath) RegisterHooks(hooks *Hooks) *util.Error {
 	return nil
 }
 
-func (o *OneHopPath) HopF() (HookResult, *path.HopField, *util.Error) {
+func (o *OneHopPath) HopF() (HookResult, *spath.HopField, *util.Error) {
 	if o.p.DirFrom == DirLocal {
 		return HookContinue, nil, nil
 	}
@@ -47,10 +47,10 @@ func (o *OneHopPath) HopF() (HookResult, *path.HopField, *util.Error) {
 	if err != nil {
 		return HookError, nil, err
 	}
-	prevIdx := o.p.CmnHdr.CurrHopF - path.HopFieldLength
+	prevIdx := o.p.CmnHdr.CurrHopF - spath.HopFieldLength
 	prevHof := o.p.Raw[prevIdx+1 : o.p.CmnHdr.CurrHopF]
 	inIF := conf.C.Net.IFAddrMap[o.p.Ingress.Dst.String()]
-	hopF := path.NewHopField(o.p.Raw[o.p.CmnHdr.CurrHopF:], inIF, 0)
+	hopF := spath.NewHopField(o.p.Raw[o.p.CmnHdr.CurrHopF:], inIF, 0)
 	mac, err := hopF.CalcMac(conf.C.HFGenBlock, infoF.TsInt, prevHof)
 	if err != nil {
 		return HookError, nil, err

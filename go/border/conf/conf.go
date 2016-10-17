@@ -23,9 +23,9 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/netsec-ethz/scion/go/border/netconf"
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/as_conf"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
@@ -41,7 +41,7 @@ type Conf struct {
 	Dir        string
 	IFStates   struct {
 		sync.RWMutex
-		M map[path.IntfID]proto.IFStateInfo
+		M map[spath.IntfID]proto.IFStateInfo
 	}
 }
 

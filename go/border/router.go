@@ -23,8 +23,8 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/packet"
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -32,7 +32,7 @@ type Router struct {
 	Id        string
 	inQs      []chan *packet.Packet
 	locOutFs  map[int]packet.OutputFunc
-	intfOutFs map[path.IntfID]packet.OutputFunc
+	intfOutFs map[spath.IntfID]packet.OutputFunc
 	freePkts  chan *packet.Packet
 	revInfoQ  chan util.RawBytes
 }
