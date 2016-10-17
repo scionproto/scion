@@ -43,7 +43,7 @@ const (
 	DefaultHopFExpiry   = 63
 	MacLen              = 3
 	ErrorHopFTooShort   = "HopF too short"
-	ErrorHopFBadMac     = "Bad HopF mac"
+	ErrorHopFBadMac     = "Bad HopF MAC"
 )
 
 func NewHopField(b util.RawBytes, in IntfID, out IntfID) *HopField {
