@@ -23,9 +23,9 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 type Router struct {
@@ -34,14 +34,10 @@ type Router struct {
 	locOutFs  map[int]rpkt.OutputFunc
 	intfOutFs map[spath.IntfID]rpkt.OutputFunc
 	freePkts  chan *rpkt.RPkt
-	revInfoQ  chan util.RawBytes
+	revInfoQ  chan common.RawBytes
 }
 
-// FIXME(kormat): this should be reduced as soon as we respect the actual link
-// MTU.
-const pktBufSize = 1 << 16
-
-func NewRouter(id, confDir string) (*Router, *util.Error) {
+func NewRouter(id, confDir string) (*Router, *common.Error) {
 	r := &Router{Id: id}
 	if err := r.setup(confDir); err != nil {
 		return nil, err
@@ -49,7 +45,7 @@ func NewRouter(id, confDir string) (*Router, *util.Error) {
 	return r, nil
 }
 
-func (r *Router) Run() *util.Error {
+func (r *Router) Run() *common.Error {
 	if err := r.setupNet(); err != nil {
 		return err
 	}
@@ -75,13 +71,14 @@ func (r *Router) handleQueue(q chan *rpkt.RPkt) {
 }
 
 func (r *Router) processPacket(rp *rpkt.RPkt) {
-	rp.Logger = log.New("rpkt", logext.RandId(4))
+	rp.Id = logext.RandId(4)
+	rp.Logger = log.New("rpkt", rp.Id)
 	if err := rp.Parse(); err != nil {
-		rp.Error("Error during parsing", err.Ctx...)
+		r.handlePktError(rp, err, "Error parsing packet")
 		return
 	}
 	if err := rp.Validate(); err != nil {
-		rp.Error("Error validating packet", err.Ctx...)
+		r.handlePktError(rp, err, "Error validating packet")
 		return
 	}
 	if err := rp.NeedsLocalProcessing(); err != nil {
@@ -96,19 +93,14 @@ func (r *Router) processPacket(rp *rpkt.RPkt) {
 		rp.Error("Error processing packet", err.Ctx...)
 		return
 	}
-	if err := rp.Route(); err != nil {
-		rp.Error("Error routing packet", err.Ctx...)
+	if rp.DirTo != rpkt.DirSelf {
+		if err := rp.Route(); err != nil {
+			rp.Error("Error routing packet", err.Ctx...)
+		}
 	}
 }
 
 func (r *Router) recyclePkt(rp *rpkt.RPkt) {
-	if rp.DirFrom == rpkt.DirSelf {
-		return
-	}
-	if cap(rp.Raw) != pktBufSize {
-		rp.Crit("Raw", "len", len(rp.Raw), "cap", cap(rp.Raw))
-		return
-	}
 	rp.Reset()
 	select {
 	case r.freePkts <- rp:

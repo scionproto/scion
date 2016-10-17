@@ -12,25 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+// +build !assert
 
-import (
-	"github.com/netsec-ethz/scion/go/lib/common"
-)
+package assert
 
-func CalcPadding(length, blkSize int) int {
-	spare := length % blkSize
-	if spare != 0 {
-		return blkSize - spare
-	}
-	return 0
-}
-
-func FillPadding(b common.RawBytes, length, blkSize int) int {
-	padding := CalcPadding(length, blkSize)
-	total := length + padding
-	for i := range b[length:total] {
-		b[i] = 0
-	}
-	return total
-}
+const On = false

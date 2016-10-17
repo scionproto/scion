@@ -15,51 +15,67 @@
 package proto
 
 import (
+	"bytes"
+
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-func NewMessage() (*capnp.Message, *capnp.Segment, *util.Error) {
+func NewMessage() (*capnp.Message, *capnp.Segment, *common.Error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, nil, util.NewError("Unable to allocate new capnp message", "err", err)
+		return nil, nil, common.NewError("Unable to allocate new capnp message", "err", err)
 	}
 	return msg, seg, nil
 }
 
-func NewSCIONMsg() (*SCION, *util.Error) {
+func NewSCIONMsg() (*SCION, *common.Error) {
 	_, seg, err := NewMessage()
 	if err != nil {
 		return nil, err
 	}
 	scion, cerr := NewRootSCION(seg)
 	if cerr != nil {
-		return nil, util.NewError("Unable to create new SCION capnp struct", "err", err)
+		return nil, common.NewError("Unable to create new SCION capnp struct", "err", err)
 	}
 	return &scion, nil
 }
 
-func NewIFIDMsg() (*SCION, *IFID, *util.Error) {
+func NewIFIDMsg() (*SCION, *IFID, *common.Error) {
 	scion, err := NewSCIONMsg()
 	if err != nil {
 		return nil, nil, err
 	}
 	ifid, cerr := scion.NewIfid()
 	if cerr != nil {
-		return nil, nil, util.NewError("Unable to create IFID struct", "err", err)
+		return nil, nil, common.NewError("Unable to create IFID struct", "err", err)
 	}
 	return scion, &ifid, nil
 }
 
-func NewPathMgmtMsg() (*SCION, *PathMgmt, *util.Error) {
+func NewPathMgmtMsg() (*SCION, *PathMgmt, *common.Error) {
 	scion, err := NewSCIONMsg()
 	if err != nil {
 		return nil, nil, err
 	}
 	pathMgmt, cerr := scion.NewPathMgmt()
 	if cerr != nil {
-		return nil, nil, util.NewError("Unable to create PathMgmt struct", "err", err)
+		return nil, nil, common.NewError("Unable to create PathMgmt struct", "err", err)
 	}
 	return scion, &pathMgmt, nil
+}
+
+func StructPack(s capnp.Struct) (common.RawBytes, *common.Error) {
+	msg, _, err := NewMessage()
+	if err != nil {
+		return nil, err
+	}
+	msg.SetRootPtr(s.ToPtr())
+	buf := &bytes.Buffer{}
+	enc := capnp.NewPackedEncoder(buf)
+	if err := enc.Encode(msg); err != nil {
+		return nil, common.NewError("Capnp struct encoding failed", "err", err)
+	}
+	return buf.Bytes(), nil
 }

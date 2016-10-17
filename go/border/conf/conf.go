@@ -25,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/as_conf"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -41,14 +42,19 @@ type Conf struct {
 	Dir        string
 	IFStates   struct {
 		sync.RWMutex
-		M map[spath.IntfID]proto.IFStateInfo
+		M map[spath.IntfID]IFState
 	}
+}
+
+type IFState struct {
+	P      proto.IFStateInfo
+	RawRev common.RawBytes
 }
 
 var C *Conf
 
-func Load(id, confDir string) *util.Error {
-	var err *util.Error
+func Load(id, confDir string) *common.Error {
+	var err *common.Error
 
 	conf := &Conf{}
 	conf.Dir = confDir
@@ -61,7 +67,7 @@ func Load(id, confDir string) *util.Error {
 
 	topoBR, ok := conf.TopoMeta.T.BR[id]
 	if !ok {
-		return util.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
+		return common.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
 	}
 	conf.BR = &topoBR
 

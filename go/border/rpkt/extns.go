@@ -15,23 +15,23 @@
 package rpkt
 
 import (
-	"fmt"
-
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
-type Extension interface {
-	fmt.Stringer
-	RegisterHooks(*Hooks) *util.Error
+type RExtension interface {
+	common.ExtnBase
+	GetExtn() (common.Extension, *common.Error)
+	RegisterHooks(*Hooks) *common.Error
 }
 
 const ExtMaxHopByHop = 3
 
 const (
-	ErrorUnsupportedExt  = "Unsupported extension"
+	ErrorBadHopByHop     = "Unsupported hop-by-hop extension"
+	ErrorBadEnd2End      = "Unsupported end2end extension"
 	ErrorExtChainTooLong = "Extension header chain longer than packet"
 )
 
@@ -41,17 +41,68 @@ var ExtHBHKnown = map[common.ExtnType]bool{
 	common.ExtnSIBRAType:      true,
 }
 
-func (rp *RPkt) ExtnParse(extType common.ExtnType, start, end int) (Extension, *util.Error) {
+func (rp *RPkt) ExtnParseHBH(extType common.ExtnType,
+	start, end, pos int) (RExtension, *common.Error) {
 	switch {
 	case extType == common.ExtnTracerouteType:
-		return TracerouteFromRaw(rp, start, end)
+		return RTracerouteFromRaw(rp, start, end)
 	case extType == common.ExtnOneHopPathType:
-		return OneHopPathFromRaw(rp)
+		return ROneHopPathFromRaw(rp)
 	case extType == common.ExtnSCMPType:
-		return SCMPExtFromRaw(rp, start, end)
-	case ExtHBHKnown[extType]:
-		return nil, util.NewError("Known but unsupported extension", "type", extType)
+		return RSCMPExtFromRaw(rp, start, end)
 	default:
-		return nil, util.NewError(ErrorUnsupportedExt, "type", extType)
+		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadHopByHop,
+			&scmp.InfoExtIdx{Idx: uint8(pos)})
+		return nil, common.NewErrorData(ErrorBadHopByHop, sdata, "type", extType)
 	}
+}
+
+func (rp *RPkt) extnAddHBH(e common.Extension) *common.Error {
+	max := ExtMaxHopByHop
+	if len(rp.HBHExt) > 1 && rp.HBHExt[0].Type() == common.ExtnSCMPType {
+		max += 1
+	}
+	if len(rp.HBHExt) >= max {
+		// No point in generating an SCMP error, as this is a packet we're constructing locally.
+		return common.NewError(ErrorTooManyHBH, "curr", len(rp.HBHExt), "max", max)
+	}
+	offset := int(rp.CmnHdr.HdrLen)
+	var nextHdr *uint8 = (*uint8)(&rp.CmnHdr.NextHdr)
+	for i, hIdx := range rp.idxs.hbhExt {
+		nextHdr = &rp.Raw[hIdx.Index]
+		offset = hIdx.Index + common.ExtnSubHdrLen + rp.HBHExt[i].Len()
+	}
+	et := e.Type()
+	// Set the preceeding NextHdr field, whether it's in the common header, or
+	// a preceeding hop-by-hopb extension.
+	*nextHdr = uint8(et.Class)
+	// Check the extension's length is legal
+	eLen := e.Len() + common.ExtnSubHdrLen
+	if eLen%common.LineLen != 0 {
+		return common.NewError("HBH Ext length not multiple of line length",
+			"lineLen", common.LineLen, "actual", eLen)
+	}
+	// Write out extension sub-header
+	rp.Raw[offset] = uint8(common.L4None)
+	rp.Raw[offset+1] = et.Type
+	rp.Raw[offset+2] = uint8(eLen/common.LineLen) - 1
+	// Write out extension
+	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen:]); err != nil {
+		return err
+	}
+	// Parse extension back in, to set up appropriate metadata
+	re, err := rp.ExtnParseHBH(e.Type(), offset+common.ExtnSubHdrLen,
+		offset+eLen, len(rp.idxs.hbhExt))
+	if err != nil {
+		return err
+	}
+	if re != nil {
+		re.RegisterHooks(&rp.hooks)
+		rp.HBHExt = append(rp.HBHExt, re)
+	}
+	// Update metadata indexes
+	rp.idxs.hbhExt = append(rp.idxs.hbhExt, extnIdx{e.Type(), offset})
+	rp.idxs.l4 = offset + eLen
+	rp.idxs.pld = rp.idxs.l4
+	return nil
 }

@@ -21,7 +21,6 @@ import (
 	"gopkg.in/restruct.v1"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 type Meta struct {
@@ -38,20 +37,29 @@ const (
 	MetaLen = 8
 )
 
-func MetaFromRaw(b []byte) (*Meta, *util.Error) {
+func MetaFromRaw(b []byte) (*Meta, *common.Error) {
 	m := &Meta{}
 	if err := restruct.Unpack(b, binary.BigEndian, m); err != nil {
-		return nil, util.NewError("Failed to unpack SCMP Metadata", "err", err)
+		return nil, common.NewError("Failed to unpack SCMP Metadata", "err", err)
 	}
 	return m, nil
 }
 
-func (m *Meta) Pack() (util.RawBytes, *util.Error) {
-	out, err := restruct.Pack(order, m)
-	if err != nil {
-		return nil, util.NewError("Error packing SCMP Metadata", "err", err)
+func (m *Meta) Copy() *Meta {
+	return &Meta{
+		InfoLen: m.InfoLen, CmnHdrLen: m.CmnHdrLen, AddrHdrLen: m.AddrHdrLen,
+		PathHdrLen: m.PathHdrLen, ExtHdrsLen: m.ExtHdrsLen,
+		L4HdrLen: m.L4HdrLen, L4Proto: m.L4Proto,
 	}
-	return out, nil
+}
+
+func (m *Meta) Write(b common.RawBytes) *common.Error {
+	out, err := restruct.Pack(common.Order, m)
+	if err != nil {
+		return common.NewError("Error packing SCMP Metadata", "err", err)
+	}
+	copy(b, out)
+	return nil
 }
 
 func (m *Meta) String() string {

@@ -15,11 +15,9 @@
 package spath
 
 import (
-	"encoding/binary"
-
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 type IntfID uint16
@@ -30,15 +28,17 @@ const (
 	macInputLen = 16
 )
 
-var order = binary.BigEndian
-
 type Path struct {
-	Raw    util.RawBytes
+	Raw    common.RawBytes
 	InfOff uint8 // Offset of current Info Field
 	HopOff uint8 // Offset of current Hop Field
 }
 
-func (p *Path) Reverse() *util.Error {
+func (p *Path) Copy() *Path {
+	return &Path{append(common.RawBytes(nil), p.Raw...), p.InfOff, p.HopOff}
+}
+
+func (p *Path) Reverse() *common.Error {
 	if len(p.Raw) == 0 {
 		// Empty path doesn't need reversal.
 		return nil
@@ -58,11 +58,11 @@ func (p *Path) Reverse() *util.Error {
 		if origOff == len(p.Raw) {
 			break
 		} else if origOff > len(p.Raw) {
-			return util.NewError("Unable to reverse corrupt path",
+			return common.NewError("Unable to reverse corrupt path",
 				"currOff", origOff, "max", len(p.Raw))
 		}
 	}
-	revRaw := make(util.RawBytes, len(p.Raw))
+	revRaw := make(common.RawBytes, len(p.Raw))
 	revOff := 0
 	newInfIdx := 0
 	switch {

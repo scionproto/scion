@@ -16,21 +16,22 @@ package rpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-type HookIA func() (HookResult, *addr.ISD_AS, *util.Error)
-type HookHost func() (HookResult, addr.HostAddr, *util.Error)
-type HookInfoF func() (HookResult, *spath.InfoField, *util.Error)
-type HookHopF func() (HookResult, *spath.HopField, *util.Error)
-type HookBool func() (HookResult, bool, *util.Error)
-type HookIntf func(up bool, dirFrom, dirTo Dir) (HookResult, spath.IntfID, *util.Error)
-type HookValidate func() (HookResult, *util.Error)
-type HookL4 func() (HookResult, interface{}, *util.Error)
-type HookPayload func() (HookResult, interface{}, *util.Error)
-type HookProcess func() (HookResult, *util.Error)
-type HookRoute func() (HookResult, *util.Error)
+type HookIA func() (HookResult, *addr.ISD_AS, *common.Error)
+type HookHost func() (HookResult, addr.HostAddr, *common.Error)
+type HookInfoF func() (HookResult, *spath.InfoField, *common.Error)
+type HookHopF func() (HookResult, *spath.HopField, *common.Error)
+type HookBool func() (HookResult, bool, *common.Error)
+type HookIntf func(up bool, dirFrom, dirTo Dir) (HookResult, spath.IntfID, *common.Error)
+type HookValidate func() (HookResult, *common.Error)
+type HookL4 func() (HookResult, l4.L4Header, *common.Error)
+type HookPayload func() (HookResult, common.Payload, *common.Error)
+type HookProcess func() (HookResult, *common.Error)
+type HookRoute func() (HookResult, *common.Error)
 
 type Hooks struct {
 	SrcIA    []HookIA

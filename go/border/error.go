@@ -1,0 +1,109 @@
+// Copyright 2016 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import (
+	//log "github.com/inconshreveable/log15"
+
+	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
+)
+
+func (r *Router) handlePktError(rp *rpkt.RPkt, perr *common.Error, desc string) {
+	sdata, ok := perr.Data.(*scmp.ErrData)
+	if ok {
+		perr.Ctx = append(perr.Ctx, "SCMP", sdata.CT)
+	}
+	rp.Error(desc, perr.Ctx...)
+	if !ok || perr.Data == nil || rp.DirFrom == rpkt.DirSelf || rp.SCMPError {
+		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
+		return
+	}
+	if sdata.CT.Class == scmp.C_CmnHdr {
+		switch sdata.CT.Type {
+		case scmp.T_C_BadVersion, scmp.T_C_BadSrcType, scmp.T_C_BadDstType:
+			// For any of these cases, do nothing. A reply would only be
+			// possible in the case of a version/addr type being understood but
+			// deprecated, which hasn't happened yet.
+			return
+		}
+	}
+	reply, err := r.createSCMPErrorReply(rp, sdata.CT, sdata.Info)
+	if err != nil {
+		rp.Error("Error creating SCMP response", err.Ctx...)
+		return
+	}
+	reply.Route()
+}
+
+func (r *Router) createSCMPErrorReply(rp *rpkt.RPkt, ct scmp.ClassType,
+	info scmp.Info) (*rpkt.RPkt, *common.Error) {
+	sp, err := r.createReplySPkt(rp)
+	if err != nil {
+		return nil, err
+	}
+	l4type := rp.L4Type
+	if l4type == common.L4None {
+		// Try to get l4 proto type, if possible, ignoring errors.
+		_, _ = rp.L4Hdr()
+		l4type = rp.L4Type
+	}
+	sp.Pld = scmp.PldFromQuotes(ct, info, l4type, rp.GetRaw)
+	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
+	reply, err := rpkt.RPktFromSpkt(sp, rp.DirFrom)
+	if err != nil {
+		return nil, err
+	}
+	egress, err := r.replyEgress(rp)
+	if err != nil {
+		return nil, err
+	}
+	reply.Egress = append(reply.Egress, egress)
+	return reply, nil
+}
+
+func (r *Router) createReplySPkt(rp *rpkt.RPkt) (*spkt.SPkt, *common.Error) {
+	sp, err := rp.ToSPkt()
+	if err != nil {
+		return nil, err
+	}
+	if err = sp.Reverse(); err != nil {
+		return nil, err
+	}
+	// Use the ingress address as the source host
+	sp.SrcIA = conf.C.IA
+	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
+	return sp, nil
+}
+
+func (r *Router) replyEgress(rp *rpkt.RPkt) (rpkt.EgressPair, *common.Error) {
+	if rp.DirFrom == rpkt.DirLocal {
+		locIdx := conf.C.Net.LocAddrMap[rp.Ingress.Dst.String()]
+		return rpkt.EgressPair{F: r.locOutFs[locIdx], Dst: rp.Ingress.Src}, nil
+	}
+	intf, err := rp.IFCurr()
+	if err != nil {
+		return rpkt.EgressPair{}, err
+	}
+	return rpkt.EgressPair{F: r.intfOutFs[*intf], Dst: rp.Ingress.Src}, nil
+}
+
+var validateErrorSCMP = map[string]scmp.ClassType{
+	rpkt.ErrorBadTotalLen: {scmp.C_CmnHdr, scmp.T_C_BadPktLen},
+}

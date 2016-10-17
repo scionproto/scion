@@ -29,8 +29,8 @@ import (
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 var (
@@ -46,7 +46,7 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router) (rpkt.HookResult, *util.Error) {
+func setupHSRNetStart(r *Router) (rpkt.HookResult, *common.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
@@ -54,7 +54,7 @@ func setupHSRNetStart(r *Router) (rpkt.HookResult, *util.Error) {
 }
 
 func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
-	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
@@ -68,7 +68,7 @@ func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 }
 
 func setupHSRAddExt(r *Router, intf *netconf.Interface,
-	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
@@ -81,7 +81,7 @@ func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router) (rpkt.HookResult, *util.Error) {
+func setupHSRNetFinish(r *Router) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}

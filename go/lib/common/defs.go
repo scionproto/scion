@@ -14,6 +14,12 @@
 
 package common
 
+import (
+	"encoding/binary"
+)
+
 const (
 	LineLen = 8
 )
+
+var Order = binary.BigEndian

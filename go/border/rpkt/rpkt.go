@@ -15,7 +15,7 @@
 package rpkt
 
 import (
-	"encoding/binary"
+	"fmt"
 	"net"
 	"time"
 
@@ -23,21 +23,25 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
 )
+
+// FIXME(kormat): this should be reduced as soon as we respect the actual link MTU.
+const pktBufSize = 1 << 16
 
 var callbacks struct {
 	locOutFs   map[int]OutputFunc
 	intfOutFs  map[spath.IntfID]OutputFunc
 	ifStateUpd func(proto.IFStateInfos)
-	revTokenF  func(util.RawBytes)
+	revTokenF  func(common.RawBytes)
 }
 
 func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
-	ifStateUpd func(proto.IFStateInfos), revTokenF func(util.RawBytes)) {
+	ifStateUpd func(proto.IFStateInfos), revTokenF func(common.RawBytes)) {
 	callbacks.locOutFs = locOut
 	callbacks.intfOutFs = intfOut
 	callbacks.ifStateUpd = ifStateUpd
@@ -46,7 +50,8 @@ func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
 
 // Router representation of SCION packet, including metadata.
 type RPkt struct {
-	Raw       util.RawBytes
+	Id        string
+	Raw       common.RawBytes
 	TimeIn    time.Time
 	DirFrom   Dir
 	DirTo     Dir
@@ -63,14 +68,20 @@ type RPkt struct {
 	ifCurr    *spath.IntfID
 	ifNext    *spath.IntfID
 	upFlag    *bool
-	HBHExt    []Extension
-	E2EExt    []Extension
+	HBHExt    []RExtension
+	E2EExt    []RExtension
 	L4Type    common.L4ProtocolType
-	l4        L4Header
-	pld       interface{}
+	l4        l4.L4Header
+	pld       common.Payload
 	hooks     Hooks
 	SCMPError bool
 	log.Logger
+}
+
+func NewRPkt() *RPkt {
+	r := &RPkt{}
+	r.Raw = make(common.RawBytes, pktBufSize)
+	return r
 }
 
 type Dir int
@@ -132,8 +143,6 @@ type extnIdx struct {
 	Index int
 }
 
-var order = binary.BigEndian
-
 func (rp *RPkt) Reset() {
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
 	rp.DirFrom = DirUnset
@@ -159,4 +168,77 @@ func (rp *RPkt) Reset() {
 	rp.hooks = Hooks{}
 	rp.SCMPError = false
 	rp.Logger = nil
+}
+
+func (rp *RPkt) ToSPkt() (*spkt.SPkt, *common.Error) {
+	var err *common.Error
+	sp := &spkt.SPkt{}
+	if sp.SrcIA, err = rp.SrcIA(); err != nil {
+		return nil, err
+	}
+	if sp.SrcHost, err = rp.SrcHost(); err != nil {
+		return nil, err
+	}
+	if sp.DstIA, err = rp.DstIA(); err != nil {
+		return nil, err
+	}
+	if sp.DstHost, err = rp.DstHost(); err != nil {
+		return nil, err
+	}
+	sp.Path = &spath.Path{
+		Raw:    rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLen],
+		InfOff: rp.CmnHdr.CurrInfoF - uint8(rp.idxs.path),
+		HopOff: rp.CmnHdr.CurrHopF - uint8(rp.idxs.path),
+	}
+	for _, re := range rp.HBHExt {
+		se, err := re.GetExtn()
+		if err != nil {
+			return nil, err
+		}
+		sp.HBHExt = append(sp.HBHExt, se)
+	}
+	for _, re := range rp.E2EExt {
+		se, err := re.GetExtn()
+		if err != nil {
+			return nil, err
+		}
+		sp.E2EExt = append(sp.E2EExt, se)
+	}
+	if sp.L4, err = rp.L4Hdr(); err != nil {
+		return nil, err
+	}
+	if sp.Pld, err = rp.Payload(); err != nil {
+		return nil, err
+	}
+	return sp, nil
+}
+
+func (rp *RPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
+	switch blk {
+	case scmp.RawCmnHdr:
+		return rp.Raw[:spkt.CmnHdrLen]
+	case scmp.RawAddrHdr:
+		return rp.Raw[rp.idxs.srcIA:rp.idxs.path]
+	case scmp.RawPathHdr:
+		return rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLen]
+	case scmp.RawExtHdrs:
+		return rp.Raw[rp.CmnHdr.HdrLen:rp.idxs.l4]
+	case scmp.RawL4Hdr:
+		return rp.Raw[rp.idxs.l4:rp.idxs.pld]
+	}
+	rp.Crit("Invalid raw block requested", "blk", blk)
+	return nil
+}
+
+func (rp *RPkt) String() string {
+	// Pre-fetch required attributes
+	rp.SrcIA()
+	rp.SrcHost()
+	rp.DstIA()
+	rp.DstHost()
+	rp.InfoF()
+	rp.HopF()
+	return fmt.Sprintf("Dir from/to: %v/%v Src: %v %v Dst: %v %v\n"+
+		"  InfoF: %v\n  HopF: %v\n",
+		rp.DirFrom, rp.DirTo, rp.srcIA, rp.srcHost, rp.dstIA, rp.dstHost, rp.infoF, rp.hopF)
 }

@@ -25,13 +25,21 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-func Checksum(srcs ...util.RawBytes) uint16 {
+func Checksum(srcs ...common.RawBytes) uint16 {
 	chkin := C.mk_chk_input(C.int(len(srcs)))
 	for _, src := range srcs {
-		C.chk_add_chunk(chkin, (*C.uint8_t)(unsafe.Pointer(&src[0])), C.int(len(src)))
+		var sptr *C.uint8_t
+		slen := len(src)
+		if slen > 0 {
+			sptr = (*C.uint8_t)(unsafe.Pointer(&src[0]))
+		} else {
+			// Handle zero-length chunks (e.g. payload is empty)
+			sptr = nil
+		}
+		C.chk_add_chunk(chkin, sptr, C.int(slen))
 	}
 	val := uint16(C.ntohs(C.checksum(chkin)))
 	C.rm_chk_input(chkin)

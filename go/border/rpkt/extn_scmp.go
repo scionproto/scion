@@ -20,34 +20,34 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
-var _ Extension = (*SCMPExt)(nil)
+var _ RExtension = (*RSCMPExt)(nil)
 
-type SCMPExt struct {
-	rp       *RPkt
-	raw      util.RawBytes
-	Error    bool
-	HopByHop bool
+type RSCMPExt struct {
+	*scmp.Extn
+	rp  *RPkt
+	raw common.RawBytes
 	log.Logger
 }
 
-func SCMPExtFromRaw(rp *RPkt, start, end int) (*SCMPExt, *util.Error) {
-	s := &SCMPExt{rp: rp, raw: rp.Raw[start:end]}
-	flags := s.raw[3] // Index past ext subheader
-	s.Error = (flags & 0x01) != 0
-	s.HopByHop = (flags & 0x02) != 0
+func RSCMPExtFromRaw(rp *RPkt, start, end int) (*RSCMPExt, *common.Error) {
+	var err *common.Error
+	s := &RSCMPExt{rp: rp, raw: rp.Raw[start:end]}
+	s.Extn, err = scmp.ExtnFromRaw(s.raw)
+	if err != nil {
+		return nil, err
+	}
 	s.Logger = rp.Logger.New("ext", "scmp")
-	s.Debug("SCMP extension found", "error", s.Error, "hopbyhop", s.HopByHop)
-	if s.Error {
+	if s.Extn.Error {
 		// SCMP Errors should never generate an error response.
 		rp.SCMPError = true
 	}
 	return s, nil
 }
 
-func (s *SCMPExt) RegisterHooks(h *Hooks) *util.Error {
+func (s *RSCMPExt) RegisterHooks(h *Hooks) *common.Error {
 	if s.HopByHop {
 		h.Payload = append(h.Payload, s.rp.parseSCMPPayload)
 		h.Process = append(h.Process, s.rp.processSCMP)
@@ -55,6 +55,19 @@ func (s *SCMPExt) RegisterHooks(h *Hooks) *util.Error {
 	return nil
 }
 
-func (s *SCMPExt) String() string {
-	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v", common.LineLen, s.Error, s.HopByHop)
+func (s *RSCMPExt) Type() common.ExtnType {
+	return common.ExtnSCMPType
+}
+
+func (s *RSCMPExt) Len() int {
+	return common.LineLen
+}
+
+func (s *RSCMPExt) String() string {
+	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v",
+		common.LineLen, s.Extn.Error, s.Extn.HopByHop)
+}
+
+func (s *RSCMPExt) GetExtn() (common.Extension, *common.Error) {
+	return s.Extn, nil
 }

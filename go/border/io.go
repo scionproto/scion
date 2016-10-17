@@ -37,9 +37,7 @@ func (r *Router) getPktBuf() *rpkt.RPkt {
 	default:
 		// None available, allocate a new one
 		metrics.PktBufNew.Inc()
-		rp = new(rpkt.RPkt)
-		rp.Raw = make([]byte, pktBufSize)
-		return rp
+		return rpkt.NewRPkt()
 	}
 }
 
