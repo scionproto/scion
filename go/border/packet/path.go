@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/path"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
@@ -42,7 +42,7 @@ func (p *Packet) validatePath(dirFrom Dir) *util.Error {
 		return util.NewError(ErrorHopFieldVerifyOnly)
 	}
 	hopfExpiry := p.infoF.Timestamp().Add(
-		time.Duration(p.hopF.ExpTime) * path.ExpTimeUnit * time.Second)
+		time.Duration(p.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
 		return util.NewError(ErrorHopFieldExpired, "expiry", hopfExpiry)
 	}
@@ -53,7 +53,7 @@ func (p *Packet) validatePath(dirFrom Dir) *util.Error {
 	return p.hopF.Verify(conf.C.HFGenBlock, p.infoF.TsInt, prevHopF)
 }
 
-func (p *Packet) InfoF() (*path.InfoField, *util.Error) {
+func (p *Packet) InfoF() (*spath.InfoField, *util.Error) {
 	if p.infoF == nil {
 		for _, f := range p.hooks.Infof {
 			ret, infof, err := f()
@@ -76,7 +76,7 @@ func (p *Packet) InfoF() (*path.InfoField, *util.Error) {
 				"max", p.CmnHdr.HdrLen, "actual", p.CmnHdr.CurrInfoF)
 		case p.CmnHdr.CurrInfoF < p.CmnHdr.HdrLen:
 			var err *util.Error
-			if p.infoF, err = path.InfoFFromRaw(p.Raw[p.CmnHdr.CurrInfoF:]); err != nil {
+			if p.infoF, err = spath.InfoFFromRaw(p.Raw[p.CmnHdr.CurrInfoF:]); err != nil {
 				return nil, err
 			}
 		}
@@ -84,7 +84,7 @@ func (p *Packet) InfoF() (*path.InfoField, *util.Error) {
 	return p.infoF, nil
 }
 
-func (p *Packet) HopF() (*path.HopField, *util.Error) {
+func (p *Packet) HopF() (*spath.HopField, *util.Error) {
 	if p.hopF == nil {
 		for _, f := range p.hooks.HopF {
 			ret, hopf, err := f()
@@ -106,7 +106,7 @@ func (p *Packet) HopF() (*path.HopField, *util.Error) {
 				"min", p.CmnHdr.CurrInfoF+spkt.LineLen, "actual", p.CmnHdr.CurrHopF)
 		case p.CmnHdr.CurrHopF < p.CmnHdr.HdrLen:
 			var err *util.Error
-			if p.hopF, err = path.HopFFromRaw(p.Raw[p.CmnHdr.CurrHopF:]); err != nil {
+			if p.hopF, err = spath.HopFFromRaw(p.Raw[p.CmnHdr.CurrHopF:]); err != nil {
 				return nil, err
 			}
 		case p.CmnHdr.CurrHopF > p.CmnHdr.HdrLen:
@@ -179,7 +179,7 @@ func (p *Packet) hopFVerFromRaw(offset int) util.RawBytes {
 
 func (p *Packet) incPath() *util.Error {
 	var err *util.Error
-	var hopF *path.HopField
+	var hopF *spath.HopField
 	infoF := p.infoF
 	iOff := p.CmnHdr.CurrInfoF
 	hOff := p.CmnHdr.CurrHopF
@@ -188,12 +188,12 @@ func (p *Packet) incPath() *util.Error {
 		if hOff-iOff > infoF.Hops*spkt.LineLen {
 			// Switch to next segment
 			iOff = hOff
-			if infoF, err = path.InfoFFromRaw(p.Raw[iOff:]); err != nil {
+			if infoF, err = spath.InfoFFromRaw(p.Raw[iOff:]); err != nil {
 				return err
 			}
 			continue
 		}
-		if hopF, err = path.HopFFromRaw(p.Raw[hOff:]); err != nil {
+		if hopF, err = spath.HopFFromRaw(p.Raw[hOff:]); err != nil {
 			return err
 		}
 		if !hopF.VerifyOnly {
@@ -243,7 +243,7 @@ func (p *Packet) UpFlag() (*bool, *util.Error) {
 	return p.upFlag, nil
 }
 
-func (p *Packet) IFCurr() (*path.IntfID, *util.Error) {
+func (p *Packet) IFCurr() (*spath.IntfID, *util.Error) {
 	if p.ifCurr != nil {
 		return p.ifCurr, nil
 	}
@@ -294,7 +294,7 @@ func (p *Packet) IFCurr() (*path.IntfID, *util.Error) {
 	return p.ifCurr, nil
 }
 
-func (p *Packet) IFNext() (*path.IntfID, *util.Error) {
+func (p *Packet) IFNext() (*spath.IntfID, *util.Error) {
 	if p.ifNext == nil && p.upFlag != nil {
 		var err *util.Error
 		if p.ifNext, err = p.hookIF(*p.upFlag, p.hooks.IFNext); err != nil {
@@ -311,7 +311,7 @@ func (p *Packet) IFNext() (*path.IntfID, *util.Error) {
 	return p.ifNext, nil
 }
 
-func (p *Packet) hookIF(up bool, hooks []HookIntf) (*path.IntfID, *util.Error) {
+func (p *Packet) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *util.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, p.DirFrom, p.DirTo)
 		switch {

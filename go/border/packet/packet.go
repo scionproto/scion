@@ -21,8 +21,8 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
@@ -30,12 +30,12 @@ import (
 
 var callbacks struct {
 	locOutFs   map[int]OutputFunc
-	intfOutFs  map[path.IntfID]OutputFunc
+	intfOutFs  map[spath.IntfID]OutputFunc
 	ifStateUpd func(proto.IFStateInfos)
 	revTokenF  func(util.RawBytes)
 }
 
-func Init(locOut map[int]OutputFunc, intfOut map[path.IntfID]OutputFunc,
+func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
 	ifStateUpd func(proto.IFStateInfos), revTokenF func(util.RawBytes)) {
 	callbacks.locOutFs = locOut
 	callbacks.intfOutFs = intfOut
@@ -56,10 +56,10 @@ type Packet struct {
 	srcHost   addr.HostAddr
 	dstIA     *addr.ISD_AS
 	dstHost   addr.HostAddr
-	infoF     *path.InfoField
-	hopF      *path.HopField
-	ifCurr    *path.IntfID
-	ifNext    *path.IntfID
+	infoF     *spath.InfoField
+	hopF      *spath.HopField
+	ifCurr    *spath.IntfID
+	ifNext    *spath.IntfID
 	upFlag    *bool
 	HBHExt    []Extension
 	E2EExt    []Extension
