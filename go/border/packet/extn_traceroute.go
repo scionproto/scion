@@ -23,7 +23,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -45,14 +45,14 @@ const (
 	ErrorTooManyEntries = "Header claims too many entries"
 )
 
-var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", spkt.LineLen)
+var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
 func TracerouteFromRaw(p *Packet, start, end int) (*Traceroute, *util.Error) {
 	t := &Traceroute{p: p, raw: p.Raw[start:end]}
 	// Index past ext subheader:
 	t.NumHops = t.raw[3]
 	// Ignore subheader line:
-	t.TotalHops = uint8(len(t.raw)/spkt.LineLen) - 1
+	t.TotalHops = uint8(len(t.raw)/common.LineLen) - 1
 	t.Logger = p.Logger.New("ext", "traceroute")
 	return t, nil
 }
@@ -62,7 +62,7 @@ func (t *Traceroute) Add(entry *TracerouteEntry) *util.Error {
 		return util.NewError(ErrorHdrFull, log.Ctx{"entries": t.NumHops})
 	}
 	t.NumHops += 1
-	offset := spkt.LineLen * t.NumHops
+	offset := common.LineLen * t.NumHops
 	entry.IA.Write(t.raw[offset:])
 	offset += addr.IABytes
 	order.PutUint16(t.raw[offset:], entry.IfID)
@@ -76,7 +76,7 @@ func (t *Traceroute) Entry(idx int) (*TracerouteEntry, *util.Error) {
 		return nil, util.NewError(ErrorIdx, "idx", idx, "max", t.NumHops-1)
 	}
 	entry := TracerouteEntry{}
-	offset := spkt.LineLen * (idx + 1)
+	offset := common.LineLen * (idx + 1)
 	entry.IA = *addr.IAFromRaw(t.raw[offset:])
 	offset += addr.IABytes
 	entry.IfID = order.Uint16(t.raw[offset:])
@@ -92,7 +92,7 @@ func (t *Traceroute) RegisterHooks(h *Hooks) *util.Error {
 }
 
 func (t *Traceroute) Validate() (HookResult, *util.Error) {
-	if len(t.raw)%spkt.LineLen != 0 {
+	if len(t.raw)%common.LineLen != 0 {
 		return HookError, util.NewError(ErrorLenMultiple, "len", len(t.raw))
 	}
 	if t.NumHops > t.TotalHops {

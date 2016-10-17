@@ -18,10 +18,10 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/border/scmp"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -40,23 +40,23 @@ func (p *Packet) L4Hdr() (L4Header, *util.Error) {
 			return nil, err
 		}
 		switch p.L4Type {
-		case spkt.L4SCMP:
+		case common.L4SCMP:
 			scmpHdr, err := scmp.HdrFromRaw(p.Raw[p.idxs.l4:])
 			if err != nil {
 				return nil, err
 			}
 			p.l4 = scmpHdr
 			p.idxs.pld = p.idxs.l4 + scmp.HdrLen
-		case spkt.L4UDP:
+		case common.L4UDP:
 			udp, err := l4.UDPFromRaw(p.Raw[p.idxs.l4:])
 			if err != nil {
 				return nil, err
 			}
 			p.l4 = udp
 			p.idxs.pld = p.idxs.l4 + l4.UDPLen
-		case spkt.L4SSP:
+		case common.L4SSP:
 			p.l4 = &l4.SSP{}
-		case spkt.L4TCP:
+		case common.L4TCP:
 			p.l4 = &l4.TCP{}
 		default:
 			return nil, util.NewError(ErrorL4Unsupported, "type", p.L4Type)
@@ -73,16 +73,16 @@ func (p *Packet) findL4() (bool, *util.Error) {
 	offset := p.idxs.nextHdrIdx.Index
 	for offset < len(p.Raw) {
 		currHdr := nextHdr
-		_, ok := spkt.L4Protocols[currHdr]
+		_, ok := common.L4Protocols[currHdr]
 		if ok { // Reached L4 protocol
 			p.L4Type = nextHdr
 			p.idxs.l4 = offset
 			break
 		}
-		currExtn := spkt.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
-		hdrLen := int((p.Raw[offset+1] + 1) * spkt.LineLen)
+		currExtn := common.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
+		hdrLen := int((p.Raw[offset+1] + 1) * common.LineLen)
 		p.idxs.e2eExt = append(p.idxs.e2eExt, extnIdx{currExtn, offset})
-		nextHdr = spkt.L4ProtoType(p.Raw[offset])
+		nextHdr = common.L4ProtoType(p.Raw[offset])
 		offset += hdrLen
 	}
 	if offset > len(p.Raw) {

@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -32,7 +33,7 @@ type CmnHdr struct {
 	TotalLen  uint16
 	CurrInfoF uint8
 	CurrHopF  uint8
-	NextHdr   L4ProtoType
+	NextHdr   common.L4ProtoType
 	HdrLen    uint8
 }
 
@@ -64,7 +65,7 @@ func (c *CmnHdr) Parse(b util.RawBytes) *util.Error {
 	offset += 1
 	c.CurrHopF = b[offset]
 	offset += 1
-	c.NextHdr = L4ProtoType(b[offset])
+	c.NextHdr = common.L4ProtoType(b[offset])
 	offset += 1
 	c.HdrLen = b[offset]
 	return nil

@@ -19,13 +19,13 @@ import (
 
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
 func (p *Packet) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
-	if p.L4Type != spkt.L4UDP {
+	if p.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
 	rawPld := p.Raw[p.idxs.pld:]

@@ -19,7 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -56,5 +56,5 @@ func (s *SCMPExt) RegisterHooks(h *Hooks) *util.Error {
 }
 
 func (s *SCMPExt) String() string {
-	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v", spkt.LineLen, s.Error, s.HopByHop)
+	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v", common.LineLen, s.Error, s.HopByHop)
 }

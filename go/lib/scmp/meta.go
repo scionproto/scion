@@ -20,7 +20,7 @@ import (
 
 	"gopkg.in/restruct.v1"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -31,7 +31,7 @@ type Meta struct {
 	PathHdrLen uint8
 	ExtHdrsLen uint8
 	L4HdrLen   uint8
-	L4Proto    spkt.L4ProtoType
+	L4Proto    common.L4ProtoType
 }
 
 const (

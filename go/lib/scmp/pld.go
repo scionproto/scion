@@ -20,7 +20,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -44,14 +44,14 @@ func PldFromRaw(b util.RawBytes, hdr *Hdr) (*Payload, *util.Error) {
 	if p.Meta, err = MetaFromRaw(buf.Next(MetaLen)); err != nil {
 		return nil, err
 	}
-	if err = p.parseInfo(buf.Next(int(p.Meta.InfoLen) * spkt.LineLen)); err != nil {
+	if err = p.parseInfo(buf.Next(int(p.Meta.InfoLen) * common.LineLen)); err != nil {
 		return nil, err
 	}
-	p.CmnHdr = buf.Next(int(p.Meta.CmnHdrLen) * spkt.LineLen)
-	p.AddrHdr = buf.Next(int(p.Meta.AddrHdrLen) * spkt.LineLen)
-	p.PathHdr = buf.Next(int(p.Meta.PathHdrLen) * spkt.LineLen)
-	p.ExtHdrs = buf.Next(int(p.Meta.ExtHdrsLen) * spkt.LineLen)
-	p.L4Hdr = buf.Next(int(p.Meta.L4HdrLen) * spkt.LineLen)
+	p.CmnHdr = buf.Next(int(p.Meta.CmnHdrLen) * common.LineLen)
+	p.AddrHdr = buf.Next(int(p.Meta.AddrHdrLen) * common.LineLen)
+	p.PathHdr = buf.Next(int(p.Meta.PathHdrLen) * common.LineLen)
+	p.ExtHdrs = buf.Next(int(p.Meta.ExtHdrsLen) * common.LineLen)
+	p.L4Hdr = buf.Next(int(p.Meta.L4HdrLen) * common.LineLen)
 	log.Debug("PldFromRaw", "pld", p)
 	return p, nil
 }

@@ -20,12 +20,12 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
-	InfoFieldLength    = spkt.LineLen
+	InfoFieldLength    = common.LineLen
 	ErrorInfoFTooShort = "InfoF too short"
 )
 

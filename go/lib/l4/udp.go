@@ -20,8 +20,8 @@ import (
 
 	"gopkg.in/restruct.v1"
 
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/libscion"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -67,7 +67,7 @@ func (u *UDP) CalcChecksum(srcAddr, dstAddr, pld util.RawBytes) (util.RawBytes, 
 	// Zero checksum
 	hdr[6] = 0
 	hdr[7] = 0
-	sum := libscion.Checksum(srcAddr, dstAddr, []byte{byte(spkt.L4UDP)}, hdr, pld)
+	sum := libscion.Checksum(srcAddr, dstAddr, []byte{byte(common.L4UDP)}, hdr, pld)
 	order.PutUint16(out, sum)
 	return out, nil
 }
