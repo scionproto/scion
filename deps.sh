@@ -70,8 +70,12 @@ cmd_golang() {
         # testing building Go code inside docker.
         sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang-1.6 git
     fi
+    echo "Installing go tools"
+    go get -v $(<go/deps.txt)
+    echo "Installing managed go dependencies (via trash)"
+    trash -C go
     echo "Installing go dependencies"
-    go get -v $(tools/godeps.py) $(<go/deps.txt)
+    go get -v $(tools/godeps.py)
     echo "Copying go-capnproto2's go.capnp into proto/"
     local srcdir=$(go list -f "{{.Dir}}" zombiezen.com/go/capnproto2)
     cp ${srcdir:?}/std/go.capnp proto/go.capnp
