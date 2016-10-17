@@ -15,7 +15,7 @@
 package proto
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -26,22 +26,22 @@ const (
 	ErrorPathSegHopF    = "Unable to get Hop Field from PCB Marking"
 )
 
-func (s PCBMarking) HopF() (util.RawBytes, *util.Error) {
+func (s PCBMarking) HopF() (common.RawBytes, *common.Error) {
 	rawH, err := s.Hof()
 	if err != nil {
-		return nil, util.NewError(ErrorPathSegHopF, "err", err)
+		return nil, common.NewError(ErrorPathSegHopF, "err", err)
 	}
 	return rawH, nil
 }
 
-func (s ASMarking) PCBM(idx int) (*PCBMarking, *util.Error) {
+func (s ASMarking) PCBM(idx int) (*PCBMarking, *common.Error) {
 	pcbms, err := s.Pcbms()
 	if err != nil {
-		return nil, util.NewError(ErrorPathSegPCBMs, "err", err)
+		return nil, common.NewError(ErrorPathSegPCBMs, "err", err)
 	}
 	maxIdx := pcbms.Len() - 1
 	if idx < -1 || idx > maxIdx {
-		return nil, util.NewError(ErrorPathSegASMIdx, "max", maxIdx, "actual", idx)
+		return nil, common.NewError(ErrorPathSegASMIdx, "max", maxIdx, "actual", idx)
 	}
 	if idx == -1 {
 		idx = maxIdx
@@ -50,14 +50,14 @@ func (s ASMarking) PCBM(idx int) (*PCBMarking, *util.Error) {
 	return &pcbm, nil
 }
 
-func (s PathSegment) ASM(idx int) (*ASMarking, *util.Error) {
+func (s PathSegment) ASM(idx int) (*ASMarking, *common.Error) {
 	asms, err := s.Asms()
 	if err != nil {
-		return nil, util.NewError(ErrorPathSegASMs, "err", err)
+		return nil, common.NewError(ErrorPathSegASMs, "err", err)
 	}
 	maxIdx := asms.Len() - 1
 	if idx < -1 || idx > maxIdx {
-		return nil, util.NewError(ErrorPathSegASMIdx, "max", maxIdx, "actual", idx)
+		return nil, common.NewError(ErrorPathSegASMIdx, "max", maxIdx, "actual", idx)
 	}
 	if idx == -1 {
 		idx = maxIdx
@@ -66,7 +66,7 @@ func (s PathSegment) ASM(idx int) (*ASMarking, *util.Error) {
 	return &asm, nil
 }
 
-func (s PathSegment) LastHopF() (util.RawBytes, *util.Error) {
+func (s PathSegment) LastHopF() (common.RawBytes, *common.Error) {
 	asm, err := s.ASM(-1)
 	if err != nil {
 		return nil, err

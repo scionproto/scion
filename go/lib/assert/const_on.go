@@ -12,31 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+// +build assert
 
-import (
-	"fmt"
+package assert
 
-	"github.com/kormat/fmt15"
-)
-
-type Error struct {
-	Desc string
-	Ctx  fmt15.FCtx
-}
-
-func NewError(desc string, ctx ...interface{}) *Error {
-	e := &Error{Desc: desc}
-	e.Ctx = make(fmt15.FCtx, 0, len(ctx)+2)
-	e.Ctx = append(e.Ctx, fmt15.FCtx{"desc", desc}...)
-	e.Ctx = append(e.Ctx, ctx...)
-	return e
-}
-
-func (e Error) String() string {
-	return fmt.Sprintf("%+v", e.Ctx)
-}
-
-func (e Error) Error() string {
-	return e.String()
-}
+const On = true

@@ -18,28 +18,32 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
-type OneHopPath struct {
+var _ RExtension = (*ROneHopPath)(nil)
+
+type ROneHopPath struct {
 	log.Logger
-	rp *RPkt
+	rp *RtrPkt
+	spkt.OneHopPath
 }
 
-func OneHopPathFromRaw(rp *RPkt) (*OneHopPath, *util.Error) {
-	o := &OneHopPath{rp: rp}
+func ROneHopPathFromRaw(rp *RtrPkt) (*ROneHopPath, *common.Error) {
+	o := &ROneHopPath{rp: rp}
 	o.Logger = rp.Logger.New("ext", "OneHopPath")
 	o.rp = rp
 	return o, nil
 }
 
-func (o *OneHopPath) RegisterHooks(hooks *Hooks) *util.Error {
+func (o *ROneHopPath) RegisterHooks(hooks *Hooks) *common.Error {
 	hooks.HopF = append(hooks.HopF, o.HopF)
 	return nil
 }
 
-func (o *OneHopPath) HopF() (HookResult, *spath.HopField, *util.Error) {
+func (o *ROneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	if o.rp.DirFrom == DirLocal {
 		return HookContinue, nil, nil
 	}
@@ -60,6 +64,18 @@ func (o *OneHopPath) HopF() (HookResult, *spath.HopField, *util.Error) {
 	return HookContinue, nil, nil
 }
 
-func (o *OneHopPath) String() string {
+func (o *ROneHopPath) Type() common.ExtnType {
+	return common.ExtnOneHopPathType
+}
+
+func (o *ROneHopPath) Len() int {
+	return common.LineLen
+}
+
+func (o *ROneHopPath) String() string {
 	return "OneHopPath"
+}
+
+func (o *ROneHopPath) GetExtn() (common.Extension, *common.Error) {
+	return &o.OneHopPath, nil
 }

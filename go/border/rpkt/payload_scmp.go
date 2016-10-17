@@ -15,12 +15,14 @@
 package rpkt
 
 import (
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func (rp *RPkt) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
-	pld, err := scmp.PldFromRaw(rp.Raw[rp.idxs.pld:], rp.l4.(*scmp.Hdr))
+func (rp *RtrPkt) parseSCMPPayload() (HookResult, common.Payload, *common.Error) {
+	hdr := rp.l4.(*scmp.Hdr)
+	pld, err := scmp.PldFromRaw(rp.Raw[rp.idxs.pld:],
+		scmp.ClassType{Class: hdr.Class, Type: hdr.Type})
 	if err != nil {
 		return HookError, nil, err
 	}
