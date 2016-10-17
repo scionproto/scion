@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	CmnHdrLen = 8
+	CmnHdrLen    = 8
+	SCIONVersion = 0
 )
 
 type CmnHdr struct {
@@ -37,8 +38,7 @@ type CmnHdr struct {
 }
 
 const (
-	ErrorUnpackCmnHdr = "Error unpacking common header"
-	ErrorPackCmnHdr   = "Error packing common header"
+	ErrorUnsuppVersion = "Unsupported SCION version"
 )
 
 var order = binary.BigEndian
@@ -67,6 +67,9 @@ func (c *CmnHdr) Parse(b util.RawBytes) *util.Error {
 	c.NextHdr = L4ProtoType(b[offset])
 	offset += 1
 	c.HdrLen = b[offset]
+	if c.Ver != SCIONVersion {
+		return util.NewError(ErrorUnsuppVersion, "expected", SCIONVersion, "actual", c.Ver)
+	}
 	return nil
 }
 
