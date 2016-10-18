@@ -83,8 +83,7 @@ class PCBMarking(Cerealizable):
         s = []
         s.append("%s: From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
                  (self.NAME, self.inIA(), self.p.inIF, self.outIA(),
-                  self.p.outIF,
-                  self.p.inMTU))
+                  self.p.outIF, self.p.inMTU))
         s.append("  %s" % self.hof())
         return "\n".join(s)
 
