@@ -133,8 +133,9 @@ class CorePathServer(PathServer):
         if not added:
             return set()
         # Send pending requests that couldn't be processed due to the lack of
-        # a core segment to the destination PS.
-        self._handle_waiting_targets(pcb, reverse=reverse)
+        # a core segment to the destination PS. Don't use SIBRA PCBs for that.
+        if not reverse:
+            self._handle_waiting_targets(pcb)
         ret = set([(first_ia, pcb.is_sibra())])
         if first_ia[0] != self.addr.isd_as[0]:
             # Remote core segment, signal the entire ISD
