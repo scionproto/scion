@@ -322,13 +322,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not self.is_core_as(dst_ia):
             logging.warning("Invalid waiting target, not a core AS: %s", dst_ia)
             return
-        self._send_waiting_queries(dst_ia[0], pcb, not reverse)
+        self._send_waiting_queries(dst_ia[0], pcb)
 
-    def _send_waiting_queries(self, dst_isd, pcb, reverse_path):
+    def _send_waiting_queries(self, dst_isd, pcb):
         targets = self.waiting_targets[dst_isd]
         if not targets:
             return
-        path = pcb.get_path(reverse_direction=reverse_path)
+        path = pcb.get_path(reverse_direction=True)
         src_ia = pcb.first_ia()
         while targets:
             seg_req = targets.pop(0)
