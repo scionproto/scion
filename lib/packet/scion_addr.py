@@ -43,6 +43,8 @@ class ISD_AS(Serializable):
     def _parse(self, raw):  # pragma: no cover
         if isinstance(raw, bytes):
             self._parse_bytes(raw)
+        elif isinstance(raw, int):
+            self._parse_int(raw)
         else:
             self._parse_str(raw)
 
@@ -54,8 +56,7 @@ class ISD_AS(Serializable):
         """
         data = Raw(raw, self.NAME, self.LEN)
         isd_as = struct.unpack("!I", data.pop())[0]
-        self._isd = isd_as >> 20
-        self._as = isd_as & 0x000fffff
+        self._parse_int(isd_as)
 
     def _parse_str(self, raw):
         """
@@ -70,6 +71,14 @@ class ISD_AS(Serializable):
             self._as = int(as_)
         except ValueError:
             raise SCIONParseError("Unable to parse AS from string: %s", raw)
+
+    def _parse_int(self, raw):
+        """
+        :param int raw: a 32bit int containing the ISD ID in the 12 MSBs and the
+            AS ID in the remaining 20 bits.
+        """
+        self._isd = raw >> 20
+        self._as = raw & 0x000fffff
 
     @classmethod
     def from_values(cls, isd, as_):  # pragma: no cover

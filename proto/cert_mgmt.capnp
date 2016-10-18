@@ -4,7 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct CertChainReq {
-    isdas @0 :Text;
+    isdas @0 :UInt32;
     version @1 :UInt32;
 }
 
@@ -13,7 +13,7 @@ struct CertChainRep {
 }
 
 struct TRCReq {
-    isdas @0 :Text;
+    isdas @0 :UInt32;
     version @1 :UInt32;
 }
 

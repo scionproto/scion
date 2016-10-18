@@ -4,7 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct ZkId {
-    isdas @0 :Text;
+    isdas @0 :UInt32;
     id @1 :Text;
     addrs @2 :List(Addr);
 }
