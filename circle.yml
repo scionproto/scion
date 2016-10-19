@@ -30,8 +30,8 @@ dependencies:
     override:
         - docker/cache.sh restore
         - mv ~/cache ~/cache.old; mkdir ~/cache
-        - ./deps.sh golang
         - sudo apt-get install -y clang-3.4 capnproto
+        - ./deps.sh golang
         - make -s go
         - ./docker.sh build
         - docker/cache.sh save
