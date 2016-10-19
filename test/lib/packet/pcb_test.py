@@ -43,7 +43,6 @@ class TestPCBMarkingSigPack(object):
     """
     Unit tests for lib.packet.pcb.PCBMarking.sig_pack
     """
-
     def test_6(self):
         inst = PCBMarking(mk_pcbm_p())
         expected = b"".join([
@@ -81,7 +80,6 @@ class TestASMarkingSigPack(object):
     """
     Unit tests for lib.packet.pcb.ASMarking.sig_pack
     """
-
     def test_9(self):
         pcbms = []
         for i in range(3):
@@ -123,7 +121,6 @@ class TestPathSegmentGetPath(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_path
     """
-
     def _setup(self):
         asms = []
         for i in range(3):

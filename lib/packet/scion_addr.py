@@ -36,8 +36,8 @@ class ISD_AS(Serializable):
     LEN = 4
 
     def __init__(self, raw=None):
-        self._isd = None
-        self._as = None
+        self._isd = 0
+        self._as = 0
         super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
@@ -117,6 +117,9 @@ class ISD_AS(Serializable):
             raise SCIONIndexError("Invalid index used on %s object: %s" % (
                                   (self.NAME, idx)))
 
+    def __int__(self):  # pragma: no cover
+        return self.int()
+
     def __iter__(self):  # pragma: no cover
         yield self._isd
         yield self._as
@@ -138,7 +141,7 @@ class SCIONAddr(object):
     """
     Class for complete SCION addresses.
 
-    :ivar int isd_as: ISD-AS identifier.
+    :ivar ISD_AS isd_as: ISD-AS identifier.
     :ivar HostAddrBase host: host address.
     :ivar int addr_len: address length.
     """

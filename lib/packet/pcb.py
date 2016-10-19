@@ -48,8 +48,8 @@ class PCBMarking(Cerealizable):
     def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid,
                     hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
-            inIA=in_ia, inIF=in_ifid, inMTU=in_mtu,
-            outIA=out_ia, outIF=out_ifid, hof=hof.pack()))
+            inIA=int(in_ia), inIF=in_ifid, inMTU=in_mtu,
+            outIA=int(out_ia), outIF=out_ifid, hof=hof.pack()))
 
     def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
@@ -96,7 +96,7 @@ class ASMarking(Cerealizable):
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
                     cert_chain, ifid_size=12):
         p = cls.P_CLS.new_message(
-            isdas=isd_as, trcVer=trc_ver, certVer=cert_ver,
+            isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
             ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
             chain=cert_chain.pack(lz4_=True))
         p.init("pcbms", len(pcbms))
