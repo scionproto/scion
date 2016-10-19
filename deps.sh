@@ -74,11 +74,13 @@ cmd_golang() {
     go get -v $(<go/deps.txt)
     echo "Installing managed go dependencies (via trash)"
     trash -C go
-    echo "Installing go dependencies"
-    go get -v $(tools/godeps.py)
     echo "Copying go-capnproto2's go.capnp into proto/"
     local srcdir=$(go list -f "{{.Dir}}" zombiezen.com/go/capnproto2)
     cp ${srcdir:?}/std/go.capnp proto/go.capnp
+    echo "Generating go capnp code"
+    make goproto
+    echo "Installing go dependencies"
+    go get -v $(tools/godeps.py)
 }
 
 chk_go() {
