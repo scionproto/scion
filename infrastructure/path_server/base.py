@@ -312,13 +312,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _handle_waiting_targets(self, pcb, reverse=False):
+    def _handle_waiting_targets(self, pcb):
         """
         Handle any queries that are waiting for a path to any core AS in an ISD.
         """
         dst_ia = pcb.first_ia()
-        if reverse:
-            dst_ia = pcb.last_ia()
         if not self.is_core_as(dst_ia):
             logging.warning("Invalid waiting target, not a core AS: %s", dst_ia)
             return

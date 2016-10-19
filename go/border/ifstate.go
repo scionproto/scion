@@ -23,9 +23,9 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/packet"
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -77,10 +77,10 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 		return
 	}
 	// Convert to map
-	m := make(map[path.IntfID]proto.IFStateInfo)
+	m := make(map[spath.IntfID]proto.IFStateInfo)
 	for i := 0; i < infos.Len(); i++ {
 		info := infos.At(i)
-		ifid := path.IntfID(info.IfID())
+		ifid := spath.IntfID(info.IfID())
 		m[ifid] = info
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
 		if info.Active() {

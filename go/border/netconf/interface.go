@@ -17,28 +17,28 @@ package netconf
 import (
 	"net"
 
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 type NetConf struct {
 	LocAddr        []*overlay.UDP
-	IFs            map[path.IntfID]*Interface
-	LocAddrMap     map[string]int           // Map of local address string to LocAddr index
-	IFAddrMap      map[string]path.IntfID   // Map of external address string to interface ID
-	LocAddrIFIDMap map[string][]path.IntfID // Map of local address string to interface ID(s)
+	IFs            map[spath.IntfID]*Interface
+	LocAddrMap     map[string]int            // Map of local address string to LocAddr index
+	IFAddrMap      map[string]spath.IntfID   // Map of external address string to interface ID
+	LocAddrIFIDMap map[string][]spath.IntfID // Map of local address string to interface ID(s)
 }
 
 func FromTopo(t *topology.TopoBR) *NetConf {
 	// TODO(kormat): support multiple internal and external addresses
 	n := &NetConf{}
 	n.LocAddr = append(n.LocAddr, overlay.NewUDP(t.BasicElem.Addr.IP, t.BasicElem.Port))
-	n.IFs = make(map[path.IntfID]*Interface)
+	n.IFs = make(map[spath.IntfID]*Interface)
 	n.LocAddrMap = make(map[string]int)
-	n.IFAddrMap = make(map[string]path.IntfID)
-	n.LocAddrIFIDMap = make(map[string][]path.IntfID)
+	n.IFAddrMap = make(map[string]spath.IntfID)
+	n.LocAddrIFIDMap = make(map[string][]spath.IntfID)
 	x := intfFromTopoIF(t.IF)
 	n.IFs[x.Id] = x
 	for i, addr := range n.LocAddr {
@@ -52,13 +52,13 @@ func FromTopo(t *topology.TopoBR) *NetConf {
 	return n
 }
 
-func (n *NetConf) IntfLocalAddr(ifid path.IntfID) *overlay.UDP {
+func (n *NetConf) IntfLocalAddr(ifid spath.IntfID) *overlay.UDP {
 	intf := n.IFs[ifid]
 	return n.LocAddr[intf.LocAddrIdx]
 }
 
 type Interface struct {
-	Id         path.IntfID
+	Id         spath.IntfID
 	LocAddrIdx int
 	IFAddr     *overlay.UDP
 	RemoteAddr *net.UDPAddr
@@ -70,7 +70,7 @@ type Interface struct {
 
 func intfFromTopoIF(t *topology.TopoIF) *Interface {
 	intf := Interface{}
-	intf.Id = path.IntfID(t.IFID)
+	intf.Id = spath.IntfID(t.IFID)
 	// FIXME(kormat): to be changed when the topo format is updated.
 	intf.LocAddrIdx = 0
 	intf.IFAddr = overlay.NewUDP(t.Addr.IP, t.UdpPort)

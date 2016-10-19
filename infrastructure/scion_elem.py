@@ -451,7 +451,7 @@ class SCIONElement(object):
                                  meta.ia, msg, dst_port)
         if not next_hop_port:
             next_hop_port = self.get_first_hop(pkt)
-        if not next_hop_port:
+        if next_hop_port == (None, None):
             logging.error("Can't find first hop, dropping packet\n%s", pkt)
             return False
         return self.send(pkt, *next_hop_port)

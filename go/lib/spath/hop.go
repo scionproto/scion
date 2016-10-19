@@ -12,72 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package path
+package spath
 
 import (
 	"bytes"
 	"crypto/cipher"
-	"encoding/binary"
 	"fmt"
-	"time"
 
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
-
-type IntfID uint16
-
-type InfoField struct {
-	Up       bool
-	Shortcut bool
-	Peer     bool
-	TsInt    uint32
-	ISD      uint16
-	Hops     uint8
-}
-
-const (
-	MaxTTL      = 24 * 60 * 60 // One day in seconds
-	ExpTimeUnit = MaxTTL / 2 << 8
-	macInputLen = 16
-)
-
-var order = binary.BigEndian
-
-const (
-	ErrorInfoFTooShort = "InfoF too short"
-	ErrorHopFTooShort  = "HopF too short"
-	ErrorHopFBadMac    = "Bad HopF mac"
-)
-
-func InfoFFromRaw(b []byte) (*InfoField, *util.Error) {
-	if len(b) < spkt.LineLen {
-		return nil, util.NewError(ErrorInfoFTooShort, "min", spkt.LineLen, "actual", len(b))
-	}
-	inf := &InfoField{}
-	flags := b[0]
-	inf.Up = flags&0x1 != 0
-	inf.Shortcut = flags&0x2 != 0
-	inf.Peer = flags&0x4 != 0
-	offset := 1
-	inf.TsInt = order.Uint32(b[offset:])
-	offset += 4
-	inf.ISD = order.Uint16(b[offset:])
-	offset += 2
-	inf.Hops = b[offset]
-	return inf, nil
-}
-
-func (inf *InfoField) String() string {
-	return fmt.Sprintf("ISD: %v TS: %v Hops: %v Up: %v Shortcut: %v Peer: %v",
-		inf.ISD, inf.Timestamp(), inf.Hops, inf.Up, inf.Shortcut, inf.Peer)
-}
-
-func (inf *InfoField) Timestamp() time.Time {
-	return time.Unix(int64(inf.TsInt), 0)
-}
 
 type HopField struct {
 	data        util.RawBytes
@@ -96,6 +42,8 @@ const (
 	HopFieldLength      = spkt.LineLen
 	DefaultHopFExpiry   = 63
 	MacLen              = 3
+	ErrorHopFTooShort   = "HopF too short"
+	ErrorHopFBadMac     = "Bad HopF MAC"
 )
 
 func NewHopField(b util.RawBytes, in IntfID, out IntfID) *HopField {
@@ -110,7 +58,7 @@ func NewHopField(b util.RawBytes, in IntfID, out IntfID) *HopField {
 
 func HopFFromRaw(b []byte) (*HopField, *util.Error) {
 	if len(b) < HopFieldLength {
-		return nil, util.NewError(ErrorHopFTooShort, "min", spkt.LineLen, "actual", len(b))
+		return nil, util.NewError(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
 	}
 	h := &HopField{}
 	h.data = b[:HopFieldLength]

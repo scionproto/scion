@@ -21,8 +21,9 @@ topology/mininet/*.pyc
 
 # Go generated files #
 #########################
-proto/go.capnp
-go/proto/*.capnp.go
+/proto/go.capnp
+/go/proto/*.capnp.go
+/go/vendor/
 
 # vim generated files #
 #########################

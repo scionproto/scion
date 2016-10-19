@@ -25,8 +25,8 @@ import (
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/packet"
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -49,7 +49,7 @@ var setupNetFinishHooks []setupNetHook
 
 func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]packet.OutputFunc)
-	r.intfOutFs = make(map[path.IntfID]packet.OutputFunc)
+	r.intfOutFs = make(map[spath.IntfID]packet.OutputFunc)
 	r.freePkts = make(chan *packet.Packet, 1024)
 	r.revInfoQ = make(chan util.RawBytes)
 

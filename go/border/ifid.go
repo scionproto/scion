@@ -21,9 +21,9 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/packet"
-	"github.com/netsec-ethz/scion/go/border/path"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -42,7 +42,7 @@ func (r *Router) GenIFIDPkts() {
 	}
 }
 
-func (r *Router) GenIFIDPkt(ifid path.IntfID) {
+func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 	logger := log.New("ifid", ifid)
 	intf := conf.C.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
