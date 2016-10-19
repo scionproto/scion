@@ -75,17 +75,15 @@ class PCBMarking(Cerealizable):
         return b"".join(b)
 
     def short_desc(self):
-        return "%s(%s)->%s(%s)[%s]:\n%s" % (self.inIA(), self.p.inIF,
-                                            self.outIA(), self.p.outIF,
-                                            self.p.inMTU, self.hof())
-
-    def __str__(self):
         s = []
-        s.append("%s: From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
-                 (self.NAME, self.inIA(), self.p.inIF, self.outIA(),
+        s.append("From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
+                 (self.inIA(), self.p.inIF, self.outIA(),
                   self.p.outIF, self.p.inMTU))
         s.append("  %s" % self.hof())
         return "\n".join(s)
+
+    def __str__(self):
+        return self.short_desc()
 
 
 class ASMarking(Cerealizable):
@@ -156,13 +154,13 @@ class ASMarking(Cerealizable):
 
     def short_desc(self):
         desc = []
-        desc.append("%s (trc=v%s, cert=v%s) [%s]" %
+        desc.append("%s TRC: v%s Cert: v%s MTU: %s" %
                     (self.isd_as(), self.p.trcVer, self.p.certVer, self.p.mtu))
-        for pcb in self.iter_pcbms():
-            desc.append(str(pcb))
-        desc.append("hashTreeRoot=%s" % self.p.hashTreeRoot)
-        desc.append("sig=%s" % self.p.sig)
-        desc.append("chain=%s" % self.p.chain)
+        for pcbm in self.iter_pcbms():
+            desc.append(str(pcbm))
+        desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
+        desc.append("  sig=%s" % self.p.sig)
+        desc.append("  chain=%s" % self.p.chain)
         return "\n".join(desc)
 
 

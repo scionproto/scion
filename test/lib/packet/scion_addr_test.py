@@ -72,7 +72,7 @@ class TestISDASParseInt(object):
     """
     Unit tests for lib.packet.scion_addr.ISD_AS._parse_int
     """
-    def test(self, raw):
+    def test(self):
         inst = ISD_AS()
         # Call
         inst._parse_int(111 << 20 | 22222)
