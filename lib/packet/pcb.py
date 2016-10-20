@@ -48,8 +48,8 @@ class PCBMarking(Cerealizable):
     def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid,
                     hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
-            inIA=str(in_ia), inIF=in_ifid, inMTU=in_mtu,
-            outIA=str(out_ia), outIF=out_ifid, hof=hof.pack()))
+            inIA=int(in_ia), inIF=in_ifid, inMTU=in_mtu,
+            outIA=int(out_ia), outIF=out_ifid, hof=hof.pack()))
 
     def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
@@ -66,18 +66,19 @@ class PCBMarking(Cerealizable):
         """
         b = []
         if ver >= 5:
-            b.append(self.p.inIA.encode("utf8"))
+            b.append(self.p.inIA.to_bytes(4, 'big'))
             b.append(self.p.inIF.to_bytes(8, 'big'))
             b.append(self.p.inMTU.to_bytes(2, 'big'))
-            b.append(self.p.outIA.encode("utf8"))
+            b.append(self.p.outIA.to_bytes(4, 'big'))
             b.append(self.p.outIF.to_bytes(8, 'big'))
             b.append(self.p.hof)
         return b"".join(b)
 
-    def __str__(self):
+    def short_desc(self):
         s = []
-        s.append("%s: From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
-                 (self.NAME, self.isd_as(), self.p.ifID, self.p.mtu))
+        s.append("From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
+                 (self.inIA(), self.p.inIF, self.outIA(),
+                  self.p.outIF, self.p.inMTU))
         s.append("  %s" % self.hof())
         return "\n".join(s)
 
@@ -90,7 +91,7 @@ class ASMarking(Cerealizable):
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
                     cert_chain, ifid_size=12):
         p = cls.P_CLS.new_message(
-            isdas=str(isd_as), trcVer=trc_ver, certVer=cert_ver,
+            isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
             ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
             chain=cert_chain.pack(lz4_=True))
         p.init("pcbms", len(pcbms))
@@ -125,7 +126,7 @@ class ASMarking(Cerealizable):
         """
         b = []
         if ver >= 8:
-            b.append(self.p.isdas.encode("utf8"))
+            b.append(self.p.isdas.to_bytes(4, 'big'))
             b.append(self.p.trcVer.to_bytes(4, 'big'))
             b.append(self.p.certVer.to_bytes(4, 'big'))
             b.append(self.p.ifIDSize.to_bytes(1, 'big'))
@@ -147,6 +148,18 @@ class ASMarking(Cerealizable):
         Removes the certificate chain from the AS block.
         """
         self.p.chain = b''
+
+    def short_desc(self):
+        desc = []
+        desc.append("%s TRC: v%s Cert: v%s AS MTU: %s" %
+                    (self.isd_as(), self.p.trcVer, self.p.certVer, self.p.mtu))
+        for pcbm in self.iter_pcbms():
+            for line in pcbm.short_desc().splitlines():
+                desc.append("  %s" % line)
+        desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
+        desc.append("  sig=%s" % self.p.sig)
+        desc.append("  chain=%s" % self.p.chain)
+        return "\n".join(desc)
 
 
 class PathSegment(SCIONPayloadBaseProto):

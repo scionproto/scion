@@ -26,10 +26,15 @@ import nose.tools as ntools
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
 from test.testcommon import create_mock_full
 
+_ISD_AS1 = 1 << 20 | 1
+_ISD_AS2 = 1 << 20 | 2
+_ISD_AS1_BYTES = _ISD_AS1.to_bytes(4, 'big')
+_ISD_AS2_BYTES = _ISD_AS2.to_bytes(4, 'big')
+
 
 def mk_pcbm_p(inIF=22):
     return create_mock_full({
-        "inIA": "in_ia", "inIF": inIF, "inMTU": 4000, "outIA": "out_ia",
+        "inIA": _ISD_AS1, "inIF": inIF, "inMTU": 4000, "outIA": _ISD_AS2,
         "outIF": 33, "hof": b"hof"},
         class_=PCBMarking)
 
@@ -41,7 +46,8 @@ class TestPCBMarkingSigPack(object):
     def test_6(self):
         inst = PCBMarking(mk_pcbm_p())
         expected = b"".join([
-            b"in_ia", bytes.fromhex("0000000000000016 0fa0"), b"out_ia",
+            _ISD_AS1_BYTES, bytes.fromhex(
+                "0000000000000016 0fa0"), _ISD_AS2_BYTES,
             bytes.fromhex("0000000000000021"), b"hof"])
         # Call
         ntools.eq_(inst.sig_pack(6), expected)
@@ -59,11 +65,11 @@ class TestASMarkingFromValues(object):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         cchain = create_mock_full({"pack()": "cchain"})
         # Call
-        ASMarking.from_values("isdas", 2, 3, pcbms, "root", "mtu",
+        ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "root", "mtu",
                               cchain, ifid_size=14)
         # Tests
         p_cls.new_message.assert_called_once_with(
-            isdas="isdas", trcVer=2, certVer=3, ifIDSize=14,
+            isdas=_ISD_AS1, trcVer=2, certVer=3, ifIDSize=14,
             hashTreeRoot="root", mtu="mtu", chain="cchain")
         msg.init.assert_called_once_with("pcbms", 3)
         for i, pcbm in enumerate(msg.pcbms):
@@ -80,11 +86,11 @@ class TestASMarkingSigPack(object):
             pcbms.append(create_mock_full({
                 "sig_pack()": bytes("pcbm %i" % i, "ascii")}))
         inst = ASMarking(create_mock_full({
-            "isdas": "isdas", "trcVer": 2, "certVer": 3, "ifIDSize": 4,
+            "isdas": _ISD_AS1, "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "hashTreeRoot": b"root", "mtu": 1482, "chain": b"chain"}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
         expected = b"".join([
-            b"isdas", bytes.fromhex("00000002 00000003 04"),
+            _ISD_AS1_BYTES, bytes.fromhex("00000002 00000003 04"),
             b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",
             bytes.fromhex("05ca"), b"chain"])
         # Call
