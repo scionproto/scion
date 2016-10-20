@@ -36,12 +36,13 @@ class CertMgmtBase(SCIONPayloadBaseProto):  # pragma: no cover
 
 
 class CertMgmtRequest(CertMgmtBase):  # pragma: no cover
+
     def isd_as(self):
         return ISD_AS(self.p.isdas)
 
     @classmethod
     def from_values(cls, isd_as, version):
-        return cls(cls.P_CLS.new_message(isdas=str(isd_as), version=version))
+        return cls(cls.P_CLS.new_message(isdas=int(isd_as), version=version))
 
 
 class CertChainRequest(CertMgmtRequest):

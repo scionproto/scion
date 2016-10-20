@@ -32,7 +32,7 @@ class ZkID(Cerealizable):  # pragma: no cover
 
     @classmethod
     def from_values(cls, isd_as, id_, addr_infos):
-        p = cls.P_CLS.new_message(isdas=str(isd_as), id=id_)
+        p = cls.P_CLS.new_message(isdas=int(isd_as), id=id_)
         p.init("addrs", len(addr_infos))
         for i, (addr, port) in enumerate(addr_infos):
             p.addrs[0].type = addr.TYPE

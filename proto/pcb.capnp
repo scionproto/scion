@@ -7,16 +7,16 @@ using RevInfo = import "rev_info.capnp";
 using Sibra = import "sibra.capnp";
 
 struct PCBMarking {
-    inIA @0 :Text;  # Ingress (incl peer) ISD-AS
+    inIA @0 :UInt32;  # Ingress (incl peer) ISD-AS
     inIF @1 :UInt64; # Interface ID on far end of ingress link
     inMTU @2 :UInt16;  # Ingress Link MTU
-    outIA @3 :Text;  # Downstream ISD-AS
+    outIA @3 :UInt32;  # Downstream ISD-AS
     outIF @4 :UInt64; # Interface ID on far end of egress link
     hof @5 :Data;
 }
 
 struct ASMarking {
-    isdas @0 :Text;  # Local ISD-AS
+    isdas @0 :UInt32;  # Local ISD-AS
     trcVer @1 :UInt32;
     certVer @2 :UInt32;
     ifIDSize @3 :UInt8;  # Number of bits used for interface IDs in this AS.
