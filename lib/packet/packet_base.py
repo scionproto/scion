@@ -58,8 +58,15 @@ class Serializable(object, metaclass=ABCMeta):  # pragma: no cover
 
 
 class Cerealizable(object, metaclass=ABCMeta):
-    # P = capnp.load("proto/foo.capnp")
-    # P_CLS = P.Foo
+    """
+    Base class for all objects which serialize to Cap'n Proto.
+
+    Each subclass needs to specify a class attribute for the corresponding
+    proto file (P) and the proto message name (P_CLS), e.g.,
+
+    P = capnp.load("proto/foo.capnp")
+    P_CLS = P.Foo
+    """
     def __init__(self, p):
         assert not isinstance(p, bytes)
         self.p = p

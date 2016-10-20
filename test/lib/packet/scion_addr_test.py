@@ -68,6 +68,19 @@ class TestISDASParseStr(object):
             yield self._check_excp, isd_as
 
 
+class TestISDASParseInt(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS._parse_int
+    """
+    def test(self):
+        inst = ISD_AS()
+        # Call
+        inst._parse_int(0xAAAFFFFF)
+        # Tests
+        ntools.eq_(inst._isd, 0xAAA)
+        ntools.eq_(inst._as, 0xFFFFF)
+
+
 class TestISDASPack(object):
     """
     Unit tests for lib.packet.scion_addr.ISD_AS.pack
