@@ -12,17 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package common
 
-import (
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/util"
+const (
+	LineLen = 8
 )
-
-func (p *Packet) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
-	pld, err := scmp.PldFromRaw(p.Raw[p.idxs.pld:], p.l4.(*scmp.Hdr))
-	if err != nil {
-		return HookError, nil, err
-	}
-	return HookFinish, pld, nil
-}

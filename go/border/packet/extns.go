@@ -19,7 +19,7 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -35,19 +35,19 @@ const (
 	ErrorExtChainTooLong = "Extension header chain longer than packet"
 )
 
-var ExtHBHKnown = map[spkt.ExtnType]bool{
-	spkt.ExtnTracerouteType: true,
-	spkt.ExtnSCMPType:       true,
-	spkt.ExtnSIBRAType:      true,
+var ExtHBHKnown = map[common.ExtnType]bool{
+	common.ExtnTracerouteType: true,
+	common.ExtnSCMPType:       true,
+	common.ExtnSIBRAType:      true,
 }
 
-func (p *Packet) ExtnParse(extType spkt.ExtnType, start, end int) (Extension, *util.Error) {
+func (p *Packet) ExtnParse(extType common.ExtnType, start, end int) (Extension, *util.Error) {
 	switch {
-	case extType == spkt.ExtnTracerouteType:
+	case extType == common.ExtnTracerouteType:
 		return TracerouteFromRaw(p, start, end)
-	case extType == spkt.ExtnOneHopPathType:
+	case extType == common.ExtnOneHopPathType:
 		return OneHopPathFromRaw(p)
-	case extType == spkt.ExtnSCMPType:
+	case extType == common.ExtnSCMPType:
 		return SCMPExtFromRaw(p, start, end)
 	case ExtHBHKnown[extType]:
 		return nil, util.NewError("Known but unsupported extension", "type", extType)

@@ -22,6 +22,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -63,7 +64,7 @@ type Packet struct {
 	upFlag    *bool
 	HBHExt    []Extension
 	E2EExt    []Extension
-	L4Type    spkt.L4ProtoType
+	L4Type    common.L4ProtocolType
 	l4        L4Header
 	pld       interface{}
 	hooks     Hooks
@@ -121,12 +122,12 @@ type packetIdxs struct {
 }
 
 type hdrIdx struct {
-	Type  spkt.L4ProtoType
+	Type  common.L4ProtocolType
 	Index int
 }
 
 type extnIdx struct {
-	Type  spkt.ExtnType
+	Type  common.ExtnType
 	Index int
 }
 
@@ -151,7 +152,7 @@ func (p *Packet) Reset() {
 	p.upFlag = nil
 	p.HBHExt = p.HBHExt[:0]
 	p.E2EExt = p.E2EExt[:0]
-	p.L4Type = spkt.L4None
+	p.L4Type = common.L4None
 	p.l4 = nil
 	p.pld = nil
 	p.hooks = Hooks{}

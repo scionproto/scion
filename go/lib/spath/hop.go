@@ -21,7 +21,7 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -39,7 +39,7 @@ type HopField struct {
 
 const (
 	HopFieldVerifyFlags = 0x4 // Forward-only
-	HopFieldLength      = spkt.LineLen
+	HopFieldLength      = common.LineLen
 	DefaultHopFExpiry   = 63
 	MacLen              = 3
 	ErrorHopFTooShort   = "HopF too short"

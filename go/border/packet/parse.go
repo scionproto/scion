@@ -17,6 +17,7 @@ package packet
 import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
@@ -82,7 +83,7 @@ func (p *Packet) parseBasic() *util.Error {
 		return err
 	}
 	addrLen := addr.IABytes + int(srcLen) + addr.IABytes + int(dstLen)
-	addrPad := util.CalcPadding(addrLen, spkt.LineLen)
+	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	p.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if p.idxs.path > int(p.CmnHdr.HdrLen) {
 		return util.NewError(ErrorHdrTooShort, "min", p.idxs.path, "hdrLen", p.CmnHdr.HdrLen)
@@ -97,11 +98,11 @@ func (p *Packet) parseHopExtns() *util.Error {
 	count := 0
 	for offset < len(p.Raw) {
 		currHdr := nextHdr
-		if currHdr != spkt.HopByHopClass { // Reached end2end header or L4 protocol
+		if currHdr != common.HopByHopClass { // Reached end2end header or L4 protocol
 			break
 		}
-		currExtn := spkt.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
-		if currExtn == spkt.ExtnSCMPType {
+		currExtn := common.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
+		if currExtn == common.ExtnSCMPType {
 			if count != 0 {
 				return util.NewError(ErrorExtOrder, "scmpIdx", count)
 			}
@@ -111,7 +112,7 @@ func (p *Packet) parseHopExtns() *util.Error {
 		if count > ExtMaxHopByHop {
 			return util.NewError(ErrorTooManyHBH, "max", ExtMaxHopByHop, "actual", count)
 		}
-		hdrLen := int((p.Raw[offset+1] + 1) * spkt.LineLen)
+		hdrLen := int((p.Raw[offset+1] + 1) * common.LineLen)
 		e, err := p.ExtnParse(currExtn, offset, offset+hdrLen)
 		if err != nil {
 			return err
@@ -121,7 +122,7 @@ func (p *Packet) parseHopExtns() *util.Error {
 			p.HBHExt = append(p.HBHExt, e)
 		}
 		p.idxs.hbhExt = append(p.idxs.hbhExt, extnIdx{currExtn, offset})
-		nextHdr = spkt.L4ProtoType(p.Raw[offset])
+		nextHdr = common.L4ProtocolType(p.Raw[offset])
 		offset += hdrLen
 	}
 	if offset > len(p.Raw) {

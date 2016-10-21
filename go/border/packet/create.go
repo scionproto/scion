@@ -22,6 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -31,7 +32,7 @@ import (
 func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
 	dstHost addr.HostAddr) (*Packet, *util.Error) {
 	addrLen := addr.IABytes*2 + srcHost.Size() + dstHost.Size()
-	addrPad := util.CalcPadding(addrLen, spkt.LineLen)
+	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	hdrLen := spkt.CmnHdrLen + addrLen + addrPad
 	p := &Packet{}
 	p.Raw = make(util.RawBytes, hdrLen)
@@ -44,7 +45,7 @@ func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
 	p.CmnHdr.DstType = dstHost.Type()
 	p.CmnHdr.HdrLen = uint8(hdrLen)
 	p.CmnHdr.TotalLen = uint16(hdrLen)
-	p.CmnHdr.NextHdr = spkt.L4UDP
+	p.CmnHdr.NextHdr = common.L4UDP
 	p.CmnHdr.CurrInfoF = uint8(hdrLen)
 	p.CmnHdr.CurrHopF = uint8(hdrLen)
 	p.CmnHdr.Write(p.Raw)
@@ -68,7 +69,7 @@ func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
 }
 
 func (p *Packet) AddL4UDP(srcPort, dstPort int) {
-	p.L4Type = spkt.L4UDP
+	p.L4Type = common.L4UDP
 	udp := l4.UDP{SrcPort: uint16(srcPort), DstPort: uint16(dstPort)}
 	p.l4 = L4Header(&udp)
 	p.idxs.pld = p.idxs.l4 + l4.UDPLen

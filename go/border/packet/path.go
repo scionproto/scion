@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -101,9 +101,9 @@ func (p *Packet) HopF() (*spath.HopField, *util.Error) {
 		switch {
 		case p.CmnHdr.CurrHopF == p.CmnHdr.CurrInfoF:
 			// Do nothing
-		case p.CmnHdr.CurrHopF < p.CmnHdr.CurrInfoF+spkt.LineLen:
+		case p.CmnHdr.CurrHopF < p.CmnHdr.CurrInfoF+spath.InfoFieldLength:
 			return nil, util.NewError(ErrorGetHopFTooSmall,
-				"min", p.CmnHdr.CurrInfoF+spkt.LineLen, "actual", p.CmnHdr.CurrHopF)
+				"min", p.CmnHdr.CurrInfoF+spath.InfoFieldLength, "actual", p.CmnHdr.CurrHopF)
 		case p.CmnHdr.CurrHopF < p.CmnHdr.HdrLen:
 			var err *util.Error
 			if p.hopF, err = spath.HopFFromRaw(p.Raw[p.CmnHdr.CurrHopF:]); err != nil {
@@ -157,8 +157,9 @@ func (p *Packet) getHopFVerNormalOffset() int {
 	// there's no previous HOF to verify against.
 	iOff := int(p.CmnHdr.CurrInfoF)
 	hOff := int(p.CmnHdr.CurrHopF)
-	if (p.infoF.Up && hOff == (iOff+int(p.infoF.Hops)*spkt.LineLen)) ||
-		(!p.infoF.Up && hOff == (iOff+spkt.LineLen)) {
+	if (p.infoF.Up &&
+		hOff == (iOff+spath.InfoFieldLength+int(p.infoF.Hops-1)*spath.HopFieldLength)) ||
+		(!p.infoF.Up && hOff == (iOff+spath.InfoFieldLength)) {
 		return 0
 	}
 	// Otherwise use the next/prev HOF based on the up flag.
@@ -169,10 +170,10 @@ func (p *Packet) getHopFVerNormalOffset() int {
 }
 
 func (p *Packet) hopFVerFromRaw(offset int) util.RawBytes {
-	ans := make(util.RawBytes, spkt.LineLen-1)
+	ans := make(util.RawBytes, common.LineLen-1)
 	if offset != 0 {
-		b := p.Raw[int(p.CmnHdr.CurrHopF)+offset*spkt.LineLen:]
-		copy(ans, b[1:spkt.LineLen])
+		b := p.Raw[int(p.CmnHdr.CurrHopF)+offset*common.LineLen:]
+		copy(ans, b[1:common.LineLen])
 	}
 	return ans
 }
@@ -184,8 +185,8 @@ func (p *Packet) incPath() *util.Error {
 	iOff := p.CmnHdr.CurrInfoF
 	hOff := p.CmnHdr.CurrHopF
 	for {
-		hOff += spkt.LineLen
-		if hOff-iOff > infoF.Hops*spkt.LineLen {
+		hOff += spath.HopFieldLength
+		if hOff-iOff > infoF.Hops*spath.HopFieldLength {
 			// Switch to next segment
 			iOff = hOff
 			if infoF, err = spath.InfoFFromRaw(p.Raw[iOff:]); err != nil {
