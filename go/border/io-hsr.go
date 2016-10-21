@@ -24,13 +24,13 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-func (r *Router) readHSRInput(q chan *packet.Packet) {
+func (r *Router) readHSRInput(q chan *rpkt.RPkt) {
 	defer liblog.PanicLog()
-	pkts := make([]*packet.Packet, hsr.MaxPkts)
+	pkts := make([]*rpkt.RPkt, hsr.MaxPkts)
 	h := hsr.NewHSR()
 	for {
 		usedPortIdxs := make(map[int]bool)
@@ -72,7 +72,7 @@ func (r *Router) readHSRInput(q chan *packet.Packet) {
 	}
 }
 
-func (r *Router) writeHSROutput(p *packet.Packet, portID int, labels prometheus.Labels) {
+func (r *Router) writeHSROutput(p *rpkt.RPkt, portID int, labels prometheus.Labels) {
 	for _, epair := range p.Egress {
 		if epair.Dst == nil {
 			p.Crit("No dst address set")
