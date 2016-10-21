@@ -22,13 +22,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-func (r *Router) getPktBuf() *packet.Packet {
+func (r *Router) getPktBuf() *rpkt.Packet {
 	// https://golang.org/doc/effective_go.html#leaky_buffer
-	var p *packet.Packet
+	var p *rpkt.Packet
 	select {
 	case p = <-r.freePkts:
 		// Got one
@@ -37,14 +37,14 @@ func (r *Router) getPktBuf() *packet.Packet {
 	default:
 		// None available, allocate a new one
 		metrics.PktBufNew.Inc()
-		p = new(packet.Packet)
+		p = new(rpkt.Packet)
 		p.Raw = make([]byte, pktBufSize)
 		return p
 	}
 }
 
-func (r *Router) readPosixInput(in *net.UDPConn, dirFrom packet.Dir, labels prometheus.Labels,
-	q chan *packet.Packet) {
+func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, labels prometheus.Labels,
+	q chan *rpkt.Packet) {
 	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
@@ -70,7 +70,7 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom packet.Dir, labels prom
 	}
 }
 
-func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, p *packet.Packet) {
+func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, p *rpkt.Packet) {
 	if len(p.Egress) == 0 {
 		p.Error("Destination not specified")
 		return
@@ -91,7 +91,7 @@ func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, p 
 	}
 }
 
-func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *packet.Packet) {
+func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *rpkt.Packet) {
 	if len(p.Egress) == 0 {
 		p.Error("Destination not specified")
 		return

@@ -22,7 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
@@ -45,7 +45,7 @@ func (r *Router) GenIFStateReq() {
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
-	pkt, err := packet.CreateCtrlPacket(packet.DirLocal,
+	pkt, err := rpkt.CreateCtrlPacket(rpkt.DirLocal,
 		addr.HostFromIP(srcAddr.IP), topology.Curr.T.IA, dstHost)
 	if err != nil {
 		log.Error("Error creating IFStateReq packet", err.Ctx...)

@@ -22,7 +22,7 @@ import (
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -30,10 +30,10 @@ import (
 
 type Router struct {
 	Id        string
-	inQs      []chan *packet.Packet
-	locOutFs  map[int]packet.OutputFunc
-	intfOutFs map[spath.IntfID]packet.OutputFunc
-	freePkts  chan *packet.Packet
+	inQs      []chan *rpkt.Packet
+	locOutFs  map[int]rpkt.OutputFunc
+	intfOutFs map[spath.IntfID]rpkt.OutputFunc
+	freePkts  chan *rpkt.Packet
 	revInfoQ  chan util.RawBytes
 }
 
@@ -65,7 +65,7 @@ func (r *Router) Run() *util.Error {
 	return nil
 }
 
-func (r *Router) handleQueue(q chan *packet.Packet) {
+func (r *Router) handleQueue(q chan *rpkt.Packet) {
 	defer liblog.PanicLog()
 	for p := range q {
 		r.processPacket(p)
@@ -74,7 +74,7 @@ func (r *Router) handleQueue(q chan *packet.Packet) {
 	}
 }
 
-func (r *Router) processPacket(p *packet.Packet) {
+func (r *Router) processPacket(p *rpkt.Packet) {
 	p.Logger = log.New("pkt", logext.RandId(4))
 	if err := p.Parse(); err != nil {
 		p.Error("Error during parsing", err.Ctx...)
@@ -101,8 +101,8 @@ func (r *Router) processPacket(p *packet.Packet) {
 	}
 }
 
-func (r *Router) recyclePkt(p *packet.Packet) {
-	if p.DirFrom == packet.DirSelf {
+func (r *Router) recyclePkt(p *rpkt.Packet) {
+	if p.DirFrom == rpkt.DirSelf {
 		return
 	}
 	if cap(p.Raw) != pktBufSize {
