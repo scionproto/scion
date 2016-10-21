@@ -31,7 +31,7 @@ type Meta struct {
 	PathHdrLen uint8
 	ExtHdrsLen uint8
 	L4HdrLen   uint8
-	L4Proto    common.L4ProtoType
+	L4Proto    common.L4ProtocolType
 }
 
 const (

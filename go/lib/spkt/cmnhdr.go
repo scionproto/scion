@@ -33,7 +33,7 @@ type CmnHdr struct {
 	TotalLen  uint16
 	CurrInfoF uint8
 	CurrHopF  uint8
-	NextHdr   common.L4ProtoType
+	NextHdr   common.L4ProtocolType
 	HdrLen    uint8
 }
 
@@ -65,7 +65,7 @@ func (c *CmnHdr) Parse(b util.RawBytes) *util.Error {
 	offset += 1
 	c.CurrHopF = b[offset]
 	offset += 1
-	c.NextHdr = common.L4ProtoType(b[offset])
+	c.NextHdr = common.L4ProtocolType(b[offset])
 	offset += 1
 	c.HdrLen = b[offset]
 	return nil

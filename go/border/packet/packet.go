@@ -64,7 +64,7 @@ type Packet struct {
 	upFlag    *bool
 	HBHExt    []Extension
 	E2EExt    []Extension
-	L4Type    common.L4ProtoType
+	L4Type    common.L4ProtocolType
 	l4        L4Header
 	pld       interface{}
 	hooks     Hooks
@@ -122,7 +122,7 @@ type packetIdxs struct {
 }
 
 type hdrIdx struct {
-	Type  common.L4ProtoType
+	Type  common.L4ProtocolType
 	Index int
 }
 

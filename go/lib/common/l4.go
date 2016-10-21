@@ -18,24 +18,24 @@ import (
 	"fmt"
 )
 
-type L4ProtoType uint8
+type L4ProtocolType uint8
 
 const (
-	L4None L4ProtoType = 0
-	L4SCMP L4ProtoType = 1
-	L4TCP  L4ProtoType = 6
-	L4UDP  L4ProtoType = 17
-	L4SSP  L4ProtoType = 152
+	L4None L4ProtocolType = 0
+	L4SCMP L4ProtocolType = 1
+	L4TCP  L4ProtocolType = 6
+	L4UDP  L4ProtocolType = 17
+	L4SSP  L4ProtocolType = 152
 
-	HopByHopClass L4ProtoType = 0
-	End2EndClass  L4ProtoType = 222
+	HopByHopClass L4ProtocolType = 0
+	End2EndClass  L4ProtocolType = 222
 )
 
-var L4Protocols = map[L4ProtoType]bool{
+var L4Protocols = map[L4ProtocolType]bool{
 	L4SCMP: true, L4TCP: true, L4UDP: true, L4SSP: true,
 }
 
-func (p L4ProtoType) String() string {
+func (p L4ProtocolType) String() string {
 	switch p {
 	case L4None:
 		return "None/HopByHop"

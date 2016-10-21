@@ -122,7 +122,7 @@ func (p *Packet) parseHopExtns() *util.Error {
 			p.HBHExt = append(p.HBHExt, e)
 		}
 		p.idxs.hbhExt = append(p.idxs.hbhExt, extnIdx{currExtn, offset})
-		nextHdr = common.L4ProtoType(p.Raw[offset])
+		nextHdr = common.L4ProtocolType(p.Raw[offset])
 		offset += hdrLen
 	}
 	if offset > len(p.Raw) {

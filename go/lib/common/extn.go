@@ -19,7 +19,7 @@ import (
 )
 
 type ExtnType struct {
-	Class L4ProtoType
+	Class L4ProtocolType
 	Type  uint8
 }
 

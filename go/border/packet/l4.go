@@ -82,7 +82,7 @@ func (p *Packet) findL4() (bool, *util.Error) {
 		currExtn := common.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
 		hdrLen := int((p.Raw[offset+1] + 1) * common.LineLen)
 		p.idxs.e2eExt = append(p.idxs.e2eExt, extnIdx{currExtn, offset})
-		nextHdr = common.L4ProtoType(p.Raw[offset])
+		nextHdr = common.L4ProtocolType(p.Raw[offset])
 		offset += hdrLen
 	}
 	if offset > len(p.Raw) {
