@@ -24,10 +24,10 @@ import (
 
 type OneHopPath struct {
 	log.Logger
-	p *Packet
+	p *RPkt
 }
 
-func OneHopPathFromRaw(p *Packet) (*OneHopPath, *util.Error) {
+func OneHopPathFromRaw(p *RPkt) (*OneHopPath, *util.Error) {
 	o := &OneHopPath{p: p}
 	o.Logger = p.Logger.New("ext", "OneHopPath")
 	o.p = p

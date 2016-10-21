@@ -26,14 +26,14 @@ import (
 var _ Extension = (*SCMPExt)(nil)
 
 type SCMPExt struct {
-	p        *Packet
+	p        *RPkt
 	raw      util.RawBytes
 	Error    bool
 	HopByHop bool
 	log.Logger
 }
 
-func SCMPExtFromRaw(p *Packet, start, end int) (*SCMPExt, *util.Error) {
+func SCMPExtFromRaw(p *RPkt, start, end int) (*SCMPExt, *util.Error) {
 	s := &SCMPExt{p: p, raw: p.Raw[start:end]}
 	flags := s.raw[3] // Index past ext subheader
 	s.Error = (flags & 0x01) != 0

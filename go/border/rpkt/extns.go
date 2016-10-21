@@ -41,7 +41,7 @@ var ExtHBHKnown = map[common.ExtnType]bool{
 	common.ExtnSIBRAType:      true,
 }
 
-func (p *Packet) ExtnParse(extType common.ExtnType, start, end int) (Extension, *util.Error) {
+func (p *RPkt) ExtnParse(extType common.ExtnType, start, end int) (Extension, *util.Error) {
 	switch {
 	case extType == common.ExtnTracerouteType:
 		return TracerouteFromRaw(p, start, end)

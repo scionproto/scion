@@ -19,7 +19,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func (p *Packet) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
+func (p *RPkt) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
 	pld, err := scmp.PldFromRaw(p.Raw[p.idxs.pld:], p.l4.(*scmp.Hdr))
 	if err != nil {
 		return HookError, nil, err

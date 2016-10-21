@@ -27,7 +27,7 @@ const (
 	ErrorHookResponse    = "Extension hook return value unrecognised"
 )
 
-func (p *Packet) Validate() *util.Error {
+func (p *RPkt) Validate() *util.Error {
 	// TODO(kormat): verify rest of common header, etc
 	if int(p.CmnHdr.TotalLen) != len(p.Raw) {
 		return util.NewError(ErrorTotalLenTooLong,

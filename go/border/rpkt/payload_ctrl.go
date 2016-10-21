@@ -24,7 +24,7 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-func (p *Packet) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
+func (p *RPkt) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
 	if p.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
@@ -54,7 +54,7 @@ func (p *Packet) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
 	return HookFinish, &pld, nil
 }
 
-func (p *Packet) updateCtrlPld() *util.Error {
+func (p *RPkt) updateCtrlPld() *util.Error {
 	// First remove old payload, if any
 	p.Raw = p.Raw[:p.idxs.pld]
 	var buf bytes.Buffer

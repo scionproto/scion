@@ -34,7 +34,7 @@ const (
 	ErrorLocAddrInvalid     = "Invalid local address"
 )
 
-func (p *Packet) validatePath(dirFrom Dir) *util.Error {
+func (p *RPkt) validatePath(dirFrom Dir) *util.Error {
 	if p.infoF == nil || p.hopF == nil {
 		return nil
 	}
@@ -53,7 +53,7 @@ func (p *Packet) validatePath(dirFrom Dir) *util.Error {
 	return p.hopF.Verify(conf.C.HFGenBlock, p.infoF.TsInt, prevHopF)
 }
 
-func (p *Packet) InfoF() (*spath.InfoField, *util.Error) {
+func (p *RPkt) InfoF() (*spath.InfoField, *util.Error) {
 	if p.infoF == nil {
 		for _, f := range p.hooks.Infof {
 			ret, infof, err := f()
@@ -84,7 +84,7 @@ func (p *Packet) InfoF() (*spath.InfoField, *util.Error) {
 	return p.infoF, nil
 }
 
-func (p *Packet) HopF() (*spath.HopField, *util.Error) {
+func (p *RPkt) HopF() (*spath.HopField, *util.Error) {
 	if p.hopF == nil {
 		for _, f := range p.hooks.HopF {
 			ret, hopf, err := f()
@@ -117,7 +117,7 @@ func (p *Packet) HopF() (*spath.HopField, *util.Error) {
 	return p.hopF, nil
 }
 
-func (p *Packet) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
+func (p *RPkt) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
 	ingress := dirFrom == DirExternal
 	var offset int
 	if !p.hopF.Xover || (p.infoF.Shortcut && !p.infoF.Peer) {
@@ -152,7 +152,7 @@ func (p *Packet) getHopFVer(dirFrom Dir) (util.RawBytes, *util.Error) {
 	return p.hopFVerFromRaw(offset), nil
 }
 
-func (p *Packet) getHopFVerNormalOffset() int {
+func (p *RPkt) getHopFVerNormalOffset() int {
 	// If this is the last hop of an Up path, or the first hop of a Down path,
 	// there's no previous HOF to verify against.
 	iOff := int(p.CmnHdr.CurrInfoF)
@@ -169,7 +169,7 @@ func (p *Packet) getHopFVerNormalOffset() int {
 	return -1
 }
 
-func (p *Packet) hopFVerFromRaw(offset int) util.RawBytes {
+func (p *RPkt) hopFVerFromRaw(offset int) util.RawBytes {
 	ans := make(util.RawBytes, common.LineLen-1)
 	if offset != 0 {
 		b := p.Raw[int(p.CmnHdr.CurrHopF)+offset*common.LineLen:]
@@ -178,7 +178,7 @@ func (p *Packet) hopFVerFromRaw(offset int) util.RawBytes {
 	return ans
 }
 
-func (p *Packet) incPath() *util.Error {
+func (p *RPkt) incPath() *util.Error {
 	var err *util.Error
 	var hopF *spath.HopField
 	infoF := p.infoF
@@ -219,7 +219,7 @@ func (p *Packet) incPath() *util.Error {
 	return nil
 }
 
-func (p *Packet) UpFlag() (*bool, *util.Error) {
+func (p *RPkt) UpFlag() (*bool, *util.Error) {
 	if p.upFlag != nil {
 		return p.upFlag, nil
 	}
@@ -244,7 +244,7 @@ func (p *Packet) UpFlag() (*bool, *util.Error) {
 	return p.upFlag, nil
 }
 
-func (p *Packet) IFCurr() (*spath.IntfID, *util.Error) {
+func (p *RPkt) IFCurr() (*spath.IntfID, *util.Error) {
 	if p.ifCurr != nil {
 		return p.ifCurr, nil
 	}
@@ -295,7 +295,7 @@ func (p *Packet) IFCurr() (*spath.IntfID, *util.Error) {
 	return p.ifCurr, nil
 }
 
-func (p *Packet) IFNext() (*spath.IntfID, *util.Error) {
+func (p *RPkt) IFNext() (*spath.IntfID, *util.Error) {
 	if p.ifNext == nil && p.upFlag != nil {
 		var err *util.Error
 		if p.ifNext, err = p.hookIF(*p.upFlag, p.hooks.IFNext); err != nil {
@@ -312,7 +312,7 @@ func (p *Packet) IFNext() (*spath.IntfID, *util.Error) {
 	return p.ifNext, nil
 }
 
-func (p *Packet) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *util.Error) {
+func (p *RPkt) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *util.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, p.DirFrom, p.DirTo)
 		switch {

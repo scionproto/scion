@@ -32,7 +32,7 @@ const (
 	ErrorPldGet                = "Unable to retrieve payload"
 )
 
-func (p *Packet) NeedsLocalProcessing() *util.Error {
+func (p *RPkt) NeedsLocalProcessing() *util.Error {
 	if *p.dstIA != *conf.C.IA {
 		// Packet isn't to this IA, so just forward.
 		p.hooks.Route = append(p.hooks.Route, p.forward)
@@ -65,7 +65,7 @@ func (p *Packet) NeedsLocalProcessing() *util.Error {
 }
 
 // No fallback for process - a hook must be registered to read it.
-func (p *Packet) Process() *util.Error {
+func (p *RPkt) Process() *util.Error {
 	for _, f := range p.hooks.Process {
 		ret, err := f()
 		switch {
@@ -80,7 +80,7 @@ func (p *Packet) Process() *util.Error {
 	return nil
 }
 
-func (p *Packet) processPathlessSVC() (HookResult, *util.Error) {
+func (p *RPkt) processPathlessSVC() (HookResult, *util.Error) {
 	_, err := p.Payload()
 	if err != nil {
 		return HookError, err
@@ -96,7 +96,7 @@ func (p *Packet) processPathlessSVC() (HookResult, *util.Error) {
 	}
 }
 
-func (p *Packet) processDestSelf() (HookResult, *util.Error) {
+func (p *RPkt) processDestSelf() (HookResult, *util.Error) {
 	if _, err := p.Payload(); err != nil {
 		return HookError, err
 	}
@@ -124,7 +124,7 @@ func (p *Packet) processDestSelf() (HookResult, *util.Error) {
 	}
 }
 
-func (p *Packet) processIFID(pld proto.IFID) (HookResult, *util.Error) {
+func (p *RPkt) processIFID(pld proto.IFID) (HookResult, *util.Error) {
 	pld.SetRelayIF(uint16(*p.ifCurr))
 	if err := p.updateCtrlPld(); err != nil {
 		return HookError, err
@@ -152,7 +152,7 @@ func (p *Packet) processIFID(pld proto.IFID) (HookResult, *util.Error) {
 	return HookFinish, nil
 }
 
-func (p *Packet) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
+func (p *RPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
 	switch pathMgmt.Which() {
 	case proto.PathMgmt_Which_ifStateInfos:
 		ifStates, err := pathMgmt.IfStateInfos()
@@ -167,7 +167,7 @@ func (p *Packet) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util
 	return HookFinish, nil
 }
 
-func (p *Packet) processSCMP() (HookResult, *util.Error) {
+func (p *RPkt) processSCMP() (HookResult, *util.Error) {
 	// FIXME(kormat): rate-limit revocations
 	hdr := p.l4.(*scmp.Hdr)
 	switch {

@@ -34,7 +34,7 @@ type L4Header interface {
 	fmt.Stringer
 }
 
-func (p *Packet) L4Hdr() (L4Header, *util.Error) {
+func (p *RPkt) L4Hdr() (L4Header, *util.Error) {
 	if p.l4 == nil {
 		if found, err := p.findL4(); !found || err != nil {
 			return nil, err
@@ -68,7 +68,7 @@ func (p *Packet) L4Hdr() (L4Header, *util.Error) {
 	return p.l4, nil
 }
 
-func (p *Packet) findL4() (bool, *util.Error) {
+func (p *RPkt) findL4() (bool, *util.Error) {
 	nextHdr := p.idxs.nextHdrIdx.Type
 	offset := p.idxs.nextHdrIdx.Index
 	for offset < len(p.Raw) {
@@ -93,7 +93,7 @@ func (p *Packet) findL4() (bool, *util.Error) {
 	return true, nil
 }
 
-func (p *Packet) verifyL4Chksum() *util.Error {
+func (p *RPkt) verifyL4Chksum() *util.Error {
 	switch v := p.l4.(type) {
 	case *l4.UDP:
 		src, dst, pld := p.getChksumInput()
@@ -117,7 +117,7 @@ func (p *Packet) verifyL4Chksum() *util.Error {
 	return nil
 }
 
-func (p *Packet) getChksumInput() (src, dst, pld util.RawBytes) {
+func (p *RPkt) getChksumInput() (src, dst, pld util.RawBytes) {
 	srcLen, _ := addr.HostLen(p.CmnHdr.SrcType)
 	dstLen, _ := addr.HostLen(p.CmnHdr.DstType)
 	src = p.Raw[p.idxs.srcIA : p.idxs.srcIA+addr.IABytes+int(srcLen)]
@@ -126,7 +126,7 @@ func (p *Packet) getChksumInput() (src, dst, pld util.RawBytes) {
 	return
 }
 
-func (p *Packet) updateL4() *util.Error {
+func (p *RPkt) updateL4() *util.Error {
 	switch v := p.l4.(type) {
 	case *l4.UDP:
 		src, dst, pld := p.getChksumInput()

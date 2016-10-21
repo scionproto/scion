@@ -26,7 +26,7 @@ const (
 	ErrorGetDstHost = "Unable to retrieve destination host"
 )
 
-func (p *Packet) SrcIA() (*addr.ISD_AS, *util.Error) {
+func (p *RPkt) SrcIA() (*addr.ISD_AS, *util.Error) {
 	if p.srcIA == nil {
 		var err *util.Error
 		p.srcIA, err = p.hookIA(p.hooks.SrcIA, p.idxs.srcIA)
@@ -37,7 +37,7 @@ func (p *Packet) SrcIA() (*addr.ISD_AS, *util.Error) {
 	return p.srcIA, nil
 }
 
-func (p *Packet) DstIA() (*addr.ISD_AS, *util.Error) {
+func (p *RPkt) DstIA() (*addr.ISD_AS, *util.Error) {
 	if p.dstIA == nil {
 		var err *util.Error
 		p.dstIA, err = p.hookIA(p.hooks.DstIA, p.idxs.dstIA)
@@ -48,7 +48,7 @@ func (p *Packet) DstIA() (*addr.ISD_AS, *util.Error) {
 	return p.dstIA, nil
 }
 
-func (p *Packet) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *util.Error) {
+func (p *RPkt) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *util.Error) {
 	for _, f := range hooks {
 		ret, ia, err := f()
 		switch {
@@ -63,7 +63,7 @@ func (p *Packet) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *util.Error) {
 	return addr.IAFromRaw(p.Raw[idx:]), nil
 }
 
-func (p *Packet) SrcHost() (addr.HostAddr, *util.Error) {
+func (p *RPkt) SrcHost() (addr.HostAddr, *util.Error) {
 	if p.srcHost == nil {
 		var err *util.Error
 		p.srcHost, err = p.hookHost(p.hooks.SrcHost, p.idxs.srcHost, p.CmnHdr.SrcType)
@@ -74,7 +74,7 @@ func (p *Packet) SrcHost() (addr.HostAddr, *util.Error) {
 	return p.srcHost, nil
 }
 
-func (p *Packet) DstHost() (addr.HostAddr, *util.Error) {
+func (p *RPkt) DstHost() (addr.HostAddr, *util.Error) {
 	if p.dstHost == nil {
 		var err *util.Error
 		p.dstHost, err = p.hookHost(p.hooks.DstHost, p.idxs.dstHost, p.CmnHdr.DstType)
@@ -85,7 +85,7 @@ func (p *Packet) DstHost() (addr.HostAddr, *util.Error) {
 	return p.dstHost, nil
 }
 
-func (p *Packet) hookHost(
+func (p *RPkt) hookHost(
 	hooks []HookHost, idx int, htype uint8) (addr.HostAddr, *util.Error) {
 	for _, f := range hooks {
 		ret, host, err := f()

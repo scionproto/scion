@@ -30,10 +30,10 @@ import (
 
 type Router struct {
 	Id        string
-	inQs      []chan *rpkt.Packet
+	inQs      []chan *rpkt.RPkt
 	locOutFs  map[int]rpkt.OutputFunc
 	intfOutFs map[spath.IntfID]rpkt.OutputFunc
-	freePkts  chan *rpkt.Packet
+	freePkts  chan *rpkt.RPkt
 	revInfoQ  chan util.RawBytes
 }
 
@@ -65,7 +65,7 @@ func (r *Router) Run() *util.Error {
 	return nil
 }
 
-func (r *Router) handleQueue(q chan *rpkt.Packet) {
+func (r *Router) handleQueue(q chan *rpkt.RPkt) {
 	defer liblog.PanicLog()
 	for p := range q {
 		r.processPacket(p)
@@ -74,7 +74,7 @@ func (r *Router) handleQueue(q chan *rpkt.Packet) {
 	}
 }
 
-func (r *Router) processPacket(p *rpkt.Packet) {
+func (r *Router) processPacket(p *rpkt.RPkt) {
 	p.Logger = log.New("pkt", logext.RandId(4))
 	if err := p.Parse(); err != nil {
 		p.Error("Error during parsing", err.Ctx...)
@@ -101,7 +101,7 @@ func (r *Router) processPacket(p *rpkt.Packet) {
 	}
 }
 
-func (r *Router) recyclePkt(p *rpkt.Packet) {
+func (r *Router) recyclePkt(p *rpkt.RPkt) {
 	if p.DirFrom == rpkt.DirSelf {
 		return
 	}

@@ -44,7 +44,8 @@ func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
 	callbacks.revTokenF = revTokenF
 }
 
-type Packet struct {
+// Router representation of SCION packet, including metadata.
+type RPkt struct {
 	Raw       util.RawBytes
 	TimeIn    time.Time
 	DirFrom   Dir
@@ -101,7 +102,7 @@ type AddrPair struct {
 	Dst *net.UDPAddr
 }
 
-type OutputFunc func(*Packet)
+type OutputFunc func(*RPkt)
 
 type EgressPair struct {
 	F   OutputFunc
@@ -133,7 +134,7 @@ type extnIdx struct {
 
 var order = binary.BigEndian
 
-func (p *Packet) Reset() {
+func (p *RPkt) Reset() {
 	p.Raw = p.Raw[:cap(p.Raw)-1]
 	p.DirFrom = DirUnset
 	p.DirTo = DirUnset

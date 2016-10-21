@@ -28,7 +28,7 @@ const (
 	ErrorTooManyHBH  = "Too many hop-by-hop extensions"
 )
 
-func (p *Packet) Parse() *util.Error {
+func (p *RPkt) Parse() *util.Error {
 	if err := p.parseBasic(); err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (p *Packet) Parse() *util.Error {
 }
 
 // Parse Common and address headers
-func (p *Packet) parseBasic() *util.Error {
+func (p *RPkt) parseBasic() *util.Error {
 	var err *util.Error
 	if err := p.CmnHdr.Parse(p.Raw); err != nil {
 		return err
@@ -91,7 +91,7 @@ func (p *Packet) parseBasic() *util.Error {
 	return nil
 }
 
-func (p *Packet) parseHopExtns() *util.Error {
+func (p *RPkt) parseHopExtns() *util.Error {
 	p.idxs.hbhExt = make([]extnIdx, 0, 4)
 	nextHdr := p.CmnHdr.NextHdr
 	offset := int(p.CmnHdr.HdrLen)

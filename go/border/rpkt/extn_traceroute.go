@@ -30,7 +30,7 @@ import (
 var _ Extension = (*Traceroute)(nil)
 
 type Traceroute struct {
-	p         *Packet
+	p         *RPkt
 	raw       util.RawBytes
 	NumHops   uint8
 	TotalHops uint8
@@ -47,7 +47,7 @@ const (
 
 var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
-func TracerouteFromRaw(p *Packet, start, end int) (*Traceroute, *util.Error) {
+func TracerouteFromRaw(p *RPkt, start, end int) (*Traceroute, *util.Error) {
 	t := &Traceroute{p: p, raw: p.Raw[start:end]}
 	// Index past ext subheader:
 	t.NumHops = t.raw[3]

@@ -50,7 +50,7 @@ var setupNetFinishHooks []setupNetHook
 func (r *Router) setup(confDir string) *util.Error {
 	r.locOutFs = make(map[int]rpkt.OutputFunc)
 	r.intfOutFs = make(map[spath.IntfID]rpkt.OutputFunc)
-	r.freePkts = make(chan *rpkt.Packet, 1024)
+	r.freePkts = make(chan *rpkt.RPkt, 1024)
 	r.revInfoQ = make(chan util.RawBytes)
 
 	if err := conf.Load(r.Id, confDir); err != nil {
@@ -141,10 +141,10 @@ func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
 	if err := over.Listen(); err != nil {
 		return rpkt.HookError, util.NewError(ErrorListenLocal, "err", err)
 	}
-	q := make(chan *rpkt.Packet)
+	q := make(chan *rpkt.RPkt)
 	r.inQs = append(r.inQs, q)
 	go r.readPosixInput(over.Conn, rpkt.DirLocal, labels, q)
-	r.locOutFs[idx] = func(p *rpkt.Packet) { r.writeLocalOutput(over.Conn, labels, p) }
+	r.locOutFs[idx] = func(p *rpkt.RPkt) { r.writeLocalOutput(over.Conn, labels, p) }
 	return rpkt.HookFinish, nil
 }
 
@@ -153,10 +153,10 @@ func setupPosixAddExt(r *Router, intf *netconf.Interface,
 	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
 		return rpkt.HookError, util.NewError(ErrorListenExternal, "err", err)
 	}
-	q := make(chan *rpkt.Packet)
+	q := make(chan *rpkt.RPkt)
 	r.inQs = append(r.inQs, q)
 	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, labels, q)
-	r.intfOutFs[intf.Id] = func(p *rpkt.Packet) {
+	r.intfOutFs[intf.Id] = func(p *rpkt.RPkt) {
 		r.writeIntfOutput(intf.IFAddr.Conn, labels, p)
 	}
 	return rpkt.HookFinish, nil

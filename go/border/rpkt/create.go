@@ -30,11 +30,11 @@ import (
 )
 
 func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
-	dstHost addr.HostAddr) (*Packet, *util.Error) {
+	dstHost addr.HostAddr) (*RPkt, *util.Error) {
 	addrLen := addr.IABytes*2 + srcHost.Size() + dstHost.Size()
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	hdrLen := spkt.CmnHdrLen + addrLen + addrPad
-	p := &Packet{}
+	p := &RPkt{}
 	p.Raw = make(util.RawBytes, hdrLen)
 	p.TimeIn = time.Now()
 	p.Logger = log.New("pkt", logext.RandId(4))
@@ -68,14 +68,14 @@ func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
 	return p, nil
 }
 
-func (p *Packet) AddL4UDP(srcPort, dstPort int) {
+func (p *RPkt) AddL4UDP(srcPort, dstPort int) {
 	p.L4Type = common.L4UDP
 	udp := l4.UDP{SrcPort: uint16(srcPort), DstPort: uint16(dstPort)}
 	p.l4 = L4Header(&udp)
 	p.idxs.pld = p.idxs.l4 + l4.UDPLen
 }
 
-func (p *Packet) AddCtrlPld(msg *proto.SCION) *util.Error {
+func (p *RPkt) AddCtrlPld(msg *proto.SCION) *util.Error {
 	p.pld = msg
 	rawLen := len(p.Raw)
 	p.Raw = append(p.Raw, make(util.RawBytes, p.idxs.pld-rawLen)...)
