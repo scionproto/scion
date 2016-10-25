@@ -1,18 +1,18 @@
-.PHONY: all clean go clibs libscion libfilter liblwip libtcpmw libssocket dispatcher install uninstall goproto
+.PHONY: all clean go gohsr clibs libscion libfilter liblwip libtcpmw libssocket dispatcher libhsr install uninstall
 
-SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost go/proto
+SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
 
 all: clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
+	if type -P go >/dev/null; then cd go && make clean; fi
 
-go: goproto libscion
-	GOBIN=$$PWD/bin go install -v ./go/...
+go: libscion
+	cd go && make
 
 gohsr: libhsr
-	GOBIN=$$PWD/bin go install -tags hsr -v ./go/border/...
-	sudo setcap cap_dac_read_search,cap_dac_override,cap_sys_admin,cap_net_raw+ep bin/border
+	cd go && make hsr
 
 # Order is important
 clibs: libscion libfilter libssocket liblwip libtcpmw
@@ -42,6 +42,3 @@ install: clibs dispatcher
 
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
-
-goproto:
-	$(MAKE) -C go/proto
