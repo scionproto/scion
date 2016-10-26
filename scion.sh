@@ -64,6 +64,7 @@ py_test() {
 }
 
 go_test() {
+    # `make -C go` breaks if there are symlinks in $PWD
     ( cd go && make -s test )
 }
 

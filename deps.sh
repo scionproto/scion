@@ -78,16 +78,17 @@ cmd_golang() {
             COMMIT=120a6099270fc9360236f4383430e2adda6181cc
             GOPATH_BASE=${GOPATH%%:*}
             echo "Installing govendor dep manager"
-            mkdir -p ${GOPATH_BASE}/src/$HOST/$USER
-            cd ${GOPATH_BASE}/src/$HOST/$USER/
-            [ ! -d $PROJECT ] && git clone git@$HOST:$USER/$PROJECT.git
-            cd $PROJECT
+            mkdir -p "${GOPATH_BASE}/src/$HOST/$USER"
+            cd "${GOPATH_BASE}/src/$HOST/$USER/"
+            [ ! -d "$PROJECT" ] && git clone "git@$HOST:$USER/$PROJECT.git"
+            cd "$PROJECT"
             git fetch
-            git checkout $COMMIT
+            git checkout "$COMMIT"
             go install -v
         );
     fi
     echo "Downloading go dependencies (via govendor)"
+    # `make -C go` breaks if there are symlinks in $PWD
     ( cd go && make deps )
     echo "Copying go-capnproto2's go.capnp into proto/"
     cp go/vendor/zombiezen.com/go/capnproto2/std/go.capnp proto/go.capnp
