@@ -10,7 +10,8 @@ Thumbs.db
 
 # SCION generated files #
 #########################
-/logs/
+/logs/*
+!/logs/.keepme
 /gen/
 /traces/
 
@@ -23,7 +24,8 @@ topology/mininet/*.pyc
 #########################
 /proto/go.capnp
 /go/proto/*.capnp.go
-/go/vendor/
+/go/vendor/*/
+/go/vendor/.deps.stamp
 
 # vim generated files #
 #########################

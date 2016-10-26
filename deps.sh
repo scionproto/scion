@@ -70,17 +70,28 @@ cmd_golang() {
         # testing building Go code inside docker.
         sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang-1.6 git
     fi
-    echo "Installing go tools"
-    go get -v $(<go/deps.txt)
-    echo "Installing managed go dependencies (via trash)"
-    trash -C go
+    if ! type -P govendor &>/dev/null; then
+        (
+            HOST=github.com
+            USER=kardianos
+            PROJECT=govendor
+            COMMIT=120a6099270fc9360236f4383430e2adda6181cc
+            GOPATH_BASE=${GOPATH%%:*}
+            echo "Installing govendor dep manager"
+            mkdir -p "${GOPATH_BASE}/src/$HOST/$USER"
+            cd "${GOPATH_BASE}/src/$HOST/$USER/"
+            [ ! -d "$PROJECT" ] && git clone "git@$HOST:$USER/$PROJECT.git"
+            cd "$PROJECT"
+            git fetch
+            git checkout "$COMMIT"
+            go install -v
+        );
+    fi
+    echo "Downloading go dependencies (via govendor)"
+    # `make -C go` breaks if there are symlinks in $PWD
+    ( cd go && make deps )
     echo "Copying go-capnproto2's go.capnp into proto/"
-    local srcdir=$(go list -f "{{.Dir}}" zombiezen.com/go/capnproto2)
-    cp ${srcdir:?}/std/go.capnp proto/go.capnp
-    echo "Generating go capnp code"
-    make goproto
-    echo "Installing go dependencies"
-    go get -v $(tools/godeps.py)
+    cp go/vendor/zombiezen.com/go/capnproto2/std/go.capnp proto/go.capnp
 }
 
 chk_go() {

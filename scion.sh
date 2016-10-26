@@ -64,7 +64,8 @@ py_test() {
 }
 
 go_test() {
-    go test "$@" ./go/...
+    # `make -C go` breaks if there are symlinks in $PWD
+    ( cd go && make -s test )
 }
 
 cmd_coverage(){
@@ -85,10 +86,7 @@ py_cover() {
 }
 
 go_cover() {
-    set -o pipefail
-    gocov test ./go/... | gocov-html > go/gocover.html
-    echo
-    echo "Go coverage report here: file://$PWD/go/gocover.html"
+    ( cd go && make -s coverage )
 }
 
 cmd_lint() {
@@ -106,7 +104,7 @@ cmd_lint() {
 cmd_gofmt() {
     echo "Running gofmt"
     echo "============================================="
-    local fmtout=$(gofmt -d -s ./go)
+    local fmtout=$(cd go && make -s fmt)
     if [ -n "$fmtout" ]; then
         echo "$fmtout"
         return 1
