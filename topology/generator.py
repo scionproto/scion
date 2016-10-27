@@ -631,10 +631,12 @@ class SupervisorGenerator(object):
             'stderr_logfile': "NONE",
             'startretries': 0,
             'startsecs': 5,
+            'priority': 100,
             'command': self._mk_cmd(name, cmd_args),
         }
         if name == "dispatcher":
             entry['startsecs'] = 1
+            entry['priority'] = 50
         if self.mininet:
             entry['autostart'] = 'true'
         return entry

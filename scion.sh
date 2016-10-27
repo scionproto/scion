@@ -35,12 +35,12 @@ cmd_run() {
     if [ -e gen/zk_datalog_dirs.sh ]; then
         bash gen/zk_datalog_dirs.sh || exit 1
     fi
-    supervisor/supervisor.sh quickstart all
+    supervisor/supervisor.sh start all
 }
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
-    supervisor/supervisor.sh quickstop all
+    supervisor/supervisor.sh stop all
 }
 
 cmd_status() {
