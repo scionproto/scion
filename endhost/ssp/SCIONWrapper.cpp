@@ -1,3 +1,18 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <uthash.h>
 #include "SCIONSocket.h"
 #include "SCIONWrapper.h"
@@ -39,26 +54,26 @@ SocketEntry * findSocket(int sock)
 
 int newSCIONSocket(int protocol, const char *sciond)
 {
-    pthread_mutex_lock(&mutex);
+    p_m_lock(&mutex, __FILE__, __LINE__);
     SCIONSocket *s = new SCIONSocket(protocol, sciond);
     SocketEntry *e;
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
     e->fd = s->getReliableSocket();
     e->sock = s;
     updateTable(e);
-    pthread_mutex_unlock(&mutex);
+    p_m_unlock(&mutex, __FILE__, __LINE__);
     return e->fd;
 }
 
 void deleteSCIONSocket(int sock)
 {
-    pthread_mutex_lock(&mutex);
+    p_m_lock(&mutex, __FILE__, __LINE__);
     SocketEntry *e = findSocket(sock);
     if (e) {
         delete e->sock;
         HASH_DELETE(hh, sockets, e);
     }
-    pthread_mutex_unlock(&mutex);
+    p_m_unlock(&mutex, __FILE__, __LINE__);
 }
 
 int SCIONAccept(int sock)
@@ -225,7 +240,7 @@ int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
         }
         if (!total) {
             DEBUG("nothing ready yet, will block\n");
-            pthread_mutex_lock(&mutex);
+            p_m_lock(&mutex, __FILE__, __LINE__);
             for (size_t j = 0; j < regRead.size(); j++) {
                 SocketEntry *e = regRead[j];
                 e->selectRID =
@@ -241,7 +256,7 @@ int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
                 err = pthread_cond_timedwait(&cond, &mutex, &t);
             else
                 err = pthread_cond_wait(&cond, &mutex);
-            pthread_mutex_unlock(&mutex);
+            p_m_unlock(&mutex, __FILE__, __LINE__);
 
             for (size_t j = 0; j < regRead.size(); j++) {
                 SocketEntry *e = regRead[j];

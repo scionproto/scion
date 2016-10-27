@@ -1,7 +1,7 @@
 .PHONY: all clean install uninstall
 
 CXX = clang++
-CXXFLAGS ?= -Wall -Werror -g -fPIC -std=c++11
+CXXFLAGS ?= -Wall -Werror -g -fPIC -std=c++11 -Wthread-safety -DSCIONDEBUGPRINT
 LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion
 
 LIB_DIR = ../../lib/libscion

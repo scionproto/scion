@@ -1,3 +1,18 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #ifndef PATH_MANAGER_H
 #define PATH_MANAGER_H
 
@@ -7,6 +22,8 @@
 #include "OrderedList.h"
 #include "PathPolicy.h"
 #include "SCIONDefines.h"
+#include "Mutex.h"
+#include "MutexScion.h"
 
 class SSPProtocol;
 class Path;
@@ -51,9 +68,9 @@ protected:
     SCIONAddr                    mDstAddr;
 
     std::vector<Path *>          mPaths;
-    pthread_mutex_t              mPathMutex;
+    Mutex                        mPathMutex;
+    Mutex                        mDispatcherMutex;
     pthread_cond_t               mPathCond;
-    pthread_mutex_t              mDispatcherMutex;
     int                          mInvalid;
     PathPolicy                   mPolicy;
 };
@@ -120,14 +137,13 @@ protected:
     OrderedList<SCIONPacket *>   *mRetryPackets;
     OrderedList<SCIONPacket *>   *mFreshPackets;
 
-    pthread_mutex_t              mMutex;
     pthread_cond_t               mCond;
 
-    pthread_mutex_t              mSentMutex;
+    Mutex                        mSentMutex;
     pthread_cond_t               mSentCond;
-    pthread_mutex_t              mFreshMutex;
-    pthread_mutex_t              mRetryMutex;
-    pthread_mutex_t              mPacketMutex;
+    Mutex                        mFreshMutex;
+    Mutex                        mRetryMutex;
+    Mutex                        mPacketMutex;
     pthread_cond_t               mPacketCond;
 
     pthread_t                    mWorker;

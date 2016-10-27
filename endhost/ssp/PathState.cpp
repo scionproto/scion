@@ -1,5 +1,21 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <math.h>
 
+#include "Mutex.h"
 #include "PathState.h"
 #include "Utils.h"
 
@@ -81,7 +97,7 @@ PathState::PathState(int rtt, int mtu)
     mRTO = mSRTT + (mVAR << 2);
     mSRTT = 0; // initial RTT estimate used for RTO only
     memset(mLossBursts, 0, sizeof(mLossBursts));
-    pthread_mutex_init(&mMutex, NULL);
+    Mutex mMutex;
 }
 
 PathState::~PathState()
@@ -111,36 +127,36 @@ int PathState::bandwidth()
     return mWindow * mMTU / mSRTT * 1000000;
 }
 
-int PathState::estimatedRTT()
+int PathState::estimatedRTT() EXCLUDES(mMutex)
 {
     int ret;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     ret = mSRTT;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
-int PathState::getRTO()
+int PathState::getRTO() EXCLUDES(mMutex)
 {
     int ret;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     ret = mRTO;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
-int PathState::packetsInFlight()
+int PathState::packetsInFlight() EXCLUDES(mMutex)
 {
     int ret;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     ret = mInFlight;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
-double PathState::getLossRate()
+double PathState::getLossRate() EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     uint64_t currentInterval = mTotalAcked - mLastTotalAcked;
     if (currentInterval > mAverageLossInterval) {
         if (currentInterval > 2 * mAverageLossInterval)
@@ -148,18 +164,18 @@ double PathState::getLossRate()
         else
             calculateLoss(ALI_FROM_INTERVAL_0);
     }
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     if (mAverageLossInterval == 0)
         return 0.0;
     return 1.0 / mAverageLossInterval;
 }
 
-void PathState::addLoss(uint64_t packetNum)
+void PathState::addLoss(uint64_t packetNum) EXCLUDES(mMutex)
 {
     mTotalLost++;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mInFlight--;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     mCurrentBurst++;
     mInLoss = true;
     if (mCurrentBurst == SSP_MAX_LOSS_BURST) {
@@ -169,10 +185,10 @@ void PathState::addLoss(uint64_t packetNum)
     }
 }
 
-void PathState::addRTTSample(int rtt, uint64_t packetNum)
+void PathState::addRTTSample(int rtt, uint64_t packetNum) EXCLUDES(mMutex)
 {
     mTotalAcked++;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mInFlight--;
     DEBUG("path %d: receive ack: %d packets now in flight\n", mPathIndex, mInFlight);
     if (rtt > 0) {
@@ -196,12 +212,12 @@ void PathState::addRTTSample(int rtt, uint64_t packetNum)
         mCurrentBurst = 0;
         mInLoss = false;
     }
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
 }
 
-void PathState::addRetransmit()
+void PathState::addRetransmit() EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mLossIntervals.push_front(mTotalAcked - mLastTotalAcked);
     if (mLossIntervals.size() > MAX_LOSS_INTERVALS)
         mLossIntervals.pop_back();
@@ -209,27 +225,27 @@ void PathState::addRetransmit()
             mPathIndex, mTotalAcked - mLastTotalAcked, mInFlight, mWindow);
     mLastTotalAcked = mTotalAcked;
     calculateLoss(ALI_FROM_INTERVAL_1);
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
 }
 
-void PathState::handleSend(uint64_t packetNum)
+void PathState::handleSend(uint64_t packetNum) EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mInFlight++;
     mTotalSent++;
     DEBUG("path %d: send: %d/%d packets now in flight\n", mPathIndex, mInFlight, mWindow);
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
 }
 
 
-void PathState::handleTimeout()
+void PathState::handleTimeout() EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mRTO = mRTO << 1;
     if (mRTO > SSP_MAX_RTO)
         mRTO = SSP_MAX_RTO;
     DEBUG("timeout: new rto = %d\n", mRTO);
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
 }
 
 void PathState::handleDupAck()
@@ -365,7 +381,7 @@ PCCPathState::PCCPathState(int rtt, int mtu)
     memset(&mMonitorEndTime, 0, sizeof(mMonitorEndTime));
     memset(mTrialResults, 0, sizeof(mTrialResults));
     memset(mTrialIntervals, 0, sizeof(mTrialIntervals));
-    pthread_mutex_init(&mMonitorMutex, NULL);
+    Mutex mMonitorMutex;
 }
 
 int PCCPathState::timeUntilReady()
@@ -378,7 +394,7 @@ int PCCPathState::timeUntilReady()
     return res;
 }
 
-void PCCPathState::handleSend(uint64_t packetNum)
+void PCCPathState::handleSend(uint64_t packetNum) EXCLUDES(mMonitorMutex)
 {
     struct timeval t;
     gettimeofday(&t, NULL);
@@ -400,22 +416,22 @@ void PCCPathState::handleSend(uint64_t packetNum)
     }
     if (mMonitoring) {
         if (elapsedTime(&mMonitorStartTime, &t) < mMonitorDuration ) {
-            pthread_mutex_lock(&mMonitorMutex);
+            mMonitorMutex.Lock();
             mMonitoredPackets.insert(packetNum);
-            pthread_mutex_unlock(&mMonitorMutex);
+            mMonitorMutex.Unlock();
         }
     }
 }
 
-void PCCPathState::addRTTSample(int rtt, uint64_t packetNum)
+void PCCPathState::addRTTSample(int rtt, uint64_t packetNum) EXCLUDES(mMonitorMutex)
 {
     PathState::addRTTSample(rtt, packetNum);
 
     if (mMonitoring) {
         bool found = false;
-        pthread_mutex_lock(&mMonitorMutex);
+        mMonitorMutex.Lock();
         found = mMonitoredPackets.find(packetNum) != mMonitoredPackets.end();
-        pthread_mutex_unlock(&mMonitorMutex);
+        mMonitorMutex.Unlock();
         if (found) {
             mMonitorReceived++;
             mMonitorRTT += rtt;
@@ -437,12 +453,12 @@ void PCCPathState::addLoss(uint64_t packetNum)
         handleMonitorEnd();
 }
 
-void PCCPathState::handleMonitorEnd()
+void PCCPathState::handleMonitorEnd() EXCLUDES(mMonitorMutex)
 {
     if (!mMonitoring)
         return;
 
-    pthread_mutex_lock(&mMonitorMutex);
+    mMonitorMutex.Lock();
     gettimeofday(&mMonitorEndTime, NULL);
     DEBUG("%ld.%06ld: monitor end\n", mMonitorEndTime.tv_sec, mMonitorEndTime.tv_usec);
     long monitorTime = elapsedTime(&mMonitorStartTime, &mMonitorEndTime);
@@ -523,7 +539,7 @@ void PCCPathState::handleMonitorEnd()
     mMonitoring = false;
     if (mMonitorReceived == 0)
         mSendInterval *= 2;
-    pthread_mutex_unlock(&mMonitorMutex);
+    mMonitorMutex.Unlock();
 }
 
 void PCCPathState::startDecision()
@@ -657,16 +673,16 @@ CUBICPathState::CUBICPathState(int rtt, int mtu)
     reset();
 }
 
-int CUBICPathState::timeUntilReady()
+int CUBICPathState::timeUntilReady() EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     if (mInFlight < mWindow) {
         DEBUG("path %d: room in window (%d/%d), send right away\n", mPathIndex, mInFlight, mWindow);
-        pthread_mutex_unlock(&mMutex);
+        mMutex.Unlock();
         return 0;
     } else {
         DEBUG("path %d: window full (%d/%d), wait about 1 RTT (%d us)\n", mPathIndex, mInFlight, mWindow, mSRTT);
-        pthread_mutex_unlock(&mMutex);
+        mMutex.Unlock();
         return mSRTT ? mSRTT : mRTO;
     }
 }
@@ -702,7 +718,7 @@ void CUBICPathState::addRTTSample(int rtt, uint64_t packetNum)
     DEBUG("path %d: ack received: window set to %d (%d|%d)\n", mPathIndex, mWindow, mCongestionWindow, mSendWindow);
 }
 
-void CUBICPathState::addRetransmit()
+void CUBICPathState::addRetransmit() EXCLUDES(mMutex)
 {
     PathState::addRetransmit();
 
@@ -718,9 +734,9 @@ void CUBICPathState::addRetransmit()
     if (mTimeout)
         mCongestionWindow = 1;
 
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mWindow = mCongestionWindow < mSendWindow ? mCongestionWindow : mSendWindow;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     DEBUG("path %d: packet loss: window set to %d (last max window %d)\n", mPathIndex, mWindow, mMaxWindow);
 }
 

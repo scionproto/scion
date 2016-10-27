@@ -1,9 +1,25 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <sys/un.h>
 
 #include "Extensions.h"
+#include "Mutex.h"
 #include "SCIONSocket.h"
 #include "Path.h"
 
@@ -93,12 +109,12 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     strcpy(mSCIONDAddr, sciond);
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
 
+    Mutex mAcceptMutex;
+    Mutex mRegisterMutex;
+    Mutex mSelectMutex;
     // init pthread variables
-    pthread_mutex_init(&mAcceptMutex, NULL);
     pthread_cond_init(&mAcceptCond, NULL);
-    pthread_mutex_init(&mRegisterMutex, NULL);
     pthread_cond_init(&mRegisterCond, NULL);
-    pthread_mutex_init(&mSelectMutex, NULL);
 
     // open dispatcher socket
     mReliableSocket = setupSocket();
@@ -119,7 +135,7 @@ SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     pthread_create(&mReceiverThread, NULL, dispatcherThread, this);
 }
 
-SCIONSocket::~SCIONSocket()
+SCIONSocket::~SCIONSocket() EXCLUDES(mAcceptMutex, mRegisterMutex)
 {
     mState = SCION_CLOSED;
     pthread_cancel(mReceiverThread);
@@ -127,32 +143,30 @@ SCIONSocket::~SCIONSocket()
     delete mProtocol;
     mProtocol = NULL;
     close(mReliableSocket);
-    pthread_mutex_destroy(&mAcceptMutex);
     pthread_cond_destroy(&mAcceptCond);
-    pthread_mutex_destroy(&mRegisterMutex);
     pthread_cond_destroy(&mRegisterCond);
     if (mParent)
         mParent->removeChild(this);
 }
 
-SCIONSocket * SCIONSocket::accept()
+SCIONSocket * SCIONSocket::accept() EXCLUDES(mAcceptMutex)
 {
     if (mState == SCION_CLOSED)
         return NULL;
     SCIONSocket *s;
-    pthread_mutex_lock(&mAcceptMutex);
+    mAcceptMutex.Lock();
     while (mLastAccept >= (int)mAcceptedSockets.size() - 1)
-        pthread_cond_wait(&mAcceptCond, &mAcceptMutex);
+        mAcceptMutex.condWait(&mAcceptCond);
     if (mState == SCION_CLOSED) {
-        pthread_mutex_unlock(&mAcceptMutex);
+        mAcceptMutex.Unlock();
         return NULL;
     }
     s = mAcceptedSockets[++mLastAccept];
-    pthread_mutex_unlock(&mAcceptMutex);
+    mAcceptMutex.Unlock();
     return s;
 }
 
-int SCIONSocket::bind(SCIONAddr addr)
+int SCIONSocket::bind(SCIONAddr addr) EXCLUDES(mRegisterMutex)
 {
     if (mBound) {
         DEBUG("already bound\n");
@@ -169,34 +183,34 @@ int SCIONSocket::bind(SCIONAddr addr)
 
     int ret = mProtocol->bind(addr, mReliableSocket);
     if (mProtocolID == L4_UDP) {
-        pthread_mutex_lock(&mRegisterMutex);
+        mRegisterMutex.Lock();
         mRegistered = true;
         pthread_cond_signal(&mRegisterCond);
-        pthread_mutex_unlock(&mRegisterMutex);
+        mRegisterMutex.Unlock();
     }
     return ret;
 }
 
-int SCIONSocket::connect(SCIONAddr addr)
+int SCIONSocket::connect(SCIONAddr addr) EXCLUDES(mRegisterMutex)
 {
     mProtocol->start(NULL, NULL, mReliableSocket);
-    pthread_mutex_lock(&mRegisterMutex);
+    mRegisterMutex.Lock();
     mRegistered = true;
     pthread_cond_signal(&mRegisterCond);
-    pthread_mutex_unlock(&mRegisterMutex);
+    mRegisterMutex.Unlock();
     return mProtocol->connect(addr, mTimeout);
 }
 
-int SCIONSocket::listen()
+int SCIONSocket::listen() EXCLUDES(mRegisterMutex)
 {
     int ret = mProtocol->listen(mReliableSocket);
     if (ret < 0)
         return ret;
     mIsListener = true;
-    pthread_mutex_lock(&mRegisterMutex);
+    mRegisterMutex.Lock();
     mRegistered = true;
     pthread_cond_signal(&mRegisterCond);
-    pthread_mutex_unlock(&mRegisterMutex);
+    mRegisterMutex.Unlock();
     return 0;
 }
 
@@ -268,10 +282,10 @@ double SCIONSocket::getTimeout()
     return mTimeout;
 }
 
-bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)
+bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr) EXCLUDES(mAcceptMutex)
 {
     bool claimed = false;
-    pthread_mutex_lock(&mAcceptMutex);
+    mAcceptMutex.Lock();
     std::vector<SCIONSocket *>::iterator it = mAcceptedSockets.begin();
     for (; it != mAcceptedSockets.end(); it++) {
         SCIONSocket *sock = *it;
@@ -285,24 +299,24 @@ bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)
             break;
         }
     }
-    pthread_mutex_unlock(&mAcceptMutex);
+    mAcceptMutex.Unlock();
     return claimed;
 }
 
-void SCIONSocket::signalSelect()
+void SCIONSocket::signalSelect() EXCLUDES(mSelectMutex)
 {
-    pthread_mutex_lock(&mSelectMutex);
+    mSelectMutex.Lock();
     std::map<int, Notification>::iterator i;
     for (i = mSelectRead.begin(); i != mSelectRead.end(); i++) {
         Notification &n = i->second;
-        pthread_mutex_lock(n.mutex);
+        p_m_lock(n.mutex, __FILE__, __LINE__);
         pthread_cond_signal(n.cond);
-        pthread_mutex_unlock(n.mutex);
+        p_m_unlock(n.mutex, __FILE__, __LINE__);
     }
-    pthread_mutex_unlock(&mSelectMutex);
+    mSelectMutex.Unlock();
 }
 
-void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
+void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr) EXCLUDES(mAcceptMutex)
 {
     DEBUG("received SCION packet: %lu bytes\n", len);
     DEBUG("sent from %s:%d\n", addr_to_str(addr->addr, addr->addr_type, NULL), addr->port);
@@ -360,9 +374,9 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, HostAddr *addr)
             s->mProtocol->start(packet, buf + sch->header_len, s->mReliableSocket);
             s->mRegistered = true;
             pthread_cond_signal(&s->mRegisterCond);
-            pthread_mutex_lock(&mAcceptMutex);
+            mAcceptMutex.Lock();
             mAcceptedSockets.push_back(s);
-            pthread_mutex_unlock(&mAcceptMutex);
+            mAcceptMutex.Unlock();
             pthread_cond_signal(&mAcceptCond);
             signalSelect();
         }
@@ -414,13 +428,13 @@ bool SCIONSocket::isRunning()
     return mState != SCION_CLOSED;
 }
 
-void SCIONSocket::waitForRegistration()
+void SCIONSocket::waitForRegistration() EXCLUDES(mRegisterMutex)
 {
     DEBUG("wait for registration\n");
-    pthread_mutex_lock(&mRegisterMutex);
+    mRegisterMutex.Lock();
     while (!mRegistered)
-        pthread_cond_wait(&mRegisterCond, &mRegisterMutex);
-    pthread_mutex_unlock(&mRegisterMutex);
+        mRegisterMutex.condWait(&mRegisterCond);
+    mRegisterMutex.Unlock();
     DEBUG("registered\n");
 }
 
@@ -478,13 +492,13 @@ void * SCIONSocket::getStats(void *buf, int len)
     return (void *)(ptr - (uint8_t *)buf);
 }
 
-bool SCIONSocket::readyToRead()
+bool SCIONSocket::readyToRead() EXCLUDES(mAcceptMutex)
 {
     if (mIsListener) {
         bool ready = false;
-        pthread_mutex_lock(&mAcceptMutex);
+        mAcceptMutex.Lock();
         ready = mLastAccept < (int)mAcceptedSockets.size() - 1;
-        pthread_mutex_unlock(&mAcceptMutex);
+        mAcceptMutex.Unlock();
         DEBUG("accept socket: ready? %d\n", ready);
         return ready;
     }
@@ -498,31 +512,31 @@ bool SCIONSocket::readyToWrite()
     return mProtocol->readyToWrite();
 }
 
-int SCIONSocket::registerSelect(Notification *n, int mode)
+int SCIONSocket::registerSelect(Notification *n, int mode) EXCLUDES(mSelectMutex)
 {
     if (mIsListener && mode == SCION_SELECT_WRITE)
         return -1;
     if (mIsListener && mode == SCION_SELECT_READ) {
-        pthread_mutex_lock(&mSelectMutex);
+        mSelectMutex.Lock();
         mSelectRead[++mSelectCount] = *n;
-        pthread_mutex_unlock(&mSelectMutex);
+        mSelectMutex.Unlock();
         return mSelectCount;
     }
     return mProtocol->registerSelect(n, mode);
 }
 
-void SCIONSocket::deregisterSelect(int index)
+void SCIONSocket::deregisterSelect(int index) EXCLUDES(mSelectMutex)
 {
     if (index == 0)
         return;
-    pthread_mutex_lock(&mSelectMutex);
+    mSelectMutex.Lock();
     if (mIsListener) {
         if (mSelectRead.find(index) != mSelectRead.end())
             mSelectRead.erase(index);
     } else {
         mProtocol->deregisterSelect(index);
     }
-    pthread_mutex_unlock(&mSelectMutex);
+    mSelectMutex.Unlock();
 }
 
 int SCIONSocket::shutdown(bool force)
@@ -541,23 +555,21 @@ int SCIONSocket::shutdown(bool force)
 void SCIONSocket::removeChild(SCIONSocket *child)
 {
     DEBUG("remove child socket %p from parent %p\n", child, this);
-    pthread_mutex_lock(&mAcceptMutex);
+    mAcceptMutex.Lock();
     for (size_t i = 0; i < mAcceptedSockets.size(); i++) {
         if (mAcceptedSockets[i] == child) {
             mAcceptedSockets[i] = NULL;
             break;
         }
     }
-    pthread_mutex_unlock(&mAcceptMutex);
+    mAcceptMutex.Unlock();
 }
 
-void SCIONSocket::threadCleanup()
+void SCIONSocket::threadCleanup() EXCLUDES(mAcceptMutex, mRegisterMutex, mSelectMutex)
 {
-    if (mProtocol)
+    if (mProtocol) {
         mProtocol->threadCleanup();
-    pthread_mutex_unlock(&mAcceptMutex);
-    pthread_mutex_unlock(&mRegisterMutex);
-    pthread_mutex_unlock(&mSelectMutex);
+    }
 }
 
 int SCIONSocket::getPort()

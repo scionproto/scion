@@ -1,7 +1,23 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <unistd.h>
 #include <arpa/inet.h>
 
 #include "Extensions.h"
+#include "Mutex.h"
 #include "ProtocolConfigs.h"
 #include "SCIONProtocol.h"
 #include "Utils.h"
@@ -39,20 +55,18 @@ SCIONProtocol::SCIONProtocol(int sock, const char *sciond)
     mSocket = sock; // gets closed by SCIONSocket
     memset(&mDstAddr, 0, sizeof(mDstAddr));
     gettimeofday(&mLastProbeTime, NULL);
-    pthread_mutex_init(&mReadMutex, NULL);
+    Mutex mReadMutex;
+    Mutex mStateMutex;
     pthread_condattr_t ca;
     pthread_condattr_init(&ca);
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mReadCond, &ca);
-    pthread_mutex_init(&mStateMutex, NULL);
 }
 
-SCIONProtocol::~SCIONProtocol()
+SCIONProtocol::~SCIONProtocol() EXCLUDES(mReadMutex, mStateMutex)
 {
     mState = SCION_CLOSED;
-    pthread_mutex_destroy(&mReadMutex);
     pthread_cond_destroy(&mReadCond);
-    pthread_mutex_destroy(&mStateMutex);
 }
 
 int SCIONProtocol::bind(SCIONAddr addr, int sock)
@@ -182,12 +196,10 @@ uint32_t SCIONProtocol::getLocalIA()
     return addr->isd_as;
 }
 
-void SCIONProtocol::threadCleanup()
+void SCIONProtocol::threadCleanup() EXCLUDES(mReadMutex, mStateMutex)
 {
     if (mPathManager)
         mPathManager->threadCleanup();
-    pthread_mutex_unlock(&mReadMutex);
-    pthread_mutex_unlock(&mStateMutex);
 }
 
 int SCIONProtocol::getPort()
@@ -223,14 +235,14 @@ SSPProtocol::SSPProtocol(int sock, const char *sciond)
 
     getWindowSize();
 
-    pthread_mutex_init(&mSelectMutex, NULL);
+    Mutex mSelectMutex;
 
     mConnectionManager = new SSPConnectionManager(mSocket, sciond, this);
     mPathManager = mConnectionManager;
     pthread_create(&mTimerThread, NULL, timerThread, this);
 }
 
-SSPProtocol::~SSPProtocol()
+SSPProtocol::~SSPProtocol() EXCLUDES(mSelectMutex)
 {
     mState = SCION_CLOSED;
     pthread_cancel(mTimerThread);
@@ -243,7 +255,6 @@ SSPProtocol::~SSPProtocol()
     delete mReadyPackets;
     mOOPackets->clean();
     delete mOOPackets;
-    pthread_mutex_destroy(&mSelectMutex);
 }
 
 int SSPProtocol::connect(SCIONAddr addr, double timeout)
@@ -310,38 +321,38 @@ int SSPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double timeo
     return total_len;
 }
 
-int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
+int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout) EXCLUDES(mReadMutex, mStateMutex)
 {
     int total = 0;
     uint8_t *ptr = buf;
     bool missing = false;
 
-    pthread_mutex_lock(&mReadMutex);
+    mReadMutex.Lock();
     while (!mReadyToRead) {
         DEBUG("%p: no data to read yet\n", this);
         if (!mBlocking) {
-            pthread_mutex_unlock(&mReadMutex);
+            mReadMutex.Unlock();
             DEBUG("non-blocking socket not ready to recv\n");
             return -EWOULDBLOCK;
         }
         if (timeout > 0.0) {
-            if (timedWait(&mReadCond, &mReadMutex, timeout) == ETIMEDOUT) {
-                pthread_mutex_unlock(&mReadMutex);
+            if (timedWaitMutex(&mReadCond, &mReadMutex, timeout) == ETIMEDOUT) {
+                mReadMutex.Unlock();
                 DEBUG("%p: timeout in recv\n", this);
                 return -ETIMEDOUT;
             }
         } else {
-            pthread_cond_wait(&mReadCond, &mReadMutex);
+            mReadMutex.condWait(&mReadCond);
         }
     }
-    pthread_mutex_lock(&mStateMutex);
+    mStateMutex.Lock();
     if (mState == SCION_CLOSED || mState == SCION_FIN_READ) {
-        pthread_mutex_unlock(&mStateMutex);
-        pthread_mutex_unlock(&mReadMutex);
+        mStateMutex.Unlock();
+        mReadMutex.Unlock();
         DEBUG("%p: connection has already terminated (%d)\n", this, mState);
         return 0;
     }
-    pthread_mutex_unlock(&mStateMutex);
+    mStateMutex.Unlock();
 
     DEBUG("%p: start recv\n", this);
     while (!mReadyPackets->empty()) {
@@ -360,9 +371,9 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
         DEBUG("reading %lu bytes\n", toRead);
         if (sp->header.flags & SSP_FIN) {
             DEBUG("%p: recv'd FIN packet\n", this);
-            pthread_mutex_lock(&mStateMutex);
+            mStateMutex.Lock();
             mState = SCION_FIN_READ;
-            pthread_mutex_unlock(&mStateMutex);
+            mStateMutex.Unlock();
         } else {
             memcpy(ptr, sp->data.get() + sp->dataOffset, toRead);
             ptr += toRead;
@@ -380,12 +391,12 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeo
     }
     if (mReadyPackets->empty() || missing) {
         DEBUG("no more data ready\n");
-        pthread_mutex_lock(&mStateMutex);
+        mStateMutex.Lock();
         if (mState != SCION_CLOSED && mState != SCION_FIN_READ)
             mReadyToRead = false;
-        pthread_mutex_unlock(&mStateMutex);
+        mStateMutex.Unlock();
     }
-    pthread_mutex_unlock(&mReadMutex);
+    mReadMutex.Unlock();
     if (!total)
         DEBUG("%p: connection has terminated\n", this);
     DEBUG("%p: recv'd total %d bytes\n", this, total);
@@ -563,29 +574,29 @@ SSPPacket * SSPProtocol::checkOutOfOrderQueue(SSPPacket *sp)
     return pushed ? last : NULL;
 }
 
-void SSPProtocol::signalSelect()
+void SSPProtocol::signalSelect() EXCLUDES(mSelectMutex)
 {
     DEBUG("signalSelect\n");
-    pthread_mutex_lock(&mSelectMutex);
+    mSelectMutex.Lock();
     std::map<int, Notification>::iterator i;
     for (i = mSelectRead.begin(); i != mSelectRead.end(); i++) {
         Notification &n = i->second;
-        pthread_mutex_lock(n.mutex);
+        p_m_lock(n.mutex, __FILE__, __LINE__);
         pthread_cond_signal(n.cond);
-        pthread_mutex_unlock(n.mutex);
+        p_m_unlock(n.mutex, __FILE__, __LINE__);
         DEBUG("signalled select cond %d\n", i->first);
     }
     for (i = mSelectWrite.begin(); i != mSelectWrite.end(); i++) {
         Notification &n = i->second;
-        pthread_mutex_lock(n.mutex);
+        p_m_lock(n.mutex, __FILE__, __LINE__);
         pthread_cond_signal(n.cond);
-        pthread_mutex_unlock(n.mutex);
+        p_m_unlock(n.mutex, __FILE__, __LINE__);
         DEBUG("signalled select cond %d\n", i->first);
     }
-    pthread_mutex_unlock(&mSelectMutex);
+    mSelectMutex.Unlock();
 }
 
-void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
+void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex) EXCLUDES(mReadMutex)
 {
     DEBUG("in-order packet: %lu\n", sp->getOffset());
 
@@ -593,7 +604,7 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
     uint64_t end = start + sp->len;
     int packetSize = end - start + sizeof(SSPPacket);
 
-    pthread_mutex_lock(&mReadMutex);
+    mReadMutex.Lock();
 
     if (!(sp->header.flags & SSP_FIN) &&
             packetSize + mTotalReceived > mLocalReceiveWindow) {
@@ -603,7 +614,7 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
         sendAck(sp, pathIndex);
         sp->data = NULL;
         destroySSPPacket(sp);
-        pthread_mutex_unlock(&mReadMutex);
+        mReadMutex.Unlock();
         return;
     }
 
@@ -619,19 +630,19 @@ void SSPProtocol::handleInOrder(SSPPacket *sp, int pathIndex)
         mReadyToRead = true;
         if (last->header.flags & SSP_FIN) {
             DEBUG("%p: Read up to FIN flag, connection done\n", this);
-            pthread_mutex_lock(&mStateMutex);
+            mStateMutex.Lock();
             mState = SCION_FIN_RCVD;
-            pthread_mutex_unlock(&mStateMutex);
+            mStateMutex.Unlock();
         }
     } else {
         DEBUG("packet was resent on smaller path(s), discard original\n");
     }
-    pthread_mutex_unlock(&mReadMutex);
+    mReadMutex.Unlock();
     pthread_cond_signal(&mReadCond);
     signalSelect();
 }
 
-void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
+void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex) EXCLUDES(mReadMutex)
 {
     DEBUG("out-of-order packet %lu (%lu)\n", sp->getOffset(), mLowestPending);
 
@@ -640,7 +651,7 @@ void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
     int maxPayload = mConnectionManager->maxPayloadSize();
     int packetSize = end - start + sizeof(SSPPacket);
 
-    pthread_mutex_lock(&mReadMutex);
+    mReadMutex.Lock();
 
     if (!(sp->header.flags & SSP_FIN) &&
             packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
@@ -651,7 +662,7 @@ void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
         sendAck(sp, pathIndex);
         sp->data = NULL;
         destroySSPPacket(sp);
-        pthread_mutex_unlock(&mReadMutex);
+        mReadMutex.Unlock();
         return;
     }
 
@@ -661,14 +672,14 @@ void SSPProtocol::handleOutOfOrder(SSPPacket *sp, int pathIndex)
     bool found = mOOPackets->push(sp);
     if (found) {
         DEBUG("duplicate packet: discard\n");
-        pthread_mutex_unlock(&mReadMutex);
+        mReadMutex.Unlock();
         sendAck(sp, pathIndex);
         destroySSPPacket(sp);
     } else {
         DEBUG("added to out-of-order queue\n");
         mTotalReceived += packetSize;
         DEBUG("receive window now %u/%u\n", mTotalReceived, mLocalReceiveWindow);
-        pthread_mutex_unlock(&mReadMutex);
+        mReadMutex.Unlock();
         sendAck(sp, pathIndex);
     }
 }
@@ -807,12 +818,12 @@ void SSPProtocol::getStats(SCIONStats *stats)
         mConnectionManager->getStats(stats);
 }
 
-bool SSPProtocol::readyToRead()
+bool SSPProtocol::readyToRead() EXCLUDES(mReadMutex)
 {
     bool ready = false;
-    pthread_mutex_lock(&mReadMutex);
+    mReadMutex.Lock();
     ready = mReadyToRead;
-    pthread_mutex_unlock(&mReadMutex);
+    mReadMutex.Unlock();
     return ready;
 }
 
@@ -821,21 +832,21 @@ bool SSPProtocol::readyToWrite()
     return !mConnectionManager->bufferFull(mLocalSendWindow);
 }
 
-int SSPProtocol::registerSelect(Notification *n, int mode)
+int SSPProtocol::registerSelect(Notification *n, int mode) EXCLUDES(mSelectMutex)
 {
-    pthread_mutex_lock(&mSelectMutex);
+    mSelectMutex.Lock();
     if (mode == SCION_SELECT_READ)
         mSelectRead[++mSelectCount] = *n;
     else
         mSelectWrite[++mSelectCount] = *n;
-    pthread_mutex_unlock(&mSelectMutex);
+    mSelectMutex.Unlock();
     DEBUG("registered index %d for mode %d\n", mSelectCount, mode);
     return mSelectCount;
 }
 
-void SSPProtocol::deregisterSelect(int index)
+void SSPProtocol::deregisterSelect(int index) EXCLUDES(mSelectMutex)
 {
-    pthread_mutex_lock(&mSelectMutex);
+    mSelectMutex.Lock();
     if (mSelectRead.find(index) != mSelectRead.end()) {
         DEBUG("erase index %d from read list\n", index);
         mSelectRead.erase(index);
@@ -843,28 +854,28 @@ void SSPProtocol::deregisterSelect(int index)
         DEBUG("erase index %d from write list\n", index);
         mSelectWrite.erase(index);
     }
-    pthread_mutex_unlock(&mSelectMutex);
+    mSelectMutex.Unlock();
 }
 
-void SSPProtocol::notifySender()
+void SSPProtocol::notifySender() EXCLUDES(mSelectMutex)
 {
-    pthread_mutex_lock(&mSelectMutex);
+    mSelectMutex.Lock();
     std::map<int, Notification>::iterator i;
     for (i = mSelectWrite.begin(); i != mSelectWrite.end(); i++) {
         Notification &n = i->second;
-        pthread_mutex_lock(n.mutex);
+        p_m_lock(n.mutex, __FILE__, __LINE__);
         pthread_cond_signal(n.cond);
-        pthread_mutex_unlock(n.mutex);
+        p_m_unlock(n.mutex, __FILE__, __LINE__);
     }
-    pthread_mutex_unlock(&mSelectMutex);
+    mSelectMutex.Unlock();
 }
 
-int SSPProtocol::shutdown(bool force)
+int SSPProtocol::shutdown(bool force) EXCLUDES(mStateMutex)
 {
-    pthread_mutex_lock(&mStateMutex);
+    mStateMutex.Lock();
     DEBUG("%p: shutdown\n", this);
     if (mState == SCION_CLOSED) {
-        pthread_mutex_unlock(&mStateMutex);
+        mStateMutex.Unlock();
         return 0;
     }
     if (force ||
@@ -873,15 +884,15 @@ int SSPProtocol::shutdown(bool force)
             (!mIsReceiver && mNextSendByte == 0)) {
         if (mState == SCION_RUNNING)
             mState = SCION_CLOSED;
-        pthread_mutex_unlock(&mStateMutex);
-        pthread_mutex_lock(&mReadMutex);
+        mStateMutex.Unlock();
+        mReadMutex.Lock();
         mReadyToRead = true;
         pthread_cond_broadcast(&mReadCond);
-        pthread_mutex_unlock(&mReadMutex);
+        mReadMutex.Unlock();
         return 0;
     }
     mState = SCION_SHUTDOWN;
-    pthread_mutex_unlock(&mStateMutex);
+    mStateMutex.Unlock();
 
     SCIONPacket *packet = createPacket(NULL, 0);
     SSPPacket *sp = (SSPPacket *)(packet->payload);
@@ -891,15 +902,15 @@ int SSPProtocol::shutdown(bool force)
     return 0;
 }
 
-void SSPProtocol::notifyFinAck()
+void SSPProtocol::notifyFinAck() EXCLUDES(mStateMutex, mReadMutex)
 {
-    pthread_mutex_lock(&mStateMutex);
+    mStateMutex.Lock();
     mState = SCION_CLOSED;
-    pthread_mutex_unlock(&mStateMutex);
-    pthread_mutex_lock(&mReadMutex);
+    mStateMutex.Unlock();
+    mReadMutex.Lock();
     mReadyToRead = true;
     pthread_cond_broadcast(&mReadCond);
-    pthread_mutex_unlock(&mReadMutex);
+    mReadMutex.Unlock();
 }
 
 int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
@@ -922,9 +933,8 @@ int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
     return ret;
 }
 
-void SSPProtocol::threadCleanup()
+void SSPProtocol::threadCleanup() EXCLUDES(mSelectMutex)
 {
-    pthread_mutex_unlock(&mSelectMutex);
     SCIONProtocol::threadCleanup();
 }
 
@@ -986,24 +996,24 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, SCIONAddr *dstAddr, double time
     return len;
 }
 
-int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout)
+int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double timeout) EXCLUDES(mReadMutex)
 {
     DEBUG("recv max %lu bytes\n", len);
     int size = 0;
-    pthread_mutex_lock(&mReadMutex);
+    mReadMutex.Lock();
     while (mReceivedPackets.empty()) {
         if (!mBlocking) {
-            pthread_mutex_unlock(&mReadMutex);
+            mReadMutex.Unlock();
             return -1;
         }
         if (timeout > 0.0) {
-            if (timedWait(&mReadCond, &mReadMutex, timeout) == ETIMEDOUT) {
-                pthread_mutex_unlock(&mReadMutex);
+            if (timedWaitMutex(&mReadCond, &mReadMutex, timeout) == ETIMEDOUT) {
+                mReadMutex.Unlock();
                 DEBUG("%p: timeout in recv\n", this);
                 return -ETIMEDOUT;
             }
         } else {
-            pthread_cond_wait(&mReadCond, &mReadMutex);
+            mReadMutex.condWait(&mReadCond);
         }
     }
     SCIONPacket *packet = mReceivedPackets.front();
@@ -1011,14 +1021,14 @@ int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double time
     DEBUG("queued packet with len %lu bytes\n", sp->payloadLen);
     if (sp->payloadLen > len) {
         DEBUG("user buffer too short to read\n");
-        pthread_mutex_unlock(&mReadMutex);
+        mReadMutex.Unlock();
         return -1;
     }
     mReceivedPackets.pop_front();
     memcpy(buf, sp->payload, sp->payloadLen);
     size = sp->payloadLen;
     mTotalReceived -= sp->payloadLen + sizeof(SUDPPacket);
-    pthread_mutex_unlock(&mReadMutex);
+    mReadMutex.Unlock();
     DEBUG("recvd total %d bytes\n", size);
     if (srcAddr) {
         srcAddr->isd_as = ntohl(*(uint32_t *)packet->header.srcAddr);
@@ -1031,7 +1041,7 @@ int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr, double time
     return size;
 }
 
-int SUDPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
+int SUDPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf) EXCLUDES(mReadMutex)
 {
     DEBUG("SUDP packet\n");
     SCIONCommonHeader &sch = packet->header.commonHeader;
@@ -1070,10 +1080,10 @@ int SUDPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
             destroySUDPPacket(sp);
         } else {
             DEBUG("signal recv\n");
-            pthread_mutex_lock(&mReadMutex);
+            mReadMutex.Lock();
             mTotalReceived += size;
             mReceivedPackets.push_back(packet);
-            pthread_mutex_unlock(&mReadMutex);
+            mReadMutex.Unlock();
             pthread_cond_signal(&mReadCond);
         }
     } else if (isProbe) {

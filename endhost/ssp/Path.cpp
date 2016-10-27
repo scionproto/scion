@@ -1,3 +1,18 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <arpa/inet.h>
 
 #include "ConnectionManager.h"
@@ -73,7 +88,7 @@ Path::Path(PathManager *manager, PathParams *params)
         mMTU = SCION_DEFAULT_MTU;
     }
     gettimeofday(&mLastSendTime, NULL);
-    pthread_mutex_init(&mMutex, NULL);
+    Mutex mMutex;
 
     switch (params->type) {
         case CC_CBR:
@@ -92,13 +107,12 @@ Path::Path(PathManager *manager, PathParams *params)
     }
 }
 
-Path::~Path()
+Path::~Path() EXCLUDES(mMutex)
 {
     if (mPath) {
         free(mPath);
         mPath = NULL;
     }
-    pthread_mutex_destroy(&mMutex);
 }
 
 int Path::sendPacket(SCIONPacket *packet, int sock)
@@ -188,46 +202,46 @@ std::vector<SCIONInterface> & Path::getInterfaces()
     return mInterfaces;
 }
 
-bool Path::isUp()
+bool Path::isUp() EXCLUDES(mMutex)
 {
     bool ret;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     ret = mUp;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
-void Path::setUp()
+void Path::setUp() EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mUp = true;
     mValid = true;
     mProbeAttempts = 0;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
 }
 
-bool Path::isUsed()
+bool Path::isUsed() EXCLUDES(mMutex)
 {
     bool ret;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     ret = mUsed;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
-void Path::setUsed(bool used)
+void Path::setUsed(bool used) EXCLUDES(mMutex)
 {
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mUsed = used;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
 }
 
-bool Path::isValid()
+bool Path::isValid() EXCLUDES(mMutex)
 {
     bool ret;
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     ret = mValid;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
@@ -321,22 +335,20 @@ SSPPath::SSPPath(SSPConnectionManager *manager, PathParams *params)
 {
     gettimeofday(&mLastLossTime, NULL);
 
-    pthread_mutex_init(&mTimeMutex, NULL);
-    pthread_mutex_init(&mWindowMutex, NULL);
+    Mutex mTimeMutex;
+    Mutex mWindowMutex;
     pthread_condattr_t ca;
     pthread_condattr_init(&ca);
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mWindowCond, &ca);
 }
 
-SSPPath::~SSPPath()
+SSPPath::~SSPPath() EXCLUDES(mTimeMutex, mWindowMutex)
 {
     if (mState) {
         delete mState;
         mState = NULL;
     }
-    pthread_mutex_destroy(&mTimeMutex);
-    pthread_mutex_destroy(&mWindowMutex);
     pthread_cond_destroy(&mWindowCond);
 }
 
@@ -375,7 +387,7 @@ uint8_t * SSPPath::copySSPPacket(SSPPacket *sp, uint8_t *bufptr, bool probe)
     return bufptr;
 }
 
-void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
+void SSPPath::postProcessing(SCIONPacket *packet, bool probe) EXCLUDES(mMutex, mTimeMutex)
 {
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     SSPHeader &sh = sp->header;
@@ -386,10 +398,10 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
     if (!(sh.flags & SSP_ACK) && !probe) {
         mState->handleSend(sp->getOffset());
         mTotalSent++;
-        pthread_mutex_lock(&mTimeMutex);
+        mTimeMutex.Lock();
         gettimeofday(&mLastSendTime, NULL);
         packet->sendTime = mLastSendTime;
-        pthread_mutex_unlock(&mTimeMutex);
+        mTimeMutex.Unlock();
         mManager->didSend(packet);
         DEBUG("%ld.%06ld: packet %lu(%p) sent on path %d: %d/%d packets in flight\n",
                 mLastSendTime.tv_sec, mLastSendTime.tv_usec,
@@ -397,20 +409,20 @@ void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
     } else if (probe) {
         mProbeAttempts++;
         if (mProbeAttempts >= SSP_PROBE_ATTEMPTS) {
-            pthread_mutex_lock(&mMutex);
+            mMutex.Lock();
             mValid = false;
-            pthread_mutex_unlock(&mMutex);
+            mMutex.Unlock();
         }
     }
 }
 
-int SSPPath::sendPacket(SCIONPacket *packet, int sock)
+int SSPPath::sendPacket(SCIONPacket *packet, int sock) EXCLUDES(mMutex)
 {
     DEBUG("path %d: sendPacket\n", mIndex);
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     bool wasValid = mValid;
     int acked = mTotalAcked;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     bool sendInterfaces = false;
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     SSPHeader &sh = sp->header;
@@ -455,10 +467,10 @@ int SSPPath::sendPacket(SCIONPacket *packet, int sock)
 
     int ret = 0;
 
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     if (wasValid && !mValid)
         ret = 1;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return ret;
 }
 
@@ -468,7 +480,7 @@ int SSPPath::handleData(SCIONPacket *packet)
     return 0;
 }
 
-int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
+int SSPPath::handleAck(SCIONPacket *packet, bool rttSample) EXCLUDES(mMutex, mWindowMutex)
 {
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     DEBUG("path %d: packet %lu acked, %d packets in flight\n",
@@ -476,16 +488,16 @@ int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
     int rtt = elapsedTime(&(packet->sendTime), &(packet->arrivalTime));
     if (!rttSample)
         rtt = 0;
-    pthread_mutex_lock(&mWindowMutex);
+    mWindowMutex.Lock();
     mState->addRTTSample(rtt, sp->getAckNum());
-    pthread_mutex_unlock(&mWindowMutex);
+    mWindowMutex.Unlock();
     if (mState->isWindowBased())
         pthread_cond_broadcast(&mWindowCond);
-    pthread_mutex_lock(&mMutex);
+    mMutex.Lock();
     mTimeoutCount = 0;
     if (rtt > 0) // don't count acks on other paths
         mTotalAcked++;
-    pthread_mutex_unlock(&mMutex);
+    mMutex.Unlock();
     return 0;
 }
 
@@ -505,12 +517,12 @@ void SSPPath::handleTimeout(struct timeval *current)
         mUp = false;
 }
 
-void SSPPath::addLoss(uint64_t packetNum)
+void SSPPath::addLoss(uint64_t packetNum) EXCLUDES(mWindowMutex)
 {
     DEBUG("loss event on path %d\n", mIndex);
-    pthread_mutex_lock(&mWindowMutex);
+    mWindowMutex.Lock();
     mState->addLoss(packetNum);
-    pthread_mutex_unlock(&mWindowMutex);
+    mWindowMutex.Unlock();
     if (mState->isWindowBased())
         pthread_cond_broadcast(&mWindowCond);
 }
@@ -525,13 +537,13 @@ void SSPPath::addRetransmit()
     mState->addRetransmit();
 }
 
-bool SSPPath::didTimeout(struct timeval *current)
+bool SSPPath::didTimeout(struct timeval *current) EXCLUDES(mTimeMutex)
 {
-    pthread_mutex_lock(&mTimeMutex);
+    mTimeMutex.Lock();
     int elapsed = elapsedTime(&mLastSendTime, current);
     bool res =  mState->packetsInFlight() > 0 &&
                 elapsed > mState->getRTO();
-    pthread_mutex_unlock(&mTimeMutex);
+    mTimeMutex.Unlock();
     return res;
 }
 
