@@ -1,10 +1,28 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "ProtocolConfigs.h"
 #include "Utils.h"
+#include "Mutex.h"
+#include "MutexScion.h"
 
 int compareOffset(void *p1, void *p2)
 {
@@ -206,4 +224,46 @@ int timedWait(pthread_cond_t *cond, pthread_mutex_t *mutex, double timeout)
     ts.tv_sec = tv.tv_sec + secs;
     ts.tv_nsec = tv.tv_usec * 1000 + ns;
     return pthread_cond_timedwait(cond, mutex, &ts);
+}
+
+int timedWaitMutex(pthread_cond_t *cond, Mutex *mutex, double timeout) REQUIRES(mutex)
+{
+    int secs = (int)timeout;
+    uint64_t ns = (timeout - secs) * 1000000000;
+    struct timespec ts;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec + secs;
+    ts.tv_nsec = tv.tv_usec * 1000 + ns;
+    return mutex->timedWait(cond, &ts);
+}
+
+
+int p_m_lock(pthread_mutex_t *mutex, char const *filename, int lineno) {
+    debugprint(stderr, "%lx:%s:%d: Acquiring mutex at %p\n",
+               pthread_self(), filename, lineno, mutex);
+    int ret = pthread_mutex_lock(mutex);
+    debugprint(stderr, "%lx:%s:%d: Acquired mutex at %p (%d)\n",
+               pthread_self(), filename, lineno, mutex, ret);
+    return ret;
+}
+
+int p_m_unlock(pthread_mutex_t *mutex, char const *filename, int lineno) {
+    debugprint(stderr, "%lx:%s:%d: Releasing mutex at %p\n",
+               pthread_self(), filename, lineno, mutex);
+    int ret = pthread_mutex_unlock(mutex);
+    debugprint(stderr, "%lx:%s:%d: Released mutex at %p (%d)\n",
+               pthread_self(), filename, lineno, mutex, ret);
+    return ret;
+}
+
+int debugprint(FILE *stream, const char *format, ...) {
+    int ret=0;
+#ifdef SCIONDEBUGPRINT
+    va_list args;
+    va_start(args, format);
+    ret = vfprintf(stream, format, args);
+    va_end(args);
+#endif
+    return ret;
 }
