@@ -190,6 +190,7 @@
 		},
 		{
 			"checksumSHA1": "ZNcNGA0vNsM39HBFmM6JhHcdsLU=",
+			"comment": "FIXME(kormat): Use fork until https://github.com/smartystreets/goconvey/pull/451 is merged",
 			"origin": "github.com/kormat/goconvey",
 			"path": "github.com/smartystreets/goconvey",
 			"revision": "a9793712606dd72b256bcbb0fad0858aa0e72d67",

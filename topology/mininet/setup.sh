@@ -27,7 +27,7 @@ if [ -n "$pkgs" ]; then
 fi
 
 log "Installing any necessary python packages via pip"
-pip2 install --user -r "$MN_DIR/requirements.txt"
+pip2 install --user --require-hashes -r "$MN_DIR/requirements.txt"
 
 if ! which pox > /dev/null; then
     if [ ! -d "$POX_DIR" ]; then
