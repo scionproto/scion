@@ -43,8 +43,7 @@ cmd_pip() {
 
 cmd_pipweb() {
     echo "Installing necessary packages from pip3 for scion-web"
-    # FIXME(kormat): add hashes
-    pip3 install --user -r sub/web/requirements.txt
+    pip3 install --user --require-hashes -r sub/web/requirements.txt
 }
 
 cmd_zlog() {
@@ -115,7 +114,7 @@ cmd_misc() {
 cmd_help() {
 	cat <<-_EOF
 	$PROGRAM CMD
-	
+
 	Usage:
 	    $PROGRAM all
 	        Install all dependencies (recommended).
