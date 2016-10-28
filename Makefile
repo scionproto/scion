@@ -16,7 +16,7 @@ gohsr: libhsr
 	cd go && make hsr
 
 # Order is important
-clibs: libscion libfilter libssocket liblwip libtcpmw
+clibs: libscion libfilter liblwip libtcpmw
 
 libscion:
 	$(MAKE) -C lib/libscion install

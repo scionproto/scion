@@ -62,10 +62,6 @@ Cert/TRC request
 test/integration/cert_req_test.py -l ERROR
 Sibra Ext
 test/integration/sibra_ext_test.py -l ERROR --wait 30 --runs 10
-SSP
-test/integration/ssp_test.py -l ERROR
-MPUDP
-test/integration/mpudp_test.py -l ERROR
 EOF
 result=$?
 
