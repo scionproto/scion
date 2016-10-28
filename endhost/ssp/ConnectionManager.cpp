@@ -1,3 +1,18 @@
+/* Copyright 2015 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <inttypes.h>
@@ -9,6 +24,7 @@
 
 #include "ConnectionManager.h"
 #include "Extensions.h"
+#include "Mutex.h"
 #include "Path.h"
 #include "SCIONProtocol.h"
 #include "Utils.h"
@@ -18,6 +34,8 @@ PathManager::PathManager(int sock, const char *sciond)
     mInvalid(0)
 {
     mDaemonSocket = socket(AF_UNIX, SOCK_STREAM, 0);
+    Mutex mPathMutex;
+    Mutex mDispatcherMutex;
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
@@ -28,12 +46,10 @@ PathManager::PathManager(int sock, const char *sciond)
     }
     memset(&mLocalAddr, 0, sizeof(mLocalAddr));
     memset(&mDstAddr, 0, sizeof(mDstAddr));
-    pthread_mutex_init(&mPathMutex, NULL);
     pthread_condattr_t ca;
     pthread_condattr_init(&ca);
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mPathCond, &ca);
-    pthread_mutex_init(&mDispatcherMutex, NULL);
 
     // get default IP from OS - can be overwritten by bind()
     getDefaultIP();
@@ -42,7 +58,6 @@ PathManager::PathManager(int sock, const char *sciond)
 PathManager::~PathManager()
 {
     close(mDaemonSocket);
-    pthread_mutex_destroy(&mPathMutex);
     pthread_cond_destroy(&mPathCond);
 }
 
@@ -85,19 +100,19 @@ int PathManager::getPathCount()
     return mPaths.size();
 }
 
-int PathManager::maxPayloadSize(double timeout)
+int PathManager::maxPayloadSize(double timeout) EXCLUDES(mPathMutex)
 {
     int min = INT_MAX;
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     while (mPaths.size() - mInvalid == 0) {
         if (timeout > 0.0) {
-            if (timedWait(&mPathCond, &mPathMutex, timeout) == ETIMEDOUT) {
-                pthread_mutex_unlock(&mPathMutex);
+            if (timedWaitMutex(&mPathCond, &mPathMutex, timeout) == ETIMEDOUT) {
                 DEBUG("%p: timeout getting max payload size (no paths)\n", this);
+                mPathMutex.Unlock();
                 return -ETIMEDOUT;
             }
         } else {
-            pthread_cond_wait(&mPathCond, &mPathMutex);
+            mPathMutex.condWait(&mPathCond);
         }
     }
     for (size_t i = 0; i < mPaths.size(); i++) {
@@ -107,7 +122,7 @@ int PathManager::maxPayloadSize(double timeout)
         if (size < min)
             min = size;
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     return min;
 }
 
@@ -153,7 +168,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
     return 0;
 }
 
-int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
+int PathManager::setRemoteAddress(SCIONAddr addr, double timeout) EXCLUDES(mPathMutex)
 {
     DEBUG("%p: setRemoteAddress: (%d-%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
     if (addr.isd_as == mDstAddr.isd_as) {
@@ -166,7 +181,7 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
     double waitTime = timeout;
     struct timeval start, end;
 
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         Path *p = mPaths[i];
         if (p)
@@ -183,11 +198,11 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout)
         long delta = elapsedTime(&start, &end);
         waitTime -= delta / 1000000.0;
         if (timeout > 0.0 && waitTime < 0) {
-            pthread_mutex_unlock(&mPathMutex);
+            mPathMutex.Unlock();
             return -ETIMEDOUT;
         }
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     return 0;
 }
 
@@ -366,9 +381,9 @@ void PathManager::handleTimeout()
 {
 }
 
-void PathManager::handlePathError(SCIONPacket *packet)
+void PathManager::handlePathError(SCIONPacket *packet) EXCLUDES(mPathMutex)
 {
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] && mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
             DEBUG("path %lu is invalid\n", i);
@@ -379,14 +394,14 @@ void PathManager::handlePathError(SCIONPacket *packet)
         }
     }
     getPaths();
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
 void PathManager::getStats(SCIONStats *stats)
 {
 }
 
-int PathManager::setISDWhitelist(void *data, size_t len)
+int PathManager::setISDWhitelist(void *data, size_t len) EXCLUDES(mPathMutex)
 {
     if (len % 2 != 0) {
         DEBUG("List of ISDs should have an even total length\n");
@@ -421,27 +436,27 @@ int PathManager::setISDWhitelist(void *data, size_t len)
     }
 
     mPolicy.setISDWhitelist(isds);
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     getPaths();
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     return 0;
 }
 
-void PathManager::threadCleanup()
+void PathManager::threadCleanup() EXCLUDES(mPathMutex)
 {
-    pthread_mutex_unlock(&mPathMutex);
+    return;
 }
 
 void PathManager::didSend(SCIONPacket *packet)
 {
 }
 
-int PathManager::sendRawPacket(uint8_t *buf, int len, HostAddr *firstHop)
+int PathManager::sendRawPacket(uint8_t *buf, int len, HostAddr *firstHop) EXCLUDES(mDispatcherMutex)
 {
-    pthread_mutex_lock(&mDispatcherMutex);
+    mDispatcherMutex.Lock();
     send_dp_header(mSendSocket, firstHop, len);
     int sent = send_all(mSendSocket, buf, len);
-    pthread_mutex_unlock(&mDispatcherMutex);
+    mDispatcherMutex.Unlock();
     return sent;
 }
 
@@ -465,22 +480,21 @@ SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProt
 {
     mFreshPackets = new OrderedList<SCIONPacket *>(NULL, destroySSPPacketFull);
     mRetryPackets = new OrderedList<SCIONPacket *>(compareOffsetNested, destroySSPPacketFull);
-    pthread_mutex_init(&mMutex, NULL);
-    pthread_mutex_init(&mSentMutex, NULL);
+    Mutex mSentMutex;
+    Mutex mFreshMutex;
+    Mutex mRetryMutex;
+    Mutex mPacketMutex;
     pthread_condattr_t ca;
     pthread_condattr_init(&ca);
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mSentCond, NULL);
-    pthread_mutex_init(&mFreshMutex, NULL);
-    pthread_mutex_init(&mRetryMutex, NULL);
-    pthread_mutex_init(&mPacketMutex, NULL);
     pthread_cond_init(&mPacketCond, &ca);
     memset(&mFinSentTime, 0, sizeof(mFinSentTime));
 
     pthread_create(&mWorker, NULL, &SSPConnectionManager::workerHelper, this);
 }
 
-SSPConnectionManager::~SSPConnectionManager()
+SSPConnectionManager::~SSPConnectionManager() EXCLUDES(mSentMutex, mFreshMutex, mRetryMutex, mPacketMutex)
 {
     mRunning = false;
     pthread_cancel(mWorker);
@@ -502,23 +516,18 @@ SSPConnectionManager::~SSPConnectionManager()
         if (p)
             delete p;
     }
-    pthread_mutex_destroy(&mMutex);
-    pthread_mutex_destroy(&mSentMutex);
     pthread_cond_destroy(&mSentCond);
-    pthread_mutex_destroy(&mFreshMutex);
-    pthread_mutex_destroy(&mRetryMutex);
-    pthread_mutex_destroy(&mPacketMutex);
     pthread_cond_destroy(&mPacketCond);
 }
 
-void SSPConnectionManager::setRemoteWindow(uint32_t window)
+void SSPConnectionManager::setRemoteWindow(uint32_t window) EXCLUDES(mPathMutex)
 {
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i])
             ((SSPPath*)mPaths[i])->setRemoteWindow(window);
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
 bool SSPConnectionManager::bufferFull(int window)
@@ -528,59 +537,59 @@ bool SSPConnectionManager::bufferFull(int window)
 
 int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double timeout)
 {
-    pthread_mutex_lock(&mSentMutex);
+    mSentMutex.Lock();
     while (mTotalSize + len > windowSize) {
         if (timeout > 0.0) {
-            if (timedWait(&mSentCond, &mSentMutex, timeout) == ETIMEDOUT) {
+            if (timedWaitMutex(&mSentCond, &mSentMutex, timeout) == ETIMEDOUT) {
                 DEBUG("%p: timeout waiting for send buffer\n", this);
-                pthread_mutex_unlock(&mSentMutex);
+                mSentMutex.Unlock();
                 return -ETIMEDOUT;
             }
         } else {
-            pthread_cond_wait(&mSentCond, &mSentMutex);
+            mSentMutex.condWait(&mSentCond);
         }
     }
-    pthread_mutex_unlock(&mSentMutex);
+    mSentMutex.Unlock();
     return 0;
 }
 
-int SSPConnectionManager::totalQueuedSize()
+int SSPConnectionManager::totalQueuedSize() EXCLUDES(mPacketMutex)
 {
     size_t total;
-    pthread_mutex_lock(&mPacketMutex);
+    mPacketMutex.Lock();
     total = mTotalSize;
-    pthread_mutex_unlock(&mPacketMutex);
+    mPacketMutex.Unlock();
     return total;
 }
 
-void SSPConnectionManager::queuePacket(SCIONPacket *packet)
+void SSPConnectionManager::queuePacket(SCIONPacket *packet) EXCLUDES(mFreshMutex, mPacketMutex)
 {
-    pthread_mutex_lock(&mFreshMutex);
+    mFreshMutex.Lock();
     mFreshPackets->push(packet);
-    pthread_mutex_unlock(&mFreshMutex);
-    pthread_mutex_lock(&mPacketMutex);
+    mFreshMutex.Unlock();
+    mPacketMutex.Lock();
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     mTotalSize += sp->len;
     DEBUG("packet %lu queued\n", sp->getOffset());
     pthread_cond_broadcast(&mPacketCond);
-    pthread_mutex_unlock(&mPacketMutex);
+    mPacketMutex.Unlock();
 }
 
-void SSPConnectionManager::sendAck(SCIONPacket *packet)
+void SSPConnectionManager::sendAck(SCIONPacket *packet) EXCLUDES(mPathMutex)
 {
     DEBUG("send ack on path %d\n", packet->pathIndex);
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     if (mPaths[packet->pathIndex])
         mPaths[packet->pathIndex]->sendPacket(packet, mSendSocket);
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
-void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
+void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID) EXCLUDES(mPathMutex)
 {
     DEBUG("%p: send probes\n", this);
 
     bool refresh = false;
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     if (mInitAcked) {
         for (size_t i = 0; i < mPaths.size(); i++) {
             SSPPath *p = (SSPPath *)mPaths[i];
@@ -611,20 +620,20 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
         DEBUG("%p: get fresh paths\n", this);
         getPaths();
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
-int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
+int SSPConnectionManager::sendAllPaths(SCIONPacket *packet) EXCLUDES(mPathMutex)
 {
     int res = 0;
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] && mPaths[i]->timeUntilReady() == 0) {
             SCIONPacket *dup = cloneSSPPacket(packet);
             res |= mPaths[i]->sendPacket(dup, mSendSocket);
         }
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     destroySSPPacket(packet->payload);
     destroySCIONPacket(packet);
     return res;
@@ -633,7 +642,7 @@ int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
 int SSPConnectionManager::sendAlternatePath(SCIONPacket *packet, size_t exclude)
 {
     int ret = 0;
-    pthread_mutex_lock(&mPacketMutex);
+    mPacketMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         Path *p = mPaths[i];
         if (i == exclude || !p ||
@@ -641,21 +650,20 @@ int SSPConnectionManager::sendAlternatePath(SCIONPacket *packet, size_t exclude)
                 p->getLossRate() > SSP_HIGH_LOSS)
             continue;
         SCIONPacket *clone = cloneSSPPacket(packet);
-        pthread_mutex_unlock(&mPacketMutex);
         ret = p->sendPacket(clone, mSendSocket);
         break;
     }
-    pthread_mutex_unlock(&mPacketMutex);
+    mPacketMutex.Unlock();
     return ret;
 }
 
-int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
+int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver) EXCLUDES(mPathMutex)
 {
     bool found = false;
     int index;
     int ret = 0;
     SSPPacket *sp = (SSPPacket *)(packet->payload);
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (!mPaths[i])
             continue;
@@ -679,7 +687,7 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
     if (!found) {
         if (!receiver) {
             DEBUG("sender should not add paths from remote end\n");
-            pthread_mutex_unlock(&mPathMutex);
+            mPathMutex.Unlock();
             return -1;
         }
 
@@ -696,7 +704,7 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
             index = insertOnePath(p);
         } else {
             delete p;
-            pthread_mutex_unlock(&mPathMutex);
+            mPathMutex.Unlock();
             return 0;
         }
     }
@@ -712,11 +720,11 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver)
         mInitAcked = true;
         ret = ((SSPPath *)(mPaths[index]))->handleData(packet);
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     return ret;
 }
 
-void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCIONPacket *sent)
+void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCIONPacket *sent) EXCLUDES(mPacketMutex)
 {
     SSPPacket *acksp = (SSPPacket *)(ack->payload);
     SSPPacket *sp = (SSPPacket *)(sent->payload);
@@ -756,9 +764,9 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
         mFinAcked = true;
     }
     if (sp->data.use_count() == 1) {
-        pthread_mutex_lock(&mPacketMutex);
+        mPacketMutex.Lock();
         mTotalSize -= sp->len;
-        pthread_mutex_unlock(&mPacketMutex);
+        mPacketMutex.Unlock();
         mProtocol->signalSelect();
     }
     destroySSPPacket(sp);
@@ -783,9 +791,9 @@ bool SSPConnectionManager::handleDupAck(SCIONPacket *packet)
     return dropped;
 }
 
-void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
+void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries) EXCLUDES(mRetryMutex)
 {
-    pthread_mutex_lock(&mRetryMutex);
+    mRetryMutex.Lock();
     bool done[mPaths.size()];
     memset(done, 0, sizeof(done));
     for (size_t j = 0; j < retries.size(); j++) {
@@ -804,13 +812,13 @@ void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
             ((SSPPath *)(mPaths[index]))->addRetransmit();
         }
     }
-    pthread_mutex_unlock(&mRetryMutex);
+    mRetryMutex.Unlock();
     pthread_cond_broadcast(&mPacketCond);
     DEBUG("notify scheduler: loss from dup acks and/or buffer full\n");
     pthread_cond_broadcast(&mPathCond);
 }
 
-void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool receiver)
+void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool receiver) EXCLUDES(mPathMutex, mRetryMutex, mSentMutex)
 {
     SSPPacket *spacket = (SSPPacket *)(packet->payload);
     uint64_t offset = spacket->getAckNum();
@@ -821,8 +829,8 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
     mHighestAcked = spacket->getL() - 1;
 
     std::vector<SCIONPacket *> retries;
-    pthread_mutex_lock(&mPathMutex);
-    pthread_mutex_lock(&mSentMutex);
+    mPathMutex.Lock();
+    mSentMutex.Lock();
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
         SCIONPacket *p = *i;
@@ -850,17 +858,17 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         i++;
     }
     pthread_cond_broadcast(&mSentCond);
-    pthread_mutex_unlock(&mSentMutex);
+    mSentMutex.Unlock();
 
     if (!retries.empty())
         addRetries(retries);
 
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 
     bool retriesLeft = false;
-    pthread_mutex_lock(&mRetryMutex);
+    mRetryMutex.Lock();
     retriesLeft = !mRetryPackets->empty();
-    pthread_mutex_unlock(&mRetryMutex);
+    mRetryMutex.Unlock();
     if (mFinAcked && mSentPackets.empty() && !retriesLeft) {
         DEBUG("everything acked\n");
         mProtocol->notifyFinAck();
@@ -894,10 +902,10 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample, i
     return path->handleAck(packet, rttSample);
 }
 
-void SSPConnectionManager::handleProbeAck(SCIONPacket *packet)
+void SSPConnectionManager::handleProbeAck(SCIONPacket *packet) EXCLUDES(mPathMutex)
 {
     DEBUG("%p: handleProbeAck\n", this);
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] &&
                 mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
@@ -918,10 +926,10 @@ void SSPConnectionManager::handleProbeAck(SCIONPacket *packet)
             }
         }
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
-void SSPConnectionManager::handleTimeout()
+void SSPConnectionManager::handleTimeout() EXCLUDES(mPathMutex, mPacketMutex, mRetryMutex, mSentMutex)
 {
     struct timeval current;
     gettimeofday(&current, NULL);
@@ -932,7 +940,7 @@ void SSPConnectionManager::handleTimeout()
         return;
     }
 
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
 
     int timeout[mPaths.size()];
     memset(timeout, 0, sizeof(int) * mPaths.size());
@@ -944,8 +952,8 @@ void SSPConnectionManager::handleTimeout()
     }
 
     std::vector<SCIONPacket *> retries;
-    pthread_mutex_lock(&mPacketMutex);
-    pthread_mutex_lock(&mSentMutex);
+    mPacketMutex.Lock();
+    mSentMutex.Lock();
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
         int index = (*i)->pathIndex;
@@ -963,19 +971,19 @@ void SSPConnectionManager::handleTimeout()
             i++;
         }
     }
-    pthread_mutex_unlock(&mSentMutex);
+    mSentMutex.Unlock();
 
     if (!retries.empty()) {
         addRetries(retries);
         pthread_cond_broadcast(&mPacketCond);
     }
 
-    pthread_mutex_unlock(&mPacketMutex);
+    mPacketMutex.Unlock();
 
     bool retriesLeft = false;
-    pthread_mutex_lock(&mRetryMutex);
+    mRetryMutex.Lock();
     retriesLeft = !mRetryPackets->empty();
-    pthread_mutex_unlock(&mRetryMutex);
+    mRetryMutex.Unlock();
     if (mFinAcked && mSentPackets.empty() && !retriesLeft) {
         DEBUG("everything acked\n");
         mProtocol->notifyFinAck();
@@ -1001,17 +1009,17 @@ void SSPConnectionManager::handleTimeout()
             pthread_cond_broadcast(&mPathCond);
         }
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
-void SSPConnectionManager::getStats(SCIONStats *stats)
+void SSPConnectionManager::getStats(SCIONStats *stats) EXCLUDES(mPathMutex)
 {
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size() && i < MAX_TOTAL_PATHS; i++) {
         if (mPaths[i])
             mPaths[i]->getStats(stats);
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
 Path * SSPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
@@ -1038,54 +1046,54 @@ void * SSPConnectionManager::workerHelper(void *arg)
     return NULL;
 }
 
-bool SSPConnectionManager::readyToSend()
+bool SSPConnectionManager::readyToSend() EXCLUDES(mRetryMutex, mFreshMutex)
 {
     DEBUG("%p: readyToSend?\n", this);
     bool ready = false;
-    pthread_mutex_lock(&mRetryMutex);
+    mRetryMutex.Lock();
     ready = !mRetryPackets->empty();
-    pthread_mutex_unlock(&mRetryMutex);
+    mRetryMutex.Unlock();
     if (ready)
         return ready;
-    pthread_mutex_lock(&mFreshMutex);
+    mFreshMutex.Lock();
     ready = !mFreshPackets->empty();
-    pthread_mutex_unlock(&mFreshMutex);
+    mFreshMutex.Unlock();
     return ready;
 }
 
-void SSPConnectionManager::schedule()
+void SSPConnectionManager::schedule() EXCLUDES(mPathMutex, mPacketMutex) 
 {
     while (mRunning) {
-        pthread_mutex_lock(&mPacketMutex);
+        mPacketMutex.Lock();
         while (!readyToSend()) {
             DEBUG("%p: wait until there is stuff to send\n", this);
-            pthread_cond_wait(&mPacketCond, &mPacketMutex);
+            mPacketMutex.condWait(&mPacketCond);
             DEBUG("%p: scheduler woken up\n", this);
             if (!mRunning) {
-                pthread_mutex_unlock(&mPacketMutex);
+                mPacketMutex.Unlock();
                 return;
             }
         }
-        pthread_mutex_unlock(&mPacketMutex);
+        mPacketMutex.Unlock();
 
         DEBUG("%p: get path to send stuff\n", this);
         Path *p = NULL;
         bool dup = false;
-        pthread_mutex_lock(&mPathMutex);
+        mPathMutex.Lock();
         while (!(p = pathToSend(&dup))) {
             DEBUG("%p: no path ready yet, wait\n", this);
             if (!mPaths.empty() && mResendInit) {
                 DEBUG("%p: need to resend init\n", this);
                 break;
             }
-            pthread_cond_wait(&mPathCond, &mPathMutex);
+            mPathMutex.condWait(&mPathCond);
             DEBUG("%p: woke up from waiting\n", this);
             if (!mRunning) {
-                pthread_mutex_unlock(&mPathMutex);
+                mPathMutex.Unlock();
                 return;
             }
         }
-        pthread_mutex_unlock(&mPathMutex);
+        mPathMutex.Unlock();
         SCIONPacket *packet = nextPacket();
         if (!packet) {
             DEBUG("%p: no packet to send\n", this);
@@ -1095,9 +1103,9 @@ void SSPConnectionManager::schedule()
         uint64_t offset = sp->getOffset();
         if (offset > 0 && offset <= mHighestAcked) {
             DEBUG("%p: packet %lu already received on remote end\n", this, offset);
-            pthread_mutex_lock(&mPacketMutex);
+            mPacketMutex.Lock();
             mTotalSize -= sp->len;
-            pthread_mutex_unlock(&mPacketMutex);
+            mPacketMutex.Unlock();
             pthread_cond_broadcast(&mSentCond);
             destroySSPPacketFull(packet);
             continue;
@@ -1133,15 +1141,15 @@ void SSPConnectionManager::schedule()
     }
 }
 
-SCIONPacket * SSPConnectionManager::nextPacket()
+SCIONPacket * SSPConnectionManager::nextPacket() EXCLUDES(mRetryMutex, mFreshMutex)
 {
     SCIONPacket *packet = NULL;
-    pthread_mutex_lock(&mRetryMutex);
+    mRetryMutex.Lock();
     if (!mRetryPackets->empty())
         packet = mRetryPackets->pop();
-    pthread_mutex_unlock(&mRetryMutex);
+    mRetryMutex.Unlock();
     if (!packet) {
-        pthread_mutex_lock(&mFreshMutex);
+        mFreshMutex.Lock();
         if (!mFreshPackets->empty()) {
             packet = mFreshPackets->pop();
             DEBUG("popped packet from fresh queue, notify sender\n");
@@ -1149,7 +1157,7 @@ SCIONPacket * SSPConnectionManager::nextPacket()
             if (mFinAttempts > 0)
                 packet = NULL;
         }
-        pthread_mutex_unlock(&mFreshMutex);
+        mFreshMutex.Unlock();
     }
     return packet;
 }
@@ -1180,17 +1188,17 @@ Path * SSPConnectionManager::pathToSend(bool *dup)
     return sendPath;
 }
 
-void SSPConnectionManager::didSend(SCIONPacket *packet)
+void SSPConnectionManager::didSend(SCIONPacket *packet) EXCLUDES(mSentMutex)
 {
     SSPPacket *sp = (SSPPacket *)(packet->payload);
-    pthread_mutex_lock(&mSentMutex);
+    mSentMutex.Lock();
     PacketList::iterator i;
     for (i = mSentPackets.begin(); i != mSentPackets.end(); i++) {
         if (*i == packet) {
             SCIONPacket *p = *i;
             SSPPacket *s = (SSPPacket *)(p->payload);
             if (s->header.flags & SSP_FIN) {
-                pthread_mutex_unlock(&mSentMutex);
+                mSentMutex.Unlock();
                 return;
             }
             fprintf(stderr, "duplicate packet in sent list: %" PRIu64 "|%" PRIu64 ", path %d|%d (%p)\n",
@@ -1200,17 +1208,11 @@ void SSPConnectionManager::didSend(SCIONPacket *packet)
         }
     }
     mSentPackets.push_back(packet);
-    pthread_mutex_unlock(&mSentMutex);
+    mSentMutex.Unlock();
 }
 
-void SSPConnectionManager::threadCleanup()
+void SSPConnectionManager::threadCleanup() EXCLUDES(mDispatcherMutex, mSentMutex, mFreshMutex, mRetryMutex, mPacketMutex)
 {
-    pthread_mutex_unlock(&mMutex);
-    pthread_mutex_unlock(&mSentMutex);
-    pthread_mutex_unlock(&mRetryMutex);
-    pthread_mutex_unlock(&mFreshMutex);
-    pthread_mutex_unlock(&mPacketMutex);
-    pthread_mutex_unlock(&mDispatcherMutex);
     PathManager::threadCleanup();
 }
 
@@ -1226,13 +1228,13 @@ SUDPConnectionManager::~SUDPConnectionManager()
 {
 }
 
-int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
+int SUDPConnectionManager::sendPacket(SCIONPacket *packet) EXCLUDES(mPathMutex)
 {
     Path *p = NULL;
     // TODO: Choose optimal path?
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     if (mPaths.empty()) {
-        pthread_mutex_unlock(&mPathMutex);
+        mPathMutex.Unlock();
         return -1;
     }
     for (size_t i = 0; i < mPaths.size(); i++) {
@@ -1244,17 +1246,17 @@ int SUDPConnectionManager::sendPacket(SCIONPacket *packet)
     int ret = -1;
     if (p)
         ret = p->sendPacket(packet, mSendSocket);
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     return ret;
 }
 
-void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort)
+void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint16_t dstPort) EXCLUDES(mPathMutex)
 {
     DEBUG("send probes to dst port %d\n", dstPort);
     if (mDstAddr.isd_as == 0)
         return;
     int ret = 0;
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (!mPaths[i])
             continue;
@@ -1285,7 +1287,7 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
         DEBUG("no valid paths, periodically try fetching\n");
         getPaths();
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
 void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index)
@@ -1313,11 +1315,11 @@ void SUDPConnectionManager::handleProbe(SUDPPacket *sp, SCIONExtension *ext, int
     }
 }
 
-void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
+void SUDPConnectionManager::handlePacket(SCIONPacket *packet) EXCLUDES(mPathMutex)
 {
     bool found = false;
     int index;
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i] &&
                 mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
@@ -1346,15 +1348,15 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
     SCIONExtension *ext = findProbeExtension(&packet->header);
     if (ext != NULL)
         handleProbe(sp, ext, index);
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
 }
 
-int SUDPConnectionManager::setRemoteAddress(SCIONAddr addr, double timeout)
+int SUDPConnectionManager::setRemoteAddress(SCIONAddr addr, double timeout) EXCLUDES(mPathMutex)
 {
     int ret = PathManager::setRemoteAddress(addr, timeout);
     if (ret < 0)
         return ret;
-    pthread_mutex_lock(&mPathMutex);
+    mPathMutex.Lock();
     mLastProbeAcked.resize(mPaths.size());
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (!mPaths[i])
@@ -1362,7 +1364,7 @@ int SUDPConnectionManager::setRemoteAddress(SCIONAddr addr, double timeout)
         mLastProbeAcked[i] = 0;
         mPaths[i]->setUp();
     }
-    pthread_mutex_unlock(&mPathMutex);
+    mPathMutex.Unlock();
     return 0;
 }
 

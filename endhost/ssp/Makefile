@@ -1,7 +1,9 @@
 .PHONY: all clean install uninstall
 
 CXX = clang++
-CXXFLAGS ?= -Wall -Werror -g -fPIC -std=c++11
+# Add -DSCIONDEBUGPRINT below to enable debug printing. Doing so *will*
+# break e.g. CircleCI since it is so spammy.
+CXXFLAGS ?= -Wall -Werror -g -fPIC -std=c++11 -Wthread-safety
 LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion
 
 LIB_DIR = ../../lib/libscion
