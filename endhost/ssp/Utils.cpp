@@ -240,10 +240,11 @@ int timedWaitMutex(pthread_cond_t *cond, Mutex *mutex, double timeout) REQUIRES(
 
 
 int p_m_lock(pthread_mutex_t *mutex, char const *filename, int lineno) {
-    debugprint(stderr, "%lx:%s:%d: Acquiring mutex at %p...",
+    debugprint(stderr, "%lx:%s:%d: Acquiring mutex at %p\n",
                pthread_self(), filename, lineno, mutex);
     int ret = pthread_mutex_lock(mutex);
-    debugprint(stderr, "done (p:%p, ret: %d)\n", mutex, ret);
+    debugprint(stderr, "%lx:%s:%d: Acquired mutex at %p (%d)\n",
+               pthread_self(), filename, lineno, mutex, ret);
     return ret;
 }
 
@@ -251,7 +252,8 @@ int p_m_unlock(pthread_mutex_t *mutex, char const *filename, int lineno) {
     debugprint(stderr, "%lx:%s:%d: Releasing mutex at %p...",
 	       pthread_self(), filename, lineno, mutex);
     int ret = pthread_mutex_unlock(mutex);
-    debugprint(stderr, "done (p:%p, ret: %d)\n", mutex, ret);
+    debugprint(stderr, "%lx:%s:%d: Released mutex at %p (%d)\n",
+               pthread_self(), filename, lineno, mutex, ret);
     return ret;
 }
 
