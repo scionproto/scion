@@ -31,35 +31,38 @@ class CAPABILITY("mutex") Mutex {
 public:
     enum LinkerInitialized { LINKER_INITIALIZED };
     inline Mutex() {assert(pthread_mutex_init(&lock, nullptr) == 0);}
-    inline Mutex(LinkerInitialized) {assert(pthread_mutex_init(&lock, nullptr) == 0);}
+    // pthread_mutex_init() always returns 0, so no need to assert()
+    inline Mutex(LinkerInitialized) {pthread_mutex_init(&lock, nullptr);}
     inline ~Mutex() {
-    	auto ret = pthread_mutex_destroy(&lock);
-	if (ret) {
-	    debugprint(stderr, "%lx Held mutex: %p: %s\n", pthread_self(), &lock, strerror(ret));
-	}
+        auto ret = pthread_mutex_destroy(&lock);
+        if (ret) {
+            debugprint(stderr, "%lx Held mutex: %p: %d\n", pthread_self(), &lock, ret);
+        }
     }
 
     inline void Lock() ACQUIRE() {
+        debugprint(stderr, "%lx  ML>: %p\n", pthread_self(), &lock);
         auto ret = pthread_mutex_lock(&lock);
-        debugprint(stderr, "%lx  ML: %p: %s\n", pthread_self(), &lock, strerror(ret));
+        debugprint(stderr, "%lx  ML<: %p: %d\n", pthread_self(), &lock, ret);
     }
 
     inline void Unlock() RELEASE() {
         auto ret = pthread_mutex_unlock(&lock);
-        debugprint(stderr, "%lx  MR: %p: %s\n", pthread_self(), &lock, strerror(ret));
+        debugprint(stderr, "%lx   MR: %p: %d\n", pthread_self(), &lock, ret);
     }
 
     inline int timedWait(pthread_cond_t *cond, struct timespec *ts) REQUIRES(this) {
+        debugprint(stderr, "%lx MTw>: %p\n", pthread_self(), &lock);
         auto ret = pthread_cond_timedwait(cond, &lock, ts);
-        debugprint(stderr, "%lx MTw: %p: %s\n", pthread_self(), &lock, strerror(ret));
-	return ret;
+        debugprint(stderr, "%lx MTw<: %p: %d\n", pthread_self(), &lock, ret);
+    return ret;
     }
 
     inline void condWait(pthread_cond_t *cond) REQUIRES(this) {
         // While pcw has an int return value, it's always 0.
-        debugprint(stderr, "%lx MCw: %p...\n", pthread_self(), &lock);
+        debugprint(stderr, "%lx MCw>: %p\n", pthread_self(), &lock);
         pthread_cond_wait(cond, &lock);
-        debugprint(stderr, "%lx MCw: %p done\n", pthread_self(), &lock);
+        debugprint(stderr, "%lx MCw<: %p\n", pthread_self(), &lock);
     }
 
 private:

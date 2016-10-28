@@ -553,7 +553,7 @@ int SSPConnectionManager::waitForSendBuffer(int len, int windowSize, double time
     return 0;
 }
 
-int SSPConnectionManager::totalQueuedSize()
+int SSPConnectionManager::totalQueuedSize() EXCLUDES(mPacketMutex)
 {
     size_t total;
     mPacketMutex.Lock();
@@ -562,7 +562,7 @@ int SSPConnectionManager::totalQueuedSize()
     return total;
 }
 
-void SSPConnectionManager::queuePacket(SCIONPacket *packet)
+void SSPConnectionManager::queuePacket(SCIONPacket *packet) EXCLUDES(mFreshMutex, mPacketMutex)
 {
     mFreshMutex.Lock();
     mFreshPackets->push(packet);
@@ -650,7 +650,6 @@ int SSPConnectionManager::sendAlternatePath(SCIONPacket *packet, size_t exclude)
                 p->getLossRate() > SSP_HIGH_LOSS)
             continue;
         SCIONPacket *clone = cloneSSPPacket(packet);
-        // MUTEX CLEANUP: mPacketMutex.Unlock();
         ret = p->sendPacket(clone, mSendSocket);
         break;
     }
@@ -725,7 +724,7 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet, bool receiver) EXCLU
     return ret;
 }
 
-void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCIONPacket *sent)
+void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCIONPacket *sent) EXCLUDES(mPacketMutex)
 {
     SSPPacket *acksp = (SSPPacket *)(ack->payload);
     SSPPacket *sp = (SSPPacket *)(sent->payload);
@@ -792,7 +791,7 @@ bool SSPConnectionManager::handleDupAck(SCIONPacket *packet)
     return dropped;
 }
 
-void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
+void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries) EXCLUDES(mRetryMutex)
 {
     mRetryMutex.Lock();
     bool done[mPaths.size()];
@@ -819,7 +818,7 @@ void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries)
     pthread_cond_broadcast(&mPathCond);
 }
 
-void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool receiver) EXCLUDES(mPathMutex)
+void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool receiver) EXCLUDES(mPathMutex, mRetryMutex, mSentMutex)
 {
     SSPPacket *spacket = (SSPPacket *)(packet->payload);
     uint64_t offset = spacket->getAckNum();
@@ -930,7 +929,7 @@ void SSPConnectionManager::handleProbeAck(SCIONPacket *packet) EXCLUDES(mPathMut
     mPathMutex.Unlock();
 }
 
-void SSPConnectionManager::handleTimeout() EXCLUDES(mPathMutex)
+void SSPConnectionManager::handleTimeout() EXCLUDES(mPathMutex, mPacketMutex, mRetryMutex, mSentMutex)
 {
     struct timeval current;
     gettimeofday(&current, NULL);
@@ -1047,7 +1046,7 @@ void * SSPConnectionManager::workerHelper(void *arg)
     return NULL;
 }
 
-bool SSPConnectionManager::readyToSend()
+bool SSPConnectionManager::readyToSend() EXCLUDES(mRetryMutex, mFreshMutex)
 {
     DEBUG("%p: readyToSend?\n", this);
     bool ready = false;
@@ -1062,7 +1061,7 @@ bool SSPConnectionManager::readyToSend()
     return ready;
 }
 
-void SSPConnectionManager::schedule() EXCLUDES(mPathMutex)
+void SSPConnectionManager::schedule() EXCLUDES(mPathMutex, mPacketMutex) 
 {
     while (mRunning) {
         mPacketMutex.Lock();
@@ -1142,7 +1141,7 @@ void SSPConnectionManager::schedule() EXCLUDES(mPathMutex)
     }
 }
 
-SCIONPacket * SSPConnectionManager::nextPacket()
+SCIONPacket * SSPConnectionManager::nextPacket() EXCLUDES(mRetryMutex, mFreshMutex)
 {
     SCIONPacket *packet = NULL;
     mRetryMutex.Lock();
@@ -1189,7 +1188,7 @@ Path * SSPConnectionManager::pathToSend(bool *dup)
     return sendPath;
 }
 
-void SSPConnectionManager::didSend(SCIONPacket *packet)
+void SSPConnectionManager::didSend(SCIONPacket *packet) EXCLUDES(mSentMutex)
 {
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     mSentMutex.Lock();

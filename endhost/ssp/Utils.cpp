@@ -249,8 +249,8 @@ int p_m_lock(pthread_mutex_t *mutex, char const *filename, int lineno) {
 }
 
 int p_m_unlock(pthread_mutex_t *mutex, char const *filename, int lineno) {
-    debugprint(stderr, "%lx:%s:%d: Releasing mutex at %p...",
-	       pthread_self(), filename, lineno, mutex);
+    debugprint(stderr, "%lx:%s:%d: Releasing mutex at %p\n",
+               pthread_self(), filename, lineno, mutex);
     int ret = pthread_mutex_unlock(mutex);
     debugprint(stderr, "%lx:%s:%d: Released mutex at %p (%d)\n",
                pthread_self(), filename, lineno, mutex, ret);
