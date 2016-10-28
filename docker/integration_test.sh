@@ -25,7 +25,7 @@ shutdown() {
     log "Scion status:"
     ./scion.sh status
     log "Stopping scion"
-    ./scion.sh stop | grep -v "STOPPED"
+    ./scion.sh stop | grep -v "stopped"
     log "Scion stopped"
 }
 
@@ -45,7 +45,7 @@ export -f run log
 export PYTHONPATH=.
 
 log "Starting scion (without building)"
-./scion.sh run nobuild | grep -v "RUNNING"
+./scion.sh run nobuild | grep -v "started"
 log "Scion status:"
 ./scion.sh status || exit 1
 

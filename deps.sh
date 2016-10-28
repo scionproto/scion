@@ -102,13 +102,8 @@ cmd_misc() {
     echo "Installing supervisor packages from pip2"
     pip2 install --user --require-hashes \
         'https://pypi.python.org/packages/b6/ae/e6d731e4b9661642c1b20591d8054855bb5b8281cbfa18f561c2edd783f7/meld3-1.0.2-py2.py3-none-any.whl#sha256=b28a9bfac342aadb4557aa144bea9f8e6208bfb0596190570d10a892d35ff7dc' \
-        'https://pypi.python.org/packages/80/37/964c0d53cbd328796b1aeb7abea4c0f7b0e8c7197ea9b0b9967b7d004def/supervisor-3.3.1.tar.gz#sha256=fc3af22e5a7af2f6c3be787acf055c1c17777f5607cd4dc935fe633ab97061fd'
-    # - supervisor-quick can't be installed at the same time as supervisor, as
-    #   its setup.py imports supervisor_quick.py, which then tries (and fails) to
-    #   import supervisor.supervisorctl, which hasn't been installed yet.
-    # - Use --no-deps to avoid having to specify the versions+hashes of supervisor/meld3 again
-    pip2 install --user --require-hashes --no-deps \
-        'https://pypi.python.org/packages/a9/39/aafe116403d625c1034aa442b22c80287b4c4ab6c818b794dd9282a00d03/supervisor-quick-0.1.4.tar.gz#sha256=8be428cc10e868b2d2dfc57fc5b9ea1b2652d7c78b60313750a50ff77f92a9f3'
+        'https://pypi.python.org/packages/80/37/964c0d53cbd328796b1aeb7abea4c0f7b0e8c7197ea9b0b9967b7d004def/supervisor-3.3.1.tar.gz#sha256=fc3af22e5a7af2f6c3be787acf055c1c17777f5607cd4dc935fe633ab97061fd' \
+        'https://pypi.python.org/packages/cb/78/ce6bf00c3310660ab9ebd7c4656a9ebf888a42a58b95a7565b03d40c2f00/supervisor-wildcards-0.1.3.tar.gz#sha256=02f532bf059e99aa38a3170cf4295f9dd123cfb16f209240575d853fd90710f8'
 }
 
 cmd_help() {
