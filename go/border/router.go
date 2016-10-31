@@ -67,51 +67,51 @@ func (r *Router) Run() *util.Error {
 
 func (r *Router) handleQueue(q chan *rpkt.RPkt) {
 	defer liblog.PanicLog()
-	for p := range q {
-		r.processPacket(p)
-		metrics.PktProcessTime.Add(time.Now().Sub(p.TimeIn).Seconds())
-		r.recyclePkt(p)
+	for rp := range q {
+		r.processPacket(rp)
+		metrics.PktProcessTime.Add(time.Now().Sub(rp.TimeIn).Seconds())
+		r.recyclePkt(rp)
 	}
 }
 
-func (r *Router) processPacket(p *rpkt.RPkt) {
-	p.Logger = log.New("pkt", logext.RandId(4))
-	if err := p.Parse(); err != nil {
-		p.Error("Error during parsing", err.Ctx...)
+func (r *Router) processPacket(rp *rpkt.RPkt) {
+	rp.Logger = log.New("rpkt", logext.RandId(4))
+	if err := rp.Parse(); err != nil {
+		rp.Error("Error during parsing", err.Ctx...)
 		return
 	}
-	if err := p.Validate(); err != nil {
-		p.Error("Error validating packet", err.Ctx...)
+	if err := rp.Validate(); err != nil {
+		rp.Error("Error validating packet", err.Ctx...)
 		return
 	}
-	if err := p.NeedsLocalProcessing(); err != nil {
-		p.Error("Error checking for local processing", err.Ctx...)
+	if err := rp.NeedsLocalProcessing(); err != nil {
+		rp.Error("Error checking for local processing", err.Ctx...)
 		return
 	}
-	if _, err := p.Payload(); err != nil {
-		p.Error("Error parsing payload", err.Ctx...)
+	if _, err := rp.Payload(); err != nil {
+		rp.Error("Error parsing payload", err.Ctx...)
 		return
 	}
-	if err := p.Process(); err != nil {
-		p.Error("Error processing packet", err.Ctx...)
+	if err := rp.Process(); err != nil {
+		rp.Error("Error processing packet", err.Ctx...)
 		return
 	}
-	if err := p.Route(); err != nil {
-		p.Error("Error routing packet", err.Ctx...)
+	if err := rp.Route(); err != nil {
+		rp.Error("Error routing packet", err.Ctx...)
 	}
 }
 
-func (r *Router) recyclePkt(p *rpkt.RPkt) {
-	if p.DirFrom == rpkt.DirSelf {
+func (r *Router) recyclePkt(rp *rpkt.RPkt) {
+	if rp.DirFrom == rpkt.DirSelf {
 		return
 	}
-	if cap(p.Raw) != pktBufSize {
-		p.Crit("Raw", "len", len(p.Raw), "cap", cap(p.Raw))
+	if cap(rp.Raw) != pktBufSize {
+		rp.Crit("Raw", "len", len(rp.Raw), "cap", cap(rp.Raw))
 		return
 	}
-	p.Reset()
+	rp.Reset()
 	select {
-	case r.freePkts <- p:
+	case r.freePkts <- rp:
 		// Packet added to free list
 	default:
 		// Free list full, carry on

@@ -34,102 +34,102 @@ type L4Header interface {
 	fmt.Stringer
 }
 
-func (p *RPkt) L4Hdr() (L4Header, *util.Error) {
-	if p.l4 == nil {
-		if found, err := p.findL4(); !found || err != nil {
+func (rp *RPkt) L4Hdr() (L4Header, *util.Error) {
+	if rp.l4 == nil {
+		if found, err := rp.findL4(); !found || err != nil {
 			return nil, err
 		}
-		switch p.L4Type {
+		switch rp.L4Type {
 		case common.L4SCMP:
-			scmpHdr, err := scmp.HdrFromRaw(p.Raw[p.idxs.l4:])
+			scmpHdr, err := scmp.HdrFromRaw(rp.Raw[rp.idxs.l4:])
 			if err != nil {
 				return nil, err
 			}
-			p.l4 = scmpHdr
-			p.idxs.pld = p.idxs.l4 + scmp.HdrLen
+			rp.l4 = scmpHdr
+			rp.idxs.pld = rp.idxs.l4 + scmp.HdrLen
 		case common.L4UDP:
-			udp, err := l4.UDPFromRaw(p.Raw[p.idxs.l4:])
+			udp, err := l4.UDPFromRaw(rp.Raw[rp.idxs.l4:])
 			if err != nil {
 				return nil, err
 			}
-			p.l4 = udp
-			p.idxs.pld = p.idxs.l4 + l4.UDPLen
+			rp.l4 = udp
+			rp.idxs.pld = rp.idxs.l4 + l4.UDPLen
 		case common.L4SSP:
-			p.l4 = &l4.SSP{}
+			rp.l4 = &l4.SSP{}
 		case common.L4TCP:
-			p.l4 = &l4.TCP{}
+			rp.l4 = &l4.TCP{}
 		default:
-			return nil, util.NewError(ErrorL4Unsupported, "type", p.L4Type)
+			return nil, util.NewError(ErrorL4Unsupported, "type", rp.L4Type)
 		}
 	}
-	if err := p.verifyL4Chksum(); err != nil {
+	if err := rp.verifyL4Chksum(); err != nil {
 		return nil, err
 	}
-	return p.l4, nil
+	return rp.l4, nil
 }
 
-func (p *RPkt) findL4() (bool, *util.Error) {
-	nextHdr := p.idxs.nextHdrIdx.Type
-	offset := p.idxs.nextHdrIdx.Index
-	for offset < len(p.Raw) {
+func (rp *RPkt) findL4() (bool, *util.Error) {
+	nextHdr := rp.idxs.nextHdrIdx.Type
+	offset := rp.idxs.nextHdrIdx.Index
+	for offset < len(rp.Raw) {
 		currHdr := nextHdr
 		_, ok := common.L4Protocols[currHdr]
 		if ok { // Reached L4 protocol
-			p.L4Type = nextHdr
-			p.idxs.l4 = offset
+			rp.L4Type = nextHdr
+			rp.idxs.l4 = offset
 			break
 		}
-		currExtn := common.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
-		hdrLen := int((p.Raw[offset+1] + 1) * common.LineLen)
-		p.idxs.e2eExt = append(p.idxs.e2eExt, extnIdx{currExtn, offset})
-		nextHdr = common.L4ProtocolType(p.Raw[offset])
+		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
+		hdrLen := int((rp.Raw[offset+1] + 1) * common.LineLen)
+		rp.idxs.e2eExt = append(rp.idxs.e2eExt, extnIdx{currExtn, offset})
+		nextHdr = common.L4ProtocolType(rp.Raw[offset])
 		offset += hdrLen
 	}
-	if offset > len(p.Raw) {
-		return false, util.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(p.Raw))
+	if offset > len(rp.Raw) {
+		return false, util.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
-	p.idxs.nextHdrIdx.Type = nextHdr
-	p.idxs.nextHdrIdx.Index = offset
+	rp.idxs.nextHdrIdx.Type = nextHdr
+	rp.idxs.nextHdrIdx.Index = offset
 	return true, nil
 }
 
-func (p *RPkt) verifyL4Chksum() *util.Error {
-	switch v := p.l4.(type) {
+func (rp *RPkt) verifyL4Chksum() *util.Error {
+	switch v := rp.l4.(type) {
 	case *l4.UDP:
-		src, dst, pld := p.getChksumInput()
+		src, dst, pld := rp.getChksumInput()
 		if csum, err := v.CalcChecksum(src, dst, pld); err != nil {
 			return err
 		} else if bytes.Compare(v.Checksum, csum) != 0 {
 			return util.NewError(ErrorL4InvalidChksum,
-				"expected", v.Checksum, "actual", csum, "proto", p.L4Type)
+				"expected", v.Checksum, "actual", csum, "proto", rp.L4Type)
 		}
 	case *scmp.Hdr:
-		src, dst, pld := p.getChksumInput()
+		src, dst, pld := rp.getChksumInput()
 		if csum, err := v.CalcChecksum(src, dst, pld); err != nil {
 			return err
 		} else if bytes.Compare(v.Checksum, csum) != 0 {
 			return util.NewError(ErrorL4InvalidChksum,
-				"expected", v.Checksum, "actual", csum, "proto", p.L4Type)
+				"expected", v.Checksum, "actual", csum, "proto", rp.L4Type)
 		}
 	default:
-		p.Debug("Skipping checksum verification of L4 header", "type", p.L4Type)
+		rp.Debug("Skipping checksum verification of L4 header", "type", rp.L4Type)
 	}
 	return nil
 }
 
-func (p *RPkt) getChksumInput() (src, dst, pld util.RawBytes) {
-	srcLen, _ := addr.HostLen(p.CmnHdr.SrcType)
-	dstLen, _ := addr.HostLen(p.CmnHdr.DstType)
-	src = p.Raw[p.idxs.srcIA : p.idxs.srcIA+addr.IABytes+int(srcLen)]
-	dst = p.Raw[p.idxs.dstIA : p.idxs.dstIA+addr.IABytes+int(dstLen)]
-	pld = p.Raw[p.idxs.pld:]
+func (rp *RPkt) getChksumInput() (src, dst, pld util.RawBytes) {
+	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
+	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
+	src = rp.Raw[rp.idxs.srcIA : rp.idxs.srcIA+addr.IABytes+int(srcLen)]
+	dst = rp.Raw[rp.idxs.dstIA : rp.idxs.dstIA+addr.IABytes+int(dstLen)]
+	pld = rp.Raw[rp.idxs.pld:]
 	return
 }
 
-func (p *RPkt) updateL4() *util.Error {
-	switch v := p.l4.(type) {
+func (rp *RPkt) updateL4() *util.Error {
+	switch v := rp.l4.(type) {
 	case *l4.UDP:
-		src, dst, pld := p.getChksumInput()
+		src, dst, pld := rp.getChksumInput()
 		v.SetPldLen(len(pld))
 		csum, err := v.CalcChecksum(src, dst, pld)
 		if err != nil {
@@ -140,9 +140,9 @@ func (p *RPkt) updateL4() *util.Error {
 		if err != nil {
 			return err
 		}
-		copy(p.Raw[p.idxs.l4:], rawUdp)
+		copy(rp.Raw[rp.idxs.l4:], rawUdp)
 	default:
-		return util.NewError("Updating l4 payload not supported", "type", p.L4Type)
+		return util.NewError("Updating l4 payload not supported", "type", rp.L4Type)
 	}
 	return nil
 }

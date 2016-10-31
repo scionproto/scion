@@ -45,7 +45,7 @@ func (r *Router) GenIFStateReq() {
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
-	pkt, err := rpkt.CreateCtrlPacket(rpkt.DirLocal,
+	rp, err := rpkt.CreateCtrlPacket(rpkt.DirLocal,
 		addr.HostFromIP(srcAddr.IP), topology.Curr.T.IA, dstHost)
 	if err != nil {
 		log.Error("Error creating IFStateReq packet", err.Ctx...)
@@ -61,13 +61,13 @@ func (r *Router) GenIFStateReq() {
 		log.Error("Unable to create IFStateReq struct", "err", cerr)
 		return
 	}
-	pkt.AddL4UDP(srcAddr.Port, 0)
-	pkt.AddCtrlPld(scion)
-	_, err = pkt.RouteResolveSVCMulti(*dstHost, r.locOutFs[0])
+	rp.AddL4UDP(srcAddr.Port, 0)
+	rp.AddCtrlPld(scion)
+	_, err = rp.RouteResolveSVCMulti(*dstHost, r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route IFStateReq packet", err.Ctx...)
 	}
-	pkt.Route()
+	rp.Route()
 }
 
 func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {

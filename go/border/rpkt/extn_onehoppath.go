@@ -24,13 +24,13 @@ import (
 
 type OneHopPath struct {
 	log.Logger
-	p *RPkt
+	rp *RPkt
 }
 
-func OneHopPathFromRaw(p *RPkt) (*OneHopPath, *util.Error) {
-	o := &OneHopPath{p: p}
-	o.Logger = p.Logger.New("ext", "OneHopPath")
-	o.p = p
+func OneHopPathFromRaw(rp *RPkt) (*OneHopPath, *util.Error) {
+	o := &OneHopPath{rp: rp}
+	o.Logger = rp.Logger.New("ext", "OneHopPath")
+	o.rp = rp
 	return o, nil
 }
 
@@ -40,17 +40,17 @@ func (o *OneHopPath) RegisterHooks(hooks *Hooks) *util.Error {
 }
 
 func (o *OneHopPath) HopF() (HookResult, *spath.HopField, *util.Error) {
-	if o.p.DirFrom == DirLocal {
+	if o.rp.DirFrom == DirLocal {
 		return HookContinue, nil, nil
 	}
-	infoF, err := o.p.InfoF()
+	infoF, err := o.rp.InfoF()
 	if err != nil {
 		return HookError, nil, err
 	}
-	prevIdx := o.p.CmnHdr.CurrHopF - spath.HopFieldLength
-	prevHof := o.p.Raw[prevIdx+1 : o.p.CmnHdr.CurrHopF]
-	inIF := conf.C.Net.IFAddrMap[o.p.Ingress.Dst.String()]
-	hopF := spath.NewHopField(o.p.Raw[o.p.CmnHdr.CurrHopF:], inIF, 0)
+	prevIdx := o.rp.CmnHdr.CurrHopF - spath.HopFieldLength
+	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
+	inIF := conf.C.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
+	hopF := spath.NewHopField(o.rp.Raw[o.rp.CmnHdr.CurrHopF:], inIF, 0)
 	mac, err := hopF.CalcMac(conf.C.HFGenBlock, infoF.TsInt, prevHof)
 	if err != nil {
 		return HookError, nil, err

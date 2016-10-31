@@ -61,8 +61,8 @@ func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: rpkt.DirLocal, Labels: labels})
-	r.locOutFs[idx] = func(p *rpkt.RPkt) {
-		r.writeHSROutput(p, len(hsrAddrMs)-1, labels)
+	r.locOutFs[idx] = func(rp *rpkt.RPkt) {
+		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
@@ -75,8 +75,8 @@ func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, Labels: labels})
-	r.intfOutFs[intf.Id] = func(p *rpkt.RPkt) {
-		r.writeHSROutput(p, len(hsrAddrMs)-1, labels)
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RPkt) {
+		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }

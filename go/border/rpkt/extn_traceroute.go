@@ -30,7 +30,7 @@ import (
 var _ Extension = (*Traceroute)(nil)
 
 type Traceroute struct {
-	p         *RPkt
+	rp        *RPkt
 	raw       util.RawBytes
 	NumHops   uint8
 	TotalHops uint8
@@ -47,13 +47,13 @@ const (
 
 var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
-func TracerouteFromRaw(p *RPkt, start, end int) (*Traceroute, *util.Error) {
-	t := &Traceroute{p: p, raw: p.Raw[start:end]}
+func TracerouteFromRaw(rp *RPkt, start, end int) (*Traceroute, *util.Error) {
+	t := &Traceroute{rp: rp, raw: rp.Raw[start:end]}
 	// Index past ext subheader:
 	t.NumHops = t.raw[3]
 	// Ignore subheader line:
 	t.TotalHops = uint8(len(t.raw)/common.LineLen) - 1
-	t.Logger = p.Logger.New("ext", "traceroute")
+	t.Logger = rp.Logger.New("ext", "traceroute")
 	return t, nil
 }
 
@@ -104,7 +104,7 @@ func (t *Traceroute) Validate() (HookResult, *util.Error) {
 
 func (t *Traceroute) Process() (HookResult, *util.Error) {
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
-	entry := TracerouteEntry{*conf.C.IA, uint16(*t.p.ifCurr), uint16(ts)}
+	entry := TracerouteEntry{*conf.C.IA, uint16(*t.rp.ifCurr), uint16(ts)}
 	if err := t.Add(&entry); err != nil {
 		t.Error("Unable to add entry", err)
 	}

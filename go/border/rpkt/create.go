@@ -34,51 +34,51 @@ func CreateCtrlPacket(dirTo Dir, srcHost addr.HostAddr, dstIA *addr.ISD_AS,
 	addrLen := addr.IABytes*2 + srcHost.Size() + dstHost.Size()
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	hdrLen := spkt.CmnHdrLen + addrLen + addrPad
-	p := &RPkt{}
-	p.Raw = make(util.RawBytes, hdrLen)
-	p.TimeIn = time.Now()
-	p.Logger = log.New("pkt", logext.RandId(4))
-	p.DirFrom = DirSelf
-	p.DirTo = dirTo
+	rp := &RPkt{}
+	rp.Raw = make(util.RawBytes, hdrLen)
+	rp.TimeIn = time.Now()
+	rp.Logger = log.New("rpkt", logext.RandId(4))
+	rp.DirFrom = DirSelf
+	rp.DirTo = dirTo
 	// Fill in common header and write it out
-	p.CmnHdr.SrcType = srcHost.Type()
-	p.CmnHdr.DstType = dstHost.Type()
-	p.CmnHdr.HdrLen = uint8(hdrLen)
-	p.CmnHdr.TotalLen = uint16(hdrLen)
-	p.CmnHdr.NextHdr = common.L4UDP
-	p.CmnHdr.CurrInfoF = uint8(hdrLen)
-	p.CmnHdr.CurrHopF = uint8(hdrLen)
-	p.CmnHdr.Write(p.Raw)
+	rp.CmnHdr.SrcType = srcHost.Type()
+	rp.CmnHdr.DstType = dstHost.Type()
+	rp.CmnHdr.HdrLen = uint8(hdrLen)
+	rp.CmnHdr.TotalLen = uint16(hdrLen)
+	rp.CmnHdr.NextHdr = common.L4UDP
+	rp.CmnHdr.CurrInfoF = uint8(hdrLen)
+	rp.CmnHdr.CurrHopF = uint8(hdrLen)
+	rp.CmnHdr.Write(rp.Raw)
 	// Fill in address header and indexes
-	p.idxs.srcIA = spkt.CmnHdrLen
-	p.srcIA = conf.C.IA
-	p.idxs.srcHost = p.idxs.srcIA + addr.IABytes
-	p.srcHost = srcHost
-	p.idxs.dstIA = p.idxs.srcHost + p.srcHost.Size()
-	p.dstIA = dstIA
-	p.idxs.dstHost = p.idxs.dstIA + addr.IABytes
-	p.dstHost = dstHost
-	p.idxs.path = hdrLen
-	p.idxs.l4 = hdrLen
+	rp.idxs.srcIA = spkt.CmnHdrLen
+	rp.srcIA = conf.C.IA
+	rp.idxs.srcHost = rp.idxs.srcIA + addr.IABytes
+	rp.srcHost = srcHost
+	rp.idxs.dstIA = rp.idxs.srcHost + rp.srcHost.Size()
+	rp.dstIA = dstIA
+	rp.idxs.dstHost = rp.idxs.dstIA + addr.IABytes
+	rp.dstHost = dstHost
+	rp.idxs.path = hdrLen
+	rp.idxs.l4 = hdrLen
 	// Write out address header
-	p.srcIA.Write(p.Raw[p.idxs.srcIA:])
-	copy(p.Raw[p.idxs.srcHost:], p.srcHost.Pack())
-	p.dstIA.Write(p.Raw[p.idxs.dstIA:])
-	copy(p.Raw[p.idxs.dstHost:], p.dstHost.Pack())
-	return p, nil
+	rp.srcIA.Write(rp.Raw[rp.idxs.srcIA:])
+	copy(rp.Raw[rp.idxs.srcHost:], rp.srcHost.Pack())
+	rp.dstIA.Write(rp.Raw[rp.idxs.dstIA:])
+	copy(rp.Raw[rp.idxs.dstHost:], rp.dstHost.Pack())
+	return rp, nil
 }
 
-func (p *RPkt) AddL4UDP(srcPort, dstPort int) {
-	p.L4Type = common.L4UDP
+func (rp *RPkt) AddL4UDP(srcPort, dstPort int) {
+	rp.L4Type = common.L4UDP
 	udp := l4.UDP{SrcPort: uint16(srcPort), DstPort: uint16(dstPort)}
-	p.l4 = L4Header(&udp)
-	p.idxs.pld = p.idxs.l4 + l4.UDPLen
+	rp.l4 = L4Header(&udp)
+	rp.idxs.pld = rp.idxs.l4 + l4.UDPLen
 }
 
-func (p *RPkt) AddCtrlPld(msg *proto.SCION) *util.Error {
-	p.pld = msg
-	rawLen := len(p.Raw)
-	p.Raw = append(p.Raw, make(util.RawBytes, p.idxs.pld-rawLen)...)
-	p.Raw = p.Raw[:rawLen]
-	return p.updateCtrlPld()
+func (rp *RPkt) AddCtrlPld(msg *proto.SCION) *util.Error {
+	rp.pld = msg
+	rawLen := len(rp.Raw)
+	rp.Raw = append(rp.Raw, make(util.RawBytes, rp.idxs.pld-rawLen)...)
+	rp.Raw = rp.Raw[:rawLen]
+	return rp.updateCtrlPld()
 }

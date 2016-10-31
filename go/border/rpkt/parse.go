@@ -28,36 +28,36 @@ const (
 	ErrorTooManyHBH  = "Too many hop-by-hop extensions"
 )
 
-func (p *RPkt) Parse() *util.Error {
-	if err := p.parseBasic(); err != nil {
+func (rp *RPkt) Parse() *util.Error {
+	if err := rp.parseBasic(); err != nil {
 		return err
 	}
-	if err := p.parseHopExtns(); err != nil {
+	if err := rp.parseHopExtns(); err != nil {
 		return err
 	}
 	// Pre-fetch required attributes
-	if _, err := p.DstIA(); err != nil {
+	if _, err := rp.DstIA(); err != nil {
 		return err
 	}
-	if *p.dstIA == *conf.C.IA {
-		if _, err := p.DstHost(); err != nil {
+	if *rp.dstIA == *conf.C.IA {
+		if _, err := rp.DstHost(); err != nil {
 			return err
 		}
 	}
-	if _, err := p.InfoF(); err != nil {
+	if _, err := rp.InfoF(); err != nil {
 		return err
 	}
-	if _, err := p.HopF(); err != nil {
+	if _, err := rp.HopF(); err != nil {
 		return err
 	}
-	if _, err := p.UpFlag(); err != nil {
+	if _, err := rp.UpFlag(); err != nil {
 		return err
 	}
-	if _, err := p.IFCurr(); err != nil {
+	if _, err := rp.IFCurr(); err != nil {
 		return err
 	}
-	if *p.dstIA != *conf.C.IA {
-		if _, err := p.IFNext(); err != nil {
+	if *rp.dstIA != *conf.C.IA {
+		if _, err := rp.IFNext(); err != nil {
 			return err
 		}
 	}
@@ -65,43 +65,43 @@ func (p *RPkt) Parse() *util.Error {
 }
 
 // Parse Common and address headers
-func (p *RPkt) parseBasic() *util.Error {
+func (rp *RPkt) parseBasic() *util.Error {
 	var err *util.Error
-	if err := p.CmnHdr.Parse(p.Raw); err != nil {
+	if err := rp.CmnHdr.Parse(rp.Raw); err != nil {
 		return err
 	}
-	p.idxs.srcIA = spkt.CmnHdrLen
-	p.idxs.srcHost = p.idxs.srcIA + addr.IABytes
-	srcLen, err := addr.HostLen(p.CmnHdr.SrcType)
+	rp.idxs.srcIA = spkt.CmnHdrLen
+	rp.idxs.srcHost = rp.idxs.srcIA + addr.IABytes
+	srcLen, err := addr.HostLen(rp.CmnHdr.SrcType)
 	if err != nil {
 		return err
 	}
-	p.idxs.dstIA = p.idxs.srcHost + int(srcLen)
-	p.idxs.dstHost = p.idxs.dstIA + addr.IABytes
-	dstLen, err := addr.HostLen(p.CmnHdr.DstType)
+	rp.idxs.dstIA = rp.idxs.srcHost + int(srcLen)
+	rp.idxs.dstHost = rp.idxs.dstIA + addr.IABytes
+	dstLen, err := addr.HostLen(rp.CmnHdr.DstType)
 	if err != nil {
 		return err
 	}
 	addrLen := addr.IABytes + int(srcLen) + addr.IABytes + int(dstLen)
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
-	p.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
-	if p.idxs.path > int(p.CmnHdr.HdrLen) {
-		return util.NewError(ErrorHdrTooShort, "min", p.idxs.path, "hdrLen", p.CmnHdr.HdrLen)
+	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
+	if rp.idxs.path > int(rp.CmnHdr.HdrLen) {
+		return util.NewError(ErrorHdrTooShort, "min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen)
 	}
 	return nil
 }
 
-func (p *RPkt) parseHopExtns() *util.Error {
-	p.idxs.hbhExt = make([]extnIdx, 0, 4)
-	nextHdr := p.CmnHdr.NextHdr
-	offset := int(p.CmnHdr.HdrLen)
+func (rp *RPkt) parseHopExtns() *util.Error {
+	rp.idxs.hbhExt = make([]extnIdx, 0, 4)
+	nextHdr := rp.CmnHdr.NextHdr
+	offset := int(rp.CmnHdr.HdrLen)
 	count := 0
-	for offset < len(p.Raw) {
+	for offset < len(rp.Raw) {
 		currHdr := nextHdr
 		if currHdr != common.HopByHopClass { // Reached end2end header or L4 protocol
 			break
 		}
-		currExtn := common.ExtnType{Class: currHdr, Type: p.Raw[offset+2]}
+		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
 		if currExtn == common.ExtnSCMPType {
 			if count != 0 {
 				return util.NewError(ErrorExtOrder, "scmpIdx", count)
@@ -112,23 +112,23 @@ func (p *RPkt) parseHopExtns() *util.Error {
 		if count > ExtMaxHopByHop {
 			return util.NewError(ErrorTooManyHBH, "max", ExtMaxHopByHop, "actual", count)
 		}
-		hdrLen := int((p.Raw[offset+1] + 1) * common.LineLen)
-		e, err := p.ExtnParse(currExtn, offset, offset+hdrLen)
+		hdrLen := int((rp.Raw[offset+1] + 1) * common.LineLen)
+		e, err := rp.ExtnParse(currExtn, offset, offset+hdrLen)
 		if err != nil {
 			return err
 		}
 		if e != nil {
-			e.RegisterHooks(&p.hooks)
-			p.HBHExt = append(p.HBHExt, e)
+			e.RegisterHooks(&rp.hooks)
+			rp.HBHExt = append(rp.HBHExt, e)
 		}
-		p.idxs.hbhExt = append(p.idxs.hbhExt, extnIdx{currExtn, offset})
-		nextHdr = common.L4ProtocolType(p.Raw[offset])
+		rp.idxs.hbhExt = append(rp.idxs.hbhExt, extnIdx{currExtn, offset})
+		nextHdr = common.L4ProtocolType(rp.Raw[offset])
 		offset += hdrLen
 	}
-	if offset > len(p.Raw) {
-		return util.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(p.Raw))
+	if offset > len(rp.Raw) {
+		return util.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
-	p.idxs.nextHdrIdx.Type = nextHdr
-	p.idxs.nextHdrIdx.Index = offset
+	rp.idxs.nextHdrIdx.Type = nextHdr
+	rp.idxs.nextHdrIdx.Index = offset
 	return nil
 }
