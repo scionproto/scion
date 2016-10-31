@@ -387,15 +387,15 @@ class TCPSocketWrapper(object):
 
     def __init__(self, sock, addr, path, active=True):
         self._buf = bytearray()
-        self._sock = sock
+        self._tcp_sock = sock
         self.sock = None  # Used by the selector.
-        if self._sock:
-            self.sock = self._sock._lwip_sock
+        if self._tcp_sock:
+            self.sock = self._tcp_sock._lwip_sock
         self.active = active
         self._addr = addr
         self._path = path
         self._lock = threading.RLock()
-        self._last_read = time.time()
+        self._last_io = time.time()
 
     def _get_meta(self):
         return TCPMetadata.from_values(ia=self._addr.isd_as,
@@ -426,12 +426,12 @@ class TCPSocketWrapper(object):
                 logging.debug("TCP: get_msg_meta(): inactive socket")
                 return None, self._get_meta()
             try:
-                read = self._sock.recv(self.RECV_SIZE)
+                read = self._tcp_sock.recv(self.RECV_SIZE)
                 if not read:
                     self.active = False
                     return None, None
                 self._buf += read
-                self._last_read = time.time()
+                self._last_io = time.time()
             except SCIONTCPTimeout:
                 return None, self._get_meta()
             except SCIONTCPError:
@@ -445,7 +445,8 @@ class TCPSocketWrapper(object):
                 logging.debug("TCP: send_msg(): inactive socket")
                 return False
             try:
-                self._sock.send(raw)
+                self._tcp_sock.send(raw)
+                self._last_io = time.time()
                 return True
             except SCIONTCPError:
                 logging.debug("TCP: inactivating after socket error")
@@ -458,11 +459,11 @@ class TCPSocketWrapper(object):
                 logging.debug("TCP: close(): inactive socket")
                 return
             try:
-                self._sock.close()
+                self._tcp_sock.close()
             except SCIONTCPError as e:
                 logging.warning("Error on close(): %s", e)
             self.active = False
             logging.debug("Leaving close()")
 
     def is_active(self):
-        return self.active and (time.time() - self._last_read <= TCP_TIMEOUT)
+        return self.active and (time.time() - self._last_io <= TCP_TIMEOUT)

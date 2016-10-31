@@ -107,7 +107,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = True
+    USE_TCP = False
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
@@ -606,7 +606,6 @@ class SCIONElement(object):
                 self._setup_sockets(False)
             for sock, callback in self._socks.select_(timeout=0.1):
                 callback(sock)
-                self._tcp_socks_update()
             self._tcp_socks_update()
         self._socks.close()
         self.stopped_flag.set()
@@ -657,12 +656,12 @@ class SCIONElement(object):
         self._tcp_add_waiting()
 
     def _tcp_add_waiting(self):
-        while not self._tcp_new_conns.empty():
+        while True:
             try:
                 self._socks.add(self._tcp_new_conns.get_nowait(),
                                 self._tcp_handle_recv)
             except queue.Empty:
-                pass
+                break
 
     def _tcp_handle_recv(self, sock):
         """
