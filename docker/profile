@@ -1,5 +1,5 @@
 export GOPATH="$HOME/go"
-export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:/usr/lib/go-1.6/bin:$GOPATH/bin:$PATH"
+export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:$GOPATH/bin:$PATH"
 export SHELL
 export BASEDIR="$GOPATH/src/github.com/netsec-ethz/scion"
 export PYTHONPATH="$BASEDIR"

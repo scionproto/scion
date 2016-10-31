@@ -29,12 +29,11 @@ Necessary steps in order to run SCION:
 
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
-   `~/.local/bin`, `/usr/lib/go-1.6/bin` and `$GOPATH/bin` can be found in your
-   `$PATH` variable. For example:
+   `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:
 
     ```
     echo 'export GOPATH="$HOME/go"' >> ~/.profile
-    echo 'export PATH="$HOME/.local/bin:/usr/lib/go-1.6/bin:$GOPATH/bin:$PATH"' >> ~/.profile
+    echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"' >> ~/.profile
     source ~/.profile
     mkdir -p "$GOPATH"
     ```
