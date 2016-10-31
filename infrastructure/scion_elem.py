@@ -38,7 +38,6 @@ from lib.defines import (
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TCP_ACCEPT_POLLING_TOUT,
-    TCP_TIMEOUT,
     TOPO_FILE,
 )
 from lib.errors import (
@@ -162,7 +161,7 @@ class SCIONElement(object):
         Setup incoming socket and register with dispatcher
         """
         self._tcp_sock = None
-        self._tcp_conns = queue.Queue(MAX_QUEUE)  # For active TCP connections.
+        self._tcp_new_conns = queue.Queue(MAX_QUEUE)  # New TCP connections.
         if self._port is None:
             # No scion socket desired.
             return
@@ -181,7 +180,7 @@ class SCIONElement(object):
     def _setup_tcp_accept_socket(self, svc):
         if not self.USE_TCP:
             return
-        MAX_TRIES = 20
+        MAX_TRIES = 40
         for i in range(MAX_TRIES):
             try:
                 self._tcp_sock = SCIONTCPSocket()
@@ -489,11 +488,11 @@ class SCIONElement(object):
         dropped = 0
         while True:
             try:
-                self._tcp_conns.put(sock, block=False)
+                self._tcp_new_conns.put(sock, block=False)
             except queue.Full:
-                old_sock = self._tcp_conns.get_nowait()
+                old_sock = self._tcp_new_conns.get_nowait()
                 old_sock.close()
-                logging.error("TCP: _tcp_conns is full. Closing an old socket.")
+                logging.error("TCP: _tcp_new_conns is full. Closing old socket")
                 dropped += 1
             else:
                 break
@@ -605,8 +604,9 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             if not self._udp_sock:
                 self._setup_sockets(False)
-            for sock, callback in self._socks.select_(timeout=1.0):
+            for sock, callback in self._socks.select_(timeout=0.1):
                 callback(sock)
+            self._tcp_socks_update()
         self._socks.close()
         self.stopped_flag.set()
 
@@ -624,9 +624,6 @@ class SCIONElement(object):
         # FIXME(PSz): hack to get python router working.
         if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
             return
-        threading.Thread(
-            target=thread_safety_net, args=(self._tcp_recv_loop,),
-            name="Elem._tcp_recv_loop", daemon=True).start()
         if not self._tcp_sock:
             logging.warning("TCP: accept socket is unset, port:%d", self._port)
             return
@@ -651,45 +648,41 @@ class SCIONElement(object):
         except SCIONTCPError:
             log_exception("TCP: error on closing _tcp_sock")
 
-    def _tcp_recv_loop(self):
-        active_conns = {}
-        while self.run_flag.is_set():
-            if not active_conns:
-                # Have nothing to do, so block until another connection comes in
-                tcp_sock = self._tcp_conns.get()
-                active_conns[tcp_sock] = time.time()
-            logging.debug("TCP: queue size: %d", self._tcp_conns.qsize())
-            while not self._tcp_conns.empty():
-                try:
-                    active_conns[self._tcp_conns.get_nowait()] = time.time()
-                except queue.Empty:
-                    pass
-            # Handle active connections.
-            to_remove = []
-            for tcp_sock in active_conns:
-                msg, meta = tcp_sock.get_msg_meta()
-                if msg:
-                    self._in_buf_put((msg, meta))
-                    active_conns[tcp_sock] = time.time()
-                idle = time.time() - active_conns[tcp_sock]
-                if idle > TCP_TIMEOUT or not tcp_sock.active:
-                    to_remove.append(tcp_sock)
-                logging.debug("TCP: Active: %s", tcp_sock.active)
-            # Remove inactive connections.
-            for tcp_sock in to_remove:
-                tcp_sock.close()
-                del active_conns[tcp_sock]
-        # Is not running anymore.
-        for tcp_sock in active_conns:
-            tcp_sock.close()
+    def _tcp_socks_update(self):
+        # FIXME(PSz): hack to get python router working.
+        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+            return
+        self._socks.remove_inactive()
+        self._tcp_add_waiting()
+
+    def _tcp_add_waiting(self):
+        while True:
+            try:
+                self._socks.add(self._tcp_new_conns.get_nowait(),
+                                self._tcp_handle_recv)
+            except queue.Empty:
+                break
+
+    def _tcp_handle_recv(self, sock):
+        """
+        Callback to handle a ready recving socket
+        """
+        msg, meta = sock.get_msg_meta()
+        logging.debug("tcp_handle_recv:%s, %s", msg, meta)
+        if msg is None and meta is None:
+            self._socks.remove(sock)
+            sock.close()
+            return
+        if msg:
+            self._in_buf_put((msg, meta))
 
     def _tcp_clean(self):
         if not hasattr(self, "_tcp_sock") or not self._tcp_sock:
             return
         # Close all TCP sockets.
-        while not self._tcp_conns.empty():
+        while not self._tcp_new_conns.empty():
             try:
-                tcp_sock = self._tcp_conns.get_nowait()
+                tcp_sock = self._tcp_new_conns.get_nowait()
             except queue.Empty:
                 break
             tcp_sock.close()
