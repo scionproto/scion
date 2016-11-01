@@ -134,29 +134,29 @@ type extnIdx struct {
 
 var order = binary.BigEndian
 
-func (p *RPkt) Reset() {
-	p.Raw = p.Raw[:cap(p.Raw)-1]
-	p.DirFrom = DirUnset
-	p.DirTo = DirUnset
-	p.Ingress.Src = nil
-	p.Ingress.Dst = nil
-	p.Egress = p.Egress[:0]
-	p.idxs = packetIdxs{}
-	p.srcIA = nil
-	p.srcHost = nil
-	p.dstIA = nil
-	p.dstHost = nil
-	p.infoF = nil
-	p.hopF = nil
-	p.ifCurr = nil
-	p.ifNext = nil
-	p.upFlag = nil
-	p.HBHExt = p.HBHExt[:0]
-	p.E2EExt = p.E2EExt[:0]
-	p.L4Type = common.L4None
-	p.l4 = nil
-	p.pld = nil
-	p.hooks = Hooks{}
-	p.SCMPError = false
-	p.Logger = nil
+func (rp *RPkt) Reset() {
+	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
+	rp.DirFrom = DirUnset
+	rp.DirTo = DirUnset
+	rp.Ingress.Src = nil
+	rp.Ingress.Dst = nil
+	rp.Egress = rp.Egress[:0]
+	rp.idxs = packetIdxs{}
+	rp.srcIA = nil
+	rp.srcHost = nil
+	rp.dstIA = nil
+	rp.dstHost = nil
+	rp.infoF = nil
+	rp.hopF = nil
+	rp.ifCurr = nil
+	rp.ifNext = nil
+	rp.upFlag = nil
+	rp.HBHExt = rp.HBHExt[:0]
+	rp.E2EExt = rp.E2EExt[:0]
+	rp.L4Type = common.L4None
+	rp.l4 = nil
+	rp.pld = nil
+	rp.hooks = Hooks{}
+	rp.SCMPError = false
+	rp.Logger = nil
 }

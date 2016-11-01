@@ -32,41 +32,41 @@ const (
 	ErrorPldGet                = "Unable to retrieve payload"
 )
 
-func (p *RPkt) NeedsLocalProcessing() *util.Error {
-	if *p.dstIA != *conf.C.IA {
+func (rp *RPkt) NeedsLocalProcessing() *util.Error {
+	if *rp.dstIA != *conf.C.IA {
 		// Packet isn't to this IA, so just forward.
-		p.hooks.Route = append(p.hooks.Route, p.forward)
+		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
 	}
-	if p.CmnHdr.DstType == addr.HostTypeSVC {
-		if p.infoF == nil && len(p.idxs.hbhExt) == 0 {
+	if rp.CmnHdr.DstType == addr.HostTypeSVC {
+		if rp.infoF == nil && len(rp.idxs.hbhExt) == 0 {
 			// To SVC address, no path - needs processing.
-			p.hooks.Payload = append(p.hooks.Payload, p.parseCtrlPayload)
-			p.hooks.Process = append(p.hooks.Process, p.processPathlessSVC)
+			rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
+			rp.hooks.Process = append(rp.hooks.Process, rp.processPathlessSVC)
 		}
 		// Resolve SVC address for delivery.
-		p.hooks.Route = append(p.hooks.Route, p.RouteResolveSVC)
+		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 		return nil
 	}
-	dstIP := p.dstHost.IP()
-	intf := conf.C.Net.IFs[*p.ifCurr]
+	dstIP := rp.dstHost.IP()
+	intf := conf.C.Net.IFs[*rp.ifCurr]
 	extPub := intf.IFAddr.PublicAddr().IP
-	locPub := conf.C.Net.IntfLocalAddr(*p.ifCurr).PublicAddr().IP
-	if p.DirFrom == DirExternal && extPub.Equal(dstIP) ||
-		(p.DirFrom == DirLocal && locPub.Equal(dstIP)) {
+	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr().IP
+	if rp.DirFrom == DirExternal && extPub.Equal(dstIP) ||
+		(rp.DirFrom == DirLocal && locPub.Equal(dstIP)) {
 		// Packet is meant for this router
-		p.hooks.Payload = append(p.hooks.Payload, p.parseCtrlPayload)
-		p.hooks.Process = append(p.hooks.Process, p.processDestSelf)
+		rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
+		rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 		return nil
 	}
 	// Normal packet to local AS, just forward.
-	p.hooks.Route = append(p.hooks.Route, p.forward)
+	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	return nil
 }
 
 // No fallback for process - a hook must be registered to read it.
-func (p *RPkt) Process() *util.Error {
-	for _, f := range p.hooks.Process {
+func (rp *RPkt) Process() *util.Error {
+	for _, f := range rp.hooks.Process {
 		ret, err := f()
 		switch {
 		case err != nil:
@@ -80,15 +80,15 @@ func (p *RPkt) Process() *util.Error {
 	return nil
 }
 
-func (p *RPkt) processPathlessSVC() (HookResult, *util.Error) {
-	_, err := p.Payload()
+func (rp *RPkt) processPathlessSVC() (HookResult, *util.Error) {
+	_, err := rp.Payload()
 	if err != nil {
 		return HookError, err
 	}
-	pld, ok := p.pld.(*proto.SCION)
+	pld, ok := rp.pld.(*proto.SCION)
 	if !ok {
 		return HookError, util.NewError(ErrorProcessPldUnsupported,
-			"pldType", fmt.Sprintf("%T", p.pld), "pld", p.pld)
+			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	switch pld.Which() {
 	default:
@@ -96,14 +96,14 @@ func (p *RPkt) processPathlessSVC() (HookResult, *util.Error) {
 	}
 }
 
-func (p *RPkt) processDestSelf() (HookResult, *util.Error) {
-	if _, err := p.Payload(); err != nil {
+func (rp *RPkt) processDestSelf() (HookResult, *util.Error) {
+	if _, err := rp.Payload(); err != nil {
 		return HookError, err
 	}
-	pld, ok := p.pld.(*proto.SCION)
+	pld, ok := rp.pld.(*proto.SCION)
 	if !ok {
 		return HookError, util.NewError(ErrorProcessPldUnsupported,
-			"pldType", fmt.Sprintf("%T", p.pld), "pld", p.pld)
+			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	switch pld.Which() {
 	case proto.SCION_Which_ifid:
@@ -111,48 +111,48 @@ func (p *RPkt) processDestSelf() (HookResult, *util.Error) {
 		if err != nil {
 			return HookError, util.NewError(ErrorPldGet, "err", err)
 		}
-		return p.processIFID(ifid)
+		return rp.processIFID(ifid)
 	case proto.SCION_Which_pathMgmt:
 		pathMgmt, err := pld.PathMgmt()
 		if err != nil {
 			return HookError, util.NewError(ErrorPldGet, "err", err)
 		}
-		return p.processPathMgmtSelf(pathMgmt)
+		return rp.processPathMgmtSelf(pathMgmt)
 	default:
-		p.Error("Unsupported destination payload", "type", pld.Which())
+		rp.Error("Unsupported destination payload", "type", pld.Which())
 		return HookError, nil
 	}
 }
 
-func (p *RPkt) processIFID(pld proto.IFID) (HookResult, *util.Error) {
-	pld.SetRelayIF(uint16(*p.ifCurr))
-	if err := p.updateCtrlPld(); err != nil {
+func (rp *RPkt) processIFID(pld proto.IFID) (HookResult, *util.Error) {
+	pld.SetRelayIF(uint16(*rp.ifCurr))
+	if err := rp.updateCtrlPld(); err != nil {
 		return HookError, err
 	}
-	intf := conf.C.Net.IFs[*p.ifCurr]
+	intf := conf.C.Net.IFs[*rp.ifCurr]
 	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
 	// Create base packet
-	pkt, err := CreateCtrlPacket(DirLocal, addr.HostFromIP(srcAddr.IP),
+	fwdrp, err := CreateCtrlPacket(DirLocal, addr.HostFromIP(srcAddr.IP),
 		conf.C.IA, addr.SvcBS.Multicast())
 	if err != nil {
-		p.Error("Error creating IFID forwarding packet", err.Ctx...)
+		rp.Error("Error creating IFID forwarding packet", err.Ctx...)
 	}
-	pkt.AddL4UDP(srcAddr.Port, 0)
+	fwdrp.AddL4UDP(srcAddr.Port, 0)
 	// Set payload
-	if err := pkt.AddCtrlPld(p.pld.(*proto.SCION)); err != nil {
+	if err := fwdrp.AddCtrlPld(rp.pld.(*proto.SCION)); err != nil {
 		return HookError, util.NewError("Error setting IFID forwarding payload", err.Ctx...)
 	}
-	pkt.ifCurr = p.ifCurr
-	_, err = pkt.RouteResolveSVC()
+	fwdrp.ifCurr = rp.ifCurr
+	_, err = fwdrp.RouteResolveSVC()
 	if err != nil {
-		p.Error("Error resolving SVC address", err.Ctx...)
+		rp.Error("Error resolving SVC address", err.Ctx...)
 		return HookError, nil
 	}
-	pkt.Route()
+	fwdrp.Route()
 	return HookFinish, nil
 }
 
-func (p *RPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
+func (rp *RPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.Error) {
 	switch pathMgmt.Which() {
 	case proto.PathMgmt_Which_ifStateInfos:
 		ifStates, err := pathMgmt.IfStateInfos()
@@ -161,18 +161,18 @@ func (p *RPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *util.E
 		}
 		callbacks.ifStateUpd(ifStates)
 	default:
-		p.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
+		rp.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
 		return HookError, nil
 	}
 	return HookFinish, nil
 }
 
-func (p *RPkt) processSCMP() (HookResult, *util.Error) {
+func (rp *RPkt) processSCMP() (HookResult, *util.Error) {
 	// FIXME(kormat): rate-limit revocations
-	hdr := p.l4.(*scmp.Hdr)
+	hdr := rp.l4.(*scmp.Hdr)
 	switch {
 	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
-		pld := p.pld.(*scmp.Payload)
+		pld := rp.pld.(*scmp.Payload)
 		callbacks.revTokenF(pld.Info.(*scmp.InfoRevocation).RevToken)
 	}
 	return HookFinish, nil

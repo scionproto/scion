@@ -24,11 +24,11 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-func (p *RPkt) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
-	if p.L4Type != common.L4UDP {
+func (rp *RPkt) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
+	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
-	rawPld := p.Raw[p.idxs.pld:]
+	rawPld := rp.Raw[rp.idxs.pld:]
 	pldLen := order.Uint32(rawPld)
 	rawPld = rawPld[4:]
 	if int(pldLen) != len(rawPld) {
@@ -54,14 +54,14 @@ func (p *RPkt) parseCtrlPayload() (HookResult, interface{}, *util.Error) {
 	return HookFinish, &pld, nil
 }
 
-func (p *RPkt) updateCtrlPld() *util.Error {
+func (rp *RPkt) updateCtrlPld() *util.Error {
 	// First remove old payload, if any
-	p.Raw = p.Raw[:p.idxs.pld]
+	rp.Raw = rp.Raw[:rp.idxs.pld]
 	var buf bytes.Buffer
 	// Reserve space for length
 	buf.Write(make([]byte, 4))
 	enc := capnp.NewPackedEncoder(&buf)
-	pld := p.pld.(*proto.SCION)
+	pld := rp.pld.(*proto.SCION)
 	if err := enc.Encode(pld.Segment().Message()); err != nil {
 		return util.NewError("Unable to encode ctrl payload", "err", err)
 	}
@@ -69,12 +69,12 @@ func (p *RPkt) updateCtrlPld() *util.Error {
 	// Set payload length
 	order.PutUint32(newPld, uint32(len(newPld)-4))
 	// Append new payload
-	p.Raw = append(p.Raw, newPld...)
+	rp.Raw = append(rp.Raw, newPld...)
 	// Now start updating headers
-	if err := p.updateL4(); err != nil {
+	if err := rp.updateL4(); err != nil {
 		return err
 	}
-	p.CmnHdr.TotalLen = uint16(len(p.Raw))
-	p.CmnHdr.Write(p.Raw)
+	rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
+	rp.CmnHdr.Write(rp.Raw)
 	return nil
 }

@@ -27,35 +27,35 @@ const (
 	ErrorHookResponse    = "Extension hook return value unrecognised"
 )
 
-func (p *RPkt) Validate() *util.Error {
+func (rp *RPkt) Validate() *util.Error {
 	// TODO(kormat): verify rest of common header, etc
-	if int(p.CmnHdr.TotalLen) != len(p.Raw) {
+	if int(rp.CmnHdr.TotalLen) != len(rp.Raw) {
 		return util.NewError(ErrorTotalLenTooLong,
-			"totalLen", p.CmnHdr.TotalLen, "max", len(p.Raw))
+			"totalLen", rp.CmnHdr.TotalLen, "max", len(rp.Raw))
 	}
-	if _, ok := conf.C.Net.IFs[*p.ifCurr]; !ok {
-		return util.NewError(ErrorCurrIntfInvalid, "ifid", *p.ifCurr)
+	if _, ok := conf.C.Net.IFs[*rp.ifCurr]; !ok {
+		return util.NewError(ErrorCurrIntfInvalid, "ifid", *rp.ifCurr)
 	}
 	conf.C.IFStates.RLock()
-	info, ok := conf.C.IFStates.M[*p.ifCurr]
+	info, ok := conf.C.IFStates.M[*rp.ifCurr]
 	conf.C.IFStates.RUnlock()
 	if ok && !info.Active() {
 		// If the destination is this router, then ignore revocation.
-		intf := conf.C.Net.IFs[*p.ifCurr]
+		intf := conf.C.Net.IFs[*rp.ifCurr]
 		var intfHost addr.HostAddr
-		if p.DirFrom == DirExternal {
+		if rp.DirFrom == DirExternal {
 			intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
 		} else {
 			intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
 		}
-		if !(*p.dstIA == *conf.C.IA && addr.HostEq(p.dstHost, intfHost)) {
-			return util.NewError(ErrorIntfRevoked, "ifid", *p.ifCurr)
+		if !(*rp.dstIA == *conf.C.IA && addr.HostEq(rp.dstHost, intfHost)) {
+			return util.NewError(ErrorIntfRevoked, "ifid", *rp.ifCurr)
 		}
 	}
-	if err := p.validatePath(p.DirFrom); err != nil {
+	if err := rp.validatePath(rp.DirFrom); err != nil {
 		return err
 	}
-	for i, f := range p.hooks.Validate {
+	for i, f := range rp.hooks.Validate {
 		ret, err := f()
 		switch {
 		case err != nil:
