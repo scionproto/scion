@@ -49,7 +49,7 @@ Necessary steps in order to run SCION:
    ```
    If you don't have a github account, or haven't setup ssh access to it, this
    command will make git use https instead:
-   `git config --global --add url.https://github.com/.insteadOf git@github.com:`
+   `git config --global url.https://github.com/.insteadOf git@github.com:`
 
 1. Install required packages with dependencies:
     ```
