@@ -21,7 +21,7 @@ import (
 	"zombiezen.com/go/capnproto2"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -74,7 +74,7 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	// Pick first local address as source
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	// Create base packet
-	pkt, err := packet.CreateCtrlPacket(packet.DirLocal,
+	rp, err := rpkt.CreateCtrlPacket(rpkt.DirLocal,
 		addr.HostFromIP(srcAddr.IP), conf.C.IA, dstHost)
 	if err != nil {
 		log.Error("Error creating RevInfo packet", err.Ctx...)
@@ -86,13 +86,13 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 		return
 	}
 	pathMgmt.SetRevInfo(*revInfo)
-	pkt.AddL4UDP(srcAddr.Port, 0)
-	pkt.AddCtrlPld(scion)
-	_, err = pkt.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
+	rp.AddL4UDP(srcAddr.Port, 0)
+	rp.AddCtrlPld(scion)
+	_, err = rp.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route RevInfo packet", err.Ctx...)
 		return
 	}
-	pkt.Route()
+	rp.Route()
 	log.Debug("Forwarded RevInfo")
 }

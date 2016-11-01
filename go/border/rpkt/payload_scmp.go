@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package rpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func (p *Packet) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
+func (p *RPkt) parseSCMPPayload() (HookResult, interface{}, *util.Error) {
 	pld, err := scmp.PldFromRaw(p.Raw[p.idxs.pld:], p.l4.(*scmp.Hdr))
 	if err != nil {
 		return HookError, nil, err

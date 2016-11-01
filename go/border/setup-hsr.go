@@ -28,7 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/netconf"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
@@ -46,52 +46,52 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router) (packet.HookResult, *util.Error) {
+func setupHSRNetStart(r *Router) (rpkt.HookResult, *util.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
-	return packet.HookContinue, nil
+	return rpkt.HookContinue, nil
 }
 
 func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
-	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
-		return packet.HookContinue, nil
+		return rpkt.HookContinue, nil
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
-		DirFrom: packet.DirLocal, Labels: labels})
-	r.locOutFs[idx] = func(p *packet.Packet) {
-		r.writeHSROutput(p, len(hsrAddrMs)-1, labels)
+		DirFrom: rpkt.DirLocal, Labels: labels})
+	r.locOutFs[idx] = func(rp *rpkt.RPkt) {
+		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
 	}
-	return packet.HookFinish, nil
+	return rpkt.HookFinish, nil
 }
 
 func setupHSRAddExt(r *Router, intf *netconf.Interface,
-	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
-		return packet.HookContinue, nil
+		return rpkt.HookContinue, nil
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
-		GoAddr: bind, DirFrom: packet.DirExternal, Labels: labels})
-	r.intfOutFs[intf.Id] = func(p *packet.Packet) {
-		r.writeHSROutput(p, len(hsrAddrMs)-1, labels)
+		GoAddr: bind, DirFrom: rpkt.DirExternal, Labels: labels})
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RPkt) {
+		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
 	}
-	return packet.HookFinish, nil
+	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router) (packet.HookResult, *util.Error) {
+func setupHSRNetFinish(r *Router) (rpkt.HookResult, *util.Error) {
 	if len(hsrAddrMs) == 0 {
-		return packet.HookContinue, nil
+		return rpkt.HookContinue, nil
 	}
 	err := hsr.Init(filepath.Join(conf.C.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
 		flag.Args(), hsrAddrMs)
 	if err != nil {
-		return packet.HookError, err
+		return rpkt.HookError, err
 	}
-	q := make(chan *packet.Packet)
+	q := make(chan *rpkt.RPkt)
 	r.inQs = append(r.inQs, q)
 	go r.readHSRInput(q)
-	return packet.HookContinue, nil
+	return rpkt.HookContinue, nil
 }

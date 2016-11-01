@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package rpkt
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func (p *Packet) Route() *util.Error {
+func (p *RPkt) Route() *util.Error {
 	for _, f := range p.hooks.Route {
 		ret, err := f()
 		switch {
@@ -43,7 +43,7 @@ func (p *Packet) Route() *util.Error {
 	return nil
 }
 
-func (p *Packet) RouteResolveSVC() (HookResult, *util.Error) {
+func (p *RPkt) RouteResolveSVC() (HookResult, *util.Error) {
 	svc, ok := p.dstHost.(*addr.HostSVC)
 	if !ok {
 		return HookError, util.NewError("Destination host is NOT an SVC address",
@@ -57,7 +57,7 @@ func (p *Packet) RouteResolveSVC() (HookResult, *util.Error) {
 	return p.RouteResolveSVCAny(*svc, f)
 }
 
-func (p *Packet) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
+func (p *RPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	names, elemMap := getSVCNamesMap(svc)
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
@@ -71,7 +71,7 @@ func (p *Packet) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult,
 	return HookContinue, nil
 }
 
-func (p *Packet) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
+func (p *RPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	_, elemMap := getSVCNamesMap(svc)
 	if elemMap == nil {
 		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
@@ -90,7 +90,7 @@ func (p *Packet) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResul
 	return HookContinue, nil
 }
 
-func (p *Packet) forward() (HookResult, *util.Error) {
+func (p *RPkt) forward() (HookResult, *util.Error) {
 	switch p.DirFrom {
 	case DirExternal:
 		return p.forwardFromExternal()
@@ -101,7 +101,7 @@ func (p *Packet) forward() (HookResult, *util.Error) {
 	}
 }
 
-func (p *Packet) forwardFromExternal() (HookResult, *util.Error) {
+func (p *RPkt) forwardFromExternal() (HookResult, *util.Error) {
 	if p.hopF.VerifyOnly {
 		return HookError, util.NewError("Non-routing HopF, refusing to forward", "hopF", p.hopF)
 	}
@@ -147,7 +147,7 @@ func (p *Packet) forwardFromExternal() (HookResult, *util.Error) {
 	return HookContinue, nil
 }
 
-func (p *Packet) forwardFromLocal() (HookResult, *util.Error) {
+func (p *RPkt) forwardFromLocal() (HookResult, *util.Error) {
 	if p.infoF != nil || len(p.idxs.hbhExt) > 0 {
 		if err := p.incPath(); err != nil {
 			return HookError, err

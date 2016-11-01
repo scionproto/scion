@@ -39,7 +39,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
@@ -53,7 +53,7 @@ const MaxPkts = 32
 type AddrMeta struct {
 	GoAddr  *net.UDPAddr
 	CAddr   C.saddr_storage
-	DirFrom packet.Dir
+	DirFrom rpkt.Dir
 	Labels  prometheus.Labels
 }
 
@@ -100,7 +100,7 @@ func NewHSR() *HSR {
 	return &h
 }
 
-func (h *HSR) GetPackets(pkts []*packet.Packet) ([]int, *util.Error) {
+func (h *HSR) GetPackets(pkts []*rpkt.RPkt) ([]int, *util.Error) {
 	if len(pkts) > MaxPkts {
 		return nil, util.NewError("Too many packets requested", "max", MaxPkts, "actual", len(pkts))
 	}

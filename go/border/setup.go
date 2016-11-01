@@ -24,7 +24,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/netconf"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -36,11 +36,11 @@ const (
 	ErrorListenExternal = "Unable to listen on external socket"
 )
 
-type setupNetHook func(r *Router) (packet.HookResult, *util.Error)
+type setupNetHook func(r *Router) (rpkt.HookResult, *util.Error)
 type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
-	packet.HookResult, *util.Error)
+	rpkt.HookResult, *util.Error)
 type setupAddExtHook func(r *Router, intf *netconf.Interface, labels prometheus.Labels) (
-	packet.HookResult, *util.Error)
+	rpkt.HookResult, *util.Error)
 
 var setupNetStartHooks []setupNetHook
 var setupAddLocalHooks []setupAddLocalHook
@@ -48,9 +48,9 @@ var setupAddExtHooks []setupAddExtHook
 var setupNetFinishHooks []setupNetHook
 
 func (r *Router) setup(confDir string) *util.Error {
-	r.locOutFs = make(map[int]packet.OutputFunc)
-	r.intfOutFs = make(map[spath.IntfID]packet.OutputFunc)
-	r.freePkts = make(chan *packet.Packet, 1024)
+	r.locOutFs = make(map[int]rpkt.OutputFunc)
+	r.intfOutFs = make(map[spath.IntfID]rpkt.OutputFunc)
+	r.freePkts = make(chan *rpkt.RPkt, 1024)
 	r.revInfoQ = make(chan util.RawBytes)
 
 	if err := conf.Load(r.Id, confDir); err != nil {
@@ -60,7 +60,7 @@ func (r *Router) setup(confDir string) *util.Error {
 	log.Debug("AS Conf loaded", "conf", conf.C.AS)
 	log.Debug("NetConf", "conf", conf.C.Net)
 
-	packet.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback)
+	rpkt.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback)
 	return nil
 }
 
@@ -74,9 +74,9 @@ func (r *Router) setupNet() *util.Error {
 		switch {
 		case err != nil:
 			return err
-		case ret == packet.HookContinue:
+		case ret == rpkt.HookContinue:
 			continue
-		case ret == packet.HookFinish:
+		case ret == rpkt.HookFinish:
 			break
 		}
 	}
@@ -89,9 +89,9 @@ func (r *Router) setupNet() *util.Error {
 			switch {
 			case err != nil:
 				return err
-			case ret == packet.HookContinue:
+			case ret == rpkt.HookContinue:
 				continue
-			case ret == packet.HookFinish:
+			case ret == rpkt.HookFinish:
 				break
 			}
 		}
@@ -105,9 +105,9 @@ func (r *Router) setupNet() *util.Error {
 			switch {
 			case err != nil:
 				return err
-			case ret == packet.HookContinue:
+			case ret == rpkt.HookContinue:
 				continue
-			case ret == packet.HookFinish:
+			case ret == rpkt.HookFinish:
 				break InnerLoop
 			}
 		}
@@ -117,9 +117,9 @@ func (r *Router) setupNet() *util.Error {
 		switch {
 		case err != nil:
 			return err
-		case ret == packet.HookContinue:
+		case ret == rpkt.HookContinue:
 			continue
-		case ret == packet.HookFinish:
+		case ret == rpkt.HookFinish:
 			break
 		}
 	}
@@ -137,27 +137,27 @@ func (r *Router) setupNet() *util.Error {
 }
 
 func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
-	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
 	if err := over.Listen(); err != nil {
-		return packet.HookError, util.NewError(ErrorListenLocal, "err", err)
+		return rpkt.HookError, util.NewError(ErrorListenLocal, "err", err)
 	}
-	q := make(chan *packet.Packet)
+	q := make(chan *rpkt.RPkt)
 	r.inQs = append(r.inQs, q)
-	go r.readPosixInput(over.Conn, packet.DirLocal, labels, q)
-	r.locOutFs[idx] = func(p *packet.Packet) { r.writeLocalOutput(over.Conn, labels, p) }
-	return packet.HookFinish, nil
+	go r.readPosixInput(over.Conn, rpkt.DirLocal, labels, q)
+	r.locOutFs[idx] = func(rp *rpkt.RPkt) { r.writeLocalOutput(over.Conn, labels, rp) }
+	return rpkt.HookFinish, nil
 }
 
 func setupPosixAddExt(r *Router, intf *netconf.Interface,
-	labels prometheus.Labels) (packet.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
 	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
-		return packet.HookError, util.NewError(ErrorListenExternal, "err", err)
+		return rpkt.HookError, util.NewError(ErrorListenExternal, "err", err)
 	}
-	q := make(chan *packet.Packet)
+	q := make(chan *rpkt.RPkt)
 	r.inQs = append(r.inQs, q)
-	go r.readPosixInput(intf.IFAddr.Conn, packet.DirExternal, labels, q)
-	r.intfOutFs[intf.Id] = func(p *packet.Packet) {
-		r.writeIntfOutput(intf.IFAddr.Conn, labels, p)
+	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, labels, q)
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RPkt) {
+		r.writeIntfOutput(intf.IFAddr.Conn, labels, rp)
 	}
-	return packet.HookFinish, nil
+	return rpkt.HookFinish, nil
 }

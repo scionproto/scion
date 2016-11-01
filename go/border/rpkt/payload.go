@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package rpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -25,7 +25,7 @@ const (
 )
 
 // No fallback for payload - a hook must be registered to read it.
-func (p *Packet) Payload() (interface{}, *util.Error) {
+func (p *RPkt) Payload() (interface{}, *util.Error) {
 	if p.pld == nil && len(p.hooks.Payload) > 0 {
 		_, err := p.L4Hdr()
 		if err != nil {

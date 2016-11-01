@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package rpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -26,29 +26,29 @@ const (
 	ErrorGetDstHost = "Unable to retrieve destination host"
 )
 
-func (p *Packet) SrcIA() (*addr.ISD_AS, *util.Error) {
-	if p.srcIA == nil {
+func (rp *RPkt) SrcIA() (*addr.ISD_AS, *util.Error) {
+	if rp.srcIA == nil {
 		var err *util.Error
-		p.srcIA, err = p.hookIA(p.hooks.SrcIA, p.idxs.srcIA)
+		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
 		if err != nil {
 			return nil, util.NewError(ErrorGetSrcIA, "err", err)
 		}
 	}
-	return p.srcIA, nil
+	return rp.srcIA, nil
 }
 
-func (p *Packet) DstIA() (*addr.ISD_AS, *util.Error) {
-	if p.dstIA == nil {
+func (rp *RPkt) DstIA() (*addr.ISD_AS, *util.Error) {
+	if rp.dstIA == nil {
 		var err *util.Error
-		p.dstIA, err = p.hookIA(p.hooks.DstIA, p.idxs.dstIA)
+		rp.dstIA, err = rp.hookIA(rp.hooks.DstIA, rp.idxs.dstIA)
 		if err != nil {
 			return nil, util.NewError(ErrorGetDstIA, "err", err)
 		}
 	}
-	return p.dstIA, nil
+	return rp.dstIA, nil
 }
 
-func (p *Packet) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *util.Error) {
+func (rp *RPkt) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *util.Error) {
 	for _, f := range hooks {
 		ret, ia, err := f()
 		switch {
@@ -60,32 +60,32 @@ func (p *Packet) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *util.Error) {
 			return ia, nil
 		}
 	}
-	return addr.IAFromRaw(p.Raw[idx:]), nil
+	return addr.IAFromRaw(rp.Raw[idx:]), nil
 }
 
-func (p *Packet) SrcHost() (addr.HostAddr, *util.Error) {
-	if p.srcHost == nil {
+func (rp *RPkt) SrcHost() (addr.HostAddr, *util.Error) {
+	if rp.srcHost == nil {
 		var err *util.Error
-		p.srcHost, err = p.hookHost(p.hooks.SrcHost, p.idxs.srcHost, p.CmnHdr.SrcType)
+		rp.srcHost, err = rp.hookHost(rp.hooks.SrcHost, rp.idxs.srcHost, rp.CmnHdr.SrcType)
 		if err != nil {
 			return nil, util.NewError(ErrorGetSrcHost, "err", err)
 		}
 	}
-	return p.srcHost, nil
+	return rp.srcHost, nil
 }
 
-func (p *Packet) DstHost() (addr.HostAddr, *util.Error) {
-	if p.dstHost == nil {
+func (rp *RPkt) DstHost() (addr.HostAddr, *util.Error) {
+	if rp.dstHost == nil {
 		var err *util.Error
-		p.dstHost, err = p.hookHost(p.hooks.DstHost, p.idxs.dstHost, p.CmnHdr.DstType)
+		rp.dstHost, err = rp.hookHost(rp.hooks.DstHost, rp.idxs.dstHost, rp.CmnHdr.DstType)
 		if err != nil {
 			return nil, util.NewError(ErrorGetDstHost, "err", err)
 		}
 	}
-	return p.dstHost, nil
+	return rp.dstHost, nil
 }
 
-func (p *Packet) hookHost(
+func (rp *RPkt) hookHost(
 	hooks []HookHost, idx int, htype uint8) (addr.HostAddr, *util.Error) {
 	for _, f := range hooks {
 		ret, host, err := f()
@@ -98,5 +98,5 @@ func (p *Packet) hookHost(
 			return host, nil
 		}
 	}
-	return addr.HostFromRaw(p.Raw[idx:], htype)
+	return addr.HostFromRaw(rp.Raw[idx:], htype)
 }

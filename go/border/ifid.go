@@ -20,7 +20,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
@@ -47,13 +47,13 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 	intf := conf.C.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
-	pkt, err := packet.CreateCtrlPacket(packet.DirExternal,
+	rp, err := rpkt.CreateCtrlPacket(rpkt.DirExternal,
 		addr.HostFromIP(srcAddr.IP), intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP))
 	if err != nil {
 		logger.Error("Error creating IFID packet", err.Ctx...)
 	}
 	// Set egress
-	pkt.Egress = append(pkt.Egress, packet.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
+	rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
 	// Create IFID msg
 	scion, ifidMsg, err := proto.NewIFIDMsg()
 	if err != nil {
@@ -61,7 +61,7 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 		return
 	}
 	ifidMsg.SetOrigIF(uint16(ifid))
-	pkt.AddL4UDP(srcAddr.Port, intf.RemoteAddr.Port)
-	pkt.AddCtrlPld(scion)
-	pkt.Route()
+	rp.AddL4UDP(srcAddr.Port, intf.RemoteAddr.Port)
+	rp.AddCtrlPld(scion)
+	rp.Route()
 }

@@ -22,90 +22,90 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/packet"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-func (r *Router) getPktBuf() *packet.Packet {
+func (r *Router) getPktBuf() *rpkt.RPkt {
 	// https://golang.org/doc/effective_go.html#leaky_buffer
-	var p *packet.Packet
+	var rp *rpkt.RPkt
 	select {
-	case p = <-r.freePkts:
+	case rp = <-r.freePkts:
 		// Got one
 		metrics.PktBufReuse.Inc()
-		return p
+		return rp
 	default:
 		// None available, allocate a new one
 		metrics.PktBufNew.Inc()
-		p = new(packet.Packet)
-		p.Raw = make([]byte, pktBufSize)
-		return p
+		rp = new(rpkt.RPkt)
+		rp.Raw = make([]byte, pktBufSize)
+		return rp
 	}
 }
 
-func (r *Router) readPosixInput(in *net.UDPConn, dirFrom packet.Dir, labels prometheus.Labels,
-	q chan *packet.Packet) {
+func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, labels prometheus.Labels,
+	q chan *rpkt.RPkt) {
 	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
 	for {
 		metrics.InputLoops.With(labels).Inc()
-		p := r.getPktBuf()
-		p.DirFrom = dirFrom
+		rp := r.getPktBuf()
+		rp.DirFrom = dirFrom
 		start := time.Now()
-		length, src, err := in.ReadFromUDP(p.Raw)
+		length, src, err := in.ReadFromUDP(rp.Raw)
 		if err != nil {
 			log.Error("Error reading from socket", "socket", dst, "err", err)
 			continue
 		}
 		t := time.Now().Sub(start).Seconds()
 		metrics.InputProcessTime.With(labels).Add(t)
-		p.TimeIn = time.Now()
-		p.Raw = p.Raw[:length] // Set the length of the slice
-		p.Ingress.Src = src
-		p.Ingress.Dst = dst
+		rp.TimeIn = time.Now()
+		rp.Raw = rp.Raw[:length] // Set the length of the slice
+		rp.Ingress.Src = src
+		rp.Ingress.Dst = dst
 		metrics.PktsRecv.With(labels).Inc()
 		metrics.BytesRecv.With(labels).Add(float64(length))
-		q <- p
+		q <- rp
 	}
 }
 
-func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, p *packet.Packet) {
-	if len(p.Egress) == 0 {
-		p.Error("Destination not specified")
+func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, rp *rpkt.RPkt) {
+	if len(rp.Egress) == 0 {
+		rp.Error("Destination not specified")
 		return
 	}
-	for _, epair := range p.Egress {
+	for _, epair := range rp.Egress {
 		start := time.Now()
-		if count, err := out.WriteToUDP(p.Raw, epair.Dst); err != nil {
-			p.Error("Error sending packet", "err", err)
+		if count, err := out.WriteToUDP(rp.Raw, epair.Dst); err != nil {
+			rp.Error("Error sending packet", "err", err)
 			return
-		} else if count != len(p.Raw) {
-			p.Error("Unable to write full packet", "len", count)
+		} else if count != len(rp.Raw) {
+			rp.Error("Unable to write full packet", "len", count)
 			return
 		}
 		t := time.Now().Sub(start).Seconds()
 		metrics.OutputProcessTime.With(labels).Add(t)
-		metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
+		metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
 		metrics.PktsSent.With(labels).Inc()
 	}
 }
 
-func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, p *packet.Packet) {
-	if len(p.Egress) == 0 {
-		p.Error("Destination not specified")
+func (r *Router) writeIntfOutput(out *net.UDPConn, labels prometheus.Labels, rp *rpkt.RPkt) {
+	if len(rp.Egress) == 0 {
+		rp.Error("Destination not specified")
 		return
 	}
 	start := time.Now()
-	if count, err := out.Write(p.Raw); err != nil {
-		p.Error("Error sending packet", "err", err)
+	if count, err := out.Write(rp.Raw); err != nil {
+		rp.Error("Error sending packet", "err", err)
 		return
-	} else if count != len(p.Raw) {
-		p.Error("Unable to write full packet", "len", count)
+	} else if count != len(rp.Raw) {
+		rp.Error("Unable to write full packet", "len", count)
 		return
 	}
 	t := time.Now().Sub(start).Seconds()
 	metrics.OutputProcessTime.With(labels).Add(t)
-	metrics.BytesSent.With(labels).Add(float64(len(p.Raw)))
+	metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
 	metrics.PktsSent.With(labels).Inc()
 }

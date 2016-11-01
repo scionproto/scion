@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet
+package rpkt
 
 import (
 	"fmt"
@@ -41,14 +41,14 @@ var ExtHBHKnown = map[common.ExtnType]bool{
 	common.ExtnSIBRAType:      true,
 }
 
-func (p *Packet) ExtnParse(extType common.ExtnType, start, end int) (Extension, *util.Error) {
+func (rp *RPkt) ExtnParse(extType common.ExtnType, start, end int) (Extension, *util.Error) {
 	switch {
 	case extType == common.ExtnTracerouteType:
-		return TracerouteFromRaw(p, start, end)
+		return TracerouteFromRaw(rp, start, end)
 	case extType == common.ExtnOneHopPathType:
-		return OneHopPathFromRaw(p)
+		return OneHopPathFromRaw(rp)
 	case extType == common.ExtnSCMPType:
-		return SCMPExtFromRaw(p, start, end)
+		return SCMPExtFromRaw(rp, start, end)
 	case ExtHBHKnown[extType]:
 		return nil, util.NewError("Known but unsupported extension", "type", extType)
 	default:
