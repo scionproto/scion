@@ -25,8 +25,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func (p *RPkt) Route() *util.Error {
-	for _, f := range p.hooks.Route {
+func (rp *RPkt) Route() *util.Error {
+	for _, f := range rp.hooks.Route {
 		ret, err := f()
 		switch {
 		case err != nil:
@@ -37,27 +37,27 @@ func (p *RPkt) Route() *util.Error {
 			return nil
 		}
 	}
-	for _, epair := range p.Egress {
-		epair.F(p)
+	for _, epair := range rp.Egress {
+		epair.F(rp)
 	}
 	return nil
 }
 
-func (p *RPkt) RouteResolveSVC() (HookResult, *util.Error) {
-	svc, ok := p.dstHost.(*addr.HostSVC)
+func (rp *RPkt) RouteResolveSVC() (HookResult, *util.Error) {
+	svc, ok := rp.dstHost.(*addr.HostSVC)
 	if !ok {
 		return HookError, util.NewError("Destination host is NOT an SVC address",
-			"actual", p.dstHost, "type", fmt.Sprintf("%T", p.dstHost))
+			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	intf := conf.C.Net.IFs[*p.ifCurr]
+	intf := conf.C.Net.IFs[*rp.ifCurr]
 	f := callbacks.locOutFs[intf.LocAddrIdx]
 	if svc.IsMulticast() {
-		return p.RouteResolveSVCMulti(*svc, f)
+		return rp.RouteResolveSVCMulti(*svc, f)
 	}
-	return p.RouteResolveSVCAny(*svc, f)
+	return rp.RouteResolveSVCAny(*svc, f)
 }
 
-func (p *RPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
+func (rp *RPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	names, elemMap := getSVCNamesMap(svc)
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
@@ -67,11 +67,11 @@ func (p *RPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
-	p.Egress = append(p.Egress, EgressPair{f, dst})
+	rp.Egress = append(rp.Egress, EgressPair{f, dst})
 	return HookContinue, nil
 }
 
-func (p *RPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
+func (rp *RPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *util.Error) {
 	_, elemMap := getSVCNamesMap(svc)
 	if elemMap == nil {
 		return HookError, util.NewError("No instances found for SVC address", "svc", svc)
@@ -85,47 +85,47 @@ func (p *RPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult,
 		}
 		seen[strIP] = true
 		dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
-		p.Egress = append(p.Egress, EgressPair{f, dst})
+		rp.Egress = append(rp.Egress, EgressPair{f, dst})
 	}
 	return HookContinue, nil
 }
 
-func (p *RPkt) forward() (HookResult, *util.Error) {
-	switch p.DirFrom {
+func (rp *RPkt) forward() (HookResult, *util.Error) {
+	switch rp.DirFrom {
 	case DirExternal:
-		return p.forwardFromExternal()
+		return rp.forwardFromExternal()
 	case DirLocal:
-		return p.forwardFromLocal()
+		return rp.forwardFromLocal()
 	default:
-		return HookError, util.NewError("Unsupported forwarding DirFrom", "dirFrom", p.DirFrom)
+		return HookError, util.NewError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
 	}
 }
 
-func (p *RPkt) forwardFromExternal() (HookResult, *util.Error) {
-	if p.hopF.VerifyOnly {
-		return HookError, util.NewError("Non-routing HopF, refusing to forward", "hopF", p.hopF)
+func (rp *RPkt) forwardFromExternal() (HookResult, *util.Error) {
+	if rp.hopF.VerifyOnly {
+		return HookError, util.NewError("Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
-	intf := conf.C.Net.IFs[*p.ifCurr]
-	if *p.dstIA == *conf.C.IA {
+	intf := conf.C.Net.IFs[*rp.ifCurr]
+	if *rp.dstIA == *conf.C.IA {
 		// Destination is local host
-		if p.hopF.ForwardOnly {
+		if rp.hopF.ForwardOnly {
 			return HookError, util.NewError("Delivery forbidden for Forward-only HopF",
-				"hopF", p.hopF)
+				"hopF", rp.hopF)
 		}
-		dst := &net.UDPAddr{IP: p.dstHost.IP(), Port: overlay.EndhostPort}
-		p.Egress = append(p.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
+		dst := &net.UDPAddr{IP: rp.dstHost.IP(), Port: overlay.EndhostPort}
+		rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 		return HookContinue, nil
 	}
-	if p.hopF.Xover {
-		if err := p.incPath(); err != nil {
+	if rp.hopF.Xover {
+		if err := rp.incPath(); err != nil {
 			return HookError, err
 		}
-		if err := p.validatePath(DirLocal); err != nil {
+		if err := rp.validatePath(DirLocal); err != nil {
 			return HookError, err
 		}
 	}
 	// Destination is remote, so forward to egress router
-	nextIF, err := p.IFNext()
+	nextIF, err := rp.IFNext()
 	if err != nil {
 		return HookError, err
 	}
@@ -143,17 +143,17 @@ func (p *RPkt) forwardFromExternal() (HookResult, *util.Error) {
 		return HookError, util.NewError(ErrorIntfRevoked, "ifid", *nextIF)
 	}
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
-	p.Egress = append(p.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
+	rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
 }
 
-func (p *RPkt) forwardFromLocal() (HookResult, *util.Error) {
-	if p.infoF != nil || len(p.idxs.hbhExt) > 0 {
-		if err := p.incPath(); err != nil {
+func (rp *RPkt) forwardFromLocal() (HookResult, *util.Error) {
+	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
+		if err := rp.incPath(); err != nil {
 			return HookError, err
 		}
 	}
-	intf := conf.C.Net.IFs[*p.ifCurr]
-	p.Egress = append(p.Egress, EgressPair{callbacks.intfOutFs[*p.ifCurr], intf.RemoteAddr})
+	intf := conf.C.Net.IFs[*rp.ifCurr]
+	rp.Egress = append(rp.Egress, EgressPair{callbacks.intfOutFs[*rp.ifCurr], intf.RemoteAddr})
 	return HookContinue, nil
 }

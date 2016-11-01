@@ -100,26 +100,26 @@ func NewHSR() *HSR {
 	return &h
 }
 
-func (h *HSR) GetPackets(pkts []*rpkt.RPkt) ([]int, *util.Error) {
-	if len(pkts) > MaxPkts {
-		return nil, util.NewError("Too many packets requested", "max", MaxPkts, "actual", len(pkts))
+func (h *HSR) GetPackets(rps []*rpkt.RPkt) ([]int, *util.Error) {
+	if len(rps) > MaxPkts {
+		return nil, util.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
 	}
-	for i, pkt := range pkts {
-		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&pkt.Raw[0]))
+	for i, rp := range rps {
+		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&rp.Raw[0]))
 	}
 	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), C.int(*hsrInMin),
-		C.int(len(pkts)), C.int(*hsrInTout)))
+		C.int(len(rps)), C.int(*hsrInTout)))
 	portIds := make([]int, count)
 	for i := 0; i < count; i++ {
-		p := pkts[i]
+		rp := rps[i]
 		r := h.InPkts[i]
-		p.Raw = p.Raw[:int(r.buflen)]
-		p.Ingress.Src = &net.UDPAddr{}
-		if err := saddrToUDPAddr(p.Ingress.Src, r.src); err != nil {
+		rp.Raw = rp.Raw[:int(r.buflen)]
+		rp.Ingress.Src = &net.UDPAddr{}
+		if err := saddrToUDPAddr(rp.Ingress.Src, r.src); err != nil {
 			return nil, err
 		}
-		p.Ingress.Dst = AddrMs[r.port_id].GoAddr
-		p.DirFrom = AddrMs[r.port_id].DirFrom
+		rp.Ingress.Dst = AddrMs[r.port_id].GoAddr
+		rp.DirFrom = AddrMs[r.port_id].DirFrom
 		portIds[i] = int(r.port_id)
 	}
 	return portIds, nil

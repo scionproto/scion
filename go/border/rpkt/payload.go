@@ -25,13 +25,13 @@ const (
 )
 
 // No fallback for payload - a hook must be registered to read it.
-func (p *RPkt) Payload() (interface{}, *util.Error) {
-	if p.pld == nil && len(p.hooks.Payload) > 0 {
-		_, err := p.L4Hdr()
+func (rp *RPkt) Payload() (interface{}, *util.Error) {
+	if rp.pld == nil && len(rp.hooks.Payload) > 0 {
+		_, err := rp.L4Hdr()
 		if err != nil {
 			return nil, err
 		}
-		for _, f := range p.hooks.Payload {
+		for _, f := range rp.hooks.Payload {
 			ret, pld, err := f()
 			switch {
 			case err != nil:
@@ -39,10 +39,10 @@ func (p *RPkt) Payload() (interface{}, *util.Error) {
 			case ret == HookContinue:
 				continue
 			case ret == HookFinish:
-				p.pld = pld
-				return p.pld, nil
+				rp.pld = pld
+				return rp.pld, nil
 			}
 		}
 	}
-	return p.pld, nil
+	return rp.pld, nil
 }
