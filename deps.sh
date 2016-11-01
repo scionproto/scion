@@ -63,15 +63,19 @@ cmd_zlog() {
 }
 
 cmd_golang() {
-    echo "Checking for go 1.6"
-    if ! chk_go; then
-        echo "Installing golang-1.6 from apt"
+    if ! type -P go >/dev/null; then
+        echo "Installing go from apt"
         # Include git, as it's needed for fetching go deps. Relevant for
         # testing building Go code inside docker.
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang-1.6 git
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang git
+    fi
+    if ! go version | grep -vq ' go1\.[0-5]\.'; then
+        echo "ERROR: Unsupported go version - requires at least go 1.6: $(go version)"
+        exit 1
     fi
     if ! type -P govendor &>/dev/null; then
         (
+            echo "Installing govendor"
             HOST=github.com
             USER=kardianos
             PROJECT=govendor
@@ -92,10 +96,6 @@ cmd_golang() {
     ( cd go && make deps )
     echo "Copying go-capnproto2's go.capnp into proto/"
     cp go/vendor/zombiezen.com/go/capnproto2/std/go.capnp proto/go.capnp
-}
-
-chk_go() {
-    type -P go &>/dev/null && go version | grep -Eq ' (go1.6|go1.7)'
 }
 
 cmd_misc() {
@@ -125,7 +125,7 @@ cmd_help() {
 	    $PROGRAM zlog
 	        Install libzlog
 	    $PROGRAM golang
-	        Install golang-1.6
+	        Install golang
 	    $PROGRAM misc
 	        Install any additional packages not from the first 2 sources.
 	    $PROGRAM help

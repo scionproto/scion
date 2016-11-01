@@ -1,5 +1,6 @@
 .PHONY: all clean test coverage fmt deps_proto deps depspurge proto bin libs hsr
 
+SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
@@ -27,9 +28,14 @@ deps_proto: proto
 
 deps: vendor/.deps.stamp
 
-vendor/.deps.stamp: vendor/vendor.json 
-	govendor sync
-	go install -v ./vendor/...
+vendor/.deps.stamp: vendor/vendor.json
+	@echo "$$(date -Iseconds) Syncing deps"; govendor sync
+	@echo "$$(date -Iseconds) Installing deps"; go install ./vendor/...
+	@if [ -n "$$(govendor list -no-status +outside)" ]; then \
+	    echo "ERROR: external/missing packages:"; \
+	    govendor list +outside; \
+	    exit 1; \
+	fi;
 	touch $@
 
 depspurge:

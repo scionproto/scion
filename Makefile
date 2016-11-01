@@ -9,7 +9,7 @@ clean:
 	if type -P go >/dev/null; then cd go && make clean; fi
 
 go: libscion
-	# `make -C go` breaks if there are symlinks in $PWD
+	@# `make -C go` breaks if there are symlinks in $PWD
 	cd go && make
 
 gohsr: libhsr
