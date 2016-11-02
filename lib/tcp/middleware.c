@@ -20,7 +20,7 @@
 #endif
 static char sock_path[UNIX_PATH_MAX];
 
-struct conn_state* conn_to_state(struct conn *conn){
+struct conn_state* conn_to_state(struct netconn *conn){
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         if (connections[i].conn == conn)
             return &connections[i];
@@ -95,18 +95,25 @@ void *tcpmw_main_thread(void *unused) {
 }
 
 void tcpmw_init(void){
+    int sys_err;
+    if ((sys_err = pthread_mutex_init(&connections_lock, NULL))){
+        zlog_fatal(zc_tcp, "tcpmw_init: pthread_mutex_init(): %s", strerror(sys_err));
+        exit(-1);
+    }
+
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         connections[i].fd = -1;
         connections[i].conn = NULL;
         connections[i].conn_ready = 0;
+        connections[i].conn_error = 0;
         connections[i].app_buf = NULL;
         connections[i].app_buf_len = 0;
         connections[i].app_buf_written = 0;
         connections[i].tcp_buf = NULL;
         connections[i].tcp_buf_len = 0;
         connections[i].tcp_buf_written = 0;
-        if (pthread_mutex_init(&connections[i].lock, NULL) != 0){
-            zlog_fatal(zc_tcp, "tcpmw_init: pthread_mutex_init(): %s", strerror(errno));
+        if ((sys_err = pthread_mutex_init(&connections[i].lock, NULL))){
+            zlog_fatal(zc_tcp, "tcpmw_init: pthread_mutex_init(): %s", strerror(sys_err));
             exit(-1);
         }
     }
@@ -339,8 +346,10 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
 
 exit:
     tcpmw_reply(args, CMD_CONNECT, lwip_err);
-    if (lwip_err == ERR_OK)
+    if (lwip_err == ERR_OK){
+        tcpmw_add_connection(args);
         tcpmw_pipe_loop(args);
+    }
 }
 
 void tcpmw_listen(struct conn_args *args, int len){
@@ -419,6 +428,12 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         goto clean;
     }
 
+    /* Add new connection to the array */
+    if ((sys_err = tcpmw_add_connection(new_args))){
+        free(new_args);
+        goto clean;
+    }
+
     /* Preparing a successful response. */
     u16_t  path_len = newconn->pcb.ip->path->len;
     u8_t haddr_len = get_addr_len(newconn->pcb.ip->remote_ip.type);
@@ -474,6 +489,28 @@ void tcpmw_callback(struct netconn *conn, enum netconn_evt evt, u16_t len){
     else{
         zlog_debug(zc_tcp, "tcpmw_callback(): ignoring: %d:%d", evt, len);
     }
+}
+
+int tcpmw_add_connection(struct conn_args *args){
+    int ret = 1;
+    pthread_mutex_lock(&connections_lock);
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        struct conn_state *s = &connections[i];
+        if (s->fd == -1 && s->conn == NULL){  /* Inactive */
+            pthread_mutex_lock(&s->lock);
+            s->fd = args->fd;
+            s->conn = args->conn;
+            s->app_buf = malloc(TCPMW_BUFLEN);
+            pthread_mutex_unlock(&s->lock);
+            zlog_debug(zc_tcp, "tcpmw_add_connection(): added");
+            ret = 0;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&connections_lock);
+    if (ret)
+        zlog_error(zc_tcp, "tcpmw_add_connection(): cannot add new connection");
+    return ret;
 }
 
 void *tcpmw_pipe_loop(void *data){

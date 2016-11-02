@@ -73,8 +73,9 @@ struct conn_args{
 
 struct conn_state{
 	int fd;  /* Socket: App <-> MW */
-    struct conn *conn;  /* Socket: MW <-> TCP stack */
+    struct netconn *conn;  /* Socket: MW <-> TCP stack */
     u8_t conn_ready;  /* TCP sock ready to read */
+    u8_t conn_error;  /* TCP sock is closed/broken */
     char *app_buf;  /* Data from app -> TCP stack */
     int app_buf_len;  /* Its len */
     int app_buf_written;  /* Bytes sent already to TCP */
@@ -86,13 +87,15 @@ struct conn_state{
 
 static struct conn_state connections[MAX_CONNECTIONS];
 static struct conn_state pollfds[MAX_CONNECTIONS];
-struct conn_state* conn_to_state(struct conn *);
+pthread_mutex_t connections_lock;
+struct conn_state* conn_to_state(struct netconn *);
 struct conn_state* fd_to_state(int fd);
 
 void *tcpmw_main_thread(void *);
 void tcpmw_init();
 void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
+int tcpmw_add_connection(struct conn_args *);
 void tcpmw_bind(struct conn_args *, char *, int);
 void tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
