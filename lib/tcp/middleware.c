@@ -20,6 +20,22 @@
 #endif
 static char sock_path[UNIX_PATH_MAX];
 
+struct conn_state* conn_to_state(struct conn *conn){
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        if (connections[i].conn == conn)
+            return &connections[i];
+    }
+    return NULL;
+}
+
+struct conn_state* fd_to_state(int fd){
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        if (connections[i].fd == fd)
+            return &connections[i];
+    }
+    return NULL;
+}
+
 void *tcpmw_main_thread(void *unused) {
     struct sockaddr_un addr;
     int fd, cl;
@@ -79,7 +95,7 @@ void *tcpmw_main_thread(void *unused) {
 }
 
 void tcpmw_init(void){
-    for (int i=0; i < MAX_CONNECTIONS; i++){
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
         connections[i].fd = -1;
         connections[i].conn = NULL;
         connections[i].conn_ready = 0;
