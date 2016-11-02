@@ -18,6 +18,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -44,7 +45,8 @@
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
-#define TCP_POLLING_TOUT 2 /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+#define TCP_POLLING_TOUT 2  /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+#define MAX_CONNECTIONS 8192  /* Max number of active TCP connections */
 
 /* Middleware API commands */
 #define CMD_ACCEPT "ACCE"
@@ -63,12 +65,30 @@
 
 zlog_category_t *zc_tcp;
 
+/* TODO(PSz): replace by struct conn_state at some point */
 struct conn_args{
     int fd;
     struct netconn *conn;
 };
 
+struct conn_state{
+	int fd;  /* Socket: App <-> MW */
+    struct conn *conn;  /* Socket: MW <-> TCP stack */
+    u8_t conn_ready;  /* TCP sock ready to read */
+    char *app_buf;  /* Data from app -> TCP stack */
+    int app_buf_len;  /* Its len */
+    int app_buf_written;  /* Bytes sent already to TCP */
+    struct netbuf *tcp_buf;  /* Data from TCP -> app */
+    int tcp_buf_len;  /* Its len */
+    int tcp_buf_written;  /* Bytes sent already to app */
+    pthread_mutex_t lock;
+};
+
+static struct conn_state connections[MAX_CONNECTIONS];
+static struct conn_state pollfds[MAX_CONNECTIONS];
+
 void *tcpmw_main_thread(void *);
+void tcpmw_init();
 void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
 void tcpmw_bind(struct conn_args *, char *, int);
@@ -85,6 +105,7 @@ void tcpmw_reply(struct conn_args *, const char *, s8_t);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
+void tcpmw_callback(struct netconn *, enum netconn_evt, u16_t);
 void *tcpmw_pipe_loop(void *);
 int tcpmw_from_app_sock(struct conn_args *);
 int tcpmw_from_tcp_sock(struct conn_args *);

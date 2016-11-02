@@ -25,6 +25,8 @@ void *tcpmw_main_thread(void *unused) {
     int fd, cl;
     char *env;
 
+    tcpmw_init();  /* Init the connections array */
+
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: socket(): %s", strerror(errno));
         exit(-1);
@@ -76,6 +78,24 @@ void *tcpmw_main_thread(void *unused) {
     return NULL;
 }
 
+void tcpmw_init(void){
+    for (int i=0; i < MAX_CONNECTIONS; i++){
+        connections[i].fd = -1;
+        connections[i].conn = NULL;
+        connections[i].conn_ready = 0;
+        connections[i].app_buf = NULL;
+        connections[i].app_buf_len = 0;
+        connections[i].app_buf_written = 0;
+        connections[i].tcp_buf = NULL;
+        connections[i].tcp_buf_len = 0;
+        connections[i].tcp_buf_written = 0;
+        if (pthread_mutex_init(&connections[i].lock, NULL) != 0){
+            zlog_fatal(zc_tcp, "tcpmw_init: pthread_mutex_init(): %s", strerror(errno));
+            exit(-1);
+        }
+    }
+}
+
 void tcpmw_unlink_sock(void){
     errno = 0;
     if (unlink(sock_path)){
@@ -107,7 +127,7 @@ void tcpmw_socket(int fd){
     }
     zlog_info(zc_tcp, "NEWS received");
 
-    if ((conn = netconn_new(NETCONN_TCP)) == NULL){
+    if ((conn = netconn_new_with_callback(NETCONN_TCP, tcpmw_callback)) == NULL){
         lwip_err = ERR_NEW;
         zlog_error(zc_tcp, "tcpmw_socket(): netconn_new() failed");
         goto close;
@@ -426,6 +446,18 @@ clean:
         lwip_err = ERR_SYS;
 exit:
     tcpmw_reply(args, CMD_ACCEPT, lwip_err);
+}
+
+void tcpmw_callback(struct netconn *conn, enum netconn_evt evt, u16_t len){
+    if (evt == NETCONN_EVT_RCVPLUS && len){
+        zlog_debug(zc_tcp, "tcpmw_callback(): data to read");
+        /* TODO(PSz): if !len then is it an error? */
+    } else if (evt == NETCONN_EVT_ERROR){
+        zlog_debug(zc_tcp, "tcpmw_callback(): error");
+    }
+    else{
+        zlog_debug(zc_tcp, "tcpmw_callback(): ignoring: %d:%d", evt, len);
+    }
 }
 
 void *tcpmw_pipe_loop(void *data){
