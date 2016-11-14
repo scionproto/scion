@@ -75,7 +75,7 @@ struct conn_state{
 	int fd;  /* Socket: App <-> MW */
     struct netconn *conn;  /* Socket: MW <-> TCP stack */
     u8_t conn_ready;  /* TCP sock ready to read */
-    u8_t conn_error;  /* TCP sock is closed/broken */
+    u8_t conn_done;  /* TCP sock is closed/broken */
     char *app_buf;  /* Data from app -> TCP stack */
     int app_buf_len;  /* Its len */
     int app_buf_written;  /* Bytes sent already to TCP */
@@ -86,8 +86,7 @@ struct conn_state{
 };
 
 static struct conn_state connections[MAX_CONNECTIONS];
-static struct conn_state pollfds[MAX_CONNECTIONS];
-pthread_mutex_t connections_lock;
+static struct pollfd pollfds[MAX_CONNECTIONS];
 struct conn_state* conn_to_state(struct netconn *);
 struct conn_state* fd_to_state(int fd);
 

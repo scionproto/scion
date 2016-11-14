@@ -96,16 +96,12 @@ void *tcpmw_main_thread(void *unused) {
 
 void tcpmw_init(void){
     int sys_err;
-    if ((sys_err = pthread_mutex_init(&connections_lock, NULL))){
-        zlog_fatal(zc_tcp, "tcpmw_init: pthread_mutex_init(): %s", strerror(sys_err));
-        exit(-1);
-    }
 
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         connections[i].fd = -1;
         connections[i].conn = NULL;
         connections[i].conn_ready = 0;
-        connections[i].conn_error = 0;
+        connections[i].conn_done = 0;
         connections[i].app_buf = NULL;
         connections[i].app_buf_len = 0;
         connections[i].app_buf_written = 0;
@@ -480,12 +476,35 @@ exit:
 }
 
 void tcpmw_callback(struct netconn *conn, enum netconn_evt evt, u16_t len){
-    if (evt == NETCONN_EVT_RCVPLUS && len){
-        zlog_debug(zc_tcp, "tcpmw_callback(): data to read");
-        /* TODO(PSz): if !len then is it an error? */
-    } else if (evt == NETCONN_EVT_ERROR){
-        zlog_debug(zc_tcp, "tcpmw_callback(): error");
+    zlog_debug(zc_tcp, "tcpmw_callback(): state: %d", conn->state);
+    struct conn_state *state;
+    if (evt == NETCONN_EVT_RCVPLUS){
+        state = conn_to_state(conn);
+        if (state == NULL){
+            // Normal for accept() and connect()
+            zlog_warn(zc_tcp, "tcpmw_callback(): RCVPLUS && state == NULL");
+            return;
+        }
+        if (len){
+            zlog_debug(zc_tcp, "tcpmw_callback(): data to read");
+            state->conn_ready = 1;
+        }
+        else{
+            zlog_debug(zc_tcp, "tcpmw_callback(): EOF");
+            state->conn_done = 1;
+        }
     }
+    else if (evt == NETCONN_EVT_ERROR){
+        zlog_debug(zc_tcp, "tcpmw_callback(): error");
+        state = conn_to_state(conn);
+        if (state == NULL){
+            // Normal for accept() and connect()
+            zlog_warn(zc_tcp, "tcpmw_callback(): ERROR && state == NULL");
+            return;
+        }
+        state->conn_done = 1;
+    }
+
     else{
         zlog_debug(zc_tcp, "tcpmw_callback(): ignoring: %d:%d", evt, len);
     }
@@ -493,11 +512,14 @@ void tcpmw_callback(struct netconn *conn, enum netconn_evt evt, u16_t len){
 
 int tcpmw_add_connection(struct conn_args *args){
     int ret = 1;
-    pthread_mutex_lock(&connections_lock);
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         struct conn_state *s = &connections[i];
         if (s->fd == -1 && s->conn == NULL){  /* Inactive */
-            pthread_mutex_lock(&s->lock);
+            pthread_mutex_lock(&s->lock); // FIXME(PSz): non blocking
+            if (s->fd != -1 || s->conn != NULL){
+                pthread_mutex_unlock(&s->lock);
+                continue;
+            }
             s->fd = args->fd;
             s->conn = args->conn;
             s->app_buf = malloc(TCPMW_BUFLEN);
@@ -507,7 +529,6 @@ int tcpmw_add_connection(struct conn_args *args){
             break;
         }
     }
-    pthread_mutex_unlock(&connections_lock);
     if (ret)
         zlog_error(zc_tcp, "tcpmw_add_connection(): cannot add new connection");
     return ret;
