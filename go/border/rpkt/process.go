@@ -129,8 +129,7 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	}
 	fwdrp.ifCurr = rp.ifCurr
 	if _, err := fwdrp.RouteResolveSVC(); err != nil {
-		rp.Error("Error resolving SVC address", err.Ctx...)
-		return HookError, nil
+		return HookError, err
 	}
 	fwdrp.Route()
 	return HookFinish, nil
@@ -162,23 +161,17 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	return HookFinish, nil
 }
 
-func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem) {
-	var names []string
-	var elemMap map[string]topology.BasicElem
+func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, bool) {
 	tm := conf.C.TopoMeta
 	switch svc.Base() {
 	case addr.SvcBS:
-		names = tm.BSNames
-		elemMap = tm.T.BS
+		return tm.BSNames, tm.T.BS, true
 	case addr.SvcPS:
-		names = tm.PSNames
-		elemMap = tm.T.PS
+		return tm.PSNames, tm.T.PS, true
 	case addr.SvcCS:
-		names = tm.CSNames
-		elemMap = tm.T.CS
+		return tm.CSNames, tm.T.CS, true
 	case addr.SvcSB:
-		names = tm.SBNames
-		elemMap = tm.T.SB
+		return tm.SBNames, tm.T.SB, true
 	}
-	return names, elemMap
+	return nil, nil, false
 }

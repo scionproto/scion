@@ -90,12 +90,12 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		return
 	}
 	if err := rp.Process(); err != nil {
-		rp.Error("Error processing packet", err.Ctx...)
+		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
 	if rp.DirTo != rpkt.DirSelf {
 		if err := rp.Route(); err != nil {
-			rp.Error("Error routing packet", err.Ctx...)
+			r.handlePktError(rp, err, "Error routing packet")
 		}
 	}
 }

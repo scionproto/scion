@@ -23,6 +23,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 func (rp *RtrPkt) Route() *common.Error {
@@ -55,19 +57,25 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	f := callbacks.locOutFs[intf.LocAddrIdx]
-	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(svc, f)
+	names, elemMap, ok := getSVCNamesMap(svc)
+	if !ok {
+		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
+		return HookError, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)
+	} else if elemMap == nil {
+		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_UnreachHost, nil)
+		return HookError, common.NewErrorData(
+			"No instances found for SVC address", sdata, "svc", svc)
 	}
-	return rp.RouteResolveSVCAny(svc, f)
+	if svc.IsMulticast() {
+		return rp.RouteResolveSVCMulti(svc, f, elemMap)
+	}
+	return rp.RouteResolveSVCAny(svc, f, names, elemMap)
 }
 
-func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
-	names, elemMap := getSVCNamesMap(svc)
+func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc,
+	names []string, elemMap map[string]topology.BasicElem) (HookResult, *common.Error) {
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
-	if elemMap == nil {
-		return HookError, common.NewError("No instances found for SVC address", "svc", svc)
-	}
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
@@ -75,11 +83,8 @@ func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult
 	return HookContinue, nil
 }
 
-func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
-	_, elemMap := getSVCNamesMap(svc)
-	if elemMap == nil {
-		return HookError, common.NewError("No instances found for SVC address", "svc", svc)
-	}
+func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc,
+	elemMap map[string]topology.BasicElem) (HookResult, *common.Error) {
 	// Only send once per IP
 	seen := make(map[string]bool)
 	for _, elem := range elemMap {
@@ -106,14 +111,15 @@ func (rp *RtrPkt) forward() (HookResult, *common.Error) {
 }
 
 func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
-	if rp.hopF.VerifyOnly {
-		return HookError, common.NewError("Non-routing HopF, refusing to forward", "hopF", rp.hopF)
+	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
+		return HookError, common.NewError(
+			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	if *rp.dstIA == *conf.C.IA {
-		// Destination is local host
-		if rp.hopF.ForwardOnly {
-			return HookError, common.NewError("Delivery forbidden for Forward-only HopF",
+		// Destination is a local host
+		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
+			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
 				"hopF", rp.hopF)
 		}
 		dst := &net.UDPAddr{IP: rp.dstHost.IP(), Port: overlay.EndhostPort}

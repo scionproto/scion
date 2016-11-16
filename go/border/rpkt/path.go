@@ -50,6 +50,10 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, sinfo)
 		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
 	}
+	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, sinfo)
+		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
+	}
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
