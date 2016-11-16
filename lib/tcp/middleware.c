@@ -523,7 +523,7 @@ int tcpmw_sync_conn_states(void){
         }
         else if (s->conn != NULL){  // fd is dead, only app_buf->MW can work.
             if (s->app_buf_len)  // Bytes from app to TCP stack.
-                send_to_tcp(s);
+                tcpmw_send_to_tcp(s);
             if (!s->app_buf_len){  // everything sent, can terminate netconn
                 netconn_close(s->conn);
                 netconn_delete(s->conn);
@@ -537,6 +537,47 @@ int tcpmw_sync_conn_states(void){
         }
     }
     return pollfd_idx;
+}
+
+void tcpmw_send_to_tcp(struct conn_state *s){
+    if (s->app_buf_len){ // write from the app_buf to TCP
+        size_t tmp_sent, sent = s->app_buf_written;
+        int to_write = s->app_buf_len - sent;
+        s8_t lwip_err = 0;
+        lwip_err = netconn_write_partly(s->conn, s->app_buf + sent, to_write, NETCONN_COPY, &tmp_sent);
+        if (lwip_err != ERR_OK){
+            zlog_error(zc_tcp, "tcpmw_from_app_sock(): netconn_write(): %s", lwip_strerr(lwip_err));
+            zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
+                       sent, tmp_sent, s->app_buf_len);
+            /* Netconn is broken, close it */
+            netconn_close(s->conn);
+            netconn_delete(s->conn);
+            s->conn = NULL;
+            /* Nothing more can be sent to netconn*/
+            s->app_buf_written = 0;
+            s->app_buf_len = 0;
+            return;
+        }
+        s->app_buf_written += tmp_sent;
+        if (s->app_buf_written == s->app_buf_len){
+            s->app_buf_written = 0;
+            s->app_buf_len = 0;
+        }
+    }
+    else{  /* app_buf is empty, so ready from fd */
+        int len = recv(s->fd, s->app_buf, TCPMW_BUFLEN, 0);
+        if (len <= 0){  /* Done or error */
+            close(s->fd);
+            s->fd = 1;
+            if (len < 0) //TODO(PSz): copy errno?
+                zlog_error(zc_tcp, "tcpmw_from_app_sock(): recv(): %s", strerror(errno));
+            return;
+        }
+        s->app_buf_len = len;
+        zlog_debug(zc_tcp, "tcpmw_from_app_sock(): received from app %dB.", len);
+        if (len)
+            tcpmw_send_to_tcp(s);
+    }
 }
 
 void *tcpmw_pipe_loop(void *data){
