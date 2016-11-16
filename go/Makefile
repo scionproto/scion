@@ -4,6 +4,7 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
+LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go')
 GOTAGS = assert
 
 all: deps_proto bin
@@ -24,7 +25,7 @@ coverage: deps_proto
 
 lint:
 	@echo "======> goimports"
-	out=$$(goimports -d -local github.com/netsec-ethz ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+	out=$$(goimports -d -local github.com/netsec-ethz ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> gofmt"
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"
