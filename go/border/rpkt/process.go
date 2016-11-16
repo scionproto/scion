@@ -41,11 +41,6 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 		return nil
 	}
 	if rp.CmnHdr.DstType == addr.HostTypeSVC {
-		if rp.infoF == nil && len(rp.idxs.hbhExt) == 0 {
-			// To SVC address, no path - needs processing.
-			rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
-			rp.hooks.Process = append(rp.hooks.Process, rp.processPathlessSVC)
-		}
 		// Resolve SVC address for delivery.
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 		return nil
@@ -81,21 +76,6 @@ func (rp *RtrPkt) Process() *common.Error {
 		}
 	}
 	return nil
-}
-
-func (rp *RtrPkt) processPathlessSVC() (HookResult, *common.Error) {
-	if _, err := rp.Payload(); err != nil {
-		return HookError, err
-	}
-	cpld, ok := rp.pld.(*spkt.CtrlPld)
-	if !ok {
-		return HookError, common.NewError(ErrorProcessPldUnsupported,
-			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
-	}
-	switch cpld.SCION.Which() {
-	default:
-		return HookError, common.NewError("Unsupported payload type", "type", cpld.SCION.Which())
-	}
 }
 
 func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
