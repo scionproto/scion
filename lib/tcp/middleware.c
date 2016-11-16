@@ -96,16 +96,20 @@ void *tcpmw_main_thread(void *unused) {
 
 void tcpmw_init(void){
     for (int i = 0; i < MAX_CONNECTIONS; i++){
-        connections[i].fd = -1;
-        connections[i].conn = NULL;
-        connections[i].app_buf = NULL;
-        connections[i].app_buf_len = 0;
-        connections[i].app_buf_written = 0;
-        connections[i].tcp_buf = NULL;
-        connections[i].tcp_buf_len = 0;
-        connections[i].tcp_buf_written = 0;
-        connections[i].active = 0;
+        tcpmw_clear_state(&connections[i]);
     }
+}
+
+void tcpmw_clear_state(struct conn_state *s){
+    s->fd = -1;
+    s->conn = NULL;
+    s->app_buf = NULL;
+    s->app_buf_len = 0;
+    s->app_buf_written = 0;
+    s->tcp_buf = NULL;
+    s->tcp_buf_len = 0;
+    s->tcp_buf_written = 0;
+    s->active = 0;
 }
 
 void tcpmw_unlink_sock(void){
@@ -496,7 +500,7 @@ int tcpmw_sync_conn_states(void){
             continue;
 
         if (s->fd != -1 && s->conn != NULL){  // Both ends are open
-            FD_SET(s->fd, read_fds);  // Ready to read smth from app
+            // Ready to read smth from app
             pollfds[pollfd_idx].fd = s->fd;
             pollfds[pollfd_idx].events = POLLIN;
 
@@ -527,8 +531,10 @@ int tcpmw_sync_conn_states(void){
             }
         }
 
-        if (s->fd == -1 && s->conn == NULL) // both are dead, can terminate the state
-            terminate_state(s);
+        if (s->fd == -1 && s->conn == NULL){ // both are dead, can terminate the state
+            free(s->app_buf);
+            tcpmw_clear_state(s);
+        }
     }
     return pollfd_idx;
 }

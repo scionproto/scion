@@ -93,6 +93,7 @@ void tcpmw_init();
 void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
 int tcpmw_add_connection(struct conn_args *);
+void tcpmw_clear_state(struct conn_state *);
 void tcpmw_bind(struct conn_args *, char *, int);
 void tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
