@@ -81,7 +81,8 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 			return nil, err
 		}
 	} else {
-		// Trim buffer
+		// Trim buffer to the end of the last extension header (or path header,
+		// if there are no extensions)
 		rp.Raw = rp.Raw[:rp.idxs.l4]
 		rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
 		rp.CmnHdr.Write(rp.Raw)
@@ -94,10 +95,12 @@ func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 	rp.l4 = l4h
 	// Reset buffer to full size
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
-	// Write out L4 header
+	// Write L4 header into buffer
 	if err := rp.l4.Write(rp.Raw[rp.idxs.l4:]); err != nil {
 		return err
 	}
+	// Locate the last extension in the packet, whether HBH (hop-by-hop) or E2E (end-to-end),
+	// so that its sub-header can be updated with the L4 prototcol type.
 	rp.idxs.pld = rp.idxs.l4 + l4h.L4Len()
 	var nextHdr *uint8
 	for _, eIdx := range rp.idxs.hbhExt {
@@ -107,12 +110,13 @@ func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 		nextHdr = &rp.Raw[eIdx.Index]
 	}
 	if nextHdr != nil {
+		// Last extension sub-header found, update its nextHdr field.
 		*nextHdr = uint8(rp.L4Type)
 	} else {
 		// There are no extensions, so the common header NextHDr field needs to be updated.
 		rp.CmnHdr.NextHdr = rp.L4Type
 	}
-	// Trim buffer
+	// Trim buffer to the end of the L4 header.
 	rp.Raw = rp.Raw[:rp.idxs.pld]
 	rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
 	rp.CmnHdr.Write(rp.Raw)
@@ -125,16 +129,16 @@ func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 	if rp.pld != nil {
 		// Reset buffer to full size
 		rp.Raw = rp.Raw[:cap(rp.Raw)-1]
-		// Write out payload
+		// Write payload into buffer
 		var err *common.Error
 		plen, err = rp.pld.Write(rp.Raw[rp.idxs.pld:])
 		if err != nil {
 			return err
 		}
 	}
-	// Trim buffer
+	// Trim buffer to the end of the payload.
 	rp.Raw = rp.Raw[:rp.idxs.pld+plen]
-	// Now start updating headers
+	// Update headers
 	if err := rp.updateL4(); err != nil {
 		return err
 	}

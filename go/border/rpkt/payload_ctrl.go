@@ -33,12 +33,12 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error)
 func (rp *RtrPkt) updateCtrlPld() *common.Error {
 	// Reset buffer to full size
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
-	// Write out payload
+	// Write payload to buffer
 	plen, err := rp.pld.Write(rp.Raw[rp.idxs.pld:])
 	if err != nil {
 		return err
 	}
-	// Trim buffer
+	// Trim buffer to the end of the payload.
 	rp.Raw = rp.Raw[:rp.idxs.pld+plen]
 	// Now start updating headers
 	if err := rp.updateL4(); err != nil {

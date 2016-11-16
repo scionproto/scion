@@ -172,10 +172,10 @@ type InfoRevocation struct {
 	RevToken common.RawBytes
 }
 
-func NewInfoRevocation(infoF, hopF, IfID uint16, ingress bool,
+func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 	revToken common.RawBytes) *InfoRevocation {
 	return &InfoRevocation{
-		InfoPathOffsets: &InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: IfID, Ingress: ingress},
+		InfoPathOffsets: &InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: ifID, Ingress: ingress},
 		RevToken:        revToken,
 	}
 }
@@ -229,8 +229,7 @@ func (e *InfoExtIdx) Copy() Info {
 }
 
 func (r *InfoExtIdx) Len() int {
-	l := 1
-	return l + util.CalcPadding(l, common.LineLen)
+	return 1 + util.CalcPadding(1, common.LineLen)
 }
 
 func (e *InfoExtIdx) Write(b common.RawBytes) (int, *common.Error) {

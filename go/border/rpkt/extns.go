@@ -74,19 +74,19 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	}
 	et := e.Type()
 	// Set the preceeding NextHdr field, whether it's in the common header, or
-	// a preceeding hop-by-hopb extension.
+	// a preceeding hop-by-hop extension.
 	*nextHdr = uint8(et.Class)
-	// Check the extension's length is legal
+	// Check if the extension's length is legal
 	eLen := e.Len() + common.ExtnSubHdrLen
 	if eLen%common.LineLen != 0 {
 		return common.NewError("HBH Ext length not multiple of line length",
 			"lineLen", common.LineLen, "actual", eLen)
 	}
-	// Write out extension sub-header
+	// Write extension sub-header into buffer
 	rp.Raw[offset] = uint8(common.L4None)
 	rp.Raw[offset+1] = et.Type
 	rp.Raw[offset+2] = uint8(eLen/common.LineLen) - 1
-	// Write out extension
+	// Write extension into buffer
 	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen:]); err != nil {
 		return err
 	}

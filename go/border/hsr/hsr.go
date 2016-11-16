@@ -50,6 +50,9 @@ var hsrInTout = flag.Int("hsr.in.tout", 10,
 
 const MaxPkts = 32
 
+// Address metadata. This is attached to packets that are sent from/to the
+// specified address, to allow processing. In particular, it contains the
+// address in both Go and C formats.
 type AddrMeta struct {
 	GoAddr  *net.UDPAddr
 	CAddr   C.saddr_storage
@@ -57,6 +60,7 @@ type AddrMeta struct {
 	Labels  prometheus.Labels
 }
 
+// Slice of AddrMetas, indexed by the libhsr port ID.
 var AddrMs []AddrMeta
 
 func Init(conf string, args []string, addrMs []AddrMeta) *common.Error {
@@ -70,6 +74,7 @@ func Init(conf string, args []string, addrMs []AddrMeta) *common.Error {
 	}
 	AddrMs = addrMs
 	cAddrs := make([]C.saddr_storage, len(AddrMs))
+	// Calculate the C address structure from the Go address structure.
 	for i, addrM := range AddrMs {
 		udpAddrToSaddr(addrM.GoAddr, &addrM.CAddr)
 		cAddrs[i] = addrM.CAddr
