@@ -85,8 +85,8 @@ struct conn_state{
 
 static struct conn_state connections[MAX_CONNECTIONS];
 static struct pollfd pollfds[MAX_CONNECTIONS];
-struct conn_state* conn_to_state(struct netconn *);
-struct conn_state* fd_to_state(int fd);
+struct conn_state* tcpmw_conn2state(struct netconn *);
+struct conn_state* tcpmw_fd2state(int fd);
 
 void *tcpmw_main_thread(void *);
 void tcpmw_init();

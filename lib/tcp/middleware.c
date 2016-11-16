@@ -20,7 +20,7 @@
 #endif
 static char sock_path[UNIX_PATH_MAX];
 
-struct conn_state* conn_to_state(struct netconn *conn){
+struct conn_state* tcpmw_conn2state(struct netconn *conn){
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         if (connections[i].conn == conn)
             return &connections[i];
@@ -28,7 +28,7 @@ struct conn_state* conn_to_state(struct netconn *conn){
     return NULL;
 }
 
-struct conn_state* fd_to_state(int fd){
+struct conn_state* tcpmw_fd2state(int fd){
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         if (connections[i].fd == fd)
             return &connections[i];
