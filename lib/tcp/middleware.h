@@ -82,7 +82,7 @@ struct conn_state{
     struct netbuf *tcp_buf;  /* Data from TCP -> app */
     int tcp_buf_len;  /* Its len */
     int tcp_buf_written;  /* Bytes sent already to app */
-    pthread_mutex_t lock;
+    int active;  /* Whether the structure is used */
 };
 
 static struct conn_state connections[MAX_CONNECTIONS];
@@ -109,7 +109,6 @@ void tcpmw_reply(struct conn_args *, const char *, s8_t);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
-void tcpmw_callback(struct netconn *, enum netconn_evt, u16_t);
 void *tcpmw_pipe_loop(void *);
 int tcpmw_from_app_sock(struct conn_args *);
 int tcpmw_from_tcp_sock(struct conn_args *);
