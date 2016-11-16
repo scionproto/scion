@@ -470,7 +470,6 @@ exit:
 
 int tcpmw_add_connection(struct conn_args *args){
     int ret = 1;
-    // try to find
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         struct conn_state *s = &connections[i];
         if (!s->active){  /* Inactive, we can use this entry. */
@@ -486,6 +485,52 @@ int tcpmw_add_connection(struct conn_args *args){
     if (ret)
         zlog_error(zc_tcp, "tcpmw_add_connection(): cannot add new connection");
     return ret;
+}
+
+int tcpmw_sync_conn_states(void){
+    int pollfd_idx = 0;
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        struct conn_state *s = &connections[i];
+        if (!s->active)
+            continue;
+
+        if (s->fd != -1 && s->conn != NULL){  // Both ends are open
+            FD_SET(s->fd, read_fds);  // Ready to read smth from app
+            pollfds[pollfd_idx].fd = s->fd;
+            pollfds[pollfd_idx].events = POLLIN;
+
+            if (s->tcp_buf_len || s->conn->recv_avail)  // Bytes to app are pending
+                pollfds[pollfd_idx].events |= POLLOUT;
+            pollfd_idx++;
+            continue;
+        }
+
+        if (s->fd != -1){ // s->conn is dead, app<-tcp_buf can work.
+            if (s->tcp_buf_len){  // Bytes to app are pending
+                pollfds[pollfd_idx].fd = s->fd;
+                pollfds[pollfd_idx].events = POLLOUT;
+                pollfd_idx++;
+            }
+            else{ // can close fd as nothing can be read/written
+                close(s->fd);
+                s->fd = -1;
+            }
+        }
+        else if (s->conn != NULL){  // fd is dead, only app_buf->MW can work.
+            if (s->app_buf_len)  // Bytes from app to TCP stack.
+                send_to_tcp(s);
+            if (!s->app_buf_len){  // everything sent, can terminate netconn
+                netconn_close(s->conn);
+                netconn_delete(s->conn);
+                s->conn = NULL;
+            }
+        }
+
+        if (s->fd == -1 && s->conn == NULL) // both are dead, can terminate the state
+            terminate_state(s);
+    }
+    return pollfd_idx;
 }
 
 void *tcpmw_pipe_loop(void *data){
