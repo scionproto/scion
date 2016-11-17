@@ -80,6 +80,13 @@ void *tcpmw_main_thread(void *unused) {
         exit(-1);
     }
 
+    int sys_err;
+    pthread_t tid;
+    if ((sys_err = pthread_create(&tid, NULL, &tcpmw_poll_loop, NULL))){
+        zlog_fatal(zc_tcp, "tcpmw_main_thread(): pthread_create(): %s", strerror(sys_err));
+        exit(-1);
+    }
+
     while (1) {
         if ((cl = accept(fd, NULL, NULL)) == -1) {
             err_t tmp_err = errno;
@@ -634,6 +641,7 @@ void tcpmw_send_to_app(struct conn_state *s){
 }
 
 void *tcpmw_pipe_loop(void *data){
+    return NULL;
     struct conn_args *args = data;
     /* Set timeouts for receiving from app and TCP socket */
     struct timeval timeout;
@@ -656,6 +664,42 @@ void *tcpmw_pipe_loop(void *data){
     }
 
     tcpmw_terminate(args);
+    return NULL;
+}
+
+
+void *tcpmw_poll_loop(void* dummy){
+    while (1){
+        /* Create list of waiting fds */
+        int num_fds = tcpmw_sync_conn_states();
+        /* Call poll */
+        int rc = poll(pollfds, num_fds, TCP_POLLING_TOUT);
+        if (rc == 0)  /* Timeout */
+            continue;
+        if (rc < 0) {
+            zlog_fatal(zc_tcp, "poll() error: %s", strerror(errno));
+            exit(-1);
+        }
+        /* Iterate over results */
+        struct conn_state *s;
+        for (int i = 0; i < rc; i++){
+            if (pollfds[i].revents == 0)
+                continue;
+            /* There is an event */
+            s = tcpmw_fd2state(pollfds[i].fd);
+            if (s == NULL){
+                zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL");
+                continue;
+            }
+
+            if (pollfds[i].revents & POLLIN)
+                tcpmw_send_to_tcp(s);
+            if (pollfds[i].revents & POLLOUT)
+                tcpmw_send_to_app(s);
+            if (pollfds[i].revents & ~(POLLIN|POLLOUT))
+                tcpmw_clear_fd_state(s, 1);
+        }
+    }
     return NULL;
 }
 

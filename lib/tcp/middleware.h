@@ -112,6 +112,7 @@ void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
 void *tcpmw_pipe_loop(void *);
+void *tcpmw_poll_loop(void *);
 int tcpmw_from_app_sock(struct conn_args *);
 int tcpmw_from_tcp_sock(struct conn_args *);
 void tcpmw_send_to_tcp(struct conn_state *);
