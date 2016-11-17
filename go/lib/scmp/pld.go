@@ -75,13 +75,15 @@ func PldFromQuotes(ct ClassType, info Info, l4 common.L4ProtocolType, f QuoteFun
 		}
 	}
 	p.Meta = &Meta{
-		InfoLen:    uint8(p.Info.Len() / common.LineLen),
 		CmnHdrLen:  uint8(len(p.CmnHdr) / common.LineLen),
 		AddrHdrLen: uint8(len(p.AddrHdr) / common.LineLen),
 		PathHdrLen: uint8(len(p.PathHdr) / common.LineLen),
 		ExtHdrsLen: uint8(len(p.ExtHdrs) / common.LineLen),
 		L4HdrLen:   uint8(len(p.L4Hdr) / common.LineLen),
 		L4Proto:    l4,
+	}
+	if info != nil {
+		p.Meta.InfoLen = uint8(p.Info.Len() / common.LineLen)
 	}
 	return p
 }
@@ -104,11 +106,13 @@ func (p *Payload) Write(b common.RawBytes) (int, *common.Error) {
 		return 0, err
 	}
 	offset += MetaLen
-	count, err := p.Info.Write(b[offset:])
-	if err != nil {
-		return 0, err
+	if p.Info != nil {
+		if count, err := p.Info.Write(b[offset:]); err != nil {
+			return 0, err
+		} else {
+			offset += count
+		}
 	}
-	offset += count
 	copy(b[offset:], p.CmnHdr)
 	offset += len(p.CmnHdr)
 	copy(b[offset:], p.AddrHdr)
@@ -123,7 +127,9 @@ func (p *Payload) Write(b common.RawBytes) (int, *common.Error) {
 
 func (p *Payload) Len() int {
 	l := MetaLen
-	l += p.Info.Len()
+	if p.Info != nil {
+		l += p.Info.Len()
+	}
 	l += int(p.Meta.CmnHdrLen) * common.LineLen
 	l += int(p.Meta.AddrHdrLen) * common.LineLen
 	l += int(p.Meta.PathHdrLen) * common.LineLen
