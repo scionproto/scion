@@ -226,8 +226,10 @@ void *tcpmw_sock_thread(void *data){
         char *pld_ptr = buf + CMD_SIZE;
         if (CMD_CMP(buf, CMD_BIND))
             tcpmw_bind(args, pld_ptr, pld_len);
-        else if (CMD_CMP(buf, CMD_CONNECT))
-            tcpmw_connect(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_CONNECT)){
+            if (tcpmw_connect(args, pld_ptr, pld_len) == ERR_OK)
+                return NULL;
+        }
         else if (CMD_CMP(buf, CMD_LISTEN))
             tcpmw_listen(args, pld_len);
         else if (CMD_CMP(buf, CMD_ACCEPT))
@@ -292,7 +294,7 @@ exit:
     tcpmw_reply(args, CMD_BIND, lwip_err);
 }
 
-void tcpmw_connect(struct conn_args *args, char *buf, int len){
+s8_t tcpmw_connect(struct conn_args *args, char *buf, int len){
     /* | port (2B)  | path_len (2B) | path (var) | haddr_type (1B)  | */
     /* | scion_addr (var) | first_hop_ip (4B) | first_hop_port (2B) | flags (1B) */
     ip_addr_t addr;
@@ -352,6 +354,7 @@ exit:
         tcpmw_add_connection(args);
         tcpmw_pipe_loop(args);
     }
+    return lwip_err;
 }
 
 void tcpmw_listen(struct conn_args *args, int len){

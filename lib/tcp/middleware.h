@@ -98,7 +98,7 @@ void tcpmw_clear_state(struct conn_state *, int);
 void tcpmw_clear_fd_state(struct conn_state *, int);
 void tcpmw_clear_conn_state(struct conn_state *, int);
 void tcpmw_bind(struct conn_args *, char *, int);
-void tcpmw_connect(struct conn_args *, char *, int);
+s8_t tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
 void tcpmw_accept(struct conn_args *, char *, int);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
