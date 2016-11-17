@@ -92,7 +92,11 @@ void tcpmw_init();
 void *tcpmw_sock_rpc_thread(void *);
 void tcpmw_socket(int);
 int tcpmw_add_connection(struct conn_args *);
+void *tcpmw_poll_loop(void *);
+void tcpmw_send_to_tcp(struct conn_state *);
+void tcpmw_send_to_app(struct conn_state *);
 struct conn_state* tcpmw_fd2state(int fd);
+int tcpmw_sync_conn_states(void);
 void tcpmw_clear_state(struct conn_state *, int);
 void tcpmw_clear_fd_state(struct conn_state *, int);
 void tcpmw_clear_conn_state(struct conn_state *, int);
@@ -110,10 +114,4 @@ void tcpmw_reply(struct conn_args *, const char *, s8_t);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
-void *tcpmw_poll_loop(void *);
-int tcpmw_from_app_sock(struct conn_args *);
-int tcpmw_from_tcp_sock(struct conn_args *);
-void tcpmw_send_to_tcp(struct conn_state *);
-void tcpmw_send_to_app(struct conn_state *);
-
 #endif

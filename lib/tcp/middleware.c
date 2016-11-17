@@ -606,7 +606,7 @@ void tcpmw_send_to_app(struct conn_state *s){
         s8_t lwip_err = 0;
         if ((lwip_err = netconn_recv(s->conn, &s->_netbuf)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send_to_app(): netconn_recv(): %s", lwip_strerr(lwip_err));
-            tcpmw_clear_conn_state(s, 0);  //FIXME(PSz): not sure if free buf here.
+            tcpmw_clear_conn_state(s, 1);  //FIXME(PSz): not sure if free buf here.
             return;
         }
         /* Get the pointer to the data and its length. */
