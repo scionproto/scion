@@ -20,14 +20,6 @@
 #endif
 static char sock_path[UNIX_PATH_MAX];
 
-struct conn_state* tcpmw_conn2state(struct netconn *conn){
-    for (int i = 0; i < MAX_CONNECTIONS; i++){
-        if (connections[i].conn == conn)
-            return &connections[i];
-    }
-    return NULL;
-}
-
 struct conn_state* tcpmw_fd2state(int fd){
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         if (connections[i].fd == fd)
@@ -172,7 +164,7 @@ void tcpmw_socket(int fd){
     args = malloc(sizeof *args);
     args->fd = fd;
     args->conn = conn;
-    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, args))){
+    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_rpc_thread, args))){
         zlog_error(zc_tcp, "tcpmw_socket(): pthread_create(): %s", strerror(sys_err));
         free(args);
         goto clean;
@@ -217,7 +209,7 @@ void tcpmw_reply(struct conn_args *args, const char *cmd, s8_t lwip_err){
     }
 }
 
-void *tcpmw_sock_thread(void *data){
+void *tcpmw_sock_rpc_thread(void *data){
     struct conn_args *args = data;
     int pld_len;
     char buf[TCPMW_BUFLEN];
@@ -247,14 +239,14 @@ void *tcpmw_sock_thread(void *data){
         else if (CMD_CMP(buf, CMD_CLOSE))
             break;
         else{
-            zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %.*s (%dB)",
+            zlog_error(zc_tcp, "tcpmw_sock_rpc_thread: command not found: %.*s (%dB)",
                        CMD_SIZE, buf, pld_len);
             break;
         }
     }
     if (pld_len < 0)
-        zlog_fatal(zc_tcp, "tcpmw_sock_thread: tcpmw_read_cmd(): %s", strerror(errno));
-    zlog_info(zc_tcp, "tcpmw_sock_thread: leaving");
+        zlog_fatal(zc_tcp, "tcpmw_sock_rpc_thread: tcpmw_read_cmd(): %s", strerror(errno));
+    zlog_info(zc_tcp, "tcpmw_sock_rpc_thread: leaving");
     tcpmw_close(args);
     return NULL;
 }

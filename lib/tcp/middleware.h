@@ -86,14 +86,13 @@ struct conn_state{
 
 static struct conn_state connections[MAX_CONNECTIONS];
 static struct pollfd pollfds[MAX_CONNECTIONS];
-struct conn_state* tcpmw_conn2state(struct netconn *);
-struct conn_state* tcpmw_fd2state(int fd);
 
 void *tcpmw_main_thread(void *);
 void tcpmw_init();
-void *tcpmw_sock_thread(void *);
+void *tcpmw_sock_rpc_thread(void *);
 void tcpmw_socket(int);
 int tcpmw_add_connection(struct conn_args *);
+struct conn_state* tcpmw_fd2state(int fd);
 void tcpmw_clear_state(struct conn_state *, int);
 void tcpmw_clear_fd_state(struct conn_state *, int);
 void tcpmw_clear_conn_state(struct conn_state *, int);
