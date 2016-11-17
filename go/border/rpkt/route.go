@@ -23,8 +23,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 func (rp *RtrPkt) Route() *common.Error {
@@ -57,23 +55,17 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	f := callbacks.locOutFs[intf.LocAddrIdx]
-	names, elemMap, ok := getSVCNamesMap(svc)
-	if !ok {
-		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
-		return HookError, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)
-	} else if elemMap == nil {
-		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_UnreachHost, nil)
-		return HookError, common.NewErrorData(
-			"No instances found for SVC address", sdata, "svc", svc)
-	}
 	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(svc, f, elemMap)
+		return rp.RouteResolveSVCMulti(svc, f)
 	}
-	return rp.RouteResolveSVCAny(svc, f, names, elemMap)
+	return rp.RouteResolveSVCAny(svc, f)
 }
 
-func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc,
-	names []string, elemMap map[string]topology.BasicElem) (HookResult, *common.Error) {
+func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
+	names, elemMap, err := getSVCNamesMap(svc)
+	if err != nil {
+		return HookError, err
+	}
 	// XXX(kormat): just pick one randomly. TCP will remove the need to have
 	// consistent selection for a given source.
 	name := names[rand.Intn(len(names))]
@@ -83,8 +75,11 @@ func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc,
 	return HookContinue, nil
 }
 
-func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc,
-	elemMap map[string]topology.BasicElem) (HookResult, *common.Error) {
+func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
+	_, elemMap, err := getSVCNamesMap(svc)
+	if err != nil {
+		return HookError, err
+	}
 	// Only send once per IP
 	seen := make(map[string]bool)
 	for _, elem := range elemMap {

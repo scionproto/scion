@@ -161,17 +161,27 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	return HookFinish, nil
 }
 
-func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, bool) {
+func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, *common.Error) {
 	tm := conf.C.TopoMeta
+	var names []string
+	var elemMap map[string]topology.BasicElem
 	switch svc.Base() {
 	case addr.SvcBS:
-		return tm.BSNames, tm.T.BS, true
+		names, elemMap = tm.BSNames, tm.T.BS
 	case addr.SvcPS:
-		return tm.PSNames, tm.T.PS, true
+		names, elemMap = tm.PSNames, tm.T.PS
 	case addr.SvcCS:
-		return tm.CSNames, tm.T.CS, true
+		names, elemMap = tm.CSNames, tm.T.CS
 	case addr.SvcSB:
-		return tm.SBNames, tm.T.SB, true
+		names, elemMap = tm.SBNames, tm.T.SB
+	default:
+		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
+		return nil, nil, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)
 	}
-	return nil, nil, false
+	if len(elemMap) == 0 {
+		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_UnreachHost, nil)
+		return nil, nil, common.NewErrorData(
+			"No instances found for SVC address", sdata, "svc", svc)
+	}
+	return names, elemMap, nil
 }
