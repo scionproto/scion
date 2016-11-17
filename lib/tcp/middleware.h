@@ -45,7 +45,7 @@
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
-#define TCP_POLLING_TOUT 2  /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+#define TCP_POLLING_TOUT 5  /* Polling timeout (in ms) used within tcpmw_poll_loop */
 #define MAX_CONNECTIONS 8192  /* Max number of active TCP connections */
 
 /* Middleware API commands */
@@ -86,6 +86,7 @@ struct conn_state{
 
 static struct conn_state connections[MAX_CONNECTIONS];
 static struct pollfd pollfds[MAX_CONNECTIONS];
+pthread_mutex_t connections_lock;
 
 void *tcpmw_main_thread(void *);
 void tcpmw_init();

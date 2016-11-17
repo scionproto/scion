@@ -86,6 +86,12 @@ void *tcpmw_main_thread(void *unused) {
 }
 
 void tcpmw_init(void){
+    int sys_err;
+    if ((sys_err = pthread_mutex_init(&connections_lock, NULL))){
+        zlog_fatal(zc_tcp, "tcpmw_init(): pthread_mutex_init(): %s", strerror(sys_err));
+        exit(-1);
+    }
+
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         tcpmw_clear_state(&connections[i], 0);
     }
@@ -94,7 +100,7 @@ void tcpmw_init(void){
 void tcpmw_clear_state(struct conn_state *s, int free_app_buf){
     s->fd = -1;
     s->conn = NULL;
-    if (free_app_buf)
+    if (free_app_buf && s->app_buf != NULL)
         free(s->app_buf);
     s->app_buf = NULL;
     s->app_buf_len = 0;
@@ -452,6 +458,7 @@ exit:
 
 int tcpmw_add_connection(struct conn_args *args){
     int ret = 1;
+    pthread_mutex_lock(&connections_lock);
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         struct conn_state *s = &connections[i];
         if (!s->active){  /* Inactive, we can use this entry. */
@@ -464,6 +471,7 @@ int tcpmw_add_connection(struct conn_args *args){
             break;
         }
     }
+    pthread_mutex_unlock(&connections_lock);
     if (ret)
         zlog_error(zc_tcp, "tcpmw_add_connection(): cannot add new connection");
     return ret;
@@ -474,6 +482,7 @@ void *tcpmw_poll_loop(void* dummy){
         /* Create list of waiting fds */
         int num_fds = tcpmw_sync_conn_states();
         /* Call poll */
+        zlog_debug(zc_tcp, "tcpmw_poll_loop() calling poll() with %d fds", num_fds);
         int rc = poll(pollfds, num_fds, TCP_POLLING_TOUT);
         if (rc == 0)  /* Timeout */
             continue;
@@ -493,13 +502,17 @@ void *tcpmw_poll_loop(void* dummy){
                 continue;
             }
 
+            /* Error */
+            if (pollfds[i].revents & ~(POLLIN|POLLOUT)){
+                tcpmw_clear_fd_state(s, 1);
+                continue;
+            }
             if (pollfds[i].revents & POLLIN)
                 tcpmw_send_to_tcp(s);
             if (pollfds[i].revents & POLLOUT)
                 tcpmw_send_to_app(s);
-            if (pollfds[i].revents & ~(POLLIN|POLLOUT))
-                tcpmw_clear_fd_state(s, 1);
         }
+        usleep(TCP_POLLING_TOUT*1000);
     }
     return NULL;
 }
@@ -512,35 +525,34 @@ int tcpmw_sync_conn_states(void){
         if (!s->active)
             continue;
 
-        if (s->fd != -1 && s->conn != NULL){  // Both ends are open
-            // Ready to read smth from app
+        if (s->fd != -1 && s->conn != NULL){  /* Both ends are open */
+            /* Ready to read smth from app */
             pollfds[pollfd_idx].fd = s->fd;
             pollfds[pollfd_idx].events = POLLIN;
 
-            if (s->tcp_buf_len || s->conn->recv_avail)  // Bytes to app are pending
+            if (s->tcp_buf_len || s->conn->recv_avail)  /* Bytes to app are pending */
                 pollfds[pollfd_idx].events |= POLLOUT;
             pollfd_idx++;
             continue;
         }
 
-        if (s->fd != -1){ // s->conn is dead, app<-tcp_buf can work.
+        if (s->fd != -1){  /* s->conn is dead, app<-tcp_buf can work. */
             if (s->tcp_buf_len){  // Bytes to app are pending
                 pollfds[pollfd_idx].fd = s->fd;
                 pollfds[pollfd_idx].events = POLLOUT;
                 pollfd_idx++;
             }
+            else  /* Can close fd as conn is dead and buf is empty */
+                tcpmw_clear_fd_state(s, 1);
         }
-        else if (s->conn != NULL){  // fd is dead, only app_buf->MW can work.
-            if (s->app_buf_len)  // Bytes from app to TCP stack.
+        else if (s->conn != NULL){  /* fd is dead, only app_buf->MW can work. */
+            if (s->app_buf_len)  /* Bytes from app to TCP stack. */
                 tcpmw_send_to_tcp(s);
-            if (!s->app_buf_len){  // everything sent, can terminate netconn
-                netconn_close(s->conn);
-                netconn_delete(s->conn);
-                s->conn = NULL;
-            }
+            if (!s->app_buf_len)  /* everything sent, can terminate netconn */
+                tcpmw_clear_conn_state(s, 1);
         }
 
-        if (s->fd == -1 && s->conn == NULL) // both are dead, can terminate the state
+        if (s->fd == -1 && s->conn == NULL)  /* both are dead, can terminate the state */
             tcpmw_clear_state(s, 1);  /* free app_buf */
     }
     return pollfd_idx;
@@ -625,7 +637,7 @@ void tcpmw_send_to_app(struct conn_state *s){
 
 void tcpmw_clear_fd_state(struct conn_state *s, int terminate){
     /* Close connection */
-    if (terminate){
+    if (terminate && s->fd != -1){
         close(s->fd);
         s->fd = -1;
     }
@@ -640,7 +652,7 @@ void tcpmw_clear_fd_state(struct conn_state *s, int terminate){
 
 void tcpmw_clear_conn_state(struct conn_state *s, int terminate){
     /* Close connection */
-    if (terminate){
+    if (terminate && s->conn != NULL){
         netconn_close(s->conn);
         netconn_delete(s->conn);
         s->conn = NULL;
