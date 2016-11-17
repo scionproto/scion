@@ -223,7 +223,7 @@ func (rp *RtrPkt) hopFVerFromRaw(offset int) common.RawBytes {
 	return ans
 }
 
-func (rp *RtrPkt) incPath() *common.Error {
+func (rp *RtrPkt) IncPath() *common.Error {
 	var err *common.Error
 	var hopF *spath.HopField
 	infoF := rp.infoF

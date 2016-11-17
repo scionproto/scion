@@ -70,6 +70,13 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
+	if rp.DirFrom == rpkt.DirExternal {
+		reply.InfoF()
+		reply.HopF()
+		if err := reply.IncPath(); err != nil {
+			return nil, err
+		}
+	}
 	egress, err := r.replyEgress(rp)
 	if err != nil {
 		return nil, err

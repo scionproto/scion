@@ -122,7 +122,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 		return HookContinue, nil
 	}
 	if rp.hopF.Xover {
-		if err := rp.incPath(); err != nil {
+		if err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
 		if err := rp.validatePath(DirLocal); err != nil {
@@ -145,7 +145,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 
 func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
-		if err := rp.incPath(); err != nil {
+		if err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
 	}
