@@ -50,26 +50,6 @@ func (rp *RtrPkt) Validate() *common.Error {
 		return common.NewErrorData(ErrorBadTotalLen, sdata,
 			"totalLen", rp.CmnHdr.TotalLen, "actual", len(rp.Raw))
 	}
-	conf.C.IFStates.RLock()
-	info, ok := conf.C.IFStates.M[*rp.ifCurr]
-	conf.C.IFStates.RUnlock()
-	if ok && !info.P.Active() {
-		intf := conf.C.Net.IFs[*rp.ifCurr]
-		var intfHost addr.HostAddr
-		if rp.DirFrom == DirExternal {
-			intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
-		} else {
-			intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
-		}
-		// If the destination is this router, then ignore revocation.
-		if !(*rp.dstIA == *conf.C.IA && addr.HostEq(rp.dstHost, intfHost)) {
-			sinfo := scmp.NewInfoRevocation(
-				uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*rp.ifCurr),
-				rp.DirFrom == DirExternal, info.RawRev)
-			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
-			return common.NewErrorData(ErrorIntfRevoked, sdata, "ifid", *rp.ifCurr)
-		}
-	}
 	if err := rp.validatePath(rp.DirFrom); err != nil {
 		return err
 	}

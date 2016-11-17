@@ -39,28 +39,59 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	if assert.On {
 		assert.Must(rp.ifCurr != nil, "RtrPkt.validatePath: rp.ifCurr is nil")
 	}
+	// First check to make sure the current interface is known and not revoked.
+	if err := rp.validateLocalIF(*rp.ifCurr); err != nil {
+		return err
+	}
+	// If there's no path, then there's nothing to check.
 	if rp.infoF == nil || rp.hopF == nil {
 		return nil
 	}
-	sinfo := &scmp.InfoPathOffsets{
-		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
-		IfID: uint16(*rp.ifCurr), Ingress: rp.DirFrom == DirExternal,
-	}
 	if rp.hopF.VerifyOnly {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, sinfo)
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
 	}
 	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, sinfo)
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
 	}
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, sinfo)
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldExpired, sdata, "expiry", hopfExpiry)
 	}
 	return rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+}
+
+func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
+	if _, ok := conf.C.TopoMeta.IFMap[int(ifid)]; !ok {
+		// No such interface.
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
+		return common.NewErrorData("Unknown IF", sdata, "ifid", ifid)
+	}
+	conf.C.IFStates.RLock()
+	info, ok := conf.C.IFStates.M[ifid]
+	conf.C.IFStates.RUnlock()
+	if !ok || info.P.Active() || rp.DirTo == DirSelf {
+		// Either the interface isn't revoked, or the packet is to this
+		// router, in which case revokations are ignored to allow communication
+		// with the router.
+		return nil
+	}
+	// Interface is revoked.
+	sinfo := scmp.NewInfoRevocation(
+		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(ifid),
+		rp.DirFrom == DirExternal, info.RawRev)
+	sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
+	return common.NewErrorData(ErrorIntfRevoked, sdata, "ifid", ifid)
+}
+
+func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
+	return &scmp.InfoPathOffsets{
+		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
+		IfID: uint16(*rp.ifCurr), Ingress: rp.DirFrom == DirExternal,
+	}
 }
 
 func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {

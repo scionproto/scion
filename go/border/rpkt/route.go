@@ -134,19 +134,10 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	if err != nil {
 		return HookError, err
 	}
-	if nextIF == nil || *nextIF == 0 {
-		return HookError, common.NewError("Invalid next IF", "ifid", *nextIF)
+	if err := rp.validateLocalIF(*nextIF); err != nil {
+		return HookError, err
 	}
-	nextBR, ok := conf.C.TopoMeta.IFMap[int(*nextIF)]
-	if !ok {
-		return HookError, common.NewError("Unknown next IF", "ifid", nextIF)
-	}
-	conf.C.IFStates.RLock()
-	info, ok := conf.C.IFStates.M[*nextIF]
-	conf.C.IFStates.RUnlock()
-	if ok && !info.P.Active() {
-		return HookError, common.NewError(ErrorIntfRevoked, "ifid", *nextIF)
-	}
+	nextBR := conf.C.TopoMeta.IFMap[int(*nextIF)]
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
 	rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil

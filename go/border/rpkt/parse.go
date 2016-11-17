@@ -17,6 +17,7 @@ package rpkt
 import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -58,11 +59,15 @@ func (rp *RtrPkt) Parse() *common.Error {
 	if _, err := rp.IFCurr(); err != nil {
 		return err
 	}
+	if _, err := rp.IFNext(); err != nil {
+		return err
+	}
 	if *rp.dstIA != *conf.C.IA {
 		if _, err := rp.IFNext(); err != nil {
 			return err
 		}
 	}
+	rp.setDirTo()
 	return nil
 }
 
@@ -148,4 +153,39 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 		return common.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	return nil
+}
+
+// Figure out which Dir a packet is going to.
+func (rp *RtrPkt) setDirTo() {
+	if assert.On {
+		assert.Must(rp.DirFrom != DirSelf, "RtrPkt.setDirTo: DirFrom must not be DirSelf")
+		assert.Must(rp.DirFrom != DirUnset, "RtrPkt.setDirTo: DirFrom must not be DirUnset")
+		assert.Must(rp.ifCurr != nil, "RtrPkt.setDirTo: rp.ifCurr must not be nil")
+		assert.Must(*rp.ifCurr == 0, "RtrPkt.setDirTo: *rp.ifCurr must not be zero")
+		assert.Must(rp.ifNext != nil, "RtrPkt.setDirTo: rp.ifNext must not be nil")
+	}
+	if rp.dstIA != conf.C.IA {
+		// Packet is not destined to the local AS, so it can't be DirSelf.
+		if rp.DirFrom == DirLocal {
+			rp.DirTo = DirExternal
+		} else if rp.DirFrom == DirExternal {
+			// XXX(kormat): this logic might be too simple once a router can
+			// have multiple interfaces.
+			rp.DirTo = DirLocal
+		}
+		return
+	}
+	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
+	intf := conf.C.Net.IFs[*rp.ifCurr]
+	var intfHost addr.HostAddr
+	if rp.DirFrom == DirExternal {
+		intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
+	} else {
+		intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
+	}
+	if addr.HostEq(rp.dstHost, intfHost) {
+		rp.DirTo = DirSelf
+	} else {
+		rp.DirTo = DirLocal
+	}
 }

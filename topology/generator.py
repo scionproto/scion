@@ -94,7 +94,7 @@ INITIAL_TRC_VERSION = 0
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
-DEFAULT_ROUTER = "py"
+DEFAULT_ROUTER = "go"
 
 SCION_SERVICE_NAMES = (
     "BeaconServers",
@@ -890,7 +890,7 @@ def main():
     parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
                         help='Zookeeper configuration file')
     parser.add_argument('-r', '--router', default=DEFAULT_ROUTER,
-                        help='Router implementation to use ("py" or "go"')
+                        help='Router implementation to use ("go" or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
