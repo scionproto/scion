@@ -77,7 +77,8 @@ struct conn_state{
     char *app_buf;  /* Data from app -> TCP stack */
     int app_buf_len;  /* Its len */
     int app_buf_written;  /* Bytes sent already to TCP */
-    struct netbuf *tcp_buf;  /* Data from TCP -> app */
+    struct netbuf *_netbuf;  /* Raw netconn buffer */
+    char *tcp_buf;  /* Data from TCP -> app */
     int tcp_buf_len;  /* Its len */
     int tcp_buf_written;  /* Bytes sent already to app */
     int active;  /* Whether the structure is used */
@@ -93,7 +94,9 @@ void tcpmw_init();
 void *tcpmw_sock_thread(void *);
 void tcpmw_socket(int);
 int tcpmw_add_connection(struct conn_args *);
-void tcpmw_clear_state(struct conn_state *);
+void tcpmw_clear_state(struct conn_state *, int);
+void tcpmw_clear_fd_state(struct conn_state *, int);
+void tcpmw_clear_conn_state(struct conn_state *, int);
 void tcpmw_bind(struct conn_args *, char *, int);
 void tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
@@ -112,5 +115,6 @@ void *tcpmw_pipe_loop(void *);
 int tcpmw_from_app_sock(struct conn_args *);
 int tcpmw_from_tcp_sock(struct conn_args *);
 void tcpmw_send_to_tcp(struct conn_state *);
+void tcpmw_send_to_app(struct conn_state *);
 
 #endif
