@@ -228,7 +228,7 @@ void *tcpmw_sock_thread(void *data){
             tcpmw_bind(args, pld_ptr, pld_len);
         else if (CMD_CMP(buf, CMD_CONNECT)){
             if (tcpmw_connect(args, pld_ptr, pld_len) == ERR_OK)
-                return NULL;
+                return NULL; /* Successful connect, can quit RPC mode */
         }
         else if (CMD_CMP(buf, CMD_LISTEN))
             tcpmw_listen(args, pld_len);
@@ -350,10 +350,8 @@ s8_t tcpmw_connect(struct conn_args *args, char *buf, int len){
 
 exit:
     tcpmw_reply(args, CMD_CONNECT, lwip_err);
-    if (lwip_err == ERR_OK){
+    if (lwip_err == ERR_OK)
         tcpmw_add_connection(args);
-        tcpmw_pipe_loop(args);
-    }
     return lwip_err;
 }
 
@@ -414,25 +412,9 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     }
 
     /* Create a detached thread. */
-    pthread_attr_t attr;
-    pthread_t tid;
-    if ((sys_err = pthread_attr_init(&attr))){
-        zlog_error(zc_tcp, "tcpmw_accept(): pathread_attr_init(): %s", strerror(sys_err));
-        goto clean;
-    }
-    if ((sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED))){
-        zlog_error(zc_tcp, "tcpmw_accept(): pthread_attr_setdetachstate(): %s", strerror(sys_err));
-        goto clean;
-    }
     struct conn_args *new_args = malloc(sizeof *new_args);
     new_args->fd = new_fd;
     new_args->conn = newconn;
-    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_pipe_loop, new_args))){
-        zlog_error(zc_tcp, "tcpmw_accept(): pthread_create(): %s", strerror(sys_err));
-        free(new_args);
-        goto clean;
-    }
-
     /* Add new connection to the array */
     if ((sys_err = tcpmw_add_connection(new_args))){
         free(new_args);
@@ -641,33 +623,6 @@ void tcpmw_send_to_app(struct conn_state *s){
         if (len)
             tcpmw_send_to_app(s);
     }
-}
-
-void *tcpmw_pipe_loop(void *data){
-    return NULL;
-    struct conn_args *args = data;
-    /* Set timeouts for receiving from app and TCP socket */
-    struct timeval timeout;
-
-    zlog_debug(zc_tcp, "Entered pipe mode");
-    timeout.tv_sec = 0;
-    timeout.tv_usec = TCP_POLLING_TOUT*1000;
-    if (setsockopt(args->fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0){
-        zlog_error(zc_tcp, "tcpmw_pipe_loop(): setsockopt(): %s", strerror(errno));
-        tcpmw_terminate(args);
-    }
-    netconn_set_recvtimeout(args->conn, TCP_POLLING_TOUT);
-
-    /* Main loop */
-    while (1){
-        if (tcpmw_from_app_sock(args))
-            break;
-        if (tcpmw_from_tcp_sock(args))
-            break;
-    }
-
-    tcpmw_terminate(args);
-    return NULL;
 }
 
 
