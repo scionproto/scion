@@ -520,7 +520,7 @@ void *tcpmw_poll_loop(void* dummy){
                 tcpmw_send_to_app(s);
             }
         }
-        /* usleep(TCP_POLLING_TOUT*1000); */
+        usleep(TCP_POLLING_TOUT*1000);
     }
     return NULL;
 }
