@@ -162,7 +162,7 @@ func (rp *RtrPkt) setDirTo() {
 		assert.Must(rp.DirFrom != DirUnset, rp.ErrStr("DirFrom must not be DirUnset."))
 		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil."))
 	}
-	if rp.dstIA != conf.C.IA {
+	if *rp.dstIA != *conf.C.IA {
 		// Packet is not destined to the local AS, so it can't be DirSelf.
 		if rp.DirFrom == DirLocal {
 			rp.DirTo = DirExternal
@@ -174,18 +174,16 @@ func (rp *RtrPkt) setDirTo() {
 		return
 	}
 	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
-	intf, ok := conf.C.Net.IFs[*rp.ifCurr]
-	if ok {
-		var intfHost addr.HostAddr
-		if rp.DirFrom == DirExternal {
-			intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
-		} else {
-			intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
-		}
-		if addr.HostEq(rp.dstHost, intfHost) {
-			rp.DirTo = DirSelf
-		} else {
-			rp.DirTo = DirLocal
-		}
+	intf := conf.C.Net.IFs[*rp.ifCurr]
+	var intfHost addr.HostAddr
+	if rp.DirFrom == DirExternal {
+		intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
+	} else {
+		intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
+	}
+	if addr.HostEq(rp.dstHost, intfHost) {
+		rp.DirTo = DirSelf
+	} else {
+		rp.DirTo = DirLocal
 	}
 }

@@ -42,6 +42,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 var hsrInMin = flag.Int("hsr.in.min_pkts", 20, "Minimum packets to read per loop")
@@ -57,6 +58,7 @@ type AddrMeta struct {
 	GoAddr  *net.UDPAddr
 	CAddr   C.saddr_storage
 	DirFrom rpkt.Dir
+	IfIDs   []spath.IntfID
 	Labels  prometheus.Labels
 }
 
@@ -124,6 +126,7 @@ func (h *HSR) GetPackets(rps []*rpkt.RtrPkt) ([]int, *common.Error) {
 			return nil, err
 		}
 		rp.Ingress.Dst = AddrMs[cp.port_id].GoAddr
+		rp.Ingress.IfIDs = AddrMs[cp.port_id].IfIDs
 		rp.DirFrom = AddrMs[cp.port_id].DirFrom
 		portIds[i] = int(cp.port_id)
 	}

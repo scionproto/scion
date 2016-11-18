@@ -55,7 +55,7 @@ type RtrPkt struct {
 	TimeIn    time.Time
 	DirFrom   Dir
 	DirTo     Dir
-	Ingress   AddrPair
+	Ingress   AddrIFPair
 	Egress    []EgressPair
 	CmnHdr    spkt.CmnHdr
 	idxs      packetIdxs
@@ -108,9 +108,10 @@ func (d Dir) String() string {
 	}
 }
 
-type AddrPair struct {
-	Src *net.UDPAddr
-	Dst *net.UDPAddr
+type AddrIFPair struct {
+	Src   *net.UDPAddr
+	Dst   *net.UDPAddr
+	IfIDs []spath.IntfID
 }
 
 type OutputFunc func(*RtrPkt)
@@ -149,6 +150,7 @@ func (rp *RtrPkt) Reset() {
 	rp.DirTo = DirUnset
 	rp.Ingress.Src = nil
 	rp.Ingress.Dst = nil
+	rp.Ingress.IfIDs = nil
 	rp.Egress = rp.Egress[:0]
 	rp.idxs = packetIdxs{}
 	rp.srcIA = nil
@@ -238,8 +240,8 @@ func (rp *RtrPkt) String() string {
 	rp.DstHost()
 	rp.InfoF()
 	rp.HopF()
-	return fmt.Sprintf("Dir from/to: %v/%v Src: %v %v Dst: %v %v\n  InfoF: %v\n  HopF: %v",
-		rp.DirFrom, rp.DirTo, rp.srcIA, rp.srcHost, rp.dstIA, rp.dstHost, rp.infoF, rp.hopF)
+	return fmt.Sprintf("Id: %v Dir from/to: %v/%v Src: %v %v Dst: %v %v\n  InfoF: %v\n  HopF: %v",
+		rp.Id, rp.DirFrom, rp.DirTo, rp.srcIA, rp.srcHost, rp.dstIA, rp.dstHost, rp.infoF, rp.hopF)
 }
 
 func (rp *RtrPkt) ErrStr(desc string) string {

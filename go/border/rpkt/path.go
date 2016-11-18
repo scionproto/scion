@@ -45,7 +45,12 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	}
 	// If there's no path, then there's nothing to check.
 	if rp.infoF == nil || rp.hopF == nil {
-		return nil
+		if rp.DirTo == DirSelf {
+			// An empty path is legimate when the packet's destination is this router.
+			return nil
+		}
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_PathRequired, nil)
+		return common.NewErrorData("Path required", sdata, "info", rp.ErrStr("!"))
 	}
 	if rp.hopF.VerifyOnly {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
@@ -224,6 +229,10 @@ func (rp *RtrPkt) hopFVerFromRaw(offset int) common.RawBytes {
 }
 
 func (rp *RtrPkt) IncPath() *common.Error {
+	if rp.infoF == nil {
+		// Path is empty, nothing to increment.
+		return nil
+	}
 	var err *common.Error
 	var hopF *spath.HopField
 	infoF := rp.infoF
@@ -317,24 +326,8 @@ func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 			return rp.checkSetCurrIF(&rp.hopF.Egress)
 		}
 	}
-	// Try to get IFID from Ingress.Dst
-	addr := rp.Ingress.Dst.String()
-	switch rp.DirFrom {
-	case DirLocal:
-		ifids, ok := conf.C.Net.LocAddrIFIDMap[addr]
-		if !ok {
-			return nil, common.NewError(ErrorLocAddrInvalid, "addr", addr)
-		}
-		// Just pick the first matching IFID
-		return rp.checkSetCurrIF(&ifids[0])
-	case DirExternal:
-		if ifid, ok := conf.C.Net.IFAddrMap[addr]; ok {
-			return rp.checkSetCurrIF(&ifid)
-		}
-	default:
-		return nil, common.NewError(ErrorDirFromUnsupported, "val", rp.DirFrom)
-	}
-	return nil, common.NewError("Unable to determine current interface")
+	// Use first IfID from Ingress.IfIDs
+	return rp.checkSetCurrIF(&rp.Ingress.IfIDs[0])
 }
 
 func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Error) {

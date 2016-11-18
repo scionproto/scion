@@ -141,9 +141,15 @@ func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
 	if err := over.Listen(); err != nil {
 		return rpkt.HookError, common.NewError(ErrorListenLocal, "err", err)
 	}
+	var ifids []spath.IntfID
+	for _, intf := range conf.C.Net.IFs {
+		if intf.LocAddrIdx == idx {
+			ifids = append(ifids, intf.Id)
+		}
+	}
 	q := make(chan *rpkt.RtrPkt)
 	r.inQs = append(r.inQs, q)
-	go r.readPosixInput(over.Conn, rpkt.DirLocal, labels, q)
+	go r.readPosixInput(over.Conn, rpkt.DirLocal, ifids, labels, q)
 	r.locOutFs[idx] = func(rp *rpkt.RtrPkt) { r.writeLocalOutput(over.Conn, labels, rp) }
 	return rpkt.HookFinish, nil
 }
@@ -155,7 +161,7 @@ func setupPosixAddExt(r *Router, intf *netconf.Interface,
 	}
 	q := make(chan *rpkt.RtrPkt)
 	r.inQs = append(r.inQs, q)
-	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, labels, q)
+	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, []spath.IntfID{intf.Id}, labels, q)
 	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt) {
 		r.writeIntfOutput(intf.IFAddr.Conn, labels, rp)
 	}

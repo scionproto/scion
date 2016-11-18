@@ -24,6 +24,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 func (r *Router) getPktBuf() *rpkt.RtrPkt {
@@ -41,8 +42,8 @@ func (r *Router) getPktBuf() *rpkt.RtrPkt {
 	}
 }
 
-func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, labels prometheus.Labels,
-	q chan *rpkt.RtrPkt) {
+func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath.IntfID,
+	labels prometheus.Labels, q chan *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
@@ -62,6 +63,7 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, labels promet
 		rp.Raw = rp.Raw[:length] // Set the length of the slice
 		rp.Ingress.Src = src
 		rp.Ingress.Dst = dst
+		rp.Ingress.IfIDs = ifids
 		metrics.PktsRecv.With(labels).Inc()
 		metrics.BytesRecv.With(labels).Add(float64(length))
 		q <- rp

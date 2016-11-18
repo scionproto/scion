@@ -71,6 +71,7 @@ func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
 }
 
 func (r *Router) processPacket(rp *rpkt.RtrPkt) {
+	defer liblog.PanicLog()
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	if err := rp.Parse(); err != nil {
