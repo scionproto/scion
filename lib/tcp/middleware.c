@@ -218,7 +218,7 @@ void *tcpmw_sock_rpc_thread(void *data){
             tcpmw_bind(args, pld_ptr, pld_len);
         else if (CMD_CMP(buf, CMD_CONNECT)){
             if (tcpmw_connect(args, pld_ptr, pld_len) == ERR_OK)
-                return NULL; /* Successful connect, can quit RPC mode */
+                return NULL; /* Successful connect(), can quit RPC mode */
         }
         else if (CMD_CMP(buf, CMD_LISTEN))
             tcpmw_listen(args, pld_len);
@@ -405,11 +405,6 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     struct conn_args *new_args = malloc(sizeof *new_args);
     new_args->fd = new_fd;
     new_args->conn = newconn;
-    /* Add new connection to the array */
-    if ((sys_err = tcpmw_add_connection(new_args))){
-        free(new_args);
-        goto clean;
-    }
 
     /* Preparing a successful response. */
     u16_t  path_len = newconn->pcb.ip->path->len;
@@ -444,6 +439,11 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         tcpmw_terminate(args);
     }
     free(tmp);
+    /* Add new connection to the array */
+    if ((sys_err = tcpmw_add_connection(new_args))){
+        free(new_args);
+        goto clean;
+    }
     /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
     goto exit;
 
