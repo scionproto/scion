@@ -170,7 +170,7 @@ func (rp *RtrPkt) Reset() {
 	rp.Logger = nil
 }
 
-func (rp *RtrPkt) ToScnPkt() (*spkt.ScnPkt, *common.Error) {
+func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	var err *common.Error
 	sp := &spkt.ScnPkt{}
 	if sp.SrcIA, err = rp.SrcIA(); err != nil {
@@ -204,7 +204,7 @@ func (rp *RtrPkt) ToScnPkt() (*spkt.ScnPkt, *common.Error) {
 		}
 		sp.E2EExt = append(sp.E2EExt, se)
 	}
-	if sp.L4, err = rp.L4Hdr(); err != nil {
+	if sp.L4, err = rp.L4Hdr(verify); err != nil {
 		return nil, err
 	}
 	if sp.Pld, err = rp.Payload(); err != nil {

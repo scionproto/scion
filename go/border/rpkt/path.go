@@ -75,7 +75,7 @@ func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
 	conf.C.IFStates.RUnlock()
 	if !ok || info.P.Active() || rp.DirTo == DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
-		// router, in which case revokations are ignored to allow communication
+		// router, in which case revocations are ignored to allow communication
 		// with the router.
 		return nil
 	}

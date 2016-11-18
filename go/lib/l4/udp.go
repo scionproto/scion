@@ -40,11 +40,15 @@ func UDPFromRaw(b common.RawBytes) (*UDP, *common.Error) {
 	if err := restruct.Unpack(b, common.Order, u); err != nil {
 		return nil, common.NewError("Error unpacking UDP header", "err", err)
 	}
-	if len(b) != int(u.TotalLen) {
-		return nil, common.NewError("L4 UDP header total length doesn't match",
-			"expected", u.TotalLen, "actual", len(b))
-	}
 	return u, nil
+}
+
+func (u *UDP) Validate(plen int) *common.Error {
+	if plen+UDPLen != int(u.TotalLen) {
+		return common.NewError("UDP header total length doesn't match",
+			"expected", u.TotalLen, "actual", plen)
+	}
+	return nil
 }
 
 func (u *UDP) Pack(csum bool) (common.RawBytes, *common.Error) {

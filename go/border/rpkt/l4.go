@@ -25,7 +25,7 @@ const (
 	ErrorL4Unsupported = "Unsupported L4 header type"
 )
 
-func (rp *RtrPkt) L4Hdr() (l4.L4Header, *common.Error) {
+func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 	if rp.l4 == nil {
 		if found, err := rp.findL4(); !found || err != nil {
 			return nil, err
@@ -54,8 +54,10 @@ func (rp *RtrPkt) L4Hdr() (l4.L4Header, *common.Error) {
 			return nil, common.NewError(ErrorL4Unsupported, "type", rp.L4Type)
 		}
 	}
-	if err := rp.verifyL4Chksum(); err != nil {
-		return nil, err
+	if verify {
+		if err := rp.verifyL4(); err != nil {
+			return nil, err
+		}
 	}
 	return rp.l4, nil
 }
@@ -88,6 +90,16 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 	rp.idxs.nextHdrIdx.Type = nextHdr
 	rp.idxs.nextHdrIdx.Index = offset
 	return true, nil
+}
+
+func (rp *RtrPkt) verifyL4() *common.Error {
+	if err := rp.l4.Validate(len(rp.Raw[rp.idxs.pld:])); err != nil {
+		return err
+	}
+	if err := rp.verifyL4Chksum(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (rp *RtrPkt) verifyL4Chksum() *common.Error {

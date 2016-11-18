@@ -36,6 +36,7 @@ type L4Header interface {
 	Copy() L4Header
 	Write(common.RawBytes) *common.Error
 	Pack(csum bool) (common.RawBytes, *common.Error)
+	Validate(plen int) *common.Error
 	Reverse()
 }
 

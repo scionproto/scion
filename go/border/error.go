@@ -86,7 +86,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 }
 
 func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error) {
-	sp, err := rp.ToScnPkt()
+	sp, err := rp.ToScnPkt(false)
 	if err != nil {
 		return nil, err
 	}

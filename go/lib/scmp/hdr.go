@@ -59,6 +59,14 @@ func HdrFromRaw(b common.RawBytes) (*Hdr, *common.Error) {
 	return h, nil
 }
 
+func (h *Hdr) Validate(plen int) *common.Error {
+	if plen+HdrLen != int(h.TotalLen) {
+		return common.NewError("SCMP header total length doesn't match",
+			"expected", h.TotalLen, "actual", plen)
+	}
+	return nil
+}
+
 func (h *Hdr) SetPldLen(l int) {
 	h.TotalLen = uint16(HdrLen + l)
 }
