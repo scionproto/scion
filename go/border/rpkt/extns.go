@@ -65,7 +65,8 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 		return common.NewError(ErrorTooManyHBH, "curr", len(rp.HBHExt), "max", max)
 	}
 	if len(rp.HBHExt) > 1 && e.Type() == common.ExtnSCMPType {
-		return common.NewError("Bad extension order - SCMP must be first", "idx", len(rp.HBHExt))
+		return common.NewError("Bad extension order - SCMP must be first",
+			"idx", len(rp.HBHExt), "first", rp.HBHExt[0].Type())
 	}
 	offset := int(rp.CmnHdr.HdrLen)
 	var nextHdr *uint8 = (*uint8)(&rp.CmnHdr.NextHdr)
@@ -80,8 +81,8 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 			"lineLen", common.LineLen, "actual", eLen)
 	}
 	et := e.Type()
-	// Set the preceeding NextHdr field, whether it's in the common header, or
-	// a preceeding hop-by-hop extension.
+	// Set the preceding NextHdr field, whether it's in the common header, or a
+	// preceding hop-by-hop extension.
 	*nextHdr = uint8(et.Class)
 	// Write extension sub-header into buffer
 	rp.Raw[offset] = uint8(common.L4None)
