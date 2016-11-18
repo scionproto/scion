@@ -58,6 +58,14 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
+	if len(sp.HBHExt) > 0 && sp.HBHExt[0].Type() == common.ExtnSCMPType {
+		// If there's already an SCMP hbh header, remove it.
+		sp.HBHExt = sp.HBHExt[1:]
+	}
+	if len(sp.HBHExt) > common.ExtnMaxHBH {
+		// Too many HBH extensions, so trim to the excess ones.
+		sp.HBHExt = sp.HBHExt[:common.ExtnMaxHBH]
+	}
 	sp.Pld = scmp.PldFromQuotes(ct, info, sp.L4.L4Type(), rp.GetRaw)
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
 	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom)

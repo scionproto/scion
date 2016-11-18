@@ -127,11 +127,11 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 		} else {
 			count++
 		}
-		if count > ExtMaxHopByHop {
+		if count > common.ExtnMaxHBH {
 			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
 				&scmp.InfoExtIdx{Idx: uint8(len(rp.idxs.hbhExt))})
 			return common.NewErrorData(ErrorTooManyHBH,
-				sdata, "max", ExtMaxHopByHop, "actual", count)
+				sdata, "max", common.ExtnMaxHBH, "actual", count)
 		}
 		hdrLen := int((rp.Raw[*offset+1] + 1) * common.LineLen)
 		e, err := rp.ExtnParseHBH(

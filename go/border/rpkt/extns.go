@@ -27,8 +27,6 @@ type RExtension interface {
 	RegisterHooks(*Hooks) *common.Error
 }
 
-const ExtMaxHopByHop = 3
-
 const (
 	ErrorBadHopByHop     = "Unsupported hop-by-hop extension"
 	ErrorBadEnd2End      = "Unsupported end2end extension"
@@ -58,7 +56,7 @@ func (rp *RtrPkt) ExtnParseHBH(extType common.ExtnType,
 }
 
 func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
-	max := ExtMaxHopByHop
+	max := common.ExtnMaxHBH
 	if len(rp.HBHExt) > 1 && rp.HBHExt[0].Type() == common.ExtnSCMPType {
 		max += 1
 	}

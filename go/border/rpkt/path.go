@@ -50,7 +50,7 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 			return nil
 		}
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_PathRequired, nil)
-		return common.NewErrorData("Path required", sdata, "info", rp.ErrStr("!"))
+		return common.NewErrorData("Path required", sdata)
 	}
 	if rp.hopF.VerifyOnly {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
@@ -66,7 +66,11 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldExpired, sdata, "expiry", hopfExpiry)
 	}
-	return rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	if err != nil && err.Desc == spath.ErrorHopFBadMac {
+		err.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
+	}
+	return err
 }
 
 func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {

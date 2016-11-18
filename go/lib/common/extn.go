@@ -51,6 +51,8 @@ func (e ExtnType) String() string {
 }
 
 const (
+	// Maximum allowed hop-by-hop extensions, excluding a potential leading SCMP extension.
+	ExtnMaxHBH       = 3
 	ExtnSubHdrLen    = 3
 	ExtnFirstLineLen = LineLen - ExtnSubHdrLen
 )
