@@ -17,8 +17,9 @@ package as_conf
 import (
 	"testing"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 func Test_ASConf(t *testing.T) {

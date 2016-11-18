@@ -25,9 +25,9 @@ import (
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
@@ -36,22 +36,22 @@ const (
 	ErrorListenExternal = "Unable to listen on external socket"
 )
 
-type setupNetHook func(r *Router) (rpkt.HookResult, *util.Error)
+type setupNetHook func(r *Router) (rpkt.HookResult, *common.Error)
 type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
-	rpkt.HookResult, *util.Error)
+	rpkt.HookResult, *common.Error)
 type setupAddExtHook func(r *Router, intf *netconf.Interface, labels prometheus.Labels) (
-	rpkt.HookResult, *util.Error)
+	rpkt.HookResult, *common.Error)
 
 var setupNetStartHooks []setupNetHook
 var setupAddLocalHooks []setupAddLocalHook
 var setupAddExtHooks []setupAddExtHook
 var setupNetFinishHooks []setupNetHook
 
-func (r *Router) setup(confDir string) *util.Error {
+func (r *Router) setup(confDir string) *common.Error {
 	r.locOutFs = make(map[int]rpkt.OutputFunc)
 	r.intfOutFs = make(map[spath.IntfID]rpkt.OutputFunc)
-	r.freePkts = make(chan *rpkt.RPkt, 1024)
-	r.revInfoQ = make(chan util.RawBytes)
+	r.freePkts = make(chan *rpkt.RtrPkt, 1024)
+	r.revInfoQ = make(chan common.RawBytes)
 
 	if err := conf.Load(r.Id, confDir); err != nil {
 		return err
@@ -64,7 +64,7 @@ func (r *Router) setup(confDir string) *util.Error {
 	return nil
 }
 
-func (r *Router) setupNet() *util.Error {
+func (r *Router) setupNet() *common.Error {
 	// If there are other hooks, they should install themselves via init(), so
 	// they appear before the posix ones.
 	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
@@ -126,7 +126,7 @@ func (r *Router) setupNet() *util.Error {
 	// drop cap privileges, if any
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		return util.NewError("Error retrieving capabilities", "err", err)
+		return common.NewError("Error retrieving capabilities", "err", err)
 	}
 	log.Debug("Startup capabilities", "caps", caps)
 	caps.Clear(capability.CAPS)
@@ -137,26 +137,32 @@ func (r *Router) setupNet() *util.Error {
 }
 
 func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
-	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	if err := over.Listen(); err != nil {
-		return rpkt.HookError, util.NewError(ErrorListenLocal, "err", err)
+		return rpkt.HookError, common.NewError(ErrorListenLocal, "err", err)
 	}
-	q := make(chan *rpkt.RPkt)
+	var ifids []spath.IntfID
+	for _, intf := range conf.C.Net.IFs {
+		if intf.LocAddrIdx == idx {
+			ifids = append(ifids, intf.Id)
+		}
+	}
+	q := make(chan *rpkt.RtrPkt)
 	r.inQs = append(r.inQs, q)
-	go r.readPosixInput(over.Conn, rpkt.DirLocal, labels, q)
-	r.locOutFs[idx] = func(rp *rpkt.RPkt) { r.writeLocalOutput(over.Conn, labels, rp) }
+	go r.readPosixInput(over.Conn, rpkt.DirLocal, ifids, labels, q)
+	r.locOutFs[idx] = func(rp *rpkt.RtrPkt) { r.writeLocalOutput(over.Conn, labels, rp) }
 	return rpkt.HookFinish, nil
 }
 
 func setupPosixAddExt(r *Router, intf *netconf.Interface,
-	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
-		return rpkt.HookError, util.NewError(ErrorListenExternal, "err", err)
+		return rpkt.HookError, common.NewError(ErrorListenExternal, "err", err)
 	}
-	q := make(chan *rpkt.RPkt)
+	q := make(chan *rpkt.RtrPkt)
 	r.inQs = append(r.inQs, q)
-	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, labels, q)
-	r.intfOutFs[intf.Id] = func(rp *rpkt.RPkt) {
+	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, []spath.IntfID{intf.Id}, labels, q)
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt) {
 		r.writeIntfOutput(intf.IFAddr.Conn, labels, rp)
 	}
 	return rpkt.HookFinish, nil

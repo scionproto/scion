@@ -21,7 +21,6 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
@@ -38,9 +37,9 @@ type InfoField struct {
 	Hops     uint8
 }
 
-func InfoFFromRaw(b []byte) (*InfoField, *util.Error) {
+func InfoFFromRaw(b []byte) (*InfoField, *common.Error) {
 	if len(b) < InfoFieldLength {
-		return nil, util.NewError(ErrorInfoFTooShort, "min", InfoFieldLength, "actual", len(b))
+		return nil, common.NewError(ErrorInfoFTooShort, "min", InfoFieldLength, "actual", len(b))
 	}
 	inf := &InfoField{}
 	flags := b[0]
@@ -48,15 +47,15 @@ func InfoFFromRaw(b []byte) (*InfoField, *util.Error) {
 	inf.Shortcut = flags&0x2 != 0
 	inf.Peer = flags&0x4 != 0
 	offset := 1
-	inf.TsInt = order.Uint32(b[offset:])
+	inf.TsInt = common.Order.Uint32(b[offset:])
 	offset += 4
-	inf.ISD = order.Uint16(b[offset:])
+	inf.ISD = common.Order.Uint16(b[offset:])
 	offset += 2
 	inf.Hops = b[offset]
 	return inf, nil
 }
 
-func (inf *InfoField) Write(b util.RawBytes) {
+func (inf *InfoField) Write(b common.RawBytes) {
 	b[0] = 0
 	if inf.Up {
 		b[0] |= 0x1
@@ -68,9 +67,9 @@ func (inf *InfoField) Write(b util.RawBytes) {
 		b[0] |= 0x4
 	}
 	offset := 1
-	order.PutUint32(b[offset:], inf.TsInt)
+	common.Order.PutUint32(b[offset:], inf.TsInt)
 	offset += 4
-	order.PutUint16(b[offset:], inf.ISD)
+	common.Order.PutUint16(b[offset:], inf.ISD)
 	offset += 2
 	b[offset] = inf.Hops
 }

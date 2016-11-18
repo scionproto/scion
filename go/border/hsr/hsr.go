@@ -40,8 +40,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 var hsrInMin = flag.Int("hsr.in.min_pkts", 20, "Minimum packets to read per loop")
@@ -50,35 +51,41 @@ var hsrInTout = flag.Int("hsr.in.tout", 10,
 
 const MaxPkts = 32
 
+// Address metadata. This is attached to packets that are sent from/to the
+// specified address, to allow processing. In particular, it contains the
+// address in both Go and C formats.
 type AddrMeta struct {
 	GoAddr  *net.UDPAddr
 	CAddr   C.saddr_storage
 	DirFrom rpkt.Dir
+	IfIDs   []spath.IntfID
 	Labels  prometheus.Labels
 }
 
+// Slice of AddrMetas, indexed by the libhsr port ID.
 var AddrMs []AddrMeta
 
-func Init(conf string, args []string, addrMs []AddrMeta) *util.Error {
+func Init(conf string, args []string, addrMs []AddrMeta) *common.Error {
 	defer liblog.PanicLog()
 	argv := make([]*C.char, 0, len(args))
 	for _, arg := range args {
 		argv = append(argv, C.CString(arg))
 	}
 	if C.router_init(C.CString(conf), C.CString("border"), C.int(len(argv)), &argv[0]) != 0 {
-		return util.NewError("Failure initialising libhsr (router_init)")
+		return common.NewError("Failure initialising libhsr (router_init)")
 	}
 	AddrMs = addrMs
 	cAddrs := make([]C.saddr_storage, len(AddrMs))
+	// Calculate the C address structure from the Go address structure.
 	for i, addrM := range AddrMs {
 		udpAddrToSaddr(addrM.GoAddr, &addrM.CAddr)
 		cAddrs[i] = addrM.CAddr
 	}
 	if C.setup_network(&cAddrs[0], C.int(len(cAddrs))) != 0 {
-		return util.NewError("Failure initialising libhsr (setup_network)")
+		return common.NewError("Failure initialising libhsr (setup_network)")
 	}
 	if C.create_lib_threads() != 0 {
-		return util.NewError("Failure initialising libhsr (create_lib_threads)")
+		return common.NewError("Failure initialising libhsr (create_lib_threads)")
 	}
 	return nil
 }
@@ -100,9 +107,9 @@ func NewHSR() *HSR {
 	return &h
 }
 
-func (h *HSR) GetPackets(rps []*rpkt.RPkt) ([]int, *util.Error) {
+func (h *HSR) GetPackets(rps []*rpkt.RtrPkt) ([]int, *common.Error) {
 	if len(rps) > MaxPkts {
-		return nil, util.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
+		return nil, common.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
 	}
 	for i, rp := range rps {
 		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&rp.Raw[0]))
@@ -112,20 +119,21 @@ func (h *HSR) GetPackets(rps []*rpkt.RPkt) ([]int, *util.Error) {
 	portIds := make([]int, count)
 	for i := 0; i < count; i++ {
 		rp := rps[i]
-		r := h.InPkts[i]
-		rp.Raw = rp.Raw[:int(r.buflen)]
+		cp := h.InPkts[i]
+		rp.Raw = rp.Raw[:int(cp.buflen)]
 		rp.Ingress.Src = &net.UDPAddr{}
-		if err := saddrToUDPAddr(rp.Ingress.Src, r.src); err != nil {
+		if err := saddrToUDPAddr(rp.Ingress.Src, cp.src); err != nil {
 			return nil, err
 		}
-		rp.Ingress.Dst = AddrMs[r.port_id].GoAddr
-		rp.DirFrom = AddrMs[r.port_id].DirFrom
-		portIds[i] = int(r.port_id)
+		rp.Ingress.Dst = AddrMs[cp.port_id].GoAddr
+		rp.Ingress.IfIDs = AddrMs[cp.port_id].IfIDs
+		rp.DirFrom = AddrMs[cp.port_id].DirFrom
+		portIds[i] = int(cp.port_id)
 	}
 	return portIds, nil
 }
 
-func SendPacket(dst *net.UDPAddr, portID int, buf util.RawBytes) *util.Error {
+func SendPacket(dst *net.UDPAddr, portID int, buf common.RawBytes) *common.Error {
 	var rPkt C.RouterPacket
 	rPkt.buf = (*C.uint8_t)(unsafe.Pointer(&buf[0]))
 	rPkt.buflen = C.size_t(len(buf))
@@ -134,12 +142,12 @@ func SendPacket(dst *net.UDPAddr, portID int, buf util.RawBytes) *util.Error {
 	udpAddrToSaddr(dst, rPkt.dst)
 	rPkt.port_id = C.uint8_t(portID)
 	if C.send_packet(&rPkt) != 0 {
-		return util.NewError("Error sending packet through HSR")
+		return common.NewError("Error sending packet through HSR")
 	}
 	return nil
 }
 
-func saddrToUDPAddr(addr *net.UDPAddr, saddr *C.saddr_storage) *util.Error {
+func saddrToUDPAddr(addr *net.UDPAddr, saddr *C.saddr_storage) *common.Error {
 	switch saddr.ss_family {
 	case C.AF_INET:
 		saddr := (*C.saddr_in)(unsafe.Pointer(saddr))
@@ -148,7 +156,7 @@ func saddrToUDPAddr(addr *net.UDPAddr, saddr *C.saddr_storage) *util.Error {
 		saddr := (*C.saddr_in6)(unsafe.Pointer(saddr))
 		addr.IP = C.GoBytes(unsafe.Pointer(&saddr.sin6_addr), 16)
 	default:
-		return util.NewError("Unsupported sockaddr family type", "type", saddr.ss_family)
+		return common.NewError("Unsupported sockaddr family type", "type", saddr.ss_family)
 	}
 	return nil
 }

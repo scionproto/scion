@@ -29,8 +29,9 @@ import (
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 var (
@@ -46,7 +47,7 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router) (rpkt.HookResult, *util.Error) {
+func setupHSRNetStart(r *Router) (rpkt.HookResult, *common.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
@@ -54,34 +55,40 @@ func setupHSRNetStart(r *Router) (rpkt.HookResult, *util.Error) {
 }
 
 func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
-	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
+	var ifids []spath.IntfID
+	for _, intf := range conf.C.Net.IFs {
+		if intf.LocAddrIdx == idx {
+			ifids = append(ifids, intf.Id)
+		}
+	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
-		DirFrom: rpkt.DirLocal, Labels: labels})
-	r.locOutFs[idx] = func(rp *rpkt.RPkt) {
+		DirFrom: rpkt.DirLocal, IfIDs: ifids, Labels: labels})
+	r.locOutFs[idx] = func(rp *rpkt.RtrPkt) {
 		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
 
 func setupHSRAddExt(r *Router, intf *netconf.Interface,
-	labels prometheus.Labels) (rpkt.HookResult, *util.Error) {
+	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
-		GoAddr: bind, DirFrom: rpkt.DirExternal, Labels: labels})
-	r.intfOutFs[intf.Id] = func(rp *rpkt.RPkt) {
+		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt) {
 		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router) (rpkt.HookResult, *util.Error) {
+func setupHSRNetFinish(r *Router) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}
@@ -90,7 +97,7 @@ func setupHSRNetFinish(r *Router) (rpkt.HookResult, *util.Error) {
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	q := make(chan *rpkt.RPkt)
+	q := make(chan *rpkt.RtrPkt)
 	r.inQs = append(r.inQs, q)
 	go r.readHSRInput(q)
 	return rpkt.HookContinue, nil

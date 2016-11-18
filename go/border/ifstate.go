@@ -24,9 +24,10 @@ import (
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -45,10 +46,14 @@ func (r *Router) GenIFStateReq() {
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
-	rp, err := rpkt.CreateCtrlPacket(rpkt.DirLocal,
-		addr.HostFromIP(srcAddr.IP), topology.Curr.T.IA, dstHost)
+	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
+		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: conf.C.IA, DstHost: dstHost,
+		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
+	}, rpkt.DirLocal)
 	if err != nil {
-		log.Error("Error creating IFStateReq packet", err.Ctx...)
+		log.Error("Error creating IFState packet", err.Ctx...)
+		return
 	}
 	// Create payload
 	scion, pathMgmt, err := proto.NewPathMgmtMsg()
@@ -61,9 +66,8 @@ func (r *Router) GenIFStateReq() {
 		log.Error("Unable to create IFStateReq struct", "err", cerr)
 		return
 	}
-	rp.AddL4UDP(srcAddr.Port, 0)
-	rp.AddCtrlPld(scion)
-	_, err = rp.RouteResolveSVCMulti(*dstHost, r.locOutFs[0])
+	rp.SetPld(&spkt.CtrlPld{SCION: scion})
+	_, err = rp.RouteResolveSVCMulti(dstHost, r.locOutFs[0])
 	if err != nil {
 		log.Error("Unable to route IFStateReq packet", err.Ctx...)
 	}
@@ -71,17 +75,27 @@ func (r *Router) GenIFStateReq() {
 }
 
 func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
-	infos, err := ifStates.Infos()
-	if err != nil {
-		log.Error("Unable to extract IFStateInfos from message", "err", err)
+	infos, serr := ifStates.Infos()
+	if serr != nil {
+		log.Error("Unable to extract IFStateInfos from message", "err", serr)
 		return
 	}
 	// Convert to map
-	m := make(map[spath.IntfID]proto.IFStateInfo)
+	m := make(map[spath.IntfID]conf.IFState)
 	for i := 0; i < infos.Len(); i++ {
 		info := infos.At(i)
 		ifid := spath.IntfID(info.IfID())
-		m[ifid] = info
+		revInfo, serr := info.RevInfo()
+		if serr != nil {
+			log.Error("Unable to extract RevInfo from IFStateInfo", "err", serr, "info", info)
+			return
+		}
+		rawRev, err := proto.StructPack(revInfo.Struct)
+		if err != nil {
+			log.Error("Unable to pack RevInfo", err.Ctx...)
+			return
+		}
+		m[ifid] = conf.IFState{P: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
 		if info.Active() {
 			gauge.Set(1)

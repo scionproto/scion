@@ -49,3 +49,29 @@ func (e ExtnType) String() string {
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", e)
 }
+
+const (
+	// Maximum allowed hop-by-hop extensions, excluding a potential leading SCMP extension.
+	ExtnMaxHBH       = 3
+	ExtnSubHdrLen    = 3
+	ExtnFirstLineLen = LineLen - ExtnSubHdrLen
+)
+
+type ExtnBase interface {
+	// Length in bytes, excluding 3B subheader
+	Len() int
+	Class() L4ProtocolType
+	Type() ExtnType
+	fmt.Stringer
+}
+
+type Extension interface {
+	ExtnBase
+	// Allocate buffer, write extn into it, and return it.
+	Pack() (RawBytes, *Error)
+	// Write extn into supplied buffer
+	Write(b RawBytes) *Error
+	Copy() Extension
+	// bool is true if extn is reversed, and false if it should be dropped.
+	Reverse() (bool, *Error)
+}

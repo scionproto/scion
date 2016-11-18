@@ -20,7 +20,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 type pathCase struct {
@@ -115,7 +115,7 @@ func mkPathRevCase(in []pathCase, inInfOff, inHopfOff uint8) *Path {
 	for _, seg := range in {
 		plen += InfoFieldLength + len(seg.hops)*HopFieldLength
 	}
-	path.Raw = make(util.RawBytes, plen)
+	path.Raw = make(common.RawBytes, plen)
 	offset := 0
 	for i, seg := range in {
 		makeSeg(path.Raw[offset:], seg.up, uint16(i), seg.hops)
@@ -124,7 +124,7 @@ func mkPathRevCase(in []pathCase, inInfOff, inHopfOff uint8) *Path {
 	return path
 }
 
-func makeSeg(b util.RawBytes, up bool, isd uint16, hops []uint8) {
+func makeSeg(b common.RawBytes, up bool, isd uint16, hops []uint8) {
 	infof := InfoField{Up: up, ISD: isd, Hops: uint8(len(hops))}
 	infof.Write(b)
 	for i, hop := range hops {

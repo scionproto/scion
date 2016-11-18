@@ -15,15 +15,15 @@
 package spkt
 
 import (
-	"encoding/binary"
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
 const (
-	CmnHdrLen = 8
+	CmnHdrLen    = 8
+	SCIONVersion = 0
 )
 
 type CmnHdr struct {
@@ -38,13 +38,10 @@ type CmnHdr struct {
 }
 
 const (
-	ErrorUnpackCmnHdr = "Error unpacking common header"
-	ErrorPackCmnHdr   = "Error packing common header"
+	ErrorUnsuppVersion = "Unsupported SCION version"
 )
 
-var order = binary.BigEndian
-
-func CmnHdrFromRaw(b util.RawBytes) (*CmnHdr, *util.Error) {
+func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, *common.Error) {
 	c := &CmnHdr{}
 	if err := c.Parse(b); err != nil {
 		return nil, err
@@ -52,14 +49,14 @@ func CmnHdrFromRaw(b util.RawBytes) (*CmnHdr, *util.Error) {
 	return c, nil
 }
 
-func (c *CmnHdr) Parse(b util.RawBytes) *util.Error {
+func (c *CmnHdr) Parse(b common.RawBytes) *common.Error {
 	offset := 0
-	verSrcDst := order.Uint16(b[offset:])
+	verSrcDst := common.Order.Uint16(b[offset:])
 	c.Ver = uint8(verSrcDst >> 12)
 	c.SrcType = uint8(verSrcDst>>6) & 0x3F
 	c.DstType = uint8(verSrcDst) & 0x3F
 	offset += 2
-	c.TotalLen = order.Uint16(b[offset:])
+	c.TotalLen = common.Order.Uint16(b[offset:])
 	offset += 2
 	c.CurrInfoF = b[offset]
 	offset += 1
@@ -68,16 +65,23 @@ func (c *CmnHdr) Parse(b util.RawBytes) *util.Error {
 	c.NextHdr = common.L4ProtocolType(b[offset])
 	offset += 1
 	c.HdrLen = b[offset]
+	if c.Ver != SCIONVersion {
+		// This can only usefully be replied to if the version specified is one
+		// that the current router supports, but has deprecated.
+		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadVersion, nil)
+		return common.NewErrorData(ErrorUnsuppVersion, sdata,
+			"expected", SCIONVersion, "actual", c.Ver)
+	}
 	return nil
 }
 
-func (c *CmnHdr) Write(b util.RawBytes) {
+func (c *CmnHdr) Write(b common.RawBytes) {
 	offset := 0
 	var verSrcDst uint16
 	verSrcDst = uint16(c.Ver&0xF)<<12 | uint16(c.SrcType&0x3F)<<6 | uint16(c.DstType&0x3F)
-	order.PutUint16(b[offset:], verSrcDst)
+	common.Order.PutUint16(b[offset:], verSrcDst)
 	offset += 2
-	order.PutUint16(b[offset:], c.TotalLen)
+	common.Order.PutUint16(b[offset:], c.TotalLen)
 	offset += 2
 	b[offset] = c.CurrInfoF
 	offset += 1
@@ -88,7 +92,7 @@ func (c *CmnHdr) Write(b util.RawBytes) {
 	b[offset] = c.HdrLen
 }
 
-func (c *CmnHdr) UpdatePathOffsets(b util.RawBytes, iOff, hOff uint8) {
+func (c *CmnHdr) UpdatePathOffsets(b common.RawBytes, iOff, hOff uint8) {
 	c.CurrInfoF = iOff
 	c.CurrHopF = hOff
 	b[4] = c.CurrInfoF

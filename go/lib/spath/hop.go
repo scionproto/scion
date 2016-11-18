@@ -26,7 +26,7 @@ import (
 )
 
 type HopField struct {
-	data        util.RawBytes
+	data        common.RawBytes
 	Xover       bool
 	VerifyOnly  bool
 	ForwardOnly bool
@@ -34,7 +34,7 @@ type HopField struct {
 	ExpTime     uint8
 	Ingress     IntfID
 	Egress      IntfID
-	Mac         util.RawBytes
+	Mac         common.RawBytes
 }
 
 const (
@@ -46,7 +46,7 @@ const (
 	ErrorHopFBadMac     = "Bad HopF MAC"
 )
 
-func NewHopField(b util.RawBytes, in IntfID, out IntfID) *HopField {
+func NewHopField(b common.RawBytes, in IntfID, out IntfID) *HopField {
 	h := &HopField{}
 	h.data = b
 	h.ExpTime = DefaultHopFExpiry
@@ -56,9 +56,9 @@ func NewHopField(b util.RawBytes, in IntfID, out IntfID) *HopField {
 	return h
 }
 
-func HopFFromRaw(b []byte) (*HopField, *util.Error) {
+func HopFFromRaw(b []byte) (*HopField, *common.Error) {
 	if len(b) < HopFieldLength {
-		return nil, util.NewError(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
+		return nil, common.NewError(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
 	}
 	h := &HopField{}
 	h.data = b[:HopFieldLength]
@@ -107,19 +107,19 @@ func (h *HopField) String() string {
 		h.Ingress, h.Egress, h.ExpTime, h.Xover, h.VerifyOnly, h.ForwardOnly, h.Mac)
 }
 
-func (h *HopField) Verify(block cipher.Block, tsInt uint32, prev util.RawBytes) *util.Error {
+func (h *HopField) Verify(block cipher.Block, tsInt uint32, prev common.RawBytes) *common.Error {
 	if mac, err := h.CalcMac(block, tsInt, prev); err != nil {
 		return err
 	} else if !bytes.Equal(h.Mac, mac) {
-		return util.NewError(ErrorHopFBadMac, "expected", h.Mac, "actual", mac)
+		return common.NewError(ErrorHopFBadMac, "expected", h.Mac, "actual", mac)
 	}
 	return nil
 }
 
 func (h *HopField) CalcMac(block cipher.Block, tsInt uint32,
-	prev util.RawBytes) (util.RawBytes, *util.Error) {
-	all := make(util.RawBytes, macInputLen)
-	order.PutUint32(all, tsInt)
+	prev common.RawBytes) (common.RawBytes, *common.Error) {
+	all := make(common.RawBytes, macInputLen)
+	common.Order.PutUint32(all, tsInt)
 	all[4] = h.data[0] & HopFieldVerifyFlags
 	copy(all[5:], h.data[1:5])
 	copy(all[9:], prev)

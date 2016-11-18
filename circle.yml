@@ -40,7 +40,7 @@ test:
     override:
         # Go isn't installed in docker, so run the tests outside.
         - ./scion.sh coverage go
-        - ./scion.sh gofmt
+        - ./scion.sh golint
         - ./docker.sh run -c "./scion.sh coverage py"
         - ./docker.sh run -c "./scion.sh lint"
         - ./docker.sh run -c "make -f sphinx-doc/Makefile clean html"

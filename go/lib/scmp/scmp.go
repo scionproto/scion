@@ -15,14 +15,11 @@
 package scmp
 
 import (
-	"encoding/binary"
 	"fmt"
 	//log "github.com/inconshreveable/log15"
 )
 
 // https://github.com/netsec-ethz/scion/blob/master/lib/packet/scmp/types.py
-
-var order = binary.BigEndian
 
 type Class uint16
 
@@ -120,4 +117,38 @@ func (t Type) Name(c Class) string {
 		return fmt.Sprintf("Type(%d)", t)
 	}
 	return fmt.Sprintf("%s(%d)", names[t], t)
+}
+
+type ClassType struct {
+	Class Class
+	Type  Type
+}
+
+func (ct ClassType) String() string {
+	return fmt.Sprintf("%v:%v", ct.Class, ct.Type.Name(ct.Class))
+}
+
+// Used to specify parts of packets to quote
+type RawBlock int
+
+const (
+	RawCmnHdr RawBlock = iota
+	RawAddrHdr
+	RawPathHdr
+	RawExtHdrs
+	RawL4Hdr
+)
+
+// Used as part of common.NewErrorData to indicate which SCMP error should be generated.
+type ErrData struct {
+	CT   ClassType
+	Info Info
+}
+
+func NewErrData(class Class, type_ Type, info Info) *ErrData {
+	return &ErrData{CT: ClassType{class, type_}, Info: info}
+}
+
+func (e *ErrData) String() string {
+	return fmt.Sprintf("CT: %v Info: %v", e.CT, e.Info)
 }

@@ -44,6 +44,12 @@ func main() {
 		profile.Start(*id)
 	}
 	setupSignals()
+	// Set max virtual memory size to 1GiB in bytes.
+	rLimit := &syscall.Rlimit{Max: 1 << 30, Cur: 1 << 30}
+	if err := syscall.Setrlimit(syscall.RLIMIT_AS, rLimit); err != nil {
+		log.Crit("Setting RLIMIT_AS failed", "err", err)
+		os.Exit(1)
+	}
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
 		log.Crit("Startup failed", err.Ctx...)

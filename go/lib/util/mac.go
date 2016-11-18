@@ -19,6 +19,8 @@ import (
 	"crypto/cipher"
 
 	log "github.com/inconshreveable/log15"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -26,18 +28,18 @@ const (
 	ErrorCiphertextLen = "Ciphertext isn't a multiple of the block size"
 )
 
-func InitAES(key RawBytes) (cipher.Block, *Error) {
+func InitAES(key common.RawBytes) (cipher.Block, *common.Error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, NewError(ErrorCipherFailure, log.Ctx{"err": err})
+		return nil, common.NewError(ErrorCipherFailure, log.Ctx{"err": err})
 	}
 	return block, nil
 }
 
-func CBCMac(block cipher.Block, msg RawBytes) (RawBytes, *Error) {
+func CBCMac(block cipher.Block, msg common.RawBytes) (common.RawBytes, *common.Error) {
 	blkSize := block.BlockSize()
 	if len(msg)%blkSize != 0 {
-		return nil, NewError(ErrorCiphertextLen, log.Ctx{"textLen": len(msg), "blkSize": blkSize})
+		return nil, common.NewError(ErrorCiphertextLen, "textLen", len(msg), "blkSize", blkSize)
 	}
 	iv := make([]byte, blkSize, blkSize)
 	mode := cipher.NewCBCEncrypter(block, iv)
