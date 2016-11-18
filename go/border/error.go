@@ -66,8 +66,17 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		// Too many HBH extensions, so trim to the excess ones.
 		sp.HBHExt = sp.HBHExt[:common.ExtnMaxHBH]
 	}
+	// Add new SCMP HBH extension at the start.
+	ext := &scmp.Extn{Error: true}
+	if ct.Class == scmp.C_Path && ct.Type == scmp.T_P_RevokedIF {
+		// Revocation SCMP errors have to be inspected by intermediate routers.
+		ext.HopByHop = true
+	}
+	sp.HBHExt = append([]common.Extension{ext}, sp.HBHExt...)
+	// Add SCMP l4 header and payload
 	sp.Pld = scmp.PldFromQuotes(ct, info, sp.L4.L4Type(), rp.GetRaw)
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
+	// Convert back to RtrPkt
 	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom)
 	if err != nil {
 		return nil, err

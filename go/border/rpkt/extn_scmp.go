@@ -15,8 +15,6 @@
 package rpkt
 
 import (
-	"fmt"
-
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -53,19 +51,6 @@ func (s *RSCMPExt) RegisterHooks(h *Hooks) *common.Error {
 		h.Process = append(h.Process, s.rp.processSCMP)
 	}
 	return nil
-}
-
-func (s *RSCMPExt) Type() common.ExtnType {
-	return common.ExtnSCMPType
-}
-
-func (s *RSCMPExt) Len() int {
-	return common.LineLen
-}
-
-func (s *RSCMPExt) String() string {
-	return fmt.Sprintf("SCMP Ext(%dB): Error? %v HopByHop: %v",
-		common.LineLen, s.Extn.Error, s.Extn.HopByHop)
 }
 
 func (s *RSCMPExt) GetExtn() (common.Extension, *common.Error) {
