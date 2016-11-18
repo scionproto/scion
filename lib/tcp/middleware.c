@@ -512,12 +512,6 @@ void *tcpmw_poll_loop(void* dummy){
                 zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL");
                 continue;
             }
-            /* Error */
-            if (pollfds[i].revents & ~(POLLIN|POLLOUT)){
-                tcpmw_clear_fd_state(s, 1);
-                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd);
-                continue;
-            }
 
             if (pollfds[i].revents & POLLIN){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLIN: fd=%d",pollfds[i].fd);
@@ -527,6 +521,12 @@ void *tcpmw_poll_loop(void* dummy){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLOUT: fd=%d",pollfds[i].fd);
                 tcpmw_send_to_app(s);
             }
+            /* Error */
+            /* if (pollfds[i].revents & ~(POLLIN|POLLOUT)){ */
+            /*     tcpmw_clear_fd_state(s, 1); */
+            /*     zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd); */
+            /*     continue; */
+            /* } */
         }
         usleep(TCP_POLLING_TOUT*1000);
     }
