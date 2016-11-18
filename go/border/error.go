@@ -58,13 +58,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
-	l4type := rp.L4Type
-	if l4type == common.L4None {
-		// Try to get l4 proto type, if possible, ignoring errors.
-		_, _ = rp.L4Hdr()
-		l4type = rp.L4Type
-	}
-	sp.Pld = scmp.PldFromQuotes(ct, info, l4type, rp.GetRaw)
+	sp.Pld = scmp.PldFromQuotes(ct, info, sp.L4.L4Type(), rp.GetRaw)
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
 	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom)
 	if err != nil {

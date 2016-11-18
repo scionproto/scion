@@ -37,7 +37,7 @@ const (
 
 func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	if assert.On {
-		assert.Must(rp.ifCurr != nil, "RtrPkt.validatePath: rp.ifCurr is nil")
+		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil"))
 	}
 	// First check to make sure the current interface is known and not revoked.
 	if err := rp.validateLocalIF(*rp.ifCurr); err != nil {

@@ -207,7 +207,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	if sp.L4, err = rp.L4Hdr(verify); err != nil {
 		return nil, err
 	}
-	if sp.Pld, err = rp.Payload(); err != nil {
+	if sp.Pld, err = rp.Payload(verify); err != nil {
 		return nil, err
 	}
 	return sp, nil
@@ -238,7 +238,10 @@ func (rp *RtrPkt) String() string {
 	rp.DstHost()
 	rp.InfoF()
 	rp.HopF()
-	return fmt.Sprintf("Dir from/to: %v/%v Src: %v %v Dst: %v %v\n"+
-		"  InfoF: %v\n  HopF: %v\n",
+	return fmt.Sprintf("Dir from/to: %v/%v Src: %v %v Dst: %v %v\n  InfoF: %v\n  HopF: %v",
 		rp.DirFrom, rp.DirTo, rp.srcIA, rp.srcHost, rp.dstIA, rp.dstHost, rp.infoF, rp.hopF)
+}
+
+func (rp *RtrPkt) ErrStr(desc string) string {
+	return fmt.Sprintf("Error: %v\n  RtrPkt: %v\n  Raw: %v", desc, rp, rp.Raw)
 }

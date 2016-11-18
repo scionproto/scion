@@ -54,7 +54,7 @@ proto: deps
 	cd proto && $(MAKE)
 
 bin: deps_proto
-	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)," -v +local,program
+	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
 
 libs: deps_proto
 	govendor install -v +local,^program

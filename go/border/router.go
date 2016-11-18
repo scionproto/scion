@@ -85,7 +85,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		rp.Error("Error checking for local processing", err.Ctx...)
 		return
 	}
-	if _, err := rp.Payload(); err != nil {
+	if _, err := rp.Payload(true); err != nil {
 		rp.Error("Error parsing payload", err.Ctx...)
 		return
 	}

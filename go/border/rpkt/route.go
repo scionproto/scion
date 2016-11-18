@@ -21,6 +21,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
@@ -106,6 +107,9 @@ func (rp *RtrPkt) forward() (HookResult, *common.Error) {
 }
 
 func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
+	if assert.On {
+		assert.Must(rp.hopF != nil, rp.ErrStr("rp.hopF must not be nil"))
+	}
 	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
 		return HookError, common.NewError(
 			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)

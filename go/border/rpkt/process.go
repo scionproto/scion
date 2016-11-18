@@ -79,7 +79,7 @@ func (rp *RtrPkt) Process() *common.Error {
 }
 
 func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
-	if _, err := rp.Payload(); err != nil {
+	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
 	cpld, ok := rp.pld.(*spkt.CtrlPld)
