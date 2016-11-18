@@ -49,32 +49,73 @@ func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
 }
 
 // Router representation of SCION packet, including metadata.
+// The comments for the members have tags to specifiy if the member is set
+// during receiving (RECV), parsing (PARSE), processing (PROCESS) or routing
+// (ROUTE). A number of the non-exported fields are pointers, as they are
+// either optional or computed only on demand.
 type RtrPkt struct {
-	Id        string
-	Raw       common.RawBytes
-	TimeIn    time.Time
-	DirFrom   Dir
-	DirTo     Dir
-	Ingress   AddrIFPair
-	Egress    []EgressPair
-	CmnHdr    spkt.CmnHdr
-	idxs      packetIdxs
-	srcIA     *addr.ISD_AS
-	srcHost   addr.HostAddr
-	dstIA     *addr.ISD_AS
-	dstHost   addr.HostAddr
-	infoF     *spath.InfoField
-	hopF      *spath.HopField
-	ifCurr    *spath.IntfID
-	ifNext    *spath.IntfID
-	upFlag    *bool
-	HBHExt    []RExtension
-	E2EExt    []RExtension
-	L4Type    common.L4ProtocolType
-	l4        l4.L4Header
-	pld       common.Payload
-	hooks     Hooks
+	// Id is a pseudo-random identifier for a packet, to allow correlation of
+	// logging statements. (RECV)
+	Id string
+	// Raw it the underlying buffer that represents the raw packet bytes. (RECV)
+	Raw common.RawBytes
+	// TimeIn is the time the packet was received. This is used for metrics
+	// calculations. (RECV)
+	TimeIn time.Time
+	// DirFrom is the direction from which the packet was received. (RECV)
+	DirFrom Dir
+	// DirTo is the direction to which the packet is travelling. (PARSE)
+	DirTo Dir
+	// Ingress contains the incoming overlay metadata the packet arrived with,
+	// and the (list of) interface(s) it arrived on. (RECV)
+	Ingress AddrIFPair
+	// Egress is a list of function & address pairs that determine how and
+	// where to the packet is sent. (PROCESS/ROUTE)
+	Egress []EgressPair
+	// CmnHdr is the SCION common header. Required for every packet. (PARSE)
+	CmnHdr spkt.CmnHdr
+	// idxs contains a set of indexs into Raw which point to the start of
+	// certain sections of the packet. (PARSE)
+	idxs packetIdxs
+	// srcIA is the source ISD-AS. (PARSE, only if needed)
+	srcIA *addr.ISD_AS
+	// srcHost is the source Host. (PARSE, only if needed)
+	srcHost addr.HostAddr
+	// dstIA is the destination ISD-AS. (PARSE)
+	dstIA *addr.ISD_AS
+	// dstHost is the destination Host. (PARSE, only if dstIA is local)
+	dstHost addr.HostAddr
+	// infoF is the current Info Field, if any. (PARSE)
+	infoF *spath.InfoField
+	// hopF is the current Hop Field, if any. (PARSE)
+	hopF *spath.HopField
+	// ifCurr is the current interface ID. (PARSE)
+	ifCurr *spath.IntfID
+	// ifNext is the next interface ID, if any. (PARSE)
+	ifNext *spath.IntfID
+	// upFlag indicates if the packet is currently on an up path. (PARSE)
+	upFlag *bool
+	// HBHExt is the list of Hop-by-hop extensions, if any. (PARSE)
+	HBHExt []RExtension
+	// E2Ext is the list of end2end extensions, if any.
+	// TODO(kormat): The router currently ignores these.
+	// (PARSE, only if needed)
+	E2EExt []RExtension
+	// L4Type is the type of the L4 protocol. If there isn't an L4 header, this
+	// will be L4None (PROCESS, only if needed)
+	L4Type common.L4ProtocolType
+	// l4 is the L4 header, if any. (PROCESS, only if needed)
+	l4 l4.L4Header
+	// pld is the L4 payload, if any. (PROCESS, only if needed)
+	pld common.Payload
+	// hooks are registered callbacks to override/supplement normal processing.
+	// The main use if for extensions to modify packet handling. (PARSE/PROCESS, only if needed)
+	hooks Hooks
+	// SCMPError flags if the packet is an SCMP Error packet, in which case it
+	// should never trigger an error response packet. (PARSE, if SCMP extension header is present).
 	SCMPError bool
+	// Logger is used to log messages associated with a packet. The Id field is
+	// automatically included in the output.
 	log.Logger
 }
 
