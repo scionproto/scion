@@ -23,6 +23,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
@@ -72,6 +73,14 @@ func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
 
 func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
+	if assert.On {
+		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
+		assert.Must(rp.DirFrom != rpkt.DirUnset, "DirFrom must be set")
+		assert.Must(rp.TimeIn != time.Time{}, "TimeIn must be set")
+		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
+		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
+		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
+	}
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	if err := rp.Parse(); err != nil {
