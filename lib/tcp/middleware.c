@@ -100,7 +100,7 @@ void tcpmw_init(void){
 void tcpmw_clear_state(struct conn_state *s, int free_app_buf){
     s->fd = -1;
     s->conn = NULL;
-    if (free_app_buf && s->app_buf != NULL){
+    if (free_app_buf){
         zlog_debug(zc_tcp, "tcpmw_clear_state(..., 1) called");
         free(s->app_buf);
     }
@@ -464,6 +464,7 @@ int tcpmw_add_connection(struct conn_args *args){
     for (int i = 0; i < MAX_CONNECTIONS; i++){
         struct conn_state *s = &connections[i];
         if (!s->active){  /* Inactive, we can use this entry. */
+            tcpmw_clear_state(s, 0);
             s->fd = args->fd;
             s->conn = args->conn;
             s->app_buf = malloc(TCPMW_BUFLEN);
@@ -474,9 +475,12 @@ int tcpmw_add_connection(struct conn_args *args){
         }
     }
     pthread_mutex_unlock(&connections_lock);
-    if (ret)
+    if (ret){
         zlog_error(zc_tcp, "tcpmw_add_connection(): cannot add new connection");
-        // FIXME(PSz): close netconn 
+        close(args->fd);
+        netconn_close(args->conn);
+        netconn_delete(args->conn);
+    }
     return ret;
 }
 
@@ -508,12 +512,13 @@ void *tcpmw_poll_loop(void* dummy){
                 zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL");
                 continue;
             }
-
             /* Error */
-            /* if (pollfds[i].revents & ~(POLLIN|POLLOUT)){ */
-            /*     tcpmw_clear_fd_state(s, 1); */
-            /*     continue; */
-            /* } */
+            if (pollfds[i].revents & ~(POLLIN|POLLOUT)){
+                tcpmw_clear_fd_state(s, 1);
+                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd);
+                continue;
+            }
+
             if (pollfds[i].revents & POLLIN){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLIN: fd=%d",pollfds[i].fd);
                 tcpmw_send_to_tcp(s);
@@ -559,7 +564,7 @@ int tcpmw_sync_conn_states(void){
         else if (s->conn != NULL){  /* fd is dead, only app_buf->MW can work. */
             if (s->app_buf_len)  /* Bytes from app to TCP stack. */
                 tcpmw_send_to_tcp(s);
-            if (!s->app_buf_len)  /* everything sent, can terminate netconn */
+            else  /* everything sent, can terminate netconn */
                 tcpmw_clear_conn_state(s, 1);
         }
 
@@ -579,6 +584,8 @@ struct conn_state* tcpmw_fd2state(int fd){
 
 void tcpmw_send_to_tcp(struct conn_state *s){
     zlog_debug(zc_tcp, "tcpmw_send_to_tcp() called: %d/%d", s->app_buf_written, s->app_buf_len);
+    if (s->conn == NULL)
+        return;
     if (s->app_buf_len){ // write from the app_buf to TCP
         size_t tmp_sent, sent = s->app_buf_written;
         int to_write = s->app_buf_len - sent;
@@ -618,12 +625,14 @@ void tcpmw_send_to_tcp(struct conn_state *s){
 
 void tcpmw_send_to_app(struct conn_state *s){
     zlog_debug(zc_tcp, "tcpmw_send_to_app() called: %d/%d", s->tcp_buf_written, s->tcp_buf_len);
+    if (s->fd == -1)
+        return;
     if (s->tcp_buf_len){  /* write from tcp_buf to app */
         size_t sent = s->tcp_buf_written;
         int to_write = s->tcp_buf_len - sent;
         int tmp_sent = send(s->fd, s->tcp_buf + sent, to_write, 0);
         if (tmp_sent < 0){
-            zlog_fatal(zc_tcp, "tcpmw_send_to_app(): send(): %s", strerror(errno));
+            zlog_error(zc_tcp, "tcpmw_send_to_app(): send(%d): %s", s->fd, strerror(errno));
             /* fd is broken, close it */
             tcpmw_clear_fd_state(s, 1);
             return;
@@ -637,7 +646,10 @@ void tcpmw_send_to_app(struct conn_state *s){
         s8_t lwip_err = 0;
         if ((lwip_err = netconn_recv(s->conn, &s->_netbuf)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send_to_app(): netconn_recv(): %s", lwip_strerr(lwip_err));
-            tcpmw_clear_conn_state(s, 1);  //FIXME(PSz): not sure if free buf here.
+            s->tcp_buf = NULL;
+            s->tcp_buf_len = 0;
+            s->tcp_buf_written = 0;
+            tcpmw_clear_conn_state(s, 1);
             return;
         }
         /* Get the pointer to the data and its length. */
@@ -677,10 +689,8 @@ void tcpmw_clear_conn_state(struct conn_state *s, int terminate){
         s->conn = NULL;
     }
     /* Nothing more can be sent to netconn, reset buf metadata */
-    if (s->app_buf != NULL){
-        s->app_buf_written = 0;
-        s->app_buf_len = 0;
-    }
+    s->app_buf_written = 0;
+    s->app_buf_len = 0;
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){

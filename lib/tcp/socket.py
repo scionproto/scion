@@ -323,6 +323,8 @@ class SCIONTCPSocket(object):
                 if self._rpc_mode:
                     req = APICmd.CLOSE
                     self._to_lwip(req)
+                else:
+                    logging.debug("close() called in pipe mode")
                 self._lwip_sock.close()
                 self._lwip_sock = None
             else:
