@@ -541,13 +541,24 @@ int tcpmw_sync_conn_states(void){
         if (!s->active)
             continue;
 
+        if (s->conn != NULL){
+            zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): state: fd=%d %d %d",s->fd,  s->conn->last_err, s->conn->state);
+           if(ERR_IS_FATAL(s->conn->last_err) || s->conn->state == NETCONN_CLOSE ){
+                zlog_error(zc_tcp, "tcpmw_sync_conn_states(): ERRORCONN %d %d", s->conn->last_err, s->conn->state);
+                tcpmw_clear_conn_state(s, 1);
+            }
+        }
+
         if (s->fd != -1 && s->conn != NULL){  /* Both ends are open */
             /* Ready to read smth from app */
             pollfds[pollfd_idx].fd = s->fd;
             pollfds[pollfd_idx].events = POLLIN;
+            zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): POLLIN fd=%d", s->fd);
 
-            if (s->tcp_buf_len || s->conn->recv_avail)  /* Bytes to app are pending */
+            if (s->tcp_buf_len || s->conn->recv_avail){  /* Bytes to app are pending */
                 pollfds[pollfd_idx].events |= POLLOUT;
+                zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): POLLOUT fd=%d", s->fd);
+            }
             pollfd_idx++;
             continue;
         }

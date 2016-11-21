@@ -40,7 +40,7 @@
 #define SOCK_PATH_LEN 36  /* of "accept" socket */
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 1)
-#define TCPMW_BUFLEN 8192
+#define TCPMW_BUFLEN 512
 #define PLD_SIZE 2  /* Each command/reply is prepended with 2B payload len field. */
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
