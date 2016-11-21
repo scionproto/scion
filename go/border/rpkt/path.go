@@ -150,9 +150,10 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 				return rp.hopF, nil
 			}
 		}
+		// Check the common header path metadata validity, and if so extract the current Hop Field.
 		switch {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
-			// Do nothing
+			// There is no path, so do nothing.
 		case rp.CmnHdr.CurrHopF < rp.CmnHdr.CurrInfoF+spath.InfoFieldLength:
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
 			return nil, common.NewErrorData(ErrorGetHopFTooSmall, sdata,
@@ -207,10 +208,10 @@ func (rp *RtrPkt) getHopFVer(dirFrom Dir) common.RawBytes {
 }
 
 func (rp *RtrPkt) getHopFVerNormalOffset() int {
-	// If this is the last hop of an Up path, or the first hop of a Down path,
-	// there's no previous HOF to verify against.
 	iOff := int(rp.CmnHdr.CurrInfoF)
 	hOff := int(rp.CmnHdr.CurrHopF)
+	// If this is the last hop of an Up path, or the first hop of a Down path, there's no previous
+	// HOF to verify against.
 	if (rp.infoF.Up &&
 		hOff == (iOff+spath.InfoFieldLength+int(rp.infoF.Hops-1)*spath.HopFieldLength)) ||
 		(!rp.infoF.Up && hOff == (iOff+spath.InfoFieldLength)) {
@@ -294,7 +295,7 @@ func (rp *RtrPkt) UpFlag() (*bool, *common.Error) {
 			return rp.upFlag, nil
 		}
 	}
-	// Try to get from InfoField
+	// Try to get Up flag from InfoField
 	if rp.infoF == nil {
 		return nil, nil
 	}
@@ -362,7 +363,7 @@ func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 	return rp.ifNext, nil
 }
 
-func (rp *RtrPkt) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *common.Error) {
+func (rp *RtrPkt) hookIF(up bool, hooks []hookIntf) (*spath.IntfID, *common.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, rp.DirFrom, rp.DirTo)
 		switch {

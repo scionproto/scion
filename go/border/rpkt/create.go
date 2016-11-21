@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles the creation of RtrPkt.
+
 package rpkt
 
 import (
@@ -26,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
+// RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
 func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
 	hdrLen := sp.HdrLen()
@@ -35,15 +38,15 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	rp.Logger = log.New("rpkt", rp.Id)
 	rp.DirFrom = DirSelf
 	rp.DirTo = dirTo
-	// Fill in common header and write it out
+	// Fill in common header.
 	rp.CmnHdr.SrcType = sp.SrcHost.Type()
 	rp.CmnHdr.DstType = sp.DstHost.Type()
 	rp.CmnHdr.HdrLen = uint8(hdrLen)
-	rp.CmnHdr.TotalLen = uint16(totalLen)
-	rp.CmnHdr.NextHdr = common.L4None
-	rp.CmnHdr.CurrInfoF = uint8(hdrLen)
-	rp.CmnHdr.CurrHopF = uint8(hdrLen)
-	// Fill in address header and indexes
+	rp.CmnHdr.TotalLen = uint16(totalLen) // Updated later as necessary.
+	rp.CmnHdr.NextHdr = common.L4None     // Updated later as necessary.
+	rp.CmnHdr.CurrInfoF = uint8(hdrLen)   // Updated later as necessary.
+	rp.CmnHdr.CurrHopF = uint8(hdrLen)    // Updated later as necessary.
+	// Fill in address header and indexes.
 	rp.idxs.srcIA = spkt.CmnHdrLen
 	rp.srcIA = sp.SrcIA
 	rp.idxs.srcHost = rp.idxs.srcIA + addr.IABytes
@@ -71,7 +74,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 		}
 	}
 	// Fill in L4 Header
-	rp.idxs.pld = hdrLen // Will be updated as necessary by AddL4
+	rp.idxs.pld = hdrLen // Will be updated as necessary by addL4
 	if sp.L4 != nil {
 		if err := rp.addL4(sp.L4); err != nil {
 			return nil, err
@@ -82,7 +85,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 		}
 	} else {
 		// Trim buffer to the end of the last extension header (or path header,
-		// if there are no extensions)
+		// if there are no extensions), and write common header into buffer.
 		rp.Raw = rp.Raw[:rp.idxs.l4]
 		rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
 		rp.CmnHdr.Write(rp.Raw)
@@ -90,6 +93,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	return rp, nil
 }
 
+// addL4 adds a layer 4 header to an RtrPkt during creation.
 func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 	rp.L4Type = l4h.L4Type()
 	rp.l4 = l4h
@@ -116,13 +120,14 @@ func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 		// There are no extensions, so the common header NextHDr field needs to be updated.
 		rp.CmnHdr.NextHdr = rp.L4Type
 	}
-	// Trim buffer to the end of the L4 header.
+	// Trim buffer to the end of the L4 header, and write common header into buffer.
 	rp.Raw = rp.Raw[:rp.idxs.pld]
 	rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
 	rp.CmnHdr.Write(rp.Raw)
 	return nil
 }
 
+// SetPld updates/sets the payload of an RtrPkt.
 func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 	rp.pld = pld
 	var plen int
@@ -138,10 +143,11 @@ func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 	}
 	// Trim buffer to the end of the payload.
 	rp.Raw = rp.Raw[:rp.idxs.pld+plen]
-	// Update headers
+	// Update L4 header
 	if err := rp.updateL4(); err != nil {
 		return err
 	}
+	// Write common header into buffer.
 	rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
 	rp.CmnHdr.Write(rp.Raw)
 	return nil

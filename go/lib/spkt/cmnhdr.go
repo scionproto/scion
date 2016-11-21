@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	CmnHdrLen    = 8
+	CmnHdrLen    = 8 // Bytes
 	SCIONVersion = 0
 )
 

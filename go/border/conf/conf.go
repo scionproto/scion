@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package conf holds all of the global router state, for access by the
+// router's various packages.
 package conf
 
 import (
@@ -32,30 +34,45 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+// Conf is the main config structure.
 type Conf struct {
-	TopoMeta   *topology.TopoMeta
-	IA         *addr.ISD_AS
-	BR         *topology.TopoBR
-	AS         *as_conf.ASConf
+	// TopoMeta contains the names of all local infrastructure elements, a map
+	// of interface IDs to routers, and the actual topology.
+	TopoMeta *topology.TopoMeta
+	// IA is the current ISD-AS.
+	IA *addr.ISD_AS
+	// BR is the topology information of this router.
+	BR *topology.TopoBR
+	// ASConf is the local AS configuration.
+	ASConf *as_conf.ASConf
+	// HFGenBlock is the Hop Field generation block cipher instance.
 	HFGenBlock cipher.Block
-	Net        *netconf.NetConf
-	Dir        string
-	IFStates   struct {
+	// Net is the network configuration of this router.
+	Net *netconf.NetConf
+	// Dir is the configuration directory.
+	Dir string
+	// IFStates is a map of interface IDs to interface states, protected by a RWMutex.
+	IFStates struct {
 		sync.RWMutex
 		M map[spath.IntfID]IFState
 	}
 }
 
+// IFState stores the IFStateInfo capnp message, as well as the raw revocation
+// info for a given interface.
 type IFState struct {
 	P      proto.IFStateInfo
 	RawRev common.RawBytes
 }
 
+// C is a pointer to the current configuration.
 var C *Conf
 
+// Load sets up the configuration, loading it from the supplied config directory.
 func Load(id, confDir string) *common.Error {
 	var err *common.Error
 
+	// Declare a new Conf instance, and load the topology config.
 	conf := &Conf{}
 	conf.Dir = confDir
 	topoPath := filepath.Join(conf.Dir, topology.CfgName)
@@ -64,27 +81,29 @@ func Load(id, confDir string) *common.Error {
 	}
 	conf.TopoMeta = topology.Curr
 	conf.IA = conf.TopoMeta.T.IA
-
+	// Find the config for this router.
 	topoBR, ok := conf.TopoMeta.T.BR[id]
 	if !ok {
 		return common.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
 	}
 	conf.BR = &topoBR
-
+	// Load AS configuration
 	asConfPath := filepath.Join(conf.Dir, as_conf.CfgName)
 	if err = as_conf.Load(asConfPath); err != nil {
 		return err
 	}
-	conf.AS = as_conf.CurrConf
+	conf.ASConf = as_conf.CurrConf
 
-	// Generate key of length 16 with 1000 hash iterations, which is the same as
-	// the defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(conf.AS.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha1.New)
+	// Generate keys
+	// This uses 16B keys with 1000 hash iterations, which is the same as the
+	// defaults used by pycrypto.
+	hfGenKey := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha1.New)
 	if conf.HFGenBlock, err = util.InitAES(hfGenKey); err != nil {
 		return err
 	}
-
+	// Create network configuration
 	conf.Net = netconf.FromTopo(conf.BR)
+	// Save config
 	C = conf
 	return nil
 }

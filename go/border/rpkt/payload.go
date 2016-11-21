@@ -24,7 +24,7 @@ const (
 	ErrorPayloadParse    = "Payload parseing failed"
 )
 
-// No fallback for payload - a hook must be registered to read it.
+// No fallback for payload - hooks must be registered to read it.
 func (rp *RtrPkt) Payload(verify bool) (common.Payload, *common.Error) {
 	if rp.pld == nil && len(rp.hooks.Payload) > 0 {
 		_, err := rp.L4Hdr(verify)

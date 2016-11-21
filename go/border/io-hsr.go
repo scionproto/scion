@@ -14,9 +14,12 @@
 
 // +build hsr
 
+// This file handles IO using the libhsr API (via the go/border/hsr package).
+
 package main
 
 import (
+	"net"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -28,42 +31,52 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-func (r *Router) readHSRInput(q chan *rpkt.RtrPkt) {
+// readHSRInput reads batches of packets from libhsr, and dispatches them for
+// processing.
+//
+// libhsr has the concept of Ports, which correspond to the interfaces it
+// manages. In order to have per-port metrics (and to ensure each port metric
+// is only updated once), readHSRInput uses a map of port IDs to keep track of
+// which metrics need updating.
+// FIXME(kormat): the chan argument is currently unused.
+func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
+	// Allocate slice of empty packets.
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)
+	for i := range rpkts {
+		rpkts[i] = r.getPktBuf()
+	}
+	usedPorts := make([]bool, len(hsrAddrMs))
 	h := hsr.NewHSR()
+	// Run forever.
 	for {
-		usedPortIdxs := make(map[int]bool)
-		rpkts = rpkts[:cap(rpkts)]
-		for i, rp := range rpkts {
-			if rp == nil {
-				rpkts[i] = r.getPktBuf()
-			}
-		}
 		start := time.Now()
-		portIds, err := h.GetPackets(rpkts)
-		duration := time.Now().Sub(start).Seconds()
-
+		// Read packets from libhsr.
+		count, err := h.GetPackets(rpkts, usedPorts)
 		if err != nil {
 			log.Error("Error getting packets from HSR", "err", err)
+			// Zero the port counters for next loop
+			for i := range usedPorts {
+				usedPorts[i] = false
+			}
 			continue
 		}
 		timeIn := time.Now()
-		for i := range rpkts[:len(portIds)] {
+		// Iterate over received packets
+		for i := 0; i < count; i++ {
 			rp := rpkts[i]
 			rp.TimeIn = timeIn
-			labels := hsr.AddrMs[portIds[i]].Labels
-			metrics.PktsRecv.With(labels).Inc()
-			metrics.BytesRecv.With(labels).Add(float64(len(rp.Raw)))
-			//q <- rp
+			// Process packet.
 			r.processPacket(rp)
 			metrics.PktProcessTime.Add(time.Now().Sub(rp.TimeIn).Seconds())
+			// Recycle packet.
 			r.recyclePkt(rp)
-			rpkts[i] = nil
 		}
-		for _, id := range portIds {
-			if _, ok := usedPortIdxs[id]; !ok {
-				usedPortIdxs[id] = true
+		// Update port metrics
+		duration := timeIn.Sub(start).Seconds()
+		for id := range usedPorts {
+			if usedPorts[id] {
+				usedPorts[id] = false
 				labels := hsr.AddrMs[id].Labels
 				metrics.InputLoops.With(labels).Inc()
 				metrics.InputProcessTime.With(labels).Add(duration)
@@ -72,16 +85,13 @@ func (r *Router) readHSRInput(q chan *rpkt.RtrPkt) {
 	}
 }
 
-func (r *Router) writeHSROutput(rp *rpkt.RtrPkt, portID int, labels prometheus.Labels) {
-	for _, epair := range rp.Egress {
-		if epair.Dst == nil {
-			rp.Crit("No dst address set")
-			continue
-		}
-		start := time.Now()
-		hsr.SendPacket(epair.Dst, portID, rp.Raw)
-		metrics.OutputProcessTime.With(labels).Add(time.Now().Sub(start).Seconds())
-		metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
-		metrics.PktsSent.With(labels).Inc()
-	}
+// writeHSROutput sends a single output packet via libhsr.
+func (r *Router) writeHSROutput(rp *rpkt.RtrPkt, dst *net.UDPAddr, portID int,
+	labels prometheus.Labels) {
+	start := time.Now()
+	hsr.SendPacket(dst, portID, rp.Raw)
+	duration := time.Now().Sub(start).Seconds()
+	metrics.OutputProcessTime.With(labels).Add(duration)
+	metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
+	metrics.PktsSent.With(labels).Inc()
 }
