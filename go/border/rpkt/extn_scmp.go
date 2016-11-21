@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file contains the router's implementation of the SCMP hop-by-hop
+// extension.
+
 package rpkt
 
 import (
@@ -21,38 +24,40 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
-var _ RExtension = (*RSCMPExt)(nil)
+var _ rExtension = (*rSCMPExt)(nil)
 
-type RSCMPExt struct {
+// rSCMPExt is the router's representation of the SCMP extension.
+type rSCMPExt struct {
 	*scmp.Extn
 	rp  *RtrPkt
 	raw common.RawBytes
 	log.Logger
 }
 
-func RSCMPExtFromRaw(rp *RtrPkt, start, end int) (*RSCMPExt, *common.Error) {
+func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, *common.Error) {
 	var err *common.Error
-	s := &RSCMPExt{rp: rp, raw: rp.Raw[start:end]}
+	s := &rSCMPExt{rp: rp, raw: rp.Raw[start:end]}
 	s.Extn, err = scmp.ExtnFromRaw(s.raw)
 	if err != nil {
 		return nil, err
 	}
 	s.Logger = rp.Logger.New("ext", "scmp")
 	if s.Extn.Error {
-		// SCMP Errors should never generate an error response.
+		// SCMP Errors must never generate an error response.
 		rp.SCMPError = true
 	}
 	return s, nil
 }
 
-func (s *RSCMPExt) RegisterHooks(h *Hooks) *common.Error {
+func (s *rSCMPExt) RegisterHooks(h *hooks) *common.Error {
 	if s.HopByHop {
+		// If the extension's hop-by-hop flag is set, then process the payload.
 		h.Payload = append(h.Payload, s.rp.parseSCMPPayload)
 		h.Process = append(h.Process, s.rp.processSCMP)
 	}
 	return nil
 }
 
-func (s *RSCMPExt) GetExtn() (common.Extension, *common.Error) {
+func (s *rSCMPExt) GetExtn() (common.Extension, *common.Error) {
 	return s.Extn, nil
 }

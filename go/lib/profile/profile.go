@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package profile handles CPU and memory profiling. It should only be used for testing purposes,
+// and not generally enabled in production.
 package profile
 
 import (

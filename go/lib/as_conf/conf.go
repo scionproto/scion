@@ -15,6 +15,7 @@
 package as_conf
 
 import (
+	"fmt"
 	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
@@ -58,4 +59,10 @@ func Parse(data []byte, path string) *common.Error {
 	}
 	CurrConf = c
 	return nil
+}
+
+func (a ASConf) String() string {
+	return fmt.Sprintf(
+		"CertChainVersion:%d MasterASKey:%s PropagateTime:%d RegisterPath:%t RegisterTime:%d",
+		a.CertChainVersion, a.MasterASKey, a.PropagateTime, a.RegisterPath, a.RegisterTime)
 }

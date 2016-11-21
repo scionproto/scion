@@ -12,15 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
-
-import (
-	"encoding/binary"
-)
-
-const (
-	// LineLen is the number of bytes that all SCION headers are padded to a multiple of.
-	LineLen = 8
-)
-
-var Order = binary.BigEndian
+// Border is a Go implementation of the SCION border router. It is designed to
+// work with the linux network stack (the default), and/or with DPDK (via
+// libhsr and the "hsr" build flag).
+package main

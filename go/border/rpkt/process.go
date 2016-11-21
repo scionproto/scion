@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles packet processing.
+
 package rpkt
 
 import (
@@ -30,18 +32,19 @@ import (
 )
 
 const (
-	ErrorProcessPldUnsupported = "Unable to process unsupported payload type"
-	ErrorPldGet                = "Unable to retrieve payload"
+	errPldGet = "Unable to retrieve payload"
 )
 
+// NeedsLocalProcessing determines if the router needs to do more than just
+// forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	if *rp.dstIA != *conf.C.IA {
-		// Packet isn't to this IA, so just forward.
+		// Packet isn't to this ISD-AS, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
 	}
 	if rp.CmnHdr.DstType == addr.HostTypeSVC {
-		// Resolve SVC address for delivery.
+		// SVC address needs to be resolved for delivery.
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 		return nil
 	}
@@ -57,12 +60,13 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 		rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 		return nil
 	}
-	// Normal packet to local AS, just forward.
+	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	return nil
 }
 
-// No fallback for process - a hook must be registered to read it.
+// Process uses any registered hooks to process the packet. Note that there is
+// no generic fallback; if no hooks are registered, then no work is done.
 func (rp *RtrPkt) Process() *common.Error {
 	for _, f := range rp.hooks.Process {
 		ret, err := f()
@@ -78,27 +82,32 @@ func (rp *RtrPkt) Process() *common.Error {
 	return nil
 }
 
+// processDestSelf handles packets whose destination is this router. It
+// determines the payload type, and dispatches the processing to the
+// appropriate method.
 func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
 	cpld, ok := rp.pld.(*spkt.CtrlPld)
 	if !ok {
-		return HookError, common.NewError(ErrorProcessPldUnsupported,
+		// FIXME(kormat): handle SCMP packets sent to this router.
+		return HookError, common.NewError("Unable to process unsupported payload type",
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	pld := cpld.SCION
+	// Determine the type of SCION control payload.
 	switch pld.Which() {
 	case proto.SCION_Which_ifid:
 		ifid, err := pld.Ifid()
 		if err != nil {
-			return HookError, common.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		return rp.processIFID(ifid)
 	case proto.SCION_Which_pathMgmt:
 		pathMgmt, err := pld.PathMgmt()
 		if err != nil {
-			return HookError, common.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		return rp.processPathMgmtSelf(pathMgmt)
 	default:
@@ -107,14 +116,16 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	}
 }
 
+// processIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
 func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
+	// Set the RelayIF field in the payload to the current interface ID.
 	pld.SetRelayIF(uint16(*rp.ifCurr))
 	if err := rp.SetPld(rp.pld); err != nil {
 		return HookError, err
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
-	// Create base packet
+	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
 		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
 		DstIA: conf.C.IA, DstHost: addr.SvcBS.Multicast(),
@@ -123,11 +134,12 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	if err != nil {
 		return HookError, err
 	}
-	// Set payload
+	// Use updated payload.
 	if err := fwdrp.SetPld(rp.pld); err != nil {
 		return HookError, common.NewError("Error setting IFID forwarding payload", err.Ctx...)
 	}
 	fwdrp.ifCurr = rp.ifCurr
+	// Resolve SVC address.
 	if _, err := fwdrp.RouteResolveSVC(); err != nil {
 		return HookError, err
 	}
@@ -135,12 +147,13 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	return HookFinish, nil
 }
 
+// processPathMgmtSelf handles Path Management SCION control messages.
 func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *common.Error) {
 	switch pathMgmt.Which() {
 	case proto.PathMgmt_Which_ifStateInfos:
 		ifStates, err := pathMgmt.IfStateInfos()
 		if err != nil {
-			return HookError, common.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		callbacks.ifStateUpd(ifStates)
 	default:
@@ -150,6 +163,7 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 	return HookFinish, nil
 }
 
+// processSCMP is a processing hook used to handle SCMP payloads.
 func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(kormat): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
@@ -157,10 +171,14 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
 		pld := rp.pld.(*scmp.Payload)
 		callbacks.revTokenF(pld.Info.(*scmp.InfoRevocation).RevToken)
+	default:
+		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class, "type", hdr.Type)
 	}
 	return HookFinish, nil
 }
 
+// getSVCNamesMap returns the slice of instance names and addresses for a given
+// SVC address.
 func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, *common.Error) {
 	tm := conf.C.TopoMeta
 	var names []string
@@ -181,7 +199,7 @@ func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, 
 	if len(elemMap) == 0 {
 		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_UnreachHost, nil)
 		return nil, nil, common.NewErrorData(
-			"No instances found for SVC address", sdata, "svc", svc)
+			"No instances found for SVC address", sdata, "SVC", svc)
 	}
 	return names, elemMap, nil
 }

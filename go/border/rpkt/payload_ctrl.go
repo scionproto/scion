@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles SCION control message payloads (i.e. messages sent between
+// instances of the SCION infrastructure).
+
 package rpkt
 
 import (
@@ -30,6 +33,8 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error)
 	return HookFinish, cpld, nil
 }
 
+// updateCtrlPld writes a new payload instance to the underlying buffer, and
+// updates the layer 4 and common headers accordingly.
 func (rp *RtrPkt) updateCtrlPld() *common.Error {
 	// Reset buffer to full size
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]

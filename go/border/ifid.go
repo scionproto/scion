@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles generating periodic Interface ID (IFID) packets that are
+// sent to the Beacon Service in the neighbouring AS. These function as both
+// keep-alives, and to inform the neighbour of the local interface ID.
+
 package main
 
 import (
@@ -29,11 +33,12 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-const IFIDFreq = 1 * time.Second
+// ifIDFreq is how often IFID packets are sent to the neighbouring AS.
+const ifIDFreq = 1 * time.Second
 
 func (r *Router) SyncInterface() {
 	defer liblog.PanicLog()
-	for range time.Tick(IFIDFreq) {
+	for range time.Tick(ifIDFreq) {
 		r.GenIFIDPkts()
 	}
 }
@@ -44,6 +49,7 @@ func (r *Router) GenIFIDPkts() {
 	}
 }
 
+// GenIFIDPkt generates IFID packets.
 func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 	logger := log.New("ifid", ifid)
 	intf := conf.C.Net.IFs[ifid]
@@ -58,7 +64,6 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 		logger.Error("Error creating IFID packet", err.Ctx...)
 		return
 	}
-	// Set egress
 	rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
 	// Create IFID msg
 	scion, ifidMsg, err := proto.NewIFIDMsg()

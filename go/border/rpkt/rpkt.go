@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package rpkt contains the router representation of a SCION packet.
+//
+// This differs from the higher-level github.com/netsec-ethz/scion/go/lib/spkt
+// package by being tied to an underlying buffer, which greatly improves
+// processing performance at the expense of flexibility.
 package rpkt
 
 import (
@@ -30,9 +35,12 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+// pktBufSize is the maxiumum size of a packet buffer.
 // FIXME(kormat): this should be reduced as soon as we respect the actual link MTU.
 const pktBufSize = 1 << 16
 
+// callbacks is an anonymous struct used for functions supplied by the router
+// for various processing tasks.
 var callbacks struct {
 	locOutFs   map[int]OutputFunc
 	intfOutFs  map[spath.IntfID]OutputFunc
@@ -40,6 +48,8 @@ var callbacks struct {
 	revTokenF  func(common.RawBytes)
 }
 
+// Init takes callback functions provided by the router and stores them for use
+// by the rpkt package.
 func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
 	ifStateUpd func(proto.IFStateInfos), revTokenF func(common.RawBytes)) {
 	callbacks.locOutFs = locOut
@@ -66,7 +76,7 @@ type RtrPkt struct {
 	DirTo Dir
 	// Ingress contains the incoming overlay metadata the packet arrived with, and the (list of)
 	// interface(s) it arrived on. (RECV)
-	Ingress AddrIFPair
+	Ingress addrIFPair
 	// Egress is a list of function & address pairs that determine how and where to the packet will
 	// be sent. (PROCESS/ROUTE)
 	Egress []EgressPair
@@ -94,10 +104,10 @@ type RtrPkt struct {
 	// upFlag indicates if the packet is currently on an up path. (PARSE)
 	upFlag *bool
 	// HBHExt is the list of Hop-by-hop extensions, if any. (PARSE)
-	HBHExt []RExtension
+	HBHExt []rExtension
 	// E2EExt is the list of end2end extensions, if any. (PARSE, only if needed)
 	// TODO(kormat): The router currently ignores these.
-	E2EExt []RExtension
+	E2EExt []rExtension
 	// L4Type is the type of the L4 protocol. If there isn't an L4 header, this will be L4None
 	// (PROCESS, only if needed)
 	L4Type common.L4ProtocolType
@@ -107,7 +117,7 @@ type RtrPkt struct {
 	pld common.Payload
 	// hooks are registered callbacks to override/supplement normal processing. Their main use is
 	// for extensions to modify packet handling.  (PARSE/PROCESS, only if needed)
-	hooks Hooks
+	hooks hooks
 	// SCMPError flags if the packet is an SCMP Error packet, in which case it should never trigger
 	// an error response packet. (PARSE, if SCMP extension header is present)
 	SCMPError bool
@@ -122,12 +132,18 @@ func NewRtrPkt() *RtrPkt {
 	return r
 }
 
+// Dir represents a packet direction. It is used to designate where a packet
+// came from, and where it is going to.
 type Dir int
 
 const (
+	// DirUnset is the zero-value for Dir, and means the direction hasn't been initialized.
 	DirUnset Dir = iota
+	// DirSelf means the packet is going to/coming from this router.
 	DirSelf
+	// DirLocal means the packet is going to/coming from the local ISD-AS.
 	DirLocal
+	// DirExternal means the packet is going to/coming from another ISD-AS.
 	DirExternal
 )
 
@@ -146,19 +162,26 @@ func (d Dir) String() string {
 	}
 }
 
-type AddrIFPair struct {
+// addrIFPair contains the overlay source/destination addresses, as well as the
+// list of associated interface IDs.
+type addrIFPair struct {
 	Src   *net.UDPAddr
 	Dst   *net.UDPAddr
 	IfIDs []spath.IntfID
 }
 
-type OutputFunc func(*RtrPkt)
+// OutputFunc is the type of callback required for sending a packet.
+type OutputFunc func(*RtrPkt, *net.UDPAddr)
 
+// EgressPair contains the output function to send a packet with, along with an
+// overlay destination address.
 type EgressPair struct {
 	F   OutputFunc
 	Dst *net.UDPAddr
 }
 
+// packetIdxs provides offsets into a packet buffer to the start of various
+// fields. It is used heavily for parsing packets.
 type packetIdxs struct {
 	srcIA      int
 	srcHost    int
@@ -172,17 +195,28 @@ type packetIdxs struct {
 	pld        int
 }
 
+// hdrIdx provides the protocol type and index of a given L4/extension header.
 type hdrIdx struct {
 	Type  common.L4ProtocolType
 	Index int
 }
 
+// extnIdx provides the extension type and index of an extension header.
 type extnIdx struct {
 	Type  common.ExtnType
 	Index int
 }
 
+// Reset resets an RtrPkt to it's ~initial state, so it can be reused. Note
+// that for performance reasons it doesn't actually clear the raw buffer, so
+// reuse of an RtrPkt instance must ensure that the length of the buffer is
+// set to the length of the new data, to prevent any of the old data from
+// leaking through.
+//
+// Fields that are assumed to be overwritten (and hence aren't reset):
+// Id, TimeIn, CmnHdr, Logger
 func (rp *RtrPkt) Reset() {
+	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
 	rp.DirFrom = DirUnset
 	rp.DirTo = DirUnset
@@ -205,11 +239,14 @@ func (rp *RtrPkt) Reset() {
 	rp.L4Type = common.L4None
 	rp.l4 = nil
 	rp.pld = nil
-	rp.hooks = Hooks{}
+	rp.hooks = hooks{}
 	rp.SCMPError = false
-	rp.Logger = nil
 }
 
+// ToScnPkt converts this RtrPkt into an spkt.ScnPkt. The verify argument
+// defines whether verification errors should cause this conversion to fail or
+// not. Setting this to false is useful when trying to convert a packet that is
+// already known to have errors, for the purpose of sending an error response.
 func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	var err *common.Error
 	sp := &spkt.ScnPkt{}
@@ -225,12 +262,18 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	if sp.DstHost, err = rp.DstHost(); err != nil {
 		return nil, err
 	}
+	// spath.Path uses offsets relative to the start of its buffer, whereas the
+	// SCION common header uses offsets relative to the start of the packet, so
+	// convert from one to the other.
 	sp.Path = &spath.Path{
 		Raw:    rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLen],
 		InfOff: rp.CmnHdr.CurrInfoF - uint8(rp.idxs.path),
 		HopOff: rp.CmnHdr.CurrHopF - uint8(rp.idxs.path),
 	}
 	for _, re := range rp.HBHExt {
+		// Extract the higher-level SExtension (which is self-contained) from
+		// the RtrPkt's rExtension (which may be tied to the underlying packet
+		// buffer).
 		se, err := re.GetExtn()
 		if err != nil {
 			return nil, err
@@ -238,6 +281,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 		sp.HBHExt = append(sp.HBHExt, se)
 	}
 	for _, re := range rp.E2EExt {
+		// Same as for the HBHExts.
 		se, err := re.GetExtn()
 		if err != nil {
 			return nil, err
@@ -253,6 +297,9 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	return sp, nil
 }
 
+// GetRaw returns slices of the underlying buffer corresponding to part of the
+// packet identified by the blk argument. This is used, for example, by SCMP to
+// quote parts of the packet in an error response.
 func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	switch blk {
 	case scmp.RawCmnHdr:
@@ -271,7 +318,8 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 }
 
 func (rp *RtrPkt) String() string {
-	// Pre-fetch required attributes
+	// Pre-fetch required attributes, deliberately ignoring errors so as to
+	// display as much information as can be gathered.
 	rp.SrcIA()
 	rp.SrcHost()
 	rp.DstIA()
@@ -282,6 +330,9 @@ func (rp *RtrPkt) String() string {
 		rp.Id, rp.DirFrom, rp.DirTo, rp.srcIA, rp.srcHost, rp.dstIA, rp.dstHost, rp.infoF, rp.hopF)
 }
 
+// ErrStr is a small utility method to combine an error message with a string
+// representation of the packet, as well as a hex representation of the raw
+// packet buffer.
 func (rp *RtrPkt) ErrStr(desc string) string {
 	return fmt.Sprintf("Error: %v\n  RtrPkt: %v\n  Raw: %v", desc, rp, rp.Raw)
 }
