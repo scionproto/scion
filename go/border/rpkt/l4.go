@@ -25,8 +25,11 @@ const (
 	ErrorL4Unsupported = "Unsupported L4 header type"
 )
 
+// L4Hdr finds, parses and returns the layer 4 header, if any. The verify
+// argument determines whether to verify the L4 header or not.
 func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 	if rp.l4 == nil {
+		// First, find if there is an L4 header.
 		if found, err := rp.findL4(); !found || err != nil {
 			return nil, err
 		}
@@ -45,10 +48,12 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 			}
 			rp.l4 = udp
 			rp.idxs.pld = rp.idxs.l4 + l4.UDPLen
-		case common.L4SSP:
-			//rp.l4 = &l4.SSP{}
-		case common.L4TCP:
-			//rp.l4 = &l4.TCP{}
+		/*
+			case common.L4SSP:
+				rp.l4 = &l4.SSP{}
+			case common.L4TCP:
+				rp.l4 = &l4.TCP{}
+		*/
 		default:
 			// Can't return an SCMP error as we don't understand the L4 header
 			return nil, common.NewError(ErrorL4Unsupported, "type", rp.L4Type)
@@ -62,16 +67,25 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 	return rp.l4, nil
 }
 
+// findL4 finds the layer 4 header, if any.
 func (rp *RtrPkt) findL4() (bool, *common.Error) {
+	// Start from the next unparsed header, if any.
 	nextHdr := rp.idxs.nextHdrIdx.Type
 	offset := rp.idxs.nextHdrIdx.Index
 	for offset < len(rp.Raw) {
 		currHdr := nextHdr
-		_, ok := common.L4Protocols[currHdr]
-		if ok { // Reached L4 protocol
+		if _, ok := common.L4Protocols[currHdr]; ok {
+			// Reached L4 protocol
 			rp.L4Type = nextHdr
 			rp.idxs.l4 = offset
 			break
+		} else if currHdr != common.End2EndClass {
+			// If it's not a recognised L4 header, and not an end2end
+			// extension, then we can't proceed any further.
+			// Any hop-by-hop extensions should already have been parsed before this.
+			// FIXME(kormat): handle SCMP errors for unknown L4 protocol headers.
+			return false, common.NewError("Unsupported L4 protocol", "type",
+				currHdr, "offset", offset)
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
 		hdrLen := int((rp.Raw[offset+1] + 1) * common.LineLen)
@@ -85,7 +99,7 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 	}
 	if offset > len(rp.Raw) {
 		// Can't generally return an SCMP error as parsing the headers has failed.
-		return false, common.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		return false, common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	rp.idxs.nextHdrIdx.Type = nextHdr
 	rp.idxs.nextHdrIdx.Index = offset

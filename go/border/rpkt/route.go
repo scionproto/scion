@@ -43,7 +43,7 @@ func (rp *RtrPkt) Route() *common.Error {
 			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
 	for _, epair := range rp.Egress {
-		epair.F(rp)
+		epair.F(rp, epair.Dst)
 	}
 	return nil
 }
@@ -81,7 +81,7 @@ func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResu
 	if err != nil {
 		return HookError, err
 	}
-	// Only send once per IP
+	// Only send once per IP address.
 	seen := make(map[string]bool)
 	for _, elem := range elemMap {
 		strIP := string(elem.Addr.IP)
@@ -116,7 +116,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	if *rp.dstIA == *conf.C.IA {
-		// Destination is a local host
+		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
 			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
 				"hopF", rp.hopF)
@@ -133,7 +133,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 			return HookError, err
 		}
 	}
-	// Destination is remote, so forward to egress router
+	// Destination is in a remote ISD-AS, so forward to egress router.
 	nextIF, err := rp.IFNext()
 	if err != nil {
 		return HookError, err

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file contains the main router processing loop.
+
 package main
 
 import (
@@ -30,12 +32,24 @@ import (
 )
 
 type Router struct {
-	Id        string
-	inQs      []chan *rpkt.RtrPkt
-	locOutFs  map[int]rpkt.OutputFunc
+	// Id is the SCION element ID, e.g. "br4-21-9".
+	Id string
+	// inQs is a slice of channels that incoming packets are received from.
+	// FIXME(kormat): maybe remove these in favour of just calling
+	// processPacket directly.
+	inQs []chan *rpkt.RtrPkt
+	// locOutFs is a slice of functions for sending packets to local
+	// destinations (i.e. within the local ISD-AS), indexed by the local
+	// address id.
+	locOutFs map[int]rpkt.OutputFunc
+	// intfOutFs is a slice of functions for sending packets to neighbouring
+	// ISD-ASes, indexed by the interface ID of the relevant link.
 	intfOutFs map[spath.IntfID]rpkt.OutputFunc
-	freePkts  chan *rpkt.RtrPkt
-	revInfoQ  chan common.RawBytes
+	// freePkts is a buffered channel for recycled packets. See
+	// Router.recyclePkt
+	freePkts chan *rpkt.RtrPkt
+	// revInfoQ is a channel for handling RevInfo payloads.
+	revInfoQ chan common.RawBytes
 }
 
 func NewRouter(id, confDir string) (*Router, *common.Error) {
@@ -46,6 +60,8 @@ func NewRouter(id, confDir string) (*Router, *common.Error) {
 	return r, nil
 }
 
+// Run sets up networking, and starts go routines for handling the main packet
+// processing as well as various other router functions.
 func (r *Router) Run() *common.Error {
 	if err := r.setupNet(); err != nil {
 		return err
@@ -71,6 +87,8 @@ func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
 	}
 }
 
+// processPacket is the heart of the router's packet handling. It delegates
+// everything from parsing the incoming packet, to routing the outgoing packet.
 func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
 	if assert.On {
@@ -81,28 +99,41 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
 	}
+	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	if err := rp.Parse(); err != nil {
 		r.handlePktError(rp, err, "Error parsing packet")
 		return
 	}
+	// Validation looks for errors in the packet that didn't break basic
+	// parsing.
 	if err := rp.Validate(); err != nil {
 		r.handlePktError(rp, err, "Error validating packet")
 		return
 	}
+	// Check if the packet needs to be processed locally, and if so register
+	// hooks for doing so.
 	if err := rp.NeedsLocalProcessing(); err != nil {
 		rp.Error("Error checking for local processing", err.Ctx...)
 		return
 	}
+	// Parse the packet payload, if a previous step has registered a relevant
+	// hook for doing so.
 	if _, err := rp.Payload(true); err != nil {
+		// Any errors at this point are application-level, and hence not
+		// calling handlePktError, as no SCMP errors will be sent.
 		rp.Error("Error parsing payload", err.Ctx...)
 		return
 	}
+	// Process the packet, if a previous step has registered a relevant hook
+	// for doing so.
 	if err := rp.Process(); err != nil {
 		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
+	// If the packet's destination is this router, there's no need to forward
+	// it.
 	if rp.DirTo != rpkt.DirSelf {
 		if err := rp.Route(); err != nil {
 			r.handlePktError(rp, err, "Error routing packet")
@@ -110,6 +141,22 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	}
 }
 
+// getPktBuf implements a leaky buffer list, as described
+// here: https://golang.org/doc/effective_go.html#leaky_buffer
+func (r *Router) getPktBuf() *rpkt.RtrPkt {
+	select {
+	case rp := <-r.freePkts:
+		// Got one
+		metrics.PktBufReuse.Inc()
+		return rp
+	default:
+		// None available, allocate a new one
+		metrics.PktBufNew.Inc()
+		return rpkt.NewRtrPkt()
+	}
+}
+
+// recyclePkt readies a packet for the leaky buffer list (see getPktBuf).
 func (r *Router) recyclePkt(rp *rpkt.RtrPkt) {
 	rp.Reset()
 	select {

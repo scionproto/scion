@@ -14,11 +14,15 @@
 
 // +build hsr
 
+// This file handles configuring the network interfaces that are managed by
+// libhsr (via go/border/hsr).
+
 package main
 
 import (
 	"flag"
 	"fmt"
+	"net"
 	"path/filepath"
 	"strings"
 
@@ -35,8 +39,10 @@ import (
 )
 
 var (
-	hsrIPs    = flag.String("hsr.ips", "", "Comma-separated list of IPs for HSR")
-	hsrIPMap  = make(map[string]bool)
+	hsrIPs = flag.String("hsr.ips", "", "Comma-separated list of IPs for HSR")
+	// hsrIPMap is used at startup to check if a given IP is managed by libhsr.
+	hsrIPMap = make(map[string]bool)
+	// See hsr.AddrMs
 	hsrAddrMs []hsr.AddrMeta
 )
 
@@ -68,8 +74,8 @@ func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: rpkt.DirLocal, IfIDs: ifids, Labels: labels})
-	r.locOutFs[idx] = func(rp *rpkt.RtrPkt) {
-		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
+	r.locOutFs[idx] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
+		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
@@ -82,8 +88,8 @@ func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
-	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt) {
-		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
+		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }

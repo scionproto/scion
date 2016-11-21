@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file implements the router's handling of the One Hop Path hop-by-hop
+// extension.
+
 package rpkt
 
 import (
@@ -25,6 +28,7 @@ import (
 
 var _ RExtension = (*ROneHopPath)(nil)
 
+// ROneHopPath is the router's representation of the One Hop Path extension.
 type ROneHopPath struct {
 	log.Logger
 	rp *RtrPkt
@@ -38,19 +42,24 @@ func ROneHopPathFromRaw(rp *RtrPkt) (*ROneHopPath, *common.Error) {
 	return o, nil
 }
 
-func (o *ROneHopPath) RegisterHooks(hooks *Hooks) *common.Error {
-	hooks.HopF = append(hooks.HopF, o.HopF)
+func (o *ROneHopPath) RegisterHooks(h *hooks) *common.Error {
+	// Override Hop Field parsing.
+	h.HopF = append(h.HopF, o.HopF)
 	return nil
 }
 
+// HopF generates and returns a new hop field on ingress to an AS.
 func (o *ROneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	if o.rp.DirFrom == DirLocal {
+		// The existing HopF is still in use, so use HookContinue to read that
+		// instead.
 		return HookContinue, nil, nil
 	}
 	infoF, err := o.rp.InfoF()
 	if err != nil {
 		return HookError, nil, err
 	}
+	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
 	prevIdx := o.rp.CmnHdr.CurrHopF - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
 	inIF := conf.C.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
@@ -61,6 +70,8 @@ func (o *ROneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	}
 	hopF.Mac = mac
 	hopF.Write()
+	// Return HookContinue so that the default HopF parsing will read the newly
+	// created HopF out of the raw buffer.
 	return HookContinue, nil, nil
 }
 

@@ -36,7 +36,7 @@ const (
 
 func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	if *rp.dstIA != *conf.C.IA {
-		// Packet isn't to this IA, so just forward.
+		// Packet isn't to this ISD-AS, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
 	}
@@ -57,12 +57,12 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 		rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 		return nil
 	}
-	// Normal packet to local AS, just forward.
+	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	return nil
 }
 
-// No fallback for process - a hook must be registered to read it.
+// No fallback for process - hooks must be registered to read it.
 func (rp *RtrPkt) Process() *common.Error {
 	for _, f := range rp.hooks.Process {
 		ret, err := f()
