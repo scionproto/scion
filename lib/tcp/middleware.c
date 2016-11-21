@@ -107,6 +107,7 @@ void tcpmw_clear_state(struct conn_state *s, int free_app_buf){
     s->app_buf = NULL;
     s->app_buf_len = 0;
     s->app_buf_written = 0;
+    s->_poll_err = 0;
     s->tcp_buf = NULL;
     s->tcp_buf_len = 0;
     s->tcp_buf_written = 0;
@@ -500,19 +501,28 @@ void *tcpmw_poll_loop(void* dummy){
         }
         /* Iterate over results */
         struct conn_state *s;
-        for (int i = 0; i < num_fds && rc > 0; i++){
-            if (pollfds[i].revents == 0){
-                zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events);
-                continue;
-            }
-            /* There is an event */
-            rc--;
+        for (int i = 0; i < num_fds; i++){
             s = tcpmw_fd2state(pollfds[i].fd);
             if (s == NULL){
                 zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL");
                 continue;
             }
+            /* No event */
+            if (pollfds[i].revents == 0){
+                zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events);
+                /* Check for closed/failed fd */
+                if (s->_poll_err){
+                    zlog_debug(zc_tcp, "tcpmw_poll_loop() closing inactive fd=%d",pollfds[i].fd);
+                    tcpmw_clear_fd_state(s, 1);
+                }
+                continue;
+            }
 
+            /* There is an event */
+            if (pollfds[i].revents & (POLLERR|POLLHUP)){
+                s->_poll_err = 1;
+                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd);
+            }
             if (pollfds[i].revents & POLLIN){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLIN: fd=%d",pollfds[i].fd);
                 tcpmw_send_to_tcp(s);
@@ -520,12 +530,6 @@ void *tcpmw_poll_loop(void* dummy){
             if (pollfds[i].revents & POLLOUT){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLOUT: fd=%d",pollfds[i].fd);
                 tcpmw_send_to_app(s);
-            }
-            /* Error */
-            if (pollfds[i].revents & (POLLERR|POLLHUP)){
-                tcpmw_clear_fd_state(s, 1);
-                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd);
-                continue;
             }
         }
         usleep(TCP_POLLING_TOUT*1000);

@@ -40,7 +40,7 @@
 #define SOCK_PATH_LEN 36  /* of "accept" socket */
 #define CMD_SIZE 4
 #define RESP_SIZE (CMD_SIZE + 1)
-#define TCPMW_BUFLEN 512
+#define TCPMW_BUFLEN 8192
 #define PLD_SIZE 2  /* Each command/reply is prepended with 2B payload len field. */
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
@@ -77,6 +77,7 @@ struct conn_state{
     char *app_buf;  /* Data from app -> TCP stack */
     int app_buf_len;  /* Its len */
     int app_buf_written;  /* Bytes sent already to TCP */
+    int _poll_err;  /* fd is closed or failed (as notified by poll())*/
     struct netbuf *_netbuf;  /* Raw netconn buffer */
     char *tcp_buf;  /* Data from TCP -> app */
     int tcp_buf_len;  /* Its len */

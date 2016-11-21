@@ -37,7 +37,7 @@ s_ip = haddr_parse(1, "127.1.1.1")
 c_isd_as = ISD_AS("2-26")
 c_ip = haddr_parse(1, "127.2.2.2")
 # TODO(PSz): test with 0
-MAX_MSG_SIZE = 5000
+MAX_MSG_SIZE = 500000
 
 
 def get_msg():
@@ -94,7 +94,7 @@ def client(svc, counter):
     print("To receive: %dB" % size)
     while len(tmp) != size:
         tmp += s.recv(1024)
-        print('%d ' % len(tmp), end="", flush=True)
+        print('.', end="", flush=True)
     print("\nMSG received, len, svc", len(tmp), svc)
     time_elapsed = time.time()-start
     print("Time elapsed: %s, speed %.2fkB/s\n" % (time_elapsed,
