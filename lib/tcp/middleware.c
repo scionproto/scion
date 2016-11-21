@@ -503,8 +503,8 @@ void *tcpmw_poll_loop(void* dummy){
         struct conn_state *s;
         for (int i = 0; i < num_fds; i++){
             s = tcpmw_fd2state(pollfds[i].fd);
-            if (s == NULL){
-                zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL");
+            if (s == NULL || !s->active){
+                zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL || !s->active");
                 continue;
             }
             /* No event */
