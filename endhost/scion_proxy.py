@@ -112,6 +112,12 @@ DEFAULT_SERVER_PORT = 8080
 LOG_BASE = 'logs/scion_proxy'
 CONN_ID_BYTES = 4
 
+KBASE_SECURITY_WARN = (
+    'WARNING: the SCION knowledge-base is insecure, as it exposes '
+    'browswing information without any protective authentication or '
+    'encryption. It should not be used outside of demo purposes.'
+)
+
 
 class ConnectionHandler(object):
     """
@@ -512,8 +518,10 @@ def main():
                         action="store_true")
     parser.add_argument("-s", "--scion", help='Use SCION multi-path socket',
                         action="store_true")
-    parser.add_argument("-k", "--kbase", help='Enable SCION knowledge-base',
-                        action="store_true")
+    parser.add_argument(
+        "--WARNING-insecure-kbase", dest="kbase", action="store_true",
+        help='Enable SCION knowledge-base. %s' % KBASE_SECURITY_WARN,
+    )
     parser.add_argument("-t", "--topo",
                         help='Topology file SCION knowledge-base should use',
                         default='topology/Wide.topo')
@@ -557,7 +565,9 @@ def main():
         logging.info("SCION-socket mode is on.")
         if args.kbase:
             if args.forward:
-                logging.info("SCION-socket knowledge-base is enabled.")
+                logging.warning(
+                    "*** SCION-socket knowledge-base is enabled. %s ***",
+                    KBASE_SECURITY_WARN)
                 kbase = SocketKnowledgeBase(args.topo, args.loc,
                                             ISD_AS(args.source_isd_as),
                                             ISD_AS(args.target_isd_as))
