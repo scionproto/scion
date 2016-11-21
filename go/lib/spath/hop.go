@@ -116,6 +116,7 @@ func (h *HopField) Verify(block cipher.Block, tsInt uint32, prev common.RawBytes
 	return nil
 }
 
+// CalcMac calculates the CBC MAC of a Hop Field and its preceeding Hop Field, if any.
 func (h *HopField) CalcMac(block cipher.Block, tsInt uint32,
 	prev common.RawBytes) (common.RawBytes, *common.Error) {
 	all := make(common.RawBytes, macInputLen)

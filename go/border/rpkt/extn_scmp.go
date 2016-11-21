@@ -39,7 +39,7 @@ func RSCMPExtFromRaw(rp *RtrPkt, start, end int) (*RSCMPExt, *common.Error) {
 	}
 	s.Logger = rp.Logger.New("ext", "scmp")
 	if s.Extn.Error {
-		// SCMP Errors should never generate an error response.
+		// SCMP Errors must never generate an error response.
 		rp.SCMPError = true
 	}
 	return s, nil

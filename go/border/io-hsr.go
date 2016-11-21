@@ -32,7 +32,7 @@ func (r *Router) readHSRInput(q chan *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)
 	h := hsr.NewHSR()
-	for {
+	for { // Run forever.
 		usedPortIdxs := make(map[int]bool)
 		rpkts = rpkts[:cap(rpkts)]
 		for i, rp := range rpkts {

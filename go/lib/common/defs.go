@@ -19,6 +19,7 @@ import (
 )
 
 const (
+	// LineLen is the number of bytes that all SCION headers are padded to a multiple of.
 	LineLen = 8
 )
 

@@ -111,6 +111,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 }
 
 func (r *Router) recyclePkt(rp *rpkt.RtrPkt) {
+	// https://golang.org/doc/effective_go.html#leaky_buffer
 	rp.Reset()
 	select {
 	case r.freePkts <- rp:

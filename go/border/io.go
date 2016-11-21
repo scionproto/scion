@@ -47,7 +47,7 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath
 	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
-	for {
+	for { // Run forever.
 		metrics.InputLoops.With(labels).Inc()
 		rp := r.getPktBuf()
 		rp.DirFrom = dirFrom
@@ -81,7 +81,7 @@ func (r *Router) writeLocalOutput(out *net.UDPConn, labels prometheus.Labels, rp
 			rp.Error("Error sending packet", "err", err)
 			return
 		} else if count != len(rp.Raw) {
-			rp.Error("Unable to write full packet", "len", count)
+			rp.Error("Unable to write full packet", "len", len(rp.Raw), "written", count)
 			return
 		}
 		t := time.Now().Sub(start).Seconds()

@@ -31,6 +31,7 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+// IFStateFreq is how often the router will request an IFState update from the beacon service.
 const IFStateFreq = 30 * time.Second
 
 func (r *Router) IFStateUpdate() {
@@ -42,7 +43,7 @@ func (r *Router) IFStateUpdate() {
 }
 
 func (r *Router) GenIFStateReq() {
-	// Pick first local address as source
+	// Pick first local address from topology as source.
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
@@ -80,7 +81,7 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 		log.Error("Unable to extract IFStateInfos from message", "err", serr)
 		return
 	}
-	// Convert to map
+	// Convert IFState infos to map
 	m := make(map[spath.IntfID]conf.IFState)
 	for i := 0; i < infos.Len(); i++ {
 		info := infos.At(i)
@@ -103,7 +104,7 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 			gauge.Set(0)
 		}
 	}
-	// Lock for writing, and replace existing map
+	// Lock local IFState config for writing, and replace existing map
 	conf.C.IFStates.Lock()
 	conf.C.IFStates.M = m
 	conf.C.IFStates.Unlock()

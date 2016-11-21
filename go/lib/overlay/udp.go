@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	// EndhostPort is the overlay port that the dispatcher binds to on non-routers. Subject to
+	// change during standardisation.
 	EndhostPort = 30041
 )
 

@@ -29,6 +29,7 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+// IFIDFreq is how often IFID packets are sent to the neighbouring AS.
 const IFIDFreq = 1 * time.Second
 
 func (r *Router) SyncInterface() {
@@ -58,7 +59,6 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 		logger.Error("Error creating IFID packet", err.Ctx...)
 		return
 	}
-	// Set egress
 	rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
 	// Create IFID msg
 	scion, ifidMsg, err := proto.NewIFIDMsg()

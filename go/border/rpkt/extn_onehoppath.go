@@ -51,6 +51,7 @@ func (o *ROneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	if err != nil {
 		return HookError, nil, err
 	}
+	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
 	prevIdx := o.rp.CmnHdr.CurrHopF - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
 	inIF := conf.C.Net.IFAddrMap[o.rp.Ingress.Dst.String()]

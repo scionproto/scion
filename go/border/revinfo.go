@@ -73,7 +73,7 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 }
 
 func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
-	// Pick first local address as source
+	// Pick first local address from topology as source.
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
