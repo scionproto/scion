@@ -4,28 +4,28 @@
 	"package": [
 		{
 			"checksumSHA1": "YNhwvoScUezhDwq58QMY8vUwuqg=",
-			"license": "MIT + 3-BSD",
+			"license": "MIT,3-BSD",
 			"path": "github.com/axw/gocov",
 			"revision": "54b98cfcac0c63fb3f9bd8e7ad241b724d4e985b",
 			"revisionTime": "2016-07-15T00:47:32Z"
 		},
 		{
 			"checksumSHA1": "pft3O8akoT6M48s30CMbtue1++U=",
-			"license": "MIT + 3-BSD",
+			"license": "MIT,3-BSD",
 			"path": "github.com/axw/gocov/gocov",
 			"revision": "54b98cfcac0c63fb3f9bd8e7ad241b724d4e985b",
 			"revisionTime": "2016-07-15T00:47:32Z"
 		},
 		{
 			"checksumSHA1": "+MyrtwKmwRfTBmwFffzbPxqrjFw=",
-			"license": "MIT + 3-BSD",
+			"license": "MIT,3-BSD",
 			"path": "github.com/axw/gocov/gocov/internal/testflag",
 			"revision": "54b98cfcac0c63fb3f9bd8e7ad241b724d4e985b",
 			"revisionTime": "2016-07-15T00:47:32Z"
 		},
 		{
 			"checksumSHA1": "ms9JKYBjHnxRYsJRRkR8M/Zm81o=",
-			"license": "MIT + 3-BSD",
+			"license": "MIT,3-BSD",
 			"path": "github.com/axw/gocov/gocovutil",
 			"revision": "54b98cfcac0c63fb3f9bd8e7ad241b724d4e985b",
 			"revisionTime": "2016-07-15T00:47:32Z"
