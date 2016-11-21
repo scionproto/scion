@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file contains the router-level handling of packet errors. When
+// possible/allowed, a relevant SCMP error message reply is sent to the sender.
+
 package main
 
 import (
@@ -25,6 +28,9 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
+// handlePktError is called for protocol-level packet errors. If there's SCMP
+// metadata attached to the error object, then an SCMP error response is
+// generated and sent.
 func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string) {
 	sdata, ok := perr.Data.(*scmp.ErrData)
 	if ok {
@@ -52,8 +58,10 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	reply.Route()
 }
 
+// createSCMPErrorReply generates an SCMP error reply to the supplied packet.
 func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	info scmp.Info) (*rpkt.RtrPkt, *common.Error) {
+	// Create generic ScnPkt reply
 	sp, err := r.createReplyScnPkt(rp)
 	if err != nil {
 		return nil, err
@@ -96,6 +104,8 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	return reply, nil
 }
 
+// createReplyScnPkt creates a generic ScnPkt reply, by converting the RtrPkt
+// to an ScnPkt, then reversing the ScnPkt, and setting the reply source address.
 func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error) {
 	sp, err := rp.ToScnPkt(false)
 	if err != nil {
@@ -110,6 +120,8 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 	return sp, nil
 }
 
+// replyEgress calculates the corresponding egress function and destination
+// address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
 	if rp.DirFrom == rpkt.DirLocal {
 		locIdx := conf.C.Net.LocAddrMap[rp.Ingress.Dst.String()]
@@ -120,8 +132,4 @@ func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
 		return rpkt.EgressPair{}, err
 	}
 	return rpkt.EgressPair{F: r.intfOutFs[*intf], Dst: rp.Ingress.Src}, nil
-}
-
-var validateErrorSCMP = map[string]scmp.ClassType{
-	rpkt.ErrorBadTotalLen: {scmp.C_CmnHdr, scmp.T_C_BadPktLen},
 }

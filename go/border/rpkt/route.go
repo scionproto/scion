@@ -43,7 +43,7 @@ func (rp *RtrPkt) Route() *common.Error {
 			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
 	for _, epair := range rp.Egress {
-		epair.F(rp)
+		epair.F(rp, epair.Dst)
 	}
 	return nil
 }

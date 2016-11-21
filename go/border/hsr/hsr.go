@@ -39,6 +39,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
@@ -107,30 +108,32 @@ func NewHSR() *HSR {
 	return &h
 }
 
-func (h *HSR) GetPackets(rps []*rpkt.RtrPkt) ([]int, *common.Error) {
+func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Error) {
 	if len(rps) > MaxPkts {
-		return nil, common.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
+		return 0, common.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
 	}
 	for i, rp := range rps {
 		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&rp.Raw[0]))
 	}
 	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), C.int(*hsrInMin),
 		C.int(len(rps)), C.int(*hsrInTout)))
-	portIds := make([]int, count)
 	for i := 0; i < count; i++ {
 		rp := rps[i]
 		cp := h.InPkts[i]
 		rp.Raw = rp.Raw[:int(cp.buflen)]
 		rp.Ingress.Src = &net.UDPAddr{}
 		if err := saddrToUDPAddr(rp.Ingress.Src, cp.src); err != nil {
-			return nil, err
+			return i, err
 		}
 		rp.Ingress.Dst = AddrMs[cp.port_id].GoAddr
 		rp.Ingress.IfIDs = AddrMs[cp.port_id].IfIDs
 		rp.DirFrom = AddrMs[cp.port_id].DirFrom
-		portIds[i] = int(cp.port_id)
+		usedPorts[cp.port_id] = true
+		labels := AddrMs[cp.port_id].Labels
+		metrics.PktsRecv.With(labels).Inc()
+		metrics.BytesRecv.With(labels).Add(float64(len(rp.Raw)))
 	}
-	return portIds, nil
+	return count, nil
 }
 
 func SendPacket(dst *net.UDPAddr, portID int, buf common.RawBytes) *common.Error {

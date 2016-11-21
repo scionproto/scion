@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"path/filepath"
 	"strings"
 
@@ -68,8 +69,8 @@ func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: rpkt.DirLocal, IfIDs: ifids, Labels: labels})
-	r.locOutFs[idx] = func(rp *rpkt.RtrPkt) {
-		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
+	r.locOutFs[idx] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
+		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
@@ -82,8 +83,8 @@ func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
-	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt) {
-		r.writeHSROutput(rp, len(hsrAddrMs)-1, labels)
+	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
+		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }

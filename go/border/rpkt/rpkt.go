@@ -152,7 +152,7 @@ type AddrIFPair struct {
 	IfIDs []spath.IntfID
 }
 
-type OutputFunc func(*RtrPkt)
+type OutputFunc func(*RtrPkt, *net.UDPAddr)
 
 type EgressPair struct {
 	F   OutputFunc
