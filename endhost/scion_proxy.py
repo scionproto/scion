@@ -114,7 +114,7 @@ CONN_ID_BYTES = 4
 
 KBASE_SECURITY_WARN = (
     'WARNING: the SCION knowledge-base is insecure, as it exposes '
-    'browswing information without any protective authentication or '
+    'browsing information without any protective authentication or '
     'encryption. It should not be used outside of demo purposes.'
 )
 
