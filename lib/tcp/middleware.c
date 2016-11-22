@@ -511,7 +511,7 @@ void *tcpmw_poll_loop(void* dummy){
             }
             /* No event */
             if (pollfds[i].revents == 0){
-                zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events);
+                /* zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events); */
                 continue;
             }
 
@@ -608,7 +608,7 @@ void tcpmw_send_to_tcp(struct conn_state *s){
         size_t tmp_sent, sent = s->app_buf_written;
         int to_write = s->app_buf_len - sent;
         s8_t lwip_err = 0;
-        lwip_err = netconn_write_partly(s->conn, s->app_buf + sent, to_write, NETCONN_COPY, &tmp_sent);
+        lwip_err = netconn_write_partly(s->conn, s->app_buf + sent, to_write, NETCONN_COPY|NETCONN_DONTBLOCK, &tmp_sent);
         if (lwip_err == ERR_WOULDBLOCK){
             zlog_debug(zc_tcp, "tcpmw_send_to_tcp(): netconn_write_partly(): WOULDBLOCK");
             tmp_sent = 0;
