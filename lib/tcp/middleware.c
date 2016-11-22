@@ -512,6 +512,7 @@ void *tcpmw_poll_loop(void* dummy){
             /* No event */
             if (pollfds[i].revents == 0){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events);
+                continue;
             }
             /* There is an event */
             rc--;
