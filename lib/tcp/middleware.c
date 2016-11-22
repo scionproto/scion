@@ -107,7 +107,8 @@ void tcpmw_clear_state(struct conn_state *s, int free_app_buf){
     s->app_buf = NULL;
     s->app_buf_len = 0;
     s->app_buf_written = 0;
-    s->_poll_err = 0;
+    s->poll_err = 0;
+    s->last_fd_access = 0;
     s->tcp_buf = NULL;
     s->tcp_buf_len = 0;
     s->tcp_buf_written = 0;
@@ -487,9 +488,10 @@ int tcpmw_add_connection(struct conn_args *args){
 
 void *tcpmw_poll_loop(void* dummy){
     zlog_debug(zc_tcp, "tcpmw_poll_loop() started");
-    while (1){
+    uint64_t iter;  /* Iteration counter, used to remove fds with poll_err */
+    for (iter = 1; ; iter++){
         /* Create list of waiting fds */
-        int num_fds = tcpmw_sync_conn_states();
+        int num_fds = tcpmw_sync_conn_states(iter);
         /* Call poll */
         zlog_debug(zc_tcp, "tcpmw_poll_loop() calling poll() with %d fds", num_fds);
         int rc = poll(pollfds, num_fds, TCP_POLLING_TOUT);
@@ -501,35 +503,31 @@ void *tcpmw_poll_loop(void* dummy){
         }
         /* Iterate over results */
         struct conn_state *s;
-        for (int i = 0; i < num_fds; i++){
+        for (int i = 0; i < num_fds && rc; i++){
             s = tcpmw_fd2state(pollfds[i].fd);
             if (s == NULL || !s->active){
                 zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL || !s->active");
-                continue;
+                continue;  /* FIXME(PSz): exit? */
             }
             /* No event */
             if (pollfds[i].revents == 0){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events);
-                /* Check for closed/failed fd */
-                if (s->_poll_err){
-                    zlog_debug(zc_tcp, "tcpmw_poll_loop() closing inactive fd=%d",pollfds[i].fd);
-                    tcpmw_clear_fd_state(s, 1);
-                }
-                continue;
             }
-
             /* There is an event */
+            rc--;
             if (pollfds[i].revents & (POLLERR|POLLHUP)){
-                s->_poll_err = 1;
+                s->poll_err = 1;
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd);
             }
             if (pollfds[i].revents & POLLIN){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLIN: fd=%d",pollfds[i].fd);
                 tcpmw_send_to_tcp(s);
+                s->last_fd_access = iter;
             }
             if (pollfds[i].revents & POLLOUT){
                 zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLOUT: fd=%d",pollfds[i].fd);
                 tcpmw_send_to_app(s);
+                s->last_fd_access = iter;
             }
         }
         usleep(TCP_POLLING_TOUT*1000);
@@ -537,7 +535,7 @@ void *tcpmw_poll_loop(void* dummy){
     return NULL;
 }
 
-int tcpmw_sync_conn_states(void){
+int tcpmw_sync_conn_states(uint64_t iter){
     int pollfd_idx = 0;
 
     for (int i = 0; i < MAX_CONNECTIONS; i++){
@@ -545,12 +543,16 @@ int tcpmw_sync_conn_states(void){
         if (!s->active)
             continue;
 
-        if (s->conn != NULL){
-            zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): state: fd=%d %d %d",s->fd,  s->conn->last_err, s->conn->state);
-           if(ERR_IS_FATAL(s->conn->last_err) || s->conn->state == NETCONN_CLOSE ){
+        /* Check for closed/failed conn */
+        if (s->conn != NULL && (ERR_IS_FATAL(s->conn->last_err) || s->conn->state == NETCONN_CLOSE)){
                 zlog_error(zc_tcp, "tcpmw_sync_conn_states(): ERRORCONN %d %d", s->conn->last_err, s->conn->state);
                 tcpmw_clear_conn_state(s, 1);
-            }
+        }
+
+        /* Check for closed/failed fd */
+        if (s->fd != -1 && s->poll_err && s->last_fd_access + 2 == iter){
+            zlog_debug(zc_tcp, "tcpmw_poll_loop() closing inactive fd=%d", s->fd);
+            tcpmw_clear_fd_state(s, 1);
         }
 
         if (s->fd != -1 && s->conn != NULL){  /* Both ends are open */
@@ -659,7 +661,7 @@ void tcpmw_send_to_app(struct conn_state *s){
     }
     else{  /* tcp_buf is empty, so read from netconn */
         s8_t lwip_err = 0;
-        if ((lwip_err = netconn_recv(s->conn, &s->_netbuf)) != ERR_OK){
+        if ((lwip_err = netconn_recv(s->conn, &s->netbuf)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send_to_app(): netconn_recv(): %s", lwip_strerr(lwip_err));
             s->tcp_buf = NULL;
             s->tcp_buf_len = 0;
@@ -669,7 +671,7 @@ void tcpmw_send_to_app(struct conn_state *s){
         }
         /* Get the pointer to the data and its length. */
         u16_t len;
-        if ((lwip_err = netbuf_data(s->_netbuf, (void **)&s->tcp_buf, &len)) != ERR_OK){
+        if ((lwip_err = netbuf_data(s->netbuf, (void **)&s->tcp_buf, &len)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send_to_app(): netbuf_data(): %s", lwip_strerr(lwip_err));
             tcpmw_clear_conn_state(s, 1);
             return;
@@ -691,7 +693,7 @@ void tcpmw_clear_fd_state(struct conn_state *s, int terminate){
     if (s->tcp_buf != NULL){
         s->tcp_buf_written = 0;
         s->tcp_buf_len = 0;
-        netbuf_delete(s->_netbuf);
+        netbuf_delete(s->netbuf);
         s->tcp_buf = NULL;
     }
 }

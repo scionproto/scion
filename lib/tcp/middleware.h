@@ -77,8 +77,9 @@ struct conn_state{
     char *app_buf;  /* Data from app -> TCP stack */
     int app_buf_len;  /* Its len */
     int app_buf_written;  /* Bytes sent already to TCP */
-    int _poll_err;  /* fd is closed or failed (as notified by poll())*/
-    struct netbuf *_netbuf;  /* Raw netconn buffer */
+    int poll_err;  /* fd is closed or failed (as notified by poll())*/
+    uint64_t last_fd_access;  /* Iteration number of the last fd read/write() */
+    struct netbuf *netbuf;  /* Raw netconn buffer */
     char *tcp_buf;  /* Data from TCP -> app */
     int tcp_buf_len;  /* Its len */
     int tcp_buf_written;  /* Bytes sent already to app */
@@ -98,7 +99,7 @@ void *tcpmw_poll_loop(void *);
 void tcpmw_send_to_tcp(struct conn_state *);
 void tcpmw_send_to_app(struct conn_state *);
 struct conn_state* tcpmw_fd2state(int fd);
-int tcpmw_sync_conn_states(void);
+int tcpmw_sync_conn_states(uint64_t);
 void tcpmw_clear_state(struct conn_state *, int);
 void tcpmw_clear_fd_state(struct conn_state *, int);
 void tcpmw_clear_conn_state(struct conn_state *, int);
