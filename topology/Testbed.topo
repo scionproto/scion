@@ -1,0 +1,20 @@
+---
+defaults:
+  zookeepers:
+    1:
+      manage: false
+      addr: 127.0.0.1
+ADs:
+  1-1: {core: true}       # CMU
+  1-2: {cert_issuer: 1-1} # UIUC
+  2-1: {core: true}       # ETH
+  2-2: {core: true}       # AWS (Ireland)
+  2-3: {cert_issuer: 2-1} # AWS (Frankfurt)
+  3-1: {core: true}       # KDDI
+links:
+  - {a: 1-1, b: 1-2, ltype: PARENT}
+  - {a: 1-1, b: 2-1, ltype: ROUTING}
+  - {a: 1-2, b: 2-1, ltype: ROUTING}
+  - {a: 2-1, b: 2-2, ltype: ROUTING}
+  - {a: 2-1, b: 3-1, ltype: ROUTING}
+  - {a: 2-1, b: 2-3, ltype: PARENT}
