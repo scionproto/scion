@@ -627,6 +627,8 @@ void tcpmw_send_to_tcp(struct conn_state *s){
             tcpmw_clear_conn_state(s, 0); /* Reset app_buf metadata */
     }
     else{  /* app_buf is empty, so read from fd */
+        if (s->fd == -1)
+            return;
         int len = recv(s->fd, s->app_buf, TCPMW_BUFLEN, 0);
         if (len <= 0){  /* Done or error */
             if (len < 0)
@@ -661,6 +663,8 @@ void tcpmw_send_to_app(struct conn_state *s){
             tcpmw_clear_fd_state(s, 0);  /* Clear only buffer */
     }
     else{  /* tcp_buf is empty, so read from netconn */
+        if (s->conn == NULL)
+            return;
         s8_t lwip_err = 0;
         if ((lwip_err = netconn_recv(s->conn, &s->netbuf)) != ERR_OK){
             zlog_error(zc_tcp, "tcpmw_send_to_app(): netconn_recv(): %s", lwip_strerr(lwip_err));
