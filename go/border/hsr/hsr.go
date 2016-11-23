@@ -14,6 +14,7 @@
 
 // +build hsr
 
+// Package hsr (High Speed Router) implements Go bindings for libhsr using CGO.
 package hsr
 
 /*

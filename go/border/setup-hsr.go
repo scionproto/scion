@@ -14,6 +14,9 @@
 
 // +build hsr
 
+// This file handles configuring the network interfaces that are managed by
+// libhsr (via go/border/hsr).
+
 package main
 
 import (
@@ -36,8 +39,10 @@ import (
 )
 
 var (
-	hsrIPs    = flag.String("hsr.ips", "", "Comma-separated list of IPs for HSR")
-	hsrIPMap  = make(map[string]bool)
+	hsrIPs = flag.String("hsr.ips", "", "Comma-separated list of IPs for HSR")
+	// hsrIPMap is used at startup to check if a given IP is managed by libhsr.
+	hsrIPMap = make(map[string]bool)
+	// See hsr.AddrMs
 	hsrAddrMs []hsr.AddrMeta
 )
 

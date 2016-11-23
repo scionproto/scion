@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the code to interact with the POSIX(/BSD) socket API.
+// This file handles IO using the POSIX(/BSD) socket API.
 
 package main
 

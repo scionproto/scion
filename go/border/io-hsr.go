@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the code to interact with the libhsr API.
-
 // +build hsr
+
+// This file handles IO using the libhsr API (via the go/border/hsr package).
 
 package main
 
