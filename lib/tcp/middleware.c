@@ -547,7 +547,7 @@ int tcpmw_sync_conn_states(uint64_t iter){
 
         /* Check for closed/failed conn */
         if (s->conn != NULL && (ERR_IS_FATAL(s->conn->last_err) || s->conn->state == NETCONN_CLOSE)){
-                zlog_error(zc_tcp, "tcpmw_sync_conn_states(): ERRORCONN %d %d", s->conn->last_err, s->conn->state);
+                zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): ERRORCONN %d %d", s->conn->last_err, s->conn->state);
                 tcpmw_clear_conn_state(s, 1);
         }
 
