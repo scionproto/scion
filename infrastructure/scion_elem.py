@@ -91,7 +91,7 @@ from lib.topology import Topology
 from lib.util import hex_str
 
 
-MAX_QUEUE = 30
+MAX_QUEUE = 50
 
 
 class SCIONElement(object):
@@ -107,7 +107,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = False
+    USE_TCP = True
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
