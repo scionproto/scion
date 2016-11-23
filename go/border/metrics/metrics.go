@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package metrics defines and exports router metrics to be scraped by
+// prometheus.
 package metrics
 
 import (
@@ -21,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Declare prometheus metrics to export.
 var (
 	PktsRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -108,6 +111,7 @@ var (
 	)
 )
 
+// Ensure all metrics are registered.
 func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
@@ -123,6 +127,8 @@ func init() {
 	prometheus.MustRegister(OutputProcessTime)
 }
 
+// Export accepts a slice of addresses in the form of "ip:port", and exports
+// promethetus metrics on each address over http.
 func Export(addresses []string) {
 	http.Handle("/metrics", promhttp.Handler())
 	for _, addr := range addresses {
