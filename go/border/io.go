@@ -66,7 +66,8 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath
 
 type posixOutputFunc func(common.RawBytes, *net.UDPAddr) (int, error)
 
-// writePosixOutput writes packets to a POSIX(/BSD) socket using the provided function.
+// writePosixOutput writes packets to a POSIX(/BSD) socket using the provided
+// function (a wrapper around net.UDPConn.WriteToUDP or net.UDPConn.Write).
 func (r *Router) writePosixOutput(labels prometheus.Labels,
 	rp *rpkt.RtrPkt, dst *net.UDPAddr, f posixOutputFunc) {
 	start := time.Now()

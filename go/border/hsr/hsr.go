@@ -51,17 +51,24 @@ var hsrInMin = flag.Int("hsr.in.min_pkts", 20, "Minimum packets to read per loop
 var hsrInTout = flag.Int("hsr.in.tout", 10,
 	"Maximum time (in us) to wait for packets. -1 means no timeout.")
 
+// MaxPkts determines how many packets can be read in a single call to libhsr's get_packets.
 const MaxPkts = 32
 
-// Address metadata. This is attached to packets that are sent from/to the
-// specified address, to allow processing. In particular, it contains the
-// address in both Go and C formats.
+// AddrMeta contains address metadata for a specific libhsr port. This is
+// attached to packets that are sent from/to the specified address, to allow
+// processing. In particular, it contains the address in both Go and C formats.
 type AddrMeta struct {
-	GoAddr  *net.UDPAddr
-	CAddr   C.saddr_storage
+	// GoAddr is a Go version of the address.
+	GoAddr *net.UDPAddr
+	// CAddr is a C version of the address.
+	CAddr C.saddr_storage
+	// DirFrom is the direction a packet was received from.
 	DirFrom rpkt.Dir
-	IfIDs   []spath.IntfID
-	Labels  prometheus.Labels
+	// IfIDs is a list of matching interface IDs. Local (i.e. facing the local
+	// AS) addresses can have multiple interfaces associated with them.
+	IfIDs []spath.IntfID
+	// Labels is a set of prometheus labels to apply to packets using this port.
+	Labels prometheus.Labels
 }
 
 // Slice of AddrMetas, indexed by the libhsr port ID.

@@ -126,13 +126,14 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		rp.Error("Error parsing payload", err.Ctx...)
 		return
 	}
-	// Process the packet, if a previous step has regsitered a relevant hook
+	// Process the packet, if a previous step has registered a relevant hook
 	// for doing so.
 	if err := rp.Process(); err != nil {
 		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
-	// If the packet is to this router, there's no need to forward it.
+	// If the packet's destination is this router, there's no need to forward
+	// it.
 	if rp.DirTo != rpkt.DirSelf {
 		if err := rp.Route(); err != nil {
 			r.handlePktError(rp, err, "Error routing packet")

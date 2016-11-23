@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file takes care of parsing flags, setting up logging and signal
-// handling, setting resource limits, and starting a new Router instance.
+// This file takes care of parsing command-line flags, setting up logging and
+// signal handling, setting resource limits, and starting a new Router
+// instance.
 
 package main
 

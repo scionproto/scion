@@ -31,7 +31,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
-// readHSRInput reads batches of packets from libhsr, and dispatch them for
+// readHSRInput reads batches of packets from libhsr, and dispatches them for
 // processing.
 //
 // libhsr has the concept of Ports, which correspond to the interfaces it
