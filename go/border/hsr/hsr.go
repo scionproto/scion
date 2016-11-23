@@ -15,6 +15,9 @@
 // +build hsr
 
 // Package hsr (High Speed Router) implements Go bindings for libhsr using CGO.
+// libhsr uses the concept of 'ports', which is a combination of interface and
+// address+udp port. The interface is either a hardware interface via DPDK, or
+// a virtual interface using libpcap.
 package hsr
 
 /*
@@ -74,41 +77,54 @@ type AddrMeta struct {
 // Slice of AddrMetas, indexed by the libhsr port ID.
 var AddrMs []AddrMeta
 
-func Init(conf string, args []string, addrMs []AddrMeta) *common.Error {
+// Init initialises libhsr, and relevant metadata.
+func Init(zlog_cfg string, args []string, addrMs []AddrMeta) *common.Error {
 	defer liblog.PanicLog()
+	// Create a C-style argv to pass to router_init.
 	argv := make([]*C.char, 0, len(args))
 	for _, arg := range args {
 		argv = append(argv, C.CString(arg))
 	}
-	if C.router_init(C.CString(conf), C.CString("border"), C.int(len(argv)), &argv[0]) != 0 {
+	// Initialise libhsr. Its logging is controlled by the zlog config and
+	// category, and DPDK's general options are configured by the argv.
+	if C.router_init(C.CString(zlog_cfg), C.CString("border"), C.int(len(argv)), &argv[0]) != 0 {
 		return common.NewError("Failure initialising libhsr (router_init)")
 	}
 	AddrMs = addrMs
-	cAddrs := make([]C.saddr_storage, len(AddrMs))
 	// Calculate the C address structure from the Go address structure.
+	cAddrs := make([]C.saddr_storage, len(AddrMs))
 	for i, addrM := range AddrMs {
 		udpAddrToSaddr(addrM.GoAddr, &addrM.CAddr)
 		cAddrs[i] = addrM.CAddr
 	}
+	// Configure network ports
 	if C.setup_network(&cAddrs[0], C.int(len(cAddrs))) != 0 {
 		return common.NewError("Failure initialising libhsr (setup_network)")
 	}
+	// Create the libhsr worker threads.
 	if C.create_lib_threads() != 0 {
 		return common.NewError("Failure initialising libhsr (create_lib_threads)")
 	}
 	return nil
 }
 
+// Finish handles cleanup, and should be called when shutting down.
 func Finish() {
+	// Flush libhsr's logging.
 	C.zlog_fini()
 }
 
+// HSR manages packet input from libhsr.
 type HSR struct {
+	// InPkts is an array of C RouterPacket structs. The RouterPacket.buf
+	// pointers are set to point to Go RtrPkt.Raw buffers, so libhsr is writing
+	// directly into Go structs, avoiding a lot of copying overhead.
 	InPkts [MaxPkts]C.RouterPacket
 }
 
 func NewHSR() *HSR {
 	h := HSR{}
+	// Allocate storage for each RouterPacket's src/dest fields.
 	for i := range h.InPkts {
 		h.InPkts[i].src = &C.saddr_storage{}
 		h.InPkts[i].dst = &C.saddr_storage{}
@@ -116,10 +132,21 @@ func NewHSR() *HSR {
 	return &h
 }
 
+// GetPackets fills in a slice of Go RtrPkt's via libhsr. The usedPorts
+// arg is used to indicate which ports received packets in this call.
 func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Error) {
 	if len(rps) > MaxPkts {
 		return 0, common.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
 	}
+	// Set the C buffer pointers to the Go buffer addresses.
+	// XXX(kormat): N.B. this breaks one of the CGO safety rules
+	// (https://golang.org/cmd/cgo/#hdr-Passing_pointers) which is designed to
+	// stop C from keeping copies of pointers to Go memory, and using them
+	// later. There is no way to comply with this rule without passing every
+	// buffer into libhsr individually, which is bad for performance.  In our
+	// case libhsr does not keep any pointers by design, so it is safe, but it
+	// does require setting the GODEBUG environment variable to "cgocheck=0" to
+	// stop Go's checks from terminating the program.
 	for i, rp := range rps {
 		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&rp.Raw[0]))
 	}
