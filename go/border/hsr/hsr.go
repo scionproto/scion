@@ -153,17 +153,22 @@ func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Err
 	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), C.int(*hsrInMin),
 		C.int(len(rps)), C.int(*hsrInTout)))
 	for i := 0; i < count; i++ {
-		rp := rps[i]
-		cp := h.InPkts[i]
+		rp := rps[i]      // Go packet.
+		cp := h.InPkts[i] // C packet.
+		// Trim Go buffer to the length reported by libhsr.
 		rp.Raw = rp.Raw[:int(cp.buflen)]
+		// Convert the source address from C to Go.
 		rp.Ingress.Src = &net.UDPAddr{}
 		if err := saddrToUDPAddr(rp.Ingress.Src, cp.src); err != nil {
 			return i, err
 		}
+		// Fill out packet metadata from AddrMs
 		rp.Ingress.Dst = AddrMs[cp.port_id].GoAddr
 		rp.Ingress.IfIDs = AddrMs[cp.port_id].IfIDs
 		rp.DirFrom = AddrMs[cp.port_id].DirFrom
+		// Indicate this port was used
 		usedPorts[cp.port_id] = true
+		// Update global packet/byte counters
 		labels := AddrMs[cp.port_id].Labels
 		metrics.PktsRecv.With(labels).Inc()
 		metrics.BytesRecv.With(labels).Add(float64(len(rp.Raw)))
@@ -171,20 +176,25 @@ func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Err
 	return count, nil
 }
 
+// SendPacket sends a single packet via libhsr.
 func SendPacket(dst *net.UDPAddr, portID int, buf common.RawBytes) *common.Error {
-	var rPkt C.RouterPacket
-	rPkt.buf = (*C.uint8_t)(unsafe.Pointer(&buf[0]))
-	rPkt.buflen = C.size_t(len(buf))
-	rPkt.src = &AddrMs[portID].CAddr
-	rPkt.dst = &C.saddr_storage{}
-	udpAddrToSaddr(dst, rPkt.dst)
-	rPkt.port_id = C.uint8_t(portID)
-	if C.send_packet(&rPkt) != 0 {
+	var cp C.RouterPacket
+	// Set C packet pointer to Go buffer.
+	cp.buf = (*C.uint8_t)(unsafe.Pointer(&buf[0]))
+	cp.buflen = C.size_t(len(buf))
+	// Use pre-converted C source address from AddrMs.
+	cp.src = &AddrMs[portID].CAddr
+	// Convery destination address from Go to C.
+	cp.dst = &C.saddr_storage{}
+	udpAddrToSaddr(dst, cp.dst)
+	cp.port_id = C.uint8_t(portID)
+	if C.send_packet(&cp) != 0 {
 		return common.NewError("Error sending packet through HSR")
 	}
 	return nil
 }
 
+// saddrToUDPAddr converts C's sockaddr_storage type to Go's net.UDPAddr type.
 func saddrToUDPAddr(addr *net.UDPAddr, saddr *C.saddr_storage) *common.Error {
 	switch saddr.ss_family {
 	case C.AF_INET:
@@ -199,16 +209,19 @@ func saddrToUDPAddr(addr *net.UDPAddr, saddr *C.saddr_storage) *common.Error {
 	return nil
 }
 
+// udpAddrToSaddr converts Go's net.UDPAddr type to C's sockaddr_storage type.
 func udpAddrToSaddr(addr *net.UDPAddr, saddr *C.saddr_storage) {
+	// Convert Go int to network-byte-order C int
+	cport := C.in_port_t(C.htons(C.uint16_t(addr.Port)))
 	if addr.IP.To4() != nil {
 		s4 := (*C.saddr_in)(unsafe.Pointer(saddr))
 		s4.sin_family = C.AF_INET
-		s4.sin_port = C.in_port_t(C.htons(C.uint16_t(addr.Port)))
+		s4.sin_port = cport
 		copy((*[4]byte)(unsafe.Pointer(&s4.sin_addr))[:], addr.IP.To4())
 	} else {
 		s6 := (*C.saddr_in6)(unsafe.Pointer(saddr))
 		s6.sin6_family = C.AF_INET6
-		s6.sin6_port = C.in_port_t(C.htons(C.uint16_t(addr.Port)))
+		s6.sin6_port = cport
 		copy((*[16]byte)(unsafe.Pointer(&s6.sin6_addr))[:], addr.IP)
 	}
 }
