@@ -108,7 +108,7 @@ class Router(SCIONElement):
         super().__init__(server_id, conf_dir, )
         self.interface = None
         for border_router in self.topology.get_all_border_routers():
-            if border_router.addr == self.addr.host:
+            if border_router.name == self.id:
                 self.interface = border_router.interface
                 break
         assert self.interface is not None
