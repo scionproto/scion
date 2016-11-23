@@ -25,6 +25,8 @@ void *tcpmw_main_thread(void *unused) {
     int fd, cl;
     char *env;
 
+    tcpmw_init();  /* Init the connections array */
+
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         zlog_fatal(zc_tcp, "tcpmw_main_thread: socket(): %s", strerror(errno));
         exit(-1);
@@ -62,6 +64,13 @@ void *tcpmw_main_thread(void *unused) {
         exit(-1);
     }
 
+    int sys_err;
+    pthread_t tid;
+    if ((sys_err = pthread_create(&tid, NULL, &tcpmw_poll_loop, NULL))){
+        zlog_fatal(zc_tcp, "tcpmw_main_thread(): pthread_create(): %s", strerror(sys_err));
+        exit(-1);
+    }
+
     while (1) {
         if ((cl = accept(fd, NULL, NULL)) == -1) {
             err_t tmp_err = errno;
@@ -74,6 +83,36 @@ void *tcpmw_main_thread(void *unused) {
         tcpmw_socket(cl);
     }
     return NULL;
+}
+
+void tcpmw_init(void){
+    int sys_err;
+    if ((sys_err = pthread_mutex_init(&connections_lock, NULL))){
+        zlog_fatal(zc_tcp, "tcpmw_init(): pthread_mutex_init(): %s", strerror(sys_err));
+        exit(-1);
+    }
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        tcpmw_clear_state(&connections[i], 0);
+    }
+}
+
+void tcpmw_clear_state(struct conn_state *s, int free_app_buf){
+    s->fd = -1;
+    s->conn = NULL;
+    if (free_app_buf){
+        zlog_debug(zc_tcp, "tcpmw_clear_state(..., 1) called");
+        free(s->app_buf);
+    }
+    s->app_buf = NULL;
+    s->app_buf_len = 0;
+    s->app_buf_written = 0;
+    s->poll_err = 0;
+    s->last_fd_access = 0;
+    s->tcp_buf = NULL;
+    s->tcp_buf_len = 0;
+    s->tcp_buf_written = 0;
+    s->active = 0;
 }
 
 void tcpmw_unlink_sock(void){
@@ -127,7 +166,7 @@ void tcpmw_socket(int fd){
     args = malloc(sizeof *args);
     args->fd = fd;
     args->conn = conn;
-    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_thread, args))){
+    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_sock_rpc_thread, args))){
         zlog_error(zc_tcp, "tcpmw_socket(): pthread_create(): %s", strerror(sys_err));
         free(args);
         goto clean;
@@ -172,7 +211,7 @@ void tcpmw_reply(struct conn_args *args, const char *cmd, s8_t lwip_err){
     }
 }
 
-void *tcpmw_sock_thread(void *data){
+void *tcpmw_sock_rpc_thread(void *data){
     struct conn_args *args = data;
     int pld_len;
     char buf[TCPMW_BUFLEN];
@@ -181,8 +220,10 @@ void *tcpmw_sock_thread(void *data){
         char *pld_ptr = buf + CMD_SIZE;
         if (CMD_CMP(buf, CMD_BIND))
             tcpmw_bind(args, pld_ptr, pld_len);
-        else if (CMD_CMP(buf, CMD_CONNECT))
-            tcpmw_connect(args, pld_ptr, pld_len);
+        else if (CMD_CMP(buf, CMD_CONNECT)){
+            if (tcpmw_connect(args, pld_ptr, pld_len) == ERR_OK)
+                return NULL; /* Successful connect(), can quit RPC mode */
+        }
         else if (CMD_CMP(buf, CMD_LISTEN))
             tcpmw_listen(args, pld_len);
         else if (CMD_CMP(buf, CMD_ACCEPT))
@@ -200,14 +241,14 @@ void *tcpmw_sock_thread(void *data){
         else if (CMD_CMP(buf, CMD_CLOSE))
             break;
         else{
-            zlog_error(zc_tcp, "tcpmw_sock_thread: command not found: %.*s (%dB)",
+            zlog_error(zc_tcp, "tcpmw_sock_rpc_thread: command not found: %.*s (%dB)",
                        CMD_SIZE, buf, pld_len);
             break;
         }
     }
     if (pld_len < 0)
-        zlog_fatal(zc_tcp, "tcpmw_sock_thread: tcpmw_read_cmd(): %s", strerror(errno));
-    zlog_info(zc_tcp, "tcpmw_sock_thread: leaving");
+        zlog_fatal(zc_tcp, "tcpmw_sock_rpc_thread: tcpmw_read_cmd(): %s", strerror(errno));
+    zlog_info(zc_tcp, "tcpmw_sock_rpc_thread: leaving");
     tcpmw_close(args);
     return NULL;
 }
@@ -247,7 +288,7 @@ exit:
     tcpmw_reply(args, CMD_BIND, lwip_err);
 }
 
-void tcpmw_connect(struct conn_args *args, char *buf, int len){
+s8_t tcpmw_connect(struct conn_args *args, char *buf, int len){
     /* | port (2B)  | path_len (2B) | path (var) | haddr_type (1B)  | */
     /* | scion_addr (var) | first_hop_ip (4B) | first_hop_port (2B) | flags (1B) */
     ip_addr_t addr;
@@ -304,7 +345,8 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
 exit:
     tcpmw_reply(args, CMD_CONNECT, lwip_err);
     if (lwip_err == ERR_OK)
-        tcpmw_pipe_loop(args);
+        tcpmw_add_connection(args);
+    return lwip_err;
 }
 
 void tcpmw_listen(struct conn_args *args, int len){
@@ -364,24 +406,9 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     }
 
     /* Create a detached thread. */
-    pthread_attr_t attr;
-    pthread_t tid;
-    if ((sys_err = pthread_attr_init(&attr))){
-        zlog_error(zc_tcp, "tcpmw_accept(): pathread_attr_init(): %s", strerror(sys_err));
-        goto clean;
-    }
-    if ((sys_err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED))){
-        zlog_error(zc_tcp, "tcpmw_accept(): pthread_attr_setdetachstate(): %s", strerror(sys_err));
-        goto clean;
-    }
     struct conn_args *new_args = malloc(sizeof *new_args);
     new_args->fd = new_fd;
     new_args->conn = newconn;
-    if ((sys_err = pthread_create(&tid, &attr, &tcpmw_pipe_loop, new_args))){
-        zlog_error(zc_tcp, "tcpmw_accept(): pthread_create(): %s", strerror(sys_err));
-        free(new_args);
-        goto clean;
-    }
 
     /* Preparing a successful response. */
     u16_t  path_len = newconn->pcb.ip->path->len;
@@ -416,6 +443,11 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         tcpmw_terminate(args);
     }
     free(tmp);
+    /* Add new connection to the array */
+    if ((sys_err = tcpmw_add_connection(new_args))){
+        free(new_args);
+        goto clean;
+    }
     /* Confirm, by sending CMD_ACCEPT+ERR_OK to the "old" socket. */
     goto exit;
 
@@ -428,98 +460,259 @@ exit:
     tcpmw_reply(args, CMD_ACCEPT, lwip_err);
 }
 
-void *tcpmw_pipe_loop(void *data){
-    struct conn_args *args = data;
-    /* Set timeouts for receiving from app and TCP socket */
-    struct timeval timeout;
-
-    zlog_debug(zc_tcp, "Entered pipe mode");
-    timeout.tv_sec = 0;
-    timeout.tv_usec = TCP_POLLING_TOUT*1000;
-    if (setsockopt(args->fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0){
-        zlog_error(zc_tcp, "tcpmw_pipe_loop(): setsockopt(): %s", strerror(errno));
-        tcpmw_terminate(args);
-    }
-    netconn_set_recvtimeout(args->conn, TCP_POLLING_TOUT);
-
-    /* Main loop */
-    while (1){
-        if (tcpmw_from_app_sock(args))
+int tcpmw_add_connection(struct conn_args *args){
+    int ret = 1;
+    pthread_mutex_lock(&connections_lock);
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        struct conn_state *s = &connections[i];
+        if (!s->active){  /* Inactive, we can use this entry. */
+            tcpmw_clear_state(s, 0);
+            s->fd = args->fd;
+            s->conn = args->conn;
+            s->app_buf = malloc(TCPMW_BUFLEN);
+            s->active = 1;
+            zlog_debug(zc_tcp, "tcpmw_add_connection(): added %d", args->fd);
+            ret = 0;
             break;
-        if (tcpmw_from_tcp_sock(args))
-            break;
+        }
     }
+    pthread_mutex_unlock(&connections_lock);
+    if (ret){
+        zlog_error(zc_tcp, "tcpmw_add_connection(): cannot add new connection");
+        close(args->fd);
+        netconn_close(args->conn);
+        netconn_delete(args->conn);
+    }
+    return ret;
+}
 
-    tcpmw_terminate(args);
+void *tcpmw_poll_loop(void* dummy){
+    zlog_debug(zc_tcp, "tcpmw_poll_loop() started");
+    uint64_t iter;  /* Iteration counter, used to remove fds with poll_err */
+    for (iter = 1; ; iter++){
+        /* Create list of waiting fds */
+        int num_fds = tcpmw_sync_conn_states(iter);
+        /* Call poll */
+        zlog_debug(zc_tcp, "tcpmw_poll_loop() calling poll() with %d fds", num_fds);
+        int rc = poll(pollfds, num_fds, TCP_POLLING_TOUT);
+        if (rc == 0)  /* Timeout */
+            continue;
+        if (rc < 0) {
+            zlog_fatal(zc_tcp, "tcpmw_poll_loop(): poll() error: %s", strerror(errno));
+            exit(-1);
+        }
+        /* Iterate over results */
+        struct conn_state *s;
+        for (int i = 0; i < num_fds && rc; i++){
+            s = tcpmw_fd2state(pollfds[i].fd);
+            if (s == NULL || !s->active){
+                zlog_error(zc_tcp, "tcpmw_poll_loop(): s == NULL || !s->active");
+                continue;  /* FIXME(PSz): exit? */
+            }
+            /* No event */
+            if (pollfds[i].revents == 0){
+                /* zlog_debug(zc_tcp, "tcpmw_poll_loop() revents == 0: fd=%d, events %d", pollfds[i].fd, pollfds[i].events); */
+                continue;
+            }
+
+            /* There is an event */
+            rc--;
+            if (pollfds[i].revents & (POLLERR|POLLHUP)){
+                s->poll_err = 1;
+                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLERR: revents: %d fd=%d", pollfds[i].revents, pollfds[i].fd);
+            }
+            if (pollfds[i].revents & POLLIN){
+                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLIN: fd=%d",pollfds[i].fd);
+                tcpmw_send_to_tcp(s);
+                s->last_fd_access = iter;
+            }
+            if (pollfds[i].revents & POLLOUT){
+                zlog_debug(zc_tcp, "tcpmw_poll_loop() POLLOUT: fd=%d",pollfds[i].fd);
+                tcpmw_send_to_app(s);
+                s->last_fd_access = iter;
+            }
+        }
+        usleep(TCP_POLLING_TOUT*1000);
+    }
     return NULL;
 }
 
-int tcpmw_from_app_sock(struct conn_args *args){
-    char buf[TCPMW_BUFLEN];
-    s8_t lwip_err = 0;
-    size_t tmp_sent, sent = 0;
-    /* zlog_info(zc_tcp, "SEND received (%dB to send)", len); */
-    int len = recv(args->fd, buf, TCPMW_BUFLEN, 0);
-    if (len == 0)  /* Done */
-        return -1;
-    if (len < 0){
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT){
-            zlog_debug(zc_tcp, "tcpmw_from_app_sock(): timeout");
-            return 0;
+int tcpmw_sync_conn_states(uint64_t iter){
+    int pollfd_idx = 0;
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        struct conn_state *s = &connections[i];
+        if (!s->active)
+            continue;
+
+        /* Check for closed/failed conn */
+        if (s->conn != NULL && (ERR_IS_FATAL(s->conn->last_err) || s->conn->state == NETCONN_CLOSE)){
+                zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): ERRORCONN %d %d", s->conn->last_err, s->conn->state);
+                tcpmw_clear_conn_state(s, 1);
         }
-        else{
-            zlog_error(zc_tcp, "tcpmw_from_app_sock(): recv(): %s", strerror(errno));
-            return -1;
+
+        /* Check for closed/failed fd */
+        if (s->fd != -1 && s->poll_err && s->last_fd_access + 2 == iter){
+            zlog_debug(zc_tcp, "tcpmw_poll_loop() closing inactive fd=%d", s->fd);
+            tcpmw_clear_fd_state(s, 1);
         }
+
+        if (s->fd != -1 && s->conn != NULL){  /* Both ends are open */
+            /* Ready to read smth from app */
+            pollfds[pollfd_idx].fd = s->fd;
+            pollfds[pollfd_idx].events = POLLIN;
+            zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): POLLIN fd=%d", s->fd);
+
+            if (s->tcp_buf_len || s->conn->recv_avail){  /* Bytes to app are pending */
+                pollfds[pollfd_idx].events |= POLLOUT;
+                zlog_debug(zc_tcp, "tcpmw_sync_conn_states(): POLLOUT fd=%d", s->fd);
+            }
+            pollfd_idx++;
+            continue;
+        }
+
+        if (s->fd != -1){  /* s->conn is dead, app<-tcp_buf can work. */
+            if (s->tcp_buf_len){  // Bytes to app are pending
+                pollfds[pollfd_idx].fd = s->fd;
+                pollfds[pollfd_idx].events = POLLOUT;
+                pollfd_idx++;
+            }
+            else  /* Can close fd as conn is dead and buf is empty */
+                tcpmw_clear_fd_state(s, 1);
+        }
+        else if (s->conn != NULL){  /* fd is dead, only app_buf->MW can work. */
+            if (s->app_buf_len)  /* Bytes from app to TCP stack. */
+                tcpmw_send_to_tcp(s);
+            else  /* everything sent, can terminate netconn */
+                tcpmw_clear_conn_state(s, 1);
+        }
+        else  /* both are dead, can terminate the state */
+            tcpmw_clear_state(s, 1);  /* free app_buf */
     }
-    zlog_debug(zc_tcp, "tcpmw_from_app_sock(): received from app %dB.", len);
-    /* This is implemented more like send_all(). */
-    while (sent < len){
-        lwip_err = netconn_write_partly(args->conn, buf + sent, len - sent, NETCONN_COPY, &tmp_sent);
-        if (lwip_err != ERR_OK){
-            zlog_error(zc_tcp, "tcpmw_from_app_sock(): netconn_write(): %s", lwip_strerr(lwip_err));
-            zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
-                       sent, tmp_sent, len);
-            return -1;
-        }
-        sent += tmp_sent;
-        zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
-                   sent, tmp_sent, len);
-    }
-    return 0;
+    return pollfd_idx;
 }
 
-int tcpmw_from_tcp_sock(struct conn_args *args){
-    struct netbuf *buf;
-    void *data;
-    u16_t len;
-    s8_t lwip_err = 0;
-
-    /* Receive data and put it within buf. Note that we cannot specify max_len. */
-    if ((lwip_err = netconn_recv(args->conn, &buf)) != ERR_OK){
-        if (lwip_err == ERR_TIMEOUT)
-           return 0;
-        if(lwip_err == ERR_CLSD)
-            zlog_debug(zc_tcp, "tcpmw_from_tcp_sock(): netconn_recv(): %s", lwip_strerr(lwip_err));
-        else
-            zlog_error(zc_tcp, "tcpmw_from_tcp_sock(): netconn_recv(): %s", lwip_strerr(lwip_err));
-        return -1;
+struct conn_state* tcpmw_fd2state(int fd){
+    for (int i = 0; i < MAX_CONNECTIONS; i++){
+        if (connections[i].fd == fd)
+            return &connections[i];
     }
+    return NULL;
+}
 
-    /* Get the pointer to the data and its length. */
-    if ((lwip_err = netbuf_data(buf, &data, &len)) != ERR_OK){
-        zlog_error(zc_tcp, "tcpmw_from_tcp_sock(): netbuf_data(): %s", lwip_strerr(lwip_err));
-        return -1;
+void tcpmw_send_to_tcp(struct conn_state *s){
+    zlog_debug(zc_tcp, "tcpmw_send_to_tcp() called: %d/%d", s->app_buf_written, s->app_buf_len);
+    if (s->conn == NULL)
+        return;
+    if (s->app_buf_len){ // write from the app_buf to TCP
+        size_t tmp_sent, sent = s->app_buf_written;
+        int to_write = s->app_buf_len - sent;
+        s8_t lwip_err = 0;
+        lwip_err = netconn_write_partly(s->conn, s->app_buf + sent, to_write, NETCONN_COPY|NETCONN_DONTBLOCK, &tmp_sent);
+        if (lwip_err == ERR_WOULDBLOCK){
+            zlog_debug(zc_tcp, "tcpmw_send_to_tcp(): netconn_write_partly(): WOULDBLOCK");
+            tmp_sent = 0;
+        }
+        else if (lwip_err != ERR_OK){
+            zlog_error(zc_tcp, "tcpmw_send_to_tcp(): netconn_write(): %s %d", lwip_strerr(lwip_err), lwip_err);
+            zlog_debug(zc_tcp, "netconn_write(): total_sent/tmp_sent/total_len: %zu/%zu/%d",
+                       sent, tmp_sent, s->app_buf_len);
+            /* Netconn is broken, close it */
+            tcpmw_clear_conn_state(s, 1);
+            return;
+        }
+        s->app_buf_written += tmp_sent;
+        zlog_debug(zc_tcp, "tcpmw_send_to_tcp(): sent %d/%d/%d", (int)tmp_sent, s->app_buf_written, s->app_buf_len);
+        if (s->app_buf_written == s->app_buf_len)
+            tcpmw_clear_conn_state(s, 0); /* Reset app_buf metadata */
     }
-
-    int ret = 0;
-    if (send_all(args->fd, data, len) < 0){
-        zlog_fatal(zc_tcp, "tcpmw_from_tcp_sock(): send_all(): %s", strerror(errno));
-        ret = -1;
+    else{  /* app_buf is empty, so read from fd */
+        if (s->fd == -1)
+            return;
+        int len = recv(s->fd, s->app_buf, TCPMW_BUFLEN, 0);
+        if (len <= 0){  /* Done or error */
+            if (len < 0)
+                zlog_error(zc_tcp, "tcpmw_send_to_tcp(): recv(): %s", strerror(errno));
+            tcpmw_clear_fd_state(s, 1);
+            return;
+        }
+        s->app_buf_len = len;
+        zlog_debug(zc_tcp, "tcpmw_send_to_tcp(): received from app %dB.", len);
+        if (len)
+            tcpmw_send_to_tcp(s);
     }
+}
 
-    netbuf_delete(buf);
-    return ret;
+void tcpmw_send_to_app(struct conn_state *s){
+    zlog_debug(zc_tcp, "tcpmw_send_to_app() called: %d/%d", s->tcp_buf_written, s->tcp_buf_len);
+    if (s->fd == -1)
+        return;
+    if (s->tcp_buf_len){  /* write from tcp_buf to app */
+        size_t sent = s->tcp_buf_written;
+        int to_write = s->tcp_buf_len - sent;
+        int tmp_sent = send(s->fd, s->tcp_buf + sent, to_write, 0);
+        if (tmp_sent < 0){
+            zlog_error(zc_tcp, "tcpmw_send_to_app(): send(%d): %s", s->fd, strerror(errno));
+            /* fd is broken, close it */
+            tcpmw_clear_fd_state(s, 1);
+            return;
+        }
+        s->tcp_buf_written += tmp_sent;
+        zlog_debug(zc_tcp, "tcpmw_send_to_app(): sent %d/%d/%d", (int)tmp_sent, s->tcp_buf_written, s->tcp_buf_len);
+        if (s->tcp_buf_written == s->tcp_buf_len)
+            tcpmw_clear_fd_state(s, 0);  /* Clear only buffer */
+    }
+    else{  /* tcp_buf is empty, so read from netconn */
+        if (s->conn == NULL)
+            return;
+        s8_t lwip_err = 0;
+        if ((lwip_err = netconn_recv(s->conn, &s->netbuf)) != ERR_OK){
+            zlog_error(zc_tcp, "tcpmw_send_to_app(): netconn_recv(): %s", lwip_strerr(lwip_err));
+            s->tcp_buf = NULL;
+            s->tcp_buf_len = 0;
+            s->tcp_buf_written = 0;
+            tcpmw_clear_conn_state(s, 1);
+            return;
+        }
+        /* Get the pointer to the data and its length. */
+        u16_t len;
+        if ((lwip_err = netbuf_data(s->netbuf, (void **)&s->tcp_buf, &len)) != ERR_OK){
+            zlog_error(zc_tcp, "tcpmw_send_to_app(): netbuf_data(): %s", lwip_strerr(lwip_err));
+            tcpmw_clear_conn_state(s, 1);
+            return;
+        }
+        s->tcp_buf_len = len;
+        zlog_debug(zc_tcp, "tcpmw_send_to_app(): received from tcp %dB.", len);
+        if (len)
+            tcpmw_send_to_app(s);
+    }
+}
+
+void tcpmw_clear_fd_state(struct conn_state *s, int terminate){
+    /* Close connection */
+    if (terminate && s->fd != -1){
+        close(s->fd);
+        s->fd = -1;
+    }
+    /* Nothing more can be sent to fd, free tcp_buf */
+    if (s->tcp_buf != NULL){
+        s->tcp_buf_written = 0;
+        s->tcp_buf_len = 0;
+        netbuf_delete(s->netbuf);
+        s->tcp_buf = NULL;
+    }
+}
+
+void tcpmw_clear_conn_state(struct conn_state *s, int terminate){
+    /* Close connection */
+    if (terminate && s->conn != NULL){
+        netconn_close(s->conn);
+        netconn_delete(s->conn);
+        s->conn = NULL;
+    }
+    /* Nothing more can be sent to netconn, reset buf metadata */
+    s->app_buf_written = 0;
+    s->app_buf_len = 0;
 }
 
 void tcpmw_set_recv_tout(struct conn_args *args, char *buf, int len){

@@ -18,6 +18,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -44,7 +45,8 @@
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
-#define TCP_POLLING_TOUT 2 /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+#define TCP_POLLING_TOUT 5  /* Polling timeout (in ms) used within tcpmw_poll_loop */
+#define MAX_CONNECTIONS 8192  /* Max number of active TCP connections */
 
 /* Middleware API commands */
 #define CMD_ACCEPT "ACCE"
@@ -63,16 +65,46 @@
 
 zlog_category_t *zc_tcp;
 
+/* TODO(PSz): replace by struct conn_state at some point */
 struct conn_args{
     int fd;
     struct netconn *conn;
 };
 
+struct conn_state{
+	int fd;  /* Socket: App <-> MW */
+    struct netconn *conn;  /* Socket: MW <-> TCP stack */
+    char *app_buf;  /* Data from app -> TCP stack */
+    int app_buf_len;  /* Its len */
+    int app_buf_written;  /* Bytes sent already to TCP */
+    int poll_err;  /* fd is closed or failed (as notified by poll())*/
+    uint64_t last_fd_access;  /* Iteration number of the last fd read/write() */
+    struct netbuf *netbuf;  /* Raw netconn buffer */
+    char *tcp_buf;  /* Data from TCP -> app */
+    int tcp_buf_len;  /* Its len */
+    int tcp_buf_written;  /* Bytes sent already to app */
+    int active;  /* Whether the structure is used */
+};
+
+static struct conn_state connections[MAX_CONNECTIONS];
+static struct pollfd pollfds[MAX_CONNECTIONS];
+pthread_mutex_t connections_lock;
+
 void *tcpmw_main_thread(void *);
-void *tcpmw_sock_thread(void *);
+void tcpmw_init();
+void *tcpmw_sock_rpc_thread(void *);
 void tcpmw_socket(int);
+int tcpmw_add_connection(struct conn_args *);
+void *tcpmw_poll_loop(void *);
+void tcpmw_send_to_tcp(struct conn_state *);
+void tcpmw_send_to_app(struct conn_state *);
+struct conn_state* tcpmw_fd2state(int fd);
+int tcpmw_sync_conn_states(uint64_t);
+void tcpmw_clear_state(struct conn_state *, int);
+void tcpmw_clear_fd_state(struct conn_state *, int);
+void tcpmw_clear_conn_state(struct conn_state *, int);
 void tcpmw_bind(struct conn_args *, char *, int);
-void tcpmw_connect(struct conn_args *, char *, int);
+s8_t tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
 void tcpmw_accept(struct conn_args *, char *, int);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
@@ -85,8 +117,4 @@ void tcpmw_reply(struct conn_args *, const char *, s8_t);
 void tcpmw_terminate(struct conn_args *);
 int tcpmw_read_cmd(int, char *);
 void tcpmw_unlink_sock(void);
-void *tcpmw_pipe_loop(void *);
-int tcpmw_from_app_sock(struct conn_args *);
-int tcpmw_from_tcp_sock(struct conn_args *);
-
 #endif
