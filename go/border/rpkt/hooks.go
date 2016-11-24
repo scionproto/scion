@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file contains the declarations of the system of hooks, used for
+// callbacks.
+
 package rpkt
 
 import (
@@ -33,6 +36,10 @@ type HookPayload func() (HookResult, common.Payload, *common.Error)
 type HookProcess func() (HookResult, *common.Error)
 type HookRoute func() (HookResult, *common.Error)
 
+// Hooks is a group of hook slices. Each hook slice is responsible for fetching
+// the information named by the slice from a packet. Extensions and other parts
+// of the router register to handle certain functions by adding a callback to
+// the relevant slice.
 type Hooks struct {
 	SrcIA    []HookIA
 	SrcHost  []HookHost
@@ -53,7 +60,11 @@ type Hooks struct {
 type HookResult int
 
 const (
+	// HookError means the current hook has failed.
 	HookError HookResult = iota
+	// HookContinue means the caller should continue to call other hooks.
 	HookContinue
+	// HookFinish means the current hook has provided the definitive answer,
+	// and no further hooks should be called.
 	HookFinish
 )
