@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles the creation of RtrPkt.
+
 package rpkt
 
 import (
@@ -26,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
+// RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
 func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
 	hdrLen := sp.HdrLen()
@@ -71,7 +74,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 		}
 	}
 	// Fill in L4 Header
-	rp.idxs.pld = hdrLen // Will be updated as necessary by AddL4
+	rp.idxs.pld = hdrLen // Will be updated as necessary by addL4
 	if sp.L4 != nil {
 		if err := rp.addL4(sp.L4); err != nil {
 			return nil, err
@@ -90,6 +93,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	return rp, nil
 }
 
+// addL4 adds a layer 4 header to an RtrPkt during creation.
 func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 	rp.L4Type = l4h.L4Type()
 	rp.l4 = l4h
@@ -123,6 +127,7 @@ func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 	return nil
 }
 
+// SetPld updates/sets the payload of an RtrPkt.
 func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 	rp.pld = pld
 	var plen int
