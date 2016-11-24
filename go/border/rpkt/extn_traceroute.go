@@ -50,7 +50,8 @@ const (
 
 var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
-// RTracerouteFromRaw creates an RTraceroute instance from raw bytes.
+// RTracerouteFromRaw creates an RTraceroute instance from raw bytes, keeping a
+// reference to the location in the packet's buffer.
 func RTracerouteFromRaw(rp *RtrPkt, start, end int) (*RTraceroute, *common.Error) {
 	t := &RTraceroute{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
@@ -60,11 +61,11 @@ func RTracerouteFromRaw(rp *RtrPkt, start, end int) (*RTraceroute, *common.Error
 	return t, nil
 }
 
+// Add creates a new traceroute entry directly to the underlying buffer.
 func (t *RTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
 		return common.NewError(ErrorHdrFull, log.Ctx{"entries": t.NumHops})
 	}
-	t.Info("Add", "IA", entry.IA, "IfID", entry.IfID, "Timestamp", entry.TimeStamp)
 	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
 	entry.IA.Write(t.raw[offset:])
 	offset += addr.IABytes
@@ -75,6 +76,7 @@ func (t *RTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	return nil
 }
 
+// Entry parses a specified traceroute entry from the underlying buffer.
 func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 	if idx > int(t.NumHops-1) {
 		return nil, common.NewError(ErrorIdx, "idx", idx, "max", t.NumHops-1)
@@ -90,14 +92,12 @@ func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 }
 
 func (t *RTraceroute) RegisterHooks(h *Hooks) *common.Error {
-	t.Info("RegisterHooks")
 	h.Validate = append(h.Validate, t.Validate)
 	h.Process = append(h.Process, t.Process)
 	return nil
 }
 
 func (t *RTraceroute) Validate() (HookResult, *common.Error) {
-	t.Info("Validate start")
 	if (len(t.raw)-common.ExtnFirstLineLen)%common.LineLen != 0 {
 		return HookError, common.NewError(ErrorLenMultiple, "len", len(t.raw))
 	}
@@ -105,12 +105,12 @@ func (t *RTraceroute) Validate() (HookResult, *common.Error) {
 		return HookError, common.NewError(ErrorTooManyEntries,
 			"max", t.TotalHops, "actual", t.NumHops)
 	}
-	t.Info("Validate end")
 	return HookContinue, nil
 }
 
+// Process creates a new entry, and adds it to the underlying buffer.
 func (t *RTraceroute) Process() (HookResult, *common.Error) {
-	t.Info("Process start")
+	// Take the current time in milliseconds, and truncate it to 16bits.
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
 	entry := spkt.TracerouteEntry{
 		IA: *conf.C.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
@@ -118,11 +118,14 @@ func (t *RTraceroute) Process() (HookResult, *common.Error) {
 	if err := t.Add(&entry); err != nil {
 		t.Error("Unable to add entry", err)
 	}
+	// Update the raw buffer with the number of hops.
 	t.raw[0] = t.NumHops
-	t.Info("Process end")
 	return HookContinue, nil
 }
 
+// GetExtn returns the spkt.Traceroute representation. The big difference
+// between the two representations is that the latter doesn't have an
+// underlying buffer, so instead it has a slice of TracerouteEntry's.
 func (t *RTraceroute) GetExtn() (common.Extension, *common.Error) {
 	s := spkt.NewTraceroute(int(t.TotalHops))
 	for i := 0; i < int(t.NumHops); i++ {
