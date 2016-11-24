@@ -162,7 +162,7 @@ func (d Dir) String() string {
 	}
 }
 
-// AddrIFPair contains the overlay source/destination addresses, as well as the
+// addrIFPair contains the overlay source/destination addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
 	Src   *net.UDPAddr
@@ -170,13 +170,18 @@ type addrIFPair struct {
 	IfIDs []spath.IntfID
 }
 
+// OutputFunc is the type of callback required for sending a packet.
 type OutputFunc func(*RtrPkt, *net.UDPAddr)
 
+// EgressPair contains the output function to send a packet with, along with an
+// overlay destination address.
 type EgressPair struct {
 	F   OutputFunc
 	Dst *net.UDPAddr
 }
 
+// packetIdxs provides offsets into a packet buffer to the start of various
+// fields. It is used heavily for parsing packets.
 type packetIdxs struct {
 	srcIA      int
 	srcHost    int
@@ -190,17 +195,28 @@ type packetIdxs struct {
 	pld        int
 }
 
+// hdrIdx provides the protocol type and index of a given L4/extension header.
 type hdrIdx struct {
 	Type  common.L4ProtocolType
 	Index int
 }
 
+// extnIdx provides the extension type and index of an extension header.
 type extnIdx struct {
 	Type  common.ExtnType
 	Index int
 }
 
+// Reset resets an RtrPkt to it's ~initial state, so it can be reused. Note
+// that for performance reasons it doesn't actually clear the raw buffer, so
+// reuse of an RtrPkt instance must ensure that the length of the buffer is
+// set to the length of the new data, to prevent any of the old data from
+// leaking through.
+//
+// Fields that are assumed to be overwritten (and hence aren't reset):
+// Id, TimeIn, CmnHdr, Logger
 func (rp *RtrPkt) Reset() {
+	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
 	rp.DirFrom = DirUnset
 	rp.DirTo = DirUnset
@@ -225,9 +241,12 @@ func (rp *RtrPkt) Reset() {
 	rp.pld = nil
 	rp.hooks = Hooks{}
 	rp.SCMPError = false
-	rp.Logger = nil
 }
 
+// ToScnPkt converts this RtrPkt into an spkt.ScnPkt. The verify argument
+// defines whether verification errors should cause this conversion to fail or
+// not. Setting this to false is useful when trying to convert a packet that it
+// already known to have errors, for the purpose of sending an error response.
 func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	var err *common.Error
 	sp := &spkt.ScnPkt{}
@@ -243,12 +262,18 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	if sp.DstHost, err = rp.DstHost(); err != nil {
 		return nil, err
 	}
+	// spath.Path uses offsets relative to the start of its buffer, whereas the
+	// SCION common header uses offsets relative to the start of the packet, so
+	// convert from one to the other.
 	sp.Path = &spath.Path{
 		Raw:    rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLen],
 		InfOff: rp.CmnHdr.CurrInfoF - uint8(rp.idxs.path),
 		HopOff: rp.CmnHdr.CurrHopF - uint8(rp.idxs.path),
 	}
 	for _, re := range rp.HBHExt {
+		// Extract the higher-level SExtension (which is self-contained) from
+		// the RtrPkt's RExtension (which may be tied to the underlying packet
+		// buffer).
 		se, err := re.GetExtn()
 		if err != nil {
 			return nil, err
@@ -256,6 +281,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 		sp.HBHExt = append(sp.HBHExt, se)
 	}
 	for _, re := range rp.E2EExt {
+		// Same as for the HBHExts.
 		se, err := re.GetExtn()
 		if err != nil {
 			return nil, err
@@ -271,6 +297,9 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	return sp, nil
 }
 
+// GetRaw returns slices of the underlying buffer corresponding to part of the
+// packet identified by the blk argument. This is used, for example, by SCMP to
+// quote parts of the packet in an error response.
 func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	switch blk {
 	case scmp.RawCmnHdr:
@@ -289,7 +318,8 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 }
 
 func (rp *RtrPkt) String() string {
-	// Pre-fetch required attributes
+	// Pre-fetch required attributes, deliberately ignoring errors so as to
+	// display as much information as can be gathered.
 	rp.SrcIA()
 	rp.SrcHost()
 	rp.DstIA()
@@ -300,6 +330,9 @@ func (rp *RtrPkt) String() string {
 		rp.Id, rp.DirFrom, rp.DirTo, rp.srcIA, rp.srcHost, rp.dstIA, rp.dstHost, rp.infoF, rp.hopF)
 }
 
+// ErrStr is a small utility method to combine an error message with a string
+// representation of the packet, as well as a hex representation of the raw
+// packet buffer.
 func (rp *RtrPkt) ErrStr(desc string) string {
 	return fmt.Sprintf("Error: %v\n  RtrPkt: %v\n  Raw: %v", desc, rp, rp.Raw)
 }
