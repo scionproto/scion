@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles parsing the SCION address header.
+
 package rpkt
 
 import (
@@ -26,6 +28,7 @@ const (
 	ErrorGetDstHost = "Unable to retrieve destination host"
 )
 
+// SrcIA retrieves the source ISD-AS if it isn't already known.
 func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
 	if rp.srcIA == nil {
 		var err *common.Error
@@ -37,6 +40,7 @@ func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
 	return rp.srcIA, nil
 }
 
+// SrcIA retrieves the destination ISD-AS if it isn't already known.
 func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 	if rp.dstIA == nil {
 		var err *common.Error
@@ -48,6 +52,8 @@ func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 	return rp.dstIA, nil
 }
 
+// hookIA is a helper method used by SrcIA/DstIA to run ISD-AS retrieval hooks,
+// falling back to parsing the address header directly otherwise.
 func (rp *RtrPkt) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *common.Error) {
 	for _, f := range hooks {
 		ret, ia, err := f()
@@ -63,6 +69,7 @@ func (rp *RtrPkt) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *common.Error) 
 	return addr.IAFromRaw(rp.Raw[idx:]), nil
 }
 
+// SrcHost retrieves the source host address if it isn't already known.
 func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
 	if rp.srcHost == nil {
 		var err *common.Error
@@ -74,6 +81,7 @@ func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
 	return rp.srcHost, nil
 }
 
+// SrcHost retrieves the destination host address if it isn't already known.
 func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 	if rp.dstHost == nil {
 		var err *common.Error
@@ -85,6 +93,9 @@ func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 	return rp.dstHost, nil
 }
 
+// hookHost is a helper method used by SrcHost/DstHost to run host address
+// retrieval hooks, falling back to parsing the address header directly
+// otherwise.
 func (rp *RtrPkt) hookHost(
 	hooks []HookHost, idx int, htype uint8) (addr.HostAddr, *common.Error) {
 	for _, f := range hooks {
