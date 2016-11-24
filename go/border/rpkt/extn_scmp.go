@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the router's implementation of the SCMP extension.
+// This file contains the router's implementation of the SCMP hop-by-hop
+// extension.
 
 package rpkt
 

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file contains the router's representation of the Traceroute hop-by-hop
+// extension.
+
 package rpkt
 
 import (
@@ -28,6 +31,7 @@ import (
 
 var _ RExtension = (*RTraceroute)(nil)
 
+// RTraceroute is the router's representation of the Traceroute extension.
 type RTraceroute struct {
 	rp        *RtrPkt
 	raw       common.RawBytes

@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file implements the router's handling of One Hop Path extensions.
+// This file implements the router's handling of the One Hop Path hop-by-hop
+// extension.
 
 package rpkt
 
