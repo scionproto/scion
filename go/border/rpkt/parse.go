@@ -150,7 +150,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 	if *offset > len(rp.Raw) {
 		// Can't generate SCMP error in general as we can't parse anything
 		// after the hbh extensions (e.g. an l4 header).
-		return common.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		return common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	return nil
 }

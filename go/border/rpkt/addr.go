@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	ErrorGetSrcIA   = "Unable to retrieve source ISD-AS"
-	ErrorGetDstIA   = "Unable to retrieve destination ISD-AS"
-	ErrorGetSrcHost = "Unable to retrieve source host"
-	ErrorGetDstHost = "Unable to retrieve destination host"
+	errGetSrcIA   = "Unable to retrieve source ISD-AS"
+	errGetDstIA   = "Unable to retrieve destination ISD-AS"
+	errGetSrcHost = "Unable to retrieve source host"
+	errGetDstHost = "Unable to retrieve destination host"
 )
 
 // SrcIA retrieves the source ISD-AS if it isn't already known.
@@ -34,7 +34,7 @@ func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
 		var err *common.Error
 		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
 		if err != nil {
-			return nil, common.NewError(ErrorGetSrcIA, "err", err)
+			return nil, common.NewError(errGetSrcIA, "err", err)
 		}
 	}
 	return rp.srcIA, nil
@@ -46,7 +46,7 @@ func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 		var err *common.Error
 		rp.dstIA, err = rp.hookIA(rp.hooks.DstIA, rp.idxs.dstIA)
 		if err != nil {
-			return nil, common.NewError(ErrorGetDstIA, "err", err)
+			return nil, common.NewError(errGetDstIA, "err", err)
 		}
 	}
 	return rp.dstIA, nil
@@ -75,7 +75,7 @@ func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
 		var err *common.Error
 		rp.srcHost, err = rp.hookHost(rp.hooks.SrcHost, rp.idxs.srcHost, rp.CmnHdr.SrcType)
 		if err != nil {
-			return nil, common.NewError(ErrorGetSrcHost, "err", err)
+			return nil, common.NewError(errGetSrcHost, "err", err)
 		}
 	}
 	return rp.srcHost, nil
@@ -87,7 +87,7 @@ func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 		var err *common.Error
 		rp.dstHost, err = rp.hookHost(rp.hooks.DstHost, rp.idxs.dstHost, rp.CmnHdr.DstType)
 		if err != nil {
-			return nil, common.NewError(ErrorGetDstHost, "err", err)
+			return nil, common.NewError(errGetDstHost, "err", err)
 		}
 	}
 	return rp.dstHost, nil

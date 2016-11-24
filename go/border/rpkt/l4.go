@@ -85,7 +85,7 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 	}
 	if offset > len(rp.Raw) {
 		// Can't generally return an SCMP error as parsing the headers has failed.
-		return false, common.NewError(ErrorExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		return false, common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	rp.idxs.nextHdrIdx.Type = nextHdr
 	rp.idxs.nextHdrIdx.Index = offset
