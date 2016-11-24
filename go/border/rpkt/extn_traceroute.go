@@ -50,6 +50,7 @@ const (
 
 var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
+// RTracerouteFromRaw creates an RTraceroute instance from raw bytes.
 func RTracerouteFromRaw(rp *RtrPkt, start, end int) (*RTraceroute, *common.Error) {
 	t := &RTraceroute{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
@@ -63,6 +64,7 @@ func (t *RTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
 		return common.NewError(ErrorHdrFull, log.Ctx{"entries": t.NumHops})
 	}
+	t.Info("Add", "IA", entry.IA, "IfID", entry.IfID, "Timestamp", entry.TimeStamp)
 	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
 	entry.IA.Write(t.raw[offset:])
 	offset += addr.IABytes
@@ -88,12 +90,14 @@ func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 }
 
 func (t *RTraceroute) RegisterHooks(h *Hooks) *common.Error {
+	t.Info("RegisterHooks")
 	h.Validate = append(h.Validate, t.Validate)
 	h.Process = append(h.Process, t.Process)
 	return nil
 }
 
 func (t *RTraceroute) Validate() (HookResult, *common.Error) {
+	t.Info("Validate start")
 	if (len(t.raw)-common.ExtnFirstLineLen)%common.LineLen != 0 {
 		return HookError, common.NewError(ErrorLenMultiple, "len", len(t.raw))
 	}
@@ -101,10 +105,12 @@ func (t *RTraceroute) Validate() (HookResult, *common.Error) {
 		return HookError, common.NewError(ErrorTooManyEntries,
 			"max", t.TotalHops, "actual", t.NumHops)
 	}
+	t.Info("Validate end")
 	return HookContinue, nil
 }
 
 func (t *RTraceroute) Process() (HookResult, *common.Error) {
+	t.Info("Process start")
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
 	entry := spkt.TracerouteEntry{
 		IA: *conf.C.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
@@ -113,6 +119,7 @@ func (t *RTraceroute) Process() (HookResult, *common.Error) {
 		t.Error("Unable to add entry", err)
 	}
 	t.raw[0] = t.NumHops
+	t.Info("Process end")
 	return HookContinue, nil
 }
 
