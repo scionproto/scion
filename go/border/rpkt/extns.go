@@ -31,7 +31,7 @@ type RExtension interface {
 	common.ExtnBase
 	// Get or generate a common.Extension from this RExtension.
 	GetExtn() (common.Extension, *common.Error)
-	RegisterHooks(*Hooks) *common.Error
+	RegisterHooks(*hooks) *common.Error
 }
 
 const (

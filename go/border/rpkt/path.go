@@ -363,7 +363,7 @@ func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 	return rp.ifNext, nil
 }
 
-func (rp *RtrPkt) hookIF(up bool, hooks []HookIntf) (*spath.IntfID, *common.Error) {
+func (rp *RtrPkt) hookIF(up bool, hooks []hookIntf) (*spath.IntfID, *common.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, rp.DirFrom, rp.DirTo)
 		switch {

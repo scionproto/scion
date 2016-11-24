@@ -49,7 +49,7 @@ func RSCMPExtFromRaw(rp *RtrPkt, start, end int) (*RSCMPExt, *common.Error) {
 	return s, nil
 }
 
-func (s *RSCMPExt) RegisterHooks(h *Hooks) *common.Error {
+func (s *RSCMPExt) RegisterHooks(h *hooks) *common.Error {
 	if s.HopByHop {
 		// If the extension's hop-by-hop flag is set, then process the payload.
 		h.Payload = append(h.Payload, s.rp.parseSCMPPayload)

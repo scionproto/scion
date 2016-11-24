@@ -42,9 +42,9 @@ func ROneHopPathFromRaw(rp *RtrPkt) (*ROneHopPath, *common.Error) {
 	return o, nil
 }
 
-func (o *ROneHopPath) RegisterHooks(hooks *Hooks) *common.Error {
+func (o *ROneHopPath) RegisterHooks(h *hooks) *common.Error {
 	// Override Hop Field parsing.
-	hooks.HopF = append(hooks.HopF, o.HopF)
+	h.HopF = append(h.HopF, o.HopF)
 	return nil
 }
 

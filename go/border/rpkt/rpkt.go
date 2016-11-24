@@ -117,7 +117,7 @@ type RtrPkt struct {
 	pld common.Payload
 	// hooks are registered callbacks to override/supplement normal processing. Their main use is
 	// for extensions to modify packet handling.  (PARSE/PROCESS, only if needed)
-	hooks Hooks
+	hooks hooks
 	// SCMPError flags if the packet is an SCMP Error packet, in which case it should never trigger
 	// an error response packet. (PARSE, if SCMP extension header is present)
 	SCMPError bool
@@ -239,7 +239,7 @@ func (rp *RtrPkt) Reset() {
 	rp.L4Type = common.L4None
 	rp.l4 = nil
 	rp.pld = nil
-	rp.hooks = Hooks{}
+	rp.hooks = hooks{}
 	rp.SCMPError = false
 }
 

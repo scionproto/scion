@@ -54,7 +54,7 @@ func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 
 // hookIA is a helper method used by SrcIA/DstIA to run ISD-AS retrieval hooks,
 // falling back to parsing the address header directly otherwise.
-func (rp *RtrPkt) hookIA(hooks []HookIA, idx int) (*addr.ISD_AS, *common.Error) {
+func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, *common.Error) {
 	for _, f := range hooks {
 		ret, ia, err := f()
 		switch {
@@ -97,7 +97,7 @@ func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 // retrieval hooks, falling back to parsing the address header directly
 // otherwise.
 func (rp *RtrPkt) hookHost(
-	hooks []HookHost, idx int, htype uint8) (addr.HostAddr, *common.Error) {
+	hooks []hookHost, idx int, htype uint8) (addr.HostAddr, *common.Error) {
 	for _, f := range hooks {
 		ret, host, err := f()
 		switch {

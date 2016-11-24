@@ -91,7 +91,7 @@ func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 	return &entry, nil
 }
 
-func (t *RTraceroute) RegisterHooks(h *Hooks) *common.Error {
+func (t *RTraceroute) RegisterHooks(h *hooks) *common.Error {
 	h.Validate = append(h.Validate, t.Validate)
 	h.Process = append(h.Process, t.Process)
 	return nil
