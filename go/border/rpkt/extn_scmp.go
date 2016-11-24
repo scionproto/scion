@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file contains the router's implementation of the SCMP extension.
+
 package rpkt
 
 import (
@@ -23,6 +25,7 @@ import (
 
 var _ RExtension = (*RSCMPExt)(nil)
 
+// RSCMPExt is the router's representation of the SCMP extension.
 type RSCMPExt struct {
 	*scmp.Extn
 	rp  *RtrPkt
@@ -47,6 +50,7 @@ func RSCMPExtFromRaw(rp *RtrPkt, start, end int) (*RSCMPExt, *common.Error) {
 
 func (s *RSCMPExt) RegisterHooks(h *Hooks) *common.Error {
 	if s.HopByHop {
+		// If the extension's hop-by-hop flag is set, then process the payload.
 		h.Payload = append(h.Payload, s.rp.parseSCMPPayload)
 		h.Process = append(h.Process, s.rp.processSCMP)
 	}
