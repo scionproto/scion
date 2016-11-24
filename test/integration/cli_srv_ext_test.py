@@ -28,6 +28,7 @@ from lib.packet.ext.path_transport import (
     PathTransType,
 )
 from lib.packet.packet_base import PayloadRaw
+from lib.types import ExtensionClass, ExtHopByHopType
 from test.integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -58,7 +59,28 @@ class ExtClient(TestClientBase):
         return exts
 
     def _handle_response(self, spkt):
-        logging.debug('CLI: Received response:\n%s', spkt)
+        logging.debug('Received response:\n%s', spkt)
+        trace = spkt.ext_hdrs[0]
+        if trace.EXT_CLASS != ExtensionClass.HOP_BY_HOP:
+            logging.error("First extension is not hop-by-hop:\n%s", trace)
+            return False
+        if trace.EXT_TYPE != ExtHopByHopType.TRACEROUTE:
+            logging.error("First extension is not Traceroute:\n%s", trace)
+            return False
+        iflist = self.iflist + list(reversed(self.iflist))
+        if len(trace.hops) != len(iflist):
+            logging.error(
+                "Number of traceroute hops (%d) does not "
+                "match number of expected interfaces (%d):\n%s",
+                len(trace.hops), len(iflist), trace)
+            return False
+        for i, (isd_as, ifid, _) in enumerate(trace.hops):
+            if isd_as != iflist[i][0] or ifid != iflist[i][1]:
+                logging.error(
+                    "Traceroute hop %d (IA: %s IfID: %d) != "
+                    "expected entry (IA: %s IfID: %d)",
+                    i, isd_as, ifid, iflist[i][0], iflist[i][1])
+                return False
         self.success = True
         self.finished.set()
         return True
