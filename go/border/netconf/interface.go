@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Packet netconf handles the network configuration of the router as described
+// Package netconf handles the network configuration of the router as described
 // by the topology.
 //
 // Multiple interfaces can share the same local addresses, so this package

@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package rpkt contains the router representation of a SCION packet.
+//
+// This differs from the higher-level github.com/netsec-ethz/scion/go/lib/spkt
+// package by being tied to an underlying buffer, which greatly improves
+// processing performance at the expense of flexibility.
 package rpkt
 
 import (
@@ -30,9 +35,12 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+// pktBufSize is the maxiumum size of a packet buffer.
 // FIXME(kormat): this should be reduced as soon as we respect the actual link MTU.
 const pktBufSize = 1 << 16
 
+// callbacks is an anonymous struct used for functions supplied by the router
+// for various processing tasks.
 var callbacks struct {
 	locOutFs   map[int]OutputFunc
 	intfOutFs  map[spath.IntfID]OutputFunc
@@ -40,6 +48,8 @@ var callbacks struct {
 	revTokenF  func(common.RawBytes)
 }
 
+// Init takes callback functions provided by the router and stores them for use
+// by the rpkt package.
 func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
 	ifStateUpd func(proto.IFStateInfos), revTokenF func(common.RawBytes)) {
 	callbacks.locOutFs = locOut
@@ -66,7 +76,7 @@ type RtrPkt struct {
 	DirTo Dir
 	// Ingress contains the incoming overlay metadata the packet arrived with, and the (list of)
 	// interface(s) it arrived on. (RECV)
-	Ingress AddrIFPair
+	Ingress addrIFPair
 	// Egress is a list of function & address pairs that determine how and where to the packet will
 	// be sent. (PROCESS/ROUTE)
 	Egress []EgressPair
@@ -122,12 +132,18 @@ func NewRtrPkt() *RtrPkt {
 	return r
 }
 
+// Dir represents a packet direction. It is used to designate where a packet
+// came from, and where it is going to.
 type Dir int
 
 const (
+	// DirUnset is the zero-value for Dir, and means the direction hasn't been initialized.
 	DirUnset Dir = iota
+	// DirSelf means the packet is going to/coming from this router.
 	DirSelf
+	// DirLocal means the packet is going to/coming from the local ISD-AS.
 	DirLocal
+	// DirExternal means the packet is going to/coming from another ISD-AS.
 	DirExternal
 )
 
@@ -146,7 +162,9 @@ func (d Dir) String() string {
 	}
 }
 
-type AddrIFPair struct {
+// AddrIFPair contains the overlay source/destination addresses, as well as the
+// list of associated interface IDs.
+type addrIFPair struct {
 	Src   *net.UDPAddr
 	Dst   *net.UDPAddr
 	IfIDs []spath.IntfID
