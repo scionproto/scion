@@ -54,7 +54,7 @@ func RTracerouteFromRaw(rp *RtrPkt, start, end int) (*RTraceroute, *common.Error
 	t := &RTraceroute{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
 	// Ignore subheader line
-	t.TotalHops = uint8(len(t.raw)-common.ExtnSubHdrLen) / common.LineLen
+	t.TotalHops = uint8(len(t.raw)-common.ExtnFirstLineLen) / common.LineLen
 	t.Logger = rp.Logger.New("ext", "traceroute")
 	return t, nil
 }
@@ -63,13 +63,13 @@ func (t *RTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
 		return common.NewError(ErrorHdrFull, log.Ctx{"entries": t.NumHops})
 	}
-	t.NumHops += 1
-	offset := common.LineLen * t.NumHops
+	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
 	entry.IA.Write(t.raw[offset:])
 	offset += addr.IABytes
 	common.Order.PutUint16(t.raw[offset:], entry.IfID)
 	offset += 2
 	common.Order.PutUint16(t.raw[offset:], entry.TimeStamp)
+	t.NumHops += 1
 	return nil
 }
 
@@ -78,7 +78,7 @@ func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 		return nil, common.NewError(ErrorIdx, "idx", idx, "max", t.NumHops-1)
 	}
 	entry := spkt.TracerouteEntry{}
-	offset := common.LineLen * (idx + 1)
+	offset := common.ExtnFirstLineLen + common.LineLen*idx
 	entry.IA = *addr.IAFromRaw(t.raw[offset:])
 	offset += addr.IABytes
 	entry.IfID = common.Order.Uint16(t.raw[offset:])
@@ -112,7 +112,7 @@ func (t *RTraceroute) Process() (HookResult, *common.Error) {
 	if err := t.Add(&entry); err != nil {
 		t.Error("Unable to add entry", err)
 	}
-	t.raw[3] = t.NumHops
+	t.raw[0] = t.NumHops
 	return HookContinue, nil
 }
 
