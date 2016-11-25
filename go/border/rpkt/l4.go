@@ -84,7 +84,7 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 			// extension, then we can't proceed any further.
 			// Any hop-by-hop extensions should already have been parsed before this.
 			// FIXME(kormat): handle SCMP errors for unknown L4 protocol headers.
-			return false, common.NewError("Unsupported L4 protocol", "type",
+			return false, common.NewError(ErrorL4Unsupported, "type",
 				currHdr, "offset", offset)
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
