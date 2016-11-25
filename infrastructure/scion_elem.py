@@ -91,7 +91,7 @@ from lib.topology import Topology
 from lib.util import hex_str
 
 
-MAX_QUEUE = 30
+MAX_QUEUE = 50
 
 
 class SCIONElement(object):
