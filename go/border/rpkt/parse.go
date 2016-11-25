@@ -111,38 +111,20 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 	rp.idxs.nextHdrIdx.Index = int(rp.CmnHdr.HdrLen)
 	nextHdr := &rp.idxs.nextHdrIdx.Type
 	offset := &rp.idxs.nextHdrIdx.Index
-	count := 0
 	for *offset < len(rp.Raw) {
 		currHdr := *nextHdr
 		if currHdr != common.HopByHopClass { // Reached end2end header or L4 protocol
 			break
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
-		if currExtn == common.ExtnSCMPType {
-			if count != 0 {
-				sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadExtOrder,
-					&scmp.InfoExtIdx{Idx: uint8(len(rp.idxs.hbhExt))})
-				return common.NewErrorData(ErrorExtOrder, sdata, "scmpIdx", count)
-			}
-		} else {
-			count++
-		}
-		if count > common.ExtnMaxHBH {
-			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
-				&scmp.InfoExtIdx{Idx: uint8(len(rp.idxs.hbhExt))})
-			return common.NewErrorData(ErrorTooManyHBH,
-				sdata, "max", common.ExtnMaxHBH, "actual", count)
-		}
 		hdrLen := int((rp.Raw[*offset+1] + 1) * common.LineLen)
 		e, err := rp.ExtnParseHBH(
 			currExtn, *offset+common.ExtnSubHdrLen, *offset+hdrLen, len(rp.idxs.hbhExt))
 		if err != nil {
 			return err
 		}
-		if e != nil {
-			e.RegisterHooks(&rp.hooks)
-			rp.HBHExt = append(rp.HBHExt, e)
-		}
+		e.RegisterHooks(&rp.hooks)
+		rp.HBHExt = append(rp.HBHExt, e)
 		rp.idxs.hbhExt = append(rp.idxs.hbhExt, extnIdx{currExtn, *offset})
 		*nextHdr = common.L4ProtocolType(rp.Raw[*offset])
 		*offset += hdrLen

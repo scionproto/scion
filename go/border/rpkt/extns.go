@@ -62,14 +62,8 @@ func (rp *RtrPkt) ExtnParseHBH(extType common.ExtnType,
 // This method does not add SCMP data to errors as this is a packet that's been
 // constructed locally.
 func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
-	max := common.ExtnMaxHBH
-	// If the first hop-by-hop extension is SCMP, extend the max by 1. (This is
-	// so that any packet with the max number of hop-by-hop extensions can
-	// always be replied to with an SCMP error).
-	if len(rp.HBHExt) > 1 && rp.HBHExt[0].Type() == common.ExtnSCMPType {
-		max += 1
-	}
-	if len(rp.HBHExt) >= max {
+	max := rp.maxHBHExtns()
+	if len(rp.HBHExt) >= rp.maxHBHExtns() {
 		return common.NewError(ErrorTooManyHBH, "curr", len(rp.HBHExt), "max", max)
 	}
 	if len(rp.HBHExt) > 1 && e.Type() == common.ExtnSCMPType {
@@ -115,4 +109,39 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	rp.idxs.l4 = offset + eLen
 	rp.idxs.pld = rp.idxs.l4
 	return nil
+}
+
+// validateExtns validates the order and number of extensions.
+func (rp *RtrPkt) validateExtns() *common.Error {
+	max := rp.maxHBHExtns()
+	count := len(rp.idxs.hbhExt)
+	// Check if there are too many hop-by-hop extensions.
+	if count > max {
+		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
+			&scmp.InfoExtIdx{Idx: uint8(count)})
+		return common.NewErrorData(ErrorTooManyHBH,
+			sdata, "max", common.ExtnMaxHBH, "actual", count)
+	}
+	// Check if there an SCMP hop-by-hop extension that isn't at index 0.
+	for i, e := range rp.idxs.hbhExt {
+		if e.Type == common.ExtnSCMPType && i > 0 {
+			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadExtOrder,
+				&scmp.InfoExtIdx{Idx: uint8(i)})
+			return common.NewErrorData(ErrorExtOrder, sdata, "scmpIdx", count)
+		}
+	}
+	return nil
+}
+
+// maxHBHExtns calculates the maxiumum allowed number of hop-by-hop extensions.
+// This is common.ExtnMaxHBH by default, but if the first HBH extension is
+// SCMP, then the max is extended by 1. (This is so that any packet with the
+// max number of hop-by-hop extensions can always be replied to with an SCMP
+// error).
+func (rp *RtrPkt) maxHBHExtns() int {
+	max := common.ExtnMaxHBH
+	if len(rp.HBHExt) > 1 && rp.HBHExt[0].Type() == common.ExtnSCMPType {
+		max += 1
+	}
+	return max
 }

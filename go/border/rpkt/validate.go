@@ -53,6 +53,9 @@ func (rp *RtrPkt) Validate() *common.Error {
 	if err := rp.validatePath(rp.DirFrom); err != nil {
 		return err
 	}
+	if err := rp.validateExtns(); err != nil {
+		return err
+	}
 	for i, f := range rp.hooks.Validate {
 		ret, err := f()
 		switch {
