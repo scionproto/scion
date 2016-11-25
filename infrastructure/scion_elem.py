@@ -107,7 +107,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = False
+    USE_TCP = True
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """

@@ -44,7 +44,7 @@
 #define ERR_NEW -126  /* netconn_new() error. */
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
-#define TCP_POLLING_TOUT 2 /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+#define TCP_POLLING_TOUT 15 /* Polling timeout (in ms) used within tcpmw_pipe_loop */
 
 /* Middleware API commands */
 #define CMD_ACCEPT "ACCE"
