@@ -310,7 +310,7 @@ class ErrorGenBadExtOrder(ErrorGenBase):
     def _create_extensions(self):
         exts = []
         exts.append(TracerouteExt.from_values(5))
-        exts.append(SCMPExt())
+        exts.append(SCMPExt.from_values(error=False))
         return exts
 
 
