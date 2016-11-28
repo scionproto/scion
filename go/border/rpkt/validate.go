@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles overall validation of packets.
+
 package rpkt
 
 import (
@@ -28,6 +30,8 @@ const (
 	ErrorHookResponse    = "Extension hook return value unrecognised"
 )
 
+// Validate performs basic validation of a packet, including calling any
+// registered validation hooks.
 func (rp *RtrPkt) Validate() *common.Error {
 	intf, ok := conf.C.Net.IFs[*rp.ifCurr]
 	if !ok {
@@ -35,6 +39,8 @@ func (rp *RtrPkt) Validate() *common.Error {
 	}
 	// XXX(kormat): the rest of the common header is checked by the parsing phase.
 	if !addr.HostTypeCheck(rp.CmnHdr.SrcType) || rp.CmnHdr.SrcType == addr.HostTypeSVC {
+		// Either the source address type isn't supported, or it is an SVC
+		// address (which is forbidden).
 		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
 		return common.NewErrorData("Unsupported source address type", sdata,
 			"type", rp.CmnHdr.SrcType)
