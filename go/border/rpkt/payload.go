@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles generic payload retrieval.
+
 package rpkt
 
 import (
@@ -24,7 +26,10 @@ const (
 	ErrorPayloadParse    = "Payload parseing failed"
 )
 
-// No fallback for payload - hooks must be registered to read it.
+// Payload retrieves the packet's payload if not already known. It ensures that
+// the layer 4 header has been parsed first, and then uses registered hooks to
+// retrieve the payload. Note there is no generic fallback; if no hooks are
+// registered, then no work is done.
 func (rp *RtrPkt) Payload(verify bool) (common.Payload, *common.Error) {
 	if rp.pld == nil && len(rp.hooks.Payload) > 0 {
 		_, err := rp.L4Hdr(verify)

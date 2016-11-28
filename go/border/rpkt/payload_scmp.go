@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles SCMP payload retrieval.
+
 package rpkt
 
 import (
@@ -19,6 +21,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
+// parseSCMPPayload is a hook that can be used for hookPayload, to retrieve the
+// SCMP payload.
 func (rp *RtrPkt) parseSCMPPayload() (HookResult, common.Payload, *common.Error) {
 	hdr := rp.l4.(*scmp.Hdr)
 	pld, err := scmp.PldFromRaw(rp.Raw[rp.idxs.pld:],
