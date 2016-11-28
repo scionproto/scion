@@ -76,6 +76,8 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 	return rp.RouteResolveSVCAny(svc, f)
 }
 
+// RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
+// a single instance of a local infrastructure service).
 func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
 	names, elemMap, err := getSVCNamesMap(svc)
 	if err != nil {
@@ -90,6 +92,9 @@ func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult
 	return HookContinue, nil
 }
 
+// RouteResolveSVCMulti handles routing a packet to a multicast SVC address
+// (i.e. one packet per machine hosting instances for a local infrastructure
+// service).
 func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
 	_, elemMap, err := getSVCNamesMap(svc)
 	if err != nil {
@@ -120,6 +125,8 @@ func (rp *RtrPkt) forward() (HookResult, *common.Error) {
 	}
 }
 
+// forwardFromExternal forwards packets that have been received from a
+// neighbouring ISD-AS.
 func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	if assert.On {
 		assert.Must(rp.hopF != nil, rp.ErrStr("rp.hopF must not be nil"))
@@ -139,15 +146,20 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 		rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 		return HookContinue, nil
 	}
+	// If this is a cross-over Hop Field, increment the path.
 	if rp.hopF.Xover {
 		if err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
+		// FIXME(kormat): this might need to change when multiple interfaces
+		// per router are supported.
 		if err := rp.validatePath(DirLocal); err != nil {
 			return HookError, err
 		}
 	}
 	// Destination is in a remote ISD-AS, so forward to egress router.
+	// FIXME(kormat): this will need to change when multiple interfaces per
+	// router are supported.
 	nextIF, err := rp.IFNext()
 	if err != nil {
 		return HookError, err
@@ -161,6 +173,8 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	return HookContinue, nil
 }
 
+// forwardFromLocal handles packet received from the local ISD-AS, to be
+// forwareded to neighbouring ISD-ASes.
 func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
 		if err := rp.IncPath(); err != nil {
