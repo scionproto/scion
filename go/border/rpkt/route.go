@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles routing of packets.
+
 package rpkt
 
 import (
@@ -26,7 +28,14 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
+// Route handles routing of packets. Registered hooks are called, allowing them
+// to add to the packet's Egress slice, and then the slice is iterated over and
+// each entry's function is called with the entry's address as the argument.
+// The use of a slice allows for a packet to be sent multiple times (e.g.
+// sending IFID packets to all BS instances in the local AS).
 func (rp *RtrPkt) Route() *common.Error {
+	// First allow any registered hooks to either route the packet themselves,
+	// or add entries to the Egress slice.
 	for _, f := range rp.hooks.Route {
 		ret, err := f()
 		switch {
@@ -35,6 +44,8 @@ func (rp *RtrPkt) Route() *common.Error {
 		case ret == HookContinue:
 			continue
 		case ret == HookFinish:
+			// HookFinish in this context means "the packet has already been
+			// routed".
 			return nil
 		}
 	}
@@ -42,12 +53,15 @@ func (rp *RtrPkt) Route() *common.Error {
 		return common.NewError("No routing information found", "egress", rp.Egress,
 			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
+	// Call all egress functions.
 	for _, epair := range rp.Egress {
 		epair.F(rp, epair.Dst)
 	}
 	return nil
 }
 
+// RouteResolveSVC is a hook to resolve SVC addresses for routing packets to
+// the local ISD-AS.
 func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 	svc, ok := rp.dstHost.(addr.HostSVC)
 	if !ok {
