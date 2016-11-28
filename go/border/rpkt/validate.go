@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles overall validation of packets.
+
 package rpkt
 
 import (
@@ -22,19 +24,22 @@ import (
 )
 
 const (
-	ErrorBadTotalLen     = "Total length specified in common header doesn't match bytes received"
-	ErrorCurrIntfInvalid = "Invalid current interface"
-	ErrorIntfRevoked     = "Interface revoked"
-	ErrorHookResponse    = "Extension hook return value unrecognised"
+	errCurrIntfInvalid = "Invalid current interface"
+	errIntfRevoked     = "Interface revoked"
+	errHookResponse    = "Extension hook return value unrecognised"
 )
 
+// Validate performs basic validation of a packet, including calling any
+// registered validation hooks.
 func (rp *RtrPkt) Validate() *common.Error {
 	intf, ok := conf.C.Net.IFs[*rp.ifCurr]
 	if !ok {
-		return common.NewError(ErrorCurrIntfInvalid, "ifid", *rp.ifCurr)
+		return common.NewError(errCurrIntfInvalid, "ifid", *rp.ifCurr)
 	}
 	// XXX(kormat): the rest of the common header is checked by the parsing phase.
 	if !addr.HostTypeCheck(rp.CmnHdr.SrcType) || rp.CmnHdr.SrcType == addr.HostTypeSVC {
+		// Either the source address type isn't supported, or it is an SVC
+		// address (which is forbidden).
 		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
 		return common.NewErrorData("Unsupported source address type", sdata,
 			"type", rp.CmnHdr.SrcType)
@@ -47,10 +52,14 @@ func (rp *RtrPkt) Validate() *common.Error {
 	if int(rp.CmnHdr.TotalLen) != len(rp.Raw) {
 		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadPktLen,
 			&scmp.InfoPktSize{Size: uint16(len(rp.Raw)), MTU: uint16(intf.MTU)})
-		return common.NewErrorData(ErrorBadTotalLen, sdata,
+		return common.NewErrorData(
+			"Total length specified in common header doesn't match bytes received", sdata,
 			"totalLen", rp.CmnHdr.TotalLen, "actual", len(rp.Raw))
 	}
 	if err := rp.validatePath(rp.DirFrom); err != nil {
+		return err
+	}
+	if err := rp.validateExtns(); err != nil {
 		return err
 	}
 	for i, f := range rp.hooks.Validate {
@@ -63,7 +72,7 @@ func (rp *RtrPkt) Validate() *common.Error {
 		case ret == HookFinish:
 			break
 		default:
-			return common.NewError(ErrorHookResponse, "hook", "Validate", "idx", i, "val", ret)
+			return common.NewError(errHookResponse, "hook", "Validate", "idx", i, "val", ret)
 		}
 	}
 	return nil
