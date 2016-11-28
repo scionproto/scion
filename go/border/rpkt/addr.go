@@ -21,20 +21,13 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-const (
-	errGetSrcIA   = "Unable to retrieve source ISD-AS"
-	errGetDstIA   = "Unable to retrieve destination ISD-AS"
-	errGetSrcHost = "Unable to retrieve source host"
-	errGetDstHost = "Unable to retrieve destination host"
-)
-
 // SrcIA retrieves the source ISD-AS if it isn't already known.
 func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
 	if rp.srcIA == nil {
 		var err *common.Error
 		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
 		if err != nil {
-			return nil, common.NewError(errGetSrcIA, "err", err)
+			return nil, common.NewError("Unable to retrieve source ISD-AS", "err", err)
 		}
 	}
 	return rp.srcIA, nil
@@ -46,7 +39,7 @@ func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 		var err *common.Error
 		rp.dstIA, err = rp.hookIA(rp.hooks.DstIA, rp.idxs.dstIA)
 		if err != nil {
-			return nil, common.NewError(errGetDstIA, "err", err)
+			return nil, common.NewError("Unable to retrieve destination ISD-AS", "err", err)
 		}
 	}
 	return rp.dstIA, nil
@@ -75,7 +68,7 @@ func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
 		var err *common.Error
 		rp.srcHost, err = rp.hookHost(rp.hooks.SrcHost, rp.idxs.srcHost, rp.CmnHdr.SrcType)
 		if err != nil {
-			return nil, common.NewError(errGetSrcHost, "err", err)
+			return nil, common.NewError("Unable to retrieve source host", "err", err)
 		}
 	}
 	return rp.srcHost, nil
@@ -87,7 +80,7 @@ func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 		var err *common.Error
 		rp.dstHost, err = rp.hookHost(rp.hooks.DstHost, rp.idxs.dstHost, rp.CmnHdr.DstType)
 		if err != nil {
-			return nil, common.NewError(errGetDstHost, "err", err)
+			return nil, common.NewError("Unable to retrieve destination host", "err", err)
 		}
 	}
 	return rp.dstHost, nil

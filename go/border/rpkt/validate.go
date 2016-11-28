@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	errBadTotalLen     = "Total length specified in common header doesn't match bytes received"
 	errCurrIntfInvalid = "Invalid current interface"
 	errIntfRevoked     = "Interface revoked"
 	errHookResponse    = "Extension hook return value unrecognised"
@@ -53,7 +52,8 @@ func (rp *RtrPkt) Validate() *common.Error {
 	if int(rp.CmnHdr.TotalLen) != len(rp.Raw) {
 		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadPktLen,
 			&scmp.InfoPktSize{Size: uint16(len(rp.Raw)), MTU: uint16(intf.MTU)})
-		return common.NewErrorData(errBadTotalLen, sdata,
+		return common.NewErrorData(
+			"Total length specified in common header doesn't match bytes received", sdata,
 			"totalLen", rp.CmnHdr.TotalLen, "actual", len(rp.Raw))
 	}
 	if err := rp.validatePath(rp.DirFrom); err != nil {

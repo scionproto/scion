@@ -36,11 +36,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
-const (
-	ErrorListenLocal    = "Unable to listen on local socket"
-	ErrorListenExternal = "Unable to listen on external socket"
-)
-
 type setupNetHook func(r *Router) (rpkt.HookResult, *common.Error)
 type setupAddLocalHook func(r *Router, idx int, over *overlay.UDP, labels prometheus.Labels) (
 	rpkt.HookResult, *common.Error)
@@ -160,7 +155,7 @@ func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
 	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	// Listen on the socket.
 	if err := over.Listen(); err != nil {
-		return rpkt.HookError, common.NewError(ErrorListenLocal, "err", err)
+		return rpkt.HookError, common.NewError("Unable to listen on local socket", "err", err)
 	}
 	// Find interfaces that use this local address.
 	var ifids []spath.IntfID
@@ -189,7 +184,7 @@ func setupPosixAddExt(r *Router, intf *netconf.Interface,
 	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	// Connect to remote address.
 	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
-		return rpkt.HookError, common.NewError(ErrorListenExternal, "err", err)
+		return rpkt.HookError, common.NewError("Unable to listen on external socket", "err", err)
 	}
 	// Create a channel for this socket.
 	q := make(chan *rpkt.RtrPkt)

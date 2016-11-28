@@ -35,8 +35,7 @@ type rExtension interface {
 }
 
 const (
-	errBadHopByHop     = "Unsupported hop-by-hop extension"
-	errBadEnd2End      = "Unsupported end2end extension"
+	// FIXME(kormat): remove when generic header walker is implemented.
 	errExtChainTooLong = "Extension header chain longer than packet"
 )
 
@@ -54,7 +53,7 @@ func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 		// HBH not supported, so send an SCMP error in response.
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadHopByHop,
 			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewErrorData(errBadHopByHop, sdata, "type", extType)
+		return nil, common.NewErrorData("Unsupported hop-by-hop extension", sdata, "type", extType)
 	}
 }
 
@@ -64,7 +63,7 @@ func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	max := rp.maxHBHExtns()
 	if len(rp.HBHExt) >= rp.maxHBHExtns() {
-		return common.NewError(errTooManyHBH, "curr", len(rp.HBHExt), "max", max)
+		return common.NewError("Too many hop-by-hop extensions", "curr", len(rp.HBHExt), "max", max)
 	}
 	if len(rp.HBHExt) > 1 && e.Type() == common.ExtnSCMPType {
 		return common.NewError("Bad extension order - SCMP must be first",
@@ -119,7 +118,7 @@ func (rp *RtrPkt) validateExtns() *common.Error {
 	if count > max {
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
 			&scmp.InfoExtIdx{Idx: uint8(count)})
-		return common.NewErrorData(errTooManyHBH,
+		return common.NewErrorData("Too many hop-by-hop extensions",
 			sdata, "max", common.ExtnMaxHBH, "actual", count)
 	}
 	// Check if there an SCMP hop-by-hop extension that isn't at index 0.
@@ -127,7 +126,7 @@ func (rp *RtrPkt) validateExtns() *common.Error {
 		if e.Type == common.ExtnSCMPType && i > 0 {
 			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadExtOrder,
 				&scmp.InfoExtIdx{Idx: uint8(i)})
-			return common.NewErrorData(errExtOrder, sdata, "scmpIdx", count)
+			return common.NewErrorData("Extension order is illegal", sdata, "scmpIdx", count)
 		}
 	}
 	return nil

@@ -26,17 +26,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
-const (
-	errHopFieldExpired    = "Hop field expired"
-	errHopFieldVerifyOnly = "Hop field is VERIFY_ONLY"
-	errGetInfoFTooSmall   = "Info field offset too small"
-	errGetInfoFTooLarge   = "Info field offset too large"
-	errGetHopFTooSmall    = "Hop field offset too small"
-	errGetHopFTooLarge    = "Hop field offset too large"
-	errDirFromUnsupported = "DirFrom value unsupported"
-	errLocAddrInvalid     = "Invalid local address"
-)
-
 // validatePath validates the path header.
 func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	if assert.On {
@@ -59,19 +48,19 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
-		return common.NewErrorData(errHopFieldVerifyOnly, sdata)
+		return common.NewErrorData("Hop field is VERIFY_ONLY", sdata)
 	}
 	// A forward-only Hop Field cannot be used for local delivery.
 	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
-		return common.NewErrorData(errHopFieldVerifyOnly, sdata)
+		return common.NewErrorData("Hop field is FORWARD_ONLY", sdata)
 	}
 	// Check if Hop Field has expired.
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
-		return common.NewErrorData(errHopFieldExpired, sdata, "expiry", hopfExpiry)
+		return common.NewErrorData("Hop field expired", sdata, "expiry", hopfExpiry)
 	}
 	// Verify the Hop Field MAC.
 	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
@@ -138,11 +127,11 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 			// There is no path, so do nothing.
 		case int(rp.CmnHdr.CurrInfoF) < rp.idxs.path: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewErrorData(errGetInfoFTooSmall, sdata,
+			return nil, common.NewErrorData("Info field offset too small", sdata,
 				"min", rp.idxs.path, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewErrorData(errGetInfoFTooLarge, sdata,
+			return nil, common.NewErrorData("Info field offset too large", sdata,
 				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen: // Parse
 			var err *common.Error
@@ -176,11 +165,11 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 			// There is no path, so do nothing.
 		case rp.CmnHdr.CurrHopF < rp.CmnHdr.CurrInfoF+spath.InfoFieldLength: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData(errGetHopFTooSmall, sdata,
+			return nil, common.NewErrorData("Hop field offset too small", sdata,
 				"min", rp.CmnHdr.CurrInfoF+spath.InfoFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData(errGetHopFTooLarge, sdata,
+			return nil, common.NewErrorData("Hop field offset too large", sdata,
 				"max", rp.CmnHdr.HdrLen-spath.HopFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		default: // Parse
 			var err *common.Error
@@ -363,7 +352,7 @@ func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 			case DirExternal:
 				ingress = !*rp.upFlag
 			default:
-				return nil, common.NewError(errDirFromUnsupported, "val", rp.DirFrom)
+				return nil, common.NewError("DirFrom value unsupported", "val", rp.DirFrom)
 			}
 			if ingress {
 				return rp.checkSetCurrIF(&rp.hopF.Ingress)

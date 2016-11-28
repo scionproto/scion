@@ -32,8 +32,7 @@ import (
 )
 
 const (
-	errProcessPldUnsupported = "Unable to process unsupported payload type"
-	errPldGet                = "Unable to retrieve payload"
+	errPldGet = "Unable to retrieve payload"
 )
 
 // NeedsLocalProcessing determines if the router needs to do more than just
@@ -93,7 +92,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	cpld, ok := rp.pld.(*spkt.CtrlPld)
 	if !ok {
 		// FIXME(kormat): handle SCMP packets sent to this router.
-		return HookError, common.NewError(errProcessPldUnsupported,
+		return HookError, common.NewError("Unable to process unsupported payload type",
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	pld := cpld.SCION

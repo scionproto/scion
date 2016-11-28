@@ -20,12 +20,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-const (
-	errPayloadLenWrong = "Payload length is wrong"
-	errPayloadDecode   = "Payload decoding failed"
-	errPayloadParse    = "Payload parseing failed"
-)
-
 // Payload retrieves the packet's payload if not already known. It ensures that
 // the layer 4 header has been parsed first, and then uses registered hooks to
 // retrieve the payload. Note there is no generic fallback; if no hooks are

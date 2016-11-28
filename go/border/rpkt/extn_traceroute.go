@@ -40,14 +40,6 @@ type rTraceroute struct {
 	log.Logger
 }
 
-const (
-	errHdrFull        = "Header already full"
-	errPack           = "Packing failed"
-	errUnpack         = "Unpacking failed"
-	errIdx            = "Entry index out of range"
-	errTooManyEntries = "Header claims too many entries"
-)
-
 var errLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
 // rTracerouteFromRaw creates an rTraceroute instance from raw bytes, keeping a
@@ -64,7 +56,7 @@ func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, *common.Error
 // Add creates a new traceroute entry directly to the underlying buffer.
 func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
-		return common.NewError(errHdrFull, log.Ctx{"entries": t.NumHops})
+		return common.NewError("Header already full", log.Ctx{"entries": t.NumHops})
 	}
 	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
 	entry.IA.Write(t.raw[offset:])
@@ -79,7 +71,7 @@ func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 // Entry parses a specified traceroute entry from the underlying buffer.
 func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 	if idx > int(t.NumHops-1) {
-		return nil, common.NewError(errIdx, "idx", idx, "max", t.NumHops-1)
+		return nil, common.NewError("Entry index out of range", "idx", idx, "max", t.NumHops-1)
 	}
 	entry := spkt.TracerouteEntry{}
 	offset := common.ExtnFirstLineLen + common.LineLen*idx
@@ -102,7 +94,7 @@ func (t *rTraceroute) Validate() (HookResult, *common.Error) {
 		return HookError, common.NewError(errLenMultiple, "len", len(t.raw))
 	}
 	if t.NumHops > t.TotalHops {
-		return HookError, common.NewError(errTooManyEntries,
+		return HookError, common.NewError("Header claims too many entries",
 			"max", t.TotalHops, "actual", t.NumHops)
 	}
 	return HookContinue, nil

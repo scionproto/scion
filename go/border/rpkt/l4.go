@@ -21,10 +21,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
-const (
-	errL4Unsupported = "Unsupported L4 header type"
-)
-
 // L4Hdr finds, parses and returns the layer 4 header, if any. The verify
 // argument determines whether to verify the L4 header or not.
 func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
@@ -56,7 +52,7 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 		*/
 		default:
 			// Can't return an SCMP error as we don't understand the L4 header
-			return nil, common.NewError(errL4Unsupported, "type", rp.L4Type)
+			return nil, common.NewError("Unsupported L4 header type", "type", rp.L4Type)
 		}
 	}
 	if verify {

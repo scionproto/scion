@@ -27,12 +27,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-const (
-	errHdrTooShort = "Header length indicated in common header is too small"
-	errExtOrder    = "Extension order is illegal"
-	errTooManyHBH  = "Too many hop-by-hop extensions"
-)
-
 // Parse handles the basic parsing of a packet.
 func (rp *RtrPkt) Parse() *common.Error {
 	if err := rp.parseBasic(); err != nil {
@@ -111,7 +105,8 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if rp.idxs.path > int(rp.CmnHdr.HdrLen) {
 		// Can't generate SCMP error as we can't parse anything after the address header
-		return common.NewError(errHdrTooShort, "min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen)
+		return common.NewError("Header length indicated in common header is too small",
+			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen)
 	}
 	return nil
 }
