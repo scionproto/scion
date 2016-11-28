@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles the basic parsing of packets, from common & address
+// headers, to hop-by-hop extensions headers.
+
 package rpkt
 
 import (
@@ -30,19 +33,22 @@ const (
 	ErrorTooManyHBH  = "Too many hop-by-hop extensions"
 )
 
+// Parse handles the basic parsing of a packet.
 func (rp *RtrPkt) Parse() *common.Error {
 	if err := rp.parseBasic(); err != nil {
 		return err
 	}
-	// TODO(kormat): support end2end extensions where the router is the destination
+	// TODO(kormat): support end2end extensions where the router is the
+	// destination
 	if err := rp.parseHopExtns(); err != nil {
 		return err
 	}
-	// Pre-fetch required attributes
+	// Pre-fetch attributes required by later stages of processing.
 	if _, err := rp.DstIA(); err != nil {
 		return err
 	}
 	if *rp.dstIA == *conf.C.IA {
+		// If the destination is local, parse the destination host as well.
 		if _, err := rp.DstHost(); err != nil {
 			return err
 		}
@@ -63,6 +69,7 @@ func (rp *RtrPkt) Parse() *common.Error {
 		return err
 	}
 	if *rp.dstIA != *conf.C.IA {
+		// If the destination isn't local, parse the next interface ID as well.
 		if _, err := rp.IFNext(); err != nil {
 			return err
 		}
@@ -71,12 +78,14 @@ func (rp *RtrPkt) Parse() *common.Error {
 	return nil
 }
 
-// Parse Common and address headers
+// parseBasic handles the parsing of the common and address headers.
 func (rp *RtrPkt) parseBasic() *common.Error {
 	var err *common.Error
+	// Parse common header.
 	if err := rp.CmnHdr.Parse(rp.Raw); err != nil {
 		return err
 	}
+	// Set indexes for source ISD-AS and host address.
 	rp.idxs.srcIA = spkt.CmnHdrLen
 	rp.idxs.srcHost = rp.idxs.srcIA + addr.IABytes
 	srcLen, err := addr.HostLen(rp.CmnHdr.SrcType)
@@ -86,6 +95,7 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 		}
 		return err
 	}
+	// Set indexes for destination ISD-AS and host address.
 	rp.idxs.dstIA = rp.idxs.srcHost + int(srcLen)
 	rp.idxs.dstHost = rp.idxs.dstIA + addr.IABytes
 	dstLen, err := addr.HostLen(rp.CmnHdr.DstType)
@@ -95,6 +105,7 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 		}
 		return err
 	}
+	// Set index for path header.
 	addrLen := addr.IABytes + int(srcLen) + addr.IABytes + int(dstLen)
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
@@ -105,8 +116,11 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 	return nil
 }
 
+// parseHopExtns walks the header chain, parsing hop-by-hop extensions,
+// stopping at the first non-HBH extension/L4 protocol header.
 func (rp *RtrPkt) parseHopExtns() *common.Error {
-	rp.idxs.hbhExt = make([]extnIdx, 0, 4)
+	// +1 to allow for a leading SCMP hop-by-hop extension.
+	rp.idxs.hbhExt = make([]extnIdx, 0, common.ExtnMaxHBH+1)
 	rp.idxs.nextHdrIdx.Type = rp.CmnHdr.NextHdr
 	rp.idxs.nextHdrIdx.Index = int(rp.CmnHdr.HdrLen)
 	nextHdr := &rp.idxs.nextHdrIdx.Type
@@ -130,14 +144,14 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 		*offset += hdrLen
 	}
 	if *offset > len(rp.Raw) {
-		// Can't generate SCMP error in general as we can't parse anything
-		// after the hbh extensions (e.g. an l4 header).
+		// FIXME(kormat): Can't generate SCMP error in general as we can't
+		// parse anything after the hbh extensions (e.g. a layer 4 header).
 		return common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	return nil
 }
 
-// Figure out which Dir a packet is going to.
+// setDirTo figures out which Dir a packet is going to.
 func (rp *RtrPkt) setDirTo() {
 	if assert.On {
 		assert.Must(rp.DirFrom != DirSelf, rp.ErrStr("DirFrom must not be DirSelf."))
