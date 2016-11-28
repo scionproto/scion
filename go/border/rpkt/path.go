@@ -131,16 +131,20 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 				return rp.infoF, nil
 			}
 		}
+		// Check the common header path metadata validity, and if so extract
+		// the current Info Field.
 		switch {
-		case int(rp.CmnHdr.CurrInfoF) < rp.idxs.path:
+		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
+			// There is no path, so do nothing.
+		case int(rp.CmnHdr.CurrInfoF) < rp.idxs.path: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
 			return nil, common.NewErrorData(ErrorGetInfoFTooSmall, sdata,
 				"min", rp.idxs.path, "actual", rp.CmnHdr.CurrInfoF)
-		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen:
+		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
 			return nil, common.NewErrorData(ErrorGetInfoFTooLarge, sdata,
 				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
-		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen:
+		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen: // Parse
 			var err *common.Error
 			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[rp.CmnHdr.CurrInfoF:]); err != nil {
 				return nil, err
@@ -164,23 +168,24 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 				return rp.hopF, nil
 			}
 		}
-		// Check the common header path metadata validity, and if so extract the current Hop Field.
+		// Check the common header path metadata validity, and if so extract
+		// the current Hop Field.
 		switch {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
 			// There is no path, so do nothing.
-		case rp.CmnHdr.CurrHopF < rp.CmnHdr.CurrInfoF+spath.InfoFieldLength:
+		case rp.CmnHdr.CurrHopF < rp.CmnHdr.CurrInfoF+spath.InfoFieldLength: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
 			return nil, common.NewErrorData(ErrorGetHopFTooSmall, sdata,
 				"min", rp.CmnHdr.CurrInfoF+spath.InfoFieldLength, "actual", rp.CmnHdr.CurrHopF)
-		case rp.CmnHdr.CurrHopF < rp.CmnHdr.HdrLen:
+		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen: // Error
+			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
+			return nil, common.NewErrorData(ErrorGetHopFTooLarge, sdata,
+				"max", rp.CmnHdr.HdrLen-spath.HopFieldLength, "actual", rp.CmnHdr.CurrHopF)
+		default: // Parse
 			var err *common.Error
 			if rp.hopF, err = spath.HopFFromRaw(rp.Raw[rp.CmnHdr.CurrHopF:]); err != nil {
 				return nil, err
 			}
-		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen:
-			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData(ErrorGetHopFTooLarge, sdata,
-				"max", rp.CmnHdr.HdrLen-spath.HopFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		}
 	}
 	return rp.hopF, nil
