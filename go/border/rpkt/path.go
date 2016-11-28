@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file handles the path header (parsing/validating/updating/etc).
+
 package rpkt
 
 import (
@@ -35,6 +37,7 @@ const (
 	ErrorLocAddrInvalid     = "Invalid local address"
 )
 
+// validatePath validates the path header.
 func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	if assert.On {
 		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil"))
@@ -43,29 +46,34 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	if err := rp.validateLocalIF(*rp.ifCurr); err != nil {
 		return err
 	}
-	// If there's no path, then there's nothing to check.
 	if rp.infoF == nil || rp.hopF == nil {
+		// If there's no path, then there's nothing to check.
 		if rp.DirTo == DirSelf {
-			// An empty path is legimate when the packet's destination is this router.
+			// An empty path is legitimate when the packet's destination is
+			// this router.
 			return nil
 		}
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_PathRequired, nil)
 		return common.NewErrorData("Path required", sdata)
 	}
+	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
 	}
+	// A forward-only Hop Field cannot be used for local delivery.
 	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
 	}
+	// Check if Hop Field has expired.
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
 		return common.NewErrorData(ErrorHopFieldExpired, sdata, "expiry", hopfExpiry)
 	}
+	// Verify the Hop Field MAC.
 	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
 	if err != nil && err.Desc == spath.ErrorHopFBadMac {
 		err.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
@@ -73,6 +81,9 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	return err
 }
 
+// validateLocalIF makes sure a given interface ID exists in the local AS, and
+// that it isn't revoked. Note that revocations are ignored if the packet's
+// destination is this router.
 func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
 	if _, ok := conf.C.TopoMeta.IFMap[int(ifid)]; !ok {
 		// No such interface.
@@ -96,6 +107,8 @@ func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
 	return common.NewErrorData(ErrorIntfRevoked, sdata, "ifid", ifid)
 }
 
+// mkInfoPathOffsets is a helper function to create an scmp.InfoPathOffsets
+// instance from the current packet.
 func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
 	return &scmp.InfoPathOffsets{
 		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
@@ -103,6 +116,7 @@ func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
 	}
 }
 
+// InfoF returns the current path Info Field if it isn't already known.
 func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 	if rp.infoF == nil {
 		for _, f := range rp.hooks.Infof {
