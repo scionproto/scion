@@ -27,14 +27,14 @@ import (
 )
 
 const (
-	ErrorHopFieldExpired    = "Hop field expired"
-	ErrorHopFieldVerifyOnly = "Hop field is VERIFY_ONLY"
-	ErrorGetInfoFTooSmall   = "Info field offset too small"
-	ErrorGetInfoFTooLarge   = "Info field offset too large"
-	ErrorGetHopFTooSmall    = "Hop field offset too small"
-	ErrorGetHopFTooLarge    = "Hop field offset too large"
-	ErrorDirFromUnsupported = "DirFrom value unsupported"
-	ErrorLocAddrInvalid     = "Invalid local address"
+	errHopFieldExpired    = "Hop field expired"
+	errHopFieldVerifyOnly = "Hop field is VERIFY_ONLY"
+	errGetInfoFTooSmall   = "Info field offset too small"
+	errGetInfoFTooLarge   = "Info field offset too large"
+	errGetHopFTooSmall    = "Hop field offset too small"
+	errGetHopFTooLarge    = "Hop field offset too large"
+	errDirFromUnsupported = "DirFrom value unsupported"
+	errLocAddrInvalid     = "Invalid local address"
 )
 
 // validatePath validates the path header.
@@ -59,19 +59,19 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
-		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
+		return common.NewErrorData(errHopFieldVerifyOnly, sdata)
 	}
 	// A forward-only Hop Field cannot be used for local delivery.
 	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
-		return common.NewErrorData(ErrorHopFieldVerifyOnly, sdata)
+		return common.NewErrorData(errHopFieldVerifyOnly, sdata)
 	}
 	// Check if Hop Field has expired.
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
-		return common.NewErrorData(ErrorHopFieldExpired, sdata, "expiry", hopfExpiry)
+		return common.NewErrorData(errHopFieldExpired, sdata, "expiry", hopfExpiry)
 	}
 	// Verify the Hop Field MAC.
 	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
@@ -104,7 +104,7 @@ func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(ifid),
 		rp.DirFrom == DirExternal, info.RawRev)
 	sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
-	return common.NewErrorData(ErrorIntfRevoked, sdata, "ifid", ifid)
+	return common.NewErrorData(errIntfRevoked, sdata, "ifid", ifid)
 }
 
 // mkInfoPathOffsets is a helper function to create an scmp.InfoPathOffsets
@@ -138,11 +138,11 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 			// There is no path, so do nothing.
 		case int(rp.CmnHdr.CurrInfoF) < rp.idxs.path: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewErrorData(ErrorGetInfoFTooSmall, sdata,
+			return nil, common.NewErrorData(errGetInfoFTooSmall, sdata,
 				"min", rp.idxs.path, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewErrorData(ErrorGetInfoFTooLarge, sdata,
+			return nil, common.NewErrorData(errGetInfoFTooLarge, sdata,
 				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen: // Parse
 			var err *common.Error
@@ -176,11 +176,11 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 			// There is no path, so do nothing.
 		case rp.CmnHdr.CurrHopF < rp.CmnHdr.CurrInfoF+spath.InfoFieldLength: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData(ErrorGetHopFTooSmall, sdata,
+			return nil, common.NewErrorData(errGetHopFTooSmall, sdata,
 				"min", rp.CmnHdr.CurrInfoF+spath.InfoFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData(ErrorGetHopFTooLarge, sdata,
+			return nil, common.NewErrorData(errGetHopFTooLarge, sdata,
 				"max", rp.CmnHdr.HdrLen-spath.HopFieldLength, "actual", rp.CmnHdr.CurrHopF)
 		default: // Parse
 			var err *common.Error
@@ -363,7 +363,7 @@ func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 			case DirExternal:
 				ingress = !*rp.upFlag
 			default:
-				return nil, common.NewError(ErrorDirFromUnsupported, "val", rp.DirFrom)
+				return nil, common.NewError(errDirFromUnsupported, "val", rp.DirFrom)
 			}
 			if ingress {
 				return rp.checkSetCurrIF(&rp.hopF.Ingress)

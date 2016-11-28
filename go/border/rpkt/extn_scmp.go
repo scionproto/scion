@@ -24,19 +24,19 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
-var _ RExtension = (*RSCMPExt)(nil)
+var _ rExtension = (*rSCMPExt)(nil)
 
-// RSCMPExt is the router's representation of the SCMP extension.
-type RSCMPExt struct {
+// rSCMPExt is the router's representation of the SCMP extension.
+type rSCMPExt struct {
 	*scmp.Extn
 	rp  *RtrPkt
 	raw common.RawBytes
 	log.Logger
 }
 
-func RSCMPExtFromRaw(rp *RtrPkt, start, end int) (*RSCMPExt, *common.Error) {
+func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, *common.Error) {
 	var err *common.Error
-	s := &RSCMPExt{rp: rp, raw: rp.Raw[start:end]}
+	s := &rSCMPExt{rp: rp, raw: rp.Raw[start:end]}
 	s.Extn, err = scmp.ExtnFromRaw(s.raw)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func RSCMPExtFromRaw(rp *RtrPkt, start, end int) (*RSCMPExt, *common.Error) {
 	return s, nil
 }
 
-func (s *RSCMPExt) RegisterHooks(h *hooks) *common.Error {
+func (s *rSCMPExt) RegisterHooks(h *hooks) *common.Error {
 	if s.HopByHop {
 		// If the extension's hop-by-hop flag is set, then process the payload.
 		h.Payload = append(h.Payload, s.rp.parseSCMPPayload)
@@ -58,6 +58,6 @@ func (s *RSCMPExt) RegisterHooks(h *hooks) *common.Error {
 	return nil
 }
 
-func (s *RSCMPExt) GetExtn() (common.Extension, *common.Error) {
+func (s *rSCMPExt) GetExtn() (common.Extension, *common.Error) {
 	return s.Extn, nil
 }

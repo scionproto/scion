@@ -26,30 +26,30 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
-var _ RExtension = (*ROneHopPath)(nil)
+var _ rExtension = (*rOneHopPath)(nil)
 
-// ROneHopPath is the router's representation of the One Hop Path extension.
-type ROneHopPath struct {
+// rOneHopPath is the router's representation of the One Hop Path extension.
+type rOneHopPath struct {
 	log.Logger
 	rp *RtrPkt
 	spkt.OneHopPath
 }
 
-func ROneHopPathFromRaw(rp *RtrPkt) (*ROneHopPath, *common.Error) {
-	o := &ROneHopPath{rp: rp}
+func rOneHopPathFromRaw(rp *RtrPkt) (*rOneHopPath, *common.Error) {
+	o := &rOneHopPath{rp: rp}
 	o.Logger = rp.Logger.New("ext", "OneHopPath")
 	o.rp = rp
 	return o, nil
 }
 
-func (o *ROneHopPath) RegisterHooks(h *hooks) *common.Error {
+func (o *rOneHopPath) RegisterHooks(h *hooks) *common.Error {
 	// Override Hop Field parsing.
 	h.HopF = append(h.HopF, o.HopF)
 	return nil
 }
 
 // HopF generates and returns a new hop field on ingress to an AS.
-func (o *ROneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
+func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	if o.rp.DirFrom == DirLocal {
 		// The existing HopF is still in use, so use HookContinue to read that
 		// instead.
@@ -75,18 +75,18 @@ func (o *ROneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	return HookContinue, nil, nil
 }
 
-func (o *ROneHopPath) Type() common.ExtnType {
+func (o *rOneHopPath) Type() common.ExtnType {
 	return common.ExtnOneHopPathType
 }
 
-func (o *ROneHopPath) Len() int {
+func (o *rOneHopPath) Len() int {
 	return common.LineLen
 }
 
-func (o *ROneHopPath) String() string {
+func (o *rOneHopPath) String() string {
 	return "OneHopPath"
 }
 
-func (o *ROneHopPath) GetExtn() (common.Extension, *common.Error) {
+func (o *rOneHopPath) GetExtn() (common.Extension, *common.Error) {
 	return &o.OneHopPath, nil
 }

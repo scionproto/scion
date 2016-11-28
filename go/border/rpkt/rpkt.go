@@ -104,10 +104,10 @@ type RtrPkt struct {
 	// upFlag indicates if the packet is currently on an up path. (PARSE)
 	upFlag *bool
 	// HBHExt is the list of Hop-by-hop extensions, if any. (PARSE)
-	HBHExt []RExtension
+	HBHExt []rExtension
 	// E2EExt is the list of end2end extensions, if any. (PARSE, only if needed)
 	// TODO(kormat): The router currently ignores these.
-	E2EExt []RExtension
+	E2EExt []rExtension
 	// L4Type is the type of the L4 protocol. If there isn't an L4 header, this will be L4None
 	// (PROCESS, only if needed)
 	L4Type common.L4ProtocolType
@@ -272,7 +272,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	}
 	for _, re := range rp.HBHExt {
 		// Extract the higher-level SExtension (which is self-contained) from
-		// the RtrPkt's RExtension (which may be tied to the underlying packet
+		// the RtrPkt's rExtension (which may be tied to the underlying packet
 		// buffer).
 		se, err := re.GetExtn()
 		if err != nil {

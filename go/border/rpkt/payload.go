@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	ErrorPayloadLenWrong = "Payload length is wrong"
-	ErrorPayloadDecode   = "Payload decoding failed"
-	ErrorPayloadParse    = "Payload parseing failed"
+	errPayloadLenWrong = "Payload length is wrong"
+	errPayloadDecode   = "Payload decoding failed"
+	errPayloadParse    = "Payload parseing failed"
 )
 
 // Payload retrieves the packet's payload if not already known. It ensures that

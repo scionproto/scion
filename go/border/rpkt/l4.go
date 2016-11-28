@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	ErrorL4Unsupported = "Unsupported L4 header type"
+	errL4Unsupported = "Unsupported L4 header type"
 )
 
 // L4Hdr finds, parses and returns the layer 4 header, if any. The verify
@@ -56,7 +56,7 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 		*/
 		default:
 			// Can't return an SCMP error as we don't understand the L4 header
-			return nil, common.NewError(ErrorL4Unsupported, "type", rp.L4Type)
+			return nil, common.NewError(errL4Unsupported, "type", rp.L4Type)
 		}
 	}
 	if verify {

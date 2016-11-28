@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	ErrorProcessPldUnsupported = "Unable to process unsupported payload type"
-	ErrorPldGet                = "Unable to retrieve payload"
+	errProcessPldUnsupported = "Unable to process unsupported payload type"
+	errPldGet                = "Unable to retrieve payload"
 )
 
 // NeedsLocalProcessing determines if the router needs to do more than just
@@ -93,7 +93,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	cpld, ok := rp.pld.(*spkt.CtrlPld)
 	if !ok {
 		// FIXME(kormat): handle SCMP packets sent to this router.
-		return HookError, common.NewError(ErrorProcessPldUnsupported,
+		return HookError, common.NewError(errProcessPldUnsupported,
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	pld := cpld.SCION
@@ -102,13 +102,13 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	case proto.SCION_Which_ifid:
 		ifid, err := pld.Ifid()
 		if err != nil {
-			return HookError, common.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		return rp.processIFID(ifid)
 	case proto.SCION_Which_pathMgmt:
 		pathMgmt, err := pld.PathMgmt()
 		if err != nil {
-			return HookError, common.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		return rp.processPathMgmtSelf(pathMgmt)
 	default:
@@ -154,7 +154,7 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 	case proto.PathMgmt_Which_ifStateInfos:
 		ifStates, err := pathMgmt.IfStateInfos()
 		if err != nil {
-			return HookError, common.NewError(ErrorPldGet, "err", err)
+			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		callbacks.ifStateUpd(ifStates)
 	default:

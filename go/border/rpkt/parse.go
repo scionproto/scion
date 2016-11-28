@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	ErrorHdrTooShort = "Header length indicated in common header is too small"
-	ErrorExtOrder    = "Extension order is illegal"
-	ErrorTooManyHBH  = "Too many hop-by-hop extensions"
+	errHdrTooShort = "Header length indicated in common header is too small"
+	errExtOrder    = "Extension order is illegal"
+	errTooManyHBH  = "Too many hop-by-hop extensions"
 )
 
 // Parse handles the basic parsing of a packet.
@@ -111,7 +111,7 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if rp.idxs.path > int(rp.CmnHdr.HdrLen) {
 		// Can't generate SCMP error as we can't parse anything after the address header
-		return common.NewError(ErrorHdrTooShort, "min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen)
+		return common.NewError(errHdrTooShort, "min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen)
 	}
 	return nil
 }
@@ -132,7 +132,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
 		hdrLen := int((rp.Raw[*offset+1] + 1) * common.LineLen)
-		e, err := rp.ExtnParseHBH(
+		e, err := rp.extnParseHBH(
 			currExtn, *offset+common.ExtnSubHdrLen, *offset+hdrLen, len(rp.idxs.hbhExt))
 		if err != nil {
 			return err

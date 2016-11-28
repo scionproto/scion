@@ -29,10 +29,10 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
-var _ RExtension = (*RTraceroute)(nil)
+var _ rExtension = (*rTraceroute)(nil)
 
-// RTraceroute is the router's representation of the Traceroute extension.
-type RTraceroute struct {
+// rTraceroute is the router's representation of the Traceroute extension.
+type rTraceroute struct {
 	rp        *RtrPkt
 	raw       common.RawBytes
 	NumHops   uint8
@@ -41,19 +41,19 @@ type RTraceroute struct {
 }
 
 const (
-	ErrorHdrFull        = "Header already full"
-	ErrorPack           = "Packing failed"
-	ErrorUnpack         = "Unpacking failed"
-	ErrorIdx            = "Entry index out of range"
-	ErrorTooManyEntries = "Header claims too many entries"
+	errHdrFull        = "Header already full"
+	errPack           = "Packing failed"
+	errUnpack         = "Unpacking failed"
+	errIdx            = "Entry index out of range"
+	errTooManyEntries = "Header claims too many entries"
 )
 
-var ErrorLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
+var errLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
-// RTracerouteFromRaw creates an RTraceroute instance from raw bytes, keeping a
+// rTracerouteFromRaw creates an rTraceroute instance from raw bytes, keeping a
 // reference to the location in the packet's buffer.
-func RTracerouteFromRaw(rp *RtrPkt, start, end int) (*RTraceroute, *common.Error) {
-	t := &RTraceroute{rp: rp, raw: rp.Raw[start:end]}
+func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, *common.Error) {
+	t := &rTraceroute{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
 	// Ignore subheader line
 	t.TotalHops = uint8(len(t.raw)-common.ExtnFirstLineLen) / common.LineLen
@@ -62,9 +62,9 @@ func RTracerouteFromRaw(rp *RtrPkt, start, end int) (*RTraceroute, *common.Error
 }
 
 // Add creates a new traceroute entry directly to the underlying buffer.
-func (t *RTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
+func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
-		return common.NewError(ErrorHdrFull, log.Ctx{"entries": t.NumHops})
+		return common.NewError(errHdrFull, log.Ctx{"entries": t.NumHops})
 	}
 	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
 	entry.IA.Write(t.raw[offset:])
@@ -77,9 +77,9 @@ func (t *RTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 }
 
 // Entry parses a specified traceroute entry from the underlying buffer.
-func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
+func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 	if idx > int(t.NumHops-1) {
-		return nil, common.NewError(ErrorIdx, "idx", idx, "max", t.NumHops-1)
+		return nil, common.NewError(errIdx, "idx", idx, "max", t.NumHops-1)
 	}
 	entry := spkt.TracerouteEntry{}
 	offset := common.ExtnFirstLineLen + common.LineLen*idx
@@ -91,25 +91,25 @@ func (t *RTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 	return &entry, nil
 }
 
-func (t *RTraceroute) RegisterHooks(h *hooks) *common.Error {
+func (t *rTraceroute) RegisterHooks(h *hooks) *common.Error {
 	h.Validate = append(h.Validate, t.Validate)
 	h.Process = append(h.Process, t.Process)
 	return nil
 }
 
-func (t *RTraceroute) Validate() (HookResult, *common.Error) {
+func (t *rTraceroute) Validate() (HookResult, *common.Error) {
 	if (len(t.raw)-common.ExtnFirstLineLen)%common.LineLen != 0 {
-		return HookError, common.NewError(ErrorLenMultiple, "len", len(t.raw))
+		return HookError, common.NewError(errLenMultiple, "len", len(t.raw))
 	}
 	if t.NumHops > t.TotalHops {
-		return HookError, common.NewError(ErrorTooManyEntries,
+		return HookError, common.NewError(errTooManyEntries,
 			"max", t.TotalHops, "actual", t.NumHops)
 	}
 	return HookContinue, nil
 }
 
 // Process creates a new entry, and adds it to the underlying buffer.
-func (t *RTraceroute) Process() (HookResult, *common.Error) {
+func (t *rTraceroute) Process() (HookResult, *common.Error) {
 	// Take the current time in milliseconds, and truncate it to 16bits.
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
 	entry := spkt.TracerouteEntry{
@@ -126,7 +126,7 @@ func (t *RTraceroute) Process() (HookResult, *common.Error) {
 // GetExtn returns the spkt.Traceroute representation. The big difference
 // between the two representations is that the latter doesn't have an
 // underlying buffer, so instead it has a slice of TracerouteEntry's.
-func (t *RTraceroute) GetExtn() (common.Extension, *common.Error) {
+func (t *rTraceroute) GetExtn() (common.Extension, *common.Error) {
 	s := spkt.NewTraceroute(int(t.TotalHops))
 	for i := 0; i < int(t.NumHops); i++ {
 		entry, err := t.Entry(i)
@@ -138,19 +138,19 @@ func (t *RTraceroute) GetExtn() (common.Extension, *common.Error) {
 	return s, nil
 }
 
-func (t *RTraceroute) Len() int {
+func (t *rTraceroute) Len() int {
 	return len(t.raw)
 }
 
-func (t *RTraceroute) Class() common.L4ProtocolType {
+func (t *rTraceroute) Class() common.L4ProtocolType {
 	return common.HopByHopClass
 }
 
-func (t *RTraceroute) Type() common.ExtnType {
+func (t *rTraceroute) Type() common.ExtnType {
 	return common.ExtnTracerouteType
 }
 
-func (t *RTraceroute) String() string {
+func (t *rTraceroute) String() string {
 	// Delegate string representation to spkt.Traceroute
 	e, err := t.GetExtn()
 	if err != nil {

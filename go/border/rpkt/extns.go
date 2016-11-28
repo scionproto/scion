@@ -24,12 +24,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
-// RExtension extends common.ExtnBase, adding a method to retrieve the
-// common.Extension from an RExtension, to allow conversion from RtrPkt to
+// rExtension extends common.ExtnBase, adding a method to retrieve the
+// common.Extension from an rExtension, to allow conversion from RtrPkt to
 // ScnPkt.
-type RExtension interface {
+type rExtension interface {
 	common.ExtnBase
-	// Get or generate a common.Extension from this RExtension.
+	// Get or generate a common.Extension from this rExtension.
 	GetExtn() (common.Extension, *common.Error)
 	RegisterHooks(*hooks) *common.Error
 }
@@ -40,16 +40,16 @@ const (
 	errExtChainTooLong = "Extension header chain longer than packet"
 )
 
-// ExtnParseHBH parses a specified hop-by-hop extension in a packet.
-func (rp *RtrPkt) ExtnParseHBH(extType common.ExtnType,
-	start, end, pos int) (RExtension, *common.Error) {
+// extnParseHBH parses a specified hop-by-hop extension in a packet.
+func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
+	start, end, pos int) (rExtension, *common.Error) {
 	switch {
 	case extType == common.ExtnTracerouteType:
-		return RTracerouteFromRaw(rp, start, end)
+		return rTracerouteFromRaw(rp, start, end)
 	case extType == common.ExtnOneHopPathType:
-		return ROneHopPathFromRaw(rp)
+		return rOneHopPathFromRaw(rp)
 	case extType == common.ExtnSCMPType:
-		return RSCMPExtFromRaw(rp, start, end)
+		return rSCMPExtFromRaw(rp, start, end)
 	default:
 		// HBH not supported, so send an SCMP error in response.
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadHopByHop,
@@ -64,7 +64,7 @@ func (rp *RtrPkt) ExtnParseHBH(extType common.ExtnType,
 func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	max := rp.maxHBHExtns()
 	if len(rp.HBHExt) >= rp.maxHBHExtns() {
-		return common.NewError(ErrorTooManyHBH, "curr", len(rp.HBHExt), "max", max)
+		return common.NewError(errTooManyHBH, "curr", len(rp.HBHExt), "max", max)
 	}
 	if len(rp.HBHExt) > 1 && e.Type() == common.ExtnSCMPType {
 		return common.NewError("Bad extension order - SCMP must be first",
@@ -97,7 +97,7 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 		return err
 	}
 	// Parse extension back in, to set up appropriate metadata
-	re, err := rp.ExtnParseHBH(e.Type(), offset+common.ExtnSubHdrLen,
+	re, err := rp.extnParseHBH(e.Type(), offset+common.ExtnSubHdrLen,
 		offset+eLen, len(rp.idxs.hbhExt))
 	if err != nil {
 		return err
@@ -119,7 +119,7 @@ func (rp *RtrPkt) validateExtns() *common.Error {
 	if count > max {
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
 			&scmp.InfoExtIdx{Idx: uint8(count)})
-		return common.NewErrorData(ErrorTooManyHBH,
+		return common.NewErrorData(errTooManyHBH,
 			sdata, "max", common.ExtnMaxHBH, "actual", count)
 	}
 	// Check if there an SCMP hop-by-hop extension that isn't at index 0.
@@ -127,7 +127,7 @@ func (rp *RtrPkt) validateExtns() *common.Error {
 		if e.Type == common.ExtnSCMPType && i > 0 {
 			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadExtOrder,
 				&scmp.InfoExtIdx{Idx: uint8(i)})
-			return common.NewErrorData(ErrorExtOrder, sdata, "scmpIdx", count)
+			return common.NewErrorData(errExtOrder, sdata, "scmpIdx", count)
 		}
 	}
 	return nil

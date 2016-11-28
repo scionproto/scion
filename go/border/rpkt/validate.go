@@ -24,10 +24,10 @@ import (
 )
 
 const (
-	ErrorBadTotalLen     = "Total length specified in common header doesn't match bytes received"
-	ErrorCurrIntfInvalid = "Invalid current interface"
-	ErrorIntfRevoked     = "Interface revoked"
-	ErrorHookResponse    = "Extension hook return value unrecognised"
+	errBadTotalLen     = "Total length specified in common header doesn't match bytes received"
+	errCurrIntfInvalid = "Invalid current interface"
+	errIntfRevoked     = "Interface revoked"
+	errHookResponse    = "Extension hook return value unrecognised"
 )
 
 // Validate performs basic validation of a packet, including calling any
@@ -35,7 +35,7 @@ const (
 func (rp *RtrPkt) Validate() *common.Error {
 	intf, ok := conf.C.Net.IFs[*rp.ifCurr]
 	if !ok {
-		return common.NewError(ErrorCurrIntfInvalid, "ifid", *rp.ifCurr)
+		return common.NewError(errCurrIntfInvalid, "ifid", *rp.ifCurr)
 	}
 	// XXX(kormat): the rest of the common header is checked by the parsing phase.
 	if !addr.HostTypeCheck(rp.CmnHdr.SrcType) || rp.CmnHdr.SrcType == addr.HostTypeSVC {
@@ -53,7 +53,7 @@ func (rp *RtrPkt) Validate() *common.Error {
 	if int(rp.CmnHdr.TotalLen) != len(rp.Raw) {
 		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadPktLen,
 			&scmp.InfoPktSize{Size: uint16(len(rp.Raw)), MTU: uint16(intf.MTU)})
-		return common.NewErrorData(ErrorBadTotalLen, sdata,
+		return common.NewErrorData(errBadTotalLen, sdata,
 			"totalLen", rp.CmnHdr.TotalLen, "actual", len(rp.Raw))
 	}
 	if err := rp.validatePath(rp.DirFrom); err != nil {
@@ -72,7 +72,7 @@ func (rp *RtrPkt) Validate() *common.Error {
 		case ret == HookFinish:
 			break
 		default:
-			return common.NewError(ErrorHookResponse, "hook", "Validate", "idx", i, "val", ret)
+			return common.NewError(errHookResponse, "hook", "Validate", "idx", i, "val", ret)
 		}
 	}
 	return nil
