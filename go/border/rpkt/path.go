@@ -116,7 +116,7 @@ func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
 	}
 }
 
-// InfoF returns the current path Info Field if it isn't already known.
+// InfoF retrieves the current path Info Field if it isn't already known.
 func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 	if rp.infoF == nil {
 		for _, f := range rp.hooks.Infof {
@@ -154,6 +154,7 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 	return rp.infoF, nil
 }
 
+// HopF retrieves the current path Hop Field if it isn't already known.
 func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 	if rp.hopF == nil {
 		for _, f := range rp.hooks.HopF {
@@ -191,6 +192,8 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 	return rp.hopF, nil
 }
 
+// getHopFVer retrieves the Hop Field (if any) required for verifying the MAC
+// of the current Hop Field.
 func (rp *RtrPkt) getHopFVer(dirFrom Dir) common.RawBytes {
 	ingress := dirFrom == DirExternal
 	var offset int
@@ -226,6 +229,9 @@ func (rp *RtrPkt) getHopFVer(dirFrom Dir) common.RawBytes {
 	return rp.hopFVerFromRaw(offset)
 }
 
+// getHopFVerNormalOffset is a helper function for getHopFVer, to handle cases
+// where the verification Hop Field (if any) is directly before or after
+// (depending on the Up flag) the current Hop Field.
 func (rp *RtrPkt) getHopFVerNormalOffset() int {
 	iOff := int(rp.CmnHdr.CurrInfoF)
 	hOff := int(rp.CmnHdr.CurrHopF)
@@ -243,8 +249,11 @@ func (rp *RtrPkt) getHopFVerNormalOffset() int {
 	return -1
 }
 
+// hopFVerFromRaw is a helper function for getHopFVer. It extracts the raw
+// bytes of the specified Hop Field, excluding the leading flag byte.
 func (rp *RtrPkt) hopFVerFromRaw(offset int) common.RawBytes {
 	ans := make(common.RawBytes, common.LineLen-1)
+	// If the offset is 0, a zero'd slice is returned.
 	if offset != 0 {
 		b := rp.Raw[int(rp.CmnHdr.CurrHopF)+offset*common.LineLen:]
 		copy(ans, b[1:common.LineLen])
@@ -252,6 +261,7 @@ func (rp *RtrPkt) hopFVerFromRaw(offset int) common.RawBytes {
 	return ans
 }
 
+// IncPath increments the packet's path, if any.
 func (rp *RtrPkt) IncPath() *common.Error {
 	if rp.infoF == nil {
 		// Path is empty, nothing to increment.
@@ -259,22 +269,26 @@ func (rp *RtrPkt) IncPath() *common.Error {
 	}
 	var err *common.Error
 	var hopF *spath.HopField
+	// Initialize to the current InfoF and offset values.
 	infoF := rp.infoF
 	iOff := rp.CmnHdr.CurrInfoF
 	hOff := rp.CmnHdr.CurrHopF
 	for {
 		hOff += spath.HopFieldLength
 		if hOff-iOff > infoF.Hops*spath.HopFieldLength {
-			// Switch to next segment
+			// Passed end of current segment, switch to next segment, and read
+			// the new Info Field.
 			iOff = hOff
 			if infoF, err = spath.InfoFFromRaw(rp.Raw[iOff:]); err != nil {
 				return err
 			}
 			continue
 		}
+		// Read new Hop Field
 		if hopF, err = spath.HopFFromRaw(rp.Raw[hOff:]); err != nil {
 			return err
 		}
+		// Find first non-verify-only Hop Field.
 		if !hopF.VerifyOnly {
 			break
 		}
@@ -283,13 +297,16 @@ func (rp *RtrPkt) IncPath() *common.Error {
 		return common.NewError("New HopF offset > header length", "max", rp.CmnHdr.HdrLen,
 			"actual", hOff)
 	}
+	// Update common header, and packet's InfoF/HopF fields.
 	rp.CmnHdr.UpdatePathOffsets(rp.Raw, iOff, hOff)
 	rp.infoF = infoF
 	rp.hopF = hopF
 	rp.upFlag = nil
+	// Extract new Up flag, in case the Info Field has changed.
 	if _, err = rp.UpFlag(); err != nil {
 		return err
 	}
+	// Extract the next interface ID.
 	rp.ifNext = nil
 	if _, err = rp.IFNext(); err != nil {
 		return err
@@ -297,11 +314,14 @@ func (rp *RtrPkt) IncPath() *common.Error {
 	return nil
 }
 
+// UpFlag retrieves the current path segment's Up flag if not already known.
+// (Up is defined as being the opposite to the direction in which the segment
+// was created.)
 func (rp *RtrPkt) UpFlag() (*bool, *common.Error) {
 	if rp.upFlag != nil {
 		return rp.upFlag, nil
 	}
-	// Try to get up flag from extensions
+	// Try to get Up flag from extensions
 	for _, f := range rp.hooks.UpFlag {
 		ret, up, err := f()
 		switch {
@@ -322,12 +342,13 @@ func (rp *RtrPkt) UpFlag() (*bool, *common.Error) {
 	return rp.upFlag, nil
 }
 
+// IFCurr retrieves the current interface ID if not already known.
 func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 	if rp.ifCurr != nil {
 		return rp.ifCurr, nil
 	}
 	if rp.upFlag != nil {
-		// Try to get IFID from HopByHop extensions
+		// Try to get IFID from registered hooks.
 		if ifid, err := rp.hookIF(*rp.upFlag, rp.hooks.IFCurr); err != nil {
 			return nil, err
 		} else if ifid != nil {
@@ -350,10 +371,12 @@ func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 			return rp.checkSetCurrIF(&rp.hopF.Egress)
 		}
 	}
-	// Use first IfID from Ingress.IfIDs
+	// Default to the first IfID from Ingress.IfIDs
 	return rp.checkSetCurrIF(&rp.Ingress.IfIDs[0])
 }
 
+// checkSetCurrIF is a helper function that ensures the given interface ID is
+// valid before setting the ifCurr field and returning the value.
 func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Error) {
 	if ifid == nil {
 		return nil, common.NewError("No interface found")
@@ -365,14 +388,18 @@ func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Err
 	return rp.ifCurr, nil
 }
 
+// IFNext retrieves the next interface ID if not already known. As this may be
+// an interface is an external ISD-AS, this is not sanity-checked.
 func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 	if rp.ifNext == nil && rp.upFlag != nil {
 		var err *common.Error
+		// Try to get IFID from registered hooks.
 		if rp.ifNext, err = rp.hookIF(*rp.upFlag, rp.hooks.IFNext); err != nil {
 			return nil, err
 		} else if rp.ifNext != nil {
 			return rp.ifNext, nil
 		}
+		// Get IFID from HopField
 		if *rp.upFlag {
 			rp.ifNext = &rp.hopF.Ingress
 		} else {
@@ -382,6 +409,8 @@ func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 	return rp.ifNext, nil
 }
 
+// hookIF is a helper function used by IFCurr/IFNext to run interface ID
+// retrival hooks.
 func (rp *RtrPkt) hookIF(up bool, hooks []hookIntf) (*spath.IntfID, *common.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, rp.DirFrom, rp.DirTo)
