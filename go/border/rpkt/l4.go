@@ -87,12 +87,13 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 		nextHdr = common.L4ProtocolType(rp.Raw[offset])
 		offset += hdrLen
 		if hdrLen == 0 {
-			// Can't return an SCMP error as we can't parse the headers
+			// FIXME(kormat): Can't return an SCMP error as we can't parse the headers
 			return false, common.NewError("0-length header", "nextHdr", nextHdr, "offset", offset)
 		}
 	}
 	if offset > len(rp.Raw) {
-		// Can't generally return an SCMP error as parsing the headers has failed.
+		// FIXME(kormat): Can't generally return an SCMP error as parsing the
+		// headers has failed.
 		return false, common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	rp.idxs.nextHdrIdx.Type = nextHdr
@@ -100,6 +101,7 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 	return true, nil
 }
 
+// verifyL4 verifies that the layer 4 header's contents and checksum are correct.
 func (rp *RtrPkt) verifyL4() *common.Error {
 	if err := rp.l4.Validate(len(rp.Raw[rp.idxs.pld:])); err != nil {
 		return err
@@ -110,6 +112,8 @@ func (rp *RtrPkt) verifyL4() *common.Error {
 	return nil
 }
 
+// verifyL4Chksum calculates the appropriate checksum for the layer 4 header,
+// and verifys that it matches the one supplied in the l4 header.
 func (rp *RtrPkt) verifyL4Chksum() *common.Error {
 	switch h := rp.l4.(type) {
 	case *l4.UDP, *scmp.Hdr:
@@ -123,6 +127,8 @@ func (rp *RtrPkt) verifyL4Chksum() *common.Error {
 	return nil
 }
 
+// getChksumInput is a helper method to return the raw bytes of the src/dest
+// addresses, and the payload, for calculating a layer 4 checksum.
 func (rp *RtrPkt) getChksumInput() (src, dst, pld common.RawBytes) {
 	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
 	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
@@ -132,6 +138,8 @@ func (rp *RtrPkt) getChksumInput() (src, dst, pld common.RawBytes) {
 	return
 }
 
+// updateL4 handles updating the layer 4 header after the payload has been set
+// (or changed).
 func (rp *RtrPkt) updateL4() *common.Error {
 	switch h := rp.l4.(type) {
 	case *l4.UDP, *scmp.Hdr:
