@@ -93,9 +93,9 @@ func Init(zlog_cfg string, args []string, addrMs []AddrMeta) *common.Error {
 	AddrMs = addrMs
 	// Calculate the C address structure from the Go address structure.
 	cAddrs := make([]C.saddr_storage, len(AddrMs))
-	for i, addrM := range AddrMs {
-		udpAddrToSaddr(addrM.GoAddr, &addrM.CAddr)
-		cAddrs[i] = addrM.CAddr
+	for i := range AddrMs {
+		udpAddrToSaddr(AddrMs[i].GoAddr, &AddrMs[i].CAddr)
+		cAddrs[i] = AddrMs[i].CAddr
 	}
 	// Configure network ports
 	if C.setup_network(&cAddrs[0], C.int(len(cAddrs))) != 0 {
