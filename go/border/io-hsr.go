@@ -69,8 +69,8 @@ func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
 			// Process packet.
 			r.processPacket(rp)
 			metrics.PktProcessTime.Add(time.Now().Sub(rp.TimeIn).Seconds())
-			// Recycle packet.
-			r.recyclePkt(rp)
+			// Reset packet.
+			rp.Reset()
 		}
 		// Update port metrics
 		duration := timeIn.Sub(start).Seconds()
