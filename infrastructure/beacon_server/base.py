@@ -32,7 +32,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
-from lib.crypto.certificate import verify_sig_chain_trc
+from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     BEACON_SERVICE,

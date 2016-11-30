@@ -20,7 +20,8 @@ import capnp  # noqa
 
 # SCION
 import proto.cert_mgmt_capnp as P
-from lib.crypto.certificate import CertificateChain, TRC
+from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.trc import TRC
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBaseProto
 from lib.packet.scion_addr import ISD_AS

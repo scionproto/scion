@@ -21,7 +21,8 @@ import glob
 import logging
 
 # SCION
-from lib.crypto.certificate import CertificateChain, TRC
+from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.trc import TRC
 from lib.util import CERT_DIR, read_file, write_file
 
 

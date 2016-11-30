@@ -42,7 +42,9 @@ from lib.crypto.asymcrypto import (
     generate_enc_keypair,
     sign,
 )
-from lib.crypto.certificate import Certificate, CertificateChain, TRC
+from lib.crypto.certificate import Certificate
+from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.trc import TRC
 from lib.defines import (
     AS_CONF_FILE,
     AS_LIST_FILE,
@@ -284,9 +286,9 @@ class CertGenerator(object):
         # Self-signed if cert_issuer is missing.
         issuer = TopoID(as_conf.get('cert_issuer', str(topo_id)))
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id), self.sig_pub_keys[topo_id],
-            self.enc_pub_keys[topo_id], str(issuer), self.sig_priv_keys[issuer],
-            INITIAL_CERT_VERSION,
+            str(topo_id),  str(issuer), INITIAL_CERT_VERSION, "", False,
+            self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
+            self.sig_priv_keys[issuer]
         )
 
     def _build_chains(self):
@@ -314,9 +316,10 @@ class CertGenerator(object):
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
-            isd, 0, 1, 1, {'isp.com': 'isp.com_cert_base64'},
-            {'ca.com': 'ca.com_cert_base64'}, {}, {}, 'reg_srv_addr',
-            'reg_srv_cert', 'dns_srv_addr', 'dns_srv_cert', 'trc_srv_addr', {})
+            isd, 0, {}, {'ca.com': 'ca.com_cert_base64'}, {}, 2,
+            'dns_srv_addr', 'dns_srv_cert', 4,
+            3, 2, 3, True,
+            {}, {}, 123456)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):

@@ -25,7 +25,7 @@ import capnp  # noqa
 # SCION
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import CertificateChain
+from lib.crypto.certificate_chain import CertificateChain
 from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
