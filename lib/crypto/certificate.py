@@ -22,12 +22,8 @@ import json
 import logging
 import time
 
-# External
-import lz4
-
 # SCION
 from lib.crypto.asymcrypto import sign, verify
-from lib.packet.scion_addr import ISD_AS
 from lib.util import load_json_file
 
 SUBJECT_STRING = 'Subject'
@@ -42,6 +38,7 @@ SUBJECT_ENC_KEY_STRING = 'SubjectEncKey'
 SIGN_ALGORITHM_STRING = 'SignAlgorithm'
 SUBJECT_SIG_KEY_STRING = 'SubjectSigKey'
 SIGNATURE_STRING = 'Signature'
+
 
 class Certificate(object):
     """
@@ -121,11 +118,10 @@ class Certificate(object):
             cert.subject_sig_key = cert_dict[SUBJECT_SIG_KEY_STRING]
             cert.signature = cert_dict[SIGNATURE_STRING]
         except KeyError as inst:
-            # TODO: think how to handle this error.
-            print("Key Error:%s"%inst)
+            logging.ERROR("Key Error: s" % inst)
         return cert
 
-    def verify(self, issuer_cert):
+    def verify(self, subject, issuer_cert):
         """
         Perform one step verification.
 
@@ -136,13 +132,18 @@ class Certificate(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        if  int(time.time()) >= self.expiration_time:
+        if int(time.time()) >= self.expiration_time:
             logging.error("This certificte expired.")
             return False
-        if  int(time.time()) >= issuer_cert.expiration_time:
+        if int(time.time()) >= issuer_cert.expiration_time:
             logging.error("The issuer certificate expired.")
             return False
-        if not _verify_signature(self.signature, issuer_cert.subject_sig_key):
+        if subject != self.subject:
+            logging.warning("The given subject doesn't match the \
+            certificate's subject")
+            return False
+        if not self._verify_signature(self.signature,
+                                      issuer_cert.subject_sig_key):
             return False
         return True
 

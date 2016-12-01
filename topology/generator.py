@@ -317,9 +317,8 @@ class CertGenerator(object):
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
             isd, 0, {}, {'ca.com': 'ca.com_cert_base64'}, {}, 2,
-            'dns_srv_addr', 'dns_srv_cert', 4,
-            3, 2, 3, True,
-            {}, {}, 123456)
+            'dns_srv_addr', 'dns_srv_cert', 3,
+            3, 2, True, {}, 18000)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):

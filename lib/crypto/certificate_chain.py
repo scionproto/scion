@@ -32,10 +32,11 @@ from lib.crypto.certificate import (
     SUBJECT_SIG_KEY_STRING,
     SIGNATURE_STRING
 )
+from lib.crypto.trc import TRC
 from lib.packet.scion_addr import ISD_AS
 
 
-def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
+def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
     """
     Verify whether the packed message with attached signature is validly
     signed by a particular subject belonging to a valid certificate chain.
@@ -54,10 +55,15 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
     """
     assert isinstance(chain, CertificateChain)
     assert isinstance(trc, TRC)
-    if not trc.verify():
-        logging.warning('The TRC verification failed.')
-        return False
-    if not chain.verify(subject, trc, trc_version):
+    if trc.version > 0:
+        assert isinstance(old_trc, TRC)
+        if old_trc is None:
+            logging.warning("Old TRC is None.")
+            return False
+        if not trc.verify(old_trc):
+            logging.warning('The TRC verification failed.')
+            return False
+    if not chain.verify(trc, subject):
         logging.warning('The certificate chain verification failed.')
         return False
     verifying_key = None
@@ -71,7 +77,6 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
             return False
         verifying_key = trc.core_ases[subject].subject_sig_key
     return verify(msg, sig, verifying_key)
-
 
 
 class CertificateChain(object):
@@ -125,8 +130,7 @@ class CertificateChain(object):
         cert_chain.certs = cert_list
         return cert_chain
 
-
-    def verify(self, trc):
+    def verify(self, trc, subject):
         """
         Perform the entire chain verification.
 
@@ -142,15 +146,17 @@ class CertificateChain(object):
         if not issuer_cert.subject == issuer_cert.issuer:
             logging.error("This certificate is not signed by a core AS")
             return False
-        if not issuer_cert.issuer in trc.core_ases:
+        if issuer_cert.issuer not in trc.core_ases:
             logging.error("This certificate is not signed by a core AS")
             return False
-        if not issuer_cert.verify(trc.core_ases[issuer_cert.issuer]):
+        if not issuer_cert.verify(trc.core_ases[issuer_cert.issuer],
+                                  subject):
             return False
         for cert in self.certs[1:]:
-            if not cert.verify(issuer_cert):
+            if not cert.verify(issuer_cert, cert.subject):
                 return False
             issuer_cert = cert
+        logging.debug("Certificate chain verified")
         return True
 
     def get_leaf_isd_as_ver(self):
@@ -172,9 +178,11 @@ class CertificateChain(object):
         for cert in self.certs:
             cert_dict = copy.deepcopy(cert.get_cert_dict(True))
             cert_dict[SUBJECT_SIG_KEY_STRING] = \
-                base64.b64encode(cert_dict[SUBJECT_SIG_KEY_STRING]).decode('utf-8')
+                base64.b64encode(cert_dict[SUBJECT_SIG_KEY_STRING]).\
+                decode('utf-8')
             cert_dict[SUBJECT_ENC_KEY_STRING] = \
-                base64.b64encode(cert_dict[SUBJECT_ENC_KEY_STRING]).decode('utf-8')
+                base64.b64encode(cert_dict[SUBJECT_ENC_KEY_STRING]).\
+                decode('utf-8')
             cert_dict[SIGNATURE_STRING] = \
                 base64.b64encode(cert_dict[SIGNATURE_STRING]).decode('utf-8')
             chain_dict[index] = cert_dict

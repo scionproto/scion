@@ -564,9 +564,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         asm = pcb.asm(-1)
         cert_ia = asm.isd_as()
         trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+        old_trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer-1)
         return verify_sig_chain_trc(
             pcb.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
-            asm.p.trcVer)
+            old_trc)
 
     @abstractmethod
     def _handle_verified_beacon(self, pcb):
