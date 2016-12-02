@@ -107,7 +107,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = False
+    USE_TCP = True
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
@@ -433,11 +433,11 @@ class SCIONElement(object):
             return False
         return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
-    def send_meta(self, msg, meta, next_hop_port=None):
+    def send_meta(self, msg, meta, next_hop_port=None, block=False):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
             assert not next_hop_port, next_hop_port
-            return self._send_meta_tcp(msg, meta)
+            return self._send_meta_tcp(msg, meta, block)
         elif isinstance(meta, SockOnlyMetadata):
             assert not next_hop_port, next_hop_port
             return meta.sock.send(msg)
@@ -456,11 +456,14 @@ class SCIONElement(object):
             return False
         return self.send(pkt, *next_hop_port)
 
-    def _send_meta_tcp(self, msg, meta):
+    def _send_meta_tcp(self, msg, meta, block):
         if not meta.sock:
-            threading.Thread(target=thread_safety_net,
-                             args=(self._tcp_connect_and_send, msg, meta),
-                             name="Elem.packet_recv", daemon=True).start()
+            t = threading.Thread(target=thread_safety_net,
+                    args=(self._tcp_connect_and_send, msg, meta),
+                    name="Elem.packet_recv", daemon=True)
+            t.start()
+            if block:
+                t.join()
         else:
             self._tcp_send_queue_put(msg, meta)
         return True
@@ -739,7 +742,7 @@ class SCIONElement(object):
                 del meta2buf[meta]
             # Sleep if nothing to do
             if self._tcp_send_queue.empty() and not meta2buf:
-                time.sleep(0.01)
+                time.sleep(0.05)
 
     def stop(self):
         """Shut down the daemon thread."""

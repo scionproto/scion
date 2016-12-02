@@ -193,7 +193,7 @@ class SCIONDaemon(SCIONElement):
                 daemon=True).start()
         elif msg[0] == 1:  # address request
             logging.debug('API: local ISD-AS request')
-            self.send_meta(self.addr.isd_as.pack(), meta)
+            self.send_meta(self.addr.isd_as.pack(), meta, block=True)
         else:
             logging.warning("API: type %d not supported.", msg[0])
 
@@ -234,7 +234,7 @@ class SCIONDaemon(SCIONElement):
                 isd_as, link = interface
                 reply.append(isd_as.pack())
                 reply.append(struct.pack("!H", link))
-        self.send_meta(b"".join(reply), meta)
+        self.send_meta(b"".join(reply), meta, block=True)
 
     def handle_revocation(self, rev_info, meta):
         logging.debug("Received revocation:\n%s", rev_info)
@@ -463,7 +463,7 @@ class SCIONDaemon(SCIONElement):
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request: %s", req.short_desc())
         meta = self.DefaultMeta.from_values(host=addr, port=port)
-        self.send_meta(req, meta)
+        self.send_meta(req, meta, block=True)
 
     def _reply_segments(self, key, e):
         """
