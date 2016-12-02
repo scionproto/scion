@@ -458,10 +458,18 @@ class SCIONElement(object):
 
     def _send_meta_tcp(self, msg, meta):
         if not meta.sock:
-            tcp_sock = self._tcp_sock_from_meta(meta)
-            meta.sock = tcp_sock
-            self._tcp_conns_put(tcp_sock)
-        return meta.sock.send_msg(msg.pack_full())
+            threading.Thread(
+                target=thread_safety_net, args=(self.packet_recv,),
+                name="Elem.packet_recv", daemon=True).start()
+        else:
+            self._tcp_send_queue_put(msg, meta)
+        return True
+
+    def _tcp_connect_and_send(self, msg, meta):
+        tcp_sock = self._tcp_sock_from_meta(meta)
+        meta.sock = tcp_sock
+        self._tcp_conns_put(tcp_sock)
+        self._tcp_send_queue_put(msg, meta)
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host
@@ -494,6 +502,20 @@ class SCIONElement(object):
                 old_sock = self._tcp_new_conns.get_nowait()
                 old_sock.close()
                 logging.error("TCP: _tcp_new_conns is full. Closing old socket")
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            logging.warning("%d TCP connection(s) dropped" % dropped)
+
+    def _tcp_send_queue_put(self, msg, meta):
+        dropped = 0
+        while True:
+            try:
+                self._tcp_send_queue.put((msg, meta), block=False)
+            except queue.Full:
+                self._tcp_send_queue.get_nowait()
+                logging.error("TCP: _tcp_send_queue is full. Dropping old msg")
                 dropped += 1
             else:
                 break
@@ -697,7 +719,7 @@ class SCIONElement(object):
             # Drain the queue
             while not self._tcp_send_queue.empty():
                 try:
-                    meta, msg = self._tcp_send_queue.get_nowait()
+                    msg, meta = self._tcp_send_queue.get_nowait()
                     meta2buf[meta] += msg.pack_full()
                 except queue.Empty:
                     break
