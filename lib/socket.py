@@ -443,15 +443,15 @@ class TCPSocketWrapper(object):
         with self._lock:
             if not self.active:
                 logging.debug("TCP: send_msg(): inactive socket")
-                return False
+                return -1
             try:
-                self._tcp_sock.send(raw)
+                sent self._tcp_sock.send(raw)
                 self._last_io = time.time()
-                return True
+                return sent
             except SCIONTCPError:
                 logging.debug("TCP: inactivating after socket error")
                 self.active = False
-        return False
+        return -1
 
     def close(self):
         with self._lock:

@@ -162,6 +162,7 @@ class SCIONElement(object):
         """
         self._tcp_sock = None
         self._tcp_new_conns = queue.Queue(MAX_QUEUE)  # New TCP connections.
+        self._tcp_send_queue = queue.Queue(MAX_QUEUE)  # TCP data to be sent.
         if self._port is None:
             # No scion socket desired.
             return
@@ -630,6 +631,9 @@ class SCIONElement(object):
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_accept_loop,),
             name="Elem._tcp_accept_loop", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_send_loop,),
+            name="Elem._tcp_send_loop", daemon=True).start()
 
     def _tcp_accept_loop(self):
         while self.run_flag.is_set():
@@ -686,6 +690,32 @@ class SCIONElement(object):
             except queue.Empty:
                 break
             tcp_sock.close()
+
+    def _tcp_send_loop(self):
+        meta2buf = defaulctdict(bytes)
+        while self.run_flag.is_set():
+            # Drain the queue
+            while not self._tcp_send_queue.empty():
+                try:
+                    meta, msg = self._tcp_send_queue.get_nowait()
+                    meta2buf[meta] += msg.pack_full()
+                except queue.Empty:
+                    break
+            # Now send what is missing
+            done = []
+            for meta in meta2buf:
+                if not meta.sock.is_active():
+                    done.append(meta)
+                    continue
+                sent = meta.sock.send_msg(meta2buf[meta])
+                meta2buf[meta] = meta2buf[meta][sent:]
+                if not meta2buf[meta]:
+                    done.append(meta)
+            for meta in done:
+                del meta2buf[meta]
+            # Sleep if nothing to do
+            if self._tcp_send_queue.empty() and not meta2buf:
+                time.sleep(0.01)
 
     def stop(self):
         """Shut down the daemon thread."""
