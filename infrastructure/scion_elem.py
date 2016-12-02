@@ -458,8 +458,8 @@ class SCIONElement(object):
 
     def _send_meta_tcp(self, msg, meta):
         if not meta.sock:
-            threading.Thread(
-                target=thread_safety_net, args=(self.packet_recv,),
+            threading.Thread(target=thread_safety_net,
+                args=(self._tcp_connect_and_send, msg, meta),
                 name="Elem.packet_recv", daemon=True).start()
         else:
             self._tcp_send_queue_put(msg, meta)
@@ -467,6 +467,8 @@ class SCIONElement(object):
 
     def _tcp_connect_and_send(self, msg, meta):
         tcp_sock = self._tcp_sock_from_meta(meta)
+        if not tcp_sock.is_active():
+            return
         meta.sock = tcp_sock
         self._tcp_conns_put(tcp_sock)
         self._tcp_send_queue_put(msg, meta)
