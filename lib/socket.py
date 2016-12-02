@@ -445,7 +445,7 @@ class TCPSocketWrapper(object):
                 logging.debug("TCP: send_msg(): inactive socket")
                 return -1
             try:
-                sent self._tcp_sock.send(raw)
+                sent = self._tcp_sock.send(raw)
                 self._last_io = time.time()
                 return sent
             except SCIONTCPError:

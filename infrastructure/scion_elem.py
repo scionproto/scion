@@ -459,8 +459,8 @@ class SCIONElement(object):
     def _send_meta_tcp(self, msg, meta):
         if not meta.sock:
             threading.Thread(target=thread_safety_net,
-                args=(self._tcp_connect_and_send, msg, meta),
-                name="Elem.packet_recv", daemon=True).start()
+                             args=(self._tcp_connect_and_send, msg, meta),
+                             name="Elem.packet_recv", daemon=True).start()
         else:
             self._tcp_send_queue_put(msg, meta)
         return True
@@ -716,7 +716,7 @@ class SCIONElement(object):
             tcp_sock.close()
 
     def _tcp_send_loop(self):
-        meta2buf = defaulctdict(bytes)
+        meta2buf = defaultdict(bytes)
         while self.run_flag.is_set():
             # Drain the queue
             while not self._tcp_send_queue.empty():
