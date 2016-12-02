@@ -46,7 +46,6 @@ from lib.errors import (
     SCIONBaseError,
     SCIONIOError,
     SCIONTCPError,
-    SCIONTCPTimeout,
 )
 from lib.log import log_exception
 from lib.msg_meta import TCPMetadata
@@ -432,10 +431,8 @@ class TCPSocketWrapper(object):
                     return None, None
                 self._buf += read
                 self._last_io = time.time()
-            except SCIONTCPTimeout:
-                return None, self._get_meta()
-            except SCIONTCPError:
-                logging.debug("TCP: inactivating socket after socket error")
+            except SCIONTCPError as e:
+                logging.error("TCP: deactivating after socket error: %s", e)
                 self.active = False
             return self._get_msg(), self._get_meta()
 
@@ -443,27 +440,25 @@ class TCPSocketWrapper(object):
         with self._lock:
             if not self.active:
                 logging.debug("TCP: send_msg(): inactive socket")
-                return False
+                return 0
             try:
-                self._tcp_sock.send(raw)
+                sent = self._tcp_sock.send(raw)
                 self._last_io = time.time()
-                return True
-            except SCIONTCPError:
-                logging.debug("TCP: inactivating after socket error")
+                return sent
+            except SCIONTCPError as e:
+                logging.error("TCP: deactivating after socket error: %s", e)
                 self.active = False
-        return False
+        return 0
 
     def close(self):
         with self._lock:
-            if not self.active:
-                logging.debug("TCP: close(): inactive socket")
+            if not self.is_active():
                 return
             try:
                 self._tcp_sock.close()
             except SCIONTCPError as e:
                 logging.warning("Error on close(): %s", e)
             self.active = False
-            logging.debug("Leaving close()")
 
     def is_active(self):
         return self.active and (time.time() - self._last_io <= TCP_TIMEOUT)

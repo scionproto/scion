@@ -46,6 +46,7 @@
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
 #define TCP_POLLING_TOUT 15 /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+/* Note: the timeout is so high only due to CircleCI. Decrease it to get better performance */
 #define ACCEPT_TOUT 150 /* Polling timeout (in ms) used within tcpmw_accept */
 
 /* Middleware API commands */
