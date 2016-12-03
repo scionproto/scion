@@ -135,13 +135,12 @@ class Certificate(object):
         if int(time.time()) >= self.expiration_time:
             logging.error("This certificte expired.")
             return False
-# TODO
-#        if int(time.time()) >= issuer_cert.expiration_time:
-#            logging.error("The issuer certificate expired.")
-#            return False
+        if int(time.time()) >= issuer_cert.expiration_time:
+            logging.error("The issuer certificate expired.")
+            return False
         if subject != self.subject:
-            logging.warning("The given subject doesn't match the \
-            certificate's subject")
+            logging.warning("The given subject(%s) doesn't match the \
+            certificate's subject(%s)" % (str(subject), str(self.subject)))
             return False
         if not self._verify_signature(self.signature,
                                       issuer_cert.subject_sig_key):

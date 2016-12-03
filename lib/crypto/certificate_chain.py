@@ -46,9 +46,12 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
     :param str subject: signer identity.
     :param chain: Certificate chain containing the signing entity's certificate.
     :type chain: :class:`CertificateChain`
-    :param trc: TRC containing all root of trust certificates for one ISD.
+    :param trc: Current TRC containing all root of trust certificates for
+        one ISD.
     :type trc: :class:`TRC`
-    :param int trc_version: TRC version.
+    :param old_trc: Old TRC containing all root of trust certificates for
+        one ISD.
+    :type trc: :class:`TRC`
 
     :returns: True or False whether the verification is successful or not.
     :rtype: bool
@@ -63,7 +66,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
         if not trc.verify(old_trc):
             logging.warning('The TRC verification failed.')
             return False
-    if not chain.verify(trc, subject):
+    if not chain.verify(subject, trc):
         logging.warning('The certificate chain verification failed.')
         return False
     verifying_key = None
@@ -82,8 +85,10 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
 class CertificateChain(object):
     """
     The CertificateChain class contains an ordered sequence of certificates, in
-    which: the first certificate is the certificate signed by the core ISD and
-    the last is the one at the end of a certificate chain.
+    which: the first certificate is the one at the end of a certificate chain
+    and the last is the certificate signed by the core ISD. Therefore, starting
+    from the first one, each certificate should be verified by the next one in
+    the sequence.
 
     :ivar list certs: (ordered) certificates forming the chain.
     """
@@ -130,33 +135,35 @@ class CertificateChain(object):
         cert_chain.certs = cert_list
         return cert_chain
 
-    def verify(self, trc, subject):
+    def verify(self, subject, trc):
         """
-        Perform the entire chain verification.
+        Perform the entire chain verification. It verifies each pair and at the
+        end verifies the last certificate of the chain with the root certificate
+        that was used to sign it.
 
+        :param str subject:
+            the subject of the first certificate in the certificate chain.
         :param trc: TRC containing all root of trust certificates for one ISD.
         :type trc: :class:`TRC`
+        :param int trc_version: TRC version.
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
         if len(self.certs) == 0:
             logging.warning("The certificate chain is not initialized.")
             return False
-        issuer_cert = self.certs[0]
-        if not issuer_cert.subject == issuer_cert.issuer:
-            logging.error("This certificate is not signed by a core AS")
-            return False
-        if issuer_cert.issuer not in trc.core_ases:
-            logging.error("This certificate is not signed by a core AS")
-            return False
-        if not issuer_cert.verify(trc.core_ases[issuer_cert.issuer],
-                                  subject):
-            return False
-        for cert in self.certs[1:]:
-            if not cert.verify(issuer_cert, cert.subject):
+        cert = self.certs[0]
+        for issuer_cert in self.certs[1:]:
+            if not cert.verify(subject, issuer_cert):
                 return False
-            issuer_cert = cert
-        logging.debug("Certificate chain verified")
+            cert = issuer_cert
+            subject = cert.subject
+        # First check whether a root cert was added to the chain.
+        if cert.issuer == subject:
+            return trc.core_ases[cert.subject] == cert
+        # Try to find a root cert in the trc.
+        if not cert.verify(subject, trc.core_ases[cert.issuer]):
+            return False
         return True
 
     def get_leaf_isd_as_ver(self):

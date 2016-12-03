@@ -15,7 +15,6 @@
 :mod:`trc` --- SCION TRC parser
 ===============================================
 """
-
 # Stdlib
 import base64
 import copy
@@ -231,6 +230,7 @@ class TRC(object):
             signatures. Required Signatures:%s, valid signatures:%s" % (
                 self.quorum_own_trc,
                 len(valid_signature_signers)))
+            logging.error(valid_signature_signers)
             return False
         if len(valid_signature_signers) < oldTRC.quorum_own_trc:
             logging.error("TRC does not have the number of required valid \
