@@ -187,3 +187,7 @@ class LocalBeaconServer(BeaconServer):
             pcb.sign(self.signing_key)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())
+
+    def _get_paths_to_cores(self):
+        return self.up_segments.get_best_segments(sending=False)
+

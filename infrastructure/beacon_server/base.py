@@ -641,6 +641,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.send_meta(pld.copy(), meta, (br.addr, br.port))
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
+        self._send_rev_to_core(rev_info)
 
     def _send_rev_to_local_ps(self, rev_info):
         """
@@ -657,6 +658,35 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Sending revocation to local PS.")
             meta = UDPMetadata.from_values(host=addr, port=port)
             self.send_meta(rev_info.copy(), meta)
+
+    def _send_rev_to_core(self, rev_info):
+        """
+        Issues a revocation to the core path services.
+
+        :param rev_info: The RevocationInfo object
+        """
+        logging.info("Sending revocation for IF %d to core ASes.")
+        # Issue revocation to all core ASes excluding self.
+        informed_cores = {self.addr.isd_as}
+        paths = self._get_paths_to_cores()
+        if not paths:
+            logging.warning("No paths to core ASes available (issuing rev).")
+            return
+        for seg in paths:
+            core_ia = seg.first_ia()
+            if core_ia not in informed_cores:
+                path = seg.get_path(reverse_direction=True)
+                meta = self.DefaultMeta(ia=core_ia, path=path,
+                                        host=SVCType.PS_A)
+                self.send_meta(rev_info.copy(), meta)
+                informed_cores.add(core_ia)
+
+    @abstractmethod
+    def _get_paths_to_cores(self):
+        """
+        Returns a list of paths to core ASes.
+        """
+        raise NotImplementedError
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)

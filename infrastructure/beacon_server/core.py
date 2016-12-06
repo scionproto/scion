@@ -97,9 +97,6 @@ class CoreBeaconServer(BeaconServer):
             logging.info("Propagated %d Core PCBs", core_count)
 
     def register_segments(self):
-        """
-
-        """
         self.register_core_segments()
 
     def register_core_segment(self, pcb):
@@ -223,3 +220,15 @@ class CoreBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         for ps in self.core_beacons.values():
             ps.remove_segments(to_remove)
+
+    def _get_paths_to_cores(self):
+        segments = []
+        # Get paths to all core ASes in the same ISD.
+        for router in self.topology.routing_border_routers:
+            other_ia = router.interface.isd_as
+            if other_ia[0] == self.addr.isd_as[0]:
+                segment = self.core_beacons[other_ia].get_best_segments(
+                        k=1, sending=False)
+                segments.append(segment)
+
+        return segments

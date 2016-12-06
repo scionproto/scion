@@ -206,20 +206,21 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Handles a revocation of a segment, interface or hop.
 
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
+        :param rev_info: The RevocationInfo object.
+        :returns: False if the revocation was dropped, True otherwise.
         """
         assert isinstance(rev_info, RevocationInfo)
-        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         if rev_info in self.revocations:
             logging.debug("Already received revocation. Dropping...")
-            return
+            return False
         else:
             self.revocations[rev_info] = rev_info
             logging.debug("Received revocation from %s:\n%s",
                           meta.get_addr(), rev_info)
+        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
+        return True
 
     def _remove_revoked_segments(self, rev_info):
         """
@@ -241,6 +242,35 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     self.core_segments.delete(sid)
                     if not self.topology.is_core_as:
                         self.up_segments.delete(sid)
+
+    def _send_rev_to_core(self, rev_info):
+        """
+        Forwards a revocation to the core path services.
+
+        :param rev_info: The RevocationInfo object
+        """
+        logging.info("Sending revocation for IF %d to core ASes.")
+        # Issue revocation to all core ASes excluding self.
+        informed_cores = {self.addr.isd_as}
+        paths = self._get_paths_to_cores()
+        if not paths:
+            logging.warning("No paths to core ASes available (issuing rev).")
+            return
+        for seg in paths:
+            core_ia = seg.first_ia()
+            if core_ia not in informed_cores:
+                path = seg.get_path(reverse_direction=True)
+                meta = self.DefaultMeta(ia=core_ia, path=path,
+                                        host=SVCType.PS_A)
+                self.send_meta(rev_info.copy(), meta)
+                informed_cores.add(core_ia)
+
+    @abstractmethod
+    def _get_paths_to_cores(self):
+        """
+        Returns a list of paths to core ASes.
+        """
+        raise NotImplementedError
 
     def _send_path_segments(self, req, meta, up=None, core=None, down=None):
         """

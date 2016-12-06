@@ -39,6 +39,7 @@ from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
+    LINK_PARENT,
     MAX_HOPBYHOP_EXT,
     PATH_SERVICE,
     ROUTER_SERVICE,
@@ -356,16 +357,24 @@ class Router(SCIONElement):
         pld = spkt.get_payload()
         logging.info("Processing revocation: %s", pld.info)
         # First, forward the packet as appropriate.
-        self.handle_data(spkt, from_local_as)
+        self.handle_data(spkt.copy(), from_local_as)
         if from_local_as:
             return
         # Forward to local path and beacon services if we haven't recently.
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         if rev_info in self.revocations:
             return
-        snames = [BEACON_SERVICE]
-        if self.topology.path_servers:
+        snames = []
+        # Fork revocation to local PS if router is in the AS of the source.
+        if (spkt.addrs.dst.isd_as == self.addr.isd_as and
+                self.topology.path_servers):
             snames.append(PATH_SERVICE)
+
+        # Fork revocation to local BS if router is downstream of the failed
+        # interface.
+        if (spkt.addrs.src.isd_as[0] == self.addr.isd_as[0] and
+                self._is_downstream_router()):
+            snames.append(BEACON_SERVICE)
 
         self.revocations[rev_info] = True
         for sname in snames:
@@ -378,6 +387,13 @@ class Router(SCIONElement):
             pkt = self._build_packet(addr, dst_port=port,
                                      payload=rev_info.copy())
             self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+
+    def _is_downstream_router(self):
+        """
+        Returns True if this router is connected to an upstream router (via an
+        upstream link), False otherwise.
+        """
+        return self.interface.link_type == LINK_PARENT
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """

@@ -343,3 +343,12 @@ class CorePathServer(PathServer):
             self.waiting_targets[dst_ia[0]].append(seg_req)
             # Ask for any segment to dst_isd
             self._query_master(dst_ia.any_as())
+
+    def _get_paths_to_cores(self):
+        segments = []
+        # Get paths to all core ASes in the same ISD.
+        for segment in self.core_segments(first_ia=self.addr.isd_as, Full=True):
+            other_ia = segment.last_ia()
+            if other_ia[0] == self.addr.isd_as[0]:
+                segments.append(segment)
+        return segments
