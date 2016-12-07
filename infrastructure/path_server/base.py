@@ -236,12 +236,22 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if_id = rev_info.p.ifID
 
         with self.htroot_if2seglock:
+            down_segs_removed = 0
+            core_segs_removed = 0
+            up_segs_removed = 0
             for H in (hash01, hash12):
                 for sid in self.htroot_if2seg.pop((H, if_id), []):
-                    self.down_segments.delete(sid)
-                    self.core_segments.delete(sid)
+                    if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        down_segs_removed += 1
+                    if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        core_segs_removed += 1
                     if not self.topology.is_core_as:
-                        self.up_segments.delete(sid)
+                        if (self.up_segments.delete(sid) ==
+                                DBResult.ENTRY_DELETED):
+                            up_segs_removed += 1
+            logging.info("Removed segments containing IF %d:\n"
+                         "UP: %d DOWN: %d CORE: %d" % (if_id, up_segs_removed,
+                            down_segs_removed, core_segs_removed))
 
     def _send_rev_to_core(self, rev_info):
         """
@@ -249,7 +259,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         :param rev_info: The RevocationInfo object
         """
-        logging.info("Sending revocation for IF %d to core ASes.")
         # Issue revocation to all core ASes excluding self.
         informed_cores = {self.addr.isd_as}
         paths = self._get_paths_to_cores()
@@ -260,8 +269,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             core_ia = seg.first_ia()
             if core_ia not in informed_cores:
                 path = seg.get_path(reverse_direction=True)
-                meta = self.DefaultMeta(ia=core_ia, path=path,
-                                        host=SVCType.PS_A)
+                logging.info("Forwarding Revocation to %s using path:\n%s" %
+                             (core_ia, path))
+                meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
+                                                    host=SVCType.PS_A)
                 self.send_meta(rev_info.copy(), meta)
                 informed_cores.add(core_ia)
 

@@ -439,10 +439,7 @@ class SCIONBasePacket(PacketBase):
                                              class_, type_)
         self.set_payload(pld)
 
-    def __len__(self):  # pragma: no cover
-        return self.cmn_hdr.total_len
-
-    def __str__(self):
+    def short_desc(self):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  %s" % self.cmn_hdr)
@@ -450,10 +447,18 @@ class SCIONBasePacket(PacketBase):
         for line in str(self.path).splitlines():
             s.append("  %s" % line)
         s.extend(self._inner_str())
+        return "\n".join(s)
+
+    def __len__(self):  # pragma: no cover
+        return self.cmn_hdr.total_len
+
+    def __str__(self):
+        short_desc = self.short_desc()
+        s = []
         s.append("  Payload:")
         for line in str(self._payload).splitlines():
             s.append("    %s" % line)
-        return "\n".join(s)
+        return "\n".join([short_desc, "\n".join(s)])
 
     def _inner_str(self):  # pragma: no cover
         return []

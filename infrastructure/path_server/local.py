@@ -160,10 +160,10 @@ class LocalPathServer(PathServer):
             # Inform core ASes if the revocation was not received from the local
             # BS.
             bs_addrs = {bs.addr for bs in self.topology.beacon_servers}
-            if meta.get_addr() not in bs_addrs:
+            if meta.get_addr().host not in bs_addrs:
                 self._send_rev_to_core(rev_info)
             return True
         return False
 
     def _get_paths_to_cores(self):
-        return self.up_segments(Full=True)
+        return self.up_segments(full=True)

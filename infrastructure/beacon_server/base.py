@@ -663,9 +663,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Issues a revocation to the core path services.
 
-        :param rev_info: The RevocationInfo object
+        :param RevocationInfo rev_info: The RevocationInfo object
         """
-        logging.info("Sending revocation for IF %d to core ASes.")
         # Issue revocation to all core ASes excluding self.
         informed_cores = {self.addr.isd_as}
         paths = self._get_paths_to_cores()
@@ -676,8 +675,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             core_ia = seg.first_ia()
             if core_ia not in informed_cores:
                 path = seg.get_path(reverse_direction=True)
-                meta = self.DefaultMeta(ia=core_ia, path=path,
-                                        host=SVCType.PS_A)
+                logging.info("Forwarding Revocation to %s using path:\n%s" %
+                             (core_ia, path))
+                meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
+                                                    host=SVCType.PS_A)
                 self.send_meta(rev_info.copy(), meta)
                 informed_cores.add(core_ia)
 

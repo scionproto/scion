@@ -357,7 +357,7 @@ class Router(SCIONElement):
         pld = spkt.get_payload()
         logging.info("Processing revocation: %s", pld.info)
         # First, forward the packet as appropriate.
-        self.handle_data(spkt.copy(), from_local_as)
+        self.handle_data(spkt, from_local_as)
         if from_local_as:
             return
         # Forward to local path and beacon services if we haven't recently.
@@ -416,7 +416,7 @@ class Router(SCIONElement):
         if path_incd:
             rev_pkt.path.inc_hof_idx()
         rev_pkt.update()
-        logging.debug("Revocation Packet:\n%s", rev_pkt)
+        logging.debug("Revocation Packet:\n%s" % rev_pkt.short_desc())
         # FIXME(kormat): In some circumstances, this doesn't actually work, as
         # handle_data will try to send the packet to this interface first, and
         # then drop the packet as the interface is down.
@@ -497,7 +497,7 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to invalid header state.\n"
                           "Header:\n%s", spkt)
         except SCIONInterfaceDownException:
-            logging.debug("Dropping packet due to interface being down")
+            logging.info("Dropping packet due to interface being down")
             pass
 
     def _process_data(self, spkt, ingress, drop_on_error):
@@ -637,9 +637,6 @@ class Router(SCIONElement):
         pkt = self._parse_packet(packet)
         if not pkt:
             return
-        if pkt.ext_hdrs:
-            logging.debug("Got packet (from_local_as? %s):\n%s",
-                          from_local_as, pkt)
         try:
             flags = self.handle_extensions(pkt, True, from_local_as)
         except SCMPError as e:

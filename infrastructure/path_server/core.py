@@ -347,7 +347,7 @@ class CorePathServer(PathServer):
     def _get_paths_to_cores(self):
         segments = []
         # Get paths to all core ASes in the same ISD.
-        for segment in self.core_segments(first_ia=self.addr.isd_as, Full=True):
+        for segment in self.core_segments(first_ia=self.addr.isd_as, full=True):
             other_ia = segment.last_ia()
             if other_ia[0] == self.addr.isd_as[0]:
                 segments.append(segment)

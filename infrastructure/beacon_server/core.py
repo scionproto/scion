@@ -229,6 +229,8 @@ class CoreBeaconServer(BeaconServer):
             if other_ia[0] == self.addr.isd_as[0]:
                 segment = self.core_beacons[other_ia].get_best_segments(
                         k=1, sending=False)
-                segments.append(segment)
+                if segment:
+                    segment = self._terminate_pcb(segment[0])
+                    segments.append(segment)
 
         return segments
