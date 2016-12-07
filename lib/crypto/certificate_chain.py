@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,15 +28,15 @@ import lz4
 from lib.crypto.asymcrypto import verify
 from lib.crypto.certificate import (
     Certificate,
+    SIGNATURE_STRING,
     SUBJECT_ENC_KEY_STRING,
-    SUBJECT_SIG_KEY_STRING,
-    SIGNATURE_STRING
+    SUBJECT_SIG_KEY_STRING
 )
 from lib.crypto.trc import TRC
 from lib.packet.scion_addr import ISD_AS
 
 
-def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
+def verify_sig_chain_trc(msg, sig, subject, chain, trc, trcVer):
     """
     Verify whether the packed message with attached signature is validly
     signed by a particular subject belonging to a valid certificate chain.
@@ -58,16 +58,8 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
     """
     assert isinstance(chain, CertificateChain)
     assert isinstance(trc, TRC)
-    if trc.version > 0:
-        assert isinstance(old_trc, TRC)
-        if old_trc is None:
-            logging.warning("Old TRC is None.")
-            return False
-        if not trc.verify(old_trc):
-            logging.warning('The TRC verification failed.')
-            return False
     if not chain.verify(subject, trc):
-        logging.warning('The certificate chain verification failed.')
+        logging.error('The certificate chain verification failed.')
         return False
     verifying_key = None
     for signer_cert in chain.certs:
@@ -76,7 +68,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, old_trc):
             break
     if verifying_key is None:
         if subject not in trc.core_ases:
-            logging.warning('Signer\'s public key has not been found.')
+            logging.error('Signer\'s public key has not been found.')
             return False
         verifying_key = trc.core_ases[subject].subject_sig_key
     return verify(msg, sig, verifying_key)
@@ -110,7 +102,7 @@ class CertificateChain(object):
         if lz4_:
             chain_raw = lz4.loads(chain_raw).decode("utf-8")
         chain = json.loads(chain_raw)
-        for index in range(1, len(chain) + 1):
+        for index in range(0, len(chain)):
             cert_dict = chain[str(index)]
             cert_dict[SUBJECT_SIG_KEY_STRING] = \
                 base64.b64decode(cert_dict[SUBJECT_SIG_KEY_STRING])
@@ -149,8 +141,8 @@ class CertificateChain(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        if len(self.certs) == 0:
-            logging.warning("The certificate chain is not initialized.")
+        if not len(self.certs):
+            logging.error("The certificate chain is not initialized.")
             return False
         cert = self.certs[0]
         for issuer_cert in self.certs[1:]:
@@ -163,6 +155,7 @@ class CertificateChain(object):
             return trc.core_ases[cert.subject] == cert
         # Try to find a root cert in the trc.
         if not cert.verify(subject, trc.core_ases[cert.issuer]):
+            logging.error("Core AS certificate verification failed.")
             return False
         return True
 
@@ -181,7 +174,7 @@ class CertificateChain(object):
         :rtype: str
         """
         chain_dict = {}
-        index = 1
+        index = 0
         for cert in self.certs:
             cert_dict = copy.deepcopy(cert.get_cert_dict(True))
             cert_dict[SUBJECT_SIG_KEY_STRING] = \

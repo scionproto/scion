@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,9 +29,9 @@ import lz4
 from lib.crypto.asymcrypto import verify
 from lib.crypto.certificate import (
     Certificate,
+    SIGNATURE_STRING,
     SUBJECT_ENC_KEY_STRING,
-    SUBJECT_SIG_KEY_STRING,
-    SIGNATURE_STRING
+    SUBJECT_SIG_KEY_STRING
 )
 from lib.packet.scion_addr import ISD_AS
 
@@ -203,48 +203,45 @@ class TRC(object):
 
     def verify(self, oldTRC):
         """
-        Perform signature verification.
+        Perform signature verification for core signatures as defined
+        in old TRC.
 
-        :returns: True if verification succeeds, false otherwise
-        """
-        return self._verify_core_signatures(oldTRC)
-
-    def _verify_core_signatures(self, oldTRC):
-        """
-        Perform signature verification for core signatures.
-
+        :param: oldTRC: the previous TRC which has already been verified.
         :returns: True if verification succeeds, false otherwise.
         :rtype: bool
         """
-        # only look at signatures which are from core ASes
+        # Only look at signatures which are from core ASes as defined in old TRC
         signatures = {k: self.signatures[k] for k in oldTRC.core_ases.keys()}
+        # We have more signatures than the number of core ASes in old TRC
         if len(signatures) < len(self.signatures):
-            logging.warning("TRC is signed by a non-core AS")
+            logging.warning("TRC has more signatures than number of core ASes.")
         valid_signature_signers = set()
+        # Add every signer to this set whose signature was verified successfully
         for signer in signatures:
             public_key = self.core_ases[signer].subject_sig_key
             if self._verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
-        if len(valid_signature_signers) < self.quorum_own_trc:
-            logging.error("TRC does not have the number of required valid \
-            signatures. Required Signatures:%s, valid signatures:%s" % (
-                self.quorum_own_trc,
-                len(valid_signature_signers)))
-            logging.error(valid_signature_signers)
-            return False
+            else:
+                logging.warning("TRC contains a signature which could not \
+                be verified.")
+        # We have fewer valid signatrues for this TRC than quorum_own_trc
         if len(valid_signature_signers) < oldTRC.quorum_own_trc:
             logging.error("TRC does not have the number of required valid \
-            signatures as defined in old TRC. \
-            Required Signatures:%s, valid signatures:%s" % (
-                oldTRC.quorum_own_trc,
-                len(valid_signature_signers)))
+            signatures")
             return False
+        logging.debug("TRC verified.")
         return True
 
     def _verify_signature(self, signature, public_key):
         """
-        Checks if the signature can be verified with the given public key
+        Checks if the signature can be verified with the given public key for a
+        single signature
+
+        :returns: True if the given signature could be verified with the
+            given key, False otherwise
+        :rtype bool
         """
+        # to_json function sorts the keys
         msg = self.to_json(with_signatures=False).encode('utf-8')
         if not verify(msg, signature, public_key):
             return False
@@ -316,35 +313,25 @@ class TRC(object):
         return str(self) == str(other)
 
 
-def check_updated_TRC_validity(oldTRC, newTRC):
+def verify_new_TRC(oldTRC, newTRC):
     """
-    Check if update from current TRC to updated TRC is correct
-    Only checks if update is correct! This function is called when signatures
-    for the updated TRC are requested.
+    Check if update from current TRC to updated TRC is valid. Checks if update
+    is correct and checks if the new TRC has enough valid signatures as defined
+    in the current TRC.
 
-    :returns: True if update is correct, False otherwise
+    :returns: True if update is valid, False otherwise
     """
+    # Check if update is correct
     if oldTRC.isd != newTRC.isd:
         logging.error("TRC isdid mismatch")
         return False
-    if oldTRC.version+1 != newTRC.version:
+    if oldTRC.version + 1 != newTRC.version:
         logging.error("TRC versions mismatch")
         return False
     if newTRC.time < oldTRC.time:
         logging.error("New TRC timestamp is not valid")
         return False
-    return True
-
-
-def verify_new_TRC(oldTRC, newTRC):
-    """
-    Check if update from current TRC to updated TRC is valid
-
-    :returns: True if update is valid, False otherwise
-    """
-    if not check_updated_TRC_validity(oldTRC, newTRC):
-        logging.error("TRC update is not valid.")
-        return False
+    # Check if there are enough valid signatures for new TRC
     if not newTRC.verify(oldTRC):
         logging.error("New TRC verification failed, missing or \
         invalid signatures")

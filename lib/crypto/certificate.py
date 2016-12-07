@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -132,18 +132,19 @@ class Certificate(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
+        if subject != self.subject:
+            logging.error("The given subject(%s) doesn't match the \
+            certificate's subject(%s)" % (str(subject), str(self.subject)))
+            return False
+        if not self._verify_signature(self.signature,
+                                      issuer_cert.subject_sig_key):
+            logging.error("Signature verification failed.")
+            return False
         if int(time.time()) >= self.expiration_time:
             logging.error("This certificte expired.")
             return False
         if int(time.time()) >= issuer_cert.expiration_time:
             logging.error("The issuer certificate expired.")
-            return False
-        if subject != self.subject:
-            logging.warning("The given subject(%s) doesn't match the \
-            certificate's subject(%s)" % (str(subject), str(self.subject)))
-            return False
-        if not self._verify_signature(self.signature,
-                                      issuer_cert.subject_sig_key):
             return False
         return True
 
