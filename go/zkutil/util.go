@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
+	log "github.com/inconshreveable/log15"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
@@ -28,19 +28,19 @@ func isdAsPath(isd, as int) string {
 
 func EnsurePath(c *zk.Conn, path string) error {
 	for _, subpath := range pathIter(path) {
-		glog.Info("Checking for ", subpath)
+		log.Debug("Checking for subpath", "subpath", subpath)
 		if exists, _, err := c.Exists(subpath); err != nil {
 			return fmt.Errorf("(EnsurePath) check: %v", err)
 		} else if exists {
 			continue
 		}
-		glog.Info("Creating ", subpath)
+		log.Debug("Creating subpath", "subpath", subpath)
 		acl := zk.WorldACL(zk.PermAll)
 		if _, err := c.Create(subpath, []byte{}, 0, acl); err != nil {
 			return fmt.Errorf("(EnsurePath) %q create: %v", subpath, err)
 		}
 	}
-	glog.Info("Ensured ", path)
+	log.Debug("Ensured path", "path", path)
 	return nil
 }
 
