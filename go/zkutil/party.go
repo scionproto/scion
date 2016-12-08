@@ -17,7 +17,7 @@ package zkutil
 import (
 	"fmt"
 
-	"github.com/golang/glog"
+	log "github.com/inconshreveable/log15"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
@@ -43,6 +43,6 @@ func (p *Party) Join() error {
 	if err != nil {
 		return err
 	}
-	glog.Infof("(party) Joined: %v", path)
+	log.Debug("(party) Joined", "path", path)
 	return nil
 }
