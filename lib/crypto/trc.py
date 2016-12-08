@@ -332,7 +332,7 @@ def verify_new_TRC(oldTRC, newTRC):
     if newTRC.time < oldTRC.time:
         logging.error("New TRC timestamp is not valid")
         return False
-    if quarantine:
+    if newTRC.quarantine or oldTRC.quarantine:
         logging.error("Early announcement")
         return False
     # Check if there are enough valid signatures for new TRC
