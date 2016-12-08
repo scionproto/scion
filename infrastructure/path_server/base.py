@@ -214,7 +214,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logging.debug("Already received revocation. Dropping...")
             return False
         else:
-            self.revocations[rev_info] = True
+            self.revocations[rev_info] = rev_info
             logging.debug("Received revocation from %s:\n%s",
                           meta.get_addr(), rev_info)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
@@ -328,12 +328,40 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._handle_pending_requests(dst_ia, sibra)
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
+        # Check that segment does not contain a revoked interface.
+        if not self._validate_segment(seg):
+            logging.debug("Not adding segment due to revoked interface:\n%s" %
+                          seg.short_desc())
+            return set()
         handle_map = {
             PST.UP: self._handle_up_segment_record,
             PST.CORE: self._handle_core_segment_record,
             PST.DOWN: self._handle_down_segment_record,
         }
         return handle_map[type_](seg, **kwargs)
+
+    def _validate_segment(self, seg):
+        """
+        Check segment for revoked interfaces.
+
+        :param seg: The PathSegment object.
+        :return: False, if the path segment contains a revoked interface. True
+            otherwise.
+        """
+        for rev_info in self.revocations.values():
+            if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+                self.revocations.pop(rev_info)
+                continue
+            for asm in seg.iter_asms():
+                # TODO(shitz): If ever decide to not remove segments that
+                # contain only revoked peering interfaces, then this logic needs
+                # to change.
+                for pcbm in asm.iter_pcbms():
+                    if rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]:
+                        logging.debug("Found revoked interface in segment (%d)."
+                                      % rev_info.p.ifID)
+                        return False
+        return True
 
     def _dispatch_params(self, pld, meta):
         return {}
