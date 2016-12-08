@@ -55,14 +55,17 @@ class RevocationInfo(PathMgmtPayloadBase):
         p.nextRoot = next_root
         return cls(p)
 
-    def __hash__(self):
+    def cmp_str(self):
         b = []
         b.append(self.p.ifID.to_bytes(8, 'big'))
         b.append(self.p.epoch.to_bytes(2, 'big'))
         b.append(self.p.nonce)
-        for sib in self.p.siblings:
-            b.append(sib.isLeft.to_bytes(1, 'big'))
-            b.append(sib.hash)
-        b.append(self.p.prevRoot)
-        b.append(self.p.nextRoot)
-        return hash(b"".join(b))
+        return b"".join(b)
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.cmp_str() == other.cmp_str()
+
+    def __hash__(self):
+        return hash(self.cmp_str())

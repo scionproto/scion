@@ -76,7 +76,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
-        self.revocations = ExpiringDict(1000, 300)
+        self.revocations = ExpiringDict(1000, 2 * HASHTREE_EPOCH_TIME)
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
@@ -214,7 +214,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logging.debug("Already received revocation. Dropping...")
             return False
         else:
-            self.revocations[rev_info] = rev_info
+            self.revocations[rev_info] = True
             logging.debug("Received revocation from %s:\n%s",
                           meta.get_addr(), rev_info)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy

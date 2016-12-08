@@ -272,7 +272,7 @@ class PathSegment(SCIONPayloadBaseProto):
 
     def get_hops_hash(self, hex=False):  # pragma: no cover
         """
-        Returns the hash over all the interface revocation tokens included in
+        Returns the hash over all triples (ISD_AS, IG_IF, EG_IF) included in
         the path segment.
         """
         h = SHA256.new()
