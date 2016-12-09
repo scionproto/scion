@@ -18,8 +18,8 @@ The table fields below are as follows:
 - Rev incs: How many times the router should increment the path /after/ the
   packet's path has been reversed.
 
-No Xover
---------
+### No Xover
+
 The router is not at an Xover point in the path (i.e. it is in the middle of
 the path segment, or at the start/end of the path as a whole).
 
@@ -29,8 +29,8 @@ the path segment, or at the start/end of the path as a whole).
 | Ingress | Egress     | X            |                  |        | 1        |
 | Egress  | Egress     |              |                  |        | 0        |
 
-Core/Shortcut/Peering change over
---------
+### Core/Shortcut/Peering change over
+
 The router is at an Xover point (i.e. the path is switching from one segment.
 to the next).
 
