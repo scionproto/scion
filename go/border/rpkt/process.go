@@ -29,6 +29,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/proto"
+	"strconv"
 )
 
 const (
@@ -166,18 +167,25 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 // processSCMP is a processing hook used to handle SCMP payloads.
 func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
+	rp.Debug("In processSCMP.")
 	hdr := rp.l4.(*scmp.Hdr)
+	rp.Debug(hdr.String())
 	switch {
 	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
 		var args RevTokenCallbackArgs
 		pld := rp.pld.(*scmp.Payload)
 		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 		// Forward to PS if we are in the AS of the source.
-		if rp.dstIA == topology.Curr.T.IA && len(topology.Curr.T.PS) > 0 {
+		rp.Debug("Checking PS.", "dstIA", rp.dstIA.String(), "currIA", topology.Curr.T.IA)
+		if rp.dstIA.Eq(topology.Curr.T.IA) && len(topology.Curr.T.PS) > 0 {
+			rp.Debug("Adding PS.")
 			args.Addrs = append(args.Addrs, addr.SvcPS.Multicast())
 		}
 		// Forward to BS if router is downstream of the failed interface.
+		rp.Debug("Checking BS.", "srcIA", rp.srcIA.String(), "currIA", topology.Curr.T.IA,
+		"downstream?", strconv.FormatBool(rp.isDownstreamRouter()))
 		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
+			rp.Debug("Adding BS.")
 			args.Addrs = append(args.Addrs, addr.SvcBS.Multicast())
 		}
 		callbacks.revTokenF(args)
@@ -189,7 +197,10 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 
 func (rp *RtrPkt) isDownstreamRouter() (bool) {
 	for ifID := range rp.Ingress.IfIDs {
+		rp.Debug("isDownstreamRouter", "ifID", strconv.Itoa(ifID))
 		if topoBR, ok := topology.Curr.IFMap[int(ifID)]; ok {
+			rp.Debug("Checking ingress link type.", "ifID", strconv.Itoa(ifID),
+			"linkType", topoBR.IF.LinkType)
 			if topoBR.IF.LinkType == "PARENT" {
 				return true
 			}
