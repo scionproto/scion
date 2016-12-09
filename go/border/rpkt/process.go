@@ -167,7 +167,6 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 // processSCMP is a processing hook used to handle SCMP payloads.
 func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
-	rp.Debug("In processSCMP.")
 	hdr := rp.l4.(*scmp.Hdr)
 	rp.Debug(hdr.String())
 	switch {
@@ -176,16 +175,11 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 		pld := rp.pld.(*scmp.Payload)
 		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 		// Forward to PS if we are in the AS of the source.
-		rp.Debug("Checking PS.", "dstIA", rp.dstIA.String(), "currIA", topology.Curr.T.IA)
 		if rp.dstIA.Eq(topology.Curr.T.IA) && len(topology.Curr.T.PS) > 0 {
-			rp.Debug("Adding PS.")
 			args.Addrs = append(args.Addrs, addr.SvcPS.Multicast())
 		}
 		// Forward to BS if router is downstream of the failed interface.
-		rp.Debug("Checking BS.", "srcIA", rp.srcIA.String(), "currIA", topology.Curr.T.IA,
-		"downstream?", strconv.FormatBool(rp.isDownstreamRouter()))
 		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
-			rp.Debug("Adding BS.")
 			args.Addrs = append(args.Addrs, addr.SvcBS.Multicast())
 		}
 		callbacks.revTokenF(args)
@@ -196,17 +190,8 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 }
 
 func (rp *RtrPkt) isDownstreamRouter() (bool) {
-	for ifID := range rp.Ingress.IfIDs {
-		rp.Debug("isDownstreamRouter", "ifID", strconv.Itoa(ifID))
-		if topoBR, ok := topology.Curr.IFMap[int(ifID)]; ok {
-			rp.Debug("Checking ingress link type.", "ifID", strconv.Itoa(ifID),
-			"linkType", topoBR.IF.LinkType)
-			if topoBR.IF.LinkType == "PARENT" {
-				return true
-			}
-		}
-	}
-	return false
+	intf := conf.C.Net.IFs[*rp.ifCurr]
+	return intf.Type == "PARENT"
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given

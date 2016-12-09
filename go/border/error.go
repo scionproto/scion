@@ -26,6 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/inconshreveable/log15"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP
@@ -90,9 +91,27 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
-	if rp.DirFrom == rpkt.DirExternal {
+
+	hopF, err := reply.HopF()
+	if err != nil {
+		return nil, err
+	}
+	if hopF.Xover {
 		reply.InfoF()
-		reply.HopF()
+		// Increase path if the segment was changed by this router.
+		if rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF + 8 {
+			if err := reply.IncPath(); err != nil {
+				return nil, err
+			}
+		}
+		// Always increase path on a xover point.
+		if err := reply.IncPath(); err != nil {
+			return nil, err
+		}
+	} else if rp.DirFrom == rpkt.DirExternal {
+		reply.InfoF()
+		// Increase path if the packet is in the middle of a segment and
+		// the current router is an ingress router.
 		if err := reply.IncPath(); err != nil {
 			return nil, err
 		}
