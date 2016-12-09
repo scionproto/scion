@@ -34,9 +34,9 @@ import (
 
 // RevTokenCallback is called to enqueue RevInfos for handling by the
 // RevInfoFwd goroutine.
-func (r *Router) RevTokenCallback(b common.RawBytes) {
+func (r *Router) RevTokenCallback(args rpkt.RevTokenCallbackArgs) {
 	select {
-	case r.revInfoQ <- b:
+	case r.revInfoQ <- args:
 	default:
 		log.Debug("Dropping rev token")
 	}
@@ -47,13 +47,16 @@ func (r *Router) RevTokenCallback(b common.RawBytes) {
 func (r *Router) RevInfoFwd() {
 	defer liblog.PanicLog()
 	// Run forever.
-	for b := range r.revInfoQ {
-		revInfo := r.decodeRevToken(b)
+	for args := range r.revInfoQ {
+		revInfo := r.decodeRevToken(args.RevInfo)
 		if revInfo == nil {
 			continue
 		}
-		r.fwdRevInfo(revInfo, addr.SvcBS.Multicast())
-		r.fwdRevInfo(revInfo, addr.SvcPS.Multicast())
+		for _, svcAddr := range args.Addrs {
+			log.Debug("Forwarding revocation.", "target", svcAddr.String(),
+				"revInfo", revInfo.String())
+			r.fwdRevInfo(revInfo, svcAddr)
+		}
 	}
 
 }

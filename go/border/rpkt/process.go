@@ -165,16 +165,37 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 
 // processSCMP is a processing hook used to handle SCMP payloads.
 func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
-	// FIXME(kormat): rate-limit revocations
+	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
 	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+		var args RevTokenCallbackArgs
 		pld := rp.pld.(*scmp.Payload)
-		callbacks.revTokenF(pld.Info.(*scmp.InfoRevocation).RevToken)
+		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
+		// Forward to PS if we are in the AS of the source.
+		if rp.dstIA == topology.Curr.T.IA && len(topology.Curr.T.PS) > 0 {
+			args.Addrs = append(args.Addrs, addr.SvcPS.Multicast())
+		}
+		// Forward to BS if router is downstream of the failed interface.
+		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
+			args.Addrs = append(args.Addrs, addr.SvcBS.Multicast())
+		}
+		callbacks.revTokenF(args)
 	default:
 		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class, "type", hdr.Type)
 	}
 	return HookFinish, nil
+}
+
+func (rp *RtrPkt) isDownstreamRouter() (bool) {
+	for ifID := range rp.Ingress.IfIDs {
+		if topoBR, ok := topology.Curr.IFMap[int(ifID)]; ok {
+			if topoBR.IF.LinkType == "PARENT" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given

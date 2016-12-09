@@ -49,7 +49,7 @@ type Router struct {
 	// Router.recyclePkt
 	freePkts chan *rpkt.RtrPkt
 	// revInfoQ is a channel for handling RevInfo payloads.
-	revInfoQ chan common.RawBytes
+	revInfoQ chan rpkt.RevTokenCallbackArgs
 }
 
 func NewRouter(id, confDir string) (*Router, *common.Error) {

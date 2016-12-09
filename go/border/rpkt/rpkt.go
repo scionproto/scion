@@ -45,13 +45,13 @@ var callbacks struct {
 	locOutFs   map[int]OutputFunc
 	intfOutFs  map[spath.IntfID]OutputFunc
 	ifStateUpd func(proto.IFStateInfos)
-	revTokenF  func(common.RawBytes)
+	revTokenF  func(RevTokenCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
 func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
-	ifStateUpd func(proto.IFStateInfos), revTokenF func(common.RawBytes)) {
+	ifStateUpd func(proto.IFStateInfos), revTokenF func(RevTokenCallbackArgs)) {
 	callbacks.locOutFs = locOut
 	callbacks.intfOutFs = intfOut
 	callbacks.ifStateUpd = ifStateUpd
