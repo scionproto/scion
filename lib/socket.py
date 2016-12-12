@@ -354,6 +354,7 @@ class SocketMgr(object):
                 if not sock.is_active():
                     self.remove(sock)
                     sock.close()
+                    logging.debug("remove_inactive(): close()")
 
     def select_(self, timeout=None):
         """
@@ -427,7 +428,9 @@ class TCPSocketWrapper(object):
                 return None, self._get_meta()
             try:
                 read = self._tcp_sock.recv(self.RECV_SIZE)
+                logging.debug("get_msg_meta(): read: %s", read)
                 if not read:
+                    logging.debug("get_msg_meta(): !read: %s", read)
                     self.active = False
                     return None, None
                 self._buf += read
@@ -443,7 +446,7 @@ class TCPSocketWrapper(object):
         with self._lock:
             if not self.active:
                 logging.debug("TCP: send_msg(): inactive socket")
-                return -1
+                return 0
             try:
                 sent = self._tcp_sock.send(raw)
                 self._last_io = time.time()
@@ -451,7 +454,7 @@ class TCPSocketWrapper(object):
             except SCIONTCPError:
                 logging.debug("TCP: inactivating after socket error")
                 self.active = False
-        return -1
+        return 0
 
     def close(self):
         with self._lock:

@@ -173,7 +173,7 @@ class SCIONTCPSocket(object):
             err_str = LWIPError.err2str(err_code)
             msg = "%s: (%d) %s" % (cmd, err_code, err_str)
             if err_code in [LWIPError.ERR_CLSD, LWIPError.ERR_TIMEOUT]:
-                logging.debug(msg)
+                pass # logging.debug(msg)
             elif LWIPError.is_fatal(err_code):
                 logging.error(msg)
             else:
@@ -214,7 +214,7 @@ class SCIONTCPSocket(object):
         self._exec_cmd(req)
 
     def _to_lwip(self, req):
-        logging.debug("Sending to LWIP(%dB): %.*s..." % (len(req), 20, req))
+        # logging.debug("Sending to LWIP(%dB): %.*s..." % (len(req), 20, req))
         assert PLD_SIZE + len(req) <= TCPMW_BUFLEN, "Cmd too long"
         pld_len = len(req) - CMD_SIZE
         if self._lwip_sock:
@@ -234,7 +234,7 @@ class SCIONTCPSocket(object):
             replen = 0
         else:
             replen = len(rep)
-        logging.debug("Reading from LWIP(%dB): %.*s..." % (replen, 20, rep))
+        # logging.debug("Reading from LWIP(%dB): %.*s..." % (replen, 20, rep))
         return rep
 
     def _exec_cmd(self, req, cmd_size=False):
