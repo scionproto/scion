@@ -279,6 +279,18 @@ class PathSegment(SCIONPayloadBaseProto):
             asm.remove_sig()
             asm.remove_chain()
 
+    def get_trcs_certs(self):
+        """
+        Returns a list of all all trcs and a list of all certificates used
+        in this PCB, including their version.
+        """
+        trcs = []
+        certs = []
+        for asm in self.iter_asms():
+            trcs.append((str(asm.isd_as()), asm.p.trcVer))
+            certs.append((str(asm.isd_as()), asm.p.certVer))
+        return trcs, certs
+
     def get_path(self, reverse_direction=False):
         """
         Returns the list of HopOpaqueFields in the path.
