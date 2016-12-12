@@ -90,29 +90,36 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
-
-	hopF, err := reply.HopF()
+	dstIA, err := reply.DstIA()
 	if err != nil {
 		return nil, err
 	}
-	if hopF.Xover {
-		reply.InfoF()
-		// Increase path if the segment was changed by this router.
-		if rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF+8 {
+	// Only (potentially) call IncPath if the dest is not in the local AS
+	// and the common header is well formed.
+	if !dstIA.Eq(conf.C.IA) && ct.Class != scmp.C_CmnHdr {
+		hopF, err := reply.HopF()
+		if err != nil {
+			return nil, err
+		}
+		if hopF.Xover {
+			reply.InfoF()
+			// Increase path if the segment was changed by this router.
+			if rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF+8 {
+				if err := reply.IncPath(); err != nil {
+					return nil, err
+				}
+			}
+			// Always increase path on a xover point.
 			if err := reply.IncPath(); err != nil {
 				return nil, err
 			}
-		}
-		// Always increase path on a xover point.
-		if err := reply.IncPath(); err != nil {
-			return nil, err
-		}
-	} else if rp.DirFrom == rpkt.DirExternal {
-		reply.InfoF()
-		// Increase path if the packet is in the middle of a segment and
-		// the current router is an ingress router.
-		if err := reply.IncPath(); err != nil {
-			return nil, err
+		} else if rp.DirFrom == rpkt.DirExternal {
+			reply.InfoF()
+			// Increase path if the packet is in the middle of a segment and
+			// the current router is an ingress router.
+			if err := reply.IncPath(); err != nil {
+				return nil, err
+			}
 		}
 	}
 	egress, err := r.replyEgress(rp)
