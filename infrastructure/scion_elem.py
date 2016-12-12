@@ -433,11 +433,11 @@ class SCIONElement(object):
             return False
         return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
-    def send_meta(self, msg, meta, next_hop_port=None, block=False):
+    def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
         if isinstance(meta, TCPMetadata):
             assert not next_hop_port, next_hop_port
-            return self._send_meta_tcp(msg, meta, block)
+            return self._send_meta_tcp(msg, meta)
         elif isinstance(meta, SockOnlyMetadata):
             assert not next_hop_port, next_hop_port
             return meta.sock.send(msg)
@@ -456,17 +456,17 @@ class SCIONElement(object):
             return False
         return self.send(pkt, *next_hop_port)
 
-    def _send_meta_tcp(self, msg, meta, block):
-        if not meta.sock:
-            t = threading.Thread(target=thread_safety_net,
+    def _send_meta_tcp(self, msg, meta):
+        with meta.lock:
+            if not meta.sock:
+                threading.Thread(
+                    target=thread_safety_net,
                     args=(self._tcp_connect_and_send, msg, meta),
-                    name="Elem._tcp_connect_and_send", daemon=True)
-            t.start()
-            if block:
-                t.join()
-        else:
-            self._tcp_send_queue_put(msg, meta)
-        return True
+                    name="Elem._tcp_connect_and_send", daemon=False).start()
+            else:
+                self._tcp_send_queue_put(msg, meta)
+                # meta.sock.send_msg(msg.pack_full())
+            return True
 
     def _tcp_connect_and_send(self, msg, meta):
         tcp_sock = self._tcp_sock_from_meta(meta)
