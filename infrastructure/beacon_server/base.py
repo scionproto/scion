@@ -248,6 +248,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
+        trcs, certs = pcb.get_trcs_certs()
         self.incoming_pcbs.append(pcb)
         meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
