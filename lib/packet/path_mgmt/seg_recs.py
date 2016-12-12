@@ -72,6 +72,20 @@ class PathRecordsReply(PathSegmentRecords):
     NAME = "PathRecordsReply"
     PAYLOAD_TYPE = PMT.REPLY
 
+    def get_trcs_certs(self):
+        """
+        Returns a dict of all trcs' versions and a dict of all certificates'
+        versions used in this reply, with their highest version number.
+        """
+        trcs = {}
+        certs = {}
+        for pcb in self.iter_pcbs:
+            trcs_, certs_ = pcb.get_trcs_certs()
+            # FIXME(Sezer) Fix this, it overwrites trcs, certs now
+            trcs.update(trcs_)
+            certs.update(certs_)
+        return trcs, certs
+
 
 class PathRecordsReg(PathSegmentRecords):
     NAME = "PathRecordsReg"

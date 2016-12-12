@@ -45,6 +45,7 @@ from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
 from lib.types import (
+    CertMgmtType,
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
@@ -87,12 +88,23 @@ class SCIONDaemon(SCIONElement):
         self.api_addr = (api_addr or
                          os.path.join(SCIOND_API_SOCKDIR,
                                       "%s.sock" % self.addr.isd_as))
-
+        self.cc_requests = RequestHandler.start(
+            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
+        )
+        self.trc_requests = RequestHandler.start(
+            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
+        )
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REPLY: self.handle_path_reply,
                 PMT.REVOCATION: self.handle_revocation,
-            }
+            },
+            PayloadClass.CERT: {
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
+            },
         }
 
         self.SCMP_PLD_CLASS_MAP = {

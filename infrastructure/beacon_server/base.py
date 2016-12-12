@@ -66,6 +66,7 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
+from lib.requests import RequestHandler
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -121,7 +122,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             os.path.join(conf_dir, PATH_POLICY_FILE))
         self.unverified_beacons = deque()
         self.trc_requests = {}
+        self.cert_requests = {}
         self.trcs = {}
+        self.missing_TRCs = deque()
+        self.missing_certs = deque()
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
@@ -136,12 +140,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = RLock()
+        self.cc_requests = RequestHandler.start(
+            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
+        )
+        self.trc_requests = RequestHandler.start(
+            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
+        )
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {None: self.handle_pcb},
             PayloadClass.IFID: {None: self.handle_ifid_packet},
             PayloadClass.CERT: {
-                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_rep,
-                CertMgmtType.TRC_REPLY: self.process_trc_rep,
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
             },
             PayloadClass.PATH: {
                 PMT.IFSTATE_REQ: self._handle_ifstate_request,
@@ -251,6 +263,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         self.incoming_pcbs.append(pcb)
         meta.close()
+        if self.verify_path(pcb, meta):
+            self.continue_path_processing(pcb, meta)
+
+    def continue_path_processing(self, pcb, meta):
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:
             self.pcb_cache.store(entry_name, pcb.copy().pack())
@@ -571,19 +587,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             asm.p.trcVer)
 
     @abstractmethod
-    def _handle_verified_beacon(self, pcb):
+    def _handle_verified_beacon(self, msg):
         """
         Once a beacon has been verified, place it into the right containers.
 
         :param pcb: verified path segment.
         :type pcb: PathSegment
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def process_cert_chain_rep(self, cert_chain_rep, meta):
-        """
-        Process the Certificate chain reply.
         """
         raise NotImplementedError
 

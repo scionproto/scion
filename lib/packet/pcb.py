@@ -279,6 +279,26 @@ class PathSegment(SCIONPayloadBaseProto):
             asm.remove_sig()
             asm.remove_chain()
 
+    def get_trcs_certs(self):
+        """
+        Returns a dict of all trcs' versions and a dict of all certificates'
+        versions used in this PCB, with their highest version number.
+        """
+        trcs = {}
+        certs = {}
+        for asm in self.iter_asms():
+            isd_as = str(asm.isd_as())
+            isd_ = str(asm.isd_as()[0])
+            if isd_ not in trcs.keys():
+                trcs[isd_] = [asm.p.trcVer]
+            else:
+                trcs[isd_].append(asm.p.trcVer)
+            if isd_as not in certs.keys():
+                certs[isd_as] = [asm.p.certVer]
+            else:
+                certs[isd_as].append(asm.p.certVer)
+        return trcs, certs
+
     def get_path(self, reverse_direction=False):
         """
         Returns the list of HopOpaqueFields in the path.
@@ -411,6 +431,9 @@ class PathSegment(SCIONPayloadBaseProto):
             for line in rev_info.short_desc().splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
+
+    def __eq__(self, other):
+        return self.__str__ == str(other)
 
     def __hash__(self):  # pragma: no cover
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
