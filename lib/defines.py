@@ -23,7 +23,12 @@ import os
 SCION_PROTO_VERSION = 0
 
 #: Max TTL of a PathSegment in realtime seconds.
-MAX_SEGMENT_TTL = 24 * 60 * 60
+# TODO(shitz): This value should be externally configurable. The problem is that
+# the revocation hash tree TTL needs to be at least as large as MAX_SEGMENT_TTL,
+# but having a TTL of 1 day makes the hash tree generation costly enough that it
+# times out on CircleCI. Thus, we should have one external config file for the
+# Docker/CircleCI environment and one for production.
+MAX_SEGMENT_TTL = 30 * 60
 #: Time unit for HOF expiration.
 EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
 #: Max number of supported HopByHop extensions (does not include SCMP)
@@ -130,8 +135,7 @@ HASHTREE_EPOCH_TIME = 10
 # The tolerable error in epoch in seconds.
 HASHTREE_EPOCH_TOLERANCE = 5
 # Max time to live
-# 15 min for testing, 24 hrs in production
-HASHTREE_TTL = 15 * 60
+HASHTREE_TTL = MAX_SEGMENT_TTL
 # Number of epochs in one TTL per interface
 HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
 # How much time in advance to compute the next hash tree

@@ -26,7 +26,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/inconshreveable/log15"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP

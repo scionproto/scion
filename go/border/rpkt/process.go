@@ -29,7 +29,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/proto"
-	"strconv"
 )
 
 const (

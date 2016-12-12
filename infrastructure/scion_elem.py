@@ -537,7 +537,6 @@ class SCIONElement(object):
                           dropped, self.total_dropped)
 
     def _get_msg_meta(self, packet, addr, sock):
-        logging.debug("_get_msg_meta() called")
         pkt = self._parse_packet(packet)
         if not pkt:
             logging.error("Cannot parse packet:\n%s" % packet)
