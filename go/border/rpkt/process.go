@@ -188,7 +188,7 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	return HookFinish, nil
 }
 
-func (rp *RtrPkt) isDownstreamRouter() (bool) {
+func (rp *RtrPkt) isDownstreamRouter() bool {
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	return intf.Type == "PARENT"
 }

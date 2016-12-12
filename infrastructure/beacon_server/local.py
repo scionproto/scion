@@ -190,4 +190,3 @@ class LocalBeaconServer(BeaconServer):
 
     def _get_paths_to_cores(self):
         return self.up_segments.get_best_segments(sending=False)
-

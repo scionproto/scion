@@ -251,8 +251,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                                 DBResult.ENTRY_DELETED):
                             up_segs_removed += 1
             logging.info("Removed segments containing IF %d:\n"
-                         "UP: %d DOWN: %d CORE: %d" % (if_id, up_segs_removed,
-                            down_segs_removed, core_segs_removed))
+                         "UP: %d DOWN: %d CORE: %d" %
+                         (if_id, up_segs_removed, down_segs_removed,
+                          core_segs_removed))
 
     def _send_rev_to_core(self, rev_info):
         """

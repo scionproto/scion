@@ -98,7 +98,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if hopF.Xover {
 		reply.InfoF()
 		// Increase path if the segment was changed by this router.
-		if rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF + 8 {
+		if rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF+8 {
 			if err := reply.IncPath(); err != nil {
 				return nil, err
 			}
