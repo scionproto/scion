@@ -88,6 +88,13 @@ class SibraServerBase(SCIONElement):
             PayloadClass.PATH: {PMT.REG: self.handle_path_reg},
             PayloadClass.SIBRA: {None: self.handle_sibra_pkt},
         }
+        #     PayloadClass.CERT: {
+        #         CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+        #         CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+        #         CertMgmtType.TRC_REPLY: self.process_trc_reply,
+        #         CertMgmtType.TRC_REQ: self.process_trc_request,
+        #     },
+        # }
         self._find_links()
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()

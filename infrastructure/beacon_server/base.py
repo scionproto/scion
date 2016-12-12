@@ -140,8 +140,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             PayloadClass.PCB: {None: self.handle_pcb},
             PayloadClass.IFID: {None: self.handle_ifid_packet},
             PayloadClass.CERT: {
-                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_rep,
-                CertMgmtType.TRC_REPLY: self.process_trc_rep,
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
             },
             PayloadClass.PATH: {
                 PMT.IFSTATE_REQ: self._handle_ifstate_request,
@@ -251,12 +253,26 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         self.incoming_pcbs.append(pcb)
         meta.close()
+        if self.verify_path(pcb, meta):
+            self.continue_path_processing(pcb, meta)
+
+    def continue_path_processing(self, pcb, meta):
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:
             self.pcb_cache.store(entry_name, pcb.copy().pack())
         except ZkNoConnection:
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
+        self._handle_verified_beacon(pcb)
+
+    def _verify_path(self, paths):
+        asm = paths.asm(-1)
+        cert_ia = asm.isd_as()
+        trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+        chain = self.trust_store.get_cert(asm.isd_as(), asm.cert_ver())
+        return verify_sig_chain_trc(
+            paths.sig_pack(), asm.p.sig, str(cert_ia), chain, trc,
+            asm.p.trcVer)
 
     def handle_ext(self, pcb):
         """
@@ -443,7 +459,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = time.time()
             try:
                 self.process_pcb_queue()
-                self.handle_unverified_beacons()
+                # self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
@@ -579,35 +595,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         raise NotImplementedError
-
-    @abstractmethod
-    def process_cert_chain_rep(self, cert_chain_rep, meta):
-        """
-        Process the Certificate chain reply.
-        """
-        raise NotImplementedError
-
-    def process_trc_rep(self, rep, meta):
-        """
-        Process the TRC reply.
-
-        :param rep: TRC reply.
-        :type rep: TRCReply
-        """
-        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
-        self.trust_store.add_trc(rep.trc)
-
-        rep_key = rep.trc.get_isd_ver()
-        if rep_key in self.trc_requests:
-            del self.trc_requests[rep_key]
-
-    def handle_unverified_beacons(self):
-        """
-        Handle beacons which are waiting to be verified.
-        """
-        for _ in range(len(self.unverified_beacons)):
-            pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb, quiet=True)
 
     def process_rev_objects(self, rev_infos):
         """

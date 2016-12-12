@@ -336,7 +336,7 @@ class CertGenerator(object):
         else:
             signing_key = self.sig_priv_keys[issuer]
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id),  str(issuer), INITIAL_CERT_VERSION, "", False,
+            str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
             self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
             signing_key
         )
@@ -369,20 +369,19 @@ class CertGenerator(object):
         # Add public root online/offline key to TRC
         core = {}
         core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[ONLINE_KEY_STRING] = \
-            base64.b64encode(self.pub_online_root_keys[topo_id]).decode('utf-8')
+        core[ONLINE_KEY_STRING] = self.pub_online_root_keys[topo_id]
         core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = base64.b64encode(
-            self.priv_online_root_keys[topo_id]).decode('utf-8')
+        core[OFFLINE_KEY_STRING] = self.priv_online_root_keys[topo_id]
         trc.core_ases[str(topo_id)] = core
-
-    def _create_trc(self, isd):
         ca_certs = {}
-        for ca_name, ca_cert in self.ca_certs[isd].items():
+        for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
             ca_certs[ca_name] = \
                  crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
+        trc.root_cas = ca_certs
+
+    def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
-            isd, "ISD %s" % isd, 0, {}, ca_certs,
+            isd, "ISD %s" % isd, 0, {}, {},
             {}, 2, 'dns_srv_addr', 2,
             3, 18000, True, {})
 

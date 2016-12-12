@@ -24,6 +24,7 @@ from itertools import product
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
@@ -46,6 +47,7 @@ from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
 from lib.types import (
+    CertMgmtType,
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
@@ -89,12 +91,17 @@ class SCIONDaemon(SCIONElement):
         self.api_addr = (api_addr or
                          os.path.join(SCIOND_API_SOCKDIR,
                                       "%s.sock" % self.addr.isd_as))
-
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REPLY: self.handle_path_reply,
                 PMT.REVOCATION: self.handle_revocation,
-            }
+            },
+            PayloadClass.CERT: {
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
+            },
         }
 
         self.SCMP_PLD_CLASS_MAP = {
@@ -143,6 +150,10 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
+    #     if self.verify_path(path_reply, meta):
+    #         self.continue_path_processing(path_reply, meta)
+
+    # def continue_path_processing(self, path_reply, meta):
         added = set()
         map_ = {
             PST.UP: self._handle_up_seg,
@@ -162,6 +173,25 @@ class SCIONDaemon(SCIONElement):
             self.requests.put(((dst_ia, flags), None))
         logging.debug("Closing meta")
         meta.close()
+
+    def _verify_path(self, paths):
+        for _, pcb in paths.iter_pcbs():
+            logging.error("PCB")
+            logging.error(pcb)
+            asm = pcb.asm(-1)
+            logging.error("ASM")
+            logging.error(asm)
+            cert_ia = asm.isd_as()
+            trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+            logging.error(asm.isd_as())
+            logging.error(asm.cert_ver())
+            chain = self.trust_store.get_cert(asm.isd_as(), asm.cert_ver())
+            logging.error(chain)
+            if not verify_sig_chain_trc(
+                    pcb.sig_pack(), asm.p.sig, str(cert_ia), chain, trc,
+                    asm.p.trcVer):
+                return False
+        return True
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():

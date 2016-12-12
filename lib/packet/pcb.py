@@ -26,6 +26,7 @@ import capnp  # noqa
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -111,6 +112,9 @@ class ASMarking(Cerealizable):
 
     def chain(self):  # pragma: no cover
         return CertificateChain.from_raw(self.p.chain, lz4_=True)
+
+    def cert_ver(self):
+        return self.p.certVer
 
     def add_ext(self, ext):  # pragma: no cover
         """
@@ -213,7 +217,7 @@ class PathSegment(SCIONPayloadBaseProto):
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
-        assert not self.p.asms[-1].sig
+        # assert not self.p.asms[-1].sig
         sig = sign(self.sig_pack(3), key)
         if set_:
             self.p.asms[-1].sig = sig
@@ -242,8 +246,64 @@ class PathSegment(SCIONPayloadBaseProto):
         Removes the signatures and certificates from each AS block.
         """
         for asm in self.iter_asms():
+            # asm.remove_sig()
+            asm.remove_chain()
+
+    def add_rev_infos(self, rev_infos):  # pragma: no cover
+        """
+        Appends a list of revocations to the PCB. Replaces existing
+        revocations with newer ones.
+        """
+        if not rev_infos:
+            return
+        existing = {}
+        current_epoch = ConnectedHashTree.get_current_epoch()
+        for i in range(len(self.p.exts.revInfos)):
+            orphan = self.p.exts.revInfos.disown(i)
+            info_p = orphan.get()
+            if info_p.epoch >= current_epoch:
+                existing[(info_p.isdas, info_p.ifID)] = orphan
+        # Remove revocations for which we already have a newer one.
+        filtered = []
+        for info in rev_infos:
+            if (info.p.epoch >= current_epoch and
+                    (info.p.isdas, info.p.ifID) not in existing):
+                filtered.append(info)
+        self.p.exts.init("revInfos", len(existing) + len(filtered))
+        for i, orphan in enumerate(existing.values()):
+            self.p.exts.revInfos.adopt(i, orphan)
+        n_existing = len(existing)
+        for i, info in enumerate(filtered):
+            self.p.exts.revInfos[n_existing + i] = info.p
+
+    def remove_crypto(self):  # pragma: no cover
+        """
+        Removes the signatures and certificates from each AS block.
+        """
+        for asm in self.iter_asms():
             asm.remove_sig()
             asm.remove_chain()
+
+    def get_trcs_certs(self):
+        """
+        Returns a dict of all trcs' versions and a dict of all certificates'
+        versions used in this PCB, with their highest version number.
+        """
+        trcs = {}
+        certs = {}
+        for asm in self.iter_asms():
+            isd_as = asm.isd_as()
+            isd_ = str(asm.isd_as()[0]) + "-0"
+            isd = ISD_AS(isd_)
+            if isd not in trcs.keys():
+                trcs[isd] = set([asm.p.trcVer])
+            else:
+                trcs[isd].add(asm.p.trcVer)
+            if isd_as not in certs.keys():
+                certs[isd_as] = set([asm.p.certVer])
+            else:
+                certs[isd_as].add(asm.p.certVer)
+        return trcs, certs
 
     def get_path(self, reverse_direction=False):
         """
@@ -353,6 +413,9 @@ class PathSegment(SCIONPayloadBaseProto):
             for line in str(self.sibra_ext).splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
+
+    def __eq__(self, other):
+        return self.__str__ == str(other)
 
     def __hash__(self):  # pragma: no cover
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
