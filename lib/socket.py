@@ -354,7 +354,6 @@ class SocketMgr(object):
                 if not sock.is_active():
                     self.remove(sock)
                     sock.close()
-                    logging.debug("remove_inactive(): close()")
 
     def select_(self, timeout=None):
         """
