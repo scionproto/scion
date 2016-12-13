@@ -428,9 +428,7 @@ class TCPSocketWrapper(object):
                 return None, self._get_meta()
             try:
                 read = self._tcp_sock.recv(self.RECV_SIZE)
-                logging.debug("get_msg_meta(): read: %s", read)
                 if not read:
-                    logging.debug("get_msg_meta(): !read: %s", read)
                     self.active = False
                     return None, None
                 self._buf += read
@@ -458,15 +456,13 @@ class TCPSocketWrapper(object):
 
     def close(self):
         with self._lock:
-            if not self.active:
-                logging.debug("TCP: close(): inactive socket")
+            if not self.is_active():
                 return
             try:
                 self._tcp_sock.close()
             except SCIONTCPError as e:
                 logging.warning("Error on close(): %s", e)
             self.active = False
-            logging.debug("Leaving close()")
 
     def is_active(self):
         return self.active and (time.time() - self._last_io <= TCP_TIMEOUT)

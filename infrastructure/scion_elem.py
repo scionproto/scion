@@ -215,8 +215,6 @@ class SCIONElement(object):
         """
         Main routine to handle incoming SCION messages.
         """
-        logging.debug("handle_msg_meta() started: %s %s" % (msg, meta))
-
         if isinstance(meta, SCMPMetadata):
             handler = self._get_scmp_handler(meta.pkt)
         else:
@@ -225,7 +223,6 @@ class SCIONElement(object):
             logging.error("handler not found: %s", msg)
             return
         try:
-            logging.debug("Calling handler, meta:%s", meta)
             # SIBRA operates on parsed packets.
             if (isinstance(meta, UDPMetadata) and
                     msg.PAYLOAD_CLASS == PayloadClass.SIBRA):
@@ -519,8 +516,6 @@ class SCIONElement(object):
         while True:
             try:
                 self._tcp_send_queue.put((msg, meta), block=False)
-                logging.debug("SEND_QUEUE: ADDED %d",
-                        self._tcp_send_queue.qsize())
             except queue.Full:
                 self._tcp_send_queue.get_nowait()
                 logging.error("TCP: _tcp_send_queue is full. Dropping old msg")
@@ -572,7 +567,6 @@ class SCIONElement(object):
                           dropped, self.total_dropped)
 
     def _get_msg_meta(self, packet, addr, sock):
-        logging.debug("_get_msg_meta() called")
         pkt = self._parse_packet(packet)
         if not pkt:
             logging.error("Cannot parse packet:\n%s" % packet)
@@ -636,7 +630,6 @@ class SCIONElement(object):
             if not self._udp_sock:
                 self._setup_sockets(False)
             for sock, callback in self._socks.select_(timeout=0.1):
-                logging.debug("packet_recv: socket ready: %s", sock)
                 callback(sock)
             self._tcp_socks_update()
         self._socks.close()
@@ -670,9 +663,7 @@ class SCIONElement(object):
         logging.debug("TCP: entering _tcp_accept_loop()")
         while self.run_flag.is_set():
             try:
-                # logging.debug("TCP: waiting for connections")
                 self._tcp_conns_put(TCPSocketWrapper(*self._tcp_sock.accept()))
-                logging.debug("TCP: accepted connection")
             except SCIONTCPTimeout:
                 pass
             except SCIONTCPError:
@@ -704,7 +695,6 @@ class SCIONElement(object):
         Callback to handle a ready recving socket
         """
         msg, meta = sock.get_msg_meta()
-        logging.debug("tcp_handle_recv:%s, %s", msg, meta)
         if msg:
             self._in_buf_put((msg, meta))
         elif meta is None:
@@ -725,6 +715,10 @@ class SCIONElement(object):
     def _tcp_send_loop(self):
         meta2buf = defaultdict(bytes)
         while self.run_flag.is_set():
+            # Wait if nothing to do
+            if self._tcp_send_queue.empty() and not meta2buf:
+                msg, meta = self._tcp_send_queue.get()
+                meta2buf[meta] += msg.pack_full()
             # Drain the queue
             while not self._tcp_send_queue.empty():
                 try:
@@ -739,10 +733,6 @@ class SCIONElement(object):
             for meta in list(meta2buf):
                 if not meta.sock.is_active() or not meta2buf[meta]:
                     del meta2buf[meta]
-                    logging.debug("SEND_QUEUE: SENT %d", len(meta2buf))
-            # Sleep if nothing to do
-            if self._tcp_send_queue.empty() and not meta2buf:
-                time.sleep(0.05)
 
     def stop(self):
         """Shut down the daemon thread."""

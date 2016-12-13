@@ -173,7 +173,7 @@ class SCIONTCPSocket(object):
             err_str = LWIPError.err2str(err_code)
             msg = "%s: (%d) %s" % (cmd, err_code, err_str)
             if err_code in [LWIPError.ERR_CLSD, LWIPError.ERR_TIMEOUT]:
-                pass # logging.debug(msg)
+                pass  # logging.debug(msg)
             elif LWIPError.is_fatal(err_code):
                 logging.error(msg)
             else:
@@ -230,10 +230,10 @@ class SCIONTCPSocket(object):
             rep = get_lwip_reply(self._lwip_sock)
         else:
             raise SCIONTCPError("Reading from non-existing socket (_lwip_sock)")
-        if rep is None:
-            replen = 0
-        else:
-            replen = len(rep)
+        # if rep is None:
+        #     replen = 0
+        # else:
+        #     replen = len(rep)
         # logging.debug("Reading from LWIP(%dB): %.*s..." % (replen, 20, rep))
         return rep
 
@@ -264,7 +264,7 @@ class SCIONTCPSocket(object):
         # Metadata (path and addr) from new (UNIX) socket.
         rep = get_lwip_reply(new_sock)
         self._handle_reply(req[:CMD_SIZE], rep)
-        logging.debug("accept() raw reply: %s", rep)
+        # logging.debug("accept() raw reply: %s", rep)
         rep = rep[RESP_SIZE:]
         path_len, = struct.unpack("H", rep[:2])
         rep = rep[2:]
@@ -282,7 +282,7 @@ class SCIONTCPSocket(object):
         fname = os.path.join(LWIP_SOCK_DIR, str(uuid.uuid4()))
         while os.path.exists(fname):  # TODO(PSz): add max_tries
             fname = "%s%s" % (LWIP_SOCK_DIR, uuid.uuid4())
-        logging.debug("_init_accept_sock(): %s", fname)
+        # logging.debug("_init_accept_sock(): %s", fname)
         self._lwip_accept = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._lwip_accept.bind(fname)
         self._lwip_accept.listen(5)  # FIXME(PSz): consistent with LWIP backlog
