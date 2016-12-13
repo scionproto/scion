@@ -663,7 +663,7 @@ class SCIONElement(object):
             except SCIONTCPTimeout:
                 pass
             except SCIONTCPError:
-                log_exception("TCP: error on accept()")
+                # log_exception("TCP: error on accept()")
                 logging.error("TCP: leaving the accept loop")
                 break
         try:
