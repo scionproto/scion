@@ -70,7 +70,7 @@ class E2EClient(TestClientBase):
         scmp_hdr = spkt.l4_hdr
         spkt.parse_payload()
         if (scmp_hdr.class_ == SCMPClass.PATH and
-                    scmp_hdr.type == SCMPPathClass.REVOKED_IF):
+                scmp_hdr.type == SCMPPathClass.REVOKED_IF):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
