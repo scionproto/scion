@@ -100,12 +100,11 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		hopF, _ := reply.HopF()
 		if hopF.Xover {
 			infoF, _ := reply.InfoF()
+			origDstIA, _ := rp.DstIA()
 			// Increase path if the segment was changed by this router or
 			// if the current segment is a peering segment that is not
 			// terminated here (since it includes an additional HOF).
-			origDstIA, _ := rp.DstIA()
-			if rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF+8 ||
-				(infoF.Peer && !origDstIA.Eq(conf.C.IA)) {
+			if rp.SwitchedSegment || (infoF.Peer && !origDstIA.Eq(conf.C.IA)) {
 				if err := reply.IncPath(); err != nil {
 					return nil, err
 				}

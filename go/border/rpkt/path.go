@@ -271,6 +271,7 @@ func (rp *RtrPkt) IncPath() *common.Error {
 			if infoF, err = spath.InfoFFromRaw(rp.Raw[iOff:]); err != nil {
 				return err
 			}
+			rp.SwitchedSegment = true
 			continue
 		}
 		// Read new Hop Field
