@@ -63,6 +63,9 @@ test/integration/cert_req_test.py -l ERROR
 EOF
 result=$?
 
+run Revocation test/integration/revocation_test.sh
+result=${result} + $?
+
 shutdown
 
 if [ $result -eq 0 ]; then
