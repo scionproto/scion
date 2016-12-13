@@ -64,7 +64,7 @@ EOF
 result=$?
 
 run Revocation test/integration/revocation_test.sh
-result=${result} + $?
+result=$((${result}+$?))
 
 shutdown
 
