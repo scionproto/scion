@@ -197,7 +197,7 @@ class TestClientBase(TestBase):
                     self._stop(success=bool(r_code))
                 else:
                     sleep_dur = max(0, 1.0 - recv_dur)
-                    logging.info("Retrying request in %.2fs." % sleep_dur)
+                    logging.info("Retrying request in %.1fs." % sleep_dur)
                     time.sleep(sleep_dur)
                     self._get_path(self.api)
         self._shutdown()
