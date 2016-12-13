@@ -109,6 +109,6 @@ for i in range(10):
     # input()
     # time.sleep(0.005)
     # threading.Thread(target=client, args=[False, i]).start()
-    svc = False#(i % 2 == 0)
+    svc = (i % 2 == 0)
     start = time.time()
     client(svc, i)

@@ -179,8 +179,6 @@ class SCIONElement(object):
         self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
-        # if not self.USE_TCP:
-        #     return
         MAX_TRIES = 40
         for i in range(MAX_TRIES):
             try:
@@ -462,7 +460,6 @@ class SCIONElement(object):
                     name="Elem._tcp_connect_and_send", daemon=False).start()
             else:
                 self._tcp_send_queue_put(msg, meta)
-                # meta.sock.send_msg(msg.pack_full())
             return True
 
     def _tcp_connect_and_send(self, msg, meta):
@@ -471,7 +468,6 @@ class SCIONElement(object):
             return
         meta.sock = tcp_sock
         self._tcp_conns_put(tcp_sock)
-        # meta.sock.send_msg(msg.pack_full())
         self._tcp_send_queue_put(msg, meta)
 
     def _tcp_sock_from_meta(self, meta):
