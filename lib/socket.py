@@ -46,7 +46,6 @@ from lib.errors import (
     SCIONBaseError,
     SCIONIOError,
     SCIONTCPError,
-    SCIONTCPTimeout,
 )
 from lib.log import log_exception
 from lib.msg_meta import TCPMetadata
