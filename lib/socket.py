@@ -432,8 +432,6 @@ class TCPSocketWrapper(object):
                     return None, None
                 self._buf += read
                 self._last_io = time.time()
-            except SCIONTCPTimeout:
-                return None, self._get_meta()
             except SCIONTCPError:
                 logging.debug("TCP: inactivating socket after socket error")
                 self.active = False
