@@ -267,12 +267,6 @@ class TRC(object):
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
 
-    def _create_subject_string(self, isd_, as_):
-        """
-        Helper function to create a subject string out of isdid and asid.
-        """
-        return str(isd_) + '-' + str(as_)
-
     def pack(self, lz4_=False):
         ret = self.to_json().encode('utf-8')
         if lz4_:
