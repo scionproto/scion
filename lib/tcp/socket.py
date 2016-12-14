@@ -290,17 +290,26 @@ class SCIONTCPSocket(object):
     def send(self, msg):
         with self._lock:
             assert not self._rpc_mode, "Called send() in RPC mode"
-            return self._lwip_sock.send(msg)
+            try:
+                return self._lwip_sock.send(msg)
+            except OSError as e:
+                raise SCIONTCPError("_lwip_sock.send() failed: %s" % e)
 
     def sendall(self, msg):
         with self._lock:
             assert not self._rpc_mode, "Called sendall() in RPC mode"
-            return self._lwip_sock.sendall(msg)
+            try:
+                return self._lwip_sock.sendall(msg)
+            except OSError as e:
+                raise SCIONTCPError("_lwip_sock.sendall() failed: %s" % e)
 
     def recv(self, bufsize, flags=None):
         with self._lock:
             assert not self._rpc_mode, "Called recv() in RPC mode"
-            return self._lwip_sock.recv(bufsize)
+            try:
+                return self._lwip_sock.recv(bufsize)
+            except OSError as e:
+                raise SCIONTCPError("_lwip_sock.recv() failed: %s" % e)
 
     def set_recv_tout(self, timeout):  # Timeout is given as a float
         if 0.0 < timeout < 0.001:

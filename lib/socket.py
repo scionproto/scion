@@ -448,8 +448,8 @@ class TCPSocketWrapper(object):
                 sent = self._tcp_sock.send(raw)
                 self._last_io = time.time()
                 return sent
-            except SCIONTCPError:
-                logging.debug("TCP: inactivating after socket error")
+            except SCIONTCPError as e:
+                logging.error("TCP: inactivating after socket error: %s", e)
                 self.active = False
         return 0
 
