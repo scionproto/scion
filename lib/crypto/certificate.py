@@ -57,21 +57,21 @@ class Certificate(object):
     :ivar int issuing_time: the time at which the certificate was created.
     :ivar int expiration_time: the time at which the certificate expires.
     :ivar str enc_algorithm: the algorithm used to encrypt messages.
-    :ivar bytes subject_enc_key: the public part of the encryption key.
+    :ivar bytes subject_enc_key: the public key used for encryption.
     :ivar str sign_algorithm: the algorithm used to sign the certificate.
-    :ivar bytes subject_sig_key: the public key of the subject.
+    :ivar bytes subject_sig_key: the public key used for signing.
     :ivar bytes signature:
         the certificate signature. It is computed over the rest of the
         certificate.
-    :cvar int VALIDITY_PERIOD:
+    :cvar int validity_period:
         default validity period (in real seconds) of a new certificate.
-    :cvar str SIGN_ALGORITHM: default algorithm used to sign a certificate.
-    :cvar str ENCRYPT_ALGORITHM: default algorithm used to encrypt messages.
+    :cvar str sign_algortihm: default algorithm used to sign a certificate.
+    :cvar str enc_alorithm: default algorithm used to encrypt messages.
     """
 
-    VALIDITY_PERIOD = 365 * 24 * 60 * 60
-    SIGN_ALGORITHM = 'ed25519'
-    ENCRYPT_ALGORITHM = 'curve25519xsalsa20poly1305'
+    validity_period = 365 * 24 * 60 * 60
+    sign_algorithm = 'ed25519'
+    enc_algorithm = 'curve25519xsalsa20poly1305'
 
     def __init__(self, json_string=None):
         """
@@ -141,7 +141,7 @@ class Certificate(object):
             logging.error("Signature verification failed.")
             return False
         if int(time.time()) >= self.expiration_time:
-            logging.error("This certificte expired.")
+            logging.error("This certificate expired.")
             return False
         if int(time.time()) >= issuer_cert.expiration_time:
             logging.error("The issuer certificate expired.")
@@ -225,10 +225,10 @@ class Certificate(object):
         cert.comment = comment
         cert.can_issue = can_issue
         cert.issuing_time = int(time.time())
-        cert.expiration_time = cert.issuing_time + Certificate.VALIDITY_PERIOD
-        cert.encryption_algorithm = Certificate.ENCRYPT_ALGORITHM
+        cert.expiration_time = cert.issuing_time + Certificate.validity_period
+        cert.encryption_algorithm = Certificate.enc_algorithm
         cert.subject_enc_key = subject_enc_key
-        cert.sign_algorithm = Certificate.SIGN_ALGORITHM
+        cert.sign_algorithm = Certificate.sign_algorithm
         cert.subject_sig_key = subject_sig_key
         data_to_sign = cert.__str__(with_signature=False)
         data_to_sign = data_to_sign.encode('utf-8')

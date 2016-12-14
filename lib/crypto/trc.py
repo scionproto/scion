@@ -159,8 +159,7 @@ class TRC(object):
                 cert_dict[SUBJECT_ENC_KEY_STRING])
             cert_dict[SIGNATURE_STRING] =\
                 base64.b64decode(cert_dict[SIGNATURE_STRING])
-            isd_, as_ = self._get_isdid_asid_from_string_trc_file(subject)
-            self.core_ases[isd_ + '-' + as_] = Certificate.from_dict(cert_dict)
+            self.core_ases[subject] = Certificate.from_dict(cert_dict)
         self.root_cas = trc[ROOT_CAS_STRING]
         self.logs = trc[LOGS_STRING]
         self.ca_threshold = trc[CA_THRESHOLD_STRING]
@@ -172,8 +171,7 @@ class TRC(object):
         self.grace_period = trc[GRACE_PERIOD_STRING]
         self.quarantine = trc[QUARANTINE_STRING]
         for subject in trc[SIGNATURES_STRING]:
-            isd_, as_ = self._get_isdid_asid_from_string_trc_file(subject)
-            self.signatures[isd_ + '-' + as_] = \
+            self.signatures[subject] = \
                 base64.b64decode(trc[SIGNATURES_STRING][subject])
 
     @classmethod
@@ -255,19 +253,15 @@ class TRC(object):
         trc_dict = copy.deepcopy(self.get_trc_dict(with_signatures))
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
-            isd_, as_ = self.get_isdid_asid_from_string(subject)
-            subject_string = self._create_subject_string(isd_, as_)
             cert_str = str(trc_dict[CORE_ASES_STRING][subject])
-            core_ases[subject_string] = base64.b64encode(
+            core_ases[subject] = base64.b64encode(
                 cert_str.encode('utf-8')).decode('utf-8')
         trc_dict[CORE_ASES_STRING] = core_ases
         if with_signatures:
             signatures = {}
             for subject in trc_dict[SIGNATURES_STRING]:
-                isd_, as_ = self.get_isdid_asid_from_string(subject)
-                subject_string = self._create_subject_string(isd_, as_)
                 signature = trc_dict[SIGNATURES_STRING][subject]
-                signatures[subject_string] = base64.b64encode(
+                signatures[subject] = base64.b64encode(
                     signature).decode('utf-8')
             trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
@@ -275,31 +269,9 @@ class TRC(object):
 
     def _create_subject_string(self, isd_, as_):
         """
-        Helper function to create a string consistent with TRC file
-        out of isdid and asid.
+        Helper function to create a subject string out of isdid and asid.
         """
-        return '{ISDID: ' + str(isd_) + ', ASID: ' + str(as_) + '}'
-
-    def _get_isdid_asid_from_string_trc_file(self, subject):
-        """
-        Helper function to parse string which encodes isdid and asid
-        in the format "{ISDID: isdid, ASID: asid}". This format is used in
-        TRC files.
-
-        :returns: isdid, asid
-        :rtype: pair of ints
-        """
-        isd_, as_ = subject.split(' ', 1)[1].split(',', 1)
-        as_ = as_.split(' ', 2)[2].split('}', 1)[0]
-        return (isd_, as_)
-
-    def get_isdid_asid_from_string(self, subject):
-        """
-        Helper function to parse string which encodes isdid and asid
-        in the format "isdid-asid"
-        """
-        isd_, as_ = subject.split("-", 1)
-        return (isd_, as_)
+        return str(isd_) + '-' + str(as_)
 
     def pack(self, lz4_=False):
         ret = self.to_json().encode('utf-8')
