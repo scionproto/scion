@@ -452,23 +452,25 @@ class SCIONElement(object):
         return self.send(pkt, *next_hop_port)
 
     def _send_meta_tcp(self, msg, meta):
-        with meta.lock:
-            if not meta.sock:
-                threading.Thread(
-                    target=thread_safety_net,
-                    args=(self._tcp_connect_and_send, msg, meta),
-                    name="Elem._tcp_connect_and_send", daemon=False).start()
-            else:
-                self._tcp_send_queue_put(msg, meta)
-            return True
+        if not meta.sock:
+            threading.Thread(
+                target=thread_safety_net,
+                args=(self._tcp_connect_and_send, msg, meta),
+                name="Elem._tcp_connect_and_send", daemon=False).start()
+        else:
+            self._tcp_send_queue_put(msg, meta)
+        return True
 
     def _tcp_connect_and_send(self, msg, meta):
-        tcp_sock = self._tcp_sock_from_meta(meta)
-        if not tcp_sock.is_active():
-            return
-        meta.sock = tcp_sock
-        self._tcp_conns_put(tcp_sock)
-        self._tcp_send_queue_put(msg, meta)
+        with meta.lock:  # Lock while creating new connection
+            if meta.sock:
+                return  # Socket created by concurrent execution
+            tcp_sock = self._tcp_sock_from_meta(meta)
+            if not tcp_sock.is_active():
+                return
+            meta.sock = tcp_sock
+            self._tcp_conns_put(tcp_sock)
+            self._tcp_send_queue_put(msg, meta)
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host
@@ -519,7 +521,7 @@ class SCIONElement(object):
             else:
                 break
         if dropped > 0:
-            logging.warning("%d TCP connection(s) dropped" % dropped)
+            logging.warning("%d TCP message(s) dropped" % dropped)
 
     def run(self):
         """

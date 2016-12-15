@@ -432,7 +432,7 @@ class TCPSocketWrapper(object):
                 self._buf += read
                 self._last_io = time.time()
             except SCIONTCPError:
-                logging.debug("TCP: inactivating socket after socket error")
+                logging.debug("TCP: deactivating socket after socket error")
                 self.active = False
             return self._get_msg(), self._get_meta()
 
@@ -446,7 +446,7 @@ class TCPSocketWrapper(object):
                 self._last_io = time.time()
                 return sent
             except SCIONTCPError as e:
-                logging.error("TCP: inactivating after socket error: %s", e)
+                logging.error("TCP: deactivating after socket error: %s", e)
                 self.active = False
         return 0
 
