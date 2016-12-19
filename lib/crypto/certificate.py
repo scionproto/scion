@@ -57,7 +57,7 @@ class Certificate(object):
     :ivar int issuing_time: the time at which the certificate was created.
     :ivar int expiration_time: the time at which the certificate expires.
     :ivar str enc_algorithm: the algorithm used to encrypt messages.
-    :ivar bytes subject_enc_key: the public key used for encryption.
+    :ivar bytes subject_enc_key: the public key used for decryption.
     :ivar str sign_algorithm: the algorithm used to sign the certificate.
     :ivar bytes subject_sig_key: the public key used for signing.
     :ivar bytes signature:
