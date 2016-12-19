@@ -59,7 +59,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trcVer):
     assert isinstance(chain, CertificateChain)
     assert isinstance(trc, TRC)
     if not chain.verify(subject, trc):
-        logging.error('The certificate chain verification failed.')
+        logging.error("The certificate chain verification failed.")
         return False
     verifying_key = None
     for signer_cert in chain.certs:
