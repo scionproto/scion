@@ -264,7 +264,7 @@ class SCIONDaemon(SCIONElement):
                           "current epoch %d." %
                           (rev_info.p.epoch,
                            ConnectedHashTree.get_current_epoch()))
-            return
+            return 0
 
         to_remove = []
         for segment in db(full=True):
