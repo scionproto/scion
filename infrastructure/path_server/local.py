@@ -165,5 +165,22 @@ class LocalPathServer(PathServer):
             return True
         return False
 
-    def _get_paths_to_cores(self):
-        return self.up_segments(full=True)
+    def _send_rev_to_core(self, rev_info):
+        """
+        Forwards a revocation to a core path service.
+
+        :param rev_info: The RevocationInfo object
+        """
+        # Issue revocation to all core ASes excluding self.
+        paths = self.up_segments()
+        if not paths:
+            logging.warning("No paths to core ASes available (issuing rev).")
+            return
+        seg = paths[0]
+        core_ia = seg.first_ia()
+        path = seg.get_path(reverse_direction=True)
+        logging.info("Forwarding Revocation to %s using path:\n%s" %
+                     (core_ia, path))
+        meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
+                                            host=SVCType.PS_A)
+        self.send_meta(rev_info.copy(), meta)

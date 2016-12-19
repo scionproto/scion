@@ -188,5 +188,26 @@ class LocalBeaconServer(BeaconServer):
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())
 
-    def _get_paths_to_cores(self):
-        return self.up_segments.get_best_segments(sending=False)
+    def _distribute_rev(self, rev_info):
+        self._send_rev_to_local_ps(rev_info)
+        self._send_rev_to_core(rev_info)
+
+    def _send_rev_to_core(self, rev_info):
+        """
+        Issues a revocation to the core path services.
+
+        :param RevocationInfo rev_info: The RevocationInfo object
+        """
+        # Issue revocation to all core ASes excluding self.
+        paths = self.up_segments.get_best_segments(sending=False)
+        if not paths:
+            logging.warning("No paths to core ASes available (issuing rev).")
+            return
+        seg = self._terminate_pcb(paths[0])
+        core_ia = seg.first_ia()
+        path = seg.get_path(reverse_direction=True)
+        logging.debug("Forwarding Revocation to %s using path:\n%s" %
+                      (core_ia, path))
+        meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
+                                            host=SVCType.PS_A)
+        self.send_meta(rev_info.copy(), meta)

@@ -212,6 +212,9 @@ class CoreBeaconServer(BeaconServer):
             count += 1
         logging.info("Registered %d Core paths", count)
 
+    def _distribute_rev(self, rev_info):
+        self._send_rev_to_local_ps(rev_info)
+
     def _remove_revoked_pcbs(self, rev_info):
         candidates = []
         for ps in self.core_beacons.values():
@@ -220,17 +223,3 @@ class CoreBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         for ps in self.core_beacons.values():
             ps.remove_segments(to_remove)
-
-    def _get_paths_to_cores(self):
-        segments = []
-        # Get paths to all core ASes in the same ISD.
-        for router in self.topology.routing_border_routers:
-            other_ia = router.interface.isd_as
-            if other_ia[0] == self.addr.isd_as[0]:
-                segment = self.core_beacons[other_ia].get_best_segments(
-                        k=1, sending=False)
-                if segment:
-                    segment = self._terminate_pcb(segment[0])
-                    segments.append(segment)
-
-        return segments

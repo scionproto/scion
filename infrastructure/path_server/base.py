@@ -255,36 +255,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                          (if_id, up_segs_removed, down_segs_removed,
                           core_segs_removed))
 
-    def _send_rev_to_core(self, rev_info):
-        """
-        Forwards a revocation to the core path services.
-
-        :param rev_info: The RevocationInfo object
-        """
-        # Issue revocation to all core ASes excluding self.
-        informed_cores = {self.addr.isd_as}
-        paths = self._get_paths_to_cores()
-        if not paths:
-            logging.warning("No paths to core ASes available (issuing rev).")
-            return
-        for seg in paths:
-            core_ia = seg.first_ia()
-            if core_ia not in informed_cores:
-                path = seg.get_path(reverse_direction=True)
-                logging.info("Forwarding Revocation to %s using path:\n%s" %
-                             (core_ia, path))
-                meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
-                                                    host=SVCType.PS_A)
-                self.send_meta(rev_info.copy(), meta)
-                informed_cores.add(core_ia)
-
-    @abstractmethod
-    def _get_paths_to_cores(self):
-        """
-        Returns a list of paths to core ASes.
-        """
-        raise NotImplementedError
-
     def _send_path_segments(self, req, meta, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).

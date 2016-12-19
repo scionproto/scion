@@ -344,11 +344,12 @@ class CorePathServer(PathServer):
             # Ask for any segment to dst_isd
             self._query_master(dst_ia.any_as())
 
-    def _get_paths_to_cores(self):
-        segments = []
-        # Get paths to all core ASes in the same ISD.
-        for segment in self.core_segments(first_ia=self.addr.isd_as, full=True):
-            other_ia = segment.last_ia()
-            if other_ia[0] == self.addr.isd_as[0]:
-                segments.append(segment)
-        return segments
+    def _handle_revocation(self, rev_info, meta):
+        if super()._handle_revocation(rev_info, meta):
+            # Propagate revocation to other core ASes in the same ISD if it was
+            # received from a non-core AS or from a BR in the same AS.
+            if (meta.ia not in self._core_ases[self.addr.isd_as[0]] or
+                    meta.ia == self.addr.isd_as):
+                logging.debug("Propagating Revocation of IF %d to other cores."
+                              % rev_info.p.ifID)
+                self._propagate_to_core_ases(rev_info)
