@@ -463,13 +463,12 @@ class SCIONElement(object):
 
     def _tcp_connect_and_send(self, msg, meta):
         with meta.lock:  # Lock while creating new connection
-            if meta.sock:
-                return  # Socket created by concurrent execution
-            tcp_sock = self._tcp_sock_from_meta(meta)
-            if not tcp_sock.is_active():
-                return
-            meta.sock = tcp_sock
-            self._tcp_conns_put(tcp_sock)
+            if not meta.sock:
+                tcp_sock = self._tcp_sock_from_meta(meta)
+                if not tcp_sock.is_active():
+                    return
+                meta.sock = tcp_sock
+                self._tcp_conns_put(tcp_sock)
             self._tcp_send_queue_put(msg, meta)
 
     def _tcp_sock_from_meta(self, meta):
