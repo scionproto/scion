@@ -281,14 +281,18 @@ class PathSegment(SCIONPayloadBaseProto):
 
     def get_trcs_certs(self):
         """
-        Returns a list of all all trcs and a list of all certificates used
-        in this PCB, including their version.
+        Returns a dict of all trcs and a dict of all certificates used
+        in this PCB, with their highest version number.
         """
-        trcs = []
-        certs = []
+        trcs = {}
+        certs = {}
         for asm in self.iter_asms():
-            trcs.append((str(asm.isd_as()), asm.p.trcVer))
-            certs.append((str(asm.isd_as()), asm.p.certVer))
+            isd_as = str(asm.isd_as())
+            isd_ = str(asm.isd_as()[0])
+            if isd_ not in trcs.keys() or asm.p.trcVer > trcs[isd_]:
+                trcs[isd_] = asm.p.trcVer
+            if isd_as not in certs.keys() or asm.p.certVer > certs[isd_as]:
+                certs[isd_as] = asm.p.certVer
         return trcs, certs
 
     def get_path(self, reverse_direction=False):

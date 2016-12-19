@@ -250,6 +250,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.path_policy.check_filters(pcb):
             return
         trcs, certs = pcb.get_trcs_certs()
+        # Find missing TRCs and certificates
+        missingTRCs = self._get_missing_TRCs(trcs)
+        missingCerts = self._get_missing_certs(certs)
         self.incoming_pcbs.append(pcb)
         meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
@@ -258,6 +261,24 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
+
+    def _get_missing_TRCs(self, trcs):
+        """
+        Check which intermediate trcs are missing.
+
+        :returns: the missing TRCs versions
+        :rtype dict
+        """
+        pass
+
+    def _get_missing_certs(self, trcs):
+        """
+        Check which intermediate trcs are missing.
+
+        :returns: the missing TRCs versions
+        :rtype dict
+        """
+        pass
 
     def handle_ext(self, pcb):
         """
