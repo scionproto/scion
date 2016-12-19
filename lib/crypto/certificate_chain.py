@@ -68,7 +68,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trcVer):
             break
     if verifying_key is None:
         if subject not in trc.core_ases:
-            logging.error('Signer\'s public key has not been found.')
+            logging.error("Signer\'s public key has not been found.")
             return False
         verifying_key = trc.core_ases[subject].subject_sig_key
     return verify(msg, sig, verifying_key)
