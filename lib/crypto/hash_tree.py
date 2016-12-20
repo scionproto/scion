@@ -39,12 +39,14 @@ class HashTree(object):
     The used hash function needs to implement the hashlib interface.
     """
 
-    def __init__(self, if_ids, seed, hash_func=SHA256):
+    def __init__(self, isd_as, if_ids, seed, hash_func=SHA256):
         """
-        :param List[int] if_ids: list of interface IDs of the AS.
-        :param str seed: seed for creating hash-tree nonces.
-        :param hash_func: hash function that implements hashlib interface.
+        :param ISD_AS isd_as: The ISD_AS of the AS.
+        :param List[int] if_ids: List of interface IDs of the AS.
+        :param str seed: Seed for creating hash-tree nonces.
+        :param hash_func: Hash function that implements hashlib interface.
         """
+        self._isd_as = isd_as
         self._seed = seed
         self._n_epochs = HASHTREE_N_EPOCHS
         self._hash_func = hash_func
@@ -131,7 +133,7 @@ class HashTree(object):
 
         # Using the above fields, construct a RevInfo capnp as the proof.
         return RevocationInfo.from_values(
-            if_id, epoch, nonce, siblings, prev_root, next_root)
+            self._isd_as, if_id, epoch, nonce, siblings, prev_root, next_root)
 
 
 class ConnectedHashTree(object):
@@ -143,8 +145,9 @@ class ConnectedHashTree(object):
 
     """
 
-    def __init__(self, if_ids, seed, hash_func=SHA256):  # pragma: no cover
+    def __init__(self, isd_as, if_ids, seed, hash_func=SHA256):  # pragma: no cover
         """
+        :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: list of interface IDs of the AS.
         :param List[str] seeds: list of 3 seeds for creating hash-tree nonces.
         :param hash_func: hash function that implements hashlib interface.
@@ -157,8 +160,8 @@ class ConnectedHashTree(object):
 
         self._hash_func = hash_func
         self._ht0_root = hash_func.new(str(seed1).encode('utf-8')).digest()
-        self._ht1 = HashTree(if_ids, seed2, hash_func)
-        self._ht2 = HashTree(if_ids, seed3, hash_func)
+        self._ht1 = HashTree(isd_as, if_ids, seed2, hash_func)
+        self._ht2 = HashTree(isd_as, if_ids, seed3, hash_func)
 
     @classmethod
     def get_ttl_window(cls):

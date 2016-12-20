@@ -21,6 +21,7 @@ import capnp  # noqa
 # SCION
 import proto.rev_info_capnp as P
 from lib.packet.path_mgmt.base import PathMgmtPayloadBase
+from lib.packet.scion_addr import ISD_AS
 from lib.types import PathMgmtType as PMT
 
 
@@ -33,10 +34,12 @@ class RevocationInfo(PathMgmtPayloadBase):
     P_CLS = P.RevInfo
 
     @classmethod
-    def from_values(cls, if_id, epoch, nonce, siblings, prev_root, next_root):
+    def from_values(cls, isd_as, if_id, epoch, nonce, siblings, prev_root,
+                    next_root):
         """
         Returns a RevocationInfo object with the specified values.
 
+        :param ISD_AS isd_as: The ISD_AS of the issuer of the revocation.
         :param int if_id: ID of the interface to be revoked
         :param int epoch: Time epoch for which interface is to be revoked
         :param bytes nonce: Nonce for the (if_id, epoch) leaf in the hashtree
@@ -44,8 +47,9 @@ class RevocationInfo(PathMgmtPayloadBase):
         :param bytes prev_root: Hash of the tree root at time T-1
         :param bytes next_root: Hash of the tree root at time T+1
         """
-        # Put the if_id, epoch and nonce of the leaf into the proof.
-        p = cls.P_CLS.new_message(ifID=if_id, epoch=epoch, nonce=nonce)
+        # Put the isd_as, if_id, epoch and nonce of the leaf into the proof.
+        p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, epoch=epoch,
+                                  nonce=nonce)
         # Put the list of sibling hashes (along with l/r) into the proof.
         sibs = p.init('siblings', len(siblings))
         for i, sibling in enumerate(siblings):
@@ -55,8 +59,12 @@ class RevocationInfo(PathMgmtPayloadBase):
         p.nextRoot = next_root
         return cls(p)
 
+    def isd_as(self):
+        return ISD_AS(self.p.isdas)
+
     def cmp_str(self):
         b = []
+        b.append(self.p.isdas.to_bytes(8, 'big'))
         b.append(self.p.ifID.to_bytes(8, 'big'))
         b.append(self.p.epoch.to_bytes(2, 'big'))
         b.append(self.p.nonce)

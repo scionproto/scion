@@ -170,7 +170,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
-        self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
+        self._hash_tree = ConnectedHashTree(self.addr.isd_as,
+                                            ifs, self.hashtree_gen_key)
 
     def _get_ht_proof(self, if_id):
         with self._hash_tree_lock:
