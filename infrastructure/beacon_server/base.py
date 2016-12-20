@@ -23,7 +23,7 @@ import threading
 import time
 from _collections import deque, defaultdict
 from abc import ABCMeta, abstractmethod
-from threading import Lock
+from threading import Lock, RLock
 
 # External packages
 from Crypto.Protocol.KDF import PBKDF2
@@ -135,7 +135,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.ifid_state = {}
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
-        self.ifid_state_lock = Lock()
+        self.ifid_state_lock = RLock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {None: self.handle_pcb},
             PayloadClass.IFID: {None: self.handle_ifid_packet},
