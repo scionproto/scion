@@ -9,7 +9,9 @@ The table fields below are as follows:
   local AS. E.g. `Egress` means the packet was sent to the router by the local
   AS.
 - Action: This specifies which action the router is meant to do.
-- Incremented: True if this router has incremented the packet's path.
+- Incremented: True if this router has incremented the packet's path, meaning
+  the common header is updated to point to the next routeable (i.e. not
+  VERIFY_ONLY) Hop Field
 - Segment changed: True if the path increment changed from one segment to the
   next.
 - Xover: True if the current Hop Field has the XOVER bit set.
