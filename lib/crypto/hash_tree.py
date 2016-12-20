@@ -145,7 +145,8 @@ class ConnectedHashTree(object):
 
     """
 
-    def __init__(self, isd_as, if_ids, seed, hash_func=SHA256):  # pragma: no cover
+    def __init__(self, isd_as, if_ids, seed,
+                 hash_func=SHA256):  # pragma: no cover
         """
         :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: list of interface IDs of the AS.
