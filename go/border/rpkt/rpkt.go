@@ -82,8 +82,8 @@ type RtrPkt struct {
 	Egress []EgressPair
 	// CmnHdr is the SCION common header. Required for every packet. (PARSE)
 	CmnHdr spkt.CmnHdr
-	// Flag to indicate that there was a segment switch at this router. (ROUTE)
-	SwitchedSegment bool
+	// Flag to indicate whether this router incremented the path. (ROUTE)
+	IncrementedPath bool
 	// idxs contains a set of indexes into Raw which point to the start of certain sections of the
 	// packet. (PARSE)
 	idxs packetIdxs
@@ -226,7 +226,7 @@ func (rp *RtrPkt) Reset() {
 	rp.Ingress.Dst = nil
 	rp.Ingress.IfIDs = nil
 	rp.Egress = rp.Egress[:0]
-	rp.SwitchedSegment = false
+	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}
 	rp.srcIA = nil
 	rp.srcHost = nil

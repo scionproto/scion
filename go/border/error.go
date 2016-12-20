@@ -102,25 +102,18 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			return nil, err
 		}
 		if hopF.Xover {
-			infoF, err := reply.InfoF()
-			if err != nil {
+			reply.InfoF()
+			// Always increment reversed path on a xover point.
+			if err := reply.IncPath(); err != nil {
 				return nil, err
 			}
-			origDstIA, err := rp.DstIA()
-			if err != nil {
-				return nil, err
-			}
-			// Increase path if the segment was changed by this router or
-			// if the current segment is a peering segment that is not
-			// terminated here (since it includes an additional HOF).
-			if rp.SwitchedSegment || (infoF.Peer && !origDstIA.Eq(conf.C.IA)) {
+			// Increment reversed path if it was incremented in the forward direction.
+			// Check https://github.com/netsec-ethz/scion/blob/master/doc/PathReversal.md
+			// for details.
+			if rp.IncrementedPath {
 				if err := reply.IncPath(); err != nil {
 					return nil, err
 				}
-			}
-			// Always increase path on a xover point.
-			if err := reply.IncPath(); err != nil {
-				return nil, err
 			}
 		} else if rp.DirFrom == rpkt.DirExternal {
 			reply.InfoF()
