@@ -329,7 +329,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :return: False, if the path segment contains a revoked interface. True
             otherwise.
         """
-        for rev_info, _ in self.revocations.items():
+        for rev_info, _ in list(self.revocations):
             if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                 self.revocations.pop(rev_info)
                 continue
