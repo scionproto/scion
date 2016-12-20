@@ -148,6 +148,8 @@ class SCIONTCPSocket(object):
             try:
                 self._create_socket()
             except OSError as e:
+                if self._lwip_sock:
+                    self._lwip_sock.close()
                 raise SCIONTCPError("Cannot create new socket: %s" % e)
         # Now, when socket is created, set desired mode.
         self._rpc_mode = rpc_mode
