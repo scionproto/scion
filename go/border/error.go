@@ -96,9 +96,10 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS
 	// and the common header is well formed.
-	if !dstIA.Eq(conf.C.IA) && !scmp.NonReversableErrors[scmp.SCMPTypeKey{Class: ct.Class, Type: ct.Type}] {
+	if !dstIA.Eq(conf.C.IA) &&
+		!scmp.NonReversableErrors[scmp.ClassType{Class: ct.Class, Type: ct.Type}] {
 		hopF, err := reply.HopF()
-		if err != nil {
+		if hopF == nil || err != nil {
 			return nil, err
 		}
 		if hopF.Xover {
@@ -108,7 +109,8 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 				return nil, err
 			}
 			// Increment reversed path if it was incremented in the forward direction.
-			// Check https://github.com/netsec-ethz/scion/blob/master/doc/PathReversal.md
+			// Check
+			// https://github.com/netsec-ethz/scion/blob/master/doc/PathReversal.md
 			// for details.
 			if rp.IncrementedPath {
 				if err := reply.IncPath(); err != nil {

@@ -291,6 +291,7 @@ func (rp *RtrPkt) IncPath() *common.Error {
 	rp.infoF = infoF
 	rp.hopF = hopF
 	rp.upFlag = nil
+	rp.IncrementedPath = true
 	// Extract new Up flag, in case the Info Field has changed.
 	if _, err = rp.UpFlag(); err != nil {
 		return err
@@ -300,7 +301,6 @@ func (rp *RtrPkt) IncPath() *common.Error {
 	if _, err = rp.IFNext(); err != nil {
 		return err
 	}
-	rp.IncrementedPath = true
 	return nil
 }
 
