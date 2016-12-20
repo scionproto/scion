@@ -31,6 +31,7 @@ from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
 )
+from lib.packet.scion_addr import ISD_AS
 from test.testcommon import create_mock_full
 
 
@@ -41,7 +42,7 @@ class TestHashTreeCalcTreeDepth(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test_for_non2power(self, _):
         # Setup
-        inst = HashTree("if_ids", "seed")
+        inst = HashTree(ISD_AS("1-11"), "if_ids", "seed")
         # Call
         inst.calc_tree_depth(6)
         # Tests
@@ -52,7 +53,7 @@ class TestHashTreeCalcTreeDepth(object):
         # Setup
         if_ids = [1, 2, 3, 4]
         seed = b"abc"
-        inst = HashTree(if_ids, seed)
+        inst = HashTree(ISD_AS("1-11"), if_ids, seed)
         # Call
         inst.calc_tree_depth(8)
         # Tests
@@ -66,12 +67,13 @@ class TestHashTreeCreateTree(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test(self, _):
         # Setup
+        isd_as = ISD_AS("1-11")
         if_ids = [1, 2, 3]
         hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300"]
         hash_new = create_mock_full({"digest()...": hashes})
         hash_func = create_mock_full({"new()": hash_new})
-        inst = HashTree(if_ids, b"s", hash_func)
+        inst = HashTree(isd_as, if_ids, b"s", hash_func)
         inst._n_epochs = 1
         inst._depth = 2
         # Call
@@ -89,12 +91,13 @@ class TestHashTreeGetProof(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test(self, _):
         # Setup
+        isd_as = ISD_AS("1-11")
         if_ids = [1, 2, 3]
         hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300", b"s20"]
         hash_new = create_mock_full({"digest()...": hashes})
         hash_func = create_mock_full({"new()": hash_new})
-        inst = HashTree(if_ids, b"s", hash_func)
+        inst = HashTree(isd_as, if_ids, b"s", hash_func)
         inst._n_epochs = 1
         inst._depth = 2
         inst.create_tree(if_ids)
@@ -114,13 +117,14 @@ class TestConnectedHashTreeUpdate(object):
     """
     def test(self):
         # Setup
+        isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(if_ids, initial_seed)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed)
         root1_before_update = inst._ht1._nodes[0]
         root2_before_update = inst._ht2._nodes[0]
         # Call
-        new_tree = inst.get_next_tree(if_ids, b"new!!seed")
+        new_tree = inst.get_next_tree(isd_as, if_ids, b"new!!seed")
         inst.update(new_tree)
         # Tests
         root0_after_update = inst._ht0_root
@@ -162,12 +166,13 @@ class TestConnectedHashTreeUpdateAndVerify(object):
     def test_one_timestep(self):
         # Check that the revocation proof is verifiable across T and T+1.
         # Setup
+        isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(if_ids, initial_seed)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed)
         root = inst.get_root()
         # Call
-        next_tree = inst.get_next_tree(if_ids, b"new!!seed")
+        next_tree = inst.get_next_tree(isd_as, if_ids, b"new!!seed")
         inst.update(next_tree)
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
@@ -176,14 +181,15 @@ class TestConnectedHashTreeUpdateAndVerify(object):
     def test_two_timesteps(self):
         # Check that the revocation proof is "NOT" verifiable across T and T+2.
         # Setup
+        isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(if_ids, initial_seed)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed)
         root = inst.get_root()
         # Call
-        new_tree = inst.get_next_tree(if_ids, b"newseed.@1")
+        new_tree = inst.get_next_tree(isd_as, if_ids, b"newseed.@1")
         inst.update(new_tree)
-        new_tree = inst.get_next_tree(if_ids, b"newseed.@2")
+        new_tree = inst.get_next_tree(isd_as, if_ids, b"newseed.@2")
         inst.update(new_tree)
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
