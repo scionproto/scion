@@ -347,7 +347,7 @@ class CorePathServer(PathServer):
     def _handle_revocation(self, rev_info, meta):
         if super()._handle_revocation(rev_info, meta):
             # Propagate revocation to other core ASes in the same ISD if it was
-            # received from a non-core AS or from a BR in the same AS.
+            # received from a non-core AS or from a BR/BS in the same AS.
             if (meta.ia not in self._core_ases[self.addr.isd_as[0]] or
                     meta.ia == self.addr.isd_as):
                 logging.debug("Propagating Revocation of IF %d to other cores."

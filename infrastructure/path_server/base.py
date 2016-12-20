@@ -76,7 +76,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
-        self.revocations = ExpiringDict(1000, 2 * HASHTREE_EPOCH_TIME)
+        self.revocations = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
@@ -159,7 +159,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             rev_info = RevocationInfo.from_raw(raw)
             self._remove_revoked_segments(rev_info)
 
-    def _add_if_mappings(self, pcb):
+    def _add_rev_mappings(self, pcb):
         """
         Add if revocation token to segment ID mappings.
         """
@@ -191,11 +191,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _add_segment(self, pcb, seg_db, name, reverse=False):
         res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
-            self._add_if_mappings(pcb)
+            self._add_rev_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_desc())
             return True
         elif res == DBResult.ENTRY_UPDATED:
-            self._add_if_mappings(pcb)
+            self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
         return False
 
@@ -214,10 +214,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if rev_info in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return False
-        else:
-            self.revocations[rev_info] = rev_info
-            logging.debug("Received revocation from %s:\n%s",
-                          meta.get_addr(), rev_info)
+        self.revocations[rev_info] = True
+        logging.debug("Received revocation from %s:\n%s",
+                      meta.get_addr(), rev_info)
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
@@ -320,7 +319,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :return: False, if the path segment contains a revoked interface. True
             otherwise.
         """
-        for rev_info in self.revocations.values():
+        for rev_info, _ in self.revocations.items():
             if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                 self.revocations.pop(rev_info)
                 continue

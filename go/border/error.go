@@ -96,11 +96,20 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS
 	// and the common header is well formed.
-	if !dstIA.Eq(conf.C.IA) && ct.Class != scmp.C_CmnHdr {
-		hopF, _ := reply.HopF()
+	if !dstIA.Eq(conf.C.IA) && !scmp.NonReversableErrors[scmp.SCMPTypeKey{ct.Class, ct.Type}] {
+		hopF, err := reply.HopF()
+		if err != nil {
+			return nil, err
+		}
 		if hopF.Xover {
-			infoF, _ := reply.InfoF()
-			origDstIA, _ := rp.DstIA()
+			infoF, err := reply.InfoF()
+			if err != nil {
+				return nil, err
+			}
+			origDstIA, err := rp.DstIA()
+			if err != nil {
+				return nil, err
+			}
 			// Increase path if the segment was changed by this router or
 			// if the current segment is a peering segment that is not
 			// terminated here (since it includes an additional HOF).

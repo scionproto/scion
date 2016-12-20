@@ -194,7 +194,7 @@ class LocalBeaconServer(BeaconServer):
 
     def _send_rev_to_core(self, rev_info):
         """
-        Issues a revocation to the core path services.
+        Issues a revocation to a core path service.
 
         :param RevocationInfo rev_info: The RevocationInfo object
         """

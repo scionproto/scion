@@ -53,8 +53,8 @@ func (r *Router) RevInfoFwd() {
 			continue
 		}
 		for _, svcAddr := range args.Addrs {
-			log.Debug("Forwarding revocation.", "target", svcAddr.String(),
-				"revInfo", revInfo.String())
+			log.Debug("Forwarding revocation.", "target", svcAddr,
+				  "revInfo", revInfo)
 			r.fwdRevInfo(revInfo, &svcAddr)
 		}
 	}

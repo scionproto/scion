@@ -181,7 +181,9 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
 			args.Addrs = append(args.Addrs, addr.SvcBS.Multicast())
 		}
-		callbacks.revTokenF(args)
+		if len(args.Addrs) > 0 {
+			callbacks.revTokenF(args)
+		}
 	default:
 		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class, "type", hdr.Type)
 	}
