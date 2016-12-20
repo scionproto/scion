@@ -212,9 +212,6 @@ class CoreBeaconServer(BeaconServer):
             count += 1
         logging.info("Registered %d Core paths", count)
 
-    def _distribute_rev(self, rev_info):
-        self._send_rev_to_local_ps(rev_info)
-
     def _remove_revoked_pcbs(self, rev_info):
         candidates = []
         for ps in self.core_beacons.values():

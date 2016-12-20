@@ -186,9 +186,9 @@ class ConnectedHashTree(object):
         return HASHTREE_TTL - cls.get_time_since_ttl()
 
     @classmethod
-    def get_next_tree(cls, if_ids, seed, hash_func=SHA256):
+    def get_next_tree(cls, isd_as, if_ids, seed, hash_func=SHA256):
         seed += (cls.get_ttl_window() + 2).to_bytes(8, 'big')
-        return HashTree(if_ids, seed, hash_func)
+        return HashTree(isd_as, if_ids, seed, hash_func)
 
     def update(self, next_tree):
         self._ht0_root = self._ht1._nodes[0]

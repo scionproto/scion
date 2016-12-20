@@ -409,7 +409,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             last_ttl_window = ConnectedHashTree.get_ttl_window()
 
             ifs = list(self.ifid2br.keys())
-            tree = ConnectedHashTree.get_next_tree(ifs, self.hashtree_gen_key)
+            tree = ConnectedHashTree.get_next_tree(self.addr.isd_as, ifs,
+                                                   self.hashtree_gen_key)
             with self._hash_tree_lock:
                 self._next_tree = tree
 
@@ -641,16 +642,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             meta = UDPMetadata.from_values(host=br.addr, port=br.port)
             self.send_meta(pld.copy(), meta, (br.addr, br.port))
         self._process_revocation(rev_info)
-        self._distribute_rev(rev_info)
-
-    @abstractmethod
-    def _distribute_rev(self, rev_info):
-        """
-        Hook to distribute revocations to local and core PSes.
-
-        :param rev_info: The RevocationInfo object.
-        """
-        raise NotImplementedError
+        self._send_rev_to_local_ps(rev_info)
 
     def _send_rev_to_local_ps(self, rev_info):
         """

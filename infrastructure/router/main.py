@@ -365,16 +365,16 @@ class Router(SCIONElement):
         if rev_info in self.revocations:
             return
         snames = []
-        # Fork revocation to local PS if router is in the AS of the source.
-        if (spkt.addrs.dst.isd_as == self.addr.isd_as and
-                self.topology.path_servers):
-            snames.append(PATH_SERVICE)
-
-        # Fork revocation to local BS if router is downstream of the failed
-        # interface.
+        # Fork revocation to local BS and PS if router is downstream of the
+        # failed interface.
         if (spkt.addrs.src.isd_as[0] == self.addr.isd_as[0] and
                 self._is_downstream_router()):
             snames.append(BEACON_SERVICE)
+            snames.append(PATH_SERVICE)
+        # Fork revocation to local PS if router is in the AS of the source.
+        elif (spkt.addrs.dst.isd_as == self.addr.isd_as and
+                self.topology.path_servers):
+            snames.append(PATH_SERVICE)
 
         self.revocations[rev_info] = True
         for sname in snames:

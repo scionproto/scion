@@ -155,15 +155,13 @@ class LocalPathServer(PathServer):
                                             host=SVCType.PS_A)
         self.send_meta(req.copy(), meta)
 
-    def _handle_revocation(self, rev_info, meta):
-        if super()._handle_revocation(rev_info, meta):
-            # Inform core ASes if the revocation was not received from the local
-            # BS.
-            bs_addrs = {bs.addr for bs in self.topology.beacon_servers}
-            if meta.get_addr().host not in bs_addrs:
-                self._send_rev_to_core(rev_info)
-            return True
-        return False
+    def _forward_revocation(self, rev_info, meta):
+        # Inform core ASes if the revoked interface belongs to this AS or
+        # the revocation originates from a different ISD.
+        rev_isd_as = rev_info.isd_as()
+        if (rev_isd_as == self.addr.isd_as or
+                rev_isd_as[0] != self.addr.isd_as[0]):
+            self._send_rev_to_core(rev_info)
 
     def _send_rev_to_core(self, rev_info):
         """

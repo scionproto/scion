@@ -208,7 +208,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Handles a revocation of a segment, interface or hop.
 
         :param rev_info: The RevocationInfo object.
-        :returns: False if the revocation was dropped, True otherwise.
         """
         assert isinstance(rev_info, RevocationInfo)
         if rev_info in self.revocations:
@@ -220,7 +219,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
-        return True
+        # Forward revocation to other path servers.
+        self._forward_revocation(rev_info, meta)
 
     def _remove_revoked_segments(self, rev_info):
         """
@@ -253,6 +253,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                          "UP: %d DOWN: %d CORE: %d" %
                          (if_id, up_segs_removed, down_segs_removed,
                           core_segs_removed))
+
+    @abstractmethod
+    def _forward_revocation(self, rev_info, meta):
+        """
+        Forwards a revocation to other path servers that need to be notified.
+
+        :param rev_info: The RevInfo object.
+        :param meta: The MessageMeta object.
+        """
+        raise NotImplementedError
 
     def _send_path_segments(self, req, meta, up=None, core=None, down=None):
         """
