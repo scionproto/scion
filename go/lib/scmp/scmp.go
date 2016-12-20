@@ -113,15 +113,16 @@ var typeNameMap = map[Class][]string{
 
 type SCMPTypeKey struct {
 	Class Class
-	Type Type
+	Type  Type
 }
+
 // Types for which a path reversal is not possible.
-var NonReversableErrors = map[SCMPTypeKey]bool {
-	SCMPTypeKey{C_CmnHdr, T_C_BadHopFOffset}: true,
+var NonReversableErrors = map[SCMPTypeKey]bool{
+	SCMPTypeKey{C_CmnHdr, T_C_BadHopFOffset}:  true,
 	SCMPTypeKey{C_CmnHdr, T_C_BadInfoFOffset}: true,
-	SCMPTypeKey{C_CmnHdr, T_C_BadPktLen}: true,
-	SCMPTypeKey{C_CmnHdr, T_C_BadSrcType}: true,
-	SCMPTypeKey{C_Path, T_P_PathRequired}: true,
+	SCMPTypeKey{C_CmnHdr, T_C_BadPktLen}:      true,
+	SCMPTypeKey{C_CmnHdr, T_C_BadSrcType}:     true,
+	SCMPTypeKey{C_Path, T_P_PathRequired}:     true,
 }
 
 func (t Type) Name(c Class) string {

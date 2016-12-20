@@ -117,8 +117,8 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			}
 		} else if rp.DirFrom == rpkt.DirExternal {
 			reply.InfoF()
-			// Increase path if the packet is in the middle of a segment and
-			// the current router is an ingress router.
+			// Increase path if the current HOF is not xover and
+			// this router is an ingress router.
 			if err := reply.IncPath(); err != nil {
 				return nil, err
 			}
