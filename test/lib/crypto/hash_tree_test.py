@@ -62,7 +62,7 @@ class TestHashTreeCalcTreeDepth(object):
 
 class TestHashTreeCreateTree(object):
     """
-    Unit test for lib.crypto.hash_tree.HashTree.calc_tree_depth
+    Unit test for lib.crypto.hash_tree.HashTree.create_tree
     """
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test(self, _):
@@ -104,6 +104,7 @@ class TestHashTreeGetProof(object):
         # Call
         proof = inst.get_proof(2, 0, "prev", "next")
         # Tests
+        ntools.eq_(proof.p.isdas, int(isd_as))
         ntools.eq_(proof.p.nonce, b"s20")
         ntools.eq_(proof.p.siblings[0].isLeft, True)
         ntools.eq_(proof.p.siblings[0].hash, b"10s10")

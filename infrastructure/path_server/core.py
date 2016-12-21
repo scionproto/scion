@@ -347,12 +347,13 @@ class CorePathServer(PathServer):
     def _forward_revocation(self, rev_info, meta):
         # Propagate revocation to other core ASes if:
         # 1) The revoked interface belongs to this AS, or
-        # 2) the revocation was received from a non-core AS, or
+        # 2) the revocation was received from a non-core AS in this ISD, or
         # 3) the revocation was forked from a BR and it originated from a
         #    different ISD.
         rev_isd_as = rev_info.isd_as()
         if (rev_isd_as == self.addr.isd_as or
-                meta.ia not in self._core_ases[self.addr.isd_as[0]] or
+                (meta.ia not in self._core_ases[self.addr.isd_as[0]] and
+                 meta.ia[0] == self.addr.isd_as[0]) or
                 (meta.ia == self.addr.isd_as and
                  rev_isd_as[0] != self.addr.isd_as[0])):
             logging.debug("Propagating Revocation of IF %d to other cores."

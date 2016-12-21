@@ -175,11 +175,13 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
 			// Forward to PS and BS if router is downstream of the failed interface.
-			args.Addrs = append(args.Addrs, addr.SvcBS.Multicast())
-			args.Addrs = append(args.Addrs, addr.SvcPS.Multicast())
+			args.Addrs = append(args.Addrs, addr.SvcBS.Base())
+			if len(topology.Curr.T.PS) > 0 {
+				args.Addrs = append(args.Addrs, addr.SvcPS.Base())
+			}
 		} else if rp.dstIA.Eq(topology.Curr.T.IA) && len(topology.Curr.T.PS) > 0 {
 			// Forward to PS if we are in the AS of the source.
-			args.Addrs = append(args.Addrs, addr.SvcPS.Multicast())
+			args.Addrs = append(args.Addrs, addr.SvcPS.Base())
 		}
 
 		if len(args.Addrs) > 0 {

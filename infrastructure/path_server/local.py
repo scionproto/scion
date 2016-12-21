@@ -178,7 +178,7 @@ class LocalPathServer(PathServer):
         core_ia = seg.first_ia()
         path = seg.get_path(reverse_direction=True)
         logging.info("Forwarding Revocation to %s using path:\n%s" %
-                     (core_ia, path))
+                     (core_ia, seg.short_desc()))
         meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
                                             host=SVCType.PS_A)
         self.send_meta(rev_info.copy(), meta)
