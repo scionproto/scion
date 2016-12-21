@@ -1,4 +1,4 @@
-# Copyright 2016 ETH Zurich
+# Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,14 +17,12 @@
 """
 # Stdlib
 import base64
-import copy
 import json
 import logging
 import time
 
 # SCION
 from lib.crypto.asymcrypto import sign, verify
-from lib.util import load_json_file
 
 SUBJECT_STRING = 'Subject'
 ISSUER_STRING = 'Issuer'
@@ -72,26 +70,34 @@ class Certificate(object):
     validity_period = 365 * 24 * 60 * 60
     sign_algorithm = 'ed25519'
     enc_algorithm = 'curve25519xsalsa20poly1305'
+    FIELDS_MAP = {
+        SUBJECT_STRING: ("subject", str),
+        ISSUER_STRING: ("issuer", str),
+        VERSION_STRING: ("version", int),
+        COMMENT_STRING: ("comment", str),
+        CAN_ISSUE_STRING: ("can_issue", bool),
+        ISSUING_TIME_STRING: ("issuing_time", int),
+        EXPIRATION_TIME_STRING: ("expiration_time", int),
+        ENC_ALGORITHM_STRING: ("enc_algorithm", str),
+        SUBJECT_ENC_KEY_STRING: ("subject_enc_key", bytes),
+        SIGN_ALGORITHM_STRING: ("sign_algorithm", str),
+        SUBJECT_SIG_KEY_STRING: ("subject_sig_key", bytes),
+        SIGNATURE_STRING: ("signature", bytes),
+    }
 
-    def __init__(self, json_string=None):
+    def __init__(self, cert_dict):
         """
         :param certificate_file: the name of the certificate file.
         :type certificate_file: str
         """
-        self.subject = ''
-        self.issuer = ''
-        self.version = 0
-        self.comment = ''
-        self.can_issue = False
-        self.issuing_time = 0
-        self.expiration_time = 0
-        self.enc_algorithm = ''
-        self.subject_enc_key = b''
-        self.sign_algorithm = ''
-        self.subject_sig_key = b''
-        self.signature = b''
-        if json_string:
-            self.parse(json_string)
+        for k, (name, type_) in self.FIELDS_MAP.items():
+            val = cert_dict[k]
+            if type_ in (int,):
+                val = int(val)
+            setattr(self, name, val)
+        self.subject_enc_key_raw = base64.b64decode(self.subject_enc_key)
+        self.subject_sig_key_raw = base64.b64decode(self.subject_sig_key)
+        self.signature_raw = base64.b64decode(self.signature)
 
     @classmethod
     def from_dict(cls, cert_dict):
@@ -103,23 +109,14 @@ class Certificate(object):
         :returns: the newly created Certificate instance.
         :rtype: :class:`Certificate`
         """
-        cert = Certificate()
-        try:
-            cert.subject = cert_dict[SUBJECT_STRING]
-            cert.issuer = cert_dict[ISSUER_STRING]
-            cert.version = cert_dict[VERSION_STRING]
-            cert.comment = cert_dict[COMMENT_STRING]
-            cert.can_issue = cert_dict[CAN_ISSUE_STRING]
-            cert.issuing_time = cert_dict[ISSUING_TIME_STRING]
-            cert.expiration_time = cert_dict[EXPIRATION_TIME_STRING]
-            cert.encryption_algorithm = cert_dict[ENC_ALGORITHM_STRING]
-            cert.subject_enc_key = cert_dict[SUBJECT_ENC_KEY_STRING]
-            cert.sign_algorithm = cert_dict[SIGN_ALGORITHM_STRING]
-            cert.subject_sig_key = cert_dict[SUBJECT_SIG_KEY_STRING]
-            cert.signature = cert_dict[SIGNATURE_STRING]
-        except KeyError as inst:
-            logging.ERROR("Key Error: s" % inst)
-        return cert
+        for k, (name, type_) in self.FIELDS_MAP.items():
+            val = cert_dict[k]
+            if type_ in (int,):
+                val = int(val)
+            setattr(self, name, val)
+        self.subject_enc_key_raw = base64.b64decode(self.subject_enc_key)
+        self.subject_sig_key_raw = base64.b64decode(self.subject_sig_key)
+        self.signature_raw = base64.b64decode(self.signature)
 
     def verify(self, subject, issuer_cert):
         """
@@ -136,8 +133,8 @@ class Certificate(object):
             logging.error("The given subject(%s) doesn't match the \
             certificate's subject(%s)" % (str(subject), str(self.subject)))
             return False
-        if not self._verify_signature(self.signature,
-                                      issuer_cert.subject_sig_key):
+        if not self._verify_signature(self.signature_raw,
+                                      issuer_cert.subject_sig_key_raw):
             logging.error("Signature verification failed.")
             return False
         if int(time.time()) >= self.expiration_time:
@@ -155,7 +152,7 @@ class Certificate(object):
         msg = self.__str__(with_signature=False).encode('utf-8')
         return verify(msg, signature, public_key)
 
-    def get_cert_dict(self, with_signature):
+    def dict(self, with_signature):
         """
         Return the certificate information.
 
@@ -165,44 +162,21 @@ class Certificate(object):
         :returns: the certificate information.
         :rtype: dict
         """
-        cert_dict = {SUBJECT_STRING: self.subject,
-                     ISSUER_STRING: self.issuer,
-                     VERSION_STRING: self.version,
-                     COMMENT_STRING: self.comment,
-                     CAN_ISSUE_STRING: self.can_issue,
-                     ISSUING_TIME_STRING: self.issuing_time,
-                     EXPIRATION_TIME_STRING: self.expiration_time,
-                     ENC_ALGORITHM_STRING: self.encryption_algorithm,
-                     SUBJECT_ENC_KEY_STRING: self.subject_enc_key,
-                     SIGN_ALGORITHM_STRING: self.sign_algorithm,
-                     SUBJECT_SIG_KEY_STRING: self.subject_sig_key}
-        if with_signature:
-            cert_dict[SIGNATURE_STRING] = self.signature
+        cert_dict = {}
+        for k, (name, _) in self.FIELDS_MAP.items():
+            cert_dict[k] = getattr(self, name)
+        if not with_signature:
+            del cert_dict[SIGNATURE_STRING]
         return cert_dict
 
-    def parse(self, certificate_file):
-        """
-        Parse a certificate file and populate the instance's attributes.
-
-        :param str certificate_file: the name of the certificate file.
-        """
-        cert = load_json_file(certificate_file)
-        self.subject = cert[SUBJECT_STRING]
-        self.issuer = cert[ISSUER_STRING]
-        self.version = cert[VERSION_STRING]
-        self.comment = cert[COMMENT_STRING]
-        self.can_issue = cert[CAN_ISSUE_STRING]
-        self.issuing_time = cert[ISSUING_TIME_STRING]
-        self.expiration_time = cert[EXPIRATION_TIME_STRING]
-        self.encryption_algorithm = cert[ENC_ALGORITHM_STRING]
-        self.subject_enc_key = base64.b64decode(cert[SUBJECT_ENC_KEY_STRING])
-        self.sign_algorithm = cert[SIGN_ALGORITHM_STRING]
-        self.subject_sig_key = base64.b64decode(cert[SUBJECT_SIG_KEY_STRING])
-        self.signature = base64.b64decode(cert[SIGNATURE_STRING])
+    def sign(self, iss_priv_key):
+        data = self.__str__(with_signature=False).encode('utf-8')
+        self.signature_raw = sign(data, iss_priv_key)
+        self.signature = base64.b64encode(self.signature_raw).decode('utf-8')
 
     @classmethod
     def from_values(cls, subject, issuer, version, comment, can_issue,
-                    subject_enc_key, subject_sig_key, iss_priv_key, ):
+                    subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
 
@@ -218,34 +192,29 @@ class Certificate(object):
         :returns: the newly created Certificate instance.
         :rtype: :class:`Certificate`
         """
-        cert = Certificate()
-        cert.subject = subject
-        cert.issuer = issuer
-        cert.version = version
-        cert.comment = comment
-        cert.can_issue = can_issue
-        cert.issuing_time = int(time.time())
-        cert.expiration_time = cert.issuing_time + Certificate.validity_period
-        cert.encryption_algorithm = Certificate.enc_algorithm
-        cert.subject_enc_key = subject_enc_key
-        cert.sign_algorithm = Certificate.sign_algorithm
-        cert.subject_sig_key = subject_sig_key
-        data_to_sign = cert.__str__(with_signature=False)
-        data_to_sign = data_to_sign.encode('utf-8')
-        cert.signature = sign(data_to_sign, iss_priv_key)
+        now = int(time.time())
+        cert_dict = {
+            SUBJECT_STRING: subject,
+            ISSUER_STRING: issuer,
+            VERSION_STRING: version,
+            COMMENT_STRING: comment,
+            CAN_ISSUE_STRING: can_issue,
+            ISSUING_TIME_STRING: now,
+            EXPIRATION_TIME_STRING: now + cls.validity_period,
+            ENC_ALGORITHM_STRING: cls.enc_algorithm,
+            SUBJECT_ENC_KEY_STRING:
+                base64.b64encode(subject_enc_key).decode("utf-8"),
+            SIGN_ALGORITHM_STRING: cls.sign_algorithm,
+            SUBJECT_SIG_KEY_STRING:
+                base64.b64encode(subject_sig_key).decode("utf-8"),
+            SIGNATURE_STRING: "",
+        }
+        cert = Certificate(cert_dict)
+        cert.sign(iss_priv_key)
         return cert
 
     def __str__(self, with_signature=True):
-        cert_dict = copy.deepcopy(self.get_cert_dict(with_signature))
-        cert_dict[SUBJECT_SIG_KEY_STRING] = \
-            base64.b64encode(cert_dict[SUBJECT_SIG_KEY_STRING]).decode('utf-8')
-        cert_dict[SUBJECT_ENC_KEY_STRING] = \
-            base64.b64encode(cert_dict[SUBJECT_ENC_KEY_STRING]).decode('utf-8')
-        if with_signature:
-            cert_dict[SIGNATURE_STRING] = \
-                base64.b64encode(cert_dict[SIGNATURE_STRING]).decode('utf-8')
-        cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
-        return cert_str
+        return json.dumps(self.dict(with_signature), sort_keys=True, indent=4)
 
     def __eq__(self, other):  # pragma: no cover
         return str(self) == str(other)

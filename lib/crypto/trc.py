@@ -27,12 +27,7 @@ import lz4
 
 # SCION
 from lib.crypto.asymcrypto import verify
-from lib.crypto.certificate import (
-    Certificate,
-    SIGNATURE_STRING,
-    SUBJECT_ENC_KEY_STRING,
-    SUBJECT_SIG_KEY_STRING
-)
+from lib.crypto.certificate import Certificate
 from lib.packet.scion_addr import ISD_AS
 
 ISDID_STRING = 'ISDID'
@@ -152,14 +147,7 @@ class TRC(object):
         for subject in trc[CORE_ASES_STRING]:
             cert_dict = base64.b64decode(trc[CORE_ASES_STRING][subject]).\
                 decode('utf-8')
-            cert_dict = json.loads(cert_dict)
-            cert_dict[SUBJECT_SIG_KEY_STRING] = base64.b64decode(
-                cert_dict[SUBJECT_SIG_KEY_STRING])
-            cert_dict[SUBJECT_ENC_KEY_STRING] = base64.b64decode(
-                cert_dict[SUBJECT_ENC_KEY_STRING])
-            cert_dict[SIGNATURE_STRING] =\
-                base64.b64decode(cert_dict[SIGNATURE_STRING])
-            self.core_ases[subject] = Certificate.from_dict(cert_dict)
+            self.core_ases[subject] = Certificate(json.loads(cert_dict))
         self.root_cas = trc[ROOT_CAS_STRING]
         self.logs = trc[LOGS_STRING]
         self.ca_threshold = trc[CA_THRESHOLD_STRING]
@@ -217,7 +205,7 @@ class TRC(object):
         valid_signature_signers = set()
         # Add every signer to this set whose signature was verified successfully
         for signer in signatures:
-            public_key = self.core_ases[signer].subject_sig_key
+            public_key = self.core_ases[signer].subject_sig_key_raw
             if self._verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
             else:

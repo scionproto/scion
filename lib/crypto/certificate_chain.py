@@ -16,8 +16,6 @@
 ===============================================
 """
 # Stdlib
-import base64
-import copy
 import json
 import logging
 
@@ -26,12 +24,7 @@ import lz4
 
 # SCION
 from lib.crypto.asymcrypto import verify
-from lib.crypto.certificate import (
-    Certificate,
-    SIGNATURE_STRING,
-    SUBJECT_ENC_KEY_STRING,
-    SUBJECT_SIG_KEY_STRING
-)
+from lib.crypto.certificate import Certificate
 from lib.crypto.trc import TRC
 from lib.packet.scion_addr import ISD_AS
 
@@ -64,13 +57,13 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trcVer):
     verifying_key = None
     for signer_cert in chain.certs:
         if signer_cert.subject == subject:
-            verifying_key = signer_cert.subject_sig_key
+            verifying_key = signer_cert.subject_sig_key_raw
             break
     if verifying_key is None:
         if subject not in trc.core_ases:
             logging.error("Signer's public key has not been found.")
             return False
-        verifying_key = trc.core_ases[subject].subject_sig_key
+        verifying_key = trc.core_ases[subject].subject_sig_key_raw
     return verify(msg, sig, verifying_key)
 
 
@@ -103,14 +96,7 @@ class CertificateChain(object):
             chain_raw = lz4.loads(chain_raw).decode("utf-8")
         chain = json.loads(chain_raw)
         for index in range(0, len(chain)):
-            cert_dict = chain[str(index)]
-            cert_dict[SUBJECT_SIG_KEY_STRING] = \
-                base64.b64decode(cert_dict[SUBJECT_SIG_KEY_STRING])
-            cert_dict[SUBJECT_ENC_KEY_STRING] = \
-                base64.b64decode(cert_dict[SUBJECT_ENC_KEY_STRING])
-            cert_dict[SIGNATURE_STRING] = \
-                base64.b64decode(cert_dict[SIGNATURE_STRING])
-            cert = Certificate.from_dict(cert_dict)
+            cert = Certificate(chain[str(index)])
             self.certs.append(cert)
 
     @classmethod
@@ -176,16 +162,7 @@ class CertificateChain(object):
         chain_dict = {}
         index = 0
         for cert in self.certs:
-            cert_dict = copy.deepcopy(cert.get_cert_dict(True))
-            cert_dict[SUBJECT_SIG_KEY_STRING] = \
-                base64.b64encode(cert_dict[SUBJECT_SIG_KEY_STRING]).\
-                decode('utf-8')
-            cert_dict[SUBJECT_ENC_KEY_STRING] = \
-                base64.b64encode(cert_dict[SUBJECT_ENC_KEY_STRING]).\
-                decode('utf-8')
-            cert_dict[SIGNATURE_STRING] = \
-                base64.b64encode(cert_dict[SIGNATURE_STRING]).decode('utf-8')
-            chain_dict[index] = cert_dict
+            chain_dict[index] = cert.dict(True)
             index += 1
         chain_str = json.dumps(chain_dict, sort_keys=True, indent=4)
         return chain_str
