@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,25 +89,6 @@ class Certificate(object):
         """
         :param certificate_file: the name of the certificate file.
         :type certificate_file: str
-        """
-        for k, (name, type_) in self.FIELDS_MAP.items():
-            val = cert_dict[k]
-            if type_ in (int,):
-                val = int(val)
-            setattr(self, name, val)
-        self.subject_enc_key_raw = base64.b64decode(self.subject_enc_key)
-        self.subject_sig_key_raw = base64.b64decode(self.subject_sig_key)
-        self.signature_raw = base64.b64decode(self.signature)
-
-    @classmethod
-    def from_dict(cls, cert_dict):
-        """
-        Generate a Certificate instance.
-
-        :param dict cert_dict:
-            dictionary containing the certificate information.
-        :returns: the newly created Certificate instance.
-        :rtype: :class:`Certificate`
         """
         for k, (name, type_) in self.FIELDS_MAP.items():
             val = cert_dict[k]
