@@ -41,7 +41,9 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
-	if sdata.CT.Class == scmp.C_CmnHdr {
+
+	switch sdata.CT.Class {
+	case scmp.C_CmnHdr:
 		switch sdata.CT.Type {
 		case scmp.T_C_BadVersion, scmp.T_C_BadSrcType, scmp.T_C_BadDstType:
 			// For any of these cases, do nothing. A reply would only be
@@ -49,6 +51,26 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 			// deprecated, which hasn't happened yet.
 			return
 		}
+	}
+	srcIA, err := rp.SrcIA()
+	if err != nil {
+		return
+	}
+	// Certain errors are not respondable to if the source lies in a remote AS.
+	if !srcIA.Eq(conf.C.IA) {
+		switch sdata.CT.Class {
+		case scmp.C_CmnHdr:
+			switch sdata.CT.Type {
+			case scmp.T_C_BadHopFOffset, scmp.T_C_BadInfoFOffset:
+				return
+			}
+		case scmp.C_Path:
+			switch sdata.CT.Type {
+			case scmp.T_P_PathRequired:
+				return
+			}
+		}
+
 	}
 	reply, err := r.createSCMPErrorReply(rp, sdata.CT, sdata.Info)
 	if err != nil {
@@ -96,12 +118,12 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS
 	// and the common header is well formed.
-	if !dstIA.Eq(conf.C.IA) && !scmp.NonReversableErrors[ct] {
+	if !dstIA.Eq(conf.C.IA) {
 		hopF, err := reply.HopF()
-		if hopF == nil || err != nil {
+		if err != nil {
 			return nil, err
 		}
-		if hopF.Xover {
+		if hopF != nil && hopF.Xover {
 			reply.InfoF()
 			// Always increment reversed path on a xover point.
 			if err := reply.IncPath(); err != nil {

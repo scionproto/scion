@@ -239,8 +239,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             down_segs_removed = 0
             core_segs_removed = 0
             up_segs_removed = 0
-            for H in (hash01, hash12):
-                for sid in self.htroot_if2seg.pop((H, if_id), []):
+            for h in (hash01, hash12):
+                for sid in self.htroot_if2seg.pop((h, if_id), []):
                     if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
                         down_segs_removed += 1
                     if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
@@ -249,7 +249,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                         if (self.up_segments.delete(sid) ==
                                 DBResult.ENTRY_DELETED):
                             up_segs_removed += 1
-            logging.info("Removed segments containing IF %d:\n"
+            logging.info("Removed segments containing IF %d: "
                          "UP: %d DOWN: %d CORE: %d" %
                          (if_id, up_segs_removed, down_segs_removed,
                           core_segs_removed))
@@ -339,8 +339,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 # to change.
                 for pcbm in asm.iter_pcbms():
                     if rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]:
-                        logging.debug("Found revoked interface in segment (%d)."
-                                      % rev_info.p.ifID)
+                        logging.debug("Found revoked interface (%d) in segment "
+                                      "%s." % (rev_info.p.ifID,
+                                               seg.short_desc()))
                         return False
         return True
 

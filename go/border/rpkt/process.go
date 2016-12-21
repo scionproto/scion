@@ -167,21 +167,21 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
-	rp.Debug(hdr.String())
 	switch {
-	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+	case rp.DirFrom == DirExternal && hdr.Class == scmp.C_Path &&
+		hdr.Type == scmp.T_P_RevokedIF:
 		var args RevTokenCallbackArgs
 		pld := rp.pld.(*scmp.Payload)
 		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
 			// Forward to PS and BS if router is downstream of the failed interface.
-			args.Addrs = append(args.Addrs, addr.SvcBS.Base())
+			args.Addrs = append(args.Addrs, addr.SvcBS)
 			if len(topology.Curr.T.PS) > 0 {
-				args.Addrs = append(args.Addrs, addr.SvcPS.Base())
+				args.Addrs = append(args.Addrs, addr.SvcPS)
 			}
 		} else if rp.dstIA.Eq(topology.Curr.T.IA) && len(topology.Curr.T.PS) > 0 {
-			// Forward to PS if we are in the AS of the source.
-			args.Addrs = append(args.Addrs, addr.SvcPS.Base())
+			// Forward to PS if we are in the AS of the destination.
+			args.Addrs = append(args.Addrs, addr.SvcPS)
 		}
 
 		if len(args.Addrs) > 0 {

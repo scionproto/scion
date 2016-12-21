@@ -172,7 +172,8 @@ class LocalPathServer(PathServer):
         # Issue revocation to all core ASes excluding self.
         paths = self.up_segments()
         if not paths:
-            logging.warning("No paths to core ASes available (issuing rev).")
+            logging.warning("No paths to core ASes available for forwarding"
+                            "revocation.")
             return
         seg = paths[0]
         core_ia = seg.first_ia()

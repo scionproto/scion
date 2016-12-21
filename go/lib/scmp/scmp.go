@@ -111,14 +111,6 @@ var typeNameMap = map[Class][]string{
 	C_Sibra: {"SIBRA_BAD_VERSION", "SIBRA_SETUP_NO_REQ"},
 }
 
-// Types for which a path reversal is not possible.
-var NonReversableErrors = map[ClassType]bool{
-	ClassType{C_CmnHdr, T_C_BadHopFOffset}:  true,
-	ClassType{C_CmnHdr, T_C_BadInfoFOffset}: true,
-	ClassType{C_CmnHdr, T_C_BadSrcType}:     true,
-	ClassType{C_Path, T_P_PathRequired}:     true,
-}
-
 func (t Type) Name(c Class) string {
 	names, ok := typeNameMap[c]
 	if !ok || int(t) > len(names) {
