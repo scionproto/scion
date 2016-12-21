@@ -116,8 +116,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
-	// Only (potentially) call IncPath if the dest is not in the local AS
-	// and the common header is well formed.
+	// Only (potentially) call IncPath if the dest is not in the local AS.
 	if !dstIA.Eq(conf.C.IA) {
 		hopF, err := reply.HopF()
 		if err != nil {
