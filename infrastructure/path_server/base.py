@@ -210,6 +210,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object.
         """
         assert isinstance(rev_info, RevocationInfo)
+        if meta.ia[0] != self.addr.isd_as[0]:
+            logging.info("Dropping revocation received from a different ISD.")
+            return
+
         if rev_info in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return False

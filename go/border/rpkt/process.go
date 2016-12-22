@@ -188,7 +188,8 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 			callbacks.revTokenF(args)
 		}
 	default:
-		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class, "type", hdr.Type)
+		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class,
+			"type", hdr.Type)
 	}
 	return HookFinish, nil
 }

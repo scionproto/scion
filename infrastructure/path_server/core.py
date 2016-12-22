@@ -352,8 +352,7 @@ class CorePathServer(PathServer):
         #    different ISD.
         rev_isd_as = rev_info.isd_as()
         if (rev_isd_as == self.addr.isd_as or
-                (meta.ia not in self._core_ases[self.addr.isd_as[0]] and
-                 meta.ia[0] == self.addr.isd_as[0]) or
+                (meta.ia not in self._core_ases[self.addr.isd_as[0]]) or
                 (meta.ia == self.addr.isd_as and
                  rev_isd_as[0] != self.addr.isd_as[0])):
             logging.debug("Propagating Revocation of IF %d to other cores."

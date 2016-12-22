@@ -15,6 +15,8 @@
 :mod:`rev_info` --- Revocation info payload
 ============================================
 """
+# Stdlib
+import logging
 # External
 import capnp  # noqa
 
@@ -72,6 +74,7 @@ class RevocationInfo(PathMgmtPayloadBase):
 
     def __eq__(self, other):
         if other is None:
+            logging.error("Other RevInfo object is None.")
             return False
         return self.cmp_str() == other.cmp_str()
 
