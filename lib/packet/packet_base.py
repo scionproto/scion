@@ -129,7 +129,7 @@ class Cerealizable(object, metaclass=ABCMeta):
         return inst
 
     def __eq__(self, other):  # pragma: no cover
-        return (self.p == other.p)
+        raise NotImplementedError
 
     def short_desc(self):
         return str(self.p)

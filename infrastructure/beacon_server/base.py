@@ -23,7 +23,7 @@ import threading
 import time
 from _collections import deque, defaultdict
 from abc import ABCMeta, abstractmethod
-from threading import Lock
+from threading import Lock, RLock
 
 # External packages
 from Crypto.Protocol.KDF import PBKDF2
@@ -135,7 +135,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.ifid_state = {}
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
-        self.ifid_state_lock = Lock()
+        self.ifid_state_lock = RLock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {None: self.handle_pcb},
             PayloadClass.IFID: {None: self.handle_ifid_packet},
@@ -170,7 +170,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
-        self._hash_tree = ConnectedHashTree(ifs, self.hashtree_gen_key)
+        self._hash_tree = ConnectedHashTree(self.addr.isd_as,
+                                            ifs, self.hashtree_gen_key)
 
     def _get_ht_proof(self, if_id):
         with self._hash_tree_lock:
@@ -408,7 +409,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             last_ttl_window = ConnectedHashTree.get_ttl_window()
 
             ifs = list(self.ifid2br.keys())
-            tree = ConnectedHashTree.get_next_tree(ifs, self.hashtree_gen_key)
+            tree = ConnectedHashTree.get_next_tree(self.addr.isd_as, ifs,
+                                                   self.hashtree_gen_key)
             with self._hash_tree_lock:
                 self._next_tree = tree
 

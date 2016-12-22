@@ -56,7 +56,7 @@ func (r *Router) setup(confDir string) *common.Error {
 	r.locOutFs = make(map[int]rpkt.OutputFunc)
 	r.intfOutFs = make(map[spath.IntfID]rpkt.OutputFunc)
 	r.freePkts = make(chan *rpkt.RtrPkt, 1024)
-	r.revInfoQ = make(chan common.RawBytes)
+	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
 
 	if err := conf.Load(r.Id, confDir); err != nil {
 		return err

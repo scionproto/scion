@@ -214,8 +214,6 @@ class SCIONElement(object):
         """
         Main routine to handle incoming SCION messages.
         """
-        logging.debug("handle_msg_meta() started: %s %s" % (msg, meta))
-
         if isinstance(meta, SCMPMetadata):
             handler = self._get_scmp_handler(meta.pkt)
         else:
@@ -224,7 +222,6 @@ class SCIONElement(object):
             logging.error("handler not found: %s", msg)
             return
         try:
-            logging.debug("Calling handler, meta:%s", meta)
             # SIBRA operates on parsed packets.
             if (isinstance(meta, UDPMetadata) and
                     msg.PAYLOAD_CLASS == PayloadClass.SIBRA):
@@ -336,7 +333,6 @@ class SCIONElement(object):
             reply.path = SCIONPath()
         next_hop, port = self.get_first_hop(reply)
         reply.update()
-        logging.warning("Reply:\n%s", reply)
         self.send(reply, next_hop, port)
 
     def _scmp_bad_path_metadata(self, pkt, e):
@@ -541,7 +537,6 @@ class SCIONElement(object):
                           dropped, self.total_dropped)
 
     def _get_msg_meta(self, packet, addr, sock):
-        logging.debug("_get_msg_meta() called")
         pkt = self._parse_packet(packet)
         if not pkt:
             logging.error("Cannot parse packet:\n%s" % packet)

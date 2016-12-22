@@ -76,7 +76,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
-        self.revocations = ExpiringDict(1000, 300)
+        self.revocations = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
@@ -159,7 +159,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             rev_info = RevocationInfo.from_raw(raw)
             self._remove_revoked_segments(rev_info)
 
-    def _add_if_mappings(self, pcb):
+    def _add_rev_mappings(self, pcb):
         """
         Add if revocation token to segment ID mappings.
         """
@@ -191,10 +191,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _add_segment(self, pcb, seg_db, name, reverse=False):
         res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
-            self._add_if_mappings(pcb)
+            self._add_rev_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_desc())
             return True
         elif res == DBResult.ENTRY_UPDATED:
+            self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
         return False
 
@@ -206,20 +207,24 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Handles a revocation of a segment, interface or hop.
 
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
+        :param rev_info: The RevocationInfo object.
         """
         assert isinstance(rev_info, RevocationInfo)
-        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
+        if meta.ia[0] != self.addr.isd_as[0]:
+            logging.info("Dropping revocation received from a different ISD.")
+            return
+
         if rev_info in self.revocations:
             logging.debug("Already received revocation. Dropping...")
-            return
-        else:
-            self.revocations[rev_info] = rev_info
-            logging.debug("Received revocation from %s:\n%s",
-                          meta.get_addr(), rev_info)
+            return False
+        self.revocations[rev_info] = True
+        logging.debug("Received revocation from %s:\n%s",
+                      meta.get_addr(), rev_info)
+        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
+        # Forward revocation to other path servers.
+        self._forward_revocation(rev_info, meta)
 
     def _remove_revoked_segments(self, rev_info):
         """
@@ -235,12 +240,33 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if_id = rev_info.p.ifID
 
         with self.htroot_if2seglock:
-            for H in (hash01, hash12):
-                for sid in self.htroot_if2seg.pop((H, if_id), []):
-                    self.down_segments.delete(sid)
-                    self.core_segments.delete(sid)
+            down_segs_removed = 0
+            core_segs_removed = 0
+            up_segs_removed = 0
+            for h in (hash01, hash12):
+                for sid in self.htroot_if2seg.pop((h, if_id), []):
+                    if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        down_segs_removed += 1
+                    if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        core_segs_removed += 1
                     if not self.topology.is_core_as:
-                        self.up_segments.delete(sid)
+                        if (self.up_segments.delete(sid) ==
+                                DBResult.ENTRY_DELETED):
+                            up_segs_removed += 1
+            logging.info("Removed segments containing IF %d: "
+                         "UP: %d DOWN: %d CORE: %d" %
+                         (if_id, up_segs_removed, down_segs_removed,
+                          core_segs_removed))
+
+    @abstractmethod
+    def _forward_revocation(self, rev_info, meta):
+        """
+        Forwards a revocation to other path servers that need to be notified.
+
+        :param rev_info: The RevInfo object.
+        :param meta: The MessageMeta object.
+        """
+        raise NotImplementedError
 
     def _send_path_segments(self, req, meta, up=None, core=None, down=None):
         """
@@ -287,12 +313,41 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._handle_pending_requests(dst_ia, sibra)
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
+        # Check that segment does not contain a revoked interface.
+        if not self._validate_segment(seg):
+            logging.debug("Not adding segment due to revoked interface:\n%s" %
+                          seg.short_desc())
+            return set()
         handle_map = {
             PST.UP: self._handle_up_segment_record,
             PST.CORE: self._handle_core_segment_record,
             PST.DOWN: self._handle_down_segment_record,
         }
         return handle_map[type_](seg, **kwargs)
+
+    def _validate_segment(self, seg):
+        """
+        Check segment for revoked interfaces.
+
+        :param seg: The PathSegment object.
+        :return: False, if the path segment contains a revoked interface. True
+            otherwise.
+        """
+        for rev_info in list(self.revocations):
+            if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+                self.revocations.pop(rev_info)
+                continue
+            for asm in seg.iter_asms():
+                # TODO(shitz): If ever decide to not remove segments that
+                # contain only revoked peering interfaces, then this logic needs
+                # to change.
+                for pcbm in asm.iter_pcbms():
+                    if rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]:
+                        logging.debug("Found revoked interface (%d) in segment "
+                                      "%s." % (rev_info.p.ifID,
+                                               seg.short_desc()))
+                        return False
+        return True
 
     def _dispatch_params(self, pld, meta):
         return {}
