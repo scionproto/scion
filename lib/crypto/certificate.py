@@ -67,9 +67,9 @@ class Certificate(object):
     :cvar str enc_alorithm: default algorithm used to encrypt messages.
     """
 
-    validity_period = 365 * 24 * 60 * 60
-    sign_algorithm = 'ed25519'
-    enc_algorithm = 'curve25519xsalsa20poly1305'
+    VALIDITY_PERIOD = 365 * 24 * 60 * 60
+    SIGN_ALGORTIHM = 'ed25519'
+    ENC_ALGORITHM = 'curve25519xsalsa20poly1305'
     FIELDS_MAP = {
         SUBJECT_STRING: ("subject", str),
         ISSUER_STRING: ("issuer", str),
@@ -181,11 +181,11 @@ class Certificate(object):
             COMMENT_STRING: comment,
             CAN_ISSUE_STRING: can_issue,
             ISSUING_TIME_STRING: now,
-            EXPIRATION_TIME_STRING: now + cls.validity_period,
-            ENC_ALGORITHM_STRING: cls.enc_algorithm,
+            EXPIRATION_TIME_STRING: now + cls.VALIDITY_PERIOD,
+            ENC_ALGORITHM_STRING: cls.ENC_ALGORITHM,
             SUBJECT_ENC_KEY_STRING:
                 base64.b64encode(subject_enc_key).decode("utf-8"),
-            SIGN_ALGORITHM_STRING: cls.sign_algorithm,
+            SIGN_ALGORITHM_STRING: cls.SIGN_ALGORTIHM,
             SUBJECT_SIG_KEY_STRING:
                 base64.b64encode(subject_sig_key).decode("utf-8"),
             SIGNATURE_STRING: "",
