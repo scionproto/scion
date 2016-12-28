@@ -97,9 +97,6 @@ class CoreBeaconServer(BeaconServer):
             logging.info("Propagated %d Core PCBs", core_count)
 
     def register_segments(self):
-        """
-
-        """
         self.register_core_segments()
 
     def register_core_segment(self, pcb):

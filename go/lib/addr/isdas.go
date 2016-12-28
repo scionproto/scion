@@ -52,6 +52,10 @@ func (ia *ISD_AS) Copy() *ISD_AS {
 	return &ISD_AS{I: ia.I, A: ia.A}
 }
 
+func (ia *ISD_AS) Eq(other *ISD_AS) bool {
+	return ia.I == other.I && ia.A == other.A
+}
+
 func (ia ISD_AS) String() string {
 	return fmt.Sprintf("%d-%d", ia.I, ia.A)
 }

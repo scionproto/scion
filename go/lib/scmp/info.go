@@ -181,7 +181,7 @@ func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 }
 
 func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, *common.Error) {
-	p := &InfoRevocation{}
+	p := &InfoRevocation{InfoPathOffsets: &InfoPathOffsets{}}
 	if err := restruct.Unpack(b, common.Order, &p.InfoPathOffsets); err != nil {
 		return nil, common.NewError("Failed to unpack SCMP Revocation info", "err", err)
 	}

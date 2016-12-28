@@ -15,4 +15,5 @@ struct RevInfo {
 	siblings @3 :List(SiblingHash);  # Hash values of siblings, bottom to top
 	prevRoot @4 :Data;  # Root of the hashtree of previous time block (T-1)
 	nextRoot @5 :Data;  # Root of the hashtree of next time block (T+1)
+	isdas @6 :UInt32;  # ISD-AS of the revocation issuer.
 }

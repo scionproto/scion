@@ -17,9 +17,15 @@
 package rpkt
 
 import (
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
+
+type RevTokenCallbackArgs struct {
+	RevInfo common.RawBytes
+	Addrs   []addr.HostSVC
+}
 
 // parseSCMPPayload is a hook that can be used for hookPayload, to retrieve the
 // SCMP payload.

@@ -45,13 +45,13 @@ var callbacks struct {
 	locOutFs   map[int]OutputFunc
 	intfOutFs  map[spath.IntfID]OutputFunc
 	ifStateUpd func(proto.IFStateInfos)
-	revTokenF  func(common.RawBytes)
+	revTokenF  func(RevTokenCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
 func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
-	ifStateUpd func(proto.IFStateInfos), revTokenF func(common.RawBytes)) {
+	ifStateUpd func(proto.IFStateInfos), revTokenF func(RevTokenCallbackArgs)) {
 	callbacks.locOutFs = locOut
 	callbacks.intfOutFs = intfOut
 	callbacks.ifStateUpd = ifStateUpd
@@ -82,6 +82,8 @@ type RtrPkt struct {
 	Egress []EgressPair
 	// CmnHdr is the SCION common header. Required for every packet. (PARSE)
 	CmnHdr spkt.CmnHdr
+	// Flag to indicate whether this router incremented the path. (ROUTE)
+	IncrementedPath bool
 	// idxs contains a set of indexes into Raw which point to the start of certain sections of the
 	// packet. (PARSE)
 	idxs packetIdxs
@@ -224,6 +226,7 @@ func (rp *RtrPkt) Reset() {
 	rp.Ingress.Dst = nil
 	rp.Ingress.IfIDs = nil
 	rp.Egress = rp.Egress[:0]
+	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}
 	rp.srcIA = nil
 	rp.srcHost = nil

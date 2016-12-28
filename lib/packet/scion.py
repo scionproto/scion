@@ -439,6 +439,14 @@ class SCIONBasePacket(PacketBase):
                                              class_, type_)
         self.set_payload(pld)
 
+    def short_desc(self):
+        s = []
+        s.append("%s(%dB):" % (self.NAME, len(self)))
+        s.append("  %s" % self.cmn_hdr)
+        s.append("  %s" % self.addrs)
+        s.extend(self._inner_str())
+        return "\n".join(s)
+
     def __len__(self):  # pragma: no cover
         return self.cmn_hdr.total_len
 
