@@ -145,12 +145,12 @@ class TRC(object):
             val = trc[k]
             setattr(self, name, val)
         for subject in trc[CORE_ASES_STRING]:
-             cert_dict = base64.b64decode(trc[CORE_ASES_STRING][subject]).\
-                 decode('utf-8')
-             self.core_ases[subject] = Certificate(json.loads(cert_dict))
+            cert_dict = base64.b64decode(trc[CORE_ASES_STRING][subject]).\
+                decode('utf-8')
+            self.core_ases[subject] = Certificate(json.loads(cert_dict))
         for subject in trc[SIGNATURES_STRING]:
-             self.signatures[subject] = \
-                 base64.b64decode(trc[SIGNATURES_STRING][subject])
+            self.signatures[subject] = \
+                base64.b64decode(trc[SIGNATURES_STRING][subject])
 
     @classmethod
     def from_values(cls, isd, version, core_ases, root_cas, logs, ca_threshold,
