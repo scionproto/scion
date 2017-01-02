@@ -122,6 +122,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
+        self.missing_TRCs = deque()
+        self.missing_certs = deque()
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
@@ -250,8 +252,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         trcs, certs = pcb.get_trcs_certs()
         # Find missing TRCs and certificates
-        missingTRCs = self._get_missing_TRCs(trcs)
-        missingCerts = self._get_missing_certs(certs)
+        self._get_missing_TRCs(trcs)
+        self._get_missing_certs(certs)
         self.incoming_pcbs.append(pcb)
         meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
@@ -261,23 +263,40 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
-    def _get_missing_TRCs(self, trcs):
+    def _get_missing_TRCs(self, trc_versions):
         """
-        Check which intermediate trcs are missing.
+        Check which intermediate trcs are missing and add them to the queue.
 
         :returns: the missing TRCs versions
         :rtype dict
         """
-        pass
+        for isd_ in trc_versions.keys():
+            # Get TRC with highest version
+            highest_ver_TRC = self.trust_store.get_trc(int(isd_))
+            if highest_ver_TRC is None:
+                self.missing_TRCs.append((isd_, trc_versions[isd_]))
+                continue
+            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_]):
+                self.missing_TRCs.append((isd_, ver))
 
-    def _get_missing_certs(self, trcs):
+    def _get_missing_certs(self, certificates_versions):
         """
-        Check which intermediate trcs are missing.
+        Check which intermediate certificates are missing and add them to the
+        queue.
 
-        :returns: the missing TRCs versions
+        :returns: the missing certificates' versions
         :rtype dict
         """
-        pass
+        for isd_as in certificates_versions.keys():
+            # Get certificate with highest version
+            highest_ver_certificate = self.trust_store.get_cert(isd_as)
+            if highest_ver_certificate is None:
+                self.missing_certs.append((isd_as,
+                                           certificates_versions[isd_as]))
+                continue
+            for ver in range(highest_ver_certificate.version+1,
+                             certificates_versions[isd_as]):
+                self.missing_certs.append((isd_as, ver))
 
     def handle_ext(self, pcb):
         """
@@ -463,6 +482,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = time.time()
             try:
                 self.process_pcb_queue()
+                self.process_missing_certs_TRCs_queue()
                 self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
@@ -620,6 +640,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rep_key = rep.trc.get_isd_ver()
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
+
+    def process_missing_certs_TRCs_queue(self):
+        """
+        Iterate over the missing TRCs and certs queues and send the requests
+        to receive those.
+        """
+        for _ in range(len(self.missing_TRCs)):
+            trc = self.missing_TRCs.popleft()
+            # TODO: Construct request and send it to beacon server which sent the
+            # PCB.
+        for _ in range(len(self.missing_certs)):
+            cert = self.missing_certs.popleft()
+            # TODO: Construct request and send it to beacon server which sent the
+            # PCB.
 
     def handle_unverified_beacons(self):
         """
