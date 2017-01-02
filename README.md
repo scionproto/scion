@@ -27,6 +27,8 @@ Internet architecture.
 
 Necessary steps in order to run SCION:
 
+1. Make sure that you are using a clean and recently updated **Ubuntu 16.04**.
+
 1. Make sure that you have a
    [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
    `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:
