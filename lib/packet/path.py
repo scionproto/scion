@@ -658,8 +658,8 @@ class PathCombinator(object):
         return info, hofs, upstream_hof, mtu
 
     @classmethod
-    def _find_peer_hfs(cls, up_asm, down_asm, up_peer_rev_map=None,
-                       down_peer_rev_map=None):
+    def _find_peer_hfs(cls, up_asm, down_asm, up_peer_rev_map,
+                       down_peer_rev_map):
         """
         Finds the peering :any:`HopOpaqueField` of the shortcut path.
         """
