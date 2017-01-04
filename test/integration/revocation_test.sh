@@ -28,7 +28,6 @@ check_br_exists() {
 }
 
 for br in "$@"; do
-
     if ! check_br_exists "$br"; then
         log "${br} does not exist. Skipping revocation test."
         exit 0
