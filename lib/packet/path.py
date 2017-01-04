@@ -681,7 +681,7 @@ class PathCombinator(object):
                         (down_ia, down_peer.p.inIF), None)
                     if (cls._skip_peer(up_rev, up_asm.p.hashTreeRoot) or
                             cls._skip_peer(down_rev, down_asm.p.hashTreeRoot)):
-                        logging.debug("Not using peer %s:%d <-> %s%d due to"
+                        logging.debug("Not using peer %s:%d <-> %s:%d due to"
                                       " revocation." %
                                       (up_ia, up_peer.p.inIF,
                                        down_ia, down_peer.p.inIF))
@@ -690,12 +690,11 @@ class PathCombinator(object):
         return hfs
 
     @classmethod
-    def _skip_peer(cls, peer_rev, ht_root):
+    def _skip_peer(cls, peer_rev, ht_root):  # pragma: no cover
         if not peer_rev:
             return False
         return (ConnectedHashTree.verify_epoch(peer_rev.p.epoch)
                 and ConnectedHashTree.verify(peer_rev, ht_root))
-
 
     @classmethod
     def tuples_to_full_paths(cls, tuples):

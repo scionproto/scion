@@ -697,7 +697,6 @@ class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
         up_segment, down_segment, point = self._setup(path_args, copy_segment)
         find_peers.return_value = [("uph1", "dph1", 1500),
                                    ("uph2", "dph2", 1500)]
-
         path = SCIONPath.from_values()
         path.mtu = 1400
         ntools.eq_(
@@ -928,7 +927,7 @@ class TestPathCombinatorFindPeerHfs(object):
 
     def test(self):
         up_pcbms, down_pcbms = self._mk_pcbms()
-        p = create_mock_full({"hashTreeRoot": b""})
+        p = create_mock_full({"hashTreeRoot": b"1234"})
         up_asm = create_mock_full({"isd_as()": "1-1", "iter_pcbms()": up_pcbms,
                                    "p": p})
         down_asm = create_mock_full({"isd_as()": "2-1",
@@ -939,6 +938,36 @@ class TestPathCombinatorFindPeerHfs(object):
             (up_pcbms[0].hof(), down_pcbms[0].hof(), 500),
             (up_pcbms[2].hof(), down_pcbms[1].hof(), 700),
         ])
+
+    @patch("lib.packet.path.PathCombinator._skip_peer",
+           new_callable=create_mock)
+    def test_with_revocation(self, skip_peer):
+        up_pcbms, down_pcbms = self._mk_pcbms()
+        p = create_mock_full({"hashTreeRoot": b"1234"})
+        up_asm = create_mock_full({"isd_as()": "1-1", "iter_pcbms()": up_pcbms,
+                                   "p": p})
+        down_asm = create_mock_full({"isd_as()": "2-1",
+                                     "iter_pcbms()": down_pcbms,
+                                     "p": p})
+        up_peer_rev = create_mock()
+        down_peer_rev = create_mock()
+        up_rev_map = {("1-1", 3): up_peer_rev}
+        down_rev_map = {("2-1", 3): down_peer_rev}
+
+        def skip_peer_side_effect(rev, ht_root):
+            if rev in [up_peer_rev, down_peer_rev] and ht_root == b"1234":
+                return True
+            return False
+        skip_peer.side_effect = skip_peer_side_effect
+
+        # Call
+        peers = PathCombinator._find_peer_hfs(up_asm, down_asm, up_rev_map,
+                                              down_rev_map)
+        # Tests
+        ntools.eq_(peers, [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500)])
+        skip_peer.assert_has_calls([call(None, b"1234"),
+                                    call(up_peer_rev, b"1234")],
+                                   any_order=True)
 
 
 if __name__ == "__main__":
