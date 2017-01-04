@@ -1,1 +1,0 @@
-(rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF+16 && infoF.Shortcut) 
