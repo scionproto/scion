@@ -55,6 +55,12 @@ from lib.util import (
 API_TOUT = 15
 
 
+class ResponseRV:
+    FAILURE = 0
+    SUCCESS = 1
+    RETRY = 2
+
+
 class TestBase(object, metaclass=ABCMeta):
     def __init__(self, sd, data, finished, addr, timeout=1.0):
         self.sd = sd
@@ -97,12 +103,13 @@ class TestClientBase(TestBase):
     Base client app
     """
     def __init__(self, sd, data, finished, addr, dst, dport, api=True,
-                 timeout=3.0):
+                 timeout=3.0, retries=0):
         self.dst = dst
         self.dport = dport
         self.api = api
         self.path = None
         self.iflist = []
+        self.retries = retries
         super().__init__(sd, data, finished, addr, timeout)
         self._get_path(api)
 
@@ -125,6 +132,7 @@ class TestClientBase(TestBase):
         data.pop(2)  # port number, unused here
         self.path.mtu = struct.unpack("!H", data.pop(2))[0]
         ifcount = data.pop(1)
+        self.iflist = []
         for i in range(ifcount):
             isd_as = ISD_AS(data.pop(ISD_AS.LEN))
             ifid = struct.unpack("!H", data.pop(2))[0]
@@ -172,13 +180,36 @@ class TestClientBase(TestBase):
     def run(self):
         while not self.finished.is_set():
             self._send()
+            start = time.time()
             spkt = self._recv()
-            if not spkt or not self._handle_response(spkt):
-                if not spkt:
-                    logging.error("Timeout waiting for response")
-                self.success = False
-                self.finished.set()
+            recv_dur = time.time() - start
+            if not spkt:
+                logging.info("Timeout waiting for response")
+                self._retry_or_stop()
+                continue
+            r_code = self._handle_response(spkt)
+            if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
+                self._stop(success=bool(r_code))
+            else:
+                # Rate limit retries to 1 request per second.
+                self._retry_or_stop(1.0 - recv_dur)
         self._shutdown()
+
+    def _retry_or_stop(self, delay=0.0):
+        if delay < 0:
+            delay = 0
+        if self.retries:
+            self.retries -= 1
+            logging.info("Retrying in %.1f s... (%d retries remaining)." %
+                         (delay, self.retries))
+            time.sleep(delay)
+            self._get_path(self.api)
+        else:
+            self._stop()
+
+    def _stop(self, success=False):
+        self.success = success
+        self.finished.set()
 
     def _send(self):
         self._send_pkt(self._build_pkt())
@@ -240,7 +271,7 @@ class TestClientServerBase(object):
     NAME = ""
 
     def __init__(self, client, server, sources, destinations, local=True,
-                 max_runs=None):
+                 max_runs=None, retries=0):
         assert self.NAME
         t = threading.current_thread()
         t.name = self.NAME
@@ -251,6 +282,7 @@ class TestClientServerBase(object):
         self.local = local
         self.scionds = {}
         self.max_runs = max_runs
+        self.retries = retries
 
     def run(self):
         try:
@@ -328,7 +360,7 @@ class TestClientServerBase(object):
         Instantiate client app
         """
         return TestClientBase(self._run_sciond(src), data, finished, src, dst,
-                              port)
+                              port, retries=self.retries)
 
     def _run_sciond(self, addr):
         if addr.isd_as not in self.scionds:
@@ -380,6 +412,8 @@ def setup_main(name, parser=None):
                         help="Limit the number of pairs tested")
     parser.add_argument("-w", "--wait", type=float, default=0.0,
                         help="Time in seconds to wait before running")
+    parser.add_argument("--retries", type=int, default=0,
+                        help="Number of retries before giving up.")
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
     args = parser.parse_args()
