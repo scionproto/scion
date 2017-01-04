@@ -26,7 +26,6 @@ from collections import defaultdict
 
 # SCION
 from lib.config import Config
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError
 from lib.defines import (
     AS_CONF_FILE,
@@ -716,15 +715,3 @@ class SCIONElement(object):
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)
         return results
-
-    def verify_revocation_for_asm(self, asm, rev_info):
-        # FIXME(siva): We are removing the PCB only if any of up/downstream
-        # interfaces are down, and not peer interfaces. If you do it for
-        # peer interfaces too, you will end up removing some PCBs which are
-        # still valid but contain that peer interface. So we need to add an
-        # extension to the PCBMarking to identify which peer interfaces are
-        # down
-        hof = asm.pcbm(0).hof()
-        root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
-        return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and
-                root_verify)

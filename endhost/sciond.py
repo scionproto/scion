@@ -273,10 +273,28 @@ class SCIONDaemon(SCIONElement):
         to_remove = []
         for segment in db(full=True):
             for asm in segment.iter_asms():
-                if self.verify_revocation_for_asm(asm, rev_info):
+                if self._verify_revocation_for_asm(rev_info, asm):
                     logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
+
+    def _verify_revocation_for_asm(self, rev_info, as_marking):
+        """
+        Verifies a revocation for a given AS marking.
+
+        :param rev_info: The RevocationInfo object.
+        :param as_marking: The ASMarking object.
+        :return: True, if the revocation successfully revokes any of the
+            interfaces in the AS marking, False otherwise.
+        """
+        if rev_info.isd_as() != as_marking.isd_as():
+            return False
+        if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
+            return False
+        for pcbm in as_marking.iter_pcbms():
+            if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
+                return True
+        return False
 
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""

@@ -1,0 +1,24 @@
+diff --git a/infrastructure/beacon_server/local.py b/infrastructure/beacon_server/local.py
+index 246205f..5589759 100644
+--- a/infrastructure/beacon_server/local.py
++++ b/infrastructure/beacon_server/local.py
+@@ -203,9 +203,16 @@ class LocalBeaconServer(BeaconServer):
+         if not paths:
+             logging.warning("No paths to core ASes available (issuing rev).")
+             return
+-        seg = self._terminate_pcb(paths[0])
+-        core_ia = seg.first_ia()
+-        path = seg.get_path(reverse_direction=True)
++        segment = None
++        for seg in paths:
++            segment = self._terminate_pcb(seg)
++            if segment:
++                break
++        if not segment:
++            logging.warning("No paths to core ASes available (issuing rev).")
++            return
++        core_ia = segment.first_ia()
++        path = segment.get_path(reverse_direction=True)
+         logging.debug("Forwarding Revocation to %s using path:\n%s" %
+                       (core_ia, path))
+         meta = self.DefaultMeta.from_values(ia=core_ia, path=path,

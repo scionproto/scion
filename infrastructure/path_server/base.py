@@ -34,7 +34,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo, RevPCBExt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
@@ -330,23 +330,21 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Check segment for revoked interfaces.
 
         :param seg: The PathSegment object.
-        :return: False, if the path segment contains a revoked interface. True
-            otherwise.
+        :return: False, if the path segment contains a revoked hop interface.
+            True otherwise.
         """
         for rev_info in list(self.revocations):
             if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                 self.revocations.pop(rev_info)
                 continue
             for asm in seg.iter_asms():
-                # TODO(shitz): If ever decide to not remove segments that
-                # contain only revoked peering interfaces, then this logic needs
-                # to change.
-                for pcbm in asm.iter_pcbms():
-                    if rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]:
-                        logging.debug("Found revoked interface (%d) in segment "
-                                      "%s." % (rev_info.p.ifID,
-                                               seg.short_desc()))
-                        return False
+                pcbm = asm.pcbm(0)
+                if (rev_info.isd_as() == asm.isd_as()
+                        and rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]):
+                    logging.debug("Found revoked interface (%d) in segment "
+                                  "%s." % (rev_info.p.ifID,
+                                           seg.short_desc()))
+                    return False
         return True
 
     def _dispatch_params(self, pld, meta):
@@ -376,6 +374,29 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Handles all types of path request.
         """
         raise NotImplementedError
+
+    def _add_peer_revs(self, segments):
+        """Adds revocations to revoked peering interfaces in segments."""
+        # TODO(shitz): This could be optimized, by keeping a map of (ISD_AS, IF)
+        # -> RevocationInfo for peer revocations.
+        for segment in segments:
+            revs_to_add = []
+            for rev_info in list(self.revocations):
+                if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+                    self.revocations.pop(rev_info)
+                    continue
+                for asm in segment.iter_asms():
+                    if asm.isd_as() != rev_info.isd_as():
+                        continue
+                    for pcbm in asm.iter_pcbms(1):
+                        if rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]:
+                            revs_to_add.append(rev_info.copy())
+            if revs_to_add:
+                rev_ext = RevPCBExt.from_values(revs_to_add)
+                segment.add_rev_ext(rev_ext)
+                logging.debug("Adding rev PCB ext: %s" % segment.short_desc())
+
+        return segments
 
     def _handle_waiting_targets(self, pcb):
         """

@@ -243,7 +243,6 @@ class ConnectedHashTree(object):
 
         :param RevInfo revProof: proof for the revocation.
         :param bytes root: hash of the root, used for validating the proof.
-        :param int curr_epoch: current epoch
         :param hash_func: hash function that implements hashlib interface.
         """
         assert not isinstance(revProof.p, bytes)

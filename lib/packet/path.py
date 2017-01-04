@@ -17,8 +17,10 @@
 """
 # Stdlib
 import copy
+import logging
 
 # SCION
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import SCION_MIN_MTU
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -434,6 +436,8 @@ class PathCombinator(object):
         """
         xovrs = []
         peers = []
+        up_seg_rev_map = up_segment.get_rev_map()
+        down_seg_rev_map = down_segment.get_rev_map()
         for up_i, up_asm in enumerate(up_segment.iter_asms(1), 1):
             for down_i, down_asm in enumerate(down_segment.iter_asms(1), 1):
                 up_ia = up_asm.isd_as()
@@ -441,7 +445,8 @@ class PathCombinator(object):
                 if up_ia == down_ia:
                     xovrs.append((up_i, down_i))
                     continue
-                if cls._find_peer_hfs(up_asm, down_asm):
+                if cls._find_peer_hfs(up_asm, down_asm, up_seg_rev_map,
+                                      down_seg_rev_map):
                     peers.append((up_i, down_i))
         xovr = peer = None
         if xovrs:
@@ -498,7 +503,9 @@ class PathCombinator(object):
         up_iof.peer = down_iof.peer = True
         paths = []
         for uph, dph, pm in cls._find_peer_hfs(up_segment.asm(up_index),
-                                               down_segment.asm(down_index)):
+                                               down_segment.asm(down_index),
+                                               up_segment.get_rev_map(),
+                                               down_segment.get_rev_map()):
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
             args = cls._shortcut_path_args(
@@ -651,7 +658,8 @@ class PathCombinator(object):
         return info, hofs, upstream_hof, mtu
 
     @classmethod
-    def _find_peer_hfs(cls, up_asm, down_asm):
+    def _find_peer_hfs(cls, up_asm, down_asm, up_peer_rev_map=None,
+                       down_peer_rev_map=None):
         """
         Finds the peering :any:`HopOpaqueField` of the shortcut path.
         """
@@ -665,8 +673,29 @@ class PathCombinator(object):
                 if (up_peer.inIA() == down_ia and down_peer.inIA() == up_ia and
                         up_peer.p.inIF == down_hof.ingress_if and
                         up_hof.ingress_if == down_peer.p.inIF):
+                    # Check that there is no valid revocation for the peering
+                    # interface.
+                    up_rev = up_peer_rev_map.get((up_ia, up_peer.p.inIF),
+                                                 None)
+                    down_rev = down_peer_rev_map.get(
+                        (down_ia, down_peer.p.inIF), None)
+                    if (cls._skip_peer(up_rev, up_asm.p.hashTreeRoot) or
+                            cls._skip_peer(down_rev, down_asm.p.hashTreeRoot)):
+                        logging.debug("Not using peer %s:%d <-> %s%d due to"
+                                      " revocation." %
+                                      (up_ia, up_peer.p.inIF,
+                                       down_ia, down_peer.p.inIF))
+                        continue
                     hfs.append((up_hof, down_hof, up_peer.p.inMTU))
         return hfs
+
+    @classmethod
+    def _skip_peer(cls, peer_rev, ht_root):
+        if not peer_rev:
+            return False
+        return (ConnectedHashTree.verify_epoch(peer_rev.p.epoch)
+                and ConnectedHashTree.verify(peer_rev, ht_root))
+
 
     @classmethod
     def tuples_to_full_paths(cls, tuples):

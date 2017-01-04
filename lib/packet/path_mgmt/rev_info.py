@@ -22,6 +22,7 @@ import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
+from lib.packet.packet_base import Cerealizable
 from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.packet.scion_addr import ISD_AS
 from lib.types import PathMgmtType as PMT
@@ -80,3 +81,49 @@ class RevocationInfo(PathMgmtPayloadBase):
 
     def __hash__(self):
         return hash(self.cmp_str())
+
+    def short_desc(self):
+        return "RevInfo: %s IF: %d EPOCH: %d" % (self.isd_as(), self.p.ifID,
+                                                 self.p.epoch)
+
+
+class RevPCBExt(Cerealizable):  # pragma: no cover
+    """
+    Revocation PCB extension. Use to attach revocations for peering interfaces
+    to a PathSegment.
+    """
+    NAME = "RevPCBExt"
+    P_CLS = P.RevPCBExt
+
+    def __init__(self, p):
+        super().__init__(p)
+        self.rev_infos = p.revInfos
+
+    @classmethod
+    def from_values(cls, rev_infos):
+        p = cls.P_CLS.new_message()
+        p.init("revInfos", len(rev_infos))
+        for i, rev_info in rev_infos:
+            p.revInfos[i] = rev_info.pack()
+        return cls(p)
+
+    def rev_info(self, idx):
+        return RevocationInfo(self.p.revInfos[idx])
+
+    def iter_rev_infos(self, start=0):
+        for i in range(start, len(self.p.revInfos)):
+            yield self.rev_info(i)
+
+    def __str__(self):
+        s = []
+        s.append("Rev PCB Ext:")
+        for rev_info in self.iter_rev_infos():
+            s.append("  %s" % rev_info)
+        return "\n".join(s)
+
+    def short_desc(self):
+        s = []
+        s.append("Rev PCB Ext:")
+        for rev_info in self.iter_rev_infos():
+            s.append("  %s" % rev_info.short_desc())
+        return "\n".join(s)

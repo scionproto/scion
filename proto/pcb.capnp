@@ -33,6 +33,7 @@ struct PathSegment {
     asms @2 :List(ASMarking);
     exts :group {
         sibra @3 :Sibra.SibraPCBExt;
+        rev @4 :RevInfo.RevPCBExt;
     }
 }
 

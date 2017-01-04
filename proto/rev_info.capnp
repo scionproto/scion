@@ -17,3 +17,7 @@ struct RevInfo {
 	nextRoot @5 :Data;  # Root of the hashtree of next time block (T+1)
 	isdas @6 :UInt32;  # ISD-AS of the revocation issuer.
 }
+
+struct RevPCBExt {
+    revInfos @0 :List(RevInfo);  # List of RevInfo objects.
+}

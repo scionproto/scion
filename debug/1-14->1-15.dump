@@ -1,0 +1,64 @@
+
+SCIONL4Packet(1472B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1472B, IOF idx: 0, HOF idx: 2, next hdr: 17, hdr len: 88B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(1-15 (IPV4) 127.0.0.3)>
+  <SCION-Path(64B)>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-12-13 13:22:25+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 95, egress: 0, mac: 17b70e
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 91, egress: 0, mac: 96aa1c
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 47, mac: 0d7d35
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-12-13 13:22:27+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 38, mac: e7d657
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 54, egress: 0, mac: fb1f41
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 62, egress: 0, mac: 1103a1
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1032 dport: 1030 length: 1384B checksum: 7277
+  Payload:
+    PayloadRaw(1376B): 70696e6720312d3134203c2d3e20312d31350000000000000000000000000000[...]
+
+SCIONL4Packet(1472B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1472B, IOF idx: 4, HOF idx: 6, next hdr: 17, hdr len: 88B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(1-15 (IPV4) 127.0.0.3)>
+  <SCION-Path(64B)>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-12-13 13:22:25+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 95, egress: 0, mac: 17b70e
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 91, egress: 0, mac: 96aa1c
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 47, mac: 0d7d35
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-12-13 13:22:27+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 38, mac: e7d657
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 54, egress: 0, mac: fb1f41
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 62, egress: 0, mac: 1103a1
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1032 dport: 1030 length: 1384B checksum: 7277
+  Payload:
+    PayloadRaw(1376B): 70696e6720312d3134203c2d3e20312d31350000000000000000000000000000[...]
+
+SCIONL4Packet(1472B):
+  CH ver: 0, src type: IPV4, dst type: IPV4, total len: 1472B, IOF idx: 4, HOF idx: 6, next hdr: 17, hdr len: 88B
+  SCIONAddrHdr(16B): Src:<(1-14 (IPV4) 127.0.0.2)> Dst:<(1-15 (IPV4) 127.0.0.3)>
+  <SCION-Path(64B)>
+    <A-Segment>
+      InfoOpaqueField(8B): flags: UP|SHORTCUT|PEER_SHORTCUT, TS: 2016-12-13 13:22:25+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 95, egress: 0, mac: 17b70e
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 91, egress: 0, mac: 96aa1c
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 47, mac: 0d7d35
+    </A-Segment>
+    <B-Segment>
+      InfoOpaqueField(8B): flags: DOWN|SHORTCUT|PEER_SHORTCUT, TS: 2016-12-13 13:22:27+00:00, ISD: 1, hops: 3
+      HopOpaqueField(8B): flags: VERIFY_ONLY, exp_time: 63, ingress: 0, egress: 38, mac: e7d657
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 54, egress: 0, mac: fb1f41
+      HopOpaqueField(8B): flags: XOVER, exp_time: 63, ingress: 62, egress: 0, mac: 1103a1
+    </B-Segment>
+  </SCION-Path>
+  UDP hdr (8B): sport: 1032 dport: 1030 length: 1384B checksum: 7277
+  Payload:
+    PayloadRaw(1376B): 70696e6720312d3134203c2d3e20312d31350000000000000000000000000000[...]
+
