@@ -693,8 +693,8 @@ class PathCombinator(object):
     def _skip_peer(cls, peer_rev, ht_root):  # pragma: no cover
         if not peer_rev:
             return False
-        return (ConnectedHashTree.verify_epoch(peer_rev.p.epoch)
-                and ConnectedHashTree.verify(peer_rev, ht_root))
+        return (ConnectedHashTree.verify_epoch(peer_rev.p.epoch) and
+                ConnectedHashTree.verify(peer_rev, ht_root))
 
     @classmethod
     def tuples_to_full_paths(cls, tuples):

@@ -339,8 +339,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 continue
             for asm in seg.iter_asms():
                 pcbm = asm.pcbm(0)
-                if (rev_info.isd_as() == asm.isd_as()
-                        and rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]):
+                if (rev_info.isd_as() == asm.isd_as() and
+                        rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]):
                     logging.debug("Found revoked interface (%d) in segment "
                                   "%s." % (rev_info.p.ifID,
                                            seg.short_desc()))
