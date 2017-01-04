@@ -27,9 +27,9 @@ check_br_exists() {
     return 0
 }
 
-for br in $@; do
-    check_br_exists $@
-    if [ $? -eq 1 ]; then
+for br in "$@"; do
+
+    if ! check_br_exists "$br"; then
         log "${br} does not exist. Skipping revocation test."
         exit 0
     fi
@@ -46,7 +46,11 @@ fi
 # Bring down routers.
 SLEEP=10
 log "Stopping routers and waiting for ${SLEEP}s."
-./supervisor/supervisor.sh stop $@ > /dev/null
+./supervisor/supervisor.sh stop "$@"
+if [ $? -ne 0 ]; then
+    log "Failed stopping routers."
+    exit 1
+fi
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."

@@ -186,12 +186,13 @@ class TestClientBase(TestBase):
             if not spkt:
                 logging.info("Timeout waiting for response")
                 self._retry_or_stop()
+                continue
+            r_code = self._handle_response(spkt)
+            if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
+                self._stop(success=bool(r_code))
             else:
-                r_code = self._handle_response(spkt)
-                if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
-                    self._stop(success=bool(r_code))
-                else:
-                    self._retry_or_stop(1.0 - recv_dur)
+                # Rate limit retries to 1 request per second.
+                self._retry_or_stop(1.0 - recv_dur)
         self._shutdown()
 
     def _retry_or_stop(self, delay=0.0):
