@@ -737,7 +737,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 to_remove.append(cand.id)
 
             for asm in cand.pcb.iter_asms():
-                if self.verify_asm(asm, rev_info):
+                if self.verify_revocation_for_asm(asm, rev_info):
                     to_remove.append(cand.id)
 
         return to_remove

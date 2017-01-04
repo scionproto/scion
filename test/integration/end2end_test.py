@@ -74,11 +74,7 @@ class E2EClient(TestClientBase):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
-
             self.sd.handle_revocation(rev_info, None)
-            if not self.retries:
-                return ResponseRV.FAILURE
-            self.retries -= 1
             return ResponseRV.RETRY
         else:
             logging.error("Received SCMP error:\n%s", spkt)

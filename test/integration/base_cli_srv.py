@@ -184,23 +184,27 @@ class TestClientBase(TestBase):
             spkt = self._recv()
             recv_dur = time.time() - start
             if not spkt:
-                if self.retries:
-                    logging.info("Timeout waiting for response. Retrying...")
-                    self.retries -= 1
-                    self._get_path(self.api)
-                else:
-                    logging.error("Timeout waiting for response.")
-                    self._stop(success=False)
+                logging.info("Timeout waiting for response")
+                self._retry_or_stop()
             else:
                 r_code = self._handle_response(spkt)
                 if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
                     self._stop(success=bool(r_code))
                 else:
-                    sleep_dur = max(0, 1.0 - recv_dur)
-                    logging.info("Retrying request in %.1fs." % sleep_dur)
-                    time.sleep(sleep_dur)
-                    self._get_path(self.api)
+                    self._retry_or_stop(1.0 - recv_dur)
         self._shutdown()
+
+    def _retry_or_stop(self, delay=0.0):
+        if delay < 0:
+            delay = 0
+        if self.retries:
+            self.retries -= 1
+            logging.info("Retrying in %.1f s... (%d retries remaining)." %
+                         (delay, self.retries))
+            time.sleep(delay)
+            self._get_path(self.api)
+        else:
+            self._stop()
 
     def _stop(self, success=False):
         self.success = success

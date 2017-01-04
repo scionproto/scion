@@ -63,8 +63,8 @@ test/integration/cert_req_test.py -l ERROR
 EOF
 result=$?
 
-run Revocation test/integration/revocation_test.sh
-result=$((${result}+$?))
+run Revocation test/integration/revocation_test.sh as1-11:br1-11-3 as2-26:br2-26-2
+result=$((result+$?))
 
 shutdown
 

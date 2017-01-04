@@ -96,7 +96,8 @@ class SCIONDaemon(SCIONElement):
         }
 
         self.SCMP_PLD_CLASS_MAP = {
-            SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.handle_revocation},
+            SCMPClass.PATH:
+                {SCMPPathClass.REVOKED_IF: self.handle_scmp_revocation},
         }
 
         if run_local_api:
@@ -236,6 +237,10 @@ class SCIONDaemon(SCIONElement):
                 reply.append(struct.pack("!H", link))
         self.send_meta(b"".join(reply), meta)
 
+    def handle_scmp_revocation(self, pld, meta):
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        self.handle_revocation(rev_info, meta)
+
     def handle_revocation(self, rev_info, meta):
         assert isinstance(rev_info, RevocationInfo)
         # Go through all segment databases and remove affected segments.
@@ -260,16 +265,15 @@ class SCIONDaemon(SCIONElement):
         """
 
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            logging.debug("Failed to verify epoch: rev_info epoch %d, "
-                          "current epoch %d." %
-                          (rev_info.p.epoch,
-                           ConnectedHashTree.get_current_epoch()))
+            logging.debug(
+                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             return 0
 
         to_remove = []
         for segment in db(full=True):
             for asm in segment.iter_asms():
-                if self.verify_asm(asm, rev_info):
+                if self.verify_revocation_for_asm(asm, rev_info):
                     logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)

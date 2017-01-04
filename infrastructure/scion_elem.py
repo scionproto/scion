@@ -717,7 +717,7 @@ class SCIONElement(object):
             raise SCIONServiceLookupError("No %s servers found" % qname)
         return results
 
-    def verify_asm(self, asm, rev_info):
+    def verify_revocation_for_asm(self, asm, rev_info):
         # FIXME(siva): We are removing the PCB only if any of up/downstream
         # interfaces are down, and not peer interfaces. If you do it for
         # peer interfaces too, you will end up removing some PCBs which are

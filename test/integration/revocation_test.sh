@@ -19,25 +19,40 @@ log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
 
+check_br_exists() {
+    ./supervisor/supervisor.sh status ${br} | grep -qF ERROR
+    if [ $? -eq 0 ]; then
+        return 1
+    fi
+    return 0
+}
+
+for br in $@; do
+    check_br_exists $@
+    if [ $? -eq 1 ]; then
+        log "${br} does not exist. Skipping revocation test."
+        exit 0
+    fi
+done
+
 export PYTHONPATH=.
 log "Testing connectivity between all the hosts."
 test/integration/end2end_test.py -l ERROR
 result=$?
 if [ ${result} -ne 0 ]; then
-    log "E2E test failed."
+    log "E2E test failed. (${result})"
     exit ${result}
 fi
 # Bring down routers.
 SLEEP=10
 log "Stopping routers and waiting for ${SLEEP}s."
-supervisorctl -s http://localhost:9011 stop as1-11:br1-11-3 > /dev/null
-supervisorctl -s http://localhost:9011 stop as2-26:br2-26-2 > /dev/null
+./supervisor/supervisor.sh stop $@ > /dev/null
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."
 test/integration/end2end_test.py -l ERROR --retries 3
 result=$?
 if [ $result -ne 0 ]; then
-    log "E2E test with failed routers failed."
+    log "E2E test with failed routers failed. (${result})"
 fi
 exit ${result}
