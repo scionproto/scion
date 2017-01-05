@@ -461,7 +461,7 @@ class Router(SCIONElement):
         hof = path.get_hof()
         prev_hof = path.get_hof_ver(ingress=ingress)
         # Check that the interface in the current hop field matches the
-        # interface in the current hop field.
+        # interface in the router.
         if self.interface.if_id not in [hof.ingress_if, hof.egress_if]:
             raise SCIONIFVerificationError(hof)
 
