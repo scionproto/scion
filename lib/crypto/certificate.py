@@ -1,4 +1,4 @@
-# Copyright 2016 ETH Zurich
+# Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -195,7 +195,8 @@ class Certificate(object):
         return cert
 
     def __str__(self, with_signature=True):
-        return json.dumps(self.dict(with_signature), sort_keys=True, indent=4)
+        return json.dumps(self.dict(with_signature), sort_keys=True,
+                          separators=(',', ':'))
 
     def __eq__(self, other):  # pragma: no cover
         return str(self) == str(other)

@@ -1,4 +1,4 @@
-# Copyright 2016 ETH Zurich
+# Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -218,7 +218,7 @@ class TRC(object):
             given key, False otherwise
         :rtype bool
         """
-        # to_json function sorts the keys
+        # to_json function sorts the keys and removes whitespaces and new lines
         msg = self.to_json(with_signatures=False).encode('utf-8')
         if not verify(msg, signature, public_key):
             return False
@@ -242,7 +242,7 @@ class TRC(object):
                 signatures[subject] = base64.b64encode(
                     signature).decode('utf-8')
             trc_dict[SIGNATURES_STRING] = signatures
-        trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
+        trc_str = json.dumps(trc_dict, sort_keys=True, separators=(',', ':'))
         return trc_str
 
     def pack(self, lz4_=False):

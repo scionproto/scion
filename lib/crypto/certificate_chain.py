@@ -164,7 +164,8 @@ class CertificateChain(object):
         for cert in self.certs:
             chain_dict[index] = cert.dict(True)
             index += 1
-        chain_str = json.dumps(chain_dict, sort_keys=True, indent=4)
+        chain_str = json.dumps(chain_dict, sort_keys=True, separators=(',',
+                                                                       ':'))
         return chain_str
 
     def pack(self, lz4_=False):
