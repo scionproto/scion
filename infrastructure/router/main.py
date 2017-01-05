@@ -29,6 +29,7 @@ from Crypto.Protocol.KDF import PBKDF2
 from external.expiring_dict import ExpiringDict
 from infrastructure.router.if_state import InterfaceState
 from infrastructure.router.errors import (
+    SCIONIFVerificationError,
     SCIONInterfaceDownException,
     SCIONOFExpiredError,
     SCIONOFVerificationError,
@@ -459,6 +460,11 @@ class Router(SCIONElement):
         ts = path.get_iof().timestamp
         hof = path.get_hof()
         prev_hof = path.get_hof_ver(ingress=ingress)
+        # Check that the interface in the current hop field matches the
+        # interface in the current hop field.
+        if self.interface.if_id not in [hof.ingress_if, hof.egress_if]:
+            raise SCIONIFVerificationError(hof)
+
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             if not hof.verify_mac(self.of_gen_key, ts, prev_hof):
                 raise SCIONOFVerificationError(hof, prev_hof)
@@ -484,6 +490,10 @@ class Router(SCIONElement):
         ingress = not from_local_as
         try:
             self._process_data(spkt, ingress, drop_on_error)
+        except SCIONIFVerificationError as e:
+            logging.error("Dropping packet due to not matching interfaces.\n"
+                          "Current HOF: %s\nRouter Interface: %d" %
+                          (e.args[0], self.interface.if_id))
         except SCIONOFVerificationError as e:
             logging.error("Dropping packet due to incorrect MAC.\n"
                           "Header:\n%s\nInvalid OF: %s\nPrev OF: %s",

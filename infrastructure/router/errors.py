@@ -20,6 +20,12 @@
 from lib.errors import SCIONBaseError, SCIONBaseException
 
 
+class SCIONIFVerificationError(SCIONBaseError):
+    """
+    The current interface does not match the interface of the border router.
+    """
+
+
 class SCIONOFVerificationError(SCIONBaseError):
     """
     Opaque field MAC verification error.
