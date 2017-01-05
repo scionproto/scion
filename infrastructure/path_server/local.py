@@ -154,3 +154,32 @@ class LocalPathServer(PathServer):
         meta = self.DefaultMeta.from_values(ia=pcb.first_ia(), path=path,
                                             host=SVCType.PS_A)
         self.send_meta(req.copy(), meta)
+
+    def _forward_revocation(self, rev_info, meta):
+        # Inform core ASes if the revoked interface belongs to this AS or
+        # the revocation originates from a different ISD.
+        rev_isd_as = rev_info.isd_as()
+        if (rev_isd_as == self.addr.isd_as or
+                rev_isd_as[0] != self.addr.isd_as[0]):
+            self._send_rev_to_core(rev_info)
+
+    def _send_rev_to_core(self, rev_info):
+        """
+        Forwards a revocation to a core path service.
+
+        :param rev_info: The RevocationInfo object
+        """
+        # Issue revocation to all core ASes excluding self.
+        paths = self.up_segments()
+        if not paths:
+            logging.warning("No paths to core ASes available for forwarding"
+                            "revocation.")
+            return
+        seg = paths[0]
+        core_ia = seg.first_ia()
+        path = seg.get_path(reverse_direction=True)
+        logging.info("Forwarding Revocation to %s using path:\n%s" %
+                     (core_ia, seg.short_desc()))
+        meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
+                                            host=SVCType.PS_A)
+        self.send_meta(rev_info.copy(), meta)

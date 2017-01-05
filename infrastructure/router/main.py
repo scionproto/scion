@@ -39,6 +39,7 @@ from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
+    LINK_PARENT,
     MAX_HOPBYHOP_EXT,
     PATH_SERVICE,
     ROUTER_SERVICE,
@@ -363,8 +364,17 @@ class Router(SCIONElement):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         if rev_info in self.revocations:
             return
-        snames = [BEACON_SERVICE]
-        if self.topology.path_servers:
+        snames = []
+        # Fork revocation to local BS and PS if router is downstream of the
+        # failed interface.
+        if (spkt.addrs.src.isd_as[0] == self.addr.isd_as[0] and
+                self._is_downstream_router()):
+            snames.append(BEACON_SERVICE)
+            if self.topology.path_servers:
+                snames.append(PATH_SERVICE)
+        # Fork revocation to local PS if router is in the AS of the source.
+        elif (spkt.addrs.dst.isd_as == self.addr.isd_as and
+                self.topology.path_servers):
             snames.append(PATH_SERVICE)
 
         self.revocations[rev_info] = True
@@ -378,6 +388,13 @@ class Router(SCIONElement):
             pkt = self._build_packet(addr, dst_port=port,
                                      payload=rev_info.copy())
             self.send(pkt, addr, SCION_UDP_EH_DATA_PORT)
+
+    def _is_downstream_router(self):
+        """
+        Returns True if this router is connected to an upstream router (via an
+        upstream link), False otherwise.
+        """
+        return self.interface.link_type == LINK_PARENT
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
@@ -400,7 +417,7 @@ class Router(SCIONElement):
         if path_incd:
             rev_pkt.path.inc_hof_idx()
         rev_pkt.update()
-        logging.debug("Revocation Packet:\n%s", rev_pkt)
+        logging.debug("Revocation Packet:\n%s" % rev_pkt.short_desc())
         # FIXME(kormat): In some circumstances, this doesn't actually work, as
         # handle_data will try to send the packet to this interface first, and
         # then drop the packet as the interface is down.
@@ -481,7 +498,7 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to invalid header state.\n"
                           "Header:\n%s", spkt)
         except SCIONInterfaceDownException:
-            logging.debug("Dropping packet due to interface being down")
+            logging.info("Dropping packet due to interface being down")
             pass
 
     def _process_data(self, spkt, ingress, drop_on_error):
@@ -621,9 +638,6 @@ class Router(SCIONElement):
         pkt = self._parse_packet(packet)
         if not pkt:
             return
-        if pkt.ext_hdrs:
-            logging.debug("Got packet (from_local_as? %s):\n%s",
-                          from_local_as, pkt)
         try:
             flags = self.handle_extensions(pkt, True, from_local_as)
         except SCMPError as e:
