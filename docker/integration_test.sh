@@ -44,7 +44,7 @@ export -f run log
 
 export PYTHONPATH=.
 
-log "Starting scion (without buildigit ng)"
+log "Starting scion (without building)"
 ./scion.sh run nobuild | grep -v "started"
 log "Scion status:"
 ./scion.sh status || exit 1
