@@ -30,7 +30,7 @@ from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
-from lib.packet.path_mgmt.rev_info import RevPCBExt
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
@@ -177,18 +177,17 @@ class PathSegment(SCIONPayloadBaseProto):
         self.info = InfoOpaqueField(self.p.info)
         self._calc_min_exp()
         self.sibra_ext = None
-        self.rev_ext = None
         if self.is_sibra():
             self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     @classmethod
-    def from_values(cls, info, rev_ext=None,
+    def from_values(cls, info, rev_infos=None,
                     sibra_ext=None):  # pragma: no cover
         p = cls.P_CLS.new_message(info=info.pack())
         if sibra_ext:
             p.exts.sibra = sibra_ext.p
-        if rev_ext:
-            p.exts.rev = rev_ext.p
+        if rev_infos:
+            p.exts.revInfos = [info.pack() for info in rev_infos]
         return cls(p)
 
     def _calc_min_exp(self):
@@ -242,13 +241,18 @@ class PathSegment(SCIONPayloadBaseProto):
         self.p.exts.sibra = ext_p.copy()
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
-    def add_rev_ext(self, ext_p):  # pragma: no cover
-        self.p.exts.rev = ext_p.copy()
-        self.rev_infos = RevPCBExt(self.p.exts.rev)
+    def add_rev_infos(self, rev_infos):  # pragma: no cover
+        """Appends a list of revocations to the PCB."""
+        if not rev_infos:
+            return
+        rev_infos = [info.pack() for info in rev_infos]
+        d = self.p.to_dict()
+        d['exts'].setdefault('revInfos', []).extend(rev_infos)
+        self.p.from_dict(d)
 
     def remove_crypto(self):  # pragma: no cover
         """
-        Remover the signatures and certificates from each AS block.
+        Removes the signatures and certificates from each AS block.
         """
         for asm in self.iter_asms():
             asm.remove_sig()
@@ -330,16 +334,22 @@ class PathSegment(SCIONPayloadBaseProto):
             f |= PSF.SIBRA
         return f
 
+    def rev_info(self, idx):
+        return RevocationInfo.from_raw(self.p.exts.revInfos[idx])
+
+    def iter_rev_infos(self, start=0):
+        for i in range(start, len(self.p.exts.revInfos)):
+            yield self.rev_info(i)
+
     def get_rev_map(self):
         """
         Returns a dict (ISD_AS, IF) -> RevocationInfo, if there are any
         revocations in the PCB extensions, otherwise an empty dict.
         """
         result = {}
-        if self.rev_ext:
-            for rev_info in self.rev_ext.iter_rev_infos():
-                key = (rev_info.isd_as(), rev_info.p.ifID)
-                result[key] = rev_info
+        for rev_info in self.iter_rev_infos():
+            key = (rev_info.isd_as(), rev_info.p.ifID)
+            result[key] = rev_info
 
         return result
 
@@ -359,8 +369,8 @@ class PathSegment(SCIONPayloadBaseProto):
         exts = []
         if self.is_sibra():
             exts.append("  %s" % self.sibra_ext.short_desc())
-        if self.rev_ext:
-            exts.append("  %s" % self.rev_ext.short_desc())
+        for rev_info in self.iter_rev_infos():
+            exts.append("  %s" % rev_info.short_desc())
         desc.append(" > ".join(hops))
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
@@ -376,8 +386,8 @@ class PathSegment(SCIONPayloadBaseProto):
         if self.sibra_ext:
             for line in str(self.sibra_ext).splitlines():
                 s.append("  %s" % line)
-        if self.rev_ext:
-            for line in self.rev_ext.short_desc().splitlines():
+        for rev_info in self.iter_rev_infos():
+            for line in rev_info.short_desc().splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
 

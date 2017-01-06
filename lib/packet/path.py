@@ -502,10 +502,9 @@ class PathCombinator(object):
         up_iof.shortcut = down_iof.shortcut = True
         up_iof.peer = down_iof.peer = True
         paths = []
-        for uph, dph, pm in cls._find_peer_hfs(up_segment.asm(up_index),
-                                               down_segment.asm(down_index),
-                                               up_segment.get_rev_map(),
-                                               down_segment.get_rev_map()):
+        for uph, dph, pm in cls._find_peer_hfs(
+                up_segment.asm(up_index), down_segment.asm(down_index),
+                up_segment.get_rev_map(), down_segment.get_rev_map()):
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
             args = cls._shortcut_path_args(
@@ -675,16 +674,15 @@ class PathCombinator(object):
                         up_hof.ingress_if == down_peer.p.inIF):
                     # Check that there is no valid revocation for the peering
                     # interface.
-                    up_rev = up_peer_rev_map.get((up_ia, up_peer.p.inIF),
-                                                 None)
+                    up_rev = up_peer_rev_map.get((up_ia, up_hof.ingress_if))
                     down_rev = down_peer_rev_map.get(
-                        (down_ia, down_peer.p.inIF), None)
+                        (down_ia, down_hof.ingress_if))
                     if (cls._skip_peer(up_rev, up_asm.p.hashTreeRoot) or
                             cls._skip_peer(down_rev, down_asm.p.hashTreeRoot)):
                         logging.debug("Not using peer %s:%d <-> %s:%d due to"
                                       " revocation." %
-                                      (up_ia, up_peer.p.inIF,
-                                       down_ia, down_peer.p.inIF))
+                                      (up_ia, up_hof.ingress_if,
+                                       down_ia, down_hof.ingress_if))
                         continue
                     hfs.append((up_hof, down_hof, up_peer.p.inMTU))
         return hfs

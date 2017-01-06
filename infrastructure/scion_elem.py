@@ -26,6 +26,7 @@ from collections import defaultdict
 
 # SCION
 from lib.config import Config
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError
 from lib.defines import (
     AS_CONF_FILE,
@@ -715,3 +716,29 @@ class SCIONElement(object):
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)
         return results
+
+    def _verify_revocation_for_asm(self, rev_info, as_marking, verify_all=True):
+        """
+        Verifies a revocation for a given AS marking.
+
+        :param rev_info: The RevocationInfo object.
+        :param as_marking: The ASMarking object.
+        :param verify_all: If true, verify all PCBMs (including peers),
+            otherwise only verify the up/down hop.
+        :return: True, if the revocation successfully revokes an upstream
+            interface in the AS marking, False otherwise.
+        """
+        if rev_info.isd_as() != as_marking.isd_as():
+            return False
+        if rev_info.p.ifID == 0:
+            logging.warning("Received revocation for ifID 0. Ignoring.\n%s" %
+                            rev_info.short_desc())
+            return False
+        if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
+            return False
+        for pcbm in as_marking.iter_pcbms():
+            if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
+                return True
+            if not verify_all:
+                break
+        return False

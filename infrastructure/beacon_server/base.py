@@ -738,28 +738,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 to_remove.append(cand.id)
 
             for asm in cand.pcb.iter_asms():
-                if self._verify_revocation_for_asm(rev_info, asm):
+                if self._verify_revocation_for_asm(rev_info, asm, False):
                     to_remove.append(cand.id)
 
         return to_remove
-
-    def _verify_revocation_for_asm(self, rev_info, as_marking):
-        """
-        Verifies a revocation for a given AS marking.
-
-        :param rev_info: The RevocationInfo object.
-        :param as_marking: The ASMarking object.
-        :return: True, if the revocation successfully revokes an upstream
-            interface in the AS marking, False otherwise.
-        """
-        if rev_info.isd_as() != as_marking.isd_as():
-            return False
-        if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
-            return False
-        pcbm = as_marking.pcbm(0)
-        if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
-            return True
-        return False
 
     def _handle_if_timeouts(self):
         """

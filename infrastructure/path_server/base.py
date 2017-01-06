@@ -34,7 +34,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
-from lib.packet.path_mgmt.rev_info import RevocationInfo, RevPCBExt
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
@@ -163,18 +163,19 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Add if revocation token to segment ID mappings.
         """
+        def add_one_mapping(key):
+            if key not in self.htroot_if2seg:
+                self.htroot_if2seg[key] = set()
+            self.htroot_if2seg[key].add(segment_id)
+
         segment_id = pcb.get_hops_hash()
         with self.htroot_if2seglock:
             for asm in pcb.iter_asms():
-                egress_h = (asm.p.hashTreeRoot, asm.pcbm(0).hof().egress_if)
-                if egress_h not in self.htroot_if2seg:
-                    self.htroot_if2seg[egress_h] = set()
-                self.htroot_if2seg[egress_h].add(segment_id)
-                for pm in asm.iter_pcbms():
-                    ingress_h = (asm.p.hashTreeRoot, pm.hof().ingress_if)
-                    if ingress_h not in self.htroot_if2seg:
-                        self.htroot_if2seg[ingress_h] = set()
-                    self.htroot_if2seg[ingress_h].add(segment_id)
+                hof = asm.pcbm(0).hof()
+                egress_h = (asm.p.hashTreeRoot, hof.egress_if)
+                add_one_mapping(egress_h)
+                ingress_h = (asm.p.hashTreeRoot, hof.ingress_if)
+                add_one_mapping(ingress_h)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -327,11 +328,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _validate_segment(self, seg):
         """
-        Check segment for revoked interfaces.
+        Check segment for revoked upstream/downstream interfaces.
 
         :param seg: The PathSegment object.
-        :return: False, if the path segment contains a revoked hop interface.
-            True otherwise.
+        :return: False, if the path segment contains a revoked upstream/
+            downstream interface (not peer). True otherwise.
         """
         for rev_info in list(self.revocations):
             if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
@@ -376,11 +377,17 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         raise NotImplementedError
 
     def _add_peer_revs(self, segments):
-        """Adds revocations to revoked peering interfaces in segments."""
+        """
+        Adds revocations to revoked peering interfaces in segments.
+
+        :returns: Set with modified segments. Elements of the original set
+            stay untouched.
+        """
         # TODO(shitz): This could be optimized, by keeping a map of (ISD_AS, IF)
         # -> RevocationInfo for peer revocations.
+        modified_segs = set()
         for segment in segments:
-            revs_to_add = []
+            revs_to_add = set()
             for rev_info in list(self.revocations):
                 if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
                     self.revocations.pop(rev_info)
@@ -389,14 +396,19 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     if asm.isd_as() != rev_info.isd_as():
                         continue
                     for pcbm in asm.iter_pcbms(1):
-                        if rev_info.p.ifID in [pcbm.p.inIF, pcbm.p.outIF]:
-                            revs_to_add.append(rev_info.copy())
+                        hof = pcbm.hof()
+                        if rev_info.p.ifID in [hof.ingress_if, hof.egress_if]:
+                            revs_to_add.add(rev_info.copy())
             if revs_to_add:
-                rev_ext = RevPCBExt.from_values(revs_to_add)
-                segment.add_rev_ext(rev_ext)
-                logging.debug("Adding rev PCB ext: %s" % segment.short_desc())
+                new_seg = segment.copy()
+                new_seg.add_rev_infos(list(revs_to_add))
+                logging.debug("Adding revocations to PCB: %s" %
+                              new_seg.short_desc())
+                modified_segs.add(new_seg)
+            else:
+                modified_segs.add(segment)
 
-        return segments
+        return modified_segs
 
     def _handle_waiting_targets(self, pcb):
         """
