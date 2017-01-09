@@ -679,10 +679,10 @@ class PathCombinator(object):
                         (down_ia, down_hof.ingress_if))
                     if (cls._skip_peer(up_rev, up_asm.p.hashTreeRoot) or
                             cls._skip_peer(down_rev, down_asm.p.hashTreeRoot)):
-                        logging.debug("Not using peer %s:%d <-> %s:%d due to"
-                                      " revocation." %
-                                      (up_ia, up_hof.ingress_if,
-                                       down_ia, down_hof.ingress_if))
+                        logging.debug(
+                            "Not using peer %s:%d <-> %s:%d due to revocation."
+                            % (up_ia, up_hof.ingress_if, down_ia,
+                               down_hof.ingress_if))
                         continue
                     hfs.append((up_hof, down_hof, up_peer.p.inMTU))
         return hfs

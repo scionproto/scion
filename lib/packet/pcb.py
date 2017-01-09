@@ -187,6 +187,7 @@ class PathSegment(SCIONPayloadBaseProto):
         if sibra_ext:
             p.exts.sibra = sibra_ext.p
         if rev_infos:
+            p.exts.init("revInfos", len(rev_infos))
             p.exts.revInfos = [info.pack() for info in rev_infos]
         return cls(p)
 

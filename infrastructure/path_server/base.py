@@ -77,6 +77,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
+        self.pcb_cache = ExpiringDict(100, HASHTREE_EPOCH_TIME)
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
@@ -163,19 +164,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Add if revocation token to segment ID mappings.
         """
-        def add_one_mapping(key):
-            if key not in self.htroot_if2seg:
-                self.htroot_if2seg[key] = set()
-            self.htroot_if2seg[key].add(segment_id)
-
         segment_id = pcb.get_hops_hash()
         with self.htroot_if2seglock:
             for asm in pcb.iter_asms():
                 hof = asm.pcbm(0).hof()
                 egress_h = (asm.p.hashTreeRoot, hof.egress_if)
-                add_one_mapping(egress_h)
+                self.htroot_if2seg.setdefault(egress_h, set()).add(segment_id)
                 ingress_h = (asm.p.hashTreeRoot, hof.ingress_if)
-                add_one_mapping(ingress_h)
+                self.htroot_if2seg.setdefault(ingress_h, set()).add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -211,6 +207,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object.
         """
         assert isinstance(rev_info, RevocationInfo)
+        if not self._validate_revocation(rev_info):
+            return
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD.")
             return

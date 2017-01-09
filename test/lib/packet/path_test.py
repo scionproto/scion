@@ -944,7 +944,8 @@ class TestPathCombinatorFindPeerHfs(object):
     def test_with_revocation(self, skip_peer):
         up_pcbms, down_pcbms = self._mk_pcbms()
         p = create_mock_full({"hashTreeRoot": b"1234"})
-        up_asm = create_mock_full({"isd_as()": "1-1", "iter_pcbms()": up_pcbms,
+        up_asm = create_mock_full({"isd_as()": "1-1",
+                                   "iter_pcbms()": up_pcbms,
                                    "p": p})
         down_asm = create_mock_full({"isd_as()": "2-1",
                                      "iter_pcbms()": down_pcbms,
@@ -965,9 +966,8 @@ class TestPathCombinatorFindPeerHfs(object):
                                               down_rev_map)
         # Tests
         ntools.eq_(peers, [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500)])
-        skip_peer.assert_has_calls([call(None, b"1234"),
-                                    call(up_peer_rev, b"1234")],
-                                   any_order=True)
+        skip_peer.assert_has_calls(
+            [call(None, b"1234"), call(up_peer_rev, b"1234")], any_order=True)
 
 
 if __name__ == "__main__":

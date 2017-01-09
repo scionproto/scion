@@ -730,10 +730,6 @@ class SCIONElement(object):
         """
         if rev_info.isd_as() != as_marking.isd_as():
             return False
-        if rev_info.p.ifID == 0:
-            logging.warning("Received revocation for ifID 0. Ignoring.\n%s" %
-                            rev_info.short_desc())
-            return False
         if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
             return False
         for pcbm in as_marking.iter_pcbms():
@@ -742,3 +738,17 @@ class SCIONElement(object):
             if not verify_all:
                 break
         return False
+
+    def _validate_revocation(self, rev_info):
+        """
+        Validates a revocation.
+
+        :param rev_info: The RevocationInfo object.
+        :returns: True, if the revocation should be processed further, False
+            otherwise.
+        """
+        if rev_info.p.ifID == 0:
+            logging.warning("Received revocation for ifID 0. Ignoring.\n%s" %
+                            rev_info.short_desc())
+            return False
+        return True
