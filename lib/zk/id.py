@@ -35,9 +35,9 @@ class ZkID(Cerealizable):  # pragma: no cover
         p = cls.P_CLS.new_message(isdas=int(isd_as), id=id_)
         p.init("addrs", len(addr_infos))
         for i, (addr, port) in enumerate(addr_infos):
-            p.addrs[0].type = addr.TYPE
-            p.addrs[0].addr = addr.pack()
-            p.addrs[0].port = port
+            p.addrs[i].type = addr.TYPE
+            p.addrs[i].addr = addr.pack()
+            p.addrs[i].port = port
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
