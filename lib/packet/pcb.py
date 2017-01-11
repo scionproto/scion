@@ -188,7 +188,7 @@ class PathSegment(SCIONPayloadBaseProto):
             p.exts.sibra = sibra_ext.p
         if rev_infos:
             p.exts.init("revInfos", len(rev_infos))
-            p.exts.revInfos = [info.pack() for info in rev_infos]
+            p.exts.revInfos = rev_infos
         return cls(p)
 
     def _calc_min_exp(self):
@@ -243,13 +243,32 @@ class PathSegment(SCIONPayloadBaseProto):
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     def add_rev_infos(self, rev_infos):  # pragma: no cover
-        """Appends a list of revocations to the PCB."""
+        """Appends a list of revocations to the PCB. Replaces existing
+        revocations with newer ones."""
         if not rev_infos:
             return
-        rev_infos = [info.pack() for info in rev_infos]
-        d = self.p.to_dict()
-        d['exts'].setdefault('revInfos', []).extend(rev_infos)
-        self.p.from_dict(d)
+        existing = []
+        idxs_to_ignore = set()
+        for i in range(len(self.p.exts.revInfos)):
+            orphan = self.p.exts.revInfos.disown(i)
+            info_p = orphan.get()
+            for j, new_info in enumerate(rev_infos):
+                if (new_info.p.isdas == info_p.isdas and
+                        new_info.p.ifID == info_p.ifID):
+                        if new_info.p.epoch <= info_p.epoch:
+                            existing.append(orphan)
+                            idxs_to_ignore.add(j)
+                else:
+                    existing.append(orphan)
+        # Remove revocations for which we already have a newer one.
+        rev_infos = [info for i, info in enumerate(rev_infos)
+                     if i not in idxs_to_ignore]
+        self.p.exts.init("revInfos", len(existing) + len(rev_infos))
+        for i, info in enumerate(existing):
+            self.p.exts.revInfos.adopt(i, info)
+        n_existing = len(existing)
+        for i, info in enumerate(rev_infos):
+            self.p.exts.revInfos[n_existing + i] = info.p
 
     def remove_crypto(self):  # pragma: no cover
         """
@@ -336,7 +355,7 @@ class PathSegment(SCIONPayloadBaseProto):
         return f
 
     def rev_info(self, idx):
-        return RevocationInfo.from_raw(self.p.exts.revInfos[idx])
+        return RevocationInfo(self.p.exts.revInfos[idx])
 
     def iter_rev_infos(self, start=0):
         for i in range(start, len(self.p.exts.revInfos)):
