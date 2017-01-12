@@ -130,8 +130,7 @@ class Certificate(object):
         """
         Checks if the signature can be verified with the given public key
         """
-        msg = base64.b64encode(self.to_json(with_signature=False).
-                               encode('utf-8'))
+        msg = self.to_json(with_signature=False).encode('utf-8')
         return verify(msg, signature, public_key)
 
     def dict(self, with_signature):
@@ -152,8 +151,7 @@ class Certificate(object):
         return cert_dict
 
     def sign(self, iss_priv_key):
-        data = base64.b64encode(self.to_json(with_signature=False).
-                                encode('utf-8'))
+        data = self.to_json(with_signature=False).encode('utf-8')
         self.signature_raw = sign(data, iss_priv_key)
         self.signature = base64.b64encode(self.signature_raw).decode('utf-8')
 
@@ -197,11 +195,23 @@ class Certificate(object):
         return cert
 
     def to_json(self, with_signature=True):
-        return json.dumps(self.dict(with_signature), sort_keys=True,
-                          separators=(',', ':'))
+        d = self.dict(with_signature)
+        json_string = '{'
+        for k in sorted(self.dict(with_signature)):
+            json_string += '"' + str(k) + '"' + ':'
+            if self.FIELDS_MAP[k][1] in (str, ):
+                json_string += str(base64.b64encode(d[k].encode('utf-8')))
+            elif self.FIELDS_MAP[k][1] in (bool, ):
+                json_string += str(d[k]).lower()
+            else:
+                json_string += str(d[k])
+            json_string += ','
+        json_string = json_string[:-1]
+        json_string += '}'
+        return json_string
 
     def __str__(self):
-        return self.to_json(with_signature=True)
+        return json.dumps(self.dict(with_signature=True), separators=(',', ':'))
 
     def __eq__(self, other):  # pragma: no cover
         return str(self) == str(other)
