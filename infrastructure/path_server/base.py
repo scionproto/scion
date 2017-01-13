@@ -385,22 +385,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :returns: Set with modified segments. Elements of the original set
             stay untouched.
         """
-        def add_seg_to_list(seg, seg_list):
-            to_remove = None
-            for existing in seg_list:
-                if (seg.p.isdas == existing.p.isdas and
-                        seg.p.ifID == existing.p.ifID):
-                    if existing.p.epoch < seg.p.epoch:
-                        to_remove = existing
-                        break
-                    return
-            if to_remove:
-                seg_list.remove(to_remove)
-            seg_list.append(seg)
-
         # TODO(shitz): This could be optimized, by keeping a map of (ISD_AS, IF)
         # -> RevocationInfo for peer revocations.
         modified_segs = set()
+        current_epoch = ConnectedHashTree.get_current_epoch()
         for segment in segments:
             seg_id = segment.get_hops_hash()
             if seg_id in self.pcb_cache:
@@ -409,9 +397,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                               cached_seg.short_desc())
                 modified_segs.add(cached_seg)
                 continue
-            revs_to_add = []
+            revs_to_add = set()
             for rev_info in list(self.revocations):
-                if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+                if rev_info.p.epoch != current_epoch:
                     self.revocations.pop(rev_info)
                     continue
                 for asm in segment.iter_asms():
@@ -420,10 +408,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     for pcbm in asm.iter_pcbms(1):
                         hof = pcbm.hof()
                         if rev_info.p.ifID in [hof.ingress_if, hof.egress_if]:
-                            add_seg_to_list(rev_info.copy(), revs_to_add)
+                            revs_to_add.add(rev_info.copy())
             if revs_to_add:
                 new_seg = segment.copy()
-                new_seg.add_rev_infos(revs_to_add)
+                new_seg.add_rev_infos(list(revs_to_add))
                 logging.debug("Adding revocations to PCB: %s" %
                               new_seg.short_desc())
                 self.pcb_cache[seg_id] = new_seg
