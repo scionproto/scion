@@ -63,7 +63,7 @@ cmd_zlog() {
 }
 
 cmd_golang() {
-    echo "Installing go from apt"
+    echo "Installing go from apt PATH=$PATH"
     # Include git, as it's needed for fetching go deps. Relevant for
     # testing building Go code inside docker.
     sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang git
