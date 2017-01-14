@@ -26,6 +26,7 @@ import capnp  # noqa
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -188,7 +189,8 @@ class PathSegment(SCIONPayloadBaseProto):
             p.exts.sibra = sibra_ext.p
         if rev_infos:
             p.exts.init("revInfos", len(rev_infos))
-            p.exts.revInfos = rev_infos
+            for i, info in enumerate(rev_infos):
+                p.exts.revInfos[i] = info.copy()
         return cls(p)
 
     def _calc_min_exp(self):
@@ -243,29 +245,26 @@ class PathSegment(SCIONPayloadBaseProto):
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     def add_rev_infos(self, rev_infos):  # pragma: no cover
-        """Appends a list of revocations to the PCB. Replaces existing
-        revocations with newer ones."""
+        """
+        Appends a list of revocations to the PCB. Replaces existing
+        revocations with newer ones.
+        """
         if not rev_infos:
             return
-        existing = []
-        idxs_to_ignore = set()
+        existing = {}
+        current_epoch = ConnectedHashTree.get_current_epoch()
         for i in range(len(self.p.exts.revInfos)):
             orphan = self.p.exts.revInfos.disown(i)
             info_p = orphan.get()
-            for j, new_info in enumerate(rev_infos):
-                if (new_info.p.isdas == info_p.isdas and
-                        new_info.p.ifID == info_p.ifID):
-                        if new_info.p.epoch <= info_p.epoch:
-                            existing.append(orphan)
-                            idxs_to_ignore.add(j)
-                else:
-                    existing.append(orphan)
+            if info_p.epoch >= current_epoch:
+                existing[(info_p.isdas, info_p.ifID)] = orphan
         # Remove revocations for which we already have a newer one.
-        rev_infos = [info for i, info in enumerate(rev_infos)
-                     if i not in idxs_to_ignore]
+        rev_infos = [info for info in rev_infos
+                     if info.p.epoch >= current_epoch and
+                     (info.p.isdas, info.p.ifID) not in existing]
         self.p.exts.init("revInfos", len(existing) + len(rev_infos))
-        for i, info in enumerate(existing):
-            self.p.exts.revInfos.adopt(i, info)
+        for i, orphan in enumerate(existing.values()):
+            self.p.exts.revInfos.adopt(i, orphan)
         n_existing = len(existing)
         for i, info in enumerate(rev_infos):
             self.p.exts.revInfos[n_existing + i] = info.p

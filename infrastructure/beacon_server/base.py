@@ -666,7 +666,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._process_revocation(rev_info)
 
     def _handle_revocation(self, rev_info, meta):
-        logging.info("Received revocation via UDP:\n%s", rev_info.short_desc())
+        logging.info("Received revocation via TCP/UDP:\n%s",
+                     rev_info.short_desc())
         if not self._validate_revocation(rev_info):
             return
         self._process_revocation(rev_info)
