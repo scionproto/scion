@@ -63,8 +63,8 @@ cmd_zlog() {
 }
 
 cmd_golang() {
-    if ! check_path go git; then
-        echo "Installing go from apt"
+    if ! check_path go git || ! go version | grep -q ' go1\.6\>'; then
+        echo "Installing go 1.6 from apt"
         # Include git, as it's needed for fetching go deps. Relevant for
         # testing building Go code inside docker.
         sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang golang-1.6 git
