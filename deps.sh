@@ -63,10 +63,12 @@ cmd_zlog() {
 }
 
 cmd_golang() {
-    echo "Installing go from apt PATH=$PATH"
-    # Include git, as it's needed for fetching go deps. Relevant for
-    # testing building Go code inside docker.
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang golang-1.6 git
+    if ! check_path go git; then
+        echo "Installing go from apt"
+        # Include git, as it's needed for fetching go deps. Relevant for
+        # testing building Go code inside docker.
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends golang golang-1.6 git
+    fi
     if ! go version | grep -q ' go1\.6\>'; then
         echo "ERROR: Unsupported go version ($(type -p go)) - requires go 1.6: $(go version)"
         exit 1
