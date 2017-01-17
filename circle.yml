@@ -19,7 +19,7 @@ checkout:
         echo '
         export GOPATH=$GOPATH:$HOME/go
         export GOBIN=${GOPATH%%:*}/bin
-        export PATH=$GOBIN:$PATH
+        export PATH=/usr/lib/go-1.6/bin:$GOBIN:$PATH
         ' >> ~/.circlerc
       - git submodule sync
       - git submodule update --init sub/web sub/lwip sub/lwip-contrib/
