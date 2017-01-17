@@ -243,6 +243,8 @@ class SCIONDaemon(SCIONElement):
 
     def handle_revocation(self, rev_info, meta):
         assert isinstance(rev_info, RevocationInfo)
+        if not self._validate_revocation(rev_info):
+            return
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
         removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
@@ -273,7 +275,7 @@ class SCIONDaemon(SCIONElement):
         to_remove = []
         for segment in db(full=True):
             for asm in segment.iter_asms():
-                if self.verify_revocation_for_asm(asm, rev_info):
+                if self._verify_revocation_for_asm(rev_info, asm):
                     logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)

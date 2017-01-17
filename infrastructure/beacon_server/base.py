@@ -662,11 +662,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        logging.info("Received revocation via SCMP:\n%s", rev_info)
+        logging.info("Received revocation via SCMP:\n%s", rev_info.short_desc())
         self._process_revocation(rev_info)
 
     def _handle_revocation(self, rev_info, meta):
-        logging.info("Received revocation via UDP:\n%s", rev_info)
+        logging.info("Received revocation via TCP/UDP:\n%s",
+                     rev_info.short_desc())
+        if not self._validate_revocation(rev_info):
+            return
         self._process_revocation(rev_info)
 
     def handle_rev_objs(self):
@@ -733,11 +736,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             # matches that in the rev_info
             root_verify = ConnectedHashTree.verify(
                             rev_info, self._get_ht_root())
-            if cand.pcb.p.ifID == rev_info.p.ifID and root_verify:
+            if (self.addr.isd_as == rev_info.isd_as() and
+                    cand.pcb.p.ifID == rev_info.p.ifID and root_verify):
                 to_remove.append(cand.id)
 
             for asm in cand.pcb.iter_asms():
-                if self.verify_revocation_for_asm(asm, rev_info):
+                if self._verify_revocation_for_asm(rev_info, asm, False):
                     to_remove.append(cand.id)
 
         return to_remove
