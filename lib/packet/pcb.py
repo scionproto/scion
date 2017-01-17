@@ -259,14 +259,16 @@ class PathSegment(SCIONPayloadBaseProto):
             if info_p.epoch >= current_epoch:
                 existing[(info_p.isdas, info_p.ifID)] = orphan
         # Remove revocations for which we already have a newer one.
-        rev_infos = [info for info in rev_infos
-                     if info.p.epoch >= current_epoch and
-                     (info.p.isdas, info.p.ifID) not in existing]
-        self.p.exts.init("revInfos", len(existing) + len(rev_infos))
+        filtered = []
+        for info in rev_infos:
+            if (info.p.epoch >= current_epoch and
+                    (info.p.isdas, info.p.ifID) not in existing):
+                filtered.append(info)
+        self.p.exts.init("revInfos", len(existing) + len(filtered))
         for i, orphan in enumerate(existing.values()):
             self.p.exts.revInfos.adopt(i, orphan)
         n_existing = len(existing)
-        for i, info in enumerate(rev_infos):
+        for i, info in enumerate(filtered):
             self.p.exts.revInfos[n_existing + i] = info.p
 
     def remove_crypto(self):  # pragma: no cover
