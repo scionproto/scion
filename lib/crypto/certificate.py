@@ -42,7 +42,7 @@ class Certificate(object):
     """
     The Certificate class parses a certificate of an AS and stores such
     information for further use.
-    
+
     :ivar str subject:
         the certificate subject. It can either be an AS, an email address or a
         domain address.
