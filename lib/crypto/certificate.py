@@ -42,7 +42,6 @@ class Certificate(object):
     """
     The Certificate class parses a certificate of an AS and stores such
     information for further use.
-
     :ivar str subject:
         the certificate subject. It can either be an AS, an email address or a
         domain address.
@@ -102,7 +101,6 @@ class Certificate(object):
     def verify(self, subject, issuer_cert):
         """
         Perform one step verification.
-
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
@@ -130,13 +128,11 @@ class Certificate(object):
         """
         Checks if the signature can be verified with the given public key
         """
-        msg = self.to_json(with_signature=False).encode('utf-8')
-        return verify(msg, signature, public_key)
+        return verify(self._sig_input(), signature, public_key)
 
-    def dict(self, with_signature):
+    def dict(self, with_signature=True):
         """
         Return the certificate information.
-
         :param bool with_signature:
             tells whether the signature must also be included in the returned
             data.
@@ -151,7 +147,7 @@ class Certificate(object):
         return cert_dict
 
     def sign(self, iss_priv_key):
-        data = self.to_json(with_signature=False).encode('utf-8')
+        data = self._sig_input()
         self.signature_raw = sign(data, iss_priv_key)
         self.signature = base64.b64encode(self.signature_raw).decode('utf-8')
 
@@ -160,7 +156,6 @@ class Certificate(object):
                     subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
-
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
@@ -194,24 +189,19 @@ class Certificate(object):
         cert.sign(iss_priv_key)
         return cert
 
-    def to_json(self, with_signature=True):
-        d = self.dict(with_signature)
-        json_string = '{'
-        for k in sorted(self.dict(with_signature)):
-            json_string += '"' + str(k) + '"' + ':'
-            if self.FIELDS_MAP[k][1] in (str, ):
-                json_string += str(base64.b64encode(d[k].encode('utf-8')))
-            elif self.FIELDS_MAP[k][1] in (bool, ):
-                json_string += str(d[k]).lower()
-            else:
-                json_string += str(d[k])
-            json_string += ','
-        json_string = json_string[:-1]
-        json_string += '}'
-        return json_string
+    def _sig_input(self):
+        d = self.dict(False)
+        for k in d:
+            if self.FIELDS_MAP[k][1] == str:
+                d[k] = base64.b64encode(d[k].encode('utf-8')).decode('utf-8')
+        j = json.dumps(d, sort_keys=True, separators=(',', ':'))
+        return j.encode('utf-8')
+
+    def to_json(self, indent=4):
+        return json.dumps(self.dict(), sort_keys=True, indent=indent)
 
     def __str__(self):
-        return json.dumps(self.dict(with_signature=True), separators=(',', ':'))
+        return self.to_json(None)
 
     def __eq__(self, other):  # pragma: no cover
         return str(self) == str(other)

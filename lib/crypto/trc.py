@@ -26,7 +26,7 @@ import time
 import lz4
 
 # SCION
-from lib.crypto.asymcrypto import verify
+from lib.crypto.asymcrypto import verify, sign
 from lib.crypto.certificate import Certificate
 from lib.packet.scion_addr import ISD_AS
 
@@ -178,6 +178,11 @@ class TRC(object):
         trc.signatures = signatures
         return trc
 
+    def sign(self, isd_as, sig_priv_key):
+        data = self._sig_input()
+        self.signatures[isd_as] = base64.b64encode(sign(data, sig_priv_key)). \
+            decode('utf-8')
+
     def verify(self, oldTRC):
         """
         Perform signature verification for core signatures as defined
@@ -218,11 +223,18 @@ class TRC(object):
             given key, False otherwise
         :rtype bool
         """
-        # to_json function sorts the keys and removes whitespaces and new lines
-        msg = self.to_json(with_signatures=False).encode('utf-8')
-        if not verify(msg, signature, public_key):
+        if not verify(self._sig_input(), signature, public_key):
             return False
         return True
+
+    def _sig_input(self):
+        d = self.dict(False)
+        for k in d:
+            if self.FIELDS_MAP[k][1] == str:
+                d[k] = base64.b64encode(d[k].encode('utf-8')).decode('utf-8')
+        # TODO: iterate dictionaries and encode strings
+        j = json.dumps(d, sort_keys=True, separators=(',', ':'))
+        return j.encode('utf-8')
 
     def to_json(self, with_signatures=True):
         """
@@ -242,7 +254,7 @@ class TRC(object):
                 signatures[subject] = base64.b64encode(
                     signature).decode('utf-8')
             trc_dict[SIGNATURES_STRING] = signatures
-        trc_str = json.dumps(trc_dict, sort_keys=True, separators=(',', ':'))
+        trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
 
     def pack(self, lz4_=False):
@@ -251,8 +263,8 @@ class TRC(object):
             return lz4.dumps(ret)
         return ret
 
-    def __str__(self, with_signatures=True):
-        return self.to_json(with_signatures)
+    def __str__(self):
+        return self.to_json(True)
 
     def __eq__(self, other):  # pragma: no cover
         return str(self) == str(other)
