@@ -156,7 +156,7 @@ class Certificate(object):
                     subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
-        
+
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
