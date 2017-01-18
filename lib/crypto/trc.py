@@ -232,19 +232,17 @@ class TRC(object):
         for k in d:
             if self.FIELDS_MAP[k][1] == str:
                 d[k] = base64.b64encode(d[k].encode('utf-8')).decode('utf-8')
-        # Encode strings in dicts first in utf8 then in base64
-        d[CORE_ASES_STRING] = self._encode_dict(d[CORE_ASES_STRING])
-        d[ROOT_CAS_STRING] = self._encode_dict(d[ROOT_CAS_STRING])
-        d[LOGS_STRING] = self._encode_dict(d[LOGS_STRING])
+            elif self.FIELDS_MAP[k][1] == dict:
+                d[k] = self._encode_dict(d[k])
         j = json.dumps(d, sort_keys=True, separators=(',', ':'))
         return j.encode('utf-8')
 
     def _encode_dict(self, dict_):
         encoded_dict = {}
         for key_ in dict_:
-            str_ = str(dict_[key_])
-            encoded_dict[key_] = base64.b64encode(
-                str_.encode('utf-8')).decode('utf-8')
+            if type(dict_[key_]) is str:
+                encoded_dict[key_] = base64.b64encode(
+                    dict_[key_].encode('utf-8')).decode('utf-8')
         return encoded_dict
 
     def to_json(self, with_signatures=True):
