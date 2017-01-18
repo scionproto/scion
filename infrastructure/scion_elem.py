@@ -717,14 +717,38 @@ class SCIONElement(object):
             raise SCIONServiceLookupError("No %s servers found" % qname)
         return results
 
-    def verify_asm(self, asm, rev_info):
-        # FIXME(siva): We are removing the PCB only if any of up/downstream
-        # interfaces are down, and not peer interfaces. If you do it for
-        # peer interfaces too, you will end up removing some PCBs which are
-        # still valid but contain that peer interface. So we need to add an
-        # extension to the PCBMarking to identify which peer interfaces are
-        # down
-        hof = asm.pcbm(0).hof()
-        root_verify = ConnectedHashTree.verify(rev_info, asm.p.hashTreeRoot)
-        return ((rev_info.p.ifID in [hof.ingress_if, hof.egress_if]) and
-                root_verify)
+    def _verify_revocation_for_asm(self, rev_info, as_marking, verify_all=True):
+        """
+        Verifies a revocation for a given AS marking.
+
+        :param rev_info: The RevocationInfo object.
+        :param as_marking: The ASMarking object.
+        :param verify_all: If true, verify all PCBMs (including peers),
+            otherwise only verify the up/down hop.
+        :return: True, if the revocation successfully revokes an upstream
+            interface in the AS marking, False otherwise.
+        """
+        if rev_info.isd_as() != as_marking.isd_as():
+            return False
+        if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
+            return False
+        for pcbm in as_marking.iter_pcbms():
+            if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
+                return True
+            if not verify_all:
+                break
+        return False
+
+    def _validate_revocation(self, rev_info):
+        """
+        Validates a revocation.
+
+        :param rev_info: The RevocationInfo object.
+        :returns: True, if the revocation should be processed further, False
+            otherwise.
+        """
+        if rev_info.p.ifID == 0:
+            logging.warning("Received revocation for ifID 0. Ignoring.\n%s" %
+                            rev_info.short_desc())
+            return False
+        return True

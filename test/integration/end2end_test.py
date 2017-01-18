@@ -22,8 +22,11 @@ import logging
 # SCION
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
+from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.types import L4Proto
 from test.integration.base_cli_srv import (
+    ResponseRV,
     setup_main,
     TestClientBase,
     TestClientServerBase,
@@ -46,29 +49,36 @@ class E2EClient(TestClientBase):
 
     def _handle_response(self, spkt):
         if spkt.l4_hdr.TYPE == L4Proto.SCMP:
-            self._handle_scmp(spkt)
-            return False
+            return self._handle_scmp(spkt)
         logging.debug("Received:\n%s", spkt)
         if len(spkt) != self.path.mtu:
             logging.error("Packet length (%sB) != MTU (%sB)",
                           len(spkt), self.path.mtu)
-            return False
+            return ResponseRV.FAILURE
         payload = spkt.get_payload()
         pong = self._gen_max_pld(b"pong " + self.data, len(payload))
         if payload == pong:
             logging.debug('%s:%d: pong received.', self.addr.host,
                           self.sock.port)
-            self.success = True
-            self.finished.set()
-            return True
+            return ResponseRV.SUCCESS
         logging.error(
             "Unexpected payload:\n  Received (%dB): %s\n  "
             "Expected (%dB): %s", len(payload), payload, len(pong), pong)
         return False
 
     def _handle_scmp(self, spkt):
+        scmp_hdr = spkt.l4_hdr
         spkt.parse_payload()
-        logging.error("Received SCMP error:\n%s", spkt)
+        if (scmp_hdr.class_ == SCMPClass.PATH and
+                scmp_hdr.type == SCMPPathClass.REVOKED_IF):
+            scmp_pld = spkt.get_payload()
+            rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
+            logging.info("Received revocation for IF %d." % rev_info.p.ifID)
+            self.sd.handle_revocation(rev_info, None)
+            return ResponseRV.RETRY
+        else:
+            logging.error("Received SCMP error:\n%s", spkt)
+            return ResponseRV.FAILURE
 
 
 class E2EServer(TestServerBase):
@@ -108,12 +118,14 @@ class TestEnd2End(TestClientServerBase):
         return E2EServer(self._run_sciond(addr), data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return E2EClient(self._run_sciond(src), data, finished, src, dst, port)
+        return E2EClient(self._run_sciond(src), data, finished, src, dst, port,
+                         retries=self.retries)
 
 
 def main():
     args, srcs, dsts = setup_main("end2end")
-    TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
+    TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs,
+                retries=args.retries).run()
 
 
 if __name__ == "__main__":

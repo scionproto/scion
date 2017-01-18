@@ -35,6 +35,7 @@ from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import PathCombinator, SCIONPath
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -49,7 +50,6 @@ from lib.types import (
     PayloadClass,
 )
 from lib.util import SCIONTime
-
 SCIOND_API_SOCKDIR = "/run/shm/sciond/"
 
 
@@ -96,7 +96,8 @@ class SCIONDaemon(SCIONElement):
         }
 
         self.SCMP_PLD_CLASS_MAP = {
-            SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.handle_revocation},
+            SCMPClass.PATH:
+                {SCMPPathClass.REVOKED_IF: self.handle_scmp_revocation},
         }
 
         if run_local_api:
@@ -236,13 +237,20 @@ class SCIONDaemon(SCIONElement):
                 reply.append(struct.pack("!H", link))
         self.send_meta(b"".join(reply), meta)
 
-    def handle_revocation(self, rev_info, meta):
-        logging.debug("Received revocation:\n%s", rev_info)
+    def handle_scmp_revocation(self, pld, meta):
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        self.handle_revocation(rev_info, meta)
 
+    def handle_revocation(self, rev_info, meta):
+        assert isinstance(rev_info, RevocationInfo)
+        if not self._validate_revocation(rev_info):
+            return
         # Go through all segment databases and remove affected segments.
-        self._remove_revoked_pcbs(self.up_segments, rev_info)
-        self._remove_revoked_pcbs(self.core_segments, rev_info)
-        self._remove_revoked_pcbs(self.down_segments, rev_info)
+        removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
+        removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
+        removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
+        logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
+                     (removed_up, removed_core, removed_down))
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
@@ -259,12 +267,16 @@ class SCIONDaemon(SCIONElement):
         """
 
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            return
+            logging.debug(
+                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+            return 0
 
         to_remove = []
-        for segment in db():
-            for asm in segment.pcb.iter_asms():
-                if self.verify_asm(asm, rev_info):
+        for segment in db(full=True):
+            for asm in segment.iter_asms():
+                if self._verify_revocation_for_asm(rev_info, asm):
+                    logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 

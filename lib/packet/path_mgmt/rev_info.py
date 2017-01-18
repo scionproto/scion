@@ -80,3 +80,7 @@ class RevocationInfo(PathMgmtPayloadBase):
 
     def __hash__(self):
         return hash(self.cmp_str())
+
+    def short_desc(self):
+        return "RevInfo: %s IF: %d EPOCH: %d" % (self.isd_as(), self.p.ifID,
+                                                 self.p.epoch)
