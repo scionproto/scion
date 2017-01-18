@@ -43,9 +43,7 @@ class Certificate(object):
     The Certificate class parses a certificate of an AS and stores such
     information for further use.
 
-    :ivar str subject:
-        the certificate subject. It can either be an AS, an email address or a
-        domain address.
+    :ivar str subject: the certificate subject.
     :ivar str issuer: the certificate issuer. It can only be an AS.
     :ivar int version: the certificate version.
     :ivar str comment: is an arbitrary and optional string used by the subject
@@ -58,9 +56,8 @@ class Certificate(object):
     :ivar bytes subject_enc_key: the public key used for decryption.
     :ivar str sign_algorithm: the algorithm used to sign the certificate.
     :ivar bytes subject_sig_key: the public key used for signing.
-    :ivar bytes signature:
-        the certificate signature. It is computed over the rest of the
-        certificate.
+    :ivar bytes signature: the certificate signature. It is computed over the
+        rest of the certificate.
     :cvar int validity_period:
         default validity period (in real seconds) of a new certificate.
     :cvar str sign_algortihm: default algorithm used to sign a certificate.
@@ -102,6 +99,7 @@ class Certificate(object):
     def verify(self, subject, issuer_cert):
         """
         Perform one step verification.
+
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
@@ -134,6 +132,7 @@ class Certificate(object):
     def dict(self, with_signature=True):
         """
         Return the certificate information.
+
         :param bool with_signature:
             tells whether the signature must also be included in the returned
             data.
@@ -157,6 +156,7 @@ class Certificate(object):
                     subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
+        
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
