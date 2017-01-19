@@ -254,13 +254,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         trcs, certs = pcb.get_trcs_certs()
         # Find missing TRCs and certificates
-<<<<<<< HEAD
         self._get_missing_TRCs(trcs, meta)
         self._get_missing_certs(certs, meta)
-=======
-        self._get_missing_TRCs(trcs)
-        self._get_missing_certs(certs)
->>>>>>> cec88bb8e06c8ec076012bb503129afce6115aeb
         self.incoming_pcbs.append(pcb)
         meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
@@ -270,18 +265,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
-<<<<<<< HEAD
     def _get_missing_TRCs(self, trc_versions, meta):
-=======
-    def _get_missing_TRCs(self, trc_versions):
->>>>>>> cec88bb8e06c8ec076012bb503129afce6115aeb
+
         """
         Check which intermediate trcs are missing and add them to the queue.
 
         :returns: the missing TRCs versions
         :rtype dict
         """
-<<<<<<< HEAD
         for isd_as in trc_versions.keys():
             # Get TRC with highest version
             isd_ = isd_as.split("-",1)[0]
@@ -293,18 +284,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.missing_TRCs.append((isd_, ver, meta))
 
     def _get_missing_certs(self, certificates_versions, meta):
-=======
-        for isd_ in trc_versions.keys():
-            # Get TRC with highest version
-            highest_ver_TRC = self.trust_store.get_trc(int(isd_))
-            if highest_ver_TRC is None:
-                self.missing_TRCs.append((isd_, trc_versions[isd_]))
-                continue
-            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_]):
-                self.missing_TRCs.append((isd_, ver))
-
-    def _get_missing_certs(self, certificates_versions):
->>>>>>> cec88bb8e06c8ec076012bb503129afce6115aeb
         """
         Check which intermediate certificates are missing and add them to the
         queue.
@@ -317,19 +296,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             highest_ver_certificate = self.trust_store.get_cert(isd_as)
             if highest_ver_certificate is None:
                 self.missing_certs.append((isd_as,
-<<<<<<< HEAD
                                            certificates_versions[isd_as], meta))
                 continue
             for ver in range(highest_ver_certificate.version+1,
                              certificates_versions[isd_as]):
                 self.missing_certs.append((isd_as, ver), meta)
-=======
-                                           certificates_versions[isd_as]))
-                continue
-            for ver in range(highest_ver_certificate.version+1,
-                             certificates_versions[isd_as]):
-                self.missing_certs.append((isd_as, ver))
->>>>>>> cec88bb8e06c8ec076012bb503129afce6115aeb
 
     def handle_ext(self, pcb):
         """
@@ -690,7 +661,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         to receive those.
         """
         for _ in range(len(self.missing_TRCs)):
-<<<<<<< HEAD
             isd_as, ver, meta = self.missing_TRCs.popleft()
             isd_ = isd_as.split("-",1)[0]
             trc_req = TRCRequest.from_values(ISD_AS(isd_as), ver)
@@ -703,15 +673,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Requesting %sv%s certificate", isd_as, ver)
             self.send_meta(cert_req, meta)
             self.cert_requests[(isd_as, ver)] = time.time()
-=======
-            trc = self.missing_TRCs.popleft()
-            # TODO: Construct request and send it to beacon server which sent the
-            # PCB.
-        for _ in range(len(self.missing_certs)):
-            cert = self.missing_certs.popleft()
-            # TODO: Construct request and send it to beacon server which sent the
-            # PCB.
->>>>>>> cec88bb8e06c8ec076012bb503129afce6115aeb
 
     def handle_unverified_beacons(self):
         """
