@@ -275,7 +275,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for isd_as in trc_versions.keys():
             # Get TRC with highest version
-            isd_ = isd_as.split("-",1)[0]
+            isd_ = isd_as.split("-", 1)[0]
             highest_ver_TRC = self.trust_store.get_trc(int(isd_))
             if highest_ver_TRC is None:
                 self.missing_TRCs.append((isd_, trc_versions[isd_], meta))
@@ -662,7 +662,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for _ in range(len(self.missing_TRCs)):
             isd_as, ver, meta = self.missing_TRCs.popleft()
-            isd_ = isd_as.split("-",1)[0]
+            isd_ = isd_as.split("-", 1)[0]
             trc_req = TRCRequest.from_values(ISD_AS(isd_as), ver)
             logging.info("Requesting %sv%s TRC", isd_, ver)
             self.send_meta(trc_req, meta)
