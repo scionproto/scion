@@ -29,7 +29,7 @@ from lib.crypto.trc import TRC
 from lib.packet.scion_addr import ISD_AS
 
 
-def verify_sig_chain_trc(msg, sig, subject, chain, trc, trcVer):
+def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_ver):
     """
     Verify whether the packed message with attached signature is validly
     signed by a particular subject belonging to a valid certificate chain.
@@ -42,9 +42,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trcVer):
     :param trc: Current TRC containing all root of trust certificates for
         one ISD.
     :type trc: :class:`TRC`
-    :param old_trc: Old TRC containing all root of trust certificates for
-        one ISD.
-    :type trc: :class:`TRC`
+    :param trc_ver: The TRCs version
 
     :returns: True or False whether the verification is successful or not.
     :rtype: bool

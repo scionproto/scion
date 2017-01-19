@@ -41,7 +41,7 @@ ROOT_DNS_SERVERS_STRING = 'RootDNSServers'
 ROOT_DNS_CERT_STRING = 'RootDNSCert'
 QUORUM_OWN_TRC_STRING = 'QuorumOwnTRC'
 QUORUM_CAS_STRING = 'QuorumCAs'
-QUROUM_DNS_STRING = 'QuorumDNS'
+QUORUM_DNS_STRING = 'QuorumDNS'
 QUARANTINE_STRING = 'Quarantine'
 SIGNATURES_STRING = 'Signatures'
 GRACE_PERIOD_STRING = 'GracePeriod'
@@ -85,27 +85,30 @@ class TRC(object):
         ROOT_DNS_CERT_STRING: ("root_dns_server_cert", str),
         QUORUM_OWN_TRC_STRING: ("quorum_own_trc", int),
         QUORUM_CAS_STRING: ("quorum_cas", int),
-        QUROUM_DNS_STRING: ("quorum_dns", int),
+        QUORUM_DNS_STRING: ("quorum_dns", int),
         QUARANTINE_STRING: ("quarantine", bool),
         SIGNATURES_STRING: ("signatures", dict),
         GRACE_PERIOD_STRING: ("grace_period", int),
     }
 
-    def __init__(self, trc_raw=None, lz4_=False):
+    def __init__(self, trc_dict):
         """
         :param str trc_raw: TRC as json string.
         """
         for k, (name, type_) in self.FIELDS_MAP.items():
+            val = trc_dict[k]
             if type_ in (int,):
-                setattr(self, name, 0)
-            elif type_ in (str,):
-                setattr(self, name, '')
-            elif type_ in (dict,):
-                setattr(self, name, {})
-            elif type_ in (bool,):
-                setattr(self, name, False)
-        if trc_raw:
-            self._parse(trc_raw, lz4_)
+                val = int(val)
+            elif type_ in (dict, ):
+                val = copy.deepcopy(val)
+            setattr(self, name, val)
+        for subject in trc_dict[CORE_ASES_STRING]:
+            cert_dict = base64.b64decode(trc_dict[CORE_ASES_STRING][subject]).\
+                decode('utf-8')
+            self.core_ases[subject] = Certificate(json.loads(cert_dict))
+        for subject in trc_dict[SIGNATURES_STRING]:
+            self.signatures[subject] = \
+                base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
 
     def get_isd_ver(self):
         return self.isd, self.version
@@ -131,6 +134,13 @@ class TRC(object):
         if not with_signatures:
             del trc_dict[SIGNATURES_STRING]
         return trc_dict
+
+    @classmethod
+    def from_raw(cls, trc_raw, lz4_=False):
+        if lz4_:
+            trc_raw = lz4.loads(trc_raw).decode("utf-8")
+        trc = json.loads(trc_raw)
+        return TRC(trc)
 
     def _parse(self, trc_raw, lz4_):
         """
@@ -160,22 +170,25 @@ class TRC(object):
         """
         Generate a TRC instance.
         """
-        trc = TRC()
-        trc.isd = isd
-        trc.version = version
-        trc.time = int(time.time())
-        trc.core_ases = core_ases
-        trc.root_cas = root_cas
-        trc.logs = logs
-        trc.ca_threshold = ca_threshold
-        trc.root_dns_server_addr = root_dns_server_addr
-        trc.root_dns_server_cert = root_dns_server_cert
-        trc.quorum_own_trc = quorum_own_trc
-        trc.quorum_cas = quorum_cas
-        trc.quorum_dns = quorum_dns
-        trc.grace_period = grace_period
-        trc.quarantine = quarantine
-        trc.signatures = signatures
+        now = int(time.time())
+        trc_dict = {
+            ISDID_STRING: isd,
+            VERSION_STRING: version,
+            TIME_STRING: now,
+            CORE_ASES_STRING: core_ases,
+            ROOT_CAS_STRING: root_cas,
+            LOGS_STRING: logs,
+            CA_THRESHOLD_STRING: ca_threshold,
+            ROOT_DNS_SERVERS_STRING: root_dns_server_addr,
+            ROOT_DNS_CERT_STRING: root_dns_server_cert,
+            QUORUM_OWN_TRC_STRING: quorum_own_trc,
+            QUORUM_CAS_STRING: quorum_cas,
+            QUORUM_DNS_STRING: quorum_dns,
+            GRACE_PERIOD_STRING: grace_period,
+            QUARANTINE_STRING: quarantine,
+            SIGNATURES_STRING: signatures,
+        }
+        trc = TRC(trc_dict)
         return trc
 
     def sign(self, isd_as, sig_priv_key):
@@ -183,17 +196,17 @@ class TRC(object):
         self.signatures[isd_as] = base64.b64encode(sign(data, sig_priv_key)). \
             decode('utf-8')
 
-    def verify(self, oldTRC):
+    def verify(self, old_trc):
         """
         Perform signature verification for core signatures as defined
         in old TRC.
 
-        :param: oldTRC: the previous TRC which has already been verified.
+        :param: old_trc: the previous TRC which has already been verified.
         :returns: True if verification succeeds, false otherwise.
         :rtype: bool
         """
         # Only look at signatures which are from core ASes as defined in old TRC
-        signatures = {k: self.signatures[k] for k in oldTRC.core_ases.keys()}
+        signatures = {k: self.signatures[k] for k in old_trc.core_ases.keys()}
         # We have more signatures than the number of core ASes in old TRC
         if len(signatures) < len(self.signatures):
             logging.warning("TRC has more signatures than number of core ASes.")
@@ -207,7 +220,7 @@ class TRC(object):
                 logging.warning("TRC contains a signature which could not \
                 be verified.")
         # We have fewer valid signatrues for this TRC than quorum_own_trc
-        if len(valid_signature_signers) < oldTRC.quorum_own_trc:
+        if len(valid_signature_signers) < old_trc.quorum_own_trc:
             logging.error("TRC does not have the number of required valid \
             signatures")
             return False
@@ -273,13 +286,13 @@ class TRC(object):
         return ret
 
     def __str__(self):
-        return self.to_json(True)
+        return self.to_json()
 
     def __eq__(self, other):  # pragma: no cover
         return str(self) == str(other)
 
 
-def verify_new_TRC(oldTRC, newTRC):
+def verify_new_TRC(old_trc, new_trc):
     """
     Check if update from current TRC to updated TRC is valid. Checks if update
     is correct and checks if the new TRC has enough valid signatures as defined
@@ -288,20 +301,20 @@ def verify_new_TRC(oldTRC, newTRC):
     :returns: True if update is valid, False otherwise
     """
     # Check if update is correct
-    if oldTRC.isd != newTRC.isd:
+    if old_trc.isd != new_trc.isd:
         logging.error("TRC isdid mismatch")
         return False
-    if oldTRC.version + 1 != newTRC.version:
+    if old_trc.version + 1 != new_trc.version:
         logging.error("TRC versions mismatch")
         return False
-    if newTRC.time < oldTRC.time:
+    if new_trc.time < old_trc.time:
         logging.error("New TRC timestamp is not valid")
         return False
-    if newTRC.quarantine or oldTRC.quarantine:
+    if new_trc.quarantine or old_trc.quarantine:
         logging.error("Early announcement")
         return False
     # Check if there are enough valid signatures for new TRC
-    if not newTRC.verify(oldTRC):
+    if not new_trc.verify(old_trc):
         logging.error("New TRC verification failed, missing or \
         invalid signatures")
         return False
