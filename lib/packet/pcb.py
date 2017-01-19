@@ -290,7 +290,7 @@ class PathSegment(SCIONPayloadBaseProto):
             isd_as = str(asm.isd_as())
             isd_ = str(asm.isd_as()[0])
             if isd_ not in trcs.keys() or asm.p.trcVer > trcs[isd_]:
-                trcs[isd_] = asm.p.trcVer
+                trcs[isd_as] = asm.p.trcVer
             if isd_as not in certs.keys() or asm.p.certVer > certs[isd_as]:
                 certs[isd_as] = asm.p.certVer
         return trcs, certs

@@ -51,7 +51,7 @@ from lib.errors import (
 )
 from lib.flagtypes import TCPFlags
 from lib.msg_meta import TCPMetadata, UDPMetadata
-from lib.packet.cert_mgmt import TRCRequest
+from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
@@ -121,6 +121,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             os.path.join(conf_dir, PATH_POLICY_FILE))
         self.unverified_beacons = deque()
         self.trc_requests = {}
+        self.cert_requests = {}
         self.trcs = {}
         self.missing_TRCs = deque()
         self.missing_certs = deque()
@@ -253,8 +254,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         trcs, certs = pcb.get_trcs_certs()
         # Find missing TRCs and certificates
-        self._get_missing_TRCs(trcs)
-        self._get_missing_certs(certs)
+        self._get_missing_TRCs(trcs, meta)
+        self._get_missing_certs(certs, meta)
         self.incoming_pcbs.append(pcb)
         meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
@@ -264,23 +265,24 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
-    def _get_missing_TRCs(self, trc_versions):
+    def _get_missing_TRCs(self, trc_versions, meta):
         """
         Check which intermediate trcs are missing and add them to the queue.
 
         :returns: the missing TRCs versions
         :rtype dict
         """
-        for isd_ in trc_versions.keys():
+        for isd_as in trc_versions.keys():
             # Get TRC with highest version
+            isd_ = isd_as.split("-",1)[0]
             highest_ver_TRC = self.trust_store.get_trc(int(isd_))
             if highest_ver_TRC is None:
-                self.missing_TRCs.append((isd_, trc_versions[isd_]))
+                self.missing_TRCs.append((isd_, trc_versions[isd_], meta))
                 continue
-            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_]):
-                self.missing_TRCs.append((isd_, ver))
+            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_as]):
+                self.missing_TRCs.append((isd_, ver, meta))
 
-    def _get_missing_certs(self, certificates_versions):
+    def _get_missing_certs(self, certificates_versions, meta):
         """
         Check which intermediate certificates are missing and add them to the
         queue.
@@ -293,11 +295,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             highest_ver_certificate = self.trust_store.get_cert(isd_as)
             if highest_ver_certificate is None:
                 self.missing_certs.append((isd_as,
-                                           certificates_versions[isd_as]))
+                                           certificates_versions[isd_as], meta))
                 continue
             for ver in range(highest_ver_certificate.version+1,
                              certificates_versions[isd_as]):
-                self.missing_certs.append((isd_as, ver))
+                self.missing_certs.append((isd_as, ver), meta)
 
     def handle_ext(self, pcb):
         """
@@ -626,8 +628,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def process_cert_chain_rep(self, cert_chain_rep, meta):
         """
         Process the Certificate chain reply.
+
+        :param rep: Certificate chain reply.
+        :type rep: CertChainRep
         """
-        raise NotImplementedError
+        logging.info("Certificate reply received for %s",
+                     cert_chain_rep.chain.get_leaf_isd_as_ver)
+        self.trust_store.add_cert(cert_chain_rep.chain)
+
+        rep_key = cert_chain_rep.chain.get_leaf_isd_as_ver()
+        if rep_key in self.cert_requests:
+            del self.cert_requests[rep_key]
 
     def process_trc_rep(self, rep, meta):
         """
@@ -649,13 +660,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         to receive those.
         """
         for _ in range(len(self.missing_TRCs)):
-            trc = self.missing_TRCs.popleft()
-            # TODO: Construct request and send it to beacon server which sent the
-            # PCB.
+            isd_as, ver, meta = self.missing_TRCs.popleft()
+            isd_ = isd_as.split("-",1)[0]
+            trc_req = TRCRequest.from_values(ISD_AS(isd_as), ver)
+            logging.info("Requesting %sv%s TRC", isd_, ver)
+            self.send_meta(trc_req, meta)
+            self.trc_requests[(isd_, ver)] = time.time()
         for _ in range(len(self.missing_certs)):
-            cert = self.missing_certs.popleft()
-            # TODO: Construct request and send it to beacon server which sent the
-            # PCB.
+            isd_as, ver, meta = self.missing_certs.popleft()
+            cert_req = CertChainRequest.from_values(ISD_AS(isd_as), ver)
+            logging.info("Requesting %sv%s certificate", isd_as, ver)
+            self.send_meta(cert_req, meta)
+            self.cert_requests[(isd_as, ver)] = time.time()
 
     def handle_unverified_beacons(self):
         """
