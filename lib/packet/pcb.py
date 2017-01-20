@@ -112,7 +112,7 @@ class ASMarking(Cerealizable):
             yield self.pcbm(i)
 
     def chain(self):  # pragma: no cover
-        return CertificateChain(self.p.chain, lz4_=True)
+        return CertificateChain.from_raw(self.p.chain, lz4_=True)
 
     def add_ext(self, ext):  # pragma: no cover
         """

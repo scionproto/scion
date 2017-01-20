@@ -76,40 +76,22 @@ class CertificateChain(object):
     :ivar list certs: (ordered) certificates forming the chain.
     """
 
-    def __init__(self, chain_raw=None, lz4_=False):
+    def __init__(self, cert_list):
         """
-        :param str chain_raw: certificate chain as json string.
+        :param str cert_list: certificate chain as list.
         """
-        self.certs = []
-        if chain_raw:
-            self._parse(chain_raw, lz4_)
+        self.certs = cert_list
 
-    def _parse(self, chain_raw, lz4_):
-        """
-        Parse a certificate chain file and populate the instance's attributes.
-
-        :param str chain_raw: certificate chain as json string.
-        """
+    @classmethod
+    def from_raw(cls, chain_raw, lz4_=False):
         if lz4_:
             chain_raw = lz4.loads(chain_raw).decode("utf-8")
         chain = json.loads(chain_raw)
+        certs = []
         for index in range(0, len(chain)):
             cert = Certificate(chain[str(index)])
-            self.certs.append(cert)
-
-    @classmethod
-    def from_values(cls, cert_list):
-        """
-        Generate a CertificateChain instance.
-
-        :param list cert_list:
-            (ordered) certificates to populate the chain with.
-        :returns: the newly created CertificateChain instance.
-        :rtype: :class:`CertificateChain`
-        """
-        cert_chain = CertificateChain()
-        cert_chain.certs = cert_list
-        return cert_chain
+            certs.append(cert)
+        return CertificateChain(certs)
 
     def verify(self, subject, trc):
         """
@@ -121,7 +103,6 @@ class CertificateChain(object):
             the subject of the first certificate in the certificate chain.
         :param trc: TRC containing all root of trust certificates for one ISD.
         :type trc: :class:`TRC`
-        :param int trc_version: TRC version.
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """

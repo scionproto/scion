@@ -93,7 +93,7 @@ class TRC(object):
 
     def __init__(self, trc_dict):
         """
-        :param str trc_raw: TRC as json string.
+        :param dict trc_dict: TRC as dict.
         """
         for k, (name, type_) in self.FIELDS_MAP.items():
             val = trc_dict[k]
@@ -141,26 +141,6 @@ class TRC(object):
             trc_raw = lz4.loads(trc_raw).decode("utf-8")
         trc = json.loads(trc_raw)
         return TRC(trc)
-
-    def _parse(self, trc_raw, lz4_):
-        """
-        Parse a TRC file and populate the instance's attributes.
-
-        :param str trc_raw: TRC as json string.
-        """
-        if lz4_:
-            trc_raw = lz4.loads(trc_raw).decode("utf-8")
-        trc = json.loads(trc_raw)
-        for k, (name, type_) in self.FIELDS_MAP.items():
-            val = trc[k]
-            setattr(self, name, val)
-        for subject in trc[CORE_ASES_STRING]:
-            cert_dict = base64.b64decode(trc[CORE_ASES_STRING][subject]).\
-                decode('utf-8')
-            self.core_ases[subject] = Certificate(json.loads(cert_dict))
-        for subject in trc[SIGNATURES_STRING]:
-            self.signatures[subject] = \
-                base64.b64decode(trc[SIGNATURES_STRING][subject])
 
     @classmethod
     def from_values(cls, isd, version, core_ases, root_cas, logs, ca_threshold,

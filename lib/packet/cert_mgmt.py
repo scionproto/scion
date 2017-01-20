@@ -62,7 +62,7 @@ class CertChainReply(CertMgmtBase):  # pragma: no cover
 
     def __init__(self, p):
         super().__init__(p)
-        self.chain = CertificateChain(p.chain, lz4_=True)
+        self.chain = CertificateChain.from_raw(p.chain, lz4_=True)
 
     @classmethod
     def from_values(cls, chain):
