@@ -658,7 +658,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def process_missing_certs_TRCs_queue(self):
         """
         Iterate over the missing TRCs and certs queues and send the requests
-        to receive those.
+        to receive those
         """
         for _ in range(len(self.missing_TRCs)):
             isd_as, ver, meta = self.missing_TRCs.popleft()
