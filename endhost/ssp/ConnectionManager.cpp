@@ -29,6 +29,12 @@
 #include "SCIONProtocol.h"
 #include "Utils.h"
 
+// Initialize the path manager
+//
+// Connects to the SCION daemon and queries the system for the local IP address
+//
+// @param sock Socket to the SCION dispatcher
+// @param sciond Unix address of the SCION daemon
 PathManager::PathManager(int sock, const char *sciond)
     : mSendSocket(sock),
     mInvalid(0)
@@ -61,6 +67,9 @@ PathManager::~PathManager()
     pthread_cond_destroy(&mPathCond);
 }
 
+// Select an IP address from the system to assign to the socket.
+//
+// Uses the first IPv4 or IPv6 address as the local address for the socket.
 void PathManager::getDefaultIP()
 {
     struct ifaddrs *ifaddr, *ifa;
@@ -131,6 +140,7 @@ SCIONAddr * PathManager::localAddress()
     return &mLocalAddr;
 }
 
+// Queries the SCION daemon for the local ISD-AS address
 void PathManager::queryLocalAddress()
 {
     DEBUG("%s\n", __func__);
@@ -150,6 +160,11 @@ void PathManager::queryLocalAddress()
     mLocalAddr.isd_as = ntohl(*(uint32_t *)buf);
 }
 
+// Set the local address.
+//
+// Triggers an update of the ISD-AS address and sets the IP address.
+// A provided ISD-AS address of zero uses whatever IP address the socket was
+// already set to, ignoring the provided address.
 int PathManager::setLocalAddress(SCIONAddr addr)
 {
     DEBUG("%p: bind to (%d-%d):%s\n",
@@ -168,6 +183,7 @@ int PathManager::setLocalAddress(SCIONAddr addr)
     return 0;
 }
 
+// Set the remote address and get new paths to the destination.
 int PathManager::setRemoteAddress(SCIONAddr addr, double timeout) EXCLUDES(mPathMutex)
 {
     DEBUG("%p: setRemoteAddress: (%d-%d)\n", this, ISD(addr.isd_as), AS(addr.isd_as));
@@ -206,6 +222,8 @@ int PathManager::setRemoteAddress(SCIONAddr addr, double timeout) EXCLUDES(mPath
     return 0;
 }
 
+// Checks that the path is different from existing paths, doesnt use the same
+// interfaces and is valid.
 int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidates)
 {
     bool add = true;
@@ -242,6 +260,7 @@ int PathManager::checkPath(uint8_t *ptr, int len, std::vector<Path *> &candidate
     return interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN;
 }
 
+// Get new paths from the SCION daemon after culling any invalid paths.
 void PathManager::getPaths(double timeout)
 {
     int buflen = (MAX_PATH_LEN + 15) * MAX_TOTAL_PATHS;
@@ -314,6 +333,7 @@ void PathManager::getPaths(double timeout)
     pthread_cond_broadcast(&mPathCond);
 }
 
+// Remove invalid paths and paths which do not conform to the local policy
 void PathManager::prunePaths()
 {
     for (size_t i = 0; i < mPaths.size(); i++) {
@@ -327,6 +347,8 @@ void PathManager::prunePaths()
     }
 }
 
+// Insert new paths into the path list by first filling any empty positions
+// then appending to the end of the path list.
 void PathManager::insertPaths(std::vector<Path *> &candidates)
 {
     if (candidates.empty())
@@ -466,7 +488,13 @@ SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond)
     : PathManager(sock, sciond)
 {
 }
-
+//
+// Initialize the manager by additionally creating a worker to...
+//
+// @param sock ...
+// @param sciond ...
+// @param protocol The parent protocol using this connection manager. Used to
+//                 signal termination and selection availability
 SSPConnectionManager::SSPConnectionManager(int sock, const char *sciond, SSPProtocol *protocol)
     : PathManager(sock, sciond),
     mRunning(true),
@@ -763,6 +791,7 @@ void SSPConnectionManager::handlePacketAcked(bool match, SCIONPacket *ack, SCION
                 sp->getOffset(), mSentPackets.size());
         mFinAcked = true;
     }
+    // data is a shared_pointer instance.
     if (sp->data.use_count() == 1) {
         mPacketMutex.Lock();
         mTotalSize -= sp->len;
@@ -821,13 +850,13 @@ void SSPConnectionManager::addRetries(std::vector<SCIONPacket *> &retries) EXCLU
 void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool receiver) EXCLUDES(mPathMutex, mRetryMutex, mSentMutex)
 {
     SSPPacket *spacket = (SSPPacket *)(packet->payload);
-    uint64_t offset = spacket->getAckNum();
+    uint64_t offset = spacket->getAckNum();  // SeqNo of the ACKed packet
 
     DEBUG("got some acks on path %d: L = %lu, I = %d, O = %d, V = %#x\n",
             packet->pathIndex, spacket->getL(), spacket->getI(), spacket->getO(), spacket->getV());
 
-    mHighestAcked = spacket->getL() - 1;
-
+    mHighestAcked = spacket->getL() - 1;  // Lowest sequence number the other
+                                          // end is interested in.
     std::vector<SCIONPacket *> retries;
     mPathMutex.Lock();
     mSentMutex.Lock();
@@ -836,7 +865,12 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         SCIONPacket *p = *i;
         SSPPacket *sp = (SSPPacket *)(p->payload);
         SSPHeader &sh = sp->header;
-        uint64_t pn = sp->getOffset();
+        uint64_t pn = sp->getOffset();  // The SeqNo of this sent packet
+        // Below reads:
+        // Current packet is the one triggering this ACK and the ACK is over 
+        // the same path that was used to send the packet. By equality in the
+        // two packets we mean that the ACK corresponds to the correct 
+        // retransmission of the packet as well.
         bool match = offset == pn &&
             (sh.flags & SSP_FIN ||
              (sp->getMark() == spacket->getMark() && p->pathIndex == packet->pathIndex));
@@ -1038,6 +1072,9 @@ void SSPConnectionManager::startScheduler()
     pthread_create(&mWorker, NULL, &SSPConnectionManager::workerHelper, this);
 }
 
+// Runs the SSPConnectionManager::schedule() function
+//
+// @param arg An instance of an SSPConnectionManager
 void * SSPConnectionManager::workerHelper(void *arg)
 {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);

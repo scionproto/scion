@@ -41,6 +41,10 @@ void * timerThread(void *arg)
     return NULL;
 }
 
+// Initialize the SCION protocol
+//
+// @param sock An open socket to the SCION dispatcher
+// @param sciond FIXME: UNUSED
 SCIONProtocol::SCIONProtocol(int sock, const char *sciond)
     : mPathManager(NULL),
     mSrcPort(0),
@@ -216,6 +220,13 @@ int SCIONProtocol::maxPayloadSize(double timeout)
 
 // SSP
 
+// Initialize an instance of the SCION Stream Protocol (SSP)
+//
+// Creates and initializes a new SSP connection manager and starts the timer 
+// thread.
+//
+// @param sock An open but unregistered connection to the SCION dispatcher
+// @param sciond (TODO: Fill in)
 SSPProtocol::SSPProtocol(int sock, const char *sciond)
     : SCIONProtocol(sock, sciond),
     mInitialized(false),
@@ -410,6 +421,17 @@ bool SSPProtocol::claimPacket(SCIONPacket *packet, uint8_t *buf)
     return flowID == mFlowID;
 }
 
+
+// Start the SCION Stream protocol
+//
+// The packet and buf parameters are optional. If omitted, they should both be
+// omitted signaling that this is the start of a new flow.
+//
+// @param packet Setup packet starting the flow. The packet is also immediately
+//               handled.
+// @param buf 6-byte identifier for the incoming flow, corresponding to the
+//            packet.
+// @param sock Dispatcher socket?
 void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
 {
     if (buf) {
@@ -427,6 +449,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
         handlePacket(packet, buf);
 }
 
+// Set window size from the defaults
 void SSPProtocol::getWindowSize()
 {
     // Eventually determine based on system resources
@@ -765,6 +788,7 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex)
     mConnectionManager->sendAck(&packet);
 }
 
+// Create a SCION packet containing an SSP packet with the provided data
 SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
 {
     SCIONAddr *localAddr = mConnectionManager->localAddress();
@@ -913,6 +937,11 @@ void SSPProtocol::notifyFinAck() EXCLUDES(mStateMutex, mReadMutex)
     mReadMutex.Unlock();
 }
 
+// Registers the flow with the SCION dispatcher
+//
+// @param flowID The flow ID or 0. If zero uses the local variable flow ID
+// @param port The port number to register with the dispatcher. A port number 
+//             of 0 results in the dispatcher assigning the port.
 int SSPProtocol::registerDispatcher(uint64_t flowID, uint16_t port, int sock)
 {
     SCIONAddr *localAddr = mConnectionManager->localAddress();

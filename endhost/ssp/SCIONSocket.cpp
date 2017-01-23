@@ -85,6 +85,15 @@ int setupSocket()
     return sock;
 }
 
+// Initialize a new SCIONSocket.
+//
+// This includes connecting to the SCION dispatcher, creating and initializing
+// the underlying protocol and running the dispatcher thread.
+//
+// Registration with the dispatcher is delegated to the protocol.
+//
+// @param protocol Identifier for the underlying protocol type to use
+// @param sciond The UNIX address of the SCION daemon (path lookup)
 SCIONSocket::SCIONSocket(int protocol, const char *sciond)
     : mProtocolID(protocol),
     mRegistered(false),
@@ -191,6 +200,7 @@ int SCIONSocket::bind(SCIONAddr addr) EXCLUDES(mRegisterMutex)
     return ret;
 }
 
+// Start the protocol, signal registration
 int SCIONSocket::connect(SCIONAddr addr) EXCLUDES(mRegisterMutex)
 {
     mProtocol->start(NULL, NULL, mReliableSocket);

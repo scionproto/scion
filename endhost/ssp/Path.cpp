@@ -275,6 +275,8 @@ bool Path::usesSameInterfaces(uint8_t *interfaces, size_t count)
 #endif
 }
 
+// Check if the path described by path is identical to this one.
+// Two paths compare equal if their raw path info is the same...
 bool Path::isSamePath(uint8_t *path, size_t len)
 {
     if (len != mPathLen)
