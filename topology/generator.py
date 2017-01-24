@@ -304,7 +304,7 @@ class CertGenerator(object):
             cert_path = get_cert_chain_file_path(
                 "", topo_id, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = \
-                str(CertificateChain(chain))
+                CertificateChain(chain).to_json()
 
     def _gen_trc_entry(self, topo_id, as_conf):
         if not as_conf.get('core', False):

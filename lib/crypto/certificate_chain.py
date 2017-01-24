@@ -106,7 +106,7 @@ class CertificateChain(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        if not len(self.certs):
+        if not self.certs:
             logging.error("The certificate chain is not initialized.")
             return False
         cert = self.certs[0]

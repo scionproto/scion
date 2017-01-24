@@ -103,8 +103,8 @@ class TRC(object):
                 val = copy.deepcopy(val)
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
-            cert_dict = base64.b64decode(trc_dict[CORE_ASES_STRING][subject]).\
-                decode('utf-8')
+            cert_dict = base64.b64decode(
+                trc_dict[CORE_ASES_STRING][subject]).decode('utf-8')
             self.core_ases[subject] = Certificate(json.loads(cert_dict))
         for subject in trc_dict[SIGNATURES_STRING]:
             self.signatures[subject] = \
@@ -272,7 +272,7 @@ class TRC(object):
         return str(self) == str(other)
 
 
-def verify_new_TRC(old_trc, new_trc):
+def verify_new_trc(old_trc, new_trc):
     """
     Check if update from current TRC to updated TRC is valid. Checks if update
     is correct and checks if the new TRC has enough valid signatures as defined
