@@ -21,7 +21,8 @@ import glob
 import logging
 
 # SCION
-from lib.crypto.certificate import CertificateChain, TRC
+from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.trc import TRC
 from lib.util import CERT_DIR, read_file, write_file
 
 
@@ -37,13 +38,13 @@ class TrustStore(object):
     def _init_trcs(self):  # pragma: no cover
         for path in glob.glob("%s/*.trc" % self._dir):
             trc_raw = read_file(path)
-            self.add_trc(TRC(trc_raw), write=False)
+            self.add_trc(TRC.from_raw(trc_raw), write=False)
             logging.debug("Loaded: %s" % path)
 
     def _init_certs(self):  # pragma: no cover
         for path in glob.glob("%s/*.crt" % self._dir):
             cert_raw = read_file(path)
-            self.add_cert(CertificateChain(cert_raw), write=False)
+            self.add_cert(CertificateChain.from_raw(cert_raw), write=False)
             logging.debug("Loaded: %s" % path)
 
     def get_trc(self, isd, version=None):

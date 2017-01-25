@@ -25,7 +25,7 @@ import capnp  # noqa
 # SCION
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import CertificateChain
+from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
@@ -112,7 +112,7 @@ class ASMarking(Cerealizable):
             yield self.pcbm(i)
 
     def chain(self):  # pragma: no cover
-        return CertificateChain(self.p.chain, lz4_=True)
+        return CertificateChain.from_raw(self.p.chain, lz4_=True)
 
     def add_ext(self, ext):  # pragma: no cover
         """
