@@ -133,7 +133,7 @@ class CertificateChain(object):
 
     def to_json(self):
         """
-        Convert the instance to json format.
+        Convert the instance to json format
 
         :returns: the CertificateChain information.
         :rtype: str
