@@ -88,8 +88,8 @@ class CertificateChain(object):
             chain_raw = lz4.loads(chain_raw).decode("utf-8")
         chain = json.loads(chain_raw)
         certs = []
-        for index in range(0, len(chain)):
-            cert = Certificate(chain[str(index)])
+        for k in sorted(chain):
+            cert = Certificate(chain[k])
             certs.append(cert)
         return CertificateChain(certs)
 
