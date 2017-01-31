@@ -123,6 +123,9 @@ class Certificate(object):
             return False
         return True
 
+    def verify_core(self, pub_online_root_key):
+        return self._verify_signature(self.signature_raw, pub_online_root_key)
+
     def _verify_signature(self, signature, public_key):
         """
         Checks if the signature can be verified with the given public key

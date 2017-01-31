@@ -67,6 +67,8 @@ from lib.util import (
     get_cert_chain_file_path,
     get_sig_key_file_path,
     get_enc_key_file_path,
+    get_offline_key_file_path,
+    get_online_key_file_path,
     get_trc_file_path,
     load_yaml_file,
     read_file,
@@ -244,6 +246,10 @@ class CertGenerator(object):
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
         self.enc_pub_keys = {}
+        self.pub_online_root_keys = {}
+        self.priv_online_root_keys = {}
+        self.pub_offline_root_keys = {}
+        self.priv_offline_root_keys = {}
         self.certs = {}
         self.trcs = {}
         self.cert_files = defaultdict(dict)
@@ -281,14 +287,30 @@ class CertGenerator(object):
         enc_path = get_enc_key_file_path("")
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
         self.cert_files[topo_id][enc_path] = base64.b64encode(enc_priv).decode()
+        if self.is_core(as_conf):
+            # generate_sign_key_pair uses Ed25519
+            on_root_pub, on_root_priv = generate_sign_keypair()
+            off_root_pub, off_root_priv = generate_sign_keypair()
+            self.pub_online_root_keys[topo_id] = on_root_pub
+            self.priv_online_root_keys[topo_id] = on_root_priv
+            self.pub_offline_root_keys[topo_id] = off_root_pub
+            self.priv_offline_root_keys[topo_id] = off_root_priv
+            online_key_path = get_online_key_file_path("")
+            offline_key_path = get_offline_key_file_path("")
+            self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
+            self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
         issuer = TopoID(as_conf.get('cert_issuer', str(topo_id)))
+        if self.is_core(as_conf):
+            signing_key = self.priv_online_root_keys[topo_id]
+        else:
+            signing_key = self.sig_priv_keys[issuer]
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id),  str(issuer), INITIAL_CERT_VERSION, "", False,
             self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
-            self.sig_priv_keys[issuer]
+            signing_key
         )
 
     def _build_chains(self):
@@ -298,6 +320,7 @@ class CertGenerator(object):
             while issuer in self.certs:
                 cert = self.certs[issuer]
                 if str(issuer) == cert.issuer:
+                    chain.append(cert)
                     break
                 chain.append(cert)
                 issuer = TopoID(cert.issuer)
@@ -306,13 +329,17 @@ class CertGenerator(object):
             self.cert_files[topo_id][cert_path] = \
                 CertificateChain(chain).to_json()
 
+    def is_core(self, as_conf):
+        return "core" in as_conf and as_conf["core"]
+
     def _gen_trc_entry(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
         if topo_id[0] not in self.trcs:
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
-        trc.core_ases[str(topo_id)] = self.certs[topo_id]
+        # Add public root key to TRC
+        trc.core_ases[str(topo_id)] =  base64.b64encode(self.pub_online_root_keys[topo_id]).decode()
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
@@ -325,8 +352,9 @@ class CertGenerator(object):
             return
         trc = self.trcs[topo_id[0]]
         trc_str = trc.to_json(with_signatures=False).encode('utf-8')
+        # Sign the TRC with private online root key
         trc.signatures[str(topo_id)] = sign(
-            trc_str, self.sig_priv_keys[topo_id])
+            trc_str, self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         for isd in self.trcs:

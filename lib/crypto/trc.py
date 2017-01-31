@@ -103,9 +103,9 @@ class TRC(object):
                 val = copy.deepcopy(val)
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
-            cert_dict = base64.b64decode(
-                trc_dict[CORE_ASES_STRING][subject]).decode('utf-8')
-            self.core_ases[subject] = Certificate(json.loads(cert_dict))
+            dec = base64.b64decode(
+                trc_dict[CORE_ASES_STRING][subject]).decode("utf-8")
+            self.core_ases[subject] = base64.b64decode(dec)
         for subject in trc_dict[SIGNATURES_STRING]:
             self.signatures[subject] = \
                 base64.b64decode(trc_dict[SIGNATURES_STRING][subject])

@@ -111,15 +111,17 @@ class CertificateChain(object):
             return False
         cert = self.certs[0]
         for issuer_cert in self.certs[1:]:
+            if issuer_cert.subject == subject:
+                break
             if not cert.verify(subject, issuer_cert):
                 return False
             cert = issuer_cert
             subject = cert.subject
         # First check whether a root cert was added to the chain.
-        if cert.issuer == subject:
-            return trc.core_ases[cert.subject] == cert
+        if not cert.issuer == subject:
+            return False
         # Try to find a root cert in the trc.
-        if not cert.verify(subject, trc.core_ases[cert.issuer]):
+        if not cert.verify_core(trc.core_ases[cert.issuer]):
             logging.error("Core AS certificate verification failed.")
             return False
         return True
