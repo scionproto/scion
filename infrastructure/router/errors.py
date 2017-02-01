@@ -22,7 +22,8 @@ from lib.errors import SCIONBaseError, SCIONBaseException
 
 class SCIONIFVerificationError(SCIONBaseError):
     """
-    The current interface does not match the interface of the border router.
+    The current hop field (ingress or egress, depending on context) interface
+    does not match the interface of the border router.
     """
 
 
@@ -51,6 +52,7 @@ class SCIONInterfaceDownException(SCIONBaseException):
     """
     The interface to forward the packet to is down.
     """
+
     def __init__(self, if_id):
         super().__init__()
         self.if_id = if_id

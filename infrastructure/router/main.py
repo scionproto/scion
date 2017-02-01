@@ -236,7 +236,7 @@ class Router(SCIONElement):
         return []
 
     def handle_one_hop_path(self, hdr, spkt, from_local_as):
-        if len(spkt.path) != InfoOpaqueField.LEN + 2*HopOpaqueField.LEN:
+        if len(spkt.path) != InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN:
             logging.error("OneHopPathExt: incorrect path length.")
             return [(RouterFlag.ERROR,)]
         if not from_local_as:  # Remote packet, create the 2nd Hop Field
@@ -457,13 +457,20 @@ class Router(SCIONElement):
 
     def verify_hof(self, path, ingress=True):
         """Verify freshness and authentication of an opaque field."""
-        ts = path.get_iof().timestamp
+        iof = path.get_iof()
+        ts = iof.timestamp
         hof = path.get_hof()
         prev_hof = path.get_hof_ver(ingress=ingress)
         # Check that the interface in the current hop field matches the
         # interface in the router.
-        if self.interface.if_id not in [hof.ingress_if, hof.egress_if]:
-            raise SCIONIFVerificationError(hof)
+        get_if = {
+            (False, False): hof.egress_if,
+            (False, True): hof.ingress_if,
+            (True, False): hof.ingress_if,
+            (True, True): hof.egress_if
+        }
+        if get_if[ingress, iof.up_flag] not in {self.interface.if_id, 0}:
+            raise SCIONIFVerificationError(hof, iof)
 
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             if not hof.verify_mac(self.of_gen_key, ts, prev_hof):
@@ -492,8 +499,9 @@ class Router(SCIONElement):
             self._process_data(spkt, ingress, drop_on_error)
         except SCIONIFVerificationError as e:
             logging.error("Dropping packet due to not matching interfaces.\n"
-                          "Current HOF: %s\nRouter Interface: %d" %
-                          (e.args[0], self.interface.if_id))
+                          "Current IOF: %s\nCurrent HOF: %s\n"
+                          "Router Interface: %d" %
+                          (e.args[1], e.args[0], self.interface.if_id))
         except SCIONOFVerificationError as e:
             logging.error("Dropping packet due to incorrect MAC.\n"
                           "Header:\n%s\nInvalid OF: %s\nPrev OF: %s",
