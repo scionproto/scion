@@ -44,7 +44,8 @@ from lib.crypto.asymcrypto import (
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain
-from lib.crypto.trc import (TRC,
+from lib.crypto.trc import (
+    TRC,
     ONLINE_KEY_ALG_STRING,
     ONLINE_KEY_STRING,
     OFFLINE_KEY_ALG_STRING,
@@ -112,6 +113,8 @@ SCION_SERVICE_NAMES = (
     "PathServers",
     "SibraServers",
 )
+
+DEFAULT_KEYGEN_ALG = 'Ed25519'
 
 
 class ConfigGenerator(object):
@@ -302,8 +305,10 @@ class CertGenerator(object):
             self.priv_offline_root_keys[topo_id] = off_root_priv
             online_key_path = get_online_key_file_path("")
             offline_key_path = get_offline_key_file_path("")
-            self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
-            self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
+            self.cert_files[topo_id][online_key_path] = \
+                base64.b64encode(on_root_priv).decode()
+            self.cert_files[topo_id][offline_key_path] = \
+                base64.b64encode(off_root_priv).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
@@ -345,10 +350,12 @@ class CertGenerator(object):
         trc = self.trcs[topo_id[0]]
         # Add public root online/offline key to TRC
         core = {}
-        core[ONLINE_KEY_ALG_STRING] = 'Ed25519'
-        core[ONLINE_KEY_STRING] = base64.b64encode(self.pub_online_root_keys[topo_id]).decode()
-        core[OFFLINE_KEY_ALG_STRING] = 'Ed25519'
-        core[OFFLINE_KEY_STRING] = base64.b64encode(self.priv_online_root_keys[topo_id]).decode()
+        core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
+        core[ONLINE_KEY_STRING] = \
+            base64.b64encode(self.pub_online_root_keys[topo_id]).decode()
+        core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
+        core[OFFLINE_KEY_STRING] = \
+            base64.b64encode(self.priv_online_root_keys[topo_id]).decode()
         trc.core_ases[str(topo_id)] = core
 
     def _create_trc(self, isd):
