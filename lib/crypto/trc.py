@@ -252,14 +252,11 @@ class TRC(object):
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
             d = trc_dict[CORE_ASES_STRING][subject]
-            cert_str = str(
-                trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING])
-            d[ONLINE_KEY_STRING] = base64.b64encode(
-                cert_str.encode('utf-8')).decode('utf-8')
-            cert_str = str(
-                trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING])
-            d[OFFLINE_KEY_STRING] = base64.b64encode(
-                cert_str.encode('utf-8')).decode('utf-8')
+            for key_ in (ONLINE_KEY_STRING, OFFLINE_KEY_STRING, ):
+                key_str = str(
+                    trc_dict[CORE_ASES_STRING][subject][key_])
+                d[key_] = base64.b64encode(
+                    key_str.encode('utf-8')).decode('utf-8')
             core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
         if with_signatures:
