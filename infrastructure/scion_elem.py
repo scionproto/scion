@@ -22,7 +22,7 @@ import os
 import queue
 import threading
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 
 # SCION
 from lib.config import Config
@@ -155,6 +155,8 @@ class SCIONElement(object):
             self.DefaultMeta = TCPMetadata
         else:
             self.DefaultMeta = UDPMetadata
+        self.msg_missing_trcs_certs_map = {}
+        self.msgs_to_verify = deque()
 
     def _setup_sockets(self, init):
         """
@@ -230,6 +232,59 @@ class SCIONElement(object):
                 handler(msg, meta)
         except SCIONBaseError:
             log_exception("Error handling message:\n%s" % msg)
+
+    def handle_pcb_path(self, msg, meta):
+        """
+        When a pcb or path is received, this function is called to find missing
+        TRCs and certs and request them. TODO: Maybe call this handle_msg?
+        TODO: First, one needs to check that a msg is a pcb or path.
+
+        :param msg: pcb or path
+        """
+        # Get all trcs and certificates used in this msg
+        trcs, certs = msg.get_trcs_certs()
+        # Find missing TRCs and certificates
+        self.msg_missing_trcs_certs_map[msg] = \
+            self._get_missing_trcs_certs(trcs, meta)
+
+    def process_trc_rep(self, rep, meta):
+        """
+        Process the TRC reply.
+
+        :param rep: TRC reply.
+        :type rep: TRCReply
+        """
+        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
+        self.trust_store.add_trc(rep.trc)
+        isd_, ver = rep.trc.get_isd_ver()
+        for msg in self.msg_missing_trcs_certs_map:
+            if (isd_, ver) in self.msg_missing_trcs_certs_map[msg]:
+                self.msg_missing_trcs_certs_map[msg].remove((isd_, ver))
+            # If all required trcs and certs are received
+            if not self.msg_missing_trcs_certs_map[msg]:
+                self.msgs_to_verify.append(msg)
+
+    def _get_missing_trcs_certs(self, trc_versions, cert_versions):
+        """
+        Check which intermediate trcs are missing and which cetificates are
+        missing and return them.
+
+        :returns: the missing TRCs versions
+        :rtype dict
+        """
+        missing = []
+        for isd_ in trc_versions.keys():
+            # Get TRC with highest version
+            highest_ver_TRC = self.trust_store.get_trc(int(isd_))
+            if highest_ver_TRC is None:
+                missing.append((isd_, trc_versions[isd_]))
+                continue
+            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_]):
+                missing.append(([isd_], ver))
+        for isd_as in cert_versions.keys():
+            if self.trust_store.get_cert(isd_as, cert_versions[isd_as]) is None:
+                missing.append((isd_as, cert_versions[isd_as]))
+        return missing
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.

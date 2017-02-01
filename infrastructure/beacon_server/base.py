@@ -123,8 +123,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.trc_requests = {}
         self.cert_requests = {}
         self.trcs = {}
-        self.missing_TRCs = deque()
-        self.missing_certs = deque()
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
@@ -252,10 +250,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
-        trcs, certs = pcb.get_trcs_certs()
-        # Find missing TRCs and certificates
-        self._get_missing_TRCs(trcs, meta)
-        self._get_missing_certs(certs, meta)
         self.incoming_pcbs.append(pcb)
         meta.close()
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
@@ -264,43 +258,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
-
-    def _get_missing_TRCs(self, trc_versions, meta):
-
-        """
-        Check which intermediate trcs are missing and add them to the queue.
-
-        :returns: the missing TRCs versions
-        :rtype dict
-        """
-        for isd_as in trc_versions.keys():
-            # Get TRC with highest version
-            isd_ = isd_as.split("-", 1)[0]
-            highest_ver_TRC = self.trust_store.get_trc(int(isd_))
-            if highest_ver_TRC is None:
-                self.missing_TRCs.append((isd_, trc_versions[isd_], meta))
-                continue
-            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_as]):
-                self.missing_TRCs.append((isd_, ver, meta))
-
-    def _get_missing_certs(self, certificates_versions, meta):
-        """
-        Check which intermediate certificates are missing and add them to the
-        queue.
-
-        :returns: the missing certificates' versions
-        :rtype dict
-        """
-        for isd_as in certificates_versions.keys():
-            # Get certificate with highest version
-            highest_ver_certificate = self.trust_store.get_cert(isd_as)
-            if highest_ver_certificate is None:
-                self.missing_certs.append((isd_as,
-                                           certificates_versions[isd_as], meta))
-                continue
-            for ver in range(highest_ver_certificate.version+1,
-                             certificates_versions[isd_as]):
-                self.missing_certs.append((isd_as, ver), meta)
 
     def handle_ext(self, pcb):
         """
