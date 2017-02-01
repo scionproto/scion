@@ -44,7 +44,12 @@ from lib.crypto.asymcrypto import (
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain
-from lib.crypto.trc import TRC
+from lib.crypto.trc import (TRC,
+    ONLINE_KEY_ALG_STRING,
+    ONLINE_KEY_STRING,
+    OFFLINE_KEY_ALG_STRING,
+    OFFLINE_KEY_STRING,
+)
 from lib.defines import (
     AS_CONF_FILE,
     AS_LIST_FILE,
@@ -338,8 +343,13 @@ class CertGenerator(object):
         if topo_id[0] not in self.trcs:
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
-        # Add public root key to TRC
-        trc.core_ases[str(topo_id)] =  base64.b64encode(self.pub_online_root_keys[topo_id]).decode()
+        # Add public root online/offline key to TRC
+        core = {}
+        core[ONLINE_KEY_ALG_STRING] = 'Ed25519'
+        core[ONLINE_KEY_STRING] = base64.b64encode(self.pub_online_root_keys[topo_id]).decode()
+        core[OFFLINE_KEY_ALG_STRING] = 'Ed25519'
+        core[OFFLINE_KEY_STRING] = base64.b64encode(self.priv_online_root_keys[topo_id]).decode()
+        trc.core_ases[str(topo_id)] = core
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(

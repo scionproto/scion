@@ -16,6 +16,7 @@
 ===============================================
 """
 # Stdlib
+import ast
 import base64
 import copy
 import json
@@ -45,7 +46,10 @@ QUORUM_CAS_STRING = 'QuorumCAs'
 QUARANTINE_STRING = 'Quarantine'
 SIGNATURES_STRING = 'Signatures'
 GRACE_PERIOD_STRING = 'GracePeriod'
-
+ONLINE_KEY_ALG_STRING = 'OnlineKeyAlg'
+ONLINE_KEY_STRING = 'OnlineKey'
+OFFLINE_KEY_ALG_STRING = 'OfflineKeyAlg'
+OFFLINE_KEY_STRING = 'OfflineKey'
 
 class TRC(object):
     """
@@ -103,9 +107,13 @@ class TRC(object):
                 val = copy.deepcopy(val)
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
-            dec = base64.b64decode(
-                trc_dict[CORE_ASES_STRING][subject]).decode("utf-8")
-            self.core_ases[subject] = base64.b64decode(dec)
+            # logging.error(trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING])
+            # dec = base64.b64decode(
+            #     trc_dict[CORE_ASES_STRING][subject]).decode("utf-8")
+            # dec = ast.literal_eval(dec)
+            self.core_ases[subject][ONLINE_KEY_STRING] = base64.b64decode(trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]).decode("utf-8")
+            logging.error(trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING])
+            logging.error(self.core_ases[subject][ONLINE_KEY_STRING])
         for subject in trc_dict[SIGNATURES_STRING]:
             self.signatures[subject] = \
                 base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
@@ -246,10 +254,19 @@ class TRC(object):
         """
         trc_dict = copy.deepcopy(self.dict(with_signatures))
         core_ases = {}
+        # for subject in trc_dict[CORE_ASES_STRING]:
+        #     cert_str = str(trc_dict[CORE_ASES_STRING][subject])
+        #     core_ases[subject] = base64.b64encode(
+        #         cert_str.encode('utf-8')).decode('utf-8')
         for subject in trc_dict[CORE_ASES_STRING]:
-            cert_str = str(trc_dict[CORE_ASES_STRING][subject])
-            core_ases[subject] = base64.b64encode(
+            cert_str = str(trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING])
+            d = {}
+            d[ONLINE_KEY_STRING] = base64.b64encode(
                 cert_str.encode('utf-8')).decode('utf-8')
+            cert_str = str(trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING])
+            d[OFFLINE_KEY_STRING] = base64.b64encode(
+                cert_str.encode('utf-8')).decode('utf-8')
+            core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
         if with_signatures:
             signatures = {}
