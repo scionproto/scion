@@ -117,7 +117,6 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.is_core_router = self.topology.is_core_as
-        logging.debug(self._core_ases)
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
         self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
