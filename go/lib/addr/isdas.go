@@ -40,6 +40,24 @@ func IAFromRaw(b common.RawBytes) *ISD_AS {
 	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
 }
 
+func IAFromString(s string) (*ISD_AS, error) {
+	parts := strings.Split(s, "-")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Invalid ISD-AS %q", s)
+	}
+	isd, err := strconv.Atoi(parts[0])
+	if err != nil {
+		e := err.(*strconv.NumError)
+		return nil, fmt.Errorf("Unable to parse ISD from %q: %v", s, e.Err)
+	}
+	as, err := strconv.Atoi(parts[1])
+	if err != nil {
+		e := err.(*strconv.NumError)
+		return nil, fmt.Errorf("Unable to parse AS from %q: %v", s, e.Err)
+	}
+	return &ISD_AS{I: isd, A: as}, nil
+}
+
 func (ia *ISD_AS) Write(b common.RawBytes) {
 	common.Order.PutUint32(b, uint32((ia.I<<20)|(ia.A&0x000FFFFF)))
 }
@@ -65,21 +83,11 @@ func (ia *ISD_AS) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	parts := strings.Split(s, "-")
-	if len(parts) != 2 {
-		return fmt.Errorf("Invalid ISD-AS %q", s)
-	}
-	isd, err := strconv.Atoi(parts[0])
+	resIA, err := IAFromString(s)
 	if err != nil {
-		e := err.(*strconv.NumError)
-		return fmt.Errorf("Unable to parse ISD from %q: %v", s, e.Err)
+		return err
 	}
-	as, err := strconv.Atoi(parts[1])
-	if err != nil {
-		e := err.(*strconv.NumError)
-		return fmt.Errorf("Unable to parse AS from %q: %v", s, e.Err)
-	}
-	ia.I = isd
-	ia.A = as
+	ia.I = resIA.I
+	ia.A = resIA.A
 	return nil
 }
