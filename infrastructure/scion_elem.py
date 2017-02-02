@@ -300,7 +300,7 @@ class SCIONElement(object):
         Process the Certificate chain reply.
 
         :param rep: Certificate chain reply.
-        :type rep: CertChainRep
+        :type rep: CertChainRep.
         """
         logging.info("Certificate reply received for %s",
                      cert_chain_rep.chain.get_leaf_isd_as_ver)
