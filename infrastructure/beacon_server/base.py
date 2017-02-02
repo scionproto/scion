@@ -51,7 +51,7 @@ from lib.errors import (
 )
 from lib.flagtypes import TCPFlags
 from lib.msg_meta import TCPMetadata, UDPMetadata
-from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
+from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
@@ -446,7 +446,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = time.time()
             try:
                 self.process_pcb_queue()
-                self.process_missing_certs_TRCs_queue()
                 self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
@@ -575,7 +574,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             asm.p.trcVer)
 
     @abstractmethod
-    def _handle_verified_beacon(self, pcb):
+    def _handle_verified_beacon(self, msg):
         """
         Once a beacon has been verified, place it into the right containers.
 
@@ -583,22 +582,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         raise NotImplementedError
-
-    @abstractmethod
-    def process_cert_chain_rep(self, cert_chain_rep, meta):
-        """
-        Process the Certificate chain reply.
-
-        :param rep: Certificate chain reply.
-        :type rep: CertChainRep
-        """
-        logging.info("Certificate reply received for %s",
-                     cert_chain_rep.chain.get_leaf_isd_as_ver)
-        self.trust_store.add_cert(cert_chain_rep.chain)
-
-        rep_key = cert_chain_rep.chain.get_leaf_isd_as_ver()
-        if rep_key in self.cert_requests:
-            del self.cert_requests[rep_key]
 
     def process_trc_rep(self, rep, meta):
         """
@@ -613,25 +596,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rep_key = rep.trc.get_isd_ver()
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
-
-    def process_missing_certs_TRCs_queue(self):
-        """
-        Iterate over the missing TRCs and certs queues and send the requests
-        to receive those
-        """
-        for _ in range(len(self.missing_TRCs)):
-            isd_as, ver, meta = self.missing_TRCs.popleft()
-            isd_ = isd_as.split("-", 1)[0]
-            trc_req = TRCRequest.from_values(ISD_AS(isd_as), ver)
-            logging.info("Requesting %sv%s TRC", isd_, ver)
-            self.send_meta(trc_req, meta)
-            self.trc_requests[(isd_, ver)] = time.time()
-        for _ in range(len(self.missing_certs)):
-            isd_as, ver, meta = self.missing_certs.popleft()
-            cert_req = CertChainRequest.from_values(ISD_AS(isd_as), ver)
-            logging.info("Requesting %sv%s certificate", isd_as, ver)
-            self.send_meta(cert_req, meta)
-            self.cert_requests[(isd_as, ver)] = time.time()
 
     def handle_unverified_beacons(self):
         """

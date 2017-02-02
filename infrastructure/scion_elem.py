@@ -22,10 +22,12 @@ import os
 import queue
 import threading
 import time
+from abc import abstractmethod
 from collections import defaultdict, deque
 
 # SCION
 from lib.config import Config
+from lib.crypto.certificate import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError
 from lib.defines import (
@@ -82,6 +84,7 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
+from lib.packet.pcb import PathSegment
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net, kill_self
@@ -233,11 +236,12 @@ class SCIONElement(object):
         except SCIONBaseError:
             log_exception("Error handling message:\n%s" % msg)
 
-    def handle_pcb_path(self, msg, meta):
+    def handle_msg(self, msg, meta):
         """
         When a pcb or path is received, this function is called to find missing
-        TRCs and certs and request them. TODO: Maybe call this handle_msg?
-        TODO: First, one needs to check that a msg is a pcb or path.
+        TRCs and certs and request them. TODO: First, one needs to check that
+        a msg is a pcb or path. What other kinds of messages can a SCION element
+        receive?
 
         :param msg: pcb or path
         """
@@ -246,23 +250,6 @@ class SCIONElement(object):
         # Find missing TRCs and certificates
         self.msg_missing_trcs_certs_map[msg] = \
             self._get_missing_trcs_certs(trcs, meta)
-
-    def process_trc_rep(self, rep, meta):
-        """
-        Process the TRC reply.
-
-        :param rep: TRC reply.
-        :type rep: TRCReply
-        """
-        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
-        self.trust_store.add_trc(rep.trc)
-        isd_, ver = rep.trc.get_isd_ver()
-        for msg in self.msg_missing_trcs_certs_map:
-            if (isd_, ver) in self.msg_missing_trcs_certs_map[msg]:
-                self.msg_missing_trcs_certs_map[msg].remove((isd_, ver))
-            # If all required trcs and certs are received
-            if not self.msg_missing_trcs_certs_map[msg]:
-                self.msgs_to_verify.append(msg)
 
     def _get_missing_trcs_certs(self, trc_versions, cert_versions):
         """
@@ -274,17 +261,101 @@ class SCIONElement(object):
         """
         missing = []
         for isd_ in trc_versions.keys():
-            # Get TRC with highest version
-            highest_ver_TRC = self.trust_store.get_trc(int(isd_))
-            if highest_ver_TRC is None:
+            # If not local TRC, only request this version
+            if isd_ is not self.topology.isd_as.split('-')[0]:
                 missing.append((isd_, trc_versions[isd_]))
                 continue
-            for ver in range(highest_ver_TRC.version+1, trc_versions[isd_]):
-                missing.append(([isd_], ver))
+            # Local TRC
+            highest_ver_TRC = self.trust_store.get_trc(int(isd_))
+            lower_ver = 0
+            if highest_ver_TRC is not None:
+                lower_ver = highest_ver_TRC.version+1
+            for ver in range(lower_ver, trc_versions[isd_]):
+                missing.append((isd_, ver))
         for isd_as in cert_versions.keys():
             if self.trust_store.get_cert(isd_as, cert_versions[isd_as]) is None:
                 missing.append((isd_as, cert_versions[isd_as]))
         return missing
+
+    def process_trc_rep(self, rep, meta):
+        """
+        Process the TRC reply.
+
+        :param rep: TRC reply.
+        :type rep: TRCReply
+        """
+        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
+        self.trust_store.add_trc(rep.trc)
+        isd_, ver = rep.trc.get_isd_ver()
+        # Remove received TRC from map
+        for msg in self.msg_missing_trcs_certs_map:
+            if (isd_, ver) in self.msg_missing_trcs_certs_map[msg]:
+                self.msg_missing_trcs_certs_map[msg].remove((isd_, ver))
+            # If all required trcs and certs are received
+            if not self.msg_missing_trcs_certs_map[msg]:
+                self.msgs_to_verify.append(msg)
+
+    def process_cert_chain_rep(self, cert_chain_rep, meta):
+        """
+        Process the Certificate chain reply.
+
+        :param rep: Certificate chain reply.
+        :type rep: CertChainRep
+        """
+        logging.info("Certificate reply received for %s",
+                     cert_chain_rep.chain.get_leaf_isd_as_ver)
+        self.trust_store.add_cert(cert_chain_rep.chain)
+        # Remove received cert from map
+        isd_as, ver = cert_chain_rep.chain.get_leaf_isd_as_ver()
+        for msg in self.msg_missing_trcs_certs_map:
+            if (isd_as, ver) in self.msg_missing_trcs_certs_map[msg]:
+                self.msg_missing_trcs_certs_map[msg].remove((isd_as, ver))
+            # If all required trcs and certs are received
+            if not self.msg_missing_trcs_certs_map[msg]:
+                self.msgs_to_verify.append(msg)
+
+    def _process_msgs_to_verify_queue(self):
+        """
+        Iterate over the msgs_to_verify queue and try to verify them.
+        """
+        for _ in range(len(self.msgs_to_verify)):
+            msg = self.msgs_to_verify.popleft()
+            self._try_to_verify_msg(msg, quiet=True)
+
+    def _try_to_verify_msg(self, msg, quiet=False):
+        """
+        Try to verify a pcb/path.
+        """
+        assert isinstance(msg, PathSegment)
+        asm = msg.asm(-1)
+        if self._check_trc(asm.isd_as(), asm.p.trcVer):
+            if self._verify_msg(msg):
+                # self.verified_msgs.append(msg)
+                self._handle_verified_msg(msg)
+            else:
+                logging.warning("Invalid beacon. %s", msg)
+        else:
+            if not quiet:
+                logging.warning("Certificate(s) or TRC missing for msg: %s",
+                                msg.short_desc())
+            self.unverified_msgs.append(msg)
+
+    def _verify_msg(self, msg):
+        """
+        Once the necessary certificate and TRC files have been found, verify the
+        message.
+        """
+        assert isinstance(msg, PathSegment)
+        asm = msg.asm(-1)
+        cert_ia = asm.isd_as()
+        trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+        return verify_sig_chain_trc(
+            msg.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
+            asm.p.trcVer)
+
+    @abstractmethod
+    def _handle_verified_msg(self, msg):
+        pass
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.
