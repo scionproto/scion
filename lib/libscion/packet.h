@@ -3,6 +3,8 @@
 
 #include <arpa/inet.h>
 
+#include "address.h"
+
 #pragma pack(push)
 #pragma pack(1)
 

@@ -1,6 +1,8 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#include "address.h"
+
 #define DP_COOKIE_LEN 8
 #define DP_HEADER_LEN (DP_COOKIE_LEN + 5)
 
