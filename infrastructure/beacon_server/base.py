@@ -699,9 +699,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         entry_name = "%s:%s" % (hash(rev_token), time.time())
         try:
             self.revobjs_cache.store(entry_name, rev_token)
-        except ZkNoConnection:
-            logging.error("Unable to store revocation in shared cache: "
-                          "no connection to ZK")
+        except ZkNoConnection as exc:
+            logging.error("Unable to store revocation in shared cache "
+                          "(no ZK connection): %s" % exc)
         self._remove_revoked_pcbs(rev_info)
 
     @abstractmethod
