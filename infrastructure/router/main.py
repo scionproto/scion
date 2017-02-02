@@ -469,7 +469,7 @@ class Router(SCIONElement):
             (True, False): hof.ingress_if,
             (True, True): hof.egress_if
         }
-        if get_if[ingress, iof.up_flag] not in {self.interface.if_id, 0}:
+        if get_if[ingress, iof.up_flag] != self.interface.if_id:
             raise SCIONIFVerificationError(hof, iof)
 
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
