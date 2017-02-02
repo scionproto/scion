@@ -74,3 +74,8 @@ tags
 # HSR
 ##########################
 lib/libhsr/build
+
+# Clang files
+##########################
+*.gch
+*.plist
