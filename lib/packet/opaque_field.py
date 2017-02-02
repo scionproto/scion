@@ -211,6 +211,14 @@ class InfoOpaqueField(OpaqueField):
             flags |= InfoOFFlags.PEER_SHORTCUT
         return flags
 
+    def __eq__(self, other):  # pragma: no cover
+        return (self.isd == other.isd and
+                self.hops == other.hops and
+                self.timestamp == other.timestamp and
+                self.up_flag == other.up_flag and
+                self.shortcut == other.shortcut and
+                self.peer == other.peer)
+
     def __str__(self):
         flags = self._pack_flags()
         return ("%s(%sB): flags: %s, TS: %s, ISD: %s, hops: %s" %

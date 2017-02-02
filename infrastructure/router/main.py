@@ -34,13 +34,13 @@ from infrastructure.router.errors import (
     SCIONOFExpiredError,
     SCIONOFVerificationError,
     SCIONPacketHeaderCorruptedError,
+    SCIONSegmentSwitchError,
 )
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
-    LINK_PARENT,
     MAX_HOPBYHOP_EXT,
     PATH_SERVICE,
     ROUTER_SERVICE,
@@ -84,6 +84,7 @@ from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
+    LinkType,
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
@@ -115,6 +116,8 @@ class Router(SCIONElement):
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
+        self.is_core_router = self.topology.is_core_as
+        logging.debug(self._core_ases)
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
         self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
@@ -395,7 +398,7 @@ class Router(SCIONElement):
         Returns True if this router is connected to an upstream router (via an
         upstream link), False otherwise.
         """
-        return self.interface.link_type == LINK_PARENT
+        return self.interface.link_type == LinkType.PARENT
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
@@ -463,13 +466,8 @@ class Router(SCIONElement):
         prev_hof = path.get_hof_ver(ingress=ingress)
         # Check that the interface in the current hop field matches the
         # interface in the router.
-        get_if = {
-            (False, False): hof.egress_if,
-            (False, True): hof.ingress_if,
-            (True, False): hof.ingress_if,
-            (True, True): hof.egress_if
-        }
-        if get_if[ingress, iof.up_flag] != self.interface.if_id:
+
+        if self._incoming_if_id(path, ingress) != self.interface.if_id:
             raise SCIONIFVerificationError(hof, iof)
 
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
@@ -515,8 +513,11 @@ class Router(SCIONElement):
         except SCIONPacketHeaderCorruptedError:
             logging.error("Dropping packet due to invalid header state.\n"
                           "Header:\n%s", spkt)
+        except SCIONSegmentSwitchError as e:
+            logging.error("Dropping packet due to disallowed segment switch: "
+                          "%s" % e.args[0])
         except SCIONInterfaceDownException:
-            logging.info("Dropping packet due to interface being down")
+            logging.info("Dropping packet due to interface being down.")
             pass
 
     def _process_data(self, spkt, ingress, drop_on_error):
@@ -540,7 +541,36 @@ class Router(SCIONElement):
             self.deliver(spkt)
             return
         if ingress:
+            incoming_if = self._incoming_if_id(path, True)
+            rcvd_on_routing_link = self._link_type(
+                incoming_if) == LinkType.ROUTING
+            prev_iof = path.get_iof()
             fwd_if, path_incd = self._calc_fwding_ingress(spkt)
+            cur_iof = path.get_iof()
+            if prev_iof != cur_iof:
+                # If the router switches segment, perform the following checks:
+                # 1) Never switch from a down-segment to an up-segment
+                #    (valley-freeness)
+                # 2) Never switch from an up(down)-segment to an
+                #    up(down)-segment, unless we are a core router.
+                # 3) Never switch from a core-segment to a core-segment.
+                fwd_on_routing_link = self._link_type(
+                    fwd_if) == LinkType.ROUTING
+                if not prev_iof.up_flag and cur_iof.up_flag:
+                    raise SCIONSegmentSwitchError(
+                        "Switching from down- to up-segment is not allowed.")
+                if not self.is_core_router:
+                    if prev_iof.up_flag and cur_iof.up_flag:
+                        raise SCIONSegmentSwitchError(
+                            "Switching from up- to up-segment is not allowed "
+                            "at a non-core router.")
+                    if not prev_iof.up_flag and not cur_iof.up_flag:
+                        raise SCIONSegmentSwitchError(
+                            "Switching from down- to down-segment is not "
+                            "allowed at a non-core router.")
+                if rcvd_on_routing_link and fwd_on_routing_link:
+                    raise SCIONSegmentSwitchError(
+                        "Switching from core- to core-segment is not allowed.")
         else:
             fwd_if = path.get_fwd_if()
             path_incd = False
@@ -575,6 +605,24 @@ class Router(SCIONElement):
             path.inc_hof_idx()
             incd = True
         return path.get_fwd_if(), incd
+
+    def _incoming_if_id(self, path, ingress):
+        hof = path.get_hof()
+        iof = path.get_iof()
+        get_if = {
+            (False, False): hof.egress_if,
+            (False, True): hof.ingress_if,
+            (True, False): hof.ingress_if,
+            (True, True): hof.egress_if
+        }
+        return get_if[ingress, iof.up_flag]
+
+    def _link_type(self, if_id):
+        """Returns to link type of the link corresponding to 'if_id' or None."""
+        for br in self.topology.get_all_border_routers():
+            if br.interface.if_id == if_id:
+                return br.interface.link_type
+        return None
 
     def _needs_local_processing(self, pkt):
         return pkt.addrs.dst in [

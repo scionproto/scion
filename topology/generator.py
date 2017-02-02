@@ -51,8 +51,6 @@ from lib.defines import (
     DEFAULT_MTU,
     GEN_PATH,
     IFIDS_FILE,
-    LINK_CHILD,
-    LINK_PARENT,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     SCION_MIN_MTU,
@@ -62,6 +60,7 @@ from lib.defines import (
 from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
 from lib.topology import Topology
+from lib.types import LinkType
 from lib.util import (
     copy_file,
     get_cert_chain_file_path,
@@ -382,9 +381,9 @@ class TopoGenerator(object):
             a = TopoID(attrs.pop("a"))
             b = TopoID(attrs.pop("b"))
             ltype = ltype_a = ltype_b = attrs.pop("ltype")
-            if ltype == LINK_PARENT:
-                ltype_a = LINK_CHILD
-                ltype_b = LINK_PARENT
+            if ltype == LinkType.PARENT:
+                ltype_a = LinkType.CHILD
+                ltype_b = LinkType.PARENT
             br_ids[a] += 1
             a_br = "br%s-%d" % (a, br_ids[a])
             a_ifid = if_ids[a].new()

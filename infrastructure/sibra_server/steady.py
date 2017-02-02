@@ -23,8 +23,6 @@ import time
 
 # SCION
 from lib.defines import (
-    LINK_PARENT,
-    LINK_ROUTING,
     SIBRA_MAX_IDX,
     SIBRA_MAX_STEADY_TICKS,
     SIBRA_TICK,
@@ -43,7 +41,7 @@ from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.payload import SIBRAPayload
 from lib.sibra.pcb_ext import SibraPCBExt
 from lib.sibra.util import current_tick, tick_to_time
-from lib.types import PathSegmentType as PST
+from lib.types import LinkType, PathSegmentType as PST
 from lib.util import SCIONTime, hex_str
 
 RESV_LEN = SIBRA_MAX_STEADY_TICKS - 1
@@ -250,8 +248,8 @@ class SteadyPath(object):
 
     def _register_path(self):
         link_types = {
-            LINK_ROUTING: (PST.CORE, PST.CORE),
-            LINK_PARENT: (PST.UP, PST.DOWN),
+            LinkType.ROUTING: (PST.CORE, PST.CORE),
+            LinkType.PARENT: (PST.UP, PST.DOWN),
         }
         local_type, remote_type = link_types[self.link_type]
         logging.debug("Registering path with local path server")
@@ -289,10 +287,10 @@ class SteadyPath(object):
         up = True
         if remote:
             sofs.reverse()
-            if self.link_type == LINK_PARENT:
+            if self.link_type == LinkType.PARENT:
                 up = False
         pcb_d = self.seg.to_dict()
-        if remote and self.link_type == LINK_ROUTING:
+        if remote and self.link_type == LinkType.ROUTING:
             pcb_d['asms'].reverse()
         pcb = PathSegment.from_dict(pcb_d)
         pcb_ext = SibraPCBExt.from_values(self.id, info, sofs, up)

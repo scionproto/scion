@@ -56,3 +56,9 @@ class SCIONInterfaceDownException(SCIONBaseException):
     def __init__(self, if_id):
         super().__init__()
         self.if_id = if_id
+
+
+class SCIONSegmentSwitchError(SCIONBaseException):
+    """
+    Switching from previous to current segment is disallowed.
+    """
