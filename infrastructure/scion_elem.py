@@ -282,7 +282,7 @@ class SCIONElement(object):
         Process the TRC reply.
 
         :param rep: TRC reply.
-        :type rep: TRCReply
+        :type rep: TRCReply.
         """
         logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
         self.trust_store.add_trc(rep.trc)
