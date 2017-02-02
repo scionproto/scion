@@ -204,7 +204,7 @@ class SCIONDaemon(SCIONElement):
           | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
         Reply:
           |p1_len(1B)|p1((p1_len*8)B)|fh_type(1B)|fh_IP(?B)|fh_port(2B)|mtu(2B)|
-           p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
+           p1_if_count(1B)|p1_if_1(6B)|...|p1_if_n(6B)|
            p2_len(1B)|...
          or b"" when no path found.
         """
