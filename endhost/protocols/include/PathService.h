@@ -38,10 +38,20 @@ public:
   static std::unique_ptr<PathService> create(const char* daemon_addr,
                                              int* error);
 
+  // Query the SCION daemon for paths to the AS, isd_as.
+  int lookup_paths(uint32_t isd_as);
+
+  // Sets the recevie timeout in seconds for queries to the SCION daemon.
+  //
+  // On success, zero is returned. On error a negative Linux system error code
+  // as defined in setsockopt is returned.
+  int set_timeout(double timeout);
+
 private:
   PathService() = default;
 
   int m_daemon_sockfd;
+  const int m_max_paths{20};
 
   // Unsuported default operations
   PathService(const PathService&) = delete;
