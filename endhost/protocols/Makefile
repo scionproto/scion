@@ -19,7 +19,9 @@ INCLUDE_DIR = ./include
 INC = -I$(LIB_DIR) -I$(INCLUDE_DIR)
 
 SRCS = $(wildcard src/*.cpp) $(wildcard src/*.c)
-OBJS = $(SRCS:src/%.cpp=build/%.o) $(SRCS:src/%.c=build/%.o)
+TESTS = $(wildcard test/*.cpp)
+OBJS = $(SRCS:src/%.cpp=build/%.o) $(SRCS:src/%.c=build/%.o) \
+	$(TESTS:test/%.cpp=test/%.o)
 STATIC = build/libssocket.a
 DYNAMIC = build/libssocket.so
 TARGETS = $(STATIC) $(DYNAMIC)
@@ -41,11 +43,16 @@ build/%.o: src/%.cpp
 build/%.o: src/%.c
 	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -MMD -c -o $@ $<
 
+test/%.o: test/%.cpp
+	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -lgtest -MMD -o $@ $<
+
+
 $(STATIC): $(OBJS)
 	ar rcs $@ $(OBJS)
 
 $(DYNAMIC): $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJS)
+
 
 .PHONY: install
 install: .installstamp
