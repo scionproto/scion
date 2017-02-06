@@ -69,9 +69,39 @@ int daemon_connect(const char* daemon_addr);
 int write_path_request(uint8_t* buffer, uint32_t isd_as);
 
 
+/* Parse network byte-order host address and populate the supplied addr with
+ * a copy of the data.
+ *
+ * On success, returns the number of bytes used for the host address. If the
+ * remaining input in the buffer, as indicated by data_len, is less than the
+ * needed data, zero is returned.
+ */
+int parse_host_addr(uint8_t* buffer, int data_len, HostAddr* host_addr);
+
+
+/* Parse a SCION path consisting of the raw path data and first hop address.
+ *
+ * On success, returns the number of bytes used in parsing. If the size of
+ * data_len indicates insufficent data, zero is returned.
+ */
 int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr);
 
+
+/* Parses the buffer and populates the path record with the availale data. The
+ * buffer should be in network byte-order and data_len should indicate
+ * suffient data in the buffer for the parsing.
+ *
+ * On success, returns the number of bytes used in parsing. If the size of
+ * data_len indicates insufficent data, zero is returned.
+ */
 int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record);
+
+
+/* De-initializes the specified path, freeing any internally allocated memory.
+ * The memory pointed to by the record itself is not freed however.
+ */
+void destroy_spath(spath_t* path);
+
 
 #ifdef __cplusplus
 }

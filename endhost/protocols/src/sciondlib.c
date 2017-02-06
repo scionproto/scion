@@ -73,13 +73,7 @@ int write_path_request(uint8_t *buffer, uint32_t isd_as)
 }
 
 
-/* Parse network byte-order host address and populate the supplied addr with
- * a copy of the data.
- *
- * On success, returns the number of bytes used for the host address. If the
- * remaining input in the buffer, as indicated by data_len, is less than the
- * needed data, zero is returned.
- */
+// The host address occupies [ addr_type (1B) | addr (?B) | port (2B) ]
 int parse_host_addr(uint8_t* buffer, int data_len, HostAddr* host_addr)
 {
   // Fail if we cannot read the address type
@@ -107,11 +101,8 @@ int parse_host_addr(uint8_t* buffer, int data_len, HostAddr* host_addr)
 }
 
 
-// TODO(jsmith): Is all allocated memory freed in case of failure?
-// TODO(jsmith): Function to appropriately free the paths
-// TODO(jsmith): Assume that the fucntion to deallocate paths that the raw path
-// is null if not assigned otherwise free it.
-// Return ptr to current position or offset from buffer start
+// Parses a path of the form
+// [ # byte-octets (1B) | path data (?B) | host_addr (?B) ]
 int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr)
 {
   // Fail if we cannot read the path length
@@ -139,14 +130,10 @@ int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr)
   return offset;
 }
 
-/* De-initializes the specified path, freeing any internally allocated memory.
- * The memory pointed to by the record itself is not freed however.
- */
-void destroy_spath(spath_t* path)
-{
-  free(path->raw_path);
-}
 
+// Parse an interface with the form [ ISD-AS (4B) | link (2B) ]
+// Returns number of bytes parsed and assumes that the data in the buffer is
+// sufficient.
 int parse_interface(uint8_t* buffer, sinterface_t* interface)
 {
   int offset = 0;
@@ -162,6 +149,8 @@ int parse_interface(uint8_t* buffer, sinterface_t* interface)
   return offset;
 }
 
+// Parse interface lists with the form [ # interfaces (1B) | if0 | if1 | ... ]
+// Return 0 on failure or the number of bytes used in the parsing.
 int parse_interfaces(uint8_t* buffer, int data_len,
                      sinterface_t** interface_array, uint8_t* interface_count)
 {
@@ -188,7 +177,8 @@ int parse_interfaces(uint8_t* buffer, int data_len,
   return offset;
 }
 
-// TODO(jsmith): destroy the path on failure
+
+// Parse the path record of the form [ Path | MTU (2B) | Interfaces ]
 int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
 {
   int offset = 0;
@@ -216,4 +206,10 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
   }
 
   return offset + bytes_used;
+}
+
+
+void destroy_spath(spath_t* path)
+{
+  free(path->raw_path);
 }
