@@ -249,6 +249,10 @@ class TRC(object):
                 base64.b64encode(key_str.encode('utf-8')).decode('utf-8')
             core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
+        root_cas = {}
+        for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
+            root_cas[subject] = base64.b64encode(cert_str).decode()
+        trc_dict[ROOT_CAS_STRING] = root_cas
         if with_signatures:
             signatures = {}
             for subject in trc_dict[SIGNATURES_STRING]:

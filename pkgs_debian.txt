@@ -33,6 +33,7 @@ python3-minimal
 python3-nacl
 python3-nose
 python3-nose-cov
+python3-openssl
 python3-pip
 python3-pygments
 python3-setuptools
