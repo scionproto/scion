@@ -12,16 +12,73 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <arpa/inet.h>
 
 #include "gtest/gtest.h"
+
+#include "scion.h"
+#include "sciondlib.h"
 
 namespace {
 
 // Tests that Foo does Xyz.
-TEST(FooTest, DoesXyz) {
-  ASSERT_TRUE(true);
-  // Exercises the Xyz feature of Foo.
+// TEST(FooTest, DoesXyz) {
+//   uint8_t buffer[] = "\001" "PATHINFO"         // Single line of path data
+//                      "\001" "ADDR" "\022\000"  // Border router on port 22
+//                      "\150\000"                // MTU of 150
+//                      "\002"                    // Two links
+//                      "\001\000\001\000" "\001\000"
+//                      "\002\000\002\000" "\002\000";
+//   spath_record_t record;
+//   int result = parse_path_record(buffer, sizeof(buffer), &record);
+//
+//   ASSERT_EQ(result, sizeof(buffer));
+// }
+
+// TODO(jsmith): Test memory cleanup & deallocation
+
+TEST(ScionDaemonTest, ParsesRecord) {
+  uint8_t buffer[] = {
+    0x01, 'P', 'A', 'T', 'H', 'I', 'N', 'F', 'O',  // Single line of path data
+    0x01, 'A','D','D','R', 0xA0, 0x0F,             // Border router on port 0xA00F
+    0x05, 0xDC,  // MTU of 1500 bytes
+    0x02,        // Two links
+    /*ISD-AS*/0x01, 0x00, 0x01, 0x00, /*link*/0x00, 0x64,  // Link 100
+    /*ISD-AS*/0x02, 0x00, 0x02, 0x00, /*link*/0x00, 0xC8,  // Link 200
+  };
+
+  spath_record_t record;
+  int result = parse_path_record(buffer, sizeof(buffer), &record);
+
+  // MTU and # of interfaces should be equal to the expected amounts
+  ASSERT_EQ(result, sizeof(buffer));
+  EXPECT_EQ(record.mtu, 0x05DC);
+  ASSERT_EQ(record.interface_count, 0x02);
+  // Check the ISD-AS address and link for the first interface
+  EXPECT_EQ(record.interfaces[0].link, 0x64);
+  EXPECT_EQ(record.interfaces[0].isd_as, 0x01000100);
+  // Check the ISD-AS address and link for the second interface
+  EXPECT_EQ(record.interfaces[1].link, 0xC8);
+  EXPECT_EQ(record.interfaces[1].isd_as, 0x02000200);
 }
+
+
+TEST(ScionDaemonTest, ParsesPath) {
+  uint8_t buffer[] = {
+    0x01, 'P', 'A', 'T', 'H', 'I', 'N', 'F', 'O',  // Single line of path data
+    0x01, 'A','D','D','R', 0xA0, 0x0F,             // Border router on port 0xA00F
+  };
+
+  spath_t path;
+  int result = parse_path(buffer, sizeof(buffer), &path);
+
+  ASSERT_EQ(result, sizeof(buffer));
+  ASSERT_EQ(path.len, 0x01);
+  ASSERT_EQ(path.first_hop.addr_type, 0x01);
+  ASSERT_EQ(path.first_hop.port, 0xA00F);
+}
+
+
 
 }  // namespace
 

@@ -25,6 +25,12 @@
 
 #include "packet.h"
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * An interface traversed by a SCION path as seen from within the specified AS.
  */
@@ -60,17 +66,15 @@ int daemon_connect(const char* daemon_addr);
  *
  * Returns the number of bytes written to the buffer.
  */
-int write_path_request(uint8_t *buffer, uint32_t isd_as);
+int write_path_request(uint8_t* buffer, uint32_t isd_as);
 
 
-/* Read a path response from a socket connected to the SCION daemon.
- *
- * The socket is assumed to be in blocking mode.
- *
- * On success, the number of paths read is returned. Otherwise a negative
- * system error number is returned.
- */
-int read_path_response(int sockfd);
+int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr);
 
+int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ifndef SCIONDLIB_H_ */

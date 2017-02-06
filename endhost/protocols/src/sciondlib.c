@@ -89,8 +89,8 @@ int parse_host_addr(uint8_t* buffer, int data_len, HostAddr* host_addr)
   int offset = 0;
   const uint8_t addr_type = buffer[offset++];  // FIXME(jsmith): Valid type?
   const int addr_len = get_addr_len(addr_type);
-  const int fixed_addr_len = 3;  // Address type + port number
-  if (data_len < fixed_addr_len + addr_len) { return 0; }
+  const int port_len = 2;  // Bytes for port number
+  if (data_len - offset < port_len + addr_len) { return 0; }
 
   // Set the address type
   host_addr->addr_type = addr_type;
@@ -100,7 +100,7 @@ int parse_host_addr(uint8_t* buffer, int data_len, HostAddr* host_addr)
   offset += addr_len;
 
   // Copy the 2-byte port and change its edianness
-  host_addr->port = ntohs((buffer[offset] << 8) | buffer[offset+1]);
+  host_addr->port = (buffer[offset] << 8) | buffer[offset+1];
   offset += 2;
 
   return offset;
@@ -156,7 +156,7 @@ int parse_interface(uint8_t* buffer, sinterface_t* interface)
   offset += sizeof(interface->isd_as);
 
   // Read the 2-byte link identifier
-  interface->link = ntohs((buffer[offset] << 8) | buffer[offset+1]);
+  interface->link = (buffer[offset] << 8) | buffer[offset+1];
   offset += 2;
 
   return offset;
@@ -170,7 +170,7 @@ int parse_interfaces(uint8_t* buffer, int data_len,
 
   // Check for sufficient path data
   int offset = 0;
-  const int interface_length = 5;
+  const int interface_length = 6;
   const int interface_byte_len = buffer[offset++] * interface_length;
   if (interface_byte_len > data_len - offset) { return 0; }
 
@@ -181,8 +181,7 @@ int parse_interfaces(uint8_t* buffer, int data_len,
 
   int i = 0;
   for (i = 0; i < *interface_count; ++i) {
-    offset += parse_interface(&buffer[offset],
-                              &interface_ptr[i * sizeof(sinterface_t)]);
+    offset += parse_interface(&buffer[offset], &interface_ptr[i]);
   }
 
   *interface_array = interface_ptr;
@@ -204,7 +203,7 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
     destroy_spath(&record->path);
     return 0;
   }
-  record->mtu = ntohs((buffer[offset] << 8) | buffer[offset+1]);
+  record->mtu = (buffer[offset] << 8) | buffer[offset+1];
   offset += 2;
 
   // Parse the path's interfaces
@@ -218,39 +217,3 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
 
   return offset + bytes_used;
 }
-
-
-
-
-//     bool add = true;
-//     int pathLen = *ptr * 8;
-//     if (pathLen + 1 > len)
-//         return -1;
-//     uint8_t addr_type = *(ptr + 1 + pathLen);
-//     int addr_len = get_addr_len(addr_type);
-//     // TODO: IPv6 (once sciond supports it)
-//     int interfaceOffset = 1 + pathLen + 1 + addr_len + 2 + 2;
-//     int interfaceCount = *(ptr + interfaceOffset);
-//     if (interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN > len)
-//         return -1;
-//     for (size_t j = 0; j < mPaths.size(); j++) {
-//         if (mPaths[j] &&
-//                 mPaths[j]->isSamePath(ptr + 1, pathLen)) {
-//             add = false;
-//             break;
-//         }
-//     }
-//     for (size_t j = 0; j < candidates.size(); j++) {
-//         if (candidates[j]->usesSameInterfaces(ptr + interfaceOffset + 1, interfaceCount)) {
-//             add = false;
-//             break;
-//         }
-//     }
-//     if (add) {
-//         Path *p = createPath(mDstAddr, ptr, 0);
-//         if (mPolicy.validate(p))
-//             candidates.push_back(p);
-//         else
-//             delete p;
-//     }
-//     return interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN;
