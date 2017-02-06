@@ -6,64 +6,79 @@ SHELL := bash
 .SUFFIXES:
 
 CC := clang
-CFLAGS ?= -Wall -g # -Werror
-LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion
+CFLAGS ?= -Wall -g -fPIC # -Werror
+LDFLAGS ?= -Wl,-z,defs -L/usr/local/lib  # -shared
+LDLIBS ?= -lpthread -lscion -lgtest
 
 CXX = clang++
 # Add -DSCIONDEBUGPRINT below to enable debug printing. Doing so *will*
 # break e.g. CircleCI since it is so spammy.
-CXXFLAGS ?= $(CFLAGS) -fPIC -std=c++11 -Wthread-safety
+CXXFLAGS ?= $(CFLAGS) -std=c++11 -Wthread-safety
 
 LIB_DIR = ../../lib/libscion
-INCLUDE_DIR = ./include
-INC = -I$(LIB_DIR) -I$(INCLUDE_DIR)
+HEADERS = ./include
+INC = -I$(LIB_DIR) -I$(HEADERS)
 
-SRCS = $(wildcard src/*.cpp) $(wildcard src/*.c)
-TESTS = $(wildcard test/*.cpp)
-OBJS = $(SRCS:src/%.cpp=build/%.o) $(SRCS:src/%.c=build/%.o) \
-	$(TESTS:test/%.cpp=test/%.o)
-STATIC = build/libssocket.a
-DYNAMIC = build/libssocket.so
-TARGETS = $(STATIC) $(DYNAMIC)
-PREFIX ?= /usr/local
+BUILD = ./build
+SOURCE = ./src
+TEST = ./test
 
+
+SRCS = $(wildcard $(SOURCE)/*.c*)
+TESTS = $(wildcard $(TEST)/*.cpp)
+OBJS = $(filter %.o, $(SRCS:$(SOURCE)/%.cpp=$(BUILD)/%.o) $(SRCS:$(SOURCE)/%.c=$(BUILD)/%.o) \
+	$(TESTS:$(TEST)/%.cpp=$(BUILD)/%.o))
+# STATIC = build/libssocket.a
+# DYNAMIC = build/libssocket.so
+# TARGETS = $(STATIC) $(DYNAMIC)
+# PREFIX ?= /usr/local
+# 
 .PHONY: all
-all: $(OBJS)
+all: $(OBJS) $(TESTS:$(TEST)/%.cpp=$(BUILD)/%)
 
 .PHONY: clean
 clean:
-	rm -f build/* *.d *.so *.a *.o .installstamp $(TARGETS)
-
+	rm -f build/* .installstamp
+ 
 # Compile .cpp files, while also automatically generating dependencies so they
 # can be recompiled if any of the included header files changed.
--include *.d
-build/%.o: src/%.cpp
+-include $(BUILD)/*.d
+$(BUILD)/%.o: $(SOURCE)/%.cpp
 	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -MMD -c -o $@ $<
 
-build/%.o: src/%.c
+-include $(BUILD)/*.d
+$(BUILD)/%.o: $(SOURCE)/%.c
 	$(CC) $(CFLAGS) $(USER_OPTS) $(INC) -MMD -c -o $@ $<
 
-test/%.o: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -lgtest -MMD -o $@ $<
+-include $(BUILD)/*.d
+$(BUILD)/%.o: $(TEST)/%.cpp
+	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -MMD -c -o $@ $<
 
+$(BUILD)/libsciond-test: $(BUILD)/libsciond-test.o $(BUILD)/sciondlib.o 
+	$(CXX) $(USER_OPTS) $(LDFLAGS) $+ $(LDLIBS) -o $@
 
-$(STATIC): $(OBJS)
-	ar rcs $@ $(OBJS)
-
-$(DYNAMIC): $(OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS)
-
-
-.PHONY: install
-install: .installstamp
-
-.installstamp: $(TARGETS)
-	sudo cp $(TARGETS) $(PREFIX)/lib/
-	sudo ldconfig
-	touch .installstamp
-
-.PHONY: uninstall
-uninstall:
-	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
-	sudo ldconfig
-	rm -f .installstamp
+# 
+# test/%.o: test/%.cpp
+# 	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -L/usr/local/lib -lgtest -lscion -MMD -o $@ build/sciondlib.o $<
+# 
+# 
+# $(STATIC): $(OBJS)
+# 	ar rcs $@ $(OBJS)
+# 
+# $(DYNAMIC): $(OBJS)
+# 	$(CXX) $(LDFLAGS) -o $@ $(OBJS)
+# 
+# 
+# .PHONY: install
+# install: .installstamp
+# 
+# .installstamp: $(TARGETS)
+# 	sudo cp $(TARGETS) $(PREFIX)/lib/
+# 	sudo ldconfig
+# 	touch .installstamp
+# 
+# .PHONY: uninstall
+# uninstall:
+# 	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
+# 	sudo ldconfig
+# 	rm -f .installstamp
