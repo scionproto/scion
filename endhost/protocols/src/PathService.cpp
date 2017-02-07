@@ -19,12 +19,16 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <list>
+#include <set>
 #include <cstring>
 #include <cmath>
+#include <cassert>
 #include <memory>
 #include <iostream>
 
 #include "util.h"
+#include "sciondlib.h"
 #include "utils.h"
 #include "PathService.h"
 
@@ -36,28 +40,29 @@ PathService::~PathService()
   }
 }
 
-// std::unique_ptr<PathService> PathService::create(const char* daemon_addr,
-//                                                  int* error)
-// {
-//   // Create a new service instance and initialize it
-//   std::unique_ptr<PathService> service{new PathService()};
-//
-//   // Set the timeout and check the error
-//   *error = service->set_timeout(0.0);
-//   if (*error != 0) {
-//     return nullptr;
-//   }
-//
-//   // Connect to daemon and handle any errors
-//   int result = daemon_connect(daemon_addr);
-//   if (result >= 0) {
-//     service->m_daemon_sockfd = result;
-//   } else {
-//     *error = result;
-//     service = nullptr;  // Free the memory
-//   }
-//   return service;
-// }
+
+std::unique_ptr<PathService> PathService::create(const char* daemon_addr,
+                                                 int* error)
+{
+  // Create a new service instance and initialize it
+  std::unique_ptr<PathService> service{new PathService()};
+
+  // Set the timeout and check the error
+  *error = service->set_timeout(0.0);
+  if (*error != 0) {
+    return nullptr;
+  }
+
+  // Connect to daemon and handle any errors
+  int result = daemon_connect(daemon_addr);
+  if (result >= 0) {
+    service->m_daemon_sockfd = result;
+  } else {
+    *error = result;
+    service = nullptr;  // Free the memory
+  }
+  return service;
+}
 
 
 int PathService::set_timeout(double timeout)
@@ -74,50 +79,161 @@ int PathService::set_timeout(double timeout)
 }
 
 
-// TODO(jsmith): Lock
-// int PathService::lookup_paths(uint32_t isd_as)
+int PathService::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
+{
+  assert(buffer_len > DP_HEADER_LEN);
+
+  // Send the path request
+  int data_len = write_path_request(buffer, isd_as);
+  int result = send_all(m_daemon_sockfd, buffer, data_len);
+  if (result == -1) { return -errno; }
+
+  // Read  and parse the communication header
+  result = recv_all(m_daemon_sockfd, buffer, DP_HEADER_LEN);
+  if (result == -1) { return -errno; }
+
+  // Determine how much data we should expect
+  parse_dp_header(buffer, /*addr_len=*/nullptr, &data_len);
+  if (data_len == -1) {
+    return -EAGAIN;  // Possible desynchronization.
+  }
+
+  // Calculate the unwanted excess in the response
+  int excess_len = (data_len > buffer_len) ? (data_len - buffer_len) : 0;
+
+  // Read the response
+  result = recv_all(m_daemon_sockfd, buffer, (data_len - excess_len));
+  return (result == -1) ? -errno : result;
+}
+
+
+int PathService::refresh_paths(uint32_t isd_as)
+{
+  // FIXME(jsmith): The upper bound is an estimation, calculate accurately.
+  const int buffer_len = 250 * m_max_paths;
+  uint8_t buffer[buffer_len];
+
+  // Get the path data from the SCION daemon
+  m_daemon_rw_mutex.Lock();
+  int path_data_len = lookup_paths(isd_as, buffer, buffer_len);
+  m_daemon_rw_mutex.Unlock();
+  if (path_data_len < 0) { return path_data_len; }
+
+  // Parse the records
+  int bytes_used = 0;
+  std::list<std::unique_ptr<PathRecord>> records;
+  do {
+    std::unique_ptr<PathRecord> record{new PathRecord()};
+    bytes_used = parse_path_record(buffer, path_data_len, record.get());
+
+    if (bytes_used != 0 && m_policy.is_valid(*record)) {
+      // Parse was successful & the path satisfies the policy.
+      records.push_back(std::move(record));
+    } else {
+      // The record is destroyed
+    }
+    // Update remaining bytes
+    path_data_len -= bytes_used;
+  } while (bytes_used != 0 && path_data_len != 0);
+
+  // Update the existing records and insert the new ones
+  m_records_mutex.Lock();
+  std::set<int> new_keys;  // TODO(jsmith): Make param
+  // Attempt to insert the new records. We do this before pruning to allow
+  // overwriting expired records while maintaining their keys.
+  // TODO(jsmith): Derive a key from the record (e.g. hash) to improve
+  attempt_inserts(records, new_keys);
+  prune_records();  // Free space by removing any expired records
+  if (!records.empty()) {
+    attempt_inserts(records, new_keys);
+  }
+  m_records_mutex.Unlock();
+
+  return 0;  // Anything that wasnt inserted is cleanup with the list
+}
+
+
+int PathService::insert_record(std::unique_ptr<PathRecord> &record,
+                               bool &updated)
+{
+  int record_id = 0;
+  // Check if a record with the same interfaces already exists
+  for (const auto& entry : m_records) {
+    if (has_same_interfaces(record.get(), entry.second.get()) == 1) {
+      record_id = entry.first;
+      break;
+    }
+  }
+  if (record_id != 0) {
+    // Flag that it's an update
+    updated = true;
+    // Perform an update by delete the old record to make space for the new
+    destroy_spath_record(m_records[record_id].get());
+  } else {
+    // Flag that it would be an insertion
+    updated = false;
+    // Ensure enough space for the insertion
+    if (m_records.size() == m_max_paths) {
+      return -1;
+    }
+    // Select a new record id
+    record_id = m_next_record_id;
+    m_next_record_id += 1;
+  }
+  // Insert the new record
+  m_records[record_id] = std::move(record);
+  return record_id;
+}
+
+
+void PathService::attempt_inserts(
+    std::list<std::unique_ptr<PathRecord> > &records,
+    std::set<int> &new_keys)
+{
+  auto iter = records.begin();
+  while (iter != records.end()) {
+    bool updated = false;
+    int record_key = insert_record(*iter, updated);
+
+    if (record_key != -1) {  // Record inserted
+      // Remove it from the list and update the set of new keys
+      iter = records.erase(iter);
+      if (!updated) {
+        new_keys.insert(record_key);
+      }
+    } else {
+      ++iter;
+    }
+  }
+}
+
+
+// Prune based on both policy validity, as policies may change, and expiration
+// timestamp. Otherwise, if an invalid path is not being used, we will never
+// get an SCMP message and the path with never be forcibly removed.
+// A timed cache would perhaps be a more appropriate structure.
+void PathService::prune_records()
+{
+  auto iter = m_records.begin();
+  while (iter != m_records.end()) {
+    if (m_policy.is_valid(*(iter->second))) {  // TODO(jsmith): Check expiration
+      ++iter;
+    } else {
+      iter = m_records.erase(iter);
+    }
+  }
+}
+// void PathManager::prunePaths()
 // {
-//   // Clear any data pending in the socket from a previous timeout
-//   int result = clear_sock(m_daemon_sockfd);
-//   if (result < 0) { return result; }
-//
-//   // FIXME(jsmith): The upper bound is an estimation, calculate accurately.
-//   const int buffer_len = 250 * m_max_paths;
-//   uint8_t buffer[buffer_len];
-//
-//   // Send the path request
-//   int data_len = write_path_request(buffer, isd_as);
-//   result = send_all(m_daemon_sockfd, buffer, data_len);
-//   if (result == -1) { return -errno; }
-//
-//   // Read  and parse the communication header
-//   result = recv_all(m_daemon_sockfd, buffer, DP_HEADER_LEN);
-//   if (result == -1) { return -errno; }
-//
-//   // Determine how much data we should expect
-//   parse_dp_header(buffer, /*addr_len=*/nullptr, &data_len);
-//   if (data_len == -1) {
-//     return -EAGAIN;  // Possible desynchronization.
-//   }
-//
-//   // Calculate the unwanted excess in the response
-//   int excess_len = (data_len > buffer_len) ? (data_len - buffer_len) : 0;
-//
-//   // Read the response
-//   result = recv_all(m_daemon_sockfd, buffer, (data_len - excess_len));
-//   if (result == -1) { return -errno; }
-//
-//
-// //     parse_dp_header(buf, NULL, &recvlen);
-// //     if (recvlen == -1) {
-// //         fprintf(stderr, "out of sync with sciond\n");
-// //         exit(1);
-// //     }
-// //     int reallen = recvlen > buflen ? buflen : recvlen;
-//   //if (recvlen < 0) {
-//   //    DEBUG("error while receiving header from sciond: %s\n", strerror(errno));
-//   //    return;
-//   //}
+//     for (size_t i = 0; i < mPaths.size(); i++) {
+//         Path *p = mPaths[i];
+//         if (p && (!p->isValid() || !mPolicy.validate(p))) {
+//             DEBUG("path %lu not valid\n", i);
+//             mPaths[i] = NULL;
+//             delete p;
+//             mInvalid++;
+//         }
+//     }
 // }
 
 // void PathManager::getPaths(double timeout)
@@ -225,4 +341,47 @@ int PathService::set_timeout(double timeout)
 //             delete p;
 //     }
 //     return interfaceOffset + 1 + interfaceCount * IF_TOTAL_LEN;
+// }
+//
+//
+// Insert new paths into the path list by first filling any empty positions
+// then appending to the end of the path list.
+// void PathManager::insertPaths(std::vector<Path *> &candidates)
+// {
+//     if (candidates.empty())
+//         return;
+//
+//     for (size_t i = 0; i < mPaths.size(); i++) {
+//         if (mPaths[i])
+//             continue;
+//         Path *p = candidates.front();
+//         candidates.erase(candidates.begin());
+//         mPaths[i] = p;
+//         p->setIndex(i);
+//         mInvalid--;
+//         if (candidates.empty())
+//             break;
+//     }
+//     for (size_t i = 0; i < candidates.size(); i++) {
+//         Path *p = candidates[i];
+//         int index = mPaths.size();
+//         mPaths.push_back(p);
+//         p->setIndex(index);
+//     }
+// }
+//
+// int PathManager::insertOnePath(Path *p)
+// {
+//     for (size_t i = 0; i < mPaths.size(); i++) {
+//         if (mPaths[i])
+//             continue;
+//         mPaths[i] = p;
+//         p->setIndex(i);
+//         mInvalid--;
+//         return i;
+//     }
+//     int index = mPaths.size();
+//     mPaths.push_back(p);
+//     p->setIndex(index);
+//     return index;
 // }

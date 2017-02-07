@@ -15,8 +15,28 @@
 #ifndef PATH_SERVICE_H_
 #define PATH_SERVICE_H_
 
+#include <map>
 #include <memory>
+#include <set>
+#include <list>
 
+#include "sciondlib.h"
+#include "Mutex.h"
+#include "MutexScion.h"
+#include "PathPolicy.h"
+
+class PathRecord: public spath_record_t {
+public:
+  PathRecord() = default;
+  ~PathRecord() { destroy_spath_record(this); }
+
+private:
+  // Unsuported default operations
+  PathRecord(const PathRecord&) = delete;
+  PathRecord& operator=(const PathRecord&) = delete;
+  PathRecord(PathRecord&&) = delete;
+  PathRecord& operator=(PathRecord&&) = delete;
+};
 
 // SCION daemon interface and path store.
 //
@@ -29,29 +49,95 @@ class PathService {
 public:
   ~PathService();
 
-  // Create a new instance of the path service.
-  //
-  // @param daemon_addr The AF_UNIX address of the SCION daemon.
-  // @param[out] error On success, 'error' is set to zero. Otherwise it is set
-  //                   to a negative Linux system error code pertaining to the
-  //                   error.
+  /* Create a new instance of the path service.
+   *
+   * @param daemon_addr The AF_UNIX address of the SCION daemon.
+   * @param[out] error On success, 'error' is set to zero. Otherwise it is set
+   *                   to a negative Linux system error code pertaining to the
+   *                   error.
+   */
   static std::unique_ptr<PathService> create(const char* daemon_addr,
                                              int* error);
 
-  // Query the SCION daemon for paths to the AS, isd_as.
-  int lookup_paths(uint32_t isd_as);
-
-  // Sets the recevie timeout in seconds for queries to the SCION daemon.
-  //
-  // On success, zero is returned. On error a negative Linux system error code
-  // as defined in setsockopt is returned.
+  /* Sets the receive timeout in seconds for queries to the SCION daemon.
+   *
+   * On success, zero is returned. On error a negative Linux system error code
+   * as defined in setsockopt is returned.
+   */
   int set_timeout(double timeout);
+
+  // Query the SCION daemon for paths to the AS, isd_as.
+  int refresh_paths(uint32_t isd_as)
+    EXCLUDES(m_records_mutex, m_daemon_rw_mutex);
+
+  // Verify that the record complies to the policy and inserts it
+  // int add_record();
 
 private:
   PathService() = default;
 
+  /* Query the SCION daemon for paths to the specified isd_as.
+   *
+   * On success, the result is loaded into buffer (truncated at buffer_len
+   * bytes) and the amount of data written to the buffer is returned.
+   * Otherwise, a negative system error code is returned.
+   *
+   * Requires that the buffer be able to accommodate at least the dispatcher
+   * header.
+   */
+  int lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
+    REQUIRES(m_daemon_rw_mutex);
+
+
+  /* Add a record to the path service.
+   *
+   * An existing record with the same interfaces is replaced by the new record,
+   * while maintinging the record's key.
+   *
+   * Returns the identifier of the record where the insertion or replacement
+   * took place, or -1 if the insertion would excede the number of allowed
+   * records.
+   *
+   * @param[out] updated True if a record was updated, false otherwise.
+   * @param[in,out] record The record to be inserted. A successful insert will
+   *                       claim the unique_ptr.
+   */
+  int insert_record(std::unique_ptr<PathRecord> &record, bool &updated)
+    REQUIRES(m_records_mutex);
+
+
+  /* Attempts to insert the records in 'records'.
+   *
+   * If a record is successfully inserted, it is removed from the list. If
+   * additionally the result was a new insertion, the resulting record-key is
+   * added to new_keys.
+   */
+  void attempt_inserts(std::list<std::unique_ptr<PathRecord> > &records,
+                       std::set<int> &new_keys)
+    REQUIRES(m_records_mutex);
+
+
+  // Removes expired or non-conformant records
+  void prune_records() REQUIRES(m_records_mutex);
+
+
+  // SCION daemon socket
   int m_daemon_sockfd;
+
+  // Maxmimum number of record to cache
   const int m_max_paths{20};
+  // The ID to be used to insert a record
+  int m_next_record_id GUARDED_BY(m_records_mutex) {1};
+  // Cache of the path records
+  std::map<int, std::unique_ptr<PathRecord> > m_records
+    GUARDED_BY(m_records_mutex);
+
+  // Associated policy for the records
+  PathPolicy m_policy;
+
+  // Mutexes
+  Mutex m_daemon_rw_mutex; // For read/write operations on the socket
+  Mutex m_records_mutex;   // For access to the records
 
   // Unsuported default operations
   PathService(const PathService&) = delete;
