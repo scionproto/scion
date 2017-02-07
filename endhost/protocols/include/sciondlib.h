@@ -51,6 +51,14 @@ typedef struct {
 } spath_record_t;
 
 
+/*
+ * Returns 1 (true) if the two paths in the two records use the same
+ * interfaces, 0 (false) otherwise.
+ */
+int has_same_interfaces(const spath_record_t* record_a,
+                        const spath_record_t* record_b);
+
+
 /* Creates a socket and connects to the SCION daemon specified by daemon_addr.
  *
  * On success, a sockfd file descriptor is returned. On error, a negative

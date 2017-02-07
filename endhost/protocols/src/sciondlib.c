@@ -28,6 +28,25 @@
 #include "defines.h"
 
 
+int has_same_interfaces(const spath_record_t* record_a,
+                        const spath_record_t* record_b)
+{
+  // Compare the size of the interface list
+  if (record_a->interface_count != record_b->interface_count) {
+    return 0;
+  }
+  // Compare the ISD-AS and LINK of each interface used
+  int i = 0;
+  for (i = 0; i < record_a->interface_count; ++i) {
+    if (record_a->interfaces[i].isd_as != record_b->interfaces[i].isd_as ||
+        record_a->interfaces[i].link != record_b->interfaces[i].link) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+
 int daemon_connect(const char* daemon_addr)
 {
   // Create a unix socket
