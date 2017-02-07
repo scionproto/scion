@@ -260,7 +260,7 @@ class TRC(object):
             for subject in trc_dict[SIGNATURES_STRING]:
                 signature = trc_dict[SIGNATURES_STRING][subject]
                 signatures[subject] = base64.b64encode(
-                    signature).decode()
+                    signature).decode('utf-8')
             trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
