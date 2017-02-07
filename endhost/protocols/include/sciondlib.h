@@ -110,6 +110,10 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record);
  */
 void destroy_spath(spath_t* path);
 
+/* Deallocates any internally allocated memory for a path record. The record
+ * itself is not freed however.
+ */
+void destroy_spath_record(spath_record_t* record);
 
 #ifdef __cplusplus
 }

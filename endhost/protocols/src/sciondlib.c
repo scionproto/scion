@@ -228,7 +228,20 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
 }
 
 
+// Free the raw path data and clear the pointer
 void destroy_spath(spath_t* path)
 {
   free(path->raw_path);
+  path->raw_path = NULL;
+}
+
+
+void destroy_spath_record(spath_record_t* record)
+{
+  // Destroy the path
+  destroy_spath(&record->path);
+  // Free the interfaces reset the count
+  free(record->interfaces);
+  record->interfaces = NULL;
+  record->interface_count = 0;
 }
