@@ -21,6 +21,8 @@
 #include <cstdint>
 
 #include "sciondlib.h"
+#include "Mutex.h"
+#include "MutexScion.h"
 
 
 /* A policy for describing allowed SCION paths. Currently supports whitelisting
@@ -35,12 +37,14 @@ public:
    *
    * Supplying an empty list clears the ISD whitelist.
    */
-  void whitelist_isds(const std::vector<uint16_t> &isds);
+  void whitelist_isds(const std::vector<uint16_t> &isds)
+    EXCLUDES(m_policy_mutex);
 
   /* Returns true if the path record is valid as per this path policy, false
    * otherwise.
    */
-  bool validate(const spath_record_t &record) const;
+  bool validate(const spath_record_t &record) const
+    EXCLUDES(m_policy_mutex);
 
 private:
   /* Retuns true if every ISD traversed by the path referred to by record is
@@ -48,10 +52,15 @@ private:
    *
    * Note an empty whitelist will result in this method always returning false.
    */
-  bool is_whitelisted(const spath_record_t &record) const;
+  bool is_whitelisted(const spath_record_t &record) const
+    REQUIRES(m_policy_mutex);
 
   // If non-empty, all paths must only utilize ISDs in the whitelist.
-  std::set<uint16_t> m_isd_whitelist;
+  std::set<uint16_t> m_isd_whitelist GUARDED_BY(m_policy_mutex);
+
+  // Mutex to ensure that multiple threads do not attempt to modify and
+  // validate on the details of the policy at the same time.
+  mutable Mutex m_policy_mutex;
 
   // Unsuported default operations
   PathPolicy(const PathPolicy&) = delete;

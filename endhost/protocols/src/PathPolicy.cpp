@@ -20,18 +20,24 @@
 
 void PathPolicy::whitelist_isds(const std::vector<uint16_t> &isds)
 {
+  m_policy_mutex.Lock();
   if (isds.empty()) {
     m_isd_whitelist.clear();
   } else {
     m_isd_whitelist.insert(isds.begin(), isds.end());
   }
+  m_policy_mutex.Unlock();
 }
 
 
 // Currently the only applicable check is the ISD white list
 bool PathPolicy::validate(const spath_record_t &record) const
 {
-  return m_isd_whitelist.empty() || is_whitelisted(record);
+  m_policy_mutex.Lock();
+  bool is_valid = m_isd_whitelist.empty() || is_whitelisted(record);
+  m_policy_mutex.Unlock();
+
+  return is_valid;
 }
 
 
