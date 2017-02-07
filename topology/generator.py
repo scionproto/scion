@@ -164,14 +164,13 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
-        ca_private_key_files, ca_cert_files = self._generate_cas()
-        cert_files, trc_files = self._generate_certs_trcs()
+        ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
+        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
-        #logging.error(trc_files)
-        #logging.error(ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_private_key_files)
+        self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
@@ -181,8 +180,8 @@ class ConfigGenerator(object):
         ca_gen = CA_Generator(self.topo_config)
         return ca_gen.generate()
 
-    def _generate_certs_trcs(self):
-        certgen = CertGenerator(self.topo_config)
+    def _generate_certs_trcs(self, ca_certs):
+        certgen = CertGenerator(self.topo_config, ca_certs)
         return certgen.generate()
 
     def _generate_topology(self):
@@ -258,9 +257,9 @@ class ConfigGenerator(object):
 
 
 class CertGenerator(object):
-    def __init__(self, topo_config):
+    def __init__(self, topo_config, ca_certs):
         self.topo_config = topo_config
-        self.cas = {}
+        self.ca_certs = ca_certs
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
@@ -336,8 +335,12 @@ class CertGenerator(object):
         trc.core_ases[str(topo_id)] = self.certs[topo_id]
 
     def _create_trc(self, isd):
+        ca_certs = {}
+        for ca_name, ca_cert in self.ca_certs[isd].items():
+            ca_certs[ca_name] = \
+                 crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         self.trcs[isd] = TRC.from_values(
-            isd, 0, {}, {'ca.com': 'ca.com_cert_base64'}, {}, 2,
+            isd, 0, {}, ca_certs, {}, 2,
             'dns_srv_addr', 'dns_srv_cert', 2,
             3, 2, True, {}, 18000)
 
@@ -359,7 +362,7 @@ class CA_Generator(object):
     def __init__(self, topo_config):
         self.topo_config = topo_config
         self.ca_keys = {}
-        self.ca_certs = {}
+        self.ca_certs = defaultdict(dict)
         self.ca_private_key_files = defaultdict(dict)
         self.ca_cert_files = defaultdict(dict)
 
@@ -368,7 +371,7 @@ class CA_Generator(object):
         self._iterate(self._gen_ca)
         self._iterate(self._gen_private_key_files)
         self._iterate(self._gen_cert_files)
-        return self.ca_private_key_files, self.ca_cert_files
+        return self.ca_private_key_files, self.ca_cert_files, self.ca_certs
 
     def _iterate(self, f):
         for ca_name, ca_config in self.topo_config["CAs"].items():
@@ -399,7 +402,7 @@ class CA_Generator(object):
                                  subject=ca),
         ])
         ca.sign(self.ca_keys[ca_name], "sha1")
-        self.ca_certs[ca_name] = ca
+        self.ca_certs[ca_config["ISD"]][ca_name] = ca
 
     def _gen_private_key_files(self, ca_name, ca_config):
         ca_private_key_path = get_ca_private_key_file_path("", ca_name)
@@ -409,7 +412,8 @@ class CA_Generator(object):
     def _gen_cert_files(self, ca_name, ca_config):
         ca_cert_path = get_ca_cert_file_path("", ca_name)
         self.ca_cert_files[ca_config["ISD"]][ca_cert_path] = \
-            crypto.dump_certificate(crypto.FILETYPE_PEM, self.ca_certs[ca_name])
+            crypto.dump_certificate(crypto.FILETYPE_PEM,
+                                    self.ca_certs[ca_config["ISD"]][ca_name])
 
 
 class TopoGenerator(object):
