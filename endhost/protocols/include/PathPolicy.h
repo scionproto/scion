@@ -43,7 +43,7 @@ public:
   /* Returns true if the path record is valid as per this path policy, false
    * otherwise.
    */
-  bool validate(const spath_record_t &record) const
+  bool is_valid(const spath_record_t &record) const
     EXCLUDES(m_policy_mutex);
 
 private:
