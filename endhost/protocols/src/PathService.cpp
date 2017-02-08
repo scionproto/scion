@@ -29,7 +29,9 @@
 
 #include "util.h"
 #include "sciondlib.h"
+extern "C" {
 #include "utils.h"
+}
 #include "PathService.h"
 
 PathService::~PathService()
@@ -113,7 +115,7 @@ int PathService::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
 //
 // It's possible that unused paths will block inserting new paths. A LRU cache
 // or expiry cache could be used to ensure fresh inserts.
-int PathService::refresh_paths(std::set<int> new_keys)
+int PathService::refresh_paths(std::set<int> &new_keys)
 {
   // FIXME(jsmith): The upper bound is an estimation, calculate accurately.
   const int buffer_len = 250 * m_max_paths;

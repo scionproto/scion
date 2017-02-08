@@ -25,6 +25,9 @@
 #include "MutexScion.h"
 #include "PathPolicy.h"
 
+/* A thin wrapper around the C path record structure to handle deallocating
+ * the internal resources.
+ */
 class PathRecord: public spath_record_t {
 public:
   PathRecord() = default;
@@ -38,13 +41,15 @@ private:
   PathRecord& operator=(PathRecord&&) = delete;
 };
 
-// SCION daemon interface and path store.
-//
-// This service is responsible for fetching and verifying path data.
-//
-// TODO(jsmith): As it will be used by both the sending and receiving threads,
-// we need to lock certain operations on a mutex, such as those utilizing and
-// modifying the user's path preferences
+
+/* SCION daemon interface and path store.
+ *
+ * This service is responsible for fetching and verifying path data. Paths are
+ * referenced by their associated keys which allows for updating the details of
+ * a path without invalidating the reference.
+ *
+ * Paths when returned are returned by copy to avoid fine-grained locking.
+ */
 class PathService {
 public:
   ~PathService();
@@ -60,6 +65,7 @@ public:
                                              const char* daemon_addr,
                                              int* error);
 
+
   /* Sets the receive timeout in seconds for queries to the SCION daemon.
    *
    * On success, zero is returned. On error a negative Linux system error code
@@ -67,8 +73,15 @@ public:
    */
   int set_timeout(double timeout);
 
-  // Query the SCION daemon for paths to the AS, isd_as.
-  int refresh_paths(std::set<int> new_keys)
+
+  /* Query the SCION daemon for paths to previously specified AS and update the
+   * local record cache.
+   *
+   * On success, zero is returned and the keys to any new (as opposed to
+   * updated) records are inserted into new_keys. On error a negative system
+   * error number is returned.
+   */
+  int refresh_paths(std::set<int> &new_keys)
     EXCLUDES(m_records_mutex, m_daemon_rw_mutex);
 
   // Verify that the record complies to the policy and inserts it
@@ -78,6 +91,7 @@ private:
   PathService(uint32_t isd_as)
     : m_dest_isd_as{isd_as}
   { };
+
 
   /* Query the SCION daemon for paths to the specified isd_as.
    *
@@ -109,7 +123,7 @@ private:
     REQUIRES(m_records_mutex);
 
 
-  // Removes expired or non-conformant records
+  // Removes non-conformant records
   void prune_records() REQUIRES(m_records_mutex);
 
 
