@@ -41,11 +41,12 @@ PathService::~PathService()
 }
 
 
-std::unique_ptr<PathService> PathService::create(const char* daemon_addr,
+std::unique_ptr<PathService> PathService::create(uint32_t dest_isd_as,
+                                                 const char* daemon_addr,
                                                  int* error)
 {
   // Create a new service instance and initialize it
-  std::unique_ptr<PathService> service{new PathService()};
+  std::unique_ptr<PathService> service{new PathService(dest_isd_as)};
 
   // Set the timeout and check the error
   *error = service->set_timeout(0.0);
@@ -107,7 +108,7 @@ int PathService::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
 }
 
 
-int PathService::refresh_paths(uint32_t isd_as)
+int PathService::refresh_paths(std::set<int> new_keys)
 {
   // FIXME(jsmith): The upper bound is an estimation, calculate accurately.
   const int buffer_len = 250 * m_max_paths;
@@ -115,7 +116,7 @@ int PathService::refresh_paths(uint32_t isd_as)
 
   // Get the path data from the SCION daemon
   m_daemon_rw_mutex.Lock();
-  int path_data_len = lookup_paths(isd_as, buffer, buffer_len);
+  int path_data_len = lookup_paths(m_dest_isd_as, buffer, buffer_len);
   m_daemon_rw_mutex.Unlock();
   if (path_data_len < 0) { return path_data_len; }
 
@@ -138,7 +139,6 @@ int PathService::refresh_paths(uint32_t isd_as)
 
   // Update the existing records and insert the new ones
   m_records_mutex.Lock();
-  std::set<int> new_keys;  // TODO(jsmith): Make param
   // Attempt to insert the new records. We do this before pruning to allow
   // overwriting expired records while maintaining their keys.
   // TODO(jsmith): Derive a key from the record (e.g. hash) to improve

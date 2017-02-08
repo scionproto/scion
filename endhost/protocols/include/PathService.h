@@ -56,7 +56,8 @@ public:
    *                   to a negative Linux system error code pertaining to the
    *                   error.
    */
-  static std::unique_ptr<PathService> create(const char* daemon_addr,
+  static std::unique_ptr<PathService> create(uint32_t dest_isd_as,
+                                             const char* daemon_addr,
                                              int* error);
 
   /* Sets the receive timeout in seconds for queries to the SCION daemon.
@@ -67,14 +68,16 @@ public:
   int set_timeout(double timeout);
 
   // Query the SCION daemon for paths to the AS, isd_as.
-  int refresh_paths(uint32_t isd_as)
+  int refresh_paths(std::set<int> new_keys)
     EXCLUDES(m_records_mutex, m_daemon_rw_mutex);
 
   // Verify that the record complies to the policy and inserts it
   // int add_record();
 
 private:
-  PathService() = default;
+  PathService(uint32_t isd_as)
+    : m_dest_isd_as{isd_as}
+  { };
 
   /* Query the SCION daemon for paths to the specified isd_as.
    *
@@ -121,6 +124,7 @@ private:
   void prune_records() REQUIRES(m_records_mutex);
 
 
+  const uint32_t m_dest_isd_as;
   // SCION daemon socket
   int m_daemon_sockfd;
 
