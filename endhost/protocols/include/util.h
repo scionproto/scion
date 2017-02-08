@@ -30,6 +30,15 @@ int clear_sock(int sockfd);
 /* Blocks `timeout` milliseconds until data is available to be read then recvs
  * the data into the buffer.
  */
-int poll_recv(int sockfd, uint8_t *buffer, size_t len, int timeout);
+int poll_recv(int sockfd, uint8_t *buffer, std::size_t len, int timeout);
+
+
+/* Creates a UNIX socket and connects to the specified unix address.
+ *
+ * On success, a sockfd file descriptor is returned. On error, a negative
+ * system error code is returned, namely those relating to socket and connect.
+ */
+int unix_connect(const char* addr);
+
 
 #endif /* ifndef UTIL_H_ */

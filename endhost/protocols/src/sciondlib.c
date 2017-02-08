@@ -47,34 +47,6 @@ int has_same_interfaces(const spath_record_t* record_a,
 }
 
 
-int daemon_connect(const char* daemon_addr)
-{
-  // Create a unix socket
-  int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (sockfd == -1) {
-    return -errno;
-  }
-
-  // Define the UNIX address
-  struct sockaddr_un sock_addr;
-  sock_addr.sun_family = AF_UNIX;
-  strncpy(sock_addr.sun_path, daemon_addr, sizeof(sock_addr.sun_path));
-  // Null the final byte of the sun_path, in case the address was too long.
-  sock_addr.sun_path[sizeof(sock_addr.sun_path)-1] = '\0';
-
-  // Connect to the daemon
-  if(connect(sockfd, (struct sockaddr*)(&sock_addr), sizeof(sock_addr)) == -1) {
-    // Store the errno as close may overwrite it
-    int connect_error = errno;
-    // Cleanup the socket file descriptor
-    assert(close(sockfd) == 0);
-    return -connect_error;
-  } else {
-    return sockfd;
-  }
-}
-
-
 int write_path_request(uint8_t *buffer, uint32_t isd_as)
 {
   int offset = 0;

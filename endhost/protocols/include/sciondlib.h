@@ -59,16 +59,6 @@ int has_same_interfaces(const spath_record_t* record_a,
                         const spath_record_t* record_b);
 
 
-/* Creates a socket and connects to the SCION daemon specified by daemon_addr.
- *
- * On success, a sockfd file descriptor is returned. On error, a negative
- * system error code is returned, namely those relating to socket and connect.
- *
- * @param daemon_addr The AF_UNIX address of the SCION daemon.
- */
-int daemon_connect(const char* daemon_addr);
-
-
 /* Writes the SCION daemon request for paths to the AS specified to the buffer.
  * The buffer should have at least DP_HEADER_LEN + 5 bytes of space.
  *
