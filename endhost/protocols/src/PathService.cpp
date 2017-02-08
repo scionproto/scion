@@ -34,41 +34,34 @@ extern "C" {
 }
 #include "PathService.h"
 
-PathService::~PathService()
-{
-  // Close the socket
-  if (close(m_daemon_sockfd) != 0) {
-    std::cerr << "Error sciond socket close: " << std::strerror(errno) << "\n";
-  }
-}
 
-
-std::unique_ptr<PathService> PathService::create(uint32_t dest_isd_as,
+template<typename T>
+std::unique_ptr<PathService<T>> PathService<T>::create(uint32_t dest_isd_as,
                                                  const char* daemon_addr,
-                                                 int* error)
+                                                 int &error)
 {
   // Create a new service instance and initialize it
-  std::unique_ptr<PathService> service{new PathService(dest_isd_as)};
+  std::unique_ptr<PathService<T>> service{new PathService<T>(dest_isd_as)};
 
   // Set the timeout and check the error
-  *error = service->set_timeout(0.0);
-  if (*error != 0) {
+  error = service->set_timeout(0.0);
+  if (error != 0) {
     return nullptr;
   }
 
   // Connect to daemon and handle any errors
-  int result = daemon_connect(daemon_addr);
-  if (result >= 0) {
-    service->m_daemon_sockfd = result;
-  } else {
-    *error = result;
-    service = nullptr;  // Free the memory
+  int result = service->m_daemon_sock.connect(daemon_addr);
+  if (result == -1) {
+    error = -errno;
+    return nullptr;
   }
+
   return service;
 }
 
 
-int PathService::set_timeout(double timeout)
+template<typename T>
+int PathService<T>::set_timeout(double timeout)
 {
   struct timeval timeout_val;
   // Separate the timeout into seconds and microseconds
@@ -76,23 +69,24 @@ int PathService::set_timeout(double timeout)
   timeout_val.tv_sec = time_t(std::trunc(timeout));
   timeout_val.tv_usec = suseconds_t((timeout - std::trunc(timeout)) * 1e6);
 
-  int result = setsockopt(m_daemon_sockfd, SOL_SOCKET, SO_RCVTIMEO,
-                          &timeout_val, sizeof(timeout_val));
+  int result = m_daemon_sock.setsockopt(SOL_SOCKET, SO_RCVTIMEO, &timeout_val,
+                                        sizeof(timeout_val));
   return (result == -1) ? -errno : 0;
 }
 
 
-int PathService::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
+template<typename T>
+int PathService<T>::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
 {
   assert(buffer_len > DP_HEADER_LEN);
 
   // Send the path request
   int data_len = write_path_request(buffer, isd_as);
-  int result = send_all(m_daemon_sockfd, buffer, data_len);
+  int result = m_daemon_sock.send_all(buffer, data_len);
   if (result == -1) { return -errno; }
 
   // Read  and parse the communication header
-  result = recv_all(m_daemon_sockfd, buffer, DP_HEADER_LEN);
+  result = m_daemon_sock.recv_all(buffer, DP_HEADER_LEN);
   if (result == -1) { return -errno; }
 
   // Determine how much data we should expect
@@ -105,7 +99,8 @@ int PathService::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
   int excess_len = (data_len > buffer_len) ? (data_len - buffer_len) : 0;
 
   // Read the response
-  result = recv_all(m_daemon_sockfd, buffer, (data_len - excess_len));
+  result = m_daemon_sock.recv_all(buffer, (data_len - excess_len));
+  // TODO(jsmith): Clear excess?
   return (result == -1) ? -errno : result;
 }
 
@@ -115,7 +110,8 @@ int PathService::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
 //
 // It's possible that unused paths will block inserting new paths. A LRU cache
 // or expiry cache could be used to ensure fresh inserts.
-int PathService::refresh_paths(std::set<int> &new_keys)
+template<typename T>
+int PathService<T>::refresh_paths(std::set<int> &new_keys)
 {
   // FIXME(jsmith): The upper bound is an estimation, calculate accurately.
   const int buffer_len = 250 * m_max_paths;
@@ -158,8 +154,9 @@ int PathService::refresh_paths(std::set<int> &new_keys)
 }
 
 
-int PathService::insert_record(std::unique_ptr<PathRecord> &record,
-                               bool &updated)
+template<typename T>
+int PathService<T>::insert_record(std::unique_ptr<PathRecord> &record,
+                                  bool &updated)
 {
   int record_id = 0;
   // Check if a record with the same interfaces already exists
@@ -172,8 +169,6 @@ int PathService::insert_record(std::unique_ptr<PathRecord> &record,
   if (record_id != 0) {
     // Flag that it's an update
     updated = true;
-    // Perform an update by delete the old record to make space for the new
-    destroy_spath_record(m_records[record_id].get());
   } else {
     // Flag that it would be an insertion
     updated = false;
@@ -186,6 +181,8 @@ int PathService::insert_record(std::unique_ptr<PathRecord> &record,
     m_next_record_id += 1;
   }
   // Insert the new record
+  // If it's a replacement the loss of previous unique_ptr should do any
+  // necessary cleanup
   m_records[record_id] = std::move(record);
   return record_id;
 }
@@ -195,7 +192,8 @@ int PathService::insert_record(std::unique_ptr<PathRecord> &record,
 // timestamp. Otherwise, if an invalid path is not being used, we will never
 // get an SCMP message and the path with never be forcibly removed.
 // A timed cache would perhaps be a more appropriate structure.
-void PathService::prune_records()
+template<typename T>
+void PathService<T>::prune_records()
 {
   auto iter = m_records.begin();
   while (iter != m_records.end()) {

@@ -24,6 +24,7 @@
 #include "Mutex.h"
 #include "MutexScion.h"
 #include "PathPolicy.h"
+#include "UnixSocket.h"
 
 /* A thin wrapper around the C path record structure to handle deallocating
  * the internal resources.
@@ -50,9 +51,10 @@ private:
  *
  * Paths when returned are returned by copy to avoid fine-grained locking.
  */
+template<typename T = UnixSocket>
 class PathService {
 public:
-  ~PathService();
+  ~PathService() = default;
 
   /* Create a new instance of the path service.
    *
@@ -63,7 +65,7 @@ public:
    */
   static std::unique_ptr<PathService> create(uint32_t dest_isd_as,
                                              const char* daemon_addr,
-                                             int* error);
+                                             int &error);
 
 
   /* Sets the receive timeout in seconds for queries to the SCION daemon.
@@ -128,8 +130,9 @@ private:
 
 
   const uint32_t m_dest_isd_as;
+
   // SCION daemon socket
-  int m_daemon_sockfd;
+  T m_daemon_sock;
 
   // Maxmimum number of record to cache
   const int m_max_paths{20};
