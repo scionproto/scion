@@ -109,17 +109,6 @@ private:
     REQUIRES(m_records_mutex);
 
 
-  /* Attempts to insert the records in 'records'.
-   *
-   * If a record is successfully inserted, it is removed from the list. If
-   * additionally the result was a new insertion, the resulting record-key is
-   * added to new_keys.
-   */
-  void attempt_inserts(std::list<std::unique_ptr<PathRecord> > &records,
-                       std::set<int> &new_keys)
-    REQUIRES(m_records_mutex);
-
-
   // Removes expired or non-conformant records
   void prune_records() REQUIRES(m_records_mutex);
 
