@@ -67,9 +67,28 @@ public:
         // debugprint(stderr, "%lx MCw<: %p\n", pthread_self(), &lock);
     }
 
+    // For negative capabilities
+    inline const Mutex& operator!() const { return *this; }
+
 private:
     pthread_mutex_t lock;
     DISALLOW_COPY_AND_ASSIGN(Mutex);
+};
+
+// MutexLocker is an RAII class that acquires a mutex in its constructor, and
+// releases it in its destructor.
+class SCOPED_CAPABILITY MutexLocker {
+public:
+  MutexLocker(Mutex *mu) ACQUIRE(mu) : mut(mu) {
+    mu->Lock();
+  }
+  ~MutexLocker() RELEASE() {
+    mut->Unlock();
+  }
+
+private:
+  Mutex* mut;
+  DISALLOW_COPY_AND_ASSIGN(MutexLocker);
 };
 
 #endif  // MUTEXSCION_H_
