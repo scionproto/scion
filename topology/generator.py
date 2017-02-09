@@ -379,7 +379,7 @@ class CA_Generator(object):
 
     def _gen_ca_key(self, ca_name, ca_config):
         self.ca_keys[ca_name] = crypto.PKey()
-        self.ca_keys[ca_name].generate_key(crypto.TYPE_RSA, 1024)
+        self.ca_keys[ca_name].generate_key(crypto.TYPE_RSA, 2048)
 
     def _gen_ca(self, ca_name, ca_config):
         ca = crypto.X509()
@@ -391,13 +391,27 @@ class CA_Generator(object):
         ca.get_subject().O = ca_config["organizationName"]
         ca.get_subject().OU = ca_config["organizationalUnitName"]
         ca.gmtime_adj_notBefore(0)
-        ca.gmtime_adj_notAfter(24 * 60 * 60)
+        ca.gmtime_adj_notAfter(5 * 365 * 24 * 60 * 60)
         ca.set_issuer(ca.get_subject())
         ca.set_pubkey(self.ca_keys[ca_name])
+        # From RFC5280: Conforming CAs MUST include keyUsage extension in
+        # certificates that contain public keys that are used to validate
+        # digital signatures on other public key certificates or CRLs.
+        # To facilitate certification path construction, subjectKeyIdentifier
+        # extension MUST appear in all conforming CA certificates, that is, all
+        # certificates including the basic constraints extension where the
+        # value of cA is TRUE.
         ca.add_extensions([
+            # basicConstraints identifies whether subject of certificate is a CA
+            # pathlen 0 means, that this CA must not issue intermediate
+            # certificates where the CA bit is set to true.
             crypto.X509Extension(
                 b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+            # The keyCertSign bit is asserted when the subject public key is
+            # used for verifying signatures on public key certificates.
             crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+            # The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+            # value of the BIT STRING subjectPublicKey
             crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash",
                                  subject=ca),
         ])
