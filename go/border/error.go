@@ -36,6 +36,8 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	if ok {
 		perr.Ctx = append(perr.Ctx, "SCMP", sdata.CT)
 	}
+	// XXX(kormat): uncomment for debugging:
+	// perr.Ctx = append(perr.Ctx, "raw", rp.Raw)
 	rp.Error(desc, perr.Ctx...)
 	if !ok || perr.Data == nil || rp.DirFrom == rpkt.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
@@ -125,7 +127,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		if hopF != nil && hopF.Xover {
 			reply.InfoF()
 			// Always increment reversed path on a xover point.
-			if err := reply.IncPath(); err != nil {
+			if _, err := reply.IncPath(); err != nil {
 				return nil, err
 			}
 			// Increment reversed path if it was incremented in the forward direction.
@@ -133,7 +135,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			// https://github.com/netsec-ethz/scion/blob/master/doc/PathReversal.md
 			// for details.
 			if rp.IncrementedPath {
-				if err := reply.IncPath(); err != nil {
+				if _, err := reply.IncPath(); err != nil {
 					return nil, err
 				}
 			}
@@ -141,7 +143,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			reply.InfoF()
 			// Increase path if the current HOF is not xover and
 			// this router is an ingress router.
-			if err := reply.IncPath(); err != nil {
+			if _, err := reply.IncPath(); err != nil {
 				return nil, err
 			}
 		}
