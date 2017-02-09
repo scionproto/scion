@@ -87,14 +87,14 @@ def get_enc_key_file_path(conf_dir):  # pragma: no cover
 
 def get_online_key_file_path(conf_dir):  # pragma: no cover
     """
-    Return the signing key file path.
+    Return the online key file path.
     """
     return os.path.join(conf_dir, KEYS_DIR, "online-root.key")
 
 
 def get_offline_key_file_path(conf_dir):  # pragma: no cover
     """
-    Return the signing key file path.
+    Return the offline key file path.
     """
     return os.path.join(conf_dir, KEYS_DIR, "offline-root.key")
 

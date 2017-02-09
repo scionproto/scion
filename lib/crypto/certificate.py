@@ -124,6 +124,15 @@ class Certificate(object):
         return True
 
     def verify_core(self, pub_online_root_key):
+        """
+        Verify core signature with given online root key.
+
+        :param bytes pub_online_root_key:
+            The online root key of the core AS  which signed this
+            root certificate
+        :returns: True or False whether the verification succeeds or fails.
+        :rtype: bool
+        """
         return self._verify_signature(self.signature_raw, pub_online_root_key)
 
     def _verify_signature(self, signature, public_key):

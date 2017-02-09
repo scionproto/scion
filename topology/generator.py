@@ -40,16 +40,15 @@ from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_sign_keypair,
     generate_enc_keypair,
-    sign,
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import (
-    TRC,
-    ONLINE_KEY_ALG_STRING,
-    ONLINE_KEY_STRING,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
+    ONLINE_KEY_ALG_STRING,
+    ONLINE_KEY_STRING,
+    TRC,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -340,7 +339,7 @@ class CertGenerator(object):
                 CertificateChain(chain).to_json()
 
     def is_core(self, as_conf):
-        return "core" in as_conf and as_conf["core"]
+        return as_conf.get("core")
 
     def _gen_trc_entry(self, topo_id, as_conf):
         if not as_conf.get('core', False):
@@ -352,26 +351,23 @@ class CertGenerator(object):
         core = {}
         core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
         core[ONLINE_KEY_STRING] = \
-            base64.b64encode(self.pub_online_root_keys[topo_id]).decode()
+            base64.b64encode(self.pub_online_root_keys[topo_id]).decode('utf-8')
         core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = \
-            base64.b64encode(self.priv_online_root_keys[topo_id]).decode()
+        core[OFFLINE_KEY_STRING] = base64.b64encode(
+            self.priv_online_root_keys[topo_id]).decode('utf-8')
         trc.core_ases[str(topo_id)] = core
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
-            isd, '', 0, {}, {'ca.com': 'ca.com_cert_base64'}, {},
-            2, 'dns_srv_addr', 2,
+            isd, "ISD %s" % isd, 0, {}, {'ca.com': 'ca.com_cert_base64'},
+            {}, 2, 'dns_srv_addr', 2,
             3, 18000, True, {})
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc_str = trc.to_json(with_signatures=False).encode('utf-8')
-        # Sign the TRC with private online root key
-        trc.signatures[str(topo_id)] = sign(
-            trc_str, self.priv_online_root_keys[topo_id])
+        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         for isd in self.trcs:

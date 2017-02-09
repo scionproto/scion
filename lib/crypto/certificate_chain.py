@@ -26,8 +26,8 @@ import lz4
 from lib.crypto.asymcrypto import verify
 from lib.crypto.certificate import Certificate
 from lib.crypto.trc import (
-    TRC,
     ONLINE_KEY_STRING,
+    TRC,
 )
 from lib.packet.scion_addr import ISD_AS
 
@@ -121,7 +121,7 @@ class CertificateChain(object):
             cert = issuer_cert
             subject = cert.subject
         # First check whether a root cert was added to the chain.
-        if not cert.issuer == subject:
+        if cert.issuer != subject:
             return False
         # Try to find a root cert in the trc.
         if not cert.verify_core(trc.core_ases[cert.issuer][ONLINE_KEY_STRING]):
