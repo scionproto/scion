@@ -94,6 +94,13 @@ const (
 	ErrorParse = "Unable to parse topology"
 )
 
+const (
+	LinkRouting = "ROUTING"
+	LinkParent  = "PARENT"
+	LinkChild   = "CHILD"
+	LinkPeer    = "PEER"
+)
+
 var Curr *TopoMeta
 
 func Load(path string) *common.Error {
