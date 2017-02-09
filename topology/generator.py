@@ -21,6 +21,7 @@ import argparse
 import base64
 import configparser
 import getpass
+import hashlib
 import logging
 import math
 import os
@@ -361,7 +362,7 @@ class CertGenerator(object):
 class CA_Generator(object):
     def __init__(self, topo_config):
         self.topo_config = topo_config
-        self.ca_keys = {}
+        self.ca_key_pairs = {}
         self.ca_certs = defaultdict(dict)
         self.ca_private_key_files = defaultdict(dict)
         self.ca_cert_files = defaultdict(dict)
@@ -378,8 +379,8 @@ class CA_Generator(object):
             f(ca_name, ca_config)
 
     def _gen_ca_key(self, ca_name, ca_config):
-        self.ca_keys[ca_name] = crypto.PKey()
-        self.ca_keys[ca_name].generate_key(crypto.TYPE_RSA, 2048)
+        self.ca_key_pairs[ca_name] = crypto.PKey()
+        self.ca_key_pairs[ca_name].generate_key(crypto.TYPE_RSA, 2048)
 
     def _gen_ca(self, ca_name, ca_config):
         ca = crypto.X509()
@@ -393,7 +394,19 @@ class CA_Generator(object):
         ca.gmtime_adj_notBefore(0)
         ca.gmtime_adj_notAfter(5 * 365 * 24 * 60 * 60)
         ca.set_issuer(ca.get_subject())
-        ca.set_pubkey(self.ca_keys[ca_name])
+        ca.set_pubkey(self.ca_key_pairs[ca_name])
+
+        # From stackoverflow: subjectKeyIdentifier: This is really a string
+        # extension and can take two possible values.
+        # Either the word hash which will automatically follow the guidelines
+        # in RFC3280 or a hex string giving the extension value to include.
+        # The use of the hex string is strongly discouraged.
+
+        # If we still want to use it:
+        # Compute sha2 hash of the public key
+        pubkey_hash = hashlib.sha256()
+        pubkey_hash.update(crypto.dump_publickey(crypto.FILETYPE_PEM,
+                           self.ca_key_pairs[ca_name]))
         # From RFC5280: Conforming CAs MUST include keyUsage extension in
         # certificates that contain public keys that are used to validate
         # digital signatures on other public key certificates or CRLs.
@@ -406,22 +419,23 @@ class CA_Generator(object):
             # pathlen 0 means, that this CA must not issue intermediate
             # certificates where the CA bit is set to true.
             crypto.X509Extension(
-                b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+                b"basicConstraints", True, b"CA:TRUE, pathlen:1"),
             # The keyCertSign bit is asserted when the subject public key is
             # used for verifying signatures on public key certificates.
             crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
             # The keyIdentifier is composed of the 160-bit SHA-1 hash of the
             # value of the BIT STRING subjectPublicKey
-            crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash",
-                                 subject=ca),
+            crypto.X509Extension(b"subjectKeyIdentifier", False,
+                                 pubkey_hash.hexdigest().encode(), subject=ca),
         ])
-        ca.sign(self.ca_keys[ca_name], "sha1")
+        ca.sign(self.ca_key_pairs[ca_name], "sha256")
         self.ca_certs[ca_config["ISD"]][ca_name] = ca
 
     def _gen_private_key_files(self, ca_name, ca_config):
         ca_private_key_path = get_ca_private_key_file_path("", ca_name)
         self.ca_private_key_files[ca_config["ISD"]][ca_private_key_path] = \
-            crypto.dump_privatekey(crypto.FILETYPE_PEM, self.ca_keys[ca_name])
+            crypto.dump_privatekey(crypto.FILETYPE_PEM,
+                                   self.ca_key_pairs[ca_name])
 
     def _gen_cert_files(self, ca_name, ca_config):
         ca_cert_path = get_ca_cert_file_path("", ca_name)
