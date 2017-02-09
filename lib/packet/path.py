@@ -248,6 +248,7 @@ class SCIONPath(Serializable):
         switch to the next segment, before restarting.
         """
         iof = self.get_iof()
+        skipped_verify_only = False
         while True:
             self._hof_idx += 1
             if (self._hof_idx - self._iof_idx) > iof.hops:
@@ -259,6 +260,9 @@ class SCIONPath(Serializable):
             hof = self.get_hof()
             if not hof.verify_only:
                 break
+            else:
+                skipped_verify_only = True
+        return skipped_verify_only
 
     def get_fwd_if(self):  # pragma: no cover
         """Return the interface to forward the current packet to."""
@@ -269,6 +273,21 @@ class SCIONPath(Serializable):
         if iof.up_flag:
             return hof.ingress_if
         return hof.egress_if
+
+    def get_curr_if(self, ingress=True):  # pragma: no cover
+        """
+        Return the current interface, depending on the direction of the
+        segment.
+        """
+        hof = self.get_hof()
+        iof = self.get_iof()
+        get_if = {
+            (False, False): hof.egress_if,
+            (False, True): hof.ingress_if,
+            (True, False): hof.ingress_if,
+            (True, True): hof.egress_if
+        }
+        return get_if[ingress, iof.up_flag]
 
     def get_as_hops(self):
         total = 0
