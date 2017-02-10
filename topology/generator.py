@@ -203,11 +203,11 @@ class ConfigGenerator(object):
     def _write_ca_files(self, topo_dicts, ca_files):
         isds = set()
         for topo_id, as_topo in topo_dicts.items():
-            isds.add(str(topo_id).split("-", 1)[0])
-        for isd_ in isds:
-            base = os.path.join(self.out_dir, "ISD%s" % isd_)
-            for path, value in ca_files[int(isd_)].items():
-                write_file(os.path.join(base, path), str(value))
+            isds.add(topo_id[0])
+        for isd in isds:
+            base = os.path.join(self.out_dir, "CAS")
+            for path, value in ca_files[int(isd)].items():
+                write_file(os.path.join(base, path), value.decode())
 
     def _write_trust_files(self, topo_dicts, cert_files):
         for topo_id, as_topo, base in _srv_iter(
@@ -421,14 +421,17 @@ class CA_Generator(object):
         self.ca_certs[ca_config["ISD"]][ca_name] = ca
 
     def _gen_private_key_files(self, ca_name, ca_config):
-        ca_private_key_path = get_ca_private_key_file_path("", ca_name)
-        self.ca_private_key_files[ca_config["ISD"]][ca_private_key_path] = \
+        isd = ca_config["ISD"]
+        ca_private_key_path = \
+            get_ca_private_key_file_path("ISD%s" % isd, ca_name)
+        self.ca_private_key_files[isd][ca_private_key_path] = \
             crypto.dump_privatekey(crypto.FILETYPE_PEM,
                                    self.ca_key_pairs[ca_name])
 
     def _gen_cert_files(self, ca_name, ca_config):
-        ca_cert_path = get_ca_cert_file_path("", ca_name)
-        self.ca_cert_files[ca_config["ISD"]][ca_cert_path] = \
+        isd = ca_config["ISD"]
+        ca_cert_path = get_ca_cert_file_path("ISD%s" % isd, ca_name)
+        self.ca_cert_files[isd][ca_cert_path] = \
             crypto.dump_certificate(crypto.FILETYPE_PEM,
                                     self.ca_certs[ca_config["ISD"]][ca_name])
 

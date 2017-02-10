@@ -43,7 +43,6 @@ from lib.errors import (
     SCIONYAMLError,
 )
 
-CAS_DIR = 'cas'
 CERT_DIR = 'certs'
 KEYS_DIR = 'keys'
 TRACE_DIR = 'traces'
@@ -90,14 +89,14 @@ def get_ca_private_key_file_path(conf_dir, name):
     """
     Return the ca private key file path
     """
-    return os.path.join(conf_dir, CAS_DIR, "%s.key" % name)
+    return os.path.join(conf_dir, "%s.key" % name)
 
 
 def get_ca_cert_file_path(conf_dir, name):
     """
-    Return the ca private key file path
+    Return the ca certificate file path
     """
-    return os.path.join(conf_dir, CAS_DIR, "%s.cert" % name)
+    return os.path.join(conf_dir, "%s.cert" % name)
 
 
 def read_file(file_path):
