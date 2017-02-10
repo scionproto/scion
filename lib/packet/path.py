@@ -260,8 +260,7 @@ class SCIONPath(Serializable):
             hof = self.get_hof()
             if not hof.verify_only:
                 break
-            else:
-                skipped_verify_only = True
+            skipped_verify_only = True
         return skipped_verify_only
 
     def get_fwd_if(self):  # pragma: no cover
@@ -281,13 +280,9 @@ class SCIONPath(Serializable):
         """
         hof = self.get_hof()
         iof = self.get_iof()
-        get_if = {
-            (False, False): hof.egress_if,
-            (False, True): hof.ingress_if,
-            (True, False): hof.ingress_if,
-            (True, True): hof.egress_if
-        }
-        return get_if[ingress, iof.up_flag]
+        if ingress == iof.up_flag:
+            return hof.egress_if
+        return hof.ingress_if
 
     def get_as_hops(self):
         total = 0

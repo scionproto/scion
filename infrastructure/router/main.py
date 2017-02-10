@@ -585,11 +585,11 @@ class Router(SCIONElement):
 
         1) Never switch from a down-segment to an up-segment
            (valley-freeness)
-        2) Never switch from an up(down)-segment to an
-           up(down)-segment, unless we are a core router.
+        2) Never switch from an up(down)-segment to an up(down)-segment, if the
+           packet is not forwarded(received) over a ROUTING link.
         3) Never switch from a core-segment to a core-segment.
-        4) If a packet is received over a peering link, check that the egress IF
-           is the same for both the current and next hop fields.
+        4) If a packet is received over a peering link, check on ingress that
+           the egress IF is the same for both the current and next hop fields.
         5) If a packet is to be forwarded over a peering link, check on ingress
            that the ingress IF is the same for both current and next hop fields.
         """
@@ -604,12 +604,12 @@ class Router(SCIONElement):
                 fwd_on_link_type != LinkType.ROUTING):
             raise SCIONSegmentSwitchError(
                 "Switching from up- to up-segment is not allowed "
-                "at a non-core router.")
+                "if the packet is not forwarded over a ROUTING link.")
         if (not prev_iof.up_flag and not cur_iof.up_flag and
                 rcvd_on_link_type != LinkType.ROUTING):
             raise SCIONSegmentSwitchError(
                 "Switching from down- to down-segment is not "
-                "allowed at a non-core router.")
+                "allowed if the packet was not received over a ROUTING link.")
         if (rcvd_on_link_type == LinkType.ROUTING and
                 fwd_on_link_type == LinkType.ROUTING):
             raise SCIONSegmentSwitchError(
@@ -620,7 +620,7 @@ class Router(SCIONElement):
                 "Egress IF of peering HOF does not match egress IF of current "
                 "HOF.")
         if (fwd_on_link_type == LinkType.PEER and
-                prev_hof.ingress_if != cur_hof.ingress_if):
+                prev_hof.egress_if != cur_hof.egress_if):
             raise SCIONSegmentSwitchError(
                 "Ingress IF of peering HOF does not match ingress IF of "
                 "current HOF.")
