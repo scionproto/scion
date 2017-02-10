@@ -21,7 +21,6 @@ import argparse
 import base64
 import configparser
 import getpass
-import hashlib
 import logging
 import math
 import os
@@ -396,17 +395,6 @@ class CA_Generator(object):
         ca.set_issuer(ca.get_subject())
         ca.set_pubkey(self.ca_key_pairs[ca_name])
 
-        # From stackoverflow: subjectKeyIdentifier: This is really a string
-        # extension and can take two possible values.
-        # Either the word hash which will automatically follow the guidelines
-        # in RFC3280 or a hex string giving the extension value to include.
-        # The use of the hex string is strongly discouraged.
-
-        # If we still want to use it:
-        # Compute sha2 hash of the public key
-        pubkey_hash = hashlib.sha256()
-        pubkey_hash.update(crypto.dump_publickey(crypto.FILETYPE_PEM,
-                           self.ca_key_pairs[ca_name]))
         # From RFC5280: Conforming CAs MUST include keyUsage extension in
         # certificates that contain public keys that are used to validate
         # digital signatures on other public key certificates or CRLs.
@@ -416,17 +404,18 @@ class CA_Generator(object):
         # value of cA is TRUE.
         ca.add_extensions([
             # basicConstraints identifies whether subject of certificate is a CA
-            # pathlen 0 means, that this CA must not issue intermediate
-            # certificates where the CA bit is set to true.
+            # pathLen expresses the number of possible intermediate CA
+            # certificates in a path built from an end-entity certificate up
+            # to the CA certificate.
             crypto.X509Extension(
                 b"basicConstraints", True, b"CA:TRUE, pathlen:1"),
             # The keyCertSign bit is asserted when the subject public key is
             # used for verifying signatures on public key certificates.
             crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
-            # The keyIdentifier is composed of the 160-bit SHA-1 hash of the
-            # value of the BIT STRING subjectPublicKey
-            crypto.X509Extension(b"subjectKeyIdentifier", False,
-                                 pubkey_hash.hexdigest().encode(), subject=ca),
+            # From RFC5280: The keyIdentifier is composed of the 160-bit SHA-1
+            # hash of the value of the BIT STRING subjectPublicKey
+            crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash",
+                                 subject=ca),
         ])
         ca.sign(self.ca_key_pairs[ca_name], "sha256")
         self.ca_certs[ca_config["ISD"]][ca_name] = ca
