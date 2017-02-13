@@ -31,6 +31,8 @@ extern "C" {
 #endif
 
 
+#define INTERFACE_LEN 6  // Num of bytes for an interface in daemon response
+
 /*
  * An interface traversed by a SCION path as seen from within the specified AS.
  */

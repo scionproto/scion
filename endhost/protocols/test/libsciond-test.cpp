@@ -21,23 +21,12 @@
 
 namespace {
 
-// Tests that Foo does Xyz.
-// TEST(FooTest, DoesXyz) {
-//   uint8_t buffer[] = "\001" "PATHINFO"         // Single line of path data
-//                      "\001" "ADDR" "\022\000"  // Border router on port 22
-//                      "\150\000"                // MTU of 150
-//                      "\002"                    // Two links
-//                      "\001\000\001\000" "\001\000"
-//                      "\002\000\002\000" "\002\000";
-//   spath_record_t record;
-//   int result = parse_path_record(buffer, sizeof(buffer), &record);
-//
-//   ASSERT_EQ(result, sizeof(buffer));
-// }
-
 // TODO(jsmith): Test memory cleanup & deallocation
 
-TEST(ScionDaemonTest, ParsesRecord) {
+/* It should properly parse a simple path daemon record.
+ */
+TEST(ScionDaemonTest, ParsesRecord)
+{
   uint8_t buffer[] = {
     0x01, 'P', 'A', 'T', 'H', 'I', 'N', 'F', 'O',  // Single line of path data
     0x01, 'A','D','D','R', 0xA0, 0x0F,             // Border router on port 0xA00F
@@ -63,7 +52,10 @@ TEST(ScionDaemonTest, ParsesRecord) {
 }
 
 
-TEST(ScionDaemonTest, ParsesPath) {
+/* It should construct a spath_t from the provided binary data.
+ */
+TEST(ScionDaemonTest, ParsesPath)
+{
   uint8_t buffer[] = {
     0x01, 'P', 'A', 'T', 'H', 'I', 'N', 'F', 'O',  // Single line of path data
     0x01, 'A','D','D','R', 0xA0, 0x0F,             // Border router on port 0xA00F
@@ -81,8 +73,3 @@ TEST(ScionDaemonTest, ParsesPath) {
 
 
 }  // namespace
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

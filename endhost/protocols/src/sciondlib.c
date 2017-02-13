@@ -150,8 +150,7 @@ int parse_interfaces(uint8_t* buffer, int data_len,
 
   // Check for sufficient path data
   int offset = 0;
-  const int interface_length = 6;
-  const int interface_byte_len = buffer[offset++] * interface_length;
+  const int interface_byte_len = buffer[offset++] * INTERFACE_LEN;
   if (interface_byte_len > data_len - offset) { return 0; }
 
   // Parse the interfaces
