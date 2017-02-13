@@ -39,7 +39,7 @@ all: $(OBJS) $(TESTS:$(TEST)/%.cpp=$(BUILD)/%)
 
 .PHONY: clean
 clean:
-	rm -f build/* .installstamp
+	rm -f build/* .installstamp *.plist
 
 # Compile .cpp files, while also automatically generating dependencies so they
 # can be recompiled if any of the included header files changed.
