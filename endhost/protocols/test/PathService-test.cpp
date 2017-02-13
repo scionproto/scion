@@ -32,13 +32,16 @@ extern "C" {
 
 
 using namespace ::testing;
-
 using Buffer = std::vector<uint8_t>;
 
+// Bytes for the border router in each path record.
 static const Buffer k_address_mtu {
   { 0x01, 'A', 'D', 'D', 'R', 0xA0, 0x0F, 0x05, 0xDC }
 };
 
+
+// Add a record byte vector the the out vector with the provided A path_lines
+// and B interfaces.
 template <uint8_t A, uint8_t B>
 void add_record(const std::array<uint8_t, A*LINE_LEN> &path_lines,
                 const std::array<sinterface_t, B> &interfaces,
@@ -91,7 +94,9 @@ protected:
                      m_daemon_records);
   }
 
-  // Creates a dp_header in buffer for the first num_records records.
+  // Creates a dp_header in buffer for the first num_records records and
+  // sets the mock's recv_all behaviour to return the dispatcher header on the
+  // first call, and the records on the second.
   void expect_response(MockUnixSocket &mock_sock, std::vector<uint8_t> &buffer,
                        int num_records)
   {

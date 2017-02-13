@@ -210,5 +210,6 @@ void PathService<T>::prune_records()
   }
 }
 
+// Declare the necessary templates
 template class PathService<UnixSocket>;
 template class PathService<MockUnixSocket>;

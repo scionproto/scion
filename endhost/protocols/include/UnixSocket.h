@@ -19,7 +19,8 @@
 #include <sys/socket.h>
 
 
-/* Thin wrapper around Unix sockets to enable mocking.
+/* Thin wrapper around Unix sockets to enable decoupling the tests from the
+ * Linux system calls.
  */
 class UnixSocket {
 public:

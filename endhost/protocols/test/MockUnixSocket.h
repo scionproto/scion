@@ -22,6 +22,9 @@
 #include "gmock/gmock.h"
 #include "UnixSocket.h"
 
+
+/* A mock of the UnixSocket interface.
+ */
 class MockUnixSocket: public UnixSocket {
 public:
   MOCK_METHOD1(connect, int(const char* addr));

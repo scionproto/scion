@@ -37,6 +37,7 @@ int UnixSocket::connect(const char* addr)
 {
   int result = unix_connect(addr);
   if (result < 0) {
+    // Use the errno system convention to return the error
     errno = result * -1;
     return -1;
   }
@@ -65,6 +66,7 @@ int UnixSocket::setsockopt(int level, int optname, const void *optval,
 }
 
 
+// Close and clear the file descriptor
 int UnixSocket::close()
 {
   int result = ::close(m_sock_fd);

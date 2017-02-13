@@ -13,8 +13,7 @@
  * limitations under the License.
  */
 
-/* This file contains functions and types useful for interfacing with the
- * SCION daemon service.
+/* Functions and types useful for interfacing with the SCION daemon service.
  */
 
 #ifndef SCIONDLIB_H_
