@@ -18,6 +18,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /* Reads any pending data in the socket and discards it.
  *
@@ -30,7 +34,7 @@ int clear_sock(int sockfd);
 /* Blocks `timeout` milliseconds until data is available to be read then recvs
  * the data into the buffer.
  */
-int poll_recv(int sockfd, uint8_t *buffer, std::size_t len, int timeout);
+int poll_recv(int sockfd, uint8_t *buffer, size_t len, int timeout);
 
 
 /* Creates a UNIX socket and connects to the specified unix address.
@@ -40,5 +44,9 @@ int poll_recv(int sockfd, uint8_t *buffer, std::size_t len, int timeout);
  */
 int unix_connect(const char* addr);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ifndef UTIL_H_ */
