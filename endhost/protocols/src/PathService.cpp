@@ -127,11 +127,13 @@ int PathService<T>::refresh_paths(std::set<int> &new_keys)
   if (path_data_len < 0) { return path_data_len; }
 
   // Parse and insert the records
-  int bytes_used = 0;
+  int bytes_used = 0, offset = 0;
   m_records_mutex.Lock();
   do {
     std::unique_ptr<PathRecord> record{new PathRecord()};
-    bytes_used = parse_path_record(buffer, path_data_len, record.get());
+    bytes_used = parse_path_record(&buffer[offset], path_data_len,
+                                   record.get());
+    offset += bytes_used;
 
     if (bytes_used != 0 && m_policy.is_valid(*record)) {
       // Parse was successful & the path satisfies the policy.

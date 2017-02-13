@@ -157,7 +157,7 @@ private:
   PathService& operator=(PathService&&) = delete;
 
   // Tests
-  FRIEND_TEST(PathServiceTest, Foo);
+  FRIEND_TEST(PathServiceTest, GetsNewRecords);
 };
 
 #endif  // PATH_SERVICE_H_

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cstring>
 
 #include "gtest/gtest.h"
 
@@ -34,46 +35,33 @@ using namespace ::testing;
 
 using Buffer = std::vector<uint8_t>;
 
+static const Buffer k_address_mtu {
+  { 0x01, 'A', 'D', 'D', 'R', 0xA0, 0x0F, 0x05, 0xDC }
+};
 
-Buffer& add_path_info(int num_lines, uint8_t tag, Buffer& buffer)
+template <uint8_t A, uint8_t B>
+void add_record(const std::array<uint8_t, A*LINE_LEN> &path_lines,
+                const std::array<sinterface_t, B> &interfaces,
+                std::vector<Buffer> &out)
 {
-  // Ensure the number of path lines can be cast to uint8_t
-  assert(num_lines <= 255 && num_lines >= 0);
-  // Add the number of path
-  buffer.push_back(static_cast<uint8_t>(num_lines));
-  for (int i = 0; i < num_lines; ++i) {
-    std::array<uint8_t, 8> line = {
-      { 'L', 'I', 'N', 'E', '_', '#', static_cast<uint8_t>(i), tag }
-    };
-    buffer.insert(buffer.end(), line.begin(), line.end());
+  Buffer bytes;
+  // Add the number of path lines and the associated lines
+  bytes.push_back(A);
+  bytes.insert(bytes.end(), path_lines.begin(), path_lines.end());
+  // Add the address
+  bytes.insert(bytes.end(), k_address_mtu.begin(), k_address_mtu.end());
+  // Add the number of interfaces and the interfaces
+  bytes.push_back(B);
+  for (const auto& interface : interfaces) {
+    uint8_t temp[INTERFACE_LEN];
+    uint32_t net_isd_as = htonl(interface.isd_as);
+    uint16_t net_link = htons(interface.link);
+    std::memcpy(temp, &net_isd_as, sizeof(net_isd_as));
+    std::memcpy(&temp[sizeof(interface.isd_as)], &net_link, sizeof(net_link));
+    bytes.insert(bytes.end(), temp, &temp[INTERFACE_LEN]);
   }
-  return buffer;
-}
-
-Buffer& add_interfaces(int num_interfaces, uint8_t isd_tag, uint8_t as_tag,
-                       Buffer& buffer)
-{
-  assert(num_interfaces <= 255 && num_interfaces >= 0);
-  // Add the number of path
-  buffer.push_back(static_cast<uint8_t>(num_interfaces));
-  for (int i = 0; i < num_interfaces; ++i) {
-    std::array<uint8_t, 6> interface = {
-      { static_cast<uint8_t>(isd_tag), '_', '_', static_cast<uint8_t>(as_tag + i),
-        0x00, 0x01  // Link 1
-      }
-    };
-    buffer.insert(buffer.end(), interface.begin(), interface.end());
-  }
-  return buffer;
-}
-
-// Add the address and MTU
-Buffer& add_addr_mtu(Buffer& buffer)
-{
-  std::array<uint8_t, 9> address { { 0x01, 'A', 'D', 'D', 'R', 0xA0, 0x0F, 0x05,
-    0xDC } };
-  buffer.insert(buffer.end(), address.begin(), address.end());
-  return buffer;
+  // Add it to the out vector
+  out.push_back(std::move(bytes));
 }
 
 
@@ -82,59 +70,25 @@ protected:
   void SetUp() override
   {
     // Add three "distinct" paths
-    Buffer buffer;
-    add_path_info(/*num_lines=*/1, /*tag=*/'A', buffer);
-    add_addr_mtu(buffer);
-    add_interfaces(/*num_interfaces=*/2, /*isd_tag=*/'A', /*as_tag=*/10, buffer);
-    m_daemon_records.push_back(std::move(buffer));
-
-    add_path_info(/*num_lines=*/2, /*tag=*/'B', buffer);
-    add_addr_mtu(buffer);
-    add_interfaces(/*num_interfaces=*/3, /*isd_tag=*/'A', /*as_tag=*/10, buffer);
-    m_daemon_records.push_back(std::move(buffer));
-
-    add_path_info(/*num_lines=*/3, /*tag=*/'C', buffer);
-    add_addr_mtu(buffer);
-    add_interfaces(/*num_interfaces=*/3, /*isd_tag=*/'A', /*as_tag=*/10, buffer);
-    m_daemon_records.push_back(std::move(buffer));
-
-    // This record uses the same interfaces, but different
-    add_path_info(/*num_lines=*/3, /*tag=*/'A', buffer);
-    add_addr_mtu(buffer);
-    add_interfaces(/*num_interfaces=*/2, /*isd_tag=*/'A', /*as_tag=*/10, buffer);
-    m_daemon_records.push_back(std::move(buffer));
-
-    // Add three "distinct" paths
-    // std::string records[4] {
-    //   // One line path info, router on port 0xA00F at IPv4 ADDR, MTU 1500
-    //   "\x01""PATHINFO" "\x01""ADDR""\xA0\x0F" "\x05\xDC"
-    //   // Links (0x01000100, 100) and (0x02000200, 200)
-    //   "\x02" "\x01\x00\x01\x00""\x00\x64" "\x02\x00\x02\x00""\x00\xC8",
-
-    //   // Two lines path info, router on port 0xA00F at IPv4 ADDR, MTU 1500
-    //   "\x02""PTHLINE1""PTHLINE2" "\x01""ADDR""\xA0\x0F" "\x05\xDC"
-    //   // Links (0x01000100, 100), (0x02000200, 200) and (0x03000300, 300)
-    //   "\x03" "\x01\x00\x01\x00""\x00\x64" "\x02\x00\x02\x00""\x00\xC8"
-    //          "\x03\x00\x03\x00""\x01\x2C",
-
-    //   // Three lines path info, router on port 0xA00F at IPv4 ADDR, MTU 1500
-    //   "\x03""PTHLINE1""PTHLINE2""PTHLINE3" "\x01""ADDR""\xA0\x0F" "\x05\xDC"
-    //   // Links (0x01000100, 150), (0x02000200, 200) and (0x03000300, 300)
-    //   "\x03" "\x01\x00\x01\x00""\x00\x96" "\x02\x00\x02\x00""\x00\xC8"
-    //          "\x03\x00\x03\x00""\x01\x2C",
-
-    //   // Three lines path info, router on port 0xA00F at IPv4 ADDR, MTU 1500
-    //   "\x03""LINEPTH1""LINEPTH2""LINEPTH3" "\x01""ADDR""\xA0\x0F" "\x05\xDC"
-    //   // Links (0x01000100, 150), (0x02000200, 200) and (0x03000300, 300)
-    //   "\x03" "\x01\x00\x01\x00""\x00\x96" "\x02\x00\x02\x00""\x00\xC8"
-    //          "\x03\x00\x03\x00""\x01\x2C"
-    // };
-
-    // for (const auto& record : records) {
-    //   m_daemon_records.push_back(
-    //     std::vector<uint8_t>{record.begin(), record.end()}
-    //   );
-    // }
+    add_record<1, 2>({'L', 'I', 'N', 'E', '_', '#', '1', 'A'},
+                     {sinterface_t{10, 1}, sinterface_t{11, 2}},
+                     m_daemon_records);
+    add_record<2, 3>({'L', 'I', 'N', 'E', '_', '#', '1', 'B',
+                      'L', 'I', 'N', 'E', '_', '#', '2', 'B'},
+                     {sinterface_t{10, 1}, sinterface_t{11, 2},
+                      sinterface_t{12, 3}},
+                     m_daemon_records);
+    add_record<3, 3>({'L', 'I', 'N', 'E', '_', '#', '1', 'C',
+                      'L', 'I', 'N', 'E', '_', '#', '2', 'C',
+                      'L', 'I', 'N', 'E', '_', '#', '3', 'C'},
+                     {sinterface_t{10, 1}, sinterface_t{11, 4},
+                      sinterface_t{12, 2}},
+                     m_daemon_records);
+    // This record uses the same interfaces as the first above, but a different
+    // raw path
+    add_record<1, 2>({'L', 'I', 'N', 'E', '_', '#', '1', 'D'},
+                     {sinterface_t{10, 1}, sinterface_t{11, 2}},
+                     m_daemon_records);
   }
 
   // Creates a dp_header in buffer for the first num_records records.
@@ -158,33 +112,67 @@ protected:
     }
 
     auto header_endpoint = buffer.begin() + DP_HEADER_LEN;
+
+    // Send will by default always be successful
+    ON_CALL(mock_sock, send_all(NotNull(), _))
+      .WillByDefault(ReturnArg<1>());
+
     // Set up the expectation for the header and the
     EXPECT_CALL(mock_sock, recv_all(NotNull(), _))
       .WillOnce(DoAll(SetArrayArgument<0>(buffer.begin(), header_endpoint),
                       Return(DP_HEADER_LEN)))
       .WillOnce(DoAll(SetArrayArgument<0>(header_endpoint, buffer.end()),
                       Return(buffer.size() - DP_HEADER_LEN)));
-
   }
 
   std::vector<std::vector<uint8_t>> m_daemon_records;
 };
 
 
-TEST_F(PathServiceTest, Foo)
+// It should query and store new records.
+// - Pre-existing record IDs should not be returned
+TEST_F(PathServiceTest, GetsNewRecords)
 {
   uint32_t isd_as = 99;
-  int num_records = 2;
-  std::set<int> new_keys;
 
   // Construct a PathService
   PathService<MockUnixSocket> service{isd_as};
+  MockUnixSocket &mock_sock = service.m_daemon_sock;
 
-  // Set the expectation for the response
+  // It should populate 2 new records
+  int num_records = 2;
+  std::set<int> new_keys;
   std::vector<uint8_t> response;
-  expect_response(service.m_daemon_sock, response, num_records);
+  // Set the expectation for the response
+  expect_response(mock_sock, response, num_records);
 
   int result = service.refresh_paths(new_keys);
-  ASSERT_EQ(result, 0) << "Should not raise an error.";
+  ASSERT_EQ(result, 0) << "Should not fail.";
   ASSERT_EQ(new_keys.size(), num_records);
+  ASSERT_TRUE(Mock::VerifyAndClearExpectations(&mock_sock));
+
+  // It should add 1 new record
+  num_records = 3;
+  new_keys.clear();
+  response.clear();
+  expect_response(mock_sock, response, num_records);
+
+  result = service.refresh_paths(new_keys);
+  ASSERT_EQ(result, 0) << "Should not fail.";
+  ASSERT_EQ(new_keys.size(), 1);  // Only the 3rd record was unique
+  ASSERT_EQ(service.m_records.size(), num_records);
+  ASSERT_TRUE(Mock::VerifyAndClearExpectations(&mock_sock));
+
+  // It should add 0 new records as the fourth is identical to the 3rd with
+  // respect to interfaces
+  num_records = 4;
+  new_keys.clear();
+  response.clear();
+  expect_response(mock_sock, response, num_records);
+
+  result = service.refresh_paths(new_keys);
+  ASSERT_EQ(result, 0) << "Should not fail.";
+  ASSERT_EQ(new_keys.size(), 0);  // None of the interface lists are unique
+  ASSERT_EQ(service.m_records.size(), num_records - 1);  // Ignore duplciate
+  ASSERT_TRUE(Mock::VerifyAndClearExpectations(&mock_sock));
 }
