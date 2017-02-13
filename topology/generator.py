@@ -383,9 +383,9 @@ class CertGenerator(object):
             ca_certs[ca_name] = \
                  crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         self.trcs[isd] = TRC.from_values(
-            isd, 0, {}, ca_certs, {}, 2,
-            'dns_srv_addr', 'dns_srv_cert', 2,
-            3, 2, True, {}, 18000)
+            isd, "ISD %s" % isd, 0, {}, ca_certs,
+            {}, 2, 'dns_srv_addr', 2,
+            3, 18000, True, {})
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):

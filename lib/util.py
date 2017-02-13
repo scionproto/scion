@@ -98,7 +98,7 @@ def get_ca_cert_file_path(conf_dir, name):
     """
     return os.path.join(conf_dir, "%s.cert" % name)
 
-  
+
 def get_online_key_file_path(conf_dir):  # pragma: no cover
     """
     Return the online key file path.
