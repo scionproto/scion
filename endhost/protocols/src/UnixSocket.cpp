@@ -21,7 +21,10 @@
 #include <sys/socket.h>
 
 #include "util.h"
+
+extern "C" {
 #include "utils.h"
+}
 
 UnixSocket::~UnixSocket()
 {

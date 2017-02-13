@@ -25,6 +25,7 @@
 #include "MutexScion.h"
 #include "PathPolicy.h"
 #include "UnixSocket.h"
+#include "gtest/gtest_prod.h"
 
 /* A thin wrapper around the C path record structure to handle deallocating
  * the internal resources.
@@ -154,6 +155,9 @@ private:
   PathService& operator=(const PathService&) = delete;
   PathService(PathService&&) = delete;
   PathService& operator=(PathService&&) = delete;
+
+  // Tests
+  FRIEND_TEST(PathServiceTest, Foo);
 };
 
 #endif  // PATH_SERVICE_H_

@@ -19,13 +19,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <list>
-#include <set>
-#include <cstring>
-#include <cmath>
+#include <array>
 #include <cassert>
-#include <memory>
+#include <cmath>
+#include <cstring>
 #include <iostream>
+#include <list>
+#include <memory>
+#include <set>
 
 #include "util.h"
 #include "sciondlib.h"
@@ -33,6 +34,8 @@ extern "C" {
 #include "utils.h"
 }
 #include "PathService.h"
+#include "UnixSocket.h"
+#include "MockUnixSocket.h"
 
 
 template<typename T>
@@ -204,3 +207,6 @@ void PathService<T>::prune_records()
     }
   }
 }
+
+template class PathService<UnixSocket>;
+template class PathService<MockUnixSocket>;
