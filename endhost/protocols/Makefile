@@ -6,22 +6,23 @@ SHELL := bash
 .SUFFIXES:
 
 CC := clang
-CFLAGS ?= -Wall -g -fPIC # -Werror
+CFLAGS ?= -Wall -g -fPIC  # -Werror
 LDFLAGS ?= -Wl,-z,defs -L/usr/local/lib  # -shared
-LDLIBS ?= -lpthread -lscion -lgtest
+LDLIBS ?= -lpthread -lscion
 
 CXX = clang++
 # Add -DSCIONDEBUGPRINT below to enable debug printing. Doing so *will*
 # break e.g. CircleCI since it is so spammy.
-CXXFLAGS ?= $(CFLAGS) -std=c++11 -Wthread-safety
+CXXFLAGS ?= $(CFLAGS) -std=c++11 -Wthread-safety  # -Wthread-safety-negative
+GTESTLIBS := -lgmock -lgmock_main  # -lgtest -lgtest_main
 
 LIB_DIR = ../../lib/libscion
 HEADERS = ./include
-INC = -I$(LIB_DIR) -I$(HEADERS)
 
 BUILD = ./build
 SOURCE = ./src
 TEST = ./test
+INC = -I$(LIB_DIR) -I$(HEADERS) -I$(TEST)
 
 
 SRCS = $(wildcard $(SOURCE)/*.c*)
@@ -32,14 +33,14 @@ OBJS = $(filter %.o, $(SRCS:$(SOURCE)/%.cpp=$(BUILD)/%.o) $(SRCS:$(SOURCE)/%.c=$
 # DYNAMIC = build/libssocket.so
 # TARGETS = $(STATIC) $(DYNAMIC)
 # PREFIX ?= /usr/local
-# 
+#
 .PHONY: all
 all: $(OBJS) $(TESTS:$(TEST)/%.cpp=$(BUILD)/%)
 
 .PHONY: clean
 clean:
 	rm -f build/* .installstamp
- 
+
 # Compile .cpp files, while also automatically generating dependencies so they
 # can be recompiled if any of the included header files changed.
 -include $(BUILD)/*.d
@@ -54,29 +55,33 @@ $(BUILD)/%.o: $(SOURCE)/%.c
 $(BUILD)/%.o: $(TEST)/%.cpp
 	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -MMD -c -o $@ $<
 
-$(BUILD)/libsciond-test: $(BUILD)/libsciond-test.o $(BUILD)/sciondlib.o 
-	$(CXX) $(USER_OPTS) $(LDFLAGS) $+ $(LDLIBS) -o $@
+%-test:
+	$(CXX) $(USER_OPTS) $(LDFLAGS) $+ $(LDLIBS) $(GTESTLIBS) -o $@
 
-# 
+$(BUILD)/libsciond-test: $(BUILD)/libsciond-test.o $(BUILD)/sciondlib.o
+$(BUILD)/PathService-test: $(addprefix $(BUILD)/, PathService-test.o \
+	PathService.o PathPolicy.o UnixSocket.o sciondlib.o util.o)
+
+#
 # test/%.o: test/%.cpp
 # 	$(CXX) $(CXXFLAGS) $(USER_OPTS) $(INC) -L/usr/local/lib -lgtest -lscion -MMD -o $@ build/sciondlib.o $<
-# 
-# 
+#
+#
 # $(STATIC): $(OBJS)
 # 	ar rcs $@ $(OBJS)
-# 
+#
 # $(DYNAMIC): $(OBJS)
 # 	$(CXX) $(LDFLAGS) -o $@ $(OBJS)
-# 
-# 
+#
+#
 # .PHONY: install
 # install: .installstamp
-# 
+#
 # .installstamp: $(TARGETS)
 # 	sudo cp $(TARGETS) $(PREFIX)/lib/
 # 	sudo ldconfig
 # 	touch .installstamp
-# 
+#
 # .PHONY: uninstall
 # uninstall:
 # 	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
