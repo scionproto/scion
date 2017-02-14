@@ -40,8 +40,8 @@ static const Buffer k_address_mtu {
 };
 
 
-// Add a record byte vector the the out vector with the provided A path_lines
-// and B interfaces.
+// Add a path record as a byte vector to the 'out' vector, with the provided
+// <A> path_lines and <B> interfaces.
 template <uint8_t A, uint8_t B>
 void add_record(const std::array<uint8_t, A*LINE_LEN> &path_lines,
                 const std::array<sinterface_t, B> &interfaces,

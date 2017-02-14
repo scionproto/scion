@@ -114,10 +114,10 @@ private:
   /* Add a record to the path service.
    *
    * An existing record with the same interfaces is replaced by the new record,
-   * while maintinging the record's key.
+   * while maintaining the record's key.
    *
    * Returns the identifier of the record where the insertion or replacement
-   * took place, or -1 if the insertion would excede the number of allowed
+   * took place, or -1 if the addition would exceed the number of allowed
    * records.
    *
    * @param[out] updated True if a record was updated, false otherwise.
@@ -128,8 +128,10 @@ private:
     REQUIRES(m_records_mutex);
 
 
-  // Removes non-conformant records
-  void prune_records() REQUIRES(m_records_mutex);
+  /* Removes records which no longer comply with the path policy. The number of
+   * such records removed is returned.
+   */
+  int prune_records() REQUIRES(m_records_mutex);
 
 
   const uint32_t m_dest_isd_as;

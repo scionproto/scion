@@ -31,8 +31,8 @@ public:
   virtual int connect(const char* addr);
   virtual int recv_all(uint8_t *buf, int len);
   virtual int send_all(uint8_t *buf, int len);
-	virtual int setsockopt(int level, int optname, const void *optval,
-												 socklen_t optlen);
+  virtual int setsockopt(int level, int optname, const void *optval,
+                         socklen_t optlen);
 
   virtual int close();
 

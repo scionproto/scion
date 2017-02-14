@@ -127,6 +127,8 @@ int PathService<T>::refresh_paths(std::set<int> &new_keys)
   // Parse and insert the records
   int bytes_used = 0, offset = 0;
   m_records_mutex.Lock();
+  // Parse records from the buffer until either insufficent data exists for a
+  // parse or all the data has been consumed.
   do {
     std::unique_ptr<PathRecord> record{new PathRecord()};
     bytes_used = parse_path_record(&buffer[offset], path_data_len,
@@ -173,9 +175,9 @@ int PathService<T>::insert_record(std::unique_ptr<PathRecord> &record,
     // Flag that it's an update
     updated = true;
   } else {
-    // Flag that it would be an insertion
+    // Flag that it would be an addition
     updated = false;
-    // Ensure enough space for the insertion
+    // Ensure enough space for the addition
     if (m_records.size() == m_max_paths) {
       return -1;
     }
@@ -191,22 +193,26 @@ int PathService<T>::insert_record(std::unique_ptr<PathRecord> &record,
 }
 
 
-// Prune based on both policy validity, as policies may change, and expiration
-// timestamp. Otherwise, if an invalid path is not being used, we will never
+// TODO(jsmith): Prune based on both policy validity as well as have them
+// expire. Otherwise, if an invalid path is not being used, we will never
 // get an SCMP message and the path with never be forcibly removed.
 // A timed cache would perhaps be a more appropriate structure.
 template<typename T>
-void PathService<T>::prune_records()
+int PathService<T>::prune_records()
 {
+  int num_removed = 0;
   auto iter = m_records.begin();
   while (iter != m_records.end()) {
-    if (m_policy.is_valid(*(iter->second))) {  // TODO(jsmith): Check expiration
+    if (m_policy.is_valid(*(iter->second))) {
       ++iter;
     } else {
       iter = m_records.erase(iter);
+      num_removed += 1;
     }
   }
+  return num_removed;
 }
+
 
 // Declare the necessary templates
 template class PathService<UnixSocket>;
