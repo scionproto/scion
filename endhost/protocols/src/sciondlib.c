@@ -123,10 +123,12 @@ int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr)
 
 
 // Parse an interface with the form [ ISD-AS (4B) | link (2B) ]
-// Returns number of bytes parsed and assumes that the data in the buffer is
-// sufficient.
-int parse_interface(uint8_t* buffer, sinterface_t* interface)
+// Returns 0 on failure or the number of bytes used in the parsing.
+int parse_interface(uint8_t* buffer, int data_len, sinterface_t* interface)
 {
+  // Fail if we cannot read the full data
+  if (data_len < INTERFACE_LEN) { return 0; }
+
   int offset = 0;
   // Read in the 4 byte isd_as address and change to host byte ordering
   memcpy(&interface->isd_as, &buffer[offset], sizeof(interface->isd_as));
@@ -160,7 +162,12 @@ int parse_interfaces(uint8_t* buffer, int data_len,
 
   int i = 0;
   for (i = 0; i < *interface_count; ++i) {
-    offset += parse_interface(&buffer[offset], &interface_ptr[i]);
+    // We dont have to check the return value for 0 as we already checked for
+    // sufficent data above
+    int result = parse_interface(&buffer[offset], (data_len - offset),
+                                 &interface_ptr[i]);
+    assert(result != 0);
+    offset += result;
   }
 
   *interface_array = interface_ptr;
