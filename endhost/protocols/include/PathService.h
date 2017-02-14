@@ -93,7 +93,7 @@ public:
   int refresh_paths(std::set<int> &new_keys)
     EXCLUDES(m_records_mutex, m_daemon_rw_mutex);
 
-  // Verify that the record complies to the policy and inserts it
+  // TODO(jsmith): Verify that the record complies to the policy and inserts it
   // int add_record();
 
 private:
@@ -102,17 +102,13 @@ private:
   { };
 
 
-  /* Query the SCION daemon for paths to the specified isd_as.
+  /* Query the SCION daemon for paths to the isd_as.
    *
    * On success, the result is loaded into buffer (truncated at buffer_len
    * bytes) and the amount of data written to the buffer is returned.
    * Otherwise, a negative system error code is returned.
-   *
-   * Requires that the buffer be able to accommodate at least the dispatcher
-   * header.
    */
-  int lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
-    REQUIRES(m_daemon_rw_mutex);
+  int lookup_paths(std::vector<uint8_t> &buffer) REQUIRES(m_daemon_rw_mutex);
 
 
   /* Add a record to the path service.

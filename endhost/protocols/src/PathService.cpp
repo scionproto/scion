@@ -1,16 +1,17 @@
-// Copyright 2017 ETH Zürich
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/* Copyright 2017 ETH Zürich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include <string.h>
 #include <unistd.h>
@@ -79,31 +80,31 @@ int PathService<T>::set_timeout(double timeout)
 
 
 template<typename T>
-int PathService<T>::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_len)
+int PathService<T>::lookup_paths(std::vector<uint8_t> &buffer)
 {
-  assert(buffer_len > DP_HEADER_LEN);
+  // Resize the buffer to hold the path request
+  buffer.resize(PATH_REQUEST_LEN);
 
   // Send the path request
-  int data_len = write_path_request(buffer, isd_as);
-  int result = m_daemon_sock.send_all(buffer, data_len);
+  int data_len = write_path_request(buffer.data(), m_dest_isd_as);
+  assert(data_len == PATH_REQUEST_LEN);
+  int result = m_daemon_sock.send_all(buffer.data(), buffer.size());
   if (result == -1) { return -errno; }
 
-  // Read  and parse the communication header
-  result = m_daemon_sock.recv_all(buffer, DP_HEADER_LEN);
+  // Read and parse the communication header
+  result = m_daemon_sock.recv_all(buffer.data(), DP_HEADER_LEN);
   if (result == -1) { return -errno; }
 
   // Determine how much data we should expect
-  parse_dp_header(buffer, /*addr_len=*/nullptr, &data_len);
+  parse_dp_header(buffer.data(), /*addr_len=*/nullptr, &data_len);
   if (data_len == -1) {
     return -EAGAIN;  // Possible desynchronization.
   }
 
-  // Calculate the unwanted excess in the response
-  int excess_len = (data_len > buffer_len) ? (data_len - buffer_len) : 0;
-
-  // Read the response
-  result = m_daemon_sock.recv_all(buffer, (data_len - excess_len));
-  // TODO(jsmith): Clear excess?
+  // Read the full response
+  buffer.resize(data_len);
+  result = m_daemon_sock.recv_all(buffer.data(), data_len);
+  assert(result == data_len);
   return (result == -1) ? -errno : result;
 }
 
@@ -116,13 +117,10 @@ int PathService<T>::lookup_paths(uint32_t isd_as, uint8_t* buffer, int buffer_le
 template<typename T>
 int PathService<T>::refresh_paths(std::set<int> &new_keys)
 {
-  // FIXME(jsmith): The upper bound is an estimation, calculate accurately.
-  const int buffer_len = 250 * m_max_paths;
-  uint8_t buffer[buffer_len];
-
   // Get the path data from the SCION daemon
+  std::vector<uint8_t> buffer;
   m_daemon_rw_mutex.Lock();
-  int path_data_len = lookup_paths(m_dest_isd_as, buffer, buffer_len);
+  int path_data_len = lookup_paths(buffer);
   m_daemon_rw_mutex.Unlock();
   if (path_data_len < 0) { return path_data_len; }
 
