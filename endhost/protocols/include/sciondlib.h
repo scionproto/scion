@@ -31,6 +31,7 @@ extern "C" {
 
 
 #define INTERFACE_LEN 6  // Num of bytes for an interface in daemon response
+#define PATH_REQUEST_LEN (DP_HEADER_LEN + 5)  // DP-header|Request type|ISD_AS
 
 /*
  * An interface traversed by a SCION path as seen from within the specified AS.
