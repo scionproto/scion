@@ -129,33 +129,37 @@ int PathService<T>::refresh_paths(std::set<int> &new_keys)
   m_records_mutex.Lock();
   // Parse records from the buffer until either insufficent data exists for a
   // parse or all the data has been consumed.
-  do {
+  while (path_data_len - offset > 0) {
     std::unique_ptr<PathRecord> record{new PathRecord()};
-    bytes_used = parse_path_record(&buffer[offset], path_data_len,
+    bytes_used = parse_path_record(&buffer[offset], (path_data_len - offset),
                                    record.get());
-    offset += bytes_used;
 
-    if (bytes_used != 0 && m_policy.is_valid(*record)) {
-      // Parse was successful & the path satisfies the policy.
-      bool updated = false;
-      int record_key = insert_record(record, updated);
+    if (bytes_used > 0) {
+      // Update remaining bytes.
+      offset += bytes_used;
 
-      if (record_key != -1 && !updated) {  // New record inserted
-        // Update the set of new keys
-        new_keys.insert(record_key);
+      if (m_policy.is_valid(*record)) {
+        // Parse was successful & the path satisfies the policy.
+        bool updated = false;
+        int record_key = insert_record(record, updated);
+
+        if (record_key != -1 && !updated) {  // New record inserted
+          // Update the set of new keys
+          new_keys.insert(record_key);
+        } else {
+          // It either failed & will be cleaned up, or was an update and is now
+          // held in the local store.
+        }
       } else {
-        // It either failed & will be cleaned up, or was an update and is now
-        // held in the local store.
+        // The record is destroyed
       }
     } else {
-      // The record is destroyed
+      break;  // Cleanup the record and terminate
     }
-    // Update remaining bytes
-    path_data_len -= bytes_used;
-  } while (bytes_used != 0 && path_data_len != 0);
+  }
   m_records_mutex.Unlock();
 
-  return 0;  // Anything that wasnt inserted is cleanup with the list
+  return 0;
 }
 
 

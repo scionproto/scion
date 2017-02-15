@@ -91,8 +91,9 @@ int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr);
  * buffer should be in network byte-order and data_len should indicate
  * suffient data in the buffer for the parsing.
  *
- * On success, returns the number of bytes used in parsing. If the size of
- * data_len indicates insufficent data, zero is returned.
+ * On success, returns the number of bytes used in parsing. On error returns a
+ * negative system error code, or zero if the size of data_len indicates
+ * insufficent data.
  */
 int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record);
 

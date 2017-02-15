@@ -94,6 +94,8 @@ int parse_host_addr(uint8_t* buffer, int data_len, HostAddr* host_addr)
 
 // Parses a path of the form
 // [ # byte-octets (1B) | path data (?B) | host_addr (?B) ]
+// On failure returns either a negative system error, or 0 if there was
+// insufficent data in the buffer. On success, the number of bytes used.
 int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr)
 {
   // Fail if we cannot read the path length
@@ -114,6 +116,9 @@ int parse_path(uint8_t* buffer, int data_len, spath_t* path_ptr)
   // Now allocate the buffer space and set the path length
   path_ptr->len = path_byte_len / LINE_LEN;
   path_ptr->raw_path = malloc(path_byte_len);
+  // Check for allocation failure
+  if (path_ptr->raw_path == NULL) { return -ENOMEM; }
+
   // Copy over the path data
   memcpy(path_ptr->raw_path, &buffer[offset], path_byte_len);
   offset += path_byte_len + n_host_bytes;
@@ -143,7 +148,8 @@ int parse_interface(uint8_t* buffer, int data_len, sinterface_t* interface)
 }
 
 // Parse interface lists with the form [ # interfaces (1B) | if0 | if1 | ... ]
-// Return 0 on failure or the number of bytes used in the parsing.
+// On failure returns a negative system error, or 0 if there was insufficent
+// data in the buffer. Otherwise, the number of bytes used in parsing.
 int parse_interfaces(uint8_t* buffer, int data_len,
                      sinterface_t** interface_array, uint8_t* interface_count)
 {
@@ -153,12 +159,14 @@ int parse_interfaces(uint8_t* buffer, int data_len,
   // Check for sufficient path data
   int offset = 0;
   const int interface_byte_len = buffer[offset++] * INTERFACE_LEN;
+  // Check for allocation failure
   if (interface_byte_len > data_len - offset) { return 0; }
 
   // Parse the interfaces
   *interface_count = buffer[offset-1];
   sinterface_t* interface_ptr =
     malloc(sizeof(sinterface_t) * (*interface_count));
+  if (interface_ptr == NULL) { return -ENOMEM; }
 
   int i = 0;
   for (i = 0; i < *interface_count; ++i) {
@@ -182,7 +190,7 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
 
   // Parse the path
   int bytes_used = parse_path(&buffer[offset], data_len, &(record->path));
-  if (bytes_used == 0) { return 0; }
+  if (bytes_used <= 0) { return bytes_used; }
   offset += bytes_used;
 
   // Parse the MTU
@@ -197,9 +205,9 @@ int parse_path_record(uint8_t* buffer, int data_len, spath_record_t* record)
   bytes_used = parse_interfaces(&buffer[offset], (data_len - offset),
                                 &record->interfaces,
                                 &record->interface_count);
-  if (bytes_used == 0) {
+  if (bytes_used <= 0) {
     destroy_spath(&record->path);
-    return 0;
+    return bytes_used;
   }
 
   return offset + bytes_used;
