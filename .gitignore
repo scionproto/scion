@@ -30,6 +30,7 @@ topology/mininet/*.pyc
 # vim generated files #
 #########################
 .*.swp
+.nvimrc
 
 # build files
 #########################
@@ -74,3 +75,9 @@ tags
 # HSR
 ##########################
 lib/libhsr/build
+
+# Clang files
+##########################
+*.gch
+*.plist
+compile_commands.json

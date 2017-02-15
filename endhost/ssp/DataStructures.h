@@ -144,7 +144,9 @@ struct SSPPacket {
     uint16_t getPort() { return ntohs(header.port); }
     void setPort(uint16_t port) { header.port = htons(port); }
 
+    // Strip away the 'mark' field which is stored with the offset(SeqNo)
     uint64_t getOffset() { return be64toh(header.offset) & 0xffffffffffffff; }
+    // FIXME(jsmith): Does this clear the mark field?
     void setOffset(uint64_t offset) { header.offset = htobe64(offset & 0xffffffffffffff); }
 
     uint8_t getMark() { return be64toh(header.offset) >> 56; }
