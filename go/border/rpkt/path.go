@@ -32,7 +32,7 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil"))
 	}
 	// First check to make sure the current interface is known and not revoked.
-	if err := rp.validateLocalIF(*rp.ifCurr); err != nil {
+	if err := rp.validateLocalIF(rp.ifCurr); err != nil {
 		return err
 	}
 	if rp.infoF == nil || rp.hopF == nil {
@@ -73,14 +73,17 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 // validateLocalIF makes sure a given interface ID exists in the local AS, and
 // that it isn't revoked. Note that revocations are ignored if the packet's
 // destination is this router.
-func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
-	if _, ok := conf.C.TopoMeta.IFMap[int(ifid)]; !ok {
+func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
+	if ifid == nil {
+		return common.NewError("validateLocalIF: Interface is nil")
+	}
+	if _, ok := conf.C.TopoMeta.IFMap[int(*ifid)]; !ok {
 		// No such interface.
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
 		return common.NewErrorData("Unknown IF", sdata, "ifid", ifid)
 	}
 	conf.C.IFStates.RLock()
-	info, ok := conf.C.IFStates.M[ifid]
+	info, ok := conf.C.IFStates.M[*ifid]
 	conf.C.IFStates.RUnlock()
 	if !ok || info.P.Active() || rp.DirTo == DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
@@ -90,7 +93,7 @@ func (rp *RtrPkt) validateLocalIF(ifid spath.IntfID) *common.Error {
 	}
 	// Interface is revoked.
 	sinfo := scmp.NewInfoRevocation(
-		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(ifid),
+		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
 		rp.DirFrom == DirExternal, info.RawRev)
 	sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
 	return common.NewErrorData(errIntfRevoked, sdata, "ifid", ifid)
@@ -250,11 +253,16 @@ func (rp *RtrPkt) hopFVerFromRaw(offset int) common.RawBytes {
 	return ans
 }
 
-// IncPath increments the packet's path, if any.
-func (rp *RtrPkt) IncPath() *common.Error {
+// IncPath increments the packet's path, if any. The bool return value is set
+// to true if the segment changes (specifically if the packet's metadata is
+// updated to the new segment).
+func (rp *RtrPkt) IncPath() (bool, *common.Error) {
 	if rp.infoF == nil {
 		// Path is empty, nothing to increment.
-		return nil
+		return false, nil
+	}
+	if assert.On {
+		assert.Must(rp.upFlag != nil, rp.ErrStr("rp.upFlag must not be nil"))
 	}
 	var err *common.Error
 	var hopF *spath.HopField
@@ -262,6 +270,8 @@ func (rp *RtrPkt) IncPath() *common.Error {
 	infoF := rp.infoF
 	iOff := rp.CmnHdr.CurrInfoF
 	hOff := rp.CmnHdr.CurrHopF
+	vOnly := 0
+	origUp := *rp.upFlag
 	for {
 		hOff += spath.HopFieldLength
 		if hOff-iOff > infoF.Hops*spath.HopFieldLength {
@@ -269,39 +279,54 @@ func (rp *RtrPkt) IncPath() *common.Error {
 			// the new Info Field.
 			iOff = hOff
 			if infoF, err = spath.InfoFFromRaw(rp.Raw[iOff:]); err != nil {
-				return err
+				// Still return false as the metadata hasn't been updated to the new segment.
+				return false, err
 			}
 			continue
 		}
 		// Read new Hop Field
 		if hopF, err = spath.HopFFromRaw(rp.Raw[hOff:]); err != nil {
-			return err
+			return false, err
 		}
 		// Find first non-verify-only Hop Field.
 		if !hopF.VerifyOnly {
 			break
 		}
+		vOnly++
 	}
 	if hOff > rp.CmnHdr.HdrLen {
-		return common.NewError("New HopF offset > header length", "max", rp.CmnHdr.HdrLen,
+		return false, common.NewError("New HopF offset > header length", "max", rp.CmnHdr.HdrLen,
 			"actual", hOff)
 	}
 	// Update common header, and packet's InfoF/HopF fields.
+	segChgd := iOff != rp.CmnHdr.CurrInfoF
 	rp.CmnHdr.UpdatePathOffsets(rp.Raw, iOff, hOff)
 	rp.infoF = infoF
 	rp.hopF = hopF
-	rp.upFlag = nil
 	rp.IncrementedPath = true
-	// Extract new Up flag, in case the Info Field has changed.
-	if _, err = rp.UpFlag(); err != nil {
-		return err
+	if segChgd {
+		// Extract new Up flag.
+		rp.upFlag = nil
+		if _, err = rp.UpFlag(); err != nil {
+			return segChgd, err
+		}
 	}
 	// Extract the next interface ID.
 	rp.ifNext = nil
 	if _, err = rp.IFNext(); err != nil {
-		return err
+		return segChgd, err
 	}
-	return nil
+	// Check that there's no VERIFY_ONLY fields in the middle of a segment.
+	if vOnly > 0 && !segChgd {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets())
+		return segChgd, common.NewError("VERIFY_ONLY in middle of segment", sdata)
+	}
+	// Check that the segment didn't change from a down-segment to an up-segment.
+	if !origUp && *rp.upFlag {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
+		return segChgd, common.NewError("Switched from down-segment to up-segment", sdata)
+	}
+	return segChgd, nil
 }
 
 // UpFlag retrieves the current path segment's Up flag if not already known.

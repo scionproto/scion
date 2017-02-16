@@ -26,6 +26,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 // Route handles routing of packets. Registered hooks are called, allowing them
@@ -136,7 +138,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
 	intf := conf.C.Net.IFs[*rp.ifCurr]
-	if *rp.dstIA == *conf.C.IA {
+	if rp.dstIA.Eq(conf.C.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
 			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
@@ -148,36 +150,96 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	}
 	// If this is a cross-over Hop Field, increment the path.
 	if rp.hopF.Xover {
-		if err := rp.IncPath(); err != nil {
+		if err := rp.xoverFromExternal(); err != nil {
 			return HookError, err
 		}
-		// FIXME(kormat): this might need to change when multiple interfaces
-		// per router are supported.
-		if err := rp.validatePath(DirLocal); err != nil {
-			return HookError, err
-		}
+	} else if err := rp.validateLocalIF(rp.ifNext); err != nil {
+		return HookError, err
 	}
 	// Destination is in a remote ISD-AS, so forward to egress router.
 	// FIXME(kormat): this will need to change when multiple interfaces per
 	// router are supported.
-	nextIF, err := rp.IFNext()
-	if err != nil {
-		return HookError, err
-	}
-	if err := rp.validateLocalIF(*nextIF); err != nil {
-		return HookError, err
-	}
-	nextBR := conf.C.TopoMeta.IFMap[int(*nextIF)]
+	nextBR := conf.C.TopoMeta.IFMap[int(*rp.ifNext)]
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
 	rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
+}
+
+// xoverFromExternal handles XOVER hop fields at the ingress router, including
+// a lot of sanity/security checking.
+func (rp *RtrPkt) xoverFromExternal() *common.Error {
+	infoF := rp.infoF
+	origIFCurr := *rp.ifCurr
+	origIFNext := *rp.ifNext
+	var segChgd bool
+	var err *common.Error
+	if segChgd, err = rp.IncPath(); err != nil {
+		return err
+	}
+	if err = rp.validatePath(DirLocal); err != nil {
+		return err
+	}
+	if err = rp.validateLocalIF(rp.ifNext); err != nil {
+		return err
+	}
+	// If this is a peering XOVER point.
+	if infoF.Peer {
+		if segChgd {
+			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
+			return common.NewError(
+				"Path inc on ingress caused illegal peer segment change", sdata)
+		}
+		origIF := origIFNext
+		newIF := *rp.ifNext
+		if infoF.Up {
+			rp.ifCurr = nil
+			if _, err = rp.IFCurr(); err != nil {
+				return err
+			}
+			origIF = origIFCurr
+			newIF = *rp.ifCurr
+		}
+		if origIF != newIF {
+			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets())
+			return common.NewError(
+				"Downstream interfaces don't match on peer XOVER hop fields", sdata,
+				"orig", origIF, "new", newIF)
+		}
+		return nil
+	}
+	if !segChgd {
+		// If the segment didn't change, no more checks to make.
+		return nil
+	}
+	prevLink := conf.C.Net.IFs[origIFCurr].Type
+	nextLink := conf.C.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
+	// Never allowed to switch between core segments.
+	if prevLink == topology.LinkRouting && nextLink == topology.LinkRouting {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
+		return common.NewError("Segment change between ROUTING links.", sdata)
+	}
+	// Only allowed to switch from up- to up-segment if the next link is ROUTING.
+	if infoF.Up && rp.infoF.Up && nextLink != topology.LinkRouting {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
+		return common.NewError(
+			"Segment change from up segment to up segment with non-ROUTING next link", sdata,
+			"prevLink", prevLink, "nextLink", nextLink)
+	}
+	// Only allowed to switch from down- to down-segment if the previous link is ROUTING.
+	if !infoF.Up && !rp.infoF.Up && prevLink != topology.LinkRouting {
+		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
+		return common.NewError(
+			"Segment change from down segment to down segment with non-ROUTING previous link",
+			sdata, "prevLink", prevLink, "nextLink", nextLink)
+	}
+	return nil
 }
 
 // forwardFromLocal handles packet received from the local ISD-AS, to be
 // forwarded to neighbouring ISD-ASes.
 func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
-		if err := rp.IncPath(); err != nil {
+		if _, err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
 	}
