@@ -21,6 +21,8 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
+	"net"
+
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -50,17 +52,38 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	}
 	dstIP := rp.dstHost.IP()
 	intf := conf.C.Net.IFs[*rp.ifCurr]
-	extPub := intf.IFAddr.PublicAddr().IP
-	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr().IP
-	if rp.DirFrom == DirExternal && extPub.Equal(dstIP) ||
-		(rp.DirFrom == DirLocal && locPub.Equal(dstIP)) {
-		// Packet is meant for this router
+	extPub := intf.IFAddr.PublicAddr()
+	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
+	if rp.DirFrom == DirExternal && extPub.IP.Equal(dstIP) {
+		return rp.isDestSelf(extPub)
+	} else if rp.DirFrom == DirLocal && locPub.IP.Equal(dstIP) {
+		return rp.isDestSelf(locPub)
+	}
+	// Non-SVC packet to local AS, just forward.
+	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
+	return nil
+}
+
+func (rp *RtrPkt) isDestSelf(addr *net.UDPAddr) *common.Error {
+	if _, err := rp.L4Hdr(true); err != nil {
+		return err
+	}
+	var udph *l4.UDP
+	var ok bool
+	if rp.l4 == nil {
+		goto Forward
+	}
+	if udph, ok = rp.l4.(*l4.UDP); !ok {
+		goto Forward
+	}
+	if int(udph.DstPort) == addr.Port {
 		rp.DirTo = DirSelf
 		rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
 		rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 		return nil
 	}
-	// Non-SVC packet to local AS, just forward.
+Forward:
+	rp.DirTo = DirLocal
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	return nil
 }
