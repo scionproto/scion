@@ -34,6 +34,7 @@ from string import Template
 import yaml
 from Crypto import Random
 from external.ipaddress import ip_address, ip_interface, ip_network
+from OpenSSL import crypto
 
 # SCION
 from lib.config import Config
@@ -69,6 +70,8 @@ from lib.packet.scion_addr import ISD_AS
 from lib.topology import Topology
 from lib.util import (
     copy_file,
+    get_ca_cert_file_path,
+    get_ca_private_key_file_path,
     get_cert_chain_file_path,
     get_sig_key_file_path,
     get_enc_key_file_path,
@@ -170,17 +173,24 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
-        cert_files, trc_files = self._generate_certs_trcs()
+        ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
+        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
+        self._write_ca_files(topo_dicts, ca_private_key_files)
+        self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
         self._write_networks_conf(networks)
 
-    def _generate_certs_trcs(self):
-        certgen = CertGenerator(self.topo_config)
+    def _generate_cas(self):
+        ca_gen = CA_Generator(self.topo_config)
+        return ca_gen.generate()
+
+    def _generate_certs_trcs(self, ca_certs):
+        certgen = CertGenerator(self.topo_config, ca_certs)
         return certgen.generate()
 
     def _generate_topology(self):
@@ -198,6 +208,15 @@ class ConfigGenerator(object):
     def _generate_zk_conf(self, zookeepers):
         zk_gen = ZKConfGenerator(self.out_dir, zookeepers)
         zk_gen.generate()
+
+    def _write_ca_files(self, topo_dicts, ca_files):
+        isds = set()
+        for topo_id, as_topo in topo_dicts.items():
+            isds.add(topo_id[0])
+        for isd in isds:
+            base = os.path.join(self.out_dir, "CAS")
+            for path, value in ca_files[int(isd)].items():
+                write_file(os.path.join(base, path), value.decode())
 
     def _write_trust_files(self, topo_dicts, cert_files):
         for topo_id, as_topo, base in _srv_iter(
@@ -247,8 +266,9 @@ class ConfigGenerator(object):
 
 
 class CertGenerator(object):
-    def __init__(self, topo_config):
+    def __init__(self, topo_config, ca_certs):
         self.topo_config = topo_config
+        self.ca_certs = ca_certs
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
@@ -358,8 +378,12 @@ class CertGenerator(object):
         trc.core_ases[str(topo_id)] = core
 
     def _create_trc(self, isd):
+        ca_certs = {}
+        for ca_name, ca_cert in self.ca_certs[isd].items():
+            ca_certs[ca_name] = \
+                 crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         self.trcs[isd] = TRC.from_values(
-            isd, "ISD %s" % isd, 0, {}, {'ca.com': 'ca.com_cert_base64'},
+            isd, "ISD %s" % isd, 0, {}, ca_certs,
             {}, 2, 'dns_srv_addr', 2,
             3, 18000, True, {})
 
@@ -373,6 +397,84 @@ class CertGenerator(object):
         for isd in self.trcs:
             trc_path = get_trc_file_path("", isd, INITIAL_TRC_VERSION)
             self.trc_files[topo_id][trc_path] = str(self.trcs[isd])
+
+
+class CA_Generator(object):
+    def __init__(self, topo_config):
+        self.topo_config = topo_config
+        self.ca_key_pairs = {}
+        self.ca_certs = defaultdict(dict)
+        self.ca_private_key_files = defaultdict(dict)
+        self.ca_cert_files = defaultdict(dict)
+
+    def generate(self):
+        self._iterate(self._gen_ca_key)
+        self._iterate(self._gen_ca)
+        self._iterate(self._gen_private_key_files)
+        self._iterate(self._gen_cert_files)
+        return self.ca_private_key_files, self.ca_cert_files, self.ca_certs
+
+    def _iterate(self, f):
+        for ca_name, ca_config in self.topo_config["CAs"].items():
+            f(ca_name, ca_config)
+
+    def _gen_ca_key(self, ca_name, ca_config):
+        self.ca_key_pairs[ca_name] = crypto.PKey()
+        self.ca_key_pairs[ca_name].generate_key(crypto.TYPE_RSA, 2048)
+
+    def _gen_ca(self, ca_name, ca_config):
+        ca = crypto.X509()
+        ca.set_version(3)
+        ca.set_serial_number(1)
+        ca.get_subject().C = ca_config["countryName"]
+        ca.get_subject().ST = ca_config["stateOrProvinceName"]
+        ca.get_subject().L = ca_config["localityName"]
+        ca.get_subject().O = ca_config["organizationName"]
+        ca.get_subject().OU = ca_config["organizationalUnitName"]
+        ca.gmtime_adj_notBefore(0)
+        ca.gmtime_adj_notAfter(5 * 365 * 24 * 60 * 60)
+        ca.set_issuer(ca.get_subject())
+        ca.set_pubkey(self.ca_key_pairs[ca_name])
+
+        # From RFC5280: Conforming CAs MUST include keyUsage extension in
+        # certificates that contain public keys that are used to validate
+        # digital signatures on other public key certificates or CRLs.
+        # To facilitate certification path construction, subjectKeyIdentifier
+        # extension MUST appear in all conforming CA certificates, that is, all
+        # certificates including the basic constraints extension where the
+        # value of cA is TRUE.
+        ca.add_extensions([
+            # basicConstraints identifies whether subject of certificate is a CA
+            # pathLen expresses the number of possible intermediate CA
+            # certificates in a path built from an end-entity certificate up
+            # to the CA certificate.
+            crypto.X509Extension(
+                b"basicConstraints", True, b"CA:TRUE, pathlen:1"),
+            # The keyCertSign bit is asserted when the subject public key is
+            # used for verifying signatures on public key certificates.
+            crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+            # From RFC5280: The keyIdentifier is composed of the 160-bit SHA-1
+            # hash of the value of the BIT STRING subjectPublicKey
+            crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash",
+                                 subject=ca),
+        ])
+        ca.sign(self.ca_key_pairs[ca_name], "sha256")
+        self.ca_certs[ca_config["ISD"]][ca_name] = ca
+
+    def _gen_private_key_files(self, ca_name, ca_config):
+        isd = ca_config["ISD"]
+        ca_private_key_path = \
+            get_ca_private_key_file_path("ISD%s" % isd, ca_name)
+        self.ca_private_key_files[isd][ca_private_key_path] = \
+            crypto.dump_privatekey(crypto.FILETYPE_PEM,
+                                   self.ca_key_pairs[ca_name])
+
+    def _gen_cert_files(self, ca_name, ca_config):
+        isd = ca_config["ISD"]
+        ca_cert_path = get_ca_cert_file_path("ISD%s" % isd, ca_name)
+        self.ca_cert_files[isd][ca_cert_path] = \
+            crypto.dump_certificate(crypto.FILETYPE_PEM,
+                                    self.ca_certs[ca_config["ISD"]][ca_name])
 
 
 class TopoGenerator(object):

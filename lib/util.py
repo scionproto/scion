@@ -99,6 +99,20 @@ def get_offline_key_file_path(conf_dir):  # pragma: no cover
     return os.path.join(conf_dir, KEYS_DIR, "offline-root.key")
 
 
+def get_ca_private_key_file_path(conf_dir, name):
+    """
+    Return the ca private key file path
+    """
+    return os.path.join(conf_dir, "%s.key" % name)
+
+
+def get_ca_cert_file_path(conf_dir, name):
+    """
+    Return the ca certificate file path
+    """
+    return os.path.join(conf_dir, "%s.cert" % name)
+
+
 def read_file(file_path):
     """
     Read and return contents of a file.
