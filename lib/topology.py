@@ -22,10 +22,6 @@ import logging
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
-    LINK_CHILD,
-    LINK_PARENT,
-    LINK_PEER,
-    LINK_ROUTING,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SIBRA_SERVICE,
@@ -33,6 +29,7 @@ from lib.defines import (
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scion_addr import ISD_AS
+from lib.types import LinkType
 from lib.util import load_yaml_file
 
 
@@ -196,10 +193,10 @@ class Topology(object):
         for k, v in topology['BorderRouters'].items():
             router = RouterElement(v, k)
             ntype_map = {
-                LINK_PARENT: self.parent_border_routers,
-                LINK_CHILD: self.child_border_routers,
-                LINK_PEER: self.peer_border_routers,
-                LINK_ROUTING: self.routing_border_routers,
+                LinkType.PARENT: self.parent_border_routers,
+                LinkType.CHILD: self.child_border_routers,
+                LinkType.PEER: self.peer_border_routers,
+                LinkType.ROUTING: self.routing_border_routers,
             }
             ntype_map[router.interface.link_type].append(router)
 

@@ -34,13 +34,13 @@ from infrastructure.router.errors import (
     SCIONOFExpiredError,
     SCIONOFVerificationError,
     SCIONPacketHeaderCorruptedError,
+    SCIONSegmentSwitchError,
 )
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
-    LINK_PARENT,
     MAX_HOPBYHOP_EXT,
     PATH_SERVICE,
     ROUTER_SERVICE,
@@ -84,6 +84,7 @@ from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
+    LinkType,
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
@@ -115,6 +116,7 @@ class Router(SCIONElement):
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
+        self.is_core_router = self.topology.is_core_as
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
         self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
@@ -395,7 +397,7 @@ class Router(SCIONElement):
         Returns True if this router is connected to an upstream router (via an
         upstream link), False otherwise.
         """
-        return self.interface.link_type == LINK_PARENT
+        return self.interface.link_type == LinkType.PARENT
 
     def send_revocation(self, spkt, if_id, ingress, path_incd):
         """
@@ -463,13 +465,8 @@ class Router(SCIONElement):
         prev_hof = path.get_hof_ver(ingress=ingress)
         # Check that the interface in the current hop field matches the
         # interface in the router.
-        get_if = {
-            (False, False): hof.egress_if,
-            (False, True): hof.ingress_if,
-            (True, False): hof.ingress_if,
-            (True, True): hof.egress_if
-        }
-        if get_if[ingress, iof.up_flag] != self.interface.if_id:
+
+        if path.get_curr_if(ingress=ingress) != self.interface.if_id:
             raise SCIONIFVerificationError(hof, iof)
 
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
@@ -515,8 +512,11 @@ class Router(SCIONElement):
         except SCIONPacketHeaderCorruptedError:
             logging.error("Dropping packet due to invalid header state.\n"
                           "Header:\n%s", spkt)
+        except SCIONSegmentSwitchError as e:
+            logging.error("Dropping packet due to disallowed segment switch: "
+                          "%s" % e.args[0])
         except SCIONInterfaceDownException:
-            logging.info("Dropping packet due to interface being down")
+            logging.info("Dropping packet due to interface being down.")
             pass
 
     def _process_data(self, spkt, ingress, drop_on_error):
@@ -540,7 +540,18 @@ class Router(SCIONElement):
             self.deliver(spkt)
             return
         if ingress:
-            fwd_if, path_incd = self._calc_fwding_ingress(spkt)
+            prev_if = path.get_curr_if()
+            prev_iof = path.get_iof()
+            prev_hof = path.get_hof()
+            prev_iof_idx = path.get_of_idxs()[0]
+            fwd_if, path_incd, skipped_vo = self._calc_fwding_ingress(spkt)
+            cur_iof_idx = path.get_of_idxs()[0]
+            if prev_iof_idx != cur_iof_idx:
+                self._validate_segment_switch(
+                    path, fwd_if, prev_if, prev_iof, prev_hof)
+            elif skipped_vo:
+                raise SCIONSegmentSwitchError("Skipped verify only field, but "
+                                              "did not switch segments.")
         else:
             fwd_if = path.get_fwd_if()
             path_incd = False
@@ -567,14 +578,67 @@ class Router(SCIONElement):
             path.inc_hof_idx()
             self._egress_forward(spkt)
 
+    def _validate_segment_switch(self, path, fwd_if, prev_if, prev_iof,
+                                 prev_hof):
+        """
+        Validates switching of segments according to the following rules:
+
+        1) Never switch from a down-segment to an up-segment
+           (valley-freeness)
+        2) Never switch from an up(down)-segment to an up(down)-segment, if the
+           packet is not forwarded(received) over a ROUTING link.
+        3) Never switch from a core-segment to a core-segment.
+        4) If a packet is received over a peering link, check on ingress that
+           the egress IF is the same for both the current and next hop fields.
+        5) If a packet is to be forwarded over a peering link, check on ingress
+           that the ingress IF is the same for both current and next hop fields.
+        """
+        rcvd_on_link_type = self._link_type(prev_if)
+        fwd_on_link_type = self._link_type(fwd_if)
+        cur_iof = path.get_iof()
+        cur_hof = path.get_hof()
+        if not prev_iof.up_flag and cur_iof.up_flag:
+            raise SCIONSegmentSwitchError(
+                "Switching from down- to up-segment is not allowed.")
+        if (prev_iof.up_flag and cur_iof.up_flag and
+                fwd_on_link_type != LinkType.ROUTING):
+            raise SCIONSegmentSwitchError(
+                "Switching from up- to up-segment is not allowed "
+                "if the packet is not forwarded over a ROUTING link.")
+        if (not prev_iof.up_flag and not cur_iof.up_flag and
+                rcvd_on_link_type != LinkType.ROUTING):
+            raise SCIONSegmentSwitchError(
+                "Switching from down- to down-segment is not "
+                "allowed if the packet was not received over a ROUTING link.")
+        if (rcvd_on_link_type == LinkType.ROUTING and
+                fwd_on_link_type == LinkType.ROUTING):
+            raise SCIONSegmentSwitchError(
+                "Switching from core- to core-segment is not allowed.")
+        if ((rcvd_on_link_type == LinkType.PEER or
+                fwd_on_link_type == LinkType.PEER) and
+                prev_hof.egress_if != cur_hof.egress_if):
+            raise SCIONSegmentSwitchError(
+                "Egress IF of peering HOF does not match egress IF of current "
+                "HOF.")
+
     def _calc_fwding_ingress(self, spkt):
         path = spkt.path
         hof = path.get_hof()
         incd = False
+        skipped_vo = False
         if hof.xover:
-            path.inc_hof_idx()
+            skipped_vo = path.inc_hof_idx()
             incd = True
-        return path.get_fwd_if(), incd
+        return path.get_fwd_if(), incd, skipped_vo
+
+    def _link_type(self, if_id):
+        """
+        Returns the link type of the link corresponding to 'if_id' or None.
+        """
+        for br in self.topology.get_all_border_routers():
+            if br.interface.if_id == if_id:
+                return br.interface.link_type
+        return None
 
     def _needs_local_processing(self, pkt):
         return pkt.addrs.dst in [
