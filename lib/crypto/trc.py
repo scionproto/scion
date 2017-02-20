@@ -27,24 +27,26 @@ import lz4
 
 # SCION
 from lib.crypto.asymcrypto import verify, sign
-from lib.crypto.certificate import Certificate
 from lib.packet.scion_addr import ISD_AS
 
 ISDID_STRING = 'ISDID'
+DESCRIPTION_STRING = 'Description'
 VERSION_STRING = 'Version'
-TIME_STRING = 'Time'
+CREATION_TIME_STRING = 'CreationTime'
 CORE_ASES_STRING = 'CoreCAs'
 ROOT_CAS_STRING = 'RootCAs'
-LOGS_STRING = 'Logs'
-CA_THRESHOLD_STRING = 'CAThreshold'
-ROOT_DNS_SERVERS_STRING = 'RootDNSServers'
-ROOT_DNS_CERT_STRING = 'RootDNSCert'
+PKI_LOGS_STRING = 'PKILogs'
+QUORUM_EEPKI_STRING = 'QuorumEEPKI'
+ROOT_RAINS_KEY_STRING = 'RootRainsKey'
 QUORUM_OWN_TRC_STRING = 'QuorumOwnTRC'
 QUORUM_CAS_STRING = 'QuorumCAs'
-QUORUM_DNS_STRING = 'QuorumDNS'
 QUARANTINE_STRING = 'Quarantine'
 SIGNATURES_STRING = 'Signatures'
 GRACE_PERIOD_STRING = 'GracePeriod'
+ONLINE_KEY_ALG_STRING = 'OnlineKeyAlg'
+ONLINE_KEY_STRING = 'OnlineKey'
+OFFLINE_KEY_ALG_STRING = 'OfflineKeyAlg'
+OFFLINE_KEY_STRING = 'OfflineKey'
 
 
 class TRC(object):
@@ -53,19 +55,18 @@ class TRC(object):
     information for further use.
 
     :ivar int isd: the ISD identifier.
+    :ivar str description: is a human readable description of an ISD.
     :ivar int version: the TRC file version.
-    :ivar int time: the TRC file creation timestamp.
+    :ivar int creation_time: the TRC file creation timestamp.
     :ivar dict core_ases: the set of core ASes and their certificates.
     :ivar dict root_cas: the set of root CAs and their certificates.
-    :ivar dict logs: is a dictionary of end entity certificate logs, and
+    :ivar dict pki_logs: is a dictionary of end entity certificate logs, and
         their addresses and public key certificates
-    :ivar int ca_threshold: is a threshold number (nonnegative integer) of
+    :ivar int quroum_eepki: is a threshold number (nonnegative integer) of
         CAs that have to sign a domain’s policy
-    :ivar str root_dns_server_addr: the root DNS server's address.
-    :ivar str root_dns_server_cert: the root DNS server's certificate.
+    :ivar str root_rains_key: the RAINS root public key.
     :ivar int quorum_own_trc: number of core ASes necessary to sign a new TRC.
     :ivar int quorum_cas: number of CAs necessary to change CA entries
-    :ivar int quorum_dns: number of DNS entities necessary to change DNS entries
     :ivar int grace_period: defines for how long this TRC is valid when a new
         TRC is available
     :ivar bool quarantine: flag defining whether TRC is valid(quarantine=false)
@@ -75,17 +76,16 @@ class TRC(object):
 
     FIELDS_MAP = {
         ISDID_STRING: ("isd", int),
+        DESCRIPTION_STRING: ("description", str),
         VERSION_STRING: ("version", int),
-        TIME_STRING: ("time", int),
+        CREATION_TIME_STRING: ("time", int),
         CORE_ASES_STRING: ("core_ases", dict),
         ROOT_CAS_STRING: ("root_cas", dict),
-        LOGS_STRING: ("logs", dict),
-        CA_THRESHOLD_STRING: ("ca_threshold", int),
-        ROOT_DNS_SERVERS_STRING: ("root_dns_server_addr", str),
-        ROOT_DNS_CERT_STRING: ("root_dns_server_cert", str),
+        PKI_LOGS_STRING: ("pki_logs", dict),
+        QUORUM_EEPKI_STRING: ("quorum_eepki", int),
+        ROOT_RAINS_KEY_STRING: ("root_rains_key", bytes),
         QUORUM_OWN_TRC_STRING: ("quorum_own_trc", int),
         QUORUM_CAS_STRING: ("quorum_cas", int),
-        QUORUM_DNS_STRING: ("quorum_dns", int),
         QUARANTINE_STRING: ("quarantine", bool),
         SIGNATURES_STRING: ("signatures", dict),
         GRACE_PERIOD_STRING: ("grace_period", int),
@@ -103,9 +103,9 @@ class TRC(object):
                 val = copy.deepcopy(val)
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
-            cert_dict = base64.b64decode(
-                trc_dict[CORE_ASES_STRING][subject]).decode('utf-8')
-            self.core_ases[subject] = Certificate(json.loads(cert_dict))
+            key_ = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
+            self.core_ases[subject][ONLINE_KEY_STRING] = \
+                base64.b64decode(key_.encode('utf-8'))
         for subject in trc_dict[SIGNATURES_STRING]:
             self.signatures[subject] = \
                 base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
@@ -143,27 +143,25 @@ class TRC(object):
         return TRC(trc)
 
     @classmethod
-    def from_values(cls, isd, version, core_ases, root_cas, logs, ca_threshold,
-                    root_dns_server_addr, root_dns_server_cert, quorum_own_trc,
-                    quorum_cas, quorum_dns, quarantine, signatures,
-                    grace_period):
+    def from_values(cls, isd, description, version, core_ases, root_cas,
+                    pki_logs, quorum_eepki, root_rains_key, quorum_own_trc,
+                    quorum_cas, grace_period, quarantine, signatures):
         """
         Generate a TRC instance.
         """
         now = int(time.time())
         trc_dict = {
             ISDID_STRING: isd,
+            DESCRIPTION_STRING: description,
             VERSION_STRING: version,
-            TIME_STRING: now,
+            CREATION_TIME_STRING: now,
             CORE_ASES_STRING: core_ases,
             ROOT_CAS_STRING: root_cas,
-            LOGS_STRING: logs,
-            CA_THRESHOLD_STRING: ca_threshold,
-            ROOT_DNS_SERVERS_STRING: root_dns_server_addr,
-            ROOT_DNS_CERT_STRING: root_dns_server_cert,
+            PKI_LOGS_STRING: pki_logs,
+            QUORUM_EEPKI_STRING: quorum_eepki,
+            ROOT_RAINS_KEY_STRING: root_rains_key,
             QUORUM_OWN_TRC_STRING: quorum_own_trc,
             QUORUM_CAS_STRING: quorum_cas,
-            QUORUM_DNS_STRING: quorum_dns,
             GRACE_PERIOD_STRING: grace_period,
             QUARANTINE_STRING: quarantine,
             SIGNATURES_STRING: signatures,
@@ -245,16 +243,22 @@ class TRC(object):
         trc_dict = copy.deepcopy(self.dict(with_signatures))
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
-            cert_str = str(trc_dict[CORE_ASES_STRING][subject])
-            core_ases[subject] = base64.b64encode(
-                cert_str.encode('utf-8')).decode('utf-8')
+            d = trc_dict[CORE_ASES_STRING][subject]
+            for key_ in (ONLINE_KEY_STRING, OFFLINE_KEY_STRING, ):
+                key_str = trc_dict[CORE_ASES_STRING][subject][key_]
+                base64.b64encode(key_str.encode('utf-8')).decode('utf-8')
+            core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
+        root_cas = {}
+        for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
+            root_cas[subject] = base64.b64encode(cert_str).decode()
+        trc_dict[ROOT_CAS_STRING] = root_cas
         if with_signatures:
             signatures = {}
             for subject in trc_dict[SIGNATURES_STRING]:
                 signature = trc_dict[SIGNATURES_STRING][subject]
                 signatures[subject] = base64.b64encode(
-                    signature).decode('utf-8')
+                    signature.encode('utf-8')).decode('utf-8')
             trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str

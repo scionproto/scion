@@ -67,6 +67,49 @@ ASes:
     cert_issuer: 2-23
   2-26:
     cert_issuer: 2-24
+CAs:
+  CA1-1:
+    ISD: 1
+    countryName: US
+    stateOrProvinceName: Minnesota
+    localityName: Minnetonka
+    organizationName: my company
+    organizationalUnitName: my organization
+  CA1-2:
+    ISD: 1
+    countryName: US
+    stateOrProvinceName: Minnesota
+    localityName: Minnetonka
+    organizationName: my company
+    organizationalUnitName: my organization
+  CA1-3:
+    ISD: 1
+    countryName: US
+    stateOrProvinceName: Minnesota
+    localityName: Minnetonka
+    organizationName: my company
+    organizationalUnitName: my organization
+  CA2-1:
+    ISD: 2
+    countryName: US
+    stateOrProvinceName: Minnesota
+    localityName: Minnetonka
+    organizationName: my company
+    organizationalUnitName: my organization
+  CA2-2:
+    ISD: 2
+    countryName: US
+    stateOrProvinceName: Minnesota
+    localityName: Minnetonka
+    organizationName: my company
+    organizationalUnitName: my organization
+  CA2-3:
+    ISD: 2
+    countryName: US
+    stateOrProvinceName: Minnesota
+    localityName: Minnetonka
+    organizationName: my company
+    organizationalUnitName: my organization
 links:
   - {a: 1-11, b: 1-12, ltype: ROUTING}
   - {a: 1-11, b: 1-13, ltype: ROUTING}
