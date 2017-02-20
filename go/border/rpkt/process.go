@@ -21,6 +21,8 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
+	"net"
+
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -48,20 +50,46 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 		return nil
 	}
+	// Check to see if the destination IP is the address the packet was received
+	// on.
 	dstIP := rp.dstHost.IP()
 	intf := conf.C.Net.IFs[*rp.ifCurr]
-	extPub := intf.IFAddr.PublicAddr().IP
-	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr().IP
-	if rp.DirFrom == DirExternal && extPub.Equal(dstIP) ||
-		(rp.DirFrom == DirLocal && locPub.Equal(dstIP)) {
-		// Packet is meant for this router
-		rp.DirTo = DirSelf
-		rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
-		rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
-		return nil
+	extPub := intf.IFAddr.PublicAddr()
+	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
+	if rp.DirFrom == DirExternal && extPub.IP.Equal(dstIP) {
+		return rp.isDestSelf(extPub)
+	} else if rp.DirFrom == DirLocal && locPub.IP.Equal(dstIP) {
+		return rp.isDestSelf(locPub)
 	}
 	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
+	return nil
+}
+
+// isDestSelf checks if the packet's destination port (if any) matches the
+// router's L4 port. If it does, hooks are registered to parse and process the
+// payload. Otherwise it is forwarded to the local dispatcher.
+func (rp *RtrPkt) isDestSelf(addr *net.UDPAddr) *common.Error {
+	if _, err := rp.L4Hdr(true); err != nil && err.Desc != UnsupportedL4 {
+		return err
+	}
+	switch h := rp.l4.(type) {
+	case *l4.UDP:
+		if int(h.DstPort) == addr.Port {
+			goto Self
+		}
+	case *scmp.Hdr:
+		// FIXME(kormat): this should really examine the SCMP header and
+		// determine the real destination.
+		goto Self
+	}
+	rp.DirTo = DirLocal
+	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
+	return nil
+Self:
+	rp.DirTo = DirSelf
+	rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
+	rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 	return nil
 }
 
