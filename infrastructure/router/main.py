@@ -614,16 +614,12 @@ class Router(SCIONElement):
                 fwd_on_link_type == LinkType.ROUTING):
             raise SCIONSegmentSwitchError(
                 "Switching from core- to core-segment is not allowed.")
-        if (rcvd_on_link_type == LinkType.PEER and
+        if ((rcvd_on_link_type == LinkType.PEER or
+                fwd_on_link_type == LinkType.PEER) and
                 prev_hof.egress_if != cur_hof.egress_if):
             raise SCIONSegmentSwitchError(
                 "Egress IF of peering HOF does not match egress IF of current "
                 "HOF.")
-        if (fwd_on_link_type == LinkType.PEER and
-                prev_hof.egress_if != cur_hof.egress_if):
-            raise SCIONSegmentSwitchError(
-                "Ingress IF of peering HOF does not match ingress IF of "
-                "current HOF.")
 
     def _calc_fwding_ingress(self, spkt):
         path = spkt.path
