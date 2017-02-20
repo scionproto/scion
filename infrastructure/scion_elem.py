@@ -55,6 +55,7 @@ from lib.msg_meta import (
     TCPMetadata,
     UDPMetadata,
 )
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
@@ -543,17 +544,22 @@ class SCIONElement(object):
             return None, None
         # Create metadata:
         rev_pkt = pkt.reversed_copy()
+        # Skip OneHopPathExt (if exists)
+        exts = []
+        for e in rev_pkt.ext_hdrs:
+            if not isinstance(e, OneHopPathExt):
+                exts.append(e)
         if rev_pkt.l4_hdr.TYPE == L4Proto.UDP:
             meta = UDPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
                                            host=rev_pkt.addrs.dst.host,
                                            path=rev_pkt.path,
-                                           ext_hdrs=rev_pkt.ext_hdrs,
+                                           ext_hdrs=exts,
                                            port=rev_pkt.l4_hdr.dst_port)
         elif rev_pkt.l4_hdr.TYPE == L4Proto.SCMP:
             meta = SCMPMetadata.from_values(ia=rev_pkt.addrs.dst.isd_as,
                                             host=rev_pkt.addrs.dst.host,
                                             path=rev_pkt.path,
-                                            ext_hdrs=rev_pkt.ext_hdrs)
+                                            ext_hdrs=exts)
 
         else:
             logging.error("Cannot create meta for: %s" % pkt)
