@@ -48,6 +48,48 @@ from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
 
 
+class PCBCache:
+    """
+    Short lived path segment cache. Caches segments that contain revocations
+    for peer interfaces. This class is thread-safe.
+    """
+
+    def __init__(self, capacity=100):
+        self._cache = ExpiringDict(capacity, HASHTREE_EPOCH_TIME)
+        self._lock = Lock()
+
+    def get(self, key, default=None):
+        with self._lock:
+            return self._cache.get(key, default)
+
+    def add(self, key, pcb):
+        with self._lock:
+            self._cache[key] = pcb
+
+    def invalidate_entry(self, key):
+        """Removes an entry if it exists."""
+        with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+                return True
+            return False
+
+    def update_with_rev(self, rev_info):
+        """
+        Updates the segments in the pcb_cache with a new revocation, if the
+        revocation is for a peering interface in that segment.
+        """
+        with self._lock:
+            for segment in self._cache.values():
+                for asm in segment.iter_asms():
+                    if asm.isd_as() != rev_info.isd_as():
+                        continue
+                    for pcbm in asm.iter_pcbms(start=1):
+                        hof = pcbm.hof()
+                        if rev_info.p.ifID in [hof.ingress_if, hof.egress_if]:
+                            segment.add_rev_infos([rev_info.copy()])
+
+
 class PathServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION Path Server.
@@ -78,8 +120,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
         # Contains PCBs that include revocations.
-        self.pcb_cache = ExpiringDict(100, HASHTREE_EPOCH_TIME)
-        self.pcb_cache_lock = Lock()
+        self.pcb_cache = PCBCache()
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
@@ -192,11 +233,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if res == DBResult.ENTRY_ADDED:
             self._add_rev_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_desc())
-            return True
         elif res == DBResult.ENTRY_UPDATED:
             self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
-        return False
+        self.pcb_cache.invalidate_entry(pcb.get_hops_hash())
+        return res == DBResult.ENTRY_ADDED
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -225,9 +266,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Update revocations for PCBs in the the PCB cache.
-        with self.pcb_cache_lock:
-            for segment in self.pcb_cache.values():
-                segment.add_rev_infos([rev_info.copy()])
+        self.pcb_cache.update_with_rev(rev_info)
         # Forward revocation to other path servers.
         self._forward_revocation(rev_info, meta)
 
@@ -248,6 +287,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             down_segs_removed = 0
             core_segs_removed = 0
             up_segs_removed = 0
+            cached_segs_removed = 0
             for h in (hash01, hash12):
                 for sid in self.htroot_if2seg.pop((h, if_id), []):
                     if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
@@ -258,10 +298,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                         if (self.up_segments.delete(sid) ==
                                 DBResult.ENTRY_DELETED):
                             up_segs_removed += 1
+                    if self.pcb_cache.invalidate_entry(sid):
+                        cached_segs_removed += 1
+
             logging.info("Removed segments containing IF %d: "
-                         "UP: %d DOWN: %d CORE: %d" %
+                         "UP: %d DOWN: %d CORE: %d CACHED: %d" %
                          (if_id, up_segs_removed, down_segs_removed,
-                          core_segs_removed))
+                          core_segs_removed, cached_segs_removed))
 
     @abstractmethod
     def _forward_revocation(self, rev_info, meta):
@@ -393,35 +436,34 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         current_epoch = ConnectedHashTree.get_current_epoch()
         for segment in segments:
             seg_id = segment.get_hops_hash()
-            with self.pcb_cache_lock:
-                if seg_id in self.pcb_cache:
-                    cached_seg = self.pcb_cache[seg_id]
-                    logging.debug("Adding segment from PCB cache to response:"
-                                  " %s" % cached_seg.short_desc())
-                    modified_segs.add(cached_seg)
+            cached_seg = self.pcb_cache.get(seg_id)
+            if cached_seg:
+                logging.debug("Adding segment from PCB cache to response:"
+                              " %s" % cached_seg.short_desc())
+                modified_segs.add(cached_seg)
+                continue
+            revs_to_add = set()
+            for rev_info in list(self.revocations):
+                if rev_info.p.epoch < current_epoch:
+                    self.revocations.pop(rev_info)
                     continue
-                revs_to_add = set()
-                for rev_info in list(self.revocations):
-                    if rev_info.p.epoch < current_epoch:
-                        self.revocations.pop(rev_info)
+                for asm in segment.iter_asms():
+                    if asm.isd_as() != rev_info.isd_as():
                         continue
-                    for asm in segment.iter_asms():
-                        if asm.isd_as() != rev_info.isd_as():
-                            continue
-                        for pcbm in asm.iter_pcbms(1):
-                            hof = pcbm.hof()
-                            if rev_info.p.ifID in [hof.ingress_if,
-                                                   hof.egress_if]:
-                                revs_to_add.add(rev_info.copy())
-                if revs_to_add:
-                    new_seg = segment.copy()
-                    new_seg.add_rev_infos(list(revs_to_add))
-                    logging.debug("Adding revocations to PCB: %s" %
-                                  new_seg.short_desc())
-                    self.pcb_cache[seg_id] = new_seg
-                    modified_segs.add(new_seg)
-                else:
-                    modified_segs.add(segment)
+                    for pcbm in asm.iter_pcbms(1):
+                        hof = pcbm.hof()
+                        if rev_info.p.ifID in [hof.ingress_if,
+                                               hof.egress_if]:
+                            revs_to_add.add(rev_info.copy())
+            if revs_to_add:
+                new_seg = segment.copy()
+                new_seg.add_rev_infos(list(revs_to_add))
+                logging.debug("Adding revocations to PCB: %s" %
+                              new_seg.short_desc())
+                self.pcb_cache.add(seg_id, new_seg)
+                modified_segs.add(new_seg)
+            else:
+                modified_segs.add(segment)
 
         return modified_segs
 
