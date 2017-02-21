@@ -26,7 +26,7 @@ from collections import defaultdict
 
 # SCION
 from lib.config import Config
-from lib.crypto.certificate import verify_sig_chain_trc
+from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError
 from lib.defines import (

@@ -106,9 +106,12 @@ class TRC(object):
             key_ = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
             self.core_ases[subject][ONLINE_KEY_STRING] = \
                 base64.b64decode(key_.encode('utf-8'))
-        for subject in trc_dict[SIGNATURES_STRING]:
-            self.signatures[subject] = \
-                base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
+            key_ = trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING]
+            self.core_ases[subject][OFFLINE_KEY_STRING] = \
+                base64.b64decode(key_.encode('utf-8'))
+        for subject in trc_dict[ROOT_CAS_STRING]:
+            self.root_cas[subject] = base64.b64decode(
+                trc_dict[ROOT_CAS_STRING][subject].encode('utf-8'))
 
     def get_isd_ver(self):
         return self.isd, self.version
@@ -246,20 +249,13 @@ class TRC(object):
             d = trc_dict[CORE_ASES_STRING][subject]
             for key_ in (ONLINE_KEY_STRING, OFFLINE_KEY_STRING, ):
                 key_str = trc_dict[CORE_ASES_STRING][subject][key_]
-                base64.b64encode(key_str.encode('utf-8')).decode('utf-8')
+                d[key_] = base64.b64encode(key_str).decode('utf-8')
             core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
         root_cas = {}
         for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
-            root_cas[subject] = base64.b64encode(cert_str).decode()
+            root_cas[subject] = base64.b64encode(cert_str).decode('utf-8')
         trc_dict[ROOT_CAS_STRING] = root_cas
-        if with_signatures:
-            signatures = {}
-            for subject in trc_dict[SIGNATURES_STRING]:
-                signature = trc_dict[SIGNATURES_STRING][subject]
-                signatures[subject] = base64.b64encode(
-                    signature.encode('utf-8')).decode('utf-8')
-            trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
 
