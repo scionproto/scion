@@ -40,19 +40,21 @@ class ScionTopo(Topo):
 
         host_map = {}
         for name, section in mnconfig.items():
-            for elem, intf_str in section.items():
-                if ipaddress.ip_interface(intf_str).is_loopback:
+            for elem, addr in section.items():
+                if ipaddress.ip_address(addr).is_loopback:
                     print("""ERROR: The IP address for %s (%s) is a loopback
-                          address""" % (elem, intf_str))
+                          address""" % (elem, addr))
                     print("Try running scion.sh topology -m")
                     sys.exit(1)
+                network = ipaddress.ip_network(unicode(section.name))
                 # The config is utf8, need to convert to a plain string to avoid
                 # tickling bugs in mininet.
                 elem = str(elem)
                 elem_name = elem.replace("-", "_")
                 if elem not in host_map:
                     host_map[elem] = self.addHost(elem_name, ip=None)
-                intf = ipaddress.ip_interface(intf_str)
+                intf = ipaddress.ip_interface(
+                    "%s/%d" % (addr, network.prefixlen))
                 is_link = False
                 if intf.network.prefixlen == intf.max_prefixlen - 1:
                     is_link = True
