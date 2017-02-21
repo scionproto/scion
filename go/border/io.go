@@ -18,8 +18,8 @@ package main
 
 import (
 	"net"
-	"time"
 
+	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -44,15 +44,15 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath
 		metrics.InputLoops.With(labels).Inc()
 		rp := r.getPktBuf()
 		rp.DirFrom = dirFrom
-		start := time.Now()
+		start := monotime.Now()
 		length, src, err := in.ReadFromUDP(rp.Raw)
 		if err != nil {
 			log.Error("Error reading from socket", "socket", dst, "err", err)
 			continue
 		}
-		t := time.Now().Sub(start).Seconds()
+		t := monotime.Since(start).Seconds()
 		metrics.InputProcessTime.With(labels).Add(t)
-		rp.TimeIn = time.Now()
+		rp.TimeIn = monotime.Now()
 		rp.Raw = rp.Raw[:length] // Set the length of the slice
 		rp.Ingress.Src = src
 		rp.Ingress.Dst = dst
@@ -70,7 +70,7 @@ type posixOutputFunc func(common.RawBytes, *net.UDPAddr) (int, error)
 // function (a wrapper around net.UDPConn.WriteToUDP or net.UDPConn.Write).
 func (r *Router) writePosixOutput(labels prometheus.Labels,
 	rp *rpkt.RtrPkt, dst *net.UDPAddr, f posixOutputFunc) {
-	start := time.Now()
+	start := monotime.Now()
 	if count, err := f(rp.Raw, dst); err != nil {
 		rp.Error("Error sending packet", "err", err, "dst", dst)
 		return
@@ -78,7 +78,7 @@ func (r *Router) writePosixOutput(labels prometheus.Labels,
 		rp.Error("Unable to write full packet", "len", len(rp.Raw), "written", count)
 		return
 	}
-	t := time.Now().Sub(start).Seconds()
+	t := monotime.Since(start).Seconds()
 	metrics.OutputProcessTime.With(labels).Add(t)
 	metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
 	metrics.PktsSent.With(labels).Inc()
