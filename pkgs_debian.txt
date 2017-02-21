@@ -9,6 +9,7 @@ file
 flake8
 g++
 gcc
+libcapnp-dev
 libcurl4-openssl-dev
 libffi-dev
 libjs-jquery-hotkeys
