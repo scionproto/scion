@@ -17,8 +17,7 @@
 package rpkt
 
 import (
-	"time"
-
+	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
@@ -33,7 +32,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
 	hdrLen := sp.HdrLen()
 	totalLen := sp.TotalLen()
-	rp.TimeIn = time.Now()
+	rp.TimeIn = monotime.Now()
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	rp.DirFrom = DirSelf

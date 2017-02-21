@@ -69,7 +69,7 @@ type RtrPkt struct {
 	// Raw is the underlying buffer that represents the raw packet bytes. (RECV)
 	Raw common.RawBytes
 	// TimeIn is the time the packet was received. This is used for metrics calculations. (RECV)
-	TimeIn time.Time
+	TimeIn time.Duration
 	// DirFrom is the direction from which the packet was received. (RECV)
 	DirFrom Dir
 	// DirTo is the direction to which the packet is travelling. (PARSE)

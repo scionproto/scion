@@ -18,8 +18,8 @@ package main
 
 import (
 	"sync"
-	"time"
 
+	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
@@ -82,7 +82,7 @@ func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
 	for rp := range q {
 		r.processPacket(rp)
-		metrics.PktProcessTime.Add(time.Now().Sub(rp.TimeIn).Seconds())
+		metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 		r.recyclePkt(rp)
 	}
 }
@@ -94,7 +94,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if assert.On {
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
 		assert.Must(rp.DirFrom != rpkt.DirUnset, "DirFrom must be set")
-		assert.Must(rp.TimeIn != time.Time{}, "TimeIn must be set")
+		assert.Must(rp.TimeIn != 0, "TimeIn must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
