@@ -337,13 +337,41 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         goto exit;
     }
 
-    if ((lwip_err = netconn_accept(args->conn, &newconn)) != ERR_OK){
-        if (lwip_err == ERR_TIMEOUT)
-            zlog_debug(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
-        else
+    /* Set temporary timeout for netconn_accept() */
+    int tmp_timeout, app_timeout, org_timeout;
+    tmp_timeout = app_timeout = org_timeout = netconn_get_recvtimeout(args->conn);
+    if (!tmp_timeout || tmp_timeout > ACCEPT_TOUT){
+        tmp_timeout = ACCEPT_TOUT;
+        netconn_set_recvtimeout(args->conn, tmp_timeout);
+    }
+    /* Run netconn_accept() checking every timeout if app is stile alive */
+    zlog_debug(zc_tcp, "tcpmw_accept() entering the loop");
+    struct pollfd app_pollfd;
+    app_pollfd.fd = args->fd;
+    app_pollfd.events = 0;
+    while(1){
+        if ((lwip_err = netconn_accept(args->conn, &newconn)) == ERR_OK)
+            break;
+
+        if (lwip_err == ERR_TIMEOUT){
+            /* Check whether app is alive */
+            if (!poll(&app_pollfd, 1, 0)){
+                /* App is alive, check timeout */
+                if (!app_timeout)
+                    continue;
+                app_timeout -= tmp_timeout;
+                if (app_timeout > 0)
+                    continue;
+            }
+            else
+                zlog_error(zc_tcp, "tcpmw_accept(): app died");
+        }
+        else /* Other error code than timeout */
             zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
         goto exit;
     }
+    /* Set original timeout back */
+    netconn_set_recvtimeout(args->conn, org_timeout);
 
     zlog_info(zc_tcp, "tcpmw_accept(): waiting...");
 
