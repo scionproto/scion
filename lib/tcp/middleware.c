@@ -349,6 +349,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     app_pollfd.fd = args->fd;
     app_pollfd.events = 0;
     while(1){
+        /* zlog_debug(zc_tcp, "tcpmw_accept loop()"); */
         if ((lwip_err = netconn_accept(args->conn, &newconn)) == ERR_OK)
             break;
 
@@ -362,8 +363,10 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
                 if (app_timeout > 0)
                     continue;
             }
-            else
+            else {
                 zlog_error(zc_tcp, "tcpmw_accept(): app died");
+                tcpmw_terminate(args);
+            }
         }
         else /* Other error code than timeout */
             zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
