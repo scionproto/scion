@@ -345,7 +345,6 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
         netconn_set_recvtimeout(args->conn, tmp_timeout);
     }
     /* Run netconn_accept() checking every timeout if app is stile alive */
-    zlog_debug(zc_tcp, "tcpmw_accept() entering the loop");
     struct pollfd app_pollfd;
     app_pollfd.fd = args->fd;
     app_pollfd.events = 0;
