@@ -349,7 +349,6 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     app_pollfd.fd = args->fd;
     app_pollfd.events = 0;
     while(1){
-        /* zlog_debug(zc_tcp, "tcpmw_accept loop()"); */
         if ((lwip_err = netconn_accept(args->conn, &newconn)) == ERR_OK)
             break;
 
