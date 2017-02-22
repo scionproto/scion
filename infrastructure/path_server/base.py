@@ -299,7 +299,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Serve pending requests.
         for req, meta in self.pending_req[key]:
             if self.path_resolution(req, meta, new_request=False):
-                meta.close()
                 to_remove.append((req, meta))
         # Clean state.
         for req_meta in to_remove:

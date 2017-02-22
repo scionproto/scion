@@ -330,7 +330,7 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
     s8_t lwip_err = 0;
 
     int sys_err = 0;
-    zlog_info(zc_tcp, "ACCE received");
+    /* zlog_info(zc_tcp, "ACCE received"); */
     if (len != SOCK_PATH_LEN){
         lwip_err = ERR_MW;
         zlog_error(zc_tcp, "tcpmw_accept(): incorrect payload length %.*s", len, buf);
@@ -339,7 +339,8 @@ void tcpmw_accept(struct conn_args *args, char *buf, int len){
 
     if ((lwip_err = netconn_accept(args->conn, &newconn)) != ERR_OK){
         if (lwip_err == ERR_TIMEOUT)
-            zlog_debug(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
+            /* zlog_debug(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err)); */
+            ;
         else
             zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
         goto exit;
@@ -464,7 +465,7 @@ int tcpmw_from_app_sock(struct conn_args *args){
         return -1;
     if (len < 0){
         if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT){
-            zlog_debug(zc_tcp, "tcpmw_from_app_sock(): timeout");
+            /* zlog_debug(zc_tcp, "tcpmw_from_app_sock(): timeout"); */
             return 0;
         }
         else{

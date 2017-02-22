@@ -108,7 +108,7 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = False
+    USE_TCP = True
 
     def __init__(self, server_id, conf_dir, host_addr=None, port=None):
         """
@@ -163,6 +163,7 @@ class SCIONElement(object):
         """
         self._tcp_sock = None
         self._tcp_new_conns = queue.Queue(MAX_QUEUE)  # New TCP connections.
+        self._tcp_send_queue = queue.Queue(MAX_QUEUE)  # TCP data to be sent.
         if self._port is None:
             # No scion socket desired.
             return
@@ -179,8 +180,6 @@ class SCIONElement(object):
         self._socks.add(self._udp_sock, self.handle_recv)
 
     def _setup_tcp_accept_socket(self, svc):
-        if not self.USE_TCP:
-            return
         MAX_TRIES = 40
         for i in range(MAX_TRIES):
             try:
@@ -453,11 +452,23 @@ class SCIONElement(object):
         return self.send(pkt, *next_hop_port)
 
     def _send_meta_tcp(self, msg, meta):
-        if not meta.sock:
-            tcp_sock = self._tcp_sock_from_meta(meta)
-            meta.sock = tcp_sock
-            self._tcp_conns_put(tcp_sock)
-        return meta.sock.send_msg(msg.pack_full())
+        with meta.lock:
+            if not meta.sock:
+                threading.Thread(
+                    target=thread_safety_net,
+                    args=(self._tcp_connect_and_send, msg, meta),
+                    name="Elem._tcp_connect_and_send", daemon=False).start()
+            else:
+                self._tcp_send_queue_put(msg, meta)
+            return True
+
+    def _tcp_connect_and_send(self, msg, meta):
+        tcp_sock = self._tcp_sock_from_meta(meta)
+        if not tcp_sock.is_active():
+            return
+        meta.sock = tcp_sock
+        self._tcp_conns_put(tcp_sock)
+        self._tcp_send_queue_put(msg, meta)
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host
@@ -490,6 +501,20 @@ class SCIONElement(object):
                 old_sock = self._tcp_new_conns.get_nowait()
                 old_sock.close()
                 logging.error("TCP: _tcp_new_conns is full. Closing old socket")
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            logging.warning("%d TCP connection(s) dropped" % dropped)
+
+    def _tcp_send_queue_put(self, msg, meta):
+        dropped = 0
+        while True:
+            try:
+                self._tcp_send_queue.put((msg, meta), block=False)
+            except queue.Full:
+                self._tcp_send_queue.get_nowait()
+                logging.error("TCP: _tcp_send_queue is full. Dropping old msg")
                 dropped += 1
             else:
                 break
@@ -623,7 +648,7 @@ class SCIONElement(object):
 
     def _tcp_start(self):
         # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+        if not hasattr(self, "_tcp_sock"):
             return
         if not self._tcp_sock:
             logging.warning("TCP: accept socket is unset, port:%d", self._port)
@@ -631,13 +656,15 @@ class SCIONElement(object):
         threading.Thread(
             target=thread_safety_net, args=(self._tcp_accept_loop,),
             name="Elem._tcp_accept_loop", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._tcp_send_loop,),
+            name="Elem._tcp_send_loop", daemon=True).start()
 
     def _tcp_accept_loop(self):
+        logging.debug("TCP: entering _tcp_accept_loop()")
         while self.run_flag.is_set():
             try:
-                logging.debug("TCP: waiting for connections")
                 self._tcp_conns_put(TCPSocketWrapper(*self._tcp_sock.accept()))
-                logging.debug("TCP: accepted connection")
             except SCIONTCPTimeout:
                 pass
             except SCIONTCPError:
@@ -651,7 +678,7 @@ class SCIONElement(object):
 
     def _tcp_socks_update(self):
         # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+        if not hasattr(self, "_tcp_sock"):
             return
         self._socks.remove_inactive()
         self._tcp_add_waiting()
@@ -669,13 +696,11 @@ class SCIONElement(object):
         Callback to handle a ready recving socket
         """
         msg, meta = sock.get_msg_meta()
-        logging.debug("tcp_handle_recv:%s, %s", msg, meta)
-        if msg is None and meta is None:
-            self._socks.remove(sock)
-            sock.close()
-            return
         if msg:
             self._in_buf_put((msg, meta))
+        elif meta is None:
+            self._socks.remove(sock)
+            sock.close()
 
     def _tcp_clean(self):
         if not hasattr(self, "_tcp_sock") or not self._tcp_sock:
@@ -687,6 +712,28 @@ class SCIONElement(object):
             except queue.Empty:
                 break
             tcp_sock.close()
+
+    def _tcp_send_loop(self):
+        meta2buf = defaultdict(bytes)
+        while self.run_flag.is_set():
+            # Wait if nothing to do
+            if self._tcp_send_queue.empty() and not meta2buf:
+                msg, meta = self._tcp_send_queue.get()
+                meta2buf[meta] += msg.pack_full()
+            # Drain the queue
+            while not self._tcp_send_queue.empty():
+                try:
+                    msg, meta = self._tcp_send_queue.get_nowait()
+                    meta2buf[meta] += msg.pack_full()
+                except queue.Empty:
+                    break
+            # Now send what is missing
+            for meta in meta2buf:
+                sent = meta.sock.send_msg(meta2buf[meta])
+                meta2buf[meta] = meta2buf[meta][sent:]
+            for meta in list(meta2buf):
+                if not meta.sock.is_active() or not meta2buf[meta]:
+                    del meta2buf[meta]
 
     def stop(self):
         """Shut down the daemon thread."""

@@ -15,6 +15,10 @@
 :mod:`msg_meta` --- Message Metadata
 ====================================
 """
+# Stdlib
+import threading
+
+# SCION
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -28,6 +32,7 @@ class MetadataBase(object):
         self.path = None  # Ready for sending (i.e., in correct direction)
         self.port = 0
         self.ext_hdr = ()
+        self.lock = threading.Lock()
 
     @classmethod
     def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
