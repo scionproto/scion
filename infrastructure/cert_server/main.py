@@ -32,7 +32,6 @@ from lib.packet.cert_mgmt import (
     TRCReply,
 )
 from lib.packet.scion import msg_from_raw
-from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
 from lib.types import CertMgmtType, PayloadClass
 from lib.util import (
@@ -61,7 +60,7 @@ class CertServer(SCIONElement):
         :param str conf_dir: configuration directory.
         """
         super().__init__(server_id, conf_dir)
-        
+
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.CERT: {
                 CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,

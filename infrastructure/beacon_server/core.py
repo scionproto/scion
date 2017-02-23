@@ -175,6 +175,7 @@ class CoreBeaconServer(BeaconServer):
     def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary TRC file is found.
+
         :param ISD_AS isd_as: ISD-AS identifier.
         :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.

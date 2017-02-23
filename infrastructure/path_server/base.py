@@ -39,7 +39,6 @@ from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
-from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
 from lib.types import (
     CertMgmtType,
@@ -321,10 +320,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def handle_path_segment_record(self, seg_recs, meta):
         meta.close()  # FIXME(PSz): validate before
-        if self.verify_path(seg_recs, meta):
-            self.continue_path_processing(seg_recs, meta)
-
-    def continue_path_processing(self, seg_secs, meta):
         params = self._dispatch_params(seg_recs, meta)
         added = set()
         for type_, pcb in seg_recs.iter_pcbs():

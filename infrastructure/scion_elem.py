@@ -89,8 +89,6 @@ from lib.packet.scmp.errors import (
     SCMPUnspecified,
 )
 from lib.packet.scmp.types import SCMPClass
-from lib.packet.scmp.util import scmp_type_name
-from lib.packet.svc import SVCType
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net, kill_self
@@ -304,7 +302,8 @@ class SCIONElement(object):
                 missing_trcs.append((isd, ver))
         missing_certs = []
         for isd_as, versions in cert_versions.items():
-            if self.trust_store.get_cert(ISD_AS(isd_as), sorted(versions)[-1]) is None:
+            if self.trust_store.get_cert(ISD_AS(isd_as),
+                                         sorted(versions)[-1]) is None:
                 missing_certs.append((isd_as, sorted(versions)[-1]))
         return (missing_trcs, missing_certs)
 
@@ -321,9 +320,11 @@ class SCIONElement(object):
         # Remove received TRC from map
         for msg in self.paths_missing_trcs_certs_map:
             if (str(isd), ver) in self.paths_missing_trcs_certs_map[msg][0]:
-                self.paths_missing_trcs_certs_map[msg][0].remove((str(isd), ver))
+                self.paths_missing_trcs_certs_map[msg][0].remove(
+                    (str(isd), ver))
             # If all required trcs and certs are received
-            if not self.paths_missing_trcs_certs_map[msg][0] and not self.paths_missing_trcs_certs_map[msg][1]:
+            if not self.paths_missing_trcs_certs_map[msg][0] and \
+                    not self.paths_missing_trcs_certs_map[msg][1]:
                 self.continue_path_processing(msg, meta)
 
     def process_trc_request(self, req, meta):
@@ -346,8 +347,10 @@ class SCIONElement(object):
         # Remove received cert chain from map
         for msg in self.paths_missing_trcs_certs_map:
             if (str(isd_as), ver) in self.paths_missing_trcs_certs_map[msg][1]:
-                self.paths_missing_trcs_certs_map[msg][1].remove((str(isd_as), ver))
-            if not self.paths_missing_trcs_certs_map[msg][0] and not self.paths_missing_trcs_certs_map[msg][1]:
+                self.paths_missing_trcs_certs_map[msg][1].remove(
+                    (str(isd_as), ver))
+            if not self.paths_missing_trcs_certs_map[msg][0] and \
+                    not self.paths_missing_trcs_certs_map[msg][1]:
                 self.continue_path_processing(msg, meta)
 
     def process_cert_chain_request(self, req, meta):
@@ -359,7 +362,8 @@ class SCIONElement(object):
         if cert:
             self.send_meta(CertChainReply.from_values(cert), meta)
         else:
-            logging.warning("Could not find requested certificate %sv%s" % (isd_as, ver))
+            logging.warning("Could not find requested certificate %sv%s" %
+                (isd_as, ver))
 
     def continue_path_processing(self, paths, meta):
         pass
@@ -400,8 +404,6 @@ class SCIONElement(object):
             return type_map[scmp.type]
         except KeyError:
             logging.error("SCMP type not supported")
-            #"SCMP %s type not supported: %s(%s)\n%s",
-            #              scmp.type, scmp_type_name(scmp.type), pkt)
         return None
 
     def _parse_packet(self, packet):
@@ -675,7 +677,6 @@ class SCIONElement(object):
         if not pkt:
             logging.error("Cannot parse packet:\n%s" % packet)
             return None, None
-
         # Create metadata:
         rev_pkt = pkt.reversed_copy()
         # Skip OneHopPathExt (if exists)

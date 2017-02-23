@@ -151,7 +151,6 @@ class SCIONDaemon(SCIONElement):
             self.continue_path_processing(path_reply, meta)
 
     def continue_path_processing(self, path_reply, meta):
-        logging.error("CONTINUE PATH PROCESSING")
         added = set()
         map_ = {
             PST.UP: self._handle_up_seg,

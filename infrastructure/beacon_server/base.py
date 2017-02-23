@@ -121,10 +121,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             os.path.join(conf_dir, PATH_POLICY_FILE))
         self.unverified_beacons = deque()
         self.trc_requests = {}
-        self.cert_requests = {}
         self.trcs = {}
-        self.missing_TRCs = deque()
-        self.missing_certs = deque()
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
@@ -266,6 +263,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
+        self._handle_verified_beacon(pcb)
 
     def handle_ext(self, pcb):
         """
@@ -507,8 +505,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         asm = pcb.asm(-1)
-        key = asm.isd_as()[0], asm.p.trcVer
-        if self._check_trc(key):
+        if self._check_trc(asm.isd_as(), asm.p.trcVer):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -524,6 +521,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
+
         :param ISD_AS isd_is: ISD-AS identifier.
         :param int trc_ver: TRC file version.
         """
@@ -580,7 +578,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             asm.p.trcVer)
 
     @abstractmethod
-    def _handle_verified_beacon(self, msg):
+    def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
 
@@ -588,14 +586,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         raise NotImplementedError
-
-    def handle_unverified_beacons(self):
-        """
-        Handle beacons which are waiting to be verified.
-        """
-        for _ in range(len(self.unverified_beacons)):
-            pcb = self.unverified_beacons.popleft()
-            #self._try_to_verify_beacon(pcb, quiet=True)
 
     def process_rev_objects(self, rev_infos):
         """
