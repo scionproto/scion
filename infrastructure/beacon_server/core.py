@@ -134,7 +134,7 @@ class CoreBeaconServer(BeaconServer):
             if not self._filter_pcb(pcb):
                 count += 1
                 continue
-            self._try_to_verify_beacon(pcb)
+            # self._try_to_verify_beacon(pcb)
             self.handle_ext(pcb)
         if count:
             logging.debug("Dropped %d looping Core Segment PCBs", count)
@@ -175,7 +175,6 @@ class CoreBeaconServer(BeaconServer):
     def _check_trc(self, isd_as, trc_ver):
         """
         Return True or False whether the necessary TRC file is found.
-
         :param ISD_AS isd_as: ISD-AS identifier.
         :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.

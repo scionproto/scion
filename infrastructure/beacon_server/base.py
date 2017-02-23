@@ -66,7 +66,6 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
-from lib.requests import RequestHandler
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -140,12 +139,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = RLock()
-        self.cc_requests = RequestHandler.start(
-            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
-        )
-        self.trc_requests = RequestHandler.start(
-            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
-        )
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {None: self.handle_pcb},
             PayloadClass.IFID: {None: self.handle_ifid_packet},
@@ -514,7 +507,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         asm = pcb.asm(-1)
-        if self._check_trc(asm.isd_as(), asm.p.trcVer):
+        key = asm.isd_as()[0], asm.p.trcVer
+        if self._check_trc(key):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -530,7 +524,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
-
         :param ISD_AS isd_is: ISD-AS identifier.
         :param int trc_ver: TRC file version.
         """
@@ -596,27 +589,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def process_trc_rep(self, rep, meta):
-        """
-        Process the TRC reply.
-
-        :param rep: TRC reply.
-        :type rep: TRCReply
-        """
-        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
-        self.trust_store.add_trc(rep.trc)
-
-        rep_key = rep.trc.get_isd_ver()
-        if rep_key in self.trc_requests:
-            del self.trc_requests[rep_key]
-
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
         """
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb, quiet=True)
+            #self._try_to_verify_beacon(pcb, quiet=True)
 
     def process_rev_objects(self, rev_infos):
         """

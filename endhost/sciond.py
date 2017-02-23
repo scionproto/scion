@@ -88,12 +88,6 @@ class SCIONDaemon(SCIONElement):
         self.api_addr = (api_addr or
                          os.path.join(SCIOND_API_SOCKDIR,
                                       "%s.sock" % self.addr.isd_as))
-        self.cc_requests = RequestHandler.start(
-            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
-        )
-        self.trc_requests = RequestHandler.start(
-            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
-        )
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REPLY: self.handle_path_reply,
@@ -153,6 +147,11 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
+        if self.verify_path(path_reply, meta):
+            self.continue_path_processing(path_reply, meta)
+
+    def continue_path_processing(self, path_reply, meta):
+        logging.error("CONTINUE PATH PROCESSING")
         added = set()
         map_ = {
             PST.UP: self._handle_up_seg,

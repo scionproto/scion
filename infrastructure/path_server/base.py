@@ -89,12 +89,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
-        self.cc_requests = RequestHandler.start(
-            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
-        )
-        self.trc_requests = RequestHandler.start(
-            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
-        )
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -327,6 +321,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def handle_path_segment_record(self, seg_recs, meta):
         meta.close()  # FIXME(PSz): validate before
+        if self.verify_path(seg_recs, meta):
+            self.continue_path_processing(seg_recs, meta)
+
+    def continue_path_processing(self, seg_secs, meta):
         params = self._dispatch_params(seg_recs, meta)
         added = set()
         for type_, pcb in seg_recs.iter_pcbs():

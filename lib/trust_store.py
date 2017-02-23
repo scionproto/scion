@@ -23,6 +23,7 @@ import logging
 # SCION
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
+from lib.packet.scion_addr import ISD_AS
 from lib.util import CERT_DIR, read_file, write_file
 
 

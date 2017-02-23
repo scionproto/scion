@@ -263,14 +263,6 @@ class SCIONElement(object):
                 paths.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
                 asm.p.trcVer)
         else:
-            # FIXME(Sezer): Ask certificate server for now, beacuse TRC request
-            # is not received when sent to meta
-            try:
-                addr, port = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
-            except SCIONServiceLookupError as e:
-                logging.warning("Error looking up certificate service: %s", e)
-                return None
-            meta = UDPMetadata.from_values(host=addr, port=port)
             for trcs in self.paths_missing_trcs_certs_map[paths][0]:
                 if trcs[0] in self.requested_trcs_certs:
                     continue
@@ -312,7 +304,7 @@ class SCIONElement(object):
                 missing_trcs.append((isd, ver))
         missing_certs = []
         for isd_as, versions in cert_versions.items():
-            if self.trust_store.get_cert(isd_as, sorted(versions)[-1]) is None:
+            if self.trust_store.get_cert(ISD_AS(isd_as), sorted(versions)[-1]) is None:
                 missing_certs.append((isd_as, sorted(versions)[-1]))
         return (missing_trcs, missing_certs)
 
@@ -323,130 +315,54 @@ class SCIONElement(object):
         :param rep: TRC reply.
         :type rep: TRCReply.
         """
-        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
+        isd, ver = rep.trc.get_isd_ver()
+        logging.info("TRC reply received for %sv%s" % (isd, ver))
         self.trust_store.add_trc(rep.trc)
-        isd_, ver = rep.trc.get_isd_ver()
         # Remove received TRC from map
         for msg in self.paths_missing_trcs_certs_map:
-            if (isd_, ver) in self.paths_missing_trcs_certs_map[msg]:
-                self.paths_missing_trcs_certs_map[msg].remove((isd_, ver))
+            if (str(isd), ver) in self.paths_missing_trcs_certs_map[msg][0]:
+                self.paths_missing_trcs_certs_map[msg][0].remove((str(isd), ver))
             # If all required trcs and certs are received
-            if not self.paths_missing_trcs_certs_map[msg]:
-                # TODO(Sezer) Call continue_path_processing here
-                self.paths_to_verify.append(msg)
+            if not self.paths_missing_trcs_certs_map[msg][0] and not self.paths_missing_trcs_certs_map[msg][1]:
+                self.continue_path_processing(msg, meta)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
         assert isinstance(req, TRCRequest)
-        key = req.isd_as()[0], req.p.version
-        logging.info("TRC request received for %sv%s", *key)
-        local = meta.ia == self.addr.isd_as
-        if not self._check_trc(key) and not local:
-            logging.warning(
-                "Dropping TRC request from %s for %sv%s: "
-                "TRC not found && requester is not local)",
-                meta.get_addr(), *key)
-        self.trc_requests.put((key, (meta, req.isd_as()[1]),))
-
-    def _check_trc(self, key):
-        trc = self.trust_store.get_trc(*key)
-        if trc:
-            return True
-        logging.debug('TRC not found for %sv%s', *key)
-        return False
-
-    def _fetch_trc(self, key, info):
-        isd, ver = key
-        isd_as = ISD_AS.from_values(isd, info[2])
-        trc_req = TRCRequest.from_values(isd_as, ver)
-        req_pkt = self._build_packet(SVCType.CS_A, payload=trc_req)
-        next_hop, port = self._get_next_hop(isd_as, True, False, True)
-        if next_hop:
-            self.send(req_pkt, next_hop, port)
-            logging.info("TRC request sent for %sv%s.", *key)
-        else:
-            logging.warning("TRC request not sent for %sv%s: "
-                            "no destination found.", *key)
-
-    def _reply_trc(self, key, info):
-        isd, ver = key
-        meta = info[0]
-        dst = meta.get_addr()
-        port = meta.port
+        isd, ver = req.isd_as()[0], req.p.version
+        logging.info("TRC request received for %sv%s" % (isd, ver))
         trc = self.trust_store.get_trc(isd, ver)
-        self._send_reply(dst, port, TRCReply.from_values(trc))
-        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, dst, port)
+        if trc:
+            self.send_meta(TRCReply.from_values(trc), meta)
+        else:
+            logging.warning("Could not find requested TRC %sv%s" % (isd, ver))
+
+    def process_cert_chain_reply(self, rep, meta):
+        """Process a certificate chain reply."""
+        assert isinstance(rep, CertChainReply)
+        isd_as, ver = rep.chain.get_leaf_isd_as_ver()
+        logging.info("Cert chain reply received for %sv%s" % (isd_as, ver))
+        self.trust_store.add_cert(rep.chain)
+        # Remove received cert chain from map
+        for msg in self.paths_missing_trcs_certs_map:
+            if (str(isd_as), ver) in self.paths_missing_trcs_certs_map[msg][1]:
+                self.paths_missing_trcs_certs_map[msg][1].remove((str(isd_as), ver))
+            if not self.paths_missing_trcs_certs_map[msg][0] and not self.paths_missing_trcs_certs_map[msg][1]:
+                self.continue_path_processing(msg, meta)
 
     def process_cert_chain_request(self, req, meta):
         """Process a certificate chain request."""
-        # TODO(Sezer) Implement similar to trc request
         assert isinstance(req, CertChainRequest)
-        key = req.isd_as(), req.p.version
-        logging.info("Cert chain request received for %sv%s", *key)
-        local = meta.ia == self.addr.isd_as
-        if not self._check_cc(key) and not local:
-            logging.warning(
-                "Dropping CC request from %s for %sv%s: "
-                "CC not found && requester is not local)",
-                meta.get_addr(), *key)
-        self.cc_requests.put((key, meta))
-
-    def process_cert_chain_reply(self, rep, meta, from_zk=False):
-        # TODO(Sezer) Implement similar to trc reply
-        """Process a certificate chain reply."""
-        assert isinstance(rep, CertChainReply)
-        ia_ver = rep.chain.get_leaf_isd_as_ver()
-        logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
-                     (ia_ver[0], ia_ver[1], from_zk))
-        self.trust_store.add_cert(rep.chain)
-        if not from_zk:
-            self._share_object(rep, is_trc=False)
-        # Reply to all requests for this certificate chain
-        self.cc_requests.put((ia_ver, None))
-
-    def _check_cc(self, key):
-        cert_chain = self.trust_store.get_cert(*key)
-        if cert_chain:
-            return True
-        logging.debug('Cert chain not found for %sv%s', *key)
-        return False
-
-    def _fetch_cc(self, key, _):
-        isd_as, ver = key
-        req = CertChainRequest.from_values(isd_as, ver)
-        dst_addr, port = self._get_next_hop(isd_as, True)
-        req_pkt = self._build_packet(SVCType.CS_A, dst_ia=isd_as, payload=req)
-        if dst_addr:
-            self.send(req_pkt, dst_addr, port)
-            logging.info("Cert chain request sent: %s", req.short_desc())
+        isd_as, ver = req.isd_as(), req.p.version
+        logging.info("Cert chain request received for %sv%s" % (isd_as, ver))
+        cert = self.trust_store.get_cert(isd_as, ver)
+        if cert:
+            self.send_meta(CertChainReply.from_values(cert), meta)
         else:
-            logging.warning("Cert chain request (for %s) not sent: "
-                            "no destination found", req.short_desc())
+            logging.warning("Could not find requested certificate %sv%s" % (isd_as, ver))
 
-    def _reply_cc(self, key, meta):
-        isd_as, ver = key
-        dst = meta.get_addr()
-        port = meta.port
-        cert_chain = self.trust_store.get_cert(isd_as, ver)
-        self._send_reply(dst, port, CertChainReply.from_values(cert_chain))
-        logging.info("Cert chain for %sv%s sent to %s:%s",
-                     isd_as, ver, dst, port)
-
-    def _send_reply(self, src, src_port, payload):
-        if src.isd_as == self.addr.isd_as:
-            # Local request
-            next_hop, port = src.host, SCION_UDP_EH_DATA_PORT
-            dst_addr = next_hop
-        else:
-            # Remote request
-            next_hop, port = self._get_next_hop(src.isd_as, False, True, True)
-            dst_addr = SVCType.CS_A
-        if next_hop:
-            rep_pkt = self._build_packet(
-                dst_addr, dst_ia=src.isd_as, payload=payload, dst_port=src_port)
-            self.send(rep_pkt, next_hop, port)
-        else:
-            logging.warning("Reply not sent: no destination found")
+    def continue_path_processing(self, paths, meta):
+        pass
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.
@@ -483,8 +399,9 @@ class SCIONElement(object):
         try:
             return type_map[scmp.type]
         except KeyError:
-            logging.error("SCMP %s type not supported: %s(%s)\n%s",
-                          scmp.type, scmp_type_name(scmp.type), pkt)
+            logging.error("SCMP type not supported")
+            #"SCMP %s type not supported: %s(%s)\n%s",
+            #              scmp.type, scmp_type_name(scmp.type), pkt)
         return None
 
     def _parse_packet(self, packet):

@@ -106,6 +106,7 @@ class ISD_AS(Serializable):
             return {"%s_ia" % name: self}
 
     def __eq__(self, other):  # pragma: no cover
+        assert isinstance(other, ISD_AS)
         return self._isd == other._isd and self._as == other._as
 
     def __getitem__(self, idx):  # pragma: no cover

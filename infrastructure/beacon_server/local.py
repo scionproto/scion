@@ -112,7 +112,7 @@ class LocalBeaconServer(BeaconServer):
                     logging.error("Unable to parse raw pcb: %s", e)
                     continue
             if self.path_policy.check_filters(pcb):
-                self._try_to_verify_beacon(pcb)
+                # self._try_to_verify_beacon(pcb)
                 self.handle_ext(pcb)
 
     def process_cert_chain_rep(self, rep, meta):
