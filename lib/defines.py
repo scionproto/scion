@@ -41,7 +41,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: Generated files directory
 GEN_PATH = 'gen'
 #: Topology configuration
-TOPO_FILE = "topology.yml"
+TOPO_FILE = "topology.json"
 #: AS configuration
 AS_CONF_FILE = "as.yml"
 #: Path policy config
