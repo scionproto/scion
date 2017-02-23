@@ -28,6 +28,7 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from infrastructure.path_server.pcb_cache import PCBCache
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
@@ -46,48 +47,6 @@ from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
-
-
-class PCBCache:
-    """
-    Short lived path segment cache. Caches segments that contain revocations
-    for peer interfaces. This class is thread-safe.
-    """
-
-    def __init__(self, capacity=100):
-        self._cache = ExpiringDict(capacity, HASHTREE_EPOCH_TIME)
-        self._lock = Lock()
-
-    def get(self, key, default=None):
-        with self._lock:
-            return self._cache.get(key, default)
-
-    def add(self, key, pcb):
-        with self._lock:
-            self._cache[key] = pcb
-
-    def invalidate_entry(self, key):
-        """Removes an entry if it exists."""
-        with self._lock:
-            if key in self._cache:
-                del self._cache[key]
-                return True
-            return False
-
-    def update_with_rev(self, rev_info):
-        """
-        Updates the segments in the pcb_cache with a new revocation, if the
-        revocation is for a peering interface in that segment.
-        """
-        with self._lock:
-            for segment in self._cache.values():
-                for asm in segment.iter_asms():
-                    if asm.isd_as() != rev_info.isd_as():
-                        continue
-                    for pcbm in asm.iter_pcbms(start=1):
-                        hof = pcbm.hof()
-                        if rev_info.p.ifID in [hof.ingress_if, hof.egress_if]:
-                            segment.add_rev_infos([rev_info.copy()])
 
 
 class PathServer(SCIONElement, metaclass=ABCMeta):
@@ -236,7 +195,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         elif res == DBResult.ENTRY_UPDATED:
             self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
-        self.pcb_cache.invalidate_entry(pcb.get_hops_hash())
+            self.pcb_cache.invalidate_entry(pcb.get_hops_hash())
         return res == DBResult.ENTRY_ADDED
 
     def _handle_scmp_revocation(self, pld, meta):
