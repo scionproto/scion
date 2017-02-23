@@ -456,6 +456,7 @@ s8_t tcpmw_accept_loop(struct conn_args *args, struct netconn **newconn){
         }
         else /* Other error code than timeout */
             zlog_error(zc_tcp, "tcpmw_accept(): netconn_accept(): %s", lwip_strerr(lwip_err));
+        break;
     }
     /* Set original timeout back */
     netconn_set_recvtimeout(args->conn, org_timeout);
