@@ -17,6 +17,8 @@
 """
 # External packages
 from Crypto.Cipher import AES
+from Crypto.Hash import HMAC, SHA256
+from Crypto.Protocol.KDF import PBKDF2
 
 
 def cbcmac(key, msg):
@@ -44,3 +46,13 @@ def cbcmac(key, msg):
         iv = b"\x00" * 16
         cipher = AES.new(key, AES.MODE_CBC, iv)
         return cipher.encrypt(msg)[-16:]  # Return the last block of ciphertext.
+
+
+def kdf(secret, phrase):
+    """
+    Default key derivation function.
+    """
+    def hmacsha2(p, s):
+        return HMAC.new(p, s, SHA256).digest()
+
+    return PBKDF2(secret, phrase, prf=hmacsha2)
