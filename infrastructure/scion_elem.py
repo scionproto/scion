@@ -278,7 +278,7 @@ class SCIONElement(object):
             for ver in versions:
                 if (isd_as, ver) in self.requested_trcs_certs:
                     continue
-                trc_req = TRCRequest.from_values(isd_as[0], ver)
+                trc_req = TRCRequest.from_values(isd_as, ver)
                 logging.info("Requesting %sv%s TRC", isd_as[0], ver)
                 self.requested_trcs_certs.add((isd_as, ver))
                 self.send_meta(trc_req, meta)
@@ -345,7 +345,12 @@ class SCIONElement(object):
             # If all required trcs and certs are received
             if not self.paths_missing_trcs_certs_map[path]['TRCs'] and \
                     not self.paths_missing_trcs_certs_map[path]['certs']:
-                self.continue_path_processing(path, meta)
+                asm = path.asm(-1)
+                cert_ia = asm.isd_as()
+                trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig, str(cert_ia),
+                                        asm.chain(), trc, asm.p.trcVer):
+                    self.continue_path_processing(path, meta)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -373,7 +378,12 @@ class SCIONElement(object):
                         remove(ver)
             if not self.paths_missing_trcs_certs_map[path]['TRCs'] and \
                     not self.paths_missing_trcs_certs_map[path]['certs']:
-                self.continue_path_processing(path, meta)
+                asm = path.asm(-1)
+                cert_ia = asm.isd_as()
+                trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig, str(cert_ia),
+                                        asm.chain(), trc, asm.p.trcVer):
+                    self.continue_path_processing(path, meta)
 
     def process_cert_chain_request(self, req, meta):
         """Process a certificate chain request."""
