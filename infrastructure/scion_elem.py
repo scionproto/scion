@@ -305,7 +305,8 @@ class SCIONElement(object):
         for isd_as, versions in trc_versions.items():
             # If not local TRC, only request this version
             if isd_as[0] is not self.topology.isd_as[0]:
-                if self.trust_store.get_trc(int(isd_as[0]), sorted(versions)[-1]) is None:
+                if self.trust_store.get_trc(int(isd_as[0]),
+                                            sorted(versions)[-1]) is None:
                     missing_trcs[isd_as] = set([sorted(versions)[-1]])
                 continue
             # Local TRC
@@ -335,9 +336,12 @@ class SCIONElement(object):
         self.trust_store.add_trc(rep.trc)
         # Remove received TRC from map
         for path in self.paths_missing_trcs_certs_map:
-            if isd_as in self.paths_missing_trcs_certs_map[path]['TRCs']:
-                if ver in self.paths_missing_trcs_certs_map[path]['TRCs'][isd_as]:
-                    self.paths_missing_trcs_certs_map[path]['TRCs'][isd_as].remove(ver)
+            if isd_as in \
+                    self.paths_missing_trcs_certs_map[path]['TRCs']:
+                if ver in \
+                        self.paths_missing_trcs_certs_map[path]['TRCs'][isd_as]:
+                    self.paths_missing_trcs_certs_map[path]['TRCs'][isd_as] \
+                        .remove(ver)
             # If all required trcs and certs are received
             if not self.paths_missing_trcs_certs_map[path]['TRCs'] and \
                     not self.paths_missing_trcs_certs_map[path]['certs']:
@@ -363,8 +367,10 @@ class SCIONElement(object):
         # Remove received cert chain from map
         for path in self.paths_missing_trcs_certs_map:
             if isd_as in self.paths_missing_trcs_certs_map[path]['certs']:
-                if ver in self.paths_missing_trcs_certs_map[path]['certs'][isd_as]:
-                    self.paths_missing_trcs_certs_map[path]['certs'][isd_as].remove(ver)
+                if ver in self.\
+                        paths_missing_trcs_certs_map[path]['certs'][isd_as]:
+                    self.paths_missing_trcs_certs_map[path]['certs'][isd_as]. \
+                        remove(ver)
             if not self.paths_missing_trcs_certs_map[path]['TRCs'] and \
                     not self.paths_missing_trcs_certs_map[path]['certs']:
                 self.continue_path_processing(path, meta)
@@ -379,7 +385,7 @@ class SCIONElement(object):
             self.send_meta(CertChainReply.from_values(cert), meta)
         else:
             logging.warning("Could not find requested certificate %sv%s" %
-                (isd_as, ver))
+                            (isd_as, ver))
 
     def continue_path_processing(self, paths, meta):
         pass
