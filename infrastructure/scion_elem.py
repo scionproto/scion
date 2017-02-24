@@ -348,8 +348,9 @@ class SCIONElement(object):
                 asm = path.asm(-1)
                 cert_ia = asm.isd_as()
                 trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig, str(cert_ia),
-                                        asm.chain(), trc, asm.p.trcVer):
+                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig,
+                                        str(cert_ia), asm.chain(),
+                                        trc, asm.p.trcVer):
                     self.continue_path_processing(path, meta)
 
     def process_trc_request(self, req, meta):
@@ -381,8 +382,9 @@ class SCIONElement(object):
                 asm = path.asm(-1)
                 cert_ia = asm.isd_as()
                 trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig, str(cert_ia),
-                                        asm.chain(), trc, asm.p.trcVer):
+                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig,
+                                        str(cert_ia), asm.chain(),
+                                        trc, asm.p.trcVer):
                     self.continue_path_processing(path, meta)
 
     def process_cert_chain_request(self, req, meta):
