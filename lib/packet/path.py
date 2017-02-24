@@ -367,31 +367,33 @@ class PathCombinator(object):
     Class that contains functions required to build end-to-end SCION paths.
     """
     @classmethod
-    def build_shortcut_paths(cls, up_segments, down_segments):
+    def build_shortcut_paths(cls, up_segments, down_segments, peer_revs):
         """
         Returns a list of all shortcut paths (peering and crossover paths) that
         can be built using the provided up- and down-segments.
 
         :param list up_segments: List of `up` PathSegments.
         :param list down_segments: List of `down` PathSegments.
+        :param RevCache peer_revs: Peering revocations.
         :returns: List of paths.
         """
         paths = []
         for up in up_segments:
             for down in down_segments:
-                for path in cls._build_shortcuts(up, down):
+                for path in cls._build_shortcuts(up, down, peer_revs):
                     if path and path not in paths:
                         paths.append(path)
         return paths
 
     @classmethod
-    def _build_shortcuts(cls, up_segment, down_segment):
+    def _build_shortcuts(cls, up_segment, down_segment, peer_revs):
         """
         Takes :any:`PathSegment`\s and tries to combine them into short path via
         any cross-over or peer links found.
 
         :param list up_segment: `up` :any:`PathSegment`.
         :param list down_segment: `down` :any:`PathSegment`.
+        :param RevCache peer_revs: Peering revocations.
         :returns: SCIONPath if a shortcut path is found, otherwise ``None``.
         """
         # TODO check if stub ASs are the same...
@@ -400,7 +402,7 @@ class PathCombinator(object):
             return []
 
         # looking for xovr and peer points
-        xovr, peer = cls._get_xovr_peer(up_segment, down_segment)
+        xovr, peer = cls._get_xovr_peer(up_segment, down_segment, peer_revs)
 
         if not xovr and not peer:
             return []
@@ -412,7 +414,7 @@ class PathCombinator(object):
 
         if _sum_pt(peer) > _sum_pt(xovr):
             # Peer is best.
-            return cls._join_peer(up_segment, down_segment, peer)
+            return cls._join_peer(up_segment, down_segment, peer, peer_revs)
         else:
             # Xovr is best
             return cls._join_xovr(up_segment, down_segment, xovr)
@@ -435,7 +437,7 @@ class PathCombinator(object):
         return info, hofs, mtu
 
     @classmethod
-    def _get_xovr_peer(cls, up_segment, down_segment):
+    def _get_xovr_peer(cls, up_segment, down_segment, peer_revs):
         """
         Find the shortest xovr (preferred) and peer points between the supplied
         segments.
@@ -445,13 +447,12 @@ class PathCombinator(object):
 
         :param list up_segment: `up` :any:`PathSegment`.
         :param list down_segment: `down` :any:`PathSegment`.
+        :param RevCache peer_revs: Peering revocations.
         :returns:
             Tuple of the shortest xovr and peer points.
         """
         xovrs = []
         peers = []
-        up_seg_rev_map = up_segment.get_rev_map()
-        down_seg_rev_map = down_segment.get_rev_map()
         for up_i, up_asm in enumerate(up_segment.iter_asms(1), 1):
             for down_i, down_asm in enumerate(down_segment.iter_asms(1), 1):
                 up_ia = up_asm.isd_as()
@@ -459,8 +460,7 @@ class PathCombinator(object):
                 if up_ia == down_ia:
                     xovrs.append((up_i, down_i))
                     continue
-                if cls._find_peer_hfs(up_asm, down_asm, up_seg_rev_map,
-                                      down_seg_rev_map):
+                if cls._find_peer_hfs(up_asm, down_asm, peer_revs):
                     peers.append((up_i, down_i))
         xovr = peer = None
         if xovrs:
@@ -498,13 +498,14 @@ class PathCombinator(object):
         return [path]
 
     @classmethod
-    def _join_peer(cls, up_segment, down_segment, point):
+    def _join_peer(cls, up_segment, down_segment, point, peer_revs):
         """
         Joins the supplied segments into a shortcut (peer) fullpath.
 
         :param list up_segment: `up` :any:`PathSegment`.
         :param list down_segment: `down` :any:`PathSegment`.
         :param tuple point: Indexes of peer point.
+        :param RevCache peer_revs: Peering revocations.
         :returns: :any:`CrossOverPath`.
         """
         (up_index, down_index) = point
@@ -518,7 +519,7 @@ class PathCombinator(object):
         paths = []
         for uph, dph, pm in cls._find_peer_hfs(
                 up_segment.asm(up_index), down_segment.asm(down_index),
-                up_segment.get_rev_map(), down_segment.get_rev_map()):
+                peer_revs):
             um = min(up_mtu, pm)
             dm = min(down_mtu, pm)
             args = cls._shortcut_path_args(
@@ -671,8 +672,7 @@ class PathCombinator(object):
         return info, hofs, upstream_hof, mtu
 
     @classmethod
-    def _find_peer_hfs(cls, up_asm, down_asm, up_peer_rev_map,
-                       down_peer_rev_map):
+    def _find_peer_hfs(cls, up_asm, down_asm, peer_revs):
         """
         Finds the peering :any:`HopOpaqueField` of the shortcut path.
         """
@@ -688,9 +688,8 @@ class PathCombinator(object):
                         up_hof.ingress_if == down_peer.p.inIF):
                     # Check that there is no valid revocation for the peering
                     # interface.
-                    up_rev = up_peer_rev_map.get((up_ia, up_hof.ingress_if))
-                    down_rev = down_peer_rev_map.get(
-                        (down_ia, down_hof.ingress_if))
+                    up_rev = peer_revs.get((up_ia, up_hof.ingress_if))
+                    down_rev = peer_revs.get((down_ia, down_hof.ingress_if))
                     if (cls._skip_peer(up_rev, up_asm.p.hashTreeRoot) or
                             cls._skip_peer(down_rev, down_asm.p.hashTreeRoot)):
                         logging.debug(

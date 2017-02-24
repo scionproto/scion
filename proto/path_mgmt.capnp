@@ -17,6 +17,7 @@ struct SegReq {
 
 struct SegRecs {
     recs @0 :List(PCB.PathSegMeta);
+    revInfos @1 :List(RevInfo.RevInfo);
 }
 
 struct PathMgmt {

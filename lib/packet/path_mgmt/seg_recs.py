@@ -22,6 +22,7 @@ import capnp  # noqa
 import proto.path_mgmt_capnp as P
 from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
+from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 
 
@@ -32,18 +33,14 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
     """
     P_CLS = P.SegRecs
 
-    def __init__(self, p):  # pragma: no cover
-        super().__init__(p)
-
-    def iter_pcbs(self):
-        for rec in self.p.recs:
-            yield rec.type, PathSegment(rec.pcb)
-
     @classmethod
-    def from_values(cls, pcb_dict):
+    def from_values(cls, pcb_dict, rev_infos=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
+        :param rev_infos: list of RevocationInfo objects
         """
+        if not rev_infos:
+            rev_infos = []
         p = cls.P_CLS.new_message()
         flat = []
         for type_, pcbs in pcb_dict.items():
@@ -53,18 +50,36 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         for i, (type_, pcb) in enumerate(flat):
             p.recs[i].type = type_
             p.recs[i].pcb = pcb.p
+        p.init("revInfos", len(rev_infos))
+        for i, rev_info in enumerate(rev_infos):
+            p.revInfos[i] = rev_info.p
         return cls(p)
+
+    def iter_pcbs(self):
+        for rec in self.p.recs:
+            yield rec.type, PathSegment(rec.pcb)
+
+    def rev_info(self, idx):
+        return RevocationInfo(self.p.revInfos[idx])
+
+    def iter_rev_infos(self, start=0):
+        for i in range(start, len(self.p.revInfos)):
+            yield self.rev_info(i)
 
     def __str__(self):
         s = []
         s.append("%s:" % self.NAME)
         recs = list(self.iter_pcbs())
         recs.sort(key=lambda x: x[0])
+        rev_infos = list(self.iter_rev_infos())
         last_type = None
         for type_, pcb in recs:
             if type_ != last_type:
                 s.append("  %s:" % PST.to_str(type_))
             s.append("    %s" % pcb.short_desc())
+        for rev_info in rev_infos:
+            s.append("  %s" % rev_info.short_desc())
+
         return "\n".join(s)
 
 
