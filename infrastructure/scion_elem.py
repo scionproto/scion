@@ -283,19 +283,19 @@ class SCIONElement(object):
                 self.requested_trcs_certs.add((isd_as, ver))
                 self.send_meta(trc_req, meta)
         for isd_as, versions in \
-                self.paths_missing_trcs_certs_map[paths]['certs']:
+                self.paths_missing_trcs_certs_map[paths]['certs'].items():
             for ver in versions:
                 if (isd_as, ver) in self.requested_trcs_certs:
                     continue
                 cert_req = CertChainRequest.from_values(isd_as, ver)
-            logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
-            self.requested_trcs_certs.add((isd_as, ver))
-            self.send_meta(cert_req, meta)
+                logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
+                self.requested_trcs_certs.add((isd_as, ver))
+                self.send_meta(cert_req, meta)
         return False
 
     def _get_missing_trcs_certs_versions(self, trc_versions, cert_versions):
         """
-        Check which intermediate trcs and certs are missing and which 
+        Check which intermediate trcs and certs are missing and which
         cetificates are missing and return their versions.
 
         :returns: the missing TRCs' and certs' versions
@@ -305,7 +305,8 @@ class SCIONElement(object):
         for isd_as, versions in trc_versions.items():
             # If not local TRC, only request this version
             if isd_as[0] is not self.topology.isd_as[0]:
-                missing_trcs[isd_as] = set([sorted(versions)[-1]])
+                if self.trust_store.get_trc(int(isd_as[0]), sorted(versions)[-1]) is None:
+                    missing_trcs[isd_as] = set([sorted(versions)[-1]])
                 continue
             # Local TRC
             highest_ver_TRC = self.trust_store.get_trc(int(isd_as[0]))
