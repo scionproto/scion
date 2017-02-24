@@ -81,9 +81,10 @@ class PathRecordsReply(PathSegmentRecords):
         certs = {}
         for pcb in self.iter_pcbs:
             trcs_, certs_ = pcb.get_trcs_certs()
-            # FIXME(Sezer) Fix this, it overwrites trcs, certs now
-            trcs.update(trcs_)
-            certs.update(certs_)
+            for isd in trcs_:
+                trcs[isd].update(trcs_[isd])
+            for isd_as in certs_:
+                certs[isd_as].update(certs_[isd_as])
         return trcs, certs
 
 

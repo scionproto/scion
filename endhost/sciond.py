@@ -147,10 +147,10 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
-        if self.verify_path(path_reply, meta):
-            self.continue_path_processing(path_reply, meta)
+    #     if self.verify_path(path_reply, meta):
+    #         self.continue_path_processing(path_reply, meta)
 
-    def continue_path_processing(self, path_reply, meta):
+    # def continue_path_processing(self, path_reply, meta):
         added = set()
         map_ = {
             PST.UP: self._handle_up_seg,
