@@ -80,8 +80,6 @@ class LocalPathServer(PathServer):
         else:
             self._resolve_not_core(req, up_segs, core_segs, down_segs)
         if up_segs | core_segs | down_segs:
-            up_segs = self._add_peer_revs(up_segs)
-            down_segs = self._add_peer_revs(down_segs)
             self._send_path_segments(req, meta, up_segs, core_segs, down_segs)
             return True
         if new_request:
