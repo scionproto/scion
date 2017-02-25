@@ -31,20 +31,20 @@ def _mk_key(rev_info):
 class RevCache:
     """Thread-safe cache for revocations with auto expiration of entries."""
 
-    def __init__(self, capacity=1000):
+    def __init__(self, capacity=1000):  # pragma: no cover
         self._cache = {}
         self._lock = threading.RLock()
         self._capacity = capacity
 
-    def __contains__(self, rev_info):
+    def __contains__(self, rev_info):  # pragma: no cover
         return self.contains_key(_mk_key(rev_info))
 
-    def contains_key(self, key):
+    def contains_key(self, key):  # pragma: no cover
         with self._lock:
             stored_info = self._cache.get(key)
             return stored_info and self._validate_entry(stored_info)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key):  # pragma: no cover
         return self.get(key)
 
     def get(self, key, default=None):
@@ -69,8 +69,8 @@ class RevCache:
             if not stored_info:
                 # Try to free up space in case the cache reaches the cap limit.
                 if len(self._cache) >= self._capacity:
-                    for rev_info in list(self._cache.values()):
-                        self._validate_entry(rev_info)
+                    for info in list(self._cache.values()):
+                        self._validate_entry(info)
                 # Couldn't free up enough space...
                 if len(self._cache) >= self._capacity:
                     logging.error("Revocation cache full!.")
@@ -82,7 +82,7 @@ class RevCache:
                 return True
             return False
 
-    def _validate_entry(self, rev_info, cur_epoch=None):
+    def _validate_entry(self, rev_info, cur_epoch=None):  # pragma: no cover
         """Removes an expired revocation from the cache."""
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch, cur_epoch):
             del self._cache[_mk_key(rev_info)]
