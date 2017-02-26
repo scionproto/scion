@@ -15,8 +15,11 @@
 :mod:`seg_recs` --- Path Segment records
 ============================================
 """
+import struct
+
 # External
 import capnp  # noqa
+from Crypto.Hash import SHA256
 
 # SCION
 import proto.path_mgmt_capnp as P
@@ -79,13 +82,31 @@ class PathRecordsReply(PathSegmentRecords):
         """
         trcs = {}
         certs = {}
-        for pcb in self.iter_pcbs:
-            trcs_, certs_ = pcb.get_trcs_certs()
+        for pcb in self.iter_pcbs():
+            trcs_, certs_ = pcb[1].get_trcs_certs()
             for isd in trcs_:
-                trcs[isd].update(trcs_[isd])
+                if isd in trcs:
+                    trcs[isd].update(trcs_[isd])
+                else:
+                    trcs[isd] = trcs_[isd]
             for isd_as in certs_:
-                certs[isd_as].update(certs_[isd_as])
+                if isd_as in certs:
+                    certs[isd_as].update(certs_[isd_as])
+                else:
+                    certs[isd_as] = certs_[isd_as]
         return trcs, certs
+
+    def _get_pcbs_hash(self):
+        h = SHA256.new()
+        for pcb in self.iter_pcbs():
+            h.update(struct.pack("!q", hash(pcb[1])))
+        return h.digest
+
+    def __hash__(self):
+        return hash(self._get_pcbs_hash())
+
+    def __eq__(self, other):
+        return self.__str__ == str(other)
 
 
 class PathRecordsReg(PathSegmentRecords):

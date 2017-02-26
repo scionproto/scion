@@ -265,6 +265,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                           "no connection to ZK")
         self._handle_verified_beacon(pcb)
 
+    def _verify_path(self, paths):
+        asm = paths.asm(-1)
+        cert_ia = asm.isd_as()
+        trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+        return verify_sig_chain_trc(
+            paths.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
+            asm.p.trcVer)
+
     def handle_ext(self, pcb):
         """
         Handle beacon extensions.

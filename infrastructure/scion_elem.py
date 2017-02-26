@@ -264,14 +264,8 @@ class SCIONElement(object):
             self.paths_missing_trcs_certs_map[paths]['TRCs'] = missing_trcs
             self.paths_missing_trcs_certs_map[paths]['certs'] = missing_certs
         # If all necessary TRCs/certs available, try to verify
-        if not self.paths_missing_trcs_certs_map[paths]['TRCs'] and \
-                not self.paths_missing_trcs_certs_map[paths]['certs']:
-            asm = paths.asm(-1)
-            cert_ia = asm.isd_as()
-            trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-            return verify_sig_chain_trc(
-                paths.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
-                asm.p.trcVer)
+        if self._check_missing_trcs(paths) and self._check_missing_certs(paths):
+            return self._verify_path(paths)
         # Otherwise request missing trcs, certs
         for isd_as, versions in \
                 self.paths_missing_trcs_certs_map[paths]['TRCs'].items():
@@ -291,6 +285,33 @@ class SCIONElement(object):
                 logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
                 self.requested_trcs_certs.add((isd_as, ver))
                 self.send_meta(cert_req, meta)
+        return False
+
+    def _verify_path(self, paths):
+        pass
+
+    def _check_missing_trcs(self, paths):
+        """
+        Checks if there are missing TRCs for path/paths.
+
+        Returns true if there are no missing TRCs
+        """
+        if 'TRCs' not in self.paths_missing_trcs_certs_map:
+            return True
+        if not self.paths_missing_trcs_certs_map[paths]['TRCs']:
+            return True
+        return False
+
+    def _check_missing_certs(self, paths):
+        """
+        Checks if there are missing certs for path/paths.
+
+        Returns true if there are no missing certs
+        """
+        if 'certs' not in self.paths_missing_trcs_certs_map:
+            return True
+        if not self.paths_missing_trcs_certs_map[paths]['certss']:
+            return True
         return False
 
     def _get_missing_trcs_certs_versions(self, trc_versions, cert_versions):
