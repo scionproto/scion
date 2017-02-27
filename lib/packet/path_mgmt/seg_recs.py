@@ -71,13 +71,12 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         s.append("%s:" % self.NAME)
         recs = list(self.iter_pcbs())
         recs.sort(key=lambda x: x[0])
-        rev_infos = list(self.iter_rev_infos())
         last_type = None
         for type_, pcb in recs:
             if type_ != last_type:
                 s.append("  %s:" % PST.to_str(type_))
             s.append("    %s" % pcb.short_desc())
-        for rev_info in rev_infos:
+        for rev_info in self.iter_rev_infos():
             s.append("  %s" % rev_info.short_desc())
 
         return "\n".join(s)
