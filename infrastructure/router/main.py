@@ -22,9 +22,6 @@ import time
 import zlib
 from collections import defaultdict
 
-# External packages
-from Crypto.Protocol.KDF import PBKDF2
-
 # SCION
 from external.expiring_dict import ExpiringDict
 from infrastructure.router.if_state import InterfaceState
@@ -37,6 +34,7 @@ from infrastructure.router.errors import (
     SCIONSegmentSwitchError,
 )
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
@@ -117,8 +115,8 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.is_core_router = self.topology.is_core_as
-        self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
-        self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
+        self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
+        self.sibra_key = kdf(self.config.master_as_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = {
