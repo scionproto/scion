@@ -269,8 +269,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         asm = paths.asm(-1)
         cert_ia = asm.isd_as()
         trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+        chain = self.trust_store.get_cert(asm.isd_as(), asm.cert_ver())
         return verify_sig_chain_trc(
-            paths.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
+            paths.sig_pack(), asm.p.sig, str(cert_ia), chain, trc,
             asm.p.trcVer)
 
     def handle_ext(self, pcb):

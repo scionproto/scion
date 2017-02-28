@@ -105,7 +105,7 @@ class CoreBeaconServer(BeaconServer):
         server.
         """
         pcb.remove_crypto()
-        pcb.sign(self.signing_key)
+        # pcb.sign(self.signing_key)
         # Register core path with local core path server.
         try:
             addr, port = self.dns_query_topo(PATH_SERVICE)[0]

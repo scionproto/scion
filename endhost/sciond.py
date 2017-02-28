@@ -24,7 +24,7 @@ from itertools import product
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-# from lib.crypto.certificate_chain import verify_sig_chain_trc
+from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
@@ -148,10 +148,10 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
-        if self.verify_path(path_reply, meta):
-            self.continue_path_processing(path_reply, meta)
+    #     if self.verify_path(path_reply, meta):
+    #         self.continue_path_processing(path_reply, meta)
 
-    def continue_path_processing(self, path_reply, meta):
+    # def continue_path_processing(self, path_reply, meta):
         added = set()
         map_ = {
             PST.UP: self._handle_up_seg,
@@ -171,16 +171,22 @@ class SCIONDaemon(SCIONElement):
         meta.close()
 
     def _verify_path(self, paths):
-        # for _, pcb in paths.iter_pcbs():
-        #     logging.error("PCB")
-        #     logging.error(pcb)
-        #     asm = pcb.asm(-1)
-        #     cert_ia = asm.isd_as()
-        #     trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-        #     if not verify_sig_chain_trc(
-        #             pcb.sig_pack(), asm.p.sig, str(cert_ia), asm.chain(), trc,
-        #             asm.p.trcVer):
-        #         return False
+        for _, pcb in paths.iter_pcbs():
+            logging.error("PCB")
+            logging.error(pcb)
+            asm = pcb.asm(-1)
+            logging.error("ASM")
+            logging.error(asm)
+            cert_ia = asm.isd_as()
+            trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+            logging.error(asm.isd_as())
+            logging.error(asm.cert_ver())
+            chain = self.trust_store.get_cert(asm.isd_as(), asm.cert_ver())
+            logging.error(chain)
+            if not verify_sig_chain_trc(
+                    pcb.sig_pack(), asm.p.sig, str(cert_ia), chain, trc,
+                    asm.p.trcVer):
+                return False
         return True
 
     def _handle_up_seg(self, pcb):

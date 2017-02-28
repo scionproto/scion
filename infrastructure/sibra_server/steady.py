@@ -296,7 +296,7 @@ class SteadyPath(object):
         pcb_ext = SibraPCBExt.from_values(self.id, info, sofs, up)
         pcb.remove_crypto()
         pcb.add_sibra_ext(pcb_ext.p)
-        pcb.sign(self.signing_key)
+        # pcb.sign(self.signing_key)
         logging.debug(self._reg_pcb_str(pcb))
         return pcb
 

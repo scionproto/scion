@@ -114,6 +114,9 @@ class ASMarking(Cerealizable):
     def chain(self):  # pragma: no cover
         return CertificateChain.from_raw(self.p.chain, lz4_=True)
 
+    def cert_ver(self):
+        return self.p.certVer
+
     def add_ext(self, ext):  # pragma: no cover
         """
         Appends a new ASMarking extension.
@@ -276,7 +279,7 @@ class PathSegment(SCIONPayloadBaseProto):
         Removes the signatures and certificates from each AS block.
         """
         for asm in self.iter_asms():
-            asm.remove_sig()
+            # asm.remove_sig()
             asm.remove_chain()
 
     def get_trcs_certs(self):

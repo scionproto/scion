@@ -166,7 +166,7 @@ class LocalBeaconServer(BeaconServer):
             if not pcb:
                 continue
             pcb.remove_crypto()
-            pcb.sign(self.signing_key)
+            # pcb.sign(self.signing_key)
             try:
                 self.register_up_segment(pcb)
             except SCIONServiceLookupError as e:
@@ -184,6 +184,6 @@ class LocalBeaconServer(BeaconServer):
             if not pcb:
                 continue
             pcb.remove_crypto()
-            pcb.sign(self.signing_key)
+            # pcb.sign(self.signing_key)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())

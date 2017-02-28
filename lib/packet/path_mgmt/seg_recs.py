@@ -58,23 +58,6 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
             p.recs[i].pcb = pcb.p
         return cls(p)
 
-    def __str__(self):
-        s = []
-        s.append("%s:" % self.NAME)
-        recs = list(self.iter_pcbs())
-        recs.sort(key=lambda x: x[0])
-        last_type = None
-        for type_, pcb in recs:
-            if type_ != last_type:
-                s.append("  %s:" % PST.to_str(type_))
-            s.append("    %s" % pcb.short_desc())
-        return "\n".join(s)
-
-
-class PathRecordsReply(PathSegmentRecords):
-    NAME = "PathRecordsReply"
-    PAYLOAD_TYPE = PMT.REPLY
-
     def get_trcs_certs(self):
         """
         Returns a dict of all trcs' versions and a dict of all certificates'
@@ -96,6 +79,18 @@ class PathRecordsReply(PathSegmentRecords):
                     certs[isd_as] = certs_[isd_as]
         return trcs, certs
 
+    def __str__(self):
+        s = []
+        s.append("%s:" % self.NAME)
+        recs = list(self.iter_pcbs())
+        recs.sort(key=lambda x: x[0])
+        last_type = None
+        for type_, pcb in recs:
+            if type_ != last_type:
+                s.append("  %s:" % PST.to_str(type_))
+            s.append("    %s" % pcb.short_desc())
+        return "\n".join(s)
+
     def _get_pcbs_hash(self):
         h = SHA256.new()
         for pcb in self.iter_pcbs():
@@ -107,6 +102,11 @@ class PathRecordsReply(PathSegmentRecords):
 
     def __eq__(self, other):
         return self.__str__ == str(other)
+
+
+class PathRecordsReply(PathSegmentRecords):
+    NAME = "PathRecordsReply"
+    PAYLOAD_TYPE = PMT.REPLY
 
 
 class PathRecordsReg(PathSegmentRecords):
