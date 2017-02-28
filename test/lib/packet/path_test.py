@@ -962,9 +962,8 @@ class TestPathCombinatorFindPeerHfs(object):
 
         def get_side_effect(key):
             data = {("1-1", 3): up_peer_rev, ("2-1", 3): down_peer_rev}
-            if key in data:
-                return data[key]
-            return None
+            return data.get(key)
+
         peer_revs.get.side_effect = get_side_effect
 
         def skip_peer_side_effect(rev, ht_root):

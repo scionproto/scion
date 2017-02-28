@@ -287,7 +287,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         logging.info(
             "Sending PATH_REPLY with %d segment(s) to:%s "
             "port:%s in response to: %s", len(all_segs),
-            meta.get_addr(), meta.port, req,
+            meta.get_addr(), meta.port, req.short_desc(),
         )
 
     def _peer_revs_for_segs(self, segs):
