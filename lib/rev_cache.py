@@ -65,7 +65,7 @@ class RevCache:
             return False
         with self._lock:
             key = _mk_key(rev_info)
-            stored_info = self[key]
+            stored_info = self.get(key)
             if not stored_info:
                 # Try to free up space in case the cache reaches the cap limit.
                 if len(self._cache) >= self._capacity:
