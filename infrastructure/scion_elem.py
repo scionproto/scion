@@ -315,6 +315,8 @@ class SCIONElement(object):
             if paths not in self.paths_missing_trcs_certs_map.keys():
                 return True
             d = copy.deepcopy(self.paths_missing_trcs_certs_map[paths])
+            # logging.error("Missing")
+            # logging.error(d)
             if 'TRCs' not in d:
                 return True
             if not d['TRCs']:
@@ -334,6 +336,8 @@ class SCIONElement(object):
             if paths not in self.paths_missing_trcs_certs_map.keys():
                 return True
             d = copy.deepcopy(self.paths_missing_trcs_certs_map[paths])
+            # logging.error("Missing")
+            # logging.error(d)
             if 'certs' not in d:
                 return True
             if not d['certs']:
@@ -397,15 +401,14 @@ class SCIONElement(object):
         finally:
             self.missing_trcs_certs_lock.release()
             # If all required trcs and certs are received
-            if self._check_missing_trcs(path) and \
-                    self._check_missing_certs(path):
-                asm = path.asm(-1)
-                cert_ia = asm.isd_as()
-                trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-                if verify_sig_chain_trc(path.sig_pack(), asm.p.sig,
-                                        str(cert_ia), asm.chain(),
-                                        trc, asm.p.trcVer):
-                    self.continue_path_processing(path, meta)
+        if self._check_missing_trcs(path) and self._check_missing_certs(path):
+            asm = path.asm(-1)
+            cert_ia = asm.isd_as()
+            trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+            if verify_sig_chain_trc(path.sig_pack(), asm.p.sig,
+                                    str(cert_ia), asm.chain(),
+                                    trc, asm.p.trcVer):
+                self.continue_path_processing(path, meta)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -427,24 +430,22 @@ class SCIONElement(object):
         # Remove received cert chain from map
         self.missing_trcs_certs_lock.acquire()
         try:
-            paths_missing_trcs_certs_map = \
-                copy.deepcopy(self.paths_missing_trcs_certs_map)
-            for path in paths_missing_trcs_certs_map:
+            for path in self.paths_missing_trcs_certs_map.keys():
                 if 'certs' in \
                         self.paths_missing_trcs_certs_map[path] and \
                         isd_as in \
                         self.paths_missing_trcs_certs_map[path]['certs']:
-                    if ver in self.\
-                            paths_missing_trcs_certs_map[path]['certs'][isd_as]:
-                        self. \
-                            paths_missing_trcs_certs_map[path]['certs'][isd_as]\
-                            .remove(ver)
+                    missing_certs = \
+                        self.paths_missing_trcs_certs_map[path]['certs']
+                    if ver in missing_certs[isd_as]:
+                        missing_certs[isd_as].remove(ver)
+                    self.paths_missing_trcs_certs_map[path]['certs'] = \
+                        missing_certs
         finally:
             self.missing_trcs_certs_lock.release()
-            if self._check_missing_trcs(path) and \
-                    self._check_missing_certs(path):
-                if self._verify_path(path):
-                    self.continue_path_processing(path, meta)
+        if self._check_missing_trcs(path) and self._check_missing_certs(path):
+            if self._verify_path(path):
+                self.continue_path_processing(path, meta)
 
     def process_cert_chain_request(self, req, meta):
         """Process a certificate chain request."""
