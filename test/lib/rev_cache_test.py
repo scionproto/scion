@@ -34,8 +34,7 @@ class TestRevCacheGet:
         rev_info = "rev_info"
         rev_cache = RevCache()
         rev_cache._cache[key] = rev_info
-        rev_cache._validate_entry = create_mock()
-        rev_cache._validate_entry.return_value = True
+        rev_cache._validate_entry = create_mock_full(return_value=True)
         # Call
         ntools.eq_(rev_cache.get(key, default=default), rev_info)
         # Tests
@@ -54,8 +53,7 @@ class TestRevCacheGet:
         rev_info = "rev_info"
         rev_cache = RevCache()
         rev_cache._cache[key] = rev_info
-        rev_cache._validate_entry = create_mock()
-        rev_cache._validate_entry.return_value = False
+        rev_cache._validate_entry = create_mock_full(return_value=False)
         # Call
         ntools.eq_(rev_cache.get(key, default=default), default)
         # Tests
@@ -103,8 +101,7 @@ class TestRevCacheAdd:
         rev_info2 = self._create_rev_info(key[0], key[1], 1)
         verify_epoch.return_value = True
         rev_cache = RevCache()
-        rev_cache.get = create_mock()
-        rev_cache.get.return_value = rev_info1
+        rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
         # Call
         ntools.assert_false(rev_cache.add(rev_info2))
@@ -121,13 +118,29 @@ class TestRevCacheAdd:
         rev_info2 = self._create_rev_info(key[0], key[1], 1)
         verify_epoch.return_value = True
         rev_cache = RevCache()
-        rev_cache.get = create_mock()
-        rev_cache.get.return_value = rev_info1
+        rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
         # Call
         ntools.assert_false(rev_cache.add(rev_info2))
         # Tests
         ntools.eq_(rev_cache._cache[key], rev_info1)
+        assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
+        assert_these_calls(rev_cache.get, [call(key)])
+
+    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
+           new_callable=create_mock)
+    def test_older_entry_exists(self, verify_epoch):
+        key = ("1-1", 1)
+        rev_info1 = self._create_rev_info(key[0], key[1], 1)
+        rev_info2 = self._create_rev_info(key[0], key[1], 2)
+        verify_epoch.return_value = True
+        rev_cache = RevCache()
+        rev_cache.get = create_mock_full(return_value=rev_info1)
+        rev_cache._cache[key] = rev_info1
+        # Call
+        ntools.assert_true(rev_cache.add(rev_info2))
+        # Tests
+        ntools.eq_(rev_cache._cache[key], rev_info2)
         assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
         assert_these_calls(rev_cache.get, [call(key)])
 
@@ -168,8 +181,7 @@ class TestRevCacheAdd:
         verify_epoch.return_value = True
         rev_cache = RevCache(capacity=1)
         rev_cache._cache[key1] = rev_info1
-        rev_cache._validate_entry = create_mock()
-        rev_cache._validate_entry.return_value = True
+        rev_cache._validate_entry = create_mock_full(return_value=True)
         rev_cache.get = create_mock()
         rev_cache.get.return_value = None
         # Call
