@@ -101,7 +101,7 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         return hash(self._get_pcbs_hash())
 
     def __eq__(self, other):
-        return self.__str__ == str(other)
+        return self.__repr__ == repr(other)
 
 
 class PathRecordsReply(PathSegmentRecords):
