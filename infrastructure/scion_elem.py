@@ -265,7 +265,8 @@ class SCIONElement(object):
                         update(missing_certs[isd_as])
             else:
                 self.paths_missing_trcs_certs_map[paths]['TRCs'] = missing_trcs
-                self.paths_missing_trcs_certs_map[paths]['certs'] = missing_certs
+                self.paths_missing_trcs_certs_map[paths]['certs'] = \
+                    missing_certs
         finally:
             self.missing_trcs_certs_lock.release()
         # If all necessary TRCs/certs available, try to verify
@@ -276,7 +277,8 @@ class SCIONElement(object):
         try:
             if 'TRCs' in self.paths_missing_trcs_certs_map[paths]:
                 for isd_as, versions in \
-                        self.paths_missing_trcs_certs_map[paths]['TRCs'].items():
+                        self.paths_missing_trcs_certs_map[paths]['TRCs']. \
+                        items():
                     for ver in versions:
                         if (isd_as, ver) in self.requested_trcs_certs:
                             continue
@@ -286,7 +288,8 @@ class SCIONElement(object):
                         self.send_meta(trc_req, meta)
             if 'certs' in self.paths_missing_trcs_certs_map[paths]:
                 for isd_as, versions in \
-                        self.paths_missing_trcs_certs_map[paths]['certs'].items():
+                        self.paths_missing_trcs_certs_map[paths]['certs']. \
+                        items():
                     for ver in versions:
                         if (isd_as, ver) in self.requested_trcs_certs:
                             continue
@@ -386,14 +389,16 @@ class SCIONElement(object):
             for path in self.paths_missing_trcs_certs_map.keys():
                 if isd_as in \
                         self.paths_missing_trcs_certs_map[path]['TRCs']:
-                    if ver in \
-                            self.paths_missing_trcs_certs_map[path]['TRCs'][isd_as]:
-                        self.paths_missing_trcs_certs_map[path]['TRCs'][isd_as] \
+                    if ver in self. \
+                            paths_missing_trcs_certs_map[path]['TRCs'][isd_as]:
+                        self. \
+                            paths_missing_trcs_certs_map[path]['TRCs'][isd_as] \
                             .remove(ver)
         finally:
             self.missing_trcs_certs_lock.release()
             # If all required trcs and certs are received
-            if self._check_missing_trcs(path) and self._check_missing_certs(path):
+            if self._check_missing_trcs(path) and \
+                    self._check_missing_certs(path):
                 asm = path.asm(-1)
                 cert_ia = asm.isd_as()
                 trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
@@ -422,17 +427,22 @@ class SCIONElement(object):
         # Remove received cert chain from map
         self.missing_trcs_certs_lock.acquire()
         try:
-            paths_missing_trcs_certs_map = copy.deepcopy(self.paths_missing_trcs_certs_map)
+            paths_missing_trcs_certs_map = \
+                copy.deepcopy(self.paths_missing_trcs_certs_map)
             for path in paths_missing_trcs_certs_map:
-                if 'certs' in self.paths_missing_trcs_certs_map[path] and \
-                        isd_as in self.paths_missing_trcs_certs_map[path]['certs']:
+                if 'certs' in \
+                        self.paths_missing_trcs_certs_map[path] and \
+                        isd_as in \
+                        self.paths_missing_trcs_certs_map[path]['certs']:
                     if ver in self.\
                             paths_missing_trcs_certs_map[path]['certs'][isd_as]:
-                        self.paths_missing_trcs_certs_map[path]['certs'][isd_as]. \
-                            remove(ver)
+                        self. \
+                            paths_missing_trcs_certs_map[path]['certs'][isd_as]\
+                            .remove(ver)
         finally:
             self.missing_trcs_certs_lock.release()
-            if self._check_missing_trcs(path) and self._check_missing_certs(path):
+            if self._check_missing_trcs(path) and \
+                    self._check_missing_certs(path):
                 if self._verify_path(path):
                     self.continue_path_processing(path, meta)
 

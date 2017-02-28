@@ -37,11 +37,8 @@ from lib.sibra.state.state import SibraState
 from lib.sibra.util import BWSnapshot
 from lib.thread import thread_safety_net
 from lib.types import (
-    CertMgmtType,
     ExtensionClass,
-    PathMgmtType as PMT,
     PathSegmentType as PST,
-    PayloadClass,
 )
 from lib.util import (
     SCIONTime,
