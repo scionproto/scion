@@ -16,14 +16,16 @@
 =====================================================
 """
 # External packages
-from Crypto.Cipher import AES
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Protocol.KDF import PBKDF2
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
+from cryptography.hazmat.primitives.cmac import CMAC
+from cryptography.hazmat.primitives.hashes import Hash, SHA256
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
-def cbcmac(key, msg):
+def mac(key, msg):
     """
-    CBC-MAC using AES-128.
+    Default MAC function (CMAC using AES-128).
 
     Args:
         key: key for MAC creation.
@@ -34,25 +36,30 @@ def cbcmac(key, msg):
 
     Raises:
         ValueError: An error occurred when key is NULL or ciphertext is NULL.
-
-    Warnings:
-        CBC-MAC is insecure for variable size messages.
     """
     if key is None:
         raise ValueError('Key is NULL.')
     elif msg is None:
         raise ValueError('Message is NULL.')
     else:
-        iv = b"\x00" * 16
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        return cipher.encrypt(msg)[-16:]  # Return the last block of ciphertext.
+        cobj = CMAC(AES(key), backend=default_backend())
+        cobj.update(msg)
+        return cobj.finalize()
 
 
 def kdf(secret, phrase):
     """
     Default key derivation function.
     """
-    def hmacsha2(p, s):
-        return HMAC.new(p, s, SHA256).digest()
+    kdf = PBKDF2HMAC(algorithm=SHA256(), length=16, salt=phrase,
+                     iterations=1000, backend=default_backend())
+    return kdf.derive(secret)
 
-    return PBKDF2(secret, phrase, prf=hmacsha2)
+
+def crypto_hash(data):
+    """
+    Default hash function.
+    """
+    digest = Hash(SHA256(), backend=default_backend())
+    digest.update(data)
+    return digest.finalize()

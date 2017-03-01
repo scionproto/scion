@@ -83,8 +83,8 @@ class TestHopOpaqueFieldCalcMac(object):
     """
     Unit tests for lib.packet.opaque_field.HopOpaqueField.calc_mac
     """
-    @patch("lib.packet.opaque_field.cbcmac", autospec=True)
-    def test_no_prev(self, cbcmac):
+    @patch("lib.packet.opaque_field.mac", autospec=True)
+    def test_no_prev(self, mac):
         inst = HopOpaqueField()
         inst.pack = create_mock()
         pack_mac = bytes.fromhex('02 2a0a 0b0c')
@@ -93,15 +93,15 @@ class TestHopOpaqueFieldCalcMac(object):
         expected = b"".join([
             ts.to_bytes(4, "big"), pack_mac, bytes(7),
         ])
-        cbcmac.return_value = "mac_data"
+        mac.return_value = "mac_data"
         # Call
         ntools.eq_(inst.calc_mac("key", ts), "mac")
         # Tests
         inst.pack.assert_called_once_with(mac=True)
-        cbcmac.assert_called_once_with("key", expected)
+        mac.assert_called_once_with("key", expected)
 
-    @patch("lib.packet.opaque_field.cbcmac", autospec=True)
-    def test_prev(self, cbcmac):
+    @patch("lib.packet.opaque_field.mac", autospec=True)
+    def test_prev(self, mac):
         inst = HopOpaqueField()
         inst.pack = create_mock()
         pack_mac = bytes.fromhex('02 2a0a 0b0c')
@@ -116,7 +116,7 @@ class TestHopOpaqueFieldCalcMac(object):
         inst.calc_mac("key", ts, prev)
         # Tests
         prev.pack.assert_called_once_with()
-        cbcmac.assert_called_once_with("key", expected)
+        mac.assert_called_once_with("key", expected)
 
 
 def _of_list_setup():
