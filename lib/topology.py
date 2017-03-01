@@ -127,7 +127,7 @@ class Topology(object):
     :ivar list child_border_routers:
         border routers linking the AS to its children.
     :ivar list peer_border_routers: border router linking the AS to its peers.
-    :ivar list routing_border_routers:
+    :ivar list core_border_routers:
         border router linking the core AS to another core AS.
     """
     def __init__(self):  # pragma: no cover
@@ -141,7 +141,7 @@ class Topology(object):
         self.parent_border_routers = []
         self.child_border_routers = []
         self.peer_border_routers = []
-        self.routing_border_routers = []
+        self.core_border_routers = []
         self.zookeepers = []
 
     @classmethod
@@ -196,7 +196,7 @@ class Topology(object):
                 LinkType.PARENT: self.parent_border_routers,
                 LinkType.CHILD: self.child_border_routers,
                 LinkType.PEER: self.peer_border_routers,
-                LinkType.CORE: self.routing_border_routers,
+                LinkType.CORE: self.core_border_routers,
             }
             ntype_map[router.interface.link_type].append(router)
 
@@ -217,7 +217,7 @@ class Topology(object):
         all_border_routers.extend(self.parent_border_routers)
         all_border_routers.extend(self.child_border_routers)
         all_border_routers.extend(self.peer_border_routers)
-        all_border_routers.extend(self.routing_border_routers)
+        all_border_routers.extend(self.core_border_routers)
         return all_border_routers
 
     def get_own_config(self, server_type, server_id):
