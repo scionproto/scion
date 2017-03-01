@@ -22,9 +22,6 @@ import time
 import zlib
 from collections import defaultdict
 
-# External packages
-from Crypto.Protocol.KDF import PBKDF2
-
 # SCION
 from external.expiring_dict import ExpiringDict
 from infrastructure.router.if_state import InterfaceState
@@ -37,6 +34,7 @@ from infrastructure.router.errors import (
     SCIONSegmentSwitchError,
 )
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
@@ -117,8 +115,8 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.is_core_router = self.topology.is_core_as
-        self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
-        self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
+        self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
+        self.sibra_key = kdf(self.config.master_as_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = {
@@ -586,7 +584,7 @@ class Router(SCIONElement):
         1) Never switch from a down-segment to an up-segment
            (valley-freeness)
         2) Never switch from an up(down)-segment to an up(down)-segment, if the
-           packet is not forwarded(received) over a ROUTING link.
+           packet is not forwarded(received) over a CORE link.
         3) Never switch from a core-segment to a core-segment.
         4) If a packet is received over a peering link, check on ingress that
            the egress IF is the same for both the current and next hop fields.
@@ -601,17 +599,17 @@ class Router(SCIONElement):
             raise SCIONSegmentSwitchError(
                 "Switching from down- to up-segment is not allowed.")
         if (prev_iof.up_flag and cur_iof.up_flag and
-                fwd_on_link_type != LinkType.ROUTING):
+                fwd_on_link_type != LinkType.CORE):
             raise SCIONSegmentSwitchError(
                 "Switching from up- to up-segment is not allowed "
-                "if the packet is not forwarded over a ROUTING link.")
+                "if the packet is not forwarded over a CORE link.")
         if (not prev_iof.up_flag and not cur_iof.up_flag and
-                rcvd_on_link_type != LinkType.ROUTING):
+                rcvd_on_link_type != LinkType.CORE):
             raise SCIONSegmentSwitchError(
                 "Switching from down- to down-segment is not "
-                "allowed if the packet was not received over a ROUTING link.")
-        if (rcvd_on_link_type == LinkType.ROUTING and
-                fwd_on_link_type == LinkType.ROUTING):
+                "allowed if the packet was not received over a CORE link.")
+        if (rcvd_on_link_type == LinkType.CORE and
+                fwd_on_link_type == LinkType.CORE):
             raise SCIONSegmentSwitchError(
                 "Switching from core- to core-segment is not allowed.")
         if ((rcvd_on_link_type == LinkType.PEER or

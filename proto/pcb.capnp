@@ -3,7 +3,6 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
-using RevInfo = import "rev_info.capnp";
 using Sibra = import "sibra.capnp";
 
 struct PCBMarking {
@@ -33,7 +32,6 @@ struct PathSegment {
     asms @2 :List(ASMarking);
     exts :group {
         sibra @3 :Sibra.SibraPCBExt;
-        revInfos @4 :List(RevInfo.RevInfo);
     }
 }
 

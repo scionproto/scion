@@ -40,7 +40,7 @@ func Test_Topo(t *testing.T) {
 		"br1-11-1": {
 			BasicElem{mkYIP("127.0.0.69"), 30097},
 			&TopoIF{mkYIP("127.0.0.6"), 50001, mkYIP("127.0.0.7"), 50000,
-				1, &addr.ISD_AS{I: 1, A: 12}, 1472, 1000, "ROUTING"},
+				1, &addr.ISD_AS{I: 1, A: 12}, 1472, 1000, "CORE"},
 		},
 	}
 	pses := map[string]BasicElem{

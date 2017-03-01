@@ -18,7 +18,7 @@ package conf
 
 import (
 	"crypto/cipher"
-	"crypto/sha1"
+	"crypto/sha256"
 	"path/filepath"
 	"sync"
 
@@ -97,7 +97,7 @@ func Load(id, confDir string) *common.Error {
 	// Generate keys
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha1.New)
+	hfGenKey := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha256.New)
 	if conf.HFGenBlock, err = util.InitAES(hfGenKey); err != nil {
 		return err
 	}

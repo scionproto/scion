@@ -255,7 +255,6 @@ class CorePathServer(PathServer):
                                 "is missing. Shouldn't be here (too often).")
             return False
 
-        down_segs = self._add_peer_revs(down_segs)
         self._send_path_segments(req, meta, core=core_segs, down=down_segs)
         return True
 

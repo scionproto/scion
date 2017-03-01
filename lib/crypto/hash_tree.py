@@ -250,8 +250,9 @@ class ConnectedHashTree(object):
         return h01 == root or h12 == root
 
     @classmethod
-    def verify_epoch(cls, epoch):
-        cur_epoch = cls.get_current_epoch()
+    def verify_epoch(cls, epoch, cur_epoch=None):
+        if not cur_epoch:
+            cur_epoch = cls.get_current_epoch()
         gap_time = cls.get_time_since_epoch()
         return (epoch == cur_epoch or
                 cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE)

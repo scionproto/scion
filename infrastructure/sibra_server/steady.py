@@ -64,7 +64,7 @@ class SteadyPath(object):
             packets written to this queue will be sent by the sibra server
             thread.
         :param bytes signing_key: AS signing key.
-        :param str link_type: Type of link (PARENT/ROUTING/etc)
+        :param str link_type: Type of link (PARENT/CORE/etc)
         :param SibraState state: SibraState object for the local interface.
         :param PathSegment seg: path segment to use.
         :param BWSnapshot bwsnap: initial bandwidth to request.
@@ -248,7 +248,7 @@ class SteadyPath(object):
 
     def _register_path(self):
         link_types = {
-            LinkType.ROUTING: (PST.CORE, PST.CORE),
+            LinkType.CORE: (PST.CORE, PST.CORE),
             LinkType.PARENT: (PST.UP, PST.DOWN),
         }
         local_type, remote_type = link_types[self.link_type]
@@ -290,7 +290,7 @@ class SteadyPath(object):
             if self.link_type == LinkType.PARENT:
                 up = False
         pcb_d = self.seg.to_dict()
-        if remote and self.link_type == LinkType.ROUTING:
+        if remote and self.link_type == LinkType.CORE:
             pcb_d['asms'].reverse()
         pcb = PathSegment.from_dict(pcb_d)
         pcb_ext = SibraPCBExt.from_values(self.id, info, sofs, up)

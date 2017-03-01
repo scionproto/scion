@@ -20,8 +20,8 @@ package main
 
 import (
 	"net"
-	"time"
 
+	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -50,7 +50,7 @@ func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
 	h := hsr.NewHSR()
 	// Run forever.
 	for {
-		start := time.Now()
+		start := monotime.Now()
 		// Read packets from libhsr.
 		count, err := h.GetPackets(rpkts, usedPorts)
 		if err != nil {
@@ -61,19 +61,19 @@ func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
 			}
 			continue
 		}
-		timeIn := time.Now()
+		timeIn := monotime.Now()
 		// Iterate over received packets
 		for i := 0; i < count; i++ {
 			rp := rpkts[i]
 			rp.TimeIn = timeIn
 			// Process packet.
 			r.processPacket(rp)
-			metrics.PktProcessTime.Add(time.Now().Sub(rp.TimeIn).Seconds())
+			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 			// Reset packet.
 			rp.Reset()
 		}
 		// Update port metrics
-		duration := timeIn.Sub(start).Seconds()
+		duration := monotime.Since(start).Seconds()
 		for id := range usedPorts {
 			if usedPorts[id] {
 				usedPorts[id] = false
@@ -88,9 +88,9 @@ func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
 // writeHSROutput sends a single output packet via libhsr.
 func (r *Router) writeHSROutput(rp *rpkt.RtrPkt, dst *net.UDPAddr, portID int,
 	labels prometheus.Labels) {
-	start := time.Now()
+	start := monotime.Now()
 	hsr.SendPacket(dst, portID, rp.Raw)
-	duration := time.Now().Sub(start).Seconds()
+	duration := monotime.Since(start).Seconds()
 	metrics.OutputProcessTime.With(labels).Add(duration)
 	metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
 	metrics.PktsSent.With(labels).Inc()

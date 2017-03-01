@@ -26,6 +26,7 @@
 #include <sys/un.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <poll.h>
 #include <pthread.h>
 #include "lwip/api.h"
 #include "lwip/err.h"
@@ -45,6 +46,7 @@
 #define ERR_MW -127  /* API/TCP middleware error. */
 #define ERR_SYS -128  /* All system errors are mapped to this LWIP's code. */
 #define TCP_POLLING_TOUT 15 /* Polling timeout (in ms) used within tcpmw_pipe_loop */
+#define ACCEPT_TOUT 150 /* Polling timeout (in ms) used within tcpmw_accept */
 
 /* Middleware API commands */
 #define CMD_ACCEPT "ACCE"
@@ -75,6 +77,7 @@ void tcpmw_bind(struct conn_args *, char *, int);
 void tcpmw_connect(struct conn_args *, char *, int);
 void tcpmw_listen(struct conn_args *, int);
 void tcpmw_accept(struct conn_args *, char *, int);
+s8_t tcpmw_accept_loop(struct conn_args *, struct netconn **);
 void tcpmw_set_recv_tout(struct conn_args *, char *, int);
 void tcpmw_get_recv_tout(struct conn_args *, int);
 void tcpmw_set_sock_opt(struct conn_args *, char *, int);

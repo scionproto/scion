@@ -18,7 +18,7 @@ BorderRouters:
       Bandwidth: 1000
       IFID: 1
       ISD_AS: 1-12
-      LinkType: ROUTING
+      LinkType: CORE
       MTU: 1472
       ToAddr: 127.0.0.7
       ToUdpPort: 50000

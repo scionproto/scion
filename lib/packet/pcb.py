@@ -26,12 +26,10 @@ import capnp  # noqa
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate_chain import CertificateChain
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
-from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
@@ -185,15 +183,10 @@ class PathSegment(SCIONPayloadBaseProto):
             self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     @classmethod
-    def from_values(cls, info, rev_infos=None,
-                    sibra_ext=None):  # pragma: no cover
+    def from_values(cls, info, sibra_ext=None):  # pragma: no cover
         p = cls.P_CLS.new_message(info=info.pack())
         if sibra_ext:
             p.exts.sibra = sibra_ext.p
-        if rev_infos:
-            p.exts.init("revInfos", len(rev_infos))
-            for i, info in enumerate(rev_infos):
-                p.exts.revInfos[i] = info.copy()
         return cls(p)
 
     def _calc_min_exp(self):
@@ -246,33 +239,6 @@ class PathSegment(SCIONPayloadBaseProto):
     def add_sibra_ext(self, ext_p):  # pragma: no cover
         self.p.exts.sibra = ext_p.copy()
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
-
-    def add_rev_infos(self, rev_infos):  # pragma: no cover
-        """
-        Appends a list of revocations to the PCB. Replaces existing
-        revocations with newer ones.
-        """
-        if not rev_infos:
-            return
-        existing = {}
-        current_epoch = ConnectedHashTree.get_current_epoch()
-        for i in range(len(self.p.exts.revInfos)):
-            orphan = self.p.exts.revInfos.disown(i)
-            info_p = orphan.get()
-            if info_p.epoch >= current_epoch:
-                existing[(info_p.isdas, info_p.ifID)] = orphan
-        # Remove revocations for which we already have a newer one.
-        filtered = []
-        for info in rev_infos:
-            if (info.p.epoch >= current_epoch and
-                    (info.p.isdas, info.p.ifID) not in existing):
-                filtered.append(info)
-        self.p.exts.init("revInfos", len(existing) + len(filtered))
-        for i, orphan in enumerate(existing.values()):
-            self.p.exts.revInfos.adopt(i, orphan)
-        n_existing = len(existing)
-        for i, info in enumerate(filtered):
-            self.p.exts.revInfos[n_existing + i] = info.p
 
     def remove_crypto(self):  # pragma: no cover
         """
@@ -379,25 +345,6 @@ class PathSegment(SCIONPayloadBaseProto):
             f |= PSF.SIBRA
         return f
 
-    def rev_info(self, idx):
-        return RevocationInfo(self.p.exts.revInfos[idx])
-
-    def iter_rev_infos(self, start=0):
-        for i in range(start, len(self.p.exts.revInfos)):
-            yield self.rev_info(i)
-
-    def get_rev_map(self):
-        """
-        Returns a dict (ISD_AS, IF) -> RevocationInfo, if there are any
-        revocations in the PCB extensions, otherwise an empty dict.
-        """
-        result = {}
-        for rev_info in self.iter_rev_infos():
-            key = (rev_info.isd_as(), rev_info.p.ifID)
-            result[key] = rev_info
-
-        return result
-
     def short_desc(self):  # pragma: no cover
         """
         Return a short description string of the PathSegment, consisting of a
@@ -414,8 +361,6 @@ class PathSegment(SCIONPayloadBaseProto):
         exts = []
         if self.is_sibra():
             exts.append("  %s" % self.sibra_ext.short_desc())
-        for rev_info in self.iter_rev_infos():
-            exts.append("  %s" % rev_info.short_desc())
         desc.append(" > ".join(hops))
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
@@ -430,9 +375,6 @@ class PathSegment(SCIONPayloadBaseProto):
                 s.append("  %s" % line)
         if self.sibra_ext:
             for line in str(self.sibra_ext).splitlines():
-                s.append("  %s" % line)
-        for rev_info in self.iter_rev_infos():
-            for line in rev_info.short_desc().splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
 

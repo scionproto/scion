@@ -26,7 +26,6 @@ from abc import ABCMeta, abstractmethod
 from threading import Lock, RLock
 
 # External packages
-from Crypto.Protocol.KDF import PBKDF2
 from external.expiring_dict import ExpiringDict
 
 # SCION
@@ -34,6 +33,7 @@ from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
 from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
+from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -124,8 +124,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
-        self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
-        self.hashtree_gen_key = PBKDF2(
+        self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
+        self.hashtree_gen_key = kdf(
                             self.config.master_as_key, b"Derive hashtree Key")
         logging.info(self.config.__dict__)
         self._hash_tree = None
