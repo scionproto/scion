@@ -34,7 +34,9 @@ class PathSegmentReq(PathMgmtPayloadBase):  # pragma: no cover
     P_CLS = P.SegReq
 
     @classmethod
-    def from_values(cls, src_ia, dst_ia, flags=set()):
+    def from_values(cls, src_ia, dst_ia, flags=None):
+        if not flags:
+            flags = set()
         p = cls.P_CLS.new_message(srcIA=int(src_ia), dstIA=int(dst_ia))
         if PATH_FLAG_SIBRA in flags:
             p.flags.sibra = True
