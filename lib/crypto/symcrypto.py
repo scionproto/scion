@@ -16,14 +16,15 @@
 =====================================================
 """
 # External packages
+from external import CMAC
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Protocol.KDF import PBKDF2
 
 
-def cbcmac(key, msg):
+def mac(key, msg):
     """
-    CBC-MAC using AES-128.
+    Default MAC function (CMAC using AES-128).
 
     Args:
         key: key for MAC creation.
@@ -34,18 +35,15 @@ def cbcmac(key, msg):
 
     Raises:
         ValueError: An error occurred when key is NULL or ciphertext is NULL.
-
-    Warnings:
-        CBC-MAC is insecure for variable size messages.
     """
     if key is None:
         raise ValueError('Key is NULL.')
     elif msg is None:
         raise ValueError('Message is NULL.')
     else:
-        iv = b"\x00" * 16
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        return cipher.encrypt(msg)[-16:]  # Return the last block of ciphertext.
+        cobj = CMAC.new(key, ciphermod=AES)
+        cobj.update(msg)
+        return cobj.digest()
 
 
 def kdf(secret, phrase):

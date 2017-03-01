@@ -16,8 +16,8 @@ package spath
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"fmt"
+	"hash"
 
 	//log "github.com/inconshreveable/log15"
 
@@ -107,8 +107,8 @@ func (h *HopField) String() string {
 		h.Ingress, h.Egress, h.ExpTime, h.Xover, h.VerifyOnly, h.ForwardOnly, h.Mac)
 }
 
-func (h *HopField) Verify(block cipher.Block, tsInt uint32, prev common.RawBytes) *common.Error {
-	if mac, err := h.CalcMac(block, tsInt, prev); err != nil {
+func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) *common.Error {
+	if mac, err := h.CalcMac(mac, tsInt, prev); err != nil {
 		return err
 	} else if !bytes.Equal(h.Mac, mac) {
 		return common.NewError(ErrorHopFBadMac, "expected", h.Mac, "actual", mac)
@@ -116,14 +116,14 @@ func (h *HopField) Verify(block cipher.Block, tsInt uint32, prev common.RawBytes
 	return nil
 }
 
-// CalcMac calculates the CBC MAC of a Hop Field and its preceeding Hop Field, if any.
-func (h *HopField) CalcMac(block cipher.Block, tsInt uint32,
+// CalcMac calculates the MAC of a Hop Field and its preceeding Hop Field, if any.
+func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	prev common.RawBytes) (common.RawBytes, *common.Error) {
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
 	all[4] = h.data[0] & HopFieldVerifyFlags
 	copy(all[5:], h.data[1:5])
 	copy(all[9:], prev)
-	mac, err := util.CBCMac(block, all)
-	return mac[:MacLen], err
+	tag, err := util.Mac(mac, all)
+	return tag[:MacLen], err
 }

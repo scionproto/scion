@@ -17,8 +17,8 @@
 package conf
 
 import (
-	"crypto/cipher"
 	"crypto/sha256"
+	"hash"
 	"path/filepath"
 	"sync"
 
@@ -45,8 +45,8 @@ type Conf struct {
 	BR *topology.TopoBR
 	// ASConf is the local AS configuration.
 	ASConf *as_conf.ASConf
-	// HFGenBlock is the Hop Field generation block cipher instance.
-	HFGenBlock cipher.Block
+	// HFMac is the Hop Field MAC generation instance.
+	HFMac hash.Hash
 	// Net is the network configuration of this router.
 	Net *netconf.NetConf
 	// Dir is the configuration directory.
@@ -98,7 +98,7 @@ func Load(id, confDir string) *common.Error {
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
 	hfGenKey := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha256.New)
-	if conf.HFGenBlock, err = util.InitAES(hfGenKey); err != nil {
+	if conf.HFMac, err = util.InitMac(hfGenKey); err != nil {
 		return err
 	}
 	// Create network configuration
