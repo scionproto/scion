@@ -92,7 +92,7 @@ class TRCReply(CertMgmtBase):  # pragma: no cover
 
     def __init__(self, p):
         super().__init__(p)
-        self.trc = TRC(p.trc, lz4_=True)
+        self.trc = TRC.from_raw(p.trc, lz4_=True)
 
     @classmethod
     def from_values(cls, trc):
