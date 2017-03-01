@@ -53,7 +53,7 @@ from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
 
 # How long to wait for path propagation before setting up steady paths over
-# routing links
+# core links
 STARTUP_WAIT = 30
 
 

@@ -151,8 +151,8 @@ class TestTopologyParseRouterDicts(object):
         routers = defaultdict(list)
         router_dict = {
             "br-parent": "PARENT", "br-child": "CHILD",
-            "br-peer": "PEER", "br-routing0": "CORE",
-            "br-routing1": "CORE",
+            "br-peer": "PEER", "br-core0": "CORE",
+            "br-core1": "CORE",
         }
         inst = Topology()
         router.side_effect = lambda v, k: _mk_router(v)
@@ -162,7 +162,7 @@ class TestTopologyParseRouterDicts(object):
         ntools.assert_count_equal(inst.parent_border_routers, routers["PARENT"])
         ntools.assert_count_equal(inst.child_border_routers, routers["CHILD"])
         ntools.assert_count_equal(inst.peer_border_routers, routers["PEER"])
-        ntools.assert_count_equal(inst.routing_border_routers, routers["CORE"])
+        ntools.assert_count_equal(inst.core_border_routers, routers["CORE"])
 
 
 class TestTopologyParseZkDicts(object):
@@ -193,7 +193,7 @@ class TestTopologyGetAllBorderRouters(object):
         topology.parent_border_routers = [0, 1]
         topology.child_border_routers = [2]
         topology.peer_border_routers = [3, 4, 5]
-        topology.routing_border_routers = [6, 7]
+        topology.core_border_routers = [6, 7]
         ntools.eq_(topology.get_all_border_routers(), list(range(8)))
 
 
