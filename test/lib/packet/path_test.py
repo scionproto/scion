@@ -467,10 +467,13 @@ class TestPathCombinatorBuildShortcutPaths(object):
         up_segments = ['up0', 'up1']
         down_segments = ['down0', 'down1']
         build_path.side_effect = [['path0'], ['path1'], [], ['path1']]
+        peer_revs = create_mock()
         ntools.eq_(
-            PathCombinator.build_shortcut_paths(up_segments, down_segments),
+            PathCombinator.build_shortcut_paths(
+                up_segments, down_segments, peer_revs),
             ["path0", "path1"])
-        calls = [call(*x) for x in product(up_segments, down_segments)]
+        calls = [call(*x, peer_revs)
+                 for x in product(up_segments, down_segments)]
         assert_these_calls(build_path, calls)
 
 
@@ -479,7 +482,9 @@ class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
     Unit tests for lib.packet.path.PathCombinator._build_shortcuts
     """
     def _check_none(self, up_seg, down_seg):
-        ntools.eq_(PathCombinator._build_shortcuts(up_seg, down_seg), [])
+        peer_revs = create_mock()
+        ntools.eq_(
+            PathCombinator._build_shortcuts(up_seg, down_seg, peer_revs), [])
 
     def test_none(self):
         for up, down in self._generate_none():
@@ -491,10 +496,11 @@ class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
         up = self._mk_seg(True)
         down = self._mk_seg(True)
         get_xovr_peer.return_value = None, None
+        peer_revs = create_mock()
         # Call
-        ntools.eq_(PathCombinator._build_shortcuts(up, down), [])
+        ntools.eq_(PathCombinator._build_shortcuts(up, down, peer_revs), [])
         # Tests
-        get_xovr_peer.assert_called_once_with(up, down)
+        get_xovr_peer.assert_called_once_with(up, down, peer_revs)
 
     @patch("lib.packet.path.PathCombinator._join_xovr",
            new_callable=create_mock)
@@ -507,16 +513,17 @@ class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
         up = self._mk_seg(True)
         down = self._mk_seg(True)
         get_xovr_peer.return_value = xovr, peer
+        peer_revs = create_mock()
         # Call
         if is_peer:
-            ntools.eq_(PathCombinator._build_shortcuts(up, down),
+            ntools.eq_(PathCombinator._build_shortcuts(up, down, peer_revs),
                        join_peer.return_value)
         else:
-            ntools.eq_(PathCombinator._build_shortcuts(up, down),
+            ntools.eq_(PathCombinator._build_shortcuts(up, down, peer_revs),
                        join_xovr.return_value)
         # Tests
         if is_peer:
-            join_peer.assert_called_once_with(up, down, peer)
+            join_peer.assert_called_once_with(up, down, peer, peer_revs)
         else:
             join_xovr.assert_called_once_with(up, down, xovr)
 
@@ -589,10 +596,11 @@ class TestPathCombinatorGetXovrPeer(object):
     Unit tests for lib.packet.path.PathCombinator._get_xovr_peer
     """
     def test_none(self):
-        seg = create_mock_full({"iter_asms()": [],
-                                "get_rev_map()": {}})
+        seg = create_mock_full({"iter_asms()": []})
+        peer_revs = create_mock()
         # Call
-        ntools.eq_(PathCombinator._get_xovr_peer(seg, seg), (None, None))
+        ntools.eq_(PathCombinator._get_xovr_peer(seg, seg, peer_revs),
+                   (None, None))
 
     @patch("lib.packet.path.PathCombinator._find_peer_hfs",
            new_callable=create_mock)
@@ -602,18 +610,17 @@ class TestPathCombinatorGetXovrPeer(object):
             create_mock_full({"isd_as()": "1-2"}),
             create_mock_full({"isd_as()": "1-3"}),
         ]
-        up_seg = create_mock_full({"iter_asms()": up_asms,
-                                   "get_rev_map()": {}})
+        up_seg = create_mock_full({"iter_asms()": up_asms})
         down_asms = [
             create_mock_full({"isd_as()": "1-1"}),
             create_mock_full({"isd_as()": "1-2"}),
             create_mock_full({"isd_as()": "1-4"}),
         ]
-        down_seg = create_mock_full({"iter_asms()": down_asms,
-                                     "get_rev_map()": {}})
+        down_seg = create_mock_full({"iter_asms()": down_asms})
         find.return_value = False
+        peer_revs = create_mock()
         # Call
-        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg),
+        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg, peer_revs),
                    ((2, 2), None))
 
     @patch("lib.packet.path.PathCombinator._find_peer_hfs",
@@ -624,33 +631,30 @@ class TestPathCombinatorGetXovrPeer(object):
             create_mock_full({"isd_as()": "1-2"}),  # peers with 1-12
             create_mock_full({"isd_as()": "1-3"}),
         ]
-        up_seg = create_mock_full({"iter_asms()": up_asms,
-                                   "get_rev_map()": {}})
+        up_seg = create_mock_full({"iter_asms()": up_asms})
         down_asms = [
             create_mock_full({"isd_as()": "1-10"}),  # peers with 1-1
             create_mock_full({"isd_as()": "1-11"}),
             create_mock_full({"isd_as()": "1-12"}),  # peers with 1-2
         ]
-        down_seg = create_mock_full({"iter_asms()": down_asms,
-                                     "get_rev_map()": {}})
+        down_seg = create_mock_full({"iter_asms()": down_asms})
+        peer_revs = create_mock()
 
-        def matching_peers(a, b, c, d):
+        def matching_peers(a, b, c):
             return (a == up_asms[0] and b == down_asms[0]) or (
                 a == up_asms[1] and b == down_asms[2])
         find.side_effect = matching_peers
         # Call
-        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg),
+        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg, peer_revs),
                    (None, (2, 3)))
 
 
 class PathCombinatorJoinShortcutsBase(object):
     def _setup(self, path_args, copy_segment):
-        up_segment = create_mock(["asm", "get_rev_map"])
+        up_segment = create_mock(["asm"])
         up_segment.asm = create_mock()
-        up_segment.get_rev_map.return_value = {}
-        down_segment = create_mock(["asm", "get_rev_map"])
+        down_segment = create_mock(["asm"])
         down_segment.asm = create_mock()
-        down_segment.get_rev_map.return_value = {}
         point = (1, 2)
         up_iof = create_mock(["shortcut", "peer"])
         down_iof = create_mock(["shortcut", "peer"])
@@ -697,10 +701,11 @@ class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
         up_segment, down_segment, point = self._setup(path_args, copy_segment)
         find_peers.return_value = [("uph1", "dph1", 1500),
                                    ("uph2", "dph2", 1500)]
+        peer_revs = create_mock()
         path = SCIONPath.from_values()
         path.mtu = 1400
-        ntools.eq_(
-            PathCombinator._join_peer(up_segment, down_segment, point)[0], path)
+        ntools.eq_(PathCombinator._join_peer(
+            up_segment, down_segment, point, peer_revs)[0], path)
         copy_segment.assert_any_call(up_segment, 1)
         copy_segment.assert_any_call(down_segment, 2, up=False)
         ntools.eq_(build_list.call_count, 2)
@@ -933,8 +938,9 @@ class TestPathCombinatorFindPeerHfs(object):
         down_asm = create_mock_full({"isd_as()": "2-1",
                                      "iter_pcbms()": down_pcbms,
                                      "p": p})
+        peer_revs = create_mock_full({"get()": None})
         # Call
-        ntools.eq_(PathCombinator._find_peer_hfs(up_asm, down_asm, {}, {}), [
+        ntools.eq_(PathCombinator._find_peer_hfs(up_asm, down_asm, peer_revs), [
             (up_pcbms[0].hof(), down_pcbms[0].hof(), 500),
             (up_pcbms[2].hof(), down_pcbms[1].hof(), 700),
         ])
@@ -952,8 +958,13 @@ class TestPathCombinatorFindPeerHfs(object):
                                      "p": p})
         up_peer_rev = create_mock()
         down_peer_rev = create_mock()
-        up_rev_map = {("1-1", 3): up_peer_rev}
-        down_rev_map = {("2-1", 3): down_peer_rev}
+        peer_revs = create_mock(["get"])
+
+        def get_side_effect(key):
+            data = {("1-1", 3): up_peer_rev, ("2-1", 3): down_peer_rev}
+            return data.get(key)
+
+        peer_revs.get.side_effect = get_side_effect
 
         def skip_peer_side_effect(rev, ht_root):
             if rev in [up_peer_rev, down_peer_rev] and ht_root == b"1234":
@@ -962,8 +973,7 @@ class TestPathCombinatorFindPeerHfs(object):
         skip_peer.side_effect = skip_peer_side_effect
 
         # Call
-        peers = PathCombinator._find_peer_hfs(up_asm, down_asm, up_rev_map,
-                                              down_rev_map)
+        peers = PathCombinator._find_peer_hfs(up_asm, down_asm, peer_revs)
         # Tests
         ntools.eq_(peers, [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500)])
         skip_peer.assert_has_calls(

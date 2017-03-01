@@ -41,6 +41,7 @@ from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
+from lib.rev_cache import RevCache
 from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
@@ -76,6 +77,7 @@ class SCIONDaemon(SCIONElement):
                                            max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
                                            max_res_no=self.MAX_SEG_NO)
+        self.peer_revs = RevCache()
         req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
         self.requests = RequestHandler.start(
             req_name, self._check_segments, self._fetch_segments,
@@ -153,6 +155,8 @@ class SCIONDaemon(SCIONElement):
                 continue
             flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
             added.add((ret, flags))
+        for rev_info in path_reply.iter_rev_infos():
+            self.peer_revs.add(rev_info)
         logging.debug("Added: %s", added)
         for dst_ia, flags in added:
             self.requests.put(((dst_ia, flags), None))
@@ -372,7 +376,8 @@ class SCIONDaemon(SCIONElement):
         up_segs = self.up_segments()
         down_segs = self.down_segments(last_ia=dst_ia)
         core_segs = self._calc_core_segs(dst_ia[0], up_segs, down_segs)
-        full_paths = PathCombinator.build_shortcut_paths(up_segs, down_segs)
+        full_paths = PathCombinator.build_shortcut_paths(
+            up_segs, down_segs, self.peer_revs)
         tuples = []
         for up_seg in up_segs:
             for down_seg in down_segs:
