@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`base` --- SCIOND path requests and replies
-==============================================
+:mod:`path_req` --- SCIOND path requests and replies
+====================================================
 """
 # Stdlib
 import logging
@@ -105,11 +105,12 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         """
         Returns a SCIONDPathReplyEntry object with the specified entries.
 
-        :param path: The SCIONPath object.
+        :param path: The FwdPathMeta object.
         :param addr: The list of first hop HostAddr object.
         :param port: The first hop port.
         """
-        p = cls.P_CLS.new_message(path=path.p, port=port)
+        assert isinstance(path, FwdPathMeta)
+        p = cls.P_CLS.new_message(path=path.pack(), port=port)
         for addr in addrs:
             if addr.TYPE == AddrType.IPV4:
                 p.addrs.ipv4 = addr.pack()

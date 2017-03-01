@@ -29,7 +29,7 @@ struct PathReply {
 }
 
 struct PathReplyEntry {
-    path @0 :SCIONPath;  # End2end path
+    path @0 :FwdPathMeta;  # End2end path
     port @1 :UInt16;  # First hop port
     addrs :group {  # First hop address
         ipv4 @2 :Data;
@@ -37,8 +37,8 @@ struct PathReplyEntry {
     }
 }
 
-struct SCIONPath {
-    fields @0 :Data;  # The info- and hopfields of the path
+struct FwdPathMeta {
+    fwdPath @0 :Data;  # The info- and hopfields of the path
     mtu @1 :UInt16;
     interfaces @2 :List(PathInterface);
 }
