@@ -24,7 +24,7 @@ from lib.types import PathSegmentType as PST
 class SibraServerCore(SibraServerBase):
     PST_TYPE = PST.CORE
 
-    def _manage_routing(self, link):
+    def _manage_core(self, link):
         if self.addr.isd_as.int() < link.neigh.int():
             # It's the responsibility of the lower ISD-AS to create/maintain the
             # core steady path.
