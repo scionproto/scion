@@ -196,7 +196,7 @@ class Topology(object):
                 LinkType.PARENT: self.parent_border_routers,
                 LinkType.CHILD: self.child_border_routers,
                 LinkType.PEER: self.peer_border_routers,
-                LinkType.ROUTING: self.routing_border_routers,
+                LinkType.CORE: self.routing_border_routers,
             }
             ntype_map[router.interface.link_type].append(router)
 

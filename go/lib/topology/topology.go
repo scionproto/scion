@@ -95,10 +95,10 @@ const (
 )
 
 const (
-	LinkRouting = "ROUTING"
-	LinkParent  = "PARENT"
-	LinkChild   = "CHILD"
-	LinkPeer    = "PEER"
+	LinkCore   = "CORE"
+	LinkParent = "PARENT"
+	LinkChild  = "CHILD"
+	LinkPeer   = "PEER"
 )
 
 var Curr *TopoMeta

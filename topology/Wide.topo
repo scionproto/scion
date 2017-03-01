@@ -131,28 +131,28 @@ CAs:
     organizationName: my company
     organizationalUnitName: my organization
 links:
-  - {a: 1-1, b: 1-2, ltype: ROUTING}
-  - {a: 1-1, b: 2-1, ltype: ROUTING}
-  - {a: 1-1, b: 2-2, ltype: ROUTING}
-  - {a: 1-1, b: 3-1, ltype: ROUTING}
+  - {a: 1-1, b: 1-2, ltype: CORE}
+  - {a: 1-1, b: 2-1, ltype: CORE}
+  - {a: 1-1, b: 2-2, ltype: CORE}
+  - {a: 1-1, b: 3-1, ltype: CORE}
   - {a: 1-1, b: 1-3, ltype: PARENT}
-  - {a: 1-2, b: 2-1, ltype: ROUTING}
+  - {a: 1-2, b: 2-1, ltype: CORE}
   - {a: 1-2, b: 1-4, ltype: PARENT}
   - {a: 1-3, b: 1-4, ltype: PEER}
   - {a: 1-3, b: 3-3, ltype: PEER}
-  - {a: 2-1, b: 2-2, ltype: ROUTING}
-  - {a: 2-1, b: 3-1, ltype: ROUTING}
+  - {a: 2-1, b: 2-2, ltype: CORE}
+  - {a: 2-1, b: 3-1, ltype: CORE}
   - {a: 2-1, b: 2-3, ltype: PARENT}
   - {a: 2-1, b: 2-4, ltype: PARENT}
   - {a: 2-2, b: 2-3, ltype: PARENT}
   - {a: 2-2, b: 2-4, ltype: PARENT}
   - {a: 2-3, b: 2-4, ltype: PEER}
-  - {a: 3-1, b: 4-1, ltype: ROUTING}
+  - {a: 3-1, b: 4-1, ltype: CORE}
   - {a: 3-1, b: 3-3, ltype: PARENT}
   - {a: 3-3, b: 3-4, ltype: PARENT}
   - {a: 3-3, b: 3-5, ltype: PARENT}
-  - {a: 4-1, b: 5-2, ltype: ROUTING}
-  - {a: 5-1, b: 5-2, ltype: ROUTING}
+  - {a: 4-1, b: 5-2, ltype: CORE}
+  - {a: 5-1, b: 5-2, ltype: CORE}
   - {a: 5-1, b: 5-4, ltype: PARENT}
-  - {a: 5-2, b: 5-3, ltype: ROUTING}
+  - {a: 5-2, b: 5-3, ltype: CORE}
   - {a: 5-3, b: 5-5, ltype: PARENT}

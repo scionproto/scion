@@ -105,7 +105,7 @@ Notes about `topology/Default.topo`:
 
 * `links`: keys are `ISD_ID-AS_ID` (format also used for the keys of the JSON
   file itself) and values can either be `PARENT`, `CHILD`, `PEER`, or
-  `ROUTING`.
+  `CORE`.
 
 ## Tests
 
