@@ -89,6 +89,7 @@ from lib.packet.scmp.errors import (
     SCMPUnspecified,
 )
 from lib.packet.scmp.types import SCMPClass
+from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net, kill_self
@@ -418,7 +419,8 @@ class SCIONElement(object):
         try:
             return type_map[scmp.type]
         except KeyError:
-            logging.error("SCMP type not supported")
+            logging.error("SCMP %s type not supported: %s(%s)\n%s",
+                          scmp.type, scmp_type_name(scmp.type), pkt)
         return None
 
     def _parse_packet(self, packet):
