@@ -241,14 +241,6 @@ class PathSegment(SCIONPayloadBaseProto):
         self.p.exts.sibra = ext_p.copy()
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
-    def remove_crypto(self):  # pragma: no cover
-        """
-        Removes the signatures and certificates from each AS block.
-        """
-        for asm in self.iter_asms():
-            # asm.remove_sig()
-            asm.remove_chain()
-
     def add_rev_infos(self, rev_infos):  # pragma: no cover
         """
         Appends a list of revocations to the PCB. Replaces existing

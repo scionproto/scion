@@ -40,7 +40,6 @@ from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
 from lib.rev_cache import RevCache
-from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
 from lib.types import (
     CertMgmtType,
