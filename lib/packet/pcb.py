@@ -223,7 +223,6 @@ class PathSegment(SCIONPayloadBaseProto):
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
-        assert not self.p.asms[-1].sig
         sig = sign(self.sig_pack(3), key)
         if set_:
             self.p.asms[-1].sig = sig
@@ -273,14 +272,6 @@ class PathSegment(SCIONPayloadBaseProto):
         n_existing = len(existing)
         for i, info in enumerate(filtered):
             self.p.exts.revInfos[n_existing + i] = info.p
-
-    def remove_crypto(self):  # pragma: no cover
-        """
-        Removes the signatures and certificates from each AS block.
-        """
-        for asm in self.iter_asms():
-            # asm.remove_sig()
-            asm.remove_chain()
 
     def get_trcs_certs(self):
         """
