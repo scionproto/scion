@@ -146,4 +146,4 @@ class LinkType(TypeBase):
     #: Link to peer AS
     PEER = "PEER"
     #: Link to other core AS
-    ROUTING = "ROUTING"
+    CORE = "CORE"

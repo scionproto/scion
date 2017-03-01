@@ -199,9 +199,9 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
             sampled_core_ad_conn = random.sample(all_core_ad_conn, new_edges)
             for (src_core_ad, dest_core_ad) in sampled_core_ad_conn:
                 final_graph.add_edge(src_core_ad, dest_core_ad,
-                                     label='ROUTING', color='red')
+                                     label='CORE', color='red')
                 final_graph.add_edge(dest_core_ad, src_core_ad,
-                                     label='ROUTING', color='red')
+                                     label='CORE', color='red')
                 new_routing_edges += 2
     print("{} inter-ISD routing edges added".format(new_routing_edges))
     assert nx.is_connected(final_graph.to_undirected())
@@ -302,9 +302,9 @@ def _parse(topo_file, isd_num):
         final_graph.add_node(core_ad, color='red', is_core=True)
     for routing_edge in core_ad_graph.edges():
         final_graph.add_edge(routing_edge[0], routing_edge[1],
-                             label='ROUTING', color='red')
+                             label='CORE', color='red')
         final_graph.add_edge(routing_edge[1], routing_edge[0],
-                             label='ROUTING', color='red')
+                             label='CORE', color='red')
     # BFS
     queue = deque(core_ads)
     level = dict()

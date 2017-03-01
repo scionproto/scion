@@ -584,7 +584,7 @@ class Router(SCIONElement):
         1) Never switch from a down-segment to an up-segment
            (valley-freeness)
         2) Never switch from an up(down)-segment to an up(down)-segment, if the
-           packet is not forwarded(received) over a ROUTING link.
+           packet is not forwarded(received) over a CORE link.
         3) Never switch from a core-segment to a core-segment.
         4) If a packet is received over a peering link, check on ingress that
            the egress IF is the same for both the current and next hop fields.
@@ -599,17 +599,17 @@ class Router(SCIONElement):
             raise SCIONSegmentSwitchError(
                 "Switching from down- to up-segment is not allowed.")
         if (prev_iof.up_flag and cur_iof.up_flag and
-                fwd_on_link_type != LinkType.ROUTING):
+                fwd_on_link_type != LinkType.CORE):
             raise SCIONSegmentSwitchError(
                 "Switching from up- to up-segment is not allowed "
-                "if the packet is not forwarded over a ROUTING link.")
+                "if the packet is not forwarded over a CORE link.")
         if (not prev_iof.up_flag and not cur_iof.up_flag and
-                rcvd_on_link_type != LinkType.ROUTING):
+                rcvd_on_link_type != LinkType.CORE):
             raise SCIONSegmentSwitchError(
                 "Switching from down- to down-segment is not "
-                "allowed if the packet was not received over a ROUTING link.")
-        if (rcvd_on_link_type == LinkType.ROUTING and
-                fwd_on_link_type == LinkType.ROUTING):
+                "allowed if the packet was not received over a CORE link.")
+        if (rcvd_on_link_type == LinkType.CORE and
+                fwd_on_link_type == LinkType.CORE):
             raise SCIONSegmentSwitchError(
                 "Switching from core- to core-segment is not allowed.")
         if ((rcvd_on_link_type == LinkType.PEER or

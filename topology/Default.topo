@@ -111,12 +111,12 @@ CAs:
     organizationName: my company
     organizationalUnitName: my organization
 links:
-  - {a: 1-11, b: 1-12, ltype: ROUTING}
-  - {a: 1-11, b: 1-13, ltype: ROUTING}
-  - {a: 1-11, b: 2-21, ltype: ROUTING}
+  - {a: 1-11, b: 1-12, ltype: CORE}
+  - {a: 1-11, b: 1-13, ltype: CORE}
+  - {a: 1-11, b: 2-21, ltype: CORE}
   - {a: 1-11, b: 1-14, ltype: PARENT}
-  - {a: 1-12, b: 1-13, ltype: ROUTING}
-  - {a: 1-12, b: 2-22, ltype: ROUTING, mtu: 1400}
+  - {a: 1-12, b: 1-13, ltype: CORE}
+  - {a: 1-12, b: 2-22, ltype: CORE, mtu: 1400}
   - {a: 1-12, b: 1-15, ltype: PARENT}
   - {a: 1-13, b: 1-16, ltype: PARENT}
   - {a: 1-14, b: 1-15, ltype: PEER}
@@ -126,7 +126,7 @@ links:
   - {a: 1-15, b: 1-18, ltype: PARENT}
   - {a: 1-16, b: 1-19, ltype: PARENT}
   - {a: 1-19, b: 1-10, ltype: PARENT}
-  - {a: 2-21, b: 2-22, ltype: ROUTING}
+  - {a: 2-21, b: 2-22, ltype: CORE}
   - {a: 2-21, b: 2-23, ltype: PARENT}
   - {a: 2-22, b: 2-24, ltype: PARENT}
   - {a: 2-23, b: 2-24, ltype: PEER}

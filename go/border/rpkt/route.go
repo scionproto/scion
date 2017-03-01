@@ -214,22 +214,22 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 	prevLink := conf.C.Net.IFs[origIFCurr].Type
 	nextLink := conf.C.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
 	// Never allowed to switch between core segments.
-	if prevLink == topology.LinkRouting && nextLink == topology.LinkRouting {
+	if prevLink == topology.LinkCore && nextLink == topology.LinkCore {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewError("Segment change between ROUTING links.", sdata)
+		return common.NewError("Segment change between CORE links.", sdata)
 	}
-	// Only allowed to switch from up- to up-segment if the next link is ROUTING.
-	if infoF.Up && rp.infoF.Up && nextLink != topology.LinkRouting {
+	// Only allowed to switch from up- to up-segment if the next link is CORE.
+	if infoF.Up && rp.infoF.Up && nextLink != topology.LinkCore {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
 		return common.NewError(
-			"Segment change from up segment to up segment with non-ROUTING next link", sdata,
+			"Segment change from up segment to up segment with non-CORE next link", sdata,
 			"prevLink", prevLink, "nextLink", nextLink)
 	}
-	// Only allowed to switch from down- to down-segment if the previous link is ROUTING.
-	if !infoF.Up && !rp.infoF.Up && prevLink != topology.LinkRouting {
+	// Only allowed to switch from down- to down-segment if the previous link is CORE.
+	if !infoF.Up && !rp.infoF.Up && prevLink != topology.LinkCore {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
 		return common.NewError(
-			"Segment change from down segment to down segment with non-ROUTING previous link",
+			"Segment change from down segment to down segment with non-CORE previous link",
 			sdata, "prevLink", prevLink, "nextLink", nextLink)
 	}
 	return nil
