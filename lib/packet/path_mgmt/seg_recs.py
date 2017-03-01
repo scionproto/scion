@@ -95,13 +95,13 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         h = SHA256.new()
         for pcb in self.iter_pcbs():
             h.update(struct.pack("!q", hash(pcb[1])))
-        return h.digest
+        return h.digest()
 
     def __hash__(self):
         return hash(self._get_pcbs_hash())
 
     def __eq__(self, other):
-        return self.__repr__ == repr(other)
+        return self.__str__ == str(other)
 
 
 class PathRecordsReply(PathSegmentRecords):
