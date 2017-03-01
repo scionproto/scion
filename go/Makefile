@@ -38,7 +38,7 @@ deps: vendor/.deps.stamp
 vendor/.deps.stamp: vendor/vendor.json
 	@echo "$$(date -Iseconds) Syncing deps"; govendor sync -v
 	@echo "$$(date -Iseconds) Installing deps"; go install ./vendor/...
-	@if [ -n "$$(govendor list -no-status +outside)" ]; then \
+	@if [ -n "$$(govendor list -no-status +outside | grep -v '^context$$')" ]; then \
 	    echo "ERROR: external/missing packages:"; \
 	    govendor list +outside; \
 	    exit 1; \
