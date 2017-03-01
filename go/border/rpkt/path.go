@@ -63,7 +63,7 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		return common.NewErrorData("Hop field expired", sdata, "expiry", hopfExpiry)
 	}
 	// Verify the Hop Field MAC.
-	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	err := rp.hopF.Verify(conf.C.HFMac, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
 	if err != nil && err.Desc == spath.ErrorHopFBadMac {
 		err.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
 	}

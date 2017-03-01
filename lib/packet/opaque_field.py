@@ -19,7 +19,7 @@
 import struct
 
 # SCION
-from lib.crypto.symcrypto import cbcmac
+from lib.crypto.symcrypto import mac
 from lib.defines import OPAQUE_FIELD_LEN
 from lib.errors import SCIONIndexError, SCIONKeyError
 from lib.flagtypes import HopOFFlags, InfoOFFlags
@@ -123,7 +123,7 @@ class HopOpaqueField(OpaqueField):
             raw += prev_hof.pack()[1:]  # Ignore flag byte
         else:
             raw += bytes(self.LEN-1)
-        return cbcmac(key, bytes(raw))[:self.MAC_LEN]
+        return mac(key, bytes(raw))[:self.MAC_LEN]
 
     def verify_mac(self, *args, **kwargs):  # pragma: no cover
         return self.mac == self.calc_mac(*args, **kwargs)
