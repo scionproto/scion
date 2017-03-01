@@ -25,6 +25,7 @@ import capnp  # noqa
 # SCION
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
+from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import EXP_TIME_UNIT
 from lib.flagtypes import PathSegFlags as PSF
@@ -90,10 +91,11 @@ class ASMarking(Cerealizable):
 
     @classmethod
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
-                    ifid_size=12):
+                    cert_chain, ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu)
+            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
+            chain=cert_chain.pack(lz4_=True))
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
@@ -108,6 +110,9 @@ class ASMarking(Cerealizable):
     def iter_pcbms(self, start=0):  # pragma: no cover
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
+
+    def chain(self):  # pragma: no cover
+        return CertificateChain.from_raw(self.p.chain, lz4_=True)
 
     def cert_ver(self):
         return self.p.certVer
@@ -134,7 +139,20 @@ class ASMarking(Cerealizable):
                 b.append(pcbm.sig_pack(5))
             b.append(self.p.hashTreeRoot)
             b.append(self.p.mtu.to_bytes(2, 'big'))
+            b.append(self.p.chain)
         return b"".join(b)
+
+    def remove_sig(self):  # pragma: no cover
+        """
+        Removes the signature from the AS block.
+        """
+        self.p.sig = b''
+
+    def remove_chain(self):  # pragma: no cover
+        """
+        Removes the certificate chain from the AS block.
+        """
+        self.p.chain = b''
 
     def short_desc(self):
         desc = []
@@ -145,6 +163,7 @@ class ASMarking(Cerealizable):
                 desc.append("  %s" % line)
         desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
         desc.append("  sig=%s" % self.p.sig)
+        desc.append("  chain=%s" % self.p.chain)
         return "\n".join(desc)
 
 
@@ -204,6 +223,7 @@ class PathSegment(SCIONPayloadBaseProto):
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
+        assert not self.p.asms[-1].sig
         sig = sign(self.sig_pack(3), key)
         if set_:
             self.p.asms[-1].sig = sig
@@ -253,6 +273,14 @@ class PathSegment(SCIONPayloadBaseProto):
         n_existing = len(existing)
         for i, info in enumerate(filtered):
             self.p.exts.revInfos[n_existing + i] = info.p
+
+    def remove_crypto(self):  # pragma: no cover
+        """
+        Removes the signatures and certificates from each AS block.
+        """
+        for asm in self.iter_asms():
+            # asm.remove_sig()
+            asm.remove_chain()
 
     def get_trcs_certs(self):
         """

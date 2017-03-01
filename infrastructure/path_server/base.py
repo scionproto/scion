@@ -319,8 +319,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             del self.pending_req[key]
 
     def handle_path_segment_record(self, seg_recs, meta):
-        #     if self.verify_path(seg_recs, meta):
-        #         self.continue_path_processing(seg_recs, meta)
+        # if self.verify_path(seg_recs, meta):
+        # self.continue_path_processing(seg_recs, meta)
 
         # def continue_path_processing(self, seg_recs, meta):
         meta.close()  # FIXME(PSz): validate before
