@@ -32,7 +32,6 @@ from string import Template
 
 # External packages
 import yaml
-from Crypto import Random
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
@@ -249,7 +248,7 @@ class ConfigGenerator(object):
         PathPolicy.from_file(self.path_policy_file)
 
     def _gen_as_conf(self, as_topo):
-        master_as_key = base64.b64encode(Random.new().read(16))
+        master_as_key = base64.b64encode(os.urandom(16))
         return {
             'MasterASKey': master_as_key.decode("utf-8"),
             'RegisterTime': 5,
