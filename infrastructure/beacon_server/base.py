@@ -311,7 +311,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         _, cert_ver = chain.get_leaf_isd_as_ver()
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
-            self._get_ht_root(), self.topology.mtu, chain)
+            self._get_ht_root(), self.topology.mtu)
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         up_pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
