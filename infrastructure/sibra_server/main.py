@@ -38,7 +38,9 @@ from lib.sibra.util import BWSnapshot
 from lib.thread import thread_safety_net
 from lib.types import (
     ExtensionClass,
+    PathMgmtType as PMT,
     PathSegmentType as PST,
+    PayloadClass,
 )
 from lib.util import (
     SCIONTime,
@@ -82,9 +84,10 @@ class SibraServerBase(SCIONElement):
         # Map of link types by interface ID
         self.link_types = {}
         self.lock = threading.Lock()
-        # self.CTRL_PLD_CLASS_MAP = {
-        #     PayloadClass.PATH: {PMT.REG: self.handle_path_reg},
-        #     PayloadClass.SIBRA: {None: self.handle_sibra_pkt},
+        self.CTRL_PLD_CLASS_MAP = {
+            PayloadClass.PATH: {PMT.REG: self.handle_path_reg},
+            PayloadClass.SIBRA: {None: self.handle_sibra_pkt},
+        }
         #     PayloadClass.CERT: {
         #         CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
         #         CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
