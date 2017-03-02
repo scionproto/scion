@@ -25,7 +25,7 @@ from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 
 
-class FwdPathMeta(Cerealizable):
+class FwdPathMeta(Cerealizable):  # pragma: no cover
     """Object containing a FwdPath and meta information."""
     NAME = "FwdPathMeta"
     P_CLS = P.FwdPathMeta
@@ -55,8 +55,11 @@ class FwdPathMeta(Cerealizable):
         if_str = " ,".join([if_.short_desc() for if_ in self.iter_ifs()])
         return "%s: MTU: %d Interfaces: %s" % (self.NAME, self.p.mtu, if_str)
 
+    def __eq__(self, other):
+        return self.p.interfaces == other.p.interfaces
 
-class PathInterface(Cerealizable):
+
+class PathInterface(Cerealizable):  # pragma: no cover
     """ISD-AS and interface tuple in forwarding paths."""
     P_CLS = P.PathInterface
 
@@ -70,3 +73,9 @@ class PathInterface(Cerealizable):
 
     def short_desc(self):
         return "%s:%s" % (self.isd_as(), self.p.ifID)
+
+    def __str__(self):
+        return self.short_desc()
+
+    def __eq__(self, other):
+        return self.p.isdas == other.p.isdas and self.p.ifID == other.p.ifID

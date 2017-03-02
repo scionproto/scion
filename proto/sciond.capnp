@@ -16,16 +16,20 @@ struct SCIONDMsg {
 }
 
 struct PathReq {
-    dst @0 :UInt32;  # Destination ISD-AS
-    src @1 :UInt32;  # Source ISD-AS
+    id @0 :UInt64;  # Request ID
+    dst @1 :UInt32;  # Destination ISD-AS
+    src @2 :UInt32 = 0;  # Source ISD-AS
+    maxPaths @3: UInt16;  # Maximum number of paths requested
     flags :group {
-        flush @2 :Bool;  # Flush all paths to dst.
-        sibra @3 :Bool;  # True, if SIBRA paths are requested
+        flush @4 :Bool;  # Flush all paths to dst.
+        sibra @5 :Bool;  # True, if SIBRA paths are requested
     }
 }
 
 struct PathReply {
-    entries @0 :List(PathReplyEntry)
+    id @0 :UInt64;  # Response ID (matches the request ID)
+    errorCode @1 :UInt16;
+    entries @2 :List(PathReplyEntry)
 }
 
 struct PathReplyEntry {
