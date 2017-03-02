@@ -27,6 +27,7 @@ from lib.packet.host_addr import HostAddrIPv4, HostAddrIPv6
 from lib.packet.packet_base import Cerealizable
 from lib.packet.path import SCIONPath
 from lib.packet.sciond.base import SCIONDMsgBase
+from lib.packet.sciond.path_meta import FwdPathMeta
 from lib.packet.scion_addr import ISD_AS
 from lib.types import AddrType, SCIONDMsgType as SMT
 
@@ -38,8 +39,10 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
     P_CLS = P.PathReq
 
     @classmethod
-    def from_values(cls, dst_ia, src_ia=0, flush=False, sibra=False):
-        p = cls.P_CLS.new_message(dst=int(dst_ia), src=int(src_ia))
+    def from_values(cls, id_, dst_ia, src_ia=0, max_paths=5,
+                    flush=False, sibra=False):
+        p = cls.P_CLS.new_message(
+            id=id_, dst=int(dst_ia), src=int(src_ia), max_paths=max_paths)
         p.flags.flush = flush
         p.flags.sibra = sibra
         return cls(p)
@@ -48,17 +51,27 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
         return ISD_AS(self.p.dst)
 
     def src_ia(self):
-        return ISD_AS(self.p.src)
+        if self.p.src:
+            return ISD_AS(self.p.src)
+        return None
 
     def short_desc(self):
-        desc = "%s: dst=%s" % (self.NAME, self.dst_ia())
+        desc = "id=%d, dst=%s" % (self.p.id, self.dst_ia())
         if self.p.src:
             desc += " src=%s" % self.src_ia()
+        desc += " max_paths=%d" % self.p.maxPaths
         if self.p.flush:
             desc += " FLUSH"
         if self.p.sibra:
             desc += " SIBRA"
         return desc
+
+
+class ReplyErrorCodes:  # pragma: no cover
+    OK = 0
+    NO_PATHS = 1
+    PS_TIMEOUT = 2
+    INTERNAL = 3
 
 
 class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
@@ -68,13 +81,13 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
     P_CLS = P.PathReply
 
     @classmethod
-    def from_values(cls, path_entries):
+    def from_values(cls, id_, path_entries, error=ReplyErrorCodes.OK):
         """
         Returns a SCIONDPathReply object with the specified entries.
 
         :param entries: List of SCIONDPathReplyEntry objects.
         """
-        p = cls.P_CLS.new_message()
+        p = cls.P_CLS.new_message(id=id_, error_code=error)
         entries = p.init("entries", len(path_entries))
         for i, entry in enumerate(path_entries):
             entries[i] = entry.p
@@ -85,10 +98,10 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
             yield SCIONDPathReplyEntry(entry)
 
     def short_desc(self):
-        desc = ["%s:" % self.NAME]
+        desc = ["id=%d error_code=%d" % (self.p.id, self.p.errorCode)]
         for entry in self.iter_entries():
             for line in entry.short_desc().splitlines():
-                desc.append("  %s" % line))
+                desc.append("  %s" % line)
         return "\n".join(desc)
 
 
@@ -112,7 +125,7 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         assert isinstance(path, FwdPathMeta)
         p = cls.P_CLS.new_message(path=path.pack(), port=port)
         for addr in addrs:
-            if addr.TYPE == AddrType.IPV4:
+            if addr.TYPE in (AddrType.NONE, AddrType.IPV4):
                 p.addrs.ipv4 = addr.pack()
             elif addr.TYPE == AddrType.IPV6:
                 p.addrs.ipv6 = addr.pack()

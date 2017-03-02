@@ -29,6 +29,7 @@ from lib.packet.opaque_field import (
     OpaqueFieldList,
 )
 from lib.packet.packet_base import Serializable
+from lib.packet.sciond.path_meta import FwdPathMeta, PathInterface
 from lib.util import Raw
 
 
@@ -48,8 +49,6 @@ class SCIONPath(Serializable):
         self._ofs = OpaqueFieldList(self.OF_ORDER)
         self._iof_idx = None
         self._hof_idx = None
-        self.interfaces = []
-        self.mtu = None
         super().__init__(raw)
 
     def _parse(self, raw):
@@ -315,11 +314,6 @@ class SCIONPath(Serializable):
         else:
             return True
 
-    def compare_interfaces(self, other):  # pragma: no cover
-        if not self.interfaces or other.interfaces:
-            return False
-        return self.interfaces == other.interfaces
-
     def __len__(self):  # pragma: no cover
         """Return the path length in bytes."""
         return len(self._ofs) * OpaqueField.LEN
@@ -342,9 +336,6 @@ class SCIONPath(Serializable):
             s.append("  </%s-Segment>" % name)
         s.append("</SCION-Path>")
         return "\n".join(s)
-
-    def __eq__(self, other):  # pragma: no cover
-        return self.interfaces == other.interfaces
 
 
 def valid_mtu(mtu):
@@ -375,15 +366,15 @@ class PathCombinator(object):
         :param list up_segments: List of `up` PathSegments.
         :param list down_segments: List of `down` PathSegments.
         :param RevCache peer_revs: Peering revocations.
-        :returns: List of paths.
+        :returns: List of FwdPathMeta objects.
         """
-        paths = []
+        path_metas = []
         for up in up_segments:
             for down in down_segments:
-                for path in cls._build_shortcuts(up, down, peer_revs):
-                    if path and path not in paths:
-                        paths.append(path)
-        return paths
+                for path_meta in cls._build_shortcuts(up, down, peer_revs):
+                    if path_meta and path_meta not in path_metas:
+                        path_metas.append(path_meta)
+        return path_metas
 
     @classmethod
     def _build_shortcuts(cls, up_segment, down_segment, peer_revs):
@@ -492,10 +483,11 @@ class PathCombinator(object):
         down_hofs.insert(0, down_upstream_hof)
         args = cls._shortcut_path_args(up_iof, up_hofs, down_iof, down_hofs)
         path = SCIONPath.from_values(*args)
-        cls._build_interface_list(path, up_segment, up_index,
-                                  down_segment, down_index)
-        path.mtu = min_mtu(up_mtu, down_mtu)
-        return [path]
+        if_list = cls._build_shortcut_interface_list(
+            up_segment, up_index, down_segment, down_index)
+        mtu = min_mtu(up_mtu, down_mtu)
+        path_meta = FwdPathMeta.from_values(path, if_list, mtu)
+        return [path_meta]
 
     @classmethod
     def _join_peer(cls, up_segment, down_segment, point, peer_revs):
@@ -516,7 +508,7 @@ class PathCombinator(object):
             cls._copy_segment_shortcut(down_segment, down_index, up=False)
         up_iof.shortcut = down_iof.shortcut = True
         up_iof.peer = down_iof.peer = True
-        paths = []
+        path_metas = []
         for uph, dph, pm in cls._find_peer_hfs(
                 up_segment.asm(up_index), down_segment.asm(down_index),
                 peer_revs):
@@ -526,11 +518,12 @@ class PathCombinator(object):
                 up_iof, up_hofs + [uph, up_upstream_hof],
                 down_iof, [down_upstream_hof, dph] + down_hofs)
             path = SCIONPath.from_values(*args)
-            cls._build_interface_list(path, up_segment, up_index,
-                                      down_segment, down_index, (uph, dph))
-            path.mtu = min_mtu(um, dm)
-            paths.append(path)
-        return paths
+            if_list = cls._build_shortcut_interface_list(
+                up_segment, up_index, down_segment, down_index, (uph, dph))
+            mtu = min_mtu(um, dm)
+            path_meta = FwdPathMeta.from_values(path, if_list, mtu)
+            path_metas.append(path_meta)
+        return path_metas
 
     @classmethod
     def _shortcut_path_args(cls, up_iof, up_hofs, down_iof, down_hofs):
@@ -547,12 +540,11 @@ class PathCombinator(object):
         return args
 
     @classmethod
-    def _build_interface_list(cls, path, up_seg, up_idx, down_seg, down_idx,
-                              peers=None):
+    def _build_shortcut_interface_list(
+            cls, up_seg, up_idx, down_seg, down_idx, peers=None):
         """
-        Builds interface list for given path using up/down segments
-        :param path: Path to build interface list for
-        :type path: SCIONPath
+        Builds interface list for a shortcut path.
+
         :param up_seg: Up segment used in path
         :type up_seg: PathSegment
         :param up_idx: Index of peer/xovr point in up_seg
@@ -565,23 +557,27 @@ class PathCombinator(object):
             Tuple of up segment peer HOF, down segment peer HOF
         """
         asm_list = list(reversed(list(up_seg.iter_asms(up_idx))))
-        cls._add_interfaces(path, asm_list)
+        if_list = cls._build_interface_list(asm_list)
         if peers:
             up_peer_hof, down_peer_hof = peers
             assert up_peer_hof and down_peer_hof
             up_ia = up_seg.asm(up_idx).isd_as()
             down_ia = down_seg.asm(down_idx).isd_as()
-            path.interfaces.append((up_ia, up_peer_hof.ingress_if))
-            path.interfaces.append((down_ia, down_peer_hof.ingress_if))
+            if_list.append(
+                PathInterface.from_values(up_ia, up_peer_hof.ingress_if))
+            if_list.append(
+                PathInterface.from_values(down_ia, down_peer_hof.ingress_if))
         asm_list = list(down_seg.iter_asms(down_idx))
-        cls._add_interfaces(path, asm_list, up=False)
+        if_list += cls._build_interface_list(asm_list, up=False)
+        return if_list
 
     @classmethod
-    def _add_interfaces(cls, path, asms, up=True):
+    def _build_interface_list(cls, asms, up=True):
         """
-        Add interface IDs of segment ASMarkings to path. Order of IDs depends on
-        up flag.
+        Builds list of interface IDs of segment ASMarkings. Order of IDs depends
+        on up flag.
         """
+        if_list = []
         for i, asm in enumerate(asms):
             isd_as = asm.isd_as()
             hof = asm.pcbm(0).hof()
@@ -589,14 +585,15 @@ class PathCombinator(object):
             ingress = hof.ingress_if
             if up:
                 if egress:
-                    path.interfaces.append((isd_as, egress))
+                    if_list.append(PathInterface.from_values(isd_as, egress))
                 if ingress and i != len(asms) - 1:
-                    path.interfaces.append((isd_as, ingress))
+                    if_list.append(PathInterface.from_values(isd_as, ingress))
             else:
                 if ingress and i != 0:
-                    path.interfaces.append((isd_as, ingress))
+                    if_list.append(PathInterface.from_values(isd_as, ingress))
                 if egress:
-                    path.interfaces.append((isd_as, egress))
+                    if_list.append(PathInterface.from_values(isd_as, egress))
+        return if_list
 
     @classmethod
     def _check_connected(cls, up_segment, core_segment, down_segment):
@@ -712,7 +709,6 @@ class PathCombinator(object):
         """
         For a set of tuples of possible end-to-end path [format is:
         (up_seg, core_seg, down_seg)], return a list of fullpaths.
-
         """
         res = []
         for up_segment, core_segment, down_segment in tuples:
@@ -734,20 +730,21 @@ class PathCombinator(object):
                 if iof:
                     args.extend([iof, hofs])
             path = SCIONPath.from_values(*args)
-            path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
             if up_segment:
                 up_core = list(reversed(list(up_segment.iter_asms())))
             else:
                 up_core = []
             if core_segment:
                 up_core += list(reversed(list(core_segment.iter_asms())))
-            cls._add_interfaces(path, up_core)
+            if_list = cls._build_interface_list(up_core)
             if down_segment:
                 down_core = list(down_segment.iter_asms())
             else:
                 down_core = []
-            cls._add_interfaces(path, down_core, up=False)
-            res.append(path)
+            if_list += cls._build_interface_list(down_core, up=False)
+            mtu = min_mtu(up_mtu, core_mtu, down_mtu)
+            path_meta = FwdPathMeta.from_values(path, if_list, mtu)
+            res.append(path_meta)
         return res
 
 
