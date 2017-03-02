@@ -1,17 +1,18 @@
-@0xdd2455af722e4379
+@0x8f4bd412642c9517;
+using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
 
 struct SCIONDMsg {
-    :union {
+    union {
         unset @0 :Void;
         pathReq @1 :PathReq;
         pathReply @2 :PathReply;
         asReq @3 :ASReq;
         asReply @4 :ASReply;
-        revInfo @5 :RevInfo.RevInfo
+        revInfo @5 :RevInfo.RevInfo;
     }
 }
 
@@ -29,7 +30,7 @@ struct PathReq {
 struct PathReply {
     id @0 :UInt64;  # Response ID (matches the request ID)
     errorCode @1 :UInt16;
-    entries @2 :List(PathReplyEntry)
+    entries @2 :List(PathReplyEntry);
 }
 
 struct PathReplyEntry {

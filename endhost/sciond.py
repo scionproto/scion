@@ -18,7 +18,6 @@
 # Stdlib
 import logging
 import os
-import struct
 import threading
 from itertools import product
 
@@ -34,10 +33,11 @@ from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
 from lib.packet.host_addr import HostAddrNone
-from lib.packet.path import PathCombinator, SCIONPath
+from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.sciond.parse import parse_sciond_msg
+from lib.packet.sciond.path_meta import FwdPathMeta
 from lib.packet.sciond.path_req import (
     ReplyErrorCodes,
     SCIONDPathReply,
@@ -45,6 +45,7 @@ from lib.packet.sciond.path_req import (
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.path_combinator import PathCombinator
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
@@ -226,12 +227,12 @@ class SCIONDaemon(SCIONElement):
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, src_ia, dst_ia)
-        error, paths = self.get_paths(dst_ia)[:request.p.maxPaths]
+        paths, error = self.get_paths(dst_ia)[:request.p.maxPaths]
         logging.debug("Replying to api request for %s with %d paths",
                       dst_ia, len(paths))
         reply_entries = []
         for path_meta in paths:
-            fwd_if = path_meta.path().get_fwd_if()
+            fwd_if = path_meta.fwd_path().get_fwd_if()
             # Set dummy host addr if path is empty.
             if fwd_if == 0:
                 haddr, port = HostAddrNone(), SCION_UDP_EH_DATA_PORT
@@ -245,7 +246,7 @@ class SCIONDaemon(SCIONElement):
 
     def _send_path_reply(self, req_id, reply_entries, error, meta):
         path_reply = SCIONDPathReply.from_values(req_id, reply_entries, error)
-        self.send_meta(path_reply.pack(), meta)
+        self.send_meta(path_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -299,8 +300,8 @@ class SCIONDaemon(SCIONElement):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
             empty = SCIONPath()
-            empty.mtu = self.topology.mtu
-            return [empty]
+            empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
+            return [empty_meta], ReplyErrorCodes.OK
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))

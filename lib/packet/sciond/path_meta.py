@@ -52,7 +52,7 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
             yield PathInterface(if_)
 
     def short_desc(self):
-        if_str = " ,".join([if_.short_desc() for if_ in self.iter_ifs()])
+        if_str = ", ".join([if_.short_desc() for if_ in self.iter_ifs()])
         return "%s: MTU: %d Interfaces: %s" % (self.NAME, self.p.mtu, if_str)
 
     def __eq__(self, other):

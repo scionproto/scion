@@ -40,7 +40,7 @@ class E2EClient(TestClientBase):
     """
     def _create_payload(self, spkt):
         data = b"ping " + self.data
-        pld_len = self.path.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
+        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):
@@ -51,9 +51,9 @@ class E2EClient(TestClientBase):
         if spkt.l4_hdr.TYPE == L4Proto.SCMP:
             return self._handle_scmp(spkt)
         logging.debug("Received:\n%s", spkt)
-        if len(spkt) != self.path.mtu:
+        if len(spkt) != self.path_meta.p.mtu:
             logging.error("Packet length (%sB) != MTU (%sB)",
-                          len(spkt), self.path.mtu)
+                          len(spkt), self.path_meta.p.mtu)
             return ResponseRV.FAILURE
         payload = spkt.get_payload()
         pong = self._gen_max_pld(b"pong " + self.data, len(payload))
