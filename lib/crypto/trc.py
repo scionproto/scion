@@ -110,8 +110,9 @@ class TRC(object):
             self.core_ases[subject][OFFLINE_KEY_STRING] = \
                 base64.b64decode(key_.encode('utf-8'))
         for subject in trc_dict[SIGNATURES_STRING]:
+            sig = trc_dict[SIGNATURES_STRING][subject]
             self.signatures[subject] = \
-                base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
+                base64.b64decode(sig.encode('utf-8'))
         for subject in trc_dict[ROOT_CAS_STRING]:
             self.root_cas[subject] = base64.b64decode(
                 trc_dict[ROOT_CAS_STRING][subject].encode('utf-8'))
