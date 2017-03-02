@@ -56,7 +56,9 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
         return "%s: MTU: %d Interfaces: %s" % (self.NAME, self.p.mtu, if_str)
 
     def __eq__(self, other):
-        return self.p.interfaces == other.p.interfaces
+        print(list(self.iter_ifs()))
+        print(list(other.iter_ifs()))
+        return list(self.iter_ifs()) == list(other.iter_ifs())
 
 
 class PathInterface(Cerealizable):  # pragma: no cover
