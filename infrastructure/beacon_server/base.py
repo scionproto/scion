@@ -21,7 +21,7 @@ import logging
 import os
 import threading
 import time
-from _collections import deque, defaultdict
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from threading import Lock, RLock
 
@@ -31,12 +31,10 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
-from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
     HASHTREE_TTL,
@@ -51,7 +49,7 @@ from lib.errors import (
 )
 from lib.flagtypes import TCPFlags
 from lib.msg_meta import TCPMetadata, UDPMetadata
-from lib.packet.cert_mgmt import TRCRequest
+from lib.path_seg_meta import PathSegMeta
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
@@ -63,8 +61,8 @@ from lib.packet.path_mgmt.ifstate import (
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
     ASMarking,
-    PCBMarking,
     PathSegment,
+    PCBMarking,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
@@ -119,9 +117,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
-        self.unverified_beacons = deque()
-        self.trc_requests = {}
-        self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
@@ -140,8 +135,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             PayloadClass.PCB: {None: self.handle_pcb},
             PayloadClass.IFID: {None: self.handle_ifid_packet},
             PayloadClass.CERT: {
-                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_rep,
-                CertMgmtType.TRC_REPLY: self.process_trc_rep,
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
             },
             PayloadClass.PATH: {
                 PMT.IFSTATE_REQ: self._handle_ifstate_request,
@@ -159,14 +156,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
-        self.incoming_pcbs = deque()
         self.pcb_cache = ZkSharedCache(
-            self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs)
+            self.zk, self.ZK_PCB_CACHE_PATH, self._handle_pcbs_from_zk)
         self.revobjs_cache = ZkSharedCache(
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
         self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
                                             HASHTREE_EPOCH_TOLERANCE)
-        self.local_rev_cache_lock = Lock()
+        self._rev_seg_lock = RLock()
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
@@ -244,19 +240,56 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_pcb(self, pcb, meta):
-        """Receives beacon and stores it for processing."""
-        pcb.p.ifID = meta.path.get_hof().ingress_if
+    def _handle_pcbs_from_zk(self, pcbs):
+        """
+        Handles cached pcbs through ZK, passed as a list.
+        """
+        for pcb in pcbs:
+            try:
+                pcb = PathSegment.from_raw(pcb)
+            except SCIONParseError as e:
+                logging.error("Unable to parse raw pcb: %s", e)
+                continue
+            self.handle_pcb(pcb)
+        logging.debug("Processed %s PCBs from ZK", len(pcbs))
+
+    def handle_pcb(self, pcb, meta=None):
+        """
+        Handles pcbs received from the network.
+        """
+        if meta:
+            pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
+            logging.debug("Segment dropped due to path policy: %s" %
+                          pcb.short_desc())
             return
-        self.incoming_pcbs.append(pcb)
-        meta.close()
-        entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
-        try:
-            self.pcb_cache.store(entry_name, pcb.copy().pack())
-        except ZkNoConnection:
-            logging.error("Unable to store PCB in shared cache: "
-                          "no connection to ZK")
+        if not self._filter_pcb(pcb):
+            logging.debug("Segment dropped due to looping: %s" %
+                          pcb.short_desc())
+            return
+        seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta)
+        self.process_path_seg(seg_meta)
+
+    def continue_seg_processing(self, seg_meta):
+        """
+        For every pcb(that can be verified) received from the network or ZK
+        this function gets called to continue the processing for the pcb.
+        """
+        pcb = seg_meta.seg
+        if seg_meta.meta:
+            # Segment was received from network, not from zk. Share segment
+            # with other beacon servers in this AS.
+            entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
+            try:
+                self.pcb_cache.store(entry_name, pcb.copy().pack())
+            except ZkNoConnection:
+                logging.error("Unable to store PCB in shared cache: "
+                              "no connection to ZK")
+        self._handle_verified_beacon(pcb)
+        self.handle_ext(pcb)
+
+    def _filter_pcb(self, pcb, dst_ia=None):
+        return True
 
     def handle_ext(self, pcb):
         """
@@ -265,20 +298,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Handle PCB extensions:
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
-
-    @abstractmethod
-    def process_pcbs(self, pcbs, raw=True):
-        """
-        Processes new beacons and appends them to beacon list.
-        """
-        raise NotImplementedError
-
-    def process_pcb_queue(self):
-        pcbs = []
-        while self.incoming_pcbs:
-            pcbs.append(self.incoming_pcbs.popleft())
-        self.process_pcbs(pcbs, raw=False)
-        logging.debug("Processed %d pcbs from incoming queue", len(pcbs))
 
     @abstractmethod
     def register_segments(self):
@@ -295,7 +314,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         _, cert_ver = chain.get_leaf_isd_as_ver()
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
-            self._get_ht_root(), self.topology.mtu, chain)
+            self._get_ht_root(), self.topology.mtu)
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         up_pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
@@ -442,8 +461,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                            self._quiet_startup())
             start = time.time()
             try:
-                self.process_pcb_queue()
-                self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
@@ -489,86 +506,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if not ifstate.is_active():
                     ifstate.reset()
 
-    def _try_to_verify_beacon(self, pcb, quiet=False):
-        """
-        Try to verify a beacon.
-
-        :param pcb: path segment to verify.
-        :type pcb: PathSegment
-        """
-        assert isinstance(pcb, PathSegment)
-        asm = pcb.asm(-1)
-        if self._check_trc(asm.isd_as(), asm.p.trcVer):
-            if self._verify_beacon(pcb):
-                self._handle_verified_beacon(pcb)
-            else:
-                logging.warning("Invalid beacon. %s", pcb)
-        else:
-            if not quiet:
-                logging.warning("Certificate(s) or TRC missing for pcb: %s",
-                                pcb.short_desc())
-            self.unverified_beacons.append(pcb)
-
-    @abstractmethod
-    def _check_trc(self, isd_as, trc_ver):
-        """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
-
-        :param ISD_AS isd_is: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        """
-        raise NotImplementedError
-
     def _get_my_trc(self):
         return self.trust_store.get_trc(self.addr.isd_as[0])
 
     def _get_my_cert(self):
         return self.trust_store.get_cert(self.addr.isd_as)
-
-    def _get_trc(self, isd_as, trc_ver):
-        """
-        Get TRC from local storage or memory.
-
-        :param ISD_AS isd_as: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        """
-        trc = self.trust_store.get_trc(isd_as[0], trc_ver)
-        if not trc:
-            # Requesting TRC file from cert server
-            trc_tuple = isd_as[0], trc_ver
-            now = int(time.time())
-            if (trc_tuple not in self.trc_requests or
-                (now - self.trc_requests[trc_tuple] >
-                    self.REQUESTS_TIMEOUT)):
-                trc_req = TRCRequest.from_values(isd_as, trc_ver)
-                logging.info("Requesting %sv%s TRC", isd_as[0], trc_ver)
-                try:
-                    addr, port = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
-                except SCIONServiceLookupError as e:
-                    logging.warning("Sending TRC request failed: %s", e)
-                    return None
-                meta = UDPMetadata.from_values(host=addr, port=port)
-                self.send_meta(trc_req, meta)
-                self.trc_requests[trc_tuple] = now
-                return None
-        return trc
-
-    def _verify_beacon(self, pcb):
-        """
-        Once the necessary certificate and TRC files have been found, verify the
-        beacons.
-
-        :param pcb: path segment to verify.
-        :type pcb: PathSegment
-        """
-        assert isinstance(pcb, PathSegment)
-        asm = pcb.asm(-1)
-        cert_ia = asm.isd_as()
-        trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-        return verify_sig_chain_trc(
-            pcb.sig_pack3(), asm.p.sig, str(cert_ia), asm.chain(), trc,
-            asm.p.trcVer)
 
     @abstractmethod
     def _handle_verified_beacon(self, pcb):
@@ -580,40 +522,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    def process_cert_chain_rep(self, cert_chain_rep, meta):
-        """
-        Process the Certificate chain reply.
-        """
-        raise NotImplementedError
-
-    def process_trc_rep(self, rep, meta):
-        """
-        Process the TRC reply.
-
-        :param rep: TRC reply.
-        :type rep: TRCReply
-        """
-        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
-        self.trust_store.add_trc(rep.trc)
-
-        rep_key = rep.trc.get_isd_ver()
-        if rep_key in self.trc_requests:
-            del self.trc_requests[rep_key]
-
-    def handle_unverified_beacons(self):
-        """
-        Handle beacons which are waiting to be verified.
-        """
-        for _ in range(len(self.unverified_beacons)):
-            pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb, quiet=True)
-
     def process_rev_objects(self, rev_infos):
         """
         Processes revocation infos stored in Zookeeper.
         """
-        with self.local_rev_cache_lock:
+        with self._rev_seg_lock:
             for raw in rev_infos:
                 try:
                     rev_info = RevocationInfo.from_raw(raw)
@@ -673,7 +586,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._process_revocation(rev_info)
 
     def handle_rev_objs(self):
-        with self.local_rev_cache_lock:
+        with self._rev_seg_lock:
             for rev_info in self.local_rev_cache.values():
                 self._remove_revoked_pcbs(rev_info)
 
@@ -691,7 +604,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Trying to revoke IF with ID 0.")
             return
 
-        with self.local_rev_cache_lock:
+        with self._rev_seg_lock:
             self.local_rev_cache[rev_info] = rev_info.copy()
 
         logging.info("Storing revocation in ZK.")

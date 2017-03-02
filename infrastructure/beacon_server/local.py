@@ -21,9 +21,8 @@ import logging
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
-from lib.errors import SCIONParseError, SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
-from lib.packet.pcb import PathSegment
 from lib.packet.svc import SVCType
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
@@ -48,24 +47,8 @@ class LocalBeaconServer(BeaconServer):
         self.beacons = PathStore(self.path_policy)
         self.up_segments = PathStore(self.path_policy)
         self.down_segments = PathStore(self.path_policy)
-        self.cert_chain_requests = {}
-        self.cert_chains = {}
         self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
-
-    def _check_trc(self, isd_as, trc_ver):
-        """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
-
-        :param ISD_AS isd_as: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        :returns: True if the files exist, False otherwise.
-        :rtype: bool
-        """
-        if self._get_trc(isd_as, trc_ver):
-            return True
-        return False
 
     def register_up_segment(self, pcb):
         """
@@ -100,59 +83,33 @@ class LocalBeaconServer(BeaconServer):
         self.register_up_segments()
         self.register_down_segments()
 
-    def process_pcbs(self, pcbs, raw=True):
-        """
-        Process new beacons and appends them to beacon list.
-        """
-        for pcb in pcbs:
-            if raw:
-                try:
-                    pcb = PathSegment.from_raw(pcb)
-                except SCIONParseError as e:
-                    logging.error("Unable to parse raw pcb: %s", e)
-                    continue
-            if self.path_policy.check_filters(pcb):
-                self._try_to_verify_beacon(pcb)
-                self.handle_ext(pcb)
-
-    def process_cert_chain_rep(self, rep, meta):
-        """
-        Process the Certificate chain reply.
-
-        :param rep: certificate chain reply.
-        :type rep: CertChainReply
-        """
-        logging.info("Certificate chain reply received for %s",
-                     rep.short_desc())
-        rep_key = rep.cert_chain.get_leaf_isd_as_ver()
-        self.trust_store.add_cert(rep.cert_chain)
-        if rep_key in self.cert_chain_requests:
-            del self.cert_chain_requests[rep_key]
-
     def _remove_revoked_pcbs(self, rev_info):
-        candidates = (self.down_segments.candidates +
-                      self.up_segments.candidates +
-                      self.beacons.candidates)
-        to_remove = self._pcb_list_to_remove(candidates, rev_info)
-        # Remove the affected segments from the path stores.
-        self.beacons.remove_segments(to_remove)
-        self.up_segments.remove_segments(to_remove)
-        self.down_segments.remove_segments(to_remove)
+        with self._rev_seg_lock:
+            candidates = (self.down_segments.candidates +
+                          self.up_segments.candidates +
+                          self.beacons.candidates)
+            to_remove = self._pcb_list_to_remove(candidates, rev_info)
+            # Remove the affected segments from the path stores.
+            self.beacons.remove_segments(to_remove)
+            self.up_segments.remove_segments(to_remove)
+            self.down_segments.remove_segments(to_remove)
 
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        self.beacons.add_segment(pcb)
-        self.up_segments.add_segment(pcb)
-        self.down_segments.add_segment(pcb)
+        with self._rev_seg_lock:
+            self.beacons.add_segment(pcb)
+            self.up_segments.add_segment(pcb)
+            self.down_segments.add_segment(pcb)
 
     def handle_pcbs_propagation(self):
         """
         Main loop to propagate received beacons.
         """
         # TODO: define function that dispatches the pcbs among the interfaces
-        best_segments = self.beacons.get_best_segments()
+        with self._rev_seg_lock:
+            best_segments = self.beacons.get_best_segments()
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
 
@@ -160,12 +117,12 @@ class LocalBeaconServer(BeaconServer):
         """
         Register the paths to the core.
         """
-        best_segments = self.up_segments.get_best_segments(sending=False)
+        with self._rev_seg_lock:
+            best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             if not pcb:
                 continue
-            pcb.remove_crypto()
             pcb.sign(self.signing_key)
             try:
                 self.register_up_segment(pcb)
@@ -178,12 +135,12 @@ class LocalBeaconServer(BeaconServer):
         """
         Register the paths from the core.
         """
-        best_segments = self.down_segments.get_best_segments(sending=False)
+        with self._rev_seg_lock:
+            best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             if not pcb:
                 continue
-            pcb.remove_crypto()
             pcb.sign(self.signing_key)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())

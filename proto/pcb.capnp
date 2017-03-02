@@ -23,7 +23,6 @@ struct ASMarking {
     hashTreeRoot @5 :Data;
     sig @6 :Data;
     mtu @7 :UInt16;  # Internal MTU
-    chain @8 :Data;  # FIXME(kormat): to be removed when propagation is over TCP.
 }
 
 struct PathSegment {

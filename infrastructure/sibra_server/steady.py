@@ -294,7 +294,6 @@ class SteadyPath(object):
             pcb_d['asms'].reverse()
         pcb = PathSegment.from_dict(pcb_d)
         pcb_ext = SibraPCBExt.from_values(self.id, info, sofs, up)
-        pcb.remove_crypto()
         pcb.add_sibra_ext(pcb_ext.p)
         pcb.sign(self.signing_key)
         logging.debug(self._reg_pcb_str(pcb))

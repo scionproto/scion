@@ -399,9 +399,9 @@ class CertGenerator(object):
         trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
-        for isd in self.trcs:
-            trc_path = get_trc_file_path("", isd, INITIAL_TRC_VERSION)
-            self.trc_files[topo_id][trc_path] = str(self.trcs[isd])
+        trc = self.trcs[topo_id[0]]
+        trc_path = get_trc_file_path("", topo_id[0], INITIAL_TRC_VERSION)
+        self.trc_files[topo_id][trc_path] = str(trc)
 
 
 class CA_Generator(object):

@@ -32,6 +32,7 @@ from lib.defines import (
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
+from lib.path_seg_meta import PathSegMeta
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -39,7 +40,6 @@ from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
-from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
 from lib.sciond_api.host_info import HostInfo
@@ -59,6 +59,7 @@ from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
 from lib.types import (
+    CertMgmtType,
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
@@ -92,12 +93,9 @@ class SCIONDaemon(SCIONElement):
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.peer_revs = RevCache()
-        req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
-        self.requests = RequestHandler.start(
-            req_name, self._check_segments, self._fetch_segments,
-            self._reply_segments, ttl=self.PATH_REQ_TOUT,
-            key_map=self._req_key_map,
-        )
+        # Keep track of requested paths.
+        self.requested_paths = {}
+        self.req_path_lock = threading.Lock()
         self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
@@ -109,7 +107,13 @@ class SCIONDaemon(SCIONElement):
             PayloadClass.PATH: {
                 PMT.REPLY: self.handle_path_reply,
                 PMT.REVOCATION: self.handle_revocation,
-            }
+            },
+            PayloadClass.CERT: {
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
+            },
         }
 
         self.SCMP_PLD_CLASS_MAP = {
@@ -162,25 +166,39 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
-        added = set()
+        for rev_info in path_reply.iter_rev_infos():
+            self.peer_revs.add(rev_info)
+
+        for type_, pcb in path_reply.iter_pcbs():
+            seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
+                                   meta, type_)
+            self.process_path_seg(seg_meta)
+
+    def continue_seg_processing(self, seg_meta):
+        """
+        For every path segment(that can be verified) received from the path
+        server this function gets called to continue the processing for the
+        segment.
+        The segment is added to pathdb and pending requests are checked.
+        """
+        pcb = seg_meta.seg
+        type_ = seg_meta.type
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,
             PST.CORE: self._handle_core_seg,
         }
-        for type_, pcb in path_reply.iter_pcbs():
-            ret = map_[type_](pcb)
-            if not ret:
-                continue
-            flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
-            added.add((ret, flags))
-        for rev_info in path_reply.iter_rev_infos():
-            self.peer_revs.add(rev_info)
-        logging.debug("Added: %s", added)
-        for dst_ia, flags in added:
-            self.requests.put(((dst_ia, flags), None))
-        logging.debug("Closing meta")
-        meta.close()
+        ret = map_[type_](pcb)
+        if not ret:
+            return
+        to_remove = []
+        with self.req_path_lock:
+            for key in self.requested_paths:
+                if self.path_resolution(*key):
+                    self.requested_paths[key].set()
+                    to_remove.append(key)
+            for key in to_remove:
+                del self.requested_paths[key]
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
@@ -372,13 +390,19 @@ class SCIONDaemon(SCIONElement):
             empty = SCIONPath()
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
-        deadline = SCIONTime.get_time() + self.PATH_REQ_TOUT
-        e = threading.Event()
-        self.requests.put(((dst_ia, flags), e))
-        if not self._wait_for_events([e], deadline):
-            logging.error("Query timed out for %s", dst_ia)
-            return [], SCIONDPathReplyError.PS_TIMEOUT
         paths = self.path_resolution(dst_ia, flags=flags)
+        if not paths:
+            key = dst_ia, flags
+            with self.req_path_lock:
+                if key not in self.requested_paths:
+                    # No previous outstanding request
+                    self.requested_paths[key] = threading.Event()
+                    self._fetch_segments(key)
+                e = self.requested_paths[key]
+            if not e.wait(self.PATH_REQ_TOUT):
+                logging.error("Query timed out for %s", dst_ia)
+                return [], SCIONDPathReplyError.PS_TIMEOUT
+            paths = self.path_resolution(dst_ia, flags=flags)
         error_code = (SCIONDPathReplyError.OK if paths
                       else SCIONDPathReplyError.NO_PATHS)
         return paths, error_code
@@ -539,17 +563,9 @@ class SCIONDaemon(SCIONElement):
                 count += 1
         return count
 
-    def _check_segments(self, key):
+    def _fetch_segments(self, key):
         """
-        Called by RequestHandler to check if a given path request can be
-        fulfilled.
-        """
-        dst_ia, flags = key
-        return self.path_resolution(dst_ia, flags=flags)
-
-    def _fetch_segments(self, key, _):
-        """
-        Called by RequestHandler to fetch the requested path.
+        Called to fetch the requested path.
         """
         dst_ia, flags = key
         try:
@@ -561,32 +577,6 @@ class SCIONDaemon(SCIONElement):
         logging.debug("Sending path request: %s", req.short_desc())
         meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(req, meta)
-
-    def _reply_segments(self, key, e):
-        """
-        Called by RequestHandler to signal that the request has been fulfilled.
-        """
-        e.set()
-
-    def _req_key_map(self, key, req_keys):
-        """
-        Called by RequestHandler to know which requests can be answered by
-        `key`.
-        """
-        ans_ia, ans_flags = key
-        ans_f_set = set(ans_flags)
-        ret = []
-        for req_ia, req_flags in req_keys:
-            req_f_set = set(req_flags)
-            if req_f_set != ans_f_set and (not ans_f_set & req_f_set):
-                # The answer and the request have no flags in common, so skip
-                # it.
-                continue
-            if (req_ia == ans_ia) or (req_ia == ans_ia.any_as()):
-                # Covers the case where a request was for ISD-0 (i.e. any path
-                # to a core AS in the specified ISD)
-                ret.append((req_ia, req_flags))
-        return ret
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
         """

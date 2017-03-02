@@ -18,7 +18,7 @@
 # Stdlib
 import logging
 import threading
-from _collections import defaultdict, deque
+from collections import defaultdict, deque
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 
@@ -34,6 +34,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
+from lib.path_seg_meta import PathSegMeta
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -41,7 +42,12 @@ from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
 from lib.rev_cache import RevCache
 from lib.thread import thread_safety_net
-from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
+from lib.types import (
+    CertMgmtType,
+    PathMgmtType as PMT,
+    PathSegmentType as PST,
+    PayloadClass,
+)
 from lib.util import SCIONTime, sleep_interval
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
@@ -75,6 +81,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
+        self.pen_req_lock = threading.Lock()
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache()
@@ -88,6 +95,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 PMT.REG: self.handle_path_segment_record,
                 PMT.REVOCATION: self._handle_revocation,
                 PMT.SYNC: self.handle_path_segment_record,
+            },
+            PayloadClass.CERT: {
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
             },
         }
         self.SCMP_PLD_CLASS_MAP = {
@@ -103,7 +116,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                             self._zkid.copy().pack(), self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
-                                        self._cached_entries_handler)
+                                        self._handle_paths_from_zk)
         self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
                                        self._rev_entries_handler)
 
@@ -138,19 +151,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 pass
             self._update_master()
             self._propagate_and_sync()
-
-    def _cached_entries_handler(self, raw_entries):
-        """
-        Handles cached through ZK entries, passed as a list.
-        """
-        count = 0
-        for raw in raw_entries:
-            recs = PathSegmentRecords.from_raw(raw)
-            for type_, pcb in recs.iter_pcbs():
-                count += 1
-                self._dispatch_segment_record(type_, pcb, from_zk=True)
-        if count:
-            logging.debug("Processed %s PCBs from ZK", count)
+            self._handle_pending_requests()
 
     def _update_master(self):
         pass
@@ -307,45 +308,75 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         return list(revs_to_add)
 
-    def _handle_pending_requests(self, dst_ia, sibra):
-        to_remove = []
-        key = dst_ia, sibra
+    def _handle_pending_requests(self):
+        rem_keys = []
         # Serve pending requests.
-        for req, meta in self.pending_req[key]:
-            if self.path_resolution(req, meta, new_request=False):
-                meta.close()
-                to_remove.append((req, meta))
-        # Clean state.
-        for req_meta in to_remove:
-            self.pending_req[key].remove(req_meta)
-        if not self.pending_req[key]:
-            del self.pending_req[key]
+        with self.pen_req_lock:
+            for key in self.pending_req:
+                to_remove = []
+                for req, meta in self.pending_req[key]:
+                    if self.path_resolution(req, meta, new_request=False):
+                        meta.close()
+                        to_remove.append((req, meta))
+                # Clean state.
+                for req_meta in to_remove:
+                    self.pending_req[key].remove(req_meta)
+                if not self.pending_req[key]:
+                    rem_keys.append(key)
+            for key in rem_keys:
+                del self.pending_req[key]
+
+    def _handle_paths_from_zk(self, raw_entries):
+        """
+        Handles cached paths through ZK, passed as a list.
+        """
+        for raw in raw_entries:
+            recs = PathSegmentRecords.from_raw(raw)
+            for type_, pcb in recs.iter_pcbs():
+                seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
+                                       type_=type_, params={'from_zk': True})
+                self.process_path_seg(seg_meta)
+        logging.debug("Processed %s segments from ZK", len(raw_entries))
 
     def handle_path_segment_record(self, seg_recs, meta):
-        meta.close()  # FIXME(PSz): validate before
+        """
+        Handles paths received from the network.
+        """
         params = self._dispatch_params(seg_recs, meta)
-        added = set()
-        for type_, pcb in seg_recs.iter_pcbs():
-            added.update(self._dispatch_segment_record(type_, pcb, **params))
         # Add revocations for peer interfaces included in the path segments.
         for rev_info in seg_recs.iter_rev_infos():
             self.revocations.add(rev_info)
-        # Handling pending requests, basing on added segments.
-        for dst_ia, sibra in added:
-            self._handle_pending_requests(dst_ia, sibra)
+        # Verify pcbs and process them
+        for type_, pcb in seg_recs.iter_pcbs():
+            seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
+                                   type_, params)
+            self.process_path_seg(seg_meta)
+
+    def continue_seg_processing(self, seg_meta):
+        """
+        For every path segment(that can be verified) received from the network
+        or ZK this function gets called to continue the processing for the
+        segment.
+        The segment is added to pathdb and pending requests are checked.
+        """
+        pcb = seg_meta.seg
+        type_ = seg_meta.type
+        params = seg_meta.params
+        self._dispatch_segment_record(type_, pcb, **params)
+        self._handle_pending_requests()
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         # Check that segment does not contain a revoked interface.
         if not self._validate_segment(seg):
             logging.debug("Not adding segment due to revoked interface:\n%s" %
                           seg.short_desc())
-            return set()
+            return
         handle_map = {
             PST.UP: self._handle_up_segment_record,
             PST.CORE: self._handle_core_segment_record,
             PST.DOWN: self._handle_down_segment_record,
         }
-        return handle_map[type_](seg, **kwargs)
+        handle_map[type_](seg, **kwargs)
 
     def _validate_segment(self, seg):
         """
