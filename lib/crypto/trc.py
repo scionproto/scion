@@ -109,6 +109,9 @@ class TRC(object):
             key_ = trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING]
             self.core_ases[subject][OFFLINE_KEY_STRING] = \
                 base64.b64decode(key_.encode('utf-8'))
+        for subject in trc_dict[SIGNATURES_STRING]:
+            self.signatures[subject] = \
+                base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
         for subject in trc_dict[ROOT_CAS_STRING]:
             self.root_cas[subject] = base64.b64decode(
                 trc_dict[ROOT_CAS_STRING][subject].encode('utf-8'))
@@ -174,8 +177,7 @@ class TRC(object):
 
     def sign(self, isd_as, sig_priv_key):
         data = self._sig_input()
-        self.signatures[isd_as] = base64.b64encode(sign(data, sig_priv_key)). \
-            decode('utf-8')
+        self.signatures[isd_as] = sign(data, sig_priv_key)
 
     def verify(self, old_trc):
         """
@@ -256,6 +258,13 @@ class TRC(object):
         for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
             root_cas[subject] = base64.b64encode(cert_str).decode('utf-8')
         trc_dict[ROOT_CAS_STRING] = root_cas
+        if with_signatures:
+            signatures = {}
+            for subject in trc_dict[SIGNATURES_STRING]:
+                signature = trc_dict[SIGNATURES_STRING][subject]
+                signatures[subject] = base64.b64encode(
+                    signature).decode('utf-8')
+            trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
 
