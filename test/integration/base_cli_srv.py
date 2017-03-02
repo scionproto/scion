@@ -23,7 +23,6 @@ import logging
 import os
 import random
 import socket
-import struct
 import sys
 import threading
 import time
@@ -36,18 +35,21 @@ from lib.defines import AS_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import (
-    haddr_get_type,
     haddr_parse_interface,
 )
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
+from lib.packet.sciond.parse import parse_sciond_msg
+from lib.packet.sciond.path_req import (
+    ReplyErrorCodes,
+    SCIONDPathRequest,
+)
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import ReliableSocket
 from lib.thread import kill_self, thread_safety_net
+from lib.types import AddrType, SCIONDMsgType as SMT
 from lib.util import (
-    Raw,
     handle_signals,
     load_yaml_file,
 )
@@ -107,9 +109,10 @@ class TestClientBase(TestBase):
         self.dst = dst
         self.dport = dport
         self.api = api
-        self.path = None
-        self.iflist = []
+        self.path_meta = None
+        self.first_hop = None
         self.retries = retries
+        self._req_id = 0
         super().__init__(sd, data, finished, addr, timeout)
         self._get_path(api)
 
@@ -118,29 +121,34 @@ class TestClientBase(TestBase):
             self._get_path_via_api()
         else:
             self._get_path_direct()
-        assert self.path.mtu
+        assert self.path_meta.p.mtu
 
     def _get_path_via_api(self):
-        """
-        Test local API.
-        """
+        """Request path via SCIOND API."""
         data = self._try_sciond_api()
-        path_len = data.pop(1) * 8
-        self.path = SCIONPath(data.pop(path_len))
-        haddr_type = haddr_get_type(data.pop(1))
-        data.pop(haddr_type.LEN)  # first hop, unused here
-        data.pop(2)  # port number, unused here
-        self.path.mtu = struct.unpack("!H", data.pop(2))[0]
-        ifcount = data.pop(1)
-        self.iflist = []
-        for i in range(ifcount):
-            isd_as = ISD_AS(data.pop(ISD_AS.LEN))
-            ifid = struct.unpack("!H", data.pop(2))[0]
-            self.iflist.append((isd_as, ifid))
+        response = parse_sciond_msg(data)
+        logging.debug(str(response))
+        if response.MSG_TYPE != SMT.PATH_REPLY:
+            logging.error(
+                "Unexpected SCIOND msg type received: %s" % response.NAME)
+            kill_self()
+        if response.p.errorCode != ReplyErrorCodes.OK:
+            logging.error(
+                "SCIOND returned an error (code=%d)." % response.p.errorCode)
+            kill_self()
+        path_entry = response.path_entry(0)
+        self.path_meta = path_entry.path()
+        fh_addr = path_entry.ipv4()
+        if fh_addr.TYPE == AddrType.NONE:
+            fh_addr = self.dst.host
+        self.first_hop = (fh_addr, path_entry.p.port)
 
     def _try_sciond_api(self):
         sock = ReliableSocket()
-        msg = b'\x00' + self.dst.isd_as.pack()
+        request = SCIONDPathRequest.from_values(self._req_id, self.dst.isd_as)
+        packed = request.pack_full()
+        logging.debug(str(request))
+        self._req_id += 1
         start = time.time()
         try:
             sock.connect(self.sd.api_addr)
@@ -150,8 +158,8 @@ class TestClientBase(TestBase):
         while time.time() - start < API_TOUT:
             logging.debug("Sending path request to local API at %s",
                           self.sd.api_addr)
-            sock.send(msg)
-            data = Raw(sock.recv()[0], "Path response")
+            sock.send(packed)
+            data = sock.recv()[0]
             if data:
                 sock.close()
                 return data
@@ -161,21 +169,17 @@ class TestClientBase(TestBase):
         kill_self()
 
     def _get_path_direct(self, flags=0):
-        logging.debug("Sending PATH request for %s", self.dst)
-        # Get paths through local API.
+        """Request path from SCIOND object."""
         paths = []
         for _ in range(5):
-            paths = self.sd.get_paths(self.dst.isd_as, flags=flags)
+            paths, _ = self.sd.get_paths(self.dst.isd_as, flags=flags)
             if paths:
                 break
         else:
             logging.critical("Unable to get path directly from sciond")
             kill_self()
-        self.path = paths[0]
-        self._get_iflist()
-
-    def _get_iflist(self):
-        self.iflist = self.path.interfaces
+        self.path_meta = paths[0]
+        self.first_hop = None
 
     def run(self):
         while not self.finished.is_set():
@@ -212,17 +216,16 @@ class TestClientBase(TestBase):
         self.finished.set()
 
     def _send(self):
-        self._send_pkt(self._build_pkt())
-        if self.iflist:
-            logging.debug("Interfaces: %s", ", ".join(
-                ["%s:%s" % ifentry for ifentry in self.iflist]))
+        self._send_pkt(self._build_pkt(), self.first_hop)
+        logging.debug("Interfaces: %s", ", ".join(
+            [str(ifentry) for ifentry in self.path_meta.iter_ifs()]))
 
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)
         l4_hdr = self._create_l4_hdr()
         extensions = self._create_extensions()
         if path is None:
-            path = self.path
+            path = self.path_meta.fwd_path()
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, extensions, l4_hdr)
         spkt.set_payload(self._create_payload(spkt))

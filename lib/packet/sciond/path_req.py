@@ -23,9 +23,8 @@ import capnp  # noqa
 
 # SCION
 import proto.sciond_capnp as P
-from lib.packet.host_addr import HostAddrIPv4, HostAddrIPv6
+from lib.packet.host_addr import HostAddrIPv4, HostAddrIPv6, HostAddrNone
 from lib.packet.packet_base import Cerealizable
-from lib.packet.path import SCIONPath
 from lib.packet.sciond.base import SCIONDMsgBase
 from lib.packet.sciond.path_meta import FwdPathMeta
 from lib.packet.scion_addr import ISD_AS
@@ -42,7 +41,7 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
     def from_values(cls, id_, dst_ia, src_ia=0, max_paths=5,
                     flush=False, sibra=False):
         p = cls.P_CLS.new_message(
-            id=id_, dst=int(dst_ia), src=int(src_ia), max_paths=max_paths)
+            id=id_, dst=int(dst_ia), src=int(src_ia), maxPaths=max_paths)
         p.flags.flush = flush
         p.flags.sibra = sibra
         return cls(p)
@@ -60,9 +59,9 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
         if self.p.src:
             desc += " src=%s" % self.src_ia()
         desc += " max_paths=%d" % self.p.maxPaths
-        if self.p.flush:
+        if self.p.flags.flush:
             desc += " FLUSH"
-        if self.p.sibra:
+        if self.p.flags.sibra:
             desc += " SIBRA"
         return desc
 
@@ -87,7 +86,7 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
 
         :param entries: List of SCIONDPathReplyEntry objects.
         """
-        p = cls.P_CLS.new_message(id=id_, error_code=error)
+        p = cls.P_CLS.new_message(id=id_, errorCode=error)
         entries = p.init("entries", len(path_entries))
         for i, entry in enumerate(path_entries):
             entries[i] = entry.p
@@ -96,6 +95,11 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
     def iter_entries(self):
         for entry in self.p.entries:
             yield SCIONDPathReplyEntry(entry)
+
+    def path_entry(self, idx):
+        if idx < len(self.p.entries):
+            return SCIONDPathReplyEntry(self.p.entries[idx])
+        return None
 
     def short_desc(self):
         desc = ["id=%d error_code=%d" % (self.p.id, self.p.errorCode)]
@@ -123,7 +127,7 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         :param port: The first hop port.
         """
         assert isinstance(path, FwdPathMeta)
-        p = cls.P_CLS.new_message(path=path.pack(), port=port)
+        p = cls.P_CLS.new_message(path=path.p, port=port)
         for addr in addrs:
             if addr.TYPE in (AddrType.NONE, AddrType.IPV4):
                 p.addrs.ipv4 = addr.pack()
@@ -135,22 +139,22 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
 
     def path(self):
         if not self._path:
-            self._path = SCIONPath(self.p.path)
+            self._path = FwdPathMeta(self.p.path)
         return self._path
 
     def ipv4(self):
-        if self.p.ipv4:
+        if self.p.addrs.ipv4:
             return HostAddrIPv4(self.p.addrs.ipv4)
-        return None
+        return HostAddrNone()
 
     def ipv6(self):
-        if self.p.ipv6:
+        if self.p.addrs.ipv6:
             return HostAddrIPv6(self.p.addrs.ipv6)
         return None
 
     def short_desc(self):
         desc = ["%s:" % self.NAME]
-        desc.append("  %s", self.path().short_desc())
+        desc.append("  %s" % self.path().short_desc())
         fh_str = "  First Hop: "
         if self.ipv4():
             fh_str += " IPv4: %s" % self.ipv4()

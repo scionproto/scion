@@ -15,7 +15,6 @@
 :mod:`parse` --- Parse SCIOND messages
 ========================================
 """
-
 # SCION
 import proto.sciond_capnp as P
 from lib.errors import SCIONParseError
@@ -26,6 +25,6 @@ def parse_sciond_msg(raw):  # pragma: no cover
     wrapper = P.SCIONDMsg.from_bytes_packed(raw).as_builder()
     type_ = wrapper.which()
     for cls_ in (SCIONDPathReply, SCIONDPathRequest):
-        if cls_.PAYLOAD_TYPE == type_:
+        if cls_.MSG_TYPE == type_:
             return cls_(getattr(wrapper, type_))
-    raise SCIONParseError("Unsupported SCIOND message type: %s", type_)
+    raise SCIONParseError("Unsupported SCIOND message type: %s" % type_)

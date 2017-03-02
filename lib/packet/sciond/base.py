@@ -16,6 +16,7 @@
 ==============================================
 """
 # SCION
+import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.types import SCIONDMsgType as SMT
 
@@ -23,3 +24,12 @@ from lib.types import SCIONDMsgType as SMT
 class SCIONDMsgBase(Cerealizable):  # pragma: no cover
     # Needs to be set to the proper message type by each subclass.
     MSG_TYPE = SMT.UNSET
+
+    def pack_full(self):
+        assert not self._packed, "May only be packed once"
+        self._packed = True
+        return self._pack_full(self.p)
+
+    def _pack_full(self, p):
+        wrapper = P.SCIONDMsg.new_message(**{self.MSG_TYPE: p})
+        return wrapper.to_bytes_packed()
