@@ -125,17 +125,7 @@ class TestClientBase(TestBase):
 
     def _get_path_via_api(self):
         """Request path via SCIOND API."""
-        data = self._try_sciond_api()
-        response = parse_sciond_msg(data)
-        logging.debug(str(response))
-        if response.MSG_TYPE != SMT.PATH_REPLY:
-            logging.error(
-                "Unexpected SCIOND msg type received: %s" % response.NAME)
-            kill_self()
-        if response.p.errorCode != ReplyErrorCodes.OK:
-            logging.error(
-                "SCIOND returned an error (code=%d)." % response.p.errorCode)
-            kill_self()
+        response = self._try_sciond_api()
         path_entry = response.path_entry(0)
         self.path_meta = path_entry.path()
         fh_addr = path_entry.ipv4()
@@ -147,7 +137,6 @@ class TestClientBase(TestBase):
         sock = ReliableSocket()
         request = SCIONDPathRequest.from_values(self._req_id, self.dst.isd_as)
         packed = request.pack_full()
-        logging.debug(str(request))
         self._req_id += 1
         start = time.time()
         try:
@@ -156,13 +145,24 @@ class TestClientBase(TestBase):
             logging.critical("Error connecting to sciond: %s", e)
             kill_self()
         while time.time() - start < API_TOUT:
-            logging.debug("Sending path request to local API at %s",
-                          self.sd.api_addr)
+            logging.debug("Sending path request to local API at %s: %s",
+                          self.sd.api_addr, request)
             sock.send(packed)
             data = sock.recv()[0]
             if data:
+                response = parse_sciond_msg(data)
+                if response.MSG_TYPE != SMT.PATH_REPLY:
+                    logging.error("Unexpected SCIOND msg type received: %s" %
+                                  response.NAME)
+                    continue
+                if response.p.errorCode != ReplyErrorCodes.OK:
+                    logging.error(
+                        "SCIOND returned an error (code=%d): %s" %
+                        (response.p.errorCode,
+                         ReplyErrorCodes.describe(response.p.errorCode)))
+                    continue
                 sock.close()
-                return data
+                return response
             logging.debug("Empty response from local api.")
         logging.critical("Unable to get path from local api.")
         sock.close()
@@ -217,8 +217,9 @@ class TestClientBase(TestBase):
 
     def _send(self):
         self._send_pkt(self._build_pkt(), self.first_hop)
-        logging.debug("Interfaces: %s", ", ".join(
-            [str(ifentry) for ifentry in self.path_meta.iter_ifs()]))
+        if self.path_meta:
+            logging.debug("Interfaces: %s", ", ".join(
+                [str(ifentry) for ifentry in self.path_meta.iter_ifs()]))
 
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)

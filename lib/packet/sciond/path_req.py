@@ -72,6 +72,18 @@ class ReplyErrorCodes:  # pragma: no cover
     PS_TIMEOUT = 2
     INTERNAL = 3
 
+    @classmethod
+    def describe(cls, code):
+        if code == cls.OK:
+            return "OK"
+        if code == cls.NO_PATHS:
+            return "No paths available."
+        if code == cls.PS_TIMEOUT:
+            return "SCIOND timed out while requesting paths."
+        if code == cls.INTERNAL:
+            return "SCIOND experienced an internal error."
+        return "Unknown error"
+
 
 class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
     """SCIOND path reply message."""
