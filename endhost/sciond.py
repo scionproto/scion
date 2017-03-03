@@ -40,7 +40,7 @@ from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
-from lib.sciond_api.as_req import SCIONDASReply
+from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
@@ -259,7 +259,9 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(path_reply.pack_full(), meta)
 
     def _api_handle_as_request(self, request, meta):
-        as_reply = SCIONDASReply.from_values([self.addr.isd_as])
+        reply_entry = SCIONDASInfoReplyEntry.from_values(
+            self.addr.isd_as, self.topology.mtu, self.is_core_as())
+        as_reply = SCIONDASInfoReply.from_values([reply_entry])
         self.send_meta(as_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
