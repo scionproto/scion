@@ -365,7 +365,8 @@ class SCMPErrorTest(TestClientServerBase):
         data = ("%s<->%s" % (src, dst)).encode("UTF-8")
         for cls_ in GEN_LIST:
             logging.info("===========> Testing: %s", cls_.DESC)
-            client = cls_(self._run_sciond(src), copy.deepcopy(data), None,
+            sd, api_addr = self._run_sciond(src)
+            client = cls_(sd, api_addr, copy.deepcopy(data), None,
                           copy.deepcopy(src), copy.deepcopy(dst), 0, api=True)
             if not client.run():
                 return False
