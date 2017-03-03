@@ -108,7 +108,7 @@ class ErrorGenBadHost(ErrorGenBase):
 class ErrorGenBadVersion(ErrorGenBase):
     DESC = "bad version"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         raw = bytearray(spkt.pack())
         raw[0] |= 0x80
@@ -118,7 +118,7 @@ class ErrorGenBadVersion(ErrorGenBase):
 class ErrorGenBadSrcType(ErrorGenBase):
     DESC = "bad src type"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         raw = bytearray(spkt.pack())
         raw[0] |= 0x1
@@ -128,7 +128,7 @@ class ErrorGenBadSrcType(ErrorGenBase):
 class ErrorGenBadDstType(ErrorGenBase):
     DESC = "bad dst type"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         raw = bytearray(spkt.pack())
         raw[1] |= 0x4
@@ -140,7 +140,7 @@ class ErrorGenBadPktLenShort(ErrorGenBase):
     TYPE = SCMPCmnHdrClass.BAD_PKT_LEN
     DESC = "bad pkt length (data missing)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         self._send_raw_pkt(spkt.pack()[:-1], next_hop, port)
 
@@ -150,7 +150,7 @@ class ErrorGenBadPktLenLong(ErrorGenBase):
     TYPE = SCMPCmnHdrClass.BAD_PKT_LEN
     DESC = "bad pkt length (extra data)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         self._send_raw_pkt(spkt.pack() + bytes([0]), next_hop, port)
 
@@ -158,7 +158,7 @@ class ErrorGenBadPktLenLong(ErrorGenBase):
 class ErrorGenBadHdrLenShort(ErrorGenBase):
     DESC = "bad hdr length (too short)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[7] = 5
@@ -168,7 +168,7 @@ class ErrorGenBadHdrLenShort(ErrorGenBase):
 class ErrorGenBadHdrLenLong(ErrorGenBase):
     DESC = "bad hdr length (too long)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[7] = 255
@@ -180,7 +180,7 @@ class ErrorGenBadIOFOffsetShort(ErrorGenBase):
     TYPE = SCMPCmnHdrClass.BAD_IOF_OFFSET
     DESC = "bad IOF offset (too short)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[4] -= 8
@@ -192,7 +192,7 @@ class ErrorGenBadIOFOffsetLong(ErrorGenBase):
     TYPE = SCMPCmnHdrClass.BAD_IOF_OFFSET
     DESC = "bad IOF offset (too long)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[4] = 255
@@ -204,7 +204,7 @@ class ErrorGenBadHOFOffsetShort(ErrorGenBase):
     TYPE = SCMPCmnHdrClass.BAD_HOF_OFFSET
     DESC = "bad HOF offset (too short)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[5] = 1
@@ -216,7 +216,7 @@ class ErrorGenBadHOFOffsetLong(ErrorGenBase):
     TYPE = SCMPCmnHdrClass.BAD_HOF_OFFSET
     DESC = "bad HOF offset (too long)"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[5] = 255
@@ -228,7 +228,7 @@ class ErrorGenPathReq(ErrorGenBase):
     TYPE = SCMPPathClass.PATH_REQUIRED
     DESC = "path required"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         spkt.path = SCIONPath()
         self._send_raw_pkt(spkt.pack(), next_hop, port)
@@ -239,7 +239,7 @@ class ErrorGenBadMAC(ErrorGenBase):
     TYPE = SCMPPathClass.BAD_MAC
     DESC = "Bad MAC"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         hof = spkt.path.get_hof()
         hof.mac = bytes(hof.MAC_LEN)
@@ -251,7 +251,7 @@ class ErrorGenExpiredHOF(ErrorGenBase):
     TYPE = SCMPPathClass.EXPIRED_HOF
     DESC = "Expired HOF"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         iof = spkt.path.get_iof()
         iof.timestamp = 0
@@ -272,7 +272,7 @@ class ErrorGenBadIF(ErrorGenBase):
             return True
         return False
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         spkt.addrs.dst.isd_as = ISD_AS.from_values(3, 33)
         self._send_raw_pkt(spkt.pack(), next_hop, port)
@@ -283,7 +283,7 @@ class ErrorGenNonRoutingHOF(ErrorGenBase):
     TYPE = SCMPPathClass.NON_ROUTING_HOF
     DESC = "Non-routing HOF"
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         hof = spkt.path.get_hof()
         hof.verify_only = True
@@ -322,7 +322,7 @@ class ErrorGenBadHopByHop(ErrorGenBase):
     def _create_extensions(self):
         return [TracerouteExt.from_values(5)]
 
-    def _send_pkt(self, spkt):
+    def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         spkt.update()
         barr = bytearray(spkt.pack())
