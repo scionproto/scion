@@ -10,8 +10,8 @@ struct SCIONDMsg {
         unset @0 :Void;
         pathReq @1 :PathReq;
         pathReply @2 :PathReply;
-        asReq @3 :ASReq;
-        asReply @4 :ASReply;
+        asInfoReq @3 :ASInfoReq;
+        asInfoReply @4 :ASInfoReply;
         revNotification @5 :RevNotification;
     }
 }
@@ -53,11 +53,17 @@ struct PathInterface {
     ifID @1 :UInt64;
 }
 
-struct ASReq {
+struct ASInfoReq {
 }
 
-struct ASReply {
-    ases @0 :List(UInt32);  # List of ASes the host is part of. First entry is the default AS.
+struct ASInfoReply {
+    entries @0 :List(ASInfoReplyEntry);  # List of ASes the host is part of. First entry is the default AS.
+}
+
+struct ASInfoReplyEntry {
+    isdas @0 :UInt32;
+    mtu @1 :UInt16;  # The MTU of the AS.
+    isCore @2 :Bool;  # True, if this is a core AS.
 }
 
 struct RevNotification {

@@ -24,7 +24,7 @@ from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.sciond_api.as_req import SCIONDASRequest
+from lib.sciond_api.as_req import SCIONDASInfoRequest
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.revocation import RevocationNotification
 from lib.thread import kill_self
@@ -86,7 +86,7 @@ class E2EClient(TestClientBase):
             return ResponseRV.FAILURE
 
     def _test_as_request_reply(self):
-        as_req = SCIONDASRequest.from_values()
+        as_req = SCIONDASInfoRequest.from_values()
         self.api_socket().send(as_req.pack_full())
         data = self.api_socket().recv()[0]
         if data:
@@ -95,8 +95,8 @@ class E2EClient(TestClientBase):
                 logging.error("Unexpected SCIOND msg type received: %s" %
                               response.NAME)
                 return False
-            for isd_as in response.iter_ases():
-                if isd_as == self.addr.isd_as:
+            for entry in response.iter_entries():
+                if entry.isd_as() == self.addr.isd_as:
                     logging.debug("Received correct AS reply.")
                     return True
         logging.error("Wrong AS Reply received.")

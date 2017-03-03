@@ -20,16 +20,16 @@ import capnp  # noqa
 
 # SCION
 import proto.sciond_capnp as P
+from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.sciond_api.base import SCIONDMsgBase
 from lib.types import SCIONDMsgType as SMT
 
 
-class SCIONDASRequest(SCIONDMsgBase):
-    """ISD-AS request"""
-    NAME = "ASRequest"
+class SCIONDASInfoRequest(SCIONDMsgBase):
+    NAME = "ASInfoRequest"
     MSG_TYPE = SMT.AS_REQUEST
-    P_CLS = P.ASReq
+    P_CLS = P.ASInfoReq
 
     @classmethod
     def from_values(cls):
@@ -40,24 +40,42 @@ class SCIONDASRequest(SCIONDMsgBase):
         return self.NAME
 
 
-class SCIONDASReply(SCIONDMsgBase):
-    """ISD-AS reply."""
-    NAME = "ASReply"
+class SCIONDASInfoReply(SCIONDMsgBase):
+    NAME = "ASInfoReply"
     MSG_TYPE = SMT.AS_REPLY
-    P_CLS = P.ASReply
+    P_CLS = P.ASInfoReply
 
     @classmethod
-    def from_values(cls, ases):
+    def from_values(cls, entries):
         p = cls.P_CLS.new_message()
-        as_list = p.init("ases", len(ases))
-        for i, isd_as in enumerate(ases):
-            as_list[i] = int(isd_as)
+        entry_list = p.init("entries", len(entries))
+        for i, entry in enumerate(entries):
+            entry_list[i] = entry.p
         return cls(p)
 
-    def iter_ases(self):
-        for isd_as in self.p.ases:
-            yield ISD_AS(isd_as)
+    def entry(self, idx):
+        return SCIONDASInfoReplyEntry(self.p.entries[idx])
+
+    def iter_entries(self):
+        for entry in self.p.entries:
+            yield SCIONDASInfoReplyEntry(entry)
 
     def short_desc(self):
-        return "%s: %s" % (
-            self.NAME, ", ".join(str(isd_as) for isd_as in self.iter_ases()))
+        return "\n".join([entry.short_desc() for entry in self.iter_entrie()])
+
+
+class SCIONDASInfoReplyEntry(Cerealizable):
+    NAME = "ASInfoReplyEntry"
+    P_CLS = P.ASInfoReplyEntry
+
+    @classmethod
+    def from_values(cls, isd_as, mtu, is_core):
+        p = cls.P_CLS.new_message(isdas=int(isd_as), mtu=mtu, isCore=is_core)
+        return cls(p)
+
+    def isd_as(self):
+        return ISD_AS(self.p.isdas)
+
+    def short_desc(self):
+        return "id=%s mtu=%d is_core=%s" % (
+            self.isd_as(), self.p.mtu, self.p.isCore)
