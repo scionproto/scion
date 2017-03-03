@@ -114,10 +114,12 @@ class TestClientServerExtension(TestClientServerBase):
     NAME = "CliSrvExt"
 
     def _create_server(self, data, finished, addr):
-        return ExtServer(self._run_sciond(addr), data, finished, addr)
+        sd, api_addr = self._run_sciond(addr)
+        return ExtServer(sd, api_addr, data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return ExtClient(self._run_sciond(src), data, finished, src, dst, port)
+        sd, api_addr = self._run_sciond(src)
+        return ExtClient(sd, api_addr, data, finished, src, dst, port)
 
 
 def main():
