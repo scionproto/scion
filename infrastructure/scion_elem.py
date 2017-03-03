@@ -267,8 +267,8 @@ class SCIONElement(object):
         try:
             return type_map[scmp.type]
         except KeyError:
-            logging.error("SCMP %s type not supported: %s(%s)\n%s",
-                          scmp.type, scmp_type_name(scmp.type), pkt)
+            logging.error("SCMP %s type not supported: %s(%s)\n%s", scmp.type,
+                          scmp_type_name(scmp.class_, scmp.type), pkt)
         return None
 
     def _parse_packet(self, packet):
