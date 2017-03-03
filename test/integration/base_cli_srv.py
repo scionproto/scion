@@ -71,6 +71,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.finished = finished
         self.addr = addr
         self._timeout = timeout
+        self._api_socket = None
         self.sock = self._create_socket(addr)
         assert self.sock
         self.success = None
@@ -78,6 +79,16 @@ class TestBase(object, metaclass=ABCMeta):
     @abstractmethod
     def run(self):
         raise NotImplementedError
+
+    def api_socket(self):
+        if not self._api_socket:
+            self._api_socket = ReliableSocket()
+            try:
+                self._api_socket.connect(self.api_addr)
+            except OSError as e:
+                logging.critical("Error connecting to sciond: %s", e)
+                kill_self()
+        return self._api_socket
 
     def _create_socket(self, addr):
         sock = ReliableSocket(reg=(addr, 0, True, None))
@@ -99,6 +110,8 @@ class TestBase(object, metaclass=ABCMeta):
 
     def _shutdown(self):
         self.sock.close()
+        if self._api_socket:
+            self._api_socket.close()
 
 
 class TestClientBase(TestBase):
@@ -136,21 +149,15 @@ class TestClientBase(TestBase):
         self.first_hop = (fh_addr, port)
 
     def _try_sciond_api(self):
-        sock = ReliableSocket()
         request = SCIONDPathRequest.from_values(self._req_id, self.dst.isd_as)
         packed = request.pack_full()
         self._req_id += 1
         start = time.time()
-        try:
-            sock.connect(self.api_addr)
-        except OSError as e:
-            logging.critical("Error connecting to sciond: %s", e)
-            kill_self()
         while time.time() - start < API_TOUT:
             logging.debug("Sending path request to local API at %s: %s",
                           self.api_addr, request)
-            sock.send(packed)
-            data = sock.recv()[0]
+            self.api_socket().send(packed)
+            data = self.api_socket().recv()[0]
             if data:
                 response = parse_sciond_msg(data)
                 if response.MSG_TYPE != SMT.PATH_REPLY:
@@ -163,11 +170,9 @@ class TestClientBase(TestBase):
                         (response.p.errorCode,
                          SCIONDPathReplyError.describe(response.p.errorCode)))
                     continue
-                sock.close()
                 return response
             logging.debug("Empty response from local api.")
         logging.critical("Unable to get path from local api.")
-        sock.close()
         kill_self()
 
     def _get_path_direct(self, flags=0):

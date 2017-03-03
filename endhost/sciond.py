@@ -207,6 +207,8 @@ class SCIONDaemon(SCIONElement):
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
+        elif msg.MSG_TYPE == SMT.REVOCATION:
+            self.handle_revocation(msg.rev_info(), meta)
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))

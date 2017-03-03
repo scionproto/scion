@@ -12,7 +12,7 @@ struct SCIONDMsg {
         pathReply @2 :PathReply;
         asReq @3 :ASReq;
         asReply @4 :ASReply;
-        revInfo @5 :RevInfo.RevInfo;
+        revNotification @5 :RevNotification;
     }
 }
 
@@ -58,4 +58,8 @@ struct ASReq {
 
 struct ASReply {
     ases @0 :List(UInt32);  # List of ASes the host is part of. First entry is the default AS.
+}
+
+struct RevNotification {
+    revInfo @0 :RevInfo.RevInfo;
 }

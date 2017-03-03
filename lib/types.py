@@ -158,4 +158,4 @@ class SCIONDMsgType(TypeBase):
     PATH_REPLY = "pathReply"
     AS_REQUEST = "asReq"
     AS_REPLY = "asReply"
-    REVOCATION = "revInfo"
+    REVOCATION = "revNotification"
