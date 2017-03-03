@@ -21,7 +21,7 @@ import capnp  # noqa
 # SCION
 import proto.sciond_capnp as P
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.packet.sciond.base import SCIONDMsgBase
+from lib.sciond_api.base import SCIONDMsgBase
 from lib.types import SCIONDMsgType as SMT
 
 

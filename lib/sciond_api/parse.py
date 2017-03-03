@@ -18,6 +18,7 @@
 # SCION
 import proto.sciond_capnp as P
 from lib.errors import SCIONParseError
+from lib.sciond_api.as_req import SCIONDASReply, SCIONDASRequest
 from lib.sciond_api.path_req import SCIONDPathReply, SCIONDPathRequest
 from lib.sciond_api.revocation import RevocationNotification
 
@@ -25,7 +26,8 @@ from lib.sciond_api.revocation import RevocationNotification
 def parse_sciond_msg(raw):  # pragma: no cover
     wrapper = P.SCIONDMsg.from_bytes_packed(raw).as_builder()
     type_ = wrapper.which()
-    for cls_ in (SCIONDPathReply, SCIONDPathRequest, RevocationNotification):
+    for cls_ in (SCIONDPathReply, SCIONDPathRequest, RevocationNotification,
+                 SCIONDASRequest, SCIONDASReply):
         if cls_.MSG_TYPE == type_:
             return cls_(getattr(wrapper, type_))
     raise SCIONParseError("Unsupported SCIOND message type: %s" % type_)
