@@ -40,6 +40,7 @@ from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
+from lib.sciond_api.as_req import SCIONDASReply
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
@@ -209,6 +210,8 @@ class SCIONDaemon(SCIONElement):
                 daemon=True).start()
         elif msg.MSG_TYPE == SMT.REVOCATION:
             self.handle_revocation(msg.rev_info(), meta)
+        elif msg.MSG_TYPE == SMT.AS_REQUEST:
+            self._api_handle_as_request(msg, meta)
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
@@ -254,6 +257,10 @@ class SCIONDaemon(SCIONElement):
     def _send_path_reply(self, req_id, reply_entries, error, meta):
         path_reply = SCIONDPathReply.from_values(req_id, reply_entries, error)
         self.send_meta(path_reply.pack_full(), meta)
+
+    def _api_handle_as_request(self, request, meta):
+        as_reply = SCIONDASReply.from_values([self.addr.isd_as])
+        self.send_meta(as_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)

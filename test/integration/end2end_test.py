@@ -24,8 +24,11 @@ from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.packet.sciond.revocation import RevocationNotification
-from lib.types import L4Proto
+from lib.sciond_api.as_req import SCIONDASRequest
+from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.revocation import RevocationNotification
+from lib.thread import kill_self
+from lib.types import L4Proto, SCIONDMsgType as SMT
 from test.integration.base_cli_srv import (
     ResponseRV,
     setup_main,
@@ -81,6 +84,33 @@ class E2EClient(TestClientBase):
         else:
             logging.error("Received SCMP error:\n%s", spkt)
             return ResponseRV.FAILURE
+
+    def _test_as_request_reply(self):
+        as_req = SCIONDASRequest.from_values()
+        self.api_socket().send(as_req.pack_full())
+        data = self.api_socket().recv()[0]
+        if data:
+            response = parse_sciond_msg(data)
+            if response.MSG_TYPE != SMT.AS_REPLY:
+                logging.error("Unexpected SCIOND msg type received: %s" %
+                              response.NAME)
+                return False
+            for isd_as in response.iter_ases():
+                if isd_as == self.addr.isd_as:
+                    logging.debug("Received correct AS reply.")
+                    return True
+        logging.error("Wrong AS Reply received.")
+        return False
+
+    def run(self):
+        """
+        Tests AS request/reply functionality before entering the sending loop.
+        """
+        if not self._test_as_request_reply():
+            self._shutdown()
+            kill_self()
+            return
+        super().run()
 
 
 class E2EServer(TestServerBase):
