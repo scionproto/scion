@@ -45,7 +45,7 @@ from lib.rev_cache import RevCache
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
-    ReplyErrorCodes,
+    SCIONDPathReplyError,
     SCIONDPathReply,
     SCIONDPathReplyEntry,
 )
@@ -218,7 +218,8 @@ class SCIONDaemon(SCIONElement):
         if request.p.flags.sibra:
             logging.warning(
                 "Requesting SIBRA paths over SCIOND API not supported yet.")
-            self._send_path_reply(req_id, [], ReplyErrorCodes.INTERNAL, meta)
+            self._send_path_reply(
+                req_id, [], SCIONDPathReplyError.INTERNAL, meta)
             return
 
         dst_ia = request.dst_ia()
@@ -239,12 +240,13 @@ class SCIONDaemon(SCIONElement):
             fwd_if = path_meta.fwd_path().get_fwd_if()
             # Set dummy host addr if path is empty.
             if fwd_if == 0:
-                haddr, port = HostAddrNone(), SCION_UDP_EH_DATA_PORT
+                haddr, port = None, SCION_UDP_EH_DATA_PORT
             else:
                 br = self.ifid2br[fwd_if]
                 haddr, port = br.addr, br.port
+            addrs = [haddr] if haddr else []
             reply_entry = SCIONDPathReplyEntry.from_values(
-                path_meta, [haddr], port)
+                path_meta, addrs, port)
             reply_entries.append(reply_entry)
         self._send_path_reply(req_id, reply_entries, error, meta)
 
@@ -313,15 +315,16 @@ class SCIONDaemon(SCIONElement):
             # core AS in this ISD, and the local AS is in the core
             empty = SCIONPath()
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
-            return [empty_meta], ReplyErrorCodes.OK
+            return [empty_meta], SCIONDPathReplyError.OK
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))
         if not self._wait_for_events([e], deadline):
             logging.error("Query timed out for %s", dst_ia)
-            return [], ReplyErrorCodes.PS_TIMEOUT
+            return [], SCIONDPathReplyError.PS_TIMEOUT
         paths = self.path_resolution(dst_ia, flags=flags)
-        error_code = ReplyErrorCodes.OK if paths else ReplyErrorCodes.NO_PATHS
+        error_code = (SCIONDPathReplyError.OK if paths
+                      else SCIONDPathReplyError.NO_PATHS)
         return paths, error_code
 
     def path_resolution(self, dst_ia, flags=()):

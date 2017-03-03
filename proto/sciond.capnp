@@ -50,12 +50,12 @@ struct FwdPathMeta {
 
 struct PathInterface {
     isdas @0 :UInt32;
-    ifID @1 :UInt8;
+    ifID @1 :UInt64;
 }
 
 struct ASReq {
 }
 
 struct ASReply {
-    ases @0 :List(UInt32);  # List of ASes the host is part of
+    ases @0 :List(UInt32);  # List of ASes the host is part of. First entry is the default AS.
 }

@@ -23,7 +23,7 @@ import capnp  # noqa
 
 # SCION
 import proto.sciond_capnp as P
-from lib.packet.host_addr import HostAddrIPv4, HostAddrIPv6, HostAddrNone
+from lib.packet.host_addr import HostAddrIPv4, HostAddrIPv6
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.sciond_api.base import SCIONDMsgBase
@@ -38,10 +38,12 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
     P_CLS = P.PathReq
 
     @classmethod
-    def from_values(cls, id_, dst_ia, src_ia=0, max_paths=5,
+    def from_values(cls, id_, dst_ia, src_ia=None, max_paths=5,
                     flush=False, sibra=False):
         p = cls.P_CLS.new_message(
-            id=id_, dst=int(dst_ia), src=int(src_ia), maxPaths=max_paths)
+            id=id_, dst=int(dst_ia), maxPaths=max_paths)
+        if src_ia:
+            p.src = int(src_ia)
         p.flags.flush = flush
         p.flags.sibra = sibra
         return cls(p)
@@ -55,18 +57,18 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
         return None
 
     def short_desc(self):
-        desc = "id=%d, dst=%s" % (self.p.id, self.dst_ia())
+        desc = ["id=%d, dst=%s" % (self.p.id, self.dst_ia())]
         if self.p.src:
-            desc += " src=%s" % self.src_ia()
-        desc += " max_paths=%d" % self.p.maxPaths
+            desc.append("src=%s" % self.src_ia())
+        desc.append("max_paths=%d" % self.p.maxPaths)
         if self.p.flags.flush:
-            desc += " FLUSH"
+            desc.append("FLUSH")
         if self.p.flags.sibra:
-            desc += " SIBRA"
-        return desc
+            desc.append("SIBRA")
+        return " ".join(desc)
 
 
-class ReplyErrorCodes:  # pragma: no cover
+class SCIONDPathReplyError:  # pragma: no cover
     OK = 0
     NO_PATHS = 1
     PS_TIMEOUT = 2
@@ -92,7 +94,7 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
     P_CLS = P.PathReply
 
     @classmethod
-    def from_values(cls, id_, path_entries, error=ReplyErrorCodes.OK):
+    def from_values(cls, id_, path_entries, error=SCIONDPathReplyError.OK):
         """
         Returns a SCIONDPathReply object with the specified entries.
 
@@ -109,9 +111,7 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
             yield SCIONDPathReplyEntry(entry)
 
     def path_entry(self, idx):
-        if idx < len(self.p.entries):
-            return SCIONDPathReplyEntry(self.p.entries[idx])
-        return None
+        return SCIONDPathReplyEntry(self.p.entries[idx])
 
     def short_desc(self):
         desc = ["id=%d error_code=%d" % (self.p.id, self.p.errorCode)]
@@ -141,7 +141,7 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         assert isinstance(path, FwdPathMeta)
         p = cls.P_CLS.new_message(path=path.p, port=port)
         for addr in addrs:
-            if addr.TYPE in (AddrType.NONE, AddrType.IPV4):
+            if addr.TYPE == AddrType.IPV4:
                 p.addrs.ipv4 = addr.pack()
             elif addr.TYPE == AddrType.IPV6:
                 p.addrs.ipv6 = addr.pack()
@@ -157,7 +157,7 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
     def ipv4(self):
         if self.p.addrs.ipv4:
             return HostAddrIPv4(self.p.addrs.ipv4)
-        return HostAddrNone()
+        return None
 
     def ipv6(self):
         if self.p.addrs.ipv6:
@@ -166,12 +166,12 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
 
     def short_desc(self):
         desc = ["%s:" % self.NAME]
-        desc.append("  %s" % self.path().short_desc())
-        fh_str = "  First Hop: "
+        desc.append("  %s" % self.path())
+        fh_str = ["  First Hop:"]
         if self.ipv4():
-            fh_str += " IPv4: %s" % self.ipv4()
+            fh_str.append("IPv4: %s" % self.ipv4())
         if self.ipv6():
-            fh_str += " IPv6: %s" % self.ipv6()
-        fh_str += " Port: %d" % self.p.port
-        desc.append(fh_str)
+            fh_str.append("IPv6: %s" % self.ipv6())
+        fh_str.append("Port: %d" % self.p.port)
+        desc.append(" ".join(fh_str))
         return "\n".join(desc)
