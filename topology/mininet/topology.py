@@ -25,8 +25,6 @@ class ScionTopo(Topo):
     Topology built from a SCION network config."
     """
     def __init__(self, mnconfig, **params):
-
-        # Initialize topology
         Topo.__init__(self, **params)
         self.switch_map = {}
         self._genTopo(mnconfig)
