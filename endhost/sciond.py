@@ -36,6 +36,12 @@ from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
+from lib.packet.scion_addr import ISD_AS
+from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
+from lib.path_db import DBResult, PathSegmentDB
+from lib.requests import RequestHandler
+from lib.rev_cache import RevCache
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
@@ -43,12 +49,6 @@ from lib.sciond_api.path_req import (
     SCIONDPathReply,
     SCIONDPathReplyEntry,
 )
-from lib.packet.scion_addr import ISD_AS
-from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
-from lib.path_db import DBResult, PathSegmentDB
-from lib.requests import RequestHandler
-from lib.rev_cache import RevCache
 from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
