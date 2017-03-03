@@ -36,16 +36,16 @@ from lib.packet.host_addr import HostAddrNone
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
-from lib.packet.sciond.parse import parse_sciond_msg
-from lib.packet.sciond.path_meta import FwdPathMeta
-from lib.packet.sciond.path_req import (
+from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.path_meta import FwdPathMeta
+from lib.sciond_api.path_req import (
     ReplyErrorCodes,
     SCIONDPathReply,
     SCIONDPathReplyEntry,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.path_combinator import PathCombinator
+from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
@@ -353,7 +353,7 @@ class SCIONDaemon(SCIONElement):
                 res.add((None, cseg, None))
         if sibra:
             return res
-        return PathCombinator.tuples_to_full_paths(res)
+        return tuples_to_full_paths(res)
 
     def _resolve_core_not_core(self, dst_ia, sibra=False):
         """Resolve path from core to non-core."""
@@ -372,7 +372,7 @@ class SCIONDaemon(SCIONElement):
                 res.add((None, cseg, dseg))
         if sibra:
             return res
-        return PathCombinator.tuples_to_full_paths(res)
+        return tuples_to_full_paths(res)
 
     def _resolve_not_core_core(self, dst_ia, sibra=False):
         """Resolve path from non-core to core."""
@@ -390,14 +390,14 @@ class SCIONDaemon(SCIONElement):
                 res.add((useg, cseg, None))
         if sibra:
             return res
-        return PathCombinator.tuples_to_full_paths(res)
+        return tuples_to_full_paths(res)
 
     def _resolve_not_core_not_core_scion(self, dst_ia):
         """Resolve SCION path from non-core to non-core."""
         up_segs = self.up_segments()
         down_segs = self.down_segments(last_ia=dst_ia)
         core_segs = self._calc_core_segs(dst_ia[0], up_segs, down_segs)
-        full_paths = PathCombinator.build_shortcut_paths(
+        full_paths = build_shortcut_paths(
             up_segs, down_segs, self.peer_revs)
         tuples = []
         for up_seg in up_segs:
@@ -405,7 +405,7 @@ class SCIONDaemon(SCIONElement):
                 tuples.append((up_seg, None, down_seg))
                 for core_seg in core_segs:
                     tuples.append((up_seg, core_seg, down_seg))
-        full_paths.extend(PathCombinator.tuples_to_full_paths(tuples))
+        full_paths.extend(tuples_to_full_paths(tuples))
         return full_paths
 
     def _resolve_not_core_not_core_sibra(self, dst_ia):

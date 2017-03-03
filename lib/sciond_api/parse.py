@@ -18,7 +18,7 @@
 # SCION
 import proto.sciond_capnp as P
 from lib.errors import SCIONParseError
-from lib.packet.sciond.path_req import SCIONDPathReply, SCIONDPathRequest
+from lib.sciond_api.path_req import SCIONDPathReply, SCIONDPathRequest
 
 
 def parse_sciond_msg(raw):  # pragma: no cover

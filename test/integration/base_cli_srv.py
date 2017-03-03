@@ -39,8 +39,8 @@ from lib.packet.host_addr import (
 )
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.sciond.parse import parse_sciond_msg
-from lib.packet.sciond.path_req import (
+from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.path_req import (
     ReplyErrorCodes,
     SCIONDPathRequest,
 )
