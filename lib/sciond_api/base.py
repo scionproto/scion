@@ -18,12 +18,14 @@
 # SCION
 import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.types import SCIONDMsgType as SMT
 
 
 class SCIONDMsgBase(Cerealizable):  # pragma: no cover
-    # Needs to be set to the proper message type by each subclass.
-    MSG_TYPE = SMT.UNSET
+    """
+    Base class for SCIOND API messages.
+
+    Subclasses need to set cls.MSG_TYPE to an appropriate value.
+    """
 
     def pack_full(self):
         assert not self._packed, "May only be packed once"

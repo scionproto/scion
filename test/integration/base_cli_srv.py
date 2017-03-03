@@ -43,12 +43,12 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_req import (
-    ReplyErrorCodes,
+    SCIONDPathReplyError,
     SCIONDPathRequest,
 )
 from lib.socket import ReliableSocket
 from lib.thread import kill_self, thread_safety_net
-from lib.types import AddrType, SCIONDMsgType as SMT
+from lib.types import SCIONDMsgType as SMT
 from lib.util import (
     handle_signals,
     load_yaml_file,
@@ -130,7 +130,7 @@ class TestClientBase(TestBase):
         path_entry = response.path_entry(0)
         self.path_meta = path_entry.path()
         fh_addr = path_entry.ipv4()
-        if fh_addr.TYPE == AddrType.NONE:
+        if not fh_addr:
             fh_addr = self.dst.host
         self.first_hop = (fh_addr, path_entry.p.port)
 
@@ -156,11 +156,11 @@ class TestClientBase(TestBase):
                     logging.error("Unexpected SCIOND msg type received: %s" %
                                   response.NAME)
                     continue
-                if response.p.errorCode != ReplyErrorCodes.OK:
+                if response.p.errorCode != SCIONDPathReplyError.OK:
                     logging.error(
                         "SCIOND returned an error (code=%d): %s" %
                         (response.p.errorCode,
-                         ReplyErrorCodes.describe(response.p.errorCode)))
+                         SCIONDPathReplyError.describe(response.p.errorCode)))
                     continue
                 sock.close()
                 return response
