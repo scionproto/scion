@@ -25,9 +25,9 @@ import capnp  # noqa
 import proto.sciond_capnp as P
 from lib.packet.host_addr import HostAddrIPv4, HostAddrIPv6, HostAddrNone
 from lib.packet.packet_base import Cerealizable
+from lib.packet.scion_addr import ISD_AS
 from lib.sciond_api.base import SCIONDMsgBase
 from lib.sciond_api.path_meta import FwdPathMeta
-from lib.packet.scion_addr import ISD_AS
 from lib.types import AddrType, SCIONDMsgType as SMT
 
 

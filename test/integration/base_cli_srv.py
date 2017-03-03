@@ -39,13 +39,13 @@ from lib.packet.host_addr import (
 )
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_req import (
     ReplyErrorCodes,
     SCIONDPathRequest,
 )
-from lib.packet.scion_addr import ISD_AS, SCIONAddr
-from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import ReliableSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType, SCIONDMsgType as SMT
