@@ -43,6 +43,7 @@ log "Starting mininet"
 make -C endhost; make install -C endhost
 bin/dispatcher 2>logs/dispatcher.OUT &
 DISPATCHER_PID=$!
+echo "Dispatcher: $DISPATCHER_PID"
 sudo SUPERVISORD=$(which supervisord) python topology/mininet/topology.py
 kill $DISPATCHER_PID
 

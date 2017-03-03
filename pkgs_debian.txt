@@ -20,6 +20,7 @@ net-tools
 netcat-openbsd
 ntp
 parallel
+python-flake8
 python-minimal
 python-pip
 python-setuptools
