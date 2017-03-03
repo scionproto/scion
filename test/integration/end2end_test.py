@@ -115,10 +115,12 @@ class TestEnd2End(TestClientServerBase):
     NAME = "End2End"
 
     def _create_server(self, data, finished, addr):
-        return E2EServer(self._run_sciond(addr), data, finished, addr)
+        sd, api_addr = self._run_sciond(addr)
+        return E2EServer(sd, api_addr, data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return E2EClient(self._run_sciond(src), data, finished, src, dst, port,
+        sd, api_addr = self._run_sciond(src)
+        return E2EClient(sd, api_addr, data, finished, src, dst, port,
                          retries=self.retries)
 
 

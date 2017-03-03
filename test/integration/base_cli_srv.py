@@ -64,8 +64,9 @@ class ResponseRV:
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, sd, data, finished, addr, timeout=1.0):
+    def __init__(self, sd, api_addr, data, finished, addr, timeout=1.0):
         self.sd = sd
+        self.api_addr = api_addr
         self.data = data
         self.finished = finished
         self.addr = addr
@@ -104,7 +105,7 @@ class TestClientBase(TestBase):
     """
     Base client app
     """
-    def __init__(self, sd, data, finished, addr, dst, dport, api=True,
+    def __init__(self, sd, api_addr, data, finished, addr, dst, dport, api=True,
                  timeout=3.0, retries=0):
         self.dst = dst
         self.dport = dport
@@ -113,7 +114,7 @@ class TestClientBase(TestBase):
         self.first_hop = None
         self.retries = retries
         self._req_id = 0
-        super().__init__(sd, data, finished, addr, timeout)
+        super().__init__(sd, api_addr, data, finished, addr, timeout)
         self._get_path(api)
 
     def _get_path(self, api):
@@ -140,7 +141,7 @@ class TestClientBase(TestBase):
         self._req_id += 1
         start = time.time()
         try:
-            sock.connect(self.sd.api_addr)
+            sock.connect(self.api_addr)
         except OSError as e:
             logging.critical("Error connecting to sciond: %s", e)
             kill_self()
@@ -357,23 +358,26 @@ class TestClientServerBase(object):
         """
         Instantiate server app
         """
-        return TestServerBase(self._run_sciond(addr), data, finished, addr)
+        sd, api_addr = self._run_sciond(addr)
+        return TestServerBase(sd, api_addr, data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
         """
         Instantiate client app
         """
-        return TestClientBase(self._run_sciond(src), data, finished, src, dst,
+        sd, api_addr = self._run_sciond(src)
+        return TestClientBase(sd, api_addr, data, finished, src, dst,
                               port, retries=self.retries)
 
     def _run_sciond(self, addr):
+        api_addr = SCIOND_API_SOCKDIR + "%s_%s.sock" % (
+                self.NAME, addr.isd_as)
         if addr.isd_as not in self.scionds:
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port
             self.scionds[addr.isd_as] = start_sciond(
-                addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
-                (self.NAME, addr.isd_as))
-        return self.scionds[addr.isd_as]
+                addr, api=True, api_addr=api_addr)
+        return self.scionds[addr.isd_as], api_addr
 
     def _stop_scionds(self):
         for sd in self.scionds.values():
