@@ -61,6 +61,7 @@ from lib.types import (
 )
 from lib.util import SCIONTime
 SCIOND_API_SOCKDIR = "/run/shm/sciond/"
+_FLUSH_FLAG = "FLUSH"
 
 
 class SCIONDaemon(SCIONElement):
@@ -227,7 +228,10 @@ class SCIONDaemon(SCIONElement):
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, src_ia, dst_ia)
-        paths, error = self.get_paths(dst_ia)[:request.p.maxPaths]
+        flags = ()
+        if request.p.flags.flush:
+            flags = (_FLUSH_FLAG)
+        paths, error = self.get_paths(dst_ia, flags)[:request.p.maxPaths]
         logging.debug("Replying to api request for %s with %d paths",
                       dst_ia, len(paths))
         reply_entries = []
@@ -291,9 +295,17 @@ class SCIONDaemon(SCIONElement):
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 
+    def _flush_dbs(self):
+        self.core_segments.flush()
+        self.down_segments.flush()
+        self.up_segments.flush()
+
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""
         logging.debug("Paths requested for %s %s", dst_ia, flags)
+        if _FLUSH_FLAG in flags:
+            logging.info("Flushing PathDBs.")
+            self._flush_path_dbs()
         if self.addr.isd_as == dst_ia or (
                 self.addr.isd_as.any_as() == dst_ia and
                 self.topology.is_core_as):
