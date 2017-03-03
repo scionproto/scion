@@ -1,3 +1,20 @@
+# Copyright 2017 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+:mod:`lib_path_combinator_test` --- lib.path_combinator test
+============================================================
+"""
 # Stdlib
 from itertools import product
 from unittest.mock import patch, call
@@ -7,9 +24,9 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib import path_combinator
 from lib.packet.path import SCIONPath
-from lib.packet.sciond.path_meta import FwdPathMeta, PathInterface
-from lib.path_combinator import PathCombinator
+from lib.sciond_api.path_meta import FwdPathMeta, PathInterface
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
@@ -33,9 +50,9 @@ class PathCombinatorBase(object):
 
 class TestPathCombinatorBuildShortcutPaths(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator.build_shortcut_paths
+    Unit tests for lib.path_combinator.build_shortcut_paths
     """
-    @patch("lib.path_combinator.PathCombinator._build_shortcuts",
+    @patch("lib.path_combinator._build_shortcuts",
            new_callable=create_mock)
     def test(self, build_path):
         up_segments = ['up0', 'up1']
@@ -43,7 +60,7 @@ class TestPathCombinatorBuildShortcutPaths(object):
         build_path.side_effect = [['path0'], ['path1'], [], ['path1']]
         peer_revs = create_mock()
         ntools.eq_(
-            PathCombinator.build_shortcut_paths(
+            path_combinator.build_shortcut_paths(
                 up_segments, down_segments, peer_revs),
             ["path0", "path1"])
         calls = [call(*x, peer_revs)
@@ -53,18 +70,18 @@ class TestPathCombinatorBuildShortcutPaths(object):
 
 class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
     """
-    Unit tests for lib.path_combinator.PathCombinator._build_shortcuts
+    Unit tests for lib.path_combinator._build_shortcuts
     """
     def _check_none(self, up_seg, down_seg):
         peer_revs = create_mock()
         ntools.eq_(
-            PathCombinator._build_shortcuts(up_seg, down_seg, peer_revs), [])
+            path_combinator._build_shortcuts(up_seg, down_seg, peer_revs), [])
 
     def test_none(self):
         for up, down in self._generate_none():
             yield self._check_none, up, down
 
-    @patch("lib.path_combinator.PathCombinator._get_xovr_peer",
+    @patch("lib.path_combinator._get_xovr_peer",
            new_callable=create_mock)
     def test_no_xovr_peer(self, get_xovr_peer):
         up = self._mk_seg(True)
@@ -72,15 +89,15 @@ class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
         get_xovr_peer.return_value = None, None
         peer_revs = create_mock()
         # Call
-        ntools.eq_(PathCombinator._build_shortcuts(up, down, peer_revs), [])
+        ntools.eq_(path_combinator._build_shortcuts(up, down, peer_revs), [])
         # Tests
         get_xovr_peer.assert_called_once_with(up, down, peer_revs)
 
-    @patch("lib.path_combinator.PathCombinator._join_xovr",
+    @patch("lib.path_combinator._join_xovr",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._join_peer",
+    @patch("lib.path_combinator._join_peer",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._get_xovr_peer",
+    @patch("lib.path_combinator._get_xovr_peer",
            new_callable=create_mock)
     def _check_xovrs_peers(self, xovr, peer, is_peer, get_xovr_peer,
                            join_peer, join_xovr):
@@ -90,10 +107,10 @@ class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
         peer_revs = create_mock()
         # Call
         if is_peer:
-            ntools.eq_(PathCombinator._build_shortcuts(up, down, peer_revs),
+            ntools.eq_(path_combinator._build_shortcuts(up, down, peer_revs),
                        join_peer.return_value)
         else:
-            ntools.eq_(PathCombinator._build_shortcuts(up, down, peer_revs),
+            ntools.eq_(path_combinator._build_shortcuts(up, down, peer_revs),
                        join_xovr.return_value)
         # Tests
         if is_peer:
@@ -118,13 +135,13 @@ class TestPathCombinatorBuildShortcuts(PathCombinatorBase):
 
 class TestPathCombinatorCopySegment(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._copy_segment
+    Unit tests for lib.path_combinator._copy_segment
     """
     def test_no_segment(self):
-        ntools.eq_(PathCombinator._copy_segment(None, False, False, "xovrs"),
+        ntools.eq_(path_combinator._copy_segment(None, False, False, "xovrs"),
                    (None, None, float("inf")))
 
-    @patch("lib.path_combinator.PathCombinator._copy_hofs",
+    @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
     @patch("lib.path_combinator.copy.deepcopy", autospec=True)
     def test_copy_up(self, deepcopy, copy_hofs):
@@ -138,7 +155,7 @@ class TestPathCombinatorCopySegment(object):
             hofs.append(hof)
         copy_hofs.return_value = hofs, None
         # Call
-        ntools.eq_(PathCombinator._copy_segment(seg, True, True),
+        ntools.eq_(path_combinator._copy_segment(seg, True, True),
                    (info, hofs, None))
         # Tests
         deepcopy.assert_called_once_with(seg.info)
@@ -149,7 +166,7 @@ class TestPathCombinatorCopySegment(object):
         ntools.eq_(hofs[1].xover, False)
         ntools.eq_(hofs[2].xover, True)
 
-    @patch("lib.path_combinator.PathCombinator._copy_hofs",
+    @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
     @patch("lib.path_combinator.copy.deepcopy", autospec=True)
     def test_copy_down(self, deepcopy, copy_hofs):
@@ -158,7 +175,7 @@ class TestPathCombinatorCopySegment(object):
         deepcopy.return_value = info
         copy_hofs.return_value = "hofs", None
         # Call
-        ntools.eq_(PathCombinator._copy_segment(seg, False, False, up=False),
+        ntools.eq_(path_combinator._copy_segment(seg, False, False, up=False),
                    (info, "hofs", None))
         # Tests
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
@@ -167,16 +184,16 @@ class TestPathCombinatorCopySegment(object):
 
 class TestPathCombinatorGetXovrPeer(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._get_xovr_peer
+    Unit tests for lib.path_combinator._get_xovr_peer
     """
     def test_none(self):
         seg = create_mock_full({"iter_asms()": []})
         peer_revs = create_mock()
         # Call
-        ntools.eq_(PathCombinator._get_xovr_peer(seg, seg, peer_revs),
+        ntools.eq_(path_combinator._get_xovr_peer(seg, seg, peer_revs),
                    (None, None))
 
-    @patch("lib.path_combinator.PathCombinator._find_peer_hfs",
+    @patch("lib.path_combinator._find_peer_hfs",
            new_callable=create_mock)
     def test_xovr(self, find):
         up_asms = [
@@ -194,10 +211,10 @@ class TestPathCombinatorGetXovrPeer(object):
         find.return_value = False
         peer_revs = create_mock()
         # Call
-        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg, peer_revs),
+        ntools.eq_(path_combinator._get_xovr_peer(up_seg, down_seg, peer_revs),
                    ((2, 2), None))
 
-    @patch("lib.path_combinator.PathCombinator._find_peer_hfs",
+    @patch("lib.path_combinator._find_peer_hfs",
            new_callable=create_mock)
     def test_peer(self, find):
         up_asms = [
@@ -219,7 +236,7 @@ class TestPathCombinatorGetXovrPeer(object):
                 a == up_asms[1] and b == down_asms[2])
         find.side_effect = matching_peers
         # Call
-        ntools.eq_(PathCombinator._get_xovr_peer(up_seg, down_seg, peer_revs),
+        ntools.eq_(path_combinator._get_xovr_peer(up_seg, down_seg, peer_revs),
                    (None, (2, 3)))
 
 
@@ -240,19 +257,19 @@ class PathCombinatorJoinShortcutsBase(object):
 
 class TestPathCombinatorJoinCrossover(PathCombinatorJoinShortcutsBase):
     """
-    Unit test for lib.path_combinator.PathCombinator._join_xovr
+    Unit test for lib.path_combinator._join_xovr
     """
-    @patch("lib.path_combinator.PathCombinator._copy_segment_shortcut",
+    @patch("lib.path_combinator._copy_segment_shortcut",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._shortcut_path_args",
+    @patch("lib.path_combinator._shortcut_path_args",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._build_shortcut_interface_list",
+    @patch("lib.path_combinator._build_shortcut_interface_list",
            new_callable=create_mock)
     def test_xovr(self, build_list, path_args, copy_segment):
         up_segment, down_segment, point = self._setup(path_args, copy_segment)
         path_meta = FwdPathMeta.from_values(SCIONPath(), [], 0)
         ntools.eq_(
-            PathCombinator._join_xovr(up_segment, down_segment, point)[0],
+            path_combinator._join_xovr(up_segment, down_segment, point)[0],
             path_meta)
         copy_segment.assert_any_call(up_segment, 1)
         copy_segment.assert_any_call(down_segment, 2, up=False)
@@ -261,15 +278,15 @@ class TestPathCombinatorJoinCrossover(PathCombinatorJoinShortcutsBase):
 
 class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
     """
-    Unit test for lib.path_combinator.PathCombinator._join_xovr
+    Unit test for lib.path_combinator._join_xovr
     """
-    @patch("lib.path_combinator.PathCombinator._copy_segment_shortcut",
+    @patch("lib.path_combinator._copy_segment_shortcut",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._shortcut_path_args",
+    @patch("lib.path_combinator._shortcut_path_args",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._build_shortcut_interface_list",
+    @patch("lib.path_combinator._build_shortcut_interface_list",
            new_callable=create_mock)
-    @patch("lib.path_combinator.PathCombinator._find_peer_hfs",
+    @patch("lib.path_combinator._find_peer_hfs",
            new_callable=create_mock)
     def test_peer(self, find_peers, build_list, path_args, copy_segment):
         up_segment, down_segment, point = self._setup(path_args, copy_segment)
@@ -277,7 +294,7 @@ class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
                                    ("uph2", "dph2", 1500)]
         peer_revs = create_mock()
         path_meta = FwdPathMeta.from_values(SCIONPath(), [], 0)
-        ntools.eq_(PathCombinator._join_peer(
+        ntools.eq_(path_combinator._join_peer(
             up_segment, down_segment, point, peer_revs)[0], path_meta)
         copy_segment.assert_any_call(up_segment, 1)
         copy_segment.assert_any_call(down_segment, 2, up=False)
@@ -286,15 +303,15 @@ class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
 
 class TestPathCombinatorShortcutPathArgs(object):
     """
-    Unit test for lib.path_combinator.PathCombinator._shortcut_path_args
+    Unit test for lib.path_combinator._shortcut_path_args
     """
     def test(self):
         up_iof = create_mock(["hops"])
         up_hofs = ["up hof 1", "up hof 2", "up hof 3"]
         down_iof = create_mock(["hops"])
         down_hofs = ["down hof"]
-        ret = PathCombinator._shortcut_path_args(up_iof, up_hofs,
-                                                 down_iof, down_hofs)
+        ret = path_combinator._shortcut_path_args(up_iof, up_hofs,
+                                                  down_iof, down_hofs)
         ntools.eq_(ret, [up_iof, up_hofs])
         ntools.eq_(up_iof.hops, 3)
 
@@ -302,9 +319,9 @@ class TestPathCombinatorShortcutPathArgs(object):
 class TestPathCombinatorBuildShortcutInterfaceList(object):
     """
     Unit tests for
-    lib.path_combinator.PathCombinator._build_shortcut_interface_list
+    lib.path_combinator._build_shortcut_interface_list
     """
-    @patch("lib.path_combinator.PathCombinator._build_interface_list",
+    @patch("lib.path_combinator._build_interface_list",
            new_callable=create_mock)
     def _check_xovr_peers(self, peers, build_if_list):
         up_asm = create_mock_full({"isd_as()": 11})
@@ -316,7 +333,7 @@ class TestPathCombinatorBuildShortcutInterfaceList(object):
         down_idx = 2
         build_if_list.side_effect = [[], []]
 
-        if_list = PathCombinator._build_shortcut_interface_list(
+        if_list = path_combinator._build_shortcut_interface_list(
             up_seg, up_idx, down_seg, down_idx, peers)
         assert_these_calls(build_if_list, [call(["B", "A"]),
                            call(["C", "D"], up=False)])
@@ -339,7 +356,7 @@ class TestPathCombinatorBuildShortcutInterfaceList(object):
 
 class TestPathCombinatorBuildInterfaceList(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._build_interface_list
+    Unit tests for lib.path_combinator._build_interface_list
     """
     def _check_up_down(self, up):
         asms = []
@@ -358,7 +375,7 @@ class TestPathCombinatorBuildInterfaceList(object):
             ifid += 2
             pcbm = create_mock_full({"hof()": hof})
             asms.append(create_mock_full({"isd_as()": i, "pcbm()": pcbm}))
-        if_list = PathCombinator._build_interface_list(asms, up)
+        if_list = path_combinator._build_interface_list(asms, up)
         ntools.eq_(if_list, [PathInterface.from_values(1, 1),
                              PathInterface.from_values(2, 2),
                              PathInterface.from_values(2, 3),
@@ -373,7 +390,7 @@ class TestPathCombinatorBuildInterfaceList(object):
 
 class TestPathCombinatorCheckConnected(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._check_connected
+    Unit tests for lib.path_combinator._check_connected
     """
     def _setup(self, up_first, core_last, core_first, down_first):
         up = create_mock(['first_ia'])
@@ -389,28 +406,28 @@ class TestPathCombinatorCheckConnected(object):
 
     def test_with_core_up_discon(self):
         up, core, down = self._setup(1, 2, 3, 3)
-        ntools.assert_false(PathCombinator._check_connected(up, core, down))
+        ntools.assert_false(path_combinator._check_connected(up, core, down))
 
     def test_with_core_down_discon(self):
         up, core, down = self._setup(1, 1, 2, 3)
-        ntools.assert_false(PathCombinator._check_connected(up, core, down))
+        ntools.assert_false(path_combinator._check_connected(up, core, down))
 
     def test_with_core_conn(self):
         up, core, down = self._setup(1, 1, 2, 2)
-        ntools.assert_true(PathCombinator._check_connected(up, core, down))
+        ntools.assert_true(path_combinator._check_connected(up, core, down))
 
     def test_without_core_discon(self):
         up, core, down = self._setup(1, 0, 0, 2)
-        ntools.assert_false(PathCombinator._check_connected(up, None, down))
+        ntools.assert_false(path_combinator._check_connected(up, None, down))
 
     def test_without_core_conn(self):
         up, core, down = self._setup(1, 0, 0, 1)
-        ntools.assert_true(PathCombinator._check_connected(up, None, down))
+        ntools.assert_true(path_combinator._check_connected(up, None, down))
 
 
 class TestPathCombinatorCopyHofs(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._copy_hofs
+    Unit tests for lib.path_combinator._copy_hofs
     """
     def test_full(self):
         asms = []
@@ -425,12 +442,12 @@ class TestPathCombinatorCopyHofs(object):
             asm.p.mtu = (i + 1) * 0.5
             asms.append(asm)
         # Call
-        ntools.eq_(PathCombinator._copy_hofs(asms), ([3, 2, 1, 0], 0.5))
+        ntools.eq_(path_combinator._copy_hofs(asms), ([3, 2, 1, 0], 0.5))
 
 
 class TestPathCombinatorCopySegmentShortcut(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._copy_segment_shortcut
+    Unit tests for lib.path_combinator._copy_segment_shortcut
     """
     def _setup(self, deepcopy, copy_hofs):
         info = create_mock(["hops", "up_flag"])
@@ -449,13 +466,13 @@ class TestPathCombinatorCopySegmentShortcut(object):
         deepcopy.side_effect = info, upstream_hof
         return seg, info, hofs, upstream_hof
 
-    @patch("lib.path_combinator.PathCombinator._copy_hofs",
+    @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
     @patch("lib.path_combinator.copy.deepcopy", new_callable=create_mock)
     def test_up(self, deepcopy, copy_hofs):
         seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
         # Call
-        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
+        ntools.eq_(path_combinator._copy_segment_shortcut(seg, 4),
                    (info, hofs, upstream_hof, "mtu"))
         # Tests
         deepcopy.assert_called_once_with(seg.info)
@@ -467,13 +484,13 @@ class TestPathCombinatorCopySegmentShortcut(object):
         ntools.eq_(upstream_hof.xover, False)
         ntools.eq_(upstream_hof.verify_only, True)
 
-    @patch("lib.path_combinator.PathCombinator._copy_hofs",
+    @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
     @patch("lib.path_combinator.copy.deepcopy", new_callable=create_mock)
     def test_down(self, deepcopy, copy_hofs):
         seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
         # Call
-        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 7, up=False),
+        ntools.eq_(path_combinator._copy_segment_shortcut(seg, 7, up=False),
                    (info, hofs, upstream_hof, "mtu"))
         # Tests
         ntools.assert_false(info.up_flag)
@@ -485,7 +502,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
 
 class TestPathCombinatorFindPeerHfs(object):
     """
-    Unit tests for lib.path_combinator.PathCombinator._find_peer_hfs
+    Unit tests for lib.path_combinator._find_peer_hfs
     """
     def _mk_pcbms(self):
         up_pcbms = [
@@ -515,12 +532,11 @@ class TestPathCombinatorFindPeerHfs(object):
                                      "p": p})
         peer_revs = create_mock_full({"get()": None})
         # Call
-        ntools.eq_(PathCombinator._find_peer_hfs(up_asm, down_asm, peer_revs), [
-            (up_pcbms[0].hof(), down_pcbms[0].hof(), 500),
-            (up_pcbms[2].hof(), down_pcbms[1].hof(), 700),
-        ])
+        ntools.eq_(path_combinator._find_peer_hfs(up_asm, down_asm, peer_revs),
+                   [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500),
+                    (up_pcbms[2].hof(), down_pcbms[1].hof(), 700)])
 
-    @patch("lib.path_combinator.PathCombinator._skip_peer",
+    @patch("lib.path_combinator._skip_peer",
            new_callable=create_mock)
     def test_with_revocation(self, skip_peer):
         up_pcbms, down_pcbms = self._mk_pcbms()
@@ -548,7 +564,7 @@ class TestPathCombinatorFindPeerHfs(object):
         skip_peer.side_effect = skip_peer_side_effect
 
         # Call
-        peers = PathCombinator._find_peer_hfs(up_asm, down_asm, peer_revs)
+        peers = path_combinator._find_peer_hfs(up_asm, down_asm, peer_revs)
         # Tests
         ntools.eq_(peers, [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500)])
         skip_peer.assert_has_calls(
