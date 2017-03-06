@@ -42,7 +42,7 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
                     flush=False, sibra=False):
         p = cls.P_CLS.new_message(
             id=id_, dst=int(dst_ia), maxPaths=max_paths)
-        if src_ia:
+        if src_ia is not None:
             p.src = int(src_ia)
         p.flags.flush = flush
         p.flags.sibra = sibra
@@ -139,7 +139,9 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         :param port: The first hop port.
         """
         assert isinstance(path, FwdPathMeta)
-        p = cls.P_CLS.new_message(path=path.p, port=port)
+        p = cls.P_CLS.new_message(path=path.p)
+        if port:
+            p.port = port
         for addr in addrs:
             if addr.TYPE == AddrType.IPV4:
                 p.addrs.ipv4 = addr.pack()
