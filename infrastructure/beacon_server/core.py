@@ -104,7 +104,6 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment contained in 'pcb' with the local core path
         server.
         """
-        pcb.remove_crypto()
         pcb.sign(self.signing_key)
         # Register core path with local core path server.
         try:
@@ -134,7 +133,7 @@ class CoreBeaconServer(BeaconServer):
             if not self._filter_pcb(pcb):
                 count += 1
                 continue
-            self._try_to_verify_beacon(pcb)
+            # self._try_to_verify_beacon(pcb)
             self.handle_ext(pcb)
         if count:
             logging.debug("Dropped %d looping Core Segment PCBs", count)

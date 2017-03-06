@@ -112,7 +112,7 @@ class LocalBeaconServer(BeaconServer):
                     logging.error("Unable to parse raw pcb: %s", e)
                     continue
             if self.path_policy.check_filters(pcb):
-                self._try_to_verify_beacon(pcb)
+                # self._try_to_verify_beacon(pcb)
                 self.handle_ext(pcb)
 
     def process_cert_chain_rep(self, rep, meta):
@@ -165,7 +165,6 @@ class LocalBeaconServer(BeaconServer):
             pcb = self._terminate_pcb(pcb)
             if not pcb:
                 continue
-            pcb.remove_crypto()
             pcb.sign(self.signing_key)
             try:
                 self.register_up_segment(pcb)
@@ -183,7 +182,6 @@ class LocalBeaconServer(BeaconServer):
             pcb = self._terminate_pcb(pcb)
             if not pcb:
                 continue
-            pcb.remove_crypto()
             pcb.sign(self.signing_key)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())
