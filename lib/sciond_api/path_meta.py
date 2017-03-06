@@ -20,6 +20,7 @@ import capnp  # noqa
 
 # SCION
 import proto.sciond_capnp as P
+from lib.errors import SCIONIndexError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
@@ -53,7 +54,7 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
 
     def short_desc(self):
         if_str = ", ".join([if_.short_desc() for if_ in self.iter_ifs()])
-        return "%s: MTU: %d Interfaces: %s" % (self.NAME, self.p.mtu, if_str)
+        return "MTU: %d Interfaces: %s" % (self.p.mtu, if_str)
 
     def __eq__(self, other):
         return list(self.iter_ifs()) == list(other.iter_ifs())
@@ -72,11 +73,12 @@ class PathInterface(Cerealizable):  # pragma: no cover
         return ISD_AS(self.p.isdas)
 
     def __getitem__(self, idx):
-        if idx < 0 or idx > 1:
-            raise KeyError
         if idx == 0:
             return self.isd_as()
-        return self.p.ifID
+        elif idx == 1:
+            return self.p.ifID
+        raise SCIONIndexError(
+            "Invalid index used on PathInterface object: %d" % idx)
 
     def short_desc(self):
         return "%s:%s" % (self.isd_as(), self.p.ifID)

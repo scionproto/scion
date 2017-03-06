@@ -27,7 +27,6 @@ from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
-    SCION_UDP_EH_DATA_PORT,
 )
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
@@ -231,16 +230,17 @@ class SCIONDaemon(SCIONElement):
         flags = ()
         if request.p.flags.flush:
             flags = (_FLUSH_FLAG)
-        paths, error = self.get_paths(dst_ia, flags)[:request.p.maxPaths]
+        paths, error = self.get_paths(dst_ia, flags)
+        if request.p.maxPaths:
+            paths = paths[:request.p.maxPaths]
         logging.debug("Replying to api request for %s with %d paths",
                       dst_ia, len(paths))
         reply_entries = []
         for path_meta in paths:
             fwd_if = path_meta.fwd_path().get_fwd_if()
             # Set dummy host addr if path is empty.
-            if fwd_if == 0:
-                haddr, port = None, SCION_UDP_EH_DATA_PORT
-            else:
+            haddr, port = None, None
+            if fwd_if:
                 br = self.ifid2br[fwd_if]
                 haddr, port = br.addr, br.port
             addrs = [haddr] if haddr else []

@@ -31,7 +31,7 @@ from itertools import product
 
 # SCION
 from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
-from lib.defines import AS_LIST_FILE, GEN_PATH
+from lib.defines import AS_LIST_FILE, GEN_PATH, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import (
@@ -132,7 +132,9 @@ class TestClientBase(TestBase):
         fh_addr = path_entry.ipv4()
         if not fh_addr:
             fh_addr = self.dst.host
-        self.first_hop = (fh_addr, path_entry.p.port)
+        port = (path_entry.p.port if path_entry.p.port
+                else SCION_UDP_EH_DATA_PORT)
+        self.first_hop = (fh_addr, port)
 
     def _try_sciond_api(self):
         sock = ReliableSocket()
@@ -147,7 +149,7 @@ class TestClientBase(TestBase):
             kill_self()
         while time.time() - start < API_TOUT:
             logging.debug("Sending path request to local API at %s: %s",
-                          self.sd.api_addr, request)
+                          self.api_addr, request)
             sock.send(packed)
             data = sock.recv()[0]
             if data:
