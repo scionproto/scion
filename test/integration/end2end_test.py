@@ -40,7 +40,7 @@ class E2EClient(TestClientBase):
     """
     def _create_payload(self, spkt):
         data = b"ping " + self.data
-        pld_len = self.path.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
+        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):
@@ -51,9 +51,9 @@ class E2EClient(TestClientBase):
         if spkt.l4_hdr.TYPE == L4Proto.SCMP:
             return self._handle_scmp(spkt)
         logging.debug("Received:\n%s", spkt)
-        if len(spkt) != self.path.mtu:
+        if len(spkt) != self.path_meta.p.mtu:
             logging.error("Packet length (%sB) != MTU (%sB)",
-                          len(spkt), self.path.mtu)
+                          len(spkt), self.path_meta.p.mtu)
             return ResponseRV.FAILURE
         payload = spkt.get_payload()
         pong = self._gen_max_pld(b"pong " + self.data, len(payload))
@@ -115,10 +115,12 @@ class TestEnd2End(TestClientServerBase):
     NAME = "End2End"
 
     def _create_server(self, data, finished, addr):
-        return E2EServer(self._run_sciond(addr), data, finished, addr)
+        sd, api_addr = self._run_sciond(addr)
+        return E2EServer(sd, api_addr, data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return E2EClient(self._run_sciond(src), data, finished, src, dst, port,
+        sd, api_addr = self._run_sciond(src)
+        return E2EClient(sd, api_addr, data, finished, src, dst, port,
                          retries=self.retries)
 
 

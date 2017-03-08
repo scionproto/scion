@@ -43,7 +43,8 @@ class ExtClient(TestClientBase):
     """
     def _create_extensions(self):
         # Determine number of border routers on path in single direction
-        routers_no = (self.path.get_as_hops() - 1) * 2
+        fwd_path = self.path_meta.fwd_path()
+        routers_no = (fwd_path.get_as_hops() - 1) * 2
         # Number of router for round-trip (return path is symmetric)
         routers_no *= 2
 
@@ -53,7 +54,7 @@ class ExtClient(TestClientBase):
         exts.append(TracerouteExt.from_values(routers_no))
         # Create PathTransportExtension
         # One with data-plane path.
-        of_path = PathTransOFPath.from_values(self.addr, self.dst, self.path)
+        of_path = PathTransOFPath.from_values(self.addr, self.dst, fwd_path)
         exts.append(PathTransportExt.from_values(
             PathTransType.OF_PATH, of_path))
         return exts
@@ -67,7 +68,8 @@ class ExtClient(TestClientBase):
         if trace.EXT_TYPE != ExtHopByHopType.TRACEROUTE:
             logging.error("First extension is not Traceroute:\n%s", trace)
             return False
-        iflist = self.iflist + list(reversed(self.iflist))
+        if_list = list(self.path_meta.iter_ifs())
+        iflist = if_list + list(reversed(if_list))
         if len(trace.hops) != len(iflist):
             logging.error(
                 "Number of traceroute hops (%d) does not "
@@ -112,10 +114,12 @@ class TestClientServerExtension(TestClientServerBase):
     NAME = "CliSrvExt"
 
     def _create_server(self, data, finished, addr):
-        return ExtServer(self._run_sciond(addr), data, finished, addr)
+        sd, api_addr = self._run_sciond(addr)
+        return ExtServer(sd, api_addr, data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return ExtClient(self._run_sciond(src), data, finished, src, dst, port)
+        sd, api_addr = self._run_sciond(src)
+        return ExtClient(sd, api_addr, data, finished, src, dst, port)
 
 
 def main():

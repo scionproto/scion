@@ -73,15 +73,20 @@ class PathSegmentDB(object):
             the segment's expiration time.
         :param int max_res_no: Number of results returned for a query.
         """
-        self._db = Base("", save_to_file=False)
-        self._db.create('record', 'id', 'first_isd', 'first_as', 'last_isd',
-                        'last_as', 'sibra', mode='override')
-        self._db.create_index('id')
-        self._db.create_index('last_isd')
-        self._db.create_index('last_as')
+        self._db = None
         self._lock = threading.Lock()
         self._segment_ttl = segment_ttl
         self._max_res_no = max_res_no
+        self._setup_db()
+
+    def _setup_db(self):  # pragma: no cover
+        with self._lock:
+            self._db = Base("", save_to_file=False)
+            self._db.create('record', 'id', 'first_isd', 'first_as', 'last_isd',
+                            'last_as', 'sibra', mode='override')
+            self._db.create_index('id')
+            self._db.create_index('last_isd')
+            self._db.create_index('last_as')
 
     def __getitem__(self, seg_id):  # pragma: no cover
         """Return a path object by segment id."""
@@ -95,6 +100,10 @@ class PathSegmentDB(object):
         with self._lock:
             recs = self._db(id=seg_id)
         return len(recs) > 0
+
+    def flush(self):  # pragma: no cover
+        """Removes all records from the database."""
+        self._setup_db()
 
     def update(self, pcb, reverse=False):
         """

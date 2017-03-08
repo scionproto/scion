@@ -147,3 +147,15 @@ class LinkType(TypeBase):
     PEER = "PEER"
     #: Link to other core AS
     CORE = "CORE"
+
+
+###########################
+# SCIOND message types
+###########################
+class SCIONDMsgType(TypeBase):
+    UNSET = "unset"
+    PATH_REQUEST = "pathReq"
+    PATH_REPLY = "pathReply"
+    AS_REQUEST = "asReq"
+    AS_REPLY = "asReply"
+    REVOCATION = "revInfo"

@@ -18,7 +18,6 @@
 # Stdlib
 import logging
 import os
-import struct
 import threading
 from itertools import product
 
@@ -28,20 +27,26 @@ from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
-    SCION_UDP_EH_DATA_PORT,
 )
-from lib.errors import SCIONServiceLookupError
+from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
-from lib.packet.host_addr import HostAddrNone
-from lib.packet.path import PathCombinator, SCIONPath
+from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
+from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.path_meta import FwdPathMeta
+from lib.sciond_api.path_req import (
+    SCIONDPathReplyError,
+    SCIONDPathReply,
+    SCIONDPathReplyEntry,
+)
 from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
@@ -49,9 +54,12 @@ from lib.types import (
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
+    SCIONDMsgType as SMT,
+    TypeBase,
 )
 from lib.util import SCIONTime
 SCIOND_API_SOCKDIR = "/run/shm/sciond/"
+_FLUSH_FLAG = "FLUSH"
 
 
 class SCIONDaemon(SCIONElement):
@@ -134,9 +142,13 @@ class SCIONDaemon(SCIONElement):
         Main routine to handle incoming SCION messages.
         """
         if isinstance(meta, SockOnlyMetadata):  # From SCIOND API
-            self.api_handle_request(msg, meta)
+            try:
+                sciond_msg = parse_sciond_msg(msg)
+            except SCIONParseError as err:
+                logging.error(str(err))
+                return
+            self.api_handle_request(sciond_msg, meta)
             return
-        logging.debug("handle_msg_meta()")
         super().handle_msg_meta(msg, meta)
 
     def handle_path_reply(self, path_reply, meta):
@@ -190,56 +202,56 @@ class SCIONDaemon(SCIONElement):
         """
         Handle local API's requests.
         """
-        if msg[0] == 0:  # path request
-            logging.debug('API: path request')
+        if msg.MSG_TYPE == SMT.PATH_REQUEST:
             threading.Thread(
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
-        elif msg[0] == 1:  # address request
-            logging.debug('API: local ISD-AS request')
-            self.send_meta(self.addr.isd_as.pack(), meta)
         else:
-            logging.warning("API: type %d not supported.", msg[0])
+            logging.warning(
+                "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
 
-    def _api_handle_path_request(self, msg, meta):
-        """
-        Path request:
-          | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
-        Reply:
-          |p1_len(1B)|p1((p1_len*8)B)|fh_type(1B)|fh_IP(?B)|fh_port(2B)|mtu(2B)|
-           p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
-           p2_len(1B)|...
-         or b"" when no path found.
-        """
-        dst_ia = ISD_AS(msg[1:ISD_AS.LEN + 1])
+    def _api_handle_path_request(self, request, meta):
+        req_id = request.p.id
+        if request.p.flags.sibra:
+            logging.warning(
+                "Requesting SIBRA paths over SCIOND API not supported yet.")
+            self._send_path_reply(
+                req_id, [], SCIONDPathReplyError.INTERNAL, meta)
+            return
+
+        dst_ia = request.dst_ia()
+        src_ia = request.src_ia()
+        if not src_ia:
+            src_ia = self.addr.isd_as
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
-            thread.ident, self.addr.isd_as, dst_ia)
-        paths = self.get_paths(dst_ia)
-        reply = []
+            thread.ident, src_ia, dst_ia)
+        flags = ()
+        if request.p.flags.flush:
+            flags = (_FLUSH_FLAG)
+        paths, error = self.get_paths(dst_ia, flags)
+        if request.p.maxPaths:
+            paths = paths[:request.p.maxPaths]
         logging.debug("Replying to api request for %s with %d paths",
                       dst_ia, len(paths))
-        for path in paths:
-            raw_path = path.pack()
-            fwd_if = path.get_fwd_if()
+        reply_entries = []
+        for path_meta in paths:
+            fwd_if = path_meta.fwd_path().get_fwd_if()
             # Set dummy host addr if path is empty.
-            if fwd_if == 0:
-                haddr, port = HostAddrNone(), SCION_UDP_EH_DATA_PORT
-            else:
+            haddr, port = None, None
+            if fwd_if:
                 br = self.ifid2br[fwd_if]
                 haddr, port = br.addr, br.port
-            path_len = len(raw_path) // 8
-            reply.append(struct.pack("!B", path_len) + raw_path +
-                         struct.pack("!B", haddr.TYPE) + haddr.pack() +
-                         struct.pack("!H", port) +
-                         struct.pack("!H", path.mtu) +
-                         struct.pack("!B", len(path.interfaces)))
-            for interface in path.interfaces:
-                isd_as, link = interface
-                reply.append(isd_as.pack())
-                reply.append(struct.pack("!H", link))
-        self.send_meta(b"".join(reply), meta)
+            addrs = [haddr] if haddr else []
+            reply_entry = SCIONDPathReplyEntry.from_values(
+                path_meta, addrs, port)
+            reply_entries.append(reply_entry)
+        self._send_path_reply(req_id, reply_entries, error, meta)
+
+    def _send_path_reply(self, req_id, reply_entries, error, meta):
+        path_reply = SCIONDPathReply.from_values(req_id, reply_entries, error)
+        self.send_meta(path_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -284,24 +296,35 @@ class SCIONDaemon(SCIONElement):
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 
+    def _flush_dbs(self):
+        self.core_segments.flush()
+        self.down_segments.flush()
+        self.up_segments.flush()
+
     def get_paths(self, dst_ia, flags=()):
         """Return a list of paths."""
         logging.debug("Paths requested for %s %s", dst_ia, flags)
+        if _FLUSH_FLAG in flags:
+            logging.info("Flushing PathDBs.")
+            self._flush_path_dbs()
         if self.addr.isd_as == dst_ia or (
                 self.addr.isd_as.any_as() == dst_ia and
                 self.topology.is_core_as):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
             empty = SCIONPath()
-            empty.mtu = self.topology.mtu
-            return [empty]
+            empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
+            return [empty_meta], SCIONDPathReplyError.OK
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))
         if not self._wait_for_events([e], deadline):
             logging.error("Query timed out for %s", dst_ia)
-            return []
-        return self.path_resolution(dst_ia, flags=flags)
+            return [], SCIONDPathReplyError.PS_TIMEOUT
+        paths = self.path_resolution(dst_ia, flags=flags)
+        error_code = (SCIONDPathReplyError.OK if paths
+                      else SCIONDPathReplyError.NO_PATHS)
+        return paths, error_code
 
     def path_resolution(self, dst_ia, flags=()):
         # dst as == 0 means any core AS in the specified ISD.
@@ -332,7 +355,7 @@ class SCIONDaemon(SCIONElement):
                 res.add((None, cseg, None))
         if sibra:
             return res
-        return PathCombinator.tuples_to_full_paths(res)
+        return tuples_to_full_paths(res)
 
     def _resolve_core_not_core(self, dst_ia, sibra=False):
         """Resolve path from core to non-core."""
@@ -351,7 +374,7 @@ class SCIONDaemon(SCIONElement):
                 res.add((None, cseg, dseg))
         if sibra:
             return res
-        return PathCombinator.tuples_to_full_paths(res)
+        return tuples_to_full_paths(res)
 
     def _resolve_not_core_core(self, dst_ia, sibra=False):
         """Resolve path from non-core to core."""
@@ -369,14 +392,14 @@ class SCIONDaemon(SCIONElement):
                 res.add((useg, cseg, None))
         if sibra:
             return res
-        return PathCombinator.tuples_to_full_paths(res)
+        return tuples_to_full_paths(res)
 
     def _resolve_not_core_not_core_scion(self, dst_ia):
         """Resolve SCION path from non-core to non-core."""
         up_segs = self.up_segments()
         down_segs = self.down_segments(last_ia=dst_ia)
         core_segs = self._calc_core_segs(dst_ia[0], up_segs, down_segs)
-        full_paths = PathCombinator.build_shortcut_paths(
+        full_paths = build_shortcut_paths(
             up_segs, down_segs, self.peer_revs)
         tuples = []
         for up_seg in up_segs:
@@ -384,7 +407,7 @@ class SCIONDaemon(SCIONElement):
                 tuples.append((up_seg, None, down_seg))
                 for core_seg in core_segs:
                     tuples.append((up_seg, core_seg, down_seg))
-        full_paths.extend(PathCombinator.tuples_to_full_paths(tuples))
+        full_paths.extend(tuples_to_full_paths(tuples))
         return full_paths
 
     def _resolve_not_core_not_core_sibra(self, dst_ia):

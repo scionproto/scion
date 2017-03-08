@@ -23,7 +23,6 @@ import logging
 import os
 import random
 import socket
-import struct
 import sys
 import threading
 import time
@@ -32,22 +31,25 @@ from itertools import product
 
 # SCION
 from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
-from lib.defines import AS_LIST_FILE, GEN_PATH
+from lib.defines import AS_LIST_FILE, GEN_PATH, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import (
-    haddr_get_type,
     haddr_parse_interface,
 )
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
+from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.path_req import (
+    SCIONDPathReplyError,
+    SCIONDPathRequest,
+)
 from lib.socket import ReliableSocket
 from lib.thread import kill_self, thread_safety_net
+from lib.types import SCIONDMsgType as SMT
 from lib.util import (
-    Raw,
     handle_signals,
     load_yaml_file,
 )
@@ -62,8 +64,9 @@ class ResponseRV:
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, sd, data, finished, addr, timeout=1.0):
+    def __init__(self, sd, api_addr, data, finished, addr, timeout=1.0):
         self.sd = sd
+        self.api_addr = api_addr
         self.data = data
         self.finished = finished
         self.addr = addr
@@ -102,15 +105,16 @@ class TestClientBase(TestBase):
     """
     Base client app
     """
-    def __init__(self, sd, data, finished, addr, dst, dport, api=True,
+    def __init__(self, sd, api_addr, data, finished, addr, dst, dport, api=True,
                  timeout=3.0, retries=0):
         self.dst = dst
         self.dport = dport
         self.api = api
-        self.path = None
-        self.iflist = []
+        self.path_meta = None
+        self.first_hop = None
         self.retries = retries
-        super().__init__(sd, data, finished, addr, timeout)
+        self._req_id = 0
+        super().__init__(sd, api_addr, data, finished, addr, timeout)
         self._get_path(api)
 
     def _get_path(self, api):
@@ -118,64 +122,66 @@ class TestClientBase(TestBase):
             self._get_path_via_api()
         else:
             self._get_path_direct()
-        assert self.path.mtu
+        assert self.path_meta.p.mtu
 
     def _get_path_via_api(self):
-        """
-        Test local API.
-        """
-        data = self._try_sciond_api()
-        path_len = data.pop(1) * 8
-        self.path = SCIONPath(data.pop(path_len))
-        haddr_type = haddr_get_type(data.pop(1))
-        data.pop(haddr_type.LEN)  # first hop, unused here
-        data.pop(2)  # port number, unused here
-        self.path.mtu = struct.unpack("!H", data.pop(2))[0]
-        ifcount = data.pop(1)
-        self.iflist = []
-        for i in range(ifcount):
-            isd_as = ISD_AS(data.pop(ISD_AS.LEN))
-            ifid = struct.unpack("!H", data.pop(2))[0]
-            self.iflist.append((isd_as, ifid))
+        """Request path via SCIOND API."""
+        response = self._try_sciond_api()
+        path_entry = response.path_entry(0)
+        self.path_meta = path_entry.path()
+        fh_addr = path_entry.ipv4()
+        if not fh_addr:
+            fh_addr = self.dst.host
+        port = path_entry.p.port or SCION_UDP_EH_DATA_PORT
+        self.first_hop = (fh_addr, port)
 
     def _try_sciond_api(self):
         sock = ReliableSocket()
-        msg = b'\x00' + self.dst.isd_as.pack()
+        request = SCIONDPathRequest.from_values(self._req_id, self.dst.isd_as)
+        packed = request.pack_full()
+        self._req_id += 1
         start = time.time()
         try:
-            sock.connect(self.sd.api_addr)
+            sock.connect(self.api_addr)
         except OSError as e:
             logging.critical("Error connecting to sciond: %s", e)
             kill_self()
         while time.time() - start < API_TOUT:
-            logging.debug("Sending path request to local API at %s",
-                          self.sd.api_addr)
-            sock.send(msg)
-            data = Raw(sock.recv()[0], "Path response")
+            logging.debug("Sending path request to local API at %s: %s",
+                          self.api_addr, request)
+            sock.send(packed)
+            data = sock.recv()[0]
             if data:
+                response = parse_sciond_msg(data)
+                if response.MSG_TYPE != SMT.PATH_REPLY:
+                    logging.error("Unexpected SCIOND msg type received: %s" %
+                                  response.NAME)
+                    continue
+                if response.p.errorCode != SCIONDPathReplyError.OK:
+                    logging.error(
+                        "SCIOND returned an error (code=%d): %s" %
+                        (response.p.errorCode,
+                         SCIONDPathReplyError.describe(response.p.errorCode)))
+                    continue
                 sock.close()
-                return data
+                return response
             logging.debug("Empty response from local api.")
         logging.critical("Unable to get path from local api.")
         sock.close()
         kill_self()
 
     def _get_path_direct(self, flags=0):
-        logging.debug("Sending PATH request for %s", self.dst)
-        # Get paths through local API.
+        """Request path from SCIOND object."""
         paths = []
         for _ in range(5):
-            paths = self.sd.get_paths(self.dst.isd_as, flags=flags)
+            paths, _ = self.sd.get_paths(self.dst.isd_as, flags=flags)
             if paths:
                 break
         else:
             logging.critical("Unable to get path directly from sciond")
             kill_self()
-        self.path = paths[0]
-        self._get_iflist()
-
-    def _get_iflist(self):
-        self.iflist = self.path.interfaces
+        self.path_meta = paths[0]
+        self.first_hop = None
 
     def run(self):
         while not self.finished.is_set():
@@ -212,17 +218,17 @@ class TestClientBase(TestBase):
         self.finished.set()
 
     def _send(self):
-        self._send_pkt(self._build_pkt())
-        if self.iflist:
+        self._send_pkt(self._build_pkt(), self.first_hop)
+        if self.path_meta:
             logging.debug("Interfaces: %s", ", ".join(
-                ["%s:%s" % ifentry for ifentry in self.iflist]))
+                [str(ifentry) for ifentry in self.path_meta.iter_ifs()]))
 
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)
         l4_hdr = self._create_l4_hdr()
         extensions = self._create_extensions()
         if path is None:
-            path = self.path
+            path = self.path_meta.fwd_path()
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, extensions, l4_hdr)
         spkt.set_payload(self._create_payload(spkt))
@@ -353,23 +359,26 @@ class TestClientServerBase(object):
         """
         Instantiate server app
         """
-        return TestServerBase(self._run_sciond(addr), data, finished, addr)
+        sd, api_addr = self._run_sciond(addr)
+        return TestServerBase(sd, api_addr, data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
         """
         Instantiate client app
         """
-        return TestClientBase(self._run_sciond(src), data, finished, src, dst,
+        sd, api_addr = self._run_sciond(src)
+        return TestClientBase(sd, api_addr, data, finished, src, dst,
                               port, retries=self.retries)
 
     def _run_sciond(self, addr):
+        api_addr = SCIOND_API_SOCKDIR + "%s_%s.sock" % (
+                self.NAME, addr.isd_as)
         if addr.isd_as not in self.scionds:
             logging.debug("Starting sciond for %s", addr.isd_as)
             # Local api on, random port, random api port
             self.scionds[addr.isd_as] = start_sciond(
-                addr, api=True, api_addr=SCIOND_API_SOCKDIR + "%s_%s.sock" %
-                (self.NAME, addr.isd_as))
-        return self.scionds[addr.isd_as]
+                addr, api=True, api_addr=api_addr)
+        return self.scionds[addr.isd_as], api_addr
 
     def _stop_scionds(self):
         for sd in self.scionds.values():
