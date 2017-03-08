@@ -139,7 +139,7 @@ class TestClientBase(TestBase):
 
     def _get_path_via_api(self, flush=False):
         """Request path via SCIOND API."""
-        response = self._try_sciond_api()
+        response = self._try_sciond_api(flush)
         path_entry = response.path_entry(0)
         self.path_meta = path_entry.path()
         fh_addr = path_entry.ipv4()
