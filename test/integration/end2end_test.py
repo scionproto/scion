@@ -87,8 +87,9 @@ class E2EClient(TestClientBase):
 
     def _test_as_request_reply(self):
         as_req = SCIONDASInfoRequest.from_values()
-        self.api_socket().send(as_req.pack_full())
-        data = self.api_socket().recv()[0]
+        api_socket = self.api_socket()
+        api_socket.send(as_req.pack_full())
+        data = api_socket.recv()[0]
         if data:
             response = parse_sciond_msg(data)
             if response.MSG_TYPE != SMT.AS_REPLY:
@@ -109,7 +110,6 @@ class E2EClient(TestClientBase):
         if not self._test_as_request_reply():
             self._shutdown()
             kill_self()
-            return
         super().run()
 
 

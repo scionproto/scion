@@ -61,7 +61,7 @@ class SCIONDASInfoReply(SCIONDMsgBase):
             yield SCIONDASInfoReplyEntry(entry)
 
     def short_desc(self):
-        return "\n".join([entry.short_desc() for entry in self.iter_entrie()])
+        return "\n".join([entry.short_desc() for entry in self.iter_entries()])
 
 
 class SCIONDASInfoReplyEntry(Cerealizable):
