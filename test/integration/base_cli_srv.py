@@ -130,16 +130,16 @@ class TestClientBase(TestBase):
         super().__init__(sd, api_addr, data, finished, addr, timeout)
         self._get_path(api)
 
-    def _get_path(self, api):
+    def _get_path(self, api, flush=False):
         if api:
-            self._get_path_via_api()
+            self._get_path_via_api(flush)
         else:
             self._get_path_direct()
         assert self.path_meta.p.mtu
 
-    def _get_path_via_api(self):
+    def _get_path_via_api(self, flush=False):
         """Request path via SCIOND API."""
-        response = self._try_sciond_api()
+        response = self._try_sciond_api(flush)
         path_entry = response.path_entry(0)
         self.path_meta = path_entry.path()
         fh_addr = path_entry.ipv4()
@@ -148,8 +148,9 @@ class TestClientBase(TestBase):
         port = path_entry.p.port or SCION_UDP_EH_DATA_PORT
         self.first_hop = (fh_addr, port)
 
-    def _try_sciond_api(self):
-        request = SCIONDPathRequest.from_values(self._req_id, self.dst.isd_as)
+    def _try_sciond_api(self, flush=False):
+        request = SCIONDPathRequest.from_values(
+            self._req_id, self.dst.isd_as, flush=flush)
         packed = request.pack_full()
         self._req_id += 1
         start = time.time()
@@ -195,8 +196,8 @@ class TestClientBase(TestBase):
             spkt = self._recv()
             recv_dur = time.time() - start
             if not spkt:
-                logging.info("Timeout waiting for response")
-                self._retry_or_stop()
+                logging.info("Timeout waiting for response.")
+                self._retry_or_stop(flush=True)
                 continue
             r_code = self._handle_response(spkt)
             if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
@@ -206,15 +207,16 @@ class TestClientBase(TestBase):
                 self._retry_or_stop(1.0 - recv_dur)
         self._shutdown()
 
-    def _retry_or_stop(self, delay=0.0):
+    def _retry_or_stop(self, delay=0.0, flush=False):
         if delay < 0:
             delay = 0
         if self.retries:
             self.retries -= 1
-            logging.info("Retrying in %.1f s... (%d retries remaining)." %
-                         (delay, self.retries))
+            logging.info(
+                "Retrying in %.1f s... (%d retries remaining, flush=%s)." %
+                (delay, self.retries, flush))
             time.sleep(delay)
-            self._get_path(self.api)
+            self._get_path(self.api, flush=flush)
         else:
             self._stop()
 

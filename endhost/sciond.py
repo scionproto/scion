@@ -307,7 +307,7 @@ class SCIONDaemon(SCIONElement):
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 
-    def _flush_dbs(self):
+    def _flush_path_dbs(self):
         self.core_segments.flush()
         self.down_segments.flush()
         self.up_segments.flush()
