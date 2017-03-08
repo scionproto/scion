@@ -24,7 +24,11 @@ from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.types import L4Proto
+from lib.sciond_api.as_req import SCIONDASInfoRequest
+from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.revocation import SCIONDRevNotification
+from lib.thread import kill_self
+from lib.types import L4Proto, SCIONDMsgType as SMT
 from test.integration.base_cli_srv import (
     ResponseRV,
     setup_main,
@@ -74,11 +78,39 @@ class E2EClient(TestClientBase):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
-            self.sd.handle_revocation(rev_info, None)
+            rev_not = SCIONDRevNotification.from_values(rev_info)
+            self.api_socket().send(rev_not.pack_full())
             return ResponseRV.RETRY
         else:
             logging.error("Received SCMP error:\n%s", spkt)
             return ResponseRV.FAILURE
+
+    def _test_as_request_reply(self):
+        as_req = SCIONDASInfoRequest.from_values()
+        api_socket = self.api_socket()
+        api_socket.send(as_req.pack_full())
+        data = api_socket.recv()[0]
+        if data:
+            response = parse_sciond_msg(data)
+            if response.MSG_TYPE != SMT.AS_REPLY:
+                logging.error("Unexpected SCIOND msg type received: %s" %
+                              response.NAME)
+                return False
+            for entry in response.iter_entries():
+                if entry.isd_as() == self.addr.isd_as:
+                    logging.debug("Received correct AS reply.")
+                    return True
+        logging.error("Wrong AS Reply received.")
+        return False
+
+    def run(self):
+        """
+        Tests AS request/reply functionality before entering the sending loop.
+        """
+        if not self._test_as_request_reply():
+            self._shutdown()
+            kill_self()
+        super().run()
 
 
 class E2EServer(TestServerBase):
