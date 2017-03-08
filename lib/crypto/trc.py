@@ -103,12 +103,19 @@ class TRC(object):
                 val = copy.deepcopy(val)
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
-            key_ = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
+            key = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
             self.core_ases[subject][ONLINE_KEY_STRING] = \
-                base64.b64decode(key_.encode('utf-8'))
+                base64.b64decode(key.encode('utf-8'))
+            key = trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING]
+            self.core_ases[subject][OFFLINE_KEY_STRING] = \
+                base64.b64decode(key.encode('utf-8'))
         for subject in trc_dict[SIGNATURES_STRING]:
+            sig = trc_dict[SIGNATURES_STRING][subject]
             self.signatures[subject] = \
-                base64.b64decode(trc_dict[SIGNATURES_STRING][subject])
+                base64.b64decode(sig.encode('utf-8'))
+        for subject in trc_dict[ROOT_CAS_STRING]:
+            self.root_cas[subject] = base64.b64decode(
+                trc_dict[ROOT_CAS_STRING][subject].encode('utf-8'))
 
     def get_isd_ver(self):
         return self.isd, self.version
@@ -171,8 +178,7 @@ class TRC(object):
 
     def sign(self, isd_as, sig_priv_key):
         data = self._sig_input()
-        self.signatures[isd_as] = base64.b64encode(sign(data, sig_priv_key)). \
-            decode('utf-8')
+        self.signatures[isd_as] = sign(data, sig_priv_key)
 
     def verify(self, old_trc):
         """
@@ -244,21 +250,21 @@ class TRC(object):
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
             d = trc_dict[CORE_ASES_STRING][subject]
-            for key_ in (ONLINE_KEY_STRING, OFFLINE_KEY_STRING, ):
-                key_str = trc_dict[CORE_ASES_STRING][subject][key_]
-                base64.b64encode(key_str.encode('utf-8')).decode('utf-8')
+            for key in (ONLINE_KEY_STRING, OFFLINE_KEY_STRING, ):
+                key_ = trc_dict[CORE_ASES_STRING][subject][key]
+                d[key] = base64.b64encode(key_).decode('utf-8')
             core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
         root_cas = {}
         for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
-            root_cas[subject] = base64.b64encode(cert_str).decode()
+            root_cas[subject] = base64.b64encode(cert_str).decode('utf-8')
         trc_dict[ROOT_CAS_STRING] = root_cas
         if with_signatures:
             signatures = {}
             for subject in trc_dict[SIGNATURES_STRING]:
                 signature = trc_dict[SIGNATURES_STRING][subject]
                 signatures[subject] = base64.b64encode(
-                    signature.encode('utf-8')).decode('utf-8')
+                    signature).decode('utf-8')
             trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
