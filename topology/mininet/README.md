@@ -21,3 +21,9 @@ Once you're done looking around, you can type Ctrl+D to shutdown the Mininet env
 ```
 user@ubuntu:~/scion$ sudo mn -c
 ```
+
+### Running inside docker
+If you want to run the mininet network inside docker, you need to make sure docker is using the `--privileged` flag. You can specify it like this:
+```
+DOCKER_ARGS=--privileged ./docker.sh run
+```

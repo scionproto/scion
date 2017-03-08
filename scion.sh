@@ -8,9 +8,7 @@ EXTRA_NOSE_ARGS="--with-xunit --xunit-file=logs/nosetests.xml"
 
 cmd_topology() {
     local zkclean
-    if type -p supervisorctl &>/dev/null; then
-        echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
-    fi
+    echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
     if [ "$1" = "zkclean" ]; then
@@ -92,6 +90,15 @@ go_cover() {
 cmd_lint() {
     set -o pipefail
     local ret=0
+    py_lint
+    ret=$((ret+$?))
+    go_lint
+    ret=$((ret+$?))
+    return $ret
+}
+
+py_lint() {
+    local ret=0
     for i in . topology/mininet sub/web; do
       [ -d "$i" ] || continue
       echo "Linting $i"
@@ -103,7 +110,7 @@ cmd_lint() {
     return $ret
 }
 
-cmd_golint() {
+go_lint() {
     ( cd go && make -s lint )
 }
 
@@ -180,7 +187,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|golint|run|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|run|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

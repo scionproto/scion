@@ -13,12 +13,27 @@ get_params() {
   image_tag=$(echo "$branch" | tr '/' '.')
 }
 
+cmd_base() {
+    set -e
+    set -o pipefail
+    get_params
+    copy_tree
+    docker_build "base"
+    docker tag scion_base:latest kormat/scion_base:latest
+}
+
 cmd_build() {
     set -e
     set -o pipefail
-    make -s go
     get_params
-    echo
+    copy_tree
+    docker_build
+}
+
+
+copy_tree() {
+    set -e
+    set -o pipefail
     echo "Copying current working tree for Docker image"
     echo "============================================="
     mkdir -p "${build_dir:?}"
@@ -28,35 +43,28 @@ cmd_build() {
         git ls-files;
         git submodule --quiet foreach 'git ls-files | sed "s|^|$path/|"';
     } | rsync -a --files-from=- . "${build_dir}/scion.git/"
-    cp bin/border bin/discovery "${build_dir}/scion.git/bin"
-    # Needed so that the go.capnp references in proto/*.capnp don't break
-    cp proto/go.capnp "${build_dir}/scion.git/proto"
     echo
-    echo "Building Docker image"
-    echo "====================="
-    docker_build "build.log"
 }
+
 
 docker_build() {
     set -e
     set -o pipefail
-    local log_file="$1"; shift
-    local image_name="scion"
-    local args=""
-    echo "Image: $image_name:$image_tag"
-    echo "Log: $build_dir/$log_file"
-    echo "============================"
+    local suffix="$1"
+    local image_name="scion${suffix:+_$suffix}"
+    local conf_rel="docker/Dockerfile${suffix:+.$suffix}"
+    local conf="${build_dir:?}/scion.git/$conf_rel"
+    local tag="$image_name:${image_tag:?}"
+    local log="$build_dir/build${suffix:+_$suffix}.log"
+    echo "Building ${suffix:+$suffix }Docker image"
+    echo "=========================="
+    echo "Image: $tag"
+    echo "Config: $conf_rel"
+    echo "Log: $log"
+    echo "=========================="
     echo
-    if [ -n "$CIRCLECI" ]; then
-        # We're running on CircleCI, so don't rm images and *do* use -f during tagging
-        docker build --rm=false -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
-            tee "$build_dir/${log_file:?}"
-        docker tag -f "$image_name:$image_tag" "$image_name:latest"
-    else
-        docker build $args -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
-            tee "$build_dir/${log_file:?}"
-        docker tag "$image_name:$image_tag" "$image_name:latest"
-    fi
+    docker build -f "$conf" -t "$tag" "$build_dir/scion.git" | tee "$log"
+    docker tag "$tag" "$image_name:latest"
 }
 
 cmd_clean() {
@@ -67,7 +75,7 @@ cmd_clean() {
 }
 
 cmd_run() {
-    local args="-i -t --privileged -h scion"
+    local args="-i -t -h scion $DOCKER_ARGS"
     args+=" -v $PWD/htmlcov:/home/scion/go/src/github.com/netsec-ethz/scion/htmlcov"
     args+=" -v $PWD/logs:/home/scion/go/src/github.com/netsec-ethz/scion/logs"
     args+=" -v $PWD/sphinx-doc/_build:/home/scion/go/src/github.com/netsec-ethz/scion/sphinx-doc/_build"
@@ -151,6 +159,7 @@ if ! type -p docker &>/dev/null; then
 fi
 
 case $COMMAND in
+    base)               cmd_base ;;
     build)              cmd_build ;;
     clean)              cmd_clean ;;
     run)                shift; cmd_run "$@" ;;
