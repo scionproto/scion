@@ -39,7 +39,5 @@ dispatcher: clibs
 libhsr: libscion
 	$(MAKE) -C lib/libhsr doinstall
 
-install: clibs dispatcher
-
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)

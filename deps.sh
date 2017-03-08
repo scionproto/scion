@@ -78,7 +78,7 @@ cmd_golang() {
         HOST=github.com USER=kardianos PROJECT=govendor COMMIT=fbbc78e8d1b533dfcf81c2a4be2cec2617a926f7 GOPATH_BASE=${GOPATH%%:*}
         mkdir -p "${GOPATH_BASE}/src/$HOST/$USER"
         cd "${GOPATH_BASE}/src/$HOST/$USER/"
-        [ ! -d "$PROJECT" ] && git clone "git@$HOST:$USER/$PROJECT.git"
+        [ ! -d "$PROJECT" ] && git clone "https://$HOST/$USER/$PROJECT.git"
         cd "$PROJECT"
         git fetch
         git checkout "$COMMIT"
@@ -133,6 +133,12 @@ cmd_help() {
 	_EOF
 }
 # END subcommand functions
+
+if [ $(id -u) = "0" ]; then
+    echo "ERROR: Running this as root is not supported (and is a bad idea, anyway)"
+    exit 1
+fi
+
 
 PROGRAM="${0##*/}"
 COMMAND="$1"

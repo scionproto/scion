@@ -31,9 +31,9 @@ lint:
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
 
-deps_proto: proto
+deps_proto: deps proto
 
-deps: vendor/.deps.stamp
+deps: vendor/.deps.stamp ../proto/go.capnp
 
 vendor/.deps.stamp: vendor/vendor.json
 	@echo "$$(date -Iseconds) Syncing deps"; govendor sync -v
@@ -44,6 +44,9 @@ vendor/.deps.stamp: vendor/vendor.json
 	    exit 1; \
 	fi;
 	touch $@
+
+../proto/go.capnp:
+	cp vendor/zombiezen.com/go/capnproto2/std/go.capnp ../proto/go.capnp
 
 depspurge:
 	rm -f vendor/.deps.stamp

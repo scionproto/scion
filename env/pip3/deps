@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $(dirname "$BASE")/common.sh
+
+echo "Installing necessary packages from pip3"
+pip3 install --user --require-hashes -r "$BASE/requirements.txt"

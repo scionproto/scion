@@ -1,0 +1,20 @@
+#!/bin/bash
+
+ret=0
+check() {
+    cmp "$1" "$2"
+    ret=$((ret+$?))
+}
+
+cd env
+for f in common.sh */*; do
+    check "$f" "/tmp/build/$f"
+done
+cd ..
+
+check go/vendor/vendor.json /tmp/build/go_vendor.json
+
+if [ $ret -ne 0 ]; then
+    echo "ERROR: outdated dependencies, scion_base needs to be rebuilt"
+fi
+exit $ret

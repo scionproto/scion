@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $BASE/common.sh
+
+"$BASE/debian/deps"
+"$BASE/pip3/deps"
+"$BASE/pip2/deps"
+"$BASE/pip3web/deps"
+"$BASE/zlog/deps"
+"$BASE/go/deps"
+( cd go && make deps )
