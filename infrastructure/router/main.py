@@ -108,9 +108,12 @@ class Router(SCIONElement):
         """
         super().__init__(server_id, conf_dir, )
         self.interface = None
-        for border_router in self.topology.get_all_border_routers():
-            if border_router.name == self.id:
-                self.interface = border_router.interface
+        for br in self.topology.get_all_border_routers():
+            if br.name == self.id:
+                (self.if_id, ) = br.interfaces
+                self.interface = br.interfaces[self.if_id]
+                self.intf_addr, self.intf_port = self.interface.public[0]
+                self.intf_to_addr, self.intf_to_port = self.interface.remote[0]
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
@@ -131,7 +134,7 @@ class Router(SCIONElement):
         }
         self.sibra_state = SibraState(
             self.interface.bandwidth,
-            "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
+            "%s#%s -> %s" % (self.addr.isd_as, self.if_id,
                              self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.IFID: {None: self.process_ifid_request},
@@ -142,11 +145,11 @@ class Router(SCIONElement):
             SCMPClass.PATH: {SCMPPathClass.REVOKED_IF: self.process_revocation},
         }
         self._remote_sock = UDPSocket(
-            bind=(str(self.interface.addr), self.interface.udp_port),
-            addr_type=self.interface.addr.TYPE,
+            bind=(str(self.intf_addr), self.intf_port),
+            addr_type=self.intf_addr.TYPE,
         )
         self._socks.add(self._remote_sock, self.handle_recv)
-        logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
+        logging.info("IP %s:%d", self.intf_addr, self.intf_port)
 
     def _setup_sockets(self, init=True):
         """
@@ -186,7 +189,7 @@ class Router(SCIONElement):
         :type addr: :class:`HostAddrBase`
         :param int port: The port number of the next hop.
         """
-        from_local_as = addr == self.interface.to_addr
+        from_local_as = addr == self.intf_to_addr
         self.handle_extensions(spkt, False, from_local_as)
         if from_local_as:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
@@ -232,7 +235,7 @@ class Router(SCIONElement):
         return flags
 
     def handle_traceroute(self, hdr, spkt, _):
-        hdr.append_hop(self.addr.isd_as, self.interface.if_id)
+        hdr.append_hop(self.addr.isd_as, self.if_id)
         return []
 
     def handle_one_hop_path(self, hdr, spkt, from_local_as):
@@ -243,7 +246,7 @@ class Router(SCIONElement):
             info = spkt.path.get_iof()
             hf1 = spkt.path.get_hof_ver(ingress=True)
             exp_time = OneHopPathExt.HOF_EXP_TIME
-            hf2 = HopOpaqueField.from_values(exp_time, self.interface.if_id, 0)
+            hf2 = HopOpaqueField.from_values(exp_time, self.if_id, 0)
             hf2.set_mac(self.of_gen_key, info.timestamp, hf1)
             # FIXME(PSz): quite brutal for now:
             spkt.path = SCIONPath.from_values(info, [hf1, hf2])
@@ -266,12 +269,12 @@ class Router(SCIONElement):
         Synchronize and initialize the router's interface with that of a
         neighboring router.
         """
-        ifid_pld = IFIDPayload.from_values(self.interface.if_id)
-        pkt = self._build_packet(self.interface.to_addr,
+        ifid_pld = IFIDPayload.from_values(self.if_id)
+        pkt = self._build_packet(self.intf_to_addr,
                                  dst_ia=self.interface.isd_as)
         while self.run_flag.is_set():
             pkt.set_payload(ifid_pld.copy())
-            self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
+            self.send(pkt, self.intf_to_addr, self.intf_to_port)
             time.sleep(IFID_PKT_TOUT)
 
     def request_ifstates(self):
@@ -283,9 +286,10 @@ class Router(SCIONElement):
             start_time = SCIONTime.get_time()
             logging.info("Sending IFStateRequest for all interfaces.")
             for bs in self.topology.beacon_servers:
-                req = self._build_packet(bs.addr, dst_port=bs.port,
+                bs_addr, bs_port = bs.public[0]
+                req = self._build_packet(bs_addr, dst_port=bs_port,
                                          payload=pld.copy())
-                self.send(req, bs.addr, SCION_UDP_EH_DATA_PORT)
+                self.send(req, bs_addr, SCION_UDP_EH_DATA_PORT)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
                            "request_ifstates")
 
@@ -309,7 +313,7 @@ class Router(SCIONElement):
         ifid_pld = pkt.get_payload().copy()
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         # BS must determine interface.
-        ifid_pld.p.relayIF = self.interface.if_id
+        ifid_pld.p.relayIF = self.if_id
         try:
             bs_addrs = self.dns_query_topo(BEACON_SERVICE)
         except SCIONServiceLookupError as e:
@@ -464,7 +468,7 @@ class Router(SCIONElement):
         # Check that the interface in the current hop field matches the
         # interface in the router.
 
-        if path.get_curr_if(ingress=ingress) != self.interface.if_id:
+        if path.get_curr_if(ingress=ingress) != self.if_id:
             raise SCIONIFVerificationError(hof, iof)
 
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
@@ -475,8 +479,8 @@ class Router(SCIONElement):
 
     def _egress_forward(self, spkt):
         logging.debug("Forwarding to remote interface: %s:%s",
-                      self.interface.to_addr, self.interface.to_udp_port)
-        self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
+                      self.intf_to_addr, self.intf_to_port)
+        self.send(spkt, self.intf_to_addr, self.intf_to_port)
 
     def handle_data(self, spkt, from_local_as, drop_on_error=False):
         """
@@ -496,7 +500,7 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to not matching interfaces.\n"
                           "Current IOF: %s\nCurrent HOF: %s\n"
                           "Router Interface: %d" %
-                          (e.args[1], e.args[0], self.interface.if_id))
+                          (e.args[1], e.args[0], self.if_id))
         except SCIONOFVerificationError as e:
             logging.error("Dropping packet due to incorrect MAC.\n"
                           "Header:\n%s\nInvalid OF: %s\nPrev OF: %s",
@@ -555,7 +559,8 @@ class Router(SCIONElement):
             path_incd = False
         try:
             br = self.ifid2br[fwd_if]
-            if_addr, port = br.addr, br.port
+            addr_idx = br.interfaces[fwd_if].internaladdridx
+            if_addr, port = br.internaladdrs[addr_idx].public[0]
         except KeyError:
             # So that the error message will show the current state of the
             # packet.
@@ -634,14 +639,15 @@ class Router(SCIONElement):
         Returns the link type of the link corresponding to 'if_id' or None.
         """
         for br in self.topology.get_all_border_routers():
-            if br.interface.if_id == if_id:
-                return br.interface.link_type
+            for ifid in br.interfaces:
+                if ifid == if_id:
+                    return br.interfaces[ifid].link_type
         return None
 
     def _needs_local_processing(self, pkt):
         return pkt.addrs.dst in [
             self.addr,
-            SCIONAddr.from_values(self.addr.isd_as, self.interface.addr),
+            SCIONAddr.from_values(self.addr.isd_as, self.intf_addr),
         ]
 
     def _process_flags(self, flags, pkt, from_local_as):
@@ -682,9 +688,11 @@ class Router(SCIONElement):
                           pkt)
             return
         next_hop = self.ifid2br[ifid]
+        addr_idx = next_hop.interfaces[ifid].internaladdridx
+        nxhop_addr, nxhop_port = next_hop.internaladdrs[addr_idx].public[0]
         logging.debug("Packet forwarded by extension via %s:%s",
-                      next_hop.addr, next_hop.port)
-        self.send(pkt, next_hop.addr, next_hop.port)
+                      nxhop_addr, nxhop_port)
+        self.send(pkt, nxhop_addr, nxhop_port)
 
     def _process_deliver_flag(self, pkt, flag):
         if (flag == RouterFlag.DELIVER and

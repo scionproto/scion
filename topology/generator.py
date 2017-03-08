@@ -573,8 +573,8 @@ class TopoGenerator(object):
             elem_id = "%s%s-%s" % (nick, topo_id, i)
             d = {
                 'Public': [{
-                    'Addr': self._reg_addr(topo_id, elem_id), 
-                    'L4Port': random.randint(30050, 30100),
+                    'Addr': self._reg_addr(topo_id, elem_id),
+                    'L4Port': random.randint(30050, 30100)
                 }]
             }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
@@ -592,7 +592,7 @@ class TopoGenerator(object):
         self.topo_dicts[local]["BorderRouters"][local_br] = {
             'InternalAddrs': [{
                 'Public': [{
-                    'Addr': self._reg_addr(local,local_br),
+                    'Addr': self._reg_addr(local, local_br),
                     'L4Port': random.randint(30050, 30100)
                 }]
             }],
@@ -635,7 +635,7 @@ class TopoGenerator(object):
             addr = str(zk.addr)
         self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
             'Addr': addr,
-            'L4Port': zk.clientPort,
+            'L4Port': zk.clientPort
         }
 
     def _generate_as_list(self, topo_id, as_conf):
@@ -649,9 +649,8 @@ class TopoGenerator(object):
         for topo_id, as_topo, base in _srv_iter(
                 self.topo_dicts, self.out_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
-            contents = yaml.dump(self.topo_dicts[topo_id],
-                                 default_flow_style=False)
-            contents_json = json.dumps(yaml.load(contents), indent=4)
+            contents_json = json.dumps(self.topo_dicts[topo_id],
+                                       default=_json_default, indent=4)
             write_file(path, contents_json)
             # Test if topo file parses cleanly
             Topology.from_file(path)
@@ -1029,6 +1028,12 @@ def _srv_iter(topo_dicts, out_dir, common=False):
                 yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
+
+
+def _json_default(o):
+    if isinstance(o, AddressProxy):
+        return str(o)
+    raise TypeError
 
 
 def main():

@@ -153,7 +153,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
             },
         }
-
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()
         self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, zkid,
@@ -189,15 +188,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         for r in self.topology.child_border_routers:
-            if not r.interface.to_if_id:
-                continue
-            new_pcb, meta = self._mk_prop_pcb_meta(
-                pcb.copy(), r.interface.isd_as, r.interface.if_id)
-            if not new_pcb:
-                continue
-            self.send_meta(new_pcb, meta)
-            logging.info("Downstream PCB propagated to %s via IF %s",
-                         r.interface.isd_as, r.interface.if_id)
+            for if_id, intf in r.interfaces.items():
+                if not intf.to_if_id:
+                    continue
+                new_pcb, meta = self._mk_prop_pcb_meta(
+                    pcb.copy(), intf.isd_as, if_id)
+                if not new_pcb:
+                    continue
+                self.send_meta(new_pcb, meta)
+                logging.info("Downstream PCB propagated to %s via IF %s",
+                             intf.isd_as, if_id)
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
@@ -232,9 +232,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not if_id:
             return d
         br = self.ifid2br[if_id]
-        d["remote_ia"] = br.interface.isd_as
-        d["remote_if"] = br.interface.to_if_id
-        d["mtu"] = br.interface.mtu
+        d["remote_ia"] = br.interfaces[if_id].isd_as
+        d["remote_if"] = br.interfaces[if_id].to_if_id
+        d["mtu"] = br.interfaces[if_id].mtu
         return d
 
     @abstractmethod
@@ -303,16 +303,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         yield up_pcbm
         for br in sorted(self.topology.peer_border_routers):
-            in_if = br.interface.if_id
-            with self.ifid_state_lock:
-                if (not self.ifid_state[in_if].is_active() and
-                        not self._quiet_startup()):
-                    logging.warning('Peer ifid:%d inactive (not added).', in_if)
-                    continue
-            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
-                                          xover=True)
-            if peer_pcbm:
-                yield peer_pcbm
+            for in_if in br.interfaces:
+                with self.ifid_state_lock:
+                    if (not self.ifid_state[in_if].is_active() and
+                            not self._quiet_startup()):
+                        logging.warning('Peer ifid:%d inactive (not added).',
+                                        in_if)
+                        continue
+                peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
+                                              xover=True)
+                if peer_pcbm:
+                    yield peer_pcbm
 
     def _create_pcbm(self, in_if, out_if, ts, prev_hof, xover=False):
         in_info = self._mk_if_info(in_if)
@@ -356,7 +357,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
             br = self.ifid2br[ifid]
-            br.interface.to_if_id = pld.p.origIF
+            br.interfaces[ifid].to_if_id = pld.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
                 logging.info("IF %d activated", ifid)
@@ -370,9 +371,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
                     for br in self.topology.get_all_border_routers():
-                        meta = UDPMetadata.from_values(host=br.addr,
-                                                       port=br.port)
-                        self.send_meta(pld.copy(), meta, (br.addr, br.port))
+                        for attr in br.internaladdrs:
+                            for addr, port in attr.public:
+                                meta = UDPMetadata.from_values(host=addr,
+                                                               port=port)
+                                self.send_meta(pld.copy(), meta, (addr, port))
 
     def run(self):
         """
@@ -639,8 +642,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
         for br in self.topology.get_all_border_routers():
-            meta = UDPMetadata.from_values(host=br.addr, port=br.port)
-            self.send_meta(pld.copy(), meta, (br.addr, br.port))
+            for attr in br.internaladdrs:
+                addr, port = attr.public[0]
+                meta = UDPMetadata.from_values(host=addr, port=port)
+                self.send_meta(pld.copy(), meta, (addr, port))
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
 
