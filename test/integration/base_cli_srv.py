@@ -132,8 +132,7 @@ class TestClientBase(TestBase):
         fh_addr = path_entry.ipv4()
         if not fh_addr:
             fh_addr = self.dst.host
-        port = (path_entry.p.port if path_entry.p.port
-                else SCION_UDP_EH_DATA_PORT)
+        port = path_entry.p.port or SCION_UDP_EH_DATA_PORT
         self.first_hop = (fh_addr, port)
 
     def _try_sciond_api(self):
