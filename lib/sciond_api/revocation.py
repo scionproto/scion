@@ -25,7 +25,7 @@ from lib.sciond_api.base import SCIONDMsgBase
 from lib.types import SCIONDMsgType as SMT
 
 
-class RevocationNotification(SCIONDMsgBase):
+class SCIONDRevNotification(SCIONDMsgBase):
     """Revocation notification message."""
     NAME = "RevNotification"
     MSG_TYPE = SMT.REVOCATION

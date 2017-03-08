@@ -26,7 +26,7 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.sciond_api.as_req import SCIONDASInfoRequest
 from lib.sciond_api.parse import parse_sciond_msg
-from lib.sciond_api.revocation import RevocationNotification
+from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.thread import kill_self
 from lib.types import L4Proto, SCIONDMsgType as SMT
 from test.integration.base_cli_srv import (
@@ -78,7 +78,7 @@ class E2EClient(TestClientBase):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
-            rev_not = RevocationNotification.from_values(rev_info)
+            rev_not = SCIONDRevNotification.from_values(rev_info)
             self.api_socket().send(rev_not.pack_full())
             return ResponseRV.RETRY
         else:
