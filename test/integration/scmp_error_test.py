@@ -81,6 +81,10 @@ class ErrorGenBase(TestClientBase):
         logging.error("Failure:\n%s", spkt)
         return False
 
+    def _get_next_hop(self, spkt):
+        fh_info = self._connector.get_first_hop(spkt)
+        return fh_info.ipv4() or fh_info.ipv6(), fh_info.p.port
+
 
 # FIXME(kormat): ignore this for now, as with UDP-overlay, many packets are
 # actually over MTU, so this check is disabled until we get TCP/SCION.
@@ -109,7 +113,7 @@ class ErrorGenBadVersion(ErrorGenBase):
     DESC = "bad version"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         raw = bytearray(spkt.pack())
         raw[0] |= 0x80
         self._send_raw_pkt(raw, next_hop, port)
@@ -119,7 +123,7 @@ class ErrorGenBadSrcType(ErrorGenBase):
     DESC = "bad src type"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         raw = bytearray(spkt.pack())
         raw[0] |= 0x1
         self._send_raw_pkt(raw, next_hop, port)
@@ -129,7 +133,7 @@ class ErrorGenBadDstType(ErrorGenBase):
     DESC = "bad dst type"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         raw = bytearray(spkt.pack())
         raw[1] |= 0x4
         self._send_raw_pkt(raw, next_hop, port)
@@ -141,7 +145,7 @@ class ErrorGenBadPktLenShort(ErrorGenBase):
     DESC = "bad pkt length (data missing)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         self._send_raw_pkt(spkt.pack()[:-1], next_hop, port)
 
 
@@ -151,7 +155,7 @@ class ErrorGenBadPktLenLong(ErrorGenBase):
     DESC = "bad pkt length (extra data)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         self._send_raw_pkt(spkt.pack() + bytes([0]), next_hop, port)
 
 
@@ -159,7 +163,7 @@ class ErrorGenBadHdrLenShort(ErrorGenBase):
     DESC = "bad hdr length (too short)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[7] = 5
         self._send_raw_pkt(barr, next_hop, port)
@@ -169,7 +173,7 @@ class ErrorGenBadHdrLenLong(ErrorGenBase):
     DESC = "bad hdr length (too long)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[7] = 255
         self._send_raw_pkt(barr, next_hop, port)
@@ -181,7 +185,7 @@ class ErrorGenBadIOFOffsetShort(ErrorGenBase):
     DESC = "bad IOF offset (too short)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[4] -= 8
         self._send_raw_pkt(barr, next_hop, port)
@@ -193,7 +197,7 @@ class ErrorGenBadIOFOffsetLong(ErrorGenBase):
     DESC = "bad IOF offset (too long)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[4] = 255
         self._send_raw_pkt(barr, next_hop, port)
@@ -205,7 +209,7 @@ class ErrorGenBadHOFOffsetShort(ErrorGenBase):
     DESC = "bad HOF offset (too short)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[5] = 1
         self._send_raw_pkt(barr, next_hop, port)
@@ -217,7 +221,7 @@ class ErrorGenBadHOFOffsetLong(ErrorGenBase):
     DESC = "bad HOF offset (too long)"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
         barr[5] = 255
         self._send_raw_pkt(barr, next_hop, port)
@@ -229,7 +233,7 @@ class ErrorGenPathReq(ErrorGenBase):
     DESC = "path required"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         spkt.path = SCIONPath()
         self._send_raw_pkt(spkt.pack(), next_hop, port)
 
@@ -240,7 +244,7 @@ class ErrorGenBadMAC(ErrorGenBase):
     DESC = "Bad MAC"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         hof = spkt.path.get_hof()
         hof.mac = bytes(hof.MAC_LEN)
         self._send_raw_pkt(spkt.pack(), next_hop, port)
@@ -252,7 +256,7 @@ class ErrorGenExpiredHOF(ErrorGenBase):
     DESC = "Expired HOF"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         iof = spkt.path.get_iof()
         iof.timestamp = 0
         self._send_raw_pkt(spkt.pack(), next_hop, port)
@@ -267,13 +271,14 @@ class ErrorGenBadIF(ErrorGenBase):
         if super()._should_skip():
             return True
         # Only run if the remote AS is a core AS.
-        if not self.sd.is_core_as(self.dst.isd_as):
+        as_info = self._connector.get_as_info()[0]
+        if not as_info.p.isCore:
             logging.info("Skipping non-core remote AS")
             return True
         return False
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         spkt.addrs.dst.isd_as = ISD_AS.from_values(3, 33)
         self._send_raw_pkt(spkt.pack(), next_hop, port)
 
@@ -284,7 +289,7 @@ class ErrorGenNonRoutingHOF(ErrorGenBase):
     DESC = "Non-routing HOF"
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         hof = spkt.path.get_hof()
         hof.verify_only = True
         self._send_raw_pkt(spkt.pack(), next_hop, port)
@@ -323,7 +328,7 @@ class ErrorGenBadHopByHop(ErrorGenBase):
         return [TracerouteExt.from_values(5)]
 
     def _send_pkt(self, spkt, first_hop):
-        next_hop, port = self.sd.get_first_hop(spkt)
+        next_hop, port = self._get_next_hop(spkt)
         spkt.update()
         barr = bytearray(spkt.pack())
         idx = spkt.cmn_hdr.hdr_len + 2
@@ -365,8 +370,7 @@ class SCMPErrorTest(TestClientServerBase):
         data = ("%s<->%s" % (src, dst)).encode("UTF-8")
         for cls_ in GEN_LIST:
             logging.info("===========> Testing: %s", cls_.DESC)
-            sd, api_addr = self._run_sciond(src)
-            client = cls_(sd, api_addr, copy.deepcopy(data), None,
+            client = cls_(self._run_sciond(src), copy.deepcopy(data), None,
                           copy.deepcopy(src), copy.deepcopy(dst), 0, api=True)
             if not client.run():
                 return False

@@ -23,12 +23,13 @@ import sys
 import threading
 
 # SCION
-from lib.defines import CERTIFICATE_SERVICE
+from lib.app.sciond import SCIONDConnector
 from lib.main import main_wrapper
 from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
+from lib.types import ServiceType
 from test.integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -37,11 +38,16 @@ from test.integration.base_cli_srv import (
 
 
 class TestCertClient(TestClientBase):
-    def __init__(self, sd, api_addr, finished, addr):
-        cs = sd.dns_query_topo(CERTIFICATE_SERVICE)[0]
-        cs_addr = SCIONAddr.from_values(addr.isd_as, cs[0])
+    def __init__(self, api_addr, finished, addr):
+        # XXX(shitz): This is a hack. We need the connector here already, but
+        # the super constructor needs the cs_addr. Thus, we are temporarily
+        # creating a connector here.
+        connector = SCIONDConnector(api_addr)
+        cs_info = connector.get_service_info([ServiceType.CS])[0]
+        cs = cs_info.host_info()
+        cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert_done = False
-        super().__init__(sd, api_addr, "", finished, addr, cs_addr, cs[1])
+        super().__init__(api_addr, "", finished, addr, cs_addr, cs[1])
 
     def _get_path(self, api):
         pass  # No path required. All queries go to local CS
@@ -99,8 +105,7 @@ class TestCertReq(TestClientServerBase):
         return False
 
     def _create_client(self, finished, addr):
-        sd, api_addr = self._run_sciond(addr)
-        return TestCertClient(sd, api_addr, finished, addr)
+        return TestCertClient(self._run_sciond(addr), finished, addr)
 
 
 def main():
