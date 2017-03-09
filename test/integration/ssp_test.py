@@ -45,7 +45,7 @@ class SSPClient(TestClientBase):
     Simple ping app.
     """
     def _create_socket(self, addr):
-        sock = ScionClientSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
+        sock = ScionClientSocket(L4Proto.SSP, bytes(self.api_addr, 'ascii'))
         sock.settimeout(API_TOUT)
         sock.bind(0, self.addr)
         if sock.connect(self.dst, self.dport) < 0:
@@ -101,7 +101,7 @@ class SSPServer(TestServerBase):
     Simple pong app.
     """
     def _create_socket(self, addr):
-        sock = ScionServerSocket(L4Proto.SSP, bytes(self.sd.api_addr, 'ascii'))
+        sock = ScionServerSocket(L4Proto.SSP, bytes(self.api_addr, 'ascii'))
         sock.settimeout(5.0)
         sock.bind(0, self.addr)
         sock.listen()

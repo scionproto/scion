@@ -44,7 +44,7 @@ class MPUDPClient(TestClientBase):
     Simple ping app.
     """
     def _create_socket(self, addr):
-        sock = ScionClientSocket(L4Proto.UDP, bytes(self.sd.api_addr, 'ascii'))
+        sock = ScionClientSocket(L4Proto.UDP, bytes(self.api_addr, 'ascii'))
         if sock.bind(0, self.addr) < 0:
             return None
         sock.settimeout(self._timeout)
@@ -85,7 +85,7 @@ class MPUDPServer(TestServerBase):
     Simple pong app.
     """
     def _create_socket(self, addr):
-        sock = ScionServerSocket(L4Proto.UDP, bytes(self.sd.api_addr, 'ascii'))
+        sock = ScionServerSocket(L4Proto.UDP, bytes(self.api_addr, 'ascii'))
         sock.settimeout(5.0)
         if sock.bind(0, self.addr) < 0:
             return None
