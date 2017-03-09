@@ -111,7 +111,7 @@ func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
 // InfoF retrieves the current path Info Field if it isn't already known.
 func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 	if rp.infoF == nil {
-		for _, f := range rp.hooks.Infof {
+		for _, f := range rp.Hooks.Infof {
 			ret, infof, err := f()
 			switch {
 			case err != nil:
@@ -149,7 +149,7 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 // HopF retrieves the current path Hop Field if it isn't already known.
 func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 	if rp.hopF == nil {
-		for _, f := range rp.hooks.HopF {
+		for _, f := range rp.Hooks.HopF {
 			ret, hopf, err := f()
 			switch {
 			case err != nil:
@@ -337,7 +337,7 @@ func (rp *RtrPkt) UpFlag() (*bool, *common.Error) {
 		return rp.upFlag, nil
 	}
 	// Try to get Up flag from extensions
-	for _, f := range rp.hooks.UpFlag {
+	for _, f := range rp.Hooks.UpFlag {
 		ret, up, err := f()
 		switch {
 		case err != nil:
@@ -364,7 +364,7 @@ func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 	}
 	if rp.upFlag != nil {
 		// Try to get IFID from registered hooks.
-		if ifid, err := rp.hookIF(*rp.upFlag, rp.hooks.IFCurr); err != nil {
+		if ifid, err := rp.hookIF(*rp.upFlag, rp.Hooks.IFCurr); err != nil {
 			return nil, err
 		} else if ifid != nil {
 			return rp.checkSetCurrIF(ifid)
@@ -409,7 +409,7 @@ func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 	if rp.ifNext == nil && rp.upFlag != nil {
 		var err *common.Error
 		// Try to get IFID from registered hooks.
-		if rp.ifNext, err = rp.hookIF(*rp.upFlag, rp.hooks.IFNext); err != nil {
+		if rp.ifNext, err = rp.hookIF(*rp.upFlag, rp.Hooks.IFNext); err != nil {
 			return nil, err
 		} else if rp.ifNext != nil {
 			return rp.ifNext, nil

@@ -62,7 +62,7 @@ func (rp *RtrPkt) Validate() *common.Error {
 	if err := rp.validateExtns(); err != nil {
 		return err
 	}
-	for i, f := range rp.hooks.Validate {
+	for i, f := range rp.Hooks.Validate {
 		ret, err := f()
 		switch {
 		case err != nil:

@@ -132,7 +132,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 		if err != nil {
 			return err
 		}
-		e.RegisterHooks(&rp.hooks)
+		e.RegisterHooks(&rp.Hooks)
 		rp.HBHExt = append(rp.HBHExt, e)
 		rp.idxs.hbhExt = append(rp.idxs.hbhExt, extnIdx{currExtn, *offset})
 		*nextHdr = common.L4ProtocolType(rp.Raw[*offset])

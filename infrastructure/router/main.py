@@ -16,7 +16,9 @@
 ===========================================
 """
 # Stdlib
+import base64
 import logging
+import queue
 import threading
 import time
 import zlib
@@ -50,6 +52,9 @@ from lib.errors import (
 )
 from lib.log import log_exception
 from lib.msg_meta import RawMetadata
+from lib.packet.scion import SCIONBasePacket
+from lib.packet.scmp_auth.auth_tree import AuthTree
+from lib.packet.scmp_auth.scmp_auth import SCMPAuthExt, SCMPAuthType
 from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.traceroute import TracerouteExt
@@ -72,7 +77,7 @@ from lib.packet.scmp.errors import (
     SCMPPathRequired,
     SCMPTooManyHopByHop,
     SCMPUnknownHost,
-)
+    SCMPBadIOFOffset, SCMPBadHOFOffset, SCMPUnspecified, SCMPOversizePkt, SCMPBadPktLen)
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType, SVC_TO_SERVICE
 from lib.sibra.state.state import SibraState
@@ -86,8 +91,8 @@ from lib.types import (
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
-)
-from lib.util import SCIONTime, hex_str, sleep_interval
+    ExtEndToEndType, L4Proto)
+from lib.util import SCIONTime, hex_str, sleep_interval, get_sig_key_file_path, read_file
 
 
 class Router(SCIONElement):
@@ -100,6 +105,7 @@ class Router(SCIONElement):
     SERVICE_TYPE = ROUTER_SERVICE
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
+    SCMP_INTERVAL = 0.01
 
     def __init__(self, server_id, conf_dir, ):
         """
@@ -107,6 +113,9 @@ class Router(SCIONElement):
         :param str conf_dir: configuration directory.
         """
         super().__init__(server_id, conf_dir, )
+        self._scmp_auth_queue = queue.Queue()  # Queue (spkt, from_local_as)
+        sig_key_file = get_sig_key_file_path(self.conf_dir)
+        self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.interface = None
         for border_router in self.topology.get_all_border_routers():
             if border_router.name == self.id:
@@ -172,6 +181,9 @@ class Router(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.sibra_worker,),
             name="BR.sibra_worker", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,args=(self.authenticate_scmp_queue,),
+            name="BR.scmp_auth_queue", daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, spkt, addr, port):
@@ -256,8 +268,8 @@ class Router(SCIONElement):
         logging.debug("Sibra state:\n%s", self.sibra_state)
         return ret
 
-    def handle_scmp(self, hdr, spkt, _):
-        if hdr.hopbyhop:
+    def handle_scmp(self, hdr, spkt, from_local_as):
+        if hdr.hopbyhop or from_local_as:
             return [(RouterFlag.PROCESS_LOCAL,)]
         return []
 
@@ -688,7 +700,7 @@ class Router(SCIONElement):
 
     def _process_deliver_flag(self, pkt, flag):
         if (flag == RouterFlag.DELIVER and
-                pkt.addrs.dst.isd_as != self.addr.isd_as):
+                    pkt.addrs.dst.isd_as != self.addr.isd_as):
             logging.error("Extension tried to deliver this locally, but this "
                           "is not the destination ISD-AS:\n%s", pkt)
             return
@@ -728,17 +740,24 @@ class Router(SCIONElement):
             logging.debug("Stopped processing")
             return
         try:
-            needs_local |= self._needs_local_processing(pkt)
+            is_destination = self._needs_local_processing(pkt)
         except SCMPError as e:
             self._scmp_validate_error(pkt, e)
             return
-        if needs_local:
+        if needs_local or is_destination:
             try:
                 pkt.parse_payload()
             except SCIONBaseError:
                 log_exception("Error parsing payload:\n%s" % hex_str(packet))
                 return
-            handler = self._get_handler(pkt)
+            # FIXME(roosd): Only add to queue if local delivery or egress
+            if pkt.ext_hdrs and pkt.ext_hdrs[0].EXT_TYPE == ExtHopByHopType.SCMP and from_local_as and not is_destination:
+                logging.debug("Added to scmp queue: %s", pkt)
+                handler = self._add_to_scmp_queue
+            else:
+                handler = self._get_handler(pkt)
+                if not handler:
+                    logging.debug("Did not find handler %s", pkt)
         else:
             # It's a normal packet, just forward it.
             handler = self.handle_data
@@ -753,3 +772,86 @@ class Router(SCIONElement):
             self._scmp_validate_error(pkt, e)
         except SCIONBaseError:
             log_exception("Error handling packet: %s" % pkt)
+
+    def _scmp_validate_error(self, pkt, e):
+        if pkt.cmn_hdr.next_hdr == L4Proto.SCMP and pkt.ext_hdrs[0].error:
+            # Never respond to an SCMP error with an SCMP error.
+            logging.info(
+                "Dropping SCMP error packet due to validation error. %s", e)
+            return
+        if isinstance(e, (SCMPBadIOFOffset, SCMPBadHOFOffset)):
+            # Can't handle normally, as the packet isn't reversible.
+            reply = self._scmp_bad_path_metadata(pkt, e)
+        else:
+            logging.warning("Error: %s", type(e))
+            reply = pkt.reversed_copy()
+            args = ()
+            if isinstance(e, SCMPUnspecified):
+                args = (str(e),)
+            elif isinstance(e, (SCMPOversizePkt, SCMPBadPktLen)):
+                args = (e.args[1],)  # the relevant MTU.
+            elif isinstance(e, (SCMPTooManyHopByHop, SCMPBadExtOrder,
+                                SCMPBadHopByHop)):
+                args = e.args
+                if isinstance(e, SCMPBadExtOrder):
+                    # Delete the problematic extension.
+                    del reply.ext_hdrs[args[0]]
+            reply.convert_to_scmp_error(self.addr, e.CLASS, e.TYPE, pkt, *args)
+        if pkt.addrs.src.isd_as == self.addr.isd_as:
+            # No path needed for a local reply.
+            reply.path = SCIONPath()
+        reply.update()
+        logging.warning("Reply:\n%s", reply)
+        self._add_to_scmp_queue(reply, None, True)
+
+    def _add_to_scmp_queue(self, spkt, _, locally_created=False):
+        self._scmp_auth_queue.put((spkt, locally_created))
+
+    def authenticate_scmp_queue(self):
+        """
+        Periodically authenticate scmp queu and send.
+        """
+        while self.run_flag.is_set():
+            start_time = SCIONTime.get_time()
+            #  logging.info("Authenticate SCMP queue")
+            packets = []
+            locally_created = []
+            for i in range(AuthTree.MAX_COUNT):
+                try:
+                    element = self._scmp_auth_queue.get_nowait()
+                    packets.append(element[0])
+                    locally_created.append(element[1])
+                except queue.Empty:
+                    break
+            if packets:
+
+                logging.debug("Queue size: %s", len(packets))
+                auth_tree = AuthTree((pkt.get_payload().pack() for pkt in packets), self.signing_key, len(packets))
+
+                for index, pkt in enumerate(packets):
+                    signature, hashes, order = auth_tree.get_proof(index)
+
+                    logging.debug("old packet %s", pkt)
+
+                    pkt.ext_hdrs[:] = [value for value in pkt.ext_hdrs if
+                                       (value.EXT_CLASS != ExtensionClass.END_TO_END
+                                        or value.EXT_TYPE != ExtEndToEndType.SCMP_AUTH)]
+
+                    pkt.ext_hdrs.append(SCMPAuthExt.from_values(SCMPAuthType.HASH_TREE, order, None, signature, hashes))
+                    logging.debug("Trying to get scmp handler for %s:", pkt)
+                    handler = self.handle_data
+
+                    if locally_created[index]:
+                        next_hop, port = self.get_first_hop(pkt)
+                        pkt.update()
+                        self.send(pkt, next_hop, port)
+                    else:
+                        try:
+                            handler(pkt, True)
+                        except SCMPError as e:
+                            self._scmp_validate_error(pkt, e)
+                        except SCIONBaseError:
+                            log_exception("Error after signing packet: %s" % pkt)
+
+            sleep_interval(start_time, self.SCMP_INTERVAL,
+                           "signing batch")

@@ -1,0 +1,20 @@
+Authenticated SCMP
+ 
+This commit adds authentication capabilities for SCMP packets to the SCION infrastructure.
+ 
+Changes:
+ -Add Security extension in Python and Go
+ -Add SCMPAuth extension in Python and Go
+ -Add authenticating/verifying capabilities to BR
+ -Add Packet buffering capabilities to BR, for packets with missing key
+ -Add key sharing between BR and local CS
+ -Add key sharing between local and remote CS
+ -Modify topology generator to create a SCION Deamon per SCION element in an AS
+ -Modify BR to automatically authenticate self created SCMP messages
+ 
+Future updates:
+ -More extensive tests
+ -Enable Zookeeper keysharing between local CSes
+ -Encrypt communication between local CS and BR
+ -Verify CertChains
+ -Add HashTree signature capability

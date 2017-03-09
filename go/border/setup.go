@@ -64,8 +64,13 @@ func (r *Router) setup(confDir string) *common.Error {
 	log.Debug("Topology loaded", "topo", conf.C.BR)
 	log.Debug("AS Conf loaded", "conf", conf.C.ASConf)
 
+	scmpAuthHolder, err := setupSCMPAuth(r)
+	if err != nil {
+		return err
+	}
+
 	// Configure the rpkt package with the callbacks it needs.
-	rpkt.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback)
+	rpkt.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback, scmpAuthHolder)
 	return nil
 }
 
@@ -202,4 +207,24 @@ func setupPosixAddExt(r *Router, intf *netconf.Interface,
 		r.writePosixOutput(labels, rp, dst, f)
 	}
 	return rpkt.HookFinish, nil
+}
+
+// setupSCMPAuth setup the SCMPAuth infrastructure.
+func setupSCMPAuth(r *Router) (*rpkt.SCMPAuthCallbacks, *common.Error) {
+	if err := conf.LoadSCMPAuth(); err != nil {
+		return nil, err
+	}
+	log.Debug("SCMPAuth Conf loaded")
+	// SCMPAuth
+	r.scmpAuthDRKeys = rpkt.NewSCMPAuthDRKeys()
+	r.missingSCMPAuthDRKeys = rpkt.NewMissingSCMPAuthDRKeys(conf.SCMPAuth.MissingDRKeyQsize)
+	r.scmpAuthQueues = rpkt.NewSCMPAuthQueues(conf.SCMPAuth.NumberOfQueues, conf.SCMPAuth.MaxQueueSize)
+	scmpAuthHolder := &rpkt.SCMPAuthCallbacks{
+		ReplyHandler:  r.ProcessSCMPAuthLocalDRKeyReply,
+		RequestF:      r.PutSCMPAuthDRKeyRequest,
+		DRKeys:        r.scmpAuthDRKeys,
+		MissingDRKeys: r.missingSCMPAuthDRKeys,
+	}
+	r.inQs = append(r.inQs, r.scmpAuthQueues.RtrPktChannel)
+	return scmpAuthHolder, nil
 }
