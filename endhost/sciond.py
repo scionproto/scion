@@ -41,6 +41,7 @@ from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
+from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
@@ -249,8 +250,9 @@ class SCIONDaemon(SCIONElement):
                 br = self.ifid2br[fwd_if]
                 haddr, port = br.addr, br.port
             addrs = [haddr] if haddr else []
+            first_hop = HostInfo.from_values(addrs, port)
             reply_entry = SCIONDPathReplyEntry.from_values(
-                path_meta, addrs, port)
+                path_meta, first_hop)
             reply_entries.append(reply_entry)
         self._send_path_reply(req_id, reply_entries, error, meta)
 

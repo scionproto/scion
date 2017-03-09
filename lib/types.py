@@ -41,6 +41,15 @@ class AddrType(TypeBase):
     UNIX = 4  # For dispatcher socket
 
 
+class ServiceType(TypeBase):
+    BS = "bs"
+    PS = "ps"
+    CS = "cs"
+    DNS = "ds"
+    BR = "br"
+    SIBRA = "sb"
+
+
 class ExtensionClass(TypeBase):
     """
     Constants for two types of extensions. These values are shared with L4
@@ -159,3 +168,7 @@ class SCIONDMsgType(TypeBase):
     AS_REQUEST = "asInfoReq"
     AS_REPLY = "asInfoReply"
     REVOCATION = "revNotification"
+    BR_REQUEST = "brInfoRequest"
+    BR_REPLY = "brInfoReply"
+    SERVICE_REQUEST = "serviceInfoRequest"
+    SERVICE_REPLY = "serviceInfoReply"

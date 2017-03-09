@@ -13,6 +13,10 @@ struct SCIONDMsg {
         asInfoReq @3 :ASInfoReq;
         asInfoReply @4 :ASInfoReply;
         revNotification @5 :RevNotification;
+        brInfoRequest @6 :BRInfoRequest;
+        brInfoReply @7 :BRInfoReply;
+        serviceInfoRequest @8 :ServiceInfoRequest;
+        serviceInfoReply @9 :ServiceInfoReply;
     }
 }
 
@@ -35,10 +39,14 @@ struct PathReply {
 
 struct PathReplyEntry {
     path @0 :FwdPathMeta;  # End2end path
-    port @1 :UInt16;  # First hop port
-    addrs :group {  # First hop address
-        ipv4 @2 :Data;
-        ipv6 @3 :Data;
+    hostInfo @1 :HostInfo;  # First hop host info.
+}
+
+struct HostInfo {
+    port @0 :UInt16;  # Reachable port of the host.
+    addrs :group {  # Addresses of the host.
+        ipv4 @1 :Data;
+        ipv6 @2 :Data;
     }
 }
 
@@ -68,4 +76,39 @@ struct ASInfoReplyEntry {
 
 struct RevNotification {
     revInfo @0 :RevInfo.RevInfo;
+}
+
+struct BRInfoRequest {
+    ifIDs @0 :List(UInt64);  # The if IDs for which a client requests the host infos. Empty list means all BRs.
+}
+
+struct BRInfoReply {
+    entries @0 :List(BRInfoReplyEntry);
+}
+
+struct BRInfoReplyEntry {
+    ifID @0 :UInt64;  # The if ID of the BR.
+    hostInfo @1 :HostInfo;  # The host info of the BR.
+}
+
+struct ServiceInfoRequest {
+    serviceTypes @0 :List(ServiceType);  # The service types for which a client requests the host infos. Empty list means all services.
+
+    enum ServiceType {
+        bs @0;  # Beacon service
+        ps @1;  # Path service
+        cs @2;  # Certificate service
+        ds @3;  # DNS service
+        br @4;  # Router service
+        sb @5;  # SIBRA service
+    }
+}
+
+struct ServiceInfoReply {
+    entries @0 :List(ServiceInfoReplyEntry);
+}
+
+struct ServiceInfoReplyEntry {
+    serviceID @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
+    hostInfo @1 :HostInfo;  # The host info of the service.
 }

@@ -142,10 +142,11 @@ class TestClientBase(TestBase):
         response = self._try_sciond_api(flush)
         path_entry = response.path_entry(0)
         self.path_meta = path_entry.path()
-        fh_addr = path_entry.ipv4()
+        fh_info = path_entry.first_hop()
+        fh_addr = fh_info.ipv4()
         if not fh_addr:
             fh_addr = self.dst.host
-        port = path_entry.p.port or SCION_UDP_EH_DATA_PORT
+        port = fh_info.p.port or SCION_UDP_EH_DATA_PORT
         self.first_hop = (fh_addr, port)
 
     def _try_sciond_api(self, flush=False):
