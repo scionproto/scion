@@ -50,6 +50,12 @@ type Router struct {
 	freePkts chan *rpkt.RtrPkt
 	// revInfoQ is a channel for handling RevInfo payloads.
 	revInfoQ chan rpkt.RevTokenCallbackArgs
+	// SCMPAuthDRKeys stores all available SCMPAuthDRKeys
+	scmpAuthDRKeys *rpkt.SCMPAuthDRKeys
+	// MissingSCMPAuthDRKeyMap stores information about the ISD-AS whose SCMPAuthDRKeys are being fetched.
+	missingSCMPAuthDRKeys *rpkt.MissingSCMPAuthDRKeys
+	// scmpAuthQueues is used to buffer undeliverable SCMP packets.
+	scmpAuthQueues *rpkt.SCMPAuthQueues
 }
 
 func NewRouter(id, confDir string) (*Router, *common.Error) {
@@ -69,6 +75,12 @@ func (r *Router) Run() *common.Error {
 	go r.SyncInterface()
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
+
+	// SCMPAuth
+	go r.RequestSCMPAuthDRKeys()
+	go r.ExpireSCMPAuthDRKeyRequests()
+	go r.HandleSCMPAuthDRKeyReplies()
+
 	var wg sync.WaitGroup
 	for _, q := range r.inQs {
 		wg.Add(1)

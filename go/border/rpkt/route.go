@@ -38,7 +38,7 @@ import (
 func (rp *RtrPkt) Route() *common.Error {
 	// First allow any registered hooks to either route the packet themselves,
 	// or add entries to the Egress slice.
-	for _, f := range rp.hooks.Route {
+	for _, f := range rp.Hooks.Route {
 		ret, err := f()
 		switch {
 		case err != nil:

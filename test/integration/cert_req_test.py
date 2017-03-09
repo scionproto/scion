@@ -28,7 +28,7 @@ from lib.main import main_wrapper
 from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from test.integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -57,7 +57,7 @@ class TestCertClient(TestClientBase):
 
     def _create_payload(self, _):
         if not self.cert_done:
-            return CertChainRequest.from_values(self.addr.isd_as, 0)
+            return CertChainRequest.from_values(ISD_AS.from_values(1,19), 0)
         return TRCRequest.from_values(self.addr.isd_as, 0)
 
     def _handle_response(self, spkt):

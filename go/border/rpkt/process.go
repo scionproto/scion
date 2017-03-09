@@ -40,14 +40,18 @@ const (
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
+	if len(rp.HBHExt) > 0 && rp.HBHExt[0].Type() == common.ExtnSCMPType && (*rp.srcIA == *conf.C.IA || *rp.dstIA == *conf.C.IA) {
+		rp.Hooks.Process = append(rp.Hooks.Process, rp.ProcessSCMPAuthExt)
+	}
+
 	if *rp.dstIA != *conf.C.IA {
 		// Packet isn't to this ISD-AS, so just forward.
-		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
+		rp.Hooks.Route = append(rp.Hooks.Route, rp.forward)
 		return nil
 	}
 	if rp.CmnHdr.DstType == addr.HostTypeSVC {
 		// SVC address needs to be resolved for delivery.
-		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
+		rp.Hooks.Route = append(rp.Hooks.Route, rp.RouteResolveSVC)
 		return nil
 	}
 	// Check to see if the destination IP is the address the packet was received
@@ -62,7 +66,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 		return rp.isDestSelf(locPub)
 	}
 	// Non-SVC packet to local AS, just forward.
-	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
+	rp.Hooks.Route = append(rp.Hooks.Route, rp.forward)
 	return nil
 }
 
@@ -84,19 +88,19 @@ func (rp *RtrPkt) isDestSelf(addr *net.UDPAddr) *common.Error {
 		goto Self
 	}
 	rp.DirTo = DirLocal
-	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
+	rp.Hooks.Route = append(rp.Hooks.Route, rp.forward)
 	return nil
 Self:
 	rp.DirTo = DirSelf
-	rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
-	rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
+	rp.Hooks.Payload = append(rp.Hooks.Payload, rp.parseCtrlPayload)
+	rp.Hooks.Process = append(rp.Hooks.Process, rp.processDestSelf)
 	return nil
 }
 
 // Process uses any registered hooks to process the packet. Note that there is
 // no generic fallback; if no hooks are registered, then no work is done.
 func (rp *RtrPkt) Process() *common.Error {
-	for _, f := range rp.hooks.Process {
+	for _, f := range rp.Hooks.Process {
 		ret, err := f()
 		switch {
 		case err != nil:
@@ -138,6 +142,12 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 			return HookError, common.NewError(errPldGet, "err", err)
 		}
 		return rp.processPathMgmtSelf(pathMgmt)
+	case proto.SCION_Which_scmpAuthMgmt:
+		scmpAuthMgmt, err := pld.ScmpAuthMgmt()
+		if err != nil {
+			return HookError, common.NewError(errPldGet, "err", err)
+		}
+		return rp.processSCMPAuthMgmt(scmpAuthMgmt)
 	default:
 		rp.Error("Unsupported destination payload", "type", pld.Which())
 		return HookError, nil
@@ -225,6 +235,26 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 func (rp *RtrPkt) isDownstreamRouter() bool {
 	intf := conf.C.Net.IFs[*rp.ifCurr]
 	return intf.Type == "PARENT"
+}
+
+// processSCMPAuthMgmt is a processing hook used to handle SCMPAuthMgmt responses.
+func (rp *RtrPkt) processSCMPAuthMgmt(scmpAuthMgmt proto.SCMPAuthMgmt) (HookResult, *common.Error) {
+	switch scmpAuthMgmt.Which() {
+	case proto.SCMPAuthMgmt_Which_scmpAuthLocalRep:
+		if *conf.C.IA != *rp.srcIA {
+			rp.Error("SCMPAuthMgmt message from non local source ", "ISD-AS", rp.srcIA.String())
+			return HookError, nil
+		}
+		scmpAuthLocalRep, err := scmpAuthMgmt.ScmpAuthLocalRep()
+		if err != nil {
+			rp.Error("ScmpAuthLocalRep() failed", "err", err)
+		}
+		scmpAuthCallbacks.ReplyHandler(scmpAuthLocalRep)
+	default:
+		rp.Error("SCMPAuthMgmt message of wrong payload type ", "Type", scmpAuthMgmt.Which().String())
+		return HookError, nil
+	}
+	return HookFinish, nil
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given

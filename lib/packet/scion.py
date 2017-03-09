@@ -57,6 +57,7 @@ from lib.packet.scmp.errors import (
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.hdr import SCMPHeader
 from lib.packet.scmp.payload import SCMPPayload
+from lib.packet.scmp_auth.scmp_auth_mgmt import parse_scmpauthmgmt_payload
 from lib.packet.svc import SVCType
 from lib.sibra.payload import parse_sibra_payload
 from lib.types import (
@@ -673,6 +674,7 @@ def msg_from_raw(raw):
         PayloadClass.CERT: parse_certmgmt_payload,
         PayloadClass.PATH: parse_pathmgmt_payload,
         PayloadClass.SIBRA: parse_sibra_payload,
+        PayloadClass.SCMP_AUTH: parse_scmpauthmgmt_payload,
     }
     handler = class_map.get(pld_class)
     if not handler:

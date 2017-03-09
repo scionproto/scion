@@ -28,6 +28,13 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
+func toString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
 // handlePktError is called for protocol-level packet errors. If there's SCMP
 // metadata attached to the error object, then an SCMP error response is
 // generated and sent.
@@ -41,6 +48,10 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	rp.Error(desc, perr.Ctx...)
 	if !ok || perr.Data == nil || rp.DirFrom == rpkt.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
+		dstIA, _ := rp.DstIA()
+		srcIA, _ := rp.SrcIA()
+		rp.Warn("Do not send a reply", dstIA.String(), srcIA.String())
+
 		return
 	}
 
@@ -106,6 +117,12 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			sp.HBHExt = append(sp.HBHExt, e)
 		}
 	}
+
+	// Add SCMPAuth Header
+	scmpAuthExt := spkt.NewSCMPDRKeyAuthExtn(spkt.SCMP_AUTH_DRKEY)
+	scmpAuthExt.SetTimeStamp()
+	sp.E2EExt = append(sp.E2EExt, scmpAuthExt)
+
 	// Add SCMP l4 header and payload
 	var l4Type common.L4ProtocolType
 	if sp.L4 != nil {
@@ -115,6 +132,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
 	// Convert back to RtrPkt
 	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom)
+	reply.Hooks.Route = append(reply.Hooks.Route, reply.ProcessSCMPAuthExt)
 	if err != nil {
 		return nil, err
 	}
