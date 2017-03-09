@@ -24,6 +24,7 @@ from collections import defaultdict
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.path_probe import PathProbeExt
 from lib.packet.ext.path_transport import PathTransportExt
+from lib.packet.ext.security import SecurityExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.scmp.ext import SCMPExt
@@ -39,6 +40,7 @@ EXTENSION_MAP = {
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
+    (ExtensionClass.END_TO_END, ExtEndToEndType.SECURITY): SecurityExt,
 }
 
 

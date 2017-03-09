@@ -25,7 +25,7 @@ from lib.defines import (
     PATH_SERVICE,
     ROUTER_SERVICE,
     SIBRA_SERVICE,
-)
+    SCIOND_SERVICE)
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scion_addr import ISD_AS
@@ -143,6 +143,7 @@ class Topology(object):
         self.peer_border_routers = []
         self.core_border_routers = []
         self.zookeepers = []
+        self.scionds = []
 
     @classmethod
     def from_file(cls, topology_file):  # pragma: no cover
@@ -185,6 +186,7 @@ class Topology(object):
             ("CertificateServers", self.certificate_servers),
             ("PathServers", self.path_servers),
             ("SibraServers", self.sibra_servers),
+            ("Sciond", self.scionds),
         ):
             for k, v in topology[type_].items():
                 list_.append(ServerElement(v, k))
@@ -227,6 +229,7 @@ class Topology(object):
             PATH_SERVICE: self.path_servers,
             ROUTER_SERVICE: self.get_all_border_routers(),
             SIBRA_SERVICE: self.sibra_servers,
+            SCIOND_SERVICE: self.scionds,
         }
         try:
             target = type_map[server_type]
@@ -239,4 +242,12 @@ class Topology(object):
                 return i
         else:
             logging.critical("Could not find server: %s", server_id)
+            raise SCIONKeyError from None
+
+    def get_sciond_config(self, server_id):
+        for i in self.scionds:
+            if i.name == server_id:
+                return i
+        else:
+            logging.critical("Could not find Sciond to server: %s", server_id)
             raise SCIONKeyError from None
