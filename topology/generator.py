@@ -33,6 +33,8 @@ from string import Template
 # External packages
 import yaml
 from Crypto import Random
+
+from endhost.sciond import SCIOND_API_SOCKDIR
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
@@ -113,6 +115,7 @@ SCION_SERVICE_NAMES = (
     "BorderRouters",
     "PathServers",
     "SibraServers",
+    "Sciond"
 )
 
 DEFAULT_KEYGEN_ALG = 'Ed25519'
@@ -573,7 +576,13 @@ class TopoGenerator(object):
             d = {}
             d["Addr"] = self._reg_addr(topo_id, elem_id)
             d["Port"] = random.randint(30050, 30100)
+            selem_id = "s%s%s-%s" % (nick, topo_id, i)
+            s = {}
+            s["Addr"] = self._reg_addr(topo_id, selem_id)
+            s["Port"] = random.randint(30050, 30100)
+
             self.topo_dicts[topo_id][topo_key][elem_id] = d
+            self.topo_dicts[topo_id]["Sciond"][elem_id] = s
 
     def _gen_br_entries(self, topo_id):
         for (ltype, remote, attrs, local_br,
@@ -712,17 +721,17 @@ class SupervisorGenerator(object):
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
             elem_dir = os.path.join(base, elem)
-            self._write_elem_conf(elem, entry, elem_dir)
+            self._write_elem_conf(elem, entry, elem_dir, True, topo_id)
             if self.mininet:
                 self._write_elem_mininet_conf(elem, elem_dir)
-        config["group:as%s" % topo_id] = {"programs": ",".join(names)}
+        config["group:as%s" % topo_id] = {"programs": ",".join(names)+",d"+",d".join([x for x in names if x[:2] not in ["br","zk"]])}
         text = StringIO()
         config.write(text)
         conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS(),
                                  SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
-    def _write_elem_conf(self, elem, entry, elem_dir):
+    def _write_elem_conf(self, elem, entry, elem_dir, create_sciond=False, topo_id=None):
         config = configparser.ConfigParser(interpolation=None)
         prog = self._common_entry(elem, entry, elem_dir)
         self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
@@ -737,7 +746,15 @@ class SupervisorGenerator(object):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
         text = StringIO()
+
+        if create_sciond and not elem[:2] == "br" and not elem[:2] == "zk":
+            ip = self.topo_dicts[topo_id]["Sciond"][elem]["Addr"].ip
+            args = ["bin/sciond", "--addr", ip, "--api-addr",
+                    os.path.join(SCIOND_API_SOCKDIR, "d"+elem+".sock"), "d"+elem, elem_dir]
+            p = self._common_entry("d"+elem, args, elem_dir)
+            config["program:d%s" % elem] = p
         config.write(text)
+
         write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
 
     def _write_elem_mininet_conf(self, elem, elem_dir):

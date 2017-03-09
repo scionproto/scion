@@ -60,6 +60,7 @@ class ExtHopByHopType(TypeBase):
 class ExtEndToEndType(TypeBase):
     PATH_TRANSPORT = 0
     PATH_PROBE = 1
+    SECURITY = 2
 
 
 class L4Proto(TypeBase):
@@ -80,6 +81,7 @@ class PayloadClass(object):
     CERT = "certMgmt"
     PATH = "pathMgmt"
     SIBRA = "sibra"
+    SCMP_AUTH = "scmpAuthMgmt"
 
 
 class CertMgmtType(object):
@@ -110,6 +112,11 @@ class PathSegmentType(TypeBase):
     CORE = 2  # Request/Reply for core-paths
     GENERIC = 3  # FIXME(PSz): experimental for now.
 
+class SCMPAuthMgmtType(object):
+    SCMP_AUTH_REMOTE_REQUEST = "scmpAuthRemoteReq"
+    SCMP_AUTH_REMOTE_REPLY = "scmpAuthRemoteRep"
+    SCMP_AUTH_LOCAL_REQUEST = "scmpAuthLocalReq"
+    SCMP_AUTH_LOCAL_REPLY = "scmpAuthLocalRep"
 
 ############################
 # Router types
