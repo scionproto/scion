@@ -28,7 +28,7 @@ from lib.types import SCIONDMsgType as SMT
 
 class SCIONDServiceInfoRequest(SCIONDMsgBase):
     NAME = "ServiceInfoRequest"
-    MSG_TYPE = SMT.Service_REQUEST
+    MSG_TYPE = SMT.SERVICE_REQUEST
     P_CLS = P.ServiceInfoRequest
 
     @classmethod
@@ -60,7 +60,7 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
 
 class SCIONDServiceInfoReply(SCIONDMsgBase):
     NAME = "ServiceInfoReply"
-    MSG_TYPE = SMT.Service_REPLY
+    MSG_TYPE = SMT.SERVICE_REPLY
     P_CLS = P.ServiceInfoReply
 
     @classmethod
@@ -105,4 +105,4 @@ class SCIONDServiceInfoReplyEntry(Cerealizable):
     def short_desc(self):
         return "Type: %d Host Infos: %s" % (
             self.p.serviceType, ", ".join([info.short_desc() for info in
-                                           self.iter_host_infos()])
+                                           self.iter_host_infos()]))
