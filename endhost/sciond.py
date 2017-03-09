@@ -41,6 +41,7 @@ from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
+from lib.sciond_api.br_req import SCIONDBRInfoReply, SCIONDBRInfoReplyEntry
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
@@ -48,6 +49,10 @@ from lib.sciond_api.path_req import (
     SCIONDPathReplyError,
     SCIONDPathReply,
     SCIONDPathReplyEntry,
+)
+from lib.sciond_api.service_req import (
+    SCIONDServiceInfoReply,
+    SCIONDServiceInfoReplyEntry,
 )
 from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
@@ -57,6 +62,7 @@ from lib.types import (
     PathSegmentType as PST,
     PayloadClass,
     SCIONDMsgType as SMT,
+    ServiceType,
     TypeBase,
 )
 from lib.util import SCIONTime
@@ -213,6 +219,10 @@ class SCIONDaemon(SCIONElement):
             self.handle_revocation(msg.rev_info(), meta)
         elif msg.MSG_TYPE == SMT.AS_REQUEST:
             self._api_handle_as_request(msg, meta)
+        elif msg.MSG_TYPE == SMT.BR_REQUEST:
+            self._api_handle_br_request(msg, meta)
+        elif msg.MSG_TYPE == SMT.SERVICE_REQUEST:
+            self._api_handle_service_request(msg, meta)
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
@@ -265,6 +275,36 @@ class SCIONDaemon(SCIONElement):
             self.addr.isd_as, self.topology.mtu, self.is_core_as())
         as_reply = SCIONDASInfoReply.from_values([reply_entry])
         self.send_meta(as_reply.pack_full(), meta)
+
+    def _api_handle_br_request(self, request, meta):
+        all_brs, if_list = request.all_brs(), []
+        if not all_brs:
+            if_list = list(request.iter_ids())
+        br_entries = []
+        for if_id, br in self.ifid2br.items():
+            if all_brs or if_id in if_list:
+                info = HostInfo.from_values([br.addr], br.port)
+                reply_entry = SCIONDBRInfoReplyEntry.from_values(if_id, info)
+                br_entries.append(reply_entry)
+        br_reply = SCIONDBRInfoReply.from_values(br_entries)
+        self.send_meta(br_reply.pack_full(), meta)
+
+    def _api_handle_service_request(self, request, meta):
+        all_svcs, svc_list = request.all_brs(), []
+        if not all_svcs:
+            svc_list = list(request.iter_service_types())
+        svc_entries = []
+        for svc_type in ServiceType.all():
+            if all_svcs or svc_type in svc_list:
+                lookup_res = self.dns_query_topo(svc_type)
+                host_infos = []
+                for addr, port in lookup_res:
+                    host_infos.append(HostInfo.from_values([addr], port))
+                reply_entry = SCIONDServiceInfoReplyEntry.from_values(
+                    svc_type, host_infos)
+                svc_entries.append(reply_entry)
+        svc_reply = SCIONDServiceInfoReply.from_values(svc_entries)
+        self.send_meta(svc_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)

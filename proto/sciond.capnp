@@ -109,6 +109,6 @@ struct ServiceInfoReply {
 }
 
 struct ServiceInfoReplyEntry {
-    serviceID @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
-    hostInfo @1 :HostInfo;  # The host info of the service.
+    serviceType @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
+    hostInfos @1 :List(HostInfo);  # The host infos of the service.
 }

@@ -29,6 +29,12 @@ class TypeBase(object):  # pragma: no cover
             return "UNKNOWN (%s)" % type_
         raise IndexError
 
+    @classmethod
+    def all(cls):
+        return [getattr(cls, attr) for attr in dir(cls) if
+                not attr.startswith("__") and
+                not callable(getattr(cls, attr))]
+
 
 ############################
 # Basic types
