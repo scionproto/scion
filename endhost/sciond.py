@@ -290,7 +290,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(br_reply.pack_full(), meta)
 
     def _api_handle_service_request(self, request, meta):
-        all_svcs, svc_list = request.all_brs(), []
+        all_svcs, svc_list = request.all_services(), []
         if not all_svcs:
             svc_list = list(request.iter_service_types())
         svc_entries = []
