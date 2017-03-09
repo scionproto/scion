@@ -66,6 +66,18 @@ func NewPathMgmtMsg() (*SCION, *PathMgmt, *common.Error) {
 	return scion, &pathMgmt, nil
 }
 
+func NewDRKeyMgmtMsg() (*SCION, *DRKeyMgmt, *common.Error) {
+	scion, err := NewSCIONMsg()
+	if err != nil {
+		return nil, nil, err
+	}
+	drkeyMgmt, cerr := scion.NewDrkeyMgmt()
+	if cerr != nil {
+		return nil, nil, common.NewError("Unable to create DRKeyMgmt struct", "err", cerr)
+	}
+	return scion, &drkeyMgmt, nil
+}
+
 func StructPack(s capnp.Struct) (common.RawBytes, *common.Error) {
 	msg, _, err := NewMessage()
 	if err != nil {

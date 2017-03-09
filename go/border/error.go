@@ -25,6 +25,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/sec_extn"
+	"github.com/netsec-ethz/scion/go/lib/sec_extn/scmp_auth_extn"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
@@ -106,6 +108,14 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			sp.HBHExt = append(sp.HBHExt, e)
 		}
 	}
+
+	// Add SCMPAuth Header
+	scmpAuthExt, err := scmp_auth_extn.NewSCMPDRKeyAuthExtn(sec_extn.SCMP_AUTH_DRKEY)
+	if err != nil {
+		return nil, err
+	}
+	sp.E2EExt = append(sp.E2EExt, scmpAuthExt)
+
 	// Add SCMP l4 header and payload
 	var l4Type common.L4ProtocolType
 	if sp.L4 != nil {
@@ -116,6 +126,10 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	// Convert back to RtrPkt
 	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom)
 	if err != nil {
+		return nil, err
+	}
+	// authenticate reply
+	if err := reply.AuthenticateSCMPAuthExt(); err != nil {
 		return nil, err
 	}
 	dstIA, err := reply.DstIA()
