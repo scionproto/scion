@@ -48,6 +48,8 @@ type Conf struct {
 	Net *netconf.NetConf
 	// Dir is the configuration directory.
 	Dir string
+	// DRKeyPool is the pool of DRKey generation instances.
+	DRKeyPool sync.Pool
 }
 
 // Load sets up the configuration, loading it from the supplied config directory.
@@ -94,6 +96,19 @@ func Load(id, confDir string) (*Conf, *common.Error) {
 
 	// Create network configuration
 	conf.Net = netconf.FromTopo(conf.BR)
+
+	// Create DRKey secret
+	drkeySecret := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive DRKey Key"), 1000, 16, sha256.New)
+	if _, err = util.InitMac(drkeySecret); err != nil {
+		return nil, err
+	}
+	conf.DRKeyPool = sync.Pool{
+		New: func() interface{} {
+			mac, _ := util.InitMac(drkeySecret)
+			return mac
+		},
+	}
+
 	// Save config
 	return conf, nil
 }

@@ -4,6 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
+using DRKeyMgmt = import "drkey_mgmt.capnp";
 
 struct SCIONDMsg {
     id @0 :UInt64;  # Request ID
@@ -18,6 +19,8 @@ struct SCIONDMsg {
         ifInfoReply @8 :IFInfoReply;
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
+        drkeyRequest @11 :DRKeyRequest;
+        drkeyReply @12 :DRKeyReply;
     }
 }
 
@@ -111,4 +114,13 @@ struct ServiceInfoReplyEntry {
     serviceType @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
     ttl @1 :UInt32;  # The TTL for the service record in seconds (currently unused).
     hostInfos @2 :List(HostInfo);  # The host infos of the service.
+}
+
+struct DRKeyRequest {
+    request @0 :DRKeyMgmt.DRKeyProtocolReq;
+}
+
+struct DRKeyReply {
+    errorCode @0 :UInt16;
+    reply @1 :DRKeyMgmt.DRKeyProtocolRep;
 }

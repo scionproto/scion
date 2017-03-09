@@ -86,6 +86,12 @@ typedef struct Entry {
     UT_hash_handle pollhh;
 } Entry;
 
+typedef struct PingEntry {
+    int sock;
+    uint16_t id;
+    UT_hash_handle hh;
+} PingEntry;
+
 Entry *ssp_flow_list = NULL;
 Entry *ssp_wildcard_list = NULL;
 Entry *udp_port_list = NULL;
@@ -127,6 +133,7 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, HostAddr *from);
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, HostAddr *from);
+void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from);
 void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, HostAddr *from);
 
 void handle_send(int index);
@@ -138,6 +145,9 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 #define UNIX_PATH_MAX 108
 #endif
 char socket_path[UNIX_PATH_MAX];
+
+#define MAX_NUMBER_PINGS MAX_SOCKETS
+PingEntry *ping_list = NULL;
 
 int main(int argc, char **argv)
 {
@@ -882,14 +892,11 @@ void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
         if (ntohs(scmp->type) == SCMP_ECHO_REQUEST) {
             send_scmp_echo_reply(buf, scmp, from);
             return;
-        } /*
-            TODO(kormat): not implemented yet. Needs a hashmap so map SCMP echo IDs to programs
-
-            else if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
-            deliver_scmp_echo_reply(buf, scmp, from);
+        }
+        if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
+            deliver_scmp_echo_reply(buf, scmp, len, from);
             return;
         }
-        */
     }
     deliver_scmp(buf, scmp, len, from);
 }
@@ -902,6 +909,23 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
     update_scmp_checksum(buf);
     zlog_debug(zc, "send echo reply to %s:%d", addr_to_str(from->addr, from->addr_type, NULL), ntohs(from->port));
     send_data(buf, ntohs(sch->total_len), from);
+}
+
+void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
+{
+    SCMPPayload *pld = scmp_parse_payload(scmp);
+    uint16_t *info = (uint16_t *)pld->info;
+    uint16_t id = info[0];
+
+    PingEntry *e;
+    HASH_FIND(hh, ping_list, &id, sizeof(id), e);
+    if( e != NULL) {
+        send_dp_header(e->sock, from, len);
+        send_all(e->sock, buf, len);
+        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", info[0], info[1]);
+    }else{
+        zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", info[0], info[1]);
+    }
 }
 
 void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
@@ -960,6 +984,33 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     send_all(e->sock, buf, len);
 }
 
+void add_ping_entry(SCMPL4Header *scmp, int sock)
+{
+    SCMPPayload *pld = scmp_parse_payload(scmp);
+    uint16_t *info = (uint16_t *)pld->info;
+    uint16_t id = info[0];
+
+    PingEntry *e;
+    HASH_FIND(hh, ping_list, &id, sizeof(id), e);
+    if(e == NULL){
+        if(HASH_COUNT(ping_list) < MAX_NUMBER_PINGS){
+            e = (PingEntry *)malloc(sizeof(PingEntry));
+            if (!e) {
+                zlog_fatal(zc, "malloc failed, abandon ship");
+                exit(1);
+            }
+        }else {
+            e = ping_list;
+            HASH_DELETE(hh, ping_list, e);
+        }
+        memset(e, 0, sizeof(PingEntry));
+        e->id = info[0];
+        e->sock = sock;
+        HASH_ADD(hh, ping_list, id, sizeof(uint16_t), e);
+    }
+}
+
+
 void handle_send(int index)
 {
     uint8_t buf[DATA_BUFSIZE];
@@ -1011,6 +1062,12 @@ void handle_send(int index)
     send_data(buf + addr_len + 2, packet_len, &hop);
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
+    if(l4 == L4_SCMP){
+        SCMPL4Header *scmp = (SCMPL4Header *) l4ptr;
+        if(ntohs(scmp->class_) == SCMP_GENERAL_CLASS && ntohs(scmp->type) == SCMP_ECHO_REQUEST){
+            add_ping_entry(scmp, sock);
+        }
+    }
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
             packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), hop.port);
 }

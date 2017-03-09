@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import os
+import random
 import threading
 from itertools import product
 
@@ -30,11 +31,12 @@ from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
     SCIOND_API_SOCKDIR,
-)
+    CERTIFICATE_SERVICE)
+from lib.drkey.drkey_mgmt import DRKeyProtocolRequest, DRKeyProtocolReply
+from lib.drkey.util import drkey_time
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
-from lib.path_seg_meta import PathSegMeta
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -42,8 +44,11 @@ from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
+from lib.path_seg_meta import PathSegMeta
+from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
+from lib.sciond_api.drkey import SCIONDDRKeyReply, SCIONDDRKeyError
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry
 from lib.sciond_api.parse import parse_sciond_msg
@@ -68,12 +73,28 @@ from lib.types import (
     SCIONDMsgType as SMT,
     ServiceType,
     TypeBase,
-)
+    DRKeyMgmtType)
 from lib.util import SCIONTime
 from scion_elem.scion_elem import SCIONElement
 
 
 _FLUSH_FLAG = "FLUSH"
+
+
+class _Counter:  # pragma: no cover
+    """Thread-safe counter to generate request IDs."""
+    def __init__(self, initial_value=0, max_value=2**64 - 1):
+        self._cntr = initial_value
+        self._max_value = max_value
+        self._lock = threading.Lock()
+
+    def inc(self):
+        """Increases the counter and returns its value."""
+        with self._lock:
+            self._cntr += 1
+            if self._cntr > self._max_value:
+                self._cntr = 0
+            return self._cntr
 
 
 class SCIONDaemon(SCIONElement):
@@ -85,6 +106,8 @@ class SCIONDaemon(SCIONElement):
     MAX_REQS = 1024
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
+    # Max time for a drkey lookup to succeed/fail.
+    DRKEY_REQ_TOUT = 2
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=None):
@@ -100,6 +123,11 @@ class SCIONDaemon(SCIONElement):
         # Keep track of requested paths.
         self.requested_paths = ExpiringDict(self.MAX_REQS, self.PATH_REQ_TOUT)
         self.req_path_lock = threading.Lock()
+        self.drkey_requests = RequestHandler.start(
+            "SCIONDaemon DRKey Requests %s" % self.addr.isd_as,
+            self._check_drkey, self._fetch_drkey,
+            self._reply_drkey, ttl=self.DRKEY_REQ_TOUT,
+        )
         self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
@@ -118,12 +146,23 @@ class SCIONDaemon(SCIONElement):
                 CertMgmtType.TRC_REPLY: self.process_trc_reply,
                 CertMgmtType.TRC_REQ: self.process_trc_request,
             },
+            PayloadClass.DRKEY: {
+                DRKeyMgmtType.PROTOCOL_REPLY: self.handle_drkey_reply,
+            },
         }
 
         self.SCMP_PLD_CLASS_MAP = {
             SCMPClass.PATH:
                 {SCMPPathClass.REVOKED_IF: self.handle_scmp_revocation},
         }
+
+        # Map ProtocolDRKey.tuple() -> ProtocolDRKey
+        self._drkey_map = {}
+        self._drkey_misc_map = {}
+        # req_id -> request_tuple
+        self._drkey_req_id_to_tuple = {}
+        self._drkey_req_id = _Counter(random.randint(0, 2 ** 32 - 1))
+        self._drkey_misc_id = _Counter(random.randint(0, 2 ** 32 - 1))
 
         if run_local_api:
             self._api_sock = ReliableSocket(bind=(self.api_addr, "sciond"))
@@ -225,6 +264,25 @@ class SCIONDaemon(SCIONElement):
             return pcb.first_ia()
         return None
 
+    def handle_drkey_reply(self, reply, meta):
+        """
+        Handle drkey reply from local certificate server.
+        """
+        logging.debug("handling drkey reply")
+        assert isinstance(reply, DRKeyProtocolReply)
+        # TODO(roosd): verify timestamp
+
+        try:
+            tup = self._drkey_req_id_to_tuple.pop(reply.p.reqID)
+        except KeyError:
+            logging.debug("key error")
+            return
+        self._drkey_map[tup] = (reply.p.drkey, reply.p.expTime)
+        self._drkey_misc_map[tup] = reply.misc
+        self.drkey_requests.put((tup, None))
+        logging.debug("Closing meta")
+        meta.close()
+
     def api_handle_request(self, msg, meta):
         """
         Handle local API's requests.
@@ -242,6 +300,11 @@ class SCIONDaemon(SCIONElement):
             self._api_handle_if_request(msg, meta)
         elif msg.MSG_TYPE == SMT.SERVICE_REQUEST:
             self._api_handle_service_request(msg, meta)
+        elif msg.MSG_TYPE == SMT.DRKEY_REQUEST:
+            threading.Thread(
+                target=thread_safety_net,
+                args=(self._api_handle_drkey_request, msg, meta),
+                daemon=True).start()
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
@@ -331,6 +394,16 @@ class SCIONDaemon(SCIONElement):
                 svc_entries.append(reply_entry)
         svc_reply = SCIONDServiceInfoReply.from_values(request.id, svc_entries)
         self.send_meta(svc_reply.pack_full(), meta)
+
+    def _api_handle_drkey_request(self, request, meta):
+        drkey_request = DRKeyProtocolRequest(request.p.request).copy()
+        drkey_request.p.reqID = self._drkey_req_id.inc()
+        thread = threading.current_thread()
+        thread.name = "SCIONDaemon API id:%s %s" % (thread.ident, drkey_request.p.reqID)
+        drkey, exp_time, misc, error = self.get_drkey(drkey_request)
+        reply = SCIONDDRKeyReply.from_values(
+            request.id, drkey, exp_time, drkey_time(), misc, error)
+        self.send_meta(reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -614,3 +687,70 @@ class SCIONDaemon(SCIONElement):
             if seg:
                 core_segs.extend(seg)
         return core_segs
+
+    def get_drkey(self, request):
+        """Return drkey, expiration time and error code."""
+        e = threading.Event()
+        tup = request.tuple()
+        if request.misc:
+            tup += (self._drkey_misc_id.inc(),)
+        drkey, exp_time = self._drkey_map.get(tup, (None, 0))
+        if drkey and (True or exp_time >= drkey_time()):
+            return drkey, exp_time, None, SCIONDDRKeyError.OK
+        self._drkey_req_id_to_tuple[request.p.reqID] = tup
+        self.drkey_requests.put((tup, (request, e)))
+        if not e.wait(self.DRKEY_REQ_TOUT):
+            logging.error(
+                "Query timed out for %s", _drkey_req_short_desc(tup))
+            return bytes(0), 0, None, SCIONDDRKeyError.CS_TIMEOUT
+        error_code = SCIONDDRKeyError.OK
+        drkey, exp_time = self._drkey_map.get(tup, (None, 0))
+        misc = self._drkey_misc_map.pop(tup, None)
+        if misc or request.misc:
+            self._drkey_map.pop(tup, None)
+        if not drkey or exp_time and exp_time < drkey_time():
+            drkey = bytes(16)
+            error_code = SCIONDDRKeyError.INTERNAL
+        return drkey, exp_time, misc, error_code
+
+    def _check_drkey(self, key):
+        """
+        Called by RequestHandler to check if a given drkey request can be
+        fulfilled.
+        """
+        logging.debug("Check DRKey: %s", _drkey_req_short_desc(key))
+        drkey, exp_time = self._drkey_map.get(key, (None, 0))
+        if not drkey:
+            return False
+        if exp_time and exp_time < drkey_time():
+            self._drkey_map.pop(key, None)
+            return False
+        return True
+
+    def _fetch_drkey(self, key, tup):
+        """
+        Called by RequestHandler to fetch the requested drkey.
+        """
+        try:
+            addr, port = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+        except SCIONServiceLookupError:
+            logging.error("Error querying certificate service:")
+            return
+        logging.debug("Fetch DRKey: %s", _drkey_req_short_desc(key))
+        request, _ = tup
+        request.p.timestamp = drkey_time()
+        meta = self._build_meta(host=addr, port=port)
+        self.send_meta(request, meta)
+
+    def _reply_drkey(self, key, tup):
+        """
+        Called by RequestHandler to signal that the request has been fulfilled.
+        """
+        logging.debug("Reply DRKey: %s", _drkey_req_short_desc(key))
+        _, e = tup
+        e.set()
+
+
+def _drkey_req_short_desc(tup):
+    return ("%s:%s -> %s:%s;%s:%s" %
+            (tup[5], tup[2], tup[6], tup[3], tup[7], tup[4]))

@@ -400,6 +400,7 @@ void reverse_packet(uint8_t *buf)
     // out to the buffer.
     spkt_t spkt;
     saddr_t *tmp;
+    parse_spkt_cmn_hdr(buf, &spkt);
     parse_spkt_addr_hdr(buf, &spkt);
     tmp = spkt.dst;
     spkt.dst = spkt.src;

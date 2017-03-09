@@ -26,6 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/spse/scmp_auth"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP
@@ -106,6 +107,11 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			sp.HBHExt = append(sp.HBHExt, e)
 		}
 	}
+
+	// Add SCMPAuth Header
+	scmpAuthExt := scmp_auth.NewDRKeyExtn()
+	sp.E2EExt = append(sp.E2EExt, scmpAuthExt)
+
 	// Add SCMP l4 header and payload
 	var l4Type common.L4ProtocolType
 	if sp.L4 != nil {
@@ -116,6 +122,10 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	// Convert back to RtrPkt
 	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom, rp.Ctx)
 	if err != nil {
+		return nil, err
+	}
+	// authenticate reply
+	if err := reply.AuthenticateSCMP(true); err != nil {
 		return nil, err
 	}
 	dstIA, err := reply.DstIA()

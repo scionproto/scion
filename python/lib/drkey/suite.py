@@ -25,8 +25,21 @@ from nacl.public import PublicKey
 # SCION
 from lib.crypto.asymcrypto import encrypt, decrypt, sign
 from lib.crypto.symcrypto import mac
+from lib.drkey.auth_scmp.protocol import SCMPAuthProtocol
 from lib.drkey.drkey_mgmt import DRKeyReply, DRKeyRequest
+from lib.drkey.opt.protocol import OPTProtocol
+from lib.drkey.types import DRKeyProtocols
 from lib.drkey.util import drkey_time
+from lib.errors import SCIONKeyError
+
+# Available protocols
+_protocol_map = {
+    DRKeyProtocols.OPT: OPTProtocol,
+    DRKeyProtocols.SCMP_AUTH: SCMPAuthProtocol
+}
+
+for v in _protocol_map.values():
+    assert v and len(v.PREFIX) <= 255
 
 ##################
 # DRKey Request  #
@@ -148,3 +161,78 @@ def decrypt_drkey(cipher, private_key, public_key):
     :raises: CryptoError
     """
     return decrypt(cipher, private_key, PublicKey(public_key))
+
+##################
+# DRKey Protocol #
+##################
+
+
+def get_drkey_proto_req_verifer(protocol):
+    """
+    Returns the DRKeyProtocolBase.verify_request function according to the protocol.
+
+    :param int protocol: protocol identifier.
+    :returns: the protocol request verifier.
+    :raises SCIONKeyError
+    """
+    try:
+        return _protocol_map[protocol].verify_request
+    except KeyError:
+        raise SCIONKeyError("Protocol %s not supported", protocol)
+
+
+def get_required_drkeys_handler(protocol):
+    """
+    Returns the DRKeyProtocolBase.required_drkeys function according to the protocol.
+
+    :param int protocol: protocol identifier.
+    :returns: the handler returning required first order DRKeys.
+    :raises SCIONKeyError
+    """
+
+    try:
+        return _protocol_map[protocol].required_drkeys
+    except KeyError:
+        raise SCIONKeyError("Protocol %s not supported", protocol)
+
+
+def get_drkey_generator(protocol):
+    """
+    Returns the DRKeyProtocolBase.generate_drkey function according to the protocol.
+
+   :param int protocol: protocol identifier.
+   :returns: the protocol DRKey generator.
+   :raises SCIONKeyError
+   """
+    try:
+        return _protocol_map[protocol].generate_drkey
+    except KeyError:
+        raise SCIONKeyError("Protocol %s not supported", protocol)
+
+
+def get_drkey_misc_rep_generator(protocol):
+    """
+    Returns the DRKeyProtocolBase.generate_misc_reply function according to the protocol.
+
+    :param int protocol: protocol identifier.
+    :returns: the protocol misc generator.
+    :raises SCIONKeyError
+    """
+    try:
+        return _protocol_map[protocol].generate_misc_reply
+    except KeyError:
+        raise SCIONKeyError("Protocol %s not supported", protocol)
+
+
+def get_drkey_misc_rep_parser(protocol):
+    """
+    Returns the DRKeyProtocolBase.parse_misc_reply function according to the protocol.
+
+   :param int protocol: protocol identifier.
+   :returns: the protocol misc parser.
+   :raises SCIONKeyError
+   """
+    try:
+        return _protocol_map[protocol].parse_misc_reply
+    except KeyError:
+        raise SCIONKeyError("Protocol %s not supported", protocol)
