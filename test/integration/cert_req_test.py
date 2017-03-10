@@ -44,10 +44,10 @@ class TestCertClient(TestClientBase):
         # creating a connector here.
         connector = SCIONDConnector(api_addr)
         cs_info = connector.get_service_info([ServiceType.CS])[0]
-        cs = cs_info.host_info()
+        cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert_done = False
-        super().__init__(api_addr, "", finished, addr, cs_addr, cs[1])
+        super().__init__(api_addr, "", finished, addr, cs_addr, cs.p.port)
 
     def _get_path(self, api):
         pass  # No path required. All queries go to local CS

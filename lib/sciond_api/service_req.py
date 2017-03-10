@@ -50,8 +50,8 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
         return not self.p.serviceTypes
 
     def iter_service_types(self):
-        for type_ in self.p.serviceType:
-            yield type_
+        for type_ in self.p.serviceTypes:
+            yield str(type_)
 
     def short_desc(self):
         type_str = "ALL" if self.all_services() else str(self.p.serviceTypes)
