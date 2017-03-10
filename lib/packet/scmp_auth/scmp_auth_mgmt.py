@@ -16,10 +16,10 @@
 =====================================================
 """
 # External
-import capnp  # noqa
 
 # SCION
 import proto.scmp_auth_mgmt_capnp as P
+
 from lib.crypto.certificate_chain import CertificateChain
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBaseProto
@@ -49,13 +49,16 @@ class SCMPAuthRemoteDRKeyRequest(SCMPAuthMgmtBase):  # pragma: no cover
 
     @classmethod
     def from_values(cls, isd_as, timestamp, signature, chain):
-        return cls(cls.P_CLS.new_message(isdas=int(isd_as), timestamp=timestamp, signature=signature, chain=chain.pack(lz4_=True)))
+        return cls(cls.P_CLS.new_message(isdas=int(isd_as), timestamp=timestamp,
+                                         signature=signature,
+                                         chain=chain.pack(lz4_=True)))
 
     def short_desc(self):
         return "%s" % self.isd_as
 
     def __str__(self):
-        return "%s: ISD-AS: %s Timestamp: %s" % (self.NAME, self.isd_as, self.timestamp)
+        return ("%s: ISD-AS: %s Timestamp: %s" %
+                (self.NAME, self.isd_as, self.timestamp))
 
 
 class SCMPAuthRemoteDRKeyReply(SCMPAuthMgmtBase):  # pragma: no cover
@@ -73,13 +76,17 @@ class SCMPAuthRemoteDRKeyReply(SCMPAuthMgmtBase):  # pragma: no cover
 
     @classmethod
     def from_values(cls, isd_as, timestamp, cipher, signature, chain):
-        return cls(cls.P_CLS.new_message(isdas=int(isd_as), timestamp=timestamp, cipher=cipher, signature=signature, chain=chain.pack(lz4_=True)))
+        return cls(cls.P_CLS.new_message(isdas=int(isd_as), timestamp=timestamp,
+                                         cipher=cipher, signature=signature,
+                                         chain=chain.pack(lz4_=True)))
 
     def short_desc(self):
         return "%s" % self.isd_as
 
     def __str__(self):
-        return "%s: ISD-AS: %s Timestamp: %s" % (self.NAME, self.isd_as, self.timestamp)
+        return "%s: ISD-AS: %s Timestamp: %s" % (
+            self.NAME, self.isd_as, self.timestamp)
+
 
 class SCMPAuthLocalDRKeyRequest(SCMPAuthMgmtBase):  # pragma: no cover
     NAME = "SCMPAuthDRKeyRequest"
@@ -124,7 +131,8 @@ class SCMPAuthLocalDRKeyReply(SCMPAuthMgmtBase):  # pragma: no cover
 
 def parse_scmpauthmgmt_payload(wrapper):  # pragma: no cover
     type_ = wrapper.which()
-    for c in SCMPAuthRemoteDRKeyRequest, SCMPAuthRemoteDRKeyReply, SCMPAuthLocalDRKeyRequest, SCMPAuthLocalDRKeyReply:
+    for c in (SCMPAuthRemoteDRKeyRequest, SCMPAuthRemoteDRKeyReply,
+              SCMPAuthLocalDRKeyRequest, SCMPAuthLocalDRKeyReply):
         if c.PAYLOAD_TYPE == type_:
             return c(getattr(wrapper, type_))
     raise SCIONParseError("Unsupported scmp auth management type: %s" % type_)
