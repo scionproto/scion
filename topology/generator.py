@@ -30,15 +30,12 @@ from collections import defaultdict
 from io import StringIO
 from string import Template
 
-# External packages
 import yaml
 from Crypto import Random
+from OpenSSL import crypto
 
 from endhost.sciond import SCIOND_API_SOCKDIR
 from external.ipaddress import ip_address, ip_interface, ip_network
-from OpenSSL import crypto
-
-# SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_sign_keypair,
@@ -65,8 +62,8 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     TOPO_FILE,
 )
-from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
+from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import (
@@ -125,6 +122,7 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
+
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
@@ -339,7 +337,7 @@ class CertGenerator(object):
         else:
             signing_key = self.sig_priv_keys[issuer]
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id),  str(issuer), INITIAL_CERT_VERSION, "", False,
+            str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
             self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
             signing_key
         )
@@ -379,7 +377,7 @@ class CertGenerator(object):
         ca_certs = {}
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
             ca_certs[ca_name] = \
-                 crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
+                crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         trc.root_cas = ca_certs
 
     def _create_trc(self, isd):
@@ -559,11 +557,12 @@ class TopoGenerator(object):
 
     def _gen_srv_entries(self, topo_id, as_conf):
         for conf_key, def_num, nick, topo_key in (
-            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconServers"),
-            ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-             "CertificateServers"),
-            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
-            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
+                ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs",
+                 "BeaconServers"),
+                ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
+                 "CertificateServers"),
+                ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
+                ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -678,10 +677,10 @@ class SupervisorGenerator(object):
         entries = []
         base = self._get_base_path(topo_id)
         for key, cmd in (
-            ("BeaconServers", "bin/beacon_server"),
-            ("CertificateServers", "bin/cert_server"),
-            ("PathServers", "bin/path_server"),
-            ("SibraServers", "bin/sibra_server"),
+                ("BeaconServers", "bin/beacon_server"),
+                ("CertificateServers", "bin/cert_server"),
+                ("PathServers", "bin/path_server"),
+                ("SibraServers", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         if self.router == "go":
@@ -724,14 +723,17 @@ class SupervisorGenerator(object):
             self._write_elem_conf(elem, entry, elem_dir, True, topo_id)
             if self.mininet:
                 self._write_elem_mininet_conf(elem, elem_dir)
-        config["group:as%s" % topo_id] = {"programs": ",".join(names)+",d"+",d".join([x for x in names if x[:2] not in ["br","zk"]])}
+        config["group:as%s" % topo_id] = {
+            "programs": ",".join(names) + ",d" + ",d".join(
+                [x for x in names if x[:2] not in ["br", "zk"]])}
         text = StringIO()
         config.write(text)
         conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS(),
                                  SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
-    def _write_elem_conf(self, elem, entry, elem_dir, create_sciond=False, topo_id=None):
+    def _write_elem_conf(self, elem, entry, elem_dir, create_sciond=False,
+                         topo_id=None):
         config = configparser.ConfigParser(interpolation=None)
         prog = self._common_entry(elem, entry, elem_dir)
         self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
@@ -750,8 +752,9 @@ class SupervisorGenerator(object):
         if create_sciond and not elem[:2] == "br" and not elem[:2] == "zk":
             ip = self.topo_dicts[topo_id]["Sciond"][elem]["Addr"].ip
             args = ["bin/sciond", "--addr", ip, "--api-addr",
-                    os.path.join(SCIOND_API_SOCKDIR, "d"+elem+".sock"), "d"+elem, elem_dir]
-            p = self._common_entry("d"+elem, args, elem_dir)
+                    os.path.join(SCIOND_API_SOCKDIR, "d" + elem + ".sock"),
+                    "d" + elem, elem_dir]
+            p = self._common_entry("d" + elem, args, elem_dir)
             config["program:d%s" % elem] = p
         config.write(text)
 
@@ -1010,6 +1013,7 @@ class AddressProxy(yaml.YAMLObject):
 
 class IFIDGenerator(object):
     """Generates unique interface IDs"""
+
     def __init__(self):
         self._ifids = set()
 
