@@ -29,6 +29,12 @@ class TypeBase(object):  # pragma: no cover
             return "UNKNOWN (%s)" % type_
         raise IndexError
 
+    @classmethod
+    def all(cls):
+        return [getattr(cls, attr) for attr in dir(cls) if
+                not attr.startswith("__") and
+                not callable(getattr(cls, attr))]
+
 
 ############################
 # Basic types
@@ -39,6 +45,14 @@ class AddrType(TypeBase):
     IPV6 = 2
     SVC = 3
     UNIX = 4  # For dispatcher socket
+
+
+class ServiceType(TypeBase):
+    BS = "bs"
+    PS = "ps"
+    CS = "cs"
+    BR = "br"
+    SIBRA = "sb"
 
 
 class ExtensionClass(TypeBase):
@@ -159,3 +173,7 @@ class SCIONDMsgType(TypeBase):
     AS_REQUEST = "asInfoReq"
     AS_REPLY = "asInfoReply"
     REVOCATION = "revNotification"
+    BR_REQUEST = "brInfoRequest"
+    BR_REPLY = "brInfoReply"
+    SERVICE_REQUEST = "serviceInfoRequest"
+    SERVICE_REPLY = "serviceInfoReply"

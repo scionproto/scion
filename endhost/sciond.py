@@ -41,12 +41,18 @@ from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
+from lib.sciond_api.br_req import SCIONDBRInfoReply, SCIONDBRInfoReplyEntry
+from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
     SCIONDPathReplyError,
     SCIONDPathReply,
     SCIONDPathReplyEntry,
+)
+from lib.sciond_api.service_req import (
+    SCIONDServiceInfoReply,
+    SCIONDServiceInfoReplyEntry,
 )
 from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
@@ -56,6 +62,7 @@ from lib.types import (
     PathSegmentType as PST,
     PayloadClass,
     SCIONDMsgType as SMT,
+    ServiceType,
     TypeBase,
 )
 from lib.util import SCIONTime
@@ -212,6 +219,10 @@ class SCIONDaemon(SCIONElement):
             self.handle_revocation(msg.rev_info(), meta)
         elif msg.MSG_TYPE == SMT.AS_REQUEST:
             self._api_handle_as_request(msg, meta)
+        elif msg.MSG_TYPE == SMT.BR_REQUEST:
+            self._api_handle_br_request(msg, meta)
+        elif msg.MSG_TYPE == SMT.SERVICE_REQUEST:
+            self._api_handle_service_request(msg, meta)
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
@@ -232,10 +243,7 @@ class SCIONDaemon(SCIONElement):
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, src_ia, dst_ia)
-        flags = ()
-        if request.p.flags.flush:
-            flags = (_FLUSH_FLAG)
-        paths, error = self.get_paths(dst_ia, flags)
+        paths, error = self.get_paths(dst_ia, flush=request.p.flags.flush)
         if request.p.maxPaths:
             paths = paths[:request.p.maxPaths]
         logging.debug("Replying to api request for %s with %d paths",
@@ -249,8 +257,9 @@ class SCIONDaemon(SCIONElement):
                 br = self.ifid2br[fwd_if]
                 haddr, port = br.addr, br.port
             addrs = [haddr] if haddr else []
+            first_hop = HostInfo.from_values(addrs, port)
             reply_entry = SCIONDPathReplyEntry.from_values(
-                path_meta, addrs, port)
+                path_meta, first_hop)
             reply_entries.append(reply_entry)
         self._send_path_reply(req_id, reply_entries, error, meta)
 
@@ -263,6 +272,38 @@ class SCIONDaemon(SCIONElement):
             self.addr.isd_as, self.topology.mtu, self.is_core_as())
         as_reply = SCIONDASInfoReply.from_values([reply_entry])
         self.send_meta(as_reply.pack_full(), meta)
+
+    def _api_handle_br_request(self, request, meta):
+        all_brs = request.all_brs()
+        if_list = []
+        if not all_brs:
+            if_list = list(request.iter_ids())
+        br_entries = []
+        for if_id, br in self.ifid2br.items():
+            if all_brs or if_id in if_list:
+                info = HostInfo.from_values([br.addr], br.port)
+                reply_entry = SCIONDBRInfoReplyEntry.from_values(if_id, info)
+                br_entries.append(reply_entry)
+        br_reply = SCIONDBRInfoReply.from_values(br_entries)
+        self.send_meta(br_reply.pack_full(), meta)
+
+    def _api_handle_service_request(self, request, meta):
+        all_svcs = request.all_services()
+        svc_list = []
+        if not all_svcs:
+            svc_list = list(request.iter_service_types())
+        svc_entries = []
+        for svc_type in ServiceType.all():
+            if all_svcs or svc_type in svc_list:
+                lookup_res = self.dns_query_topo(svc_type)
+                host_infos = []
+                for addr, port in lookup_res:
+                    host_infos.append(HostInfo.from_values([addr], port))
+                reply_entry = SCIONDServiceInfoReplyEntry.from_values(
+                    svc_type, host_infos)
+                svc_entries.append(reply_entry)
+        svc_reply = SCIONDServiceInfoReply.from_values(svc_entries)
+        self.send_meta(svc_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -312,10 +353,11 @@ class SCIONDaemon(SCIONElement):
         self.down_segments.flush()
         self.up_segments.flush()
 
-    def get_paths(self, dst_ia, flags=()):
+    def get_paths(self, dst_ia, flags=(), flush=False):
         """Return a list of paths."""
-        logging.debug("Paths requested for %s %s", dst_ia, flags)
-        if _FLUSH_FLAG in flags:
+        logging.debug("Paths requested for ISDAS=%s, flags=%s, flush=%s",
+                      dst_ia, flags, flush)
+        if flush:
             logging.info("Flushing PathDBs.")
             self._flush_path_dbs()
         if self.addr.isd_as == dst_ia or (
