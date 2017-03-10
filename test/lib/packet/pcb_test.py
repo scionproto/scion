@@ -39,18 +39,18 @@ def mk_pcbm_p(inIF=22):
         class_=PCBMarking)
 
 
-class TestPCBMarkingSigPack(object):
+class TestPCBMarkingSigPack5(object):
     """
-    Unit tests for lib.packet.pcb.PCBMarking.sig_pack
+    Unit tests for lib.packet.pcb.PCBMarking.sig_pack5
     """
-    def test_6(self):
+    def test(self):
         inst = PCBMarking(mk_pcbm_p())
         expected = b"".join([
             _ISD_AS1_BYTES, bytes.fromhex(
                 "0000000000000016 0fa0"), _ISD_AS2_BYTES,
             bytes.fromhex("0000000000000021"), b"hof"])
         # Call
-        ntools.eq_(inst.sig_pack(6), expected)
+        ntools.eq_(inst.sig_pack5(), expected)
 
 
 class TestASMarkingFromValues(object):
@@ -76,15 +76,15 @@ class TestASMarkingFromValues(object):
             ntools.eq_("pcbm %d" % i, pcbm)
 
 
-class TestASMarkingSigPack(object):
+class TestASMarkingSigPack8(object):
     """
-    Unit tests for lib.packet.pcb.ASMarking.sig_pack
+    Unit tests for lib.packet.pcb.ASMarking.sig_pack8
     """
-    def test_9(self):
+    def test(self):
         pcbms = []
         for i in range(3):
             pcbms.append(create_mock_full({
-                "sig_pack()": bytes("pcbm %i" % i, "ascii")}))
+                "sig_pack5()": bytes("pcbm %i" % i, "ascii")}))
         inst = ASMarking(create_mock_full({
             "isdas": _ISD_AS1, "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "hashTreeRoot": b"root", "mtu": 1482, "chain": b"chain"}))
@@ -94,27 +94,27 @@ class TestASMarkingSigPack(object):
             b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",
             bytes.fromhex("05ca"), b"chain"])
         # Call
-        ntools.eq_(inst.sig_pack(8), expected)
+        ntools.eq_(inst.sig_pack8(), expected)
 
 
-class TestPathSegmentSigPack(object):
+class TestPathSegmentSigPack3(object):
     """
-    Unit tests for lib.packet.pcb.PathSegment.sig_pack
+    Unit tests for lib.packet.pcb.PathSegment.sig_pack3
     """
     @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
-    def test_3(self, _):
+    def test(self, _):
         asms = []
         for i in range(3):
             asms.append(create_mock_full({
-                "sig_pack()": bytes("asm %i" % i, "ascii")}))
+                "sig_pack8()": bytes("asm %i" % i, "ascii")}))
         inst = PathSegment(create_mock_full({"info": b"info"}))
         inst.is_sibra = create_mock_full()
         inst.iter_asms = create_mock_full(return_value=asms)
-        inst.sibra_ext = create_mock_full({"sig_pack()": b"sibraext"})
+        inst.sibra_ext = create_mock_full({"sig_pack3()": b"sibraext"})
         expected = b"".join([
             b"info", b"asm 0", b"asm 1", b"asm 2", b"sibraext"])
         # Call
-        ntools.eq_(inst.sig_pack(3), expected)
+        ntools.eq_(inst.sig_pack3(), expected)
 
 
 class TestPathSegmentGetPath(object):
