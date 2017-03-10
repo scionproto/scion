@@ -27,6 +27,7 @@ import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate_chain import CertificateChain
 from lib.defines import EXP_TIME_UNIT
+from lib.errors import SCIONSigVerError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
@@ -43,6 +44,7 @@ REV_TOKEN_LEN = 32
 class PCBMarking(Cerealizable):
     NAME = "PCBMarking"
     P_CLS = P.PCBMarking
+    VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
     def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid,
@@ -60,18 +62,20 @@ class PCBMarking(Cerealizable):
     def hof(self):  # pragma: no cover
         return HopOpaqueField(self.p.hof)
 
-    def sig_pack(self, ver):
+    def sig_pack5(self):
         """
-        Pack for signing up for version 6 (defined by highest field number).
+        Pack for signing version 5 (defined by highest field number).
         """
         b = []
-        if ver >= 5:
-            b.append(self.p.inIA.to_bytes(4, 'big'))
-            b.append(self.p.inIF.to_bytes(8, 'big'))
-            b.append(self.p.inMTU.to_bytes(2, 'big'))
-            b.append(self.p.outIA.to_bytes(4, 'big'))
-            b.append(self.p.outIF.to_bytes(8, 'big'))
-            b.append(self.p.hof)
+        if self.VER != 5:
+            raise SCIONSigVerError(
+                "PCBMarking.sig_pack5 cannot support version %s", self.VER)
+        b.append(self.p.inIA.to_bytes(4, 'big'))
+        b.append(self.p.inIF.to_bytes(8, 'big'))
+        b.append(self.p.inMTU.to_bytes(2, 'big'))
+        b.append(self.p.outIA.to_bytes(4, 'big'))
+        b.append(self.p.outIF.to_bytes(8, 'big'))
+        b.append(self.p.hof)
         return b"".join(b)
 
     def short_desc(self):
@@ -86,6 +90,7 @@ class PCBMarking(Cerealizable):
 class ASMarking(Cerealizable):
     NAME = "ASMarking"
     P_CLS = P.ASMarking
+    VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
@@ -120,21 +125,23 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def sig_pack(self, ver):
+    def sig_pack8(self):
         """
-        Pack for signing up for given version (defined by highest field number).
+        Pack for signing version 8 (defined by highest field number).
         """
         b = []
-        if ver >= 8:
-            b.append(self.p.isdas.to_bytes(4, 'big'))
-            b.append(self.p.trcVer.to_bytes(4, 'big'))
-            b.append(self.p.certVer.to_bytes(4, 'big'))
-            b.append(self.p.ifIDSize.to_bytes(1, 'big'))
-            for pcbm in self.iter_pcbms():
-                b.append(pcbm.sig_pack(5))
-            b.append(self.p.hashTreeRoot)
-            b.append(self.p.mtu.to_bytes(2, 'big'))
-            b.append(self.p.chain)
+        if self.VER != 8:
+            raise SCIONSigVerError(
+                "ASMarking.sig_pack8 cannot support version %s", self.VER)
+        b.append(self.p.isdas.to_bytes(4, 'big'))
+        b.append(self.p.trcVer.to_bytes(4, 'big'))
+        b.append(self.p.certVer.to_bytes(4, 'big'))
+        b.append(self.p.ifIDSize.to_bytes(1, 'big'))
+        for pcbm in self.iter_pcbms():
+            b.append(pcbm.sig_pack5())
+        b.append(self.p.hashTreeRoot)
+        b.append(self.p.mtu.to_bytes(2, 'big'))
+        b.append(self.p.chain)
         return b"".join(b)
 
     def remove_sig(self):  # pragma: no cover
@@ -166,6 +173,7 @@ class PathSegment(SCIONPayloadBaseProto):
     NAME = "PathSegment"
     PAYLOAD_CLASS = PayloadClass.PCB
     P_CLS = P.PathSegment
+    VER = len(P_CLS.schema.fields) - 1
 
     def __init__(self, p):  # pragma: no cover
         super().__init__(p)
@@ -201,20 +209,25 @@ class PathSegment(SCIONPayloadBaseProto):
     def is_sibra(self):  # pragma: no cover
         return bool(self.p.exts.sibra.id)
 
-    def sig_pack(self, ver=3):
+    def sig_pack3(self):
+        """
+        Pack for signing version 3 (defined by highest field number).
+        """
+        if self.VER != 3:
+            raise SCIONSigVerError(
+                "PathSegment.sig_pack3 cannot support version %s", self.VER)
         b = []
-        if ver >= 3:
-            b.append(self.p.info)
-            # ifID field is changed on the fly, and so is ignored.
-            for asm in self.iter_asms():
-                b.append(asm.sig_pack(9))
-            if self.is_sibra():
-                b.append(self.sibra_ext.sig_pack(2))
+        b.append(self.p.info)
+        # ifID field is changed on the fly, and so is ignored.
+        for asm in self.iter_asms():
+            b.append(asm.sig_pack8())
+        if self.is_sibra():
+            b.append(self.sibra_ext.sig_pack3())
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
         assert not self.p.asms[-1].sig
-        sig = sign(self.sig_pack(3), key)
+        sig = sign(self.sig_pack3(), key)
         if set_:
             self.p.asms[-1].sig = sig
         return sig

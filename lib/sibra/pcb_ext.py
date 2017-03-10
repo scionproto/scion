@@ -20,6 +20,7 @@ import capnp  # noqa
 
 # SCION
 import proto.sibra_capnp as P
+from lib.errors import SCIONSigVerError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.ext.info import ResvInfoSteady
@@ -34,6 +35,7 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
     """
     NAME = "SibraPCBExt"
     P_CLS = P.SibraPCBExt
+    VER = len(P_CLS.schema.fields) - 1
 
     def __init__(self, p):
         super().__init__(p)
@@ -60,13 +62,19 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
     def exp_ts(self):
         return self.info.exp_ts()
 
-    def sig_pack(self, ver):
+    def sig_pack3(self):
+        """
+        Pack for signing version 3 (defined by highest field number).
+        """
+        if self.VER != 3:
+            raise SCIONSigVerError(
+                "SibraPCBExt.sig_pack3 cannot support version %s", self.VER)
         b = []
-        if ver >= 2:
-            b.append(self.p.info)
-            b.append(self.p.up.to_bytes(1, 'big'))
-            for sof in self.p.sofs:
-                b.append(sof)
+        b.append(self.p.id)
+        b.append(self.p.info)
+        b.append(self.p.up.to_bytes(1, 'big'))
+        for sof in self.p.sofs:
+            b.append(sof)
         return b"".join(b)
 
     def __str__(self):
