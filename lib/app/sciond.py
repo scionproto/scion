@@ -165,7 +165,7 @@ class SCIONDConnector:
         response = self._get_response(SMT.SERVICE_REPLY)
         entries = list(response.iter_entries())
         for entry in entries:
-            self._svc_infos[entry.p.serviceType] = entry
+            self._svc_infos[entry.service_type()] = entry
         return entries
 
     def get_first_hop(self, spkt):
