@@ -20,6 +20,8 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
+	"time"
+
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -28,7 +30,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
-	"time"
 )
 
 //////////////////////////////////
