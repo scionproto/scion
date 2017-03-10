@@ -79,7 +79,7 @@ struct RevNotification {
 }
 
 struct BRInfoRequest {
-    ifIDs @0 :List(UInt64);  # The if IDs for which a client requests the host infos. Empty list means all BRs.
+    ifIDs @0 :List(UInt64);  # The if IDs for which a client requests the host infos. Empty list means all interfaces of all BRs.
 }
 
 struct BRInfoReply {
@@ -92,15 +92,14 @@ struct BRInfoReplyEntry {
 }
 
 struct ServiceInfoRequest {
-    serviceTypes @0 :List(ServiceType);  # The service types for which a client requests the host infos. Empty list means all services.
+    serviceTypes @0 :List(ServiceType);  # The service types for which a client requests the host infos. Empty list means all service types.
 
     enum ServiceType {
         bs @0;  # Beacon service
         ps @1;  # Path service
         cs @2;  # Certificate service
-        ds @3;  # DNS service
-        br @4;  # Router service
-        sb @5;  # SIBRA service
+        br @3;  # Router service
+        sb @4;  # SIBRA service
     }
 }
 

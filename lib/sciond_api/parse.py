@@ -28,15 +28,15 @@ from lib.sciond_api.service_req import (
 )
 
 _MSG_TYPES = (
-    SCIONDPathRequest,
-    SCIONDPathReply,
-    SCIONDASInfoRequest,
     SCIONDASInfoReply,
-    SCIONDBRInfoRequest,
+    SCIONDASInfoRequest,
     SCIONDBRInfoReply,
-    SCIONDServiceInfoRequest,
-    SCIONDServiceInfoReply,
+    SCIONDBRInfoRequest,
+    SCIONDPathReply,
+    SCIONDPathRequest,
     SCIONDRevNotification,
+    SCIONDServiceInfoReply,
+    SCIONDServiceInfoRequest,
 )
 
 

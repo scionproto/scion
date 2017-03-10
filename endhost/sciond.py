@@ -274,7 +274,8 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(as_reply.pack_full(), meta)
 
     def _api_handle_br_request(self, request, meta):
-        all_brs, if_list = request.all_brs(), []
+        all_brs = request.all_brs()
+        if_list = []
         if not all_brs:
             if_list = list(request.iter_ids())
         br_entries = []
@@ -287,7 +288,8 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(br_reply.pack_full(), meta)
 
     def _api_handle_service_request(self, request, meta):
-        all_svcs, svc_list = request.all_services(), []
+        all_svcs = request.all_services()
+        svc_list = []
         if not all_svcs:
             svc_list = list(request.iter_service_types())
         svc_entries = []
@@ -353,8 +355,8 @@ class SCIONDaemon(SCIONElement):
 
     def get_paths(self, dst_ia, flags=(), flush=False):
         """Return a list of paths."""
-        logging.debug(
-            "Paths requested for %s %s flush=%s", dst_ia, flags, flush)
+        logging.debug("Paths requested for ISDAS=%s, flags=%s, flush=%s",
+                      dst_ia, flags, flush)
         if flush:
             logging.info("Flushing PathDBs.")
             self._flush_path_dbs()

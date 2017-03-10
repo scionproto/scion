@@ -51,7 +51,6 @@ class ServiceType(TypeBase):
     BS = "bs"
     PS = "ps"
     CS = "cs"
-    DNS = "ds"
     BR = "br"
     SIBRA = "sb"
 

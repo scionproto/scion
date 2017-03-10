@@ -36,7 +36,8 @@ class SCIONDBRInfoRequest(SCIONDMsgBase):
         """
         Creates an SCIONDBRInfoRequest.
 
-        :param ids: List of interface ids. An empty list means all BRs.
+        :param ids: List of interface ids. An empty list means all interfaces of
+            all BRs.
         """
         p = cls.P_CLS.new_message()
         if ids:

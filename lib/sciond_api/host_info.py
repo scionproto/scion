@@ -37,7 +37,7 @@ class HostInfo(Cerealizable):  # pragma: no cover
         """
         Returns a HostInfo object with the specified entries.
 
-        :param addr: The list of first hop HostAddr object.
+        :param addrs: The list of HostAddr objects.
         :param port: The first hop port.
         """
         p = cls.P_CLS.new_message()

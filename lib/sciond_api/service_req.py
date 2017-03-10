@@ -37,7 +37,7 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
         Creates an SCIONDServiceInfoRequest.
 
         :param service_types: List of service types. An empty list means all
-            services.
+            service types.
         """
         p = cls.P_CLS.new_message()
         if service_types:
