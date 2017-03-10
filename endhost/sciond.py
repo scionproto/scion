@@ -243,10 +243,7 @@ class SCIONDaemon(SCIONElement):
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, src_ia, dst_ia)
-        flags = ()
-        if request.p.flags.flush:
-            flags = (_FLUSH_FLAG)
-        paths, error = self.get_paths(dst_ia, flags)
+        paths, error = self.get_paths(dst_ia, flush=request.p.flags.flush)
         if request.p.maxPaths:
             paths = paths[:request.p.maxPaths]
         logging.debug("Replying to api request for %s with %d paths",
@@ -354,10 +351,11 @@ class SCIONDaemon(SCIONElement):
         self.down_segments.flush()
         self.up_segments.flush()
 
-    def get_paths(self, dst_ia, flags=()):
+    def get_paths(self, dst_ia, flags=(), flush=False):
         """Return a list of paths."""
-        logging.debug("Paths requested for %s %s", dst_ia, flags)
-        if _FLUSH_FLAG in flags:
+        logging.debug(
+            "Paths requested for %s %s flush=%s", dst_ia, flags, flush)
+        if flush:
             logging.info("Flushing PathDBs.")
             self._flush_path_dbs()
         if self.addr.isd_as == dst_ia or (
