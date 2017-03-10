@@ -95,6 +95,9 @@ class SCIONDServiceInfoReplyEntry(Cerealizable):
                 entries[i] = info.p
         return cls(p)
 
+    def service_type(self):
+        return str(self.p.serviceType)
+
     def host_info(self, idx):
         return HostInfo(self.p.hostInfos[idx])
 
