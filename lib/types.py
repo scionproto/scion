@@ -126,11 +126,13 @@ class PathSegmentType(TypeBase):
     CORE = 2  # Request/Reply for core-paths
     GENERIC = 3  # FIXME(PSz): experimental for now.
 
+
 class SCMPAuthMgmtType(object):
     SCMP_AUTH_REMOTE_REQUEST = "scmpAuthRemoteReq"
     SCMP_AUTH_REMOTE_REPLY = "scmpAuthRemoteRep"
     SCMP_AUTH_LOCAL_REQUEST = "scmpAuthLocalReq"
     SCMP_AUTH_LOCAL_REPLY = "scmpAuthLocalRep"
+
 
 ############################
 # Router types

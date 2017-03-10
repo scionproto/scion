@@ -20,11 +20,14 @@
 def gen_mac(key, payload):
     pass
 
+
 def compute_mac(key, payload):
     pass
 
+
 def gen_hash_tree(key, payloads):
     pass
+
 
 def verify_hash_tree(signature, hashes, payload):
     pass

@@ -20,7 +20,6 @@
 import copy
 import logging
 
-# SCION
 from lib.defines import MAX_HOPBYHOP_EXT
 from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
@@ -79,8 +78,8 @@ class ErrorGenBase(TestClientBase):
     def _handle_response(self, spkt):
         spkt.parse_payload()
         l4 = spkt.l4_hdr
-        if (l4.TYPE == L4Proto.SCMP and l4.class_ == self.CLASS and
-                l4.type == self.TYPE):
+        p = L4Proto.SCMP
+        if l4.TYPE == p and l4.class_ == self.CLASS and l4.type == self.TYPE:
             logging.debug("Success!\n%s", spkt)
             return True
         logging.error("Failure:\n%s", spkt)

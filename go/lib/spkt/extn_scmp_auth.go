@@ -55,8 +55,9 @@
 package spkt
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"time"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 type SCMPAuthExtn struct {

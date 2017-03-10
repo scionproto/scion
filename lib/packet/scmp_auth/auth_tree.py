@@ -16,14 +16,11 @@
 ==================================================================
 """
 # Stdlib
-import struct
-import time
 
 # External
-from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
 
-# SCION
 from lib.crypto.asymcrypto import sign, verify
 
 HASH_CONSTANT = b"\xb0\xde[:Ue\xbf\xde\x10\x85'*\x17\xec\xb7\\"
@@ -92,7 +89,8 @@ class AuthTree(object):
             idx += 1
 
         for idx in reversed(range(self._leaves_start_idx)):
-            self._nodes[idx] = in_tree_hash_func(self._nodes[idx * 2 + 1], self._nodes[idx * 2 + 2])
+            self._nodes[idx] = in_tree_hash_func(self._nodes[idx * 2 + 1],
+                                                 self._nodes[idx * 2 + 2])
 
         self._signature = sign(self._nodes[0], signing_key)
 
@@ -100,7 +98,8 @@ class AuthTree(object):
         """
         Obtain the proof for a given packet in the hash-tree
 
-        :param int packet_idx: Position of packet in list used to create hash-tree
+        :param int packet_idx: Position of packet in list used to create
+        hash-tree
         """
 
         idx = self._leaves_start_idx + packet_idx
@@ -115,7 +114,7 @@ class AuthTree(object):
             else:
                 hashes.append(self._nodes[idx - 1])
                 order.append(0)
-            idx = int((idx-1)/2)
+            idx = int((idx - 1) / 2)
 
         return self._signature, hashes, order
 

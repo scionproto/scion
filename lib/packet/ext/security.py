@@ -18,11 +18,10 @@
 # Stdlib
 import struct
 
-# SCION
 from lib.errors import SCIONBaseError
 from lib.packet.ext_hdr import EndToEndExtension
-from lib.util import Raw
 from lib.types import ExtEndToEndType
+from lib.util import Raw
 
 
 class SecurityExt(EndToEndExtension):
@@ -61,22 +60,29 @@ class SecurityExt(EndToEndExtension):
 
         if self.sec_mode == SecModes.SCMP_AUTH_HASH_TREE:
             height = self.metadata[Lengths.TIMESTAMP]
-            self.authenticator = data.pop(SCMPAuthLengths.SIGNATURE + height * SCMPAuthLengths.HASH)
+            self.authenticator = data.pop(
+                SCMPAuthLengths.SIGNATURE + height * SCMPAuthLengths.HASH)
         else:
             self.authenticator = data.pop(AUTH_LENGTH[self.sec_mode])
 
     @classmethod
-    def from_values(cls, sec_mode, metadata, authenticator, height=None):  # pragma: no cover
+    def from_values(cls, sec_mode, metadata, authenticator,
+                    height=None):  # pragma: no cover
         """
         Construct extension.
         """
         inst = SecurityExt()
         if sec_mode == SecModes.SCMP_AUTH_HASH_TREE:
             if not height:
-                raise SCIONBaseError("SecurityExt.from_values: Attempted to create SCMPAuthHashTree "
-                                     "without providing height")
-            inst._init_size(SCMPAuthLengths.HEIGHT + SCMPAuthLengths.ORDER + SCMPAuthLengths.SIGNATURE +
-                            height * SCMPAuthLengths.HASH)
+                raise SCIONBaseError(
+                    "SecurityExt.from_values: "
+                    "Attempted to create SCMPAuthHashTree "
+                    "without providing height")
+            inst._init_size(
+                SCMPAuthLengths.HEIGHT +
+                SCMPAuthLengths.ORDER +
+                SCMPAuthLengths.SIGNATURE +
+                height * SCMPAuthLengths.HASH)
             inst.height = height
         else:
             inst._init_size(TotalLength[sec_mode])
@@ -88,13 +94,15 @@ class SecurityExt(EndToEndExtension):
         return inst
 
     def pack(self):
-        packed = [struct.pack("!B", self.sec_mode), self.metadata, self.authenticator]
+        packed = [struct.pack("!B", self.sec_mode), self.metadata,
+                  self.authenticator]
         raw = b"".join(packed)
         self._check_len(raw)
         return raw
 
     def __str__(self):
-        return "%s(%sB):\n\tMeta: %s\n\tAuth: %s" % (self.NAME, len(self), self.metadata, self.authenticator)
+        return "%s(%sB):\n\tMeta: %s\n\tAuth: %s" % (
+            self.NAME, len(self), self.metadata, self.authenticator)
 
 
 class Lengths:
@@ -119,6 +127,7 @@ class SCMPAuthLengths:
     SIGNATURE = 64
     MAC = 16
 
+
 META_LENGTH = {
     SecModes.AES_CMAC: Lengths.TIMESTAMP,
     SecModes.HMAC_SHA256: Lengths.TIMESTAMP,
@@ -126,7 +135,8 @@ META_LENGTH = {
     SecModes.GCM_AES128: Lengths.TIMESTAMP,
     SecModes.SCMP_AUTH_DRKEY: Lengths.TIMESTAMP,
     SecModes.SCMP_AUTH_HASHED_DRKEY: Lengths.TIMESTAMP + SCMPAuthLengths.HASH,
-    SecModes.SCMP_AUTH_HASH_TREE: Lengths.TIMESTAMP + SCMPAuthLengths.HEIGHT + SCMPAuthLengths.ORDER,
+    SecModes.SCMP_AUTH_HASH_TREE: Lengths.TIMESTAMP + SCMPAuthLengths.HEIGHT +
+    SCMPAuthLengths.ORDER,
 }
 
 AUTH_LENGTH = {
@@ -139,12 +149,23 @@ AUTH_LENGTH = {
 }
 
 TotalLength = {
-    SecModes.AES_CMAC: Lengths.SECMODE + META_LENGTH[SecModes.AES_CMAC] + AUTH_LENGTH[SecModes.AES_CMAC],
-    SecModes.HMAC_SHA256: Lengths.SECMODE + META_LENGTH[SecModes.HMAC_SHA256] + AUTH_LENGTH[SecModes.HMAC_SHA256],
-    SecModes.ED25519: Lengths.SECMODE + META_LENGTH[SecModes.ED25519] + AUTH_LENGTH[SecModes.ED25519],
-    SecModes.GCM_AES128: Lengths.SECMODE + META_LENGTH[SecModes.GCM_AES128] + AUTH_LENGTH[SecModes.GCM_AES128],
-    SecModes.SCMP_AUTH_DRKEY: Lengths.SECMODE + META_LENGTH[SecModes.SCMP_AUTH_DRKEY] +
-                              AUTH_LENGTH[SecModes.SCMP_AUTH_DRKEY],
-    SecModes.SCMP_AUTH_HASHED_DRKEY: Lengths.SECMODE + META_LENGTH[SecModes.SCMP_AUTH_HASHED_DRKEY] +
-                                     AUTH_LENGTH[SecModes.SCMP_AUTH_HASHED_DRKEY],
+    SecModes.AES_CMAC: Lengths.SECMODE + META_LENGTH[SecModes.AES_CMAC] +
+    AUTH_LENGTH[SecModes.AES_CMAC],
+
+    SecModes.HMAC_SHA256: Lengths.SECMODE + META_LENGTH[SecModes.HMAC_SHA256] +
+    AUTH_LENGTH[SecModes.HMAC_SHA256],
+
+    SecModes.ED25519: Lengths.SECMODE + META_LENGTH[SecModes.ED25519] +
+    AUTH_LENGTH[SecModes.ED25519],
+
+    SecModes.GCM_AES128: Lengths.SECMODE + META_LENGTH[SecModes.GCM_AES128] +
+    AUTH_LENGTH[SecModes.GCM_AES128],
+
+    SecModes.SCMP_AUTH_DRKEY: Lengths.SECMODE +
+    META_LENGTH[SecModes.SCMP_AUTH_DRKEY] +
+    AUTH_LENGTH[SecModes.SCMP_AUTH_DRKEY],
+
+    SecModes.SCMP_AUTH_HASHED_DRKEY: Lengths.SECMODE +
+    META_LENGTH[SecModes.SCMP_AUTH_HASHED_DRKEY] +
+    AUTH_LENGTH[SecModes.SCMP_AUTH_HASHED_DRKEY],
 }

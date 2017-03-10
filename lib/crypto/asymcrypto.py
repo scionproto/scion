@@ -17,8 +17,8 @@
 """
 # External
 from nacl.exceptions import BadSignatureError
-from nacl.signing import SigningKey, VerifyKey
 from nacl.public import PrivateKey, Box
+from nacl.signing import SigningKey, VerifyKey
 from nacl.utils import random
 
 
@@ -73,7 +73,8 @@ def verify(msg, sig, verifying_key):
 
 
 def encrypt(msg, private_key, public_key):
-    return bytes(Box(private_key, public_key).encrypt(msg, random(Box.NONCE_SIZE)))
+    return bytes(
+        Box(private_key, public_key).encrypt(msg, random(Box.NONCE_SIZE)))
 
 
 def decrypt(msg, private_key, public_key):

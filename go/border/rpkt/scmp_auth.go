@@ -19,13 +19,14 @@ package rpkt
 import (
 	"bytes"
 	"crypto/cipher"
+	"time"
+
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
-	"time"
 )
 
 const currINFOffset = 5
@@ -78,9 +79,9 @@ func (rp *RtrPkt) ProcessSCMPAuthExt() (HookResult, *common.Error) {
 	}
 
 	switch {
-	case rp.DirFrom == DirLocal || rp.DirFrom == DirSelf: /* && rp.DirTo != DirLocal TODO(roosd): uncomment, is used for testing in local AS*/
+	case (rp.DirFrom == DirLocal && rp.DirTo != DirLocal) || rp.DirFrom == DirSelf:
 		return rp.signSCMPAuthExtns(scmpAuthExtns)
-	case (rp.DirTo == DirLocal || rp.DirTo == DirSelf) && (rp.DirFrom != DirLocal || rp.DirFrom != DirSelf):
+	case (rp.DirTo == DirLocal || rp.DirTo == DirSelf) && rp.DirFrom == DirExternal:
 		return rp.verifySCMPAuthExtns(scmpAuthExtns)
 	}
 	return HookContinue, nil
