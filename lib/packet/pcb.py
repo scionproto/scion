@@ -121,12 +121,12 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def sig_pack8(self):
+    def sig_pack7(self):
         """
         Pack for signing version 8 (defined by highest field number).
         """
         b = []
-        if self.VER != 8:
+        if self.VER != 7:
             raise SCIONSigVerError(
                 "ASMarking.sig_pack8 cannot support version %s", self.VER)
         b.append(self.p.isdas.to_bytes(4, 'big'))
@@ -202,7 +202,7 @@ class PathSegment(SCIONPayloadBaseProto):
         b.append(self.p.info)
         # ifID field is changed on the fly, and so is ignored.
         for asm in self.iter_asms():
-            b.append(asm.sig_pack8())
+            b.append(asm.sig_pack7())
         if self.is_sibra():
             b.append(self.sibra_ext.sig_pack3())
         return b"".join(b)
