@@ -75,3 +75,7 @@ class SCIONTCPError(SCIONBaseError):
 
 class SCIONTCPTimeout(SCIONBaseError):
     """SCION TCP timeout"""
+
+
+class SCIONSigVerError(SCIONBaseError):
+    """SCION Signature Version error"""
