@@ -33,6 +33,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import encrypt, sign, decrypt
 from lib.crypto.symcrypto import cbcmac
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
+from lib.errors import SCIONParseError
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainReply,
@@ -110,9 +111,9 @@ class CertServer(SCIONElement):
                 SCMPAuthMgmtType.SCMP_AUTH_LOCAL_REQUEST:
                     self.process_scmp_auth_local_drkey_request,
                 SCMPAuthMgmtType.SCMP_AUTH_REMOTE_REPLY:
-                    self.process_scmp_auth_drkey_reply,
+                    self.process_scmp_auth_remote_drkey_reply,
                 SCMPAuthMgmtType.SCMP_AUTH_LOCAL_REPLY:
-                    self.process_scmp_auth_drkey_reply,
+                    self.process_scmp_auth_local_drkey_reply,
             }
         }
 
@@ -126,7 +127,7 @@ class CertServer(SCIONElement):
         self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
                                       self._cached_entries_handler)
         self.scmp_auth_cache = ZkSharedCache(self.zk, self.ZK_SCMP_AUTH_PATH,
-                                             self._cached_entries_handler)
+                                             self._cached_scmp_auth_handler)
 
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
@@ -183,7 +184,8 @@ class CertServer(SCIONElement):
             elif isinstance(payload, TRCReply):
                 self.process_trc_reply(payload, None, from_zk=True)
             elif isinstance(payload, SCMPAuthRemoteDRKeyReply):
-                self.process_scmp_auth_drkey_reply(payload, None, from_zk=True)
+                self.process_scmp_auth_remote_drkey_reply(payload, None,
+                                                          from_zk=True)
             else:
                 logging.warning("Entry with unsupported type: %s" % entry)
 
@@ -359,40 +361,47 @@ class CertServer(SCIONElement):
             name="CS.worker", daemon=True).start()
         super().run()
 
-    def process_scmp_auth_drkey_reply(self, rep, meta, from_zk=False):
-        assert isinstance(rep, SCMPAuthRemoteDRKeyReply) or \
-               isinstance(rep, SCMPAuthLocalDRKeyReply)
-        isd_as = rep.isd_as
-        logging.info("DRKeyReply received for ISD-AS %s, ZK: %s",
-                     str(isd_as), from_zk)
-
-        if not from_zk:
-            assert isinstance(rep, SCMPAuthRemoteDRKeyReply)
-            # TODO(roosd): verify signature
-            cert = rep.chain.certs[0]
-            drkey = decrypt(rep.cipher, self.private_key,
-                            PublicKey(cert.subject_enc_key_raw))
-            self.scmp_auth_keys[int(rep.isd_as)] = drkey
-            logging.debug("Received DRKey from %s value: %s", rep.isd_as,
-                          drkey)  # TODO(roosd) remove
-
-            # TODO(roosd): share on Zookeeper
-            # TODO(roosd): encrypt before sharing on Zookeeper
-            '''
-            pld_packed = SCMPAuthLocalDRKeyReply.from_values(rep.isd_as, drkey)
-            .pack()
+    def _cached_scmp_auth_handler(self, raw_entries):
+        for entry in raw_entries:
             try:
-                self.scmp_auth_cache.store(str(isd_as), pld_packed)
-            except ZkNoConnection:
-                logging.warning("Unable to store DRKeyReply in shared path:
-                no connection to ZK")
+                rep = SCMPAuthLocalDRKeyReply.from_raw(entry)
+            except SCIONParseError as e:
+                logging.debug("Error parsing ZK SCMPAuth cache: %s", e)
                 return
-            logging.debug("DRKeyReply stored in ZK: %s" % isd_as)
-            '''
-        else:
-            assert isinstance(rep, SCMPAuthLocalDRKeyReply)
-            # TODO(roosd): decrypt before sharing on Zookeeper
-            self.scmp_auth_keys[int(rep.isd_as)] = rep.cipher
+            self.process_scmp_auth_local_drkey_reply(rep, True)
+
+    def process_scmp_auth_local_drkey_reply(self, rep, meta):
+        assert isinstance(rep, SCMPAuthLocalDRKeyReply)
+
+        logging.info("DRKeyReply received for ISD-AS %s, ZK: %s",
+                     str(rep.isd_as), meta)
+        # TODO(roosd): decrypt before loading from Zookeeper
+        self.scmp_auth_keys[int(rep.isd_as)] = rep.cipher
+        # Reply to all requests for this SCMPAuth DRKey
+        self.scmp_auth_drkey_requests.put((rep.isd_as, None))
+
+    def process_scmp_auth_remote_drkey_reply(self, rep, meta):
+        assert isinstance(rep, SCMPAuthRemoteDRKeyReply)
+        isd_as = rep.isd_as
+        logging.info("DRKeyReply received for ISD-AS %s", str(isd_as))
+
+        # TODO(roosd): verify signature
+        cert = rep.chain.certs[0]
+        drkey = decrypt(rep.cipher, self.private_key,
+                        PublicKey(cert.subject_enc_key_raw))
+        self.scmp_auth_keys[int(rep.isd_as)] = drkey
+        logging.debug("Received DRKey from %s value: %s", rep.isd_as,
+                      drkey)  # TODO(roosd) remove
+
+        # TODO(roosd): encrypt before sharing on Zookeeper
+        pld = SCMPAuthLocalDRKeyReply.from_values(rep.isd_as, drkey)
+        try:
+            self.scmp_auth_cache.store(str(isd_as), pld.pack())
+        except ZkNoConnection:
+            logging.warning("Unable to store DRKeyReply in shared path:\
+            no connection to ZK")
+            return
+        logging.debug("DRKeyReply stored in ZK: %s" % isd_as)
 
         # Reply to all requests for this SCMPAuth DRKey
         self.scmp_auth_drkey_requests.put((isd_as, None))
@@ -416,14 +425,9 @@ class CertServer(SCIONElement):
 
             timestamp = int(time.time())
             cert = self.trust_store.get_cert(isd_as)
+            sig = sign(b"".join([isd_as.pack(), cipher]), self.signing_key)
             rep = SCMPAuthRemoteDRKeyReply.from_values(isd_as, timestamp,
-                                                       cipher,
-                                                       sign(b"".join(
-                                                           [isd_as.pack(),
-                                                            cipher]),
-                                                            self.signing_key),
-                                                       cert
-                                                       )
+                                                       cipher, sig, cert)
 
             self._send_payload(meta.ia, rep, meta.path, meta.host, meta.port)
             logging.info("DRKeyReply for %s sent to %s:%s", isd_as,
