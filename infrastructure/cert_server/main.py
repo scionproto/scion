@@ -255,7 +255,7 @@ class CertServer(SCIONElement):
 
     def _fetch_trc(self, key, info):
         isd, ver = key
-        isd_as = ISD_AS.from_values(isd, info[2])
+        isd_as = ISD_AS.from_values(isd, info[1])
         trc_req = TRCRequest.from_values(isd_as, ver)
         req_pkt = self._build_packet(SVCType.CS_A, payload=trc_req)
         next_hop, port = self._get_next_hop(isd_as, True, False, True)
