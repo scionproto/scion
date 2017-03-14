@@ -240,10 +240,10 @@ void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
                   int path_len, int exts_len, int l4_len)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint16_t vsd = 0;
-    vsd |= src_type << 6;
-    vsd |= dst_type;
-    sch->ver_src_dst = htons(vsd);
+    uint16_t vds = 0;
+    vds |= dst_type << 6;
+    vds |= src_type;
+    sch->ver_dst_src = htons(vds);
     sch->next_header = next_hdr;
 
     int addr_len = padded_addr_len(buf);

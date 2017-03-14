@@ -169,8 +169,8 @@ func (d Dir) String() string {
 // addrIFPair contains the overlay source/destination addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
-	Src   *net.UDPAddr
 	Dst   *net.UDPAddr
+	Src   *net.UDPAddr
 	IfIDs []spath.IntfID
 }
 

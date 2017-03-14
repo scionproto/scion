@@ -90,7 +90,7 @@ func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 // retrieval hooks, falling back to parsing the address header directly
 // otherwise.
 func (rp *RtrPkt) hookHost(
-	hooks []hookHost, idx int, htype uint8) (addr.HostAddr, *common.Error) {
+	hooks []hookHost, idx int, htype addr.HostAddrType) (addr.HostAddr, *common.Error) {
 	for _, f := range hooks {
 		ret, host, err := f()
 		switch {

@@ -30,21 +30,21 @@ import (
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
 func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
-	hdrLen := sp.HdrLen()
 	totalLen := sp.TotalLen()
+	hdrLen := sp.HdrLen()
 	rp.TimeIn = monotime.Now()
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	rp.DirFrom = DirSelf
 	rp.DirTo = dirTo
 	// Fill in common header.
-	rp.CmnHdr.SrcType = sp.SrcHost.Type()
 	rp.CmnHdr.DstType = sp.DstHost.Type()
-	rp.CmnHdr.HdrLen = uint8(hdrLen)
+	rp.CmnHdr.SrcType = sp.SrcHost.Type()
 	rp.CmnHdr.TotalLen = uint16(totalLen) // Updated later as necessary.
-	rp.CmnHdr.NextHdr = common.L4None     // Updated later as necessary.
-	rp.CmnHdr.CurrInfoF = uint8(hdrLen)   // Updated later as necessary.
-	rp.CmnHdr.CurrHopF = uint8(hdrLen)    // Updated later as necessary.
+	rp.CmnHdr.HdrLen = uint8(hdrLen)
+	rp.CmnHdr.CurrInfoF = uint8(hdrLen) // Updated later as necessary.
+	rp.CmnHdr.CurrHopF = uint8(hdrLen)  // Updated later as necessary.
+	rp.CmnHdr.NextHdr = common.L4None   // Updated later as necessary.
 	// Fill in address header and indexes.
 	rp.idxs.srcIA = spkt.CmnHdrLen
 	rp.srcIA = sp.SrcIA

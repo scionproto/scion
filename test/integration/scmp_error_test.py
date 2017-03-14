@@ -115,8 +115,8 @@ class ErrorGenBadVersion(ErrorGenBase):
         self._send_raw_pkt(raw, next_hop, port)
 
 
-class ErrorGenBadSrcType(ErrorGenBase):
-    DESC = "bad src type"
+class ErrorGenBadDstType(ErrorGenBase):
+    DESC = "bad dst type"
 
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
@@ -125,8 +125,8 @@ class ErrorGenBadSrcType(ErrorGenBase):
         self._send_raw_pkt(raw, next_hop, port)
 
 
-class ErrorGenBadDstType(ErrorGenBase):
-    DESC = "bad dst type"
+class ErrorGenBadSrcType(ErrorGenBase):
+    DESC = "bad src type"
 
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
@@ -161,7 +161,7 @@ class ErrorGenBadHdrLenShort(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[7] = 5
+        barr[4] = 5
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -171,7 +171,7 @@ class ErrorGenBadHdrLenLong(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[7] = 255
+        barr[4] = 255
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -183,7 +183,7 @@ class ErrorGenBadIOFOffsetShort(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[4] -= 8
+        barr[5] -= 8
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -195,7 +195,7 @@ class ErrorGenBadIOFOffsetLong(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[4] = 255
+        barr[5] = 255
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -207,7 +207,7 @@ class ErrorGenBadHOFOffsetShort(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[5] = 1
+        barr[6] = 1
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -219,7 +219,7 @@ class ErrorGenBadHOFOffsetLong(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self.sd.get_first_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[5] = 255
+        barr[6] = 255
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -335,8 +335,8 @@ GEN_LIST = (
     # ErrorGenOversizePkt,
     ErrorGenBadHost,
     ErrorGenBadVersion,
-    ErrorGenBadSrcType,
     ErrorGenBadDstType,
+    ErrorGenBadSrcType,
     ErrorGenBadPktLenShort,
     ErrorGenBadPktLenLong,
     ErrorGenBadHdrLenShort,
