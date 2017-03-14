@@ -56,8 +56,8 @@ func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
-		DstIA: intf.RemoteIA, DstHost: addr.HostFromIP(intf.RemoteAddr.IP),
+		DstIA: intf.RemoteIA, SrcIA: conf.C.IA,
+		DstHost: addr.HostFromIP(intf.RemoteAddr.IP), SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(intf.RemoteAddr.Port)},
 	}, rpkt.DirExternal)
 	if err != nil {

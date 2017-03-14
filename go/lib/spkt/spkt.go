@@ -24,10 +24,10 @@ import (
 
 // SCION Packet structure.
 type ScnPkt struct {
-	SrcIA   *addr.ISD_AS
-	SrcHost addr.HostAddr
 	DstIA   *addr.ISD_AS
+	SrcIA   *addr.ISD_AS
 	DstHost addr.HostAddr
+	SrcHost addr.HostAddr
 	Path    *spath.Path
 	HBHExt  []common.Extension
 	E2EExt  []common.Extension
@@ -37,17 +37,17 @@ type ScnPkt struct {
 
 func (s *ScnPkt) Copy() *ScnPkt {
 	c := &ScnPkt{}
-	if s.SrcIA != nil {
-		c.SrcIA = s.SrcIA.Copy()
-	}
-	if s.SrcHost != nil {
-		c.SrcHost = s.SrcHost.Copy()
-	}
 	if s.DstIA != nil {
 		c.DstIA = s.DstIA.Copy()
 	}
+	if s.SrcIA != nil {
+		c.SrcIA = s.SrcIA.Copy()
+	}
 	if s.DstHost != nil {
 		c.DstHost = s.DstHost.Copy()
+	}
+	if s.SrcHost != nil {
+		c.SrcHost = s.SrcHost.Copy()
 	}
 	if s.Path != nil {
 		c.Path = s.Path.Copy()
@@ -66,8 +66,8 @@ func (s *ScnPkt) Copy() *ScnPkt {
 }
 
 func (s *ScnPkt) Reverse() *common.Error {
-	s.SrcIA, s.DstIA = s.DstIA, s.SrcIA
-	s.SrcHost, s.DstHost = s.DstHost, s.SrcHost
+	s.DstIA, s.SrcIA = s.SrcIA, s.DstIA
+	s.DstHost, s.SrcHost = s.SrcHost, s.DstHost
 	if s.Path != nil {
 		if err := s.Path.Reverse(); err != nil {
 			return err
@@ -81,7 +81,7 @@ func (s *ScnPkt) Reverse() *common.Error {
 }
 
 func (s *ScnPkt) AddrLen() int {
-	addrLen := addr.IABytes*2 + s.SrcHost.Size() + s.DstHost.Size()
+	addrLen := addr.IABytes*2 + s.DstHost.Size() + s.SrcHost.Size()
 	return addrLen + util.CalcPadding(addrLen, common.LineLen)
 }
 

@@ -47,7 +47,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	switch sdata.CT.Class {
 	case scmp.C_CmnHdr:
 		switch sdata.CT.Type {
-		case scmp.T_C_BadVersion, scmp.T_C_BadSrcType, scmp.T_C_BadDstType:
+		case scmp.T_C_BadVersion, scmp.T_C_BadDstType, scmp.T_C_BadSrcType:
 			// For any of these cases, do nothing. A reply would only be
 			// possible in the case of a version/addr type being understood but
 			// deprecated, which hasn't happened yet.

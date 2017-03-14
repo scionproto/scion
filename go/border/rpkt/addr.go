@@ -21,18 +21,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-// SrcIA retrieves the source ISD-AS if it isn't already known.
-func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
-	if rp.srcIA == nil {
-		var err *common.Error
-		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
-		if err != nil {
-			return nil, common.NewError("Unable to retrieve source ISD-AS", "err", err)
-		}
-	}
-	return rp.srcIA, nil
-}
-
 // DstIA retrieves the destination ISD-AS if it isn't already known.
 func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 	if rp.dstIA == nil {
@@ -45,7 +33,19 @@ func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
 	return rp.dstIA, nil
 }
 
-// hookIA is a helper method used by SrcIA/DstIA to run ISD-AS retrieval hooks,
+// SrcIA retrieves the source ISD-AS if it isn't already known.
+func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
+	if rp.srcIA == nil {
+		var err *common.Error
+		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
+		if err != nil {
+			return nil, common.NewError("Unable to retrieve source ISD-AS", "err", err)
+		}
+	}
+	return rp.srcIA, nil
+}
+
+// hookIA is a helper method used by DstIA/SrcIA to run ISD-AS retrieval hooks,
 // falling back to parsing the address header directly otherwise.
 func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, *common.Error) {
 	for _, f := range hooks {
@@ -62,18 +62,6 @@ func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, *common.Error) 
 	return addr.IAFromRaw(rp.Raw[idx:]), nil
 }
 
-// SrcHost retrieves the source host address if it isn't already known.
-func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
-	if rp.srcHost == nil {
-		var err *common.Error
-		rp.srcHost, err = rp.hookHost(rp.hooks.SrcHost, rp.idxs.srcHost, rp.CmnHdr.SrcType)
-		if err != nil {
-			return nil, common.NewError("Unable to retrieve source host", "err", err)
-		}
-	}
-	return rp.srcHost, nil
-}
-
 // DstHost retrieves the destination host address if it isn't already known.
 func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 	if rp.dstHost == nil {
@@ -86,7 +74,19 @@ func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
 	return rp.dstHost, nil
 }
 
-// hookHost is a helper method used by SrcHost/DstHost to run host address
+// SrcHost retrieves the source host address if it isn't already known.
+func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
+	if rp.srcHost == nil {
+		var err *common.Error
+		rp.srcHost, err = rp.hookHost(rp.hooks.SrcHost, rp.idxs.srcHost, rp.CmnHdr.SrcType)
+		if err != nil {
+			return nil, common.NewError("Unable to retrieve source host", "err", err)
+		}
+	}
+	return rp.srcHost, nil
+}
+
+// hookHost is a helper method used by DstHost/SrcHost to run host address
 // retrieval hooks, falling back to parsing the address header directly
 // otherwise.
 func (rp *RtrPkt) hookHost(
