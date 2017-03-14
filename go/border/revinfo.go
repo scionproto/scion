@@ -88,8 +88,8 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
-		DstIA: conf.C.IA, DstHost: dstHost,
+		DstIA: conf.C.IA, SrcIA: conf.C.IA,
+		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
 	}, rpkt.DirLocal)
 	if err != nil {

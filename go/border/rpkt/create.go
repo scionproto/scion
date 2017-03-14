@@ -46,18 +46,18 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 	rp.CmnHdr.CurrHopF = uint8(hdrLen)  // Updated later as necessary.
 	rp.CmnHdr.NextHdr = common.L4None   // Updated later as necessary.
 	// Fill in address header and indexes.
-	rp.idxs.srcIA = spkt.CmnHdrLen
-	rp.srcIA = sp.SrcIA
-	rp.idxs.srcHost = rp.idxs.srcIA + addr.IABytes
-	rp.srcHost = sp.SrcHost
-	rp.idxs.dstIA = rp.idxs.srcHost + rp.srcHost.Size()
+	rp.idxs.dstIA = spkt.CmnHdrLen
 	rp.dstIA = sp.DstIA
-	rp.idxs.dstHost = rp.idxs.dstIA + addr.IABytes
+	rp.idxs.srcIA = rp.idxs.dstIA + addr.IABytes
+	rp.srcIA = sp.SrcIA
+	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
 	rp.dstHost = sp.DstHost
-	rp.srcIA.Write(rp.Raw[rp.idxs.srcIA:])
-	copy(rp.Raw[rp.idxs.srcHost:], rp.srcHost.Pack())
+	rp.idxs.srcHost = rp.idxs.dstHost + rp.dstHost.Size()
+	rp.srcHost = sp.SrcHost
 	rp.dstIA.Write(rp.Raw[rp.idxs.dstIA:])
+	rp.srcIA.Write(rp.Raw[rp.idxs.srcIA:])
 	copy(rp.Raw[rp.idxs.dstHost:], rp.dstHost.Pack())
+	copy(rp.Raw[rp.idxs.srcHost:], rp.srcHost.Pack())
 	// Fill in path
 	rp.idxs.path = spkt.CmnHdrLen + sp.AddrLen()
 	if sp.Path != nil {

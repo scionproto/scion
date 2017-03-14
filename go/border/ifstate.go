@@ -54,13 +54,13 @@ func (r *Router) IFStateUpdate() {
 // GenIFStateReq generates an Interface State request packet to the local
 // beacon service.
 func (r *Router) GenIFStateReq() {
+	dstHost := addr.SvcBS.Multicast()
 	// Pick first local address from topology as source.
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
-	dstHost := addr.SvcBS.Multicast()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
-		DstIA: conf.C.IA, DstHost: dstHost,
+		DstIA: conf.C.IA, SrcIA: conf.C.IA,
+		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
 	}, rpkt.DirLocal)
 	if err != nil {
