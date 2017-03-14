@@ -22,12 +22,28 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+type HostAddrType uint8
+
 const (
-	HostTypeNone = iota
+	HostTypeNone HostAddrType = iota
 	HostTypeIPv4
 	HostTypeIPv6
 	HostTypeSVC
 )
+
+func (t HostAddrType) String() string {
+	switch t {
+	case HostTypeNone:
+		return "None"
+	case HostTypeIPv4:
+		return "IPv4"
+	case HostTypeIPv6:
+		return "IPv6"
+	case HostTypeSVC:
+		return "SVC"
+	}
+	return fmt.Sprintf("UNKNOWN (%d)", t)
+}
 
 const (
 	HostLenNone = 0
@@ -52,7 +68,7 @@ var (
 
 type HostAddr interface {
 	Size() int
-	Type() uint8
+	Type() HostAddrType
 	Pack() common.RawBytes
 	IP() net.IP
 	Copy() HostAddr
@@ -69,7 +85,7 @@ func (h HostNone) Size() int {
 	return HostLenNone
 }
 
-func (h HostNone) Type() uint8 {
+func (h HostNone) Type() HostAddrType {
 	return HostTypeNone
 }
 
@@ -99,7 +115,7 @@ func (h HostIPv4) Size() int {
 	return HostLenIPv4
 }
 
-func (h HostIPv4) Type() uint8 {
+func (h HostIPv4) Type() HostAddrType {
 	return HostTypeIPv4
 }
 
@@ -129,7 +145,7 @@ func (h HostIPv6) Size() int {
 	return HostLenIPv6
 }
 
-func (h HostIPv6) Type() uint8 {
+func (h HostIPv6) Type() HostAddrType {
 	return HostTypeIPv6
 }
 
@@ -159,7 +175,7 @@ func (h HostSVC) Size() int {
 	return HostLenSVC
 }
 
-func (h HostSVC) Type() uint8 {
+func (h HostSVC) Type() HostAddrType {
 	return HostTypeSVC
 }
 
@@ -210,7 +226,7 @@ func (h HostSVC) String() string {
 	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
 }
 
-func HostFromRaw(b common.RawBytes, htype uint8) (HostAddr, *common.Error) {
+func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, *common.Error) {
 	switch htype {
 	case HostTypeNone:
 		return HostNone{}, nil
@@ -234,7 +250,7 @@ func HostFromIP(ip net.IP) HostAddr {
 	return &h
 }
 
-func HostLen(htype uint8) (uint8, *common.Error) {
+func HostLen(htype HostAddrType) (uint8, *common.Error) {
 	var length uint8
 	switch htype {
 	case HostTypeNone:
@@ -255,7 +271,7 @@ func HostEq(a, b HostAddr) bool {
 	return a.Type() == b.Type() && a.String() == b.String()
 }
 
-func HostTypeCheck(t uint8) bool {
+func HostTypeCheck(t HostAddrType) bool {
 	switch t {
 	case HostTypeIPv6, HostTypeIPv4, HostTypeSVC:
 		return true
