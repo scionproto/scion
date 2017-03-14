@@ -309,6 +309,8 @@ class SCIONElement(object):
             lower_ver = 0
             if highest_ver_trc is not None:
                 lower_ver = highest_ver_trc.version+1
+            else:
+                highest_ver = 1
             for ver in range(lower_ver, highest_ver):
                 missing_trcs.add((isd, ver))
         return missing_trcs
