@@ -298,13 +298,14 @@ class SCIONElement(object):
         """
         missing_trcs = set()
         for isd, versions in trc_versions.items():
-            # If not local TRC, only request this version
-            highest_ver = sorted(versions)[-1]
+            # If not local TRC, only request versions contained in ASMarkings
             if isd is not self.topology.isd_as[0]:
-                if self.trust_store.get_trc(isd, highest_ver) is None:
-                    missing_trcs.add((isd, highest_ver))
+                for ver in versions:
+                    if self.trust_store.get_trc(isd, ver) is None:
+                        missing_trcs.add((isd, ver))
                 continue
             # Local TRC
+            highest_ver = sorted(versions)[-1]
             highest_ver_trc = self.trust_store.get_trc(isd)
             lower_ver = 0
             if highest_ver_trc is not None:
