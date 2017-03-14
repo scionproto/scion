@@ -173,8 +173,12 @@ class SCIONDConnector:
         Returns the HostInfo object of the first hop for a given packet.
 
         :param spkt: The SCIONPacket object.
+        :returns: A HostInfo object containing the first hop.
         """
-        return self._get_first_hop(spkt.path, spkt.addrs.dst, spkt.ext_hdrs)
+        fh_info = self._get_first_hop(spkt.path, spkt.addrs.dst, spkt.ext_hdrs)
+        if not fh_info:
+            raise SCIONDResponseError("First hop could not be resolved.")
+        return fh_info
 
     def _get_first_hop(self, path, dst, ext_hdrs=()):
         if_id = self._ext_first_hop(ext_hdrs)
@@ -184,7 +188,10 @@ class SCIONDConnector:
             if_id = path.get_fwd_if()
         if if_id in self._br_infos:
             return self._br_infos[if_id].host_info()
-        return self.get_br_info([if_id])[0].host_info()
+        br_infos = self.self.get_br_info([if_id])
+        if br_infos:
+            return br_infos[0].host_info()
+        return None
 
     def _ext_first_hop(self, ext_hdrs):
         for hdr in ext_hdrs:
@@ -198,5 +205,8 @@ class SCIONDConnector:
             svc_type = SVC_TO_SERVICE[host.addr]
             if svc_type in self._svc_infos:
                 return self._svc_infos[svc_type].host_info()
-            return self.get_service_info([svc_type])[0].host_info()
+            svc_infos = self.get_service_info([svc_type])
+            if svc_infos:
+                return svc_infos[0].host_info()
+            return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
