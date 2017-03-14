@@ -155,8 +155,8 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
-		DstIA: conf.C.IA, DstHost: addr.SvcBS.Multicast(),
+		DstIA: conf.C.IA, SrcIA: conf.C.IA,
+		DstHost: addr.SvcBS.Multicast(), SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
 	}, DirLocal)
 	if err != nil {
