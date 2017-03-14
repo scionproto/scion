@@ -174,9 +174,9 @@ class SCIONDaemon(SCIONElement):
             self.peer_revs.add(rev_info)
 
         for type_, pcb in path_reply.iter_pcbs():
-            self.process_path(pcb, type_, "", meta)
+            self.process_path_seg(pcb, meta, type_)
 
-    def continue_path_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, pcb, type_, params):
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,

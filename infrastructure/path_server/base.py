@@ -359,9 +359,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.revocations.add(rev_info)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
-            self.process_path(pcb, type_, params, meta)
+            self.process_path_seg(pcb, meta, type_, params)
 
-    def continue_path_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, pcb, type_, params):
         added = set()
         added.update(self._dispatch_segment_record(type_, pcb, **params))
         for dst_ia, sibra in added:

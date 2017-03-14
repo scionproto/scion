@@ -208,7 +208,6 @@ class PathSegment(SCIONPayloadBaseProto):
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
-        # assert not self.p.asms[-1].sig
         sig = sign(self.sig_pack3(), key)
         if set_:
             self.p.asms[-1].sig = sig

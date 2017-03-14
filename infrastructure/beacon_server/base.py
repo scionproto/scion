@@ -252,9 +252,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.path_policy.check_filters(pcb):
             return
         self.incoming_pcbs.append(pcb)
-        self.process_path(pcb, "", "", meta)
+        self.process_path_seg(pcb, meta)
 
-    def continue_path_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, pcb, type_, params):
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:
             self.pcb_cache.store(entry_name, pcb.copy().pack())
