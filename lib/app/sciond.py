@@ -188,7 +188,7 @@ class SCIONDConnector:
             if_id = path.get_fwd_if()
         if if_id in self._br_infos:
             return self._br_infos[if_id].host_info()
-        br_infos = self.self.get_br_info([if_id])
+        br_infos = self.get_br_info([if_id])
         if br_infos:
             return br_infos[0].host_info()
         return None
