@@ -80,7 +80,7 @@ func (o *rOneHopPath) Type() common.ExtnType {
 }
 
 func (o *rOneHopPath) Len() int {
-	return common.LineLen
+	return common.ExtnFirstLineLen
 }
 
 func (o *rOneHopPath) String() string {
