@@ -17,7 +17,7 @@
 """
 # External
 from nacl.exceptions import BadSignatureError
-from nacl.public import PrivateKey, Box
+from nacl.public import Box, PrivateKey
 from nacl.signing import SigningKey, VerifyKey
 from nacl.utils import random
 

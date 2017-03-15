@@ -24,10 +24,12 @@ import struct
 import threading
 import time
 
+# External packages
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 from nacl.public import PrivateKey, PublicKey
 
+# SCION
 from endhost.sciond import SCIOND_API_SOCKDIR
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import encrypt, sign, decrypt
@@ -43,23 +45,31 @@ from lib.packet.cert_mgmt import (
 )
 from lib.packet.scion import msg_from_raw
 from lib.packet.scion_addr import ISD_AS
-from lib.packet.scmp_auth.scmp_auth_mgmt import (SCMPAuthRemoteDRKeyReply,
-                                                 SCMPAuthRemoteDRKeyRequest,
-                                                 SCMPAuthLocalDRKeyReply,
-                                                 SCMPAuthLocalDRKeyRequest,
-                                                 )
+from lib.packet.scmp_auth.scmp_auth_mgmt import (
+    SCMPAuthRemoteDRKeyReply,
+    SCMPAuthRemoteDRKeyRequest,
+    SCMPAuthLocalDRKeyReply,
+    SCMPAuthLocalDRKeyRequest,
+)
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_req import SCIONDPathRequest, SCIONDPathReplyError
 from lib.socket import ReliableSocket
 from lib.thread import thread_safety_net
-from lib.types import (CertMgmtType, PayloadClass, SCMPAuthMgmtType,
-                       SCIONDMsgType)
+from lib.types import (
+    CertMgmtType,
+    PayloadClass,
+    SCMPAuthMgmtType,
+    SCIONDMsgType,
+)
 from lib.util import (
     SCIONTime,
     sleep_interval,
-    read_file, get_sig_key_file_path, get_enc_key_file_path)
+    read_file,
+    get_sig_key_file_path,
+    get_enc_key_file_path,
+)
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
@@ -94,8 +104,7 @@ class CertServer(SCIONElement):
 
         self.scmp_auth_drkey_requests = RequestHandler.start(
             "SCMPAuth DRKey Requests", self._check_scmp_auth_drkey,
-            self._fetch_scmp_auth_drkey,
-            self._reply_scmp_auth_drkey
+            self._fetch_scmp_auth_drkey, self._reply_scmp_auth_drkey
         )
 
         self.CTRL_PLD_CLASS_MAP = {
@@ -106,13 +115,13 @@ class CertServer(SCIONElement):
                 CertMgmtType.TRC_REPLY: self.process_trc_reply,
             },
             PayloadClass.SCMP_AUTH: {
-                SCMPAuthMgmtType.SCMP_AUTH_REMOTE_REQUEST:
+                SCMPAuthMgmtType.REMOTE_REQUEST:
                     self.process_scmp_auth_remote_drkey_request,
-                SCMPAuthMgmtType.SCMP_AUTH_LOCAL_REQUEST:
+                SCMPAuthMgmtType.LOCAL_REQUEST:
                     self.process_scmp_auth_local_drkey_request,
-                SCMPAuthMgmtType.SCMP_AUTH_REMOTE_REPLY:
+                SCMPAuthMgmtType.REMOTE_REPLY:
                     self.process_scmp_auth_remote_drkey_reply,
-                SCMPAuthMgmtType.SCMP_AUTH_LOCAL_REPLY:
+                SCMPAuthMgmtType.LOCAL_REPLY:
                     self.process_scmp_auth_local_drkey_reply,
             }
         }
@@ -347,7 +356,6 @@ class CertServer(SCIONElement):
             routers += self.topology.core_border_routers
         for r in routers:
             r_ia = r.interface.isd_as
-            logging.debug("r_ia: %s", r_ia)
             if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):
                 return r.addr, r.port
         return None, None
@@ -368,43 +376,39 @@ class CertServer(SCIONElement):
             except SCIONParseError as e:
                 logging.debug("Error parsing ZK SCMPAuth cache: %s", e)
                 return
-            self.process_scmp_auth_local_drkey_reply(rep, True)
+            self.process_scmp_auth_local_drkey_reply(rep)
 
-    def process_scmp_auth_local_drkey_reply(self, rep, meta):
+    def process_scmp_auth_local_drkey_reply(self, rep, meta=None):
         assert isinstance(rep, SCMPAuthLocalDRKeyReply)
 
-        logging.info("DRKeyReply received for ISD-AS %s, ZK: %s",
-                     str(rep.isd_as), meta)
+        logging.info("DRKeyReply received for ISD-AS %s from ZK", rep.isd_as)
         # TODO(roosd): decrypt before loading from Zookeeper
-        self.scmp_auth_keys[int(rep.isd_as)] = rep.cipher
+        self.scmp_auth_keys[rep.isd_as.int()] = rep.cipher
         # Reply to all requests for this SCMPAuth DRKey
         self.scmp_auth_drkey_requests.put((rep.isd_as, None))
 
     def process_scmp_auth_remote_drkey_reply(self, rep, meta):
         assert isinstance(rep, SCMPAuthRemoteDRKeyReply)
-        isd_as = rep.isd_as
-        logging.info("DRKeyReply received for ISD-AS %s", str(isd_as))
+        logging.info("DRKeyReply received for ISD-AS %s", rep.isd_as)
 
         # TODO(roosd): verify signature
         cert = rep.chain.certs[0]
         drkey = decrypt(rep.cipher, self.private_key,
                         PublicKey(cert.subject_enc_key_raw))
-        self.scmp_auth_keys[int(rep.isd_as)] = drkey
-        logging.debug("Received DRKey from %s value: %s", rep.isd_as,
-                      drkey)  # TODO(roosd) remove
+        self.scmp_auth_keys[rep.isd_as.int()] = drkey
 
         # TODO(roosd): encrypt before sharing on Zookeeper
         pld = SCMPAuthLocalDRKeyReply.from_values(rep.isd_as, drkey)
         try:
-            self.scmp_auth_cache.store(str(isd_as), pld.pack())
+            self.scmp_auth_cache.store(rep.isd_as, pld.pack())
         except ZkNoConnection:
             logging.warning("Unable to store DRKeyReply in shared path:\
             no connection to ZK")
             return
-        logging.debug("DRKeyReply stored in ZK: %s" % isd_as)
+        logging.debug("DRKeyReply stored in ZK: %s" % rep.isd_as)
 
         # Reply to all requests for this SCMPAuth DRKey
-        self.scmp_auth_drkey_requests.put((isd_as, None))
+        self.scmp_auth_drkey_requests.put((rep.isd_as, None))
 
     def process_scmp_auth_remote_drkey_request(self, req, meta):
         assert isinstance(req, SCMPAuthRemoteDRKeyRequest)

@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2017 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 # Stdlib
 import struct
 
+# SCION
 from lib.errors import SCIONBaseError
 from lib.packet.ext_hdr import EndToEndExtension
-from lib.types import ExtEndToEndType
-from lib.util import Raw
+from lib.types import ExtEndToEndType, TypeBase
+from lib.util import hex_str, Raw
 
 
 class SecurityExt(EndToEndExtension):
@@ -46,16 +47,10 @@ class SecurityExt(EndToEndExtension):
         super().__init__(raw)
 
     def _parse(self, raw):
-        """
-        Parse payload to extract hop informations.
-        """
-        self.sec_mode = raw[0]
-
         data = Raw(raw, self.NAME)
         super()._parse(data)
-        # Drop hops no and padding from the first row.
-        data.pop(Lengths.SECMODE)
 
+        self.sec_mode = data.pop(Lengths.SECMODE)
         self.metadata = data.pop(META_LENGTH[self.sec_mode])
 
         if self.sec_mode == SecModes.SCMP_AUTH_HASH_TREE:
@@ -102,7 +97,8 @@ class SecurityExt(EndToEndExtension):
 
     def __str__(self):
         return "%s(%sB):\n\tMeta: %s\n\tAuth: %s" % (
-            self.NAME, len(self), self.metadata, self.authenticator)
+            self.NAME, len(self), hex_str(self.metadata),
+            hex_str(self.authenticator))
 
 
 class Lengths:
@@ -110,7 +106,7 @@ class Lengths:
     SECMODE = 1
 
 
-class SecModes:
+class SecModes(TypeBase):
     AES_CMAC = 0
     HMAC_SHA256 = 1
     ED25519 = 2

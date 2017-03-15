@@ -128,10 +128,10 @@ class PathSegmentType(TypeBase):
 
 
 class SCMPAuthMgmtType(object):
-    SCMP_AUTH_REMOTE_REQUEST = "scmpAuthRemoteReq"
-    SCMP_AUTH_REMOTE_REPLY = "scmpAuthRemoteRep"
-    SCMP_AUTH_LOCAL_REQUEST = "scmpAuthLocalReq"
-    SCMP_AUTH_LOCAL_REPLY = "scmpAuthLocalRep"
+    REMOTE_REQUEST = "scmpAuthRemoteReq"
+    REMOTE_REPLY = "scmpAuthRemoteRep"
+    LOCAL_REQUEST = "scmpAuthLocalReq"
+    LOCAL_REPLY = "scmpAuthLocalRep"
 
 
 ############################
