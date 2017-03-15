@@ -400,7 +400,7 @@ class CertServer(SCIONElement):
         # TODO(roosd): encrypt before sharing on Zookeeper
         pld = SCMPAuthLocalDRKeyReply.from_values(rep.isd_as, drkey)
         try:
-            self.scmp_auth_cache.store(rep.isd_as, pld.pack())
+            self.scmp_auth_cache.store(str(rep.isd_as), pld.pack())
         except ZkNoConnection:
             logging.warning("Unable to store DRKeyReply in shared path:\
             no connection to ZK")
