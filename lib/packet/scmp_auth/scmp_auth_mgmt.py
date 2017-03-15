@@ -37,7 +37,7 @@ class SCMPAuthMgmtBase(SCIONPayloadBaseProto):  # pragma: no cover
 
 class SCMPAuthRemoteDRKeyRequest(SCMPAuthMgmtBase):  # pragma: no cover
     NAME = "SCMPAuthDRKeyRequest"
-    PAYLOAD_TYPE = SCMPAuthMgmtType.SCMP_AUTH_REMOTE_REQUEST
+    PAYLOAD_TYPE = SCMPAuthMgmtType.REMOTE_REQUEST
     P_CLS = P.ScmpAuthRemoteReq
 
     def __init__(self, p):
@@ -63,7 +63,7 @@ class SCMPAuthRemoteDRKeyRequest(SCMPAuthMgmtBase):  # pragma: no cover
 
 class SCMPAuthRemoteDRKeyReply(SCMPAuthMgmtBase):  # pragma: no cover
     NAME = "SCMPAuthDRKeyReply"
-    PAYLOAD_TYPE = SCMPAuthMgmtType.SCMP_AUTH_REMOTE_REPLY
+    PAYLOAD_TYPE = SCMPAuthMgmtType.REMOTE_REPLY
     P_CLS = P.ScmpAuthRemoteRep
 
     def __init__(self, p):
@@ -90,7 +90,7 @@ class SCMPAuthRemoteDRKeyReply(SCMPAuthMgmtBase):  # pragma: no cover
 
 class SCMPAuthLocalDRKeyRequest(SCMPAuthMgmtBase):  # pragma: no cover
     NAME = "SCMPAuthDRKeyRequest"
-    PAYLOAD_TYPE = SCMPAuthMgmtType.SCMP_AUTH_LOCAL_REQUEST
+    PAYLOAD_TYPE = SCMPAuthMgmtType.LOCAL_REQUEST
     P_CLS = P.ScmpAuthLocalReq
 
     def __init__(self, p):
@@ -110,7 +110,7 @@ class SCMPAuthLocalDRKeyRequest(SCMPAuthMgmtBase):  # pragma: no cover
 
 class SCMPAuthLocalDRKeyReply(SCMPAuthMgmtBase):  # pragma: no cover
     NAME = "SCMPAuthDRKeyReply"
-    PAYLOAD_TYPE = SCMPAuthMgmtType.SCMP_AUTH_LOCAL_REPLY
+    PAYLOAD_TYPE = SCMPAuthMgmtType.LOCAL_REPLY
     P_CLS = P.ScmpAuthLocalRep
 
     def __init__(self, p):

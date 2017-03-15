@@ -28,13 +28,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
-func toString(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
-
 // handlePktError is called for protocol-level packet errors. If there's SCMP
 // metadata attached to the error object, then an SCMP error response is
 // generated and sent.
@@ -48,10 +41,6 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	rp.Error(desc, perr.Ctx...)
 	if !ok || perr.Data == nil || rp.DirFrom == rpkt.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
-		dstIA, _ := rp.DstIA()
-		srcIA, _ := rp.SrcIA()
-		rp.Warn("Do not send a reply", dstIA.String(), srcIA.String())
-
 		return
 	}
 
