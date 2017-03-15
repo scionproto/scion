@@ -260,7 +260,7 @@ def init(api_addr):
 
 
 def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
-              connector=_connector):
+              connector=None):
     """
     Request a set of end to end paths from SCIOND.
 
@@ -270,23 +270,29 @@ def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
     :param flags: A PathRequestFlags tuple.
     :returns: A list of SCIONDPathReplyEntry objects.
     """
+    global _connector
+    if not connector:
+        connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
     return connector.get_paths(dst_ia, src_ia, max_paths, flags)
 
 
-def get_as_info(connector=_connector):
+def get_as_info(connector=None):
     """
     Request information about the local AS(es).
 
     :returns: List of SCIONDASInfoResponseEntry object
     """
+    global _connector
+    if not connector:
+        connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
     return connector.get_as_info()
 
 
-def get_br_info(if_list=None, connector=_connector):
+def get_br_info(if_list=None, connector=None):
     """
     Request addresses and ports of border routers.
 
@@ -294,12 +300,15 @@ def get_br_info(if_list=None, connector=_connector):
         returned.
     :returns: List of SCIONDBRInfoReplyEntry objects.
     """
+    global _connector
+    if not connector:
+        connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
     return connector.get_br_info(if_list)
 
 
-def get_service_info(service_types=None, connector=_connector):
+def get_service_info(service_types=None, connector=None):
     """
     Request addresses and ports of infrastructure services.
 
@@ -307,18 +316,24 @@ def get_service_info(service_types=None, connector=_connector):
         are returned.
     :returns: List of SCIONDServiceInfoReplyEntry objects.
     """
+    global _connector
+    if not connector:
+        connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
     return connector.get_service_info(service_types)
 
 
-def get_next_hop_overlay_dest(spkt, connector=_connector):
+def get_next_hop_overlay_dest(spkt, connector=None):
     """
     Returns the HostInfo object of the next hop for a given packet.
 
     :param spkt: The SCIONPacket object.
     :returns: A HostInfo object containing the first hop.
     """
+    global _connector
+    if not connector:
+        connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
     fh_info = connector.get_next_hop_overlay_dest(spkt)
@@ -327,8 +342,11 @@ def get_next_hop_overlay_dest(spkt, connector=_connector):
     return fh_info
 
 
-def send_rev_notification(rev_info, connector=_connector):
+def send_rev_notification(rev_info, connector=None):
     """Forwards the RevocationInfo object to SCIOND."""
+    global _connector
+    if not connector:
+        connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
     connector.send_rev_notification(rev_info)
