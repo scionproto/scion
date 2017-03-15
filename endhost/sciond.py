@@ -173,20 +173,24 @@ class SCIONDaemon(SCIONElement):
         for rev_info in path_reply.iter_rev_infos():
             self.peer_revs.add(rev_info)
 
+        segs_types = []
         for type_, pcb in path_reply.iter_pcbs():
-            self.process_path_seg(pcb, meta, type_)
+            segs_types.append((pcb, type_))
+        segs_types = tuple(segs_types)
+        self.process_path_segs(segs_types, meta)
 
-    def continue_seg_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, segs_types, params):
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,
             PST.CORE: self._handle_core_seg,
         }
-        ret = map_[type_](pcb)
-        if not ret:
-            return
-        flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
-        self.requests.put(((ret, flags), None))
+        for pcb, type_ in segs_types:
+            ret = map_[type_](pcb)
+            if not ret:
+                continue
+            flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
+            self.requests.put(((ret, flags), None))
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():

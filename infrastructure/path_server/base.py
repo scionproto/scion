@@ -358,12 +358,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for rev_info in seg_recs.iter_rev_infos():
             self.revocations.add(rev_info)
         # Verify pcbs and process them
+        segs_types = []
         for type_, pcb in seg_recs.iter_pcbs():
-            self.process_path_seg(pcb, meta, type_, params)
+            segs_types.append((pcb, type_))
+        segs_types = tuple(segs_types)
+        self.process_path_segs(segs_types, meta, params)
 
-    def continue_seg_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, segs_types, params):
         added = set()
-        added.update(self._dispatch_segment_record(type_, pcb, **params))
+        for pcb, type_ in segs_types:
+            added.update(self._dispatch_segment_record(type_, pcb, **params))
         for dst_ia, sibra in added:
             self._handle_pending_requests(dst_ia, sibra)
         # (Sezer): Simplification does not work?!
