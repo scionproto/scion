@@ -32,7 +32,7 @@ class SCIONDBRInfoRequest(SCIONDMsgBase):
     P_CLS = P.BRInfoRequest
 
     @classmethod
-    def from_values(cls, ids=None):
+    def from_values(cls, id_, if_ids=None):
         """
         Creates an SCIONDBRInfoRequest.
 
@@ -40,11 +40,11 @@ class SCIONDBRInfoRequest(SCIONDMsgBase):
             all BRs.
         """
         p = cls.P_CLS.new_message()
-        if ids:
-            id_entries = p.init("ifIDs", len(ids))
-            for i, if_id in enumerate(ids):
+        if if_ids:
+            id_entries = p.init("ifIDs", len(if_ids))
+            for i, if_id in enumerate(if_ids):
                 id_entries[i] = if_id
-        return cls(p)
+        return cls(p, id_)
 
     def all_brs(self):
         return not self.p.ifIDs
@@ -64,12 +64,12 @@ class SCIONDBRInfoReply(SCIONDMsgBase):
     P_CLS = P.BRInfoReply
 
     @classmethod
-    def from_values(cls, entries):
+    def from_values(cls, id_, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p)
+        return cls(p, id_)
 
     def entry(self, idx):
         return SCIONDBRInfoReplyEntry(self.p.entries[idx])

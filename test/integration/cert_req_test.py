@@ -23,7 +23,7 @@ import sys
 import threading
 
 # SCION
-from lib.app.sciond import SCIONDConnector
+import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
 from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
 from lib.packet.path import SCIONPath
@@ -39,11 +39,9 @@ from test.integration.base_cli_srv import (
 
 class TestCertClient(TestClientBase):
     def __init__(self, api_addr, finished, addr):
-        # XXX(shitz): This is a hack. We need the connector here already, but
-        # the super constructor needs the cs_addr. Thus, we are temporarily
-        # creating a connector here.
-        connector = SCIONDConnector(api_addr)
-        cs_info = connector.get_service_info([ServiceType.CS])[0]
+        # We need the lib sciond here already.
+        connector = lib_sciond.init(api_addr)
+        cs_info = lib_sciond.get_service_info([ServiceType.CS], connector)[0]
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert_done = False

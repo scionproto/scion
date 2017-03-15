@@ -354,6 +354,15 @@ class SCIONBasePacket(PacketBase):
         assert isinstance(path_hdr, SCIONPath)
         self.path = path_hdr
 
+    def get_fwd_ifid(self):
+        """
+        Returns the next forwarding interface ID of the path or 0 if the path is
+        empty.
+        """
+        if self.path:
+            return self.path.get_fwd_if()
+        return 0
+
     def pack(self):
         self.update()
         packed = []
@@ -496,6 +505,17 @@ class SCIONExtPacket(SCIONBasePacket):
         for hdr in ext_hdrs:
             assert isinstance(hdr, ExtensionHeader)
             self.ext_hdrs.append(hdr)
+
+    def get_fwd_ifid(self):
+        """
+        Returns the next forwarding interface ID depending on the extension
+        headers and the path in the packet.
+        """
+        for hdr in self.ext_hdrs:
+            if_id = hdr.get_next_ifid()
+            if if_id is not None:
+                return if_id
+        return super().get_fwd_ifid()
 
     def pack_exts(self):
         packed = []

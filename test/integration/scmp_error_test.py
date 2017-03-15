@@ -21,6 +21,7 @@ import copy
 import logging
 
 # SCION
+import lib.app.sciond as lib_sciond
 from lib.defines import MAX_HOPBYHOP_EXT
 from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
@@ -82,7 +83,8 @@ class ErrorGenBase(TestClientBase):
         return False
 
     def _get_next_hop(self, spkt):
-        fh_info = self._connector.get_first_hop(spkt)
+        fh_info = lib_sciond.get_next_hop_overlay_dest(
+            spkt, connector=self._connector)
         return fh_info.ipv4() or fh_info.ipv6(), fh_info.p.port
 
 
@@ -271,7 +273,7 @@ class ErrorGenBadIF(ErrorGenBase):
         if super()._should_skip():
             return True
         # Only run if the remote AS is a core AS.
-        as_info = self._connector.get_as_info()[0]
+        as_info = lib_sciond.get_as_info(self._connector)[0]
         if not as_info.p.isCore:
             logging.info("Skipping non-core remote AS")
             return True

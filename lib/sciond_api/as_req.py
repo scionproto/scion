@@ -32,9 +32,9 @@ class SCIONDASInfoRequest(SCIONDMsgBase):
     P_CLS = P.ASInfoReq
 
     @classmethod
-    def from_values(cls):
+    def from_values(cls, id_):
         p = cls.P_CLS.new_message()
-        return cls(p)
+        return cls(p, id_)
 
     def short_desc(self):
         return self.NAME
@@ -46,12 +46,12 @@ class SCIONDASInfoReply(SCIONDMsgBase):
     P_CLS = P.ASInfoReply
 
     @classmethod
-    def from_values(cls, entries):
+    def from_values(cls, id_, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p)
+        return cls(p, id_)
 
     def entry(self, idx):
         return SCIONDASInfoReplyEntry(self.p.entries[idx])

@@ -31,14 +31,14 @@ class SCIONDRevNotification(SCIONDMsgBase):
     MSG_TYPE = SMT.REVOCATION
     P_CLS = P.RevNotification
 
-    def __init__(self, p):
-        super().__init__(p)
+    def __init__(self, p, id_):
+        super().__init__(p, id_)
         self._rev_info = None
 
     @classmethod
-    def from_values(cls, rev_info):
+    def from_values(cls, id_, rev_info):
         p = cls.P_CLS.new_message(revInfo=rev_info.p)
-        return cls(p)
+        return cls(p, id_)
 
     def rev_info(self):
         if not self._rev_info:

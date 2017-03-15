@@ -45,5 +45,5 @@ def parse_sciond_msg(raw):  # pragma: no cover
     type_ = wrapper.which()
     for cls_ in _MSG_TYPES:
         if cls_.MSG_TYPE == type_:
-            return cls_(getattr(wrapper, type_))
+            return cls_(getattr(wrapper, type_), wrapper.id)
     raise SCIONParseError("Unsupported SCIOND message type: %s" % type_)

@@ -37,13 +37,12 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
     @classmethod
     def from_values(cls, id_, dst_ia, src_ia=None, max_paths=5,
                     flush=False, sibra=False):
-        p = cls.P_CLS.new_message(
-            id=id_, dst=int(dst_ia), maxPaths=max_paths)
+        p = cls.P_CLS.new_message(dst=int(dst_ia), maxPaths=max_paths)
         if src_ia is not None:
             p.src = int(src_ia)
         p.flags.flush = flush
         p.flags.sibra = sibra
-        return cls(p)
+        return cls(p, id_)
 
     def dst_ia(self):
         return ISD_AS(self.p.dst)
@@ -54,7 +53,7 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
         return None
 
     def short_desc(self):
-        desc = ["id=%d, dst=%s" % (self.p.id, self.dst_ia())]
+        desc = ["id=%d, dst=%s" % (self.id, self.dst_ia())]
         if self.p.src:
             desc.append("src=%s" % self.src_ia())
         desc.append("max_paths=%d" % self.p.maxPaths)
@@ -97,11 +96,11 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
 
         :param entries: List of SCIONDPathReplyEntry objects.
         """
-        p = cls.P_CLS.new_message(id=id_, errorCode=error)
+        p = cls.P_CLS.new_message(errorCode=error)
         entries = p.init("entries", len(path_entries))
         for i, entry in enumerate(path_entries):
             entries[i] = entry.p
-        return cls(p)
+        return cls(p, id_)
 
     def iter_entries(self):
         for entry in self.p.entries:
@@ -111,7 +110,7 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
         return SCIONDPathReplyEntry(self.p.entries[idx])
 
     def short_desc(self):
-        desc = ["id=%d error_code=%d" % (self.p.id, self.p.errorCode)]
+        desc = ["id=%d error_code=%d" % (self.id, self.p.errorCode)]
         for entry in self.iter_entries():
             for line in entry.short_desc().splitlines():
                 desc.append("  %s" % line)
