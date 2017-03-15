@@ -228,7 +228,7 @@ class SCIONDaemon(SCIONElement):
                 "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
 
     def _api_handle_path_request(self, request, meta):
-        req_id = request.p.id
+        req_id = request.id
         if request.p.flags.sibra:
             logging.warning(
                 "Requesting SIBRA paths over SCIOND API not supported yet.")
@@ -270,7 +270,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_as_request(self, request, meta):
         reply_entry = SCIONDASInfoReplyEntry.from_values(
             self.addr.isd_as, self.topology.mtu, self.is_core_as())
-        as_reply = SCIONDASInfoReply.from_values([reply_entry])
+        as_reply = SCIONDASInfoReply.from_values(request.id, [reply_entry])
         self.send_meta(as_reply.pack_full(), meta)
 
     def _api_handle_br_request(self, request, meta):
@@ -284,7 +284,7 @@ class SCIONDaemon(SCIONElement):
                 info = HostInfo.from_values([br.addr], br.port)
                 reply_entry = SCIONDBRInfoReplyEntry.from_values(if_id, info)
                 br_entries.append(reply_entry)
-        br_reply = SCIONDBRInfoReply.from_values(br_entries)
+        br_reply = SCIONDBRInfoReply.from_values(request.id, br_entries)
         self.send_meta(br_reply.pack_full(), meta)
 
     def _api_handle_service_request(self, request, meta):
@@ -302,7 +302,7 @@ class SCIONDaemon(SCIONElement):
                 reply_entry = SCIONDServiceInfoReplyEntry.from_values(
                     svc_type, host_infos)
                 svc_entries.append(reply_entry)
-        svc_reply = SCIONDServiceInfoReply.from_values(svc_entries)
+        svc_reply = SCIONDServiceInfoReply.from_values(request.id, svc_entries)
         self.send_meta(svc_reply.pack_full(), meta)
 
     def handle_scmp_revocation(self, pld, meta):

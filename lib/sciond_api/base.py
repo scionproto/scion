@@ -26,6 +26,9 @@ class SCIONDMsgBase(Cerealizable):  # pragma: no cover
 
     Subclasses need to set cls.MSG_TYPE to an appropriate value.
     """
+    def __init__(self, p, id):
+        super().__init__(p)
+        self.id = id
 
     def pack_full(self):
         assert not self._packed, "May only be packed once"
@@ -33,5 +36,5 @@ class SCIONDMsgBase(Cerealizable):  # pragma: no cover
         return self._pack_full(self.p)
 
     def _pack_full(self, p):
-        wrapper = P.SCIONDMsg.new_message(**{self.MSG_TYPE: p})
+        wrapper = P.SCIONDMsg.new_message(id=self.id, **{self.MSG_TYPE: p})
         return wrapper.to_bytes_packed()

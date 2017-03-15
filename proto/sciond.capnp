@@ -6,35 +6,34 @@ $Go.import("github.com/netsec-ethz/scion/go/proto");
 using RevInfo = import "rev_info.capnp";
 
 struct SCIONDMsg {
+    id @0 :UInt64;  # Request ID
     union {
-        unset @0 :Void;
-        pathReq @1 :PathReq;
-        pathReply @2 :PathReply;
-        asInfoReq @3 :ASInfoReq;
-        asInfoReply @4 :ASInfoReply;
-        revNotification @5 :RevNotification;
-        brInfoRequest @6 :BRInfoRequest;
-        brInfoReply @7 :BRInfoReply;
-        serviceInfoRequest @8 :ServiceInfoRequest;
-        serviceInfoReply @9 :ServiceInfoReply;
+        unset @1 :Void;
+        pathReq @2 :PathReq;
+        pathReply @3 :PathReply;
+        asInfoReq @4 :ASInfoReq;
+        asInfoReply @5 :ASInfoReply;
+        revNotification @6 :RevNotification;
+        brInfoRequest @7 :BRInfoRequest;
+        brInfoReply @8 :BRInfoReply;
+        serviceInfoRequest @9 :ServiceInfoRequest;
+        serviceInfoReply @10 :ServiceInfoReply;
     }
 }
 
 struct PathReq {
-    id @0 :UInt64;  # Request ID
-    dst @1 :UInt32;  # Destination ISD-AS
-    src @2 :UInt32 = 0;  # Source ISD-AS
-    maxPaths @3: UInt16;  # Maximum number of paths requested
+    dst @0 :UInt32;  # Destination ISD-AS
+    src @1 :UInt32 = 0;  # Source ISD-AS
+    maxPaths @2: UInt16;  # Maximum number of paths requested
     flags :group {
-        flush @4 :Bool;  # Flush all paths to dst.
-        sibra @5 :Bool;  # True, if SIBRA paths are requested
+        flush @3 :Bool;  # Flush all paths to dst.
+        sibra @4 :Bool;  # True, if SIBRA paths are requested
     }
 }
 
 struct PathReply {
-    id @0 :UInt64;  # Response ID (matches the request ID)
-    errorCode @1 :UInt16;
-    entries @2 :List(PathReplyEntry);
+    errorCode @0 :UInt16;
+    entries @1 :List(PathReplyEntry);
 }
 
 struct PathReplyEntry {
@@ -109,5 +108,6 @@ struct ServiceInfoReply {
 
 struct ServiceInfoReplyEntry {
     serviceType @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
-    hostInfos @1 :List(HostInfo);  # The host infos of the service.
+    ttl @1 :UInt32;  # The TTL for the service record in seconds (currently unused).
+    hostInfos @2 :List(HostInfo);  # The host infos of the service.
 }

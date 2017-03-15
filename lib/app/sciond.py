@@ -16,6 +16,11 @@
 :mod:`sciond` --- Wrapper over low level SCIOND API
 ===================================================
 """
+# Stdlib
+import logging
+import threading
+from contextlib import closing
+
 # External
 from external.expiring_dict import ExpiringDict
 
@@ -28,20 +33,36 @@ from lib.sciond_api.br_req import SCIONDBRInfoRequest
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_req import SCIONDPathReplyError, SCIONDPathRequest
+from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.sciond_api.service_req import SCIONDServiceInfoRequest
 from lib.socket import ReliableSocket
 from lib.types import AddrType, SCIONDMsgType as SMT
 
 
-class SCIONDConnectorError(SCIONBaseError):
-    """Generic SCIONDConnectorError."""
+# TTL for a BR info object (1 hour)
+_BR_INFO_TTL = 60 * 60
+# TTL for a Service info object (10 seconds)
+# TODO(shitz): The TTL for service info objects will be returned by SCIOND in
+# the future. At that point, we cannot just statically cache it for a constant
+# amount of time.
+_SVC_INFO_TTL = 10
+# Time after which a request gets retired.
+_SCIOND_TO = 5
 
 
-class SCIONDConnectionError(SCIONDConnectorError):
+class SCIONDLibError(SCIONBaseError):
+    """Generic SCIOND lib error."""
+
+
+class SCIONDLibNotInitializedError(SCIONDLibError):
+    """SCIOND lib has not been initialized yet."""
+
+
+class SCIONDConnectionError(SCIONDLibError):
     """Connection to SCIOND failed."""
 
 
-class SCIONDResponseError(SCIONDConnectorError):
+class SCIONDResponseError(SCIONDLibError):
     """Erroneous reponse from SCIOND."""
 
 
@@ -51,141 +72,90 @@ class PathRequestFlags:
         self.sibra = sibra
 
 
+class _Counter:
+    """Thread-safe counter to generate request IDs."""
+    def __init__(self, initial_value=0):
+        self._cntr = initial_value
+        self._lock = threading.Lock()
+
+    def inc(self):
+        """Increases the counter and returns its value."""
+        with self._lock:
+            self._cntr += 1
+            return self._cntr
+
+
 class SCIONDConnector:
-    """Connector to SCIOND for applications. Not thread-safe!"""
+    """Connector class that handles communication to SCIOND."""
     def __init__(self, api_addr):
         self._api_addr = api_addr
-        self._socket = None
-        self._req_id = 0
-        self._br_infos = ExpiringDict(100, 10)
-        self._svc_infos = ExpiringDict(100, 10)
-        self._setup_socket()
+        self._req_id = _Counter()
+        self._br_infos = ExpiringDict(100, _BR_INFO_TTL)
+        self._svc_infos = ExpiringDict(100, _SVC_INFO_TTL)
 
-    def _setup_socket(self):
-        self._socket = ReliableSocket()
-        try:
-            self._socket.connect(self._api_addr)
-        except OSError:
-            raise SCIONDConnectionError()
-
-    def _get_response(self, expected_type):
-        data = self._socket.recv()[0]
-        if not data:
-            raise SCIONDResponseError("Received empty response from SCIOND.")
-        try:
-            response = parse_sciond_msg(data)
-        except SCIONParseError as e:
-            raise SCIONDResponseError(str(e))
-        if response.MSG_TYPE != expected_type:
-            raise SCIONDResponseError(
-                "Unexpected SCIOND msg type received: %s" % response.NAME)
-        return response
-
-    def _try_cache(self, cache, key_list):
-        result = []
-        for key in key_list:
-            if key in cache:
-                result.append(cache[key])
-        return result
-
-    def get_path(self, dst_ia, src_ia=None, max_paths=5, flags=None):
-        """
-        Request a set of end to end paths from SCIOND.
-
-        :param dst_ia: The destination ISD_AS
-        :param src_ia: The source ISD_AS. If None, the default one will be used.
-        :param max_paths: The maximum number of paths returned (can be less).
-        :param flags: A PathRequestFlags tuple.
-        :returns: A list of SCIONDPathReplyEntry objects.
-        """
+    def get_paths(self, dst_ia, src_ia, max_paths, flags):
         if not flags:
             flags = PathRequestFlags(flush=False, sibra=False)
+        req_id = self._req_id.inc()
         request = SCIONDPathRequest.from_values(
-            self._req_id, dst_ia, src_ia, max_paths, flags.flush, flags.sibra)
-        self._socket.send(request.pack_full())
-        response = self._get_response(SMT.PATH_REPLY)
-        if response.p.id != self._req_id:
-            raise SCIONDResponseError("Wrong response ID: %d (expected %d)" %
-                                      (response.p.id, self._req_id))
-        if response.p.errorCode != SCIONDPathReplyError.OK:
-            raise SCIONDResponseError(
-                SCIONDPathReplyError.describe(response.p.errorCode))
-        self._req_id += 1
-        return list(response.iter_entries())
+            req_id, dst_ia, src_ia, max_paths, flags.flush, flags.sibra)
+        with closing(self._create_socket()) as socket:
+            socket.send(request.pack_full())
+            response = self._get_response(socket, req_id, SMT.PATH_REPLY)
+            if response.p.errorCode != SCIONDPathReplyError.OK:
+                raise SCIONDResponseError(
+                    SCIONDPathReplyError.describe(response.p.errorCode))
+            return list(response.iter_entries())
 
     def get_as_info(self):
-        """
-        Request information about the local AS(es).
-
-        :returns: List of SCIONDASInfoResponseEntry object
-        """
-        as_req = SCIONDASInfoRequest.from_values()
-        self._socket.send(as_req.pack_full())
-        response = self._get_response(SMT.AS_REPLY)
+        req_id = self._req_id.inc()
+        as_req = SCIONDASInfoRequest.from_values(req_id)
+        with closing(self._create_socket()) as socket:
+            socket.send(as_req.pack_full())
+            response = self._get_response(socket, req_id, SMT.AS_REPLY)
         return list(response.iter_entries())
 
     def get_br_info(self, if_list=None):
-        """
-        Request addresses and ports of border routers.
-
-        :param if_list: The interface IDs of BRs. If unset, all BRs are
-            returned.
-        :returns: List of SCIONDBRInfoReplyEntry objects.
-        """
         if not if_list:
             if_list = []
         else:
             br_infos = self._try_cache(self._br_infos, if_list)
             if len(br_infos) == len(if_list):
                 return br_infos
-        br_req = SCIONDBRInfoRequest.from_values(if_list)
-        self._socket.send(br_req.pack_full())
-        response = self._get_response(SMT.BR_REPLY)
+        req_id = self._req_id.inc()
+        br_req = SCIONDBRInfoRequest.from_values(req_id, if_list)
+        with closing(self._create_socket()) as socket:
+            socket.send(br_req.pack_full())
+            response = self._get_response(socket, req_id, SMT.BR_REPLY)
         entries = list(response.iter_entries())
         for entry in entries:
             self._br_infos[entry.p.ifID] = entry
         return entries
 
     def get_service_info(self, service_types=None):
-        """
-        Request addresses and ports of infrastructure services.
-
-        :param service_types: The types of the services. If unset, all services
-            are returned.
-        :returns: List of SCIONDServiceInfoReplyEntry objects.
-        """
         if not service_types:
             service_types = []
         else:
             svc_infos = self._try_cache(self._svc_infos, service_types)
             if len(svc_infos) == len(service_types):
                 return svc_infos
-        svc_req = SCIONDServiceInfoRequest.from_values(service_types)
-        self._socket.send(svc_req.pack_full())
-        response = self._get_response(SMT.SERVICE_REPLY)
+        req_id = self._req_id.inc()
+        svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
+        with closing(self._create_socket()) as socket:
+            socket.send(svc_req.pack_full())
+            response = self._get_response(socket, req_id, SMT.SERVICE_REPLY)
         entries = list(response.iter_entries())
         for entry in entries:
             self._svc_infos[entry.service_type()] = entry
         return entries
 
-    def get_first_hop(self, spkt):
-        """
-        Returns the HostInfo object of the first hop for a given packet.
+    def get_next_hop_overlay_dest(self, spkt):
+        if_id = spkt.get_fwd_ifid()
+        if if_id:
+            return self._resolve_ifid(if_id)
+        return self._resolve_dst_addr(spkt.addrs.dst)
 
-        :param spkt: The SCIONPacket object.
-        :returns: A HostInfo object containing the first hop.
-        """
-        fh_info = self._get_first_hop(spkt.path, spkt.addrs.dst, spkt.ext_hdrs)
-        if not fh_info:
-            raise SCIONDResponseError("First hop could not be resolved.")
-        return fh_info
-
-    def _get_first_hop(self, path, dst, ext_hdrs=()):
-        if_id = self._ext_first_hop(ext_hdrs)
-        if if_id is None:
-            if len(path) == 0:
-                return self._empty_first_hop(dst)
-            if_id = path.get_fwd_if()
+    def _resolve_ifid(self, if_id):
         if if_id in self._br_infos:
             return self._br_infos[if_id].host_info()
         br_infos = self.get_br_info([if_id])
@@ -193,13 +163,7 @@ class SCIONDConnector:
             return br_infos[0].host_info()
         return None
 
-    def _ext_first_hop(self, ext_hdrs):
-        for hdr in ext_hdrs:
-            if_id = hdr.get_next_ifid()
-            if if_id is not None:
-                return if_id
-
-    def _empty_first_hop(self, dst):
+    def _resolve_dst_addr(self, dst):
         host = dst.host
         if host.TYPE == AddrType.SVC:
             svc_type = SVC_TO_SERVICE[host.addr]
@@ -210,3 +174,135 @@ class SCIONDConnector:
                 return svc_infos[0].host_info()
             return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
+
+    def send_rev_notification(self, rev_info):
+        rev_not = SCIONDRevNotification.from_values(
+            self._req_id.inc(), rev_info)
+        with closing(self._create_socket()) as socket:
+            socket.send(rev_not.pack_full())
+
+    def _create_socket(self):
+        socket = ReliableSocket()
+        socket.settimeout(_SCIOND_TO)
+        try:
+            socket.connect(self._api_addr)
+        except OSError:
+            raise SCIONDConnectionError()
+        return socket
+
+    def _get_response(self, socket, expected_id, expected_type):
+        data = socket.recv()[0]
+        if not data:
+            raise SCIONDResponseError("Received empty response from SCIOND.")
+        try:
+            response = parse_sciond_msg(data)
+        except SCIONParseError as e:
+            raise SCIONDResponseError(str(e))
+        if response.MSG_TYPE != expected_type:
+            raise SCIONDResponseError(
+                "Unexpected SCIOND msg type received: %s" % response.NAME)
+        if response.id != expected_id:
+            raise SCIONDResponseError("Wrong response ID: %d (expected %d)" %
+                                      (response.id, expected_id))
+        return response
+
+    def _try_cache(self, cache, key_list):
+        result = []
+        for key in key_list:
+            if key in cache:
+                result.append(cache[key])
+        return result
+
+
+_connector = None
+
+
+def init(api_addr):
+    """
+    Initializes a SCIONDConnector object and returns it to the caller. The
+    first time init is called it initializes the global connector object.
+    Subsequent calls return a new instance of SCIONDConnector that can be
+    passed to the API calls in case applications have a need for multiple
+    connectors. Most applications will not have to deal with a SCIONDConnector
+    object directly.
+    """
+    global _connector
+    connector = SCIONDConnector(api_addr)
+    if not _connector:
+        _connector = connector
+    return connector
+
+
+def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
+              connector=_connector):
+    """
+    Request a set of end to end paths from SCIOND.
+
+    :param dst_ia: The destination ISD_AS
+    :param src_ia: The source ISD_AS. If None, the default one will be used.
+    :param max_paths: The maximum number of paths returned (can be less).
+    :param flags: A PathRequestFlags tuple.
+    :returns: A list of SCIONDPathReplyEntry objects.
+    """
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    return connector.get_paths(dst_ia, src_ia, max_paths, flags)
+
+
+def get_as_info(connector=_connector):
+    """
+    Request information about the local AS(es).
+
+    :returns: List of SCIONDASInfoResponseEntry object
+    """
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    return connector.get_as_info()
+
+
+def get_br_info(if_list=None, connector=_connector):
+    """
+    Request addresses and ports of border routers.
+
+    :param if_list: The interface IDs of BRs. If unset, all BRs are
+        returned.
+    :returns: List of SCIONDBRInfoReplyEntry objects.
+    """
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    return connector.get_br_info(if_list)
+
+
+def get_service_info(service_types=None, connector=_connector):
+    """
+    Request addresses and ports of infrastructure services.
+
+    :param service_types: The types of the services. If unset, all services
+        are returned.
+    :returns: List of SCIONDServiceInfoReplyEntry objects.
+    """
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    return connector.get_service_info(service_types)
+
+
+def get_next_hop_overlay_dest(spkt, connector=_connector):
+    """
+    Returns the HostInfo object of the next hop for a given packet.
+
+    :param spkt: The SCIONPacket object.
+    :returns: A HostInfo object containing the first hop.
+    """
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    fh_info = connector.get_next_hop_overlay_dest(spkt)
+    if not fh_info:
+        raise SCIONDResponseError("Next hop could not be resolved.")
+    return fh_info
+
+
+def send_rev_notification(rev_info, connector=_connector):
+    """Forwards the RevocationInfo object to SCIOND."""
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    connector.send_rev_notification(rev_info)

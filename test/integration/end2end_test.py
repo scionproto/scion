@@ -20,12 +20,11 @@
 import logging
 
 # SCION
-from lib.app.sciond import SCIONDResponseError
+import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.thread import kill_self
 from lib.types import L4Proto
 from test.integration.base_cli_srv import (
@@ -77,8 +76,8 @@ class E2EClient(TestClientBase):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
-            rev_not = SCIONDRevNotification.from_values(rev_info)
-            self.api_socket().send(rev_not.pack_full())
+            lib_sciond.send_rev_notification(
+                rev_info, connector=self._connector)
             return ResponseRV.RETRY
         else:
             logging.error("Received SCMP error:\n%s", spkt)
@@ -86,8 +85,8 @@ class E2EClient(TestClientBase):
 
     def _test_as_request_reply(self):
         try:
-            entries = self._connector.get_as_info()
-        except SCIONDResponseError as e:
+            entries = lib_sciond.get_as_info(connector=self._connector)
+        except lib_sciond.SCIONDLibError as e:
             logging.error("An error occured: %s" % e)
             return False
         for entry in entries:
