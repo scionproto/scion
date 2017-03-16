@@ -152,10 +152,13 @@ class CertServer(SCIONElement):
         logging.debug("zero message mac: msg, %s",
                       cbcmac(self.scmp_auth_key, bytes(16)).hex())
 
-        self.api_addr = os.path.join(SCIOND_API_SOCKDIR, "d%s.sock" % self.id)
+        # sciond = self.topology.scionds[0]
+        # self._api_addr = (sciond.addr, int(sciond.port))
+        self._api_addr = os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" %
+                                      self.addr.isd_as)
         self._api_socket = None
         self._req_id = 0
-        logging.debug("Sciond API socket path: %s", self.api_addr)
+        logging.debug("Sciond API socket: %s", self._api_addr)
 
     def worker(self):
         """
@@ -497,7 +500,7 @@ class CertServer(SCIONElement):
         start = time.time()
         while time.time() - start < API_TOUT:
             logging.debug("Sending path request to local API at %s: %s",
-                          self.api_addr, request)
+                          self._api_addr, request)
             self.api_socket().send(packed)
             data = self.api_socket().recv()[0]
             if data:
@@ -531,7 +534,7 @@ class CertServer(SCIONElement):
         if not self._api_socket:
             self._api_socket = ReliableSocket()
             try:
-                self._api_socket.connect(self.api_addr)
+                self._api_socket.connect(self._api_addr)
             except OSError as e:
                 logging.critical("Error connecting to sciond: %s", e)
         return self._api_socket

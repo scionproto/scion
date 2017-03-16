@@ -25,7 +25,7 @@ from lib.defines import (
     PATH_SERVICE,
     ROUTER_SERVICE,
     SIBRA_SERVICE,
-    SCIOND_SERVICE)
+)
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scion_addr import ISD_AS
@@ -229,7 +229,7 @@ class Topology(object):
             PATH_SERVICE: self.path_servers,
             ROUTER_SERVICE: self.get_all_border_routers(),
             SIBRA_SERVICE: self.sibra_servers,
-            SCIOND_SERVICE: self.scionds,
+            "Sciond": self.scionds,
         }
         try:
             target = type_map[server_type]
@@ -242,12 +242,4 @@ class Topology(object):
                 return i
         else:
             logging.critical("Could not find server: %s", server_id)
-            raise SCIONKeyError from None
-
-    def get_sciond_config(self, server_id):
-        for i in self.scionds:
-            if i.name == server_id:
-                return i
-        else:
-            logging.critical("Could not find Sciond to server: %s", server_id)
             raise SCIONKeyError from None

@@ -62,8 +62,8 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     TOPO_FILE,
 )
-from lib.packet.scion_addr import ISD_AS
 from lib.path_store import PathPolicy
+from lib.packet.scion_addr import ISD_AS
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import (
@@ -112,8 +112,9 @@ SCION_SERVICE_NAMES = (
     "BorderRouters",
     "PathServers",
     "SibraServers",
-    "Sciond"
 )
+
+SCIOND_SERVICE_NAME = "Sciond"
 
 DEFAULT_KEYGEN_ALG = 'Ed25519'
 
@@ -122,7 +123,6 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
-
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
@@ -337,7 +337,7 @@ class CertGenerator(object):
         else:
             signing_key = self.sig_priv_keys[issuer]
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
+            str(topo_id),  str(issuer), INITIAL_CERT_VERSION, "", False,
             self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
             signing_key
         )
@@ -377,7 +377,7 @@ class CertGenerator(object):
         ca_certs = {}
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
             ca_certs[ca_name] = \
-                crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
+                 crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         trc.root_cas = ca_certs
 
     def _create_trc(self, isd):
@@ -551,18 +551,19 @@ class TopoGenerator(object):
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
+        self.topo_dicts[topo_id][SCIOND_SERVICE_NAME] = {}
         self._gen_srv_entries(topo_id, as_conf)
+        self._gen_sciond_entry(topo_id)
         self._gen_br_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
         for conf_key, def_num, nick, topo_key in (
-                ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs",
-                 "BeaconServers"),
-                ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-                 "CertificateServers"),
-                ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
-                ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
+            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconServers"),
+            ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
+             "CertificateServers"),
+            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
+            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -575,13 +576,14 @@ class TopoGenerator(object):
             d = {}
             d["Addr"] = self._reg_addr(topo_id, elem_id)
             d["Port"] = random.randint(30050, 30100)
-            selem_id = "s%s%s-%s" % (nick, topo_id, i)
-            s = {}
-            s["Addr"] = self._reg_addr(topo_id, selem_id)
-            s["Port"] = random.randint(30050, 30100)
-
             self.topo_dicts[topo_id][topo_key][elem_id] = d
-            self.topo_dicts[topo_id]["Sciond"][elem_id] = s
+
+    def _gen_sciond_entry(self, topo_id):
+        elem_id = "sd%s" % topo_id
+        d = {}
+        d["Addr"] = self._reg_addr(topo_id, elem_id)
+        d["Port"] = random.randint(30050, 30100)
+        self.topo_dicts[topo_id][SCIOND_SERVICE_NAME][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
         for (ltype, remote, attrs, local_br,
@@ -677,10 +679,10 @@ class SupervisorGenerator(object):
         entries = []
         base = self._get_base_path(topo_id)
         for key, cmd in (
-                ("BeaconServers", "bin/beacon_server"),
-                ("CertificateServers", "bin/cert_server"),
-                ("PathServers", "bin/path_server"),
-                ("SibraServers", "bin/sibra_server"),
+            ("BeaconServers", "bin/beacon_server"),
+            ("CertificateServers", "bin/cert_server"),
+            ("PathServers", "bin/path_server"),
+            ("SibraServers", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         if self.router == "go":
@@ -688,6 +690,7 @@ class SupervisorGenerator(object):
         else:
             entries.extend(self._std_entries(topo, "BorderRouters",
                                              "bin/router", base))
+        entries.extend(self._sciond_entries(topo, base))
         entries.extend(self._zk_entries(topo_id))
         self._write_as_conf(topo_id, entries)
 
@@ -705,6 +708,16 @@ class SupervisorGenerator(object):
             entries.append((elem, [cmd, "-id", elem, "-confd", conf_dir]))
         return entries
 
+    def _sciond_entries(self, topo, base):
+        entries = []
+        for elem in topo.get("Sciond", {}):
+            conf_dir = os.path.join(base, elem)
+            ip = topo["Sciond"][elem]["Addr"]
+            api = os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % elem)
+            entries.append((elem, ["bin/sciond", "--addr", ip, "--api-addr",
+                                   api, elem, conf_dir]))
+        return entries
+
     def _zk_entries(self, topo_id):
         if topo_id not in self.zookeepers:
             return []
@@ -720,20 +733,17 @@ class SupervisorGenerator(object):
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
             elem_dir = os.path.join(base, elem)
-            self._write_elem_conf(elem, entry, elem_dir, True, topo_id)
+            self._write_elem_conf(elem, entry, elem_dir)
             if self.mininet:
                 self._write_elem_mininet_conf(elem, elem_dir)
-        config["group:as%s" % topo_id] = {
-            "programs": ",".join(names) + ",d" + ",d".join(
-                [x for x in names if x[:2] not in ["br", "zk"]])}
+        config["group:as%s" % topo_id] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
         conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS(),
                                  SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
-    def _write_elem_conf(self, elem, entry, elem_dir, create_sciond=False,
-                         topo_id=None):
+    def _write_elem_conf(self, elem, entry, elem_dir):
         config = configparser.ConfigParser(interpolation=None)
         prog = self._common_entry(elem, entry, elem_dir)
         self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
@@ -748,16 +758,7 @@ class SupervisorGenerator(object):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
         text = StringIO()
-
-        if create_sciond and not elem[:2] == "br" and not elem[:2] == "zk":
-            ip = self.topo_dicts[topo_id]["Sciond"][elem]["Addr"].ip
-            args = ["bin/sciond", "--addr", ip, "--api-addr",
-                    os.path.join(SCIOND_API_SOCKDIR, "d" + elem + ".sock"),
-                    "d" + elem, elem_dir]
-            p = self._common_entry("d" + elem, args, elem_dir)
-            config["program:d%s" % elem] = p
         config.write(text)
-
         write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
 
     def _write_elem_mininet_conf(self, elem, elem_dir):
@@ -1013,7 +1014,6 @@ class AddressProxy(yaml.YAMLObject):
 
 class IFIDGenerator(object):
     """Generates unique interface IDs"""
-
     def __init__(self):
         self._ifids = set()
 
@@ -1032,6 +1032,8 @@ def _srv_iter(topo_dicts, out_dir, common=False):
         for service in SCION_SERVICE_NAMES:
             for elem in as_topo[service]:
                 yield topo_id, as_topo, os.path.join(base, elem)
+        for elem in as_topo[SCIOND_SERVICE_NAME]:
+            yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
 
