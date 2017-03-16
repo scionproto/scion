@@ -27,7 +27,7 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from lib.defines import SCION_UDP_EH_DATA_PORT
-from lib.errors import SCIONBaseError, SCIONParseError
+from lib.errors import SCIONBaseError, SCIONIOError, SCIONParseError
 from lib.packet.svc import SVC_TO_SERVICE
 from lib.sciond_api.as_req import SCIONDASInfoRequest
 from lib.sciond_api.br_req import SCIONDBRInfoRequest
@@ -217,7 +217,12 @@ class SCIONDConnector:
         return socket
 
     def _get_response(self, socket, expected_id, expected_type):
-        data = socket.recv()[0]
+        try:
+            data = socket.recv()[0]
+        except socket.timeout:
+            raise SCIONDResponseError("Socket timed out.")
+        except SCIONIOError:
+            raise SCIONDResponseError("Socket IO error.")
         if not data:
             raise SCIONDResponseError("Received empty response from SCIOND.")
         try:
