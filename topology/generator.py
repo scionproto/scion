@@ -747,11 +747,11 @@ class SupervisorGenerator(object):
             dp['environment'] += ',DISPATCHER_ID="%s"' % elem
             config["program:%s" % dp_name] = dp
             self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
-            if elem.startswith("cs"):
-                # Start a sciond for every CS element under mininet.
-                sd_name = "sd-" + elem
-                config["program:%s" % sd_name] = self._sciond_entry(
-                    sd_name, elem_dir)
+        if self.mininet and elem.startswith("cs"):
+            # Start a sciond for every CS element under mininet.
+            sd_name = "sd-" + elem
+            config["program:%s" % sd_name] = self._sciond_entry(
+                sd_name, elem_dir)
         if elem.startswith("br") and self.router == "go":
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
