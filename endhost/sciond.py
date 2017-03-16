@@ -173,24 +173,25 @@ class SCIONDaemon(SCIONElement):
         for rev_info in path_reply.iter_rev_infos():
             self.peer_revs.add(rev_info)
 
-        segs_types = []
         for type_, pcb in path_reply.iter_pcbs():
-            segs_types.append((pcb, type_))
-        segs_types = tuple(segs_types)
-        self.process_path_segs(segs_types, meta)
+            self.process_path_seg(pcb, meta, type_)
 
-    def continue_seg_processing(self, segs_types, params):
+    def continue_seg_processing(self, pcb, type_, params):
+        # TODO(Sezer): simplify this...
+        added = set()
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,
             PST.CORE: self._handle_core_seg,
         }
-        for pcb, type_ in segs_types:
-            ret = map_[type_](pcb)
-            if not ret:
-                continue
-            flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
-            self.requests.put(((ret, flags), None))
+        ret = map_[type_](pcb)
+        if not ret:
+            return
+        flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
+        added.add((ret, flags))
+        logging.debug("Added: %s", added)
+        for dst_ia, flags in added:
+            self.requests.put(((dst_ia, flags), None))
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
@@ -550,7 +551,8 @@ class SCIONDaemon(SCIONElement):
         fulfilled.
         """
         dst_ia, flags = key
-        return self.path_resolution(dst_ia, flags=flags)
+        ret = self.path_resolution(dst_ia, flags=flags)
+        return ret
 
     def _fetch_segments(self, key, _):
         """
