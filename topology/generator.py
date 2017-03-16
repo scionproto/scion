@@ -740,17 +740,18 @@ class SupervisorGenerator(object):
         prog = self._common_entry(elem, entry, elem_dir)
         self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
         if self.mininet and not elem.startswith("br"):
-            # Start a dispatcher and sciond for every non-BR element under
-            # mininet.
+            # Start a dispatcher for every non-BR element under mininet.
             prog['environment'] += ',DISPATCHER_ID="%s"' % elem
             dp_name = "dp-" + elem
             dp = self._common_entry(dp_name, ["bin/dispatcher"], elem_dir)
             dp['environment'] += ',DISPATCHER_ID="%s"' % elem
             config["program:%s" % dp_name] = dp
             self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
-            sd_name = "sd-" + elem
-            config["program:%s" % sd_name] = self._sciond_entry(
-                sd_name, elem_dir)
+            if elem.startswith("cs"):
+                # Start a sciond for every CS element under mininet.
+                sd_name = "sd-" + elem
+                config["program:%s" % sd_name] = self._sciond_entry(
+                    sd_name, elem_dir)
         if elem.startswith("br") and self.router == "go":
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
