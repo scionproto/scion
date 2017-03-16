@@ -110,7 +110,7 @@ class SCIONDServiceInfoReplyEntry(Cerealizable):
     def short_desc(self):
         ttl_str = "unset"
         if self.p.ttl is not None:
-            ttl_str = "%s s" % self.p.ttl
+            ttl_str = "%ss" % self.p.ttl
         return "Type: %d TTL: %s Host Infos: %s" % (
             self.p.serviceType, ttl_str,
             ", ".join([info.short_desc() for info in self.iter_host_infos()]))

@@ -18,9 +18,11 @@
 """
 # Stdlib
 import logging
+import random
 import threading
 import time
 from contextlib import closing
+from socket import timeout
 
 # External
 from external.expiring_dict import ExpiringDict
@@ -50,7 +52,7 @@ _BR_INFO_TTL = 60 * 60
 # amount of time.
 _SVC_INFO_TTL = 10
 # Time after which a request gets retired.
-_SCIOND_TO = 5
+_SCIOND_TOUT = 5
 
 
 class SCIONDLibError(SCIONBaseError):
@@ -90,9 +92,9 @@ class _Counter:
 
 class SCIONDConnector:
     """Connector class that handles communication to SCIOND."""
-    def __init__(self, api_addr):
+    def __init__(self, api_addr, counter):
         self._api_addr = api_addr
-        self._req_id = _Counter()
+        self._req_id = counter
         self._br_infos = ExpiringDict(100, _BR_INFO_TTL)
         self._svc_infos = ExpiringDict(100, _SVC_INFO_TTL)
         self._as_info = None
@@ -100,7 +102,7 @@ class SCIONDConnector:
         self._svc_infos_lock = threading.Lock()
         self._as_info_lock = threading.Lock()
 
-    def get_paths(self, dst_ia, src_ia, max_paths, flags):
+    def get_paths(self, dst_ia, src_ia, max_paths, flags=None):
         if not flags:
             flags = PathRequestFlags(flush=False, sibra=False)
         req_id = self._req_id.inc()
@@ -130,74 +132,71 @@ class SCIONDConnector:
     def get_br_info(self, if_list=None):
         with self._br_infos_lock:
             if not if_list:
-                if_list = []
+                if_list = set()
+                cached_infos = {}
             else:
-                br_infos = self._try_cache(self._br_infos, if_list)
-                if len(br_infos) == len(if_list):
-                    return br_infos
-                if_list = list(set(if_list) - br_infos.keys())
+                # Make sure all entries in if_list are unique.
+                if_list = set(if_list)
+                cached_infos = self._try_cache(self._br_infos, if_list)
+                if len(cached_infos) == len(if_list):
+                    return cached_infos
+                if_list = list(if_list - set(cached_infos.keys()))
             req_id = self._req_id.inc()
             br_req = SCIONDBRInfoRequest.from_values(req_id, if_list)
             with closing(self._create_socket()) as socket:
                 socket.send(br_req.pack_full())
                 response = self._get_response(socket, req_id, SMT.BR_REPLY)
-            entries = list(response.iter_entries())
-            for entry in entries:
-                self._br_infos[entry.p.ifID] = entry
-            return entries
+            entries = dict([(e.p.ifID, e) for e in response.iter_entries()])
+            for if_id, entry in entries.items():
+                self._br_infos[if_id] = entry
+            return {**cached_infos, **entries}
 
     def get_service_info(self, service_types=None):
         with self._svc_infos_lock:
             if not service_types:
-                service_types = []
+                service_types = set()
+                cached_infos = {}
             else:
-                svc_infos = self._try_cache(self._svc_infos, service_types)
-                if len(svc_infos) == len(service_types):
-                    return svc_infos
-                service_types = list(
-                    set(service_types) - set(svc_infos.keys()))
+                # Make sure all entries in service_types are unique.
+                service_types = set(service_types)
+                cached_infos = self._try_cache(self._svc_infos, service_types)
+                if len(cached_infos) == len(service_types):
+                    return cached_infos
+                service_types = list(service_types - set(cached_infos.keys()))
             req_id = self._req_id.inc()
             svc_req = SCIONDServiceInfoRequest.from_values(
                 req_id, service_types)
             with closing(self._create_socket()) as socket:
                 socket.send(svc_req.pack_full())
                 response = self._get_response(socket, req_id, SMT.SERVICE_REPLY)
-            entries = list(response.iter_entries())
-            for entry in entries:
-                self._svc_infos[entry.service_type()] = entry
-            return entries
+            entries = dict([(e.service_type(), e)
+                            for e in response.iter_entries()])
+            for service_type, entry in entries.items():
+                self._svc_infos[service_type] = entry
+            return {**cached_infos, **entries}
 
     def get_next_hop_overlay_dest(self, spkt):
         if_id = spkt.get_fwd_ifid()
         if if_id:
             return self._resolve_ifid(if_id)
-        return self._resolve_dst_addr(spkt.addrs.dst)
+        return self._resolve_dst_addr(spkt.addrs.src, spkt.addrs.dst)
 
     def _resolve_ifid(self, if_id):
-        br_info = self._br_infos.get(if_id)
-        if br_info:
-            return br_info.host_info()
         br_infos = self.get_br_info([if_id])
-        if br_infos:
-            return br_infos[0].host_info()
+        if if_id in br_infos:
+            return br_infos[if_id].host_info()
         return None
 
-    def _resolve_dst_addr(self, dst):
-        as_info = self.get_as_info()
-        if not as_info:
-            return None
-        if dst.isd_as != as_info[0].isd_as():
+    def _resolve_dst_addr(self, src, dst):
+        if dst.isd_as != src.isd_as:
             logging.error("Packet to remote AS w/o path, dst: %s", dst)
             return None
         host = dst.host
         if host.TYPE == AddrType.SVC:
             svc_type = SVC_TO_SERVICE[host.addr]
-            svc_info = self._svc_infos.get(svc_type)
-            if svc_info:
-                return svc_info.host_info()
             svc_infos = self.get_service_info([svc_type])
-            if svc_infos:
-                return svc_infos[0].host_info()
+            if svc_type in svc_infos:
+                return svc_infos[svc_type].host_info()
             return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
@@ -209,7 +208,7 @@ class SCIONDConnector:
 
     def _create_socket(self):
         socket = ReliableSocket()
-        socket.settimeout(_SCIOND_TO)
+        socket.settimeout(_SCIOND_TOUT)
         try:
             socket.connect(self._api_addr)
         except OSError:
@@ -219,7 +218,7 @@ class SCIONDConnector:
     def _get_response(self, socket, expected_id, expected_type):
         try:
             data = socket.recv()[0]
-        except socket.timeout:
+        except timeout:
             raise SCIONDResponseError("Socket timed out.")
         except SCIONIOError:
             raise SCIONDResponseError("Socket IO error.")
@@ -246,6 +245,7 @@ class SCIONDConnector:
 
 
 _connector = None
+_counter = None
 
 
 def init(api_addr):
@@ -258,7 +258,10 @@ def init(api_addr):
     object directly.
     """
     global _connector
-    connector = SCIONDConnector(api_addr)
+    global _counter
+    if not _counter:
+        _counter = _Counter(random.randint(0, 10**9))
+    connector = SCIONDConnector(api_addr, _counter)
     if not _connector:
         _connector = connector
     return connector
@@ -303,7 +306,7 @@ def get_br_info(if_list=None, connector=None):
 
     :param if_list: The interface IDs of BRs. If unset, all BRs are
         returned.
-    :returns: List of SCIONDBRInfoReplyEntry objects.
+    :returns: Dict that maps from if_id to SCIONDBRInfoReplyEntry objects.
     """
     global _connector
     if not connector:
@@ -319,7 +322,8 @@ def get_service_info(service_types=None, connector=None):
 
     :param service_types: The types of the services. If unset, all services
         are returned.
-    :returns: List of SCIONDServiceInfoReplyEntry objects.
+    :returns: Dict that maps from service type to SCIONDServiceInfoReplyEntry
+        objects.
     """
     global _connector
     if not connector:
