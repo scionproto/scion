@@ -100,6 +100,7 @@ class SCIONDaemon(SCIONElement):
             req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
+        self.requested_paths = []
         self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
@@ -177,8 +178,6 @@ class SCIONDaemon(SCIONElement):
             self.process_path_seg(pcb, meta, type_)
 
     def continue_seg_processing(self, pcb, type_, params):
-        # TODO(Sezer): simplify this...
-        added = set()
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,
@@ -187,11 +186,13 @@ class SCIONDaemon(SCIONElement):
         ret = map_[type_](pcb)
         if not ret:
             return
-        flags = (PATH_FLAG_SIBRA,) if pcb.is_sibra() else ()
-        added.add((ret, flags))
-        logging.debug("Added: %s", added)
-        for dst_ia, flags in added:
-            self.requests.put(((dst_ia, flags), None))
+        to_remove = []
+        for dst_ia, flags in self.requested_paths:
+            if self.path_resolution(dst_ia, flags):
+                self.requests.put(((dst_ia, flags), None))
+                to_remove.append((dst_ia, flags))
+        for dst_ia, flags in to_remove:
+            self.requested_paths.remove((dst_ia, flags))
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
@@ -381,6 +382,7 @@ class SCIONDaemon(SCIONElement):
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))
+        self.requested_paths.append((dst_ia, flags))
         if not self._wait_for_events([e], deadline):
             logging.error("Query timed out for %s", dst_ia)
             return [], SCIONDPathReplyError.PS_TIMEOUT
