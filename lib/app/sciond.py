@@ -125,20 +125,21 @@ class SCIONDConnector:
             return list(response.iter_entries())
 
     def get_as_info(self, isd_as=None):
-        if not isd_as:
-            isd_as = "local"
+        q_ia = isd_as
+        if not q_ia:
+            q_ia = "local"
         with self._as_infos_lock:
-            as_info = self._try_cache(self._as_infos, [isd_as]).get(isd_as)
+            as_info = self._try_cache(self._as_infos, [q_ia]).get(q_ia)
             if as_info:
                 return as_info
             req_id = self._req_id.inc()
             as_req = SCIONDASInfoRequest.from_values(
-                req_id, isd_as if isd_as != "local" else None)
+                req_id, isd_as)
             with closing(self._create_socket()) as socket:
                 socket.send(as_req.pack_full())
                 response = self._get_response(socket, req_id, SMT.AS_REPLY)
-            self._as_infos[isd_as] = list(response.iter_entries())
-            return self._as_infos[isd_as]
+            self._as_infos[q_ia] = list(response.iter_entries())
+            return self._as_infos[q_ia]
 
     def get_if_info(self, if_list=None):
         with self._if_infos_lock:
