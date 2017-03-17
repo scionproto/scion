@@ -291,8 +291,8 @@ class SCIONDaemon(SCIONElement):
                 info = HostInfo.from_values([br.addr], br.port)
                 reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
                 if_entries.append(reply_entry)
-        br_reply = SCIONDIFInfoReply.from_values(request.id, if_entries)
-        self.send_meta(br_reply.pack_full(), meta)
+        if_reply = SCIONDIFInfoReply.from_values(request.id, if_entries)
+        self.send_meta(if_reply.pack_full(), meta)
 
     def _api_handle_service_request(self, request, meta):
         all_svcs = request.all_services()

@@ -28,7 +28,12 @@ from socket import timeout
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from lib.defines import SCION_UDP_EH_DATA_PORT, SCIOND_API_SOCKDIR
+from lib.defines import (
+    SCION_UDP_EH_DATA_PORT,
+    SCIOND_API_DEFAULT_SOCK,
+    SCIOND_API_PATH_ENV_VAR,
+    SCIOND_API_SOCKDIR,
+)
 from lib.errors import SCIONBaseError, SCIONIOError, SCIONParseError
 from lib.packet.svc import SVC_TO_SERVICE
 from lib.sciond_api.as_req import SCIONDASInfoRequest
@@ -274,8 +279,8 @@ def init(api_addr=None):
 
 
 def _get_api_addr():
-    return os.getenv(
-        "SCIOND_PATH", os.path.join(SCIOND_API_SOCKDIR, "default.sock"))
+    return os.getenv(SCIOND_API_PATH_ENV_VAR,
+                     os.path.join(SCIOND_API_SOCKDIR, SCIOND_API_DEFAULT_SOCK))
 
 
 def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
