@@ -114,7 +114,7 @@ class SCIONCommonHdr(Serializable):
         self._hof_idx = (hof_off - first_of_offset) // OpaqueField.LEN
 
     @classmethod
-    def from_values(cls, src_type, dst_type, next_hdr):
+    def from_values(cls, dst_type, src_type, next_hdr):
         """
         Returns a SCIONCommonHdr object with the values specified.
 
@@ -674,7 +674,7 @@ class SCIONL4Packet(SCIONExtPacket):
 
 
 def build_base_hdrs(src, dst, l4=L4Proto.UDP):
-    cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE, l4)
+    cmn_hdr = SCIONCommonHdr.from_values(dst.host.TYPE, src.host.TYPE, l4)
     addr_hdr = SCIONAddrHdr.from_values(src, dst)
     return cmn_hdr, addr_hdr
 
