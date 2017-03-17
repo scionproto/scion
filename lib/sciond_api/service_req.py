@@ -32,7 +32,7 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
     P_CLS = P.ServiceInfoRequest
 
     @classmethod
-    def from_values(cls, service_types=None):
+    def from_values(cls, id_, service_types=None):
         """
         Creates an SCIONDServiceInfoRequest.
 
@@ -44,14 +44,14 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
             service_entries = p.init("serviceTypes", len(service_types))
             for i, type_ in enumerate(service_types):
                 service_entries[i] = type_
-        return cls(p)
+        return cls(p, id_)
 
     def all_services(self):
         return not self.p.serviceTypes
 
     def iter_service_types(self):
-        for type_ in self.p.serviceType:
-            yield type_
+        for type_ in self.p.serviceTypes:
+            yield str(type_)
 
     def short_desc(self):
         type_str = "ALL" if self.all_services() else str(self.p.serviceTypes)
@@ -64,12 +64,12 @@ class SCIONDServiceInfoReply(SCIONDMsgBase):
     P_CLS = P.ServiceInfoReply
 
     @classmethod
-    def from_values(cls, entries):
+    def from_values(cls, id_, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p)
+        return cls(p, id_)
 
     def entry(self, idx):
         return SCIONDServiceInfoReplyEntry(self.p.entries[idx])
@@ -87,8 +87,10 @@ class SCIONDServiceInfoReplyEntry(Cerealizable):
     P_CLS = P.ServiceInfoReplyEntry
 
     @classmethod
-    def from_values(cls, service_type, host_infos):
+    def from_values(cls, service_type, host_infos, ttl=None):
         p = cls.P_CLS.new_message(serviceType=service_type)
+        if ttl:
+            p.ttl = ttl
         if host_infos:
             entries = p.init("hostInfos", len(host_infos))
             for i, info in enumerate(host_infos):
@@ -106,6 +108,9 @@ class SCIONDServiceInfoReplyEntry(Cerealizable):
             return HostInfo(info)
 
     def short_desc(self):
-        return "Type: %d Host Infos: %s" % (
-            self.p.serviceType, ", ".join([info.short_desc() for info in
-                                           self.iter_host_infos()]))
+        ttl_str = "unset"
+        if self.p.ttl is not None:
+            ttl_str = "%ss" % self.p.ttl
+        return "Type: %d TTL: %s Host Infos: %s" % (
+            self.p.serviceType, ttl_str,
+            ", ".join([info.short_desc() for info in self.iter_host_infos()]))

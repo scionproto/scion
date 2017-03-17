@@ -20,15 +20,13 @@
 import logging
 
 # SCION
+import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.sciond_api.as_req import SCIONDASInfoRequest
-from lib.sciond_api.parse import parse_sciond_msg
-from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.thread import kill_self
-from lib.types import L4Proto, SCIONDMsgType as SMT
+from lib.types import L4Proto
 from test.integration.base_cli_srv import (
     ResponseRV,
     setup_main,
@@ -78,28 +76,23 @@ class E2EClient(TestClientBase):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
-            rev_not = SCIONDRevNotification.from_values(rev_info)
-            self.api_socket().send(rev_not.pack_full())
+            lib_sciond.send_rev_notification(
+                rev_info, connector=self._connector)
             return ResponseRV.RETRY
         else:
             logging.error("Received SCMP error:\n%s", spkt)
             return ResponseRV.FAILURE
 
     def _test_as_request_reply(self):
-        as_req = SCIONDASInfoRequest.from_values()
-        api_socket = self.api_socket()
-        api_socket.send(as_req.pack_full())
-        data = api_socket.recv()[0]
-        if data:
-            response = parse_sciond_msg(data)
-            if response.MSG_TYPE != SMT.AS_REPLY:
-                logging.error("Unexpected SCIOND msg type received: %s" %
-                              response.NAME)
-                return False
-            for entry in response.iter_entries():
-                if entry.isd_as() == self.addr.isd_as:
-                    logging.debug("Received correct AS reply.")
-                    return True
+        try:
+            entries = lib_sciond.get_as_info(connector=self._connector)
+        except lib_sciond.SCIONDLibError as e:
+            logging.error("An error occured: %s" % e)
+            return False
+        for entry in entries:
+            if entry.isd_as() == self.addr.isd_as:
+                logging.debug("Received correct AS reply.")
+                return True
         logging.error("Wrong AS Reply received.")
         return False
 
@@ -147,12 +140,10 @@ class TestEnd2End(TestClientServerBase):
     NAME = "End2End"
 
     def _create_server(self, data, finished, addr):
-        sd, api_addr = self._run_sciond(addr)
-        return E2EServer(sd, api_addr, data, finished, addr)
+        return E2EServer(self._run_sciond(addr), data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        sd, api_addr = self._run_sciond(src)
-        return E2EClient(sd, api_addr, data, finished, src, dst, port,
+        return E2EClient(self._run_sciond(src), data, finished, src, dst, port,
                          retries=self.retries)
 
 

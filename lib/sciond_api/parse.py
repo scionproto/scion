@@ -19,7 +19,7 @@
 import proto.sciond_capnp as P
 from lib.errors import SCIONParseError
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoRequest
-from lib.sciond_api.br_req import SCIONDBRInfoReply, SCIONDBRInfoRequest
+from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoRequest
 from lib.sciond_api.path_req import SCIONDPathReply, SCIONDPathRequest
 from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.sciond_api.service_req import (
@@ -30,8 +30,8 @@ from lib.sciond_api.service_req import (
 _MSG_TYPES = (
     SCIONDASInfoReply,
     SCIONDASInfoRequest,
-    SCIONDBRInfoReply,
-    SCIONDBRInfoRequest,
+    SCIONDIFInfoReply,
+    SCIONDIFInfoRequest,
     SCIONDPathReply,
     SCIONDPathRequest,
     SCIONDRevNotification,
@@ -45,5 +45,5 @@ def parse_sciond_msg(raw):  # pragma: no cover
     type_ = wrapper.which()
     for cls_ in _MSG_TYPES:
         if cls_.MSG_TYPE == type_:
-            return cls_(getattr(wrapper, type_))
+            return cls_(getattr(wrapper, type_), wrapper.id)
     raise SCIONParseError("Unsupported SCIOND message type: %s" % type_)

@@ -32,12 +32,19 @@ class SCIONDASInfoRequest(SCIONDMsgBase):
     P_CLS = P.ASInfoReq
 
     @classmethod
-    def from_values(cls):
+    def from_values(cls, id_, isd_as=None):
         p = cls.P_CLS.new_message()
-        return cls(p)
+        if isd_as:
+            p.isdas = isd_as.int()
+        return cls(p, id_)
+
+    def isd_as(self):
+        if self.p.isdas:
+            return ISD_AS(self.p.isdas)
+        return None
 
     def short_desc(self):
-        return self.NAME
+        return "ISD_AS: %s" % (self.isd_as() or "local")
 
 
 class SCIONDASInfoReply(SCIONDMsgBase):
@@ -46,12 +53,12 @@ class SCIONDASInfoReply(SCIONDMsgBase):
     P_CLS = P.ASInfoReply
 
     @classmethod
-    def from_values(cls, entries):
+    def from_values(cls, id_, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p)
+        return cls(p, id_)
 
     def entry(self, idx):
         return SCIONDASInfoReplyEntry(self.p.entries[idx])
@@ -69,13 +76,15 @@ class SCIONDASInfoReplyEntry(Cerealizable):
     P_CLS = P.ASInfoReplyEntry
 
     @classmethod
-    def from_values(cls, isd_as, mtu, is_core):
-        p = cls.P_CLS.new_message(isdas=int(isd_as), mtu=mtu, isCore=is_core)
+    def from_values(cls, isd_as, is_core, mtu=None):
+        p = cls.P_CLS.new_message(isdas=int(isd_as), isCore=is_core)
+        if mtu:
+            p.mtu = mtu
         return cls(p)
 
     def isd_as(self):
         return ISD_AS(self.p.isdas)
 
     def short_desc(self):
-        return "id=%s mtu=%d is_core=%s" % (
-            self.isd_as(), self.p.mtu, self.p.isCore)
+        return "id=%s is_core=%s mtu=%s" % (
+            self.isd_as(), self.p.isCore, self.p.mtu or "unknown")
