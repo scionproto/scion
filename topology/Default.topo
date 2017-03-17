@@ -9,7 +9,7 @@ ASes:
     core: true
     beacon_servers: 1
     certificate_servers: 3
-    path_servers: 1
+    path_servers: 2
   1-12:
     core: true
     zookeepers:
@@ -30,7 +30,7 @@ ASes:
         electionPort: 4008
   1-13:
     core: true
-    beacon_servers: 1
+    beacon_servers: 2
     certificate_servers: 3
   1-14:
     path_servers: 1
@@ -39,7 +39,7 @@ ASes:
   1-15:
     cert_issuer: 1-12
   1-16:
-    beacon_servers: 1
+    beacon_servers: 3
     certificate_servers: 3
     cert_issuer: 1-13
   1-17:
@@ -48,7 +48,7 @@ ASes:
   1-18:
     cert_issuer: 1-15
   1-19:
-    path_servers: 1
+    path_servers: 2
     certificate_servers: 3
     cert_issuer: 1-16
   1-10:
