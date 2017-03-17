@@ -249,12 +249,12 @@ class SCIONElement(object):
         find missing TRCs and certs and request them.
         :param path: pcb or pathSegment
         """
+        if seg_meta not in self.unverified_segs:
+            self.unverified_segs.add(seg_meta)
         # Find missing TRCs and certificates
         missing_trcs = self._missing_trc_versions(seg_meta.trc_vers)
         missing_certs = self._missing_cert_versions(seg_meta.cert_vers)
         # Update missing TRCs/certs map
-        if seg_meta not in self.unverified_segs:
-            self.unverified_segs.add(seg_meta)
         seg_meta.missing_trcs.update(missing_trcs)
         seg_meta.missing_certs.update(missing_certs)
         # If all necessary TRCs/certs available, try to verify
@@ -362,13 +362,6 @@ class SCIONElement(object):
             self.send_meta(TRCReply.from_values(trc), meta)
         else:
             logging.warning("Could not find requested TRC %sv%s" % (isd, ver))
-            try:
-                # TODO(Sezer): Request from certificate server when it
-                # is implemented
-                addr, port = self.dns_query_topo(BEACON_SERVICE)[0]
-            except SCIONServiceLookupError as e:
-                logging.warning("Sending TRC request failed: %s", e)
-                return
 
     def process_cert_chain_reply(self, rep, meta):
         """Process a certificate chain reply."""
