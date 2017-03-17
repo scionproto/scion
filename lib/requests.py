@@ -93,7 +93,6 @@ class RequestHandler(object):
                 # Add a new request
                 self._add_req(key, req)
             # Answer existing requests, if possible.
-            #for key in list(self._req_map.keys()):
             for k in self._key_map(key, self._req_map.keys()):
                 self._answer_reqs(k)
 
