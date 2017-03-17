@@ -340,10 +340,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         return list(revs_to_add)
 
     def _handle_pending_requests(self, dst_ia, sibra):
-        to_remove = []
         rem_keys = []
         # Serve pending requests.
         for dst_ia, sibra in self.pending_req:
+            to_remove = []
             key = dst_ia, sibra
             for req, meta in self.pending_req[key]:
                 if self.path_resolution(req, meta, new_request=False):
