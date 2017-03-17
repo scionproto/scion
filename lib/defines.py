@@ -71,6 +71,8 @@ SCION_DISPATCHER_PORT = 3334
 DISPATCHER_DIR = "/run/shm/dispatcher"
 #: Default SCION dispatcher ID
 DEFAULT_DISPATCHER_ID = "default"
+#: Default SCION daemon UNIX socket directory
+SCIOND_API_SOCKDIR = "/run/shm/sciond/"
 
 BEACON_SERVICE = "bs"
 CERTIFICATE_SERVICE = "cs"
