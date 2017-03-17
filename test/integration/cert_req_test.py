@@ -42,7 +42,7 @@ class TestCertClient(TestClientBase):
         # We need the lib sciond here already.
         connector = lib_sciond.init(api_addr)
         cs_info = lib_sciond.get_service_info(
-            [ServiceType.CS], connector)[ServiceType.CS]
+            [ServiceType.CS], connector=connector)[ServiceType.CS]
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert_done = False

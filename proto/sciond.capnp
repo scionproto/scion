@@ -14,8 +14,8 @@ struct SCIONDMsg {
         asInfoReq @4 :ASInfoReq;
         asInfoReply @5 :ASInfoReply;
         revNotification @6 :RevNotification;
-        brInfoRequest @7 :BRInfoRequest;
-        brInfoReply @8 :BRInfoReply;
+        ifInfoRequest @7 :IFInfoRequest;
+        ifInfoReply @8 :IFInfoReply;
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
     }
@@ -61,6 +61,7 @@ struct PathInterface {
 }
 
 struct ASInfoReq {
+    isdas @0 :UInt32;  # The AS ID for which the AS Info is requested. If unset, returns info about the local AS(es).
 }
 
 struct ASInfoReply {
@@ -77,15 +78,15 @@ struct RevNotification {
     revInfo @0 :RevInfo.RevInfo;
 }
 
-struct BRInfoRequest {
+struct IFInfoRequest {
     ifIDs @0 :List(UInt64);  # The if IDs for which a client requests the host infos. Empty list means all interfaces of all BRs.
 }
 
-struct BRInfoReply {
-    entries @0 :List(BRInfoReplyEntry);
+struct IFInfoReply {
+    entries @0 :List(IFInfoReplyEntry);
 }
 
-struct BRInfoReplyEntry {
+struct IFInfoReplyEntry {
     ifID @0 :UInt64;  # The if ID of the BR.
     hostInfo @1 :HostInfo;  # The host info of the BR.
 }

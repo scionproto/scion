@@ -89,7 +89,7 @@ class TestBase(object, metaclass=ABCMeta):
     def _send_pkt(self, spkt, next_=None):
         if not next_:
             try:
-                fh_info = lib_sciond.get_next_hop_overlay_dest(
+                fh_info = lib_sciond.get_overlay_dest(
                     spkt, connector=self._connector)
             except lib_sciond.SCIONDLibError as e:
                 logging.error("Error getting first hop: %s" % e)
@@ -201,9 +201,9 @@ class TestClientBase(TestBase):
         spkt.update()
         return spkt
 
-    def _get_first_hop(self, spkt):
-        return lib_sciond.get_next_hop_overlay_dest(
-            spkt, connection=self._connector)
+    def _get_next_hop(self, spkt):
+        fh_info = lib_sciond.get_overlay_dest(spkt, connector=self._connector)
+        return fh_info.ipv4() or fh_info.ipv6(), fh_info.p.port
 
     def _create_payload(self, spkt):
         return PayloadRaw(self.data)
