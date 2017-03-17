@@ -506,8 +506,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _zk_write_cert(self, data):
         hash_ = SHA256.new(data).hexdigest()
         try:
-            self.cert_cache.store("%s-%s" % (hash_, SCIONTime.get_time()),
-                                             data)
+            self.cert_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
         except ZkNoConnection:
             logging.warning("Unable to store certificate(s) in shared path: "
                             "no connection to ZK")
