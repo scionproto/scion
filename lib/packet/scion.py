@@ -137,6 +137,7 @@ class SCIONCommonHdr(Serializable):
                  self.src_addr_type)
         packed.append(struct.pack("!HHB", types, self.total_len, self.hdr_len))
         curr_iof_p = curr_hof_p = self.LEN + self.addrs_len
+        # FIXME(kormat): NB this assumes that all OFs have the same length.
         if self._iof_idx:
             curr_iof_p += self._iof_idx * OpaqueField.LEN
         if self._hof_idx:
