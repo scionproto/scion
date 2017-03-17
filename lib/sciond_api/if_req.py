@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`br_req` --- SCIOND BR requests and replies
+:mod:`br_req` --- SCIOND IF requests and replies
 ================================================
 """
 # External
@@ -26,18 +26,18 @@ from lib.sciond_api.host_info import HostInfo
 from lib.types import SCIONDMsgType as SMT
 
 
-class SCIONDBRInfoRequest(SCIONDMsgBase):
-    NAME = "BRInfoRequest"
-    MSG_TYPE = SMT.BR_REQUEST
-    P_CLS = P.BRInfoRequest
+class SCIONDIFInfoRequest(SCIONDMsgBase):
+    NAME = "IFInfoRequest"
+    MSG_TYPE = SMT.IF_REQUEST
+    P_CLS = P.IFInfoRequest
 
     @classmethod
     def from_values(cls, id_, if_ids=None):
         """
-        Creates an SCIONDBRInfoRequest.
+        Creates an SCIONDIFInfoRequest.
 
         :param ids: List of interface ids. An empty list means all interfaces of
-            all BRs.
+            all IFs.
         """
         p = cls.P_CLS.new_message()
         if if_ids:
@@ -58,10 +58,10 @@ class SCIONDBRInfoRequest(SCIONDMsgBase):
         return "IF IDs: %s" % if_str
 
 
-class SCIONDBRInfoReply(SCIONDMsgBase):
-    NAME = "BRInfoReply"
-    MSG_TYPE = SMT.BR_REPLY
-    P_CLS = P.BRInfoReply
+class SCIONDIFInfoReply(SCIONDMsgBase):
+    NAME = "IFInfoReply"
+    MSG_TYPE = SMT.IF_REPLY
+    P_CLS = P.IFInfoReply
 
     @classmethod
     def from_values(cls, id_, entries):
@@ -72,19 +72,19 @@ class SCIONDBRInfoReply(SCIONDMsgBase):
         return cls(p, id_)
 
     def entry(self, idx):
-        return SCIONDBRInfoReplyEntry(self.p.entries[idx])
+        return SCIONDIFInfoReplyEntry(self.p.entries[idx])
 
     def iter_entries(self):
         for entry in self.p.entries:
-            yield SCIONDBRInfoReplyEntry(entry)
+            yield SCIONDIFInfoReplyEntry(entry)
 
     def short_desc(self):
         return "\n".join([entry.short_desc() for entry in self.iter_entries()])
 
 
-class SCIONDBRInfoReplyEntry(Cerealizable):
-    NAME = "BRInfoReplyEntry"
-    P_CLS = P.BRInfoReplyEntry
+class SCIONDIFInfoReplyEntry(Cerealizable):
+    NAME = "IFInfoReplyEntry"
+    P_CLS = P.IFInfoReplyEntry
 
     @classmethod
     def from_values(cls, if_id, host_info):

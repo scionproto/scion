@@ -82,11 +82,6 @@ class ErrorGenBase(TestClientBase):
         logging.error("Failure:\n%s", spkt)
         return False
 
-    def _get_next_hop(self, spkt):
-        fh_info = lib_sciond.get_next_hop_overlay_dest(
-            spkt, connector=self._connector)
-        return fh_info.ipv4() or fh_info.ipv6(), fh_info.p.port
-
 
 # FIXME(kormat): ignore this for now, as with UDP-overlay, many packets are
 # actually over MTU, so this check is disabled until we get TCP/SCION.
@@ -98,6 +93,7 @@ class ErrorGenBase(TestClientBase):
 #    def _create_payload(self, spkt):
 #        padding = self.path.mtu - len(spkt) - len(self.data) + 1
 #        return PayloadRaw(self.data + bytes(padding))
+
 
 class ErrorGenBadHost(ErrorGenBase):
     CLASS = SCMPClass.ROUTING
@@ -273,7 +269,7 @@ class ErrorGenBadIF(ErrorGenBase):
         if super()._should_skip():
             return True
         # Only run if the remote AS is a core AS.
-        as_info = lib_sciond.get_as_info(self._connector)[0]
+        as_info = lib_sciond.get_as_info(self.dst.isd_as, self._connector)[0]
         if not as_info.p.isCore:
             logging.info("Skipping non-core remote AS")
             return True

@@ -42,8 +42,8 @@ from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
-from lib.sciond_api.br_req import SCIONDBRInfoReply, SCIONDBRInfoReplyEntry
 from lib.sciond_api.host_info import HostInfo
+from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry
 from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
@@ -67,6 +67,8 @@ from lib.types import (
     TypeBase,
 )
 from lib.util import SCIONTime
+
+
 _FLUSH_FLAG = "FLUSH"
 
 
@@ -219,8 +221,8 @@ class SCIONDaemon(SCIONElement):
             self.handle_revocation(msg.rev_info(), meta)
         elif msg.MSG_TYPE == SMT.AS_REQUEST:
             self._api_handle_as_request(msg, meta)
-        elif msg.MSG_TYPE == SMT.BR_REQUEST:
-            self._api_handle_br_request(msg, meta)
+        elif msg.MSG_TYPE == SMT.IF_REQUEST:
+            self._api_handle_if_request(msg, meta)
         elif msg.MSG_TYPE == SMT.SERVICE_REQUEST:
             self._api_handle_service_request(msg, meta)
         else:
@@ -268,12 +270,17 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(path_reply.pack_full(), meta)
 
     def _api_handle_as_request(self, request, meta):
-        reply_entry = SCIONDASInfoReplyEntry.from_values(
-            self.addr.isd_as, self.topology.mtu, self.is_core_as())
+        remote_as = request.isd_as()
+        if remote_as:
+            reply_entry = SCIONDASInfoReplyEntry.from_values(
+                remote_as, self.is_core_as(remote_as))
+        else:
+            reply_entry = SCIONDASInfoReplyEntry.from_values(
+                self.addr.isd_as, self.is_core_as(), self.topology.mtu)
         as_reply = SCIONDASInfoReply.from_values(request.id, [reply_entry])
         self.send_meta(as_reply.pack_full(), meta)
 
-    def _api_handle_br_request(self, request, meta):
+    def _api_handle_if_request(self, request, meta):
         all_brs = request.all_brs()
         if_list = []
         if not all_brs:
@@ -282,9 +289,9 @@ class SCIONDaemon(SCIONElement):
         for if_id, br in self.ifid2br.items():
             if all_brs or if_id in if_list:
                 info = HostInfo.from_values([br.addr], br.port)
-                reply_entry = SCIONDBRInfoReplyEntry.from_values(if_id, info)
+                reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
                 br_entries.append(reply_entry)
-        br_reply = SCIONDBRInfoReply.from_values(request.id, br_entries)
+        br_reply = SCIONDIFInfoReply.from_values(request.id, br_entries)
         self.send_meta(br_reply.pack_full(), meta)
 
     def _api_handle_service_request(self, request, meta):
