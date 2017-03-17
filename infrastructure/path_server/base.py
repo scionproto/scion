@@ -371,7 +371,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def continue_seg_processing(self, seg_meta):
         pcb = seg_meta.seg
         type_ = seg_meta.type_
-        params  = seg_meta.params
+        params = seg_meta.params
         set_ = self._dispatch_segment_record(type_, pcb, **params)
         for dst_ia, sibra in set_:
             self._handle_pending_requests(dst_ia, sibra)

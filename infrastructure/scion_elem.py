@@ -49,7 +49,6 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.missing_trc_cert_map import PathSegMeta
 from lib.msg_meta import (
     MetadataBase,
     SCMPMetadata,
