@@ -35,6 +35,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
+from lib.missing_trc_cert_map import PathSegMeta
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -364,9 +365,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.revocations.add(rev_info)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
-            self.process_path_seg(pcb, meta, type_, params)
+            seg_meta = PathSegMeta(pcb, meta, type_, params)
+            self.process_path_seg(seg_meta)
 
-    def continue_seg_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, seg_meta):
+        pcb = seg_meta.seg
+        type_ = seg_meta.type_
+        params  = seg_meta.params
         set_ = self._dispatch_segment_record(type_, pcb, **params)
         for dst_ia, sibra in set_:
             self._handle_pending_requests(dst_ia, sibra)

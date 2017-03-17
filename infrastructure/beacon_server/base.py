@@ -51,6 +51,7 @@ from lib.errors import (
 )
 from lib.flagtypes import TCPFlags
 from lib.msg_meta import TCPMetadata, UDPMetadata
+from lib.missing_trc_cert_map import PathSegMeta
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -251,9 +252,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
-        self.process_path_seg(pcb, meta)
+        seg_meta = PathSegMeta(pcb, meta)
+        self.process_path_seg(seg_meta)
 
-    def continue_seg_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, seg_meta):
+        pcb = seg_meta.seg
         self.incoming_pcbs.append(pcb)
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:

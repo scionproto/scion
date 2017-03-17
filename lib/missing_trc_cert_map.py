@@ -17,15 +17,21 @@
 """
 
 
-class MissingTrcCertMap(object):
+class PathSegMeta(object):
     """
+    TODO(Sezer): change description
     The MissingTrcCertMap class holds missing trcs and certificates
     for a scion element instance.
     """
 
-    def __init__(self):
+    def __init__(self, seg, meta, type_=None, params=None):
+        self.trc_vers, self.cert_vers = seg.get_trcs_certs()
         self.missing_trcs = set()
         self.missing_certs = set()
+        self.seg = seg
+        self.meta = meta
+        self.type_ = type_
+        self.params = params
 
-    def empty(self):
+    def verifiable(self):
         return not self.missing_trcs and not self.missing_certs

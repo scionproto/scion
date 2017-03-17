@@ -31,6 +31,7 @@ from lib.defines import (
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
+from lib.missing_trc_cert_map import PathSegMeta
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -175,9 +176,12 @@ class SCIONDaemon(SCIONElement):
             self.peer_revs.add(rev_info)
 
         for type_, pcb in path_reply.iter_pcbs():
-            self.process_path_seg(pcb, meta, type_)
+            seg_meta = PathSegMeta(pcb, meta, type_)
+            self.process_path_seg(seg_meta)
 
-    def continue_seg_processing(self, pcb, type_, params):
+    def continue_seg_processing(self, seg_meta):
+        pcb = seg_meta.seg
+        type_ = seg_meta.type_
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,

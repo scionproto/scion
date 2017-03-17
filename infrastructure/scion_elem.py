@@ -49,7 +49,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.missing_trc_cert_map import MissingTrcCertMap
+from lib.missing_trc_cert_map import PathSegMeta
 from lib.msg_meta import (
     MetadataBase,
     SCMPMetadata,
@@ -164,7 +164,7 @@ class SCIONElement(object):
             self.DefaultMeta = TCPMetadata
         else:
             self.DefaultMeta = UDPMetadata
-        self.unverified_segs = defaultdict(tuple)
+        self.unverified_segs = set()
         self.requested_trcs_certs = set()
 
     def _setup_sockets(self, init):
@@ -244,33 +244,36 @@ class SCIONElement(object):
         except SCIONBaseError:
             log_exception("Error handling message:\n%s" % msg)
 
-    def process_path_seg(self, seg, meta, type_=None, params=None):
+    def process_path_seg(self, seg_meta):
         """
         When a pcb or path segment is received, this function is called to
         find missing TRCs and certs and request them.
         :param path: pcb or pathSegment
         """
-        # Get all TRCs' and certs' versions used in this pcb/pathSegments
-        trcs, certs = seg.get_trcs_certs()
         # Find missing TRCs and certificates
-        missing_trcs = self._missing_trc_versions(trcs)
-        missing_certs = self._missing_cert_versions(certs)
+        missing_trcs = self._missing_trc_versions(seg_meta.trc_vers)
+        missing_certs = self._missing_cert_versions(seg_meta.cert_vers)
         # Update missing TRCs/certs map
-        if seg not in self.unverified_segs.keys():
-            self.unverified_segs[seg] = (MissingTrcCertMap(), type_, params, )
-        self.unverified_segs[seg][0].missing_trcs.update(missing_trcs)
-        self.unverified_segs[seg][0].missing_certs.update(missing_certs)
+        if seg_meta not in self.unverified_segs:
+            self.unverified_segs.add(seg_meta)
+        seg_meta.missing_trcs.update(missing_trcs)
+        seg_meta.missing_certs.update(missing_certs)
         # If all necessary TRCs/certs available, try to verify
-        if self.unverified_segs[seg][0].empty():
-            if self._verify_path_seg(seg):
-                del self.unverified_segs[seg]
-                meta.close()
-                self.continue_seg_processing(seg, type_, params)
+        if seg_meta.verifiable():
+            if self._verify_path_seg(seg_meta):
+                self.unverified_segs.discard(seg_meta)
+                seg_meta.meta.close()
+                self.continue_seg_processing(seg_meta)
             else:
                 logging.error("Some pcb/path segment could not be verified")
             return
         # Otherwise request missing trcs, certs
-        missing_trcs = self.unverified_segs[seg][0].missing_trcs
+        self.request_missing_trcs(seg_meta)
+        self.request_missing_certs(seg_meta)
+        seg_meta.meta.close()
+
+    def request_missing_trcs(self, seg_meta):
+        missing_trcs = seg_meta.missing_trcs
         if missing_trcs:
             for isd, ver in missing_trcs:
                 if (isd, ver) in self.requested_trcs_certs:
@@ -279,8 +282,10 @@ class SCIONElement(object):
                 isd_as = ISD_AS.from_values(isd, 0)
                 trc_req = TRCRequest.from_values(isd_as, ver)
                 logging.info("Requesting %sv%s TRC", isd, ver)
-                self.send_meta(trc_req, meta)
-        missing_certs = self.unverified_segs[seg][0].missing_certs
+                self.send_meta(trc_req, seg_meta.meta)
+
+    def request_missing_certs(self, seg_meta):
+        missing_certs = seg_meta.missing_certs
         if missing_certs:
             for isd_as, ver in missing_certs:
                 if (isd_as, ver) in self.requested_trcs_certs:
@@ -288,8 +293,7 @@ class SCIONElement(object):
                 self.requested_trcs_certs.add((isd_as, ver))
                 cert_req = CertChainRequest.from_values(isd_as, ver)
                 logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
-                self.send_meta(cert_req, meta)
-        meta.close()
+                self.send_meta(cert_req, seg_meta.meta)
 
     def _missing_trc_versions(self, trc_versions):
         """
@@ -341,15 +345,13 @@ class SCIONElement(object):
         self.trust_store.add_trc(rep.trc, False)
         self.requested_trcs_certs.discard((isd, ver))
         # Remove received TRC from map
-        for seg in list(self.unverified_segs):
-            self.unverified_segs[seg][0].missing_trcs.discard((isd, ver))
-            type_ = self.unverified_segs[seg][1]
-            params = self.unverified_segs[seg][2]
+        for seg_meta in list(self.unverified_segs):
+            seg_meta.missing_trcs.discard((isd, ver))
             # If all required trcs and certs are received
-            if self.unverified_segs[seg][0].empty():
-                if self._verify_path_seg(seg):
-                    del self.unverified_segs[seg]
-                    self.continue_seg_processing(seg, type_, params)
+            if seg_meta.verifiable():
+                if self._verify_path_seg(seg_meta):
+                    self.unverified_segs.discard(seg_meta)
+                    self.continue_seg_processing(seg_meta)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -377,15 +379,13 @@ class SCIONElement(object):
         self.trust_store.add_cert(rep.chain, False)
         self.requested_trcs_certs.discard((isd_as, ver))
         # Remove received cert chain from map
-        for seg in list(self.unverified_segs):
-            self.unverified_segs[seg][0].missing_certs.discard((isd_as, ver))
-            type_ = self.unverified_segs[seg][1]
-            params = self.unverified_segs[seg][2]
+        for seg_meta in list(self.unverified_segs):
+            seg_meta.missing_certs.discard((isd_as, ver))
             # If all required trcs and certs are received
-            if self.unverified_segs[seg][0].empty():
-                if self._verify_path_seg(seg):
-                    del self.unverified_segs[seg]
-                    self.continue_seg_processing(seg, type_, params)
+            if seg_meta.verifiable():
+                if self._verify_path_seg(seg_meta):
+                    self.unverified_segs.discard(seg_meta)
+                    self.continue_seg_processing(seg_meta)
                 else:
                     logging.error("Some pcb/path segment could not be verified")
 
@@ -401,7 +401,8 @@ class SCIONElement(object):
             logging.warning("Could not find requested certificate %sv%s" %
                             (isd_as, ver))
 
-    def _verify_path_seg(self, seg):
+    def _verify_path_seg(self, seg_meta):
+        seg = seg_meta.seg
         asm = seg.asm(-1)
         cert_ia = asm.isd_as()
         trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
@@ -409,7 +410,7 @@ class SCIONElement(object):
         return verify_sig_chain_trc(seg.sig_pack3(), asm.p.sig,
                                     str(cert_ia), chain, trc, asm.p.trcVer)
 
-    def continue_seg_processing(self, seg, type_=None, params=None):
+    def continue_seg_processing(self, seg_meta):
         pass
 
     def _get_handler(self, pkt):
