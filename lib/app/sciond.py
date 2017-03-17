@@ -144,7 +144,7 @@ class SCIONDConnector:
                 # Make sure all entries in if_list are unique.
                 if_list = set(if_list)
                 if_infos = self._try_cache(self._if_infos, if_list)
-                if_list = list(if_list - set(if_infos))
+                if_list = if_list - set(if_infos)
                 if not if_list:
                     return if_infos
             req_id = self._req_id.inc()
@@ -166,7 +166,7 @@ class SCIONDConnector:
                 # Make sure all entries in service_types are unique.
                 service_types = set(service_types)
                 svc_infos = self._try_cache(self._svc_infos, service_types)
-                service_types = list(service_types - set(svc_infos))
+                service_types = service_types - set(svc_infos)
                 if not service_types:
                     return svc_infos
             req_id = self._req_id.inc()
@@ -274,7 +274,7 @@ def init(api_addr=None):
 
 
 def _get_api_addr():
-    return os.environ.get(
+    return os.getenv(
         "SCIOND_PATH", os.path.join(SCIOND_API_SOCKDIR, "default.sock"))
 
 

@@ -79,7 +79,7 @@ struct RevNotification {
 }
 
 struct IFInfoRequest {
-    ifIDs @0 :List(UInt64);  # The if IDs for which a client requests the host infos. Empty list means all interfaces of all BRs.
+    ifIDs @0 :List(UInt64);  # The if IDs for which a client requests the host infos. Empty list means all interfaces of the local AS.
 }
 
 struct IFInfoReply {
@@ -87,8 +87,8 @@ struct IFInfoReply {
 }
 
 struct IFInfoReplyEntry {
-    ifID @0 :UInt64;  # The if ID of the BR.
-    hostInfo @1 :HostInfo;  # The host info of the BR.
+    ifID @0 :UInt64;  # The ID of the interface.
+    hostInfo @1 :HostInfo;  # The host info of the internal address of the interface.
 }
 
 struct ServiceInfoRequest {

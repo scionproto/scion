@@ -35,7 +35,7 @@ class SCIONDASInfoRequest(SCIONDMsgBase):
     def from_values(cls, id_, isd_as=None):
         p = cls.P_CLS.new_message()
         if isd_as:
-            p.isdas = int(isd_as)
+            p.isdas = isd_as.int()
         return cls(p, id_)
 
     def isd_as(self):

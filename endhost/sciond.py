@@ -285,13 +285,13 @@ class SCIONDaemon(SCIONElement):
         if_list = []
         if not all_brs:
             if_list = list(request.iter_ids())
-        br_entries = []
+        if_entries = []
         for if_id, br in self.ifid2br.items():
             if all_brs or if_id in if_list:
                 info = HostInfo.from_values([br.addr], br.port)
                 reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
-                br_entries.append(reply_entry)
-        br_reply = SCIONDIFInfoReply.from_values(request.id, br_entries)
+                if_entries.append(reply_entry)
+        br_reply = SCIONDIFInfoReply.from_values(request.id, if_entries)
         self.send_meta(br_reply.pack_full(), meta)
 
     def _api_handle_service_request(self, request, meta):
