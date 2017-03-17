@@ -37,7 +37,6 @@ from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
 # SCION
-from endhost.sciond import SCIOND_API_SOCKDIR
 from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_sign_keypair,
@@ -62,6 +61,7 @@ from lib.defines import (
     PATH_POLICY_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
+    SCIOND_API_SOCKDIR,
     TOPO_FILE,
 )
 from lib.path_store import PathPolicy
@@ -699,9 +699,12 @@ class SupervisorGenerator(object):
         return entries
 
     def _sciond_entry(self, name, conf_dir):
-        api = os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
+        path = self._sciond_path(name)
         return self._common_entry(
-            name, ["bin/sciond", "--api-addr", api, name, conf_dir])
+            name, ["bin/sciond", "--api-addr", path, name, conf_dir])
+
+    def _sciond_path(self, name):
+        return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
 
     def _zk_entries(self, topo_id):
         if topo_id not in self.zookeepers:
@@ -718,7 +721,7 @@ class SupervisorGenerator(object):
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
             elem_dir = os.path.join(base, elem)
-            self._write_elem_conf(elem, entry, elem_dir)
+            self._write_elem_conf(elem, entry, elem_dir, topo_id)
             if self.mininet:
                 self._write_elem_mininet_conf(elem, elem_dir)
         # Mininet runs sciond per element, and not at an AS level.
@@ -735,7 +738,7 @@ class SupervisorGenerator(object):
                                  SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
-    def _write_elem_conf(self, elem, entry, elem_dir):
+    def _write_elem_conf(self, elem, entry, elem_dir, topo_id=None):
         config = configparser.ConfigParser(interpolation=None)
         prog = self._common_entry(elem, entry, elem_dir)
         self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
@@ -747,11 +750,18 @@ class SupervisorGenerator(object):
             dp['environment'] += ',DISPATCHER_ID="%s"' % elem
             config["program:%s" % dp_name] = dp
             self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
-        if self.mininet and elem.startswith("cs"):
-            # Start a sciond for every CS element under mininet.
-            sd_name = "sd-" + elem
-            config["program:%s" % sd_name] = self._sciond_entry(
-                sd_name, elem_dir)
+        if elem.startswith("cs"):
+            if self.mininet:
+                # Start a sciond for every CS element under mininet.
+                sd_name = "sd-" + elem
+                config["program:%s" % sd_name] = self._sciond_entry(
+                    sd_name, elem_dir)
+                path = self._sciond_path(sd_name)
+                prog['environment'] += ',SCIOND_PATH="%s"' % path
+            else:
+                # Else set the SCIOND_PATH env to point to the per-AS sciond.
+                path = self._sciond_path("sd%s" % topo_id)
+                prog['environment'] += ',SCIOND_PATH="%s"' % path
         if elem.startswith("br") and self.router == "go":
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog

@@ -27,6 +27,7 @@ from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
     PATH_SERVICE,
+    SCIOND_API_SOCKDIR,
 )
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
@@ -66,7 +67,6 @@ from lib.types import (
     TypeBase,
 )
 from lib.util import SCIONTime
-SCIOND_API_SOCKDIR = "/run/shm/sciond/"
 _FLUSH_FLAG = "FLUSH"
 
 
