@@ -25,6 +25,8 @@ from Crypto.Hash import SHA256
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.trc import TRC
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
@@ -87,9 +89,9 @@ class CertServer(SCIONElement):
                             zkid, self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.trc_cache = ZkSharedCache(self.zk, self.ZK_TRC_CACHE_PATH,
-                                       self._cached_entries_handler)
+                                       self._cached_trcs_handler)
         self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
-                                      self._cached_entries_handler)
+                                      self._cached_certs_handler)
 
     def worker(self):
         """
@@ -114,18 +116,30 @@ class CertServer(SCIONElement):
                 logging.warning('worker(): ZkNoConnection')
                 pass
 
-    def _cached_entries_handler(self, raw_entries):
+    def _cached_trcs_handler(self, raw_entries):
         """
-        Handles cached (through ZK) TRCs and Cert Chains.
+        Handles cached through ZK entries, passed as a list.
         """
-        for entry in raw_entries:
-            payload = msg_from_raw(entry)
-            if isinstance(payload, CertChainReply):
-                self.process_cert_chain_reply(payload, None, from_zk=True)
-            elif isinstance(payload, TRCReply):
-                self.process_trc_reply(payload, None, from_zk=True)
-            else:
-                logging.warning("Entry with unsupported type: %s" % entry)
+        count = 0
+        for raw in raw_entries:
+            count += 1
+            trc = TRC.from_raw(raw.decode('utf-8'))
+            self.process_trc_reply(trc, None, from_zk=True)
+        if count:
+            logging.debug("Processed %s trcs from ZK", count)
+
+    def _cached_certs_handler(self, raw_entries):
+        """
+        Handles cached through ZK entries, passed as a list.
+        """
+        count = 0
+        for raw in raw_entries:
+            count += 1
+            cert = CertificateChain.from_raw(raw.decode('utf-8'))
+            rep = CertChainReply.from_values(cert)
+            self.process_cert_chain_reply(rep, None, from_zk=True)
+        if count:
+            logging.debug("Processed %s certs from ZK", count)
 
     def _share_object(self, pld, is_trc):
         """
@@ -183,8 +197,8 @@ class CertServer(SCIONElement):
         logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
                      (ia_ver[0], ia_ver[1], from_zk))
         self.trust_store.add_cert(rep.chain)
-        # if not from_zk:
-        #     self._share_object(rep, is_trc=False)
+        if not from_zk:
+            self._share_object(rep.chain, is_trc=False)
         # Reply to all requests for this certificate chain
         self.cc_requests.put((ia_ver, None))
 
