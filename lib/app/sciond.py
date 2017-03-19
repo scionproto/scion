@@ -193,7 +193,7 @@ class SCIONDConnector:
                 svc_infos[entry.service_type()] = entry
             return svc_infos
 
-    def get_overlay_dest(self, spkt):  # pragma: no cover
+    def get_overlay_dest(self, spkt):
         if_id = spkt.get_fwd_ifid()
         if if_id:
             return self._resolve_ifid(if_id)
