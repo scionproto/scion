@@ -16,10 +16,9 @@
 ===================================================
 """
 # Stdlib
-from unittest.mock import ANY, call, patch
+from unittest.mock import ANY
 
 # External packages
-import nose
 import nose.tools as ntools
 
 # SCION
@@ -30,7 +29,7 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.path_req import SCIONDPathReplyError as PRE
 from lib.types import SCIONDMsgType as SMT
-from test.testcommon import assert_these_calls, create_mock, create_mock_full
+from test.testcommon import create_mock, create_mock_full
 
 
 class SCIONDConnectorTestBase:
