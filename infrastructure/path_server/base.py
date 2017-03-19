@@ -167,8 +167,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 count += 1
                 seg_meta = PathSegMeta(pcb, type_=type_, from_zk=True)
                 self.process_path_seg(seg_meta)
-                # if seg_meta.verifiable():
-                #     self.process_path_from_zk(seg_meta)
         if count:
             logging.debug("Processed %s PCBs from ZK", count)
 
