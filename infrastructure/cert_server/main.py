@@ -183,8 +183,8 @@ class CertServer(SCIONElement):
         logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
                      (ia_ver[0], ia_ver[1], from_zk))
         self.trust_store.add_cert(rep.chain)
-        if not from_zk:
-            self._share_object(rep, is_trc=False)
+        # if not from_zk:
+        #     self._share_object(rep, is_trc=False)
         # Reply to all requests for this certificate chain
         self.cc_requests.put((ia_ver, None))
 
@@ -241,8 +241,8 @@ class CertServer(SCIONElement):
         logging.info("TRCReply received for ISD %sv%s, ZK: %s",
                      isd, ver, from_zk)
         self.trust_store.add_trc(trc_rep.trc)
-        if not from_zk:
-            self._share_object(trc_rep, is_trc=True)
+        # if not from_zk:
+        #     self._share_object(trc_rep, is_trc=True)
         # Reply to all requests for this TRC
         self.trc_requests.put(((isd, ver), None))
 

@@ -24,7 +24,7 @@ class PathSegMeta(object):
     for a scion element instance.
     """
 
-    def __init__(self, seg, meta, type_=None, params=None):
+    def __init__(self, seg, meta=None, type_=None, params=None, from_zk=False):
         self.trc_vers, self.cert_vers = seg.get_trcs_certs()
         self.missing_trcs = set()
         self.missing_certs = set()
@@ -32,6 +32,7 @@ class PathSegMeta(object):
         self.meta = meta
         self.type_ = type_
         self.params = params
+        self.from_zk = from_zk
 
     def verifiable(self):
         return not self.missing_trcs and not self.missing_certs
