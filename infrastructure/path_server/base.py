@@ -212,7 +212,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         elif res == DBResult.ENTRY_UPDATED:
             self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
-            return True
         return False
 
     def _handle_scmp_revocation(self, pld, meta):
