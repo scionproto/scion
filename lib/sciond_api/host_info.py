@@ -65,3 +65,7 @@ class HostInfo(Cerealizable):  # pragma: no cover
     def short_desc(self):
         return ("IPv4: %s IPv6: %s Port: %d" %
                 (self.ipv4() or "unset", self.ipv6() or "unset", self.p.port))
+
+    def __eq__(self, other):
+        return (self.p.port == other.p.port and self.ipv4() == other.ipv4() and
+                self.ipv6() == other.ipv6())

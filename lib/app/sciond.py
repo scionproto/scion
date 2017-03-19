@@ -183,8 +183,7 @@ class SCIONDConnector:
                 if not service_types:
                     return svc_infos
             req_id = self._req_id.inc()
-            svc_req = SCIONDServiceInfoRequest.from_values(
-                req_id, service_types)
+            svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
             with closing(self._create_socket()) as socket:
                 if not socket.send(svc_req.pack_full()):
                     raise SCIONDRequestError
@@ -194,19 +193,19 @@ class SCIONDConnector:
                 svc_infos[entry.service_type()] = entry
             return svc_infos
 
-    def get_overlay_dest(self, spkt):
+    def get_overlay_dest(self, spkt):  # pragma: no cover
         if_id = spkt.get_fwd_ifid()
         if if_id:
             return self._resolve_ifid(if_id)
         return self._resolve_dst_addr(spkt.addrs.src, spkt.addrs.dst)
 
-    def _resolve_ifid(self, if_id):
+    def _resolve_ifid(self, if_id):  # pragma: no cover
         if_infos = self.get_if_info([if_id])
         if if_id in if_infos:
             return if_infos[if_id].host_info()
         return None
 
-    def _resolve_dst_addr(self, src, dst):
+    def _resolve_dst_addr(self, src, dst):  # pragma: no cover
         if dst.isd_as != src.isd_as:
             logging.error("Packet to remote AS w/o path, dst: %s", dst)
             return None
@@ -219,14 +218,14 @@ class SCIONDConnector:
             return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
-    def send_rev_notification(self, rev_info):
+    def send_rev_notification(self, rev_info):  # pragma: no cover
         rev_not = SCIONDRevNotification.from_values(
             self._req_id.inc(), rev_info)
         with closing(self._create_socket()) as socket:
             if not socket.send(rev_not.pack_full()):
                 raise SCIONDRequestError
 
-    def _create_socket(self):
+    def _create_socket(self):  # pragma: no cover
         socket = ReliableSocket()
         socket.settimeout(_SCIOND_TOUT)
         try:
@@ -236,7 +235,7 @@ class SCIONDConnector:
             raise SCIONDConnectionError()
         return socket
 
-    def _get_response(self, socket, expected_id, expected_type):
+    def _get_response(self, socket, expected_id, expected_type):  # pragma: no cover
         try:
             data = socket.recv()[0]
         except timeout:
@@ -257,7 +256,7 @@ class SCIONDConnector:
                                       (response.id, expected_id))
         return response
 
-    def _try_cache(self, cache, key_list):
+    def _try_cache(self, cache, key_list):  # pragma: no cover
         result = {}
         for key in key_list:
             if key in cache:
@@ -269,7 +268,7 @@ _connector = None
 _counter = None
 
 
-def init(api_addr=None):
+def init(api_addr=None):  # pragma: no cover
     """
     Initializes a SCIONDConnector object and returns it to the caller. The
     first time init is called it initializes the global connector object.
@@ -289,13 +288,12 @@ def init(api_addr=None):
     return connector
 
 
-def _get_api_addr():
+def _get_api_addr():  # pragma: no cover
     return os.getenv(SCIOND_API_PATH_ENV_VAR,
                      os.path.join(SCIOND_API_SOCKDIR, SCIOND_API_DEFAULT_SOCK))
 
 
-def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
-              connector=None):
+def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None, connector=None):  # pragma: no cover
     """
     Request a set of end to end paths from SCIOND.
 
@@ -313,7 +311,7 @@ def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
     return connector.get_paths(dst_ia, src_ia, max_paths, flags)
 
 
-def get_as_info(isd_as=None, connector=None):
+def get_as_info(isd_as=None, connector=None):  # pragma: no cover
     """
     Request information about the local AS(es).
 
@@ -329,7 +327,7 @@ def get_as_info(isd_as=None, connector=None):
     return connector.get_as_info()
 
 
-def get_if_info(if_list=None, connector=None):
+def get_if_info(if_list=None, connector=None):  # pragma: no cover
     """
     Request addresses and ports of border routers.
 
@@ -345,7 +343,7 @@ def get_if_info(if_list=None, connector=None):
     return connector.get_if_info(if_list)
 
 
-def get_service_info(service_types=None, connector=None):
+def get_service_info(service_types=None, connector=None):  # pragma: no cover
     """
     Request addresses and ports of infrastructure services.
 
@@ -362,7 +360,7 @@ def get_service_info(service_types=None, connector=None):
     return connector.get_service_info(service_types)
 
 
-def get_overlay_dest(spkt, connector=None):
+def get_overlay_dest(spkt, connector=None):  # pragma: no cover
     """
     Returns the HostInfo object of the next hop for a given packet.
 
@@ -380,7 +378,7 @@ def get_overlay_dest(spkt, connector=None):
     return fh_info
 
 
-def send_rev_notification(rev_info, connector=None):
+def send_rev_notification(rev_info, connector=None):  # pragma: no cover
     """Forwards the RevocationInfo object to SCIOND."""
     global _connector
     if not connector:
