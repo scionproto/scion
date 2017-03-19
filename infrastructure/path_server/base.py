@@ -28,7 +28,6 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
