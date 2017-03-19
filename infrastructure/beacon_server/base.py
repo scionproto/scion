@@ -51,7 +51,7 @@ from lib.errors import (
 )
 from lib.flagtypes import TCPFlags
 from lib.msg_meta import TCPMetadata, UDPMetadata
-from lib.missing_trc_cert_map import PathSegMeta
+from lib.path_seg_meta import PathSegMeta
 from lib.packet.cert_mgmt import TRCRequest
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField

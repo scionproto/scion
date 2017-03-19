@@ -35,7 +35,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
-from lib.missing_trc_cert_map import PathSegMeta
+from lib.path_seg_meta import PathSegMeta
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -119,7 +119,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                                         self._cached_entries_handler)
         self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
                                        self._rev_entries_handler)
-        self.unverified_paths = set()
 
     def worker(self):
         """
@@ -173,18 +172,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 #     self.process_path_from_zk(seg_meta)
         if count:
             logging.debug("Processed %s PCBs from ZK", count)
-
-    def _cached_certs_handler(self, raw_entries):
-        """
-        Handles cached through ZK entries, passed as a list.
-        """
-        count = 0
-        for raw in raw_entries:
-            count += 1
-            cert = CertificateChain.from_raw(raw.decode('utf-8'))
-            self.trust_store.add_cert(cert)
-        if count:
-            logging.debug("Processed %s certs from ZK", count)
 
     def _update_master(self):
         pass

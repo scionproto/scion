@@ -261,10 +261,10 @@ class SCIONElement(object):
         if seg_meta.verifiable():
             if self._verify_path_seg(seg_meta):
                 self.unverified_segs.discard(seg_meta)
-                # seg_meta.meta.close()
                 if seg_meta.from_zk:
                     self.process_path_from_zk(seg_meta)
                 else:
+                    seg_meta.meta.close()
                     self.continue_seg_processing(seg_meta)
             else:
                 logging.error("Some pcb/path segment could not be verified")
@@ -272,12 +272,16 @@ class SCIONElement(object):
         # Otherwise request missing trcs, certs
         self.request_missing_trcs(seg_meta)
         self.request_missing_certs(seg_meta)
-        # seg_meta.meta.close()
+        if seg_meta.meta:
+            seg_meta.meta.close()
 
     def process_path_from_zk(self, seg_meta):
         pass
 
     def get_cs(self):
+        """
+        Lookup certificate servers address and return meta.
+        """
         try:
             addr, port = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
         except SCIONServiceLookupError as e:

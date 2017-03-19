@@ -117,7 +117,7 @@ class CertServer(SCIONElement):
 
     def _cached_trcs_handler(self, raw_entries):
         """
-        Handles cached through ZK entries, passed as a list.
+        Handles cached (through ZK) TRCs, passed as a list.
         """
         count = 0
         for raw in raw_entries:
@@ -129,7 +129,7 @@ class CertServer(SCIONElement):
 
     def _cached_certs_handler(self, raw_entries):
         """
-        Handles cached through ZK entries, passed as a list.
+        Handles cached (through ZK) chains, passed as a list.
         """
         count = 0
         for raw in raw_entries:
@@ -254,8 +254,8 @@ class CertServer(SCIONElement):
         logging.info("TRCReply received for ISD %sv%s, ZK: %s",
                      isd, ver, from_zk)
         self.trust_store.add_trc(trc_rep.trc)
-        # if not from_zk:
-        #     self._share_object(trc_rep, is_trc=True)
+        if not from_zk:
+            self._share_object(trc_rep.trc, is_trc=True)
         # Reply to all requests for this TRC
         self.trc_requests.put(((isd, ver), None))
 
