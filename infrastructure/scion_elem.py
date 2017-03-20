@@ -349,7 +349,7 @@ class SCIONElement(object):
             highest_ver_trc = self.trust_store.get_trc(isd)
             lower_ver = 0
             if highest_ver_trc is not None:
-                lower_ver = highest_ver_trc.version+1
+                lower_ver = highest_ver_trc.version + 1
             else:
                 highest_ver = 1
             for ver in range(lower_ver, highest_ver):
