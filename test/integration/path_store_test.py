@@ -19,11 +19,9 @@
 # Stdlib
 import base64
 import logging
+import os
 import time
 import unittest
-
-# External packages
-from Crypto import Random
 
 # SCION
 from lib.crypto.asymcrypto import sign
@@ -48,7 +46,7 @@ class TestPathStore(unittest.TestCase):
         Create an AD Marking with the given ingress and egress interfaces.
         """
         hof = HopOpaqueField.from_values(1, 111, 222)
-        rev_token = HashChain(Random.new().read(32)).next_element()
+        rev_token = HashChain(os.urandom(32)).next_element()
         pcbm = PCBMarking.from_values(1, 10, hof)
         peer_markings = []
         signing_key = read_file(get_sig_key_file_path(1, 10))

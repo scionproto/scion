@@ -16,10 +16,11 @@
 =====================================================
 """
 # External packages
-from external import CMAC
-from Crypto.Cipher import AES
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Protocol.KDF import PBKDF2
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
+from cryptography.hazmat.primitives.cmac import CMAC
+from cryptography.hazmat.primitives.hashes import Hash, SHA256
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 def mac(key, msg):
@@ -41,16 +42,24 @@ def mac(key, msg):
     elif msg is None:
         raise ValueError('Message is NULL.')
     else:
-        cobj = CMAC.new(key, ciphermod=AES)
+        cobj = CMAC(AES(key), backend=default_backend())
         cobj.update(msg)
-        return cobj.digest()
+        return cobj.finalize()
 
 
 def kdf(secret, phrase):
     """
     Default key derivation function.
     """
-    def hmacsha2(p, s):
-        return HMAC.new(p, s, SHA256).digest()
+    kdf = PBKDF2HMAC(algorithm=SHA256(), length=16, salt=phrase,
+                     iterations=1000, backend=default_backend())
+    return kdf.derive(secret)
 
-    return PBKDF2(secret, phrase, prf=hmacsha2)
+
+def crypto_hash(data):
+    """
+    Default hash function.
+    """
+    digest = Hash(SHA256(), backend=default_backend())
+    digest.update(data)
+    return digest.finalize()
