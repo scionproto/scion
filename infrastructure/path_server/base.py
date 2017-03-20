@@ -337,7 +337,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     to_remove.append((req, meta))
             # Clean state.
             for req_meta in to_remove:
-                self.pending_req[key].remove(req_meta)
+                if req_meta in self.pending_req[key]:
+                    self.pending_req[key].remove(req_meta)
             if not self.pending_req[key]:
                 rem_keys.append(key)
         for key in rem_keys:

@@ -26,6 +26,7 @@ from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
+from lib.path_seg_meta import PathSegMeta
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime
@@ -133,6 +134,8 @@ class CoreBeaconServer(BeaconServer):
             if not self._filter_pcb(pcb):
                 count += 1
                 continue
+            seg_meta = PathSegMeta(pcb, from_zk=True)
+            self.process_path_seg(seg_meta)
             self.handle_ext(pcb)
         if count:
             logging.debug("Dropped %d looping Core Segment PCBs", count)

@@ -266,6 +266,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                           "no connection to ZK")
         self._handle_verified_beacon(pcb)
 
+    def process_path_from_zk(self, seg_meta):
+        pcb = seg_meta.seg
+        self._handle_verified_beacon(pcb)
+
     def handle_ext(self, pcb):
         """
         Handle beacon extensions.
@@ -451,6 +455,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = time.time()
             try:
                 self.process_pcb_queue()
+                self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
