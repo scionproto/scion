@@ -18,9 +18,10 @@ package conf
 
 import (
 	"crypto/cipher"
-	"crypto/sha1"
 
 	"golang.org/x/crypto/pbkdf2"
+
+	"crypto/sha256"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -58,7 +59,7 @@ func LoadSCMPAuth() *common.Error {
 	scmpAuthConf := &SCMPAuthConf{}
 
 	// Derive the SCMPAuth master secret.
-	scmpAuthGenKey := pbkdf2.Key(C.ASConf.MasterASKey, []byte("Derive SCMP Key"), 1000, 16, sha1.New)
+	scmpAuthGenKey := pbkdf2.Key(C.ASConf.MasterASKey, []byte("Derive SCMP Key"), 1000, 16, sha256.New)
 	if scmpAuthConf.AESBlock, err = util.InitAES(scmpAuthGenKey); err != nil {
 		return err
 	}
