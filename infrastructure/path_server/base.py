@@ -151,7 +151,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._update_master()
             self._propagate_and_sync()
 
-    def process_path_from_zk(self, seg_meta):
+    def process_seg_from_zk(self, seg_meta):
         pcb = seg_meta.seg
         type_ = seg_meta.type_
         self._dispatch_segment_record(type_, pcb, from_zk=True)

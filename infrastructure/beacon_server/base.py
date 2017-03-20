@@ -264,7 +264,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                           "no connection to ZK")
         self._handle_verified_beacon(pcb)
 
-    def process_path_from_zk(self, seg_meta):
+    def process_seg_from_zk(self, seg_meta):
         pcb = seg_meta.seg
         self._handle_verified_beacon(pcb)
 

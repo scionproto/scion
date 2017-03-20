@@ -90,6 +90,7 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
+from lib.packet.pcb import PathSegment
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net, kill_self
@@ -283,7 +284,7 @@ class SCIONElement(object):
         if self._verify_path_seg(seg_meta):
             self.unverified_segs.discard(seg_meta)
             if seg_meta.from_zk:
-                self.process_path_from_zk(seg_meta)
+                self.process_seg_from_zk(seg_meta)
             else:
                 seg_meta.meta.close()
                 self.continue_seg_processing(seg_meta)
@@ -291,7 +292,7 @@ class SCIONElement(object):
             logging.error("Verification failed for %s" %
                           seg_meta.seg.short_desc())
 
-    def process_path_from_zk(self, seg_meta):
+    def process_seg_from_zk(self, seg_meta):
         pass
 
     def get_cs(self):
@@ -433,7 +434,7 @@ class SCIONElement(object):
 
     def _remove_cert(self, isd_as, ver):
         """
-        When a cc reply is received, this method is called to check which
+        When a CC reply is received, this method is called to check which
         segments can be verified. For all segments that can be verified,
         the processing is continued.
         """
@@ -456,13 +457,23 @@ class SCIONElement(object):
                             (isd_as, ver))
 
     def _verify_path_seg(self, seg_meta):
+        """
+        Signature verification for all AS markings within this pcb/path segment.
+        This function is called, when all TRCs and CCs used within this pcb/path
+        segment are available.
+        """
         seg = seg_meta.seg
-        asm = seg.asm(-1)
-        cert_ia = asm.isd_as()
-        trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-        chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
-        return verify_sig_chain_trc(seg.sig_pack3(), asm.p.sig,
-                                    str(cert_ia), chain, trc, asm.p.trcVer)
+        seg_ = PathSegment.from_values(seg.info)
+        for asm in seg.iter_asms():
+            cert_ia = asm.isd_as()
+            trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+            chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
+            seg_.add_asm(asm)
+            if not verify_sig_chain_trc(seg_.sig_pack3(), asm.p.sig,
+                                        str(cert_ia), chain, trc, asm.p.trcVer):
+                logging.error("ASM verification failed: %s" % asm.short_desc())
+                return False
+        return True
 
     def continue_seg_processing(self, seg_meta):
         pass
