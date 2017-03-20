@@ -54,20 +54,6 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
 
-    def _check_trc(self, isd_as, trc_ver):
-        """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
-
-        :param ISD_AS isd_as: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        :returns: True if the files exist, False otherwise.
-        :rtype: bool
-        """
-        if self._get_trc(isd_as, trc_ver):
-            return True
-        return False
-
     def register_up_segment(self, pcb):
         """
         Send up-segment to Local Path Servers and Sibra Servers

@@ -173,17 +173,6 @@ class CoreBeaconServer(BeaconServer):
             isds.add(curr_isd)
         return True
 
-    def _check_trc(self, isd_as, trc_ver):
-        """
-        Return True or False whether the necessary TRC file is found.
-
-        :param ISD_AS isd_as: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        :returns: True if the files exist, False otherwise.
-        :rtype: bool
-        """
-        return bool(self._get_trc(isd_as, trc_ver))
-
     def process_cert_chain_rep(self, cert_chain_rep, meta):
         raise NotImplementedError
 

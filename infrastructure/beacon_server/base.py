@@ -31,7 +31,6 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
-from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
@@ -65,7 +64,6 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
     ASMarking,
     PCBMarking,
-    PathSegment,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
@@ -455,7 +453,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = time.time()
             try:
                 self.process_pcb_queue()
-                self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
@@ -501,37 +498,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if not ifstate.is_active():
                     ifstate.reset()
 
-    def _try_to_verify_beacon(self, pcb, quiet=False):
-        """
-        Try to verify a beacon.
-
-        :param pcb: path segment to verify.
-        :type pcb: PathSegment
-        """
-        assert isinstance(pcb, PathSegment)
-        asm = pcb.asm(-1)
-        if self._check_trc(asm.isd_as(), asm.p.trcVer):
-            if self._verify_beacon(pcb):
-                self._handle_verified_beacon(pcb)
-            else:
-                logging.warning("Invalid beacon. %s", pcb)
-        else:
-            if not quiet:
-                logging.warning("Certificate(s) or TRC missing for pcb: %s",
-                                pcb.short_desc())
-            self.unverified_beacons.append(pcb)
-
-    @abstractmethod
-    def _check_trc(self, isd_as, trc_ver):
-        """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
-
-        :param ISD_AS isd_is: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        """
-        raise NotImplementedError
-
     def _get_my_trc(self):
         return self.trust_store.get_trc(self.addr.isd_as[0])
 
@@ -566,23 +532,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 return None
         return trc
 
-    def _verify_beacon(self, pcb):
-        """
-        Once the necessary certificate and TRC files have been found, verify the
-        beacons.
-
-        :param pcb: path segment to verify.
-        :type pcb: PathSegment
-        """
-        assert isinstance(pcb, PathSegment)
-        asm = pcb.asm(-1)
-        cert_ia = asm.isd_as()
-        trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
-        chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
-        return verify_sig_chain_trc(
-            pcb.sig_pack3(), asm.p.sig, str(cert_ia), chain, trc,
-            asm.p.trcVer)
-
     @abstractmethod
     def _handle_verified_beacon(self, pcb):
         """
@@ -613,14 +562,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rep_key = rep.trc.get_isd_ver()
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
-
-    def handle_unverified_beacons(self):
-        """
-        Handle beacons which are waiting to be verified.
-        """
-        for _ in range(len(self.unverified_beacons)):
-            pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb, quiet=True)
 
     def process_rev_objects(self, rev_infos):
         """
