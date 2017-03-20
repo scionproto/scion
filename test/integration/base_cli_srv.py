@@ -227,7 +227,7 @@ class TestServerBase(TestBase):
     def run(self):
         while not self.finished.is_set():
             spkt = self._recv()
-            if spkt and not self._handle_request(spkt):
+            if spkt is not None and not self._handle_request(spkt):
                 self.success = False
                 self.finished.set()
         self._shutdown()
