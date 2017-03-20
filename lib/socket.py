@@ -183,6 +183,9 @@ class UDPSocket(Socket):
                 return self.sock.recvfrom(SCION_BUFLEN, flags)
             except InterruptedError:
                 pass
+            except OSError as e:
+                logging.error("error in recv: %s" % e)
+                return None, None
 
 
 class ReliableSocket(Socket):
@@ -281,7 +284,11 @@ class ReliableSocket(Socket):
         flags = 0
         if not block:
             flags = MSG_DONTWAIT
-        buf = recv_all(self.sock, self.COOKIE_LEN + 5, flags)
+        try:
+            buf = recv_all(self.sock, self.COOKIE_LEN + 5, flags)
+        except OSError as e:
+            logging.error("error in receive: %s", e)
+            return None, None
         if not buf:
             return None, None
         cookie, addr_type, packet_len = struct.unpack("=8sBI", buf)
