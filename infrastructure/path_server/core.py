@@ -245,7 +245,6 @@ class CorePathServer(PathServer):
         else:
             core_segs, down_segs = self._resolve_not_core(
                 req, meta, dst_ia, new_request, req.flags())
-
         if not (core_segs | down_segs):
             if new_request:
                 logging.debug("Segs to %s not found." % dst_ia)

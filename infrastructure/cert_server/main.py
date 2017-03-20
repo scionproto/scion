@@ -123,7 +123,8 @@ class CertServer(SCIONElement):
         for raw in raw_entries:
             count += 1
             trc = TRC.from_raw(raw.decode('utf-8'))
-            self.process_trc_reply(trc, None, from_zk=True)
+            rep = TRCReply.from_values(trc)
+            self.process_trc_reply(rep, None, from_zk=True)
         if count:
             logging.debug("Processed %s trcs from ZK", count)
 

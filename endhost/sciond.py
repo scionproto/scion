@@ -101,6 +101,7 @@ class SCIONDaemon(SCIONElement):
             req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
+        # Keep track of requested paths
         self.requested_paths = []
         self._api_sock = None
         self.daemon_thread = None

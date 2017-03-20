@@ -393,8 +393,9 @@ class CertGenerator(object):
 
     def _gen_trc_files(self, topo_id, _):
         for isd in self.trcs:
-            trc_path = get_trc_file_path("", isd, INITIAL_TRC_VERSION)
-            self.trc_files[topo_id][trc_path] = str(self.trcs[isd])
+            if isd == topo_id[0]:
+                trc_path = get_trc_file_path("", isd, INITIAL_TRC_VERSION)
+                self.trc_files[topo_id][trc_path] = str(self.trcs[isd])
 
 
 class CA_Generator(object):

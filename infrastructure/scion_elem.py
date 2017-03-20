@@ -222,6 +222,14 @@ class SCIONElement(object):
             isd_as = self.addr.isd_as
         return isd_as in self._core_ases[isd_as[0]]
 
+    def _update_core_ases(self, trc):
+        """
+        When a new trc is received, this function is called to
+        update the core ases map
+        """
+        isd = trc.isd
+        self._core_ases[isd] = trc.get_core_ases()
+
     def handle_msg_meta(self, msg, meta):
         """
         Main routine to handle incoming SCION messages.
@@ -370,11 +378,21 @@ class SCIONElement(object):
         isd, ver = rep.trc.get_isd_ver()
         logging.info("TRC reply received for %sv%s" % (isd, ver))
         self.trust_store.add_trc(rep.trc, False)
+        # Update core ases for isd this trc belongs to
+        self._update_core_ases(rep.trc)
         self.requested_trcs_certs.discard((isd, ver))
-        # Share trc with CS
+        # Send trc to CS
         meta = self.get_cs()
         self.send_meta(rep, meta)
         # Remove received TRC from map
+        self._remove_trc(isd, ver)
+
+    def _remove_trc(self, isd, ver):
+        """
+        When a trc reply is received, this method is called to check which
+        segments can be verified. For all segments that can be verified,
+        the processing is continued.
+        """
         for seg_meta in list(self.unverified_segs):
             seg_meta.missing_trcs.discard((isd, ver))
             # If all required trcs and certs are received
@@ -383,8 +401,8 @@ class SCIONElement(object):
                     self.unverified_segs.discard(seg_meta)
                     if seg_meta.from_zk:
                         self.process_path_from_zk(seg_meta)
-                else:
-                    self.continue_seg_processing(seg_meta)
+                    else:
+                        self.continue_seg_processing(seg_meta)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -404,10 +422,18 @@ class SCIONElement(object):
         logging.info("Cert chain reply received for %sv%s" % (isd_as, ver))
         self.trust_store.add_cert(rep.chain, False)
         self.requested_trcs_certs.discard((isd_as, ver))
-        # Share cc with CS
+        # Send cc to CS
         meta = self.get_cs()
         self.send_meta(rep, meta)
         # Remove received cert chain from map
+        self._remove_cert(isd_as, ver)
+
+    def _remove_cert(self, isd_as, ver):
+        """
+        When a cc reply is received, this method is called to check which
+        segments can be verified. For all segments that can be verified,
+        the processing is continued.
+        """
         for seg_meta in list(self.unverified_segs):
             seg_meta.missing_certs.discard((isd_as, ver))
             # If all required trcs and certs are received
