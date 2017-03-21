@@ -42,8 +42,9 @@ class CertMgmtRequest(CertMgmtBase):  # pragma: no cover
         return ISD_AS(self.p.isdas)
 
     @classmethod
-    def from_values(cls, isd_as, version):
-        return cls(cls.P_CLS.new_message(isdas=int(isd_as), version=version))
+    def from_values(cls, isd_as, version, cache_only=False):
+        return cls(cls.P_CLS.new_message(isdas=int(isd_as), version=version,
+                                         cacheOnly=cache_only))
 
 
 class CertChainRequest(CertMgmtRequest):
@@ -52,7 +53,8 @@ class CertChainRequest(CertMgmtRequest):
     P_CLS = P.CertChainReq
 
     def short_desc(self):
-        return "%sv%s" % (self.isd_as(), self.p.version)
+        return "%sv%s (Cache only? %s)" % (self.isd_as(), self.p.version,
+                                           self.p.cacheOnly)
 
 
 class CertChainReply(CertMgmtBase):  # pragma: no cover
@@ -82,7 +84,8 @@ class TRCRequest(CertMgmtRequest):
     P_CLS = P.TRCReq
 
     def short_desc(self):
-        return "%sv%s" % (self.isd_as()[0], self.p.version)
+        return "%sv%s (Cache only? %s)" % (self.isd_as()[0], self.p.version,
+                                           self.p.cacheOnly)
 
 
 class TRCReply(CertMgmtBase):  # pragma: no cover
