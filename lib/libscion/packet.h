@@ -7,26 +7,26 @@
 #pragma pack(1)
 
 typedef struct {
-    /** Packet Type of the packet (version, srcType, dstType) */
-    uint16_t ver_src_dst;
+    /** Packet Type of the packet (version, dstType, srcType) */
+    uint16_t ver_dst_src;
     /** Total Length of the packet */
     uint16_t total_len;
+    /** Header length that includes the path */
+    uint8_t header_len;
     /** Offset of current Info opaque field*/
     uint8_t current_iof;
     /** Offset of current Hop opaque field*/
     uint8_t current_hof;
     /** next header type, shared with IP protocol number*/
     uint8_t next_header;
-    /** Header length that includes the path */
-    uint8_t header_len;
 } SCIONCommonHeader;
 typedef SCIONCommonHeader sch_t;
 
 #pragma pack(pop)
 
-#define PROTO_VER(sch) ((ntohs((sch)->ver_src_dst) >> 12))
-#define SRC_TYPE(sch) ((ntohs((sch)->ver_src_dst) & 0xfc0) >> 6)
-#define DST_TYPE(sch) (ntohs((sch)->ver_src_dst) & 0x3f)
+#define PROTO_VER(sch) ((ntohs((sch)->ver_dst_src) >> 12))
+#define DST_TYPE(sch) ((ntohs((sch)->ver_dst_src) >> 6) & 0x3f)
+#define SRC_TYPE(sch) (ntohs((sch)->ver_dst_src) & 0x3f)
 
 typedef struct {
     uint8_t len;

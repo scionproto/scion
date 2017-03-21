@@ -17,6 +17,7 @@ package spkt
 import (
 	"fmt"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
@@ -28,13 +29,13 @@ const (
 
 type CmnHdr struct {
 	Ver       uint8
-	SrcType   uint8
-	DstType   uint8
+	DstType   addr.HostAddrType
+	SrcType   addr.HostAddrType
 	TotalLen  uint16
+	HdrLen    uint8
 	CurrInfoF uint8
 	CurrHopF  uint8
 	NextHdr   common.L4ProtocolType
-	HdrLen    uint8
 }
 
 const (
@@ -51,20 +52,20 @@ func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, *common.Error) {
 
 func (c *CmnHdr) Parse(b common.RawBytes) *common.Error {
 	offset := 0
-	verSrcDst := common.Order.Uint16(b[offset:])
-	c.Ver = uint8(verSrcDst >> 12)
-	c.SrcType = uint8(verSrcDst>>6) & 0x3F
-	c.DstType = uint8(verSrcDst) & 0x3F
+	verDstSrc := common.Order.Uint16(b[offset:])
+	c.Ver = uint8(verDstSrc >> 12)
+	c.DstType = addr.HostAddrType(verDstSrc>>6) & 0x3F
+	c.SrcType = addr.HostAddrType(verDstSrc) & 0x3F
 	offset += 2
 	c.TotalLen = common.Order.Uint16(b[offset:])
 	offset += 2
+	c.HdrLen = b[offset]
+	offset += 1
 	c.CurrInfoF = b[offset]
 	offset += 1
 	c.CurrHopF = b[offset]
 	offset += 1
 	c.NextHdr = common.L4ProtocolType(b[offset])
-	offset += 1
-	c.HdrLen = b[offset]
 	if c.Ver != SCIONVersion {
 		// This can only usefully be replied to if the version specified is one
 		// that the current router supports, but has deprecated.
@@ -77,31 +78,31 @@ func (c *CmnHdr) Parse(b common.RawBytes) *common.Error {
 
 func (c *CmnHdr) Write(b common.RawBytes) {
 	offset := 0
-	var verSrcDst uint16
-	verSrcDst = uint16(c.Ver&0xF)<<12 | uint16(c.SrcType&0x3F)<<6 | uint16(c.DstType&0x3F)
-	common.Order.PutUint16(b[offset:], verSrcDst)
+	var verDstSrc uint16
+	verDstSrc = uint16(c.Ver&0xF)<<12 | uint16(c.DstType&0x3F)<<6 | uint16(c.SrcType&0x3F)
+	common.Order.PutUint16(b[offset:], verDstSrc)
 	offset += 2
 	common.Order.PutUint16(b[offset:], c.TotalLen)
 	offset += 2
+	b[offset] = c.HdrLen
+	offset += 1
 	b[offset] = c.CurrInfoF
 	offset += 1
 	b[offset] = c.CurrHopF
 	offset += 1
-	b[offset] = byte(c.NextHdr)
-	offset += 1
-	b[offset] = c.HdrLen
+	b[offset] = uint8(c.NextHdr)
 }
 
 func (c *CmnHdr) UpdatePathOffsets(b common.RawBytes, iOff, hOff uint8) {
 	c.CurrInfoF = iOff
 	c.CurrHopF = hOff
-	b[4] = c.CurrInfoF
-	b[5] = c.CurrHopF
+	b[5] = c.CurrInfoF
+	b[6] = c.CurrHopF
 }
 
 func (c CmnHdr) String() string {
 	return fmt.Sprintf(
-		"Ver:%d Src:%d Dst:%d Total:%dB CurrInfoF:%dB CurrHopF:%dB NextHdr:%d HdrLen:%dB",
-		c.Ver, c.SrcType, c.DstType, c.TotalLen, c.CurrInfoF, c.CurrHopF, c.NextHdr, c.HdrLen,
+		"Ver:%d Dst:%s Src:%s TotalLen:%dB HdrLen: %dB CurrInfoF:%dB CurrHopF:%dB NextHdr:%s",
+		c.Ver, c.DstType, c.SrcType, c.TotalLen, c.HdrLen, c.CurrInfoF, c.CurrHopF, c.NextHdr,
 	)
 }

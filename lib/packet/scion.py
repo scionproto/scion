@@ -78,14 +78,14 @@ class SCIONCommonHdr(Serializable):
 
     def __init__(self, raw=None):  # pragma: no cover
         self.version = 0  # Version of SCION packet.
-        self.src_addr_type = None  # Type of the src address.
-        self.dst_addr_type = None  # Length of the dst address.
+        self.dst_addr_type = None
+        self.src_addr_type = None
         self.addrs_len = None  # Length of the address block
         self.total_len = None  # Total length of the packet.
+        self.hdr_len = None  # Header length including the path.
         self._iof_idx = None  # Index of the current Info Opaque Field
         self._hof_idx = None  # Index of the current Hop Opaque Field
         self.next_hdr = None  # Type of the next hdr field (IP protocol numbers)
-        self.hdr_len = None  # Header length including the path.
         super().__init__(raw)
 
     def _parse(self, raw):
@@ -93,15 +93,15 @@ class SCIONCommonHdr(Serializable):
         Parses the raw data and populates the fields accordingly.
         """
         data = Raw(raw, self.NAME, self.LEN)
-        (types, self.total_len, curr_iof_p, curr_hof_p,
-         self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", data.pop())
+        (types, self.total_len, self.hdr_len, iof_off, hof_off,
+         self.next_hdr) = struct.unpack("!HHBBBB", data.pop())
         self.version = types >> 12
         if self.version != SCION_PROTO_VERSION:
             raise SCMPBadVersion("Unsupported SCION version: %s" % self.version)
-        self.src_addr_type = (types & 0x0fc0) >> 6
-        self.dst_addr_type = types & 0x003f
+        self.dst_addr_type = (types >> 6) & 0x3f
+        self.src_addr_type = types & 0x3f
         self.addrs_len, _ = SCIONAddrHdr.calc_lens(
-            self.src_addr_type, self.dst_addr_type)
+            self.dst_addr_type, self.src_addr_type)
         if self.hdr_len < self.LEN + self.addrs_len:
             # Can't send an SCMP error, as there isn't enough information to
             # parse the path and the l4 header.
@@ -110,11 +110,11 @@ class SCIONCommonHdr(Serializable):
                 (self.hdr_len, self.LEN, self.addrs_len))
         first_of_offset = self.LEN + self.addrs_len
         # FIXME(kormat): NB this assumes that all OFs have the same length.
-        self._iof_idx = (curr_iof_p - first_of_offset) // OpaqueField.LEN
-        self._hof_idx = (curr_hof_p - first_of_offset) // OpaqueField.LEN
+        self._iof_idx = (iof_off - first_of_offset) // OpaqueField.LEN
+        self._hof_idx = (hof_off - first_of_offset) // OpaqueField.LEN
 
     @classmethod
-    def from_values(cls, src_type, dst_type, next_hdr):
+    def from_values(cls, dst_type, src_type, next_hdr):
         """
         Returns a SCIONCommonHdr object with the values specified.
 
@@ -123,9 +123,9 @@ class SCIONCommonHdr(Serializable):
         :param int next_hdr: Next header type.
         """
         inst = cls()
-        inst.src_addr_type = src_type
         inst.dst_addr_type = dst_type
-        inst.addrs_len, _ = SCIONAddrHdr.calc_lens(src_type, dst_type)
+        inst.src_addr_type = src_type
+        inst.addrs_len, _ = SCIONAddrHdr.calc_lens(dst_type, src_type)
         inst.next_hdr = next_hdr
         inst.total_len = inst.hdr_len = cls.LEN + inst.addrs_len
         inst._iof_idx = inst._hof_idx = 0
@@ -133,16 +133,16 @@ class SCIONCommonHdr(Serializable):
 
     def pack(self):
         packed = []
-        types = ((self.version << 12) | (self.src_addr_type << 6) |
-                 self.dst_addr_type)
-        packed.append(struct.pack("!HH", types, self.total_len))
+        types = ((self.version << 12) | (self.dst_addr_type << 6) |
+                 self.src_addr_type)
+        packed.append(struct.pack("!HHB", types, self.total_len, self.hdr_len))
         curr_iof_p = curr_hof_p = self.LEN + self.addrs_len
+        # FIXME(kormat): NB this assumes that all OFs have the same length.
         if self._iof_idx:
             curr_iof_p += self._iof_idx * OpaqueField.LEN
         if self._hof_idx:
             curr_hof_p += self._hof_idx * OpaqueField.LEN
-        packed.append(struct.pack("!BB", curr_iof_p, curr_hof_p))
-        packed.append(struct.pack("!BB", self.next_hdr, self.hdr_len))
+        packed.append(struct.pack("!BBB", curr_iof_p, curr_hof_p, self.next_hdr))
         raw = b"".join(packed)
         assert len(raw) == self.LEN
         return raw
@@ -249,17 +249,17 @@ class SCIONAddrHdr(Serializable):
             self.src.host.TYPE, self.dst.host.TYPE)
 
     @classmethod
-    def calc_lens(cls, src_type, dst_type):
+    def calc_lens(cls, dst_type, src_type):
         try:
-            data_len = SCIONAddr.calc_len(src_type)
-        except HostAddrInvalidType:
-            raise SCMPBadSrcType(
-                "Unsupported src address type: %s" % src_type) from None
-        try:
-            data_len += SCIONAddr.calc_len(dst_type)
+            data_len = SCIONAddr.calc_len(dst_type)
         except HostAddrInvalidType:
             raise SCMPBadDstType(
                 "Unsupported dst address type: %s" % dst_type) from None
+        try:
+            data_len += SCIONAddr.calc_len(src_type)
+        except HostAddrInvalidType:
+            raise SCMPBadSrcType(
+                "Unsupported src address type: %s" % src_type) from None
         pad_len = calc_padding(data_len, cls.BLK_SIZE)
         total_len = data_len + pad_len
         assert total_len % cls.BLK_SIZE == 0
@@ -675,7 +675,7 @@ class SCIONL4Packet(SCIONExtPacket):
 
 
 def build_base_hdrs(src, dst, l4=L4Proto.UDP):
-    cmn_hdr = SCIONCommonHdr.from_values(src.host.TYPE, dst.host.TYPE, l4)
+    cmn_hdr = SCIONCommonHdr.from_values(dst.host.TYPE, src.host.TYPE, l4)
     addr_hdr = SCIONAddrHdr.from_values(src, dst)
     return cmn_hdr, addr_hdr
 
