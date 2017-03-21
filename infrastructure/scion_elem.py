@@ -283,11 +283,9 @@ class SCIONElement(object):
         """
         if self._verify_path_seg(seg_meta):
             self.unverified_segs.discard(seg_meta)
-            if seg_meta.from_zk:
-                self.process_seg_from_zk(seg_meta)
-            else:
+            if seg_meta.meta:
                 seg_meta.meta.close()
-                self.continue_seg_processing(seg_meta)
+            seg_meta.callback(seg_meta)
         else:
             logging.error("Verification failed for %s" %
                           seg_meta.seg.short_desc())
@@ -316,7 +314,7 @@ class SCIONElement(object):
                 isd_as = ISD_AS.from_values(isd, 0)
                 trc_req = TRCRequest.from_values(isd_as, ver)
                 logging.info("Requesting %sv%s TRC", isd, ver)
-                if seg_meta.from_zk:
+                if not seg_meta.meta:
                     meta = self.get_cs()
                     if meta:
                         self.send_meta(trc_req, meta)
@@ -332,7 +330,7 @@ class SCIONElement(object):
                 self.requested_trcs_certs.add((isd_as, ver))
                 cert_req = CertChainRequest.from_values(isd_as, ver)
                 logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
-                if seg_meta.from_zk:
+                if not seg_meta.meta:
                     meta = self.get_cs()
                     if meta:
                         self.send_meta(cert_req, meta)

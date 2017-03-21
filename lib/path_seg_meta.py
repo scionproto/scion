@@ -23,15 +23,15 @@ class PathSegMeta(object):
     necessary metadata for a path segment.
     """
 
-    def __init__(self, seg, meta=None, type_=None, params=None, from_zk=False):
+    def __init__(self, seg, callback, meta=None, type_=None, params=None):
         self.trc_vers, self.cert_vers = seg.get_trcs_certs()
         self.missing_trcs = set()
         self.missing_certs = set()
         self.seg = seg
+        self.callback = callback
         self.meta = meta
         self.type_ = type_
         self.params = params
-        self.from_zk = from_zk
 
     def verifiable(self):
         return not self.missing_trcs and not self.missing_certs

@@ -250,7 +250,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
-        seg_meta = PathSegMeta(pcb, meta)
+        seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta)
         self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):

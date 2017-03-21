@@ -178,7 +178,8 @@ class SCIONDaemon(SCIONElement):
             self.peer_revs.add(rev_info)
 
         for type_, pcb in path_reply.iter_pcbs():
-            seg_meta = PathSegMeta(pcb, meta, type_)
+            seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
+                                   meta, type_)
             self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):

@@ -165,7 +165,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             recs = PathSegmentRecords.from_raw(raw)
             for type_, pcb in recs.iter_pcbs():
                 count += 1
-                seg_meta = PathSegMeta(pcb, type_=type_, from_zk=True)
+                seg_meta = PathSegMeta(pcb, self.process_seg_from_zk,
+                                       type_=type_)
                 self.process_path_seg(seg_meta)
         if count:
             logging.debug("Processed %s PCBs from ZK", count)
@@ -351,7 +352,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.revocations.add(rev_info)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
-            seg_meta = PathSegMeta(pcb, meta, type_, params)
+            seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
+                                   type_, params)
             self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):

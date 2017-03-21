@@ -99,7 +99,7 @@ class LocalBeaconServer(BeaconServer):
                     logging.error("Unable to parse raw pcb: %s", e)
                     continue
             if self.path_policy.check_filters(pcb):
-                seg_meta = PathSegMeta(pcb, from_zk=True)
+                seg_meta = PathSegMeta(pcb, self.continue_seg_processing)
                 self.process_path_seg(seg_meta)
                 self.handle_ext(pcb)
 

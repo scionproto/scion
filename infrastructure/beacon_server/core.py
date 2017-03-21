@@ -134,7 +134,7 @@ class CoreBeaconServer(BeaconServer):
             if not self._filter_pcb(pcb):
                 count += 1
                 continue
-            seg_meta = PathSegMeta(pcb, from_zk=True)
+            seg_meta = PathSegMeta(pcb, self.continue_seg_processing)
             self.process_path_seg(seg_meta)
             self.handle_ext(pcb)
         if count:
