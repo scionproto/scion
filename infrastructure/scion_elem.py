@@ -290,9 +290,6 @@ class SCIONElement(object):
             logging.error("Verification failed for %s" %
                           seg_meta.seg.short_desc())
 
-    def process_seg_from_zk(self, seg_meta):
-        pass
-
     def get_cs(self):
         """
         Lookup certificate servers address and return meta.
@@ -305,6 +302,12 @@ class SCIONElement(object):
         return UDPMetadata.from_values(host=addr, port=port)
 
     def request_missing_trcs(self, seg_meta):
+        """
+        For all missing TRCs which are missing to verify this pcb/path segment,
+        request them. Request is sent to certificate server, if the
+        pcb/path segment was received by zk. Otherwise the sender of this
+        pcb/path segment is asked.
+        """
         missing_trcs = seg_meta.missing_trcs
         if missing_trcs:
             for isd, ver in list(missing_trcs):
@@ -322,6 +325,12 @@ class SCIONElement(object):
                     self.send_meta(trc_req, seg_meta.meta)
 
     def request_missing_certs(self, seg_meta):
+        """
+        For all missing CCs which are missing to verify this pcb/path segment,
+        request them. Request is sent to certificate server, if the
+        pcb/path segment was received by zk. Otherwise the sender of this
+        pcb/path segment is asked.
+        """
         missing_certs = seg_meta.missing_certs
         if missing_certs:
             for isd_as, ver in list(missing_certs):
@@ -472,9 +481,6 @@ class SCIONElement(object):
                 logging.error("ASM verification failed: %s" % asm.short_desc())
                 return False
         return True
-
-    def continue_seg_processing(self, seg_meta):
-        pass
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.
