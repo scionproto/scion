@@ -24,6 +24,7 @@ import time
 
 # External
 import lz4
+from OpenSSL import crypto
 
 # SCION
 from lib.crypto.asymcrypto import verify, sign
@@ -101,6 +102,8 @@ class TRC(object):
                 val = int(val)
             elif type_ in (dict, ):
                 val = copy.deepcopy(val)
+            elif type_ in (bytes, ):
+                val = base64.b64decode(val.encode('utf-8'))
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
             key = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
@@ -177,7 +180,7 @@ class TRC(object):
         return trc
 
     def sign(self, isd_as, sig_priv_key):
-        data = self._sig_input()
+        data = self.sig_input()
         self.signatures[isd_as] = sign(data, sig_priv_key)
 
     def verify(self, old_trc):
@@ -198,7 +201,7 @@ class TRC(object):
         # Add every signer to this set whose signature was verified successfully
         for signer in signatures:
             public_key = self.core_ases[signer].subject_sig_key_raw
-            if self._verify_signature(signatures[signer], public_key):
+            if self.verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
             else:
                 logging.warning("TRC contains a signature which could not \
@@ -211,7 +214,7 @@ class TRC(object):
         logging.debug("TRC verified.")
         return True
 
-    def _verify_signature(self, signature, public_key):
+    def verify_signature(self, signature, public_key):
         """
         Checks if the signature can be verified with the given public key for a
         single signature
@@ -220,17 +223,19 @@ class TRC(object):
             given key, False otherwise
         :rtype bool
         """
-        if not verify(self._sig_input(), signature, public_key):
+        if not verify(self.sig_input(), signature, public_key):
             return False
         return True
 
-    def _sig_input(self):
+    def sig_input(self):
         d = self.dict(False)
         for k in d:
             if self.FIELDS_MAP[k][1] == str:
                 d[k] = base64.b64encode(d[k].encode('utf-8')).decode('utf-8')
             elif self.FIELDS_MAP[k][1] == dict:
                 d[k] = self._encode_dict(d[k])
+            elif self.FIELDS_MAP[k][1] == bytes:
+                d[k] = base64.b64encode(d[k]).decode('utf-8')
         j = json.dumps(d, sort_keys=True, separators=(',', ':'))
         return j.encode('utf-8')
 
@@ -247,6 +252,8 @@ class TRC(object):
         Convert the instance to json format.
         """
         trc_dict = copy.deepcopy(self.dict(with_signatures))
+        trc_dict[ROOT_RAINS_KEY_STRING] = \
+            base64.b64encode(trc_dict[ROOT_RAINS_KEY_STRING]).decode('utf-8')
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
             d = trc_dict[CORE_ASES_STRING][subject]
@@ -268,6 +275,57 @@ class TRC(object):
             trc_dict[SIGNATURES_STRING] = signatures
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
+
+    def get_ca_sigs(self):
+        """
+        Returns a list of tuples (isd, ca name, ca signature) for all CA
+        signatures on this TRC
+        """
+        cas = []
+        for subject, signature in self.signatures.items():
+            type_, isd, ca_name = self._parse_subject_str(subject)
+            if type_ == "CA":
+                cas.append((int(isd), ca_name, signature))
+        return cas
+
+    def get_rains_sigs(self):
+        """
+        Returns a list of tuples (isd, rains signature) for all RAINS signatures
+        on this TRC
+        """
+        rains = []
+        for subject, signature in self.signatures.items():
+            type_, isd, _ = self._parse_subject_str(subject)
+            if type_ == "RAINS":
+                rains.append((int(isd), signature))
+        return rains
+
+    def get_as_sigs(self):
+        """
+        Returns a list of tuples (isd_as, as signature) for all AS signatures
+        on this TRC
+        """
+        ases = []
+        for subject, signature in self.signatures.items():
+            type_, isd_as, _ = self._parse_subject_str(subject)
+            if type_ == "AS":
+                ases.append((isd_as, signature))
+        return ases
+
+    def _parse_subject_str(self, subject):
+        sub = subject.split(',', 1)
+        # We have a CA or rains as subject
+        if sub[0].split(' ')[0] == "ISD":
+            isd = sub[0].split(' ')[1]
+            if sub[1].strip() == "RAINS":
+                return "RAINS", isd, ""
+            else:
+                ca = sub[1].split(':')[1].strip()
+                return "CA", isd, ca
+        # We have an AS
+        else:
+            isd_as = ISD_AS(sub[0])
+            return "AS", isd_as, ""
 
     def pack(self, lz4_=False):
         ret = self.to_json().encode('utf-8')
@@ -305,8 +363,115 @@ def verify_new_trc(old_trc, new_trc):
         return False
     # Check if there are enough valid signatures for new TRC
     if not new_trc.verify(old_trc):
-        logging.error("New TRC verification failed, missing or \
-        invalid signatures")
+        logging.error("New TRC verification failed, missing or"
+                      "invalid signatures")
         return False
     logging.debug("New TRC verified")
     return True
+
+
+def verify_trc_chain(local_trc, verified_rem_trcs, remote_trc):
+    """
+    Checks if remote TRC can be verified using local TRC or already
+    verified remote TRCs. i.e. checks if there is a trust chain from
+    local TRC to remote TRC.
+
+    :param TRC local_trc: The local TRC to this ISD.
+    :param List(TRC) verified_rem_trcs: Already verified remote TRCs.
+    :param TRC remote_trc: Remote TRC to verify.
+    :returns: True if remote_trc can be verified, false otherwise.
+    """
+    # Try to verify with local TRC
+    if verify_remote_trc_xsigs(local_trc, remote_trc):
+        return True
+    # Try to verify with verified remote TRCs
+    for trc in verified_rem_trcs:
+        if verify_remote_trc_xsigs(trc, remote_trc):
+            return True
+    return False
+
+
+def verify_remote_trc_xsigs(ver_trc, remote_trc):
+    """
+    Check if remote TRC can be verified. i.e. Check if remote TRC
+    is signed correctly by the ISD ver_trc belongs to.
+
+    :param TRC ver_trc: Already verified TRC, could be local or remote.
+    :param TRC remote_trc: Remote TRC to be verified.
+    :returns: True if remote TRC can be verified, False otherwise
+    """
+    assert isinstance(ver_trc, TRC)
+    assert isinstance(remote_trc, TRC)
+    if ver_trc.isd == remote_trc.isd:
+        logging.warning("TRCs are from the same ISD.")
+        return False
+    return (verify_core_as_xsigs(ver_trc, remote_trc) and
+            verify_rains_xsigs(ver_trc, remote_trc) and
+            verify_ca_xsigs(ver_trc, remote_trc))
+
+
+def verify_core_as_xsigs(ver_trc, remote_trc):
+    """
+    Checks if remote_trc is signed by a core AS in ver_trc.
+
+    :param TRC ver_trc: Already verified TRC, could be local or remote.
+    :param TRC remote_trc: Remote TRC to be verified.
+    :returns: True if remote_trc has a valid signature of a core AS in ver_trc.
+              False otherwise.
+    """
+    as_sigs = remote_trc.get_as_sigs()
+    for isd_as, signature in as_sigs:
+        if isd_as[0] != ver_trc.isd:
+            continue
+        pub_key = ver_trc.core_ases[str(isd_as)][ONLINE_KEY_STRING]
+        if remote_trc.verify_signature(signature, pub_key):
+            return True
+    logging.warning("Remote TRC(ISD %s) is not(correctly) signed by a core"
+                    " AS(ISD %s)" % (remote_trc.isd, ver_trc.isd))
+    return False
+
+
+def verify_rains_xsigs(ver_trc, remote_trc):
+    """
+    Checks if remote_trc is signed by RAINS in ver_trc.
+
+    :param TRC ver_trc: Already verified TRC, could be local or remote.
+    :param TRC remote_trc: Remote TRC to be verified.
+    :returns: True if remote_trc has a valid signature of RAINS in ver_trc.
+              False otherwise.
+    """
+    rains_sigs = remote_trc.get_rains_sigs()
+    for isd, signature in rains_sigs:
+        if isd != ver_trc.isd:
+            continue
+        pub_key = ver_trc.root_rains_key
+        if remote_trc.verify_signature(signature, pub_key):
+            return True
+    logging.warning("Remote TRC(ISD %s) is not(correctly) signed by RAINS"
+                    "(ISD %s)" % (remote_trc.isd, ver_trc.isd))
+    return False
+
+
+def verify_ca_xsigs(ver_trc, remote_trc):
+    """
+    Checks if remote_trc is signed by a CA in ver_trc.
+
+    :param TRC ver_trc: Already verified TRC, could be local or remote.
+    :param TRC remote_trc: Remote TRC to be verified.
+    :returns: True if remote_trc has a valid signature of a CA in ver_trc.
+              False otherwise.
+    """
+    ca_sigs = remote_trc.get_ca_sigs()
+    for isd, ca_name, signature in ca_sigs:
+        if isd != ver_trc.isd:
+            continue
+        cert = crypto.load_certificate(crypto.FILETYPE_ASN1,
+                                       ver_trc.root_cas[ca_name])
+        try:
+            crypto.verify(cert, signature, remote_trc.sig_input(), "sha256")
+            return True
+        except crypto.Error:
+            continue
+    logging.warning("Remote TRC(ISD %s) is not(correctly) signed by a CA"
+                    "(ISD %s)" % (remote_trc.isd, ver_trc.isd))
+    return False

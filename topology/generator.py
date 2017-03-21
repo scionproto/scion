@@ -173,8 +173,9 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
-        ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
+        ca_private_key_files, ca_cert_files, ca_certs, ca_keys = \
+            self._generate_cas()
+        cert_files, trc_files = self._generate_certs_trcs(ca_certs, ca_keys)
         topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
@@ -189,8 +190,8 @@ class ConfigGenerator(object):
         ca_gen = CA_Generator(self.topo_config)
         return ca_gen.generate()
 
-    def _generate_certs_trcs(self, ca_certs):
-        certgen = CertGenerator(self.topo_config, ca_certs)
+    def _generate_certs_trcs(self, ca_certs, ca_keys):
+        certgen = CertGenerator(self.topo_config, ca_certs, ca_keys)
         return certgen.generate()
 
     def _generate_topology(self):
@@ -266,9 +267,12 @@ class ConfigGenerator(object):
 
 
 class CertGenerator(object):
-    def __init__(self, topo_config, ca_certs):
+    def __init__(self, topo_config, ca_certs, ca_keys):
         self.topo_config = topo_config
         self.ca_certs = ca_certs
+        self.rains_priv_keys = {}
+        self.rains_pub_keys = {}
+        self.ca_keys = ca_keys
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
@@ -283,14 +287,26 @@ class CertGenerator(object):
         self.trc_files = defaultdict(dict)
 
     def generate(self):
+        self._gen_rains_root_keys()
         self._self_sign_keys()
         self._iterate(self._gen_as_keys)
         self._iterate(self._gen_as_certs)
         self._build_chains()
         self._iterate(self._gen_trc_entry)
         self._iterate(self._sign_trc)
+        self._gen_xsigs()
         self._iterate(self._gen_trc_files)
         return self.cert_files, self.trc_files
+
+    def _gen_rains_root_keys(self):
+        isds = set()
+        for isd_as, as_config in self.topo_config["ASes"].items():
+            isd = ISD_AS(isd_as)[0]
+            isds.add(isd)
+        for isd in isds:
+            pub_key, priv_key = generate_sign_keypair()
+            self.rains_priv_keys[isd] = priv_key
+            self.rains_pub_keys[isd] = pub_key
 
     def _self_sign_keys(self):
         topo_id = TopoID.from_values(0, 0)
@@ -379,11 +395,12 @@ class CertGenerator(object):
             ca_certs[ca_name] = \
                  crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         trc.root_cas = ca_certs
+        trc.root_rains_key = self.rains_pub_keys[topo_id[0]]
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
             isd, "ISD %s" % isd, 0, {}, {},
-            {}, 2, 'dns_srv_addr', 2,
+            {}, 2, '', 2,
             3, 18000, True, {})
 
     def _sign_trc(self, topo_id, as_conf):
@@ -391,6 +408,62 @@ class CertGenerator(object):
             return
         trc = self.trcs[topo_id[0]]
         trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
+
+    def _get_neighbors(self):
+        """
+        Get ISD neighbor information from links contained in topology file
+        """
+        neighbor_isds = defaultdict(set)
+        for link in self.topo_config["links"]:
+            a = ISD_AS(link["a"])
+            b = ISD_AS(link["b"])
+            ltype = link["ltype"]
+            if ltype != "CORE":
+                continue
+            if a[0] != b[0]:
+                neighbor_isds[a[0]].add(b[0])
+                neighbor_isds[b[0]].add(a[0])
+        return neighbor_isds
+
+    def _gen_xsigs(self):
+        neighbor_isds = self._get_neighbors()
+        self._rains_xsign_trc(neighbor_isds)
+        self._ca_xsign_trc(neighbor_isds)
+        self._core_as_xsign_trc(neighbor_isds)
+
+    def _ca_xsign_trc(self, neighbor_isds):
+        isd_ca = defaultdict(list)
+        for ca_name, ca_config in self.topo_config["CAs"].items():
+            isd_ca[ca_config["ISD"]].append(ca_name)
+        for isd, neighbors in neighbor_isds.items():
+            for neighbor in neighbors:
+                ca_name = random.choice(isd_ca[neighbor])
+                trc = self.trcs[isd]
+                subject = "ISD %s, CA: %s" % (neighbor, ca_name)
+                trc.signatures[subject] = crypto.sign(self.ca_keys[ca_name],
+                                                      trc.sig_input(),
+                                                      "sha256")
+
+    def _core_as_xsign_trc(self, neighbor_isds):
+        isd_ases = defaultdict(list)
+        for isd_as, as_config in self.topo_config["ASes"].items():
+            if not as_config.get('core', False):
+                continue
+            isd = ISD_AS(isd_as)[0]
+            isd_ases[isd].append(isd_as)
+        for isd, neighbors in neighbor_isds.items():
+            for neighbor in neighbors:
+                isd_as = random.choice(isd_ases[neighbor])
+                trc = self.trcs[isd]
+                trc.sign(str(isd_as),
+                         self.priv_online_root_keys[ISD_AS(isd_as)])
+
+    def _rains_xsign_trc(self, neighbor_isds):
+        for isd, neighbors in neighbor_isds.items():
+            for neighbor in neighbors:
+                trc = self.trcs[isd]
+                subject = "ISD %s, RAINS" % neighbor
+                trc.sign(subject, self.rains_priv_keys[neighbor])
 
     def _gen_trc_files(self, topo_id, _):
         for isd in self.trcs:
@@ -411,7 +484,8 @@ class CA_Generator(object):
         self._iterate(self._gen_ca)
         self._iterate(self._gen_private_key_files)
         self._iterate(self._gen_cert_files)
-        return self.ca_private_key_files, self.ca_cert_files, self.ca_certs
+        return (self.ca_private_key_files, self.ca_cert_files,
+                self.ca_certs, self.ca_key_pairs)
 
     def _iterate(self, f):
         for ca_name, ca_config in self.topo_config["CAs"].items():
