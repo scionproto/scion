@@ -313,7 +313,7 @@ class SCIONElement(object):
         """
         missing_trcs = seg_meta.missing_trcs
         if missing_trcs:
-            for isd, ver in missing_trcs:
+            for isd, ver in list(missing_trcs):
                 with self.req_trcs_certs_lock:
                     if (isd, ver) in self.requested_trcs_certs:
                         continue
@@ -337,7 +337,7 @@ class SCIONElement(object):
         """
         missing_certs = seg_meta.missing_certs
         if missing_certs:
-            for isd_as, ver in missing_certs:
+            for isd_as, ver in list(missing_certs):
                 with self.req_trcs_certs_lock:
                     if (isd_as, ver) in self.requested_trcs_certs:
                         continue
