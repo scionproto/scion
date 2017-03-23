@@ -77,10 +77,9 @@ class SCIONDaemon(SCIONElement):
     The SCION Daemon used for retrieving and combining paths.
     """
     # Max time for a path lookup to succeed/fail.
-    TIMEOUT = 5
+    PATH_REQ_TOUT = 2
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
-    MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=None):
@@ -89,17 +88,15 @@ class SCIONDaemon(SCIONElement):
         """
         super().__init__("sciond", conf_dir, host_addr=addr, port=port)
         # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
-                                         max_res_no=self.MAX_SEG_NO)
-        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
-                                           max_res_no=self.MAX_SEG_NO)
-        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
-                                           max_res_no=self.MAX_SEG_NO)
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.peer_revs = RevCache()
         req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
         self.requests = RequestHandler.start(
             req_name, self._check_segments, self._fetch_segments,
-            self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
+            self._reply_segments, ttl=self.PATH_REQ_TOUT,
+            key_map=self._req_key_map,
         )
         self._api_sock = None
         self.daemon_thread = None
@@ -375,7 +372,7 @@ class SCIONDaemon(SCIONElement):
             empty = SCIONPath()
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
-        deadline = SCIONTime.get_time() + self.TIMEOUT
+        deadline = SCIONTime.get_time() + self.PATH_REQ_TOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))
         if not self._wait_for_events([e], deadline):

@@ -57,7 +57,7 @@ _IF_INFO_TTL = 60 * 60
 # amount of time.
 _SVC_INFO_TTL = 10
 # Time after which a request gets retired.
-_SCIOND_TOUT = 5
+_SCIOND_TOUT = 3
 
 
 class SCIONDLibError(SCIONBaseError):
@@ -70,6 +70,10 @@ class SCIONDLibNotInitializedError(SCIONDLibError):
 
 class SCIONDConnectionError(SCIONDLibError):
     """Connection to SCIOND failed."""
+
+
+class SCIONDRequestError(SCIONDLibError):
+    """Request could not be sent to SCIOND."""
 
 
 class SCIONDResponseError(SCIONDLibError):
@@ -117,7 +121,8 @@ class SCIONDConnector:
         request = SCIONDPathRequest.from_values(
             req_id, dst_ia, src_ia, max_paths, flags.flush, flags.sibra)
         with closing(self._create_socket()) as socket:
-            socket.send(request.pack_full())
+            if not socket.send(request.pack_full()):
+                raise SCIONDRequestError
             response = self._get_response(socket, req_id, SMT.PATH_REPLY)
             if response.p.errorCode != SCIONDPathReplyError.OK:
                 raise SCIONDResponseError(
@@ -136,7 +141,8 @@ class SCIONDConnector:
             as_req = SCIONDASInfoRequest.from_values(
                 req_id, isd_as)
             with closing(self._create_socket()) as socket:
-                socket.send(as_req.pack_full())
+                if not socket.send(as_req.pack_full()):
+                    raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.AS_REPLY)
             self._as_infos[q_ia] = list(response.iter_entries())
             return self._as_infos[q_ia]
@@ -156,7 +162,8 @@ class SCIONDConnector:
             req_id = self._req_id.inc()
             br_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
             with closing(self._create_socket()) as socket:
-                socket.send(br_req.pack_full())
+                if not socket.send(br_req.pack_full()):
+                    raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.IF_REPLY)
             for entry in response.iter_entries():
                 self._if_infos[entry.p.ifID] = entry
@@ -179,7 +186,8 @@ class SCIONDConnector:
             svc_req = SCIONDServiceInfoRequest.from_values(
                 req_id, service_types)
             with closing(self._create_socket()) as socket:
-                socket.send(svc_req.pack_full())
+                if not socket.send(svc_req.pack_full()):
+                    raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.SERVICE_REPLY)
             for entry in response.iter_entries():
                 self._svc_infos[entry.service_type()] = entry
@@ -215,7 +223,8 @@ class SCIONDConnector:
         rev_not = SCIONDRevNotification.from_values(
             self._req_id.inc(), rev_info)
         with closing(self._create_socket()) as socket:
-            socket.send(rev_not.pack_full())
+            if not socket.send(rev_not.pack_full()):
+                raise SCIONDRequestError
 
     def _create_socket(self):
         socket = ReliableSocket()
@@ -223,6 +232,7 @@ class SCIONDConnector:
         try:
             socket.connect(self._api_addr)
         except OSError:
+            socket.close()
             raise SCIONDConnectionError()
         return socket
 
