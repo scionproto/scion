@@ -77,7 +77,7 @@ class SCIONDaemon(SCIONElement):
     The SCION Daemon used for retrieving and combining paths.
     """
     # Max time for a path lookup to succeed/fail.
-    TIMEOUT = 2
+    PATH_REQ_TOUT = 2
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
 
@@ -95,7 +95,8 @@ class SCIONDaemon(SCIONElement):
         req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
         self.requests = RequestHandler.start(
             req_name, self._check_segments, self._fetch_segments,
-            self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
+            self._reply_segments, ttl=self.PATH_REQ_TOUT,
+            key_map=self._req_key_map,
         )
         self._api_sock = None
         self.daemon_thread = None
@@ -371,7 +372,7 @@ class SCIONDaemon(SCIONElement):
             empty = SCIONPath()
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
-        deadline = SCIONTime.get_time() + self.TIMEOUT
+        deadline = SCIONTime.get_time() + self.PATH_REQ_TOUT
         e = threading.Event()
         self.requests.put(((dst_ia, flags), e))
         if not self._wait_for_events([e], deadline):
