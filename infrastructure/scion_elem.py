@@ -401,7 +401,7 @@ class SCIONElement(object):
         meta.close()
         isd, ver = rep.trc.get_isd_ver()
         logging.info("TRC reply received for %sv%s" % (isd, ver))
-        self.trust_store.add_trc(rep.trc, False)
+        self.trust_store.add_trc(rep.trc, True)
         # Update core ases for isd this trc belongs to
         self._update_core_ases(rep.trc)
         with self.req_trcs_certs_lock:
@@ -443,7 +443,7 @@ class SCIONElement(object):
         meta.close()
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s" % (isd_as, ver))
-        self.trust_store.add_cert(rep.chain, False)
+        self.trust_store.add_cert(rep.chain, True)
         with self.req_trcs_certs_lock:
             self.requested_trcs_certs.discard((isd_as, ver))
         # Send cc to CS
