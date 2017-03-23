@@ -184,7 +184,7 @@ class SCIONDaemon(SCIONElement):
 
     def continue_seg_processing(self, seg_meta):
         pcb = seg_meta.seg
-        type_ = seg_meta.type_
+        type_ = seg_meta.type
         map_ = {
             PST.UP: self._handle_up_seg,
             PST.DOWN: self._handle_down_seg,

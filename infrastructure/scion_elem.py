@@ -230,8 +230,7 @@ class SCIONElement(object):
         When a new trc is received, this function is called to
         update the core ases map
         """
-        isd = trc.isd
-        self._core_ases[isd] = trc.get_core_ases()
+        self._core_ases[trc.isd] = trc.get_core_ases()
 
     def handle_msg_meta(self, msg, meta):
         """
@@ -314,7 +313,7 @@ class SCIONElement(object):
         """
         missing_trcs = seg_meta.missing_trcs
         if missing_trcs:
-            for isd, ver in list(missing_trcs):
+            for isd, ver in missing_trcs:
                 with self.req_trcs_certs_lock:
                     if (isd, ver) in self.requested_trcs_certs:
                         continue
@@ -338,7 +337,7 @@ class SCIONElement(object):
         """
         missing_certs = seg_meta.missing_certs
         if missing_certs:
-            for isd_as, ver in list(missing_certs):
+            for isd_as, ver in missing_certs:
                 with self.req_trcs_certs_lock:
                     if (isd_as, ver) in self.requested_trcs_certs:
                         continue
@@ -367,14 +366,16 @@ class SCIONElement(object):
                         missing_trcs.add((isd, ver))
                 continue
             # Local TRC
-            highest_ver = sorted(versions)[-1]
-            highest_ver_trc = self.trust_store.get_trc(isd)
+            max_req_ver = max(versions)
+            max_local_ver = self.trust_store.get_trc(isd)
             lower_ver = 0
-            if highest_ver_trc is not None:
-                lower_ver = highest_ver_trc.version + 1
+            if max_local_ver is not None:
+                lower_ver = max_local_ver.version + 1
             else:
-                highest_ver = 1
-            for ver in range(lower_ver, highest_ver):
+                # This should never happen
+                logging.error("Local TRC not found!")
+                continue
+            for ver in range(lower_ver, max_req_ver + 1):
                 missing_trcs.add((isd, ver))
         return missing_trcs
 
@@ -386,9 +387,9 @@ class SCIONElement(object):
         """
         missing_certs = set()
         for isd_as, versions in cert_versions.items():
-            highest_ver = sorted(versions)[-1]
-            if self.trust_store.get_cert(isd_as, highest_ver) is None:
-                missing_certs.add((isd_as, highest_ver))
+            for ver in versions:
+                if self.trust_store.get_cert(isd_as, ver) is None:
+                    missing_certs.add((isd_as, ver))
         return missing_certs
 
     def process_trc_reply(self, rep, meta):
@@ -397,6 +398,7 @@ class SCIONElement(object):
         :param rep: TRC reply.
         :type rep: TRCReply.
         """
+        meta.close()
         isd, ver = rep.trc.get_isd_ver()
         logging.info("TRC reply received for %sv%s" % (isd, ver))
         self.trust_store.add_trc(rep.trc, False)
@@ -405,8 +407,10 @@ class SCIONElement(object):
         with self.req_trcs_certs_lock:
             self.requested_trcs_certs.discard((isd, ver))
         # Send trc to CS
-        meta = self.get_cs()
-        self.send_meta(rep, meta)
+        cs_meta = self.get_cs()
+        if cs_meta != meta:
+            self.send_meta(rep, cs_meta)
+            cs_meta.close()
         # Remove received TRC from map
         self._remove_trc(isd, ver)
 
@@ -436,14 +440,17 @@ class SCIONElement(object):
     def process_cert_chain_reply(self, rep, meta):
         """Process a certificate chain reply."""
         assert isinstance(rep, CertChainReply)
+        meta.close()
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s" % (isd_as, ver))
         self.trust_store.add_cert(rep.chain, False)
         with self.req_trcs_certs_lock:
             self.requested_trcs_certs.discard((isd_as, ver))
         # Send cc to CS
-        meta = self.get_cs()
-        self.send_meta(rep, meta)
+        cs_meta = self.get_cs()
+        if cs_meta != meta:
+            self.send_meta(rep, cs_meta)
+            cs_meta.close()
         # Remove received cert chain from map
         self._remove_cert(isd_as, ver)
 
@@ -478,13 +485,13 @@ class SCIONElement(object):
         segment are available.
         """
         seg = seg_meta.seg
-        seg_ = PathSegment.from_values(seg.info)
+        ver_seg = PathSegment.from_values(seg.info)
         for asm in seg.iter_asms():
             cert_ia = asm.isd_as()
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
-            seg_.add_asm(asm)
-            if not verify_sig_chain_trc(seg_.sig_pack3(), asm.p.sig,
+            ver_seg.add_asm(asm)
+            if not verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig,
                                         str(cert_ia), chain, trc, asm.p.trcVer):
                 logging.error("ASM verification failed: %s" % asm.short_desc())
                 return False

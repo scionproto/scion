@@ -153,7 +153,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def process_seg_from_zk(self, seg_meta):
         pcb = seg_meta.seg
-        type_ = seg_meta.type_
+        type_ = seg_meta.type
         self._dispatch_segment_record(type_, pcb, from_zk=True)
 
     def _cached_entries_handler(self, raw_entries):
@@ -358,7 +358,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def continue_seg_processing(self, seg_meta):
         pcb = seg_meta.seg
-        type_ = seg_meta.type_
+        type_ = seg_meta.type
         params = seg_meta.params
         set_ = self._dispatch_segment_record(type_, pcb, **params)
         for dst_ia, sibra in set_:

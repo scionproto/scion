@@ -30,7 +30,7 @@ class PathSegMeta(object):
         self.seg = seg
         self.callback = callback
         self.meta = meta
-        self.type_ = type_
+        self.type = type_
         self.params = params
 
     def verifiable(self):
