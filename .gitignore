@@ -29,7 +29,7 @@ topology/mininet/*.pyc
 
 # vim generated files #
 #########################
-.*.swp
+.*.sw?
 
 # build files
 #########################
