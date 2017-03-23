@@ -57,7 +57,7 @@ _IF_INFO_TTL = 60 * 60
 # amount of time.
 _SVC_INFO_TTL = 10
 # Time after which a request gets retired.
-_SCIOND_TOUT = 10
+_SCIOND_TOUT = 3
 
 
 class SCIONDLibError(SCIONBaseError):

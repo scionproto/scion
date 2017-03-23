@@ -77,10 +77,9 @@ class SCIONDaemon(SCIONElement):
     The SCION Daemon used for retrieving and combining paths.
     """
     # Max time for a path lookup to succeed/fail.
-    TIMEOUT = 5
+    TIMEOUT = 2
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
-    MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=None):
@@ -89,12 +88,9 @@ class SCIONDaemon(SCIONElement):
         """
         super().__init__("sciond", conf_dir, host_addr=addr, port=port)
         # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
-                                         max_res_no=self.MAX_SEG_NO)
-        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
-                                           max_res_no=self.MAX_SEG_NO)
-        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
-                                           max_res_no=self.MAX_SEG_NO)
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.peer_revs = RevCache()
         req_name = "SCIONDaemon Requests %s" % self.addr.isd_as
         self.requests = RequestHandler.start(
