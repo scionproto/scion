@@ -134,7 +134,7 @@ class SCIONDConnector:
         if not q_ia:
             q_ia = "local"
         with self._as_infos_lock:
-            as_info = self._try_cache(self._as_infos, [q_ia]).get(q_ia)
+            as_info = self._try_cache(self._as_infos, [q_ia])[1].get(q_ia)
             if as_info:
                 return as_info
             req_id = self._req_id.inc()
@@ -149,20 +149,13 @@ class SCIONDConnector:
 
     def get_if_info(self, if_list=None):
         with self._if_infos_lock:
-            if not if_list:
-                if_list = set()
-                if_infos = {}
-            else:
-                # Make sure all entries in if_list are unique.
-                if_list = set(if_list)
-                if_infos = self._try_cache(self._if_infos, if_list)
-                if_list = if_list - set(if_infos)
-                if not if_list:
-                    return if_infos
+            if_list, if_infos = self._try_cache(self._if_infos, if_list)
+            if not if_list and if_infos:
+                return if_infos
             req_id = self._req_id.inc()
-            br_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
+            if_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
             with closing(self._create_socket()) as socket:
-                if not socket.send(br_req.pack_full()):
+                if not socket.send(if_req.pack_full()):
                     raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.IF_REPLY)
             for entry in response.iter_entries():
@@ -172,16 +165,9 @@ class SCIONDConnector:
 
     def get_service_info(self, service_types=None):
         with self._svc_infos_lock:
-            if not service_types:
-                service_types = set()
-                svc_infos = {}
-            else:
-                # Make sure all entries in service_types are unique.
-                service_types = set(service_types)
-                svc_infos = self._try_cache(self._svc_infos, service_types)
-                service_types = service_types - set(svc_infos)
-                if not service_types:
-                    return svc_infos
+            service_types, svc_infos = self._try_cache(self._svc_infos, service_types)
+            if not service_types and svc_infos:
+                return svc_infos
             req_id = self._req_id.inc()
             svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
             with closing(self._create_socket()) as socket:
@@ -193,7 +179,7 @@ class SCIONDConnector:
                 svc_infos[entry.service_type()] = entry
             return svc_infos
 
-    def get_overlay_dest(self, spkt):
+    def get_overlay_dest(self, spkt):  # pragma: no cover
         if_id = spkt.get_fwd_ifid()
         if if_id:
             return self._resolve_ifid(if_id)
@@ -205,7 +191,7 @@ class SCIONDConnector:
             return if_infos[if_id].host_info()
         return None
 
-    def _resolve_dst_addr(self, src, dst):  # pragma: no cover
+    def _resolve_dst_addr(self, src, dst):
         if dst.isd_as != src.isd_as:
             logging.error("Packet to remote AS w/o path, dst: %s", dst)
             return None
@@ -256,12 +242,17 @@ class SCIONDConnector:
                                       (response.id, expected_id))
         return response
 
-    def _try_cache(self, cache, key_list):  # pragma: no cover
+    @staticmethod
+    def _try_cache(cache, key_list):
+        key_set = set(key_list) if key_list else set()
+        if not key_set:
+            return set(), {}
         result = {}
         for key in key_list:
             if key in cache:
                 result[key] = cache[key]
-        return result
+        key_set -= set(result)
+        return key_set, result
 
 
 _connector = None
