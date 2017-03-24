@@ -471,7 +471,7 @@ class SCIONElement(object):
         """
         for seg_meta in list(self.unverified_segs):
             seg_meta.missing_certs.discard((isd_as, ver))
-            # If all required trcs and certs are received
+            # If all required trcs and certs are received.
             if seg_meta.verifiable():
                 self._try_to_verify_seg(seg_meta)
 
