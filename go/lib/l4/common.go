@@ -40,19 +40,19 @@ type L4Header interface {
 	Reverse()
 }
 
-func CalcCSum(h L4Header, src, dst, pld common.RawBytes) (common.RawBytes, *common.Error) {
+func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, *common.Error) {
 	rawh, err := h.Pack(true)
 	if err != nil {
 		return nil, err
 	}
-	sum := libscion.Checksum(src, dst, []uint8{uint8(h.L4Type())}, rawh, pld)
+	sum := libscion.Checksum(addr, []uint8{uint8(h.L4Type())}, rawh, pld)
 	out := make(common.RawBytes, 2)
 	common.Order.PutUint16(out, sum)
 	return out, nil
 }
 
-func SetCSum(h L4Header, src, dst, pld common.RawBytes) *common.Error {
-	out, err := CalcCSum(h, src, dst, pld)
+func SetCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
+	out, err := CalcCSum(h, addr, pld)
 	if err != nil {
 		return err
 	}
@@ -60,8 +60,8 @@ func SetCSum(h L4Header, src, dst, pld common.RawBytes) *common.Error {
 	return nil
 }
 
-func CheckCSum(h L4Header, src, dst, pld common.RawBytes) *common.Error {
-	calc, err := CalcCSum(h, src, dst, pld)
+func CheckCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
+	calc, err := CalcCSum(h, addr, pld)
 	if err != nil {
 		return err
 	}
