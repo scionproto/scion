@@ -19,6 +19,7 @@
 import logging
 import os
 import threading
+from collections import defaultdict
 from itertools import product
 
 # SCION
@@ -101,9 +102,9 @@ class SCIONDaemon(SCIONElement):
             req_name, self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
-        # Keep track of requested paths. If any of those can be answered,
-        # the request handler is notified.
-        self.requested_paths = []
+        # Keep track of requested paths.
+        self.requested_paths = defaultdict(list)
+        self._req_paths_lock = threading.Lock()
         self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
@@ -193,19 +194,24 @@ class SCIONDaemon(SCIONElement):
         ret = map_[type_](pcb)
         if not ret:
             return
-        to_remove = []
-        for dst_ia, flags in self.requested_paths:
-            if self.path_resolution(dst_ia, flags):
-                self.requests.put(((dst_ia, flags), None))
-                to_remove.append((dst_ia, flags))
-        for dst_ia, flags in to_remove:
-            self.requested_paths.remove((dst_ia, flags))
+        with self._req_paths_lock:
+            to_remove = []
+            for dst_ia, flags in self.requested_paths:
+                if self.path_resolution(dst_ia, flags):
+                    self.requested_paths[(dst_ia, flags)].set()
+                    to_remove.append((dst_ia, flags))
+            for dst_ia, flags in to_remove:
+                del self.requested_paths[(dst_ia, flags)]
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
             return None
-        if self.up_segments.update(pcb) == DBResult.ENTRY_ADDED:
+        res = self.up_segments.update(pcb)
+        if res == DBResult.ENTRY_ADDED:
             logging.debug("Up segment added: %s", pcb.short_desc())
+            return pcb.first_ia()
+        elif res == DBResult.ENTRY_UPDATED:
+            logging.debug("Up segment updated: %s", pcb.short_desc())
             return pcb.first_ia()
         return None
 
@@ -213,14 +219,22 @@ class SCIONDaemon(SCIONElement):
         last_ia = pcb.last_ia()
         if self.addr.isd_as == last_ia:
             return None
-        if self.down_segments.update(pcb) == DBResult.ENTRY_ADDED:
+        res = self.down_segments.update(pcb)
+        if res == DBResult.ENTRY_ADDED:
             logging.debug("Down segment added: %s", pcb.short_desc())
+            return last_ia
+        elif res == DBResult.ENTRY_UPDATED:
+            logging.debug("Down segment updated: %s", pcb.short_desc())
             return last_ia
         return None
 
     def _handle_core_seg(self, pcb):
-        if self.core_segments.update(pcb) == DBResult.ENTRY_ADDED:
+        res = self.core_segments.update(pcb)
+        if res == DBResult.ENTRY_ADDED:
             logging.debug("Core segment added: %s", pcb.short_desc())
+            return pcb.first_ia()
+        elif res == DBResult.ENTRY_UPDATED:
+            logging.debug("Core segment updated: %s", pcb.short_desc())
             return pcb.first_ia()
         return None
 
@@ -388,8 +402,9 @@ class SCIONDaemon(SCIONElement):
             return [empty_meta], SCIONDPathReplyError.OK
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
-        self.requests.put(((dst_ia, flags), e))
-        self.requested_paths.append((dst_ia, flags))
+        with self._req_paths_lock:
+            self.requested_paths[(dst_ia, flags)] = e
+            self._fetch_segments((dst_ia, flags), None)
         if not self._wait_for_events([e], deadline):
             logging.error("Query timed out for %s", dst_ia)
             return [], SCIONDPathReplyError.PS_TIMEOUT
