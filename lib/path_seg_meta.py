@@ -15,6 +15,8 @@
 :mod:`missing_trc_cert_map` --- SCION map for missing trcs and certchains
 ===============================================
 """
+# Stdlib
+import threading
 
 
 class PathSegMeta(object):
@@ -26,7 +28,9 @@ class PathSegMeta(object):
     def __init__(self, seg, callback, meta=None, type_=None, params=None):
         self.trc_vers, self.cert_vers = seg.get_trcs_certs()
         self.missing_trcs = set()
+        self.miss_trc_lock = threading.Lock()
         self.missing_certs = set()
+        self.miss_cert_lock = threading.Lock()
         self.seg = seg
         self.callback = callback
         self.meta = meta
@@ -34,4 +38,5 @@ class PathSegMeta(object):
         self.params = params
 
     def verifiable(self):
-        return not self.missing_trcs and not self.missing_certs
+        with self.miss_cert_lock and self.miss_trc_lock:
+            return not self.missing_trcs and not self.missing_certs

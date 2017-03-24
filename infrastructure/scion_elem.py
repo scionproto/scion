@@ -166,8 +166,10 @@ class SCIONElement(object):
             self.DefaultMeta = UDPMetadata
         self.unverified_segs = set()
         self.unv_segs_lock = threading.Lock()
-        self.requested_trcs_certs = set()
-        self.req_trcs_certs_lock = threading.Lock()
+        self.requested_trcs = set()
+        self.req_trcs_lock = threading.Lock()
+        self.requested_certs = set()
+        self.req_certs_lock = threading.Lock()
 
     def _setup_sockets(self, init):
         """
@@ -311,22 +313,26 @@ class SCIONElement(object):
         pcb/path segment was received by zk. Otherwise the sender of this
         pcb/path segment is asked.
         """
-        missing_trcs = seg_meta.missing_trcs
-        if missing_trcs:
-            for isd, ver in list(missing_trcs):
-                with self.req_trcs_certs_lock:
-                    if (isd, ver) in self.requested_trcs_certs:
-                        continue
-                    self.requested_trcs_certs.add((isd, ver))
-                isd_as = ISD_AS.from_values(isd, 0)
-                trc_req = TRCRequest.from_values(isd_as, ver)
-                logging.info("Requesting %sv%s TRC", isd, ver)
-                if not seg_meta.meta:
-                    meta = self.get_cs()
-                    if meta:
-                        self.send_meta(trc_req, meta)
-                else:
-                    self.send_meta(trc_req, seg_meta.meta)
+        missing_trcs = set()
+        with seg_meta.miss_trc_lock:
+            for isd, ver in seg_meta.missing_trcs:
+                missing_trcs.add((isd, ver))
+        if not missing_trcs:
+            return
+        for isd, ver in list(missing_trcs):
+            with self.req_trcs_lock:
+                if (isd, ver) in self.requested_trcs:
+                    continue
+                self.requested_trcs.add((isd, ver))
+            isd_as = ISD_AS.from_values(isd, 0)
+            trc_req = TRCRequest.from_values(isd_as, ver)
+            logging.info("Requesting %sv%s TRC", isd, ver)
+            if not seg_meta.meta:
+                meta = self.get_cs()
+                if meta:
+                    self.send_meta(trc_req, meta)
+            else:
+                self.send_meta(trc_req, seg_meta.meta)
 
     def request_missing_certs(self, seg_meta):
         """
@@ -335,21 +341,25 @@ class SCIONElement(object):
         pcb/path segment was received by zk. Otherwise the sender of this
         pcb/path segment is asked.
         """
-        missing_certs = seg_meta.missing_certs
-        if missing_certs:
-            for isd_as, ver in list(missing_certs):
-                with self.req_trcs_certs_lock:
-                    if (isd_as, ver) in self.requested_trcs_certs:
-                        continue
-                    self.requested_trcs_certs.add((isd_as, ver))
-                cert_req = CertChainRequest.from_values(isd_as, ver)
-                logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
-                if not seg_meta.meta:
-                    meta = self.get_cs()
-                    if meta:
-                        self.send_meta(cert_req, meta)
-                else:
-                    self.send_meta(cert_req, seg_meta.meta)
+        missing_certs = set()
+        with seg_meta.miss_cert_lock:
+            for isd_as, ver in seg_meta.missing_certs:
+                missing_certs.add((isd_as, ver))
+        if not missing_certs:
+            return
+        for isd_as, ver in missing_certs:
+            with self.req_certs_lock:
+                if (isd_as, ver) in self.requested_certs:
+                    continue
+                self.requested_certs.add((isd_as, ver))
+            cert_req = CertChainRequest.from_values(isd_as, ver)
+            logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
+            if not seg_meta.meta:
+                meta = self.get_cs()
+                if meta:
+                    self.send_meta(cert_req, meta)
+            else:
+                self.send_meta(cert_req, seg_meta.meta)
 
     def _missing_trc_versions(self, trc_versions):
         """
@@ -369,12 +379,11 @@ class SCIONElement(object):
             max_req_ver = max(versions)
             max_local_ver = self.trust_store.get_trc(isd)
             lower_ver = 0
-            if max_local_ver is not None:
-                lower_ver = max_local_ver.version + 1
-            else:
+            if max_local_ver is None:
                 # This should never happen
-                logging.error("Local TRC not found!")
-                continue
+                logging.critical("Local TRC not found!")
+                kill_self()
+            lower_ver = max_local_ver.version + 1
             for ver in range(lower_ver, max_req_ver + 1):
                 missing_trcs.add((isd, ver))
         return missing_trcs
@@ -404,8 +413,8 @@ class SCIONElement(object):
         self.trust_store.add_trc(rep.trc, True)
         # Update core ases for isd this trc belongs to
         self._update_core_ases(rep.trc)
-        with self.req_trcs_certs_lock:
-            self.requested_trcs_certs.discard((isd, ver))
+        with self.req_trcs_lock:
+            self.requested_trcs.discard((isd, ver))
         # Send trc to CS
         cs_meta = self.get_cs()
         if cs_meta != meta:
@@ -444,8 +453,8 @@ class SCIONElement(object):
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s" % (isd_as, ver))
         self.trust_store.add_cert(rep.chain, True)
-        with self.req_trcs_certs_lock:
-            self.requested_trcs_certs.discard((isd_as, ver))
+        with self.req_certs_lock:
+            self.requested_certs.discard((isd_as, ver))
         # Send cc to CS
         cs_meta = self.get_cs()
         if cs_meta != meta:
