@@ -416,8 +416,8 @@ class SCIONElement(object):
         with self.req_trcs_lock:
             self.requested_trcs.discard((isd, ver))
         # Send trc to CS
-        cs_meta = self.get_cs()
-        if cs_meta != meta:
+        if meta.get_addr().isd_as != self.addr.isd_as:
+            cs_meta = self.get_cs()
             self.send_meta(rep, cs_meta)
             cs_meta.close()
         # Remove received TRC from map
@@ -456,8 +456,8 @@ class SCIONElement(object):
         with self.req_certs_lock:
             self.requested_certs.discard((isd_as, ver))
         # Send cc to CS
-        cs_meta = self.get_cs()
-        if cs_meta != meta:
+        if meta.get_addr().isd_as != self.addr.isd_as:
+            cs_meta = self.get_cs()
             self.send_meta(rep, cs_meta)
             cs_meta.close()
         # Remove received cert chain from map
