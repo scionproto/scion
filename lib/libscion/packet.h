@@ -54,14 +54,14 @@ typedef struct {
 
 typedef struct {
     sch_t *sch;
-    saddr_t *src;
     saddr_t *dst;
+    saddr_t *src;
     spath_t *path;
     exts_t *exts;
     l4_pld *l4;
 } spkt_t;
 
-spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pld *l4);
+spkt_t * build_spkt(saddr_t *dst, saddr_t *src, spath_t *path, exts_t *exts, l4_pld *l4);
 
 spkt_t * parse_spkt(uint8_t *buf);
 void parse_spkt_cmn_hdr(uint8_t *buf, spkt_t *spkt);
@@ -79,9 +79,8 @@ uint8_t * pack_spkt_l4(spkt_t *spkt, uint8_t *ptr);
 
 void destroy_spkt(spkt_t *spkt, int from_raw);
 
-void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
+void pack_cmn_hdr(uint8_t *buf, int dst_type, int src_type, int next_hdr,
                   int path_len, int exts_len, int l4_len);
-void pack_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst);
 int padded_addr_len(uint8_t *buf);
 void set_path(uint8_t *buf, uint8_t *path, int len);
 uint8_t * get_path(uint8_t *buf);

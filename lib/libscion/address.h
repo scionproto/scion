@@ -63,15 +63,17 @@ typedef struct {
 #define SADDR_AS(saddr) AS(ntohs(*(uint32_t *)(saddr.addr)))
 #define SADDR_HOST(saddr) (saddr.addr + ISD_AS_LEN)
 
+#define DST_IA_OFFSET sizeof(SCIONCommonHeader)
+#define SRC_IA_OFFSET sizeof(SCIONCommonHeader) + ISD_AS_LEN
+
 int get_addr_len(int type);
-uint32_t get_src_isd_as(uint8_t *buf);
-uint8_t * get_src_addr(uint8_t *buf);
-uint8_t get_src_len(uint8_t *buf);
 uint32_t get_dst_isd_as(uint8_t *buf);
-uint8_t * get_dst_addr(uint8_t *buf);
+uint32_t get_src_isd_as(uint8_t *buf);
 uint8_t get_dst_len(uint8_t *buf);
-void format_host(int addr_type, uint8_t *addr, char *buf, int size);
-void print_addresses(uint8_t *buf);
+uint8_t get_src_len(uint8_t *buf);
+uint8_t * get_dst_addr(uint8_t *buf);
+uint8_t * get_src_addr(uint8_t *buf);
 void format_host(int, uint8_t *, char *, int);
+void print_addresses(uint8_t *buf);
 
 #endif

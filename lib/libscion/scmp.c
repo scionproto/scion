@@ -9,17 +9,15 @@
 
 uint16_t scmp_checksum(uint8_t *buf)
 {
-    uint8_t *ptr = buf + sizeof(SCIONCommonHeader);
-    chk_input *input = mk_chk_input(7);
+    chk_input *input = mk_chk_input(6);
     SCMPL4Header *scmp_l4;
     uint8_t l4_type;
     uint16_t payload_len, ret, blank_sum = 0;
 
-    // Src ISD-AS & host address
-    ptr = chk_add_chunk(input, ptr, ISD_AS_LEN + get_src_len(buf));
-    // Dest ISD-AS & host address
-    chk_add_chunk(input, ptr, ISD_AS_LEN + get_dst_len(buf));
-    ptr = buf;
+    // Address header (without padding)
+    chk_add_chunk(input, buf + DST_IA_OFFSET, 2 * ISD_AS_LEN + get_dst_len(buf) + get_src_len(buf));
+
+    uint8_t *ptr = buf;
     l4_type = get_l4_proto(&ptr);
     scmp_l4 = (SCMPL4Header *)ptr;
     // L4 protocol type
