@@ -9,7 +9,7 @@
 
 uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
 
-spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_pld *l4)
+spkt_t * build_spkt(saddr_t *dst, saddr_t *src, spath_t *path, exts_t *exts, l4_pld *l4)
 {
     spkt_t *spkt = (spkt_t *)malloc(sizeof(spkt_t));
     spkt->sch = (sch_t *)malloc(sizeof(sch_t));
@@ -23,10 +23,10 @@ spkt_t * build_spkt(saddr_t *src, saddr_t *dst, spath_t *path, exts_t *exts, l4_
     }
     else
         next_header = l4->type;
-    pack_cmn_hdr((uint8_t *)spkt->sch, src->type, dst->type, next_header,
+    pack_cmn_hdr((uint8_t *)spkt->sch, dst->type, src->type, next_header,
                  path->len, exts_len, l4->len);
-    spkt->src = src;
     spkt->dst = dst;
+    spkt->src = src;
     spkt->path = path;
     spkt->exts = exts;
     spkt->l4 = l4;
@@ -53,15 +53,17 @@ void parse_spkt_cmn_hdr(uint8_t *buf, spkt_t *spkt)
 
 void parse_spkt_addr_hdr(uint8_t *buf, spkt_t *spkt)
 {
-    saddr_t *src = (saddr_t *)malloc(sizeof(saddr_t));
-    src->type = SRC_TYPE(spkt->sch);
-    memcpy(src->addr, buf + sizeof(sch_t), ISD_AS_LEN + get_addr_len(src->type));
-    spkt->src = src;
-
     saddr_t *dst = (saddr_t *)malloc(sizeof(saddr_t));
     dst->type = DST_TYPE(spkt->sch);
-    memcpy(dst->addr, get_dst_addr(buf) - ISD_AS_LEN, ISD_AS_LEN + get_addr_len(dst->type));
+    memcpy(dst->addr, buf + DST_IA_OFFSET, ISD_AS_LEN);
+    memcpy(dst->addr + ISD_AS_LEN, get_dst_addr(buf), get_dst_len(buf));
     spkt->dst = dst;
+
+    saddr_t *src = (saddr_t *)malloc(sizeof(saddr_t));
+    src->type = SRC_TYPE(spkt->sch);
+    memcpy(src->addr, buf + SRC_IA_OFFSET, ISD_AS_LEN);
+    memcpy(src->addr + ISD_AS_LEN, get_src_addr(buf), get_src_len(buf));
+    spkt->src = src;
 }
 
 void parse_spkt_path(uint8_t *buf, spkt_t *spkt)
@@ -151,11 +153,16 @@ uint8_t * pack_spkt_addr_hdr(spkt_t *spkt, uint8_t *ptr)
 {
     uint8_t *start = ptr;
     size_t len;
-    len = get_addr_len(spkt->src->type) + ISD_AS_LEN;
+    len = ISD_AS_LEN;
+    memcpy(ptr, spkt->dst->addr, len);
+    ptr += len;
     memcpy(ptr, spkt->src->addr, len);
     ptr += len;
-    len = get_addr_len(spkt->dst->type) + ISD_AS_LEN;
-    memcpy(ptr, spkt->dst->addr, len);
+    len = get_addr_len(spkt->dst->type);
+    memcpy(ptr, spkt->dst->addr + ISD_AS_LEN, len);
+    ptr += len;
+    len = get_addr_len(spkt->src->type);
+    memcpy(ptr, spkt->src->addr + ISD_AS_LEN, len);
     int padded_len = padded_addr_len((uint8_t *)(spkt->sch));
     return start + padded_len;
 }
@@ -203,10 +210,10 @@ void destroy_spkt(spkt_t *spkt, int from_raw)
      */
     if (!from_raw && spkt->sch)
         free(spkt->sch);
-    if (spkt->src)
-        free(spkt->src);
     if (spkt->dst)
         free(spkt->dst);
+    if (spkt->src)
+        free(spkt->src);
     if (spkt->path) {
         if (!from_raw)
             free(spkt->path->raw_path);
@@ -232,11 +239,11 @@ void destroy_spkt(spkt_t *spkt, int from_raw)
 /*
  * Initialize common header fields
  * buf: Pointer to start of SCION packet
- * src_type: Address type of src host addr
  * dst_type: Address type of dst host addr
+ * src_type: Address type of src host addr
  * next_hdr: L4 protocol number or extension type
  */
-void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
+void pack_cmn_hdr(uint8_t *buf, int dst_type, int src_type, int next_hdr,
                   int path_len, int exts_len, int l4_len)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
@@ -255,34 +262,13 @@ void pack_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr,
 }
 
 /*
- * Initialize address fields
- * buf: Pointer to start of SCION packet
- * src: Src SCION addr
- * dst: Dst SCION addr
- */
-void pack_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst)
-{
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    int src_len = get_src_len(buf);
-    int dst_len = get_dst_len(buf);
-    uint8_t *ptr = (uint8_t *)(sch + 1);
-    *(uint32_t *)ptr = htonl(src->isd_as);
-    ptr += ISD_AS_LEN;
-    memcpy(ptr, src->host.addr, src_len);
-    ptr += src_len;
-    *(uint32_t *)ptr = htonl(dst->isd_as);
-    ptr += ISD_AS_LEN;
-    memcpy(ptr, dst->host.addr, dst_len);
-}
-
-/*
  * Get total length of addresses with padding
  * buf: Pointer to start of SCION packet
  * return value: Total padded addr length
  */
 int padded_addr_len(uint8_t *buf)
 {
-    int addr_len = get_src_len(buf) + get_dst_len(buf) + 2 * ISD_AS_LEN;
+    int addr_len = 2 * ISD_AS_LEN + get_dst_len(buf) + get_src_len(buf);
     return (addr_len + SCION_ADDR_PAD - 1) & ~(SCION_ADDR_PAD - 1);
 }
 
@@ -410,20 +396,23 @@ uint8_t get_l4_proto(uint8_t **l4ptr)
  */
 void reverse_packet(uint8_t *buf)
 {
-    uint8_t *srcptr = buf + sizeof(SCIONCommonHeader);
-    int srclen = get_src_len(buf) + ISD_AS_LEN;
-    uint8_t *dstptr = srcptr + srclen;
-    int dstlen = get_dst_len(buf) + ISD_AS_LEN;
-    uint8_t *orig_src = (uint8_t *)malloc(srclen);
-    /* reverse src/dst addrs */
-    memcpy(orig_src, srcptr, srclen);
-    memcpy(srcptr, dstptr, dstlen);
-    memcpy(dstptr, orig_src, srclen);
-    int pathlen = get_path_len(buf);
+    // Parse addresses into temporary spkt, then swap them and write them back
+    // out to the buffer.
+    spkt_t spkt;
+    saddr_t *tmp;
+    parse_spkt_addr_hdr(buf, &spkt);
+    tmp = spkt.dst;
+    spkt.dst = spkt.src;
+    spkt.src = tmp;
+    pack_spkt_addr_hdr(&spkt, buf + DST_IA_OFFSET);
+
     /* Reverse path */
+    int pathlen = get_path_len(buf);
     uint8_t *reverse = (uint8_t *)malloc(pathlen);
     reverse_path(buf, reverse);
     memcpy(get_path(buf), reverse, pathlen);
+    free(reverse);
+
     /* Reverse L4 header if necessary */
     uint8_t *ptr = buf;
     uint8_t l4 = get_l4_proto(&ptr);
@@ -443,8 +432,8 @@ void reverse_packet(uint8_t *buf)
  */
 void print_header(uint8_t *buf) {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    fprintf(stderr, "Version: %d Src type: %d Dest type: %d Total len: %dB\n",
-           PROTO_VER(sch), SRC_TYPE(sch), DST_TYPE(sch), ntohs(sch->total_len));
-    fprintf(stderr, "IOF offset: %dB HOF offset: %dB Next hdr: %d Header len: %dB\n",
-           sch->current_iof, sch->current_hof, sch->next_header, sch->header_len);
+    fprintf(stderr, "Version: %d Dest type: %d Src type: %d Total len: %dB\n",
+           PROTO_VER(sch), DST_TYPE(sch), SRC_TYPE(sch), ntohs(sch->total_len));
+    fprintf(stderr, "Header len: %dB IOF offset: %dB HOF offset: %dB Next hdr: %d\n",
+           sch->header_len, sch->current_iof, sch->current_hof, sch->next_header);
 }

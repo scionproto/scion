@@ -63,8 +63,8 @@ typedef enum {
 
 typedef enum {
     SCMP_BAD_VERSION,
-    SCMP_BAD_SRC_TYPE,
     SCMP_BAD_DST_TYPE,
+    SCMP_BAD_SRC_TYPE,
     SCMP_BAD_PKT_LEN,
     SCMP_BAD_IOF_OFFSET,
     SCMP_BAD_HOF_OFFSET,
