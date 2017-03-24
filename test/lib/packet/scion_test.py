@@ -1013,12 +1013,12 @@ class TestBuildBaseHdrs(object):
     @patch("lib.packet.scion.SCIONCommonHdr.from_values",
            new_callable=create_mock)
     def test(self, cmn_hdr, addr_hdr):
-        src = create_mock(["host"])
-        src.host = create_mock(["TYPE"])
         dst = create_mock(["host"])
         dst.host = create_mock(["TYPE"])
+        src = create_mock(["host"])
+        src.host = create_mock(["TYPE"])
         # Call
-        ntools.eq_(build_base_hdrs(src, dst),
+        ntools.eq_(build_base_hdrs(dst, dst),
                    (cmn_hdr.return_value, addr_hdr.return_value))
         # Tests
         cmn_hdr.assert_called_once_with(dst.host.TYPE, src.host.TYPE,

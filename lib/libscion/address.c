@@ -137,8 +137,8 @@ void format_host(int addr_type, uint8_t *addr, char *buf, int size) {
  */
 void print_addresses(uint8_t *buf) {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint32_t dst_isd_as = ntohl(get_dst_isd_as(buf));
-    uint32_t src_isd_as = ntohl(get_src_isd_as(buf));
+    uint32_t dst_isd_as = get_dst_isd_as(buf);
+    uint32_t src_isd_as = get_src_isd_as(buf);
     char host_str[MAX_HOST_ADDR_STR];
     format_host(DST_TYPE(sch), get_dst_addr(buf), host_str, sizeof(host_str));
     fprintf(stderr, "Dst: ISD-AS: %d-%d Host(%s): %s\n", ISD(dst_isd_as),

@@ -208,8 +208,8 @@ class SCIONAddrHdr(Serializable):
 
     def _parse(self, dst_type, src_type, raw):
         data = Raw(raw, self.NAME, self.calc_lens(dst_type, src_type)[0])
-        dst_ia = ISD_AS(data.pop(ISD_AS.Len))
-        src_ia = ISD_AS(data.pop(ISD_AS.Len))
+        dst_ia = ISD_AS(data.pop(ISD_AS.LEN))
+        src_ia = ISD_AS(data.pop(ISD_AS.LEN))
         dst_addr_t = haddr_get_type(dst_type)
         dst_addr = dst_addr_t(data.pop(dst_addr_t.LEN))
         self.dst = SCIONAddr.from_values(dst_ia, dst_addr)

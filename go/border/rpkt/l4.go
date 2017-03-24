@@ -133,7 +133,7 @@ func (rp *RtrPkt) getChksumInput() (ahdr, pld common.RawBytes) {
 	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
 	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
 	addrsLen := int(addr.IABytes*2 + dstLen + srcLen)
-	ahdr = rp.Raw[rp.idxs.srcIA : rp.idxs.srcIA+addrsLen]
+	ahdr = rp.Raw[rp.idxs.dstIA : rp.idxs.dstIA+addrsLen]
 	pld = rp.Raw[rp.idxs.pld:]
 	return
 }
