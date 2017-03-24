@@ -53,7 +53,7 @@ class TestCertClient(TestClientBase):
         pass  # No path required. All queries go to local CS
 
     def _build_pkt(self):
-        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)
+        cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, SCIONPath(), [], l4_hdr)

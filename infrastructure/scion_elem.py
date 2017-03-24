@@ -407,7 +407,7 @@ class SCIONElement(object):
         if payload is None:
             payload = PayloadRaw()
         dst_addr = SCIONAddr.from_values(dst_ia, dst_host)
-        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
+        cmn_hdr, addr_hdr = build_base_hdrs(dst_addr, self.addr)
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, self._port, dst_addr, dst_port)
         return SCIONL4Packet.from_values(

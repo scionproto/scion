@@ -32,7 +32,7 @@ shutdown() {
 run() {
     log "${1:?}: starting"
     time ${2:?}
-    result=$?
+    local result=$?
     if [ $result -eq 0 ]; then
         log "$1: success"
     else
