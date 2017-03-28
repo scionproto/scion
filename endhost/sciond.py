@@ -560,8 +560,7 @@ class SCIONDaemon(SCIONElement):
         fulfilled.
         """
         dst_ia, flags = key
-        ret = self.path_resolution(dst_ia, flags=flags)
-        return ret
+        return self.path_resolution(dst_ia, flags=flags)
 
     def _fetch_segments(self, key, _):
         """
