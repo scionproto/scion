@@ -63,6 +63,7 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     SCIOND_API_SOCKDIR,
     TOPO_FILE,
+    PROM_FILE
 )
 from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
@@ -178,6 +179,7 @@ class ConfigGenerator(object):
         topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
+        self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_trust_files(topo_dicts, cert_files)
@@ -208,6 +210,10 @@ class ConfigGenerator(object):
     def _generate_zk_conf(self, zookeepers):
         zk_gen = ZKConfGenerator(self.out_dir, zookeepers)
         zk_gen.generate()
+
+    def _generate_prom_conf(self, topo_dicts):
+        prom_gen = PrometheusGenerator(self.out_dir, topo_dicts)
+        prom_gen.generate()
 
     def _write_ca_files(self, topo_dicts, ca_files):
         isds = set()
@@ -337,7 +343,7 @@ class CertGenerator(object):
         else:
             signing_key = self.sig_priv_keys[issuer]
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id),  str(issuer), INITIAL_CERT_VERSION, "", False,
+            str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
             self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
             signing_key
         )
@@ -377,7 +383,7 @@ class CertGenerator(object):
         ca_certs = {}
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
             ca_certs[ca_name] = \
-                 crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
+                crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         trc.root_cas = ca_certs
 
     def _create_trc(self, isd):
@@ -649,6 +655,53 @@ class TopoGenerator(object):
         list_path = os.path.join(self.out_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
+
+
+class PrometheusGenerator(object):
+    def __init__(self, out_dir, topo_dicts):
+        self.out_dir = out_dir
+        self.topo_dicts = topo_dicts
+        self.router_dict = {}
+
+    def _write_target_file(self, base_path, router_addrs):
+        targets_path = os.path.join(base_path, "prometheus", "targets.yml")
+        target_config = [{'targets': router_addrs}]
+        write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
+
+    def _write_config_file(self, config_path, file_paths):
+        config = {
+            'global': {
+                'scrape_interval': '15s',
+                'evaluation_interval': '15s',
+                'external_labels': {
+                    'monitor': 'scion-monitor'
+                }
+            },
+            'scrape_configs': [{
+                'job_name': 'border',
+                'scrape_interval': '5s',
+                'file_sd_configs': [{'files': file_paths}]
+            }],
+        }
+        write_file(config_path, yaml.dump(config, default_flow_style=False))
+
+    def _write_config_files(self):
+        list_of_paths = []
+        for topo_id, router_list in self.router_dict.items():
+            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            targets_path = os.path.join(base, "prometheus", "*.yml")
+            list_of_paths.append(targets_path)
+            self._write_config_file(os.path.join(base, PROM_FILE), [targets_path])
+            self._write_target_file(base, router_list)
+        self._write_config_file(os.path.join(self.out_dir, PROM_FILE), list_of_paths)
+
+    def generate(self):
+        for topo_id, as_topo in self.topo_dicts.items():
+            router_list = []
+            for br_id, br_ele in as_topo["BorderRouters"].items():
+                router_list.append(str(br_ele['Addr'].ip) + ":" + str(br_ele['Port']))
+            self.router_dict[topo_id] = router_list
+        self._write_config_files()
 
 
 class SupervisorGenerator(object):

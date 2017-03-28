@@ -52,6 +52,8 @@ NETWORKS_FILE = "networks.conf"
 IFIDS_FILE = "ifids.yml"
 #: AS list
 AS_LIST_FILE = "as_list.yml"
+#: Prometheus config
+PROM_FILE = "prometheus.yml"
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535
