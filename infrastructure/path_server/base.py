@@ -81,6 +81,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
+        self.pen_req_lock = threading.Lock()
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache()
@@ -150,11 +151,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 pass
             self._update_master()
             self._propagate_and_sync()
+            self._handle_pending_requests()
 
     def process_seg_from_zk(self, seg_meta):
         pcb = seg_meta.seg
         type_ = seg_meta.type
         self._dispatch_segment_record(type_, pcb, from_zk=True)
+        self._handle_pending_requests()
 
     def _cached_entries_handler(self, raw_entries):
         """
@@ -326,24 +329,25 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         return list(revs_to_add)
 
-    def _handle_pending_requests(self, dst_ia, sibra):
+    def _handle_pending_requests(self):
         rem_keys = []
         # Serve pending requests.
-        for dst_ia, sibra in self.pending_req:
-            to_remove = []
-            key = dst_ia, sibra
-            for req, meta in self.pending_req[key]:
-                if self.path_resolution(req, meta, new_request=False):
-                    meta.close()
-                    to_remove.append((req, meta))
-            # Clean state.
-            for req_meta in to_remove:
-                if req_meta in self.pending_req[key]:
-                    self.pending_req[key].remove(req_meta)
-            if not self.pending_req[key]:
-                rem_keys.append(key)
-        for key in rem_keys:
-            del self.pending_req[key]
+        with self.pen_req_lock:
+            for dst_ia, sibra in self.pending_req:
+                to_remove = []
+                key = dst_ia, sibra
+                for req, meta in self.pending_req[key]:
+                    if self.path_resolution(req, meta, new_request=False):
+                        meta.close()
+                        to_remove.append((req, meta))
+                # Clean state.
+                for req_meta in to_remove:
+                    if req_meta in self.pending_req[key]:
+                        self.pending_req[key].remove(req_meta)
+                if not self.pending_req[key]:
+                    rem_keys.append(key)
+            for key in rem_keys:
+                del self.pending_req[key]
 
     def handle_path_segment_record(self, seg_recs, meta):
         params = self._dispatch_params(seg_recs, meta)
@@ -360,22 +364,21 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pcb = seg_meta.seg
         type_ = seg_meta.type
         params = seg_meta.params
-        set_ = self._dispatch_segment_record(type_, pcb, **params)
-        for dst_ia, sibra in set_:
-            self._handle_pending_requests(dst_ia, sibra)
+        self._dispatch_segment_record(type_, pcb, **params)
+        self._handle_pending_requests()
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         # Check that segment does not contain a revoked interface.
         if not self._validate_segment(seg):
             logging.debug("Not adding segment due to revoked interface:\n%s" %
                           seg.short_desc())
-            return set()
+            return
         handle_map = {
             PST.UP: self._handle_up_segment_record,
             PST.CORE: self._handle_core_segment_record,
             PST.DOWN: self._handle_down_segment_record,
         }
-        return handle_map[type_](seg, **kwargs)
+        handle_map[type_](seg, **kwargs)
 
     def _validate_segment(self, seg):
         """

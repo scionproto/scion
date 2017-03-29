@@ -319,7 +319,7 @@ class SCIONElement(object):
                 missing_trcs.add((isd, ver))
         if not missing_trcs:
             return
-        for isd, ver in list(missing_trcs):
+        for isd, ver in missing_trcs:
             with self.req_trcs_lock:
                 if (isd, ver) in self.requested_trcs:
                     continue

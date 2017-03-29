@@ -19,7 +19,6 @@
 import logging
 import os
 import threading
-from collections import defaultdict
 from itertools import product
 
 # SCION
@@ -382,7 +381,6 @@ class SCIONDaemon(SCIONElement):
             empty = SCIONPath()
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
-        deadline = SCIONTime.get_time() + self.TIMEOUT
         paths = self.path_resolution(dst_ia, flags=flags)
         if not paths:
             key = dst_ia, flags

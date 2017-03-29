@@ -54,13 +54,14 @@ class TrustStore(object):
         with self._trcs_lock:
             if not self._trcs[isd]:
                 return None
-            if version is None:  # Return the most recent TRC.
-                _, trc = sorted(self._trcs[isd])[-1]
+            if version is None:
+                # Return the most recent TRC.
+                _, trc = max(self._trcs[isd])
                 return trc
-            else:  # Try to find a TRC with given version.
-                for ver, trc in self._trcs[isd]:
-                    if version == ver:
-                        return trc
+            # Otherwise, try to find a TRC with given version.
+            for ver, trc in self._trcs[isd]:
+                if version == ver:
+                    return trc
         return None
 
     def get_trcs(self):  # pragma: no cover
@@ -74,13 +75,14 @@ class TrustStore(object):
         with self._certs_lock:
             if not self._certs[isd_as]:
                 return None
-            if version is None:  # Return the most recent cert.
-                _, cert = sorted(self._certs[isd_as])[-1]
+            if version is None:
+                # Return the most recent cert.
+                _, cert = max(self._certs[isd_as])
                 return cert
-            else:  # Try to find a cert with given version.
-                for ver, cert in self._certs[isd_as]:
-                    if version == ver:
-                        return cert
+            # Otherwise, try to find a cert with given version.
+            for ver, cert in self._certs[isd_as]:
+                if version == ver:
+                    return cert
         return None
 
     def add_trc(self, trc, write=True):
