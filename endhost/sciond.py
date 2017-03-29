@@ -97,7 +97,7 @@ class SCIONDaemon(SCIONElement):
                                            max_res_no=self.MAX_SEG_NO)
         self.peer_revs = RevCache()
         # Keep track of requested paths.
-        self.requested_paths = defaultdict(list)
+        self.requested_paths = {}
         self.req_path_lock = threading.Lock()
         self._api_sock = None
         self.daemon_thread = None
@@ -383,15 +383,17 @@ class SCIONDaemon(SCIONElement):
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
         deadline = SCIONTime.get_time() + self.TIMEOUT
-        e = threading.Event()
         paths = self.path_resolution(dst_ia, flags=flags)
         if not paths:
+            key = dst_ia, flags
             with self.req_path_lock:
-                self.requested_paths[(dst_ia, flags)] = e
-            self._fetch_segments((dst_ia, flags))
-
-            if not self._wait_for_events([e], deadline):
-                logging.error("Query timed out for %s", dst_ia)
+                if key not in self.requested_paths:
+                    # No previous outstanding request
+                    self.requested_paths[key] = threading.Event()
+                    self._fetch_segments(key)
+                e = self.requested_paths[key]
+            if not e.wait(self.TIMEOUT):
+                logging.error("Query timed out...")
                 return [], SCIONDPathReplyError.PS_TIMEOUT
             paths = self.path_resolution(dst_ia, flags=flags)
         error_code = (SCIONDPathReplyError.OK if paths
