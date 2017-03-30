@@ -196,15 +196,14 @@ class TestSCIONCommonHdrStr(object):
     @patch("lib.packet.scion.haddr_get_type", autospec=True)
     def test(self, get_type):
         inst = SCIONCommonHdr()
-        inst.version = 0b1111
-        inst.src_addr_type = 0b000000
         inst.dst_addr_type = 0b111111
-        inst.addrs_len = 24
+        inst.src_addr_type = 0b000000
+        inst.version = 0b1111
         inst.total_len = 0x304
+        inst.hdr_len = 0x8
         inst._iof_idx = 3
         inst._hof_idx = 4
         inst.next_hdr = 0x7
-        inst.hdr_len = 0x8
         addr_type = create_mock(['name'])
         addr_type.name.return_value = "name"
         get_type.return_value = addr_type
