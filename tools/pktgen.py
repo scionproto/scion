@@ -34,6 +34,9 @@ from test.integration.base_cli_srv import TestClientBase
 
 
 class PktGen(TestClientBase):
+    # FIXME(kormat): TestClientBase doesn't really offer too much that PktGen needs. It mostly just
+    # uses `_get_path()`, `_build_pkt()` and `_create_l4_hdr()` from there. When `lib.app` can
+    # easily cover these cases, then we should just drop the inheritance.
     def __init__(self, *args, size=0, **kwargs):
         super().__init__(*args, **kwargs)
         self.size = size
@@ -44,8 +47,7 @@ class PktGen(TestClientBase):
         raw = spkt.pack()
         overlay_dest, overlay_port = str(self.first_hop[0]), self.first_hop[1]
         logging.debug("Sending (via %s:%s):\n%s", overlay_dest, overlay_port, spkt)
-        logging.debug("Interfaces: %s", ", ".join(
-            [str(ifentry) for ifentry in self.path_meta.iter_ifs()]))
+        logging.debug("Path meta: %s", self.path_meta)
         while True:
             if count > 0 and self.sent >= count:
                 break
@@ -104,7 +106,7 @@ def main():
         pass
     total = time.time() - start
     logging.info("Sent %d %dB packets in %.3fs (%d pps, %d bps)",
-                 gen.sent, gen.size, total, gen.sent/total, (gen.sent * gen.size * 8)/total)
+                 gen.sent, gen.size, total, gen.sent / total, (gen.sent * gen.size * 8) / total)
 
 if __name__ == "__main__":
     main_wrapper(main)

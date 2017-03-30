@@ -185,9 +185,7 @@ class TestClientBase(TestBase):
 
     def _send(self):
         self._send_pkt(self._build_pkt(), self.first_hop)
-        if self.path_meta:
-            logging.debug("Interfaces: %s", ", ".join(
-                [str(ifentry) for ifentry in self.path_meta.iter_ifs()]))
+        logging.debug("Path meta: %s", self.path_meta)
 
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)
