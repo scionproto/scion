@@ -119,27 +119,21 @@ class CertServer(SCIONElement):
         """
         Handles cached (through ZK) TRCs, passed as a list.
         """
-        count = 0
         for raw in raw_entries:
-            count += 1
             trc = TRC.from_raw(raw.decode('utf-8'))
             rep = TRCReply.from_values(trc)
             self.process_trc_reply(rep, None, from_zk=True)
-        if count:
-            logging.debug("Processed %s trcs from ZK", count)
+        logging.debug("Processed %s trcs from ZK", len(raw_entries))
 
     def _cached_certs_handler(self, raw_entries):
         """
         Handles cached (through ZK) chains, passed as a list.
         """
-        count = 0
         for raw in raw_entries:
-            count += 1
             cert = CertificateChain.from_raw(raw.decode('utf-8'))
             rep = CertChainReply.from_values(cert)
             self.process_cert_chain_reply(rep, None, from_zk=True)
-        if count:
-            logging.debug("Processed %s certs from ZK", count)
+        logging.debug("Processed %s certs from ZK", len(raw_entries))
 
     def _share_object(self, pld, is_trc):
         """

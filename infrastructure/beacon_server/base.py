@@ -21,7 +21,7 @@ import logging
 import os
 import threading
 import time
-from _collections import deque, defaultdict
+from _collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from threading import Lock, RLock
 
@@ -117,9 +117,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
-        self.unverified_beacons = deque()
-        self.trc_requests = {}
-        self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
@@ -159,7 +156,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
-        self.incoming_pcbs = deque()
         self.pcb_cache = ZkSharedCache(
             self.zk, self.ZK_PCB_CACHE_PATH, self.handle_pcbs_from_zk)
         self.revobjs_cache = ZkSharedCache(
@@ -273,12 +269,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if self._filter_pcb(pcb):
             self._handle_verified_beacon(pcb)
             self.handle_ext(pcb)
+        else:
+            logging.debug("Dropped PCB: %s" % pcb.short_desc())
 
     def process_seg_from_zk(self, seg_meta):
         pcb = seg_meta.seg
         if self._filter_pcb(pcb):
             self._handle_verified_beacon(pcb)
             self.handle_ext(pcb)
+        else:
+            logging.debug("Dropped PCB: %s" % pcb.short_desc())
 
     def _filter_pcb(self, pcb, dst_ia=None):
         pass

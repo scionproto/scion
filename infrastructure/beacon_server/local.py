@@ -47,8 +47,6 @@ class LocalBeaconServer(BeaconServer):
         self.beacons = PathStore(self.path_policy)
         self.up_segments = PathStore(self.path_policy)
         self.down_segments = PathStore(self.path_policy)
-        self.cert_chain_requests = {}
-        self.cert_chains = {}
         self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
 

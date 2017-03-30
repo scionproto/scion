@@ -189,12 +189,12 @@ class SCIONDaemon(SCIONElement):
             return
         to_remove = []
         with self.req_path_lock:
-            for dst_ia, flags in self.requested_paths:
-                if self.path_resolution(dst_ia, flags):
-                    self.requested_paths[(dst_ia, flags)].set()
-                    to_remove.append((dst_ia, flags))
-            for dst_ia, flags in to_remove:
-                del self.requested_paths[(dst_ia, flags)]
+            for key in self.requested_paths:
+                if self.path_resolution(*key):
+                    self.requested_paths[key].set()
+                    to_remove.append(key)
+            for key in to_remove:
+                del self.requested_paths[key]
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
@@ -391,7 +391,7 @@ class SCIONDaemon(SCIONElement):
                     self._fetch_segments(key)
                 e = self.requested_paths[key]
             if not e.wait(self.TIMEOUT):
-                logging.error("Query timed out...")
+                logging.error("Query timed out for %s", dst_ia)
                 return [], SCIONDPathReplyError.PS_TIMEOUT
             paths = self.path_resolution(dst_ia, flags=flags)
         error_code = (SCIONDPathReplyError.OK if paths

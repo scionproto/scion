@@ -333,9 +333,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         rem_keys = []
         # Serve pending requests.
         with self.pen_req_lock:
-            for dst_ia, sibra in self.pending_req:
+            for key in self.pending_req:
                 to_remove = []
-                key = dst_ia, sibra
                 for req, meta in self.pending_req[key]:
                     if self.path_resolution(req, meta, new_request=False):
                         meta.close()
