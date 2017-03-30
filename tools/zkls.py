@@ -28,7 +28,7 @@ from kazoo.client import KazooClient
 
 def print_dir(zk, dir_):
     print(dir_)
-    for entries in zk.get_children(dir_):
+    for entries in sorted(zk.get_children(dir_)):
         print_dir(zk, os.path.join(dir_, entries))
 
 
