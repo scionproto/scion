@@ -178,8 +178,8 @@ class SCIONCommonHdr(Serializable):
             "dst_addr_type": haddr_get_type(self.dst_addr_type).name(),
             "src_addr_type": haddr_get_type(self.src_addr_type).name(),
         }
-        for i in ("version", "total_len",
-                  "_iof_idx", "_hof_idx", "next_hdr", "hdr_len"):
+        for i in ("version", "total_len", "hdr_len",
+                  "_iof_idx", "_hof_idx", "next_hdr"):
             values[i] = getattr(self, i)
         return (
             "CH ver: %(version)s, dst type: %(dst_addr_type)s, src type: %(src_addr_type)s, "
