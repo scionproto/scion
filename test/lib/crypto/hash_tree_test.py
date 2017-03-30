@@ -32,7 +32,7 @@ from lib.defines import (
     HASHTREE_EPOCH_TOLERANCE,
 )
 from lib.packet.scion_addr import ISD_AS
-from test.testcommon import create_mock, create_mock_full
+from test.testcommon import create_mock_full
 
 
 class TestHashTreeCalcTreeDepth(object):
