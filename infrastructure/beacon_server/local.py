@@ -21,11 +21,9 @@ import logging
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
-from lib.errors import SCIONParseError, SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
-from lib.packet.pcb import PathSegment
 from lib.packet.svc import SVCType
-from lib.path_seg_meta import PathSegMeta
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
 
@@ -87,35 +85,8 @@ class LocalBeaconServer(BeaconServer):
         self.register_up_segments()
         self.register_down_segments()
 
-    def process_pcbs(self, pcbs, raw=True):
-        """
-        Process new beacons and appends them to beacon list.
-        """
-        for pcb in pcbs:
-            if raw:
-                try:
-                    pcb = PathSegment.from_raw(pcb)
-                except SCIONParseError as e:
-                    logging.error("Unable to parse raw pcb: %s", e)
-                    continue
-            if self.path_policy.check_filters(pcb):
-                seg_meta = PathSegMeta(pcb, self.process_seg_from_zk)
-                self.process_path_seg(seg_meta)
-                self.handle_ext(pcb)
-
-    def process_cert_chain_rep(self, rep, meta):
-        """
-        Process the Certificate chain reply.
-
-        :param rep: certificate chain reply.
-        :type rep: CertChainReply
-        """
-        logging.info("Certificate chain reply received for %s",
-                     rep.short_desc())
-        rep_key = rep.cert_chain.get_leaf_isd_as_ver()
-        self.trust_store.add_cert(rep.cert_chain)
-        if rep_key in self.cert_chain_requests:
-            del self.cert_chain_requests[rep_key]
+    def _filter_pcb(self, pcb, dst_ia=None):
+        return self.path_policy.check_filters(pcb)
 
     def _remove_revoked_pcbs(self, rev_info):
         candidates = (self.down_segments.candidates +

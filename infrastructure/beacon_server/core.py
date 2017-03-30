@@ -22,11 +22,10 @@ from _collections import defaultdict
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
-from lib.errors import SCIONParseError, SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
-from lib.path_seg_meta import PathSegMeta
 from lib.path_store import PathStore
 from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime
@@ -119,27 +118,6 @@ class CoreBeaconServer(BeaconServer):
         meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(records, meta)
 
-    def process_pcbs(self, pcbs, raw=True):
-        """
-        Process new beacons and appends them to beacon list.
-        """
-        count = 0
-        for pcb in pcbs:
-            if raw:
-                try:
-                    pcb = PathSegment.from_raw(pcb)
-                except SCIONParseError as e:
-                    logging.error("Unable to parse raw pcb: %s", e)
-                    continue
-            if not self._filter_pcb(pcb):
-                count += 1
-                continue
-            seg_meta = PathSegMeta(pcb, self.process_seg_from_zk)
-            self.process_path_seg(seg_meta)
-            self.handle_ext(pcb)
-        if count:
-            logging.debug("Dropped %d looping Core Segment PCBs", count)
-
     def _filter_pcb(self, pcb, dst_ia=None):
         """
         Check that there are no AS- or ISD-level loops in the PCB.
@@ -172,9 +150,6 @@ class CoreBeaconServer(BeaconServer):
                 return False
             isds.add(curr_isd)
         return True
-
-    def process_cert_chain_rep(self, cert_chain_rep, meta):
-        raise NotImplementedError
 
     def _handle_verified_beacon(self, pcb):
         """
