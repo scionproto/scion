@@ -259,7 +259,7 @@ class SCIONElement(object):
         """
         When a pcb or path segment is received, this function is called to
         find missing TRCs and certs and request them.
-        :param path: pcb or pathSegment
+        :param seg_meta: PathSegMeta object that contains pcb/path segment
         """
         if seg_meta not in self.unverified_segs:
             with self.unv_segs_lock:

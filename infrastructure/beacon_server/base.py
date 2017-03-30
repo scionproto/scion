@@ -157,7 +157,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.pcb_cache = ZkSharedCache(
-            self.zk, self.ZK_PCB_CACHE_PATH, self.handle_pcbs_from_zk)
+            self.zk, self.ZK_PCB_CACHE_PATH, self._handle_pcbs_from_zk)
         self.revobjs_cache = ZkSharedCache(
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
         self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
@@ -240,18 +240,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_pcbs_from_zk(self, pcbs):
+    def _handle_pcbs_from_zk(self, pcbs):
+        """
+        Handles cached pcbs through ZK, passed as a list.
+        """
         for pcb in pcbs:
             try:
                 pcb = PathSegment.from_raw(pcb)
             except SCIONParseError as e:
                 logging.error("Unable to parse raw pcb: %s", e)
                 continue
-            seg_meta = PathSegMeta(pcb, self.process_seg_from_zk)
+            seg_meta = PathSegMeta(pcb, self.continue_seg_proc_from_zk)
             self.process_path_seg(seg_meta)
 
     def handle_pcb(self, pcb, meta):
-        """Receives beacon and stores it for processing."""
+        """
+        Handles pcbs received from the network.
+        """
         pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
             return
@@ -259,6 +264,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
+        """
+        For every pcb(that can be verified) received from the network
+        this function gets called to continue the processing for the pcb.
+        """
         pcb = seg_meta.seg
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         try:
@@ -272,7 +281,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         else:
             logging.debug("Dropped PCB: %s" % pcb.short_desc())
 
-    def process_seg_from_zk(self, seg_meta):
+    def continue_seg_proc_from_zk(self, seg_meta):
+        """
+        For every pcb(that can be verified) received from zookeeper
+        this function gets called to continue the processing for the pcb.
+        """
         pcb = seg_meta.seg
         if self._filter_pcb(pcb):
             self._handle_verified_beacon(pcb)

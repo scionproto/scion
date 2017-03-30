@@ -116,7 +116,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                             self._zkid.copy().pack(), self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
-                                        self._cached_entries_handler)
+                                        self._handle_paths_from_zk)
         self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
                                        self._rev_entries_handler)
 
@@ -152,27 +152,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._update_master()
             self._propagate_and_sync()
             self._handle_pending_requests()
-
-    def process_seg_from_zk(self, seg_meta):
-        pcb = seg_meta.seg
-        type_ = seg_meta.type
-        self._dispatch_segment_record(type_, pcb, from_zk=True)
-        self._handle_pending_requests()
-
-    def _cached_entries_handler(self, raw_entries):
-        """
-        Handles cached through ZK entries, passed as a list.
-        """
-        count = 0
-        for raw in raw_entries:
-            recs = PathSegmentRecords.from_raw(raw)
-            for type_, pcb in recs.iter_pcbs():
-                count += 1
-                seg_meta = PathSegMeta(pcb, self.process_seg_from_zk,
-                                       type_=type_)
-                self.process_path_seg(seg_meta)
-        if count:
-            logging.debug("Processed %s PCBs from ZK", count)
 
     def _update_master(self):
         pass
@@ -348,7 +327,25 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for key in rem_keys:
                 del self.pending_req[key]
 
+    def _handle_paths_from_zk(self, raw_entries):
+        """
+        Handles cached paths through ZK, passed as a list.
+        """
+        count = 0
+        for raw in raw_entries:
+            recs = PathSegmentRecords.from_raw(raw)
+            for type_, pcb in recs.iter_pcbs():
+                count += 1
+                seg_meta = PathSegMeta(pcb, self.continue_seg_proc_from_zk,
+                                       type_=type_)
+                self.process_path_seg(seg_meta)
+        if count:
+            logging.debug("Processed %s PCBs from ZK", count)
+
     def handle_path_segment_record(self, seg_recs, meta):
+        """
+        Handles paths received from the network.
+        """
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
         for rev_info in seg_recs.iter_rev_infos():
@@ -360,10 +357,26 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
+        """
+        For every path segment(that can be verified) received from the network
+        this function gets called to continue the processing for the segment.
+        The segment is added to pathdb and pending requests are checked.
+        """
         pcb = seg_meta.seg
         type_ = seg_meta.type
         params = seg_meta.params
         self._dispatch_segment_record(type_, pcb, **params)
+        self._handle_pending_requests()
+
+    def continue_seg_proc_from_zk(self, seg_meta):
+        """
+        For every path segment(that can be verified) received from zookeeper
+        this function gets called to continue the processing for the segment.
+        The segment is added to pathdb and pending requests are checked.
+        """
+        pcb = seg_meta.seg
+        type_ = seg_meta.type
+        self._dispatch_segment_record(type_, pcb, from_zk=True)
         self._handle_pending_requests()
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):

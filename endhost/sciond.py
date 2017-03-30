@@ -177,6 +177,12 @@ class SCIONDaemon(SCIONElement):
             self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
+        """
+        For every path segment(that can be verified) received from the path
+        server this function gets called to continue the processing for the
+        segment.
+        The segment is added to pathdb and pending requests are checked.
+        """
         pcb = seg_meta.seg
         type_ = seg_meta.type
         map_ = {
