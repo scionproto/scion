@@ -47,10 +47,8 @@ class PktGen(TestClientBase):
         raw = spkt.pack()
         overlay_dest, overlay_port = str(self.first_hop[0]), self.first_hop[1]
         logging.debug("Sending (via %s:%s):\n%s", overlay_dest, overlay_port, spkt)
-        logging.debug("Path meta: %s", self.path_meta)
-        while True:
-            if count > 0 and self.sent >= count:
-                break
+        logging.debug(self.path_meta)
+        while not count or self.sent < count:
             self.sock.send(raw, (overlay_dest, overlay_port))
             self.sent += 1
         self._shutdown()
