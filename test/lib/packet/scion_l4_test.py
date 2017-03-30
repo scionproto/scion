@@ -37,7 +37,7 @@ class TestParseL4Hdr(object):
     def test_udp(self, udp_hdr):
         data = create_mock(["get", "pop"])
         # Call
-        ntools.eq_(parse_l4_hdr(L4Proto.UDP, data, "src addr", "dst addr"),
+        ntools.eq_(parse_l4_hdr(L4Proto.UDP, data, "dst addr", "src addr"),
                    udp_hdr.return_value)
         # Tests
         udp_hdr.assert_called_once_with((
@@ -47,7 +47,7 @@ class TestParseL4Hdr(object):
     def test_scmp(self, scmp_hdr):
         data = create_mock(["get", "pop"])
         # Call
-        ntools.eq_(parse_l4_hdr(L4Proto.SCMP, data, "src addr", "dst addr"),
+        ntools.eq_(parse_l4_hdr(L4Proto.SCMP, data, "dst addr", "src addr"),
                    scmp_hdr.return_value)
         # Tests
         scmp_hdr.assert_called_once_with((
