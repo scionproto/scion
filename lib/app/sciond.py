@@ -134,7 +134,8 @@ class SCIONDConnector:
         if not q_ia:
             q_ia = "local"
         with self._as_infos_lock:
-            as_info = self._try_cache(self._as_infos, [q_ia])[1].get(q_ia)
+            _, as_infos = self._try_cache(self._as_infos, [q_ia])
+            as_info = as_infos.get(q_ia)
             if as_info:
                 return as_info
             req_id = self._req_id.inc()
@@ -200,7 +201,7 @@ class SCIONDConnector:
             svc_type = SVC_TO_SERVICE[host.addr]
             svc_infos = self.get_service_info([svc_type])
             if svc_type in svc_infos:
-                return svc_infos[svc_type].host_info()
+                return svc_infos[svc_type].host_info(0)
             return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
@@ -244,6 +245,14 @@ class SCIONDConnector:
 
     @staticmethod
     def _try_cache(cache, key_list):
+        """
+        Returns items from cache whose keys are in key_list.
+
+        :param cache: The cache to check.
+        :param key_list: The list of keys to check for.
+        :returns: A set containg all keys that couldn't be found in the cache
+            and a dict mapping from keys to items that were contained in the cache.
+        """
         key_set = set(key_list) if key_list else set()
         if not key_set:
             return set(), {}
