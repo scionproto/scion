@@ -26,6 +26,7 @@ from lib.app.sciond import PathRequestFlags, SCIONDConnector, SCIONDResponseErro
 from lib.defines import SCION_UDP_EH_DATA_PORT
 from lib.packet.host_addr import HostAddrIPv4, HostAddrSVC
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.svc import SVCType
 from lib.sciond_api.path_req import SCIONDPathReplyError as PRE
 from lib.types import SCIONDMsgType as SMT
 from test.testcommon import create_mock, create_mock_full
@@ -53,7 +54,7 @@ class TestSCIONDConnectorGetPaths(SCIONDConnectorTestBase):
         return create_mock_full({"p": p, "iter_entries()": entries})
 
     @patch("lib.app.sciond.SCIONDPathRequest.from_values", new_callable=create_mock)
-    def test(self, from_values):
+    def test(self, path_req):
         connector = self._setup_connector(
             self._create_response(["1", "2"], False))
         flags = PathRequestFlags(flush=True, sibra=False)
@@ -64,7 +65,7 @@ class TestSCIONDConnectorGetPaths(SCIONDConnectorTestBase):
         ntools.eq_(paths, ["1", "2"])
         connector._create_socket.assert_called_once_with()
         connector._get_response.assert_called_once_with(ANY, 1, SMT.PATH_REPLY)
-        from_values.assert_called_once_with(
+        path_req.assert_called_once_with(
             self.REQ_ID, *dst_src_maxpaths, flags.flush, flags.sibra)
 
     def test_with_error(self):
@@ -81,19 +82,19 @@ class TestSCIONDConnectorGetASInfo(SCIONDConnectorTestBase):
             create_mock_full({"iter_entries()": ["as_info"]}), cache)
 
     @patch("lib.app.sciond.SCIONDASInfoRequest.from_values", new_callable=create_mock)
-    def test_local(self, from_values):
+    def test_local(self, as_info_req):
         connector = self._setup()
         # Call
         ntools.eq_(connector.get_as_info(), ["as_info"])
         # Tests
         ntools.eq_(connector._as_infos["local"], ["as_info"])
+        as_info_req.assert_called_once_with(self.REQ_ID, None)
         connector._create_socket.assert_called_once_with()
         connector._get_response.assert_called_once_with(ANY, 1, SMT.AS_REPLY)
         connector._try_cache.assert_called_once_with(connector._as_infos, ["local"])
-        from_values.assert_called_once_with(self.REQ_ID, None)
 
     @patch("lib.app.sciond.SCIONDASInfoRequest.from_values", new_callable=create_mock)
-    def test_remote(self, from_values):
+    def test_remote(self, as_info_req):
         connector = self._setup()
         isd_as = ISD_AS("1-1")
         # Call
@@ -101,19 +102,19 @@ class TestSCIONDConnectorGetASInfo(SCIONDConnectorTestBase):
         # Tests
         ntools.eq_(connector._as_infos[isd_as], ["as_info"])
         connector._try_cache.assert_called_once_with(connector._as_infos, [isd_as])
-        from_values.assert_called_once_with(self.REQ_ID, isd_as)
+        as_info_req.assert_called_once_with(self.REQ_ID, isd_as)
 
     @patch("lib.app.sciond.SCIONDASInfoRequest.from_values", new_callable=create_mock)
-    def test_with_cache(self, from_values):
+    def test_with_cache(self, as_info_req):
         isd_as = ISD_AS("1-1")
         connector = self._setup({"local": ["as_info1"], isd_as: ["as_info2"]})
         # Call
         ntools.eq_(connector.get_as_info(), ["as_info1"])
         ntools.eq_(connector.get_as_info(isd_as), ["as_info2"])
         # Tests
+        ntools.assert_false(as_info_req.called)
         ntools.assert_false(connector._create_socket.called)
         ntools.assert_false(connector._get_response.called)
-        ntools.assert_false(from_values.called)
 
 
 class TestSCIONDConnectorGetIFInfo(SCIONDConnectorTestBase):
@@ -126,7 +127,7 @@ class TestSCIONDConnectorGetIFInfo(SCIONDConnectorTestBase):
         return response_entries
 
     @patch("lib.app.sciond.SCIONDIFInfoRequest.from_values", new_callable=create_mock)
-    def test_get_all(self, from_values):
+    def test_get_all(self, if_req):
         entries = self._create_entries([(1, "if1"), (2, "if2")])
         connector = self._setup_connector(create_mock_full({"iter_entries()": entries}))
         # Call
@@ -134,13 +135,13 @@ class TestSCIONDConnectorGetIFInfo(SCIONDConnectorTestBase):
         # Tests
         ntools.eq_(connector._if_infos[1], entries[0])
         ntools.eq_(connector._if_infos[2], entries[1])
+        connector._try_cache.assert_called_once_with(connector._if_infos, None)
+        if_req.assert_called_once_with(self.REQ_ID, set())
         connector._create_socket.assert_called_once_with()
         connector._get_response.assert_called_once_with(ANY, 1, SMT.IF_REPLY)
-        connector._try_cache.assert_called_once_with(connector._if_infos, None)
-        from_values.assert_called_once_with(self.REQ_ID, set())
 
     @patch("lib.app.sciond.SCIONDIFInfoRequest.from_values", new_callable=create_mock)
-    def test_get(self, from_values):
+    def test_get_without_cache(self, if_req):
         entries = self._create_entries([(1, "if1"), (2, "if2")])
         connector = self._setup_connector(
             create_mock_full({"iter_entries()": entries}), remaining_keys={1, 2})
@@ -148,22 +149,22 @@ class TestSCIONDConnectorGetIFInfo(SCIONDConnectorTestBase):
         ntools.eq_(connector.get_if_info([1, 2]), {1: entries[0], 2: entries[1]})
         # Tests
         connector._try_cache.assert_called_once_with(connector._if_infos, [1, 2])
-        from_values.assert_called_once_with(self.REQ_ID, {1, 2})
+        if_req.assert_called_once_with(self.REQ_ID, {1, 2})
 
     @patch("lib.app.sciond.SCIONDIFInfoRequest.from_values", new_callable=create_mock)
-    def test_get_with_cache(self, from_values):
+    def test_get_with_cache(self, if_req):
         cache = {1: "if1", 2: "if2"}
         connector = self._setup_connector(response=None, cache=cache)
         # Call
         ntools.eq_(connector.get_if_info([1, 2]), {1: "if1", 2: "if2"})
         # Tests
+        connector._try_cache.assert_called_once_with(connector._if_infos, [1, 2])
         ntools.assert_false(connector._create_socket.called)
         ntools.assert_false(connector._get_response.called)
-        ntools.assert_false(from_values.called)
-        connector._try_cache.assert_called_once_with(connector._if_infos, [1, 2])
+        ntools.assert_false(if_req.called)
 
     @patch("lib.app.sciond.SCIONDIFInfoRequest.from_values", new_callable=create_mock)
-    def test_get_partial_cache(self, from_values):
+    def test_get_partial_cache(self, if_req):
         cache = {1: "if1", 2: "if2"}
         response_entries = self._create_entries([(3, "if3")])
         connector = self._setup_connector(
@@ -175,10 +176,10 @@ class TestSCIONDConnectorGetIFInfo(SCIONDConnectorTestBase):
         # Tests
         ntools.eq_(connector._if_infos[3], response_entries[0])
         connector._try_cache.assert_called_once_with(connector._if_infos, [1, 2, 3])
-        from_values.assert_called_once_with(self.REQ_ID, {3})
+        if_req.assert_called_once_with(self.REQ_ID, {3})
 
     @patch("lib.app.sciond.SCIONDIFInfoRequest.from_values", new_callable=create_mock)
-    def test_get_duplicates(self, from_values):
+    def test_get_duplicates(self, if_req):
         entries = self._create_entries([(1, "if1"), (2, "if2")])
         connector = self._setup_connector(
             create_mock_full({"iter_entries()": entries}), remaining_keys={1, 2})
@@ -186,7 +187,7 @@ class TestSCIONDConnectorGetIFInfo(SCIONDConnectorTestBase):
         ntools.eq_(connector.get_if_info([1, 2, 2, 2]), {1: entries[0], 2: entries[1]})
         # Tests
         connector._try_cache.assert_called_once_with(connector._if_infos, [1, 2, 2, 2])
-        from_values.assert_called_once_with(self.REQ_ID, {1, 2})
+        if_req.assert_called_once_with(self.REQ_ID, {1, 2})
 
 
 class TestSCIONDConnectorGetServiceInfo(SCIONDConnectorTestBase):
@@ -199,7 +200,7 @@ class TestSCIONDConnectorGetServiceInfo(SCIONDConnectorTestBase):
         return response_entries
 
     @patch("lib.app.sciond.SCIONDServiceInfoRequest.from_values", new_callable=create_mock)
-    def test_get_all(self, from_values):
+    def test_get_all(self, svc_req):
         entries = self._create_entries([("bs", "bs1"), ("ps", "ps1")])
         connector = self._setup_connector(create_mock_full({"iter_entries()": entries}))
         # Call
@@ -207,13 +208,13 @@ class TestSCIONDConnectorGetServiceInfo(SCIONDConnectorTestBase):
         # Tests
         ntools.eq_(connector._svc_infos["bs"], entries[0])
         ntools.eq_(connector._svc_infos["ps"], entries[1])
+        connector._try_cache.assert_called_once_with(connector._svc_infos, None)
+        svc_req.assert_called_once_with(self.REQ_ID, set())
         connector._create_socket.assert_called_once_with()
         connector._get_response.assert_called_once_with(ANY, 1, SMT.SERVICE_REPLY)
-        connector._try_cache.assert_called_once_with(connector._svc_infos, None)
-        from_values.assert_called_once_with(self.REQ_ID, set())
 
     @patch("lib.app.sciond.SCIONDServiceInfoRequest.from_values", new_callable=create_mock)
-    def test_get(self, from_values):
+    def test_get_without_cache(self, svc_req):
         entries = self._create_entries([("bs", "bs1"), ("ps", "ps1")])
         connector = self._setup_connector(
             create_mock_full({"iter_entries()": entries}), remaining_keys={"bs", "ps"})
@@ -222,22 +223,22 @@ class TestSCIONDConnectorGetServiceInfo(SCIONDConnectorTestBase):
                    {"bs": entries[0], "ps": entries[1]})
         # Tests
         connector._try_cache.assert_called_once_with(connector._svc_infos, ["bs", "ps"])
-        from_values.assert_called_once_with(self.REQ_ID, {"bs", "ps"})
+        svc_req.assert_called_once_with(self.REQ_ID, {"bs", "ps"})
 
     @patch("lib.app.sciond.SCIONDServiceInfoRequest.from_values", new_callable=create_mock)
-    def test_get_with_cache(self, from_values):
+    def test_get_with_cache(self, svc_req):
         cache = {"bs": "bs1", "ps": "ps1"}
         connector = self._setup_connector(None, cache=cache)
         # Call
         ntools.eq_(connector.get_service_info(["bs", "ps"]), {"bs": "bs1", "ps": "ps1"})
         # Tests
+        ntools.assert_false(svc_req.called)
         ntools.assert_false(connector._create_socket.called)
         ntools.assert_false(connector._get_response.called)
         connector._try_cache.assert_called_once_with(connector._svc_infos, ["bs", "ps"])
-        ntools.assert_false(from_values.called)
 
     @patch("lib.app.sciond.SCIONDServiceInfoRequest.from_values", new_callable=create_mock)
-    def test_get_partial_cache(self, from_values):
+    def test_get_partial_cache(self, svc_req):
         cache = {"bs": "bs1", "ps": "ps1"}
         response_entries = self._create_entries([("cs", "cs1")])
         connector = self._setup_connector(
@@ -249,10 +250,10 @@ class TestSCIONDConnectorGetServiceInfo(SCIONDConnectorTestBase):
         # Tests
         ntools.eq_(connector._svc_infos["cs"], response_entries[0])
         connector._try_cache.assert_called_once_with(connector._svc_infos, ["bs", "ps", "cs"])
-        from_values.assert_called_once_with(self.REQ_ID, {"cs"})
+        svc_req.assert_called_once_with(self.REQ_ID, {"cs"})
 
     @patch("lib.app.sciond.SCIONDServiceInfoRequest.from_values", new_callable=create_mock)
-    def test_get_duplicates(self, from_values):
+    def test_get_duplicates(self, svc_req):
         entries = self._create_entries([("bs", "bs1"), ("ps", "ps1")])
         connector = self._setup_connector(
             create_mock_full({"iter_entries()": entries}), remaining_keys={"bs", "ps"})
@@ -261,7 +262,7 @@ class TestSCIONDConnectorGetServiceInfo(SCIONDConnectorTestBase):
                    {"bs": entries[0], "ps": entries[1]})
         # Tests
         connector._try_cache.assert_called_once_with(connector._svc_infos, ["bs", "ps", "bs", "ps"])
-        from_values.assert_called_once_with(self.REQ_ID, {"bs", "ps"})
+        svc_req.assert_called_once_with(self.REQ_ID, {"bs", "ps"})
 
 
 class TestSCIONDConnectorResolveDstAddr:
@@ -278,7 +279,7 @@ class TestSCIONDConnectorResolveDstAddr:
         return connector
 
     def test_with_svc(self):
-        dst_addr = SCIONAddr.from_values(ISD_AS("1-1"), HostAddrSVC(0, raw=False))
+        dst_addr = SCIONAddr.from_values(ISD_AS("1-1"), SVCType.BS_A)
         src_addr = SCIONAddr.from_values(ISD_AS("1-1"), HostAddrIPv4("127.0.0.1"))
         connector = self._setup_connector(svc_info_desc=("bs", "bs1"))
         # Call
@@ -287,17 +288,16 @@ class TestSCIONDConnectorResolveDstAddr:
         connector.get_service_info.assert_called_once_with(["bs"])
 
     @patch("lib.app.sciond.HostInfo.from_values", new_callable=create_mock)
-    def test_with_host(self, from_values):
+    def test_with_host(self, host_info):
         dst_addr = SCIONAddr.from_values(ISD_AS("1-1"), HostAddrIPv4("127.0.0.2"))
         src_addr = SCIONAddr.from_values(ISD_AS("1-1"), HostAddrIPv4("127.0.0.1"))
         connector = self._setup_connector()
-        from_values.return_value = (dst_addr, SCION_UDP_EH_DATA_PORT)
         # Call
         ntools.eq_(connector._resolve_dst_addr(src_addr, dst_addr),
-                   (dst_addr, SCION_UDP_EH_DATA_PORT))
+                   host_info.return_value)
         # Tests
         ntools.assert_false(connector.get_service_info.called)
-        from_values.assert_called_once_with([HostAddrIPv4("127.0.0.2")], SCION_UDP_EH_DATA_PORT)
+        host_info.assert_called_once_with([HostAddrIPv4("127.0.0.2")], SCION_UDP_EH_DATA_PORT)
 
     def test_with_different_ases(self):
         dst_addr = SCIONAddr.from_values(ISD_AS("1-2"), HostAddrSVC(0, raw=False))
