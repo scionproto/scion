@@ -23,6 +23,7 @@ import sys
 import threading
 
 # SCION
+from endhost.sciond import SCIOND_API_SOCKDIR
 import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
 from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
@@ -38,7 +39,8 @@ from test.integration.base_cli_srv import (
 
 
 class TestCertClient(TestClientBase):
-    def __init__(self, api_addr, finished, addr):
+    def __init__(self, finished, addr):
+        api_addr = SCIOND_API_SOCKDIR + "sd%s.sock" % (addr.isd_as)
         # We need the lib sciond here already.
         connector = lib_sciond.init(api_addr)
         cs_info = lib_sciond.get_service_info(
@@ -46,7 +48,7 @@ class TestCertClient(TestClientBase):
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert_done = False
-        super().__init__(api_addr, "", finished, addr, cs_addr, cs.p.port)
+        super().__init__("", finished, addr, cs_addr, cs.p.port)
 
     def _get_path(self, api):
         pass  # No path required. All queries go to local CS
@@ -87,7 +89,7 @@ class TestCertClient(TestClientBase):
 class TestCertReq(TestClientServerBase):
     NAME = "CertReqTest"
 
-    def _run(self):
+    def run(self):
         for isd_as in self.src_ias:
             if not self._run_test(isd_as):
                 sys.exit(1)
@@ -104,7 +106,7 @@ class TestCertReq(TestClientServerBase):
         return False
 
     def _create_client(self, finished, addr):
-        return TestCertClient(self._run_sciond(addr), finished, addr)
+        return TestCertClient(finished, addr)
 
 
 def main():

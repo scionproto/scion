@@ -229,9 +229,9 @@ class SCIONDConnector:
         socket.settimeout(_SCIOND_TOUT)
         try:
             socket.connect(self._api_addr)
-        except OSError:
+        except OSError as e:
             socket.close()
-            raise SCIONDConnectionError()
+            raise SCIONDConnectionError(str(e))
         return socket
 
     def _get_response(self, socket, expected_id, expected_type):  # pragma: no cover
