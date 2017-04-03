@@ -95,11 +95,10 @@ class TestSCMPEcho(TestClientServerBase):
         self.thread_name = "E2E.MainThread"
 
     def _create_server(self, data, finished, addr):
-        return SCMPEchoServer(self._run_sciond(addr), data, finished, addr)
+        return SCMPEchoServer(data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return SCMPEchoClient(self._run_sciond(src), data, finished, src, dst,
-                              port)
+        return SCMPEchoClient(data, finished, src, dst, port)
 
 
 def main():

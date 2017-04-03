@@ -174,11 +174,10 @@ class SIBRATest(TestClientServerBase):
         return super()._check_result(client, server)
 
     def _create_server(self, data, finished, addr):
-        return SibraServer(self._run_sciond(addr), data, finished, addr)
+        return SibraServer(data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return SibraClient(self._run_sciond(src), data, finished, src, dst,
-                           port)
+        return SibraClient(data, finished, src, dst, port)
 
 
 def main():
