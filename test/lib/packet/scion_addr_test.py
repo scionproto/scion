@@ -104,8 +104,9 @@ class TestSCIONAddrParse(object):
     def test(self, get_type, raw, isd_as):
         # Setup
         inst = SCIONAddr()
-        haddr_type = create_mock(["LEN"])
+        haddr_type = create_mock(["LEN", "TYPE"])
         haddr_type.LEN = 42
+        haddr_type.TYPE = 1
         get_type.return_value = haddr_type
         data = create_mock(["pop"])
         data.pop.side_effect = ("isd-as", "raw addr")
