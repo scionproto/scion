@@ -150,9 +150,15 @@ class SCIONDConnector:
 
     def get_if_info(self, if_list=None):
         with self._if_infos_lock:
-            if_list, if_infos = self._try_cache(self._if_infos, if_list)
+            if if_list:
+                if_list, if_infos = self._try_cache(self._if_infos, if_list)
+            else:
+                if_infos = {}
+                if_list = set()
             if not if_list and if_infos:
+                # The request could be satisfied with cached IF infos.
                 return if_infos
+            # Request missing IF infos.
             req_id = self._req_id.inc()
             if_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
             with closing(self._create_socket()) as socket:
@@ -166,9 +172,16 @@ class SCIONDConnector:
 
     def get_service_info(self, service_types=None):
         with self._svc_infos_lock:
-            service_types, svc_infos = self._try_cache(self._svc_infos, service_types)
+
+            if service_types:
+                service_types, svc_infos = self._try_cache(self._svc_infos, service_types)
+            else:
+                svc_infos = {}
+                service_types = set()
             if not service_types and svc_infos:
+                # The request could be satisfied with cached service infos.
                 return svc_infos
+            # Request missing service infos.
             req_id = self._req_id.inc()
             svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
             with closing(self._create_socket()) as socket:
