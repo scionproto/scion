@@ -162,7 +162,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
         self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
                                             HASHTREE_EPOCH_TOLERANCE)
-        self.local_rev_cache_lock = Lock()
+        self._rev_seg_lock = Lock()
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
@@ -531,7 +531,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Processes revocation infos stored in Zookeeper.
         """
-        with self.local_rev_cache_lock:
+        with self._rev_seg_lock:
             for raw in rev_infos:
                 try:
                     rev_info = RevocationInfo.from_raw(raw)
@@ -591,7 +591,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._process_revocation(rev_info)
 
     def handle_rev_objs(self):
-        with self.local_rev_cache_lock:
+        with self._rev_seg_lock:
             for rev_info in self.local_rev_cache.values():
                 self._remove_revoked_pcbs(rev_info)
 
@@ -609,7 +609,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Trying to revoke IF with ID 0.")
             return
 
-        with self.local_rev_cache_lock:
+        with self._rev_seg_lock:
             self.local_rev_cache[rev_info] = rev_info.copy()
 
         logging.info("Storing revocation in ZK.")

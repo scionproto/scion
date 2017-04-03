@@ -158,7 +158,8 @@ class CoreBeaconServer(BeaconServer):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        self.core_beacons[pcb.first_ia()].add_segment(pcb)
+        with self._rev_seg_lock:
+            self.core_beacons[pcb.first_ia()].add_segment(pcb)
 
     def register_core_segments(self):
         """

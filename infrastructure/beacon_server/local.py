@@ -100,9 +100,10 @@ class LocalBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        self.beacons.add_segment(pcb)
-        self.up_segments.add_segment(pcb)
-        self.down_segments.add_segment(pcb)
+        with self._rev_seg_lock:
+            self.beacons.add_segment(pcb)
+            self.up_segments.add_segment(pcb)
+            self.down_segments.add_segment(pcb)
 
     def handle_pcbs_propagation(self):
         """
