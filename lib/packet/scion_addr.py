@@ -23,8 +23,8 @@ from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.packet_base import Serializable
 from lib.packet.host_addr import (
     HostAddrBase,
-    haddr_get_type,
-)
+    HostAddrNone,
+    haddr_get_type,)
 from lib.util import Raw
 
 
@@ -167,7 +167,10 @@ class SCIONAddr(object):
         addr_len = ISD_AS.LEN + haddr_type.LEN
         data = Raw(raw, "SCIONAddr", addr_len, min_=True)
         self.isd_as = ISD_AS(data.pop(ISD_AS.LEN))
-        self.host = haddr_type(data.pop(haddr_type.LEN))
+        if haddr_type.TYPE == HostAddrNone.TYPE:
+            self.host = HostAddrNone()
+        else:
+            self.host = haddr_type(data.pop(haddr_type.LEN))
 
     @classmethod
     def from_values(cls, isd_as, host):  # pragma: no cover
