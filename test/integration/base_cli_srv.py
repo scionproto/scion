@@ -31,13 +31,15 @@ from itertools import product
 
 # SCION
 import lib.app.sciond as lib_sciond
-from endhost.sciond import SCIOND_API_SOCKDIR
-from lib.defines import AS_LIST_FILE, GEN_PATH, SCION_UDP_EH_DATA_PORT
+from lib.defines import (
+    AS_LIST_FILE,
+    GEN_PATH,
+    SCIOND_API_SOCKDIR,
+    SCION_UDP_EH_DATA_PORT
+)
 from lib.log import init_logging
 from lib.main import main_wrapper
-from lib.packet.host_addr import (
-    haddr_parse_interface,
-)
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
@@ -59,8 +61,8 @@ class ResponseRV:
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, data, finished, addr, timeout=1.0):
-        self.api_addr = SCIOND_API_SOCKDIR + "sd%s.sock" % (addr.isd_as)
+    def __init__(self, data, finished, addr, timeout=1.0, api_addr=None):
+        self.api_addr = api_addr or (SCIOND_API_SOCKDIR + "sd%s.sock" % (addr.isd_as))
         self.data = data
         self.finished = finished
         self.addr = addr
@@ -111,7 +113,7 @@ class TestClientBase(TestBase):
     Base client app
     """
     def __init__(self, data, finished, addr, dst, dport, api=True,
-                 timeout=3.0, retries=0):
+                 timeout=3.0, retries=0, api_addr=None):
         self.dst = dst
         self.dport = dport
         self.api = api
@@ -119,7 +121,7 @@ class TestClientBase(TestBase):
         self.first_hop = None
         self.retries = retries
         self._req_id = 0
-        super().__init__(data, finished, addr, timeout)
+        super().__init__(data, finished, addr, timeout, api_addr)
         self._get_path(api)
 
     def _get_path(self, api, flush=False):
