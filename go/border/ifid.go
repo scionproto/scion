@@ -44,7 +44,8 @@ func (r *Router) SyncInterface() {
 }
 
 func (r *Router) GenIFIDPkts() {
-	for ifid := range conf.C.Net.IFs {
+	config := conf.GetConfig()
+	for ifid := range config.Net.IFs {
 		r.GenIFIDPkt(ifid)
 	}
 }
@@ -52,11 +53,12 @@ func (r *Router) GenIFIDPkts() {
 // GenIFIDPkt generates IFID packets.
 func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
 	logger := log.New("ifid", ifid)
-	intf := conf.C.Net.IFs[ifid]
+	config := conf.GetConfig()
+	intf := config.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		SrcIA: config.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
 		DstIA: intf.RemoteIA, DstHost: addr.HostFromIP(intf.RemoteAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(intf.RemoteAddr.Port)},
 	}, rpkt.DirExternal)

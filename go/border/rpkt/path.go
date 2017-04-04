@@ -51,7 +51,8 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		return common.NewErrorData("Hop field is VERIFY_ONLY", sdata)
 	}
 	// A forward-only Hop Field cannot be used for local delivery.
-	if rp.hopF.ForwardOnly && rp.dstIA == conf.C.IA {
+	config := conf.GetConfig()
+	if rp.hopF.ForwardOnly && rp.dstIA == config.IA {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
 		return common.NewErrorData("Hop field is FORWARD_ONLY", sdata)
 	}
@@ -63,7 +64,7 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		return common.NewErrorData("Hop field expired", sdata, "expiry", hopfExpiry)
 	}
 	// Verify the Hop Field MAC.
-	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	err := rp.hopF.Verify(config.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
 	if err != nil && err.Desc == spath.ErrorHopFBadMac {
 		err.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
 	}
@@ -77,14 +78,15 @@ func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
 	if ifid == nil {
 		return common.NewError("validateLocalIF: Interface is nil")
 	}
-	if _, ok := conf.C.TopoMeta.IFMap[int(*ifid)]; !ok {
+	if _, ok := conf.GetConfig().TopoMeta.IFMap[int(*ifid)]; !ok {
 		// No such interface.
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
 		return common.NewErrorData("Unknown IF", sdata, "ifid", ifid)
 	}
-	conf.C.IFStates.RLock()
-	info, ok := conf.C.IFStates.M[*ifid]
-	conf.C.IFStates.RUnlock()
+	config := conf.GetConfig()
+	config.IFStates.RLock()
+	info, ok := config.IFStates.M[*ifid]
+	config.IFStates.RUnlock()
 	if !ok || info.P.Active() || rp.DirTo == DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
 		// router, in which case revocations are ignored to allow communication
@@ -396,7 +398,7 @@ func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Err
 	if ifid == nil {
 		return nil, common.NewError("No interface found")
 	}
-	if _, ok := conf.C.Net.IFs[*ifid]; !ok {
+	if _, ok := conf.GetConfig().Net.IFs[*ifid]; !ok {
 		return nil, common.NewError("Unknown interface", "ifid", *ifid)
 	}
 	rp.ifCurr = ifid

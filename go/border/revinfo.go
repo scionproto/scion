@@ -84,12 +84,13 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
 func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
+	config := conf.GetConfig()
 	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+	srcAddr := config.Net.LocAddr[0].PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
-		DstIA: conf.C.IA, DstHost: dstHost,
+		SrcIA: config.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: config.IA, DstHost: dstHost,
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
 	}, rpkt.DirLocal)
 	if err != nil {

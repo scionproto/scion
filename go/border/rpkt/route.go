@@ -70,7 +70,8 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 		return HookError, common.NewError("Destination host is NOT an SVC address",
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	config := conf.GetConfig()
+	intf := config.Net.IFs[*rp.ifCurr]
 	f := callbacks.locOutFs[intf.LocAddrIdx]
 	if svc.IsMulticast() {
 		return rp.RouteResolveSVCMulti(svc, f)
@@ -137,8 +138,9 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 		return HookError, common.NewError(
 			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
-	if rp.dstIA.Eq(conf.C.IA) {
+	config := conf.GetConfig()
+	intf := config.Net.IFs[*rp.ifCurr]
+	if rp.dstIA.Eq(config.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
 			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
@@ -159,7 +161,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	// Destination is in a remote ISD-AS, so forward to egress router.
 	// FIXME(kormat): this will need to change when multiple interfaces per
 	// router are supported.
-	nextBR := conf.C.TopoMeta.IFMap[int(*rp.ifNext)]
+	nextBR := config.TopoMeta.IFMap[int(*rp.ifNext)]
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
 	rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
@@ -211,8 +213,9 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 		// If the segment didn't change, no more checks to make.
 		return nil
 	}
-	prevLink := conf.C.Net.IFs[origIFCurr].Type
-	nextLink := conf.C.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
+	config := conf.GetConfig()
+	prevLink := config.Net.IFs[origIFCurr].Type
+	nextLink := config.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
 	// Never allowed to switch between core segments.
 	if prevLink == topology.LinkCore && nextLink == topology.LinkCore {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
@@ -243,7 +246,8 @@ func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 			return HookError, err
 		}
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	config := conf.GetConfig()
+	intf := config.Net.IFs[*rp.ifCurr]
 	rp.Egress = append(rp.Egress, EgressPair{callbacks.intfOutFs[*rp.ifCurr], intf.RemoteAddr})
 	return HookContinue, nil
 }
