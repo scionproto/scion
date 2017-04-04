@@ -152,12 +152,12 @@ class SCIONDConnector:
         with self._if_infos_lock:
             if if_list:
                 if_list, if_infos = self._try_cache(self._if_infos, if_list)
+                if not if_list:
+                    # The request could be satisfied with cached IF infos.
+                    return if_infos
             else:
                 if_infos = {}
                 if_list = set()
-            if not if_list and if_infos:
-                # The request could be satisfied with cached IF infos.
-                return if_infos
             # Request missing IF infos.
             req_id = self._req_id.inc()
             if_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
@@ -172,15 +172,14 @@ class SCIONDConnector:
 
     def get_service_info(self, service_types=None):
         with self._svc_infos_lock:
-
             if service_types:
                 service_types, svc_infos = self._try_cache(self._svc_infos, service_types)
+                if not service_types:
+                    # The request could be satisfied with cached IF infos.
+                    return svc_infos
             else:
                 svc_infos = {}
                 service_types = set()
-            if not service_types and svc_infos:
-                # The request could be satisfied with cached service infos.
-                return svc_infos
             # Request missing service infos.
             req_id = self._req_id.inc()
             svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
@@ -266,9 +265,7 @@ class SCIONDConnector:
         :returns: A set containg all keys that couldn't be found in the cache
             and a dict mapping from keys to items that were contained in the cache.
         """
-        key_set = set(key_list) if key_list else set()
-        if not key_set:
-            return set(), {}
+        key_set = set(key_list)
         result = {}
         for key in key_list:
             if key in cache:
