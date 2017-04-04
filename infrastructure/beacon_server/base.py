@@ -250,7 +250,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONParseError as e:
                 logging.error("Unable to parse raw pcb: %s", e)
                 continue
-            self.handle_pcb(pcb, None)
+            self.handle_pcb(pcb)
         logging.debug("Processed %s PCBs from ZK", len(pcbs))
 
     def handle_pcb(self, pcb, meta=None):
