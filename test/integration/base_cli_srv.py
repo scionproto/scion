@@ -62,7 +62,7 @@ class ResponseRV:
 
 class TestBase(object, metaclass=ABCMeta):
     def __init__(self, data, finished, addr, timeout=1.0, api_addr=None):
-        self.api_addr = api_addr or (SCIOND_API_SOCKDIR + "sd%s.sock" % (addr.isd_as))
+        self.api_addr = api_addr or get_sciond_api_addr(addr)
         self.data = data
         self.finished = finished
         self.addr = addr
@@ -345,6 +345,10 @@ def _parse_locs(as_str, as_list):
     copied = copy.copy(as_list)
     random.shuffle(copied)
     return copied
+
+
+def get_sciond_api_addr(addr):
+    return os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % addr.isd_as)
 
 
 def setup_main(name, parser=None):

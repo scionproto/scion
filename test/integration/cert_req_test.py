@@ -23,7 +23,6 @@ import sys
 import threading
 
 # SCION
-from endhost.sciond import SCIOND_API_SOCKDIR
 import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
 from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
@@ -32,6 +31,7 @@ from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.types import ServiceType
 from test.integration.base_cli_srv import (
+    get_sciond_api_addr,
     setup_main,
     TestClientBase,
     TestClientServerBase,
@@ -40,9 +40,8 @@ from test.integration.base_cli_srv import (
 
 class TestCertClient(TestClientBase):
     def __init__(self, finished, addr):
-        api_addr = SCIOND_API_SOCKDIR + "sd%s.sock" % (addr.isd_as)
         # We need the lib sciond here already.
-        connector = lib_sciond.init(api_addr)
+        connector = lib_sciond.init(get_sciond_api_addr(addr))
         cs_info = lib_sciond.get_service_info(
             [ServiceType.CS], connector=connector)[ServiceType.CS]
         cs = cs_info.host_info(0)
