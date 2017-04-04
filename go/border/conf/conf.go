@@ -36,10 +36,6 @@ import (
 
 // Conf is the main config structure.
 type Conf struct {
-	// Every time something from Conf is read (modified), the read(write) lock has to
-	// be acquired. EXCEPTION: Reading IA doesn't need a lock, since that information
-	// cannot change over the lifetime of the router.
-	sync.RWMutex
 	// TopoMeta contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
 	TopoMeta *topology.TopoMeta
