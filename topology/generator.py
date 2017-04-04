@@ -59,11 +59,11 @@ from lib.defines import (
     IFIDS_FILE,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
+    PROM_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
     SCIOND_API_SOCKDIR,
     TOPO_FILE,
-    PROM_FILE
 )
 from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
@@ -658,20 +658,36 @@ class TopoGenerator(object):
 
 
 class PrometheusGenerator(object):
+    PROM_DIR = "prometheus"
+    BR_TARGET_FILE = "br.yml"
+
     def __init__(self, out_dir, topo_dicts):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self.router_dict = {}
 
-    def _write_target_file(self, base_path, router_addrs):
-        targets_path = os.path.join(base_path, "prometheus", "targets.yml")
-        target_config = [{'targets': router_addrs}]
-        write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
+    def generate(self):
+        router_dict = {}
+        for topo_id, as_topo in self.topo_dicts.items():
+            router_list = []
+            for br_id, br_ele in as_topo["BorderRouters"].items():
+                router_list.append("[%s]:%s" % (br_ele['Addr'].ip, br_ele['Port']))
+            router_dict[topo_id] = router_list
+        self._write_config_files(router_dict)
+
+    def _write_config_files(self, router_dict):
+        list_of_paths = []
+        for topo_id, router_list in router_dict.items():
+            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            targets_path = os.path.join(base, self.PROM_DIR, "*.yml")
+            list_of_paths.append(targets_path)
+            self._write_config_file(os.path.join(base, PROM_FILE), [targets_path])
+            self._write_target_file(base, router_list)
+        self._write_config_file(os.path.join(self.out_dir, PROM_FILE), list_of_paths)
 
     def _write_config_file(self, config_path, file_paths):
         config = {
             'global': {
-                'scrape_interval': '15s',
+                'scrape_interval': '5s',
                 'evaluation_interval': '15s',
                 'external_labels': {
                     'monitor': 'scion-monitor'
@@ -679,29 +695,15 @@ class PrometheusGenerator(object):
             },
             'scrape_configs': [{
                 'job_name': 'border',
-                'scrape_interval': '5s',
                 'file_sd_configs': [{'files': file_paths}]
             }],
         }
         write_file(config_path, yaml.dump(config, default_flow_style=False))
 
-    def _write_config_files(self):
-        list_of_paths = []
-        for topo_id, router_list in self.router_dict.items():
-            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
-            targets_path = os.path.join(base, "prometheus", "*.yml")
-            list_of_paths.append(targets_path)
-            self._write_config_file(os.path.join(base, PROM_FILE), [targets_path])
-            self._write_target_file(base, router_list)
-        self._write_config_file(os.path.join(self.out_dir, PROM_FILE), list_of_paths)
-
-    def generate(self):
-        for topo_id, as_topo in self.topo_dicts.items():
-            router_list = []
-            for br_id, br_ele in as_topo["BorderRouters"].items():
-                router_list.append(str(br_ele['Addr'].ip) + ":" + str(br_ele['Port']))
-            self.router_dict[topo_id] = router_list
-        self._write_config_files()
+    def _write_target_file(self, base_path, router_addrs):
+        targets_path = os.path.join(base_path, self.PROM_DIR, self.BR_TARGET_FILE)
+        target_config = [{'targets': router_addrs}]
+        write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
 
 
 class SupervisorGenerator(object):
