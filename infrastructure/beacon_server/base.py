@@ -21,7 +21,7 @@ import logging
 import os
 import threading
 import time
-from _collections import defaultdict
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from threading import Lock, RLock
 
@@ -162,7 +162,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
         self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
                                             HASHTREE_EPOCH_TOLERANCE)
-        self._rev_seg_lock = Lock()
+        self._rev_seg_lock = RLock()
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
@@ -250,48 +250,41 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONParseError as e:
                 logging.error("Unable to parse raw pcb: %s", e)
                 continue
-            seg_meta = PathSegMeta(pcb, self.continue_seg_proc_from_zk)
-            self.process_path_seg(seg_meta)
+            self.handle_pcb(pcb, None)
+        logging.debug("Processed %s PCBs from ZK", len(pcbs))
 
-    def handle_pcb(self, pcb, meta):
+    def handle_pcb(self, pcb, meta=None):
         """
         Handles pcbs received from the network.
         """
-        pcb.p.ifID = meta.path.get_hof().ingress_if
+        if meta:
+            pcb.p.ifID = meta.path.get_hof().ingress_if
         if not self.path_policy.check_filters(pcb):
+            logging.debug("Segment dropped due to path policy: %s" %
+                          pcb.short_desc())
+            return
+        if not self._filter_pcb(pcb):
+            logging.debug("Segment dropped due to looping: %s" %
+                          pcb.short_desc())
             return
         seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta)
         self.process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
         """
-        For every pcb(that can be verified) received from the network
+        For every pcb(that can be verified) received from the network or ZK
         this function gets called to continue the processing for the pcb.
         """
         pcb = seg_meta.seg
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
-        try:
-            self.pcb_cache.store(entry_name, pcb.copy().pack())
-        except ZkNoConnection:
-            logging.error("Unable to store PCB in shared cache: "
-                          "no connection to ZK")
-        if self._filter_pcb(pcb):
-            self._handle_verified_beacon(pcb)
-            self.handle_ext(pcb)
-        else:
-            logging.debug("Dropped PCB: %s" % pcb.short_desc())
-
-    def continue_seg_proc_from_zk(self, seg_meta):
-        """
-        For every pcb(that can be verified) received from zookeeper
-        this function gets called to continue the processing for the pcb.
-        """
-        pcb = seg_meta.seg
-        if self._filter_pcb(pcb):
-            self._handle_verified_beacon(pcb)
-            self.handle_ext(pcb)
-        else:
-            logging.debug("Dropped PCB: %s" % pcb.short_desc())
+        if seg_meta.meta:
+            try:
+                self.pcb_cache.store(entry_name, pcb.copy().pack())
+            except ZkNoConnection:
+                logging.error("Unable to store PCB in shared cache: "
+                              "no connection to ZK")
+        self._handle_verified_beacon(pcb)
+        self.handle_ext(pcb)
 
     def _filter_pcb(self, pcb, dst_ia=None):
         pass

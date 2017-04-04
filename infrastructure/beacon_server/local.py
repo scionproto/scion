@@ -84,17 +84,18 @@ class LocalBeaconServer(BeaconServer):
         self.register_down_segments()
 
     def _filter_pcb(self, pcb, dst_ia=None):
-        return self.path_policy.check_filters(pcb)
+        return True
 
     def _remove_revoked_pcbs(self, rev_info):
-        candidates = (self.down_segments.candidates +
-                      self.up_segments.candidates +
-                      self.beacons.candidates)
-        to_remove = self._pcb_list_to_remove(candidates, rev_info)
-        # Remove the affected segments from the path stores.
-        self.beacons.remove_segments(to_remove)
-        self.up_segments.remove_segments(to_remove)
-        self.down_segments.remove_segments(to_remove)
+        with self._rev_seg_lock:
+            candidates = (self.down_segments.candidates +
+                          self.up_segments.candidates +
+                          self.beacons.candidates)
+            to_remove = self._pcb_list_to_remove(candidates, rev_info)
+            # Remove the affected segments from the path stores.
+            self.beacons.remove_segments(to_remove)
+            self.up_segments.remove_segments(to_remove)
+            self.down_segments.remove_segments(to_remove)
 
     def _handle_verified_beacon(self, pcb):
         """
@@ -110,7 +111,8 @@ class LocalBeaconServer(BeaconServer):
         Main loop to propagate received beacons.
         """
         # TODO: define function that dispatches the pcbs among the interfaces
-        best_segments = self.beacons.get_best_segments()
+        with self._rev_seg_lock:
+            best_segments = self.beacons.get_best_segments()
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
 
@@ -118,7 +120,8 @@ class LocalBeaconServer(BeaconServer):
         """
         Register the paths to the core.
         """
-        best_segments = self.up_segments.get_best_segments(sending=False)
+        with self._rev_seg_lock:
+            best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             if not pcb:
@@ -135,7 +138,8 @@ class LocalBeaconServer(BeaconServer):
         """
         Register the paths from the core.
         """
-        best_segments = self.down_segments.get_best_segments(sending=False)
+        with self._rev_seg_lock:
+            best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             if not pcb:

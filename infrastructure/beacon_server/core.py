@@ -17,7 +17,7 @@
 """
 # Stdlib
 import logging
-from _collections import defaultdict
+from collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
@@ -89,8 +89,9 @@ class CoreBeaconServer(BeaconServer):
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
         beacons = []
-        for ps in self.core_beacons.values():
-            beacons.extend(ps.get_best_segments())
+        with self._rev_seg_lock:
+            for ps in self.core_beacons.values():
+                beacons.extend(ps.get_best_segments())
         for pcb in beacons:
             core_count += self.propagate_core_pcb(pcb)
         if core_count:
@@ -166,8 +167,9 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment between core ASes.
         """
         core_segments = []
-        for ps in self.core_beacons.values():
-            core_segments.extend(ps.get_best_segments(sending=False))
+        with self._rev_seg_lock:
+            for ps in self.core_beacons.values():
+                core_segments.extend(ps.get_best_segments(sending=False))
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
@@ -180,9 +182,10 @@ class CoreBeaconServer(BeaconServer):
 
     def _remove_revoked_pcbs(self, rev_info):
         candidates = []
-        for ps in self.core_beacons.values():
-            candidates += ps.candidates
-        to_remove = self._pcb_list_to_remove(candidates, rev_info)
-        # Remove the affected segments from the path stores.
-        for ps in self.core_beacons.values():
-            ps.remove_segments(to_remove)
+        with self._rev_seg_lock:
+            for ps in self.core_beacons.values():
+                candidates += ps.candidates
+            to_remove = self._pcb_list_to_remove(candidates, rev_info)
+            # Remove the affected segments from the path stores.
+            for ps in self.core_beacons.values():
+                ps.remove_segments(to_remove)

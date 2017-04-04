@@ -18,7 +18,7 @@
 # Stdlib
 import logging
 import threading
-from _collections import defaultdict, deque
+from collections import defaultdict, deque
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 
@@ -331,16 +331,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Handles cached paths through ZK, passed as a list.
         """
-        count = 0
         for raw in raw_entries:
             recs = PathSegmentRecords.from_raw(raw)
             for type_, pcb in recs.iter_pcbs():
-                count += 1
-                seg_meta = PathSegMeta(pcb, self.continue_seg_proc_from_zk,
-                                       type_=type_)
+                seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
+                                       type_=type_, params={'from_zk': True})
                 self.process_path_seg(seg_meta)
-        if count:
-            logging.debug("Processed %s PCBs from ZK", count)
+        logging.debug("Processed %s segments from ZK", len(raw_entries))
 
     def handle_path_segment_record(self, seg_recs, meta):
         """
@@ -359,24 +356,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def continue_seg_processing(self, seg_meta):
         """
         For every path segment(that can be verified) received from the network
-        this function gets called to continue the processing for the segment.
+        or ZK this function gets called to continue the processing for the
+        segment.
         The segment is added to pathdb and pending requests are checked.
         """
         pcb = seg_meta.seg
         type_ = seg_meta.type
         params = seg_meta.params
         self._dispatch_segment_record(type_, pcb, **params)
-        self._handle_pending_requests()
-
-    def continue_seg_proc_from_zk(self, seg_meta):
-        """
-        For every path segment(that can be verified) received from zookeeper
-        this function gets called to continue the processing for the segment.
-        The segment is added to pathdb and pending requests are checked.
-        """
-        pcb = seg_meta.seg
-        type_ = seg_meta.type
-        self._dispatch_segment_record(type_, pcb, from_zk=True)
         self._handle_pending_requests()
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
