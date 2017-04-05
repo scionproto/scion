@@ -100,7 +100,7 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 		return err
 	}
 	// Set index for path header.
-	addrLen := addr.IABytes*2 + int(srcLen) + int(dstLen)
+	addrLen := int(addr.IABytes*2 + dstLen + srcLen)
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if rp.idxs.path > int(rp.CmnHdr.HdrLen) {

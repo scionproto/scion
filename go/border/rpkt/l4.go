@@ -127,8 +127,9 @@ func (rp *RtrPkt) verifyL4Chksum() *common.Error {
 	return nil
 }
 
-// getChksumInput is a helper method to return the raw bytes of the src/dest
-// addresses, and the payload, for calculating a layer 4 checksum.
+// getChksumInput is a helper method to return the raw bytes of the address
+// header (excluding padding) and the payload, for calculating a
+// layer 4 checksum.
 func (rp *RtrPkt) getChksumInput() (ahdr, pld common.RawBytes) {
 	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
 	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
