@@ -131,11 +131,10 @@ class TestMPUDP(TestClientServerBase):
     NAME = "MPUDP"
 
     def _create_server(self, data, finished, addr):
-        return MPUDPServer(self._run_sciond(addr), data, finished, addr)
+        return MPUDPServer(data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
-        return MPUDPClient(self._run_sciond(src), data, finished, src, dst,
-                           port)
+        return MPUDPClient(data, finished, src, dst, port)
 
 
 def main():

@@ -31,13 +31,15 @@ from itertools import product
 
 # SCION
 import lib.app.sciond as lib_sciond
-from endhost.sciond import SCIOND_API_SOCKDIR, SCIONDaemon
-from lib.defines import AS_LIST_FILE, GEN_PATH, SCION_UDP_EH_DATA_PORT
+from lib.defines import (
+    AS_LIST_FILE,
+    GEN_PATH,
+    SCIOND_API_SOCKDIR,
+    SCION_UDP_EH_DATA_PORT
+)
 from lib.log import init_logging
 from lib.main import main_wrapper
-from lib.packet.host_addr import (
-    haddr_parse_interface,
-)
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
@@ -59,8 +61,8 @@ class ResponseRV:
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, api_addr, data, finished, addr, timeout=1.0):
-        self.api_addr = api_addr
+    def __init__(self, data, finished, addr, timeout=1.0, api_addr=None):
+        self.api_addr = api_addr or get_sciond_api_addr(addr)
         self.data = data
         self.finished = finished
         self.addr = addr
@@ -68,7 +70,7 @@ class TestBase(object, metaclass=ABCMeta):
         self.sock = self._create_socket(addr)
         assert self.sock
         self.success = None
-        self._connector = lib_sciond.init(api_addr)
+        self._connector = lib_sciond.init(self.api_addr)
 
     @abstractmethod
     def run(self):
@@ -110,8 +112,8 @@ class TestClientBase(TestBase):
     """
     Base client app
     """
-    def __init__(self, api_addr, data, finished, addr, dst, dport, api=True,
-                 timeout=3.0, retries=0):
+    def __init__(self, data, finished, addr, dst, dport, api=True,
+                 timeout=3.0, retries=0, api_addr=None):
         self.dst = dst
         self.dport = dport
         self.api = api
@@ -119,7 +121,7 @@ class TestClientBase(TestBase):
         self.first_hop = None
         self.retries = retries
         self._req_id = 0
-        super().__init__(api_addr, data, finished, addr, timeout)
+        super().__init__(data, finished, addr, timeout, api_addr)
         self._get_path(api)
 
     def _get_path(self, api, flush=False):
@@ -141,6 +143,9 @@ class TestClientBase(TestBase):
             try:
                 path_entries = lib_sciond.get_paths(
                     self.dst.isd_as, flags=flags, connector=self._connector)
+            except lib_sciond.SCIONDConnectionError as e:
+                logging.error("Connection to SCIOND failed: %s " % e)
+                break
             except lib_sciond.SCIONDLibError as e:
                 logging.error("Error during path lookup: %s" % e)
                 continue
@@ -251,18 +256,10 @@ class TestClientServerBase(object):
         self.src_ias = sources
         self.dst_ias = destinations
         self.local = local
-        self.scionds = {}
         self.max_runs = max_runs
         self.retries = retries
 
     def run(self):
-        try:
-            self._run()
-        finally:
-            self._stop_scionds()
-        logging.info("All tests successful")
-
-    def _run(self):
         """
         Run a test for every pair of src and dst
         """
@@ -283,6 +280,7 @@ class TestClientServerBase(object):
             t.name = "%s %s > %s main" % (self.NAME, src_ia, dst_ia)
             if not self._run_test(src, dst):
                 sys.exit(1)
+        logging.info("All tests successful")
 
     def _run_test(self, src, dst):
         """
@@ -324,35 +322,13 @@ class TestClientServerBase(object):
         """
         Instantiate server app
         """
-        return TestServerBase(self._run_sciond(addr), data, finished, addr)
+        return TestServerBase(data, finished, addr)
 
     def _create_client(self, data, finished, src, dst, port):
         """
         Instantiate client app
         """
-        return TestClientBase(self._run_sciond(src), data, finished, src, dst,
-                              port, retries=self.retries)
-
-    def _run_sciond(self, addr):
-        api_addr = SCIOND_API_SOCKDIR + "%s_%s.sock" % (
-                self.NAME, addr.isd_as)
-        if addr.isd_as not in self.scionds:
-            logging.debug("Starting sciond for %s", addr.isd_as)
-            # Local api on, random port, random api port
-            self.scionds[addr.isd_as] = start_sciond(
-                addr, api=True, api_addr=api_addr)
-        return api_addr
-
-    def _stop_scionds(self):
-        for sd in self.scionds.values():
-            sd.stop()
-
-
-def start_sciond(addr, api=False, port=0, api_addr=None):
-    conf_dir = "%s/ISD%d/AS%d/endhost" % (
-        GEN_PATH, addr.isd_as[0], addr.isd_as[1])
-    return SCIONDaemon.start(
-        conf_dir, addr.host, api_addr=api_addr, run_local_api=api, port=port)
+        return TestClientBase(data, finished, src, dst, port, retries=self.retries)
 
 
 def _load_as_list():
@@ -369,6 +345,10 @@ def _parse_locs(as_str, as_list):
     copied = copy.copy(as_list)
     random.shuffle(copied)
     return copied
+
+
+def get_sciond_api_addr(addr):
+    return os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % addr.isd_as)
 
 
 def setup_main(name, parser=None):
