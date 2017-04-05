@@ -276,8 +276,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         this function gets called to continue the processing for the pcb.
         """
         pcb = seg_meta.seg
-        entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
         if seg_meta.meta:
+            # Segment was received from network, not from zk. Share segment
+            # with other beacon servers in this AS.
+            entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True), time.time())
             try:
                 self.pcb_cache.store(entry_name, pcb.copy().pack())
             except ZkNoConnection:
