@@ -74,6 +74,7 @@ class ExtHopByHopType(TypeBase):
 class ExtEndToEndType(TypeBase):
     PATH_TRANSPORT = 0
     PATH_PROBE = 1
+    SECURITY = 2
 
 
 class L4Proto(TypeBase):
@@ -94,6 +95,7 @@ class PayloadClass(object):
     CERT = "certMgmt"
     PATH = "pathMgmt"
     SIBRA = "sibra"
+    SCMP_AUTH = "scmpAuthMgmt"
 
 
 class CertMgmtType(object):
@@ -123,6 +125,13 @@ class PathSegmentType(TypeBase):
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
     GENERIC = 3  # FIXME(PSz): experimental for now.
+
+
+class SCMPAuthMgmtType(object):
+    REMOTE_REQUEST = "scmpAuthRemoteReq"
+    REMOTE_REPLY = "scmpAuthRemoteRep"
+    LOCAL_REQUEST = "scmpAuthLocalReq"
+    LOCAL_REPLY = "scmpAuthLocalRep"
 
 
 ############################

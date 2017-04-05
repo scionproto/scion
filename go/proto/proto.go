@@ -66,6 +66,18 @@ func NewPathMgmtMsg() (*SCION, *PathMgmt, *common.Error) {
 	return scion, &pathMgmt, nil
 }
 
+func NewSCMPAuthMgmtMsg() (*SCION, *SCMPAuthMgmt, *common.Error) {
+	scion, err := NewSCIONMsg()
+	if err != nil {
+		return nil, nil, err
+	}
+	scmpAuthMgmt, cerr := scion.NewScmpAuthMgmt()
+	if cerr != nil {
+		return nil, nil, common.NewError("Unable to create SCMPAuthMgmt struct", "err", cerr)
+	}
+	return scion, &scmpAuthMgmt, nil
+}
+
 func StructPack(s capnp.Struct) (common.RawBytes, *common.Error) {
 	msg, _, err := NewMessage()
 	if err != nil {

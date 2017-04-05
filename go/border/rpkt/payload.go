@@ -25,12 +25,12 @@ import (
 // retrieve the payload. Note there is no generic fallback; if no hooks are
 // registered, then no work is done.
 func (rp *RtrPkt) Payload(verify bool) (common.Payload, *common.Error) {
-	if rp.pld == nil && len(rp.hooks.Payload) > 0 {
+	if rp.pld == nil && len(rp.Hooks.Payload) > 0 {
 		_, err := rp.L4Hdr(verify)
 		if err != nil {
 			return nil, err
 		}
-		for _, f := range rp.hooks.Payload {
+		for _, f := range rp.Hooks.Payload {
 			ret, pld, err := f()
 			switch {
 			case err != nil:
