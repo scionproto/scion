@@ -37,6 +37,7 @@ from lib.packet.scion import (
     SCIONL4Packet,
     build_base_hdrs,
 )
+from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.errors import (
     SCMPBadDstType,
     SCMPBadEnd2End,
@@ -215,44 +216,48 @@ class TestSCIONAddrHdrParse(object):
     """
     Unit tests for lib.packet.scion.SCIONAddrHdr._parse
     """
-    def _setup(self, src_type):
+    def _setup(self, src_type, haddr, saddr):
         inst = SCIONAddrHdr()
         inst.calc_lens = create_mock()
         inst.update = create_mock()
-        data = create_mock(["get", "pop"])
-        data.get.side_effect = "src addr", "dst addr"
-        data.pop.side_effect = None, None
-        src = create_mock(["__len__", "host"])
-        src.__len__.return_value = 3
-        src.host = create_mock(["TYPE"])
-        src.host.TYPE = src_type
+        data = create_mock_full({
+            "pop()...": ("1-1", "2-2", "dst host", "src host"),
+        })
+        src_host = create_mock_full({"TYPE": src_type})
+        src = create_mock_full({"host": src_host})
+        haddr.side_effect = (
+            create_mock_full({"LEN": 12}, return_value="dst haddr"),
+            create_mock_full({"LEN": 34}, return_value="src haddr"),
+        )
+        saddr.side_effect = "dst", src
         return inst, data, src, "dst"
 
-    @patch("lib.packet.scion.SCIONAddr", autospec=True)
+    @patch("lib.packet.scion.SCIONAddr.from_values", new_callable=create_mock)
+    @patch("lib.packet.scion.haddr_get_type", autospec=True)
     @patch("lib.packet.scion.Raw", autospec=True)
-    def test_success(self, raw, saddr):
-        inst, data, src, dst = self._setup(AddrType.IPV4)
+    def test_success(self, raw, haddr, saddr):
+        inst, data, src, dst = self._setup(AddrType.IPV4, haddr, saddr)
         raw.return_value = data
-        saddr.side_effect = src, dst
         # Call
         inst._parse(1, 2, "data")
         # Tests
         inst.calc_lens.assert_called_once_with(1, 2)
         raw.assert_called_once_with(
             "data", inst.NAME, inst.calc_lens.return_value[0])
-        assert_these_calls(
-            saddr, [call((1, "src addr")), call((2, "dst addr"))])
-        assert_these_calls(data.pop, [call(len(src)), call(len(dst))])
-        ntools.eq_(inst.src, src)
+        assert_these_calls(data.pop, [call(ISD_AS.LEN), call(ISD_AS.LEN), call(12), call(34)])
+        assert_these_calls(haddr, [call(1), call(2)])
+        assert_these_calls(saddr, [call(ISD_AS("1-1"), "dst haddr"),
+                                   call(ISD_AS("2-2"), "src haddr")])
         ntools.eq_(inst.dst, dst)
+        ntools.eq_(inst.src, src)
         inst.update.assert_called_once_with()
 
-    @patch("lib.packet.scion.SCIONAddr", autospec=True)
+    @patch("lib.packet.scion.SCIONAddr.from_values", new_callable=create_mock)
+    @patch("lib.packet.scion.haddr_get_type", autospec=True)
     @patch("lib.packet.scion.Raw", autospec=True)
-    def test_fail(self, raw, saddr):
-        inst, data, src, dst = self._setup(AddrType.SVC)
+    def test_fail(self, raw, haddr, saddr):
+        inst, data, src, dst = self._setup(AddrType.SVC, haddr, saddr)
         raw.return_value = data
-        saddr.side_effect = src, dst
         # Call
         ntools.assert_raises(SCMPBadSrcType, inst._parse, 1, 2, "data")
 
@@ -264,13 +269,15 @@ class TestSCIONAddrHdrPack(object):
     def test(self):
         inst = SCIONAddrHdr()
         inst.update = create_mock()
-        inst.src = create_mock(["pack"])
-        inst.src.pack.return_value = b"src saddr"
-        inst.dst = create_mock(["pack"])
-        inst.dst.pack.return_value = b"dst saddr"
+        dst_ia = create_mock_full({"pack()": b"dsIA"})
+        dst_host = create_mock_full({"pack()": b"dst H"})
+        inst.dst = create_mock_full({"isd_as": dst_ia, "host": dst_host})
+        src_ia = create_mock_full({"pack()": b"srIA"})
+        src_host = create_mock_full({"pack()": b"src H"})
+        inst.src = create_mock_full({"isd_as": src_ia, "host": src_host})
         inst._total_len = 24
         inst._pad_len = 6
-        expected = b"src saddr" b"dst saddr"
+        expected = b"dsIA" b"srIA" b"dst H" b"src H"
         expected += bytes(inst._pad_len)
         # Call
         ntools.eq_(inst.pack(), expected)
@@ -284,17 +291,14 @@ class TestSCIONAddrHdrUpdate(object):
     """
     def test(self):
         inst = SCIONAddrHdr()
-        inst.calc_lens = create_mock()
-        inst.calc_lens.return_value = 1, 3
-        inst.src = create_mock(["host"])
-        inst.src.host = create_mock(["TYPE"])
-        inst.dst = create_mock(["host"])
-        inst.dst.host = create_mock(["TYPE"])
+        inst.calc_lens = create_mock_full(return_value=(1, 3))
+        inst.src = create_mock_full({"host": create_mock(["TYPE"])})
+        inst.dst = create_mock_full({"host": create_mock(["TYPE"])})
         # Call
         inst.update()
         # Tests
         inst.calc_lens.assert_called_once_with(
-            inst.src.host.TYPE, inst.dst.host.TYPE)
+            inst.dst.host.TYPE, inst.src.host.TYPE)
         ntools.eq_(inst._total_len, 1)
         ntools.eq_(inst._pad_len, 3)
 
@@ -392,14 +396,14 @@ class TestSCIONBasePacketParseAddrs(object):
     @patch("lib.packet.scion.SCIONAddrHdr", autospec=True)
     def test(self, addr_hdr):
         inst = SCIONBasePacket()
-        cmn_hdr = create_mock(["addrs_len", "src_addr_type", "dst_addr_type"])
+        cmn_hdr = create_mock(["addrs_len", "dst_addr_type", "src_addr_type"])
         inst.cmn_hdr = cmn_hdr
         data = create_mock(["get", "pop"])
         # Call
         inst._parse_addrs(data)
         # Tests
         addr_hdr.assert_called_once_with((
-            cmn_hdr.src_addr_type, cmn_hdr.dst_addr_type,
+            cmn_hdr.dst_addr_type, cmn_hdr.src_addr_type,
             data.get.return_value))
         ntools.eq_(inst.addrs, addr_hdr.return_value)
         data.pop.assert_called_once_with(addr_hdr.__len__.return_value)
@@ -1017,12 +1021,12 @@ class TestBuildBaseHdrs(object):
         src = create_mock(["host"])
         src.host = create_mock(["TYPE"])
         # Call
-        ntools.eq_(build_base_hdrs(dst, dst),
+        ntools.eq_(build_base_hdrs(dst, src),
                    (cmn_hdr.return_value, addr_hdr.return_value))
         # Tests
         cmn_hdr.assert_called_once_with(dst.host.TYPE, src.host.TYPE,
                                         L4Proto.UDP)
-        addr_hdr.assert_called_once_with(src, dst)
+        addr_hdr.assert_called_once_with(dst, src)
 
 
 if __name__ == "__main__":
