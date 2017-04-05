@@ -15,7 +15,7 @@ uint16_t scmp_checksum(uint8_t *buf)
     uint16_t payload_len, ret, blank_sum = 0;
 
     // Address header (without padding)
-    chk_add_chunk(input, buf + DST_IA_OFFSET, 2 * ISD_AS_LEN + get_dst_len(buf) + get_src_len(buf));
+    chk_add_chunk(input, buf + DST_IA_OFFSET, get_addrs_len(buf));
 
     uint8_t *ptr = buf;
     l4_type = get_l4_proto(&ptr);
