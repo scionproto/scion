@@ -62,6 +62,16 @@ uint8_t get_src_len(uint8_t *buf)
     return ADDR_LENS[SRC_TYPE(sch)];
 }
 
+/*
+ * Get combined length of dst and src addresses
+ * buf: Pointer to start of SCION packet
+ * return value: Length of dst + src addresses
+ * */
+uint8_t get_addrs_len(uint8_t *buf)
+{
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    return ISD_AS_LEN * 2 + ADDR_LENS[DST_TYPE(sch)] + ADDR_LENS[SRC_TYPE(sch)];
+}
 
 /*
  * Get dst host addr
