@@ -58,8 +58,9 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	if err != nil {
 		return
 	}
+	config := conf.GetConfig()
 	// Certain errors are not respondable to if the source lies in a remote AS.
-	if !srcIA.Eq(conf.C.IA) {
+	if !srcIA.Eq(config.IA) {
 		switch sdata.CT.Class {
 		case scmp.C_CmnHdr:
 			switch sdata.CT.Type {
@@ -123,7 +124,8 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		return nil, err
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS.
-	if !dstIA.Eq(conf.C.IA) {
+	config := conf.GetConfig()
+	if !dstIA.Eq(config.IA) {
 		hopF, err := reply.HopF()
 		if err != nil {
 			return nil, err
@@ -173,7 +175,8 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 		return nil, err
 	}
 	// Use the ingress address as the source host
-	sp.SrcIA = conf.C.IA
+	config := conf.GetConfig()
+	sp.SrcIA = config.IA
 	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
 	return sp, nil
 }
@@ -181,8 +184,9 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
+	config := conf.GetConfig()
 	if rp.DirFrom == rpkt.DirLocal {
-		locIdx := conf.C.Net.LocAddrMap[rp.Ingress.Dst.String()]
+		locIdx := config.Net.LocAddrMap[rp.Ingress.Dst.String()]
 		return rpkt.EgressPair{F: r.locOutFs[locIdx], Dst: rp.Ingress.Src}, nil
 	}
 	intf, err := rp.IFCurr()

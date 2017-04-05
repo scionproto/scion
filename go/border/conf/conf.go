@@ -65,8 +65,24 @@ type IFState struct {
 	RawRev common.RawBytes
 }
 
-// C is a pointer to the current configuration.
-var C *Conf
+// c is a pointer to the current configuration.
+var c *Conf
+var confLock sync.RWMutex
+
+// GetConfig returns a pointer to the current configuration.
+func GetConfig() *Conf {
+	confLock.RLock()
+	defer confLock.RUnlock()
+
+	return c
+}
+
+// SetConfig sets the current configuration.
+func SetConfig(conf *Conf) {
+	confLock.Lock()
+	c = conf
+	confLock.Unlock()
+}
 
 // Load sets up the configuration, loading it from the supplied config directory.
 func Load(id, confDir string) *common.Error {
@@ -104,6 +120,6 @@ func Load(id, confDir string) *common.Error {
 	// Create network configuration
 	conf.Net = netconf.FromTopo(conf.BR)
 	// Save config
-	C = conf
+	SetConfig(conf)
 	return nil
 }

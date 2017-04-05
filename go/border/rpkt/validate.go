@@ -32,7 +32,7 @@ const (
 // Validate performs basic validation of a packet, including calling any
 // registered validation hooks.
 func (rp *RtrPkt) Validate() *common.Error {
-	intf, ok := conf.C.Net.IFs[*rp.ifCurr]
+	intf, ok := conf.GetConfig().Net.IFs[*rp.ifCurr]
 	if !ok {
 		return common.NewError(errCurrIntfInvalid, "ifid", *rp.ifCurr)
 	}

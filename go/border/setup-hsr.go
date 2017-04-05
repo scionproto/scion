@@ -66,8 +66,9 @@ func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
+	config := conf.GetConfig()
 	var ifids []spath.IntfID
-	for _, intf := range conf.C.Net.IFs {
+	for _, intf := range config.Net.IFs {
 		if intf.LocAddrIdx == idx {
 			ifids = append(ifids, intf.Id)
 		}
@@ -98,7 +99,7 @@ func setupHSRNetFinish(r *Router) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}
-	err := hsr.Init(filepath.Join(conf.C.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
+	err := hsr.Init(filepath.Join(conf.GetConfig().Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
 		flag.Args(), hsrAddrMs)
 	if err != nil {
 		return rpkt.HookError, err

@@ -105,7 +105,7 @@ func (t *rTraceroute) Process() (HookResult, *common.Error) {
 	// Take the current time in milliseconds, and truncate it to 16bits.
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
 	entry := spkt.TracerouteEntry{
-		IA: *conf.C.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
+		IA: *conf.GetConfig().IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
 		t.Error("Unable to add entry", err)

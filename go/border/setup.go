@@ -61,8 +61,9 @@ func (r *Router) setup(confDir string) *common.Error {
 	if err := conf.Load(r.Id, confDir); err != nil {
 		return err
 	}
-	log.Debug("Topology loaded", "topo", conf.C.BR)
-	log.Debug("AS Conf loaded", "conf", conf.C.ASConf)
+	config := conf.GetConfig()
+	log.Debug("Topology loaded", "topo", config.BR)
+	log.Debug("AS Conf loaded", "conf", config.ASConf)
 
 	// Configure the rpkt package with the callbacks it needs.
 	rpkt.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback)
@@ -89,9 +90,10 @@ func (r *Router) setupNet() *common.Error {
 			break
 		}
 	}
+	config := conf.GetConfig()
 	// Iterate over local addresses, configuring them via provided hooks.
 	var addrs []string
-	for i, a := range conf.C.Net.LocAddr {
+	for i, a := range config.Net.LocAddr {
 		addrs = append(addrs, a.BindAddr().String())
 		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
 		for _, f := range setupAddLocalHooks {
@@ -109,7 +111,7 @@ func (r *Router) setupNet() *common.Error {
 	// Export prometheus metrics on all local addresses
 	metrics.Export(addrs)
 	// Iterate over interfaces, configuring them via provided hooks.
-	for _, intf := range conf.C.Net.IFs {
+	for _, intf := range config.Net.IFs {
 		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", intf.Id)}
 	InnerLoop:
 		for _, f := range setupAddExtHooks {
@@ -158,8 +160,9 @@ func setupPosixAddLocal(r *Router, idx int, over *overlay.UDP,
 		return rpkt.HookError, common.NewError("Unable to listen on local socket", "err", err)
 	}
 	// Find interfaces that use this local address.
+	config := conf.GetConfig()
 	var ifids []spath.IntfID
-	for _, intf := range conf.C.Net.IFs {
+	for _, intf := range config.Net.IFs {
 		if intf.LocAddrIdx == idx {
 			ifids = append(ifids, intf.Id)
 		}

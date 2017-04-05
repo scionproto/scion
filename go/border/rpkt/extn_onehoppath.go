@@ -60,11 +60,12 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 		return HookError, nil, err
 	}
 	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
+	config := conf.GetConfig()
 	prevIdx := o.rp.CmnHdr.CurrHopF - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
-	inIF := conf.C.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
+	inIF := config.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
 	hopF := spath.NewHopField(o.rp.Raw[o.rp.CmnHdr.CurrHopF:], inIF, 0)
-	mac, err := hopF.CalcMac(conf.C.HFGenBlock, infoF.TsInt, prevHof)
+	mac, err := hopF.CalcMac(config.HFGenBlock, infoF.TsInt, prevHof)
 	if err != nil {
 		return HookError, nil, err
 	}

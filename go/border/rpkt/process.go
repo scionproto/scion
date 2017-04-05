@@ -40,7 +40,8 @@ const (
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
-	if *rp.dstIA != *conf.C.IA {
+	config := conf.GetConfig()
+	if *rp.dstIA != *config.IA {
 		// Packet isn't to this ISD-AS, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
@@ -53,9 +54,9 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	// Check to see if the destination IP is the address the packet was received
 	// on.
 	dstIP := rp.dstHost.IP()
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	intf := config.Net.IFs[*rp.ifCurr]
 	extPub := intf.IFAddr.PublicAddr()
-	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
+	locPub := config.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
 	if rp.DirFrom == DirExternal && extPub.IP.Equal(dstIP) {
 		return rp.isDestSelf(extPub)
 	} else if rp.DirFrom == DirLocal && locPub.IP.Equal(dstIP) {
@@ -151,12 +152,13 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	if err := rp.SetPld(rp.pld); err != nil {
 		return HookError, err
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
-	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
+	config := conf.GetConfig()
+	intf := config.Net.IFs[*rp.ifCurr]
+	srcAddr := config.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
-		SrcIA: conf.C.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
-		DstIA: conf.C.IA, DstHost: addr.SvcBS.Multicast(),
+		SrcIA: config.IA, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: config.IA, DstHost: addr.SvcBS.Multicast(),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
 	}, DirLocal)
 	if err != nil {
@@ -223,14 +225,14 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 }
 
 func (rp *RtrPkt) isDownstreamRouter() bool {
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	intf := conf.GetConfig().Net.IFs[*rp.ifCurr]
 	return intf.Type == "PARENT"
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given
 // SVC address.
 func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, *common.Error) {
-	tm := conf.C.TopoMeta
+	tm := conf.GetConfig().TopoMeta
 	var names []string
 	var elemMap map[string]topology.BasicElem
 	switch svc.Base() {
