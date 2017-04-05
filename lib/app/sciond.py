@@ -134,7 +134,8 @@ class SCIONDConnector:
         if not q_ia:
             q_ia = "local"
         with self._as_infos_lock:
-            as_info = self._try_cache(self._as_infos, [q_ia]).get(q_ia)
+            _, as_infos = self._try_cache(self._as_infos, [q_ia])
+            as_info = as_infos.get(q_ia)
             if as_info:
                 return as_info
             req_id = self._req_id.inc()
@@ -149,20 +150,19 @@ class SCIONDConnector:
 
     def get_if_info(self, if_list=None):
         with self._if_infos_lock:
-            if not if_list:
-                if_list = set()
-                if_infos = {}
-            else:
-                # Make sure all entries in if_list are unique.
-                if_list = set(if_list)
-                if_infos = self._try_cache(self._if_infos, if_list)
-                if_list = if_list - set(if_infos)
+            if if_list:
+                if_list, if_infos = self._try_cache(self._if_infos, if_list)
                 if not if_list:
+                    # The request could be satisfied with cached IF infos.
                     return if_infos
+            else:
+                if_infos = {}
+                if_list = set()
+            # Request missing IF infos.
             req_id = self._req_id.inc()
-            br_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
+            if_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
             with closing(self._create_socket()) as socket:
-                if not socket.send(br_req.pack_full()):
+                if not socket.send(if_req.pack_full()):
                     raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.IF_REPLY)
             for entry in response.iter_entries():
@@ -172,19 +172,17 @@ class SCIONDConnector:
 
     def get_service_info(self, service_types=None):
         with self._svc_infos_lock:
-            if not service_types:
-                service_types = set()
-                svc_infos = {}
-            else:
-                # Make sure all entries in service_types are unique.
-                service_types = set(service_types)
-                svc_infos = self._try_cache(self._svc_infos, service_types)
-                service_types = service_types - set(svc_infos)
+            if service_types:
+                service_types, svc_infos = self._try_cache(self._svc_infos, service_types)
                 if not service_types:
+                    # The request could be satisfied with cached IF infos.
                     return svc_infos
+            else:
+                svc_infos = {}
+                service_types = set()
+            # Request missing service infos.
             req_id = self._req_id.inc()
-            svc_req = SCIONDServiceInfoRequest.from_values(
-                req_id, service_types)
+            svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
             with closing(self._create_socket()) as socket:
                 if not socket.send(svc_req.pack_full()):
                     raise SCIONDRequestError
@@ -194,13 +192,13 @@ class SCIONDConnector:
                 svc_infos[entry.service_type()] = entry
             return svc_infos
 
-    def get_overlay_dest(self, spkt):
+    def get_overlay_dest(self, spkt):  # pragma: no cover
         if_id = spkt.get_fwd_ifid()
         if if_id:
             return self._resolve_ifid(if_id)
         return self._resolve_dst_addr(spkt.addrs.src, spkt.addrs.dst)
 
-    def _resolve_ifid(self, if_id):
+    def _resolve_ifid(self, if_id):  # pragma: no cover
         if_infos = self.get_if_info([if_id])
         if if_id in if_infos:
             return if_infos[if_id].host_info()
@@ -215,18 +213,18 @@ class SCIONDConnector:
             svc_type = SVC_TO_SERVICE[host.addr]
             svc_infos = self.get_service_info([svc_type])
             if svc_type in svc_infos:
-                return svc_infos[svc_type].host_info()
+                return svc_infos[svc_type].host_info(0)
             return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
-    def send_rev_notification(self, rev_info):
+    def send_rev_notification(self, rev_info):  # pragma: no cover
         rev_not = SCIONDRevNotification.from_values(
             self._req_id.inc(), rev_info)
         with closing(self._create_socket()) as socket:
             if not socket.send(rev_not.pack_full()):
                 raise SCIONDRequestError
 
-    def _create_socket(self):
+    def _create_socket(self):  # pragma: no cover
         socket = ReliableSocket()
         socket.settimeout(_SCIOND_TOUT)
         try:
@@ -236,7 +234,7 @@ class SCIONDConnector:
             raise SCIONDConnectionError()
         return socket
 
-    def _get_response(self, socket, expected_id, expected_type):
+    def _get_response(self, socket, expected_id, expected_type):  # pragma: no cover
         try:
             data = socket.recv()[0]
         except timeout:
@@ -257,19 +255,30 @@ class SCIONDConnector:
                                       (response.id, expected_id))
         return response
 
-    def _try_cache(self, cache, key_list):
+    @staticmethod
+    def _try_cache(cache, key_list):
+        """
+        Returns items from cache whose keys are in key_list.
+
+        :param cache: The cache to check.
+        :param key_list: The list of keys to check for.
+        :returns: A set containg all keys that couldn't be found in the cache
+            and a dict mapping from keys to items that were contained in the cache.
+        """
+        key_set = set(key_list)
         result = {}
         for key in key_list:
             if key in cache:
                 result[key] = cache[key]
-        return result
+        key_set -= set(result)
+        return key_set, result
 
 
 _connector = None
 _counter = None
 
 
-def init(api_addr=None):
+def init(api_addr=None):  # pragma: no cover
     """
     Initializes a SCIONDConnector object and returns it to the caller. The
     first time init is called it initializes the global connector object.
@@ -289,13 +298,12 @@ def init(api_addr=None):
     return connector
 
 
-def _get_api_addr():
+def _get_api_addr():  # pragma: no cover
     return os.getenv(SCIOND_API_PATH_ENV_VAR,
                      os.path.join(SCIOND_API_SOCKDIR, SCIOND_API_DEFAULT_SOCK))
 
 
-def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
-              connector=None):
+def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None, connector=None):  # pragma: no cover
     """
     Request a set of end to end paths from SCIOND.
 
@@ -313,7 +321,7 @@ def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None,
     return connector.get_paths(dst_ia, src_ia, max_paths, flags)
 
 
-def get_as_info(isd_as=None, connector=None):
+def get_as_info(isd_as=None, connector=None):  # pragma: no cover
     """
     Request information about the local AS(es).
 
@@ -329,7 +337,7 @@ def get_as_info(isd_as=None, connector=None):
     return connector.get_as_info()
 
 
-def get_if_info(if_list=None, connector=None):
+def get_if_info(if_list=None, connector=None):  # pragma: no cover
     """
     Request addresses and ports of border routers.
 
@@ -345,7 +353,7 @@ def get_if_info(if_list=None, connector=None):
     return connector.get_if_info(if_list)
 
 
-def get_service_info(service_types=None, connector=None):
+def get_service_info(service_types=None, connector=None):  # pragma: no cover
     """
     Request addresses and ports of infrastructure services.
 
@@ -362,7 +370,7 @@ def get_service_info(service_types=None, connector=None):
     return connector.get_service_info(service_types)
 
 
-def get_overlay_dest(spkt, connector=None):
+def get_overlay_dest(spkt, connector=None):  # pragma: no cover
     """
     Returns the HostInfo object of the next hop for a given packet.
 
@@ -380,7 +388,7 @@ def get_overlay_dest(spkt, connector=None):
     return fh_info
 
 
-def send_rev_notification(rev_info, connector=None):
+def send_rev_notification(rev_info, connector=None):  # pragma: no cover
     """Forwards the RevocationInfo object to SCIOND."""
     global _connector
     if not connector:
