@@ -30,7 +30,7 @@ from lib.packet.scion_udp import (
 )
 from lib.packet.scmp.errors import SCMPBadPktLen
 from lib.types import L4Proto
-from test.testcommon import create_mock
+from test.testcommon import create_mock, create_mock_full
 
 
 class TestSCIONUDPHeaderParse(object):
@@ -84,15 +84,18 @@ class TestSCIONUDPHeaderCalcChecksum(object):
     @patch("lib.packet.scion_udp.scapy.utils.checksum", autospec=True)
     def test(self, scapy_checksum):
         inst = SCIONUDPHeader()
-        inst._src = create_mock(["pack"], class_=SCIONAddr)
-        inst._src.pack.return_value = b"source address"
-        inst._dst = create_mock(["pack"], class_=SCIONAddr)
-        inst._dst.pack.return_value = b"destination address"
-        inst.pack = create_mock()
-        inst.pack.return_value = b"packed with null checksum"
+        inst._dst = create_mock_full({
+            "isd_as": create_mock_full({"pack()": b"dsIA"}),
+            "host": create_mock_full({"pack()": b"dstH"}),
+        }, class_=SCIONAddr)
+        inst._src = create_mock_full({
+            "isd_as": create_mock_full({"pack()": b"srIA"}),
+            "host": create_mock_full({"pack()": b"srcH"}),
+        }, class_=SCIONAddr)
+        inst.pack = create_mock_full(return_value=b"packed with null checksum")
         payload = b"payload"
         expected_call = b"".join([
-            b"source address", b"destination address", bytes([L4Proto.UDP]),
+            b"dsIA", b"srIA", b"dstH", b"srcH", bytes([L4Proto.UDP]),
             b"packed with null checksum", payload,
         ])
         scapy_checksum.return_value = 0x3412
