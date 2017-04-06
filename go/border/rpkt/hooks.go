@@ -41,10 +41,10 @@ type hookRoute func() (HookResult, *common.Error)
 // of the router register to handle certain functions by adding a callback to
 // the relevant slice.
 type hooks struct {
-	SrcIA    []hookIA
-	SrcHost  []hookHost
 	DstIA    []hookIA
+	SrcIA    []hookIA
 	DstHost  []hookHost
+	SrcHost  []hookHost
 	Infof    []hookInfoF
 	HopF     []hookHopF
 	UpFlag   []hookBool

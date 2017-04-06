@@ -41,7 +41,7 @@ from lib.packet.packet_base import (
 from lib.packet.path import SCIONPath, parse_path
 from lib.packet.path_mgmt.parse import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
 from lib.packet.scmp.errors import (
     SCMPBadDstType,
@@ -118,8 +118,8 @@ class SCIONCommonHdr(Serializable):
         """
         Returns a SCIONCommonHdr object with the values specified.
 
-        :param int src: Source address type.
-        :param int dst: Destination address type.
+        :param int dst_type: Destination address type.
+        :param int src_type: Source address type.
         :param int next_hdr: Next header type.
         """
         inst = cls()
@@ -175,17 +175,17 @@ class SCIONCommonHdr(Serializable):
 
     def __str__(self):
         values = {
-            "src_addr_type": haddr_get_type(self.src_addr_type).name(),
             "dst_addr_type": haddr_get_type(self.dst_addr_type).name(),
+            "src_addr_type": haddr_get_type(self.src_addr_type).name(),
         }
-        for i in ("version", "total_len",
-                  "_iof_idx", "_hof_idx", "next_hdr", "hdr_len"):
+        for i in ("version", "total_len", "hdr_len",
+                  "_iof_idx", "_hof_idx", "next_hdr"):
             values[i] = getattr(self, i)
         return (
-            "CH ver: %(version)s, src type: %(src_addr_type)s, "
-            "dst type: %(dst_addr_type)s, total len: %(total_len)sB, "
+            "CH ver: %(version)s, dst type: %(dst_addr_type)s, src type: %(src_addr_type)s, "
+            "total len: %(total_len)sB, hdr len: %(hdr_len)sB, "
             "IOF idx: %(_iof_idx)s, HOF idx: %(_hof_idx)s, "
-            "next hdr: %(next_hdr)s, hdr len: %(hdr_len)sB" % values)
+            "next hdr: %(next_hdr)s" % values)
 
 
 class SCIONAddrHdr(Serializable):
@@ -196,42 +196,48 @@ class SCIONAddrHdr(Serializable):
     def __init__(self, raw_values=()):  # pragma: no cover
         """
         :param tuple raw:
-            Tuple of src addr type, dst addr type, and raw addr bytes.
+            Tuple of dst addr type, src addr type, and raw addr bytes.
         """
         super().__init__()
-        self.src = None
         self.dst = None
+        self.src = None
         self._pad_len = None
         self._total_len = None
         if raw_values:
             self._parse(*raw_values)
 
-    def _parse(self, src_type, dst_type, raw):
-        data = Raw(raw, self.NAME, self.calc_lens(src_type, dst_type)[0])
-        self.src = SCIONAddr((src_type, data.get()))
-        data.pop(len(self.src))
-        self.dst = SCIONAddr((dst_type, data.get()))
-        data.pop(len(self.dst))
+    def _parse(self, dst_type, src_type, raw):
+        data = Raw(raw, self.NAME, self.calc_lens(dst_type, src_type)[0])
+        dst_ia = ISD_AS(data.pop(ISD_AS.LEN))
+        src_ia = ISD_AS(data.pop(ISD_AS.LEN))
+        dst_addr_t = haddr_get_type(dst_type)
+        dst_addr = dst_addr_t(data.pop(dst_addr_t.LEN))
+        self.dst = SCIONAddr.from_values(dst_ia, dst_addr)
+        src_addr_t = haddr_get_type(src_type)
+        src_addr = src_addr_t(data.pop(src_addr_t.LEN))
+        self.src = SCIONAddr.from_values(src_ia, src_addr)
         self.update()
         if self.src.host.TYPE == AddrType.SVC:
             raise SCMPBadSrcType("Invalid source type: SVC")
 
     @classmethod
-    def from_values(cls, src, dst):  # pragma: no cover
+    def from_values(cls, dst, src):  # pragma: no cover
         """
-        src/dst must be a :any:`SCIONAddr`
+        dst/src must be a :any:`SCIONAddr`
         """
         inst = cls()
-        inst.src = src
         inst.dst = dst
+        inst.src = src
         inst.update()
         return inst
 
     def pack(self):
         self.update()
         packed = []
-        packed.append(self.src.pack())
-        packed.append(self.dst.pack())
+        packed.append(self.dst.isd_as.pack())
+        packed.append(self.src.isd_as.pack())
+        packed.append(self.dst.host.pack())
+        packed.append(self.src.host.pack())
         packed.append(bytes(self._pad_len))
         raw = b"".join(packed)
         assert len(raw) % self.BLK_SIZE == 0
@@ -243,10 +249,12 @@ class SCIONAddrHdr(Serializable):
             if self.dst.host.anycast() not in [SVCType.BS_A, SVCType.PS_A,
                                                SVCType.CS_A, SVCType.SB_A]:
                 raise SCMPBadHost("Invalid dest SVC: %s" % self.dst.host.addr)
+        if self.src.host.TYPE == AddrType.SVC:
+            raise SCMPBadSrcType("Invalid source type: SVC")
 
     def update(self):
         self._total_len, self._pad_len = self.calc_lens(
-            self.src.host.TYPE, self.dst.host.TYPE)
+            self.dst.host.TYPE, self.src.host.TYPE)
 
     @classmethod
     def calc_lens(cls, dst_type, src_type):
@@ -266,22 +274,21 @@ class SCIONAddrHdr(Serializable):
         return total_len, pad_len
 
     def reverse(self):
-        self.src, self.dst = self.dst, self.src
+        self.dst, self.src = self.src, self.dst
         self.update()
-
-    def src_type(self):  # pragma: no cover
-        return self.src.host.TYPE
 
     def dst_type(self):  # pragma: no cover
         return self.dst.host.TYPE
+
+    def src_type(self):  # pragma: no cover
+        return self.src.host.TYPE
 
     def __len__(self):  # pragma: no cover
         assert self._total_len is not None
         return self._total_len
 
     def __str__(self):
-        return "%s(%sB): Src:<%s> Dst:<%s>" % (
-            self.NAME, len(self), self.src, self.dst)
+        return "%s(%sB): Dst:<%s> Src:<%s>" % (self.NAME, len(self), self.dst, self.src)
 
 
 class SCIONBasePacket(PacketBase):
@@ -312,8 +319,8 @@ class SCIONBasePacket(PacketBase):
 
     def _parse_addrs(self, data):
         self.addrs = SCIONAddrHdr((
-            self.cmn_hdr.src_addr_type,
             self.cmn_hdr.dst_addr_type,
+            self.cmn_hdr.src_addr_type,
             data.get(self.cmn_hdr.addrs_len),
         ))
         data.pop(len(self.addrs))
@@ -407,8 +414,8 @@ class SCIONBasePacket(PacketBase):
 
     def _update_cmn_hdr(self):
         hdr = self.cmn_hdr
-        hdr.src_addr_type = self.addrs.src_type()
         hdr.dst_addr_type = self.addrs.dst_type()
+        hdr.src_addr_type = self.addrs.src_type()
         hdr.addrs_len = len(self.addrs)
         hdr.hdr_len = len(hdr) + len(self.addrs) + len(self.path)
         hdr.total_len = hdr.hdr_len + self._get_offset_len()
@@ -588,7 +595,7 @@ class SCIONL4Packet(SCIONExtPacket):
         super()._inner_parse(data)
         # Parse L4 header
         self.l4_hdr = parse_l4_hdr(
-            self._l4_proto, data, src=self.addrs.src, dst=self.addrs.dst)
+            self._l4_proto, data, dst=self.addrs.dst, src=self.addrs.src)
 
     @classmethod
     def from_values(cls, cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr,
@@ -674,9 +681,9 @@ class SCIONL4Packet(SCIONExtPacket):
         return self._l4_proto
 
 
-def build_base_hdrs(src, dst, l4=L4Proto.UDP):
+def build_base_hdrs(dst, src, l4=L4Proto.UDP):
     cmn_hdr = SCIONCommonHdr.from_values(dst.host.TYPE, src.host.TYPE, l4)
-    addr_hdr = SCIONAddrHdr.from_values(src, dst)
+    addr_hdr = SCIONAddrHdr.from_values(dst, src)
     return cmn_hdr, addr_hdr
 
 

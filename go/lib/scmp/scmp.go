@@ -66,8 +66,8 @@ const (
 // C_CmnHdr types
 const (
 	T_C_BadVersion Type = iota
-	T_C_BadSrcType
 	T_C_BadDstType
+	T_C_BadSrcType
 	T_C_BadPktLen
 	T_C_BadInfoFOffset
 	T_C_BadHopFOffset
@@ -106,7 +106,7 @@ var typeNameMap = map[Class][]string{
 	C_General: {"UNSPECIFIED", "ECHO_REQEST", "ECHO_REPLY"},
 	C_Routing: {"UNREACH_NET", "UNREACH_HOST", "L2_ERROR", "UNREACH_PROTO",
 		"UNREACH_PORT", "UNKNOWN_HOST", "BAD_HOST", "OVERSIZE_PKT", "ADMIN_DENIED"},
-	C_CmnHdr: {"BAD_VERSION", "BAD_SRC_TYPE", "BAD_DST_TYPE",
+	C_CmnHdr: {"BAD_VERSION", "BAD_DST_TYPE", "BAD_SRC_TYPE",
 		"BAD_PKT_LEN", "BAD_IOF_OFFSET", "BAD_HOF_OFFSET"},
 	C_Path: {"PATH_REQUIRED", "BAD_MAC", "EXPIRED_HOPF", "BAD_IF", "REVOKED_IF",
 		"NON_ROUTING_HOPF", "DELIVERY_FWD_ONLY", "DELIVERY_NON_LOCAL", "BAD_SEGMENT",

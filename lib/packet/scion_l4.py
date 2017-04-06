@@ -48,7 +48,7 @@ class SCIONL4Unknown(L4HeaderBase):  # pragma: no cover
         return "[Unknown L4 protocol header]"
 
 
-def parse_l4_hdr(proto, data, src=None, dst=None):
+def parse_l4_hdr(proto, data, dst=None, src=None):
     if proto == L4Proto.UDP:
         raw_hdr = data.pop(SCIONUDPHeader.LEN)
         assert src

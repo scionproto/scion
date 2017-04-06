@@ -21,27 +21,37 @@ int get_addr_len(int type)
 }
 
 /*
+ * Get dst ISD_AS
+ * buf: Pointer to start of SCION packet
+ * return value: dst ISD_AS value
+ */
+uint32_t get_dst_isd_as(uint8_t *buf)
+{
+    return ntohl(*(uint32_t *)(buf + DST_IA_OFFSET));
+}
+
+/*
  * Get src ISD_AS
  * buf: Pointer to start of SCION packet
- * return value: src ISD_AS value, 0 on error
+ * return value: src ISD_AS value
  */
 uint32_t get_src_isd_as(uint8_t *buf)
 {
-    return ntohl(*(uint32_t *)(buf + sizeof(SCIONCommonHeader)));
+    return ntohl(*(uint32_t *)(buf + SRC_IA_OFFSET));
 }
 
-/* 
- * Get src host addr
+/*
+ * Get length of dst host addr
  * buf: Pointer to start of SCION packet
- * return value: pointer to start of src host addr
+ * return value: Length of dst host addr
  * */
-uint8_t * get_src_addr(uint8_t *buf)
+uint8_t get_dst_len(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return (uint8_t *)(sch + 1) + ISD_AS_LEN;
+    return ADDR_LENS[DST_TYPE(sch)];
 }
 
-/* 
+/*
  * Get length of src host addr
  * buf: Pointer to start of SCION packet
  * return value: Length of src host addr
@@ -53,57 +63,36 @@ uint8_t get_src_len(uint8_t *buf)
 }
 
 /*
- * Get dst ISD_AS
+ * Get combined length of dst and src addresses
  * buf: Pointer to start of SCION packet
- * return value: dst ISD_AS value, 0 on error
- */
-uint32_t get_dst_isd_as(uint8_t *buf)
+ * return value: Length of dst + src addresses
+ * */
+uint8_t get_addrs_len(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-
-    uint8_t src_len;
-    uint8_t src_type = SRC_TYPE(sch);
-
-    if (src_type < ADDR_NONE_TYPE || src_type > ADDR_SVC_TYPE) {
-        printf("invalid src addr type: %d\n", src_type);
-        return 0;
-    }
-
-    src_len = ADDR_LENS[src_type];
-    return ntohl(*(uint32_t *)(buf + sizeof(SCIONCommonHeader) + ISD_AS_LEN + src_len));
+    return ISD_AS_LEN * 2 + ADDR_LENS[DST_TYPE(sch)] + ADDR_LENS[SRC_TYPE(sch)];
 }
 
-/* 
+/*
  * Get dst host addr
  * buf: Pointer to start of SCION packet
- * return value: Pointer to start of dst host addr, NULL on error
+ * return value: pointer to start of dst host addr
  * */
 uint8_t * get_dst_addr(uint8_t *buf)
 {
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint8_t src_len;
-    uint8_t src_type = SRC_TYPE(sch);
-
-    if (src_type < ADDR_NONE_TYPE || src_type > ADDR_SVC_TYPE) {
-        printf("invalid src addr type: %d\n", src_type);
-        return NULL;
-    }
-
-    src_len = ADDR_LENS[src_type];
-    void *ret = (uint8_t *)(sch + 1) + ISD_AS_LEN +
-        src_len + ISD_AS_LEN;
-    return ret;
+    int offset = sizeof(SCIONCommonHeader) + ISD_AS_LEN * 2;
+    return (uint8_t *)(buf + offset);
 }
 
-/* 
- * Get length of dst host addr
+/*
+ * Get src host addr
  * buf: Pointer to start of SCION packet
- * return value: Length of dst host addr
+ * return value: pointer to start of src host addr
  * */
-uint8_t get_dst_len(uint8_t *buf)
+uint8_t * get_src_addr(uint8_t *buf)
 {
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return ADDR_LENS[DST_TYPE(sch)];
+    int offset = sizeof(SCIONCommonHeader) + ISD_AS_LEN * 2 + get_dst_len(buf);
+    return (uint8_t *)(buf + offset);
 }
 
 /*
@@ -158,13 +147,13 @@ void format_host(int addr_type, uint8_t *addr, char *buf, int size) {
  */
 void print_addresses(uint8_t *buf) {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint32_t src_isd_as = get_src_isd_as(buf);
     uint32_t dst_isd_as = get_dst_isd_as(buf);
+    uint32_t src_isd_as = get_src_isd_as(buf);
     char host_str[MAX_HOST_ADDR_STR];
-    format_host(SRC_TYPE(sch), get_src_addr(buf), host_str, sizeof(host_str));
-    fprintf(stderr, "Src: ISD-AS: %d-%d Host(%s): %s\n", ISD(src_isd_as),
-            AS(src_isd_as), addr_type_str(SRC_TYPE(sch)), host_str);
     format_host(DST_TYPE(sch), get_dst_addr(buf), host_str, sizeof(host_str));
     fprintf(stderr, "Dst: ISD-AS: %d-%d Host(%s): %s\n", ISD(dst_isd_as),
             AS(dst_isd_as), addr_type_str(DST_TYPE(sch)), host_str);
+    format_host(SRC_TYPE(sch), get_src_addr(buf), host_str, sizeof(host_str));
+    fprintf(stderr, "Src: ISD-AS: %d-%d Host(%s): %s\n", ISD(src_isd_as),
+            AS(src_isd_as), addr_type_str(SRC_TYPE(sch)), host_str);
 }

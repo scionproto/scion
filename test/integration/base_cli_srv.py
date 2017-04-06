@@ -193,7 +193,7 @@ class TestClientBase(TestBase):
         logging.debug(self.path_meta)
 
     def _build_pkt(self, path=None):
-        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, self.dst)
+        cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
         extensions = self._create_extensions()
         if path is None:

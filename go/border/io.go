@@ -54,8 +54,8 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath
 		metrics.InputProcessTime.With(labels).Add(t)
 		rp.TimeIn = monotime.Now()
 		rp.Raw = rp.Raw[:length] // Set the length of the slice
-		rp.Ingress.Src = src
 		rp.Ingress.Dst = dst
+		rp.Ingress.Src = src
 		rp.Ingress.IfIDs = ifids
 		metrics.PktsRecv.With(labels).Inc()
 		metrics.BytesRecv.With(labels).Add(float64(length))

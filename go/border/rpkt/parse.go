@@ -75,32 +75,32 @@ func (rp *RtrPkt) Parse() *common.Error {
 // parseBasic handles the parsing of the common and address headers.
 func (rp *RtrPkt) parseBasic() *common.Error {
 	var err *common.Error
+	var dstLen, srcLen uint8
 	// Parse common header.
-	if err := rp.CmnHdr.Parse(rp.Raw); err != nil {
+	if err = rp.CmnHdr.Parse(rp.Raw); err != nil {
 		return err
 	}
-	// Set indexes for source ISD-AS and host address.
-	rp.idxs.srcIA = spkt.CmnHdrLen
-	rp.idxs.srcHost = rp.idxs.srcIA + addr.IABytes
-	srcLen, err := addr.HostLen(rp.CmnHdr.SrcType)
-	if err != nil {
-		if err.Desc == addr.ErrorBadHostAddrType {
-			err.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
-		}
-		return err
-	}
-	// Set indexes for destination ISD-AS and host address.
-	rp.idxs.dstIA = rp.idxs.srcHost + int(srcLen)
-	rp.idxs.dstHost = rp.idxs.dstIA + addr.IABytes
-	dstLen, err := addr.HostLen(rp.CmnHdr.DstType)
-	if err != nil {
+	// Set indexes for destination and source ISD-ASes.
+	rp.idxs.dstIA = spkt.CmnHdrLen
+	rp.idxs.srcIA = rp.idxs.dstIA + addr.IABytes
+	// Set index for destination host address and calculate its length.
+	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
+	if dstLen, err = addr.HostLen(rp.CmnHdr.DstType); err != nil {
 		if err.Desc == addr.ErrorBadHostAddrType {
 			err.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil)
 		}
 		return err
 	}
+	// Set index for source host address and calculate its length.
+	rp.idxs.srcHost = rp.idxs.dstHost + int(dstLen)
+	if srcLen, err = addr.HostLen(rp.CmnHdr.SrcType); err != nil {
+		if err.Desc == addr.ErrorBadHostAddrType {
+			err.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
+		}
+		return err
+	}
 	// Set index for path header.
-	addrLen := addr.IABytes + int(srcLen) + addr.IABytes + int(dstLen)
+	addrLen := int(addr.IABytes*2 + dstLen + srcLen)
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if rp.idxs.path > int(rp.CmnHdr.HdrLen) {

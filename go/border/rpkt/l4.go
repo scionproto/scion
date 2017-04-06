@@ -117,8 +117,8 @@ func (rp *RtrPkt) verifyL4() *common.Error {
 func (rp *RtrPkt) verifyL4Chksum() *common.Error {
 	switch h := rp.l4.(type) {
 	case *l4.UDP, *scmp.Hdr:
-		src, dst, pld := rp.getChksumInput()
-		if err := l4.CheckCSum(h, src, dst, pld); err != nil {
+		addr, pld := rp.getChksumInput()
+		if err := l4.CheckCSum(h, addr, pld); err != nil {
 			return err
 		}
 	default:
@@ -127,13 +127,14 @@ func (rp *RtrPkt) verifyL4Chksum() *common.Error {
 	return nil
 }
 
-// getChksumInput is a helper method to return the raw bytes of the src/dest
-// addresses, and the payload, for calculating a layer 4 checksum.
-func (rp *RtrPkt) getChksumInput() (src, dst, pld common.RawBytes) {
-	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
+// getChksumInput is a helper method to return the raw bytes of the address
+// header (excluding padding) and the payload, for calculating a
+// layer 4 checksum.
+func (rp *RtrPkt) getChksumInput() (ahdr, pld common.RawBytes) {
 	dstLen, _ := addr.HostLen(rp.CmnHdr.DstType)
-	src = rp.Raw[rp.idxs.srcIA : rp.idxs.srcIA+addr.IABytes+int(srcLen)]
-	dst = rp.Raw[rp.idxs.dstIA : rp.idxs.dstIA+addr.IABytes+int(dstLen)]
+	srcLen, _ := addr.HostLen(rp.CmnHdr.SrcType)
+	addrsLen := int(addr.IABytes*2 + dstLen + srcLen)
+	ahdr = rp.Raw[rp.idxs.dstIA : rp.idxs.dstIA+addrsLen]
 	pld = rp.Raw[rp.idxs.pld:]
 	return
 }
@@ -143,9 +144,9 @@ func (rp *RtrPkt) getChksumInput() (src, dst, pld common.RawBytes) {
 func (rp *RtrPkt) updateL4() *common.Error {
 	switch h := rp.l4.(type) {
 	case *l4.UDP, *scmp.Hdr:
-		src, dst, pld := rp.getChksumInput()
+		addr, pld := rp.getChksumInput()
 		h.SetPldLen(len(pld))
-		if err := l4.SetCSum(h, src, dst, pld); err != nil {
+		if err := l4.SetCSum(h, addr, pld); err != nil {
 			return err
 		}
 		if err := h.Write(rp.Raw[rp.idxs.l4:]); err != nil {

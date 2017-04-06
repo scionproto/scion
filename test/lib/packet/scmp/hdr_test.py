@@ -28,7 +28,7 @@ from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scmp.hdr import SCMPHeader
 from lib.packet.scmp.errors import SCMPBadPktLen
 from lib.types import L4Proto
-from test.testcommon import create_mock
+from test.testcommon import create_mock, create_mock_full
 
 
 class TestSCMPHeaderParse(object):
@@ -84,15 +84,17 @@ class TestSCMPHeaderCalcChecksum(object):
     @patch("lib.packet.scmp.hdr.scapy.utils.checksum", autospec=True)
     def test(self, scapy_checksum):
         inst = SCMPHeader()
-        inst._src = create_mock(["pack"], class_=SCIONAddr)
-        inst._src.pack.return_value = b"source address"
-        inst._dst = create_mock(["pack"], class_=SCIONAddr)
-        inst._dst.pack.return_value = b"destination address"
+        src_ia = create_mock_full({"pack()": b"srIA"})
+        src_host = create_mock_full({"pack()": b"sHst"})
+        inst._src = create_mock_full({"isd_as": src_ia, "host": src_host}, class_=SCIONAddr)
+        dst_ia = create_mock_full({"pack()": b"dsIA"})
+        dst_host = create_mock_full({"pack()": b"dHst"})
+        inst._dst = create_mock_full({"isd_as": dst_ia, "host": dst_host}, class_=SCIONAddr)
         inst.pack = create_mock()
         inst.pack.return_value = b"packed with null checksum"
         payload = b"payload"
         expected_call = b"".join([
-            b"source address", b"destination address", bytes([L4Proto.SCMP]),
+            b"dsIA", b"srIA", b"dHst", b"sHst", bytes([L4Proto.SCMP]),
             b"packed with null checksum", payload,
         ])
         scapy_checksum.return_value = 0x3412

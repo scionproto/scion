@@ -754,7 +754,7 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
     L4Key key;
     memset(&key, 0, sizeof(key));
     key.port = ntohs(*(uint16_t *)(l4ptr + 8));
-    key.isd_as = ntohl(*(uint32_t *)(dst_ptr - ISD_AS_LEN));
+    key.isd_as = get_dst_isd_as(buf);
     memcpy(key.host, dst_ptr, dst_len);
     if (key.port != 0) {
         HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
@@ -801,7 +801,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     memset(&key, 0, sizeof(key));
     /* Find dst info in packet */
     key.port = ntohs(*(uint16_t *)(l4ptr + 2));
-    key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
+    key.isd_as = get_dst_isd_as(buf);
     memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
 
     Entry *e;
@@ -823,7 +823,7 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     memset(&svc_key, 0, sizeof(SVCKey));
     uint16_t addr = ntohs(*(uint16_t *)get_dst_addr(buf));
     svc_key.addr = addr & ~SVC_MULTICAST;  // Mask off top multicast bit
-    svc_key.isd_as = ntohl(*(uint32_t *)(get_dst_addr(buf) - ISD_AS_LEN));
+    svc_key.isd_as = get_dst_isd_as(buf);
     memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
     SVCEntry *se;
     HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
@@ -920,29 +920,33 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     Entry *e;
     L4Key key;
     memset(&key, 0, sizeof(key));
-    key.isd_as = ntohl(*(uint32_t *)(pld->addr));
+    key.isd_as = ntohl(*(uint32_t *)(pld->addr + ISD_AS_LEN));
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
     if (pld->meta->l4_proto == L4_SSP) {
         // reverse direction bit in flow id as this is a packet returned to sender
         key.flow_id = be64toh(*(uint64_t *)(pld->l4hdr)) ^ 1;
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_error(zc, "SCMP entry for %s:%" PRIu64 " not found",
+            zlog_error(zc, "SCMP entry for %d-%d %s:%" PRIu64 " not found",
+                    ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
             return;
         }
-        zlog_debug(zc, "SCMP entry for %s:%" PRIu64 " found",
+        zlog_debug(zc, "SCMP entry for %d-%d %s:%" PRIu64 " found",
+                ISD(key.isd_as), AS(key.isd_as),
                 addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
     } else {
         /* Find src info in payload */
         key.port = ntohs(*(uint16_t *)(pld->l4hdr));
         HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_info(zc, "SCMP entry for %s:%d not found",
+            zlog_info(zc, "SCMP entry for %d-%d %s:%d not found",
+                    ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
             return;
         }
-        zlog_debug(zc, "SCMP entry for %s:%d found",
+        zlog_debug(zc, "SCMP entry %d-%d for %s:%d found",
+                ISD(key.isd_as), AS(key.isd_as),
                 addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
     }
 
@@ -1002,7 +1006,7 @@ void handle_send(int index)
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
-            packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), ntohs(hop.port));
+            packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), hop.port);
 }
 
 void cleanup_socket(int sock, int index, int err)

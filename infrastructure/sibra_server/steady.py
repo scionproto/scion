@@ -223,7 +223,7 @@ class SteadyPath(object):
         Create headers for a SCION packet
         """
         dest = SCIONAddr.from_values(self.remote, SVCType.SB_A)
-        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
+        cmn_hdr, addr_hdr = build_base_hdrs(dest, self.addr)
         payload = SIBRAPayload.from_values()
         udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
         return cmn_hdr, addr_hdr, udp_hdr, payload
@@ -270,7 +270,7 @@ class SteadyPath(object):
         pcb = self._create_reg_pcb(remote)
         pld = PathRecordsReg.from_values({type_: [pcb]})
         dest = SCIONAddr.from_values(dst_ia, SVCType.PS_A)
-        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
+        cmn_hdr, addr_hdr = build_base_hdrs(dest, self.addr)
         udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [], udp_hdr, pld)
