@@ -17,10 +17,10 @@
 """
 # Stdlib
 import threading
+import time
 
 # SCION
 from lib.defines import IFID_PKT_TOUT
-from lib.util import SCIONTime
 
 
 class InterfaceState(object):
@@ -28,7 +28,7 @@ class InterfaceState(object):
     Simple class that represents current state of an interface.
     """
     # Timeout for interface (link) status.
-    IFID_TOUT = 10 * IFID_PKT_TOUT
+    IFID_TOUT = 3 * IFID_PKT_TOUT
 
     INACTIVE = 0
     ACTIVE = 1
@@ -38,6 +38,7 @@ class InterfaceState(object):
     def __init__(self):
         self.active_since = 0
         self.last_updated = 0
+        self.last_reset = 0
         self._state = self.INACTIVE
         self._lock = threading.RLock()
 
@@ -49,7 +50,7 @@ class InterfaceState(object):
         :rtype: int
         """
         with self._lock:
-            curr_time = SCIONTime.get_time()
+            curr_time = time.time()
             prev_state = self._state
             if self._state != self.ACTIVE:
                 self.active_since = curr_time
@@ -64,6 +65,7 @@ class InterfaceState(object):
         with self._lock:
             self.active_since = 0
             self.last_updated = 0
+            self.last_reset = time.time()
             self._state = self.INACTIVE
 
     def revoke_if_expired(self):
@@ -80,7 +82,7 @@ class InterfaceState(object):
     def is_active(self):
         with self._lock:
             if self._state == self.ACTIVE:
-                if self.last_updated + self.IFID_TOUT >= SCIONTime.get_time():
+                if self.last_updated + self.IFID_TOUT >= time.time():
                     return True
                 self._state = self.TIMED_OUT
                 return False
@@ -91,7 +93,11 @@ class InterfaceState(object):
             if self._state == self.TIMED_OUT:
                 return True
             elif (self._state == self.ACTIVE and
-                  self.last_updated + self.IFID_TOUT < SCIONTime.get_time()):
+                  self.last_updated + self.IFID_TOUT < time.time()):
+                self._state = self.TIMED_OUT
+                return True
+            elif (self._state == self.INACTIVE and self.last_reset > 0 and
+                  self.last_reset + self.IFID_TOUT < time.time()):
                 self._state = self.TIMED_OUT
                 return True
             return False
