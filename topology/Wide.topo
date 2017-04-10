@@ -32,6 +32,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA1-1
   CA1-2:
     ISD: 1
     countryName: US
@@ -39,6 +40,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA1-2
   CA1-3:
     ISD: 1
     countryName: US
@@ -46,6 +48,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA1-3
   CA2-1:
     ISD: 2
     countryName: US
@@ -53,6 +56,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA2-1
   CA2-2:
     ISD: 2
     countryName: US
@@ -60,6 +64,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA2-2
   CA2-3:
     ISD: 2
     countryName: US
@@ -67,6 +72,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA2-3
   CA3-1:
     ISD: 3
     countryName: US
@@ -74,6 +80,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA3-1
   CA3-2:
     ISD: 3
     countryName: US
@@ -81,6 +88,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA3-2
   CA3-3:
     ISD: 3
     countryName: US
@@ -88,6 +96,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA3-3
   CA4-1:
     ISD: 4
     countryName: US
@@ -95,6 +104,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA4-1
   CA4-2:
     ISD: 4
     countryName: US
@@ -102,6 +112,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA4-2
   CA4-3:
     ISD: 4
     countryName: US
@@ -109,6 +120,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA4-3
   CA5-1:
     ISD: 5
     countryName: US
@@ -116,6 +128,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA5-1
   CA5-2:
     ISD: 5
     countryName: US
@@ -123,6 +136,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA5-2
   CA5-3:
     ISD: 5
     countryName: US
@@ -130,6 +144,7 @@ CAs:
     localityName: Minnetonka
     organizationName: my company
     organizationalUnitName: my organization
+    commonName: CA5-3
 links:
   - {a: 1-1, b: 1-2, ltype: CORE}
   - {a: 1-1, b: 2-1, ltype: CORE}

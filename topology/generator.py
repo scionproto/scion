@@ -430,6 +430,7 @@ class CA_Generator(object):
         ca.get_subject().L = ca_config["localityName"]
         ca.get_subject().O = ca_config["organizationName"]
         ca.get_subject().OU = ca_config["organizationalUnitName"]
+        ca.get_subject().CN = ca_config["commonName"]
         ca.gmtime_adj_notBefore(0)
         ca.gmtime_adj_notAfter(5 * 365 * 24 * 60 * 60)
         ca.set_issuer(ca.get_subject())
