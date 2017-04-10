@@ -67,7 +67,8 @@ cmd_clean() {
 }
 
 cmd_run() {
-    local args="-i -t --privileged -h scion"
+    # Allow container to mount filesystems: https://github.com/docker/docker/issues/9950#issuecomment-176480007
+    local args="-i -t -h scion $DOCKER_ARGS --security-opt apparmor:unconfined --cap-add SYS_ADMIN"
     args+=" -v $PWD/htmlcov:/home/scion/go/src/github.com/netsec-ethz/scion/htmlcov"
     args+=" -v $PWD/logs:/home/scion/go/src/github.com/netsec-ethz/scion/logs"
     args+=" -v $PWD/sphinx-doc/_build:/home/scion/go/src/github.com/netsec-ethz/scion/sphinx-doc/_build"
