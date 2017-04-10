@@ -67,7 +67,7 @@ cmd_clean() {
 }
 
 cmd_run() {
-    local args="-i -t --privileged -h scion"
+    local args="-i -t -h scion --tmpfs /run/shm:size=25% $DOCKER_ARGS"
     args+=" -v $PWD/htmlcov:/home/scion/go/src/github.com/netsec-ethz/scion/htmlcov"
     args+=" -v $PWD/logs:/home/scion/go/src/github.com/netsec-ethz/scion/logs"
     args+=" -v $PWD/sphinx-doc/_build:/home/scion/go/src/github.com/netsec-ethz/scion/sphinx-doc/_build"

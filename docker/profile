@@ -10,11 +10,6 @@ alias cdscion="cd $BASEDIR"
 # Note: you still can't /re-attach/ to a screen session.
 tty &>/dev/null && exec >/dev/tty 2>/dev/tty </dev/tty
 
-# Setup environment
-# LTS 16 does not have this directory, so make it
-sudo mkdir -p /run/shm
-sudo mount -t tmpfs -o size=25% none /run/shm
-
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828
 sudo chmod g+s /usr/bin/screen
