@@ -29,8 +29,8 @@ const currINFOffset = 5
 const currHFOffset = 6
 
 type scmpAuthExtnHolder struct {
-	SCMPAuthDRKey       *rSecurityExt
-	SCMPAuthHashTree    *rSecurityExt
+	SCMPAuthDRKey    *rSecurityExt
+	SCMPAuthHashTree *rSecurityExt
 }
 
 // AuthenticateSCMPAuthExt computes the MAC and inserts it into the extensions.

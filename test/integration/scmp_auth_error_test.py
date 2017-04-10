@@ -44,7 +44,6 @@ from test.integration.base_cli_srv import (
     setup_main,
 )
 
-p = None
 
 class ErrorGenBase(TestClientBase):
     CLASS = None
