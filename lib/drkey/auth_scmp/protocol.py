@@ -16,6 +16,7 @@
 =====================================================
 """
 # External
+import copy
 from Crypto.Cipher import AES
 
 # SCION
@@ -23,6 +24,7 @@ from lib.crypto.symcrypto import cbcmac
 from lib.drkey.drkey_mgmt import DRKeyProtocolRequest
 from lib.drkey.types import DRKeyProtoReqType
 from lib.msg_meta import UDPMetadata
+from lib.packet.ext.security import SecurityExt, SecModes as SecM
 
 
 def check_privilege(req, meta):
@@ -51,3 +53,30 @@ def generate_drkey(drkey, req, meta):
     padding = ((AES.block_size - length % AES.block_size) % AES.block_size)
     l.append(bytes(padding))
     return cbcmac(drkey, b"".join(l))
+
+
+def verify(spkt, drkey):
+    scmp_auth_extn = find_scmp_auth_extn(spkt)
+    if not scmp_auth_extn:
+        return False
+    return scmp_auth_extn.authenticator == compute_mac(spkt, drkey)
+
+
+def find_scmp_auth_extn(spkt):
+    for e in spkt.ext_hdrs:
+        if isinstance(e, SecurityExt) and e.sec_mode == SecM.SCMP_AUTH_DRKEY:
+            return e
+    return None
+
+
+def compute_mac(spkt, drkey):
+    pkt = copy.deepcopy(spkt)
+    scmp_auth_extn = find_scmp_auth_extn(pkt)
+    if not scmp_auth_extn:
+        return None
+    scmp_auth_extn.authenticator = bytes(16)
+    a = bytearray(pkt.pack())
+    a[4:7] = bytes(3)
+    padding = ((AES.block_size - len(a) % AES.block_size) % AES.block_size)
+    a.extend(bytes(padding))
+    return cbcmac(drkey, bytes(a))

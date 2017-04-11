@@ -19,16 +19,24 @@
 # Stdlib
 import copy
 import logging
+import random
+import time
 
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.defines import MAX_HOPBYHOP_EXT
+from lib.drkey.auth_scmp import protocol
+from lib.drkey.drkey_mgmt import DRKeyProtocolReply, DRKeyProtocolRequest
+from lib.drkey.types import DRKeyProtocols, DRKeyProtoReqType
 from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import HostAddrSVC
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path import SCIONPath
-from lib.packet.scion_addr import ISD_AS
+from lib.packet.scion import SCIONL4Packet
+from lib.packet.scion import build_base_hdrs
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.types import (
     SCMPClass,
@@ -37,7 +45,7 @@ from lib.packet.scmp.types import (
     SCMPPathClass,
     SCMPRoutingClass,
 )
-from lib.types import L4Proto
+from lib.types import ServiceType
 from test.integration.base_cli_srv import (
     TestClientBase,
     TestClientServerBase,
@@ -73,14 +81,42 @@ class ErrorGenBase(TestClientBase):
         self.sock.send(packed, (str(next_hop), port))
 
     def _handle_response(self, spkt):
-        spkt.parse_payload()
-        l4 = spkt.l4_hdr
-        if (l4.TYPE == L4Proto.SCMP and l4.class_ == self.CLASS and
-                l4.type == self.TYPE):
-            logging.debug("Success!\n%s", spkt)
-            return True
-        logging.error("Failure:\n%s", spkt)
-        return False
+        super()._send_pkt(self._get_scmp_auth_req_pkt(spkt))
+        dpkt = self._recv()
+        rep = DRKeyProtocolReply.Reply.from_raw(dpkt.parse_payload().p.cipher)
+
+        return protocol.verify(spkt, rep.p.drkey)
+
+    def _get_scmp_auth_req_pkt(self, pkt):
+        cs_addr, cs_port = self._get_cs_addr()
+        cmn_hdr, addr_hdr = build_base_hdrs(cs_addr, self.addr)
+        l4_hdr = SCIONUDPHeader.from_values(
+            self.addr, self.sock.port, cs_addr, cs_port)
+        spkt = SCIONL4Packet.from_values(
+            cmn_hdr, addr_hdr, SCIONPath(), [], l4_hdr)
+        spkt.set_payload(self._create_scmp_auth_payload(pkt))
+        spkt.update()
+        return spkt
+
+    def _get_cs_addr(self):
+        cs_info = lib_sciond.get_service_info(
+            [ServiceType.CS], connector=self._connector)[ServiceType.CS]
+        cs = cs_info.host_info(0)
+        return (SCIONAddr.from_values(self.addr.isd_as, cs.ipv4() or cs.ipv6()),
+                cs.p.port)
+
+    def _create_scmp_auth_payload(self, pkt):
+        timestamp = int(time.time() * 1000000)
+        params = DRKeyProtocolRequest.Request.Params()
+        params.src_ia = pkt.addrs.src.isd_as
+        params.dst_ia = self.addr.isd_as
+        params.dst_host = self.addr.host
+        params.protocol = DRKeyProtocols.SCMP_AUTH
+        params.request_code = DRKeyProtoReqType.AS_TO_HOST
+        params.request_id = self.request_id = random.randint(0, 4000)
+        cipher = DRKeyProtocolRequest.Request.from_values(params).pack()
+        signature = b""
+        return DRKeyProtocolRequest.from_values(timestamp, cipher, signature)
 
 
 # FIXME(kormat): ignore this for now, as with UDP-overlay, many packets are
@@ -360,7 +396,7 @@ GEN_LIST = (
 
 
 class SCMPErrorTest(TestClientServerBase):
-    NAME = "SCMPErr"
+    NAME = "SCMPAuthErr"
 
     def _run_test(self, src, dst):
         logging.info("=======================> Testing: %s -> %s",

@@ -431,7 +431,7 @@ class CertServer(SCIONElement):
         self.drkey_requests.put((rep.isd_as, None))
 
     def _check_drkey(self, isd_as):
-        # TODO(roosd): imporve logic
+        # TODO(roosd): improve logic
         pair = self.first_order_drkeys.get((isd_as, False))
         if not pair:
             return False
@@ -511,7 +511,9 @@ class CertServer(SCIONElement):
 
     def _get_path_via_api(self, isd_as, flush=False):
         path_entries = self._try_sciond_api(isd_as, flush)
-        return path_entries[0].path().fwd_path()
+        if path_entries:
+            return path_entries[0].path().fwd_path()
+        return None
 
     def _try_sciond_api(self, isd_as, flush=False):
         flags = lib_sciond.PathRequestFlags(flush=flush)

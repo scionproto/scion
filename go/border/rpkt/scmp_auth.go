@@ -128,11 +128,19 @@ func (rp *RtrPkt) getSCMPAuthDRKeyBlock(drkey common.RawBytes, e *common.Error) 
 
 // calcSCMPAuthDRKey calculates the SCMPAuth DRKey for this packet.
 func (rp *RtrPkt) calcSCMPAuthDRKey() (common.RawBytes, *common.Error) {
-	in := make(common.RawBytes, 32)
+	in := make(common.RawBytes, 16)
+	common.Order.PutUint32(in, uint32(rp.dstIA.I))
+	common.Order.PutUint32(in[4:], uint32(rp.dstIA.A))
+	blockFstOrder, e := rp.getSCMPAuthDRKeyBlock(util.CBCMac(conf.C.DRKeyAESBlock, in))
+	if e != nil {
+		return nil, e
+	}
+
+	in = make(common.RawBytes, 32)
 	rp.dstIA.Write(in)
 	copy(in[4:], rp.dstHost.Pack())
 	copy(in[20:], []byte("SCMP"))
-	return util.CBCMac(conf.C.DRKeyAESBlock, in)
+	return util.CBCMac(blockFstOrder, in)
 }
 
 // CalcSCMPAuthMac calculates the SCMPAuthMac for his packet.
