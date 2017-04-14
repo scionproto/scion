@@ -60,7 +60,9 @@ var (
 	ProcessSockSrcDst *prometheus.CounterVec
 
 	// Misc
-	IFState *prometheus.GaugeVec
+	IFState       *prometheus.GaugeVec
+	PktsDropPerAs *prometheus.CounterVec
+	CurBwPerAs    *prometheus.GaugeVec
 )
 
 // Ensure all metrics are registered.
@@ -123,12 +125,16 @@ func Init(elem string) {
 	ProcessSockSrcDst = newCVec("process_pkts_src_dst_total",
 		"Total number of packets from one sock to another.", []string{"inSock", "outSock"})
 
+	PktsDropPerAs = newCVec("pkts_drop_per_as",
+		"Number of packets dropped due to bandwidth enforcement.", []string{"sock", "type"})
+	CurBwPerAs = newGVec("bandwidth_per_as",
+		"Current bandwidth of an AS if the AS is overshooting.", []string{"sock", "type"})
+
 	// border_base_labels is a special metric that always has the value `1`,
 	// that is used to add labels to non-br metrics.
 	BRLabels := newG("base_labels", "Border base labels.")
 	BRLabels.Set(1)
 	IFState = newGVec("interface_active", "Interface is active.", sockLabels)
-
 	// Initialize ringbuf metrics.
 	ringbuf.InitMetrics("border", constLabels, []string{"ringId"})
 
