@@ -26,7 +26,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
 
+	"path/filepath"
+
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/enforcement"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/rcmn"
@@ -128,6 +131,36 @@ func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
 	// Start external input functions.
 	for _, f := range ctx.ExtInputFs {
 		f.Start()
+	}
+	return nil
+}
+
+// setupBwEnforcement loads the bandwidth enforcement config.
+func (r *Router) setupBwEnforcement(confDir string) *common.Error {
+	bwPath := filepath.Join(confDir, enforcement.CfgName)
+	ingressAvgs, egressAvgs, err := enforcement.Load(bwPath)
+
+	if err != nil {
+		log.Warn("BW-Enforcement setup failed", err.Ctx...)
+	}
+
+	egressBwEnf := egressAvgs != nil && len(egressAvgs) != 0
+	ingressBwEnf := ingressAvgs != nil && len(ingressAvgs) != 0
+	r.fBwEnf = egressBwEnf || ingressBwEnf
+
+	r.ingressBWE = enforcement.BWEnforcer{
+		DoEnforcement: ingressBwEnf,
+		Interfaces:    ingressAvgs,
+	}
+
+	r.egresseBWE = enforcement.BWEnforcer{
+		DoEnforcement: egressBwEnf,
+		Interfaces:    egressAvgs,
+	}
+
+	if !r.fBwEnf {
+		log.Warn("No BW-Enforcement is done. This can have various reasons (No file, wrong formatted file...)." +
+			"Please ensure that bw.yml exists and is correctly formatted.")
 	}
 	return nil
 }

@@ -41,6 +41,7 @@ var (
 		},
 		[]string{"id"},
 	)
+
 	PktsSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "border",
@@ -57,6 +58,25 @@ var (
 		},
 		[]string{"id"},
 	)
+
+	PktsRecvDropPerAs = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "pkts_rcv_drop_per_as",
+			Help:      "Number of received packets dropped.",
+		},
+		[]string{"id"},
+	)
+
+	PktsSndDropPerAs = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "pkts_snd_drop_per_as",
+			Help:      "Number of sent packets dropped.",
+		},
+		[]string{"id"},
+	)
+
 	BytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "border",
@@ -65,6 +85,16 @@ var (
 		},
 		[]string{"id"},
 	)
+
+	BytesRecvPerAs = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "bytes_recv_per_as",
+			Help:      "Number of bytes received per AS.",
+		},
+		[]string{"id"},
+	)
+
 	BytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "border",
@@ -73,6 +103,16 @@ var (
 		},
 		[]string{"id"},
 	)
+
+	BytesSndPerAs = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "bytes_snd_per_as",
+			Help:      "Number of bytes sent per AS.",
+		},
+		[]string{"id"},
+	)
+
 	PktBufNew = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "border",
 		Name:      "pbuf_created_total",
@@ -132,8 +172,12 @@ func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
 	prometheus.MustRegister(PktsRecvOvfl)
+	prometheus.MustRegister(PktsRecvDropPerAs)
+	prometheus.MustRegister(PktsSndDropPerAs)
 	prometheus.MustRegister(BytesRecv)
+	prometheus.MustRegister(BytesRecvPerAs)
 	prometheus.MustRegister(BytesSent)
+	prometheus.MustRegister(BytesSndPerAs)
 	prometheus.MustRegister(PktBufNew)
 	prometheus.MustRegister(PktBufReuse)
 	prometheus.MustRegister(PktBufDiscard)

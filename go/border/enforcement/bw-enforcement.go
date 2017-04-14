@@ -1,0 +1,103 @@
+// Copyright 2016 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// This file contains all logic to do the bandwidth enforcement within
+// the router.
+
+package enforcement
+
+import (
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+)
+
+type BWEnforcer struct {
+	// DoEnforcement indicates whether to do enforcement or not.
+	DoEnforcement bool
+	// Interfaces contains all interfaces that have ASes with
+	// reserved bandwidth.
+	Interfaces map[common.IFIDType]IFEContainer
+}
+
+// IFEContainer contains all information that is necessary to do
+// bandwidth enforcement per interface.
+type IFEContainer struct {
+	// avgs holds all averages associated to an AS.
+	avgs map[uint32]*ASEInformation
+	// maxIfBw indicates the max bandwidth of the interface.
+	unknown ASEInformation
+}
+
+// ASEInformation contains all information necessary to do bandwidth
+// enforcement for a certain AS.
+type ASEInformation struct {
+	// maxBw indicates the max bandwidth that the AS is allowed to use.
+	maxBw int64
+	// movAvg holds the current bandwidth average of the AS.
+	movAvg *MovingAverage
+	Labels prometheus.Labels
+}
+
+// Check() indicates whether a packet should be forwarded to the next stage
+// of the router or not.
+func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) bool {
+	ifid, _ := rp.IFCurr()
+	if ifInfo, ex := bwe.Interfaces[*ifid]; ex {
+		srcIA, _ := rp.SrcIA()
+		length := len(rp.Raw)
+		if ifInfo.canForward(srcIA, length) {
+			return true
+		}
+	}
+	return false
+}
+
+// canForward() indicates whether a packet is allowed to pass the router. It is not if
+// the AS exceeds its bandwidth limit.
+func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) bool {
+	info, _ := ifec.getBWInfo(*isdas)
+	if info.canAdd() {
+		info.addPktToAvg(length)
+		return true
+	}
+	return false
+}
+
+// getBWInfo() checks if there is a moving average for addr and returns it. If not it
+// returns the moving average for unknown ASes.
+func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) (ASEInformation, bool) {
+	info, exists := c.avgs[addr.Uint32()]
+	if exists {
+		return *info, true
+	}
+	return c.unknown, false
+}
+
+// canAdd() checks whether the the AS is exceeding its bandwidth limit or not.
+func (info *ASEInformation) canAdd() bool {
+	if info.maxBw == -1 {
+		return true
+	}
+	return info.movAvg.getAverage()*8 < info.maxBw
+}
+
+// addPktToAvg() adds the packet to the moving average
+func (info *ASEInformation) addPktToAvg(length int) {
+	if info.maxBw != -1 {
+		info.movAvg.add(length)
+	}
+}
