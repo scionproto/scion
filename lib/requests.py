@@ -97,7 +97,6 @@ class RequestHandler(object):
                 self._answer_reqs(k)
 
     def _add_req(self, key, request):
-        self._req_map.setdefault(key, [])
         self._expire_reqs(key)
         if not self._check(key):
             self._fetch(key, request)
