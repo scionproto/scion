@@ -14,15 +14,18 @@ Before you start, make sure you have Docker installed. On debian-based systems:
 
     sudo apt-get install docker.io
 
-To build the base docker image:
+The `scion_base` docker image contains all the dependencies of scion, and so it
+needs to be regenerated any time the dependencies change. It is built via: 
 
     ./docker.sh base
 
-To build the main docker image (which depends on the previous step):
+The `scion` docker image contains a snapshot of your working tree, and is
+layered on top of the `scion_base` image (and hence should be rebuilt if
+`scion_base` changes). It is built via:
 
     ./docker.sh build
 
-To run the main docker image:
+To run the `scion` docker image:
 
     ./docker.sh run
 
