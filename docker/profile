@@ -5,7 +5,3 @@ export BASEDIR="$GOPATH/src/github.com/netsec-ethz/scion"
 export PYTHONPATH="$BASEDIR"
 
 alias cdscion="cd $BASEDIR"
-
-# Properly setup terminal to allow use of screen, etc.
-# Note: you still can't /re-attach/ to a screen session.
-tty &>/dev/null && exec >/dev/tty 2>/dev/tty </dev/tty
