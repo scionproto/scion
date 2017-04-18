@@ -11,8 +11,8 @@ defaults:
             export GOPATH=$HOME/go
             export GOBIN=$GOPATH/bin
             export PATH=$GOBIN:$HOME/.local/bin:$PATH
-            BRANCH="${${CIRCLE_PR_NUMBER:-$CIRCLE_BRANCH}//\//_}"
-            export ARTIFACTS="circleci.${CIRCLE_PROJECT_REPONAME}.${BRANCH}.build${CIRCLE_BUILD_NUM}"
+            BRANCH="${CIRCLE_PR_NUMBER:-$CIRCLE_BRANCH}"
+            export ARTIFACTS="circleci.${CIRCLE_PROJECT_REPONAME}.${BRANCH//\//_}.build${CIRCLE_BUILD_NUM}"
             ' >> ~/.bash_profile
     artifacts: &artifacts
         name: Gather test artifacts
