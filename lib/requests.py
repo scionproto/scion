@@ -99,9 +99,7 @@ class RequestHandler(object):
     def _add_req(self, key, request):
         self._req_map.setdefault(key, [])
         self._expire_reqs(key)
-        if not self._check(key) and len(self._req_map[key]) == 0:
-            # Don't already have the answer, and there were no outstanding
-            # requests, so send a new query
+        if not self._check(key):
             self._fetch(key, request)
         self._req_map[key].append((SCIONTime.get_time(), request))
 
