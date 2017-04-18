@@ -27,7 +27,7 @@ import nose.tools as ntools
 from lib.requests import (
     RequestHandler,
 )
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
 class TestRequestHandlerRun(object):
@@ -54,9 +54,8 @@ class TestRequestHandlerAddReq(object):
     """
     Unit tests for lib.requests.RequestHandler._add_req
     """
-    def _setup(self, time_, check_ret=False):
-        check = create_mock()
-        check.return_value = check_ret
+    def _setup(self, time_, check_ret):
+        check = create_mock_full(return_value=check_ret)
         fetch = create_mock()
         inst = RequestHandler("queue", check, fetch, "reply")
         inst._expire_reqs = create_mock()
@@ -65,7 +64,7 @@ class TestRequestHandlerAddReq(object):
 
     @patch("lib.requests.SCIONTime.get_time", newcallable=create_mock)
     def test_no_ans_no_query(self, time_):
-        inst = self._setup(time_)
+        inst = self._setup(time_, False)
         # Call
         inst._add_req("key", "req")
         # Tests
@@ -75,18 +74,8 @@ class TestRequestHandlerAddReq(object):
         ntools.eq_(inst._req_map["key"], [(2, "req")])
 
     @patch("lib.requests.SCIONTime.get_time", newcallable=create_mock)
-    def test_no_ans_query(self, time_):
-        inst = self._setup(time_)
-        inst._req_map["key"] = [(1, "oldreq")]
-        # Call
-        inst._add_req("key", "req")
-        # Tests
-        ntools.assert_false(inst._fetch.called)
-        ntools.eq_(inst._req_map["key"], [(1, "oldreq"), (2, "req")])
-
-    @patch("lib.requests.SCIONTime.get_time", newcallable=create_mock)
     def test_ans(self, time_):
-        inst = self._setup(time_)
+        inst = self._setup(time_, True)
         inst._req_map["key"] = [(1, "oldreq")]
         # Call
         inst._add_req("key", "req")
