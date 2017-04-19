@@ -125,9 +125,9 @@ cmd_version() {
 
 cmd_build() {
     if [ "$1" == "bypass" ]; then
-        USER_OPTS=-DBYPASS_ROUTERS make -s all install
+        USER_OPTS=-DBYPASS_ROUTERS make -s
     else
-        make -s all install
+        make -s
     fi
 }
 
