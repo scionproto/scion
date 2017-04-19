@@ -8,10 +8,10 @@ if ! type -P "$TOOL" &>/dev/null; then
 fi
 
 # First, do a config check
-circleci config validate || exit 1
+"$TOOL" config validate || exit 1
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 
 echo "Artifacts dir: $tmpdir"
-circleci build --job local -v "$tmpdir:/tmp/artifacts"
+"$TOOL" build --job local -v "$tmpdir:/tmp/artifacts"
 echo "Artifacts dir: $tmpdir"
