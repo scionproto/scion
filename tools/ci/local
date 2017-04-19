@@ -12,5 +12,6 @@ circleci config validate || exit 1
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 
+echo "Artifacts dir: $tmpdir"
 circleci build --job local -v "$tmpdir:/tmp/artifacts"
 echo "Artifacts dir: $tmpdir"
