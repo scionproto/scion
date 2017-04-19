@@ -38,6 +38,12 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
+			"checksumSHA1": "s8t6UaijV8WMK0RMdX00OPI5z0o=",
+			"path": "github.com/dchest/cmac",
+			"revision": "62ff55a1048c485e83f1882466f535da624e944a",
+			"revisionTime": "2015-05-27T14:46:52Z"
+		},
+		{
 			"checksumSHA1": "4HpMp8lo5lc64CIb3pULsFlr4ms=",
 			"path": "github.com/gavv/monotime",
 			"revision": "47d58efa69556a936a3c15eb2ed42706d968ab01",
