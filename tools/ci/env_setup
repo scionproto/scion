@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 echo '
 # Added by circleci:
 export GOPATH=~/go
