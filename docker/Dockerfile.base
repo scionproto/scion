@@ -1,0 +1,77 @@
+FROM ubuntu:16.04
+ENV HOME /home/scion
+ENV BASE /home/scion/go/src/github.com/netsec-ethz/scion
+ENV GOPATH $HOME/go
+ENV PATH $GOPATH/bin:$HOME/.local/bin:$PATH
+
+WORKDIR $BASE
+
+# Speed up a lot of the building
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y eatmydata
+RUN ln -s /usr/bin/eatmydata /usr/local/bin/apt-get
+RUN ln -s /usr/bin/eatmydata /usr/local/bin/dpkg
+
+RUN useradd -s /bin/bash scion
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y sudo
+RUN echo "scion ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/scion
+
+# Provide tmpfs at /run/shm while inside non-privileged docker
+RUN ln -s /dev/shm /run/shm
+
+USER scion
+RUN sudo chown -R scion: $HOME
+
+#################################################################################
+## Install dependencies
+#################################################################################
+
+COPY env/common.sh /tmp/build/
+
+# Debian packages
+COPY env/debian /tmp/build/debian
+RUN APTARGS=-y /tmp/build/debian/deps
+
+# Pip3 packages
+COPY env/pip3 /tmp/build/pip3
+RUN /tmp/build/pip3/deps
+
+# Pip2 packages
+COPY env/pip2 /tmp/build/pip2
+RUN /tmp/build/pip2/deps
+
+# scion-web pip3 packages
+COPY env/pip3web /tmp/build/pip3web
+COPY sub/web/requirements.txt /tmp/build/pip3web
+RUN /tmp/build/pip3web/deps
+
+# zlog packages
+COPY env/zlog /tmp/build/zlog
+RUN /tmp/build/zlog/deps
+
+# Go packages
+COPY env/go /tmp/build/go
+RUN /tmp/build/go/deps
+
+# Go vendored packages
+COPY go/vendor/ go/vendor
+RUN chown -R scion: .
+RUN cd go && govendor sync -v && govendor install ./vendor/...
+RUN tar caf /tmp/build/go_vendor.tar.gz -C go/vendor .
+RUN mv go/vendor/vendor.json /tmp/build/go_vendor.json; rm -r go
+
+#################################################################################
+## Dependencies are now installed, carry on with the rest.
+#################################################################################
+
+# Install bash config
+COPY docker/profile $HOME/.profile
+# Install basic screen config
+COPY docker/screenrc $HOME/.screenrc
+# Install ZK config
+COPY docker/zoo.cfg /etc/zookeeper/conf/
+
+# Fix ownership one last time:
+RUN sudo chown -R scion: $HOME
+
+CMD []
+ENTRYPOINT ["/bin/bash", "-l"]

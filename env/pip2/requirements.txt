@@ -1,0 +1,3 @@
+supervisor==3.3.1 --hash=sha256:fc3af22e5a7af2f6c3be787acf055c1c17777f5607cd4dc935fe633ab97061fd # Direct dependency
+meld3==1.0.2 --hash=sha256:b28a9bfac342aadb4557aa144bea9f8e6208bfb0596190570d10a892d35ff7dc
+supervisor-wildcards==0.1.3 --hash=sha256:02f532bf059e99aa38a3170cf4295f9dd123cfb16f209240575d853fd90710f8 # Direct dependency

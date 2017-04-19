@@ -9,6 +9,8 @@ file
 flake8
 g++
 gcc
+git
+golang
 libcapnp-dev
 libcurl4-openssl-dev
 libffi-dev
@@ -19,6 +21,7 @@ make
 net-tools
 netcat-openbsd
 ntp
+openssh-client
 parallel
 python-flake8
 python-minimal
@@ -43,5 +46,6 @@ python3-sphinx
 python3-wheel
 python3-yaml
 screen
+sudo
 uthash-dev
 zookeeperd

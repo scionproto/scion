@@ -1,0 +1,8 @@
+#!/bin/bash
+
+[ -f /tmp/test_flags/errors ] || exit 0
+echo "ERROR: the following actions failed:"
+echo "===================================="
+cat /tmp/test_flags/errors
+echo "===================================="
+exit 1

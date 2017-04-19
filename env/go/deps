@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $(dirname "$BASE")/common.sh
+
+if ! go version | grep -q ' go1\.[67]\>'; then
+    echo "ERROR: Go version 1.6 or 1.7 required. Unsupported go version found ($(type -p go)): $(go version)"
+    exit 1
+fi
+
+echo "Installing/updating govendor dep manager"
+
+# Make sure GOPATH is set
+[ -n "$GOPATH" ] || { echo "ERROR: \$GOPATH is unset"; exit 1; }
+
+GOPATH_BASE=${GOPATH%%:*} # Find the first dir in $GOPATH
+
+host_user=github.com/kardianos
+project=govendor
+parent_dir="$GOPATH_BASE/src/${host_user:?}"
+url="https://$host_user/${project:?}.git"
+commit=fbbc78e8d1b533dfcf81c2a4be2cec2617a926f7
+
+# Perform initial clone, if necessary
+mkdir -p "${parent_dir:?}"
+cd "$parent_dir"
+[ -d "${project:?}" ] || git clone "${url:?}"
+
+# Fetch/update/install
+cd "$project"
+git fetch
+git checkout "${commit:?}"
+go install -v

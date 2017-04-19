@@ -1,0 +1,68 @@
+version: 2
+
+jobs:
+    local:
+        docker:
+            - image: scion:latest
+        <<: *job
+
+        steps:
+            - run: ./tools/ci/env_setup |& tee logs/env_setup.run
+            # The checkout & build prep steps from the `build` job aren't
+            # needed here, as the `scion` docker image has already done the work
+            # for us.
+
+            # Common:
+            - run: make -s |& tee logs/make.run
+            - run: ./tools/ci/run ./scion.sh lint |& tee logs/lint.run
+            - run: ./tools/ci/run ./scion.sh coverage |& tee logs/coverage.run
+            - run: ./tools/ci/run ./sub/web/manage.py test &> logs/sweb_test.run
+            - run: ./tools/ci/run make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
+            - run: ./tools/ci/run ./docker/integration_test.sh |& tee logs/integration.run
+            - run: *artifacts
+
+            - run: mv /tmp/artifacts.out/* /tmp/artifacts/
+            - run: ./tools/ci/post_check
+
+
+    build:
+        docker:
+            - image: kormat/scion_base@sha256:e6cb12c99c92c7a835cdb6dd65f950b42b816b85ac165ff05bfa879f13c2ba19
+        <<: *job
+        steps:
+            - checkout
+            - run: ./tools/ci/env_setup |& tee logs/env_setup.run
+            - run: ./tools/ci/build_prep |& tee logs/build_prep.run
+
+            # Common:
+            - run: make -s |& tee logs/make.run
+            - run: ./tools/ci/run ./scion.sh lint |& tee logs/lint.run
+            - run: ./tools/ci/run ./scion.sh coverage |& tee logs/coverage.run
+            - run: ./tools/ci/run ./sub/web/manage.py test &> logs/sweb_test.run
+            - run: ./tools/ci/run make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
+            - run: ./tools/ci/run ./docker/integration_test.sh |& tee logs/integration.run
+            - run: *artifacts
+
+            - run: ./tools/ci/post_check
+
+            - store_artifacts:
+                path: /tmp/artifacts.out
+                destination: /
+            - store_test_results:
+                path: logs/nosetests.xml
+
+scion_defaults:
+    job: &job
+        working_directory: /home/scion/go/src/github.com/netsec-ethz/scion
+        environment: &environment
+            - BASH_ENV: /home/scion/.profile
+
+    artifacts: &artifacts
+        name: Gather test artifacts
+        command: |
+            set +e -x
+            mv -n htmlcov logs go/gocover.html gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
+            cp -a /tmp/test_flags "/tmp/artifacts/$ARTIFACTS"
+            tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
+
+# vim: expandtab:sw=4:sts=4
