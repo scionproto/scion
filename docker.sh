@@ -63,7 +63,7 @@ docker_build() {
     echo "Log: $log"
     echo "=========================="
     echo
-    docker build -f "$conf" -t "$tag" "$build_dir/scion.git" | tee "$log"
+    docker build $DOCKER_ARGS -f "$conf" -t "$tag" "$build_dir/scion.git" | tee "$log"
     docker tag "$tag" "$image_name:latest"
 }
 

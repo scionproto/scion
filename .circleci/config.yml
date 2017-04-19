@@ -17,6 +17,7 @@ jobs:
             - run: ./tools/ci/run ./scion.sh lint
             - run: ./tools/ci/run ./scion.sh coverage
             - run: ./tools/ci/run ./sub/web/manage.py test > logs/sweb_test.log
+            - run: ./tools/ci/run make -f sphinx-doc/Makefile clean html
             - run: ./tools/ci/run ./docker/integration_test.sh
             - run: *artifacts
 
@@ -38,6 +39,7 @@ jobs:
             - run: ./tools/ci/run ./scion.sh lint
             - run: ./tools/ci/run ./scion.sh coverage
             - run: ./tools/ci/run ./sub/web/manage.py test > logs/sweb_test.log
+            - run: ./tools/ci/run make -f sphinx-doc/Makefile clean html
             - run: ./tools/ci/run ./docker/integration_test.sh
             - run: *artifacts
 
@@ -59,7 +61,7 @@ scion_defaults:
         name: Gather test artifacts
         command: |
             set +e -x
-            mv -n htmlcov logs go/gocover.html gen "/tmp/artifacts/$ARTIFACTS"
+            mv -n htmlcov logs go/gocover.html gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
             tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
 
 # vim: expandtab:sw=4:sts=4
