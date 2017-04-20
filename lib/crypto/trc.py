@@ -24,7 +24,6 @@ import time
 
 # External
 import lz4
-from OpenSSL import crypto
 
 # SCION
 from lib.crypto.asymcrypto import verify, sign
