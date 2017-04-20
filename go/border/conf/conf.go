@@ -56,6 +56,8 @@ type Conf struct {
 		sync.RWMutex
 		M map[spath.IntfID]IFState
 	}
+	// DRKey key derivation Block
+	DRKeyAESBlock cipher.Block
 }
 
 // IFState stores the IFStateInfo capnp message, as well as the raw revocation
@@ -103,6 +105,11 @@ func Load(id, confDir string) *common.Error {
 	}
 	// Create network configuration
 	conf.Net = netconf.FromTopo(conf.BR)
+	// Create DRKey secret
+	drkeySecret := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive DRKey Key"), 1000, 16, sha256.New)
+	if conf.DRKeyAESBlock, err = util.InitAES(drkeySecret); err != nil {
+		return err
+	}
 	// Save config
 	C = conf
 	return nil

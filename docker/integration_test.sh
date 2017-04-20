@@ -60,6 +60,8 @@ SCMP error
 test/integration/scmp_error_test.py -l ERROR --runs 60
 Cert/TRC request
 test/integration/cert_req_test.py -l ERROR
+SCMP Auth DRKey
+test/integration/scmp_auth_error_test.py -l ERROR --runs 60
 EOF
 result=$?
 
