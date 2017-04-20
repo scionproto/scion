@@ -19,11 +19,9 @@
 # Stdlib
 import argparse
 import logging
-import os
 import time
 
 # SCION
-from lib.defines import SCIOND_API_PATH_ENV_VAR, SCIOND_API_SOCKDIR
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import haddr_parse_interface
@@ -41,7 +39,7 @@ class PktGen(TestClientBase):
         super().__init__(*args, **kwargs)
         self.size = size
 
-    def run(self, count):
+    def run(self, count, wait_time):
         self.sent = 0
         spkt = self._build_pkt()
         raw = spkt.pack()
@@ -51,6 +49,7 @@ class PktGen(TestClientBase):
         while not count or self.sent < count:
             self.sock.send(raw, (overlay_dest, overlay_port))
             self.sent += 1
+            time.sleep(wait_time/1000.0)
         self._shutdown()
 
     def _create_socket(self, addr):
@@ -84,6 +83,8 @@ def main():
                         help='Number of packets to send. 0 means unlimited.')
     parser.add_argument('-s', '--size', default=0, type=int,
                         help='Size of packets to send. 0 means use the MTU of the path.')
+    parser.add_argument('-w', '--wait', default=0, type=int,
+                        help='Wait time in milliseconds after a packet has been sent.')
     parser.add_argument('src_ia', help='Src ISD-AS')
     parser.add_argument('src_addr', help='Src IP')
     parser.add_argument('dst_ia', help='Dst ISD-AS')
@@ -94,12 +95,10 @@ def main():
                                 haddr_parse_interface(args.src_addr))
     dst = SCIONAddr.from_values(ISD_AS(args.dst_ia),
                                 haddr_parse_interface(args.dst_addr))
-    api_path_default = os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % src.isd_as)
-    api_path = os.getenv(SCIOND_API_PATH_ENV_VAR) or api_path_default
-    gen = PktGen(api_path, b"data", "finished", src, dst, 3000, size=args.size)
+    gen = PktGen(b"data", "finished", src, dst, 3000, size=args.size)
     start = time.time()
     try:
-        gen.run(args.count)
+        gen.run(args.count, args.wait)
     except KeyboardInterrupt:
         pass
     total = time.time() - start
