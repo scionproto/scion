@@ -60,27 +60,27 @@ func setupHSRNetStart(r *Router) (rpkt.HookResult, *common.Error) {
 	return rpkt.HookContinue, nil
 }
 
-func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
+func setupHSRAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
 	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
 	var ifids []spath.IntfID
-	for _, intf := range conf.C.Net.IFs {
+	for _, intf := range ctx.Conf.Net.IFs {
 		if intf.LocAddrIdx == idx {
 			ifids = append(ifids, intf.Id)
 		}
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: rpkt.DirLocal, IfIDs: ifids, Labels: labels})
-	r.locOutFs[idx] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
+	ctx.LocOutFs[idx] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
 		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRAddExt(r *Router, intf *netconf.Interface,
+func setupHSRAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
@@ -88,23 +88,21 @@ func setupHSRAddExt(r *Router, intf *netconf.Interface,
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
-	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
+	ctx.IntfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
 		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router) (rpkt.HookResult, *common.Error) {
+func setupHSRNetFinish(r *Router, ctx *context.Context) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}
-	err := hsr.Init(filepath.Join(conf.C.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
+	err := hsr.Init(filepath.Join(ctx.Conf.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
 		flag.Args(), hsrAddrMs)
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	q := make(chan *rpkt.RtrPkt)
-	r.inQs = append(r.inQs, q)
-	go r.readHSRInput(q)
+	go r.readHSRInput()
 	return rpkt.HookContinue, nil
 }

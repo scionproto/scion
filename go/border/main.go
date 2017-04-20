@@ -33,7 +33,7 @@ import (
 var (
 	id       = flag.String("id", "", "Element ID (Required. E.g. 'br4-21-9')")
 	confDir  = flag.String("confd", ".", "Configuration directory")
-	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
+	profFlag = flag.Bool("profile", true, "Enable cpu and memory profiling")
 )
 
 func main() {

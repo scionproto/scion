@@ -17,8 +17,6 @@
 package main
 
 import (
-	"sync"
-
 	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
@@ -28,23 +26,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"time"
 )
 
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-21-9".
 	Id string
-	// inQs is a slice of channels that incoming packets are received from.
-	// FIXME(kormat): maybe remove these in favour of just calling
-	// processPacket directly.
-	inQs []chan *rpkt.RtrPkt
-	// locOutFs is a slice of functions for sending packets to local
-	// destinations (i.e. within the local ISD-AS), indexed by the local
-	// address id.
-	locOutFs map[int]rpkt.OutputFunc
-	// intfOutFs is a slice of functions for sending packets to neighbouring
-	// ISD-ASes, indexed by the interface ID of the relevant link.
-	intfOutFs map[spath.IntfID]rpkt.OutputFunc
 	// freePkts is a buffered channel for recycled packets. See
 	// Router.recyclePkt
 	freePkts chan *rpkt.RtrPkt
@@ -63,18 +50,14 @@ func NewRouter(id, confDir string) (*Router, *common.Error) {
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Run() *common.Error {
-	if err := r.setupNet(); err != nil {
-		return err
-	}
 	go r.SyncInterface()
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
-	var wg sync.WaitGroup
-	for _, q := range r.inQs {
-		wg.Add(1)
-		go r.handleQueue(q)
+	// TODO(shitz): Here should be some code to periodically check the discovery
+	// service for updated info.
+	for {
+		time.Sleep(time.Second)
 	}
-	wg.Wait()
 	return nil
 }
 
@@ -98,6 +81,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
 		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
+		assert.Must(rp.Ctx != nil, "Context must be set")
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = logext.RandId(4)
