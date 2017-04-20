@@ -30,6 +30,7 @@ python-setuptools
 python-wheel
 python3-coverage
 python3-crypto
+python3-cryptography
 python3-dev
 python3-dnspython
 python3-kazoo
