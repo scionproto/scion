@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -x
+set -exo pipefail
+
 git submodule sync --recursive
 git submodule update --init --recursive
 # Ensure none of the dependency information has changed

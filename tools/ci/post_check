@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 [ -f /tmp/test_flags/errors ] || exit 0
 echo "ERROR: the following actions failed:"
 echo "===================================="

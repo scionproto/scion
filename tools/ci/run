@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set +e
+set -o pipefail
 
 mkdir -p /tmp/test_flags || exit 1
 
