@@ -26,6 +26,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -42,18 +43,13 @@ const pktBufSize = 1 << 16
 // callbacks is an anonymous struct used for functions supplied by the router
 // for various processing tasks.
 var callbacks struct {
-	locOutFs   map[int]OutputFunc
-	intfOutFs  map[spath.IntfID]OutputFunc
 	ifStateUpd func(proto.IFStateInfos)
 	revTokenF  func(RevTokenCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
-func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
-	ifStateUpd func(proto.IFStateInfos), revTokenF func(RevTokenCallbackArgs)) {
-	callbacks.locOutFs = locOut
-	callbacks.intfOutFs = intfOut
+func Init(ifStateUpd func(proto.IFStateInfos), revTokenF func(RevTokenCallbackArgs)) {
 	callbacks.ifStateUpd = ifStateUpd
 	callbacks.revTokenF = revTokenF
 }
@@ -128,6 +124,8 @@ type RtrPkt struct {
 	// Logger is used to log messages associated with a packet. The Id field is automatically
 	// included in the output.
 	log.Logger
+	// The current router context to process this packet.
+	Ctx *context.Context
 }
 
 func NewRtrPkt() *RtrPkt {
@@ -174,13 +172,10 @@ type addrIFPair struct {
 	IfIDs []spath.IntfID
 }
 
-// OutputFunc is the type of callback required for sending a packet.
-type OutputFunc func(*RtrPkt, *net.UDPAddr)
-
 // EgressPair contains the output function to send a packet with, along with an
 // overlay destination address.
 type EgressPair struct {
-	F   OutputFunc
+	F   context.OutputFunc
 	Dst *net.UDPAddr
 }
 
@@ -246,6 +241,7 @@ func (rp *RtrPkt) Reset() {
 	rp.pld = nil
 	rp.hooks = hooks{}
 	rp.SCMPError = false
+	rp.Ctx = nil
 }
 
 // ToScnPkt converts this RtrPkt into an spkt.ScnPkt. The verify argument
@@ -322,6 +318,12 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	return nil
 }
 
+// Bytes returns the raw bytes of the RtrPkt. Needed to implement context.OutputObj
+// interface.
+func (rp *RtrPkt) Bytes() common.RawBytes {
+	return rp.Raw
+}
+
 func (rp *RtrPkt) String() string {
 	// Pre-fetch required attributes, deliberately ignoring errors so as to
 	// display as much information as can be gathered.
@@ -340,4 +342,10 @@ func (rp *RtrPkt) String() string {
 // packet buffer.
 func (rp *RtrPkt) ErrStr(desc string) string {
 	return fmt.Sprintf("Error: %v\n  RtrPkt: %v\n  Raw: %v", desc, rp, rp.Raw)
+}
+
+// LogError logs an error using the logger of the RtrPkt (needed to implement
+// context.OutputObj interface).
+func (rp *RtrPkt) LogError(msg string, ctx ...interface{}) {
+	rp.Error(msg, ctx...)
 }

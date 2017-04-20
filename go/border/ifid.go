@@ -23,7 +23,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -44,27 +44,28 @@ func (r *Router) SyncInterface() {
 }
 
 func (r *Router) GenIFIDPkts() {
-	for ifid := range conf.C.Net.IFs {
-		r.GenIFIDPkt(ifid)
+	ctx := context.GetContext()
+	for ifid := range ctx.Conf.Net.IFs {
+		r.GenIFIDPkt(ifid, ctx)
 	}
 }
 
 // GenIFIDPkt generates IFID packets.
-func (r *Router) GenIFIDPkt(ifid spath.IntfID) {
+func (r *Router) GenIFIDPkt(ifid spath.IntfID, ctx *context.Context) {
 	logger := log.New("ifid", ifid)
-	intf := conf.C.Net.IFs[ifid]
+	intf := ctx.Conf.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: intf.RemoteIA, SrcIA: conf.C.IA,
+		DstIA: intf.RemoteIA, SrcIA: ctx.Conf.IA,
 		DstHost: addr.HostFromIP(intf.RemoteAddr.IP), SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(intf.RemoteAddr.Port)},
-	}, rpkt.DirExternal)
+	}, rpkt.DirExternal, ctx)
 	if err != nil {
 		logger.Error("Error creating IFID packet", err.Ctx...)
 		return
 	}
-	rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
+	rp.Egress = append(rp.Egress, rpkt.EgressPair{F: ctx.IntfOutFs[ifid], Dst: intf.RemoteAddr})
 	// Create IFID msg
 	scion, ifidMsg, err := proto.NewIFIDMsg()
 	if err != nil {

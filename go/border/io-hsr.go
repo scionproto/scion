@@ -25,6 +25,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
@@ -38,8 +39,7 @@ import (
 // manages. In order to have per-port metrics (and to ensure each port metric
 // is only updated once), readHSRInput uses a map of port IDs to keep track of
 // which metrics need updating.
-// FIXME(kormat): the chan argument is currently unused.
-func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
+func (r *Router) readHSRInput() {
 	defer liblog.PanicLog()
 	// Allocate slice of empty packets.
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)
@@ -86,12 +86,13 @@ func (r *Router) readHSRInput(_ chan *rpkt.RtrPkt) {
 }
 
 // writeHSROutput sends a single output packet via libhsr.
-func (r *Router) writeHSROutput(rp *rpkt.RtrPkt, dst *net.UDPAddr, portID int,
+func (r *Router) writeHSROutput(oo *context.OutputObj, dst *net.UDPAddr, portID int,
 	labels prometheus.Labels) {
 	start := monotime.Now()
-	hsr.SendPacket(dst, portID, rp.Raw)
+	raw := oo.GetRaw()
+	hsr.SendPacket(dst, portID, raw)
 	duration := monotime.Since(start).Seconds()
 	metrics.OutputProcessTime.With(labels).Add(duration)
-	metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
+	metrics.BytesSent.With(labels).Add(float64(len(raw)))
 	metrics.PktsSent.With(labels).Inc()
 }

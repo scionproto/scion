@@ -22,7 +22,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -84,14 +84,15 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
 func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
+	ctx := context.GetContext()
 	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: conf.C.IA, SrcIA: conf.C.IA,
+		DstIA: ctx.Conf.IA, SrcIA: ctx.Conf.IA,
 		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
-	}, rpkt.DirLocal)
+	}, rpkt.DirLocal, ctx)
 	if err != nil {
 		log.Error("Error creating RevInfo packet", err.Ctx...)
 		return
@@ -103,7 +104,7 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	}
 	pathMgmt.SetRevInfo(*revInfo)
 	rp.SetPld(&spkt.CtrlPld{SCION: scion})
-	_, err = rp.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
+	_, err = rp.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), ctx.LocOutFs[0])
 	if err != nil {
 		log.Error("Unable to route RevInfo packet", err.Ctx...)
 		return

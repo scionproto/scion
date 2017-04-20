@@ -23,6 +23,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -36,13 +37,16 @@ import (
 // from, and the list of interfaces that it could belong to (as some sockets
 // may be associated with more than one interface).
 func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath.IntfID,
-	labels prometheus.Labels, q chan *rpkt.RtrPkt) {
+	labels prometheus.Labels) {
 	defer liblog.PanicLog()
 	log.Info("Listening", "addr", in.LocalAddr())
 	dst := in.LocalAddr().(*net.UDPAddr)
+	// Create a new rpkt buffer to be used by this input routine.
+	rp := rpkt.NewRtrPkt()
 	for { // Run forever.
 		metrics.InputLoops.With(labels).Inc()
-		rp := r.getPktBuf()
+		// Get current router context for this packet.
+		rp.Ctx = context.GetContext()
 		rp.DirFrom = dirFrom
 		start := monotime.Now()
 		length, src, err := in.ReadFromUDP(rp.Raw)
@@ -60,7 +64,10 @@ func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath
 		metrics.PktsRecv.With(labels).Inc()
 		metrics.BytesRecv.With(labels).Add(float64(length))
 		// TODO(kormat): experiment with performance by calling processPacket directly instead.
-		q <- rp
+		r.processPacket(rp)
+		metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
+		// Reset rpkt buffer so it can be reused.
+		rp.Reset()
 	}
 }
 
@@ -69,17 +76,18 @@ type posixOutputFunc func(common.RawBytes, *net.UDPAddr) (int, error)
 // writePosixOutput writes packets to a POSIX(/BSD) socket using the provided
 // function (a wrapper around net.UDPConn.WriteToUDP or net.UDPConn.Write).
 func (r *Router) writePosixOutput(labels prometheus.Labels,
-	rp *rpkt.RtrPkt, dst *net.UDPAddr, f posixOutputFunc) {
+	oo context.OutputObj, dst *net.UDPAddr, f posixOutputFunc) {
 	start := monotime.Now()
-	if count, err := f(rp.Raw, dst); err != nil {
-		rp.Error("Error sending packet", "err", err, "dst", dst)
+	raw := oo.Bytes()
+	if count, err := f(raw, dst); err != nil {
+		oo.LogError("Error sending packet", "err", err, "dst", dst)
 		return
-	} else if count != len(rp.Raw) {
-		rp.Error("Unable to write full packet", "len", len(rp.Raw), "written", count)
+	} else if count != len(raw) {
+		oo.LogError("Unable to write full packet", "len", len(raw), "written", count)
 		return
 	}
 	t := monotime.Since(start).Seconds()
 	metrics.OutputProcessTime.With(labels).Add(t)
-	metrics.BytesSent.With(labels).Add(float64(len(rp.Raw)))
+	metrics.BytesSent.With(labels).Add(float64(len(raw)))
 	metrics.PktsSent.With(labels).Inc()
 }

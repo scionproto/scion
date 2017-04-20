@@ -29,6 +29,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -54,15 +55,16 @@ func (r *Router) IFStateUpdate() {
 // GenIFStateReq generates an Interface State request packet to the local
 // beacon service.
 func (r *Router) GenIFStateReq() {
+	ctx := context.GetContext()
 	dstHost := addr.SvcBS.Multicast()
 	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: conf.C.IA, SrcIA: conf.C.IA,
+		DstIA: ctx.Conf.IA, SrcIA: ctx.Conf.IA,
 		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
-	}, rpkt.DirLocal)
+	}, rpkt.DirLocal, ctx)
 	if err != nil {
 		log.Error("Error creating IFState packet", err.Ctx...)
 		return
@@ -79,7 +81,7 @@ func (r *Router) GenIFStateReq() {
 		return
 	}
 	rp.SetPld(&spkt.CtrlPld{SCION: scion})
-	_, err = rp.RouteResolveSVCMulti(dstHost, r.locOutFs[0])
+	_, err = rp.RouteResolveSVCMulti(dstHost, ctx.LocOutFs[0])
 	if err != nil {
 		log.Error("Unable to route IFStateReq packet", err.Ctx...)
 	}
@@ -116,8 +118,9 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 			gauge.Set(0)
 		}
 	}
+	ctx := context.GetContext()
 	// Lock local IFState config for writing, and replace existing map
-	conf.C.IFStates.Lock()
-	conf.C.IFStates.M = m
-	conf.C.IFStates.Unlock()
+	ctx.Conf.IFStates.Lock()
+	ctx.Conf.IFStates.M = m
+	ctx.Conf.IFStates.Unlock()
 }
