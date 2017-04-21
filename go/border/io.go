@@ -31,43 +31,72 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
-// readPosixInput reads packets from a single POSIX(/BSD) socket. It retrieves
+type PosixInputFuncArgs struct {
+	Router   *Router
+	Conn     *net.UDPConn
+	DirFrom  rpkt.Dir
+	Ifids    []spath.IntfID
+	Labels   prometheus.Labels
+	StopChan chan struct{}
+}
+
+type PosixInputFunc func(args *PosixInputFuncArgs)
+
+type PosixInput struct {
+	Args *PosixInputFuncArgs
+	Func PosixInputFunc
+}
+
+func (pi *PosixInput) Start() {
+	go pi.Func(pi.Args)
+}
+
+func (pi *PosixInput) Stop() {
+	close(pi.Args.StopChan)
+}
+
+// ReadPosixInput reads packets from a single POSIX(/BSD) socket. It retrieves
 // buffers via getPktBuf, and fills in some important packet metadata such as
 // the overlay source/destination addresses, the direction the packet came
 // from, and the list of interfaces that it could belong to (as some sockets
 // may be associated with more than one interface).
-func (r *Router) readPosixInput(in *net.UDPConn, dirFrom rpkt.Dir, ifids []spath.IntfID,
-	labels prometheus.Labels) {
+func readPosixInput(args *PosixInputFuncArgs) {
 	defer liblog.PanicLog()
-	log.Info("Listening", "addr", in.LocalAddr())
-	dst := in.LocalAddr().(*net.UDPAddr)
+	log.Info("Listening", "addr", args.Conn.LocalAddr())
+	dst := args.Conn.LocalAddr().(*net.UDPAddr)
 	// Create a new rpkt buffer to be used by this input routine.
 	rp := rpkt.NewRtrPkt()
-	for { // Run forever.
-		metrics.InputLoops.With(labels).Inc()
-		// Get current router context for this packet.
-		rp.Ctx = context.GetContext()
-		rp.DirFrom = dirFrom
-		start := monotime.Now()
-		length, src, err := in.ReadFromUDP(rp.Raw)
-		if err != nil {
-			log.Error("Error reading from socket", "socket", dst, "err", err)
-			continue
+	for { // Run until stop signal is received.
+		select {
+		default:
+			metrics.InputLoops.With(args.Labels).Inc()
+			// Get current router context for this packet.
+			rp.Ctx = context.GetContext()
+			rp.DirFrom = args.DirFrom
+			start := monotime.Now()
+			length, src, err := args.Conn.ReadFromUDP(rp.Raw)
+			if err != nil {
+				log.Error("Error reading from socket", "socket", dst, "err", err)
+				continue
+			}
+			t := monotime.Since(start).Seconds()
+			metrics.InputProcessTime.With(args.Labels).Add(t)
+			rp.TimeIn = monotime.Now()
+			rp.Raw = rp.Raw[:length] // Set the length of the slice
+			rp.Ingress.Dst = dst
+			rp.Ingress.Src = src
+			rp.Ingress.IfIDs = args.Ifids
+			metrics.PktsRecv.With(args.Labels).Inc()
+			metrics.BytesRecv.With(args.Labels).Add(float64(length))
+			// TODO(kormat): experiment with performance by calling processPacket directly instead.
+			args.Router.processPacket(rp)
+			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
+			// Reset rpkt buffer so it can be reused.
+			rp.Reset()
+		case <-args.StopChan:
+			log.Info("Input routine stopped for", "addr", args.Conn.LocalAddr())
+			return
 		}
-		t := monotime.Since(start).Seconds()
-		metrics.InputProcessTime.With(labels).Add(t)
-		rp.TimeIn = monotime.Now()
-		rp.Raw = rp.Raw[:length] // Set the length of the slice
-		rp.Ingress.Dst = dst
-		rp.Ingress.Src = src
-		rp.Ingress.IfIDs = ifids
-		metrics.PktsRecv.With(labels).Inc()
-		metrics.BytesRecv.With(labels).Add(float64(length))
-		// TODO(kormat): experiment with performance by calling processPacket directly instead.
-		r.processPacket(rp)
-		metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
-		// Reset rpkt buffer so it can be reused.
-		rp.Reset()
 	}
 }
 
@@ -75,7 +104,7 @@ type posixOutputFunc func(common.RawBytes, *net.UDPAddr) (int, error)
 
 // writePosixOutput writes packets to a POSIX(/BSD) socket using the provided
 // function (a wrapper around net.UDPConn.WriteToUDP or net.UDPConn.Write).
-func (r *Router) writePosixOutput(labels prometheus.Labels,
+func writePosixOutput(labels prometheus.Labels,
 	oo context.OutputObj, dst *net.UDPAddr, f posixOutputFunc) {
 	start := monotime.Now()
 	raw := oo.Bytes()
