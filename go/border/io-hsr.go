@@ -38,14 +38,21 @@ type HSRInput struct {
 	Router   *Router
 	StopChan chan struct{}
 	Func     HSRInputFunc
+	running  bool
 }
 
 func (hi *HSRInput) Start() {
-	go hi.Func(hi.Router, hi.StopChan)
+	if !hi.running {
+		go hi.Func(hi.Router, hi.StopChan)
+		hi.running = true
+	}
 }
 
 func (hi *HSRInput) Stop() {
-	close(hi.StopChan)
+	if hi.running {
+		close(hi.StopChan)
+		hi.running = false
+	}
 }
 
 // readHSRInput reads batches of packets from libhsr, and dispatches them for
