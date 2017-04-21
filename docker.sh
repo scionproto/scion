@@ -19,7 +19,7 @@ cmd_base() {
     get_params
     copy_tree
     docker_build "base"
-    docker tag scion_base:latest kormat/scion_base:latest
+    docker tag scion_base:latest kormat/scion_base:pending
 }
 
 cmd_build() {
@@ -68,9 +68,11 @@ docker_build() {
 }
 
 cmd_clean() {
-    stop_cntrs
-    del_cntrs
-    del_imgs
+    if [ -z "$1" -o "$1" = "cntrs" ]; then
+        stop_cntrs
+        del_cntrs
+    fi
+    [ -z "$1" -o "$1" = "images" ] && del_imgs
     rm -rf docker/_build/
 }
 
@@ -121,11 +123,11 @@ del_cntrs() {
 
 del_imgs() {
     local images
-    images=$(docker images | awk '/^scion/ {print $1":"$2}; /^<none>/ {print $3}')
+    images=$(docker images | awk '/^<none>/ {print $3}')
     if [ -n "$images" ]; then
         echo
-        echo "Deleting all generated images"
-        echo "============================="
+        echo "Deleting unamed images"
+        echo "======================"
         docker rmi $images
     fi
 }
@@ -161,7 +163,7 @@ fi
 case $COMMAND in
     base)               cmd_base ;;
     build)              cmd_build ;;
-    clean)              cmd_clean ;;
+    clean)              shift; cmd_clean "$@" ;;
     run)                shift; cmd_run "$@" ;;
     help)               cmd_help ;;
     *)                  cmd_help ;;

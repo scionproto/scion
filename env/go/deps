@@ -10,6 +10,8 @@ if ! go version | grep -q ' go1\.[67]\>'; then
     exit 1
 fi
 
+[ -z "$("$BASE/check")" ] && exit
+
 echo "Installing/updating govendor dep manager"
 
 # Make sure GOPATH is set

@@ -4,10 +4,9 @@ set -e
 
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
+. "$BASE/common.sh"
+
+[ -z "$("$BASE/check")" ] && exit
 
 echo "Installing necessary packages from pip3 for scion-web"
-
-req="sub/web/requirements.txt"
-[ -e "$req" ] || req="$BASE/requirements.txt"
-
-pip3 install --user --require-hashes -r "$req"
+pip_install pip3 "$req"

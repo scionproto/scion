@@ -5,5 +5,7 @@ set -e
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
 
+[ -z "$("$BASE/check")" ] && exit
+
 echo "Installing necessary packages from pip3"
-pip3 install --user --require-hashes -r "$BASE/requirements.txt"
+pip_install pip3 "$BASE/requirements.txt"

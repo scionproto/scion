@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $(dirname "$BASE")/common.sh
+
+[ -f /usr/lib/libzlog.so -o -f /usr/local/lib/libzlog.so ] || echo "libzlog not installed"
