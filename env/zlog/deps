@@ -5,7 +5,8 @@ set -e
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
 
-[ -f /usr/lib/libzlog.so -o -f /usr/local/lib/libzlog.so ] && return
+[ -z "$("$BASE/check")" ] && exit
+
 tmpdir=$(mktemp -d /tmp/zlog.XXXXXXX)
 cd "${tmpdir:?}"
 curl -L https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1

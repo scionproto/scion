@@ -5,25 +5,9 @@ set -e
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
 
-install() {
-    local pkgs=""
-    echo "Checking for necessary debian packages"
-    for pkg in $(< "$BASE/pkgs.txt"); do
-        deb_chk $pkg || pkgs+="$pkg "
-    done
-    if [ -n "$pkgs" ]; then
-        echo "Installing missing necessary packages: $pkgs"
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
-    fi
-}
+APTARGS=${APTARGS:---no-remove}
 
-deb_chk() {
-    dpkg -s ${1:?} 2>/dev/null | grep -q "^Status: install ok installed";
-}
+pkgs="$($BASE/check)"
+[ -z "$pkgs" ] && exit
 
-if [ ! -e /etc/debian_version ]; then
-    echo "As this is not a debian-based OS, please install the equivalents of these packages:"
-    cat pkgs_debian.txt
-fi
-
-install
+sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-remove --no-install-recommends $pkgs

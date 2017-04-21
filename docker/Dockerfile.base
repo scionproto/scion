@@ -6,13 +6,12 @@ ENV PATH $GOPATH/bin:$HOME/.local/bin:$PATH
 
 WORKDIR $BASE
 
-# Speed up a lot of the building
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y eatmydata
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y eatmydata sudo && apt-get clean
+# eatmydata to speed up a lot of the building
 RUN ln -s /usr/bin/eatmydata /usr/local/bin/apt-get
 RUN ln -s /usr/bin/eatmydata /usr/local/bin/dpkg
 
 RUN useradd -s /bin/bash scion
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y sudo
 RUN echo "scion ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/scion
 
 # Provide tmpfs at /run/shm while inside non-privileged docker
@@ -25,39 +24,42 @@ RUN sudo chown -R scion: $HOME
 ## Install dependencies
 #################################################################################
 
-COPY env/common.sh /tmp/build/
+COPY env/common.sh env/
 
 # Debian packages
-COPY env/debian /tmp/build/debian
-RUN APTARGS=-y /tmp/build/debian/deps
+COPY env/debian env/debian
+RUN apt-get update && APTARGS=-y env/debian/deps && apt-get clean
 
 # Pip3 packages
-COPY env/pip3 /tmp/build/pip3
-RUN /tmp/build/pip3/deps
+COPY env/pip3 env/pip3
+RUN env/pip3/deps && rm -r ~/.cache/pip
 
 # Pip2 packages
-COPY env/pip2 /tmp/build/pip2
-RUN /tmp/build/pip2/deps
+COPY env/pip2 env/pip2
+RUN env/pip2/deps && rm -r ~/.cache/pip
 
 # scion-web pip3 packages
-COPY env/pip3web /tmp/build/pip3web
-COPY sub/web/requirements.txt /tmp/build/pip3web
-RUN /tmp/build/pip3web/deps
+COPY env/pip3web env/pip3web
+COPY sub/web/requirements.txt env/pip3web
+RUN env/pip3web/deps && rm -r ~/.cache/pip
 
 # zlog packages
-COPY env/zlog /tmp/build/zlog
-RUN /tmp/build/zlog/deps
+COPY env/zlog env/zlog
+RUN env/zlog/deps
 
-# Go packages
-COPY env/go /tmp/build/go
-RUN /tmp/build/go/deps
+# Go version check, and govendor
+COPY env/go env/go
+RUN env/go/deps
 
-# Go vendored packages
+# Cleanup
+RUN rm -r env
+
+# Vendored go packages
 COPY go/vendor/ go/vendor
-RUN chown -R scion: .
-RUN cd go && govendor sync -v && govendor install ./vendor/...
-RUN tar caf /tmp/build/go_vendor.tar.gz -C go/vendor .
-RUN mv go/vendor/vendor.json /tmp/build/go_vendor.json; rm -r go
+RUN \
+    set -ex; cd go; govendor sync -v; govendor install ./vendor/...; \
+    cd vendor; tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
+    cd ../../; rm -r go ~/go/.cache
 
 #################################################################################
 ## Dependencies are now installed, carry on with the rest.

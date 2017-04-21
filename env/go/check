@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+. $(dirname "$BASE")/common.sh
+
+type -P govendor > /dev/null || echo "govendor not installed"
+
+VERSION="v1.0.8"
+ver=$(govendor -version 2>&1 || true)
+[ "$ver" = "$VERSION" ] || echo "Govendor version: expected $VERSION, got $ver"
