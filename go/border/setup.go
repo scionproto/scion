@@ -66,24 +66,26 @@ func (r *Router) setup(confDir string) *common.Error {
 	log.Debug("Topology loaded", "topo", config.BR)
 	log.Debug("AS Conf loaded", "conf", config.ASConf)
 	// Setup new context.
-	r.setupNewContext(config)
-	// Configure the rpkt package with the callbacks it needs.
-	rpkt.Init(r.ProcessIFStates, r.RevTokenCallback)
-	return nil
-}
-
-func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
-
-	ctx := &context.Context{
-		Conf:      config,
-		LocOutFs:  make(map[int]context.OutputFunc),
-		IntfOutFs: make(map[spath.IntfID]context.OutputFunc),
-	}
-	if err := r.setupNet(ctx); err != nil {
+	var ctx *context.Context
+	if ctx, err = r.setupNewContext(config); err != nil {
 		return err
 	}
 	context.SetContext(ctx)
+	// Configure the rpkt package with the callbacks it needs.
+	rpkt.Init(r.ProcessIFStates, r.RevTokenCallback)
+	// Start input functions.
+	for _, f := range ctx.InputFuncs {
+		f.Start()
+	}
 	return nil
+}
+
+func (r *Router) setupNewContext(config *conf.Conf) (*context.Context, *common.Error) {
+	ctx := context.NewContext(config)
+	if err := r.setupNet(ctx); err != nil {
+		return nil, err
+	}
+	return ctx, nil
 }
 
 // setupNet configures networking for the router, using any setup hooks that
@@ -181,14 +183,26 @@ func setupPosixAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.
 			ifids = append(ifids, intf.Id)
 		}
 	}
-	// Start an input goroutine for the socket.
-	go r.readPosixInput(over.Conn, rpkt.DirLocal, ifids, labels)
+	// Setup stop channel to stop the input goroutine should the socket disappear.
+	args := &PosixInputFuncArgs{
+		Router:   r,
+		Conn:     over.Conn,
+		DirFrom:  rpkt.DirLocal,
+		Ifids:    ifids,
+		Labels:   labels,
+		StopChan: make(chan struct{}),
+	}
+	pif := &PosixInput{
+		Args: args,
+		Func: readPosixInput,
+	}
+	ctx.InputFuncs[over.String()] = pif
 	// Add an output callback for the socket.
 	f := func(b common.RawBytes, dst *net.UDPAddr) (int, error) {
 		return over.Conn.WriteToUDP(b, dst)
 	}
 	ctx.LocOutFs[idx] = func(oo context.OutputObj, dst *net.UDPAddr) {
-		r.writePosixOutput(labels, oo, dst, f)
+		writePosixOutput(labels, oo, dst, f)
 	}
 	return rpkt.HookFinish, nil
 }
@@ -200,8 +214,20 @@ func setupPosixAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
 		return rpkt.HookError, common.NewError("Unable to listen on external socket", "err", err)
 	}
-	// Start an input goroutine for the socket.
-	go r.readPosixInput(intf.IFAddr.Conn, rpkt.DirExternal, []spath.IntfID{intf.Id}, labels)
+	// Setup stop channel to stop the input goroutine should the socket disappear.
+	args := &PosixInputFuncArgs{
+		Router:   r,
+		Conn:     intf.IFAddr.Conn,
+		DirFrom:  rpkt.DirExternal,
+		Ifids:    []spath.IntfID{intf.Id},
+		Labels:   labels,
+		StopChan: make(chan struct{}),
+	}
+	pif := &PosixInput{
+		Args: args,
+		Func: readPosixInput,
+	}
+	ctx.InputFuncs[intf.IFAddr.String()] = pif
 	// Add an output callback for the socket.
 	conn := intf.IFAddr.Conn
 	dst := conn.RemoteAddr().(*net.UDPAddr)
@@ -210,7 +236,7 @@ func setupPosixAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	}
 	ctx.IntfOutFs[intf.Id] = func(oo context.OutputObj, _ *net.UDPAddr) {
 		// An interface can only send packets to a fixed remote address, so ignore the UDPAddr arg.
-		r.writePosixOutput(labels, oo, dst, f)
+		writePosixOutput(labels, oo, dst, f)
 	}
 	return rpkt.HookFinish, nil
 }

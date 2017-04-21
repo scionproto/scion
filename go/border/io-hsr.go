@@ -32,6 +32,22 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
+type HSRInputFunc func(*Router, chan struct{})
+
+type HSRInput struct {
+	Router   *Router
+	StopChan chan struct{}
+	Func     HSRInputFunc
+}
+
+func (hi *HSRInput) Start() {
+	go hi.Func(hi.Router, hi.StopChan)
+}
+
+func (hi *HSRInput) Stop() {
+	close(hi.StopChan)
+}
+
 // readHSRInput reads batches of packets from libhsr, and dispatches them for
 // processing.
 //
@@ -39,7 +55,7 @@ import (
 // manages. In order to have per-port metrics (and to ensure each port metric
 // is only updated once), readHSRInput uses a map of port IDs to keep track of
 // which metrics need updating.
-func (r *Router) readHSRInput() {
+func readHSRInput(r *Router, stopChan chan struct{}) {
 	defer liblog.PanicLog()
 	// Allocate slice of empty packets.
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)
@@ -50,43 +66,51 @@ func (r *Router) readHSRInput() {
 	h := hsr.NewHSR()
 	// Run forever.
 	for {
-		start := monotime.Now()
-		// Read packets from libhsr.
-		count, err := h.GetPackets(rpkts, usedPorts)
-		if err != nil {
-			log.Error("Error getting packets from HSR", "err", err)
-			// Zero the port counters for next loop
-			for i := range usedPorts {
-				usedPorts[i] = false
+		select {
+		default:
+			start := monotime.Now()
+			// Read packets from libhsr.
+			count, err := h.GetPackets(rpkts, usedPorts)
+			if err != nil {
+				log.Error("Error getting packets from HSR", "err", err)
+				// Zero the port counters for next loop
+				for i := range usedPorts {
+					usedPorts[i] = false
+				}
+				continue
 			}
-			continue
-		}
-		timeIn := monotime.Now()
-		// Iterate over received packets
-		for i := 0; i < count; i++ {
-			rp := rpkts[i]
-			rp.TimeIn = timeIn
-			// Process packet.
-			r.processPacket(rp)
-			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
-			// Reset packet.
-			rp.Reset()
-		}
-		// Update port metrics
-		duration := monotime.Since(start).Seconds()
-		for id := range usedPorts {
-			if usedPorts[id] {
-				usedPorts[id] = false
-				labels := hsr.AddrMs[id].Labels
-				metrics.InputLoops.With(labels).Inc()
-				metrics.InputProcessTime.With(labels).Add(duration)
+			timeIn := monotime.Now()
+			ctx := context.GetContext()
+			// Iterate over received packets
+			for i := 0; i < count; i++ {
+				rp := rpkts[i]
+				rp.TimeIn = timeIn
+				rp.Ctx = ctx
+				// Process packet.
+				r.processPacket(rp)
+				metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
+				// Reset packet.
+				rp.Reset()
 			}
+			// Update port metrics
+			duration := monotime.Since(start).Seconds()
+			for id := range usedPorts {
+				if usedPorts[id] {
+					usedPorts[id] = false
+					labels := hsr.AddrMs[id].Labels
+					metrics.InputLoops.With(labels).Inc()
+					metrics.InputProcessTime.With(labels).Add(duration)
+				}
+			}
+		case <-stopChan:
+			log.Info("HSR input routine stopped")
+			return
 		}
 	}
 }
 
 // writeHSROutput sends a single output packet via libhsr.
-func (r *Router) writeHSROutput(oo *context.OutputObj, dst *net.UDPAddr, portID int,
+func writeHSROutput(oo *context.OutputObj, dst *net.UDPAddr, portID int,
 	labels prometheus.Labels) {
 	start := monotime.Now()
 	raw := oo.GetRaw()

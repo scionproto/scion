@@ -75,7 +75,7 @@ func setupHSRAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.UD
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: rpkt.DirLocal, IfIDs: ifids, Labels: labels})
 	ctx.LocOutFs[idx] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
-		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
+		writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
@@ -89,7 +89,7 @@ func setupHSRAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
 	ctx.IntfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
-		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
+		writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
@@ -103,6 +103,11 @@ func setupHSRNetFinish(r *Router, ctx *context.Context) (rpkt.HookResult, *commo
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	go r.readHSRInput()
+	hi := &HSRInput{
+		Router:   r,
+		StopChan: make(chan struct{}),
+		Func:     readHSRInput,
+	}
+	ctx.InputFuncs["hsr"] = hi
 	return rpkt.HookContinue, nil
 }

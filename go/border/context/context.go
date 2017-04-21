@@ -38,6 +38,11 @@ type OutputObj interface {
 // OutputFunc is the type of callback required for sending a packet.
 type OutputFunc func(OutputObj, *net.UDPAddr)
 
+type InputFunc interface {
+	Start()
+	Stop()
+}
+
 // Context is the main context structure.
 type Context struct {
 	// Conf contains the router state for this context.
@@ -49,6 +54,18 @@ type Context struct {
 	// IntfOutFs is a slice of functions for sending packets to neighbouring
 	// ISD-ASes, indexed by the interface ID of the relevant link.
 	IntfOutFs map[spath.IntfID]OutputFunc
+	// InputFuncs is a slice of channels to stop the corresponding input goroutines.
+	InputFuncs map[string]InputFunc
+}
+
+func NewContext(conf *conf.Conf) *Context {
+	ctx := &Context{
+		Conf:       conf,
+		LocOutFs:   make(map[int]OutputFunc),
+		IntfOutFs:  make(map[spath.IntfID]OutputFunc),
+		InputFuncs: make(map[string]InputFunc),
+	}
+	return ctx
 }
 
 // ctx is the current router context object.

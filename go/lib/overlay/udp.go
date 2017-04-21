@@ -63,3 +63,7 @@ func (u *UDP) Connect(raddr *net.UDPAddr) error {
 	u.Conn, err = net.DialUDP("udp", u.BindAddr(), raddr)
 	return err
 }
+
+func (u *UDP) String() string {
+	return u.BindAddr().String()
+}
