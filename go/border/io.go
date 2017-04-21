@@ -43,16 +43,23 @@ type PosixInputFuncArgs struct {
 type PosixInputFunc func(args *PosixInputFuncArgs)
 
 type PosixInput struct {
-	Args *PosixInputFuncArgs
-	Func PosixInputFunc
+	Args    *PosixInputFuncArgs
+	Func    PosixInputFunc
+	running bool
 }
 
 func (pi *PosixInput) Start() {
-	go pi.Func(pi.Args)
+	if !pi.running {
+		go pi.Func(pi.Args)
+		pi.running = true
+	}
 }
 
 func (pi *PosixInput) Stop() {
-	close(pi.Args.StopChan)
+	if pi.running {
+		close(pi.Args.StopChan)
+		pi.running = false
+	}
 }
 
 // ReadPosixInput reads packets from a single POSIX(/BSD) socket. It retrieves

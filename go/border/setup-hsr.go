@@ -53,7 +53,7 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router) (rpkt.HookResult, *common.Error) {
+func setupHSRNetStart(r *Router, ctx *context.Context) (rpkt.HookResult, *common.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
@@ -65,6 +65,9 @@ func setupHSRAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.UD
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
+	}
+	if hsrAddrMsContains(bind) {
+		return rpkt.HookFinish, nil
 	}
 	var ifids []spath.IntfID
 	for _, intf := range ctx.Conf.Net.IFs {
@@ -86,6 +89,9 @@ func setupHSRAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
+	if hsrAddrMsContains(bind) {
+		return rpkt.HookFinish, nil
+	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
 	ctx.IntfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
@@ -94,8 +100,13 @@ func setupHSRAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router, ctx *context.Context) (rpkt.HookResult, *common.Error) {
+func setupHSRNetFinish(r *Router, ctx *context.Context,
+	oldCtx *context.Context) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
+		return rpkt.HookContinue, nil
+	}
+	if pif, ok := oldCtx.InputFuncs["hsr"] {
+		ctx.InputFuncs["hsr"] = pif
 		return rpkt.HookContinue, nil
 	}
 	err := hsr.Init(filepath.Join(ctx.Conf.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
@@ -110,4 +121,13 @@ func setupHSRNetFinish(r *Router, ctx *context.Context) (rpkt.HookResult, *commo
 	}
 	ctx.InputFuncs["hsr"] = hi
 	return rpkt.HookContinue, nil
+}
+
+func hsrAddrMsContains(addr *net.UDPAddr) {
+	for _, entry := range hsrAddrMs {
+		if entry.GoAddr == addr {
+			return true
+		}
+	}
+	return false
 }
