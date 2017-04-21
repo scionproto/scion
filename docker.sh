@@ -19,7 +19,7 @@ cmd_base() {
     get_params
     copy_tree
     docker_build "base"
-    docker tag scion_base:latest kormat/scion_base:latest
+    docker tag scion_base:latest kormat/scion_base:pending
 }
 
 cmd_build() {
