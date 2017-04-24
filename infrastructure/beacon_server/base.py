@@ -761,14 +761,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             with self.ifid_state_lock:
                 for (if_id, if_state) in self.ifid_state.items():
                     cur_epoch = ConnectedHashTree.get_current_epoch()
-                    # Check if interface has timed-out.
-                    if ((if_state.is_expired() or if_state.is_revoked()) and
-                       (if_id_last_revoked[if_id] != cur_epoch)):
-                            if_id_last_revoked[if_id] = cur_epoch
-                            if not if_state.is_revoked():
-                                logging.info("IF %d appears to be down.", if_id)
-                            self._issue_revocation(if_id)
-                            if_state.revoke_if_expired()
+                    if not if_state.is_expired() or (
+                            if_state.is_revoked() and if_id_last_revoked[if_id] == cur_epoch):
+                        # Either the interface hasn't timed out, or it's already revoked for this
+                        # epoch
+                        continue
+                    if_id_last_revoked[if_id] = cur_epoch
+                    if not if_state.is_revoked():
+                        logging.info("IF %d appears to be down.", if_id)
+                    self._issue_revocation(if_id)
+                    if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
