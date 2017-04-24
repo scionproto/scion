@@ -28,6 +28,7 @@ var (
 	ExtnSIBRAType               = ExtnType{HopByHopClass, 1}
 	ExtnSCMPType                = ExtnType{HopByHopClass, 2}
 	ExtnOneHopPathType          = ExtnType{HopByHopClass, 3}
+	ExtnOPTType                 = ExtnType{HopByHopClass, 4}
 	ExtnPathTransType           = ExtnType{End2EndClass, 0}
 	ExtnPathProbeType           = ExtnType{End2EndClass, 1}
 	ExtnSCIONPacketSecurityType = ExtnType{End2EndClass, 2}
@@ -43,6 +44,8 @@ func (e ExtnType) String() string {
 		return "SCMP"
 	case ExtnOneHopPathType:
 		return "OneHopPath"
+	case ExtnOPTType:
+		return "OPT"
 	case ExtnPathTransType:
 		return "PathTrans"
 	case ExtnPathProbeType:
