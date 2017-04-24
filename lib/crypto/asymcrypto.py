@@ -17,8 +17,9 @@
 """
 # External
 from nacl.exceptions import BadSignatureError
+from nacl.public import Box, PrivateKey
 from nacl.signing import SigningKey, VerifyKey
-from nacl.public import PrivateKey
+from nacl.utils import random
 
 
 def generate_sign_keypair():
@@ -69,3 +70,30 @@ def verify(msg, sig, verifying_key):
         return msg == VerifyKey(verifying_key).verify(msg, sig)
     except BadSignatureError:
         return False
+
+
+def encrypt(msg, private_key, public_key):
+    """
+    Encrypt message.
+
+    :param bytes msg: message to be encrypted.
+    :param PrivateKey private_key: Private Key of encrypter.
+    :param PublicKey public_key: Public Key of decrypter.
+    :returns: The encrypted message.
+    :rtype: bytes
+    """
+    return bytes(
+        Box(private_key, public_key).encrypt(msg, random(Box.NONCE_SIZE)))
+
+
+def decrypt(msg, private_key, public_key):
+    """
+    Decrypt ciphertext.
+
+    :param bytes msg: ciphertext to be decrypted.
+    :param PrivateKey private_key: Private Key of decrypter.
+    :param PublicKey public_key: Public Key of encrypter.
+    :returns: The decrypted message.
+    :rtype: bytes
+    """
+    return bytes(Box(private_key, public_key).decrypt(msg))
