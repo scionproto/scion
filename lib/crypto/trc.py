@@ -446,8 +446,8 @@ def verify_new_trc(old_trc, new_trc):
 def verify_trc_chain(local_trc, verified_rem_trcs, remote_trc):
     """
     Checks if remote TRC can be verified using local TRC or already
-    verified remote TRCs. i.e. checks if there is a trust chain from
-    local TRC to remote TRC.
+    verified remote TRCs. i.e. checks if there is a trust chain between
+    local TRC and remote TRC.
 
     :param TRC local_trc: The local TRC to this ISD.
     :param List(TRC) verified_rem_trcs: Already verified remote TRCs.
@@ -458,96 +458,96 @@ def verify_trc_chain(local_trc, verified_rem_trcs, remote_trc):
     rem_nbs = remote_trc.get_neighbors()
     if local_trc.isd in rem_nbs:
         # Try to verify with local TRC
-        if verify_remote_trc_xsigs(local_trc, remote_trc):
+        if verify_trc_xsigs(local_trc, remote_trc) \
+                and verify_trc_xsigs(remote_trc, local_trc):
             return True
     # Only take TRCs that are neighbors of remote TRC
     ver_trcs = [trc for trc in verified_rem_trcs if trc.isd in rem_nbs]
     for trc in ver_trcs:
-        if verify_remote_trc_xsigs(trc, remote_trc):
+        if verify_trc_xsigs(trc, remote_trc) and verify_trc_xsigs(remote_trc, trc):
             return True
     return False
 
 
-def verify_remote_trc_xsigs(ver_trc, remote_trc):
+def verify_trc_xsigs(src_trc, dst_trc):
     """
-    Check if remote TRC can be verified. i.e. Check if remote TRC
-    is signed correctly by the ISD ver_trc belongs to.
+    Check if dst_trc is signed correctly by the ISD src_trc belongs to.
 
-    :param TRC ver_trc: Already verified TRC, could be local or remote.
-    :param TRC remote_trc: Remote TRC to be verified.
-    :returns: True if remote TRC can be verified, False otherwise
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :returns: True if dst_trc is signed correctly by src_trc, False otherwise.
     """
-    assert isinstance(ver_trc, TRC)
-    assert isinstance(remote_trc, TRC)
-    if ver_trc.isd == remote_trc.isd:
+    assert isinstance(src_trc, TRC)
+    assert isinstance(dst_trc, TRC)
+    if src_trc.isd == dst_trc.isd:
         logging.warning("TRCs are from the same ISD.")
         return False
-    return (verify_core_as_xsigs(ver_trc, remote_trc) and
-            verify_rains_xsigs(ver_trc, remote_trc) and
-            verify_ca_xsigs(ver_trc, remote_trc))
+    return (verify_core_as_xsigs(src_trc, dst_trc) and
+            verify_rains_xsigs(src_trc, dst_trc) and
+            verify_ca_xsigs(src_trc, dst_trc))
 
 
-def verify_core_as_xsigs(ver_trc, remote_trc):
+def verify_core_as_xsigs(src_trc, dst_trc):
     """
-    Checks if remote_trc is signed by a core AS in ver_trc.
+    Checks if dst_trc is signed by a core AS in src_trc.
 
-    :param TRC ver_trc: Already verified TRC, could be local or remote.
-    :param TRC remote_trc: Remote TRC to be verified.
-    :returns: True if remote_trc has a valid signature of a core AS in ver_trc.
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :returns: True if dst_trc has a valid signature of a core AS in src_trc.
               False otherwise.
     """
-    as_sigs = remote_trc.get_as_sigs()
+    as_sigs = dst_trc.get_as_sigs()
     for isd_as, signature in as_sigs:
-        if isd_as[0] != ver_trc.isd:
+        if isd_as[0] != src_trc.isd:
             continue
-        pub_key = ver_trc.core_ases[str(isd_as)][ONLINE_KEY_STRING]
-        if remote_trc.verify_signature(signature, pub_key):
+        pub_key = src_trc.core_ases[str(isd_as)][ONLINE_KEY_STRING]
+        if dst_trc.verify_signature(signature, pub_key):
             return True
         else:
             logging.error("TRC(ISD %s) contains invalid signature from core AS"
-                          "(ISD %s)" % (remote_trc.isd, ver_trc.isd))
+                          "(ISD %s)" % (dst_trc.isd, src_trc.isd))
     return False
 
 
-def verify_rains_xsigs(ver_trc, remote_trc):
+def verify_rains_xsigs(src_trc, dst_trc):
     """
-    Checks if remote_trc is signed by RAINS in ver_trc.
+    Checks if dst_trc is signed by RAINS in src_trc.
 
-    :param TRC ver_trc: Already verified TRC, could be local or remote.
-    :param TRC remote_trc: Remote TRC to be verified.
-    :returns: True if remote_trc has a valid signature of RAINS in ver_trc.
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :returns: True if dst_trc has a valid signature of RAINS in src_trc.
               False otherwise.
     """
-    rains_sigs = remote_trc.get_rains_sigs()
+    rains_sigs = dst_trc.get_rains_sigs()
     for isd, signature in rains_sigs:
-        if isd != ver_trc.isd:
+        if isd != src_trc.isd:
             continue
-        pub_key = ver_trc.rains[ONLINE_KEY_STRING]
-        if remote_trc.verify_signature(signature, pub_key):
+        pub_key = src_trc.rains[ONLINE_KEY_STRING]
+        if dst_trc.verify_signature(signature, pub_key):
             return True
         else:
             logging.error("TRC(ISD %s) contains invalid signature from RAINS"
-                          "(ISD %s)" % (remote_trc.isd, ver_trc.isd))
+                          "(ISD %s)" % (dst_trc.isd, src_trc.isd))
     return False
 
 
-def verify_ca_xsigs(ver_trc, remote_trc):
+def verify_ca_xsigs(src_trc, dst_trc):
     """
-    Checks if remote_trc is signed by a CA in ver_trc.
+    Checks if dst_trc is signed by a CA in src_trc.
 
-    :param TRC ver_trc: Already verified TRC, could be local or remote.
-    :param TRC remote_trc: Remote TRC to be verified.
-    :returns: True if remote_trc has a valid signature of a CA in ver_trc.
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :returns: True if dst_trc has a valid signature of a CA in src_trc.
               False otherwise.
     """
-    ca_sigs = remote_trc.get_ca_sigs()
+    ca_sigs = dst_trc.get_ca_sigs()
     for isd, ca_name, signature in ca_sigs:
-        if isd != ver_trc.isd:
+        if isd != src_trc.isd:
             continue
-        pub_key = ver_trc.root_cas[ca_name][ONLINE_KEY_STRING]
-        if remote_trc.verify_signature(signature, pub_key):
+        pub_key = src_trc.root_cas[ca_name][ONLINE_KEY_STRING]
+        if dst_trc.verify_signature(signature, pub_key):
             return True
         else:
             logging.error("Remote TRC(ISD %s) contains invalid signature from CA"
-                          "(ISD %s)" % (remote_trc.isd, ver_trc.isd))
+                          "(ISD %s)" % (dst_trc.isd, src_trc.isd))
     return False
