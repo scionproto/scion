@@ -66,12 +66,19 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
 		rp.CmnHdr.CurrHopF = uint8(rp.idxs.path) + sp.Path.HopOff
 	}
 	// Fill in extensions
-	rp.idxs.l4 = hdrLen // Will be updated as necessary by ExtnAddHBH
+	rp.idxs.l4 = hdrLen // Will be updated as necessary by ExtnAddHBH and ExtnAddE2E
 	for _, se := range sp.HBHExt {
 		if err := rp.extnAddHBH(se); err != nil {
 			return nil, err
 		}
 	}
+
+	for _, se := range sp.E2EExt {
+		if err := rp.extnAddE2E(se); err != nil {
+			return nil, err
+		}
+	}
+
 	// Fill in L4 Header
 	rp.idxs.pld = hdrLen // Will be updated as necessary by addL4
 	if sp.L4 != nil {
