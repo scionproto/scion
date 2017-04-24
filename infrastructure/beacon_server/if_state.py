@@ -83,7 +83,7 @@ class InterfaceState(object):
 
     def is_expired(self):
         with self._lock:
-            if self._state == self.TIMED_OUT:
+            if self._state in [self.TIMED_OUT, self.REVOKED]:
                 return True
             elif (self._state in [self.ACTIVE, self.INACTIVE] and
                   self.last_updated + self.IFID_TOUT < time.time()):
