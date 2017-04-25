@@ -23,9 +23,10 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 // Declare prometheus metrics to export.
