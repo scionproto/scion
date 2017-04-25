@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"net"
 
-	"github.com/netsec-ethz/scion/go/border/context"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -84,7 +84,7 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 // RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
 // a single instance of a local infrastructure service).
 func (rp *RtrPkt) RouteResolveSVCAny(
-	svc addr.HostSVC, f context.OutputFunc) (HookResult, *common.Error) {
+	svc addr.HostSVC, f rctx.OutputFunc) (HookResult, *common.Error) {
 	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -102,7 +102,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(
 // (i.e. one packet per machine hosting instances for a local infrastructure
 // service).
 func (rp *RtrPkt) RouteResolveSVCMulti(
-	svc addr.HostSVC, f context.OutputFunc) (HookResult, *common.Error) {
+	svc addr.HostSVC, f rctx.OutputFunc) (HookResult, *common.Error) {
 	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err

@@ -25,9 +25,9 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
@@ -35,15 +35,16 @@ import (
 type HSRInputFunc func(*Router, chan struct{})
 
 type HSRInput struct {
-	Router   *Router
-	StopChan chan struct{}
-	Func     HSRInputFunc
-	running  bool
+	Router      *Router
+	StopChan    chan struct{}
+	StoppedChan chan struct{}
+	Func        HSRInputFunc
+	running     bool
 }
 
 func (hi *HSRInput) Start() {
 	if !hi.running {
-		go hi.Func(hi.Router, hi.StopChan)
+		go hi.Func(hi.Router, hi.StopChan, hi.StoppedChan)
 		hi.running = true
 	}
 }
@@ -51,7 +52,10 @@ func (hi *HSRInput) Start() {
 func (hi *HSRInput) Stop() {
 	if hi.running {
 		close(hi.StopChan)
+		// Wait for the goroutine to stop.
+		<-hi.StoppedChan
 		hi.running = false
+		log.info("HSR input routine stopped.")
 	}
 }
 
@@ -62,8 +66,9 @@ func (hi *HSRInput) Stop() {
 // manages. In order to have per-port metrics (and to ensure each port metric
 // is only updated once), readHSRInput uses a map of port IDs to keep track of
 // which metrics need updating.
-func readHSRInput(r *Router, stopChan chan struct{}) {
+func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) {
 	defer liblog.PanicLog()
+	defer close(stoppedChan)
 	// Allocate slice of empty packets.
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)
 	for i := range rpkts {
@@ -87,7 +92,7 @@ func readHSRInput(r *Router, stopChan chan struct{}) {
 				continue
 			}
 			timeIn := monotime.Now()
-			ctx := context.GetContext()
+			ctx := rctx.GetContext()
 			// Iterate over received packets
 			for i := 0; i < count; i++ {
 				rp := rpkts[i]
@@ -110,14 +115,13 @@ func readHSRInput(r *Router, stopChan chan struct{}) {
 				}
 			}
 		case <-stopChan:
-			log.Info("HSR input routine stopped")
 			return
 		}
 	}
 }
 
 // writeHSROutput sends a single output packet via libhsr.
-func writeHSROutput(oo *context.OutputObj, dst *net.UDPAddr, portID int,
+func writeHSROutput(oo *rctx.OutputObj, dst *net.UDPAddr, portID int,
 	labels prometheus.Labels) {
 	start := monotime.Now()
 	raw := oo.GetRaw()

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/netsec-ethz/scion/go/border/context"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -226,7 +226,7 @@ func (rp *RtrPkt) isDownstreamRouter() bool {
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given
 // SVC address.
-func getSVCNamesMap(svc addr.HostSVC, ctx *context.Context) (
+func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.RtrCtx) (
 	[]string, map[string]topology.BasicElem, *common.Error) {
 	tm := ctx.Conf.TopoMeta
 	var names []string

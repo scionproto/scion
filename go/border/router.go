@@ -17,6 +17,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
@@ -26,12 +28,13 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"time"
 )
 
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-21-9".
 	Id string
+	// confDir is the directory containing the configuration file.
+	confDir string
 	// freePkts is a buffered channel for recycled packets. See
 	// Router.recyclePkt
 	freePkts chan *rpkt.RtrPkt
@@ -40,8 +43,8 @@ type Router struct {
 }
 
 func NewRouter(id, confDir string) (*Router, *common.Error) {
-	r := &Router{Id: id}
-	if err := r.setup(confDir); err != nil {
+	r := &Router{Id: id, confDir: confDir}
+	if err := r.setup(); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -56,7 +59,17 @@ func (r *Router) Run() *common.Error {
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(10 * time.Second)
+		// log.Debug("Setting up new context.")
+		// var config *conf.Conf
+		// var err *common.Error
+		// if config, err = r.loadNewConfig(); err != nil {
+		// 	return err
+		// }
+		// // Setup new context.
+		// if err = r.setupNewContext(config); err != nil {
+		// 	return err
+		// }
 	}
 	return nil
 }

@@ -23,31 +23,43 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
+// PosixInputFuncArgs defines the arguments needed by a PosixInputFunc.
 type PosixInputFuncArgs struct {
-	Router   *Router
-	Conn     *net.UDPConn
-	DirFrom  rpkt.Dir
-	Ifids    []spath.IntfID
-	Labels   prometheus.Labels
+	// Router is a reference to the main router object.
+	Router *Router
+	// Conn is the connection the input function is listening on.
+	Conn *net.UDPConn
+	// DirFrom is the direction of the incoming packets.
+	DirFrom rpkt.Dir
+	// Ifids is a slice of interface IDs that are served by this input function.
+	Ifids []spath.IntfID
+	// Labels holds the exported prometheus labels.
+	Labels prometheus.Labels
+	// StopChan is used to stop the input function.
 	StopChan chan struct{}
+	// StoppedChan is used to inform the stopper, when the input function has stopped.
+	StoppedChan chan struct{}
 }
 
 type PosixInputFunc func(args *PosixInputFuncArgs)
 
+// PosixInput represents an input goroutine for a Posix socket. It implements
+// the rctx.InputFunc interface.
 type PosixInput struct {
 	Args    *PosixInputFuncArgs
 	Func    PosixInputFunc
 	running bool
 }
 
+// Start starts the input goroutine. Does nothing if it is already running.
 func (pi *PosixInput) Start() {
 	if !pi.running {
 		go pi.Func(pi.Args)
@@ -55,10 +67,15 @@ func (pi *PosixInput) Start() {
 	}
 }
 
+// Stop stops a running input goroutine and waits until the routine stopped
+// before returing to the caller.
 func (pi *PosixInput) Stop() {
 	if pi.running {
 		close(pi.Args.StopChan)
+		// Wait for the goroutine to stop.
+		<-pi.Args.StoppedChan
 		pi.running = false
+		log.Info("Input routine stopped", "addr", pi.Args.Conn.LocalAddr())
 	}
 }
 
@@ -69,6 +86,7 @@ func (pi *PosixInput) Stop() {
 // may be associated with more than one interface).
 func readPosixInput(args *PosixInputFuncArgs) {
 	defer liblog.PanicLog()
+	defer close(args.StoppedChan)
 	log.Info("Listening", "addr", args.Conn.LocalAddr())
 	dst := args.Conn.LocalAddr().(*net.UDPAddr)
 	// Create a new rpkt buffer to be used by this input routine.
@@ -78,7 +96,7 @@ func readPosixInput(args *PosixInputFuncArgs) {
 		default:
 			metrics.InputLoops.With(args.Labels).Inc()
 			// Get current router context for this packet.
-			rp.Ctx = context.GetContext()
+			rp.Ctx = rctx.GetContext()
 			rp.DirFrom = args.DirFrom
 			start := monotime.Now()
 			length, src, err := args.Conn.ReadFromUDP(rp.Raw)
@@ -101,7 +119,9 @@ func readPosixInput(args *PosixInputFuncArgs) {
 			// Reset rpkt buffer so it can be reused.
 			rp.Reset()
 		case <-args.StopChan:
-			log.Info("Input routine stopped for", "addr", args.Conn.LocalAddr())
+			if err := args.Conn.Close(); err != nil {
+				log.Error("Error closing connection", "conn", args.Conn, "err", err.Error())
+			}
 			return
 		}
 	}
@@ -112,7 +132,7 @@ type posixOutputFunc func(common.RawBytes, *net.UDPAddr) (int, error)
 // writePosixOutput writes packets to a POSIX(/BSD) socket using the provided
 // function (a wrapper around net.UDPConn.WriteToUDP or net.UDPConn.Write).
 func writePosixOutput(labels prometheus.Labels,
-	oo context.OutputObj, dst *net.UDPAddr, f posixOutputFunc) {
+	oo rctx.OutputObj, dst *net.UDPAddr, f posixOutputFunc) {
 	start := monotime.Now()
 	raw := oo.Bytes()
 	if count, err := f(raw, dst); err != nil {

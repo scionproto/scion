@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package context holds the current router context. The context contains a conf
+// Package rctx holds the current router context. The context contains a conf
 // object and slices of input and output functions.
 
-package context
+package rctx
 
 import (
 	"net"
@@ -38,13 +38,14 @@ type OutputObj interface {
 // OutputFunc is the type of callback required for sending a packet.
 type OutputFunc func(OutputObj, *net.UDPAddr)
 
+// InputFunc defines an interface for starting and stopping input goroutines.
 type InputFunc interface {
 	Start()
 	Stop()
 }
 
-// Context is the main context structure.
-type Context struct {
+// RtrCtx is the main context structure.
+type RtrCtx struct {
 	// Conf contains the router state for this context.
 	Conf *conf.Conf
 	// LocOutFs is a slice of functions for sending packets to local
@@ -54,12 +55,12 @@ type Context struct {
 	// IntfOutFs is a slice of functions for sending packets to neighbouring
 	// ISD-ASes, indexed by the interface ID of the relevant link.
 	IntfOutFs map[spath.IntfID]OutputFunc
-	// InputFuncs is a slice of channels to stop the corresponding input goroutines.
+	// InputFuncs is a slice of InputFunc objects to stop the corresponding input goroutines.
 	InputFuncs map[string]InputFunc
 }
 
-func NewContext(conf *conf.Conf) *Context {
-	ctx := &Context{
+func NewContext(conf *conf.Conf) *RtrCtx {
+	ctx := &RtrCtx{
 		Conf:       conf,
 		LocOutFs:   make(map[int]OutputFunc),
 		IntfOutFs:  make(map[spath.IntfID]OutputFunc),
@@ -69,20 +70,20 @@ func NewContext(conf *conf.Conf) *Context {
 }
 
 // ctx is the current router context object.
-var ctx *Context
+var ctx *RtrCtx
 
 // ctxLock protects access to the global context object.
 var ctxLock sync.RWMutex
 
 // GetContext returns a pointer to the current router context.
-func GetContext() *Context {
+func GetContext() *RtrCtx {
 	ctxLock.RLock()
 	defer ctxLock.RUnlock()
 	return ctx
 }
 
 // SetContext updates the current router context.
-func SetContext(newCtx *Context) {
+func SetContext(newCtx *RtrCtx) {
 	ctxLock.Lock()
 	ctx = newCtx
 	ctxLock.Unlock()

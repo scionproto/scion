@@ -29,7 +29,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/context"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -55,7 +55,7 @@ func (r *Router) IFStateUpdate() {
 // GenIFStateReq generates an Interface State request packet to the local
 // beacon service.
 func (r *Router) GenIFStateReq() {
-	ctx := context.GetContext()
+	ctx := rctx.GetContext()
 	dstHost := addr.SvcBS.Multicast()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
@@ -118,7 +118,7 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 			gauge.Set(0)
 		}
 	}
-	ctx := context.GetContext()
+	ctx := rctx.GetContext()
 	// Lock local IFState config for writing, and replace existing map
 	ctx.Conf.IFStates.Lock()
 	ctx.Conf.IFStates.M = m

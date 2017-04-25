@@ -58,6 +58,7 @@ func main() {
 	log.Info("Starting up", "id", *id)
 	if err := r.Run(); err != nil {
 		log.Crit("Run failed", err.Ctx...)
+		liblog.Flush()
 		os.Exit(1)
 	}
 }
