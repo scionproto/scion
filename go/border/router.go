@@ -71,7 +71,6 @@ func (r *Router) Run() *common.Error {
 		// 	return err
 		// }
 	}
-	return nil
 }
 
 func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {

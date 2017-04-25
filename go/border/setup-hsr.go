@@ -29,7 +29,6 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/netconf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
@@ -105,7 +104,7 @@ func setupHSRNetFinish(r *Router, ctx *ctx.Context,
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}
-	if pif, ok := oldCtx.InputFuncs["hsr"] {
+	if pif, ok := oldCtx.InputFuncs["hsr"]; ok {
 		ctx.InputFuncs["hsr"] = pif
 		return rpkt.HookContinue, nil
 	}
@@ -115,10 +114,10 @@ func setupHSRNetFinish(r *Router, ctx *ctx.Context,
 		return rpkt.HookError, err
 	}
 	hi := &HSRInput{
-		Router:   	 r,
-		StopChan: 	 make(chan struct{}),
+		Router:      r,
+		StopChan:    make(chan struct{}),
 		StoppedChan: make(chan struct{}),
-		Func:     	 readHSRInput,
+		Func:        readHSRInput,
 	}
 	ctx.InputFuncs["hsr"] = hi
 	return rpkt.HookContinue, nil
