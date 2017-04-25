@@ -53,14 +53,14 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router, ctx *context.Context) (rpkt.HookResult, *common.Error) {
+func setupHSRNetStart(r *Router, ctx *ctx.Context) (rpkt.HookResult, *common.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
 	return rpkt.HookContinue, nil
 }
 
-func setupHSRAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
+func setupHSRAddLocal(r *Router, ctx *ctx.Context, idx int, over *overlay.UDP,
 	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
@@ -83,7 +83,7 @@ func setupHSRAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.UD
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
+func setupHSRAddExt(r *Router, ctx *ctx.Context, intf *netconf.Interface,
 	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
@@ -100,8 +100,8 @@ func setupHSRAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router, ctx *context.Context,
-	oldCtx *context.Context) (rpkt.HookResult, *common.Error) {
+func setupHSRNetFinish(r *Router, ctx *ctx.Context,
+	oldCtx *ctx.Context) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}
@@ -115,9 +115,10 @@ func setupHSRNetFinish(r *Router, ctx *context.Context,
 		return rpkt.HookError, err
 	}
 	hi := &HSRInput{
-		Router:   r,
-		StopChan: make(chan struct{}),
-		Func:     readHSRInput,
+		Router:   	 r,
+		StopChan: 	 make(chan struct{}),
+		StoppedChan: make(chan struct{}),
+		Func:     	 readHSRInput,
 	}
 	ctx.InputFuncs["hsr"] = hi
 	return rpkt.HookContinue, nil

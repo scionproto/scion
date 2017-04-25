@@ -20,7 +20,7 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/context"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -59,7 +59,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 		return
 	}
 	// Certain errors are not respondable to if the source lies in a remote AS.
-	if !srcIA.Eq(context.IA()) {
+	if !srcIA.Eq(rctx.IA()) {
 		switch sdata.CT.Class {
 		case scmp.C_CmnHdr:
 			switch sdata.CT.Type {
@@ -123,7 +123,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		return nil, err
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS.
-	if !dstIA.Eq(context.IA()) {
+	if !dstIA.Eq(rctx.IA()) {
 		hopF, err := reply.HopF()
 		if err != nil {
 			return nil, err
@@ -173,7 +173,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 		return nil, err
 	}
 	// Use the ingress address as the source host
-	sp.SrcIA = context.IA()
+	sp.SrcIA = rctx.IA()
 	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
 	return sp, nil
 }
@@ -181,7 +181,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
-	ctx := context.GetContext()
+	ctx := rctx.GetContext()
 	if rp.DirFrom == rpkt.DirLocal {
 		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.String()]
 		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: rp.Ingress.Src}, nil

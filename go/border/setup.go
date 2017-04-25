@@ -28,21 +28,21 @@ import (
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/context"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/netconf"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
-type setupNetHook func(r *Router, ctx *context.Context,
-	oldCtx *context.Context) (rpkt.HookResult, *common.Error)
-type setupAddLocalHook func(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
-	labels prometheus.Labels, oldCtx *context.Context) (rpkt.HookResult, *common.Error)
-type setupAddExtHook func(r *Router, ctx *context.Context, intf *netconf.Interface,
-	labels prometheus.Labels, oldCtx *context.Context) (rpkt.HookResult, *common.Error)
+type setupNetHook func(r *Router, ctx *rctx.RtrCtx,
+	oldCtx *rctx.RtrCtx) (rpkt.HookResult, *common.Error)
+type setupAddLocalHook func(r *Router, ctx *rctx.RtrCtx, idx int, over *overlay.UDP,
+	labels prometheus.Labels, oldCtx *rctx.RtrCtx) (rpkt.HookResult, *common.Error)
+type setupAddExtHook func(r *Router, ctx *rctx.RtrCtx, intf *netconf.Interface,
+	labels prometheus.Labels, oldCtx *rctx.RtrCtx) (rpkt.HookResult, *common.Error)
 
 // Setup hooks enables the network stack to be modular. Any network stack that
 // wants to be included defines its own init function which adds hooks to these
@@ -52,52 +52,83 @@ var setupAddLocalHooks []setupAddLocalHook
 var setupAddExtHooks []setupAddExtHook
 var setupNetFinishHooks []setupNetHook
 
-// setup creates the router's channels and map, loads the configuration, and
-// sets up the rpkt package.
-func (r *Router) setup(confDir string) *common.Error {
+// setup creates the router's channels and map, sets up the rpkt package, and
+// sets up a new router context. This function can only be called once during startup.
+func (r *Router) setup() *common.Error {
 	r.freePkts = make(chan *rpkt.RtrPkt, 1024)
 	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
 
+	// Configure the rpkt package with the callbacks it needs.
+	rpkt.Init(r.ProcessIFStates, r.RevTokenCallback)
+
+	// Add default posix setup hooks. If there are other hooks, they should install
+	// themselves via init(), so they appear before the posix ones.
+	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
+	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
+
+	// Load capabilities
+	var err *common.Error
+	if err = r.loadCapabilities(); err != nil {
+		return err
+	}
+
 	// Load config.
 	var config *conf.Conf
-	var err *common.Error
-	if config, err = conf.Load(r.Id, confDir); err != nil {
+	if config, err = r.loadNewConfig(); err != nil {
 		return err
+	}
+	// Setup new context.
+	if err = r.setupNewContext(config); err != nil {
+		return err
+	}
+	return nil
+}
+
+// loadCapabilities drops and immediately reloads the capabilities on startup.
+func (r *Router) loadCapabilities() *common.Error {
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		return common.NewError("Error retrieving capabilities", "err", err)
+	}
+	log.Debug("Startup capabilities", "caps", caps)
+	caps.Clear(capability.CAPS)
+	caps.Apply(capability.CAPS)
+	caps.Load()
+	log.Debug("Cleared capabilities", "caps", caps)
+	return nil
+}
+
+// loadNewConfig loads a new conf.Conf object from the configuration file.
+func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
+	var config *conf.Conf
+	var err *common.Error
+	if config, err = conf.Load(r.Id, r.confDir); err != nil {
+		return nil, err
 	}
 	log.Debug("Topology loaded", "topo", config.BR)
 	log.Debug("AS Conf loaded", "conf", config.ASConf)
-	// Setup new context.
-	var ctx *context.Context
-	if ctx, err = r.setupNewContext(config); err != nil {
+	return config, nil
+}
+
+// setupNewContext sets up a new router context.
+func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
+	oldCtx := rctx.GetContext()
+	ctx := rctx.NewContext(config)
+	if err := r.setupNet(ctx, oldCtx); err != nil {
 		return err
 	}
-	context.SetContext(ctx)
-	// Configure the rpkt package with the callbacks it needs.
-	rpkt.Init(r.ProcessIFStates, r.RevTokenCallback)
+	rctx.SetContext(ctx)
 	// Start input functions.
-	for _, f := range ctx.InputFuncs {
+	for addr, f := range ctx.InputFuncs {
+		log.Debug("Starting input routine", "addr", addr, "input", f)
 		f.Start()
 	}
 	return nil
 }
 
-func (r *Router) setupNewContext(config *conf.Conf) (*context.Context, *common.Error) {
-	oldCtx := context.GetContext()
-	ctx := context.NewContext(config)
-	if err := r.setupNet(ctx, oldCtx); err != nil {
-		return nil, err
-	}
-	return ctx, nil
-}
-
 // setupNet configures networking for the router, using any setup hooks that
-// have been registered, and immediately drops any capabilities that might have
-// been needed.
-func (r *Router) setupNet(ctx *context.Context, oldCtx *context.Context) *common.Error {
-	// If there are other hooks, they should install themselves via init(), so
-	// they appear before the posix ones.
-	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
-	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
+// have been registered.
+func (r *Router) setupNet(ctx *rctx.RtrCtx, oldCtx *rctx.RtrCtx) *common.Error {
 	// Run startup hooks, if any.
 	for _, f := range setupNetStartHooks {
 		ret, err := f(r, ctx, oldCtx)
@@ -166,22 +197,12 @@ func (r *Router) setupNet(ctx *context.Context, oldCtx *context.Context) *common
 			}
 		}
 	}
-	// Drop capability privileges, if any.
-	caps, err := capability.NewPid(0)
-	if err != nil {
-		return common.NewError("Error retrieving capabilities", "err", err)
-	}
-	log.Debug("Startup capabilities", "caps", caps)
-	caps.Clear(capability.CAPS)
-	caps.Apply(capability.CAPS)
-	caps.Load()
-	log.Debug("Cleared capabilities", "caps", caps)
 	return nil
 }
 
 // setupPosixAddLocal configures a local POSIX(/BSD) socket.
-func setupPosixAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
-	labels prometheus.Labels, oldCtx *context.Context) (rpkt.HookResult, *common.Error) {
+func setupPosixAddLocal(r *Router, ctx *rctx.RtrCtx, idx int, over *overlay.UDP,
+	labels prometheus.Labels, oldCtx *rctx.RtrCtx) (rpkt.HookResult, *common.Error) {
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
 		if err := addPosixLocal(r, ctx, idx, over, labels); err != nil {
@@ -195,6 +216,7 @@ func setupPosixAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.
 			return rpkt.HookError, err
 		}
 	} else {
+		log.Debug("No change detected for local socket.", "conn", over.String())
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.InputFuncs[over.String()] = oldCtx.InputFuncs[over.String()]
 		ctx.LocOutFs[idx] = oldCtx.LocOutFs[oldIdx]
@@ -202,7 +224,7 @@ func setupPosixAddLocal(r *Router, ctx *context.Context, idx int, over *overlay.
 	return rpkt.HookFinish, nil
 }
 
-func addPosixLocal(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
+func addPosixLocal(r *Router, ctx *rctx.RtrCtx, idx int, over *overlay.UDP,
 	labels prometheus.Labels) *common.Error {
 	// Listen on the socket.
 	if err := over.Listen(); err != nil {
@@ -217,12 +239,13 @@ func addPosixLocal(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
 	}
 	// Setup input goroutine.
 	args := &PosixInputFuncArgs{
-		Router:   r,
-		Conn:     over.Conn,
-		DirFrom:  rpkt.DirLocal,
-		Ifids:    ifids,
-		Labels:   labels,
-		StopChan: make(chan struct{}),
+		Router:      r,
+		Conn:        over.Conn,
+		DirFrom:     rpkt.DirLocal,
+		Ifids:       ifids,
+		Labels:      labels,
+		StopChan:    make(chan struct{}),
+		StoppedChan: make(chan struct{}),
 	}
 	pif := &PosixInput{
 		Args: args,
@@ -233,15 +256,16 @@ func addPosixLocal(r *Router, ctx *context.Context, idx int, over *overlay.UDP,
 	f := func(b common.RawBytes, dst *net.UDPAddr) (int, error) {
 		return over.Conn.WriteToUDP(b, dst)
 	}
-	ctx.LocOutFs[idx] = func(oo context.OutputObj, dst *net.UDPAddr) {
+	ctx.LocOutFs[idx] = func(oo rctx.OutputObj, dst *net.UDPAddr) {
 		writePosixOutput(labels, oo, dst, f)
 	}
+	log.Debug("Set up new local socket.", "conn", over.String())
 	return nil
 }
 
 // setupPosixAddExt configures a POSIX(/BSD) interface socket.
-func setupPosixAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
-	labels prometheus.Labels, oldCtx *context.Context) (rpkt.HookResult, *common.Error) {
+func setupPosixAddExt(r *Router, ctx *rctx.RtrCtx, intf *netconf.Interface,
+	labels prometheus.Labels, oldCtx *rctx.RtrCtx) (rpkt.HookResult, *common.Error) {
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
 		if err := addPosixIntf(r, ctx, intf, labels); err != nil {
@@ -255,6 +279,7 @@ func setupPosixAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 			return rpkt.HookError, err
 		}
 	} else if interfaceChanged(intf, oldIntf) {
+		log.Debug("Existing interface changed.", "old", oldIntf, "new", intf)
 		// An existing interface has changed.
 		// Stop old input goroutine.
 		pif := oldCtx.InputFuncs[oldIntf.IFAddr.String()]
@@ -264,6 +289,7 @@ func setupPosixAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 			return rpkt.HookError, err
 		}
 	} else {
+		log.Debug("No change detected for external socket.", "conn", intf.IFAddr.String())
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.InputFuncs[intf.IFAddr.String()] = oldCtx.InputFuncs[intf.IFAddr.String()]
 		ctx.IntfOutFs[intf.Id] = oldCtx.IntfOutFs[intf.Id]
@@ -271,11 +297,14 @@ func setupPosixAddExt(r *Router, ctx *context.Context, intf *netconf.Interface,
 	return rpkt.HookFinish, nil
 }
 
+// interfaceChanged returns true if a new input goroutine is needed for the
+// corresponding interface.
 func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bool {
-	return newIntf.IFAddr != oldIntf.IFAddr || newIntf.RemoteAddr != oldIntf.RemoteAddr
+	return (!newIntf.IFAddr.Equal(oldIntf.IFAddr) ||
+		newIntf.RemoteAddr.String() != oldIntf.RemoteAddr.String())
 }
 
-func addPosixIntf(r *Router, ctx *context.Context, intf *netconf.Interface,
+func addPosixIntf(r *Router, ctx *rctx.RtrCtx, intf *netconf.Interface,
 	labels prometheus.Labels) *common.Error {
 	// Connect to remote address.
 	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
@@ -283,12 +312,13 @@ func addPosixIntf(r *Router, ctx *context.Context, intf *netconf.Interface,
 	}
 	// Setup input goroutine.
 	args := &PosixInputFuncArgs{
-		Router:   r,
-		Conn:     intf.IFAddr.Conn,
-		DirFrom:  rpkt.DirExternal,
-		Ifids:    []spath.IntfID{intf.Id},
-		Labels:   labels,
-		StopChan: make(chan struct{}),
+		Router:      r,
+		Conn:        intf.IFAddr.Conn,
+		DirFrom:     rpkt.DirExternal,
+		Ifids:       []spath.IntfID{intf.Id},
+		Labels:      labels,
+		StopChan:    make(chan struct{}),
+		StoppedChan: make(chan struct{}),
 	}
 	pif := &PosixInput{
 		Args: args,
@@ -301,9 +331,10 @@ func addPosixIntf(r *Router, ctx *context.Context, intf *netconf.Interface,
 	f := func(b common.RawBytes, _ *net.UDPAddr) (int, error) {
 		return conn.Write(b)
 	}
-	ctx.IntfOutFs[intf.Id] = func(oo context.OutputObj, _ *net.UDPAddr) {
+	ctx.IntfOutFs[intf.Id] = func(oo rctx.OutputObj, _ *net.UDPAddr) {
 		// An interface can only send packets to a fixed remote address, so ignore the UDPAddr arg.
 		writePosixOutput(labels, oo, dst, f)
 	}
+	log.Debug("Set up new external socket.", "intf", intf)
 	return nil
 }

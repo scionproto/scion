@@ -26,7 +26,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/context"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -125,7 +125,7 @@ type RtrPkt struct {
 	// included in the output.
 	log.Logger
 	// The current router context to process this packet.
-	Ctx *context.Context
+	Ctx *rctx.RtrCtx
 }
 
 func NewRtrPkt() *RtrPkt {
@@ -175,7 +175,7 @@ type addrIFPair struct {
 // EgressPair contains the output function to send a packet with, along with an
 // overlay destination address.
 type EgressPair struct {
-	F   context.OutputFunc
+	F   rctx.OutputFunc
 	Dst *net.UDPAddr
 }
 
@@ -318,7 +318,7 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	return nil
 }
 
-// Bytes returns the raw bytes of the RtrPkt. Needed to implement context.OutputObj
+// Bytes returns the raw bytes of the RtrPkt. Needed to implement rctx.OutputObj
 // interface.
 func (rp *RtrPkt) Bytes() common.RawBytes {
 	return rp.Raw
@@ -345,7 +345,7 @@ func (rp *RtrPkt) ErrStr(desc string) string {
 }
 
 // LogError logs an error using the logger of the RtrPkt (needed to implement
-// context.OutputObj interface).
+// rctx.OutputObj interface).
 func (rp *RtrPkt) LogError(msg string, ctx ...interface{}) {
 	rp.Error(msg, ctx...)
 }

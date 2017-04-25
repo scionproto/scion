@@ -23,7 +23,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/context"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -44,14 +44,14 @@ func (r *Router) SyncInterface() {
 }
 
 func (r *Router) GenIFIDPkts() {
-	ctx := context.GetContext()
+	ctx := rctx.GetContext()
 	for ifid := range ctx.Conf.Net.IFs {
 		r.GenIFIDPkt(ifid, ctx)
 	}
 }
 
 // GenIFIDPkt generates IFID packets.
-func (r *Router) GenIFIDPkt(ifid spath.IntfID, ctx *context.Context) {
+func (r *Router) GenIFIDPkt(ifid spath.IntfID, ctx *rctx.RtrCtx) {
 	logger := log.New("ifid", ifid)
 	intf := ctx.Conf.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()
