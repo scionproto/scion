@@ -26,6 +26,7 @@ import math
 import os
 import random
 import sys
+import json
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -110,14 +111,16 @@ DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 DEFAULT_ROUTER = "go"
 
 SCION_SERVICE_NAMES = (
-    "BeaconServers",
-    "CertificateServers",
+    "BeaconService",
+    "CertificateService",
     "BorderRouters",
-    "PathServers",
-    "SibraServers",
+    "PathService",
+    "SibraService",
 )
 
 DEFAULT_KEYGEN_ALG = 'Ed25519'
+
+GENERATE_BOTH_TOPOLOGY = True
 
 
 class ConfigGenerator(object):
@@ -256,7 +259,7 @@ class ConfigGenerator(object):
             'PropagateTime': 5,
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
-            'RegisterPath': True if as_topo["PathServers"] else False,
+            'RegisterPath': True if as_topo["PathService"] else False,
         }
 
     def _write_networks_conf(self, networks):
@@ -549,7 +552,7 @@ class TopoGenerator(object):
         assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
-            'Zookeepers': {}, 'MTU': mtu,
+            'ZookeeperService': {}, 'MTU': mtu, 'Overlay': 'UDP/IPv4'
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
@@ -559,11 +562,11 @@ class TopoGenerator(object):
 
     def _gen_srv_entries(self, topo_id, as_conf):
         for conf_key, def_num, nick, topo_key in (
-            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconServers"),
+            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService"),
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-             "CertificateServers"),
-            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
-            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
+             "CertificateService"),
+            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
+            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -573,9 +576,12 @@ class TopoGenerator(object):
         count = as_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id, i)
-            d = {}
-            d["Addr"] = self._reg_addr(topo_id, elem_id)
-            d["Port"] = random.randint(30050, 30100)
+            d = {
+                'Public': [{
+                    'Addr': self._reg_addr(topo_id, elem_id),
+                    'L4Port': random.randint(30050, 30100),
+                }]
+            }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
@@ -589,18 +595,29 @@ class TopoGenerator(object):
         public_addr, remote_addr = self._reg_link_addrs(
             local_br, remote_br)
         self.topo_dicts[local]["BorderRouters"][local_br] = {
-            'Addr': self._reg_addr(local, local_br),
-            'Port': random.randint(30050, 30100),
-            'Interface': {
-                'IFID': ifid,
-                'ISD_AS': str(remote),
-                'LinkType': remote_type,
-                'Addr': public_addr,
-                'ToAddr': remote_addr,
-                'UdpPort': SCION_ROUTER_PORT,
-                'ToUdpPort': SCION_ROUTER_PORT,
-                'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
-                'MTU': attrs.get('mtu', DEFAULT_MTU),
+            'InternalAddrs': [{
+                'Public': [{
+                    'Addr': self._reg_addr(local, local_br),
+                    'L4Port': random.randint(30050, 30100),
+                }]
+            }],
+            'Interfaces': {
+                ifid: {  # Interface ID.
+                    'InternalAddrIdx': 0,
+                    'Overlay': 'UDP/IPv4',
+                    'Public': {
+                        'Addr': public_addr,
+                        'L4Port': SCION_ROUTER_PORT
+                    },
+                    'Remote': {
+                        'Addr': remote_addr,
+                        'L4Port': SCION_ROUTER_PORT
+                    },
+                    'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
+                    'ISD_AS': str(remote),
+                    'LinkType': remote_type,
+                    'MTU': attrs.get('mtu', DEFAULT_MTU)
+                }
             }
         }
 
@@ -621,9 +638,9 @@ class TopoGenerator(object):
             self.zookeepers[topo_id][elem_id] = zk_id, zk
         else:
             addr = str(zk.addr)
-        self.topo_dicts[topo_id]["Zookeepers"][zk_id] = {
+        self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
             'Addr': addr,
-            'Port': zk.clientPort,
+            'L4Port': zk.clientPort
         }
 
     def _generate_as_list(self, topo_id, as_conf):
@@ -637,9 +654,16 @@ class TopoGenerator(object):
         for topo_id, as_topo, base in _srv_iter(
                 self.topo_dicts, self.out_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
-            contents = yaml.dump(self.topo_dicts[topo_id],
-                                 default_flow_style=False)
-            write_file(path, contents)
+            contents_json = json.dumps(self.topo_dicts[topo_id],
+                                       default=_json_default, indent=4)
+            write_file(path, contents_json)
+            if GENERATE_BOTH_TOPOLOGY:
+                path_yaml = os.path.join(base, "topology.yml")
+                topo_dicts_old = {}
+                topo_dicts_old = self._convert_topology(self.topo_dicts[topo_id])
+                contents_yaml = yaml.dump(topo_dicts_old,
+                                          default_flow_style=False)
+                write_file(path_yaml, contents_yaml)
             # Test if topo file parses cleanly
             Topology.from_file(path)
 
@@ -651,6 +675,97 @@ class TopoGenerator(object):
         list_path = os.path.join(self.out_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
+
+    def _convert_topology(self, topo_dicts):
+        # This method will not be necessary for the final version,
+        # since this method is to generate old version of topology format(.yml)
+        # to test with go router for integration_test.sh.
+        topo_old = {}
+        for service, attributes in topo_dicts.items():
+            if service == "Overlay":
+                continue
+            elif service == "BeaconService":
+                for bs_id, entity in attributes.items():
+                    bs_addr = topo_dicts["BeaconService"][bs_id]["Public"][0]["Addr"]
+                    bs_port = topo_dicts["BeaconService"][bs_id]["Public"][0]["L4Port"]
+                    topo_old["BeaconServers"] = {
+                        bs_id: {
+                            'Addr': bs_addr,
+                            'Port': bs_port
+                        }
+                    }
+            elif service == "BorderRouters":
+                topo_old["BorderRouters"] = {}
+                for br_id, entity in attributes.items():
+                    br_addr = topo_dicts[service][br_id]["InternalAddrs"][0]["Public"][0]["Addr"]
+                    br_port = topo_dicts[service][br_id]["InternalAddrs"][0]["Public"][0]["L4Port"]
+                    for ifid, temp in topo_dicts[service][br_id]["Interfaces"].items():
+                        if_addr = topo_dicts[service][br_id]["Interfaces"][ifid]["Public"]["Addr"]
+                        if_port = topo_dicts[service][br_id]["Interfaces"][ifid]["Public"]["L4Port"]
+                        bandwidth = topo_dicts[service][br_id]["Interfaces"][ifid]["Bandwidth"]
+                        isdas = topo_dicts[service][br_id]["Interfaces"][ifid]["ISD_AS"]
+                        linktype = topo_dicts[service][br_id]["Interfaces"][ifid]["LinkType"]
+                        mtu = topo_dicts[service][br_id]["Interfaces"][ifid]["MTU"]
+                        toaddr = topo_dicts[service][br_id]["Interfaces"][ifid]["Remote"]["Addr"]
+                        toport = topo_dicts[service][br_id]["Interfaces"][ifid]["Remote"]["L4Port"]
+                        topo_old[service][br_id] = {
+                            'Addr': br_addr,
+                            'Port': br_port,
+                            'Interface': {
+                                'Addr': if_addr,
+                                'UdpPort': if_port,
+                                'IFID': ifid,
+                                'Bandwidth': bandwidth,
+                                'ISD_AS': isdas,
+                                'LinkType': linktype,
+                                'MTU': mtu,
+                                'ToAddr': toaddr,
+                                'ToUdpPort': toport,
+                            }
+                        }
+            elif service == "CertificateService":
+                for cs_id, entity in attributes.items():
+                    cs_addr = topo_dicts["CertificateService"][cs_id]["Public"][0]["Addr"]
+                    cs_port = topo_dicts["CertificateService"][cs_id]["Public"][0]["L4Port"]
+                    topo_old["CertificateServers"] = {
+                        cs_id: {
+                            'Addr': cs_addr,
+                            'Port': cs_port
+                        }
+                    }
+            elif service == "PathService":
+                for ps_id, entity in attributes.items():
+                    ps_addr = topo_dicts["PathService"][ps_id]["Public"][0]["Addr"]
+                    ps_port = topo_dicts["PathService"][ps_id]["Public"][0]["L4Port"]
+                    topo_old["PathServers"] = {
+                        ps_id: {
+                            'Addr': ps_addr,
+                            'Port': ps_port
+                        }
+                    }
+            elif service == "SibraService":
+                for sb_id, entity in attributes.items():
+                    sb_addr = topo_dicts["SibraService"][sb_id]["Public"][0]["Addr"]
+                    sb_port = topo_dicts["SibraService"][sb_id]["Public"][0]["L4Port"]
+                    topo_old["SibraServers"] = {
+                        sb_id: {
+                            'Addr': sb_addr,
+                            'Port': sb_port
+                        }
+                    }
+            elif service == "ZookeeperService":
+                for zk_id, entity in attributes.items():
+                    zk_addr = topo_dicts["ZookeeperService"][zk_id]["Addr"]
+                    zk_port = topo_dicts["ZookeeperService"][zk_id]["L4Port"]
+                    topo_old["Zookeepers"] = {
+                        zk_id: {
+                            'Addr': zk_addr,
+                            'Port': zk_port
+                        }
+                    }
+            else:
+                topo_old[service] = attributes
+        return topo_old
 
 
 class PrometheusGenerator(object):
@@ -666,7 +781,8 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.topo_dicts.items():
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                router_list.append("[%s]:%s" % (br_ele['Addr'].ip, br_ele['Port']))
+                router_list.append("[%s]:%s" % (br_ele['InternalAddrs'][0]['Public'][0]['Addr'],
+                                    br_ele['InternalAddrs'][0]['Public'][0]['L4Port']))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -721,10 +837,10 @@ class SupervisorGenerator(object):
         entries = []
         base = self._get_base_path(topo_id)
         for key, cmd in (
-            ("BeaconServers", "bin/beacon_server"),
-            ("CertificateServers", "bin/cert_server"),
-            ("PathServers", "bin/path_server"),
-            ("SibraServers", "bin/sibra_server"),
+            ("BeaconService", "bin/beacon_server"),
+            ("CertificateService", "bin/cert_server"),
+            ("PathService", "bin/path_server"),
+            ("SibraService", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         if self.router == "go":
@@ -1095,6 +1211,12 @@ def _srv_iter(topo_dicts, out_dir, common=False):
                 yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
+
+
+def _json_default(o):
+    if isinstance(o, AddressProxy):
+        return str(o)
+    raise TypeError
 
 
 def main():

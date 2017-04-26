@@ -91,7 +91,7 @@ class SCIONDaemon(SCIONElement):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir, host_addr=addr, port=port)
+        super().__init__("sciond", conf_dir, public=[(addr, port)])
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
@@ -274,7 +274,8 @@ class SCIONDaemon(SCIONElement):
             haddr, port = None, None
             if fwd_if:
                 br = self.ifid2br[fwd_if]
-                haddr, port = br.addr, br.port
+                addridx = br.interfaces[fwd_if].addridx
+                haddr, port = br.public[addridx]
             addrs = [haddr] if haddr else []
             first_hop = HostInfo.from_values(addrs, port)
             reply_entry = SCIONDPathReplyEntry.from_values(
@@ -305,7 +306,9 @@ class SCIONDaemon(SCIONElement):
         if_entries = []
         for if_id, br in self.ifid2br.items():
             if all_brs or if_id in if_list:
-                info = HostInfo.from_values([br.addr], br.port)
+                addridx = br.interfaces[if_id].addridx
+                br_addr, br_port = br.public[addridx]
+                info = HostInfo.from_values([br_addr], br_port)
                 reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
                 if_entries.append(reply_entry)
         if_reply = SCIONDIFInfoReply.from_values(request.id, if_entries)

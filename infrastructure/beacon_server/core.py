@@ -62,15 +62,16 @@ class CoreBeaconServer(BeaconServer):
         """
         count = 0
         for r in self.topology.core_border_routers:
-            dst_ia = r.interface.isd_as
-            if not self._filter_pcb(pcb, dst_ia=dst_ia):
-                continue
-            new_pcb, meta = self._mk_prop_pcb_meta(
-                pcb.copy(), r.interface.isd_as, r.interface.if_id)
-            if not new_pcb:
-                continue
-            self.send_meta(new_pcb, meta)
-            count += 1
+            for if_id, intf in r.interfaces.items():
+                dst_ia = intf.isd_as
+                if not self._filter_pcb(pcb, dst_ia=dst_ia):
+                    continue
+                new_pcb, meta = self._mk_prop_pcb_meta(
+                    pcb.copy(), intf.isd_as, intf.if_id)
+                if not new_pcb:
+                    continue
+                self.send_meta(new_pcb, meta)
+                count += 1
         return count
 
     def handle_pcbs_propagation(self):
