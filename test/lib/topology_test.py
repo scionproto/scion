@@ -39,14 +39,15 @@ class TestElementInit(object):
     """
     def test_basic(self):
         inst = Element()
-        ntools.assert_is_none(inst.addr)
+        ntools.assert_equal(inst.public, [])
         ntools.assert_is_none(inst.name)
 
     @patch("lib.topology.haddr_parse_interface", autospec=True)
     def test_addr(self, parse):
-        inst = Element("addr")
+        public = {'Addr': 'addr', 'L4Port': 'port'}
+        inst = Element(public)
         parse.assert_called_with("addr")
-        ntools.eq_(inst.addr, parse.return_value)
+        ntools.eq_(inst.public[0][0], parse.return_value)
 
     def test_name(self):
         name = create_mock(["__str__"])
@@ -67,14 +68,27 @@ class TestInterfaceElementInit(object):
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_full(self, super_init, isd_as, parse):
         intf_dict = {
-            'Addr': 'addr', 'IFID': 1, 'ISD_AS': '3-2',
-            'LinkType': 'PARENT', 'ToUdpPort': 5, 'UdpPort': 6,
-            'ToAddr': 'toaddr', "Bandwidth": 1001, 'MTU': 4242,
+            'InternalAddrIdx': 0,
+            'Overlay': 'UDP/IPv4',
+            'Public': {
+                'Addr': 'addr',
+                'L4Port': 6
+            },
+            'Remote': {
+                'Addr': 'toaddr',
+                'L4Port': 5
+            },
+            'Bandwidth': 1001,
+            'ISD_AS': '3-2',
+            'LinkType': 'PARENT',
+            'MTU': 4242
         }
+        if_id = 1
+        public = {'Addr': 'addr', 'L4Port': 6}
         # Call
-        inst = InterfaceElement(intf_dict, 'name')
+        inst = InterfaceElement(if_id, intf_dict, 'name')
         # Tests
-        super_init.assert_called_once_with(inst, 'addr', 'name')
+        super_init.assert_called_once_with(inst, public, 'name')
         ntools.eq_(inst.if_id, 1)
         ntools.eq_(inst.isd_as, isd_as.return_value)
         ntools.eq_(inst.link_type, "PARENT")
@@ -92,7 +106,7 @@ class TestTopologyParseDict(object):
     """
     @patch("lib.topology.ISD_AS", autospec=True)
     def test(self, isd_as):
-        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'MTU': 440}
+        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'MTU': 440, 'Overlay': 'UDP/IPv4'}
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()
@@ -115,10 +129,10 @@ class TestTopologyParseSrvDicts(object):
     @patch("lib.topology.ServerElement", autospec=True)
     def test(self, server):
         topo_dict = {
-            'BeaconServers': {"bs1": "bs1 val"},
-            'CertificateServers': {"cs1": "cs1 val"},
-            'PathServers': {"ps1": "ps1 val", "ps2": "ps2 val"},
-            'SibraServers': {"sb1": "sb1 val"},
+            'BeaconService': {"bs1": "bs1 val"},
+            'CertificateService': {"cs1": "cs1 val"},
+            'PathService': {"ps1": "ps1 val", "ps2": "ps2 val"},
+            'SibraService': {"sb1": "sb1 val"},
         }
         inst = Topology()
         server.side_effect = lambda v, k: "%s-%s" % (k, v)
@@ -143,9 +157,9 @@ class TestTopologyParseRouterDicts(object):
     @patch("lib.topology.RouterElement", autospec=True)
     def test(self, router):
         def _mk_router(type_):
-            m = create_mock(["interface"])
-            m.interface = create_mock(["link_type"])
-            m.interface.link_type = type_
+            m = create_mock(["interfaces"])
+            m.interfaces = {0: create_mock(["link_type"])}
+            m.interfaces[0].link_type = type_
             routers[type_].append(m)
             return m
         routers = defaultdict(list)
@@ -172,13 +186,13 @@ class TestTopologyParseZkDicts(object):
     @patch("lib.topology.haddr_parse_interface", autospec=True)
     def test(self, parse):
         zk_dict = {
-            'zk0': {'Addr': 'zkv4', 'Port': 2181},
-            'zk1': {'Addr': 'zkv6', 'Port': 2182},
+            'zk0': {'Addr': 'zkv4', 'L4Port': 2181},
+            'zk1': {'Addr': 'zkv6', 'L4Port': 2182},
         }
         inst = Topology()
         parse.side_effect = lambda x: x
         # Call
-        inst._parse_zk_dicts({"Zookeepers": zk_dict})
+        inst._parse_zk_dicts({"ZookeeperService": zk_dict})
         # Tests
         ntools.assert_count_equal(inst.zookeepers,
                                   ["[zkv4]:2181", "[zkv6]:2182"])
