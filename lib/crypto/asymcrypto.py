@@ -79,7 +79,7 @@ def encrypt(msg, private_key, public_key):
     :param PrivateKey private_key: Private Key of encrypter.
     :param PublicKey public_key: Public Key of decrypter.
     :returns: The encrypted message.
-    :rtype: bytes
+    :rtype: nacl.utils.EncryptedMessage
     """
     return Box(private_key, public_key).encrypt(msg)
 
