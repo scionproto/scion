@@ -97,10 +97,11 @@ class SibraServerBase(SCIONElement):
 
     def _find_links(self):
         for br in self.topology.get_all_border_routers():
-            iface = br.interface
-            self.link_states[iface.if_id] = SibraState(
-                iface.bandwidth, self.addr.isd_as)
-            self.link_types[iface.if_id] = iface.link_type
+            for ifid in br.interfaces:
+                iface = br.interfaces[ifid]
+                self.link_states[iface.if_id] = SibraState(
+                    iface.bandwidth, self.addr.isd_as)
+                self.link_types[iface.if_id] = iface.link_type
 
     def run(self):
         threading.Thread(

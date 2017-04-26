@@ -118,7 +118,7 @@ class SCIONElement(object):
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
     USE_TCP = False
 
-    def __init__(self, server_id, conf_dir, host_addr=None, port=None):
+    def __init__(self, server_id, conf_dir, public=None, bind=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -131,7 +131,6 @@ class SCIONElement(object):
         self.id = server_id
         self.conf_dir = conf_dir
         self.ifid2br = {}
-        self._port = port
         self.topology = Topology.from_file(
             os.path.join(self.conf_dir, TOPO_FILE))
         self.config = Config.from_file(
@@ -139,14 +138,15 @@ class SCIONElement(object):
         # Must be over-ridden by child classes:
         self.CTRL_PLD_CLASS_MAP = {}
         self.SCMP_PLD_CLASS_MAP = {}
+        self.public = public
+        self.bind = bind
         if self.SERVICE_TYPE:
             own_config = self.topology.get_own_config(self.SERVICE_TYPE,
                                                       server_id)
-            if host_addr is None:
-                host_addr = own_config.addr
-            if self._port is None:
-                self._port = own_config.port
-        self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+            if public is None:
+                self.public = own_config.public
+            if bind is None:
+                self.bind = own_config.bind
         self.init_ifid2br()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
@@ -158,7 +158,6 @@ class SCIONElement(object):
         self.stopped_flag.clear()
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
-        self._setup_sockets(True)
         self._startup = time.time()
         if self.USE_TCP:
             self.DefaultMeta = TCPMetadata
@@ -170,6 +169,10 @@ class SCIONElement(object):
         self.req_trcs_lock = threading.Lock()
         self.requested_certs = set()
         self.req_certs_lock = threading.Lock()
+        # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
+        host_addr, self._port = self.public[0]
+        self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+        self._setup_sockets(True)
 
     def _setup_sockets(self, init):
         """
@@ -213,7 +216,8 @@ class SCIONElement(object):
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
-            self.ifid2br[br.interface.if_id] = br
+            for if_id in br.interfaces:
+                self.ifid2br[if_id] = br
 
     def init_core_ases(self):
         """
@@ -233,6 +237,11 @@ class SCIONElement(object):
         update the core ases map
         """
         self._core_ases[trc.isd] = trc.get_core_ases()
+
+    def get_border_addr(self, ifid):
+        br = self.ifid2br[ifid]
+        addridx = br.interfaces[ifid].addridx
+        addr, port = br.public[addridx]
 
     def handle_msg_meta(self, msg, meta):
         """
@@ -653,7 +662,9 @@ class SCIONElement(object):
             if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
             br = self.ifid2br[if_id]
-            return br.addr, br.port
+            addridx = br.interfaces[if_id].addridx
+            br_addr, br_port = br.public[addridx]
+            return br_addr, br_port
         logging.error("Unable to find first hop:\n%s", path)
         return None, None
 
@@ -993,9 +1004,11 @@ class SCIONElement(object):
             SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
-        results = [(srv.addr, srv.port) for srv in service_map[qname]]
+        results = []
+        for srv in service_map[qname]:
+            for addr, port in srv.public:
+                results.append((addr, port))
         # FIXME(kormat): replace with new discovery service when that's ready.
-        #  results = self._dns.query(qname, fallback, self._quiet_startup())
         if not results:
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)
