@@ -34,6 +34,16 @@ import (
 
 var _ common.Extension = (*SCIONPacketSecurityExtn)(nil)
 
+type SCIONPacketSecurityBaseExtn struct {
+	SecMode uint8
+}
+
+type SCIONPacketSecurityExtn struct {
+	*SCIONPacketSecurityBaseExtn
+	Metadata      common.RawBytes
+	Authenticator common.RawBytes
+}
+
 const (
 	// Basic definitions
 	SECMODE_LENGTH   = 1
@@ -65,18 +75,26 @@ const (
 	GCM_AES128_TOTAL_LENGTH  = SECMODE_LENGTH + GCM_AES128_META_LENGTH + GCM_AES128_AUTH_LENGTH
 )
 
-type SCIONPacketSecurityExtn struct {
-	SecMode       uint8
-	Metadata      common.RawBytes
-	Authenticator common.RawBytes
+func (s *SCIONPacketSecurityBaseExtn) Reverse() (bool, *common.Error) {
+	// Nothing to do.
+	return true, nil
 }
 
-func NewSecurityExtn(SecMode uint8) (*SCIONPacketSecurityExtn, *common.Error) {
-	s := &SCIONPacketSecurityExtn{SecMode: SecMode}
+func (s *SCIONPacketSecurityBaseExtn) Class() common.L4ProtocolType {
+	return common.End2EndClass
+}
+
+func (s *SCIONPacketSecurityBaseExtn) Type() common.ExtnType {
+	return common.ExtnSCIONPacketSecurityType
+}
+
+func NewSCIONPacketSecurityExtn(secMode uint8) (*SCIONPacketSecurityExtn, *common.Error) {
+	s := &SCIONPacketSecurityExtn{
+		SCIONPacketSecurityBaseExtn: &SCIONPacketSecurityBaseExtn{SecMode: secMode}}
 
 	var metaLen, authLen int
 
-	switch SecMode {
+	switch secMode {
 	case AES_CMAC:
 		metaLen = AES_CMAC_META_LENGTH
 		authLen = AES_CMAC_AUTH_LENGTH
@@ -90,7 +108,7 @@ func NewSecurityExtn(SecMode uint8) (*SCIONPacketSecurityExtn, *common.Error) {
 		metaLen = GCM_AES128_META_LENGTH
 		authLen = GCM_AES128_AUTH_LENGTH
 	default:
-		return nil, common.NewError("Invalid secmode code.", "SecMode", SecMode)
+		return nil, common.NewError("Invalid SecMode code.", "SecMode", secMode)
 	}
 
 	s.Metadata = make(common.RawBytes, metaLen)
@@ -121,15 +139,15 @@ func (s *SCIONPacketSecurityExtn) UpdateAuthenticator(authenticator common.RawBy
 
 func (s *SCIONPacketSecurityExtn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SecurityExtn.Write")
+		return common.NewError("Buffer too short", "method", "SCIONPacketSecurityExtn.Write")
 	}
-	b[0] = uint8(s.SecMode)
+	b[0] = s.SecMode
 
-	l := SECMODE_LENGTH + len(s.Metadata)
-	h := l + len(s.Authenticator)
+	authOffset := SECMODE_LENGTH + len(s.Metadata)
+	totalLength := authOffset + len(s.Authenticator)
 
-	copy(b[SECMODE_LENGTH:l], s.Metadata)
-	copy(b[l:h], s.Authenticator)
+	copy(b[SECMODE_LENGTH:authOffset], s.Metadata)
+	copy(b[authOffset:totalLength], s.Authenticator)
 	return nil
 }
 
@@ -142,27 +160,14 @@ func (s *SCIONPacketSecurityExtn) Pack() (common.RawBytes, *common.Error) {
 }
 
 func (s *SCIONPacketSecurityExtn) Copy() common.Extension {
-	c, _ := NewSecurityExtn(s.SecMode)
+	c, _ := NewSCIONPacketSecurityExtn(s.SecMode)
 	copy(c.Metadata, s.Metadata)
 	copy(c.Authenticator, s.Authenticator)
 	return c
 }
 
-func (s *SCIONPacketSecurityExtn) Reverse() (bool, *common.Error) {
-	// Nothing to do.
-	return true, nil
-}
-
 func (s *SCIONPacketSecurityExtn) Len() int {
 	return SECMODE_LENGTH + len(s.Metadata) + len(s.Authenticator)
-}
-
-func (s *SCIONPacketSecurityExtn) Class() common.L4ProtocolType {
-	return common.End2EndClass
-}
-
-func (s *SCIONPacketSecurityExtn) Type() common.ExtnType {
-	return common.ExtnSCIONPacketSecurityType
 }
 
 func (s *SCIONPacketSecurityExtn) String() string {
