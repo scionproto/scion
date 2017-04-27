@@ -90,7 +90,7 @@ func (s *rSCIONPacketSecurityExt) Metadata() common.RawBytes {
 }
 
 // Update the Metadata directly in the underlying buffer.
-func (s *rSCIONPacketSecurityExt) UpdateMetadata(metadata common.RawBytes) *common.Error{
+func (s *rSCIONPacketSecurityExt) UpdateMetadata(metadata common.RawBytes) *common.Error {
 	if len(s.Metadata()) != len(metadata) {
 		return common.NewError("Invalid metadata length", "len", len(metadata))
 	}
