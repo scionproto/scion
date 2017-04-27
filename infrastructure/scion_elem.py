@@ -242,6 +242,7 @@ class SCIONElement(object):
         br = self.ifid2br[ifid]
         addridx = br.interfaces[ifid].addridx
         addr, port = br.public[addridx]
+        return addr, port
 
     def handle_msg_meta(self, msg, meta):
         """

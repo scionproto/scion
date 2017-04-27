@@ -27,6 +27,7 @@ import os
 import random
 import sys
 import json
+import pdb
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -685,14 +686,13 @@ class TopoGenerator(object):
             if service == "Overlay":
                 continue
             elif service == "BeaconService":
+                topo_old["BeaconServers"] = {}
                 for bs_id, entity in attributes.items():
-                    bs_addr = topo_dicts["BeaconService"][bs_id]["Public"][0]["Addr"]
-                    bs_port = topo_dicts["BeaconService"][bs_id]["Public"][0]["L4Port"]
-                    topo_old["BeaconServers"] = {
-                        bs_id: {
-                            'Addr': bs_addr,
-                            'Port': bs_port
-                        }
+                    bs_addr = topo_dicts[service][bs_id]["Public"][0]["Addr"]
+                    bs_port = topo_dicts[service][bs_id]["Public"][0]["L4Port"]
+                    topo_old["BeaconServers"][bs_id] = {
+                        'Addr': bs_addr,
+                        'Port': bs_port
                     }
             elif service == "BorderRouters":
                 topo_old["BorderRouters"] = {}
@@ -724,44 +724,40 @@ class TopoGenerator(object):
                             }
                         }
             elif service == "CertificateService":
+                topo_old["CertificateServers"] = {}
                 for cs_id, entity in attributes.items():
-                    cs_addr = topo_dicts["CertificateService"][cs_id]["Public"][0]["Addr"]
-                    cs_port = topo_dicts["CertificateService"][cs_id]["Public"][0]["L4Port"]
-                    topo_old["CertificateServers"] = {
-                        cs_id: {
-                            'Addr': cs_addr,
-                            'Port': cs_port
-                        }
+                    cs_addr = topo_dicts[service][cs_id]["Public"][0]["Addr"]
+                    cs_port = topo_dicts[service][cs_id]["Public"][0]["L4Port"]
+                    topo_old["CertificateServers"][cs_id] = {
+                        'Addr': cs_addr,
+                        'Port': cs_port
                     }
             elif service == "PathService":
+                topo_old["PathServers"] = {}
                 for ps_id, entity in attributes.items():
-                    ps_addr = topo_dicts["PathService"][ps_id]["Public"][0]["Addr"]
-                    ps_port = topo_dicts["PathService"][ps_id]["Public"][0]["L4Port"]
-                    topo_old["PathServers"] = {
-                        ps_id: {
-                            'Addr': ps_addr,
-                            'Port': ps_port
-                        }
+                    ps_addr = topo_dicts[service][ps_id]["Public"][0]["Addr"]
+                    ps_port = topo_dicts[service][ps_id]["Public"][0]["L4Port"]
+                    topo_old["PathServers"][ps_id] = {
+                        'Addr': ps_addr,
+                        'Port': ps_port
                     }
             elif service == "SibraService":
+                topo_old["SibraServers"] = {}
                 for sb_id, entity in attributes.items():
-                    sb_addr = topo_dicts["SibraService"][sb_id]["Public"][0]["Addr"]
-                    sb_port = topo_dicts["SibraService"][sb_id]["Public"][0]["L4Port"]
-                    topo_old["SibraServers"] = {
-                        sb_id: {
-                            'Addr': sb_addr,
-                            'Port': sb_port
-                        }
+                    sb_addr = topo_dicts[service][sb_id]["Public"][0]["Addr"]
+                    sb_port = topo_dicts[service][sb_id]["Public"][0]["L4Port"]
+                    topo_old["SibraServers"][sb_id] = {
+                        'Addr': sb_addr,
+                        'Port': sb_port
                     }
             elif service == "ZookeeperService":
+                topo_old["Zookeepers"] = {}
                 for zk_id, entity in attributes.items():
-                    zk_addr = topo_dicts["ZookeeperService"][zk_id]["Addr"]
-                    zk_port = topo_dicts["ZookeeperService"][zk_id]["L4Port"]
-                    topo_old["Zookeepers"] = {
-                        zk_id: {
-                            'Addr': zk_addr,
-                            'Port': zk_port
-                        }
+                    zk_addr = topo_dicts[service][zk_id]["Addr"]
+                    zk_port = topo_dicts[service][zk_id]["L4Port"]
+                    topo_old["Zookeepers"][zk_id] = {
+                        'Addr': zk_addr,
+                        'Port': zk_port
                     }
             else:
                 topo_old[service] = attributes
