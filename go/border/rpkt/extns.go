@@ -21,8 +21,8 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
 // rExtension extends common.ExtnBase, adding a method to retrieve the

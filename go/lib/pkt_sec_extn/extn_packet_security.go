@@ -75,7 +75,7 @@ const (
 	GCM_AES128_TOTAL_LENGTH  = SECMODE_LENGTH + GCM_AES128_META_LENGTH + GCM_AES128_AUTH_LENGTH
 )
 
-func IsSupported(mode uint8) bool{
+func IsSupported(mode uint8) bool {
 	switch mode {
 	case AES_CMAC:
 	case HMAC_SHA256:
