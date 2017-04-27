@@ -74,12 +74,7 @@ func (s *rSCIONPacketSecurityExt) String() string {
 func rSCIONPacketSecurityExtFromRaw(rp *RtrPkt, start, end int) (*rSCIONPacketSecurityExt, *common.Error) {
 	raw := rp.Raw[start:end]
 	mode := raw[0]
-	switch mode {
-	case pkt_sec_extn.AES_CMAC:
-	case pkt_sec_extn.HMAC_SHA256:
-	case pkt_sec_extn.ED25519:
-	case pkt_sec_extn.GCM_AES128:
-	default:
+	if !pkt_sec_extn.IsSupported(mode) {
 		return nil, common.NewError("SecMode not supported", "mode", mode)
 	}
 	s := &rSCIONPacketSecurityExt{

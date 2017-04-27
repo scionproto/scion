@@ -22,6 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
 )
 
 // rExtension extends common.ExtnBase, adding a method to retrieve the
@@ -110,21 +111,33 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	return nil
 }
 
-// extnParseE2E parses a specified end-2-end extension in a packet.
+// extnParseE2E parses a specified end-to-end extension in a packet.
 func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 	start, end, pos int) (rExtension, *common.Error) {
 	switch {
 	case extType == common.ExtnPathTransType:
-		return nil, common.NewError("Unsupported end-2-end extension. Implementation pending")
+		return nil, common.NewError("Unsupported end-to-end extension. Implementation pending")
 	case extType == common.ExtnPathProbeType:
-		return nil, common.NewError("Unsupported end-2-end extension. Implementation pending")
+		return nil, common.NewError("Unsupported end-to-end extension. Implementation pending")
 	case extType == common.ExtnSCIONPacketSecurityType:
-		return rSecurityExtFromRaw(rp, start, end)
+		secMode := rp.Raw[start]
+		switch {
+		case pkt_sec_extn.IsSupported(secMode):
+			return rSCIONPacketSecurityExtFromRaw(rp, start, end)
+		case secMode == pkt_sec_extn.SCMP_AUTH_DRKEY:
+			return rSCMPAuthDRKeyExtFromRaw(rp, start, end)
+		case secMode == pkt_sec_extn.SCMP_AUTH_HASH_TREE:
+			return rSCMPAuthHashTreeExtFromRaw(rp, start, end)
+		default:
+			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
+				&scmp.InfoExtIdx{Idx: uint8(pos)})
+			return nil, common.NewErrorData("Unsupported SecMode", sdata, "mode", secMode)
+		}
 	default:
-		// HBH not supported, so send an SCMP error in response.
+		// E2E not supported, so send an SCMP error in response.
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
 			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewErrorData("Unsupported end-2-end extension", sdata, "type", extType)
+		return nil, common.NewErrorData("Unsupported end-to-end extension", sdata, "type", extType)
 	}
 }
 

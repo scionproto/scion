@@ -75,6 +75,18 @@ const (
 	GCM_AES128_TOTAL_LENGTH  = SECMODE_LENGTH + GCM_AES128_META_LENGTH + GCM_AES128_AUTH_LENGTH
 )
 
+func IsSupported(mode uint8) bool{
+	switch mode {
+	case AES_CMAC:
+	case HMAC_SHA256:
+	case ED25519:
+	case GCM_AES128:
+	default:
+		return false
+	}
+	return true
+}
+
 func (s *SCIONPacketSecurityBaseExtn) Reverse() (bool, *common.Error) {
 	// Nothing to do.
 	return true, nil
