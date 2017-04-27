@@ -27,7 +27,6 @@ import os
 import random
 import sys
 import json
-import pdb
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -778,7 +777,7 @@ class PrometheusGenerator(object):
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
                 router_list.append("[%s]:%s" % (br_ele['InternalAddrs'][0]['Public'][0]['Addr'],
-                                    br_ele['InternalAddrs'][0]['Public'][0]['L4Port']))
+                                   br_ele['InternalAddrs'][0]['Public'][0]['L4Port']))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
