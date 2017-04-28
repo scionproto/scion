@@ -15,25 +15,13 @@ ASes:
 CAs:
   CA1-1:
     ISD: 1
-    countryName: US
-    stateOrProvinceName: Minnesota
-    localityName: Minnetonka
-    organizationName: my company
-    organizationalUnitName: my organization
+    commonName: CA1-1
   CA1-2:
     ISD: 1
-    countryName: US
-    stateOrProvinceName: Minnesota
-    localityName: Minnetonka
-    organizationName: my company
-    organizationalUnitName: my organization
+    commonName: CA1-2
   CA1-3:
     ISD: 1
-    countryName: US
-    stateOrProvinceName: Minnesota
-    localityName: Minnetonka
-    organizationName: my company
-    organizationalUnitName: my organization
+    commonName: CA1-3
 links:
   - {a: 1-11, b: 1-12, ltype: PARENT, mtu: 1280}
   - {a: 1-11, b: 1-13, ltype: PARENT, bw: 500}
