@@ -16,6 +16,7 @@
 ===========================
 """
 # Stdlib
+from collections import defaultdict
 import struct
 
 # External packages
@@ -25,7 +26,6 @@ import capnp  # noqa
 # SCION
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate_chain import CertificateChain
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONSigVerError
 from lib.flagtypes import PathSegFlags as PSF
@@ -94,11 +94,10 @@ class ASMarking(Cerealizable):
 
     @classmethod
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
-                    cert_chain, ifid_size=12):
+                    ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu,
-            chain=cert_chain.pack(lz4_=True))
+            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu)
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
@@ -114,9 +113,6 @@ class ASMarking(Cerealizable):
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
 
-    def chain(self):  # pragma: no cover
-        return CertificateChain.from_raw(self.p.chain, lz4_=True)
-
     def add_ext(self, ext):  # pragma: no cover
         """
         Appends a new ASMarking extension.
@@ -125,12 +121,12 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def sig_pack8(self):
+    def sig_pack7(self):
         """
         Pack for signing version 8 (defined by highest field number).
         """
         b = []
-        if self.VER != 8:
+        if self.VER != 7:
             raise SCIONSigVerError(
                 "ASMarking.sig_pack8 cannot support version %s", self.VER)
         b.append(self.p.isdas.to_bytes(4, 'big'))
@@ -141,20 +137,7 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        b.append(self.p.chain)
         return b"".join(b)
-
-    def remove_sig(self):  # pragma: no cover
-        """
-        Removes the signature from the AS block.
-        """
-        self.p.sig = b''
-
-    def remove_chain(self):  # pragma: no cover
-        """
-        Removes the certificate chain from the AS block.
-        """
-        self.p.chain = b''
 
     def short_desc(self):
         desc = []
@@ -165,7 +148,6 @@ class ASMarking(Cerealizable):
                 desc.append("  %s" % line)
         desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
         desc.append("  sig=%s" % self.p.sig)
-        desc.append("  chain=%s" % self.p.chain)
         return "\n".join(desc)
 
 
@@ -220,13 +202,12 @@ class PathSegment(SCIONPayloadBaseProto):
         b.append(self.p.info)
         # ifID field is changed on the fly, and so is ignored.
         for asm in self.iter_asms():
-            b.append(asm.sig_pack8())
+            b.append(asm.sig_pack7())
         if self.is_sibra():
             b.append(self.sibra_ext.sig_pack3())
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
-        assert not self.p.asms[-1].sig
         sig = sign(self.sig_pack3(), key)
         if set_:
             self.p.asms[-1].sig = sig
@@ -250,13 +231,19 @@ class PathSegment(SCIONPayloadBaseProto):
         self.p.exts.sibra = ext_p.copy()
         self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
-    def remove_crypto(self):  # pragma: no cover
+    def get_trcs_certs(self):
         """
-        Removes the signatures and certificates from each AS block.
+        Returns a dict of all trcs' versions and a dict of all certificates'
+        versions used in this PCB.
         """
+        trcs = defaultdict(set)
+        certs = defaultdict(set)
         for asm in self.iter_asms():
-            asm.remove_sig()
-            asm.remove_chain()
+            isd_as = asm.isd_as()
+            isd = isd_as[0]
+            trcs[isd].add(asm.p.trcVer)
+            certs[isd_as].add(asm.p.certVer)
+        return trcs, certs
 
     def get_path(self, reverse_direction=False):
         """
@@ -366,6 +353,9 @@ class PathSegment(SCIONPayloadBaseProto):
             for line in str(self.sibra_ext).splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
+
+    def __eq__(self, other):
+        return self.__hash__() == hash(other)
 
     def __hash__(self):  # pragma: no cover
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?

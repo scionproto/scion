@@ -19,6 +19,7 @@
 from collections import defaultdict
 import glob
 import logging
+import threading
 
 # SCION
 from lib.crypto.certificate_chain import CertificateChain
@@ -32,6 +33,8 @@ class TrustStore(object):
         self._dir = "%s/%s" % (conf_dir, CERT_DIR)
         self._certs = defaultdict(list)
         self._trcs = defaultdict(list)
+        self._trcs_lock = threading.Lock()
+        self._certs_lock = threading.Lock()
         self._init_trcs()
         self._init_certs()
 
@@ -48,12 +51,14 @@ class TrustStore(object):
             logging.debug("Loaded: %s" % path)
 
     def get_trc(self, isd, version=None):
-        if not self._trcs[isd]:
-            return None
-        if version is None:  # Return the most recent TRC.
-            _, trc = sorted(self._trcs[isd])[-1]
-            return trc
-        else:  # Try to find a TRC with given version.
+        with self._trcs_lock:
+            if not self._trcs[isd]:
+                return None
+            if version is None:
+                # Return the most recent TRC.
+                _, trc = max(self._trcs[isd])
+                return trc
+            # Otherwise, try to find a TRC with given version.
             for ver, trc in self._trcs[isd]:
                 if version == ver:
                     return trc
@@ -67,12 +72,14 @@ class TrustStore(object):
         return res
 
     def get_cert(self, isd_as, version=None):
-        if not self._certs[isd_as]:
-            return None
-        if version is None:  # Return the most recent cert.
-            _, cert = sorted(self._certs[isd_as])[-1]
-            return cert
-        else:  # Try to find a cert with given version.
+        with self._certs_lock:
+            if not self._certs[isd_as]:
+                return None
+            if version is None:
+                # Return the most recent cert.
+                _, cert = max(self._certs[isd_as])
+                return cert
+            # Otherwise, try to find a cert with given version.
             for ver, cert in self._certs[isd_as]:
                 if version == ver:
                     return cert
@@ -80,19 +87,21 @@ class TrustStore(object):
 
     def add_trc(self, trc, write=True):
         isd, version = trc.get_isd_ver()
-        for ver, _ in self._trcs[isd]:
-            if version == ver:
-                return
-        self._trcs[isd].append((version, trc))
+        with self._trcs_lock:
+            for ver, _ in self._trcs[isd]:
+                if version == ver:
+                    return
+            self._trcs[isd].append((version, trc))
         if write:
             write_file("%s/ISD%s-V%s.trc" % (self._dir, isd, version), str(trc))
 
     def add_cert(self, cert, write=True):
         isd_as, version = cert.get_leaf_isd_as_ver()
-        for ver, _ in self._certs[isd_as]:
-            if version == ver:
-                return
-        self._certs[isd_as].append((version, cert))
+        with self._certs_lock:
+            for ver, _ in self._certs[isd_as]:
+                if version == ver:
+                    return
+            self._certs[isd_as].append((version, cert))
         if write:
             write_file("%s/ISD%s-AS%s-V%s.crt" %
                        (self._dir, isd_as[0], isd_as[1], version),

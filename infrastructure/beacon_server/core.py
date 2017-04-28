@@ -17,12 +17,12 @@
 """
 # Stdlib
 import logging
-from _collections import defaultdict
+from collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
-from lib.errors import SCIONParseError, SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
@@ -89,8 +89,9 @@ class CoreBeaconServer(BeaconServer):
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
         beacons = []
-        for ps in self.core_beacons.values():
-            beacons.extend(ps.get_best_segments())
+        with self._rev_seg_lock:
+            for ps in self.core_beacons.values():
+                beacons.extend(ps.get_best_segments())
         for pcb in beacons:
             core_count += self.propagate_core_pcb(pcb)
         if core_count:
@@ -104,7 +105,6 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment contained in 'pcb' with the local core path
         server.
         """
-        pcb.remove_crypto()
         pcb.sign(self.signing_key)
         # Register core path with local core path server.
         try:
@@ -118,26 +118,6 @@ class CoreBeaconServer(BeaconServer):
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
         meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(records, meta)
-
-    def process_pcbs(self, pcbs, raw=True):
-        """
-        Process new beacons and appends them to beacon list.
-        """
-        count = 0
-        for pcb in pcbs:
-            if raw:
-                try:
-                    pcb = PathSegment.from_raw(pcb)
-                except SCIONParseError as e:
-                    logging.error("Unable to parse raw pcb: %s", e)
-                    continue
-            if not self._filter_pcb(pcb):
-                count += 1
-                continue
-            self._try_to_verify_beacon(pcb)
-            self.handle_ext(pcb)
-        if count:
-            logging.debug("Dropped %d looping Core Segment PCBs", count)
 
     def _filter_pcb(self, pcb, dst_ia=None):
         """
@@ -172,20 +152,6 @@ class CoreBeaconServer(BeaconServer):
             isds.add(curr_isd)
         return True
 
-    def _check_trc(self, isd_as, trc_ver):
-        """
-        Return True or False whether the necessary TRC file is found.
-
-        :param ISD_AS isd_as: ISD-AS identifier.
-        :param int trc_ver: TRC file version.
-        :returns: True if the files exist, False otherwise.
-        :rtype: bool
-        """
-        return bool(self._get_trc(isd_as, trc_ver))
-
-    def process_cert_chain_rep(self, cert_chain_rep, meta):
-        raise NotImplementedError
-
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
@@ -193,15 +159,17 @@ class CoreBeaconServer(BeaconServer):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        self.core_beacons[pcb.first_ia()].add_segment(pcb)
+        with self._rev_seg_lock:
+            self.core_beacons[pcb.first_ia()].add_segment(pcb)
 
     def register_core_segments(self):
         """
         Register the core segment between core ASes.
         """
         core_segments = []
-        for ps in self.core_beacons.values():
-            core_segments.extend(ps.get_best_segments(sending=False))
+        with self._rev_seg_lock:
+            for ps in self.core_beacons.values():
+                core_segments.extend(ps.get_best_segments(sending=False))
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
@@ -214,9 +182,10 @@ class CoreBeaconServer(BeaconServer):
 
     def _remove_revoked_pcbs(self, rev_info):
         candidates = []
-        for ps in self.core_beacons.values():
-            candidates += ps.candidates
-        to_remove = self._pcb_list_to_remove(candidates, rev_info)
-        # Remove the affected segments from the path stores.
-        for ps in self.core_beacons.values():
-            ps.remove_segments(to_remove)
+        with self._rev_seg_lock:
+            for ps in self.core_beacons.values():
+                candidates += ps.candidates
+            to_remove = self._pcb_list_to_remove(candidates, rev_info)
+            # Remove the affected segments from the path stores.
+            for ps in self.core_beacons.values():
+                ps.remove_segments(to_remove)
