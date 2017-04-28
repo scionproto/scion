@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+from sys import maxsize
 
 # SCION
 from lib.defines import (
@@ -30,7 +31,7 @@ from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scion_addr import ISD_AS
 from lib.types import LinkType
-from lib.util import load_yaml_file
+from lib.util import load_json_file
 
 
 class Element(object):
@@ -41,18 +42,26 @@ class Element(object):
     :ivar HostAddrBase addr: Host address of a server or border router.
     :ivar str name: element name or id
     """
-    def __init__(self, addr=None, port=None, name=None):
+    def __init__(self, public=None, bind=None, name=None):
         """
         :param str addr: (addr_type, address) of the element's Host address.
         :param str name: element name or id
         """
-        self.addr = None
-        if addr:
-            self.addr = haddr_parse_interface(addr)
-        self.port = port
+        self.public = self._parse_addrs(public)
+        self.bind = self._parse_addrs(bind)
         self.name = None
         if name is not None:
             self.name = str(name)
+
+    def _parse_addrs(self, value):
+        if not value:
+            return []
+        addrs = []
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+        for val in value:
+            addrs.append((haddr_parse_interface(val['Addr']), val['L4Port']))
+        return addrs
 
 
 class ServerElement(Element):
@@ -62,7 +71,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict['Addr'], server_dict.get('Port'), name)
+        super().__init__(server_dict['Public'], server_dict.get('Bind'), name)
 
 
 class InterfaceElement(Element):
@@ -77,26 +86,24 @@ class InterfaceElement(Element):
         the port number receiving UDP traffic on the other end of the link.
     :ivar int udp_port: the port number used to send UDP traffic.
     """
-    def __init__(self, interface_dict, name=None):
+    def __init__(self, if_id, interface_dict, name=None):
         """
         :param dict interface_dict: contains information about the interface.
         """
-        super().__init__(interface_dict['Addr'], name)
-        self.if_id = interface_dict['IFID']
+        self.internaladdridx = int(interface_dict['InternalAddrIdx'])
+        self.overlay = interface_dict['Overlay']
+        self.bandwidth = int(interface_dict['Bandwidth'])
         self.isd_as = ISD_AS(interface_dict['ISD_AS'])
         self.link_type = interface_dict['LinkType']
-        self.to_udp_port = interface_dict['ToUdpPort']
-        self.udp_port = interface_dict['UdpPort']
-        self.bandwidth = interface_dict['Bandwidth']
-        self.mtu = interface_dict['MTU']
-        to_addr = interface_dict['ToAddr']
-        self.to_addr = None
-        if to_addr:
-            self.to_addr = haddr_parse_interface(to_addr)
+        self.mtu = int(interface_dict['MTU'])
+        self.remote = self._parse_addrs(interface_dict['Remote'])
+        self.if_id = if_id
         self.to_if_id = 0  # Filled in later by IFID packets
+        super().__init__(interface_dict['Public'], interface_dict.get('Bind'),
+                         name)
 
 
-class RouterElement(Element):
+class RouterElement(object):
     """
     The RouterElement class represents one of the border routers.
     """
@@ -105,11 +112,20 @@ class RouterElement(Element):
         :param dict router_dict: contains information about an border router.
         :param str name: router element name or id
         """
-        super().__init__(router_dict['Addr'], router_dict['Port'], name)
-        self.interface = InterfaceElement(router_dict['Interface'])
+        self.name = name
+        self.internaladdrs = []
+        for attr in router_dict['InternalAddrs']:
+            self.internaladdrs.append(Element(attr['Public'], attr.get('Bind')))
+        self.interfaces = {}
+        self._order_id = maxsize
+        for if_id, intf in router_dict['Interfaces'].items():
+            if_id = int(if_id)
+            self.interfaces[if_id] = InterfaceElement(if_id, intf)
+            if if_id < self._order_id:
+                self._order_id = if_id
 
     def __lt__(self, other):  # pragma: no cover
-        return self.interface.if_id < other.interface.if_id
+        return self._order_id < other._order_id
 
 
 class Topology(object):
@@ -151,7 +167,7 @@ class Topology(object):
 
         :param str topology_file: path to the topology file
         """
-        return cls.from_dict(load_yaml_file(topology_file))
+        return cls.from_dict(load_json_file(topology_file))
 
     @classmethod
     def from_dict(cls, topology_dict):  # pragma: no cover
@@ -181,10 +197,10 @@ class Topology(object):
 
     def _parse_srv_dicts(self, topology):
         for type_, list_ in (
-            ("BeaconServers", self.beacon_servers),
-            ("CertificateServers", self.certificate_servers),
-            ("PathServers", self.path_servers),
-            ("SibraServers", self.sibra_servers),
+            ("BeaconService", self.beacon_servers),
+            ("CertificateService", self.certificate_servers),
+            ("PathService", self.path_servers),
+            ("SibraService", self.sibra_servers),
         ):
             for k, v in topology[type_].items():
                 list_.append(ServerElement(v, k))
@@ -198,12 +214,13 @@ class Topology(object):
                 LinkType.PEER: self.peer_border_routers,
                 LinkType.CORE: self.core_border_routers,
             }
-            ntype_map[router.interface.link_type].append(router)
+            for intf in router.interfaces.values():
+                ntype_map[intf.link_type].append(router)
 
     def _parse_zk_dicts(self, topology):
-        for zk in topology['Zookeepers'].values():
+        for zk in topology['ZookeeperService'].values():
             haddr = haddr_parse_interface(zk['Addr'])
-            zk_host = "[%s]:%s" % (haddr, zk['Port'])
+            zk_host = "[%s]:%s" % (haddr, zk['L4Port'])
             self.zookeepers.append(zk_host)
 
     def get_all_border_routers(self):

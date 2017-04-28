@@ -22,6 +22,8 @@ import os
 import queue
 import threading
 import time
+from struct import unpack
+from socket import inet_aton
 from collections import defaultdict
 
 # SCION
@@ -33,6 +35,7 @@ from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     PATH_SERVICE,
+    ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SERVICE_TYPES,
     SIBRA_SERVICE,
@@ -110,7 +113,7 @@ class SCIONElement(object):
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
     USE_TCP = False
 
-    def __init__(self, server_id, conf_dir, host_addr=None, port=None):
+    def __init__(self, server_id, conf_dir, public=None, bind=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -123,7 +126,6 @@ class SCIONElement(object):
         self.id = server_id
         self.conf_dir = conf_dir
         self.ifid2br = {}
-        self._port = port
         self.topology = Topology.from_file(
             os.path.join(self.conf_dir, TOPO_FILE))
         self.config = Config.from_file(
@@ -131,14 +133,25 @@ class SCIONElement(object):
         # Must be over-ridden by child classes:
         self.CTRL_PLD_CLASS_MAP = {}
         self.SCMP_PLD_CLASS_MAP = {}
-        if self.SERVICE_TYPE:
+        self.public = []
+        self.bind = []
+        if public is None:
             own_config = self.topology.get_own_config(self.SERVICE_TYPE,
                                                       server_id)
-            if host_addr is None:
-                host_addr = own_config.addr
-            if self._port is None:
-                self._port = own_config.port
-        self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+            if self.SERVICE_TYPE is ROUTER_SERVICE:
+                for addr in own_config.internaladdrs:
+                    self.public.extend(self._parse_addrs(addr.public))
+                    self.bind.extend(self._parse_addrs(addr.bind))
+            else:
+                self.public = self._parse_addrs(own_config.public)
+                self.bind = self._parse_addrs(own_config.bind)
+        else:
+            self.public = self._parse_addrs(public)
+            self.bind = self._parse_addrs(bind)
+        # Default address and port.
+        # They should be over-ridden in case the child classes have
+        # more than one public addresses or interfaces.
+        self.addr, self._port = self.public[0]
         self.init_ifid2br()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
@@ -157,49 +170,74 @@ class SCIONElement(object):
         else:
             self.DefaultMeta = UDPMetadata
 
+    def _parse_addrs(self, value):
+        if not value:
+            return []
+        addrs = []
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+        for addr, port in value:
+            addrs.append((SCIONAddr.from_values(self.topology.isd_as, addr),
+                         port))
+        return addrs
+
     def _setup_sockets(self, init):
         """
         Setup incoming socket and register with dispatcher
         """
         self._tcp_sock = None
         self._tcp_new_conns = queue.Queue(MAX_QUEUE)  # New TCP connections.
-        if self._port is None:
+        if self.public is None:
             # No scion socket desired.
             return
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
         # Setup TCP "accept" socket.
         self._setup_tcp_accept_socket(svc)
         # Setup UDP socket
-        self._udp_sock = ReliableSocket(
-            reg=(self.addr, self._port, init, svc))
-        if not self._udp_sock.registered:
-            self._udp_sock = None
-            return
-        self._port = self._udp_sock.port
-        self._socks.add(self._udp_sock, self.handle_recv)
+        self._setup_udp_reliable_socket(init, svc)
 
     def _setup_tcp_accept_socket(self, svc):
         if not self.USE_TCP:
             return
+        self._tcp_sock = []
         MAX_TRIES = 40
-        for i in range(MAX_TRIES):
-            try:
-                self._tcp_sock = SCIONTCPSocket()
-                self._tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
-                self._tcp_sock.set_recv_tout(TCP_ACCEPT_POLLING_TOUT)
-                self._tcp_sock.bind((self.addr, self._port), svc=svc)
-                self._tcp_sock.listen()
-                break
-            except SCIONTCPError as e:
-                logging.warning("TCP: Cannot connect to LWIP socket: %s" % e)
-            time.sleep(1)  # Wait for dispatcher
-        else:
-            logging.critical("TCP: cannot init TCP socket.")
-            kill_self()
+        for addr, port in self.public:
+            for i in range(MAX_TRIES):
+                try:
+                    _tcp_sock = SCIONTCPSocket()
+                    _tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
+                    _tcp_sock.set_recv_tout(TCP_ACCEPT_POLLING_TOUT)
+                    _tcp_sock.bind((addr, port), svc=svc)
+                    _tcp_sock.listen()
+                    self._tcp_sock.append(_tcp_sock)
+                    break
+                except SCIONTCPError as e:
+                    logging.warning("TCP: Cannot connect to LWIP socket: %s"
+                                    % e)
+                time.sleep(1)  # Wait for dispatcher
+            else:
+                logging.critical("TCP: cannot init TCP socket.")
+                kill_self()
+
+    def _setup_udp_reliable_socket(self, init, svc):
+        self._udp_sock = {}
+        for addr, port in self.public:
+            udp_sock = ReliableSocket(
+                reg=(addr, port, init, svc))
+            sock_id = self.ip2int(addr)
+            if not udp_sock.registered:
+                self._udp_sock[sock_id] = None
+                continue
+            self._udp_sock[sock_id] = udp_sock
+            self._socks.add(udp_sock, self.handle_recv)
+
+    def ip2int(self, addr):
+        return unpack("!I", inet_aton(str(addr.host)))[0]
 
     def init_ifid2br(self):
         for br in self.topology.get_all_border_routers():
-            self.ifid2br[br.interface.if_id] = br
+            for ifid in br.interfaces:
+                self.ifid2br[ifid] = br
 
     def init_core_ases(self):
         """
@@ -377,7 +415,10 @@ class SCIONElement(object):
             if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
             br = self.ifid2br[if_id]
-            return br.addr, br.port
+            if br.interfaces[if_id]:
+                addr_idx = br.interfaces[if_id].internaladdridx
+                addr, port = br.internaladdrs[addr_idx].public[0]
+                return addr, port
         logging.error("Unable to find first hop:\n%s", path)
         return None, None
 
@@ -429,7 +470,8 @@ class SCIONElement(object):
         assert isinstance(dst_port, int), dst_port
         if not self._udp_sock:
             return False
-        return self._udp_sock.send(packet.pack(), (dst, dst_port))
+        sock_id = self.ip2int(packet.addrs.src)
+        return self._udp_sock[sock_id].send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
         assert isinstance(meta, MetadataBase)
@@ -595,9 +637,10 @@ class SCIONElement(object):
         if packet is None:
             self._socks.remove(sock)
             sock.close()
-            if sock == self._udp_sock:
-                self._udp_sock = None
-            return
+            for sock_id, udp_sock in self._udp_sock.items():
+                if sock == udp_sock:
+                    self._udp_sock[sock_id] = None
+                return
         self.packet_put(packet, addr, sock)
 
     def packet_recv(self):
@@ -717,7 +760,10 @@ class SCIONElement(object):
             SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
-        results = [(srv.addr, srv.port) for srv in service_map[qname]]
+        results = []
+        for srv in service_map[qname]:
+            for addr, port in srv.public:
+                results.append((addr, port))
         # FIXME(kormat): replace with new discovery service when that's ready.
         #  results = self._dns.query(qname, fallback, self._quiet_startup())
         if not results:
