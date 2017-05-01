@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the router's representation of the end-2-end SCMPAuth
+// This file contains the router's representation of the end-to-end SCMPAuthHashTree
 // extension.
 
 package rpkt
@@ -36,8 +36,9 @@ type rSCMPAuthHashTreeExt struct {
 func rSCMPAuthHashTreeExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthHashTreeExt, *common.Error) {
 	raw := rp.Raw[start:end]
 	mode := raw[0]
-	if mode != pkt_sec_extn.SCMP_AUTH_HASH_TREE {
-		return nil, common.NewError("SecMode not supported", "mode", mode)
+	if mode != spse.ScmpAuthHashTree {
+		return nil, common.NewError("SecMode not supported", "mode", mode,
+			"expected", spse.ScmpAuthHashTree)
 	}
 	s := &rSCMPAuthHashTreeExt{
 		&rSCIONPacketSecurityBaseExt{rp: rp, raw: raw, start: start, SecMode: mode}}
@@ -46,12 +47,12 @@ func rSCMPAuthHashTreeExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthHashTree
 }
 
 func (s *rSCMPAuthHashTreeExt) String() string {
-	// Delegate string representation to spkt.SCMPAuthHashTreeExtn
-	e, err := s.GetExtn()
+	// Delegate string representation to scmp.AuthHashTreeExtn
+	extn, err := s.GetExtn()
 	if err != nil {
 		return fmt.Sprintf("SCMPAuthHashTree - %v: %v", err.Desc, err.String())
 	}
-	return e.String()
+	return extn.String()
 }
 
 func (s *rSCMPAuthHashTreeExt) RegisterHooks(h *hooks) *common.Error {
@@ -60,11 +61,13 @@ func (s *rSCMPAuthHashTreeExt) RegisterHooks(h *hooks) *common.Error {
 }
 
 func (s *rSCMPAuthHashTreeExt) Validate() (HookResult, *common.Error) {
-	if s.SecMode != pkt_sec_extn.SCMP_AUTH_HASH_TREE {
-		return HookError, common.NewError("SecMode not supported", "mode", s.SecMode)
+	if s.SecMode != spse.ScmpAuthHashTree {
+		return HookError, common.NewError("SecMode not supported", "mode", s.SecMode,
+			"expected", spse.ScmpAuthHashTree)
 	}
 	if len(s.raw) != s.TotalLength() {
-		return HookError, common.NewError("Invalid header length", "len", len(s.raw))
+		return HookError, common.NewError("Invalid header length", "len", len(s.raw),
+			"expected", s.TotalLength())
 	}
 	return HookContinue, nil
 }
@@ -72,68 +75,70 @@ func (s *rSCMPAuthHashTreeExt) Validate() (HookResult, *common.Error) {
 // GetExtn returns the spkt.Security representation,
 // which does not have direct access to the underling buffer.
 func (s *rSCMPAuthHashTreeExt) GetExtn() (common.Extension, *common.Error) {
-	c := scmp_auth_extn.NewSCMPAuthHashTreeExtn(s.Height())
-	c.UpdateOrder(s.Order())
-	c.UpdateSignature(s.Signature())
-	c.UpdateHashes(s.Hashes())
-	return c, nil
+	extn := scmp.NewAuthHashTreeExtn(s.Height())
+	extn.SetOrder(s.Order())
+	extn.SetSignature(s.Signature())
+	extn.SetHashes(s.Hashes())
+	return extn, nil
 }
 
-func (s *rSCMPAuthHashTreeExt) UpdateHeight(height uint8) {
-	s.raw[scmp_auth_extn.HEIGHT_OFFSET] = height
+func (s *rSCMPAuthHashTreeExt) SetHeight(height uint8) {
+	s.raw[scmp.HeightOffset] = height
 }
 
 func (s *rSCMPAuthHashTreeExt) Height() uint8 {
-	return s.raw[scmp_auth_extn.HEIGHT_OFFSET]
+	return s.raw[scmp.HeightOffset]
 }
 
 func (s *rSCMPAuthHashTreeExt) TotalLength() int {
 	return totalLength(s.Height())
 }
 
-func (s *rSCMPAuthHashTreeExt) UpdateOrder(order common.RawBytes) *common.Error {
-	if len(order) != scmp_auth_extn.ORDER_LENGTH {
-		return common.NewError("Invalid order length.", "len", len(order))
+func (s *rSCMPAuthHashTreeExt) SetOrder(order common.RawBytes) *common.Error {
+	if len(order) != scmp.OrderLength {
+		return common.NewError("Invalid order length.", "len", len(order),
+			"expected", scmp.OrderLength)
 	}
-	copy(s.raw[scmp_auth_extn.ORDER_OFFSET:scmp_auth_extn.SIGNATURE_OFFSET], order)
+	copy(s.raw[scmp.OrderOffset:scmp.SignatureOffset], order)
 	return nil
 
 }
 
 func (s *rSCMPAuthHashTreeExt) Order() common.RawBytes {
-	return s.raw[scmp_auth_extn.ORDER_OFFSET:scmp_auth_extn.SIGNATURE_OFFSET]
+	return s.raw[scmp.OrderOffset:scmp.SignatureOffset]
 }
 
-func (s *rSCMPAuthHashTreeExt) UpdateSignature(signature common.RawBytes) *common.Error {
-	if len(signature) != scmp_auth_extn.SIGNATURE_LENGTH {
-		return common.NewError("Invalid signature length.", "len", len(signature))
+func (s *rSCMPAuthHashTreeExt) SetSignature(signature common.RawBytes) *common.Error {
+	if len(signature) != scmp.SignatureLength {
+		return common.NewError("Invalid signature length.", "len", len(signature),
+			"expected", scmp.SignatureLength)
 	}
-	copy(s.raw[scmp_auth_extn.SIGNATURE_OFFSET:scmp_auth_extn.HASHES_OFFSET], signature)
+	copy(s.raw[scmp.SignatureOffset:scmp.HashesOffset], signature)
 	return nil
 }
 
 func (s *rSCMPAuthHashTreeExt) Signature() common.RawBytes {
-	return s.raw[scmp_auth_extn.SIGNATURE_OFFSET:scmp_auth_extn.HASHES_OFFSET]
+	return s.raw[scmp.SignatureOffset:scmp.HashesOffset]
 }
 
-func (s *rSCMPAuthHashTreeExt) UpdateHashes(hashes common.RawBytes) *common.Error {
+func (s *rSCMPAuthHashTreeExt) SetHashes(hashes common.RawBytes) *common.Error {
 	if len(hashes) != hashesLength(s.Height()) {
 		return common.NewError("Invalid hashes length", "len", len(hashes),
-			"expected len", hashesLength(s.Height()))
+			"expected", hashesLength(s.Height()))
 	}
-	copy(s.raw[scmp_auth_extn.HASHES_OFFSET:s.TotalLength()], hashes)
+	copy(s.raw[scmp.HashesOffset:s.TotalLength()], hashes)
 	return nil
 
 }
 
 func (s *rSCMPAuthHashTreeExt) Hashes() common.RawBytes {
-	return s.raw[scmp_auth_extn.HASHES_OFFSET:s.TotalLength()]
+	return s.raw[scmp.HashesOffset:s.TotalLength()]
 }
 
 func hashesLength(height uint8) int {
-	return int(height) * scmp_auth_extn.HASH_LENGTH
+	return int(height) * scmp.HashLength
 }
 
 func totalLength(height uint8) int {
-	return scmp_auth_extn.HASHES_OFFSET + hashesLength(height)
+	return scmp.HashesOffset + hashesLength(height)
 }
