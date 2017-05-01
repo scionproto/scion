@@ -23,7 +23,7 @@
 //    len(Metadata)      = 4 + 8i , where i in [0,1,...]
 //    len(Authenticator) = 8i     , where i in [1,2,...]
 
-package pkt_sec_extn
+package spse
 
 import (
 	"bytes"
@@ -32,93 +32,93 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-var _ common.Extension = (*SCIONPacketSecurityExtn)(nil)
+var _ common.Extension = (*Extn)(nil)
 
-type SCIONPacketSecurityBaseExtn struct {
+type BaseExtn struct {
 	SecMode uint8
 }
 
-type SCIONPacketSecurityExtn struct {
-	*SCIONPacketSecurityBaseExtn
+type Extn struct {
+	*BaseExtn
 	Metadata      common.RawBytes
 	Authenticator common.RawBytes
 }
 
 const (
 	// Basic definitions
-	SECMODE_LENGTH   = 1
-	TIMESTAMP_LENGTH = 4
+	SecModeLength   = 1
+	TimestampLength = 4
 
 	// SecMode codes
-	AES_CMAC            uint8 = 0
-	HMAC_SHA256         uint8 = 1
-	ED25519             uint8 = 2
-	GCM_AES128          uint8 = 3
-	SCMP_AUTH_DRKEY     uint8 = 4
-	SCMP_AUTH_HASH_TREE uint8 = 5
+	AesCMac          uint8 = 0
+	HmacSha256       uint8 = 1
+	ED25519          uint8 = 2
+	GcmAes128        uint8 = 3
+	ScmpAuthDRKey    uint8 = 4
+	ScmpAuthHashTree uint8 = 5
 
 	// Metadata length (Shall be 4 + i*8, were i in [0,1,...])
-	AES_CMAC_META_LENGTH    = TIMESTAMP_LENGTH
-	HMAC_SHA256_META_LENGTH = TIMESTAMP_LENGTH
-	ED25519_META_LENGTH     = TIMESTAMP_LENGTH
-	GCM_AES128_META_LENGTH  = TIMESTAMP_LENGTH
+	AesCMacMetaLength    = TimestampLength
+	HmacSha256MetaLength = TimestampLength
+	ED25519MetaLength    = TimestampLength
+	GcmAes128MetaLength  = TimestampLength
 
 	// Authenticator length
-	AES_CMAC_AUTH_LENGTH    = 16
-	HMAC_SHA256_AUTH_LENGTH = 32
-	ED25519_AUTH_LENGTH     = 64
-	GCM_AES128_AUTH_LENGTH  = 16
+	AesCMacAuthLength    = 16
+	HmacSha256AuthLength = 32
+	ED25519AuthLength    = 64
+	GcmAes128AuthLength  = 16
 
-	AES_CMAC_TOTAL_LENGTH    = SECMODE_LENGTH + AES_CMAC_META_LENGTH + AES_CMAC_AUTH_LENGTH
-	HMAC_SHA256_TOTAL_LENGTH = SECMODE_LENGTH + HMAC_SHA256_META_LENGTH + HMAC_SHA256_AUTH_LENGTH
-	ED25519_TOTAL_LENGTH     = SECMODE_LENGTH + ED25519_META_LENGTH + ED25519_AUTH_LENGTH
-	GCM_AES128_TOTAL_LENGTH  = SECMODE_LENGTH + GCM_AES128_META_LENGTH + GCM_AES128_AUTH_LENGTH
+	AesCMacTotalLength    = SecModeLength + AesCMacMetaLength + AesCMacAuthLength
+	HmacSha256TotalLength = SecModeLength + HmacSha256MetaLength + HmacSha256AuthLength
+	ED25519TotalLength    = SecModeLength + ED25519MetaLength + ED25519AuthLength
+	GcmAes128TotalLength  = SecModeLength + GcmAes128MetaLength + GcmAes128AuthLength
 )
 
 func IsSupported(mode uint8) bool {
 	switch mode {
-	case AES_CMAC:
-	case HMAC_SHA256:
+	case AesCMac:
+	case HmacSha256:
 	case ED25519:
-	case GCM_AES128:
+	case GcmAes128:
 	default:
 		return false
 	}
 	return true
 }
 
-func (s *SCIONPacketSecurityBaseExtn) Reverse() (bool, *common.Error) {
+func (s *BaseExtn) Reverse() (bool, *common.Error) {
 	// Nothing to do.
 	return true, nil
 }
 
-func (s *SCIONPacketSecurityBaseExtn) Class() common.L4ProtocolType {
+func (s *BaseExtn) Class() common.L4ProtocolType {
 	return common.End2EndClass
 }
 
-func (s *SCIONPacketSecurityBaseExtn) Type() common.ExtnType {
+func (s *BaseExtn) Type() common.ExtnType {
 	return common.ExtnSCIONPacketSecurityType
 }
 
-func NewSCIONPacketSecurityExtn(secMode uint8) (*SCIONPacketSecurityExtn, *common.Error) {
-	s := &SCIONPacketSecurityExtn{
-		SCIONPacketSecurityBaseExtn: &SCIONPacketSecurityBaseExtn{SecMode: secMode}}
+func NewSCIONPacketSecurityExtn(secMode uint8) (*Extn, *common.Error) {
+	s := &Extn{
+		BaseExtn: &BaseExtn{SecMode: secMode}}
 
 	var metaLen, authLen int
 
 	switch secMode {
-	case AES_CMAC:
-		metaLen = AES_CMAC_META_LENGTH
-		authLen = AES_CMAC_AUTH_LENGTH
-	case HMAC_SHA256:
-		metaLen = HMAC_SHA256_META_LENGTH
-		authLen = HMAC_SHA256_META_LENGTH
+	case AesCMac:
+		metaLen = AesCMacMetaLength
+		authLen = AesCMacAuthLength
+	case HmacSha256:
+		metaLen = HmacSha256MetaLength
+		authLen = HmacSha256MetaLength
 	case ED25519:
-		metaLen = ED25519_META_LENGTH
-		authLen = ED25519_AUTH_LENGTH
-	case GCM_AES128:
-		metaLen = GCM_AES128_META_LENGTH
-		authLen = GCM_AES128_AUTH_LENGTH
+		metaLen = ED25519MetaLength
+		authLen = ED25519AuthLength
+	case GcmAes128:
+		metaLen = GcmAes128MetaLength
+		authLen = GcmAes128AuthLength
 	default:
 		return nil, common.NewError("Invalid SecMode code.", "SecMode", secMode)
 	}
@@ -129,8 +129,8 @@ func NewSCIONPacketSecurityExtn(secMode uint8) (*SCIONPacketSecurityExtn, *commo
 	return s, nil
 }
 
-// Update the Metadata.
-func (s *SCIONPacketSecurityExtn) UpdateMetadata(metadata common.RawBytes) *common.Error {
+// Set the Metadata.
+func (s *Extn) SetMetadata(metadata common.RawBytes) *common.Error {
 	if len(s.Metadata) != len(metadata) {
 		return common.NewError("The length does not match",
 			"required len", len(s.Metadata), "provided len", len(metadata))
@@ -139,8 +139,8 @@ func (s *SCIONPacketSecurityExtn) UpdateMetadata(metadata common.RawBytes) *comm
 	return nil
 }
 
-// Update the Authenticator.
-func (s *SCIONPacketSecurityExtn) UpdateAuthenticator(authenticator common.RawBytes) *common.Error {
+// Set the Authenticator.
+func (s *Extn) SetAuthenticator(authenticator common.RawBytes) *common.Error {
 	if len(s.Authenticator) != len(authenticator) {
 		return common.NewError("The length does not match",
 			"required len", len(s.Authenticator), "provided len", len(authenticator))
@@ -149,21 +149,21 @@ func (s *SCIONPacketSecurityExtn) UpdateAuthenticator(authenticator common.RawBy
 	return nil
 }
 
-func (s *SCIONPacketSecurityExtn) Write(b common.RawBytes) *common.Error {
+func (s *Extn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
 		return common.NewError("Buffer too short", "method", "SCIONPacketSecurityExtn.Write")
 	}
 	b[0] = s.SecMode
 
-	authOffset := SECMODE_LENGTH + len(s.Metadata)
+	authOffset := SecModeLength + len(s.Metadata)
 	totalLength := authOffset + len(s.Authenticator)
 
-	copy(b[SECMODE_LENGTH:authOffset], s.Metadata)
+	copy(b[SecModeLength:authOffset], s.Metadata)
 	copy(b[authOffset:totalLength], s.Authenticator)
 	return nil
 }
 
-func (s *SCIONPacketSecurityExtn) Pack() (common.RawBytes, *common.Error) {
+func (s *Extn) Pack() (common.RawBytes, *common.Error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
@@ -171,20 +171,20 @@ func (s *SCIONPacketSecurityExtn) Pack() (common.RawBytes, *common.Error) {
 	return b, nil
 }
 
-func (s *SCIONPacketSecurityExtn) Copy() common.Extension {
+func (s *Extn) Copy() common.Extension {
 	c, _ := NewSCIONPacketSecurityExtn(s.SecMode)
 	copy(c.Metadata, s.Metadata)
 	copy(c.Authenticator, s.Authenticator)
 	return c
 }
 
-func (s *SCIONPacketSecurityExtn) Len() int {
-	return SECMODE_LENGTH + len(s.Metadata) + len(s.Authenticator)
+func (s *Extn) Len() int {
+	return SecModeLength + len(s.Metadata) + len(s.Authenticator)
 }
 
-func (s *SCIONPacketSecurityExtn) String() string {
+func (s *Extn) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "SCIONPacketSecurityExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
+	fmt.Fprintf(buf, "spse.Extn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
 	fmt.Fprintf(buf, " Metadata: %s", s.Metadata.String())
 	fmt.Fprintf(buf, " Authenticator: %s", s.Authenticator.String())
 	return buf.String()

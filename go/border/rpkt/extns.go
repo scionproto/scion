@@ -122,11 +122,11 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 	case extType == common.ExtnSCIONPacketSecurityType:
 		secMode := rp.Raw[start]
 		switch {
-		case pkt_sec_extn.IsSupported(secMode):
+		case spse.IsSupported(secMode):
 			return rSCIONPacketSecurityExtFromRaw(rp, start, end)
-		case secMode == pkt_sec_extn.SCMP_AUTH_DRKEY:
+		case secMode == spse.ScmpAuthDRKey:
 			return rSCMPAuthDRKeyExtFromRaw(rp, start, end)
-		case secMode == pkt_sec_extn.SCMP_AUTH_HASH_TREE:
+		case secMode == spse.ScmpAuthHashTree:
 			return rSCMPAuthHashTreeExtFromRaw(rp, start, end)
 		default:
 			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
@@ -141,7 +141,7 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 	}
 }
 
-// extnAddE2E adds a end-2-end extension to a packet the router is creating.
+// extnAddE2E adds a end-to-end extension to a packet the router is creating.
 func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
 	// Find the last hop-by-hop extension, if any, so the new one can be
 	// inserted after it.
