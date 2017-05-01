@@ -24,7 +24,7 @@
 //    +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 
-package scmp_auth_extn
+package scmp
 
 import (
 	"bytes"
@@ -34,101 +34,83 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
 )
 
-var _ common.Extension = (*SCMPAuthHashTreeExtn)(nil)
+var _ common.Extension = (*AuthHashTreeExtn)(nil)
 
-type SCMPAuthHashTreeExtn struct {
-	*pkt_sec_extn.SCIONPacketSecurityBaseExtn
-	height    uint8
-	order     common.RawBytes
-	signature common.RawBytes
-	hashes    common.RawBytes
+type AuthHashTreeExtn struct {
+	*spse.BaseExtn
+	Height    uint8
+	Order     common.RawBytes
+	Signature common.RawBytes
+	Hashes    common.RawBytes
 }
 
 const (
-	HEIGHT_LENGTH    = 1
-	ORDER_LENGTH     = 3
-	SIGNATURE_LENGTH = 64
-	HASH_LENGTH      = 16
+	HeightLength    = 1
+	OrderLength     = 3
+	SignatureLength = 64
+	HashLength      = 16
 
-	HEIGHT_OFFSET    = pkt_sec_extn.SECMODE_LENGTH
-	ORDER_OFFSET     = HEIGHT_OFFSET + HEIGHT_LENGTH
-	SIGNATURE_OFFSET = ORDER_OFFSET + ORDER_LENGTH
-	HASHES_OFFSET    = SIGNATURE_OFFSET + SIGNATURE_LENGTH
+	HeightOffset    = spse.SecModeLength
+	OrderOffset     = HeightOffset + HeightLength
+	SignatureOffset = OrderOffset + OrderLength
+	HashesOffset    = SignatureOffset + SignatureLength
 )
 
-func NewSCMPAuthHashTreeExtn(treeHeight uint8) *SCMPAuthHashTreeExtn {
-	s := &SCMPAuthHashTreeExtn{
-		SCIONPacketSecurityBaseExtn: &pkt_sec_extn.SCIONPacketSecurityBaseExtn{
-			SecMode: pkt_sec_extn.SCMP_AUTH_HASH_TREE}}
+func NewAuthHashTreeExtn(treeHeight uint8) *AuthHashTreeExtn {
+	s := &AuthHashTreeExtn{
+		BaseExtn: &spse.BaseExtn{
+			SecMode: spse.ScmpAuthHashTree}}
 
-	s.height = treeHeight
-	s.order = make(common.RawBytes, ORDER_LENGTH)
-	s.signature = make(common.RawBytes, SIGNATURE_LENGTH)
-	s.hashes = make(common.RawBytes, int(treeHeight)*HASH_LENGTH)
+	s.Height = treeHeight
+	s.Order = make(common.RawBytes, OrderLength)
+	s.Signature = make(common.RawBytes, SignatureLength)
+	s.Hashes = make(common.RawBytes, int(treeHeight)*HashLength)
 	return s
 }
 
-func (s SCMPAuthHashTreeExtn) UpdateHeight(height uint8) *common.Error {
-	s.height = height
-	return nil
-}
-
-func (s SCMPAuthHashTreeExtn) Height() uint8 {
-	return s.height
-}
-
-func (s SCMPAuthHashTreeExtn) UpdateOrder(order common.RawBytes) *common.Error {
-	if len(order) != ORDER_LENGTH {
-		return common.NewError("Invalid order length", "len", len(order))
+func (s AuthHashTreeExtn) SetOrder(order common.RawBytes) *common.Error {
+	if len(order) != OrderLength {
+		return common.NewError("Invalid order length", "len", len(order),
+			"expected", OrderLength)
 	}
-	copy(s.order, order)
+	copy(s.Order, order)
 	return nil
 
 }
 
-func (s SCMPAuthHashTreeExtn) Order() common.RawBytes {
-	return s.order
-}
-
-func (s SCMPAuthHashTreeExtn) UpdateSignature(signature common.RawBytes) *common.Error {
-	if len(signature) != SIGNATURE_LENGTH {
-		return common.NewError("Invalid signature length", "len", len(signature))
+func (s AuthHashTreeExtn) SetSignature(signature common.RawBytes) *common.Error {
+	if len(signature) != SignatureLength {
+		return common.NewError("Invalid signature length", "len", len(signature),
+			"expected", SignatureLength)
 	}
-	copy(s.signature, signature)
+	copy(s.Signature, signature)
 	return nil
 
 }
 
-func (s SCMPAuthHashTreeExtn) Signature() common.RawBytes {
-	return s.signature
-}
-
-func (s SCMPAuthHashTreeExtn) UpdateHashes(hashes common.RawBytes) *common.Error {
-	if len(hashes) != len(s.hashes) {
-		return common.NewError("Invalid length", "len", len(hashes), "epected", len(s.hashes))
+func (s AuthHashTreeExtn) SetHashes(hashes common.RawBytes) *common.Error {
+	if len(hashes) != len(s.Hashes) {
+		return common.NewError("Invalid hashes length", "len", len(hashes),
+			"expected", len(s.Hashes))
 	}
-	copy(s.hashes, hashes)
+	copy(s.Hashes, hashes)
 	return nil
 
 }
 
-func (s SCMPAuthHashTreeExtn) Hashes() common.RawBytes {
-	return s.hashes
-}
-
-func (s *SCMPAuthHashTreeExtn) Write(b common.RawBytes) *common.Error {
+func (s *AuthHashTreeExtn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
 		return common.NewError("Buffer too short", "method", "SCMPAuthHashTreeExtn.Write")
 	}
 	b[0] = s.SecMode
-	b[HEIGHT_OFFSET] = s.height
-	copy(b[ORDER_OFFSET:SIGNATURE_OFFSET], s.order)
-	copy(b[SIGNATURE_OFFSET:HASHES_OFFSET], s.signature)
-	copy(b[HASHES_OFFSET:], s.hashes)
+	b[HeightOffset] = s.Height
+	copy(b[OrderOffset:SignatureOffset], s.Order)
+	copy(b[SignatureOffset:HashesOffset], s.Signature)
+	copy(b[HashesOffset:], s.Hashes)
 	return nil
 }
 
-func (s *SCMPAuthHashTreeExtn) Pack() (common.RawBytes, *common.Error) {
+func (s *AuthHashTreeExtn) Pack() (common.RawBytes, *common.Error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
@@ -136,24 +118,24 @@ func (s *SCMPAuthHashTreeExtn) Pack() (common.RawBytes, *common.Error) {
 	return b, nil
 }
 
-func (s *SCMPAuthHashTreeExtn) Copy() common.Extension {
-	c := NewSCMPAuthHashTreeExtn(s.height)
-	copy(c.order, s.order)
-	copy(c.signature, s.signature)
-	copy(c.hashes, s.hashes)
+func (s *AuthHashTreeExtn) Copy() common.Extension {
+	c := NewAuthHashTreeExtn(s.Height)
+	copy(c.Order, s.Order)
+	copy(c.Signature, s.Signature)
+	copy(c.Hashes, s.Hashes)
 	return c
 }
 
-func (s *SCMPAuthHashTreeExtn) Len() int {
-	return HASHES_OFFSET + len(s.hashes)
+func (s *AuthHashTreeExtn) Len() int {
+	return HashesOffset + len(s.Hashes)
 }
 
-func (s *SCMPAuthHashTreeExtn) String() string {
+func (s *AuthHashTreeExtn) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "SCMPAuthHashTreeExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
-	fmt.Fprintf(buf, " Height: %x", s.height)
-	fmt.Fprintf(buf, " Order: %s", s.order.String())
-	fmt.Fprintf(buf, " Signature: %s", s.signature.String())
-	fmt.Fprintf(buf, " Hashes: %s", s.hashes.String())
+	fmt.Fprintf(buf, "AuthHashTreeExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
+	fmt.Fprintf(buf, " Height: %x", s.Height)
+	fmt.Fprintf(buf, " Order: %s", s.Order.String())
+	fmt.Fprintf(buf, " Signature: %s", s.Signature.String())
+	fmt.Fprintf(buf, " Hashes: %s", s.Hashes.String())
 	return buf.String()
 }
