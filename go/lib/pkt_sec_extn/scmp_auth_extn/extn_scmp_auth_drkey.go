@@ -24,7 +24,7 @@
 //    +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 
-package scmp_auth_extn
+package scmp
 
 import (
 	"bytes"
@@ -34,79 +34,71 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
 )
 
-var _ common.Extension = (*SCMPAuthDRKeyExtn)(nil)
+var _ common.Extension = (*AuthDRKeyExtn)(nil)
 
-type SCMPAuthDRKeyExtn struct {
-	*pkt_sec_extn.SCIONPacketSecurityBaseExtn
-	direction uint8
-	mac       common.RawBytes
+type AuthDRKeyExtn struct {
+	*spse.BaseExtn
+	Direction uint8
+	MAC       common.RawBytes
 }
 
 const (
-	DIRECTION_LENGTH = 1
-	PADDING_LENTH    = 3
-	MAC_LENGTH       = 16
+	DirectionLength = 1
+	PaddingLength   = 3
+	MACLength       = 16
 
-	DIRECTION_OFFSET   = pkt_sec_extn.SECMODE_LENGTH
-	MAC_OFFSET         = DIRECTION_OFFSET + DIRECTION_LENGTH + PADDING_LENTH
-	DRKEY_TOTAL_LENGTH = MAC_OFFSET + MAC_LENGTH
+	DirectionOffset  = spse.SecModeLength
+	MACOffset        = DirectionOffset + DirectionLength + PaddingLength
+	DRKeyTotalLength = MACOffset + MACLength
 )
 
 const (
-	AS_TO_AS              uint8 = iota // Signed with S -> D
-	AS_TO_HOST                         // Signed with S -> D:HD
-	HOST_TO_HOST                       // Signed with S:HS -> D:HD
-	HOST_TO_AS                         // Signed with D -> S:HS
-	AS_TO_AS_REVERSED                  // Signed with D -> S
-	HOST_TO_HOST_REVERSED              // Signed with D:HD -> S:HS
+	AsToAs             uint8 = iota // Signed with S -> D
+	AsToHost                        // Signed with S -> D:HD
+	HostToHost                      // Signed with S:HS -> D:HD
+	HostToAs                        // Signed with D -> S:HS
+	AsToAsReversed                  // Signed with D -> S
+	HostToHostReversed              // Signed with D:HD -> S:HS
 )
 
-func NewSCMPAuthDRKeyExtn() *SCMPAuthDRKeyExtn {
-	s := &SCMPAuthDRKeyExtn{
-		SCIONPacketSecurityBaseExtn: &pkt_sec_extn.SCIONPacketSecurityBaseExtn{
-			SecMode: pkt_sec_extn.SCMP_AUTH_DRKEY}}
-	s.mac = make(common.RawBytes, MAC_LENGTH)
+func NewAuthDRKeyExtn() *AuthDRKeyExtn {
+	s := &AuthDRKeyExtn{
+		BaseExtn: &spse.BaseExtn{
+			SecMode: spse.ScmpAuthDRKey}}
+	s.MAC = make(common.RawBytes, MACLength)
 	return s
 }
 
-func (s SCMPAuthDRKeyExtn) UpdateDirection(dir uint8) *common.Error {
-	if dir < 0 || dir >= HOST_TO_HOST_REVERSED {
+func (s AuthDRKeyExtn) SetDirection(dir uint8) *common.Error {
+	if dir < 0 || dir >= HostToHostReversed {
 		return common.NewError("Invalid direction", "dir", dir)
 	}
-	s.direction = dir
+	s.Direction = dir
 	return nil
 }
 
-func (s SCMPAuthDRKeyExtn) Direction() uint8 {
-	return s.direction
-}
-
-func (s SCMPAuthDRKeyExtn) UpdateMAC(mac common.RawBytes) *common.Error {
-	if len(mac) != MAC_LENGTH {
+func (s AuthDRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
+	if len(mac) != MACLength {
 		return common.NewError("Invalid MAC size", "len", mac)
 	}
-	copy(s.mac, mac)
+	copy(s.MAC, mac)
 	return nil
 }
 
-func (s SCMPAuthDRKeyExtn) MAC() common.RawBytes {
-	return s.mac
-}
-
-func (s *SCMPAuthDRKeyExtn) Write(b common.RawBytes) *common.Error {
+func (s *AuthDRKeyExtn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
 		return common.NewError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write")
 	}
 	b[0] = s.SecMode
-	b[DIRECTION_OFFSET] = s.direction
-	for i := DIRECTION_OFFSET + DIRECTION_LENGTH; i < MAC_OFFSET; i++ {
+	b[DirectionOffset] = s.Direction
+	for i := DirectionOffset + DirectionLength; i < MACOffset; i++ {
 		b[i] = 0
 	}
-	copy(b[MAC_OFFSET:DRKEY_TOTAL_LENGTH], s.mac)
+	copy(b[MACOffset:DRKeyTotalLength], s.MAC)
 	return nil
 }
 
-func (s *SCMPAuthDRKeyExtn) Pack() (common.RawBytes, *common.Error) {
+func (s *AuthDRKeyExtn) Pack() (common.RawBytes, *common.Error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
@@ -114,21 +106,21 @@ func (s *SCMPAuthDRKeyExtn) Pack() (common.RawBytes, *common.Error) {
 	return b, nil
 }
 
-func (s *SCMPAuthDRKeyExtn) Copy() common.Extension {
-	c := NewSCMPAuthDRKeyExtn()
-	c.direction = s.direction
-	copy(c.mac, s.mac)
+func (s *AuthDRKeyExtn) Copy() common.Extension {
+	c := NewAuthDRKeyExtn()
+	c.Direction = s.Direction
+	copy(c.MAC, s.MAC)
 	return c
 }
 
-func (s *SCMPAuthDRKeyExtn) Len() int {
-	return DRKEY_TOTAL_LENGTH
+func (s *AuthDRKeyExtn) Len() int {
+	return DRKeyTotalLength
 }
 
-func (s *SCMPAuthDRKeyExtn) String() string {
+func (s *AuthDRKeyExtn) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "SCMPAuthDRKeyExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
-	fmt.Fprintf(buf, " Direction: %x", s.direction)
-	fmt.Fprintf(buf, " MAC: %s", s.mac.String())
+	fmt.Fprintf(buf, "AuthDRKeyExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
+	fmt.Fprintf(buf, " Direction: %x", s.Direction)
+	fmt.Fprintf(buf, " MAC: %s", s.MAC.String())
 	return buf.String()
 }
