@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/ifstate"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/crypto"
@@ -102,6 +103,9 @@ func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
 	}
 	// Check that we have a revocation for the current epoch.
 	if revInfo.Epoch() < crypto.GetCurrentEpoch() {
+		// If the BR does not have a revocation for the current epoch, it considers
+		// the interface as active until it receives a new revocation.
+		ifstate.Activate(*ifid)
 		return nil
 	}
 	sinfo := scmp.NewInfoRevocation(

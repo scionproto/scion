@@ -32,7 +32,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // pktBufSize is the maxiumum size of a packet buffer.
@@ -42,19 +41,17 @@ const pktBufSize = 1 << 16
 // callbacks is an anonymous struct used for functions supplied by the router
 // for various processing tasks.
 var callbacks struct {
-	locOutFs   map[int]OutputFunc
-	intfOutFs  map[spath.IntfID]OutputFunc
-	ifStateUpd func(proto.IFStateInfos)
-	revTokenF  func(RevTokenCallbackArgs)
+	locOutFs  map[int]OutputFunc
+	intfOutFs map[spath.IntfID]OutputFunc
+	revTokenF func(RevTokenCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
 func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
-	ifStateUpd func(proto.IFStateInfos), revTokenF func(RevTokenCallbackArgs)) {
+	revTokenF func(RevTokenCallbackArgs)) {
 	callbacks.locOutFs = locOut
 	callbacks.intfOutFs = intfOut
-	callbacks.ifStateUpd = ifStateUpd
 	callbacks.revTokenF = revTokenF
 }
 
