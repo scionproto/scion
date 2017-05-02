@@ -36,17 +36,19 @@ import (
 
 var _ common.Extension = (*HashTreeExtn)(nil)
 
-// Implementation of the SCMPAuthHashTree extension. It is used to authenticate
-// scmp messages.
+// HashTreeExtn is the implementation of the SCMPAuthHashTree extension.
+// It is used to authenticate scmp messages.
 type HashTreeExtn struct {
 	*spse.BaseExtn
-	// height of the hash tree. Max height is 24.
+	// Height is the height of the hash tree. Max height is 24.
 	Height uint8
-	// indicates left or right hash to generate the proof.
+	// Order is a bit vector. The bit at index i is associated with hash i.
+	// 0 (1) indicates hash i shall be used as left (right) input.
 	Order common.RawBytes
-	// signature of the root.
+	// Signature is the signature of the root hash.
 	Signature common.RawBytes
-	// hashes to verify the proof. At index 0 is the leaf hash. At index height is the root hash.
+	// Hashes are the hashes to verify the proof.
+	// At index 0 is the leaf hash. At index height is the root hash.
 	Hashes common.RawBytes
 }
 

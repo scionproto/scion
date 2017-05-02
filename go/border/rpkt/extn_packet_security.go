@@ -28,7 +28,7 @@ import (
 
 var _ rExtension = (*rSPSExtn)(nil)
 
-// rSPSBaseExtn is the base for rSPSExtn, rSCMPAuthDRKeyExt and rSCMPAuthHashTreeExt
+// rSPSBaseExtn is the base for rSPSExtn, rSCMPAuthDRKeyExtn and rSCMPAuthHashTreeExtn
 type rSPSBaseExtn struct {
 	rp      *RtrPkt
 	raw     common.RawBytes

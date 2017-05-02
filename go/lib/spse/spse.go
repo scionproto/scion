@@ -36,13 +36,16 @@ var _ common.Extension = (*Extn)(nil)
 
 // BaseExtn is the base for Extn, scmp_auth.DRKeyExt and scmp_auth.HashTreeExt
 type BaseExtn struct {
+	// SecMode indicates the security mode of the extension.
 	SecMode uint8
 }
 
-// Implementation of the SCIONPacketSecurity extension.
+// Extn is the implementation of the SCIONPacketSecurity extension.
 type Extn struct {
 	*BaseExtn
+	// Metadata contains the metadata required by the security mode.
 	Metadata      common.RawBytes
+	// Authenticator contains the authenticator required by the security mode.
 	Authenticator common.RawBytes
 }
 
