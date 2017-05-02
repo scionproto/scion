@@ -19,14 +19,14 @@ import (
 )
 
 // HashTreeTTL is the TTL of one hash tree (in seconds).
-// FIXME(shitz): This should really be matching spath.MaxTTL, but more importantely,
+// FIXME(shitz): This should really be matching spath.MaxTTL, but more importantly,
 // it needs to match the hash tree ttl used by the BS, which is currently set to 30 mins.
 const HashTreeTTL = 30 * 60
 
 // HashTreeEpochTime is the duration of one epoch (in seconds).
 const HashTreeEpochTime = 10
 
-func GetCurrentEpoch() uint16 {
+func GetCurrentHashTreeEpoch() uint16 {
 	window := time.Now().Unix() % HashTreeTTL
 	return uint16(window / HashTreeEpochTime)
 }
