@@ -48,7 +48,7 @@ func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, *common.Error
 	t := &rTraceroute{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
 	// Ignore subheader line
-	t.TotalHops = uint8(len(t.raw)-common.ExtnFirstLineLen) / common.LineLen
+	t.TotalHops = uint8((len(t.raw) - common.ExtnFirstLineLen) / common.LineLen)
 	t.Logger = rp.Logger.New("ext", "traceroute")
 	return t, nil
 }
@@ -56,7 +56,7 @@ func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, *common.Error
 // Add creates a new traceroute entry directly to the underlying buffer.
 func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
-		return common.NewError("Header already full", log.Ctx{"entries": t.NumHops})
+		return common.NewError("Header already full", "entries", t.NumHops)
 	}
 	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
 	entry.IA.Write(t.raw[offset:])
