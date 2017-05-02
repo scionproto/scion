@@ -102,7 +102,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
 		return nil
 	}
 	// Check that we have a revocation for the current epoch.
-	if revInfo.Epoch() < crypto.GetCurrentEpoch() {
+	if revInfo.Epoch() < crypto.GetCurrentHashTreeEpoch() {
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
 		ifstate.Activate(*ifid)
