@@ -65,7 +65,7 @@ func (r *Router) setup(confDir string) *common.Error {
 	log.Debug("AS Conf loaded", "conf", conf.C.ASConf)
 
 	// Configure the rpkt package with the callbacks it needs.
-	rpkt.Init(r.locOutFs, r.intfOutFs, r.ProcessIFStates, r.RevTokenCallback)
+	rpkt.Init(r.locOutFs, r.intfOutFs, r.RevTokenCallback)
 	return nil
 }
 
