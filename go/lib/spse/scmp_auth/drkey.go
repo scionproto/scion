@@ -36,13 +36,13 @@ import (
 
 var _ common.Extension = (*DRKeyExtn)(nil)
 
-// Implementation of the SCMPAuthDRKey extension. It is used to authenticate
-// scmp messages.
+// DRKeyExtn is an implementation of the SCMPAuthDRKey extension.
+// It is used to authenticate scmp messages.
 type DRKeyExtn struct {
 	*spse.BaseExtn
-	// Indication of which key has been used during authentication.
+	// Direction indicates which key has been used during authentication.
 	Direction uint8
-	// MAC of the SCION Packet with CurrHF and CurrINF set to zero.
+	// MAC is the mac of the SCION Packet with CurrHF and CurrINF set to zero.
 	MAC common.RawBytes
 }
 

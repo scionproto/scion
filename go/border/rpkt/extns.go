@@ -125,9 +125,9 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 		case spse.IsSupported(secMode):
 			return rSPSExtFromRaw(rp, start, end)
 		case secMode == spse.ScmpAuthDRKey:
-			return rSCMPAuthDRKeyExtFromRaw(rp, start, end)
+			return rSCMPAuthDRKeyExtnFromRaw(rp, start, end)
 		case secMode == spse.ScmpAuthHashTree:
-			return rSCMPAuthHashTreeExtFromRaw(rp, start, end)
+			return rSCMPAuthHashTreeExtnFromRaw(rp, start, end)
 		default:
 			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
 				&scmp.InfoExtIdx{Idx: uint8(pos)})
