@@ -27,7 +27,7 @@ import (
 
 var _ rExtension = (*rSCMPAuthHashTreeExtn)(nil)
 
-// rSCMPAuthHashTreeExt is the router's representation of the SCMPAuthHashTree extension.
+// rSCMPAuthHashTreeExtn is the router's representation of the SCMPAuthHashTree extension.
 type rSCMPAuthHashTreeExtn struct {
 	*rSPSBaseExtn
 }
