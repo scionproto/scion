@@ -23,14 +23,13 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
+	"github.com/netsec-ethz/scion/go/lib/spse"
 )
 
-var _ rExtension = (*rSCIONPacketSecurityExt)(nil)
+var _ rExtension = (*rSPSExtn)(nil)
 
-// rSCIONPacketSecurityBaseExt is the base for
-// rSCIONPacketSecurityExt, rSCMPAuthDRKeyExt and rSCMPAuthHashTreeExt
-type rSCIONPacketSecurityBaseExt struct {
+// rSPSBaseExtn is the base for rSPSExtn, rSCMPAuthDRKeyExt and rSCMPAuthHashTreeExt
+type rSPSBaseExtn struct {
 	rp      *RtrPkt
 	raw     common.RawBytes
 	start   int
@@ -38,89 +37,93 @@ type rSCIONPacketSecurityBaseExt struct {
 	log.Logger
 }
 
-func (s *rSCIONPacketSecurityBaseExt) Offset() int {
+func (s *rSPSBaseExtn) Offset() int {
 	return s.start
 }
 
-func (s *rSCIONPacketSecurityBaseExt) Len() int {
+func (s *rSPSBaseExtn) Len() int {
 	return len(s.raw)
 }
 
-func (s *rSCIONPacketSecurityBaseExt) Class() common.L4ProtocolType {
+func (s *rSPSBaseExtn) Class() common.L4ProtocolType {
 	return common.End2EndClass
 }
 
-func (s *rSCIONPacketSecurityBaseExt) Type() common.ExtnType {
+func (s *rSPSBaseExtn) Type() common.ExtnType {
 	return common.ExtnSCIONPacketSecurityType
 }
 
-func (s *rSCIONPacketSecurityExt) String() string {
-	// Delegate string representation to sps.Extn
-	extn, err := s.GetExtn()
-	if err != nil {
-		return fmt.Sprintf("SCIONPacketSecurity - %v: %v", err.Desc, err.String())
-	}
-	return extn.String()
+// rSPSExtn is the router's representation of the SCIONPacketSecurity extension.
+type rSPSExtn struct {
+	*rSPSBaseExtn
 }
 
-// rSCIONPacketSecurityExt is the router's representation of the
-// SCIONPacketSecurity extension.
-type rSCIONPacketSecurityExt struct {
-	*rSCIONPacketSecurityBaseExt
-}
-
-// rSCIONPacketSecurityExtFromRaw creates an rSecurityExt instance from raw bytes,
+// rSPSExtFromRaw creates an rSPSExtn instance from raw bytes,
 // keeping a reference to the location in the packet's buffer.
-func rSCIONPacketSecurityExtFromRaw(rp *RtrPkt, start, end int) (*rSCIONPacketSecurityExt, *common.Error) {
+func rSPSExtFromRaw(rp *RtrPkt, start, end int) (*rSPSExtn, *common.Error) {
 	raw := rp.Raw[start:end]
 	mode := raw[0]
 	if !spse.IsSupported(mode) {
 		return nil, common.NewError("SecMode not supported", "mode", mode)
 	}
-	s := &rSCIONPacketSecurityExt{
-		&rSCIONPacketSecurityBaseExt{rp: rp, raw: raw, start: start, SecMode: mode}}
+	s := &rSPSExtn{
+		&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
 	s.Logger = rp.Logger.New("ext", "SCIONPacketSecurity")
 	return s, nil
 }
 
 // Metadata returns a slice of the underlying buffer
-func (s *rSCIONPacketSecurityExt) Metadata() common.RawBytes {
-	l, h := s.limitsMetadata()
-	return s.raw[l:h]
+func (s *rSPSExtn) Metadata() (common.RawBytes, *common.Error) {
+	l, h, err := s.limitsMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return s.raw[l:h], nil
 }
 
 // Set the Metadata directly in the underlying buffer.
-func (s *rSCIONPacketSecurityExt) SetMetadata(metadata common.RawBytes) *common.Error {
-	if len(s.Metadata()) != len(metadata) {
-		return common.NewError("Invalid metadata length", "len", len(metadata),
-			"expected", len(s.Metadata()))
+func (s *rSPSExtn) SetMetadata(metadata common.RawBytes) *common.Error {
+	meta, err := s.Metadata()
+	if err != nil {
+		return err
 	}
-	copy(s.Metadata(), metadata)
+	if len(meta) != len(metadata) {
+		return common.NewError("Invalid metadata length", "len", len(metadata),
+			"expected", len(metadata))
+	}
+	copy(meta, metadata)
 	return nil
 }
 
 // Authenticator returns a slice of the underlying buffer
-func (s *rSCIONPacketSecurityExt) Authenticator() common.RawBytes {
-	l, h := s.limitsAuthenticator()
-	return s.raw[l:h]
+func (s *rSPSExtn) Authenticator() (common.RawBytes, *common.Error) {
+	l, h, err := s.limitsAuthenticator()
+	if err != nil {
+		return nil, err
+	}
+	return s.raw[l:h], nil
 }
 
 // Set the Authenticator directly in the underlying buffer.
-func (s *rSCIONPacketSecurityExt) SetAuthenticator(authenticator common.RawBytes) *common.Error {
-	if len(s.Authenticator()) != len(authenticator) {
-		return common.NewError("Invalid authenticator length", "len", len(authenticator),
-			"expected", len(s.Authenticator()))
+func (s *rSPSExtn) SetAuthenticator(authenticator common.RawBytes) *common.Error {
+	auth, err := s.Authenticator()
+	if err != nil {
+		return err
 	}
-	copy(s.Authenticator(), authenticator)
+	if len(auth) != len(authenticator) {
+		return common.NewError("Invalid authenticator length", "len", len(authenticator),
+			"expected", len(auth))
+	}
+	copy(auth, authenticator)
 	return nil
 }
 
-func (s *rSCIONPacketSecurityExt) RegisterHooks(h *hooks) *common.Error {
+func (s *rSPSExtn) RegisterHooks(h *hooks) *common.Error {
 	h.Validate = append(h.Validate, s.Validate)
 	return nil
 }
 
-func (s *rSCIONPacketSecurityExt) Validate() (HookResult, *common.Error) {
+func (s *rSPSExtn) Validate() (HookResult, *common.Error) {
 	notMatchingLen := false
 	expectedLen := 0
 	switch {
@@ -148,16 +151,33 @@ func (s *rSCIONPacketSecurityExt) Validate() (HookResult, *common.Error) {
 	return HookContinue, nil
 }
 
-// GetExtn returns the spkt.Security representation,
+// GetExtn returns the spse.Extn representation,
 // which does not have direct access to the underling buffer.
-func (s *rSCIONPacketSecurityExt) GetExtn() (common.Extension, *common.Error) {
-	extn, err := spse.NewSCIONPacketSecurityExtn(s.SecMode)
+func (s *rSPSExtn) GetExtn() (common.Extension, *common.Error) {
+	extn, err := spse.NewExtn(s.SecMode)
 	if err != nil {
 		return nil, err
 	}
-	extn.SetMetadata(s.Metadata())
-	extn.SetAuthenticator(s.Authenticator())
+	meta, err := s.Metadata()
+	if err != nil {
+		return nil, err
+	}
+	auth, err := s.Authenticator()
+	if err != nil {
+		return nil, err
+	}
+	extn.SetMetadata(meta)
+	extn.SetAuthenticator(auth)
 	return extn, nil
+}
+
+func (s *rSPSExtn) String() string {
+	// Delegate string representation to spse.Extn
+	extn, err := s.GetExtn()
+	if err != nil {
+		return fmt.Sprintf("SCIONPacketSecurity - %v: %v", err.Desc, err.String())
+	}
+	return extn.String()
 }
 
 // limits is a helper function to return limits of a slice
@@ -166,43 +186,49 @@ func limits(h, byteSize int) (int, int) {
 }
 
 // limitsMetadata returns the limits of the Metadata in the raw buffer
-func (s *rSCIONPacketSecurityExt) limitsMetadata() (int, int) {
+func (s *rSPSExtn) limitsMetadata() (int, int, *common.Error) {
 	switch s.SecMode {
 	case spse.AesCMac:
-		return limits(spse.SecModeLength, spse.AesCMacMetaLength)
+		l, h := limits(spse.SecModeLength, spse.AesCMacMetaLength)
+		return l, h, nil
 	case spse.HmacSha256:
-		return limits(spse.SecModeLength, spse.HmacSha256MetaLength)
+		l, h := limits(spse.SecModeLength, spse.HmacSha256MetaLength)
+		return l, h, nil
 	case spse.ED25519:
-		return limits(spse.SecModeLength, spse.ED25519MetaLength)
+		l, h := limits(spse.SecModeLength, spse.ED25519MetaLength)
+		return l, h, nil
 	case spse.GcmAes128:
-		return limits(spse.SecModeLength, spse.GcmAes128MetaLength)
+		l, h := limits(spse.SecModeLength, spse.GcmAes128MetaLength)
+		return l, h, nil
 	}
-	s.Warn("Unreachable code reached. SecMode has been altered",
-		"func", "limitsMetadata", "SecMode", s.SecMode)
-	return 0, 0
+	return 0, 0, common.NewError("Invalid SecMode", "mode", s.SecMode,
+		"func", "limitsMetadata")
 }
 
 // limitsAuthenticator returns the limits of the Authenticator in the raw buffer
-func (s *rSCIONPacketSecurityExt) limitsAuthenticator() (int, int) {
+func (s *rSPSExtn) limitsAuthenticator() (int, int, *common.Error) {
 	switch s.SecMode {
 	case spse.AesCMac:
 		lower := spse.SecModeLength + spse.AesCMacMetaLength
 		upper := spse.AesCMacAuthLength
-		return limits(lower, upper)
+		l, h := limits(lower, upper)
+		return l, h, nil
 	case spse.HmacSha256:
 		lower := spse.SecModeLength + spse.HmacSha256MetaLength
 		upper := spse.HmacSha256AuthLength
-		return limits(lower, upper)
+		l, h := limits(lower, upper)
+		return l, h, nil
 	case spse.ED25519:
 		lower := spse.SecModeLength + spse.ED25519MetaLength
 		upper := spse.ED25519AuthLength
-		return limits(lower, upper)
+		l, h := limits(lower, upper)
+		return l, h, nil
 	case spse.GcmAes128:
 		lower := spse.SecModeLength + spse.GcmAes128MetaLength
 		upper := spse.GcmAes128AuthLength
-		return limits(lower, upper)
+		l, h := limits(lower, upper)
+		return l, h, nil
 	}
-	s.Warn("Unreachable code reached. SecMode has been altered",
-		"func", "limitsAuthenticator", "SecMode", s.SecMode)
-	return 0, 0
+	return 0, 0, common.NewError("Invalid SecMode", "mode", s.SecMode,
+		"func", "limitsAuthenticator")
 }

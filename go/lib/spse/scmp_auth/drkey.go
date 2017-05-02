@@ -24,22 +24,26 @@
 //    +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 
-package scmp
+package scmp_auth
 
 import (
 	"bytes"
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
+	"github.com/netsec-ethz/scion/go/lib/spse"
 )
 
-var _ common.Extension = (*AuthDRKeyExtn)(nil)
+var _ common.Extension = (*DRKeyExtn)(nil)
 
-type AuthDRKeyExtn struct {
+// Implementation of the SCMPAuthDRKey extension. It is used to authenticate
+// scmp messages.
+type DRKeyExtn struct {
 	*spse.BaseExtn
+	// Indication of which key has been used during authentication.
 	Direction uint8
-	MAC       common.RawBytes
+	// MAC of the SCION Packet with CurrHF and CurrINF set to zero.
+	MAC common.RawBytes
 }
 
 const (
@@ -61,15 +65,15 @@ const (
 	HostToHostReversed              // Signed with D:HD -> S:HS
 )
 
-func NewAuthDRKeyExtn() *AuthDRKeyExtn {
-	s := &AuthDRKeyExtn{
+func NewDRKeyExtn() *DRKeyExtn {
+	s := &DRKeyExtn{
 		BaseExtn: &spse.BaseExtn{
 			SecMode: spse.ScmpAuthDRKey}}
 	s.MAC = make(common.RawBytes, MACLength)
 	return s
 }
 
-func (s AuthDRKeyExtn) SetDirection(dir uint8) *common.Error {
+func (s DRKeyExtn) SetDirection(dir uint8) *common.Error {
 	if dir < 0 || dir >= HostToHostReversed {
 		return common.NewError("Invalid direction", "dir", dir)
 	}
@@ -77,7 +81,7 @@ func (s AuthDRKeyExtn) SetDirection(dir uint8) *common.Error {
 	return nil
 }
 
-func (s AuthDRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
+func (s DRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
 	if len(mac) != MACLength {
 		return common.NewError("Invalid MAC size", "len", mac)
 	}
@@ -85,7 +89,7 @@ func (s AuthDRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
 	return nil
 }
 
-func (s *AuthDRKeyExtn) Write(b common.RawBytes) *common.Error {
+func (s *DRKeyExtn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
 		return common.NewError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write")
 	}
@@ -98,7 +102,7 @@ func (s *AuthDRKeyExtn) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (s *AuthDRKeyExtn) Pack() (common.RawBytes, *common.Error) {
+func (s *DRKeyExtn) Pack() (common.RawBytes, *common.Error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
@@ -106,18 +110,18 @@ func (s *AuthDRKeyExtn) Pack() (common.RawBytes, *common.Error) {
 	return b, nil
 }
 
-func (s *AuthDRKeyExtn) Copy() common.Extension {
-	c := NewAuthDRKeyExtn()
+func (s *DRKeyExtn) Copy() common.Extension {
+	c := NewDRKeyExtn()
 	c.Direction = s.Direction
 	copy(c.MAC, s.MAC)
 	return c
 }
 
-func (s *AuthDRKeyExtn) Len() int {
+func (s *DRKeyExtn) Len() int {
 	return DRKeyTotalLength
 }
 
-func (s *AuthDRKeyExtn) String() string {
+func (s *DRKeyExtn) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "AuthDRKeyExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
 	fmt.Fprintf(buf, " Direction: %x", s.Direction)

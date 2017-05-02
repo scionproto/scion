@@ -34,10 +34,12 @@ import (
 
 var _ common.Extension = (*Extn)(nil)
 
+// BaseExtn is the base for Extn, scmp_auth.DRKeyExt and scmp_auth.HashTreeExt
 type BaseExtn struct {
 	SecMode uint8
 }
 
+// Implementation of the SCIONPacketSecurity extension.
 type Extn struct {
 	*BaseExtn
 	Metadata      common.RawBytes
@@ -100,7 +102,7 @@ func (s *BaseExtn) Type() common.ExtnType {
 	return common.ExtnSCIONPacketSecurityType
 }
 
-func NewSCIONPacketSecurityExtn(secMode uint8) (*Extn, *common.Error) {
+func NewExtn(secMode uint8) (*Extn, *common.Error) {
 	s := &Extn{
 		BaseExtn: &BaseExtn{SecMode: secMode}}
 
@@ -172,7 +174,7 @@ func (s *Extn) Pack() (common.RawBytes, *common.Error) {
 }
 
 func (s *Extn) Copy() common.Extension {
-	c, _ := NewSCIONPacketSecurityExtn(s.SecMode)
+	c, _ := NewExtn(s.SecMode)
 	copy(c.Metadata, s.Metadata)
 	copy(c.Authenticator, s.Authenticator)
 	return c

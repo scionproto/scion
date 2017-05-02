@@ -21,14 +21,15 @@ import (
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
-	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn/scmp_auth_extn"
+	"github.com/netsec-ethz/scion/go/lib/spse"
+	"github.com/netsec-ethz/scion/go/lib/spse/scmp_auth"
 )
 
 var _ rExtension = (*rSCMPAuthDRKeyExt)(nil)
 
+// rSCMPAuthDRKeyExt is the router's representation of the SCMPAuthDRKey extension.
 type rSCMPAuthDRKeyExt struct {
-	*rSCIONPacketSecurityBaseExt
+	*rSPSBaseExtn
 }
 
 // rSCMPAuthDRKeyExtFromRaw creates an rSCMPAuthDRKeyExt instance from raw bytes,
@@ -40,13 +41,13 @@ func rSCMPAuthDRKeyExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthDRKeyExt, *
 		return nil, common.NewError("SecMode not supported", "mode", mode)
 	}
 	s := &rSCMPAuthDRKeyExt{
-		&rSCIONPacketSecurityBaseExt{rp: rp, raw: raw, start: start, SecMode: mode}}
+		&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
 	s.Logger = rp.Logger.New("ext", "SCMPAuthDRKeyExt")
 	return s, nil
 }
 
 func (s *rSCMPAuthDRKeyExt) String() string {
-	// Delegate string representation to scmp.AuthDRKeyExtn
+	// Delegate string representation to scmp_auth.AuthDRKeyExtn
 	extn, err := s.GetExtn()
 	if err != nil {
 		return fmt.Sprintf("SCMPAuthDRKey - %v: %v", err.Desc, err.String())
@@ -64,17 +65,17 @@ func (s *rSCMPAuthDRKeyExt) Validate() (HookResult, *common.Error) {
 		return HookError, common.NewError("SecMode not supported", "mode", s.SecMode,
 			"expected", spse.ScmpAuthDRKey)
 	}
-	if len(s.raw) != scmp.DRKeyTotalLength {
+	if len(s.raw) != scmp_auth.DRKeyTotalLength {
 		return HookError, common.NewError("Invalid header length", "len", len(s.raw),
-			"expected", scmp.DRKeyTotalLength)
+			"expected", scmp_auth.DRKeyTotalLength)
 	}
 	return HookContinue, nil
 }
 
-// GetExtn returns the spkt.Security representation,
+// GetExtn returns the scmp_auth.DRKeyExtn representation,
 // which does not have direct access to the underling buffer.
 func (s *rSCMPAuthDRKeyExt) GetExtn() (common.Extension, *common.Error) {
-	extn := scmp.NewAuthDRKeyExtn()
+	extn := scmp_auth.NewDRKeyExtn()
 	if err := extn.SetDirection(s.Direction()); err != nil {
 		return nil, err
 	}
@@ -83,11 +84,11 @@ func (s *rSCMPAuthDRKeyExt) GetExtn() (common.Extension, *common.Error) {
 }
 
 func (s *rSCMPAuthDRKeyExt) SetDirection(dir uint8) {
-	s.raw[scmp.DirectionOffset] = dir
+	s.raw[scmp_auth.DirectionOffset] = dir
 }
 
 func (s *rSCMPAuthDRKeyExt) Direction() uint8 {
-	return s.raw[scmp.DirectionOffset]
+	return s.raw[scmp_auth.DirectionOffset]
 }
 
 func (s *rSCMPAuthDRKeyExt) ResetMac() {
@@ -97,14 +98,14 @@ func (s *rSCMPAuthDRKeyExt) ResetMac() {
 }
 
 func (s *rSCMPAuthDRKeyExt) SetMAC(mac common.RawBytes) *common.Error {
-	if len(s.MAC()) != scmp.MACLength {
+	if len(s.MAC()) != scmp_auth.MACLength {
 		return common.NewError("Invalid MAC length", "len", len(mac),
-			"expected", scmp.MACLength)
+			"expected", scmp_auth.MACLength)
 	}
 	copy(s.MAC(), mac)
 	return nil
 }
 
 func (s *rSCMPAuthDRKeyExt) MAC() common.RawBytes {
-	return s.raw[scmp.MACOffset:scmp.DRKeyTotalLength]
+	return s.raw[scmp_auth.MACOffset:scmp_auth.DRKeyTotalLength]
 }

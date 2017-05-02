@@ -21,8 +21,8 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/pkt_sec_extn"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spse"
 )
 
 // rExtension extends common.ExtnBase, adding a method to retrieve the
@@ -123,7 +123,7 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 		secMode := rp.Raw[start]
 		switch {
 		case spse.IsSupported(secMode):
-			return rSCIONPacketSecurityExtFromRaw(rp, start, end)
+			return rSPSExtFromRaw(rp, start, end)
 		case secMode == spse.ScmpAuthDRKey:
 			return rSCMPAuthDRKeyExtFromRaw(rp, start, end)
 		case secMode == spse.ScmpAuthHashTree:
