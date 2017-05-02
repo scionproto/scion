@@ -44,7 +44,7 @@ type BaseExtn struct {
 type Extn struct {
 	*BaseExtn
 	// Metadata contains the metadata required by the security mode.
-	Metadata      common.RawBytes
+	Metadata common.RawBytes
 	// Authenticator contains the authenticator required by the security mode.
 	Authenticator common.RawBytes
 }
