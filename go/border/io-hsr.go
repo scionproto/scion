@@ -92,7 +92,7 @@ func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) 
 				continue
 			}
 			timeIn := monotime.Now()
-			ctx := rctx.GetContext()
+			ctx := rctx.Get()
 			// Iterate over received packets
 			for i := 0; i < count; i++ {
 				rp := rpkts[i]

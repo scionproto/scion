@@ -44,14 +44,14 @@ func (r *Router) SyncInterface() {
 }
 
 func (r *Router) GenIFIDPkts() {
-	ctx := rctx.GetContext()
+	ctx := rctx.Get()
 	for ifid := range ctx.Conf.Net.IFs {
 		r.GenIFIDPkt(ifid, ctx)
 	}
 }
 
 // GenIFIDPkt generates IFID packets.
-func (r *Router) GenIFIDPkt(ifid spath.IntfID, ctx *rctx.RtrCtx) {
+func (r *Router) GenIFIDPkt(ifid spath.IntfID, ctx *rctx.Ctx) {
 	logger := log.New("ifid", ifid)
 	intf := ctx.Conf.Net.IFs[ifid]
 	srcAddr := intf.IFAddr.PublicAddr()

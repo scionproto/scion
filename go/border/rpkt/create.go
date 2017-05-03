@@ -29,7 +29,7 @@ import (
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
-func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.RtrCtx) (*RtrPkt, *common.Error) {
+func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
 	rp.Ctx = ctx
 	totalLen := sp.TotalLen()

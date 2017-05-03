@@ -53,6 +53,7 @@ func main() {
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
 		log.Crit("Startup failed", err.Ctx...)
+		liblog.Flush()
 		os.Exit(1)
 	}
 	log.Info("Starting up", "id", *id)

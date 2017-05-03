@@ -181,7 +181,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
-	ctx := rctx.GetContext()
+	ctx := rctx.Get()
 	if rp.DirFrom == rpkt.DirLocal {
 		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.String()]
 		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: rp.Ingress.Src}, nil

@@ -64,11 +64,8 @@ func (u *UDP) Connect(raddr *net.UDPAddr) error {
 	return err
 }
 
-func (u *UDP) String() string {
-	return u.BindAddr().String()
-}
-
 func (u *UDP) Equal(other *UDP) bool {
-	return (u.PublicAddr().String() == other.PublicAddr().String() &&
-		u.BindAddr().String() == other.BindAddr().String())
+	return (u.pubIP.Equal(*other.pubIP) && u.pubPort == other.pubPort &&
+		((u.bindIP == nil && other.bindIP == nil) ||
+			(u.bindIP.Equal(*other.bindIP) && u.bindPort == other.bindPort)))
 }

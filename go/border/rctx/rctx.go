@@ -31,21 +31,21 @@ import (
 type OutputObj interface {
 	// Bytes returns the byte-string representation of the output object.
 	Bytes() common.RawBytes
-	// LogError can be used log errors during output.
-	LogError(msg string, ctx ...interface{})
+	// Error can be used log errors during output.
+	Error(msg string, ctx ...interface{})
 }
 
 // OutputFunc is the type of callback required for sending a packet.
 type OutputFunc func(OutputObj, *net.UDPAddr)
 
-// InputFunc defines an interface for starting and stopping input goroutines.
-type InputFunc interface {
+// IOCtrl defines an interface for starting and stopping I/O goroutines.
+type IOCtrl interface {
 	Start()
 	Stop()
 }
 
-// RtrCtx is the main context structure.
-type RtrCtx struct {
+// Ctx is the main router context structure.
+type Ctx struct {
 	// Conf contains the router state for this context.
 	Conf *conf.Conf
 	// LocOutFs is a slice of functions for sending packets to local
@@ -55,38 +55,43 @@ type RtrCtx struct {
 	// IntfOutFs is a slice of functions for sending packets to neighbouring
 	// ISD-ASes, indexed by the interface ID of the relevant link.
 	IntfOutFs map[spath.IntfID]OutputFunc
-	// InputFuncs is a slice of InputFunc objects to stop the corresponding input goroutines.
-	InputFuncs map[string]InputFunc
+	// IntInputFs is a slice of IOCtrl objects to stop the corresponding local
+	// input goroutines.
+	LocInputFs map[string]IOCtrl
+	// ExtInputFs is a slice of IOCtrl objects to stop the corresponding external
+	// input goroutines.
+	ExtInputFs map[spath.IntfID]IOCtrl
 }
 
-func NewContext(conf *conf.Conf) *RtrCtx {
-	ctx := &RtrCtx{
+func New(conf *conf.Conf) *Ctx {
+	ctx := &Ctx{
 		Conf:       conf,
 		LocOutFs:   make(map[int]OutputFunc),
 		IntfOutFs:  make(map[spath.IntfID]OutputFunc),
-		InputFuncs: make(map[string]InputFunc),
+		LocInputFs: make(map[string]IOCtrl),
+		ExtInputFs: make(map[spath.IntfID]IOCtrl),
 	}
 	return ctx
 }
 
 // ctx is the current router context object.
-var ctx *RtrCtx
+var ctx *Ctx
 
 // ctxLock protects access to the global context object.
 var ctxLock sync.RWMutex
 
-// GetContext returns a pointer to the current router context.
-func GetContext() *RtrCtx {
+// Get returns a pointer to the current router context.
+func Get() *Ctx {
 	ctxLock.RLock()
 	defer ctxLock.RUnlock()
 	return ctx
 }
 
-// SetContext updates the current router context.
-func SetContext(newCtx *RtrCtx) {
+// Set updates the current router context.
+func Set(newCtx *Ctx) {
 	ctxLock.Lock()
+	defer ctxLock.Unlock()
 	ctx = newCtx
-	ctxLock.Unlock()
 }
 
 // IA returns the ISD-AS of the router. This is shortcutted to avoid acquiring

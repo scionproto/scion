@@ -125,8 +125,11 @@ type RtrPkt struct {
 	// included in the output.
 	log.Logger
 	// The current router context to process this packet.
-	Ctx *rctx.RtrCtx
+	Ctx *rctx.Ctx
 }
+
+// Check that RtrPkt implements rctx.OutputObj
+var _ rctx.OutputObj = (*RtrPkt)(nil)
 
 func NewRtrPkt() *RtrPkt {
 	r := &RtrPkt{}
@@ -342,10 +345,4 @@ func (rp *RtrPkt) String() string {
 // packet buffer.
 func (rp *RtrPkt) ErrStr(desc string) string {
 	return fmt.Sprintf("Error: %v\n  RtrPkt: %v\n  Raw: %v", desc, rp, rp.Raw)
-}
-
-// LogError logs an error using the logger of the RtrPkt (needed to implement
-// rctx.OutputObj interface).
-func (rp *RtrPkt) LogError(msg string, ctx ...interface{}) {
-	rp.Error(msg, ctx...)
 }

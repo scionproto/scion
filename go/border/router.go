@@ -17,8 +17,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
@@ -58,19 +56,9 @@ func (r *Router) Run() *common.Error {
 	go r.RevInfoFwd()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
-	for {
-		time.Sleep(10 * time.Second)
-		// log.Debug("Setting up new context.")
-		// var config *conf.Conf
-		// var err *common.Error
-		// if config, err = r.loadNewConfig(); err != nil {
-		// 	return err
-		// }
-		// // Setup new context.
-		// if err = r.setupNewContext(config); err != nil {
-		// 	return err
-		// }
-	}
+	done := make(chan struct{})
+	<-done
+	return nil
 }
 
 func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {

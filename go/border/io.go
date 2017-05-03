@@ -52,7 +52,7 @@ type PosixInputFuncArgs struct {
 type PosixInputFunc func(args *PosixInputFuncArgs)
 
 // PosixInput represents an input goroutine for a Posix socket. It implements
-// the rctx.InputFunc interface.
+// the rctx.IOCtrl interface.
 type PosixInput struct {
 	Args    *PosixInputFuncArgs
 	Func    PosixInputFunc
@@ -64,6 +64,7 @@ func (pi *PosixInput) Start() {
 	if !pi.running {
 		go pi.Func(pi.Args)
 		pi.running = true
+		log.Info("Input routing started", "addr", pi.Args.Conn.LocalAddr())
 	}
 }
 
@@ -96,7 +97,7 @@ func readPosixInput(args *PosixInputFuncArgs) {
 		default:
 			metrics.InputLoops.With(args.Labels).Inc()
 			// Get current router context for this packet.
-			rp.Ctx = rctx.GetContext()
+			rp.Ctx = rctx.Get()
 			rp.DirFrom = args.DirFrom
 			start := monotime.Now()
 			length, src, err := args.Conn.ReadFromUDP(rp.Raw)
@@ -136,10 +137,10 @@ func writePosixOutput(labels prometheus.Labels,
 	start := monotime.Now()
 	raw := oo.Bytes()
 	if count, err := f(raw, dst); err != nil {
-		oo.LogError("Error sending packet", "err", err, "dst", dst)
+		oo.Error("Error sending packet", "err", err, "dst", dst)
 		return
 	} else if count != len(raw) {
-		oo.LogError("Unable to write full packet", "len", len(raw), "written", count)
+		oo.Error("Unable to write full packet", "len", len(raw), "written", count)
 		return
 	}
 	t := monotime.Since(start).Seconds()

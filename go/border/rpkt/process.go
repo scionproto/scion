@@ -226,7 +226,7 @@ func (rp *RtrPkt) isDownstreamRouter() bool {
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given
 // SVC address.
-func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.RtrCtx) (
+func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
 	[]string, map[string]topology.BasicElem, *common.Error) {
 	tm := ctx.Conf.TopoMeta
 	var names []string

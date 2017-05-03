@@ -144,25 +144,30 @@ func init() {
 // promethetus metrics on each address over http (if not done so already). It also
 // stops exporting metrics on addresses that are not used anymore.
 func Export(addresses []string) {
+	newServers := make(map[string]io.Closer)
 	for _, addr := range addresses {
-		if _, ok := servers[addr]; !ok {
-			log.Debug("Exporting metrics", "addr", addr)
-			var closer io.Closer
-			var err *common.Error
-			if closer, err = listenAndServeWithClose(addr); err != nil {
-				log.Error(err.String())
-				continue
-			}
-			servers[addr] = closer
+		if _, ok := servers[addr]; ok {
+			newServers[addr] = servers[addr]
+			continue // Exporter already running on this address
 		}
+		// Run new exporter on addr.
+		log.Info("Exporting metrics", "addr", addr)
+		var closer io.Closer
+		var err *common.Error
+		if closer, err = listenAndServeWithClose(addr); err != nil {
+			log.Error(err.String())
+			continue
+		}
+		newServers[addr] = closer
 	}
 	// Stop exporting metrics on non-exported addresses.
 	for addr, closer := range servers {
 		if !contains(addresses, addr) {
-			log.Debug("Stop exporting metrics", "addr", addr)
+			log.Info("Stop exporting metrics", "addr", addr)
 			closer.Close()
 		}
 	}
+	servers = newServers
 }
 
 func contains(addrs []string, addr string) bool {

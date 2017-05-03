@@ -55,7 +55,7 @@ func (r *Router) IFStateUpdate() {
 // GenIFStateReq generates an Interface State request packet to the local
 // beacon service.
 func (r *Router) GenIFStateReq() {
-	ctx := rctx.GetContext()
+	ctx := rctx.Get()
 	dstHost := addr.SvcBS.Multicast()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
@@ -118,7 +118,7 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 			gauge.Set(0)
 		}
 	}
-	ctx := rctx.GetContext()
+	ctx := rctx.Get()
 	// Lock local IFState config for writing, and replace existing map
 	ctx.Conf.IFStates.Lock()
 	ctx.Conf.IFStates.M = m

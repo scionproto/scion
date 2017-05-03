@@ -84,7 +84,7 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
 func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
-	ctx := rctx.GetContext()
+	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
 	// Create base packet
