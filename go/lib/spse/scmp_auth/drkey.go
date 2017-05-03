@@ -57,12 +57,12 @@ const (
 )
 
 const (
-	AsToAs             uint8 = iota // Signed with S -> D
-	AsToHost                        // Signed with S -> D:HD
-	HostToHost                      // Signed with S:HS -> D:HD
-	HostToAs                        // Signed with D -> S:HS
-	AsToAsReversed                  // Signed with D -> S
-	HostToHostReversed              // Signed with D:HD -> S:HS
+	AsToAs             uint8 = iota // Authenticated with S -> D
+	AsToHost                        // Authenticated with S -> D:HD
+	HostToHost                      // Authenticated with S:HS -> D:HD
+	HostToAs                        // Authenticated with D -> S:HS
+	AsToAsReversed                  // Authenticated with D -> S
+	HostToHostReversed              // Authenticated with D:HD -> S:HS
 )
 
 func NewDRKeyExtn() *DRKeyExtn {
