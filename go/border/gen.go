@@ -18,6 +18,7 @@
 package main
 
 import (
+	"net"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -36,10 +37,10 @@ import (
 const (
 	// ifIDFreq is how often IFID packets are sent to the neighbouring AS.
 	ifIDFreq = 1 * time.Second
+	// ifStateFreq is how often the router will request an Interface State update
+	// from the beacon service.
+	ifStateFreq = 30 * time.Second
 )
-
-type genPldHook func() (*proto.SCION, *common.Error)
-type configRpktHook func(rp *rpkt.RtrPkt) *common.Error
 
 // SyncInterface handles generating periodic Interface ID (IFID) packets that are
 // sent to the Beacon Service in the neighbouring AS. These function as both
@@ -66,54 +67,59 @@ func (r *Router) IFStateUpdate() {
 	}
 }
 
-func (r *Router) genPkt(dstHost addr.HostAddr, dirTo rpkt.Dir, genPld genPldHook,
-	configHook configRpktHook) *common.Error {
-	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
+	srcAddr *net.UDPAddr, pld *spkt.CtrlPld) *common.Error {
+	dirTo := rpkt.DirExternal
+	if dstIA.Eq(conf.C.IA) {
+		dirTo = rpkt.DirLocal
+	}
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: conf.C.IA, SrcIA: conf.C.IA,
-		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
-		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
+		DstIA: dstIA, SrcIA: conf.C.IA, DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
+		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(dstPort)},
 	}, dirTo)
 	if err != nil {
 		return err
 	}
-	pld, err := genPld()
-	if err != nil {
+	if err = rp.SetPld(pld); err != nil {
 		return err
 	}
-	rp.SetPld(&spkt.CtrlPld{SCION: pld})
-	if configHook != nil {
-		configHook(rp)
+	if dstIA.Eq(conf.C.IA) {
+		if dstHost.Type() == addr.HostTypeSVC {
+			if _, err := rp.RouteResolveSVC(); err != nil {
+				return err
+			}
+		} else {
+			rp.Egress = append(rp.Egress, rpkt.EgressPair{
+				F: r.locOutFs[0], Dst: &net.UDPAddr{IP: dstHost.IP(), Port: dstPort}})
+		}
+	} else {
+		ifid := conf.C.Net.IFAddrMap[srcAddr.String()]
+		intf := conf.C.Net.IFs[ifid]
+		rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid], Dst: intf.RemoteAddr})
 	}
 	return rp.Route()
 }
 
 func (r *Router) genIFIDPkts() {
 	for ifid := range conf.C.Net.IFs {
-		r.GenIFIDPkt(ifid)
+		r.genIFIDPkt(ifid)
 	}
 }
 
+// genIFIDPkt generates an IFID-packet for the specified interface.
 func (r *Router) genIFIDPkt(ifid spath.IntfID) {
 	logger := log.New("ifid", ifid)
 	intf := conf.C.Net.IFs[ifid]
-	err := r.genPkt(addr.HostFromIP(intf.RemoteAddr.IP), rpkt.DirExternal,
-		func() (*proto.SCION, *common.Error) {
-			scion, ifidMsg, err := proto.NewIFIDMsg()
-			if err != nil {
-				return nil, common.NewError("Error creating IFID payload", err.Ctx...)
-			}
-			ifidMsg.SetOrigIF(uint16(ifid))
-			return scion, nil
-		},
-		func(rp *rpkt.RtrPkt) *common.Error {
-			rp.Egress = append(rp.Egress, rpkt.EgressPair{F: r.intfOutFs[ifid],
-				Dst: intf.RemoteAddr})
-			return nil
-		})
+	srcAddr := intf.IFAddr.PublicAddr()
+	scion, ifidMsg, err := proto.NewIFIDMsg()
 	if err != nil {
+		logger.Error("Error creating IFID payload", err.Ctx...)
+		return
+	}
+	ifidMsg.SetOrigIF(uint16(ifid))
+	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
+		intf.RemoteAddr.Port, srcAddr, &spkt.CtrlPld{SCION: scion}); err != nil {
 		logger.Error("Error generating IFID packet", err.Ctx...)
 	}
 }
@@ -121,46 +127,36 @@ func (r *Router) genIFIDPkt(ifid spath.IntfID) {
 // genIFStateReq generates an Interface State request packet to the local
 // beacon service.
 func (r *Router) genIFStateReq() {
-	dstHost := addr.SvcBS.Multicast()
-	err := r.genPkt(dstHost, rpkt.DirLocal,
-		func() (*proto.SCION, *common.Error) {
-			scion, pathMgmt, err := proto.NewPathMgmtMsg()
-			if err != nil {
-				return nil, common.NewError("Error creating PathMgmt payload", err.Ctx...)
-			}
-			_, cerr := pathMgmt.NewIfStateReq()
-			if cerr != nil {
-				return nil, common.NewError("Unable to create IFStateReq struct", "err", cerr)
-			}
-			return scion, nil
-		},
-		func(rp *rpkt.RtrPkt) *common.Error {
-			if _, err := rp.RouteResolveSVCMulti(dstHost, r.locOutFs[0]); err != nil {
-				return common.NewError("Unable to route IFStateReq packet", err.Ctx...)
-			}
-			return nil
-		})
+	// Pick first local address from topology as source.
+	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+	scion, pathMgmt, err := proto.NewPathMgmtMsg()
 	if err != nil {
+		log.Error("Error creating PathMgmt payload", err.Ctx...)
+		return
+	}
+	_, cerr := pathMgmt.NewIfStateReq()
+	if cerr != nil {
+		log.Error("Unable to create IFStateReq struct", "err", cerr)
+		return
+	}
+	if err := r.genPkt(conf.C.IA, addr.SvcBS.Multicast(), 0, srcAddr,
+		&spkt.CtrlPld{SCION: scion}); err != nil {
 		log.Error("Error generating IFID packet", err.Ctx...)
 	}
 }
 
 // genRevInfo forwards RevInfo payloads to a designated local host.
 func (r *Router) genRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
-	err := r.genPkt(dstHost, rpkt.DirLocal,
-		func() (*proto.SCION, *common.Error) {
-			scion, pathMgmt, err := proto.NewPathMgmtMsg()
-			if err != nil {
-				return nil, common.NewError("Error creating PathMgmt payload", err.Ctx...)
-			}
-			pathMgmt.SetRevInfo(*revInfo)
-			return scion, nil
-		},
-		func(rp *rpkt.RtrPkt) *common.Error {
-			_, err := rp.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
-			if err != nil {
-				return common.NewError("Unable to route RevInfo packet", err.Ctx...)
-			}
-			return nil
-		})
+	// Pick first local address from topology as source.
+	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+	scion, pathMgmt, err := proto.NewPathMgmtMsg()
+	if err != nil {
+		log.Error("Error creating PathMgmt payload", err.Ctx...)
+		return
+	}
+	pathMgmt.SetRevInfo(*revInfo)
+	if err := r.genPkt(conf.C.IA, *dstHost.(*addr.HostSVC), 0, srcAddr,
+		&spkt.CtrlPld{SCION: scion}); err != nil {
+		log.Error("Error generating RevInfo packet", err.Ctx...)
+	}
 }

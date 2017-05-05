@@ -34,8 +34,8 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-// ProcessIFStates processes Interface State updates from the beacon service.
-func ProcessIFStates(ifStates proto.IFStateInfos) {
+// Process processes Interface State updates from the beacon service.
+func Process(ifStates proto.IFStateInfos) {
 	infos, serr := ifStates.Infos()
 	if serr != nil {
 		log.Error("Unable to extract IFStateInfos from message", "err", serr)
