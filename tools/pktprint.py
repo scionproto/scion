@@ -26,7 +26,7 @@ import lib.packet.scion
 
 raw = "".join(sys.argv[1].split())
 hexes = bytes.fromhex(raw)
-p = lib.packet.scion.SCIONBasePacket(hexes)
+p = lib.packet.scion.SCIONExtPacket(hexes)
 print("=============> Packet:\n%s" % p)
 print("=============> Validate: %s" % p.validate(len(hexes)))
 print("=============> Payload:\n%s" % p.parse_payload())

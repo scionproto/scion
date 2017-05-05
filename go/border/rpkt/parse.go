@@ -126,7 +126,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 			break
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
-		hdrLen := int((rp.Raw[*offset+1] + 1) * common.LineLen)
+		hdrLen := (int(rp.Raw[*offset+1]) + 1) * common.LineLen
 		e, err := rp.extnParseHBH(
 			currExtn, *offset+common.ExtnSubHdrLen, *offset+hdrLen, len(rp.idxs.hbhExt))
 		if err != nil {
