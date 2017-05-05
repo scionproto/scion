@@ -58,7 +58,7 @@ func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 	if t.NumHops == t.TotalHops {
 		return common.NewError("Header already full", "entries", t.NumHops)
 	}
-	offset := common.ExtnFirstLineLen + common.LineLen*t.NumHops
+	offset := common.ExtnFirstLineLen + common.LineLen*int(t.NumHops)
 	entry.IA.Write(t.raw[offset:])
 	offset += addr.IABytes
 	common.Order.PutUint16(t.raw[offset:], entry.IfID)
@@ -108,7 +108,8 @@ func (t *rTraceroute) Process() (HookResult, *common.Error) {
 		IA: *conf.C.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
-		t.Error("Unable to add entry", err)
+		err.Ctx = append(err.Ctx, "raw", t.rp.Raw)
+		t.Error("Unable to add entry", err.Ctx...)
 	}
 	// Update the raw buffer with the number of hops.
 	t.raw[0] = t.NumHops

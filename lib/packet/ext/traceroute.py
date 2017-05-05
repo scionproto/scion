@@ -27,7 +27,7 @@ from lib.types import ExtHopByHopType
 
 class TracerouteExt(HopByHopExtension):
     """
-    0          8         16       24        32            48               64
+    0b         8         16       24        32            48               64
     | next hdr | hdr len |  0x00  | hops_no |         (padding)            |
     |    ISD_0      |          AS_0         |    IFID_0   |   Timestamp_0  |
     |    ISD_1      |          AS_1         |    IFID_1   |   Timestamp_1  |
