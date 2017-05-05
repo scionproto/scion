@@ -98,7 +98,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
 	var revInfo proto.RevInfo
 	var err error
 	if revInfo, err = info.P.RevInfo(); err != nil {
-		rp.Warn("Couldn't load revinfo.", "err", err.Error())
+		rp.Warn("Couldn't load RevInfo for revoked interface", "err", err, "ifid", *ifid)
 		return nil
 	}
 	// Check that we have a revocation for the current epoch.

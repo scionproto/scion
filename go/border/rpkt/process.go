@@ -184,7 +184,7 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 		if err != nil {
 			return HookError, common.NewError(errPldGet, "err", err)
 		}
-		ifstate.ProcessIFStates(ifStates)
+		ifstate.Process(ifStates)
 	default:
 		rp.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
 		return HookError, nil

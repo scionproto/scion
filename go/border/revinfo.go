@@ -22,13 +22,9 @@ import (
 	log "github.com/inconshreveable/log15"
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -54,7 +50,7 @@ func (r *Router) RevInfoFwd() {
 		}
 		for _, svcAddr := range args.Addrs {
 			log.Debug("Forwarding revocation.", "target", svcAddr, "revInfo", revInfo)
-			r.fwdRevInfo(revInfo, &svcAddr)
+			r.genRevInfo(revInfo, &svcAddr)
 		}
 	}
 
@@ -80,34 +76,4 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 		return nil
 	}
 	return &revInfo
-}
-
-// fwdRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
-	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
-	// Create base packet
-	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: conf.C.IA, SrcIA: conf.C.IA,
-		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
-		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
-	}, rpkt.DirLocal)
-	if err != nil {
-		log.Error("Error creating RevInfo packet", err.Ctx...)
-		return
-	}
-	scion, pathMgmt, err := proto.NewPathMgmtMsg()
-	if err != nil {
-		log.Error("Error creating PathMgmt payload", err.Ctx...)
-		return
-	}
-	pathMgmt.SetRevInfo(*revInfo)
-	rp.SetPld(&spkt.CtrlPld{SCION: scion})
-	_, err = rp.RouteResolveSVCMulti(*dstHost.(*addr.HostSVC), r.locOutFs[0])
-	if err != nil {
-		log.Error("Unable to route RevInfo packet", err.Ctx...)
-		return
-	}
-	rp.Route()
-	log.Debug("Forwarded RevInfo")
 }
