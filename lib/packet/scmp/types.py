@@ -131,16 +131,16 @@ class SCMPCmnHdrClass(TypeBase):
     #: otherwise the packet then cannot be processed.
     # Payload: basic
     BAD_VERSION = 0
-    #: Invalid source address type. E.g. the address type is deprecated.
-    #: N.B. this can only support versions which are known but not allowed, as
-    #: otherwise the packet then cannot be processed.
-    # Payload: basic
-    BAD_SRC_TYPE = 1
     #: Invalid destination address type. E.g. the address type is deprecated.
     #: N.B. this can only support versions which are known but not allowed, as
     #: otherwise the packet then cannot be processed.
     # Payload: basic
-    BAD_DST_TYPE = 2
+    BAD_DST_TYPE = 1
+    #: Invalid source address type. E.g. the address type is deprecated.
+    #: N.B. this can only support versions which are known but not allowed, as
+    #: otherwise the packet then cannot be processed.
+    # Payload: basic
+    BAD_SRC_TYPE = 2
     #: "Total length" field in common header does not match the number of bytes
     #: received.
     # Info: received bytes in packet.
