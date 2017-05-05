@@ -401,40 +401,42 @@ class TCPSocketWrapper(object):
                                        host=self._addr.host, path=self._path,
                                        sock=self)
 
-    def _get_msg(self):
-        if len(self._buf) < 4:
-            return None
-        msg_len = struct.unpack("!I", self._buf[:4])[0]
-        if msg_len + 4 > len(self._buf):
-            return None
-        msg = self._buf[4:4 + msg_len]
-        self._buf = self._buf[4 + msg_len:]
-        try:
-            return msg_from_raw(msg)
-        except SCIONBaseError:
-            log_exception("Error parsing message: %s" % hex_str(msg),
-                          level=logging.ERROR)
-            return None
+    def _get_msgs(self):
+        res = []
+        while True:
+            if len(self._buf) < 4:
+                break
+            msg_len = struct.unpack("!I", self._buf[:4])[0]
+            if msg_len + 4 > len(self._buf):
+                break
+            msg = self._buf[4:4 + msg_len]
+            self._buf = self._buf[4 + msg_len:]
+            try:
+                res.append(msg_from_raw(msg))
+            except SCIONBaseError:
+                log_exception("Error parsing message: %s" % hex_str(msg),
+                              level=logging.ERROR)
+                break  # FIXME(PSz): or return [] ?
+        return res
 
-    def get_msg_meta(self):
+    def get_msgs_meta(self):
         with self._lock:
-            msg = self._get_msg()
-            if msg:
-                return msg, self._get_meta()
+            msgs = self._get_msgs()
+            if msgs:
+                return msgs, self._get_meta()
             if not self.active:
-                logging.debug("TCP: get_msg_meta(): inactive socket")
-                return None, self._get_meta()
+                return [], self._get_meta()
             try:
                 read = self._tcp_sock.recv(self.RECV_SIZE)
                 if not read:
                     self.active = False
-                    return None, None
+                    return [], None
                 self._buf += read
                 self._last_io = time.time()
             except SCIONTCPError as e:
                 logging.error("TCP: deactivating after socket error: %s", e)
                 self.active = False
-            return self._get_msg(), self._get_meta()
+            return self._get_msgs(), self._get_meta()
 
     def send_msg(self, raw):
         with self._lock:

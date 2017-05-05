@@ -974,10 +974,10 @@ class SCIONElement(object):
         """
         Callback to handle a ready recving socket
         """
-        msg, meta = sock.get_msg_meta()
-        if msg:
+        msgs, meta = sock.get_msgs_meta()
+        for msg in msgs:
             self._in_buf_put((msg, meta))
-        elif meta is None:
+        if not msgs and meta is None:
             self._socks.remove(sock)
             sock.close()
 
@@ -998,21 +998,21 @@ class SCIONElement(object):
             # Wait if nothing to do
             if self._tcp_send_queue.empty() and not meta2buf:
                 msg, meta = self._tcp_send_queue.get()
-                meta2buf[meta] += msg.pack_full()
+                meta2buf[meta.sock] += msg.pack_full()
             # Drain the queue
             while not self._tcp_send_queue.empty():
                 try:
                     msg, meta = self._tcp_send_queue.get_nowait()
-                    meta2buf[meta] += msg.pack_full()
+                    meta2buf[meta.sock] += msg.pack_full()
                 except queue.Empty:
                     break
             # Now send what is missing
-            for meta in meta2buf:
-                sent = meta.sock.send_msg(meta2buf[meta])
-                meta2buf[meta] = meta2buf[meta][sent:]
-            for meta in list(meta2buf):
-                if not meta.sock.is_active() or not meta2buf[meta]:
-                    del meta2buf[meta]
+            for sock in meta2buf:
+                sent = sock.send_msg(meta2buf[sock])
+                meta2buf[sock] = meta2buf[sock][sent:]
+            for sock in list(meta2buf):
+                if not sock.is_active() or not meta2buf[sock]:
+                    del meta2buf[sock]
 
     def stop(self):
         """Shut down the daemon thread."""
