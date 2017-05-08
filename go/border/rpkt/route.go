@@ -71,6 +71,7 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
 
+	// Use any local output function in case the packet has no path (e.g., ifstate requests)
 	f := callbacks.locOutFs[0]
 	if rp.ifCurr != nil {
 		intf := conf.C.Net.IFs[*rp.ifCurr]

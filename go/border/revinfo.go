@@ -53,7 +53,7 @@ func (r *Router) RevInfoFwd() {
 		}
 		for _, svcAddr := range args.Addrs {
 			log.Debug("Forwarding revocation.", "target", svcAddr, "revInfo", revInfo)
-			r.genRevInfo(revInfo, &svcAddr)
+			r.fwdRevInfo(revInfo, &svcAddr)
 		}
 	}
 
@@ -81,8 +81,8 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 	return &revInfo
 }
 
-// genRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) genRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
+// fwdRevInfo forwards RevInfo payloads to a designated local host.
+func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	// Pick first local address from topology as source.
 	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
 	scion, pathMgmt, err := proto.NewPathMgmtMsg()
