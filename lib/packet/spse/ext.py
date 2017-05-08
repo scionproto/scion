@@ -21,7 +21,7 @@ import struct
 # SCION
 from lib.packet.ext_hdr import EndToEndExtension
 from lib.packet.spse.defines import (
-    SPSEBaseError,
+    SPSEValidationError,
     SPSELengths,
     SPSESecModes
 )
@@ -29,9 +29,20 @@ from lib.types import ExtEndToEndType
 from lib.util import hex_str, Raw
 
 
-class SCIONPacketSecurityExtn(EndToEndExtension):
+class SCIONPacketSecurityBaseExtn(EndToEndExtension):
     """
-    Implementation of SCIONPacket security extension.
+    Base class of SCION Packet Security extension.
+    """
+    EXT_TYPE = ExtEndToEndType.SPSE
+
+    def __init__(self, raw=None):
+        self.sec_mode = 0
+        super().__init__(raw)
+
+
+class SCIONPacketSecurityExtn(SCIONPacketSecurityBaseExtn):
+    """
+    Implementation of SCIONPacket Security extension.
 
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -44,15 +55,21 @@ class SCIONPacketSecurityExtn(EndToEndExtension):
     len(Authenticator) = 8i     , where i in [1,2,...]
     """
     NAME = "SCIONPacketSecurityExtn"
-    EXT_TYPE = ExtEndToEndType.SCION_PACKET_SECURITY
+
+    # SecModes supported by SCIONPacketSecurityExtn
+    SUPPORTED_SECMODES = {
+        SPSESecModes.AES_CMAC,
+        SPSESecModes.HMAC_SHA256,
+        SPSESecModes.ED25519,
+        SPSESecModes.GCM_AES128,
+    }
 
     def __init__(self, raw=None):  # pragma: no cover
         """
         :param bytes raw: Raw data holding SecMode, Metadata and authenticator
         """
-        self.sec_mode = 0
-        self.metadata = []
-        self.authenticator = []
+        self.metadata = b""
+        self.authenticator = b""
         super().__init__(raw)
 
     def _parse(self, raw):
@@ -77,11 +94,9 @@ class SCIONPacketSecurityExtn(EndToEndExtension):
         :param bytes authenticator: The authenticator of the extension.
         :returns: The created instance.
         :rtype: SCIONPacketSecurityExtn
-        :raises: SPSEBaseError
+        :raises: SPSEValidationError
         """
-        error = cls.check_validity(sec_mode, metadata, authenticator)
-        if error:
-            raise error
+        cls.check_validity(sec_mode, metadata, authenticator)
         inst = cls()
         inst._init_size(inst.bytes_to_hdr_len(SPSELengths.TOTAL[sec_mode]))
         inst.sec_mode = sec_mode
@@ -110,19 +125,17 @@ class SCIONPacketSecurityExtn(EndToEndExtension):
         :param int sec_mode: The SecMode of the extension.
         :param bytes metadata: The metadata of the extension.
         :param bytes authenticator: The authenticator of the extension.
-        :returns: An error if invalid parameters, None otherwise.
-        :rtype: SPSEBaseError
+        :raises: SPSEValidationError
         """
 
-        if sec_mode not in SPSESecModes.SUPPORTED_SECMODES:
-            return SPSEBaseError("Invalid SecMode %s" % sec_mode)
+        if sec_mode not in SCIONPacketSecurityExtn.SUPPORTED_SECMODES:
+            raise SPSEValidationError("Invalid SecMode %s" % sec_mode)
         if len(metadata) != SPSELengths.META[sec_mode]:
-            return SPSEBaseError("Invalid metadata length %s. Expected %s" % (
+            raise SPSEValidationError("Invalid metadata length %s. Expected %s" % (
                 sec_mode, SPSELengths.META[sec_mode]))
         if len(authenticator) != SPSELengths.AUTH[sec_mode]:
-            return SPSEBaseError("Invalid auth length %s. Expected %s" % (
+            raise SPSEValidationError("Invalid auth length %s. Expected %s" % (
                 sec_mode, SPSELengths.AUTH[sec_mode]))
-        return None
 
     def __str__(self):
         return "%s(%sB):\n\tMeta: %s\n\tAuth: %s" % (
