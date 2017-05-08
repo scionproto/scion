@@ -36,12 +36,8 @@ type rSCMPAuthDRKeyExtn struct {
 // keeping a reference to the location in the packet's buffer.
 func rSCMPAuthDRKeyExtnFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthDRKeyExtn, *common.Error) {
 	raw := rp.Raw[start:end]
-	mode := raw[0]
-	if mode != spse.ScmpAuthDRKey {
-		return nil, common.NewError("SecMode not supported", "mode", mode)
-	}
-	s := &rSCMPAuthDRKeyExtn{
-		&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
+	mode := spse.SecMode(raw[0])
+	s := &rSCMPAuthDRKeyExtn{&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
 	s.Logger = rp.Logger.New("ext", "SCMPAuthDRKeyExt")
 	return s, nil
 }
@@ -61,19 +57,15 @@ func (s *rSCMPAuthDRKeyExtn) RegisterHooks(h *hooks) *common.Error {
 }
 
 func (s *rSCMPAuthDRKeyExtn) Validate() (HookResult, *common.Error) {
-	if s.SecMode != spse.ScmpAuthDRKey {
-		return HookError, common.NewError("SecMode not supported", "mode", s.SecMode,
-			"expected", spse.ScmpAuthDRKey)
-	}
 	if len(s.raw) != scmp_auth.DRKeyTotalLength {
-		return HookError, common.NewError("Invalid header length", "len", len(s.raw),
-			"expected", scmp_auth.DRKeyTotalLength)
+		return HookError, common.NewError("Invalid header length", "expected",
+			scmp_auth.DRKeyTotalLength, "actual", len(s.raw))
 	}
 	return HookContinue, nil
 }
 
 // GetExtn returns the scmp_auth.DRKeyExtn representation,
-// which does not have direct access to the underling buffer.
+// which does not have direct access to the underlying buffer.
 func (s *rSCMPAuthDRKeyExtn) GetExtn() (common.Extension, *common.Error) {
 	extn := scmp_auth.NewDRKeyExtn()
 	if err := extn.SetDirection(s.Direction()); err != nil {
@@ -83,29 +75,29 @@ func (s *rSCMPAuthDRKeyExtn) GetExtn() (common.Extension, *common.Error) {
 	return extn, nil
 }
 
-func (s *rSCMPAuthDRKeyExtn) SetDirection(dir uint8) {
-	s.raw[scmp_auth.DirectionOffset] = dir
+func (s *rSCMPAuthDRKeyExtn) Direction() scmp_auth.Dir {
+	return scmp_auth.Dir(s.raw[scmp_auth.DirectionOffset])
 }
 
-func (s *rSCMPAuthDRKeyExtn) Direction() uint8 {
-	return s.raw[scmp_auth.DirectionOffset]
+func (s *rSCMPAuthDRKeyExtn) SetDirection(dir scmp_auth.Dir) {
+	s.raw[scmp_auth.DirectionOffset] = uint8(dir)
+}
+
+func (s *rSCMPAuthDRKeyExtn) MAC() common.RawBytes {
+	return s.raw[scmp_auth.MACOffset:scmp_auth.DRKeyTotalLength]
+}
+
+func (s *rSCMPAuthDRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
+	if len(mac) != scmp_auth.MACLength {
+		return common.NewError("Invalid MAC length", "expected", len(s.MAC()),
+			"actual", len(mac))
+	}
+	copy(s.MAC(), mac)
+	return nil
 }
 
 func (s *rSCMPAuthDRKeyExtn) ResetMac() {
 	for i := range s.MAC() {
 		s.MAC()[i] = 0
 	}
-}
-
-func (s *rSCMPAuthDRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
-	if len(s.MAC()) != scmp_auth.MACLength {
-		return common.NewError("Invalid MAC length", "len", len(mac),
-			"expected", scmp_auth.MACLength)
-	}
-	copy(s.MAC(), mac)
-	return nil
-}
-
-func (s *rSCMPAuthDRKeyExtn) MAC() common.RawBytes {
-	return s.raw[scmp_auth.MACOffset:scmp_auth.DRKeyTotalLength]
 }
