@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`extn_test` --- lib.packet.spse.extn.SCIONPacketSecurityExtn unit tests
+:mod:`ext_test` --- lib.packet.spse.ext.SCIONPacketSecurityExtn unit tests
 ==============================================================================
 """
 # Stdlib
@@ -22,19 +22,19 @@ import nose
 import nose.tools as ntools
 
 from lib.packet.spse.defines import SPSESecModes
-from lib.packet.spse.extn import SCIONPacketSecurityExtn
+from lib.packet.spse.ext import SCIONPacketSecurityExtn
 from test.testcommon import create_mock
 
 
 class TestSCIONPacketSecurityExtnParse(object):
     """
-    Unit tests for lib.packet.spse.extn.SCIONPacketSecurityExtn._parse
+    Unit tests for lib.packet.spse.ext.SCIONPacketSecurityExtn._parse
     """
-    @patch("lib.packet.spse.extn.SPSELengths",
+    @patch("lib.packet.spse.ext.SPSELengths",
            autospec=True)
-    @patch("lib.packet.spse.extn."
+    @patch("lib.packet.spse.ext."
            "EndToEndExtension._parse", autospec=True)
-    @patch("lib.packet.spse.extn.Raw",
+    @patch("lib.packet.spse.ext.Raw",
            autospec=True)
     def test(self, raw, super_parse, lengths):
         inst = SCIONPacketSecurityExtn()
@@ -55,7 +55,7 @@ class TestSCIONPacketSecurityExtnParse(object):
 
 class TestSCIONPacketSecurityExtnPack(object):
     """
-    Unit tests for lib.packet.spse.extn.SCIONPacketSecurityExtn.pack
+    Unit tests for lib.packet.spse.ext.SCIONPacketSecurityExtn.pack
     """
     def test(self):
         inst = SCIONPacketSecurityExtn.from_values(
