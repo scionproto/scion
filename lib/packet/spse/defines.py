@@ -26,6 +26,10 @@ class SPSEBaseError(SCIONBaseError):
     pass
 
 
+class SPSEValidationError(SPSEBaseError):
+    pass
+
+
 class SPSESecModes(TypeBase):
     """
     Available SecModes
@@ -36,14 +40,6 @@ class SPSESecModes(TypeBase):
     GCM_AES128 = 3
     SCMP_AUTH_DRKEY = 4
     SCMP_AUTH_HASH_TREE = 5
-
-    # SecModes supported by SCIONPacketSecurityExtn
-    SUPPORTED_SECMODES = {
-        AES_CMAC,
-        HMAC_SHA256,
-        ED25519,
-        GCM_AES128,
-    }
 
 
 class SPSELengths:

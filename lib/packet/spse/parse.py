@@ -18,11 +18,9 @@
 
 # SCION
 from lib.packet.spse.defines import SPSESecModes
-from lib.packet.spse.extn import SCIONPacketSecurityExtn
-from lib.packet.spse.scmp_auth.extn import (
-    SCMPAuthDRKeyExtn,
-    SCMPAuthHashTreeExtn,
-)
+from lib.packet.spse.ext import SCIONPacketSecurityExtn
+from lib.packet.spse.scmp_auth.ext_drkey import SCMPAuthDRKeyExtn
+from lib.packet.spse.scmp_auth.ext_hashtree import SCMPAuthHashTreeExtn
 
 
 def parse_spse(raw):  # pragma: no cover
@@ -30,7 +28,7 @@ def parse_spse(raw):  # pragma: no cover
     Parses the SCIONPacketSecurity extension according to the security mode.
     """
     sec_mode = raw[0]
-    if sec_mode in SPSESecModes.SUPPORTED_SECMODES:
+    if sec_mode in SCIONPacketSecurityExtn.SUPPORTED_SECMODES:
         return SCIONPacketSecurityExtn(raw)
     if sec_mode == SPSESecModes.SCMP_AUTH_DRKEY:
         return SCMPAuthDRKeyExtn(raw)

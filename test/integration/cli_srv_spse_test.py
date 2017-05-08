@@ -23,15 +23,9 @@ import logging
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.spse.defines import SPSELengths, SPSESecModes
-from lib.packet.spse.extn import SCIONPacketSecurityExtn
-from lib.packet.spse.scmp_auth.defines import (
-    SCMPAuthDirections,
-    SCMPAuthLengths,
-)
-from lib.packet.spse.scmp_auth.extn import (
-    SCMPAuthDRKeyExtn,
-    SCMPAuthHashTreeExtn,
-)
+from lib.packet.spse.ext import SCIONPacketSecurityExtn
+from lib.packet.spse.scmp_auth.ext_drkey import SCMPAuthDRKeyExtn
+from lib.packet.spse.scmp_auth.ext_hashtree import SCMPAuthHashTreeExtn
 from lib.util import hex_str
 from test.integration.base_cli_srv import (
     setup_main,
@@ -56,10 +50,10 @@ class ExtClient(TestClientBase):
             auth = bytes(range(0, SPSELengths.AUTH[mode]))
             exts.append(SCIONPacketSecurityExtn.from_values(mode, meta, auth))
 
-        exts.append(SCMPAuthDRKeyExtn.from_values(SCMPAuthDirections.AS_TO_AS))
+        exts.append(SCMPAuthDRKeyExtn.from_values(SCMPAuthDRKeyExtn.Directions.AS_TO_AS))
         order = bytes(range(0, 3))
-        sign = bytes(range(0, SCMPAuthLengths.SIGNATURE))
-        hashes = bytes(range(0, H * SCMPAuthLengths.HASH))
+        sign = bytes(range(0, SCMPAuthHashTreeExtn.Lengths.SIGNATURE))
+        hashes = bytes(range(0, H * SCMPAuthHashTreeExtn.Lengths.HASH))
         exts.append(SCMPAuthHashTreeExtn.from_values(H, order, sign, hashes))
 
         return exts
@@ -90,13 +84,13 @@ class ExtClient(TestClientBase):
         if not isinstance(ext, SCMPAuthDRKeyExtn):
             logging.error("Extension #%s is not SCMPAuthDRKeyExtn:\n%s", i, ext)
             return False
-        if not ext.direction == SCMPAuthDirections.AS_TO_AS:
+        if not ext.direction == SCMPAuthDRKeyExtn.Directions.AS_TO_AS:
             logging.error("Wrong direction %s. Expected %s", ext.direction,
-                          SCMPAuthDirections.AS_TO_AS)
+                          SCMPAuthDRKeyExtn.Directions.AS_TO_AS)
             return False
-        if not ext.mac == bytes(SCMPAuthLengths.MAC):
+        if not ext.mac == bytes(SCMPAuthDRKeyExtn.Lengths.MAC):
             logging.error("Wrong MAC %s. Expected %s", ext.mac,
-                          bytes(SCMPAuthLengths.MAC))
+                          bytes(SCMPAuthDRKeyExtn.Lengths.MAC))
             return False
         i += 1
         ext = spkt.ext_hdrs[i]
@@ -111,13 +105,13 @@ class ExtClient(TestClientBase):
             logging.error("Wrong order %s. Expected %s", ext.order,
                           bytes(range(0, 3)))
             return False
-        if not ext.signature == bytes(range(0, SCMPAuthLengths.SIGNATURE)):
+        if not ext.signature == bytes(range(0, SCMPAuthHashTreeExtn.Lengths.SIGNATURE)):
             logging.error("Wrong signature %s. Expected %s", ext.signature,
-                          bytes(range(0, SCMPAuthLengths.SIGNATURE)))
+                          bytes(range(0, SCMPAuthHashTreeExtn.Lengths.SIGNATURE)))
             return False
-        if not ext.hashes == bytes(range(0, H * SCMPAuthLengths.HASH)):
+        if not ext.hashes == bytes(range(0, H * SCMPAuthHashTreeExtn.Lengths.HASH)):
             logging.error("Wrong hashes %s. Expected %s", ext.signature,
-                          bytes(range(0, H * SCMPAuthLengths.HASH)))
+                          bytes(range(0, H * SCMPAuthHashTreeExtn.Lengths.HASH)))
             return False
         self.success = True
         self.finished.set()

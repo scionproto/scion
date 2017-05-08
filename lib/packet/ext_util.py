@@ -40,7 +40,7 @@ EXTENSION_MAP = {
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
-    (ExtensionClass.END_TO_END, ExtEndToEndType.SCION_PACKET_SECURITY):
+    (ExtensionClass.END_TO_END, ExtEndToEndType.SPSE):
         parse_spse,
 }
 
