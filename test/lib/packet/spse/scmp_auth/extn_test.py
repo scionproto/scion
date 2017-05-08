@@ -22,11 +22,8 @@ import nose
 import nose.tools as ntools
 
 from lib.packet.spse.defines import SPSESecModes
-from lib.packet.spse.scmp_auth.defines import SCMPAuthLengths
-from lib.packet.spse.scmp_auth.extn import (
-    SCMPAuthDRKeyExtn,
-    SCMPAuthHashTreeExtn,
-)
+from lib.packet.spse.scmp_auth.ext_drkey import SCMPAuthDRKeyExtn
+from lib.packet.spse.scmp_auth.ext_hashtree import SCMPAuthHashTreeExtn
 from test.testcommon import create_mock
 
 
@@ -34,9 +31,9 @@ class TestSCMPAuthDRKeyExtnParse(object):
     """
     Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthDRKeyExtn._parse
     """
-    @patch("lib.packet.spse.scmp_auth.extn."
-           "EndToEndExtension._parse", autospec=True)
-    @patch("lib.packet.spse.scmp_auth.extn.Raw",
+    @patch("lib.packet.spse.scmp_auth.ext_drkey."
+           "SCIONPacketSecurityBaseExtn._parse", autospec=True)
+    @patch("lib.packet.spse.scmp_auth.ext_drkey.Raw",
            autospec=True)
     def test(self, raw, super_parse):
         inst = SCMPAuthDRKeyExtn()
@@ -77,9 +74,9 @@ class TestSCMPAuthHashTreeExtnParse(object):
     """
     Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthHashTreeExtn._parse
     """
-    @patch("lib.packet.spse.scmp_auth.extn."
-           "EndToEndExtension._parse", autospec=True)
-    @patch("lib.packet.spse.scmp_auth.extn.Raw",
+    @patch("lib.packet.spse.scmp_auth.ext_hashtree."
+           "SCIONPacketSecurityBaseExtn._parse", autospec=True)
+    @patch("lib.packet.spse.scmp_auth.ext_hashtree.Raw",
            autospec=True)
     def test(self, raw, super_parse):
         inst = SCMPAuthHashTreeExtn()
@@ -106,9 +103,9 @@ class TestSCMPAuthHashTreeExtnPack(object):
     """
     def test(self):
         height = 2
-        order = bytes(range(0, SCMPAuthLengths.ORDER))
-        signature = bytes(range(0, SCMPAuthLengths.SIGNATURE))
-        hashes = bytes(range(0, height * SCMPAuthLengths.HASH))
+        order = bytes(range(0, SCMPAuthHashTreeExtn.Lengths.ORDER))
+        signature = bytes(range(0, SCMPAuthHashTreeExtn.Lengths.SIGNATURE))
+        hashes = bytes(range(0, height * SCMPAuthHashTreeExtn.Lengths.HASH))
 
         inst = SCMPAuthHashTreeExtn.from_values(
             height, order, signature, hashes)
