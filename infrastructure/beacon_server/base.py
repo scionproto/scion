@@ -61,8 +61,10 @@ from lib.packet.path_mgmt.ifstate import (
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
     ASMarking,
+    ASMExtType,
     PathSegment,
     PCBMarking,
+    RoutingPolicyExt,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
@@ -73,6 +75,7 @@ from lib.types import (
     CertMgmtType,
     PathMgmtType as PMT,
     PayloadClass,
+    RoutingPolType,
 )
 from lib.util import (
     SCIONTime,
@@ -306,15 +309,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
+    def _create_pol_ext(self, ext_type, pol_type, interface, isd_ases):
+        return RoutingPolicyExt.from_values(ext_type, pol_type, interface, isd_ases)
+
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
         if not pcbms:
             return None
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
+        test_isd_ases = [ISD_AS.from_values(1, 10), ISD_AS.from_values(2, 23)]
+        test_pol_ext = self._create_pol_ext(ASMExtType.ROUTING_POLICY, RoutingPolType.DENY_AS,
+                                            0, test_isd_ases)
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
-            self._get_ht_root(), self.topology.mtu)
+            self._get_ht_root(), self.topology.mtu, [test_pol_ext])
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         up_pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
