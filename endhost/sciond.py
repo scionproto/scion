@@ -21,6 +21,9 @@ import os
 import threading
 from itertools import product
 
+# External
+from external.expiring_dict import ExpiringDict
+
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_tree import ConnectedHashTree
@@ -79,6 +82,7 @@ class SCIONDaemon(SCIONElement):
     """
     # Max time for a path lookup to succeed/fail.
     PATH_REQ_TOUT = 2
+    MAX_REQS = 1024
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
 
@@ -94,7 +98,7 @@ class SCIONDaemon(SCIONElement):
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.peer_revs = RevCache()
         # Keep track of requested paths.
-        self.requested_paths = {}
+        self.requested_paths = ExpiringDict(self.MAX_REQS, self.PATH_REQ_TOUT)
         self.req_path_lock = threading.Lock()
         self._api_sock = None
         self.daemon_thread = None
@@ -191,14 +195,11 @@ class SCIONDaemon(SCIONElement):
         ret = map_[type_](pcb)
         if not ret:
             return
-        to_remove = []
         with self.req_path_lock:
-            for key in self.requested_paths:
+            for key, e in self.requested_paths.items():
                 if self.path_resolution(*key):
-                    self.requested_paths[key].set()
-                    to_remove.append(key)
-            for key in to_remove:
-                del self.requested_paths[key]
+                    e.set()
+                    del self.requested_paths[key]
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
