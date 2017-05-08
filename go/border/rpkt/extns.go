@@ -22,7 +22,6 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/spse"
 )
 
 // rExtension extends common.ExtnBase, adding a method to retrieve the
@@ -72,12 +71,7 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	}
 	// Find the last hop-by-hop extension, if any, so the new one can be
 	// inserted after it.
-	offset := int(rp.CmnHdr.HdrLen)
-	var nextHdr *uint8 = (*uint8)(&rp.CmnHdr.NextHdr)
-	for i, hIdx := range rp.idxs.hbhExt {
-		nextHdr = &rp.Raw[hIdx.Index]
-		offset = hIdx.Index + common.ExtnSubHdrLen + rp.HBHExt[i].Len()
-	}
+	offset, nextHdr := rp.extnOffsetLastHBH()
 	// Check if the extension's length is legal
 	eLen := e.Len() + common.ExtnSubHdrLen
 	if eLen%common.LineLen != 0 {
@@ -89,9 +83,7 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	// preceding hop-by-hop extension.
 	*nextHdr = uint8(et.Class)
 	// Write extension sub-header into buffer
-	rp.Raw[offset] = uint8(common.L4None)
-	rp.Raw[offset+1] = uint8(eLen/common.LineLen) - 1
-	rp.Raw[offset+2] = et.Type
+	rp.extnWriteSubHeader(common.L4None, eLen, et, offset)
 	// Write extension into buffer
 	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen : offset+eLen]); err != nil {
 		return err
@@ -115,24 +107,12 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 	start, end, pos int) (rExtension, *common.Error) {
 	switch {
-	case extType == common.ExtnPathTransType:
-		return nil, common.NewError("Unsupported end-to-end extension. Implementation pending")
-	case extType == common.ExtnPathProbeType:
-		return nil, common.NewError("Unsupported end-to-end extension. Implementation pending")
 	case extType == common.ExtnSCIONPacketSecurityType:
-		secMode := rp.Raw[start]
-		switch {
-		case spse.IsSupported(secMode):
-			return rSPSExtFromRaw(rp, start, end)
-		case secMode == spse.ScmpAuthDRKey:
-			return rSCMPAuthDRKeyExtnFromRaw(rp, start, end)
-		case secMode == spse.ScmpAuthHashTree:
-			return rSCMPAuthHashTreeExtnFromRaw(rp, start, end)
-		default:
-			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
-				&scmp.InfoExtIdx{Idx: uint8(pos)})
-			return nil, common.NewErrorData("Unsupported SecMode", sdata, "mode", secMode)
+		extn, err := parseSPSEfromRaw(rp, start, end, pos)
+		if err != nil {
+			return nil, err
 		}
+		return extn, nil
 	default:
 		// E2E not supported, so send an SCMP error in response.
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
@@ -143,14 +123,9 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 
 // extnAddE2E adds a end-to-end extension to a packet the router is creating.
 func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
-	// Find the last hop-by-hop extension, if any, so the new one can be
+	// Find the last end-to-end extension, if any, so the new one can be
 	// inserted after it.
-	offset := int(rp.CmnHdr.HdrLen)
-	var nextHdr *uint8 = (*uint8)(&rp.CmnHdr.NextHdr)
-	for i, hIdx := range rp.idxs.hbhExt {
-		nextHdr = &rp.Raw[hIdx.Index]
-		offset = hIdx.Index + common.ExtnSubHdrLen + rp.HBHExt[i].Len()
-	}
+	offset, nextHdr := rp.extnOffsetLastE2E()
 	// Check if the extension's length is legal
 	eLen := e.Len() + common.ExtnSubHdrLen
 	if eLen%common.LineLen != 0 {
@@ -158,13 +133,11 @@ func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
 			"lineLen", common.LineLen, "actual", eLen)
 	}
 	et := e.Type()
-	// Set the preceding NextHdr field, whether it's in the common header, or a
-	// preceding hop-by-hop extension.
+	// Set the preceding NextHdr field, whether it's in the common header, a
+	// preceding hop-by-hop extension, or a preceding end-to-end extension.
 	*nextHdr = uint8(et.Class)
 	// Write extension sub-header into buffer
-	rp.Raw[offset] = uint8(common.L4None)
-	rp.Raw[offset+1] = uint8(eLen/common.LineLen) - 1
-	rp.Raw[offset+2] = et.Type
+	rp.extnWriteSubHeader(common.L4None, eLen, et, offset)
 	// Write extension into buffer
 	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen : offset+eLen]); err != nil {
 		return err
@@ -182,6 +155,38 @@ func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
 	rp.idxs.l4 = offset + eLen
 	rp.idxs.pld = rp.idxs.l4
 	return nil
+}
+
+// extnOffsetLastHBH finds the last hop-by-hop extension and returns the offset
+// after that extension, as well as a pointer to the nextHdr field of the last extension.
+func (rp *RtrPkt) extnOffsetLastHBH() (int, *uint8) {
+	offset := int(rp.CmnHdr.HdrLen)
+	var nextHdr *uint8 = (*uint8)(&rp.CmnHdr.NextHdr)
+	for i, hIdx := range rp.idxs.hbhExt {
+		nextHdr = &rp.Raw[hIdx.Index]
+		offset = hIdx.Index + common.ExtnSubHdrLen + rp.HBHExt[i].Len()
+	}
+	return offset, nextHdr
+}
+
+// extnOffsetLastE2E finds the last end-to-end extension and returns the offset
+// after that extension, as well as a pointer to the nextHdr field of the last extension.
+func (rp *RtrPkt) extnOffsetLastE2E() (int, *uint8) {
+	offset, nextHdr := rp.extnOffsetLastHBH()
+	for i, eIdx := range rp.idxs.e2eExt {
+		nextHdr = &rp.Raw[eIdx.Index]
+		offset = eIdx.Index + common.ExtnSubHdrLen + rp.E2EExt[i].Len()
+	}
+	return offset, nextHdr
+}
+
+// extnWriteSubHeader writes the extension sub header of an extension starting at a given offset into
+// the buffer.
+func (rp *RtrPkt) extnWriteSubHeader(nextHdr common.L4ProtocolType, extnLength int,
+	extnType common.ExtnType, offset int) {
+	rp.Raw[offset] = uint8(nextHdr)
+	rp.Raw[offset+1] = uint8(extnLength/common.LineLen) - 1
+	rp.Raw[offset+2] = extnType.Type
 }
 
 // validateExtns validates the order and number of extensions.

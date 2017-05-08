@@ -41,7 +41,7 @@ var _ common.Extension = (*DRKeyExtn)(nil)
 type DRKeyExtn struct {
 	*spse.BaseExtn
 	// Direction indicates which key has been used during authentication.
-	Direction uint8
+	Direction Dir
 	// MAC is the mac of the SCION Packet with CurrHF and CurrINF set to zero.
 	MAC common.RawBytes
 }
@@ -56,25 +56,44 @@ const (
 	DRKeyTotalLength = MACOffset + MACLength
 )
 
+type Dir uint8
+
 const (
-	AsToAs             uint8 = iota // Authenticated with S -> D
-	AsToHost                        // Authenticated with S -> D:HD
-	HostToHost                      // Authenticated with S:HS -> D:HD
-	HostToAs                        // Authenticated with D -> S:HS
-	AsToAsReversed                  // Authenticated with D -> S
-	HostToHostReversed              // Authenticated with D:HD -> S:HS
+	AsToAs             Dir = iota // Authenticated with S -> D
+	AsToHost                      // Authenticated with S -> D:HD
+	HostToHost                    // Authenticated with S:HS -> D:HD
+	HostToAs                      // Authenticated with D -> S:HS
+	AsToAsReversed                // Authenticated with D -> S
+	HostToHostReversed            // Authenticated with D:HD -> S:HS
 )
 
+func (d Dir) String() string {
+	switch d {
+	case AsToAs:
+		return "AS to AS"
+	case AsToHost:
+		return "AS to Host"
+	case HostToHost:
+		return "Host to Host"
+	case HostToAs:
+		return "Host to AS"
+	case AsToAsReversed:
+		return "AS to AS reversed"
+	case HostToHostReversed:
+		return "Host to Host reversed"
+	default:
+		return fmt.Sprintf("UNKNOWN: %v", uint8(d))
+	}
+}
+
 func NewDRKeyExtn() *DRKeyExtn {
-	s := &DRKeyExtn{
-		BaseExtn: &spse.BaseExtn{
-			SecMode: spse.ScmpAuthDRKey}}
+	s := &DRKeyExtn{BaseExtn: &spse.BaseExtn{SecMode: spse.ScmpAuthDRKey}}
 	s.MAC = make(common.RawBytes, MACLength)
 	return s
 }
 
-func (s DRKeyExtn) SetDirection(dir uint8) *common.Error {
-	if dir < 0 || dir >= HostToHostReversed {
+func (s DRKeyExtn) SetDirection(dir Dir) *common.Error {
+	if dir > HostToHostReversed {
 		return common.NewError("Invalid direction", "dir", dir)
 	}
 	s.Direction = dir
@@ -83,7 +102,7 @@ func (s DRKeyExtn) SetDirection(dir uint8) *common.Error {
 
 func (s DRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
 	if len(mac) != MACLength {
-		return common.NewError("Invalid MAC size", "len", mac)
+		return common.NewError("Invalid MAC size", "expexted", MACLength, "actual", len(mac))
 	}
 	copy(s.MAC, mac)
 	return nil
@@ -91,10 +110,11 @@ func (s DRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
 
 func (s *DRKeyExtn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write")
+		return common.NewError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write",
+			"expected", s.Len(), "actual", len(b))
 	}
-	b[0] = s.SecMode
-	b[DirectionOffset] = s.Direction
+	b[0] = uint8(s.SecMode)
+	b[DirectionOffset] = uint8(s.Direction)
 	for i := DirectionOffset + DirectionLength; i < MACOffset; i++ {
 		b[i] = 0
 	}

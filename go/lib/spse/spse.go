@@ -37,7 +37,7 @@ var _ common.Extension = (*Extn)(nil)
 // BaseExtn is the base for Extn, scmp_auth.DRKeyExt and scmp_auth.HashTreeExt
 type BaseExtn struct {
 	// SecMode indicates the security mode of the extension.
-	SecMode uint8
+	SecMode SecMode
 }
 
 // Extn is the implementation of the SCIONPacketSecurity extension.
@@ -53,14 +53,6 @@ const (
 	// Basic definitions
 	SecModeLength   = 1
 	TimestampLength = 4
-
-	// SecMode codes
-	AesCMac          uint8 = 0
-	HmacSha256       uint8 = 1
-	ED25519          uint8 = 2
-	GcmAes128        uint8 = 3
-	ScmpAuthDRKey    uint8 = 4
-	ScmpAuthHashTree uint8 = 5
 
 	// Metadata length (Shall be 4 + i*8, were i in [0,1,...])
 	AesCMacMetaLength    = TimestampLength
@@ -80,16 +72,44 @@ const (
 	GcmAes128TotalLength  = SecModeLength + GcmAes128MetaLength + GcmAes128AuthLength
 )
 
-func IsSupported(mode uint8) bool {
-	switch mode {
+type SecMode uint8
+
+const (
+	// SecMode codes
+	AesCMac SecMode = iota
+	HmacSha256
+	Ed25519
+	GcmAes128
+	ScmpAuthDRKey
+	ScmpAuthHashTree
+)
+
+func (s SecMode) String() string {
+	switch s {
 	case AesCMac:
+		return "AES-CMAC"
 	case HmacSha256:
-	case ED25519:
+		return "HMAC-SHA256"
+	case Ed25519:
+		return "Ed25519"
 	case GcmAes128:
+		return "GCM-AES128"
+	case ScmpAuthDRKey:
+		return "SCMPAuthDRKey"
+	case ScmpAuthHashTree:
+		return "SCMPAuthHashTree"
+	default:
+		return fmt.Sprintf("UNKNOWN: %v", uint8(s))
+	}
+}
+
+func IsSupported(mode SecMode) bool {
+	switch mode {
+	case AesCMac, HmacSha256, Ed25519, GcmAes128:
+		return true
 	default:
 		return false
 	}
-	return true
 }
 
 func (s *BaseExtn) Reverse() (bool, *common.Error) {
@@ -105,9 +125,8 @@ func (s *BaseExtn) Type() common.ExtnType {
 	return common.ExtnSCIONPacketSecurityType
 }
 
-func NewExtn(secMode uint8) (*Extn, *common.Error) {
-	s := &Extn{
-		BaseExtn: &BaseExtn{SecMode: secMode}}
+func NewExtn(secMode SecMode) (*Extn, *common.Error) {
+	s := &Extn{BaseExtn: &BaseExtn{SecMode: secMode}}
 
 	var metaLen, authLen int
 
@@ -118,7 +137,7 @@ func NewExtn(secMode uint8) (*Extn, *common.Error) {
 	case HmacSha256:
 		metaLen = HmacSha256MetaLength
 		authLen = HmacSha256MetaLength
-	case ED25519:
+	case Ed25519:
 		metaLen = ED25519MetaLength
 		authLen = ED25519AuthLength
 	case GcmAes128:
@@ -138,7 +157,7 @@ func NewExtn(secMode uint8) (*Extn, *common.Error) {
 func (s *Extn) SetMetadata(metadata common.RawBytes) *common.Error {
 	if len(s.Metadata) != len(metadata) {
 		return common.NewError("The length does not match",
-			"required len", len(s.Metadata), "provided len", len(metadata))
+			"expected", len(s.Metadata), "actual", len(metadata))
 	}
 	copy(s.Metadata, metadata)
 	return nil
@@ -148,7 +167,7 @@ func (s *Extn) SetMetadata(metadata common.RawBytes) *common.Error {
 func (s *Extn) SetAuthenticator(authenticator common.RawBytes) *common.Error {
 	if len(s.Authenticator) != len(authenticator) {
 		return common.NewError("The length does not match",
-			"required len", len(s.Authenticator), "provided len", len(authenticator))
+			"expected", len(s.Authenticator), "actual", len(authenticator))
 	}
 	copy(s.Authenticator, authenticator)
 	return nil
@@ -156,9 +175,10 @@ func (s *Extn) SetAuthenticator(authenticator common.RawBytes) *common.Error {
 
 func (s *Extn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SCIONPacketSecurityExtn.Write")
+		return common.NewError("Buffer too short", "method", "SCIONPacketSecurityExtn.Write",
+			"expected min", s.Len(), "actual", len(b))
 	}
-	b[0] = s.SecMode
+	b[0] = uint8(s.SecMode)
 
 	authOffset := SecModeLength + len(s.Metadata)
 	totalLength := authOffset + len(s.Authenticator)
@@ -190,7 +210,7 @@ func (s *Extn) Len() int {
 func (s *Extn) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "spse.Extn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
-	fmt.Fprintf(buf, " Metadata: %s", s.Metadata.String())
-	fmt.Fprintf(buf, " Authenticator: %s", s.Authenticator.String())
+	fmt.Fprintf(buf, " Metadata: %s", s.Metadata)
+	fmt.Fprintf(buf, " Authenticator: %s", s.Authenticator)
 	return buf.String()
 }

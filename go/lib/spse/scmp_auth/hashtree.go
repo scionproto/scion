@@ -72,9 +72,7 @@ func NewHashTreeExtn(height uint8) (*HashTreeExtn, *common.Error) {
 			"max height", MaxHeight)
 	}
 
-	extn := &HashTreeExtn{
-		BaseExtn: &spse.BaseExtn{
-			SecMode: spse.ScmpAuthHashTree}}
+	extn := &HashTreeExtn{BaseExtn: &spse.BaseExtn{SecMode: spse.ScmpAuthHashTree}}
 
 	extn.Height = height
 	extn.Order = make(common.RawBytes, OrderLength)
@@ -85,8 +83,8 @@ func NewHashTreeExtn(height uint8) (*HashTreeExtn, *common.Error) {
 
 func (s HashTreeExtn) SetOrder(order common.RawBytes) *common.Error {
 	if len(order) != OrderLength {
-		return common.NewError("Invalid order length", "len", len(order),
-			"expected", OrderLength)
+		return common.NewError("Invalid order length", "expected", OrderLength,
+			"actual", len(order))
 	}
 	copy(s.Order, order)
 	return nil
@@ -95,8 +93,8 @@ func (s HashTreeExtn) SetOrder(order common.RawBytes) *common.Error {
 
 func (s HashTreeExtn) SetSignature(signature common.RawBytes) *common.Error {
 	if len(signature) != SignatureLength {
-		return common.NewError("Invalid signature length", "len", len(signature),
-			"expected", SignatureLength)
+		return common.NewError("Invalid signature length", "expected", SignatureLength,
+			"actual", len(signature))
 	}
 	copy(s.Signature, signature)
 	return nil
@@ -105,8 +103,8 @@ func (s HashTreeExtn) SetSignature(signature common.RawBytes) *common.Error {
 
 func (s HashTreeExtn) SetHashes(hashes common.RawBytes) *common.Error {
 	if len(hashes) != len(s.Hashes) {
-		return common.NewError("Invalid hashes length", "len", len(hashes),
-			"expected", len(s.Hashes))
+		return common.NewError("Invalid hashes length", "expected", len(s.Hashes),
+			"actual", len(hashes))
 	}
 	copy(s.Hashes, hashes)
 	return nil
@@ -115,9 +113,10 @@ func (s HashTreeExtn) SetHashes(hashes common.RawBytes) *common.Error {
 
 func (s *HashTreeExtn) Write(b common.RawBytes) *common.Error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SCMPAuthHashTreeExtn.Write")
+		return common.NewError("Buffer too short", "method", "SCMPAuthHashTreeExtn.Write",
+			"expected min", s.Len(), "actual", len(b))
 	}
-	b[0] = s.SecMode
+	b[0] = uint8(s.SecMode)
 	b[HeightOffset] = s.Height
 	copy(b[OrderOffset:SignatureOffset], s.Order)
 	copy(b[SignatureOffset:HashesOffset], s.Signature)
@@ -149,8 +148,8 @@ func (s *HashTreeExtn) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "AuthHashTreeExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
 	fmt.Fprintf(buf, " Height: %x", s.Height)
-	fmt.Fprintf(buf, " Order: %s", s.Order.String())
-	fmt.Fprintf(buf, " Signature: %s", s.Signature.String())
-	fmt.Fprintf(buf, " Hashes: %s", s.Hashes.String())
+	fmt.Fprintf(buf, " Order: %s", s.Order)
+	fmt.Fprintf(buf, " Signature: %s", s.Signature)
+	fmt.Fprintf(buf, " Hashes: %s", s.Hashes)
 	return buf.String()
 }
