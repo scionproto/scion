@@ -196,6 +196,7 @@ class SCIONDaemon(SCIONElement):
         if not ret:
             return
         with self.req_path_lock:
+            # .items() makes a copy on an expiring dict, so deleting entries is safe.
             for key, e in self.requested_paths.items():
                 if self.path_resolution(*key):
                     e.set()
