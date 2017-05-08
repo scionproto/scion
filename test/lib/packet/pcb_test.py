@@ -24,6 +24,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
+from lib.types import ASMExtType, RoutingPolType
 from test.testcommon import create_mock_full
 
 _ISD_AS1 = 1 << 20 | 1
@@ -63,9 +64,12 @@ class TestASMarkingFromValues(object):
         pcbms = []
         for i in range(3):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
+        exts = []
+        exts.append(create_mock_full({"EXT_TYPE": ASMExtType.ROUTING_POLICY, "p":
+                    {"polType": RoutingPolType.ALLOW_AS, "itf": 0, "isdases": [_ISD_AS1]}}))
         # Call
         ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "root", "mtu",
-                              ifid_size=14)
+                              exts, ifid_size=14)
         # Tests
         p_cls.new_message.assert_called_once_with(
             isdas=_ISD_AS1, trcVer=2, certVer=3, ifIDSize=14,
@@ -75,25 +79,28 @@ class TestASMarkingFromValues(object):
             ntools.eq_("pcbm %d" % i, pcbm)
 
 
-class TestASMarkingSigPack7(object):
+class TestASMarkingSigPack8(object):
     """
-    Unit tests for lib.packet.pcb.ASMarking.sig_pack7
+    Unit tests for lib.packet.pcb.ASMarking.sig_pack8
     """
     def test(self):
         pcbms = []
         for i in range(3):
             pcbms.append(create_mock_full({
                 "sig_pack5()": bytes("pcbm %i" % i, "ascii")}))
+        rpe = create_mock_full({"routingPolicy": bytes("exts", "ascii")})
         inst = ASMarking(create_mock_full({
             "isdas": _ISD_AS1, "trcVer": 2, "certVer": 3, "ifIDSize": 4,
-            "hashTreeRoot": b"root", "mtu": 1482}))
+            "hashTreeRoot": b"root", "mtu": 1482, "exts": rpe}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
+        sgp3 = create_mock_full({"sig_pack3()": bytes("exts", "ascii")})
+        inst.routing_pol_ext = create_mock_full(return_value=sgp3)
         expected = b"".join([
             _ISD_AS1_BYTES, bytes.fromhex("00000002 00000003 04"),
             b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",
-            bytes.fromhex("05ca")])
+            bytes.fromhex("05ca"), b"exts"])
         # Call
-        ntools.eq_(inst.sig_pack7(), expected)
+        ntools.eq_(inst.sig_pack8(), expected)
 
 
 class TestPathSegmentSigPack3(object):
@@ -105,7 +112,7 @@ class TestPathSegmentSigPack3(object):
         asms = []
         for i in range(3):
             asms.append(create_mock_full({
-                "sig_pack7()": bytes("asm %i" % i, "ascii")}))
+                "sig_pack8()": bytes("asm %i" % i, "ascii")}))
         inst = PathSegment(create_mock_full({"info": b"info"}))
         inst.is_sibra = create_mock_full()
         inst.iter_asms = create_mock_full(return_value=asms)

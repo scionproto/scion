@@ -77,6 +77,17 @@ class ExtEndToEndType(TypeBase):
     SPSE = 2
 
 
+class ASMExtType(TypeBase):
+    ROUTING_POLICY = 0
+
+
+class RoutingPolType(TypeBase):
+    ALLOW_AS = 0
+    DENY_AS = 1
+    ALLOW_IF = 2
+    DENY_IF = 3
+
+
 class L4Proto(TypeBase):
     NONE = 0
     SCMP = 1

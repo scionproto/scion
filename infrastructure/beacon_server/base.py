@@ -287,8 +287,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except ZkNoConnection:
                 logging.error("Unable to store PCB in shared cache: "
                               "no connection to ZK")
-        self._handle_verified_beacon(pcb)
         self.handle_ext(pcb)
+        self._handle_verified_beacon(pcb)
 
     def _filter_pcb(self, pcb, dst_ia=None):
         return True
@@ -297,9 +297,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handle beacon extensions.
         """
-        # Handle PCB extensions:
+        # Handle PCB extensions
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
+        for asm in pcb.iter_asms():
+            pol = asm.routing_pol_ext()
+            if pol:
+                self.handle_routing_pol_ext(pol)
+
+    def handle_routing_pol_ext(self, ext):
+        # TODO(Sezer): Implement routing policy extension handling
+        logging.debug("Routing policy extension: %s" % ext)
 
     @abstractmethod
     def register_segments(self):
