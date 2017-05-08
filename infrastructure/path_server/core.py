@@ -249,10 +249,6 @@ class CorePathServer(PathServer):
         if not (core_segs | down_segs):
             if new_request:
                 logging.debug("Segs to %s not found." % dst_ia)
-            else:
-                # That could happen when a needed segment has expired.
-                logging.warning("Handling pending request and needed segment "
-                                "is missing. Shouldn't be here (too often).")
             return False
 
         self._send_path_segments(req, meta, core=core_segs, down=down_segs)
