@@ -29,6 +29,7 @@ from lib.config import Config
 from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError
+from lib.flagtypes import TCPFlags
 from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
@@ -161,9 +162,9 @@ class SCIONElement(object):
         self._setup_sockets(True)
         self._startup = time.time()
         if self.USE_TCP:
-            self.DefaultMeta = TCPMetadata
+            self._DefaultMeta = TCPMetadata
         else:
-            self.DefaultMeta = UDPMetadata
+            self._DefaultMeta = UDPMetadata
         self.unverified_segs = set()
         self.unv_segs_lock = threading.RLock()
         self.requested_trcs = set()
@@ -739,10 +740,6 @@ class SCIONElement(object):
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host
-        if meta.ia is None:
-            meta.ia = self.addr.isd_as
-        if meta.path is None:
-            meta.path = SCIONPath()
         dst = meta.get_addr()
         first_ip, first_port = self._get_first_hop(meta.path, dst)
         active = True
@@ -1036,3 +1033,19 @@ class SCIONElement(object):
                             rev_info.short_desc())
             return False
         return True
+
+    def _build_meta(self, ia=None, host=None, path=None, port=0, reuse=False,
+                    one_hop=False):
+        if ia is None:
+            ia = self.addr.isd_as
+        if path is None:
+            path = SCIONPath()
+        if not one_hop:
+            return self._DefaultMeta.from_values(ia, host, path, port=port,
+                                                 reuse=reuse)
+        # One hop path extension in handled in a different way in TCP and UDP
+        if self._DefaultMeta == TCPMetadata:
+            return TCPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
+                                           flags=TCPFlags.ONEHOPPATH)
+        return UDPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
+                                       ext_hdrs=[OneHopPathExt()])

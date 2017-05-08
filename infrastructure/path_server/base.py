@@ -438,8 +438,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         src_ia = pcb.first_ia()
         while targets:
             seg_req = targets.pop(0)
-            meta = self.DefaultMeta.from_values(ia=src_ia, path=path,
-                                                host=SVCType.PS_A)
+            meta = self._build_meta(ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
             self.send_meta(seg_req, meta)
             logging.info("Waiting request (%s) sent via %s",
                          seg_req.short_desc(), pcb.short_desc())

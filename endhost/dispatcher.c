@@ -13,6 +13,7 @@
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -145,15 +146,7 @@ int main(int argc, char **argv)
     signal(SIGINT, handle_signal);
     signal(SIGPIPE, handle_signal);
 
-    struct rlimit rl;
     int res;
-
-    rl.rlim_cur = MAX_SOCKETS;
-    rl.rlim_max = MAX_SOCKETS;
-    if (setrlimit(RLIMIT_NOFILE, &rl)< 0) {
-        fprintf(stderr, "failed to set fileno limit\n");
-        return -1;
-    }
 
     setenv("TZ", "UTC", 1);
 
@@ -168,6 +161,19 @@ int main(int argc, char **argv)
     if (!zc) {
         fprintf(stderr, "failed to get dispatcher zlog category\n");
         zlog_fini();
+        return -1;
+    }
+
+    /* TCPMW uses many open files, set limit as high as possible */
+    struct rlimit rlim;
+    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0){
+        zlog_fatal(zc, "getrlimit(): %s", strerror(errno));
+        return -1;
+    }
+    zlog_debug(zc, "Changing RLIMIT_NOFILE %lu -> %lu", rlim.rlim_cur, rlim.rlim_max);
+    rlim.rlim_cur = rlim.rlim_max;
+    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0){
+        zlog_fatal(zc, "setrlimit(): %s", strerror(errno));
         return -1;
     }
 

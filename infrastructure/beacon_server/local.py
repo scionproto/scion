@@ -59,10 +59,10 @@ class LocalBeaconServer(BeaconServer):
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
         addr, port = self.dns_query_topo(PATH_SERVICE)[0]
-        meta = self.DefaultMeta.from_values(host=addr, port=port)
+        meta = self._build_meta(host=addr, port=port)
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = self.DefaultMeta.from_values(host=addr, port=port)
+        meta = self._build_meta(host=addr, port=port)
         self.send_meta(records, meta)
 
     def register_down_segment(self, pcb):
@@ -72,8 +72,7 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
-        meta = self.DefaultMeta.from_values(
-            ia=dst_ia, host=SVCType.PS_A, path=core_path)
+        meta = self._build_meta(ia=dst_ia, host=SVCType.PS_A, path=core_path, reuse=True)
         self.send_meta(records, meta)
 
     def register_segments(self):

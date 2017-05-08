@@ -193,7 +193,7 @@ class CorePathServer(PathServer):
             logging.warning("send_to_master: abandoning as there is no master")
             return
         addr, port = master.addr(0)
-        meta = self.DefaultMeta.from_values(host=addr, port=port)
+        meta = self._build_meta(host=addr, port=port, reuse=True)
         self.send_meta(pld.copy(), meta)
 
     def _query_master(self, dst_ia, src_ia=None, flags=()):
@@ -228,8 +228,8 @@ class CorePathServer(PathServer):
                 logging.warning("Segment to AS %s not found.", isd_as)
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
-            meta = self.DefaultMeta.from_values(ia=isd_as, path=cseg,
-                                                host=SVCType.PS_A)
+            meta = self._build_meta(ia=isd_as, path=cseg,
+                                    host=SVCType.PS_A, reuse=True)
             self.send_meta(rep_recs.copy(), meta)
 
     def path_resolution(self, req, meta, new_request=True):
@@ -343,8 +343,8 @@ class CorePathServer(PathServer):
             logging.info("Down-Segment request for different ISD, "
                          "forwarding request to CPS in %s via %s",
                          dst_ia, cseg.short_desc())
-            meta = self.DefaultMeta.from_values(ia=dst_ia, path=path,
-                                                host=SVCType.PS_A)
+            meta = self._build_meta(ia=dst_ia, path=path,
+                                    host=SVCType.PS_A, reuse=True)
             self.send_meta(seg_req, meta)
         else:
             # If no core segment was available, add request to waiting targets.
