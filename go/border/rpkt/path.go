@@ -20,10 +20,13 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/ifstate"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/crypto"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // validatePath validates the path header.
@@ -92,6 +95,19 @@ func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
 		return nil
 	}
 	// Interface is revoked.
+	var revInfo proto.RevInfo
+	var err error
+	if revInfo, err = info.P.RevInfo(); err != nil {
+		rp.Warn("Couldn't load RevInfo for revoked interface", "err", err, "ifid", *ifid)
+		return nil
+	}
+	// Check that we have a revocation for the current epoch.
+	if revInfo.Epoch() < crypto.GetCurrentHashTreeEpoch() {
+		// If the BR does not have a revocation for the current epoch, it considers
+		// the interface as active until it receives a new revocation.
+		ifstate.Activate(*ifid)
+		return nil
+	}
 	sinfo := scmp.NewInfoRevocation(
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
 		rp.DirFrom == DirExternal, info.RawRev)

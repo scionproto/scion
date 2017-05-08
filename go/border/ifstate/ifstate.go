@@ -20,74 +20,22 @@
 // interface state changes, so this is only needed as a fail-safe after
 // startup.
 
-package main
+package ifstate
 
 import (
 	"fmt"
-	"time"
 
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-// ifStateFreq is how often the router will request an Interface State update
-// from the beacon service.
-const ifStateFreq = 30 * time.Second
-
-func (r *Router) IFStateUpdate() {
-	defer liblog.PanicLog()
-	r.GenIFStateReq()
-	for range time.Tick(ifStateFreq) {
-		r.GenIFStateReq()
-	}
-}
-
-// GenIFStateReq generates an Interface State request packet to the local
-// beacon service.
-func (r *Router) GenIFStateReq() {
-	dstHost := addr.SvcBS.Multicast()
-	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
-	// Create base packet
-	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: conf.C.IA, SrcIA: conf.C.IA,
-		DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
-		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
-	}, rpkt.DirLocal)
-	if err != nil {
-		log.Error("Error creating IFState packet", err.Ctx...)
-		return
-	}
-	// Create payload
-	scion, pathMgmt, err := proto.NewPathMgmtMsg()
-	if err != nil {
-		log.Error("Error creating PathMgmt payload", err.Ctx...)
-		return
-	}
-	_, cerr := pathMgmt.NewIfStateReq()
-	if cerr != nil {
-		log.Error("Unable to create IFStateReq struct", "err", cerr)
-		return
-	}
-	rp.SetPld(&spkt.CtrlPld{SCION: scion})
-	_, err = rp.RouteResolveSVCMulti(dstHost, r.locOutFs[0])
-	if err != nil {
-		log.Error("Unable to route IFStateReq packet", err.Ctx...)
-	}
-	rp.Route()
-}
-
-// ProcessIFStates processes Interface State updates from the beacon service.
-func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
+// Process processes Interface State updates from the beacon service.
+func Process(ifStates proto.IFStateInfos) {
 	infos, serr := ifStates.Infos()
 	if serr != nil {
 		log.Error("Unable to extract IFStateInfos from message", "err", serr)
@@ -120,4 +68,16 @@ func (r *Router) ProcessIFStates(ifStates proto.IFStateInfos) {
 	conf.C.IFStates.Lock()
 	conf.C.IFStates.M = m
 	conf.C.IFStates.Unlock()
+}
+
+// Activate updates the state of a single interface to active.
+func Activate(ifID spath.IntfID) *common.Error {
+	conf.C.IFStates.Lock()
+	defer conf.C.IFStates.Unlock()
+	ifState, ok := conf.C.IFStates.M[ifID]
+	if !ok {
+		return common.NewError("Trying to activate non-existing interface", "intf", ifID)
+	}
+	ifState.P.SetActive(true)
+	return nil
 }

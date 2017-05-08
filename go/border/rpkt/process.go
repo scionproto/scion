@@ -24,6 +24,7 @@ import (
 	"net"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/ifstate"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -183,7 +184,7 @@ func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *com
 		if err != nil {
 			return HookError, common.NewError(errPldGet, "err", err)
 		}
-		callbacks.ifStateUpd(ifStates)
+		ifstate.Process(ifStates)
 	default:
 		rp.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
 		return HookError, nil

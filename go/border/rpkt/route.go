@@ -70,8 +70,13 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 		return HookError, common.NewError("Destination host is NOT an SVC address",
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
-	f := callbacks.locOutFs[intf.LocAddrIdx]
+
+	// Use any local output function in case the packet has no path (e.g., ifstate requests)
+	f := callbacks.locOutFs[0]
+	if rp.ifCurr != nil {
+		intf := conf.C.Net.IFs[*rp.ifCurr]
+		f = callbacks.locOutFs[intf.LocAddrIdx]
+	}
 	if svc.IsMulticast() {
 		return rp.RouteResolveSVCMulti(svc, f)
 	}
