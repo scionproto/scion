@@ -22,9 +22,12 @@ import (
 	log "github.com/inconshreveable/log15"
 	"zombiezen.com/go/capnproto2"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -76,4 +79,20 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 		return nil
 	}
 	return &revInfo
+}
+
+// genRevInfo forwards RevInfo payloads to a designated local host.
+func (r *Router) genRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
+	// Pick first local address from topology as source.
+	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
+	scion, pathMgmt, err := proto.NewPathMgmtMsg()
+	if err != nil {
+		log.Error("Error creating PathMgmt payload", err.Ctx...)
+		return
+	}
+	pathMgmt.SetRevInfo(*revInfo)
+	if err := r.genPkt(conf.C.IA, *dstHost.(*addr.HostSVC), 0, srcAddr,
+		&spkt.CtrlPld{SCION: scion}); err != nil {
+		log.Error("Error generating RevInfo packet", err.Ctx...)
+	}
 }

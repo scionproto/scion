@@ -42,31 +42,7 @@ const (
 	ifStateFreq = 30 * time.Second
 )
 
-// SyncInterface handles generating periodic Interface ID (IFID) packets that are
-// sent to the Beacon Service in the neighbouring AS. These function as both
-// keep-alives, and to inform the neighbour of the local interface ID.
-func (r *Router) SyncInterface() {
-	defer liblog.PanicLog()
-	for range time.Tick(ifIDFreq) {
-		r.genIFIDPkts()
-	}
-}
-
-// IFStateUpdate handles generating periodic Interface State Request (IFStateReq)
-// packets that are sent to the local Beacon Service (BS), as well as
-// processing the Interface State updates. IFStateReqs are mostly needed on
-// startup, to make sure the border router is aware of the status of the local
-// interfaces. The BS normally updates the border routers everytime an
-// interface state changes, so this is only needed as a fail-safe after
-// startup.
-func (r *Router) IFStateUpdate() {
-	defer liblog.PanicLog()
-	r.genIFStateReq()
-	for range time.Tick(ifStateFreq) {
-		r.genIFStateReq()
-	}
-}
-
+// genPkt is a generic function to generate packets that originate at the router.
 func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
 	srcAddr *net.UDPAddr, pld *spkt.CtrlPld) *common.Error {
 	dirTo := rpkt.DirExternal
@@ -101,9 +77,15 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
 	return rp.Route()
 }
 
-func (r *Router) genIFIDPkts() {
-	for ifid := range conf.C.Net.IFs {
-		r.genIFIDPkt(ifid)
+// SyncInterface handles generating periodic Interface ID (IFID) packets that are
+// sent to the Beacon Service in the neighbouring AS. These function as both
+// keep-alives, and to inform the neighbour of the local interface ID.
+func (r *Router) SyncInterface() {
+	defer liblog.PanicLog()
+	for range time.Tick(ifIDFreq) {
+		for ifid := range conf.C.Net.IFs {
+			r.genIFIDPkt(ifid)
+		}
 	}
 }
 
@@ -121,6 +103,21 @@ func (r *Router) genIFIDPkt(ifid spath.IntfID) {
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
 		intf.RemoteAddr.Port, srcAddr, &spkt.CtrlPld{SCION: scion}); err != nil {
 		logger.Error("Error generating IFID packet", err.Ctx...)
+	}
+}
+
+// IFStateUpdate handles generating periodic Interface State Request (IFStateReq)
+// packets that are sent to the local Beacon Service (BS), as well as
+// processing the Interface State updates. IFStateReqs are mostly needed on
+// startup, to make sure the border router is aware of the status of the local
+// interfaces. The BS normally updates the border routers everytime an
+// interface state changes, so this is only needed as a fail-safe after
+// startup.
+func (r *Router) IFStateUpdate() {
+	defer liblog.PanicLog()
+	r.genIFStateReq()
+	for range time.Tick(ifStateFreq) {
+		r.genIFStateReq()
 	}
 }
 
@@ -142,21 +139,5 @@ func (r *Router) genIFStateReq() {
 	if err := r.genPkt(conf.C.IA, addr.SvcBS.Multicast(), 0, srcAddr,
 		&spkt.CtrlPld{SCION: scion}); err != nil {
 		log.Error("Error generating IFID packet", err.Ctx...)
-	}
-}
-
-// genRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) genRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
-	// Pick first local address from topology as source.
-	srcAddr := conf.C.Net.LocAddr[0].PublicAddr()
-	scion, pathMgmt, err := proto.NewPathMgmtMsg()
-	if err != nil {
-		log.Error("Error creating PathMgmt payload", err.Ctx...)
-		return
-	}
-	pathMgmt.SetRevInfo(*revInfo)
-	if err := r.genPkt(conf.C.IA, *dstHost.(*addr.HostSVC), 0, srcAddr,
-		&spkt.CtrlPld{SCION: scion}); err != nil {
-		log.Error("Error generating RevInfo packet", err.Ctx...)
 	}
 }
