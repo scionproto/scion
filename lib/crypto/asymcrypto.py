@@ -19,6 +19,7 @@
 from nacl.exceptions import BadSignatureError
 from nacl.public import Box, PrivateKey
 from nacl.signing import SigningKey, VerifyKey
+from nacl.utils import random
 
 
 def generate_sign_keypair():
@@ -81,7 +82,7 @@ def encrypt(msg, private_key, public_key):
     :returns: The encrypted message.
     :rtype: nacl.utils.EncryptedMessage
     """
-    return Box(private_key, public_key).encrypt(msg)
+    return Box(private_key, public_key).encrypt(msg, random(Box.NONCE_SIZE))
 
 
 def decrypt(msg, private_key, public_key):
