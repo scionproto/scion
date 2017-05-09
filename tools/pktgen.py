@@ -20,6 +20,7 @@
 import argparse
 import logging
 import time
+import random as rand
 
 # SCION
 from lib.log import init_logging
@@ -52,6 +53,22 @@ class PktGen(TestClientBase):
             time.sleep(wait_time/1000.0)
         self._shutdown()
 
+    def random_run(self, count, lambd):
+        rand.seed()
+        self.sent = 0
+        spkt = self._build_pkt()
+        overlay_dest, overlay_port = str(self.first_hop[0]), self.first_hop[1]
+        logging.debug("Sending (via %s:%s):\n%s", overlay_dest, overlay_port, spkt)
+        logging.debug(self.path_meta)
+        while not count or self.sent < count:
+            spkt.set_payload(self._create_payload_random(spkt))
+            spkt.update()
+            raw = spkt.pack()
+            self.sock.send(raw, (overlay_dest, overlay_port))
+            self.sent += 1
+            time.sleep(rand.expovariate(lambd))
+        self._shutdown()
+
     def _create_socket(self, addr):
         # Use UDPSocket directly to bypass the overhead of the dispatcher.
         return UDPSocket(bind=(str(addr.host), 0, ""), addr_type=addr.host.TYPE)
@@ -60,6 +77,21 @@ class PktGen(TestClientBase):
         data = b"ping " + self.data
         hdr_len = spkt.cmn_hdr.hdr_len + len(spkt.l4_hdr)
         min_size = hdr_len + len(data)
+        if not self.size or self.size > self.path_meta.p.mtu:
+            self.size = self.path_meta.p.mtu
+        if self.size < min_size:
+            self.size = min_size
+        pld_len = self.size - hdr_len
+        return self._gen_padded_pld(data, pld_len)
+
+    def _create_payload_random(self, spkt):
+        data = b"ping " + self.data
+        hdr_len = spkt.cmn_hdr.hdr_len + len(spkt.l4_hdr)
+        min_size = hdr_len + len(data)
+        mean = (self.path_meta.p.mtu - min_size)/2
+        mu = mean + min_size
+        sigma = mean / 3
+        self.size = int(rand.gauss(mu, sigma))
         if not self.size or self.size > self.path_meta.p.mtu:
             self.size = self.path_meta.p.mtu
         if self.size < min_size:
@@ -85,6 +117,11 @@ def main():
                         help='Size of packets to send. 0 means use the MTU of the path.')
     parser.add_argument('-w', '--wait', default=0, type=int,
                         help='Wait time in milliseconds after a packet has been sent.')
+    parser.add_argument('-r', '--random', action='store_true',
+                        help='Run with randomized wait time and packet size')
+    parser.add_argument('-la', '--lambd', default=50, type=int,
+                        help='Number of packets that are sent in average per second. '
+                             'Only used with -r flag')
     parser.add_argument('src_ia', help='Src ISD-AS')
     parser.add_argument('src_addr', help='Src IP')
     parser.add_argument('dst_ia', help='Dst ISD-AS')
@@ -98,12 +135,20 @@ def main():
     gen = PktGen(b"data", "finished", src, dst, 3000, size=args.size)
     start = time.time()
     try:
-        gen.run(args.count, args.wait)
+        if args.random:
+            print('Flags -w and -s are not used in this mode.')
+            gen.random_run(args.count, args.lambd)
+        else:
+            gen.run(args.count, args.wait)
     except KeyboardInterrupt:
         pass
     total = time.time() - start
-    logging.info("Sent %d %dB packets in %.3fs (%d pps, %d bps)",
-                 gen.sent, gen.size, total, gen.sent / total, (gen.sent * gen.size * 8) / total)
+
+    if args.random:
+        logging.info("Sent %d packets in %.3fs (%d pps)", gen.sent, total, gen.sent / total)
+    else:
+        logging.info("Sent %d %dB packets in %.3fs (%d pps, %d bps)", gen.sent, gen.size,
+                     total, gen.sent / total, (gen.sent * gen.size * 8) / total)
 
 if __name__ == "__main__":
     main_wrapper(main)
