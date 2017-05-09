@@ -30,13 +30,15 @@ class MetadataBase(object):
         self.ext_hdr = ()
 
     @classmethod
-    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(), port=0):
+    def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(),
+                    reuse=False, port=0):
         inst = cls()
         inst.ia = ia
         inst.host = host
         inst.path = path
         inst.ext_hdrs = ext_hdrs
         inst.port = port
+        inst.reuse = reuse  # Indicates to reuse a socket (useful for TCP)
         return inst
 
     def get_addr(self):

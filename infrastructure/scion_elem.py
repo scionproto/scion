@@ -1041,10 +1041,11 @@ class SCIONElement(object):
         if path is None:
             path = SCIONPath()
         if not one_hop:
-            return self._DefaultMeta.from_values(ia, host, path, port, reuse)
+            return self._DefaultMeta.from_values(ia, host, path, port=port,
+                                                 reuse=reuse)
         # One hop path extension in handled in a different way in TCP and UDP
         if self._DefaultMeta == TCPMetadata:
-            return TCPMetadata.from_values(ia, host, path, port, reuse,
+            return TCPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
                                            flags=TCPFlags.ONEHOPPATH)
-        return UDPMetadata.from_values(ia, host, path, port, reuse,
+        return UDPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
                                        ext_hdrs=[OneHopPathExt()])
