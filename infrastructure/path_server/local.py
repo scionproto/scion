@@ -151,8 +151,8 @@ class LocalPathServer(PathServer):
         logging.info('Send request to core (%s) via %s',
                      req.short_desc(), pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
-        meta = self.DefaultMeta.from_values(ia=pcb.first_ia(), path=path,
-                                            host=SVCType.PS_A)
+        meta = self._build_meta(ia=pcb.first_ia(), path=path,
+                                host=SVCType.PS_A, reuse=True)
         self.send_meta(req.copy(), meta)
 
     def _forward_revocation(self, rev_info, meta):
@@ -180,6 +180,5 @@ class LocalPathServer(PathServer):
         path = seg.get_path(reverse_direction=True)
         logging.info("Forwarding Revocation to %s using path:\n%s" %
                      (core_ia, seg.short_desc()))
-        meta = self.DefaultMeta.from_values(ia=core_ia, path=path,
-                                            host=SVCType.PS_A)
+        meta = self._build_meta(ia=core_ia, path=path, host=SVCType.PS_A)
         self.send_meta(rev_info.copy(), meta)
