@@ -61,7 +61,6 @@ from lib.packet.path_mgmt.ifstate import (
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
     ASMarking,
-    ASMExtType,
     PathSegment,
     PCBMarking,
     RoutingPolicyExt,
