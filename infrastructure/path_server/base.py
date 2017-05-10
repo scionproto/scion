@@ -363,7 +363,23 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         type_ = seg_meta.type
         params = seg_meta.params
         self._dispatch_segment_record(type_, pcb, **params)
+        self.handle_ext(pcb)
         self._handle_pending_requests()
+
+    def handle_ext(self, pcb):
+        """
+        Handle beacon extensions.
+        """
+        # Handle PCB extensions:
+        if pcb.is_sibra():
+            # TODO(Sezer): Implement sibra extension handling
+            logging.debug("%s", pcb.sibra_ext)
+        for asm in pcb.iter_asms():
+            if asm.p.exts.policy:
+                self.handle_routing_pol_ext(asm.p.exts.policy)
+
+    def handle_routing_pol_ext(self, ext):
+        logging.debug("Routing policy extension: %s" % ext)
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         # Check that segment does not contain a revoked interface.
