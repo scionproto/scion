@@ -43,7 +43,8 @@ class Element(object):
     """
     def __init__(self, public=None, bind=None, name=None):
         """
-        :param str addr: (addr_type, address) of the element's Host address.
+        :param dict public: ((addr_type, address), port) of the element's public address.
+        :param dict bind: ((addr_type, address), port) of the element's private address.
         :param str name: element name or id
         """
         self.public = self._parse_addrs(public)
@@ -87,26 +88,22 @@ class InterfaceElement(Element):
     """
     def __init__(self, if_id, interface_dict, name=None):
         """
+        :pacam int if_id: interface id
         :param dict interface_dict: contains information about the interface.
         """
         self.if_id = int(if_id)
-        self.addridx = interface_dict['InternalAddrIdx']
+        self.addr_idx = interface_dict['InternalAddrIdx']
         self.isd_as = ISD_AS(interface_dict['ISD_AS'])
         self.link_type = interface_dict['LinkType']
-        self.to_udp_port = interface_dict['Remote']['L4Port']
-        self.udp_port = interface_dict['Public']['L4Port']
         self.bandwidth = interface_dict['Bandwidth']
         self.mtu = interface_dict['MTU']
         self.overlay = interface_dict['Overlay']
-        to_addr = interface_dict['Remote']['Addr']
-        self.to_addr = None
-        if to_addr:
-            self.to_addr = haddr_parse_interface(to_addr)
         self.to_if_id = 0  # Filled in later by IFID packets
-        super().__init__(interface_dict['Public'], name)
+        self.remote = self._parse_addrs(interface_dict['Remote'])
+        super().__init__(interface_dict['Public'], interface_dict.get('Bind'), name)
 
 
-class RouterElement(Element):
+class RouterElement(object):
     """
     The RouterElement class represents one of the border routers.
     """
@@ -115,15 +112,17 @@ class RouterElement(Element):
         :param dict router_dict: contains information about an border router.
         :param str name: router element name or id
         """
-        public = router_dict['InternalAddrs'][0]['Public'][0]
-        super().__init__(public=public, name=name)
+        self.name = name
+        self.int_addrs = []
+        for addrs in router_dict['InternalAddrs']:
+            self.int_addrs.append(Element(public=addrs["Public"], bind=addrs.get("Bind")))
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)
             self.interfaces[if_id] = InterfaceElement(if_id, intf)
 
     def __lt__(self, other):  # pragma: no cover
-        return list(self.interfaces.keys())[0] < list(other.interfaces.keys())[0]
+        return self.name < other.name
 
 
 class Topology(object):

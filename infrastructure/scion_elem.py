@@ -122,11 +122,13 @@ class SCIONElement(object):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param `HostAddrBase` host_addr:
-            the interface to bind to. Overrides the address in the topology
+        :param list public: (host_addr, port) of the element's public address
+            the interface and port to bind to. Overrides the address in the topology
             config.
-        :param int port:
-            the port to bind to. Overrides the address in the topology config.
+        :param list bind: (host_addr, port) of the element's bind address
+            the interface and port to bind to. Overrides the address in the topology
+            config.
+
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -187,8 +189,15 @@ class SCIONElement(object):
         # Setup TCP "accept" socket.
         self._setup_tcp_accept_socket(svc)
         # Setup UDP socket
-        self._udp_sock = ReliableSocket(
-            reg=(self.addr, self._port, init, svc))
+        if self.bind:
+            host_addr, r_port = self.bind[0]
+            r_addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+            self._udp_sock = ReliableSocket(
+                reg=(self.addr, self._port, init, svc),
+                rep=(r_addr, r_port))
+        else:
+            self._udp_sock = ReliableSocket(
+                reg=(self.addr, self._port, init, svc))
         if not self._udp_sock.registered:
             self._udp_sock = None
             return
@@ -240,9 +249,9 @@ class SCIONElement(object):
 
     def get_border_addr(self, ifid):
         br = self.ifid2br[ifid]
-        addridx = br.interfaces[ifid].addridx
-        addr, port = br.public[addridx]
-        return addr, port
+        addr_idx = br.interfaces[ifid].addr_idx
+        br_addr, br_port = br.int_addrs[addr_idx].public[0]
+        return br_addr, br_port
 
     def handle_msg_meta(self, msg, meta):
         """
@@ -663,8 +672,8 @@ class SCIONElement(object):
             if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
             br = self.ifid2br[if_id]
-            addridx = br.interfaces[if_id].addridx
-            br_addr, br_port = br.public[addridx]
+            addr_idx = br.interfaces[if_id].addr_idx
+            br_addr, br_port = br.int_addrs[addr_idx].public[0]
             return br_addr, br_port
         logging.error("Unable to find first hop:\n%s", path)
         return None, None
@@ -857,7 +866,6 @@ class SCIONElement(object):
 
         # FIXME(PSz): for now it is needed by SIBRA service.
         meta.pkt = pkt
-
         try:
             pkt.parse_payload()
         except SCIONParseError as e:

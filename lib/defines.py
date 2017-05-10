@@ -48,6 +48,7 @@ AS_CONF_FILE = "as.yml"
 PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
+PRV_NETWORKS_FILE = "private_networks.conf"
 #: IFIDs list
 IFIDS_FILE = "ifids.yml"
 #: AS list

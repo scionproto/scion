@@ -304,8 +304,7 @@ class CertServer(SCIONElement):
             for ifid, intf in r.interfaces.items():
                 r_ia = intf.isd_as
                 if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):
-                    addridx = intf.addridx
-                    r_addr, r_port = r.public[addridx]
+                    r_addr, r_port = r.public[intf.addr_idx]
                     return r_addr, r_port
         return None, None
 
