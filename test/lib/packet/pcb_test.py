@@ -91,7 +91,7 @@ class TestASMarkingSigPack8(object):
             "isdas": _ISD_AS1, "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "hashTreeRoot": b"root", "mtu": 1482}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
-        rpe = create_mock_full({"sig_pack3()": bytes("exts", "ascii")})
+        rpe = create_mock_full({"sig_pack2()": bytes("exts", "ascii")})
         inst.routing_pol_ext = create_mock_full(return_value=rpe)
         expected = b"".join([
             _ISD_AS1_BYTES, bytes.fromhex("00000002 00000003 04"),

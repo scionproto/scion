@@ -37,12 +37,12 @@ class RoutingPolicyExt(Cerealizable):
         cls.extType = ASMExtType.ROUTING_POLICY
         return cls(p)
 
-    def sig_pack3(self):
+    def sig_pack2(self):
         """
-        Pack for signing version 3 (defined by highest field number).
+        Pack for signing version 2 (defined by highest field number).
         """
         b = []
-        if self.VER != 3:
+        if self.VER != 2:
             raise SCIONSigVerError(
                 "RoutingPolicyExt.sig_pack3 cannot support version %s", self.VER)
         b.append(self.p.polType.to_bytes(1, 'big'))

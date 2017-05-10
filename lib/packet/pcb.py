@@ -144,7 +144,7 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        b.append(self.routing_pol_ext().sig_pack3())
+        b.append(self.routing_pol_ext().sig_pack2())
         return b"".join(b)
 
     def short_desc(self):

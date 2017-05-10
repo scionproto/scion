@@ -300,6 +300,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Handle PCB extensions:
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
+        for asm in pcb.iter_asms():
+            if asm.p.exts.policy:
+                self.handle_asm_ext(asm.p.exts.policy)
+
+    def handle_routing_pol_ext(self, ext):
+        logging.debug("Routing policy extension: %s" % ext)
 
     @abstractmethod
     def register_segments(self):

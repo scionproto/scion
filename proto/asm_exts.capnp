@@ -4,8 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct RoutingPolicyExt{
-    extType @0 :UInt8;  # The extension type
-    polType @1 :UInt8;  # The policy type
-    itf @2 :UInt64;
-    isdases @3 :List(UInt32);
+    polType @0 :UInt8;  # The policy type
+    itf @1 :UInt64;
+    isdases @2 :List(UInt32);
 }
