@@ -117,6 +117,9 @@ class ASMarking(Cerealizable):
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
 
+    def routing_pol_ext(self):
+        return RoutingPolicyExt(self.p.exts.policy)
+
     def add_ext(self, ext):  # pragma: no cover
         """
         Appends a new ASMarking extension.
@@ -125,7 +128,7 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def sig_pack7(self):
+    def sig_pack8(self):
         """
         Pack for signing version 8 (defined by highest field number).
         """
@@ -141,7 +144,7 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        b.append(RoutingPolicyExt(self.p.exts.policy).sig_pack3())
+        b.append(self.routing_pol_ext().sig_pack3())
         return b"".join(b)
 
     def short_desc(self):
@@ -207,7 +210,7 @@ class PathSegment(SCIONPayloadBaseProto):
         b.append(self.p.info)
         # ifID field is changed on the fly, and so is ignored.
         for asm in self.iter_asms():
-            b.append(asm.sig_pack7())
+            b.append(asm.sig_pack8())
         if self.is_sibra():
             b.append(self.sibra_ext.sig_pack3())
         return b"".join(b)

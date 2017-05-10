@@ -309,8 +309,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _create_pol_ext(self, ext_type, pol_type, interface, isd_ases):
-        return RoutingPolicyExt.from_values(ext_type, pol_type, interface, isd_ases)
+    def _create_pol_ext(self, pol_type, interface, isd_ases):
+        return RoutingPolicyExt.from_values(pol_type, interface, isd_ases)
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
@@ -319,7 +319,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
         test_isd_ases = [ISD_AS.from_values(1, 10), ISD_AS.from_values(2, 23)]
-        test_pol_ext = self._create_pol_ext(ASMExtType.ROUTING_POLICY, RoutingPolType.DENY_AS,
+        test_pol_ext = self._create_pol_ext(RoutingPolType.DENY_AS,
                                             0, test_isd_ases)
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
