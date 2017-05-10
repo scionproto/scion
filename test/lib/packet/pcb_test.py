@@ -65,7 +65,7 @@ class TestASMarkingFromValues(object):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         exts = []
         exts.append(create_mock_full({"extType": 0, "p":
-                {"polType": 0, "itf": 0, "isdases": [_ISD_AS1]}}))
+                    {"polType": 0, "itf": 0, "isdases": [_ISD_AS1]}}))
         # Call
         ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "root", "mtu",
                               exts, ifid_size=14)
