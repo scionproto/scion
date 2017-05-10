@@ -59,6 +59,7 @@ from lib.defines import (
     GEN_PATH,
     IFIDS_FILE,
     NETWORKS_FILE,
+    PRV_NETWORKS_FILE,
     PATH_POLICY_FILE,
     PROM_FILE,
     SCION_MIN_MTU,
@@ -107,6 +108,7 @@ INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 
 DEFAULT_NETWORK = "127.0.0.0/8"
+DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 DEFAULT_ROUTER = "go"
 
@@ -121,6 +123,7 @@ SCION_SERVICE_NAMES = (
 DEFAULT_KEYGEN_ALG = 'Ed25519'
 
 GENERATE_BOTH_TOPOLOGY = True
+GENERATE_PRIV_ADDRESS = False
 
 
 class ConfigGenerator(object):
@@ -166,6 +169,7 @@ class ConfigGenerator(object):
             else:
                 def_network = DEFAULT_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
+        self.prvnet_gen = SubnetGenerator(DEFAULT_PRIV_NETWORK)
         for key, val in defaults.get("zookeepers", {}).items():
             if self.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
@@ -179,7 +183,7 @@ class ConfigGenerator(object):
         """
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files = self._generate_certs_trcs(ca_certs)
-        topo_dicts, zookeepers, networks = self._generate_topology()
+        topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
         self._generate_prom_conf(topo_dicts)
@@ -188,7 +192,9 @@ class ConfigGenerator(object):
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
-        self._write_networks_conf(networks)
+        self._write_networks_conf(networks, NETWORKS_FILE)
+        if GENERATE_PRIV_ADDRESS:
+            self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _generate_cas(self):
         ca_gen = CA_Generator(self.topo_config)
@@ -200,7 +206,7 @@ class ConfigGenerator(object):
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(
-            self.topo_config, self.out_dir, self.subnet_gen, self.zk_config,
+            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
             self.default_mtu)
         return topo_gen.generate()
 
@@ -262,7 +268,7 @@ class ConfigGenerator(object):
             'RegisterPath': True if as_topo["PathService"] else False,
         }
 
-    def _write_networks_conf(self, networks):
+    def _write_networks_conf(self, networks, out_file):
         config = configparser.ConfigParser(interpolation=None)
         for i, net in enumerate(networks):
             sub_conf = {}
@@ -271,7 +277,7 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.out_dir, NETWORKS_FILE), text.getvalue())
+        write_file(os.path.join(self.out_dir, out_file), text.getvalue())
 
 
 class CertGenerator(object):
@@ -482,11 +488,12 @@ class CA_Generator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, zk_config,
+    def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
                  default_mtu):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
+        self.prvnet_gen = prvnet_gen
         self.zk_config = zk_config
         self.default_mtu = default_mtu
         self.topo_dicts = {}
@@ -500,6 +507,10 @@ class TopoGenerator(object):
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
         return subnet.register(elem_id)
+
+    def _reg_bind_addr(self, topo_id, elem_id):
+        prvnet = self.prvnet_gen.register(topo_id)
+        return prvnet.register(elem_id)
 
     def _reg_link_addrs(self, local_br, remote_br):
         link_name = str(sorted((local_br, remote_br)))
@@ -515,10 +526,11 @@ class TopoGenerator(object):
         self._iterate(self._generate_as_topo)
         self._iterate(self._generate_as_list)
         networks = self.subnet_gen.alloc_subnets()
+        prv_networks = self.prvnet_gen.alloc_subnets()
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
-        return self.topo_dicts, self.zookeepers, networks
+        return self.topo_dicts, self.zookeepers, networks, prv_networks
 
     def _read_links(self):
         br_ids = defaultdict(int)
@@ -582,6 +594,11 @@ class TopoGenerator(object):
                     'L4Port': random.randint(30050, 30100),
                 }]
             }
+            if GENERATE_PRIV_ADDRESS:
+                d['Bind'] = [{
+                    'Addr': self._reg_bind_addr(topo_id, elem_id),
+                    'L4Port': random.randint(30050, 30100),
+                }]
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
@@ -655,12 +672,11 @@ class TopoGenerator(object):
                 self.topo_dicts, self.out_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
-                                       default=_json_default, indent=4)
+                                       default=_json_default, indent=2)
             write_file(path, contents_json)
             if GENERATE_BOTH_TOPOLOGY:
                 path_yaml = os.path.join(base, "topology.yml")
-                topo_dicts_old = {}
-                topo_dicts_old = self._convert_topology(self.topo_dicts[topo_id])
+                topo_dicts_old = self._topo_json_to_yaml(self.topo_dicts[topo_id])
                 contents_yaml = yaml.dump(topo_dicts_old,
                                           default_flow_style=False)
                 write_file(path_yaml, contents_yaml)
@@ -676,7 +692,13 @@ class TopoGenerator(object):
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
 
-    def _convert_topology(self, topo_dicts):
+    def _topo_json_to_yaml(self, topo_dicts):
+        """
+        Convert the new topology format to an old format
+
+        :pram dict topo_dicts: new topology dict
+        :return dict topo_old: old topology dict
+        """
         # This method will not be necessary for the final version,
         # since this method is to generate old version of topology format(.yml)
         # to test with go router for integration_test.sh.
@@ -776,8 +798,8 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.topo_dicts.items():
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                router_list.append("[%s]:%s" % (br_ele['InternalAddrs'][0]['Public'][0]['Addr'],
-                                   br_ele['InternalAddrs'][0]['Public'][0]['L4Port']))
+                int_addr = br_ele['InternalAddrs'][0]['Public'][0]
+                router_list.append("[%s]:%s" % (int_addr['Addr'], int_addr['L4Port']))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -1101,7 +1123,10 @@ class SubnetGenerator(object):
         # - 127.0.0.0 is treated as a broadcast address by the kernel
         # - 127.0.0.1 is the normal loopback address
         # - 127.0.0.[23] are used for clients to bind to for testing purposes.
-        v4_lo = ip_network("127.0.0.0/30")
+        if network is DEFAULT_PRIV_NETWORK:
+            v4_lo = ip_network("127.0.0.0/30")
+        else:
+            v4_lo = ip_network("127.0.0.0/30")
         if self._net.overlaps(v4_lo):
             self._exclude_net(self._net, v4_lo)
         else:
@@ -1210,7 +1235,7 @@ def _srv_iter(topo_dicts, out_dir, common=False):
 
 def _json_default(o):
     if isinstance(o, AddressProxy):
-        return str(o)
+        return str(o.ip)
     raise TypeError
 
 

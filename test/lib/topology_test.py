@@ -43,11 +43,18 @@ class TestElementInit(object):
         ntools.assert_is_none(inst.name)
 
     @patch("lib.topology.haddr_parse_interface", autospec=True)
-    def test_addr(self, parse):
+    def test_public(self, parse):
         public = {'Addr': 'addr', 'L4Port': 'port'}
         inst = Element(public)
         parse.assert_called_with("addr")
         ntools.eq_(inst.public[0][0], parse.return_value)
+
+    @patch("lib.topology.haddr_parse_interface", autospec=True)
+    def test_bind(self, parse):
+        bind = {'Addr': 'addr', 'L4Port': 'port'}
+        inst = Element(bind=bind)
+        parse.assert_called_with("addr")
+        ntools.eq_(inst.bind[0][0], parse.return_value)
 
     def test_name(self):
         name = create_mock(["__str__"])
@@ -88,16 +95,15 @@ class TestInterfaceElementInit(object):
         # Call
         inst = InterfaceElement(if_id, intf_dict, 'name')
         # Tests
-        super_init.assert_called_once_with(inst, public, 'name')
+        super_init.assert_called_once_with(inst, public, None, 'name')
         ntools.eq_(inst.if_id, 1)
         ntools.eq_(inst.isd_as, isd_as.return_value)
         ntools.eq_(inst.link_type, "PARENT")
-        ntools.eq_(inst.to_udp_port, 5)
-        ntools.eq_(inst.udp_port, 6)
         ntools.eq_(inst.bandwidth, 1001)
         ntools.eq_(inst.mtu, 4242)
+        ntools.eq_(inst.overlay, "UDP/IPv4")
         parse.assert_called_once_with("toaddr")
-        ntools.eq_(inst.to_addr, parse.return_value)
+        ntools.eq_(inst.remote[0], (parse.return_value, 5))
 
 
 class TestTopologyParseDict(object):
