@@ -37,7 +37,7 @@ const (
 
 func IAFromRaw(b common.RawBytes) *ISD_AS {
 	iaInt := common.Order.Uint32(b)
-	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
+	return IAFromUint32(iaInt)
 }
 
 func IAFromString(s string) (*ISD_AS, error) {
@@ -58,8 +58,16 @@ func IAFromString(s string) (*ISD_AS, error) {
 	return &ISD_AS{I: isd, A: as}, nil
 }
 
+func IAFromUint32(iaInt uint32) *ISD_AS {
+	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
+}
+
 func (ia *ISD_AS) Write(b common.RawBytes) {
-	common.Order.PutUint32(b, uint32((ia.I<<20)|(ia.A&0x000FFFFF)))
+	common.Order.PutUint32(b, ia.Uint32())
+}
+
+func (ia *ISD_AS) Uint32() uint32 {
+	return uint32((ia.I<<20)|(ia.A&0x000FFFFF))
 }
 
 func (ia *ISD_AS) SizeOf() int {
