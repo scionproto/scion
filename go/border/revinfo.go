@@ -92,7 +92,7 @@ func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 		return
 	}
 	pathMgmt.SetRevInfo(*revInfo)
-	if err := r.genPkt(conf.C.IA, *dstHost.(*addr.HostSVC), 0, srcAddr,
+	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr,
 		&spkt.CtrlPld{SCION: scion}); err != nil {
 		log.Error("Error generating RevInfo packet", err.Ctx...)
 	}
