@@ -74,7 +74,7 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 	f := rp.Ctx.LocOutFs[0]
 	if rp.ifCurr != nil {
 		intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-		f := rp.Ctx.LocOutFs[intf.LocAddrIdx]
+		f = rp.Ctx.LocOutFs[intf.LocAddrIdx]
 	}
 	if svc.IsMulticast() {
 		return rp.RouteResolveSVCMulti(svc, f)
