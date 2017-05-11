@@ -55,7 +55,7 @@ def reg_dispatcher(sock, addr, port, init=True, svc=None, scmp=True):
     if not buf:
         logging.error("Dispatcher closed socket, retry later")
         return False
-    port = struct.unpack("H", buf)[0]
+    port = struct.unpack("!H", buf)[0]
     if not port:
         logging.critical("Failed to register with dispatcher")
         kill_self()
