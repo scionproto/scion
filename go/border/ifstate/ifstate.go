@@ -29,7 +29,11 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/border/rctx"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/l4"
+	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -64,17 +68,19 @@ func Process(ifStates proto.IFStateInfos) {
 			gauge.Set(0)
 		}
 	}
+	ctx := rctx.Get()
 	// Lock local IFState config for writing, and replace existing map
-	conf.C.IFStates.Lock()
-	conf.C.IFStates.M = m
-	conf.C.IFStates.Unlock()
+	ctx.Conf.IFStates.Lock()
+	ctx.Conf.IFStates.M = m
+	ctx.Conf.IFStates.Unlock()
 }
 
 // Activate updates the state of a single interface to active.
 func Activate(ifID spath.IntfID) *common.Error {
-	conf.C.IFStates.Lock()
-	defer conf.C.IFStates.Unlock()
-	ifState, ok := conf.C.IFStates.M[ifID]
+	ctx := rctx.Get()
+	ctx.Conf.IFStates.Lock()
+	defer ctx.Conf.IFStates.Unlock()
+	ifState, ok := ctx.Conf.IFStates.M[ifID]
 	if !ok {
 		return common.NewError("Trying to activate non-existing interface", "intf", ifID)
 	}

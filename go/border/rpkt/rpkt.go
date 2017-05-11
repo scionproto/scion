@@ -26,6 +26,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -41,17 +42,12 @@ const pktBufSize = 1 << 16
 // callbacks is an anonymous struct used for functions supplied by the router
 // for various processing tasks.
 var callbacks struct {
-	locOutFs  map[int]OutputFunc
-	intfOutFs map[spath.IntfID]OutputFunc
 	revTokenF func(RevTokenCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
-func Init(locOut map[int]OutputFunc, intfOut map[spath.IntfID]OutputFunc,
-	revTokenF func(RevTokenCallbackArgs)) {
-	callbacks.locOutFs = locOut
-	callbacks.intfOutFs = intfOut
+func Init(revTokenF func(RevTokenCallbackArgs)) {
 	callbacks.revTokenF = revTokenF
 }
 
@@ -125,7 +121,12 @@ type RtrPkt struct {
 	// Logger is used to log messages associated with a packet. The Id field is automatically
 	// included in the output.
 	log.Logger
+	// The current router context to process this packet.
+	Ctx *rctx.Ctx
 }
+
+// Check that RtrPkt implements rctx.OutputObj
+var _ rctx.OutputObj = (*RtrPkt)(nil)
 
 func NewRtrPkt() *RtrPkt {
 	r := &RtrPkt{}
@@ -171,13 +172,10 @@ type addrIFPair struct {
 	IfIDs []spath.IntfID
 }
 
-// OutputFunc is the type of callback required for sending a packet.
-type OutputFunc func(*RtrPkt, *net.UDPAddr)
-
 // EgressPair contains the output function to send a packet with, along with an
 // overlay destination address.
 type EgressPair struct {
-	F   OutputFunc
+	F   rctx.OutputFunc
 	Dst *net.UDPAddr
 }
 
@@ -243,6 +241,7 @@ func (rp *RtrPkt) Reset() {
 	rp.pld = nil
 	rp.hooks = hooks{}
 	rp.SCMPError = false
+	rp.Ctx = nil
 }
 
 // ToScnPkt converts this RtrPkt into an spkt.ScnPkt. The verify argument
@@ -317,6 +316,12 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	}
 	rp.Crit("Invalid raw block requested", "blk", blk)
 	return nil
+}
+
+// Bytes returns the raw bytes of the RtrPkt. Needed to implement rctx.OutputObj
+// interface.
+func (rp *RtrPkt) Bytes() common.RawBytes {
+	return rp.Raw
 }
 
 func (rp *RtrPkt) String() string {

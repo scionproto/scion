@@ -21,6 +21,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -28,8 +29,9 @@ import (
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
-func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir) (*RtrPkt, *common.Error) {
+func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
+	rp.Ctx = ctx
 	totalLen := sp.TotalLen()
 	hdrLen := sp.HdrLen()
 	rp.TimeIn = monotime.Now()
