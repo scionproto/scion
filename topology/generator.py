@@ -21,12 +21,12 @@ import argparse
 import base64
 import configparser
 import getpass
+import json
 import logging
 import math
 import os
 import random
 import sys
-import json
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -59,9 +59,9 @@ from lib.defines import (
     GEN_PATH,
     IFIDS_FILE,
     NETWORKS_FILE,
-    PRV_NETWORKS_FILE,
     PATH_POLICY_FILE,
     PROM_FILE,
+    PRV_NETWORKS_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
     SCIOND_API_SOCKDIR,
@@ -133,7 +133,7 @@ class ConfigGenerator(object):
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False, router="py"):
+                 use_mininet=False, router="py", bind_addr=GENERATE_PRIV_ADDRESS):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -153,6 +153,7 @@ class ConfigGenerator(object):
         self.default_zookeepers = {}
         self.default_mtu = None
         self.router = router
+        self.gen_bind_addr = bind_addr
         self._read_defaults(network)
 
     def _read_defaults(self, network):
@@ -193,7 +194,7 @@ class ConfigGenerator(object):
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
         self._write_networks_conf(networks, NETWORKS_FILE)
-        if GENERATE_PRIV_ADDRESS:
+        if self.gen_bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _generate_cas(self):
@@ -207,7 +208,7 @@ class ConfigGenerator(object):
     def _generate_topology(self):
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu)
+            self.default_mtu, self.gen_bind_addr)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
@@ -489,13 +490,14 @@ class CA_Generator(object):
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu):
+                 default_mtu, gen_bind_addr):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.prvnet_gen = prvnet_gen
         self.zk_config = zk_config
         self.default_mtu = default_mtu
+        self.gen_bind_addr = gen_bind_addr
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -594,7 +596,7 @@ class TopoGenerator(object):
                     'L4Port': random.randint(30050, 30100),
                 }]
             }
-            if GENERATE_PRIV_ADDRESS:
+            if self.gen_bind_addr:
                 d['Bind'] = [{
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
                     'L4Port': random.randint(30050, 30100),
@@ -799,7 +801,7 @@ class PrometheusGenerator(object):
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
                 int_addr = br_ele['InternalAddrs'][0]['Public'][0]
-                router_list.append("[%s]:%s" % (int_addr['Addr'], int_addr['L4Port']))
+                router_list.append("[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port']))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -1124,7 +1126,7 @@ class SubnetGenerator(object):
         # - 127.0.0.1 is the normal loopback address
         # - 127.0.0.[23] are used for clients to bind to for testing purposes.
         if network is DEFAULT_PRIV_NETWORK:
-            v4_lo = ip_network("127.0.0.0/30")
+            v4_lo = ip_network("192.168.0.0/30")
         else:
             v4_lo = ip_network("127.0.0.0/30")
         if self._net.overlaps(v4_lo):
@@ -1258,10 +1260,12 @@ def main():
                         help='Zookeeper configuration file')
     parser.add_argument('-r', '--router', default=DEFAULT_ROUTER,
                         help='Router implementation to use ("go" or "py")')
+    parser.add_argument('-b', '--bind-addr', default=GENERATE_PRIV_ADDRESS,
+                        help='Generate bind addresses (E.g. "192.168.0.0/16"')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.router)
+        args.network, args.mininet, args.router, args.bind_addr)
     confgen.generate_all()
 
 
