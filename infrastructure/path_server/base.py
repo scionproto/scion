@@ -362,8 +362,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pcb = seg_meta.seg
         type_ = seg_meta.type
         params = seg_meta.params
-        self._dispatch_segment_record(type_, pcb, **params)
         self.handle_ext(pcb)
+        self._dispatch_segment_record(type_, pcb, **params)
         self._handle_pending_requests()
 
     def handle_ext(self, pcb):

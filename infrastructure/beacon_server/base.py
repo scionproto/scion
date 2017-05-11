@@ -287,8 +287,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except ZkNoConnection:
                 logging.error("Unable to store PCB in shared cache: "
                               "no connection to ZK")
-        self._handle_verified_beacon(pcb)
         self.handle_ext(pcb)
+        self._handle_verified_beacon(pcb)
 
     def _filter_pcb(self, pcb, dst_ia=None):
         return True
