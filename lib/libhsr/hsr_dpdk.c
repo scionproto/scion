@@ -371,9 +371,6 @@ int router_init(char *zlog_cfg, char *zlog_cat, int argc, char **argv)
         zlog_fini();
         return 1;
     }
-    for(int i=0; i<argc; ++i) {
-        zlog_debug(zc, "argv[%d]: %s", i, argv[i]);
-    }
 
     /* init EAL */
     ret = rte_eal_init(argc, argv);
