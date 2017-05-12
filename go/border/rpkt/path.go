@@ -17,6 +17,7 @@
 package rpkt
 
 import (
+	"hash"
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
@@ -66,7 +67,9 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 		return common.NewErrorData("Hop field expired", sdata, "expiry", hopfExpiry)
 	}
 	// Verify the Hop Field MAC.
-	err := rp.hopF.Verify(conf.C.HFGenBlock, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	hfmac := conf.C.HFMacPool.Get().(hash.Hash)
+	err := rp.hopF.Verify(hfmac, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
+	conf.C.HFMacPool.Put(hfmac)
 	if err != nil && err.Desc == spath.ErrorHopFBadMac {
 		err.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
 	}
