@@ -27,6 +27,7 @@ from collections import defaultdict
 # SCION
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_sig_chain_trc
+from lib.crypto.trc import verify_new_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.flagtypes import TCPFlags
@@ -176,6 +177,8 @@ class SCIONElement(object):
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         self._setup_sockets(True)
+        self.unv_trc_reps = set()
+        self.unv_trc_reps_lock = threading.Lock()
 
     def _setup_sockets(self, init):
         """
@@ -427,11 +430,19 @@ class SCIONElement(object):
         """
         meta.close()
         isd, ver = rep.trc.get_isd_ver()
-        logging.info("TRC reply received for %sv%s from %s" % (isd, ver, meta))
-        self.trust_store.add_trc(rep.trc, True)
+        logging.info("TRC reply received for %sv%s" % (isd, ver))
+        # Local TRC
+        max_local_ver = self.trust_store.get_trc(isd)
+        if isd == self.topology.isd_as[0]:
+            if not self.handle_local_trc(rep, max_local_ver):
+                return
+        # Remote TRC
+        else:
+            if not self.handle_remote_trc(rep, max_local_ver):
+                return
         # Update core ases for isd this trc belongs to
-        max_local_ver = self.trust_store.get_trc(rep.trc.isd)
-        if max_local_ver.version == rep.trc.version:
+        max_local_ver = self.trust_store.get_trc(isd)
+        if max_local_ver.version == ver:
             self._update_core_ases(rep.trc)
         with self.req_trcs_lock:
             self.requested_trcs.discard((isd, ver))
@@ -442,6 +453,67 @@ class SCIONElement(object):
             cs_meta.close()
         # Remove received TRC from map
         self._check_segs_with_rec_trc(isd, ver)
+
+    def handle_local_trc(self, rep, max_local_ver):
+        """
+        Called when a local TRC is received. Verifies new TRC or adds to unverified TRCs to
+        verify it later.
+
+        :param TRCReply rep: The received TRC reply.
+        :param TRC max_local_ver: The msot recent TRC in trust store.
+        :returns: True, if the TRC is a valid new TRC and verification succeeds. False, otherwise.
+        """
+        ver = rep.trc.version
+        if ver > max_local_ver.version + 1:
+            with self.unv_trc_reps_lock:
+                self.unv_trc_reps.add(rep)
+            return False
+        elif ver <= max_local_ver.version:
+            return False
+        if not verify_new_trc(max_local_ver, rep.trc):
+            return False
+        self.trust_store.add_trc(rep.trc, True)
+        self.check_unverified_trcs()
+        return True
+
+    def handle_remote_trc(self, rep, max_local_ver):
+        """
+        Called when a remote TRC is received. Verifies new remote TRC or adds to unverified TRCs to
+        verify it later.
+
+        :param TRCReply rep: The received remote TRC reply.
+        :param TRC max_local_ver: The msot recent local TRC in trust store.
+        :returns: True, if the TRC is a valid new remote TRC and verification succeeds.
+                  False, otherwise.
+        """
+        # TODO(Sezer): Implement this once xsigs are done
+        self.trust_store.add_trc(rep.trc, True)
+        return True
+
+    def check_unverified_trcs(self):
+        """
+        Try to verify unverified TRCs. This method is called after new TRCs are registered.
+        """
+        with self.unv_trc_reps_lock:
+            to_remove = []
+            change = True
+            while change:
+                change = False
+                for rep in self.unv_trc_reps:
+                    isd, ver = rep.trc.get_isd_ver()
+                    max_local_ver = self.trust_store.get_trc(isd)
+                    if isd == self.topology.isd_as[0]:
+                        if ver != max_local_ver.version + 1:
+                            continue
+                        if not verify_new_trc(max_local_ver, rep.trc):
+                            continue
+                    # TODO(Sezer): Handle non local TRC once xsigs are done
+                    # else:
+                    change = True
+                    self.trust_store.add_trc(rep.trc, True)
+                    to_remove.append(rep)
+                for rep in to_remove:
+                    self.unv_trc_reps.discard(rep)
 
     def _check_segs_with_rec_trc(self, isd, ver):
         """

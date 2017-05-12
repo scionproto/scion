@@ -50,6 +50,7 @@ from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
 from lib.crypto.trc import (
     get_trc_file_path,
+    get_trc_up_file_path,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
     ONLINE_KEY_ALG_STRING,
@@ -401,7 +402,7 @@ class CertGenerator(object):
         self.trcs[isd] = TRC.from_values(
             isd, "ISD %s" % isd, 0, {}, {},
             {}, 2, 'dns_srv_addr', 2,
-            3, 18000, True, {})
+            3, 18000, False, {})
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):
@@ -409,10 +410,18 @@ class CertGenerator(object):
         trc = self.trcs[topo_id[0]]
         trc.sign(str(topo_id), SigningKey(self.priv_online_root_keys[topo_id]))
 
-    def _gen_trc_files(self, topo_id, _):
+    def _gen_trc_files(self, topo_id, as_conf):
         trc = self.trcs[topo_id[0]]
         trc_path = get_trc_file_path("", topo_id[0], INITIAL_TRC_VERSION)
         self.trc_files[topo_id][trc_path] = str(trc)
+        # TRC update
+        if as_conf.get('trc_update', False):
+            up_trc_path = get_trc_up_file_path("", topo_id[0], INITIAL_TRC_VERSION + 1)
+            up_trc = TRC.from_raw(trc.to_json())
+            up_trc.version = 1
+            for signer in trc.core_ases.keys():
+                up_trc.sign(signer, SigningKey(self.priv_online_root_keys[ISD_AS(signer)]))
+            self.trc_files[topo_id][up_trc_path] = str(up_trc)
 
 
 class CA_Generator(object):
@@ -567,9 +576,10 @@ class TopoGenerator(object):
     def _generate_as_topo(self, topo_id, as_conf):
         mtu = as_conf.get('mtu', self.default_mtu)
         assert mtu >= SCION_MIN_MTU, mtu
+        trc_update = as_conf.get('trc_update', False)
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
-            'ZookeeperService': {}, 'MTU': mtu, 'Overlay': 'UDP/IPv4'
+            'ZookeeperService': {}, 'MTU': mtu, 'Overlay': 'UDP/IPv4', 'TRCUpdate': trc_update,
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}

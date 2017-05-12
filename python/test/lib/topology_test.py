@@ -112,7 +112,8 @@ class TestTopologyParseDict(object):
     """
     @patch("lib.topology.ISD_AS", autospec=True)
     def test(self, isd_as):
-        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'MTU': 440, 'Overlay': 'UDP/IPv4'}
+        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'MTU': 440, 'Overlay': 'UDP/IPv4',
+                     'TRCUpdate': False}
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()
