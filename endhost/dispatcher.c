@@ -643,7 +643,7 @@ void reply(int sock, int port)
 {
     uint8_t buf[DP_HEADER_LEN + 2];
     write_dp_header(buf, NULL, 2);
-    *(uint16_t *)(buf + DP_HEADER_LEN) = port;
+    *(uint16_t *)(buf + DP_HEADER_LEN) = htons(port);
     send_all(sock, buf, sizeof(buf));
     zlog_debug(zc, "sent reply %d on socket %d", port, sock);
 }
