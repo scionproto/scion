@@ -18,6 +18,8 @@
 package rpkt
 
 import (
+	"hash"
+
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
@@ -64,7 +66,9 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
 	inIF := conf.C.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
 	hopF := spath.NewHopField(o.rp.Raw[o.rp.CmnHdr.CurrHopF:], inIF, 0)
-	mac, err := hopF.CalcMac(conf.C.HFGenBlock, infoF.TsInt, prevHof)
+	hfmac := conf.C.HFMacPool.Get().(hash.Hash)
+	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)
+	conf.C.HFMacPool.Put(hfmac)
 	if err != nil {
 		return HookError, nil, err
 	}

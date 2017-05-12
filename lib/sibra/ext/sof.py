@@ -19,7 +19,7 @@
 import struct
 
 # SCION
-from lib.crypto.symcrypto import cbcmac
+from lib.crypto.symcrypto import mac
 from lib.defines import (
     SIBRA_STEADY_ID_LEN,
     SIBRA_EPHEMERAL_ID_LEN,
@@ -96,7 +96,7 @@ class SibraOpaqueField(Serializable):
         to_mac = b"".join(raw)
         assert len(to_mac) == self.MAC_DATA_LEN + self.MAC_BLOCK_PADDING
         assert len(to_mac) % self.MAC_BLOCK_SIZE == 0
-        return cbcmac(key, to_mac)[:self.MAC_LEN]
+        return mac(key, to_mac)[:self.MAC_LEN]
 
     def __len__(self):  # pragma: no cover
         return self.LEN

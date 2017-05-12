@@ -19,10 +19,8 @@
 import struct
 import time
 
-# External
-from Crypto.Hash import SHA256
-
 # SCION
+from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
@@ -39,12 +37,12 @@ class HashTree(object):
     The used hash function needs to implement the hashlib interface.
     """
 
-    def __init__(self, isd_as, if_ids, seed, hash_func=SHA256):
+    def __init__(self, isd_as, if_ids, seed, hash_func=crypto_hash):
         """
         :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: List of interface IDs of the AS.
         :param str seed: Seed for creating hash-tree nonces.
-        :param hash_func: Hash function that implements hashlib interface.
+        :param hash_func: Hash function. hash_func(msg) outputs hash of the msg.
         """
         self._isd_as = isd_as
         self._seed = seed
@@ -94,18 +92,18 @@ class HashTree(object):
             self._if2idx[if_id] = idx
             for i in range(self._n_epochs):
                 raw_nonce = (self._seed + struct.pack("!qq", if_id, i))
-                nonce = self._hash_func.new(raw_nonce).digest()
+                nonce = self._hash_func(raw_nonce)
                 if_tuple = struct.pack("!qq", if_id, i) + nonce
-                self._nodes[idx] = self._hash_func.new(if_tuple).digest()
+                self._nodes[idx] = self._hash_func(if_tuple)
                 idx = idx + 1
         while idx < node_count:  # For extra leaves added to complete tree
-            self._nodes[idx] = self._hash_func.new(b"0").digest()
+            self._nodes[idx] = self._hash_func(b"0")
             idx = idx + 1
 
         # Compute and fill in the hash values for internal nodes (bottom up).
         for idx in reversed(range(self._leaves_start_idx)):
             hash_concat = self._nodes[idx * 2 + 1] + self._nodes[idx * 2 + 2]
-            self._nodes[idx] = self._hash_func.new(hash_concat).digest()
+            self._nodes[idx] = self._hash_func(hash_concat)
 
     def get_proof(self, if_id, epoch, prev_root, next_root):
         """
@@ -119,7 +117,7 @@ class HashTree(object):
         assert if_id in self._if2idx.keys(), "if_id not found in AS"
         # Obtain the nonce for the (if_id, epoch) pair using the seed.
         raw_nonce = self._seed + struct.pack("!qq", if_id, epoch)
-        nonce = self._hash_func.new(raw_nonce).digest()
+        nonce = self._hash_func(raw_nonce)
 
         # Obtain the sibling hashes along with their left/right position info.
         siblings = []
@@ -146,12 +144,12 @@ class ConnectedHashTree(object):
     """
 
     def __init__(self, isd_as, if_ids, seed,
-                 hash_func=SHA256):  # pragma: no cover
+                 hash_func=crypto_hash):  # pragma: no cover
         """
         :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: list of interface IDs of the AS.
         :param List[str] seeds: list of 3 seeds for creating hash-tree nonces.
-        :param hash_func: hash function that implements hashlib interface.
+        :param hash_func: Hash function. hash_func(msg) outputs hash of the msg.
         """
         assert len(if_ids)*HASHTREE_N_EPOCHS >= 1, "Must have at least 1 leaf"
         ttl_window = self.get_ttl_window()
@@ -160,7 +158,7 @@ class ConnectedHashTree(object):
         seed3 = seed + (ttl_window + 1).to_bytes(8, 'big')
 
         self._hash_func = hash_func
-        self._ht0_root = hash_func.new(str(seed1).encode('utf-8')).digest()
+        self._ht0_root = hash_func(str(seed1).encode('utf-8'))
         self._ht1 = HashTree(isd_as, if_ids, seed2, hash_func)
         self._ht2 = HashTree(isd_as, if_ids, seed3, hash_func)
 
@@ -187,7 +185,7 @@ class ConnectedHashTree(object):
         return HASHTREE_TTL - cls.get_time_since_ttl()
 
     @classmethod
-    def get_next_tree(cls, isd_as, if_ids, seed, hash_func=SHA256):
+    def get_next_tree(cls, isd_as, if_ids, seed, hash_func=crypto_hash):
         seed += (cls.get_ttl_window() + 2).to_bytes(8, 'big')
         return HashTree(isd_as, if_ids, seed, hash_func)
 
@@ -202,7 +200,7 @@ class ConnectedHashTree(object):
         """
         root1 = self._ht1._nodes[0]
         root2 = self._ht2._nodes[0]
-        root12 = self._hash_func.new(root1 + root2).digest()
+        root12 = self._hash_func(root1 + root2)
         return root12
 
     def get_proof(self, if_id):
@@ -212,14 +210,14 @@ class ConnectedHashTree(object):
             if_id, epoch, self._ht0_root, self._ht2._nodes[0])
 
     @classmethod
-    def get_possible_hashes(cls, revProof, hash_func=SHA256):
+    def get_possible_hashes(cls, revProof, hash_func=crypto_hash):
         """
         Compute the hashes of the connected hash-tree roots given revProof.
         """
         # Calculate the hashes upwards till the tree root (of T).
         proof = revProof.p
         if_tuple = struct.pack("!qq", proof.ifID, proof.epoch) + proof.nonce
-        curr_hash = hash_func.new(if_tuple).digest()
+        curr_hash = hash_func(if_tuple)
 
         for i in range(len(proof.siblings)):
             is_left = proof.siblings[i].isLeft
@@ -228,15 +226,15 @@ class ConnectedHashTree(object):
                 curr_hash = sibling_hash + curr_hash
             else:
                 curr_hash = curr_hash + sibling_hash
-            curr_hash = hash_func.new(curr_hash).digest()
+            curr_hash = hash_func(curr_hash)
 
         # Get the hashes for the tree joins T-1:T and T:T+1 and return them.
-        hash01 = hash_func.new(proof.prevRoot + curr_hash).digest()
-        hash12 = hash_func.new(curr_hash + proof.nextRoot).digest()
+        hash01 = hash_func(proof.prevRoot + curr_hash)
+        hash12 = hash_func(curr_hash + proof.nextRoot)
         return (hash01, hash12)
 
     @classmethod
-    def verify(cls, revProof, root, hash_func=SHA256):  # pragma: no cover
+    def verify(cls, revProof, root, hash_func=crypto_hash):  # pragma: no cover
         """
         Verify whether revProof proves the revocation for the current epoch,
         given the root of the connected hash-tree.

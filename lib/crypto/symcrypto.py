@@ -15,15 +15,18 @@
 :mod:`symcrypto` --- SCION symmetric crypto functions
 =====================================================
 """
+# Stdlib
+from hashlib import pbkdf2_hmac, sha256
+
 # External packages
-from Crypto.Cipher import AES
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Protocol.KDF import PBKDF2
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
+from cryptography.hazmat.primitives.cmac import CMAC
 
 
-def cbcmac(key, msg):
+def mac(key, msg):
     """
-    CBC-MAC using AES-128.
+    Default MAC function (CMAC using AES-128).
 
     Args:
         key: key for MAC creation.
@@ -34,25 +37,28 @@ def cbcmac(key, msg):
 
     Raises:
         ValueError: An error occurred when key is NULL or ciphertext is NULL.
-
-    Warnings:
-        CBC-MAC is insecure for variable size messages.
     """
     if key is None:
         raise ValueError('Key is NULL.')
     elif msg is None:
         raise ValueError('Message is NULL.')
     else:
-        iv = b"\x00" * 16
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        return cipher.encrypt(msg)[-16:]  # Return the last block of ciphertext.
+        cobj = CMAC(AES(key), backend=default_backend())
+        cobj.update(msg)
+        return cobj.finalize()
 
 
 def kdf(secret, phrase):
     """
     Default key derivation function.
     """
-    def hmacsha2(p, s):
-        return HMAC.new(p, s, SHA256).digest()
+    return pbkdf2_hmac('sha256', secret, phrase, 1000)[:16]
 
-    return PBKDF2(secret, phrase, prf=hmacsha2)
+
+def crypto_hash(data):
+    """
+    Default hash function.
+    """
+    digest = sha256()
+    digest.update(data)
+    return digest.digest()

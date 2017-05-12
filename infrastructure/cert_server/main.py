@@ -20,13 +20,11 @@
 import logging
 import threading
 
-# External packages
-from Crypto.Hash import SHA256
-
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
+from lib.crypto.symcrypto import crypto_hash
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
@@ -143,7 +141,7 @@ class CertServer(SCIONElement):
         Share path segments (via ZK) with other path servers.
         """
         pld_packed = pld.pack()
-        pld_hash = SHA256.new(pld_packed).hexdigest()
+        pld_hash = crypto_hash(pld_packed).hex()
         try:
             if is_trc:
                 self.trc_cache.store("%s-%s" % (pld_hash, SCIONTime.get_time()),

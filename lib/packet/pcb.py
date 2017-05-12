@@ -20,12 +20,12 @@ from collections import defaultdict
 import struct
 
 # External packages
-from Crypto.Hash import SHA256
 import capnp  # noqa
 
 # SCION
 import proto.pcb_capnp as P
 from lib.crypto.asymcrypto import sign
+from lib.crypto.symcrypto import crypto_hash
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONSigVerError
 from lib.flagtypes import PathSegFlags as PSF
@@ -275,14 +275,15 @@ class PathSegment(SCIONPayloadBaseProto):
         Returns the hash over all triples (ISD_AS, IG_IF, EG_IF) included in
         the path segment.
         """
-        h = SHA256.new()
+        data = []
         for asm in self.iter_asms():
             pcbm = asm.pcbm(0)
-            h.update(asm.isd_as().pack() +
-                     struct.pack("!QQ", pcbm.p.inIF, pcbm.p.outIF))
+            data.append(asm.isd_as().pack())
+            data.append(struct.pack("!QQ", pcbm.p.inIF, pcbm.p.outIF))
+        data = b"".join(data)
         if hex:
-            return h.hexdigest()
-        return h.digest()
+            return crypto_hash(data).hex()
+        return crypto_hash(data)
 
     def get_n_peer_links(self):  # pragma: no cover
         """Return the total number of peer links in the PathSegment."""

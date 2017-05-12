@@ -16,8 +16,9 @@ package util
 
 import (
 	"crypto/aes"
-	"crypto/cipher"
+	"hash"
 
+	"github.com/dchest/cmac"
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -25,27 +26,25 @@ import (
 
 const (
 	ErrorCipherFailure = "Unable to initalize AES cipher"
-	ErrorCiphertextLen = "Ciphertext isn't a multiple of the block size"
+	ErrorMacFailure    = "Unable to initalize Mac"
 )
 
-func InitAES(key common.RawBytes) (cipher.Block, *common.Error) {
+func InitMac(key common.RawBytes) (hash.Hash, *common.Error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, common.NewError(ErrorCipherFailure, log.Ctx{"err": err})
 	}
-	return block, nil
+	mac, err := cmac.New(block)
+	if err != nil {
+		return nil, common.NewError(ErrorMacFailure, log.Ctx{"err": err})
+	}
+	return mac, nil
 }
 
-func CBCMac(block cipher.Block, msg common.RawBytes) (common.RawBytes, *common.Error) {
-	blkSize := block.BlockSize()
-	if len(msg)%blkSize != 0 {
-		return nil, common.NewError(ErrorCiphertextLen, "textLen", len(msg), "blkSize", blkSize)
-	}
-	iv := make([]byte, blkSize, blkSize)
-	mode := cipher.NewCBCEncrypter(block, iv)
-	// Work in-place
-	mode.CryptBlocks(msg, msg)
-	// Trim to last block
-	msg = msg[len(msg)-blkSize:]
-	return msg, nil
+func Mac(mac hash.Hash, msg common.RawBytes) (common.RawBytes, *common.Error) {
+	mac.Write(msg)
+	tmp := make([]byte, 0, mac.Size())
+	tag := mac.Sum(tmp)
+	mac.Reset()
+	return tag, nil
 }
