@@ -20,7 +20,7 @@ import capnp  # noqa
 
 # SCION
 import proto.path_mgmt_capnp as P
-from lib.defines import PATH_FLAG_SIBRA
+from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.packet.scion_addr import ISD_AS
 from lib.types import PathMgmtType as PMT
@@ -40,6 +40,8 @@ class PathSegmentReq(PathMgmtPayloadBase):  # pragma: no cover
         p = cls.P_CLS.new_message(srcIA=int(src_ia), dstIA=int(dst_ia))
         if PATH_FLAG_SIBRA in flags:
             p.flags.sibra = True
+        if PATH_FLAG_CACHEONLY in flags:
+            p.flags.cacheOnly = True
         return cls(p)
 
     def src_ia(self):
@@ -49,8 +51,12 @@ class PathSegmentReq(PathMgmtPayloadBase):  # pragma: no cover
         return ISD_AS(self.p.dstIA)
 
     def flags(self):
-        return (PATH_FLAG_SIBRA,) if self.p.flags.sibra else ()
+        flags = set()
+        if self.p.flags.sibra:
+            flags.add(PATH_FLAG_SIBRA)
+        if self.p.flags.cacheOnly:
+            flags.add(PATH_FLAG_CACHEONLY)
+        return tuple(flags)
 
     def short_desc(self):
-        return "%s: %s -> %s (%s)" % (self.NAME, self.src_ia(), self.dst_ia(),
-                                      self.flags())
+        return "%s: %s -> %s %s" % (self.NAME, self.src_ia(), self.dst_ia(), self.flags())
