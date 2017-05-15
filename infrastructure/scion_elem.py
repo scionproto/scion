@@ -293,7 +293,7 @@ class SCIONElement(object):
             if seg_meta.meta:
                 seg_meta.meta.close()
             seg_meta.callback(seg_meta)
-        except SCIONVerificationError as e:
+        except SCIONVerificationError:
             logging.error("Signature verification failed for %s" %
                           seg_meta.seg.short_desc())
 
