@@ -24,12 +24,13 @@ type ExtnType struct {
 }
 
 var (
-	ExtnTracerouteType = ExtnType{HopByHopClass, 0}
-	ExtnSIBRAType      = ExtnType{HopByHopClass, 1}
-	ExtnSCMPType       = ExtnType{HopByHopClass, 2}
-	ExtnOneHopPathType = ExtnType{HopByHopClass, 3}
-	ExtnPathTransType  = ExtnType{End2EndClass, 0}
-	ExtnPathProbeType  = ExtnType{End2EndClass, 1}
+	ExtnTracerouteType          = ExtnType{HopByHopClass, 0}
+	ExtnSIBRAType               = ExtnType{HopByHopClass, 1}
+	ExtnSCMPType                = ExtnType{HopByHopClass, 2}
+	ExtnOneHopPathType          = ExtnType{HopByHopClass, 3}
+	ExtnPathTransType           = ExtnType{End2EndClass, 0}
+	ExtnPathProbeType           = ExtnType{End2EndClass, 1}
+	ExtnSCIONPacketSecurityType = ExtnType{End2EndClass, 2}
 )
 
 func (e ExtnType) String() string {
@@ -46,6 +47,8 @@ func (e ExtnType) String() string {
 		return "PathTrans"
 	case ExtnPathProbeType:
 		return "PathProbe"
+	case ExtnSCIONPacketSecurityType:
+		return "SCIONPacketSecurity"
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", e)
 }

@@ -69,30 +69,9 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 		return common.NewError("Bad extension order - SCMP must be first",
 			"idx", len(rp.HBHExt), "first", rp.HBHExt[0].Type())
 	}
-	// Find the last hop-by-hop extension, if any, so the new one can be
-	// inserted after it.
-	offset := int(rp.CmnHdr.HdrLen)
-	var nextHdr *uint8 = (*uint8)(&rp.CmnHdr.NextHdr)
-	for i, hIdx := range rp.idxs.hbhExt {
-		nextHdr = &rp.Raw[hIdx.Index]
-		offset = hIdx.Index + common.ExtnSubHdrLen + rp.HBHExt[i].Len()
-	}
-	// Check if the extension's length is legal
-	eLen := e.Len() + common.ExtnSubHdrLen
-	if eLen%common.LineLen != 0 {
-		return common.NewError("HBH Ext length not multiple of line length",
-			"lineLen", common.LineLen, "actual", eLen)
-	}
-	et := e.Type()
-	// Set the preceding NextHdr field, whether it's in the common header, or a
-	// preceding hop-by-hop extension.
-	*nextHdr = uint8(et.Class)
-	// Write extension sub-header into buffer
-	rp.Raw[offset] = uint8(common.L4None)
-	rp.Raw[offset+1] = uint8(eLen/common.LineLen) - 1
-	rp.Raw[offset+2] = et.Type
-	// Write extension into buffer
-	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen : offset+eLen]); err != nil {
+	// Find the last hop-by-hop extension, if any, and write the extension
+	offset, eLen, err := rp.extnWriteExtension(e, true)
+	if err != nil {
 		return err
 	}
 	// Parse extension back in, to set up appropriate metadata
@@ -108,6 +87,93 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 	rp.idxs.l4 = offset + eLen
 	rp.idxs.pld = rp.idxs.l4
 	return nil
+}
+
+// extnParseE2E parses a specified end-to-end extension in a packet.
+func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
+	start, end, pos int) (rExtension, *common.Error) {
+	switch {
+	case extType == common.ExtnSCIONPacketSecurityType:
+		extn, err := parseSPSEfromRaw(rp, start, end, pos)
+		if err != nil {
+			return nil, err
+		}
+		return extn, nil
+	default:
+		// E2E not supported, so send an SCMP error in response.
+		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
+			&scmp.InfoExtIdx{Idx: uint8(pos)})
+		return nil, common.NewErrorData("Unsupported end-to-end extension", sdata, "type", extType)
+	}
+}
+
+// extnAddE2E adds a end-to-end extension to a packet the router is creating.
+func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
+	// Find the extension, if any, and write the extension
+	offset, eLen, err := rp.extnWriteExtension(e, false)
+	if err != nil {
+		return err
+	}
+	// Parse extension back in, to set up appropriate metadata
+	re, err := rp.extnParseE2E(e.Type(), offset+common.ExtnSubHdrLen,
+		offset+eLen, len(rp.idxs.hbhExt)+len(rp.idxs.e2eExt))
+	if err != nil {
+		return err
+	}
+	re.RegisterHooks(&rp.hooks)
+	rp.E2EExt = append(rp.E2EExt, re)
+	// Update metadata indexes
+	rp.idxs.e2eExt = append(rp.idxs.e2eExt, extnIdx{e.Type(), offset})
+	rp.idxs.l4 = offset + eLen
+	rp.idxs.pld = rp.idxs.l4
+	return nil
+}
+
+// extnOffsetNew finds the last extension and returns the offset after
+// that extension, as well as a pointer to the nextHdr field of that extension.
+func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, *common.Error) {
+	if isHBH && len(rp.E2EExt) > 0 {
+		return 0, nil, common.NewError("HBH extension illegal to add after E2E extension")
+	}
+	offset := int(rp.CmnHdr.HdrLen)
+	nextHdr := (*uint8)(&rp.CmnHdr.NextHdr)
+	for i, hIdx := range rp.idxs.hbhExt {
+		nextHdr = &rp.Raw[hIdx.Index]
+		offset = hIdx.Index + common.ExtnSubHdrLen + rp.HBHExt[i].Len()
+	}
+	// This is a no-op if we're adding a hbh extension.
+	for i, eIdx := range rp.idxs.e2eExt {
+		nextHdr = &rp.Raw[eIdx.Index]
+		offset = eIdx.Index + common.ExtnSubHdrLen + rp.E2EExt[i].Len()
+	}
+	return offset, nextHdr, nil
+}
+
+// extnWriteExtension writes the extension after the last extension and returns
+// the offset of that extension, as well as the length of the written extension
+func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, *common.Error) {
+	offset, nextHdr, err := rp.extnOffsetNew(isHBH)
+	if err != nil {
+		return 0, 0, err
+	}
+	eLen := e.Len() + common.ExtnSubHdrLen
+	if eLen%common.LineLen != 0 {
+		return 0, 0, common.NewError("Ext length not multiple of line length",
+			"Class", e.Class(), "Type", e.Type(), "lineLen", common.LineLen, "actual", eLen)
+	}
+	et := e.Type()
+	// Set the preceding NextHdr field, whether it's in the common header,
+	// preceding hop-by-hop or end-to-end extension.
+	*nextHdr = uint8(et.Class)
+	// Write extension sub-header into buffer
+	rp.Raw[offset] = uint8(common.L4None)
+	rp.Raw[offset+1] = uint8(eLen/common.LineLen) - 1
+	rp.Raw[offset+2] = et.Type
+	// Write extension into buffer
+	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen : offset+eLen]); err != nil {
+		return 0, 0, err
+	}
+	return offset, eLen, err
 }
 
 // validateExtns validates the order and number of extensions.
