@@ -17,6 +17,7 @@
 """
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.spse.defines import SPSESecModes
 from lib.packet.spse.ext import SCIONPacketSecurityExtn
 from lib.packet.spse.scmp_auth.ext_drkey import SCMPAuthDRKeyExtn
@@ -34,3 +35,4 @@ def parse_spse(raw):  # pragma: no cover
         return SCMPAuthDRKeyExtn(raw)
     if sec_mode == SPSESecModes.SCMP_AUTH_HASH_TREE:
         return SCMPAuthHashTreeExtn(raw)
+    raise SCIONParseError("Unable to parse SPSE. Invalid sec mode %s" % sec_mode)
