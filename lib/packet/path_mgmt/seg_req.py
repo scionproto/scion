@@ -52,5 +52,4 @@ class PathSegmentReq(PathMgmtPayloadBase):  # pragma: no cover
         return (PATH_FLAG_SIBRA,) if self.p.flags.sibra else ()
 
     def short_desc(self):
-        return "%s: %s -> %s (%s)" % (self.NAME, self.src_ia(), self.dst_ia(),
-                                      self.flags())
+        return "%s -> %s (%s)" % (self.src_ia(), self.dst_ia(), self.flags())

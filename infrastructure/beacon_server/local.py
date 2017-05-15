@@ -63,6 +63,7 @@ class LocalBeaconServer(BeaconServer):
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
         meta = self.DefaultMeta.from_values(host=addr, port=port)
+        logging.debug("Registering up-segment to %s: %s" % (meta, pcb.short_desc()))
         self.send_meta(records, meta)
 
     def register_down_segment(self, pcb):
@@ -72,8 +73,8 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
-        meta = self.DefaultMeta.from_values(
-            ia=dst_ia, host=SVCType.PS_A, path=core_path)
+        meta = self.DefaultMeta.from_values(ia=dst_ia, host=SVCType.PS_A, path=core_path)
+        logging.debug("Registering down-segment to %s: %s" % (meta, pcb.short_desc()))
         self.send_meta(records, meta)
 
     def register_segments(self):
@@ -129,7 +130,6 @@ class LocalBeaconServer(BeaconServer):
             except SCIONServiceLookupError as e:
                 logging.warning("Unable to send up path registration: %s", e)
                 continue
-            logging.info("Up path registered: %s", pcb.short_desc())
 
     def register_down_segments(self):
         """
@@ -143,4 +143,3 @@ class LocalBeaconServer(BeaconServer):
                 continue
             pcb.sign(self.signing_key)
             self.register_down_segment(pcb)
-            logging.info("Down path registered: %s", pcb.short_desc())

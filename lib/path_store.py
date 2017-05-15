@@ -18,7 +18,6 @@
 # Stdlib
 import copy
 import heapq
-import logging
 import math
 from collections import defaultdict, deque
 
@@ -26,6 +25,7 @@ from collections import defaultdict, deque
 import yaml
 
 # SCION
+from lib.errors import SCIONPathPolicyViolated
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import ISD_AS
 from lib.util import SCIONTime, load_yaml_file
@@ -62,27 +62,19 @@ class PathPolicy(object):
 
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
-        :returns:
-            True if any unwanted AS is present or a range is not respected.
-        :rtype: bool
+        :raises:
+            SCIONPathPolicyViolated if any unwanted AS is present or a range is not respected.
         """
         assert isinstance(pcb, PathSegment)
         isd_as = self._check_unwanted_ases(pcb)
         if isd_as:
-            logging.warning("PathStore: pcb discarded, unwanted AS(%s): %s",
-                            isd_as, pcb.short_desc())
-            return False
+            raise SCIONPathPolicyViolated("Unwanted AS(%s): %s", isd_as, pcb.short_desc())
         reasons = self._check_property_ranges(pcb)
         if reasons:
-            logging.info("PathStore: pcb discarded(%s): %s",
-                         ", ".join(reasons), pcb.short_desc())
-            return False
+            raise SCIONPathPolicyViolated(", ".join(reasons), pcb.short_desc())
         ia = self._check_remote_ifid(pcb)
         if ia:
-            logging.error("PathStore: pcb discarded, remote IFID of %s unknown",
-                          ia)
-            return False
-        return True
+            raise SCIONPathPolicyViolated("Remote IFID of %s unknown", ia)
 
     def _check_unwanted_ases(self, pcb):  # pragma: no cover
         """
@@ -331,7 +323,9 @@ class PathStore(object):
         """
         assert isinstance(pcb, PathSegment)
         pcb_hash = pcb.get_hops_hash(hex=True)
-        if not self.path_policy.check_filters(pcb):
+        try:
+            self.path_policy.check_filters(pcb)
+        except SCIONPathPolicyViolated:
             return
         for candidate in self.candidates:
             if candidate.id == pcb_hash:
