@@ -848,8 +848,8 @@ class SCIONElement(object):
 
         try:
             pkt.parse_payload()
-        except SCIONParseError:
-            logging.error("Cannot parse payload of: %s" % pkt)
+        except SCIONParseError as e:
+            logging.error("Cannot parse payload\n  Error: %s\n  Pkt: %s", e, pkt)
             return None, meta
         return pkt.get_payload(), meta
 

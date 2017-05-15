@@ -189,5 +189,6 @@ shift
 case "$COMMAND" in
     coverage|help|lint|run|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
+    start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

@@ -66,11 +66,11 @@ class ISD_AS(Serializable):
         try:
             self._isd = int(isd)
         except ValueError:
-            raise SCIONParseError("Unable to parse ISD from string: %s", raw)
+            raise SCIONParseError("Unable to parse ISD from string: %s" % raw)
         try:
             self._as = int(as_)
         except ValueError:
-            raise SCIONParseError("Unable to parse AS from string: %s", raw)
+            raise SCIONParseError("Unable to parse AS from string: %s" % raw)
 
     def _parse_int(self, raw):
         """
