@@ -24,6 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONPathPolicyViolated
 from lib.packet.pcb import PathSegment
 from lib.path_store import (
     PathPolicy,
@@ -51,16 +52,16 @@ class TestPathPolicyCheckFilters(object):
     def test_basic(self):
         inst, pcb = self._setup()
         # Call
-        ntools.assert_true(inst.check_filters(pcb))
+        inst.check_filters(pcb)
 
     def test_unwanted_ases(self):
         inst, pcb = self._setup("unwanted AS")
         # Call
-        ntools.assert_false(inst.check_filters(pcb))
+        ntools.assert_raises(SCIONPathPolicyViolated, inst.check_filters, pcb)
 
     def test_property_ranges(self):
         inst, pcb = self._setup(reasons="reasons")
-        ntools.assert_false(inst.check_filters(pcb))
+        ntools.assert_raises(SCIONPathPolicyViolated, inst.check_filters, pcb)
 
 
 class TestPathPolicyCheckPropertyRanges(object):
@@ -224,7 +225,8 @@ class TestPathStoreAddSegment(object):
     def _setup(self, filter_=True):
         inst = PathStore("path_policy")
         inst.path_policy = create_mock(["check_filters"])
-        inst.path_policy.check_filters.return_value = filter_
+        if not filter_:
+            inst.path_policy.check_filters.side_effect = SCIONPathPolicyViolated()
         pcb = create_mock(["get_hops_hash", "get_timestamp"],
                           class_=PathSegment)
         return inst, pcb

@@ -39,6 +39,7 @@ LOG_BACKUP_COUNT = 1
 
 _dispatch_formatter = None
 
+
 def _handleError(self, _):
     self.stream.write("Exception in logging module:\n")
     for line in traceback.format_exc().split("\n"):
@@ -62,7 +63,7 @@ class Rfc3339Formatter(logging.Formatter):
         return str(datetime.fromtimestamp(record.created, tz=timezone.utc))
 
 
-class DispatchFormatter:
+class DispatchFormatter:  # pragma: no cover
     """
     A dispatching formatter that allows modules to install custom formatters for
     their child loggers.
@@ -79,7 +80,7 @@ class DispatchFormatter:
         return formatter.format(record)
 
 
-def add_formatter(name, formatter):
+def add_formatter(name, formatter):  # pragma: no cover
     global _dispatch_formatter
     _dispatch_formatter.add_formatter(name, formatter)
 
