@@ -39,6 +39,10 @@ from lib.zk.errors import ZkNoConnection, ZkRetryLimit
 from lib.zk.id import ZkID
 from lib.zk.party import ZkParty
 
+ZK_LOCK_FAIL = 0
+ZK_LOCK_SUCCESS = 1
+ZK_LOCK_ALREADY = 2
+
 
 class Zookeeper(object):
     """
@@ -323,15 +327,16 @@ class Zookeeper(object):
             Time (in seconds) to wait for a connection to ZK, or ``None`` to
             wait forever (Default).
         :return:
-            ``True`` if we got the lock, or already had it, otherwise ``False``.
-        :rtype: :class:`bool`
+            ``ZK_LOCK_FAIL`` if getting the lock failed, ``ZK_LOCK_SUCCESS`` if the lock was
+            acquired, or ``ZK_LOCK_ALREADY`` if the lock is already held by this process.
+        :rtype: :class:`int`
         """
         if self._zk_lock is None:
             # First-time setup.
             lock_path = os.path.join(self.prefix, "lock")
             self._zk_lock = self.kazoo.Lock(lock_path, self._srv_id)
         elif self.have_lock():
-            return True
+            return ZK_LOCK_ALREADY
         self.wait_connected(timeout=conn_timeout)
         self._lock_epoch = self.conn_epoch
         if lock_timeout is None:
@@ -351,8 +356,8 @@ class Zookeeper(object):
             # Work-around for https://github.com/python-zk/kazoo/issues/288
             pass
         if self.have_lock():
-            return True
-        return False
+            return ZK_LOCK_SUCCESS
+        return ZK_LOCK_FAIL
 
     def release_lock(self):
         """Release the lock."""
