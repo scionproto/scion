@@ -158,8 +158,8 @@ func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, 
 	}
 	eLen := e.Len() + common.ExtnSubHdrLen
 	if eLen%common.LineLen != 0 {
-		return 0, 0, common.NewError("HBH Ext length not multiple of line length",
-			"lineLen", common.LineLen, "actual", eLen)
+		return 0, 0, common.NewError("Ext length not multiple of line length",
+			"Class", e.Class(), "Type", e.Type(), "lineLen", common.LineLen, "actual", eLen)
 	}
 	et := e.Type()
 	// Set the preceding NextHdr field, whether it's in the common header,
