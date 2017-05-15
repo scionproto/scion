@@ -21,6 +21,7 @@ import struct
 from collections import defaultdict
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.ext.path_probe import PathProbeExt
 from lib.packet.ext.path_transport import PathTransportExt
@@ -40,8 +41,7 @@ EXTENSION_MAP = {
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
-    (ExtensionClass.END_TO_END, ExtEndToEndType.SPSE):
-        parse_spse,
+    (ExtensionClass.END_TO_END, ExtEndToEndType.SPS): parse_spse,
 }
 
 
@@ -64,7 +64,11 @@ def parse_extensions(data, next_hdr):
         ext_class = EXTENSION_MAP.get((cur_hdr_type, ext_no))
         ext_data = data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)
         if ext_class:
-            ext_hdrs.append(ext_class(ext_data))
+            try:
+                ext_hdrs.append(ext_class(ext_data))
+            except SCIONParseError:
+                logging.error("Parsing error extension: %s-%s", cur_hdr_type, ext_no)
+                unknown[cur_hdr_type].append(idx)
         else:
             logging.error("Unknown extension: %s-%s", cur_hdr_type, ext_no)
             unknown[cur_hdr_type].append(idx)
