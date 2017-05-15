@@ -37,7 +37,7 @@ type rSCMPAuthHashTreeExtn struct {
 func rSCMPAuthHashTreeExtnFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthHashTreeExtn, *common.Error) {
 	raw := rp.Raw[start:end]
 	mode := spse.SecMode(raw[0])
-	s := &rSCMPAuthHashTreeExtn{&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
+	s := &rSCMPAuthHashTreeExtn{&rSPSBaseExtn{rp: rp, raw: raw, SecMode: mode}}
 	s.Logger = rp.Logger.New("ext", "SCMPAuthHashTreeExt")
 	return s, nil
 }

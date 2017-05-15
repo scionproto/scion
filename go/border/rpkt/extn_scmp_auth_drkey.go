@@ -37,7 +37,7 @@ type rSCMPAuthDRKeyExtn struct {
 func rSCMPAuthDRKeyExtnFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthDRKeyExtn, *common.Error) {
 	raw := rp.Raw[start:end]
 	mode := spse.SecMode(raw[0])
-	s := &rSCMPAuthDRKeyExtn{&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
+	s := &rSCMPAuthDRKeyExtn{&rSPSBaseExtn{rp: rp, raw: raw, SecMode: mode}}
 	s.Logger = rp.Logger.New("ext", "SCMPAuthDRKeyExt")
 	return s, nil
 }

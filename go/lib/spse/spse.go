@@ -103,15 +103,6 @@ func (s SecMode) String() string {
 	}
 }
 
-func IsSupported(mode SecMode) bool {
-	switch mode {
-	case AesCMac, HmacSha256, Ed25519, GcmAes128:
-		return true
-	default:
-		return false
-	}
-}
-
 func (s *BaseExtn) Reverse() (bool, *common.Error) {
 	// Nothing to do.
 	return true, nil

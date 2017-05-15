@@ -31,7 +31,6 @@ import (
 type rSPSBaseExtn struct {
 	rp      *RtrPkt
 	raw     common.RawBytes
-	start   int
 	SecMode spse.SecMode
 	log.Logger
 }
@@ -50,12 +49,12 @@ func (s *rSPSBaseExtn) Type() common.ExtnType {
 
 func parseSPSEfromRaw(rp *RtrPkt, start, end, pos int) (rExtension, *common.Error) {
 	secMode := spse.SecMode(rp.Raw[start])
-	switch {
-	case spse.IsSupported(secMode):
+	switch secMode {
+	case spse.AesCMac, spse.HmacSha256, spse.Ed25519, spse.GcmAes128:
 		return rSPSExtFromRaw(rp, start, end)
-	case secMode == spse.ScmpAuthDRKey:
+	case spse.ScmpAuthDRKey:
 		return rSCMPAuthDRKeyExtnFromRaw(rp, start, end)
-	case secMode == spse.ScmpAuthHashTree:
+	case spse.ScmpAuthHashTree:
 		return rSCMPAuthHashTreeExtnFromRaw(rp, start, end)
 	default:
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
@@ -76,7 +75,7 @@ type rSPSExtn struct {
 func rSPSExtFromRaw(rp *RtrPkt, start, end int) (*rSPSExtn, *common.Error) {
 	raw := rp.Raw[start:end]
 	mode := spse.SecMode(raw[0])
-	s := &rSPSExtn{&rSPSBaseExtn{rp: rp, raw: raw, start: start, SecMode: mode}}
+	s := &rSPSExtn{&rSPSBaseExtn{rp: rp, raw: raw, SecMode: mode}}
 	s.Logger = rp.Logger.New("ext", "SCIONPacketSecurity")
 	return s, nil
 }

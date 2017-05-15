@@ -16,7 +16,7 @@
 //
 //    0B       1        2        3        4        5        6        7
 //    +--------+--------+--------+--------+--------+--------+--------+--------+
-//    | xxxxxxxxxxxxxxxxxxxxxxxx |  0x05  | Height |            Order         |
+//    | xxxxxxxxxxxxxxxxxxxxxxxx |  0x05  | Height |reserved|      Order      |
 //    +--------+--------+--------+--------+--------+--------+--------+--------+
 //    |                               Signature (8 lines)                     |
 //    +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -40,7 +40,7 @@ var _ common.Extension = (*HashTreeExtn)(nil)
 // It is used to authenticate scmp messages.
 type HashTreeExtn struct {
 	*spse.BaseExtn
-	// Height is the height of the hash tree. Max height is 24.
+	// Height is the height of the hash tree. Max height is 16.
 	Height uint8
 	// Order is a bit vector. The bit at index i is associated with hash i.
 	// 0 (1) indicates hash i shall be used as left (right) input.
@@ -53,15 +53,16 @@ type HashTreeExtn struct {
 }
 
 const (
-	MaxHeight = 24
+	MaxHeight = 16
 
 	HeightLength    = 1
-	OrderLength     = 3
+	ReservedLength  = 1
+	OrderLength     = 2
 	SignatureLength = 64
 	HashLength      = 16
 
 	HeightOffset    = spse.SecModeLength
-	OrderOffset     = HeightOffset + HeightLength
+	OrderOffset     = HeightOffset + ReservedLength + HeightLength
 	SignatureOffset = OrderOffset + OrderLength
 	HashesOffset    = SignatureOffset + SignatureLength
 )
