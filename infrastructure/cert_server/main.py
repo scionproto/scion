@@ -47,7 +47,7 @@ from lib.util import (
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
-from lib.zk.zk import Zookeeper
+from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
 
 
 class CertServer(SCIONElement):
@@ -108,7 +108,10 @@ class CertServer(SCIONElement):
                 self.trc_cache.process()
                 self.cc_cache.process()
                 # Try to become a master.
-                if self.zk.get_lock(lock_timeout=0, conn_timeout=0):
+                ret = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
+                if ret:  # Either got the lock, or already had it.
+                    if ret == ZK_LOCK_SUCCESS:
+                        logging.info("Became master")
                     self.trc_cache.expire(worker_cycle * 10)
                     self.cc_cache.expire(worker_cycle * 10)
             except ZkNoConnection:

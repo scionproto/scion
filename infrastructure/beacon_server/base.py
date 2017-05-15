@@ -83,7 +83,7 @@ from lib.util import (
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
-from lib.zk.zk import Zookeeper
+from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
 
 
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
@@ -454,7 +454,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         last_propagation = last_registration = 0
         last_ttl_window = ConnectedHashTree.get_ttl_window()
         worker_cycle = 1.0
-        was_master = False
         start = time.time()
         while self.run_flag.is_set():
             sleep_interval(start, worker_cycle, "BS.worker cycle",
@@ -471,13 +470,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     self._maintain_hash_tree()
                     last_ttl_window = cur_ttl_window
 
-                if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
-                    was_master = False
+                ret = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
+                if not ret:  # Failed to get the lock
                     continue
-
-                if not was_master:
+                elif ret == ZK_LOCK_SUCCESS:
+                    logging.info("Became master")
                     self._became_master()
-                    was_master = True
                 self.pcb_cache.expire(self.config.propagation_time * 10)
                 self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
             except ZkNoConnection:
