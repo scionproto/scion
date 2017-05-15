@@ -145,7 +145,7 @@ class PathTransportExt(EndToEndExtension):
         elif self.path_type == PathTransType.PCB_PATH:
             self.path = PathSegment(data.pop())
         else:
-            raise SCIONParseError("Unsupported path type: %s", self.path_type)
+            raise SCIONParseError("Unsupported path type: %s" % self.path_type)
 
     def pack(self):
         packed = []

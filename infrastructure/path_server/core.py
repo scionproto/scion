@@ -234,7 +234,7 @@ class CorePathServer(PathServer):
         if new_request:
             logging.info("PATH_REQ received: %s", req.short_desc())
         if dst_ia == self.addr.isd_as:
-            logging.warning("Dropping request: requested DST is local AS")
+            logging.warning("Dropping request: requested DST is local AS: %s", req)
             return False
         # dst as==0 means any core AS in the specified ISD
         dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0

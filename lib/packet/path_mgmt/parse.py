@@ -36,4 +36,4 @@ def parse_pathmgmt_payload(wrapper):  # pragma: no cover
     ):
         if cls_.PAYLOAD_TYPE == type_:
             return cls_(getattr(wrapper, type_))
-    raise SCIONParseError("Unsupported path management type: %s", type_)
+    raise SCIONParseError("Unsupported path management type: %s" % type_)

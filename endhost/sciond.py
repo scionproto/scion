@@ -576,7 +576,7 @@ class SCIONDaemon(SCIONElement):
             log_exception("Error querying path service:")
             return
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
-        logging.debug("Sending path request: %s", req.short_desc())
+        logging.debug("Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
         meta = self.DefaultMeta.from_values(host=addr, port=port)
         self.send_meta(req, meta)
 
