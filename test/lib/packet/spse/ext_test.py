@@ -21,7 +21,11 @@ from unittest.mock import patch
 import nose
 import nose.tools as ntools
 
-from lib.packet.spse.defines import SPSESecModes
+from lib.packet.spse.defines import (
+    SPSELengths,
+    SPSESecModes,
+    SPSEValidationError,
+)
 from lib.packet.spse.ext import SCIONPacketSecurityExtn
 from test.testcommon import create_mock
 
@@ -30,12 +34,9 @@ class TestSCIONPacketSecurityExtnParse(object):
     """
     Unit tests for lib.packet.spse.ext.SCIONPacketSecurityExtn._parse
     """
-    @patch("lib.packet.spse.ext.SPSELengths",
-           autospec=True)
-    @patch("lib.packet.spse.ext."
-           "EndToEndExtension._parse", autospec=True)
-    @patch("lib.packet.spse.ext.Raw",
-           autospec=True)
+    @patch("lib.packet.spse.ext.SPSELengths", autospec=True)
+    @patch("lib.packet.spse.ext.EndToEndExtension._parse", autospec=True)
+    @patch("lib.packet.spse.ext.Raw", autospec=True)
     def test(self, raw, super_parse, lengths):
         inst = SCIONPacketSecurityExtn()
         inst.append_hop = create_mock()
@@ -59,16 +60,31 @@ class TestSCIONPacketSecurityExtnPack(object):
     """
     def test(self):
         inst = SCIONPacketSecurityExtn.from_values(
-            SPSESecModes.AES_CMAC, bytes(range(0, 4)), bytes(range(4, 20)))
+            SPSESecModes.AES_CMAC, bytes(range(4)), bytes(range(4, 20)))
         inst._check_len = create_mock()
         expected = b"".join((
             bytes([SPSESecModes.AES_CMAC]),
-            bytes(range(0, 4)),
+            bytes(range(4)),
             bytes(range(4, 20))))
         # Call
         ntools.eq_(inst.pack(), expected)
         # Tests
         inst._check_len.assert_called_once_with(expected)
+
+
+class TestCheckValidity(object):
+    """
+    Unit tests for lib.packet.spse.ext.SCIONPacketSecurityExtn.check_validity
+    """
+    def test(self):
+        func = SCIONPacketSecurityExtn.check_validity
+        for mode in SCIONPacketSecurityExtn.SUPPORTED_SECMODES:
+            meta = bytes(SPSELengths.META[mode])
+            auth = bytes(SPSELengths.AUTH[mode])
+            func(mode, meta, auth)
+            ntools.assert_raises(SPSEValidationError, func, mode, meta, auth + bytes(1))
+            ntools.assert_raises(SPSEValidationError, func, mode, meta + bytes(1), auth)
+        ntools.assert_raises(SPSEValidationError, func, -1, None, None)
 
 
 if __name__ == "__main__":

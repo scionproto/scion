@@ -21,9 +21,8 @@ from unittest.mock import patch
 import nose
 import nose.tools as ntools
 
-from lib.packet.spse.defines import SPSESecModes
-from lib.packet.spse.scmp_auth.ext_drkey import SCMPAuthDRKeyExtn
-from lib.packet.spse.scmp_auth.ext_hashtree import SCMPAuthHashTreeExtn
+from lib.packet.spse.defines import SPSESecModes, SPSEValidationError
+from lib.packet.spse.scmp_auth.ext_drkey import Lengths, SCMPAuthDRKeyExtn
 from test.testcommon import create_mock
 
 
@@ -33,8 +32,7 @@ class TestSCMPAuthDRKeyExtnParse(object):
     """
     @patch("lib.packet.spse.scmp_auth.ext_drkey."
            "SCIONPacketSecurityBaseExtn._parse", autospec=True)
-    @patch("lib.packet.spse.scmp_auth.ext_drkey.Raw",
-           autospec=True)
+    @patch("lib.packet.spse.scmp_auth.ext_drkey.Raw", autospec=True)
     def test(self, raw, super_parse):
         inst = SCMPAuthDRKeyExtn()
         inst.append_hop = create_mock()
@@ -57,66 +55,31 @@ class TestSCMPAuthDRKeyExtnPack(object):
     Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthDRKeyExtn.pack
     """
     def test(self):
-        inst = SCMPAuthDRKeyExtn.from_values(2, bytes(range(0, 16)))
+        inst = SCMPAuthDRKeyExtn.from_values(2, bytes(range(16)))
         inst._check_len = create_mock()
         expected = b"".join((
             bytes([SPSESecModes.SCMP_AUTH_DRKEY]),
             bytes((2,)),
             bytes(3),
-            bytes(range(0, 16))))
+            bytes(range(16))))
         # Call
         ntools.eq_(inst.pack(), expected)
         # Tests
         inst._check_len.assert_called_once_with(expected)
 
 
-class TestSCMPAuthHashTreeExtnParse(object):
+class TestSCMPAuthDRKeyCheckValidity(object):
     """
-    Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthHashTreeExtn._parse
-    """
-    @patch("lib.packet.spse.scmp_auth.ext_hashtree."
-           "SCIONPacketSecurityBaseExtn._parse", autospec=True)
-    @patch("lib.packet.spse.scmp_auth.ext_hashtree.Raw",
-           autospec=True)
-    def test(self, raw, super_parse):
-        inst = SCMPAuthHashTreeExtn()
-        inst.append_hop = create_mock()
-        data = create_mock(["pop"])
-        data.pop.side_effect = ("sec_mode", "height", "order", "sign", "hashes")
-        raw.return_value = data
-        arg = bytes(21)
-        # Call
-        inst._parse(arg)
-        # Tests
-        raw.assert_called_once_with(arg, "SCMPAuthHashTreeExtn")
-        super_parse.assert_called_once_with(inst, data)
-        ntools.assert_equal(inst.sec_mode, "sec_mode")
-        ntools.assert_equal(inst.height, "height")
-        ntools.assert_equal(inst.order, "order")
-        ntools.assert_equal(inst.signature, "sign")
-        ntools.assert_equal(inst.hashes, "hashes")
-
-
-class TestSCMPAuthHashTreeExtnPack(object):
-    """
-    Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthHashTreeExtn.pack
+    Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthDRKeyExtn.check_validity
     """
     def test(self):
-        height = 2
-        order = bytes(range(0, SCMPAuthHashTreeExtn.Lengths.ORDER))
-        signature = bytes(range(0, SCMPAuthHashTreeExtn.Lengths.SIGNATURE))
-        hashes = bytes(range(0, height * SCMPAuthHashTreeExtn.Lengths.HASH))
-
-        inst = SCMPAuthHashTreeExtn.from_values(
-            height, order, signature, hashes)
-        inst._check_len = create_mock()
-        expected = b"".join((
-            bytes([SPSESecModes.SCMP_AUTH_HASH_TREE]), bytes((height,)), order,
-            signature, hashes))
-        # Call
-        ntools.eq_(inst.pack(), expected)
-        # Tests
-        inst._check_len.assert_called_once_with(expected)
+        func = SCMPAuthDRKeyExtn.check_validity
+        mac = bytes(Lengths.MAC)
+        for dir in range(6):
+            func(dir, mac)
+        ntools.assert_raises(SPSEValidationError, func, 7, mac)
+        ntools.assert_raises(SPSEValidationError, func, -1, mac)
+        ntools.assert_raises(SPSEValidationError, func, 0, mac + bytes(1))
 
 
 if __name__ == "__main__":

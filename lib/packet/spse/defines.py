@@ -23,11 +23,11 @@ from lib.types import TypeBase
 
 
 class SPSEBaseError(SCIONBaseError):
-    pass
+    """Root SPSE Error exception. All other SPSE errors derive from this."""
 
 
 class SPSEValidationError(SPSEBaseError):
-    pass
+    """Validation error"""
 
 
 class SPSESecModes(TypeBase):

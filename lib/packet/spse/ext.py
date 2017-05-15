@@ -33,10 +33,9 @@ class SCIONPacketSecurityBaseExtn(EndToEndExtension):
     """
     Base class of SCION Packet Security extension.
     """
-    EXT_TYPE = ExtEndToEndType.SPSE
+    EXT_TYPE = ExtEndToEndType.SPS
 
     def __init__(self, raw=None):
-        self.sec_mode = 0
         super().__init__(raw)
 
 
@@ -131,11 +130,11 @@ class SCIONPacketSecurityExtn(SCIONPacketSecurityBaseExtn):
         if sec_mode not in SCIONPacketSecurityExtn.SUPPORTED_SECMODES:
             raise SPSEValidationError("Invalid SecMode %s" % sec_mode)
         if len(metadata) != SPSELengths.META[sec_mode]:
-            raise SPSEValidationError("Invalid metadata length %s. Expected %s" % (
-                sec_mode, SPSELengths.META[sec_mode]))
+            raise SPSEValidationError("Invalid metadata length %sB. Expected %sB" % (
+                len(metadata), SPSELengths.META[sec_mode]))
         if len(authenticator) != SPSELengths.AUTH[sec_mode]:
-            raise SPSEValidationError("Invalid auth length %s. Expected %s" % (
-                sec_mode, SPSELengths.AUTH[sec_mode]))
+            raise SPSEValidationError("Invalid auth length %sB. Expected %sB" % (
+                len(authenticator), SPSELengths.AUTH[sec_mode]))
 
     def __str__(self):
         return "%s(%sB):\n\tMeta: %s\n\tAuth: %s" % (
