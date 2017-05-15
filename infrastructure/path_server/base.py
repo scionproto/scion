@@ -503,6 +503,3 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             target=thread_safety_net, args=(self.worker,),
             name="PS.worker", daemon=True).start()
         super().run()
-
-
-

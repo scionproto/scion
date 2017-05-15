@@ -64,7 +64,7 @@ class TestInitLogging(object):
     @patch("lib.log.logging.basicConfig", autospec=True)
     @patch("lib.log._ConsoleErrorHandler", autospec=True)
     @patch("lib.log._RotatingErrorHandler", autospec=True)
-    @patch("lib.log._Rfc3339Formatter", autospec=True)
+    @patch("lib.log.DispatchFormatter", autospec=True)
     def test_full(self, formatter, rotate, console, basic_config):
         levels = "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
         file_handlers = [
