@@ -22,7 +22,7 @@ import nose
 import nose.tools as ntools
 
 from lib.packet.spse.defines import SPSESecModes, SPSEValidationError
-from lib.packet.spse.scmp_auth.ext_drkey import Lengths, SCMPAuthDRKeyExtn
+from lib.packet.spse.scmp_auth.ext_drkey import SCMPAuthDRKeyLengths, SCMPAuthDRKeyExtn
 from test.testcommon import create_mock
 
 
@@ -73,14 +73,16 @@ class TestSCMPAuthDRKeyCheckValidity(object):
     Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthDRKeyExtn.check_validity
     """
     def test(self):
-        func = SCMPAuthDRKeyExtn.check_validity
-        mac = bytes(Lengths.MAC)
-        for dir in range(6):
-            func(dir, mac)
-        ntools.assert_raises(SPSEValidationError, func, 7, mac)
-        ntools.assert_raises(SPSEValidationError, func, -1, mac)
-        ntools.assert_raises(SPSEValidationError, func, 0, mac + bytes(1))
+        SCMPAuthDRKeyExtn.check_validity(0, bytes(SCMPAuthDRKeyLengths.MAC))
 
+    def test_invalid_direction(self):
+        mac = bytes(SCMPAuthDRKeyLengths.MAC)
+        ntools.assert_raises(SPSEValidationError, SCMPAuthDRKeyExtn.check_validity, 7, mac)
+        ntools.assert_raises(SPSEValidationError, SCMPAuthDRKeyExtn.check_validity, -1, mac)
+
+    def test_invalid_mac_length(self):
+        mac = bytes(SCMPAuthDRKeyLengths.MAC + 1)
+        ntools.assert_raises(SPSEValidationError, SCMPAuthDRKeyExtn.check_validity, 0, mac)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

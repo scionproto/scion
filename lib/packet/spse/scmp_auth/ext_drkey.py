@@ -29,6 +29,39 @@ from lib.types import TypeBase
 from lib.util import hex_str, Raw
 
 
+class SCMPAuthDRKeyLengths:
+    """
+    Constant lengths.
+    """
+    DIRECTION = 1
+    MAC = 16
+    PADDING = 3
+    DRKEY_TOTAL_LENGTH = SPSELengths.SECMODE + DIRECTION + PADDING + MAC
+
+
+class SCMPAuthDRKeyDirections(TypeBase):
+    """
+    Direction defines.
+    """
+    AS_TO_AS = 0  # Authenticated with S -> D
+    AS_TO_HOST = 1  # Authenticated with S -> D:HD
+    HOST_TO_HOST = 2  # Authenticated with S:HS -> D:HD
+    HOST_TO_AS = 3  # Authenticated with D -> S:HS
+    AS_TO_AS_REVERSED = 4  # Authenticated with D -> S
+    HOST_TO_HOST_REVERSED = 5  # Authenticated with D:HD -> S:HS
+
+    @staticmethod
+    def is_valid_direction(direction):
+        """
+        Check if a valid direction has been provided.
+
+        :param int direction: Direction value.
+        :returns: If the direction is valid.
+        :rtype: bool
+        """
+        return 0 <= direction <= 5
+
+
 class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
     """
     Implementation of the SCMPAuthDRKey extension, which is based on the
@@ -68,9 +101,9 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         super()._parse(data)
 
         self.sec_mode = data.pop(SPSELengths.SECMODE)
-        self.direction = data.pop(Lengths.DIRECTION)
-        data.pop(Lengths.PADDING)
-        self.mac = data.pop(Lengths.MAC)
+        self.direction = data.pop(SCMPAuthDRKeyLengths.DIRECTION)
+        data.pop(SCMPAuthDRKeyLengths.PADDING)
+        self.mac = data.pop(SCMPAuthDRKeyLengths.MAC)
 
     @classmethod
     def from_values(cls, direction, mac=None):  # pragma: no cover
@@ -85,9 +118,9 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         """
         cls.check_validity(direction, mac)
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(Lengths.DRKEY_TOTAL_LENGTH))
+        inst._init_size(inst.bytes_to_hdr_len(SCMPAuthDRKeyLengths.DRKEY_TOTAL_LENGTH))
         inst.direction = direction
-        inst.mac = mac or bytes(Lengths.MAC)
+        inst.mac = mac or bytes(SCMPAuthDRKeyLengths.MAC)
         return inst
 
     def pack(self):
@@ -99,7 +132,7 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         """
         packed = [struct.pack("!B", self.sec_mode),
                   struct.pack("!B", self.direction),
-                  bytes(Lengths.PADDING),
+                  bytes(SCMPAuthDRKeyLengths.PADDING),
                   self.mac]
         raw = b"".join(packed)
         self._check_len(raw)
@@ -115,45 +148,12 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         :raises: SPSEValidationError
         """
 
-        if not Directions.is_valid_direction(direction):
+        if not SCMPAuthDRKeyDirections.is_valid_direction(direction):
             raise SPSEValidationError("Invalid direction %s" % direction)
-        if mac and len(mac) != Lengths.MAC:
+        if mac and len(mac) != SCMPAuthDRKeyLengths.MAC:
             raise SPSEValidationError("Invalid mac length %sB. Expected %sB" % (
-                len(mac), Lengths.MAC))
+                len(mac), SCMPAuthDRKeyLengths.MAC))
 
     def __str__(self):
         return "%s(%sB): Direction: %s MAC: %s" % (
             self.NAME, len(self), TypeBase.to_str(self.direction), hex_str(self.mac))
-
-
-class Lengths:
-    """
-    Constant lengths.
-    """
-    DIRECTION = 1
-    MAC = 16
-    PADDING = 3
-    DRKEY_TOTAL_LENGTH = SPSELengths.SECMODE + DIRECTION + PADDING + MAC
-
-
-class Directions(TypeBase):
-    """
-    Direction defines.
-    """
-    AS_TO_AS = 0  # Authenticated with S -> D
-    AS_TO_HOST = 1  # Authenticated with S -> D:HD
-    HOST_TO_HOST = 2  # Authenticated with S:HS -> D:HD
-    HOST_TO_AS = 3  # Authenticated with D -> S:HS
-    AS_TO_AS_REVERSED = 4  # Authenticated with D -> S
-    HOST_TO_HOST_REVERSED = 5  # Authenticated with D:HD -> S:HS
-
-    @staticmethod
-    def is_valid_direction(direction):
-        """
-        Check if a valid direction has been provided.
-
-        :param int direction: Direction value.
-        :returns: If the direction is valid.
-        :rtype: bool
-        """
-        return 0 <= direction <= 5

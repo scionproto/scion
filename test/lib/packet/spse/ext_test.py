@@ -77,15 +77,27 @@ class TestCheckValidity(object):
     Unit tests for lib.packet.spse.ext.SCIONPacketSecurityExtn.check_validity
     """
     def test(self):
+        mode = SPSESecModes.AES_CMAC
+        SCIONPacketSecurityExtn.check_validity(
+            mode, bytes(SPSELengths.META[mode]), bytes(SPSELengths.AUTH[mode]))
+
+    def test_invalid_sec_mode(self):
         func = SCIONPacketSecurityExtn.check_validity
-        for mode in SCIONPacketSecurityExtn.SUPPORTED_SECMODES:
-            meta = bytes(SPSELengths.META[mode])
-            auth = bytes(SPSELengths.AUTH[mode])
-            func(mode, meta, auth)
-            ntools.assert_raises(SPSEValidationError, func, mode, meta, auth + bytes(1))
-            ntools.assert_raises(SPSEValidationError, func, mode, meta + bytes(1), auth)
         ntools.assert_raises(SPSEValidationError, func, -1, None, None)
 
+    def test_invalid_meta_length(self):
+        func = SCIONPacketSecurityExtn.check_validity
+        mode = SPSESecModes.ED25519
+        meta = bytes(SPSELengths.META[mode])
+        auth = bytes(SPSELengths.AUTH[mode])
+        ntools.assert_raises(SPSEValidationError, func, mode, meta + bytes(1), auth)
+
+    def test_invalid_auth_length(self):
+        func = SCIONPacketSecurityExtn.check_validity
+        mode = SPSESecModes.ED25519
+        meta = bytes(SPSELengths.META[mode])
+        auth = bytes(SPSELengths.AUTH[mode])
+        ntools.assert_raises(SPSEValidationError, func, mode, meta, auth + bytes(1))
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
