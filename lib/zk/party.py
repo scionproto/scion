@@ -17,12 +17,14 @@
 """
 # Stdlib
 import logging
+from base64 import b64decode
 
 # External packages
 from kazoo.exceptions import ConnectionLoss, SessionExpiredError
 
 # SCION
 from lib.zk.errors import ZkNoConnection
+from lib.zk.id import ZkID
 
 
 class ZkParty(object):
@@ -63,10 +65,12 @@ class ZkParty(object):
         """If the autojoin parameter was set to True, join the party."""
         if self._autojoin:
             self.join()
-        entries = self.list()
-        names = set([entry.split("\0")[0] for entry in entries])
+        entries = []
+        for e in self.list():
+            raw = b64decode(e)
+            entries.append(ZkID.from_raw(raw))
         logging.debug("Current party (%s) members are: %s", self._path,
-                      sorted(names))
+                      [str(e) for e in entries])
 
     def list(self):
         """
