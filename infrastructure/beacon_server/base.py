@@ -47,10 +47,8 @@ from lib.errors import (
     SCIONParseError,
     SCIONServiceLookupError,
 )
-from lib.flagtypes import TCPFlags
-from lib.msg_meta import TCPMetadata, UDPMetadata
+from lib.msg_meta import UDPMetadata
 from lib.path_seg_meta import PathSegMeta
-from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.ifstate import (
@@ -203,13 +201,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
-        if self.DefaultMeta == TCPMetadata:
-            return pcb, self.DefaultMeta.from_values(
-                ia=dst_ia, host=SVCType.BS_A, path=one_hop_path,
-                flags=TCPFlags.ONEHOPPATH)
-        return pcb, UDPMetadata.from_values(
-            ia=dst_ia, host=SVCType.BS_A, path=one_hop_path,
-            ext_hdrs=[OneHopPathExt()])
+        return pcb, self._build_meta(ia=dst_ia, host=SVCType.BS_A,
+                                     path=one_hop_path, one_hop=True)
 
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())

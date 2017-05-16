@@ -113,10 +113,10 @@ class CoreBeaconServer(BeaconServer):
             # If there are no local path servers, stop here.
             return
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
-        meta = self.DefaultMeta.from_values(host=addr, port=port)
+        meta = self._build_meta(host=addr, port=port, reuse=True)
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = self.DefaultMeta.from_values(host=addr, port=port)
+        meta = self._build_meta(host=addr, port=port, reuse=True)
         self.send_meta(records, meta)
 
     def _filter_pcb(self, pcb, dst_ia=None):

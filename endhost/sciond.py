@@ -577,7 +577,7 @@ class SCIONDaemon(SCIONElement):
             return
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
-        meta = self.DefaultMeta.from_values(host=addr, port=port)
+        meta = self._build_meta(host=addr, port=port)
         self.send_meta(req, meta)
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
