@@ -55,6 +55,12 @@ class _ConsoleErrorHandler(logging.StreamHandler):
 
 
 class _Rfc3339Formatter(logging.Formatter):
+    def format(self, record):  # pragma: no cover
+        msg = []
+        for line in super().format(record).splitlines():
+            msg.append(line)
+        return "\n> ".join(msg)
+
     def formatTime(self, record, _):  # pragma: no cover
         # Not using lib.util.iso_timestamp here, to avoid potential import
         # loops.
