@@ -79,3 +79,11 @@ class SCIONTCPTimeout(SCIONBaseError):
 
 class SCIONSigVerError(SCIONBaseError):
     """SCION Signature Version error"""
+
+
+class SCIONVerificationError(SCIONBaseError):
+    """MAC/Signature verification error"""
+
+
+class SCIONPathPolicyViolated(SCIONBaseError):
+    """Path policy violated error"""

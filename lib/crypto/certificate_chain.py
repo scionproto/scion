@@ -13,11 +13,10 @@
 # limitations under the License.
 """
 :mod:`certificate_chain` --- SCION certificate_chain parser
-===============================================
+===========================================================
 """
 # Stdlib
 import json
-import logging
 
 # External
 import lz4
@@ -29,6 +28,7 @@ from lib.crypto.trc import (
     ONLINE_KEY_STRING,
     TRC,
 )
+from lib.errors import SCIONVerificationError
 from lib.packet.scion_addr import ISD_AS
 
 
@@ -47,14 +47,14 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_ver):
     :type trc: :class:`TRC`
     :param trc_ver: The TRCs version
 
-    :returns: True or False whether the verification is successful or not.
-    :rtype: bool
+    :raises: SCIONVerificationError if the verification fails.
     """
     assert isinstance(chain, CertificateChain)
     assert isinstance(trc, TRC)
-    if not chain.verify(subject, trc):
-        logging.error("The certificate chain verification failed.")
-        return False
+    try:
+        chain.verify(subject, trc)
+    except SCIONVerificationError as e:
+        raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
     verifying_key = None
     for signer_cert in chain.certs:
         if signer_cert.subject == subject:
@@ -62,10 +62,9 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_ver):
             break
     if verifying_key is None:
         if subject not in trc.core_ases:
-            logging.error("Signer's public key has not been found.")
-            return False
+            raise SCIONVerificationError("Signer's public key has not been found: %s" % subject)
         verifying_key = trc.core_ases[subject].subject_sig_key_raw
-    return verify(msg, sig, verifying_key)
+    verify(msg, sig, verifying_key)
 
 
 class CertificateChain(object):
@@ -106,28 +105,25 @@ class CertificateChain(object):
             the subject of the first certificate in the certificate chain.
         :param trc: TRC containing all root of trust certificates for one ISD.
         :type trc: :class:`TRC`
-        :returns: True or False whether the verification succeeds or fails.
-        :rtype: bool
+        :raises: SCIONVerificationError if the verification fails.
         """
         if not self.certs:
-            logging.error("The certificate chain is not initialized.")
-            return False
+            raise SCIONVerificationError("The certificate chain is not initialized.")
         cert = self.certs[0]
         for issuer_cert in self.certs[1:]:
             if issuer_cert.subject == subject:
                 break
-            if not cert.verify(subject, issuer_cert):
-                return False
+            cert.verify(subject, issuer_cert)
             cert = issuer_cert
             subject = cert.subject
         # First check whether a root cert was added to the chain.
         if cert.issuer != subject:
-            return False
+            raise SCIONVerificationError("Root Certificate added to chain:\n%s" % cert)
         # Try to find a root cert in the trc.
-        if not cert.verify_core(trc.core_ases[cert.issuer][ONLINE_KEY_STRING]):
-            logging.error("Core AS certificate verification failed.")
-            return False
-        return True
+        try:
+            cert.verify_core(trc.core_ases[cert.issuer][ONLINE_KEY_STRING])
+        except SCIONVerificationError:
+            raise SCIONVerificationError("Core AS certificate verification failed.")
 
     def get_leaf_isd_as_ver(self):
         if not self.certs:
