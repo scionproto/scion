@@ -38,7 +38,7 @@ var logBuf *bufio.Writer
 
 func init() {
 	os.Setenv("TZ", "UTC")
-	fmt15.TimeFmt = "2006-01-02T15:04:05.000000000-0700"
+	fmt15.TimeFmt = "2006-01-02 15:04:05.000000-0700"
 }
 
 func Setup(name string) {

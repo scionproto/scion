@@ -62,6 +62,7 @@ topology/mininet/*.pyc
 bin/border
 bin/discovery
 bin/dispatcher
+bin/logdog
 endhost/dispatcher
 endhost/ssp/test/*client
 endhost/ssp/test/*server

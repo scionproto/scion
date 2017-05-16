@@ -1,0 +1,144 @@
+// Read and interleave Python and Go long files as produced by log15/fmt15, zlog and Python logging
+//
+// 2017-05-16T13:18:16.539536145+0000 [DBUG] Topology loaded topo=
+// >  Loc addrs:
+// >    127.0.0.65:30066
+// >  Interfaces:
+// >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-12 MTU: 1472 BW: 1000
+// 2017-05-16T13:18:16.539633390+0000 [DBUG] AS Conf loaded conf="CertChainVersion:0 MasterASKey:e856d81efb0878512f78f207bb8aadb3 PropagateTime:5 RegisterPath:true RegisterTime:5"
+// 2017-05-16T13:18:16.539658666+0000 [INFO] Starting up id=br1-11-1
+//
+// Lines starting with "> " are assumed to be continuations, i.e. they belong
+// with the line(s) above them.
+//
+// Further, the code prefixes all log entries with the processed filename of
+// the line was read from, stripped of the path and extension. I.e.
+// foo/bar/br1-11-1.log turns into the prefix br1-11-1. The prefix is only
+// printed once for blocks coming from the same file.
+// The timestamp format of the output is the same as the input format,
+// i.e. ISO8601 with a space instead of "T"
+//
+//
+// Limitations:
+// - All the logs are kept in memory prior to output. Processing terabytes of
+//   logs is thus not recommended.
+// - The tool does not care about stdin
+// - The tool tries to keep going in the face of errors, but will emit messages
+//   to stderr when doing so.
+
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"math"
+	"os"
+	"path"
+	"sort"
+	"strings"
+	"time"
+)
+
+const ts_format = "2006-01-02 15:04:05.000000+0000"
+const entry_offset = len(ts_format) + 1
+
+type LogEntries []Logentry
+
+var entries LogEntries
+
+// Implement interface for sort.Sort()
+func (e LogEntries) Len() int {
+	return len(e)
+}
+
+func (e LogEntries) Less(i, j int) bool {
+	return e[i].Timestamp.UnixNano() < e[j].Timestamp.UnixNano()
+}
+
+func (e LogEntries) Swap(i, j int) {
+	x := e[i]
+	e[i] = e[j]
+	e[j] = x
+}
+
+type Logentry struct {
+	Timestamp time.Time
+	Element   string
+	Entry     string
+}
+
+func (l Logentry) String() string {
+	return fmt.Sprintf("%s %s\n", l.Timestamp.Format(ts_format), l.Entry)
+}
+
+// Turn a path name like "foo/bar/logs/br-11-1.log" into "br1-11-1"
+// Note that sthis also strips the suffix, no matter its contents, i.e. it will
+// strip .log, .DEBUG, .INFO etc., basically anything after (and including) the
+// rightmost dot in the basename of the path
+// If the name is still longer than 15 characters, truncate.
+func fnToEName(s string) string {
+	ext := path.Ext(s)
+	name := strings.TrimSuffix(path.Base(s), ext)
+	return name[:int64(math.Min(float64(len(name)), 15))]
+}
+
+func printUsage() {
+	fmt.Printf("Usage: %s <logfile> [logfile ...]\n", os.Args[0])
+	flag.PrintDefaults()
+}
+
+func main() {
+	var err error
+	var entry_offset int
+	var ts time.Time
+	var f *os.File
+	flag.Usage = printUsage
+	flag.Parse()
+	lineno := 0
+	for _, fn := range flag.Args() {
+		f, err = os.Open(fn)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not open file %s: %s\n", fn, err)
+			continue
+		}
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			lineno += 1
+			line := scanner.Text()
+			if strings.HasPrefix(line, "> ") || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "	") {
+				// Continuation
+				indent := fmt.Sprintf("\n%s", strings.Repeat(" ", len(fnToEName(fn))+2))
+				entries[len(entries)-1].Entry += fmt.Sprintf("%s %s", indent, line)
+				continue
+			}
+			tokens := strings.Split(line, " ")
+			if len(tokens) < 2 {
+				// Even an "empty" log line would have the date and time tokens.
+				fmt.Fprintf(os.Stderr, "%s:%d: Malformed log line\n", fn, lineno)
+				continue
+			}
+			ts, err = time.Parse(ts_format, fmt.Sprintf("%s %s", tokens[0], tokens[1]))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s:%d: Could not parse timestamp %+v %+v: %+v\n", fn, lineno, tokens[0], tokens[1], err)
+				continue
+			}
+			entries = append(entries, Logentry{
+				Timestamp: ts,
+				Element:   fnToEName(fn),
+				Entry:     line[entry_offset:],
+			})
+		}
+	}
+	// Sort by timestamp and output
+	sort.Sort(entries)
+	lastelement := ""
+	for _, entry := range entries {
+		if entry.Element == lastelement {
+			fmt.Printf("%s %s", strings.Repeat(" ", 17), entry)
+		} else {
+			lastelement = entry.Element
+			fmt.Printf("[%-15s] %s", entry.Element, entry)
+		}
+	}
+}
