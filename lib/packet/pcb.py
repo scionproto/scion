@@ -321,16 +321,19 @@ class PathSegment(SCIONPayloadBaseProto):
             f |= PSF.SIBRA
         return f
 
+    def short_id(self):  # pragma: no cover
+        """
+        Return a 12-byte hex ID identifying the PCB (mostly for logging purposes).
+        """
+        return self.get_hops_hash(hex=True)[:12]
+
     def short_desc(self):  # pragma: no cover
         """
         Return a short description string of the PathSegment, consisting of a
         truncated hash, the IOF timestamp, and the list of hops.
         """
         desc = []
-        desc.append("%s, %s, " % (
-            self.get_hops_hash(hex=True)[:12],
-            iso_timestamp(self.get_timestamp()),
-        ))
+        desc.append("%s, %s, " % (self.short_id(), iso_timestamp(self.get_timestamp())))
         hops = []
         for asm in self.iter_asms():
             hops.append(str(asm.isd_as()))

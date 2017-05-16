@@ -218,7 +218,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if rev_info in self.revocations:
             return False
         self.revocations.add(rev_info)
-        logging.debug("Received revocation from %s:\n%s", meta.get_addr(), rev_info)
+        logging.debug("Received revocation from %s: %s", meta.get_addr(), rev_info.short_desc())
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
@@ -252,8 +252,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                         if (self.up_segments.delete(sid) ==
                                 DBResult.ENTRY_DELETED):
                             up_segs_removed += 1
-            logging.debug("Removed segments containing IF %d: UP: %d DOWN: %d CORE: %d" %
-                          (if_id, up_segs_removed, down_segs_removed, core_segs_removed))
+            logging.debug("Removed segments revoked by %s: UP: %d DOWN: %d CORE: %d" %
+                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
+                           core_segs_removed))
 
     @abstractmethod
     def _forward_revocation(self, rev_info, meta):
@@ -355,6 +356,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         The segment is added to pathdb and pending requests are checked.
         """
         pcb = seg_meta.seg
+        logging.debug("Successfully verified PCB %s" % pcb.short_id())
         type_ = seg_meta.type
         params = seg_meta.params
         self._dispatch_segment_record(type_, pcb, **params)
@@ -384,8 +386,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for if_id in [pcbm.p.inIF, pcbm.p.outIF]:
                 rev_info = self.revocations.get((asm.isd_as(), if_id))
                 if rev_info:
-                    logging.debug("Found revoked interface (%d) in segment "
-                                  "%s." % (rev_info.p.ifID, seg.short_desc()))
+                    logging.debug("Found revoked interface (%d, %s) in segment %s." %
+                                  (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
                     return False
         return True
 
@@ -476,7 +478,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Initializes the request logger.
         """
-        logging.debug("_init_request_logger")
         self._request_logger = logging.getLogger("RequestLogger")
         # Create new formatter to include the random request id and the request in the log.
         formatter = formatter = Rfc3339Formatter(
@@ -489,10 +490,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Returns a logger adapter for 'req'.
         """
         # Random ID to relate log entries for a request.
-        req_id = random.randint(0, 2**32 - 1)
+        req_id = "%08x" % random.randint(0, 2**32 - 1)
         # Create a logger for the request to log with context.
         return logging.LoggerAdapter(
-            self._request_logger, {"id": hex(req_id), "req": req.short_desc(), "from": str(meta)})
+            self._request_logger, {"id": req_id, "req": req.short_desc(), "from": str(meta)})
 
     def run(self):
         """

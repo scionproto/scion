@@ -81,7 +81,6 @@ class DispatchFormatter:  # pragma: no cover
 
 
 def add_formatter(name, formatter):  # pragma: no cover
-    global _dispatch_formatter
     _dispatch_formatter.add_formatter(name, formatter)
 
 

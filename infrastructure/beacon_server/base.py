@@ -183,6 +183,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param pcb: path segment.
         :type pcb: PathSegment
         """
+        propagated_pcbs = defaultdict(list)
         for r in self.topology.child_border_routers:
             if not r.interface.to_if_id:
                 continue
@@ -191,8 +192,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not new_pcb:
                 continue
             self.send_meta(new_pcb, meta)
-            logging.debug("Downstream PCB propagated to %s via IF %s",
-                          r.interface.isd_as, r.interface.if_id)
+            propagated_pcbs[(r.interface.isd_as, r.interface.if_id)].append(pcb.short_id())
+        return propagated_pcbs
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
@@ -273,6 +274,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         this function gets called to continue the processing for the pcb.
         """
         pcb = seg_meta.seg
+        logging.debug("Successfully verified PCB %s", pcb.short_id())
         if seg_meta.meta:
             # Segment was received from network, not from zk. Share segment
             # with other beacon servers in this AS.
@@ -302,6 +304,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Registers paths according to the received beacons.
         """
         raise NotImplementedError
+
+    def _log_registrations(self, registrations, seg_type):
+        for dst_ps, pcbs in registrations.items():
+            logging.debug("Registered %d %s-segments to %s (%s)", len(pcbs),
+                          seg_type, dst_ps, ", ".join(pcbs))
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
@@ -420,7 +427,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             # at this point, there should be <= HASHTREE_UPDATE_WINDOW
             # seconds left in current ttl
-            logging.info("Started computing hashtree for next ttl (%d)", cur_ttl_window + 2)
+            logging.info("Started computing hashtree for next TTL window (%d)",
+                         cur_ttl_window + 2)
             last_ttl_window = ConnectedHashTree.get_ttl_window()
 
             ht_start = time.time()
@@ -430,7 +438,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             ht_end = time.time()
             with self._hash_tree_lock:
                 self._next_tree = tree
-            logging.info("Finished computing hashtree for TTL %d in %.3fs" %
+            logging.info("Finished computing hashtree for TTL window %d in %.3fs" %
                          (cur_ttl_window + 2, ht_end - ht_start))
 
     def _maintain_hash_tree(self):

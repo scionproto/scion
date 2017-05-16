@@ -108,7 +108,7 @@ class Certificate(object):
         """
         if subject != self.subject:
             raise SCIONVerificationError(
-                "The given subject(%s) doesn't match the certificate's subject(%s):\n%s" %
+                "The given subject (%s) doesn't match the certificate's subject (%s):\n%s" %
                 (subject, self.subject, self))
         if int(time.time()) >= self.expiration_time:
             raise SCIONVerificationError("This certificate expired:\n%s" % self)
