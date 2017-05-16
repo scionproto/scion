@@ -21,7 +21,7 @@ from collections import deque
 
 # SCION
 from infrastructure.path_server.base import PathServer
-from lib.defines import PATH_FLAG_SIBRA
+from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
@@ -54,6 +54,7 @@ class CorePathServer(PathServer):
         """
         if self.zk.have_lock():
             self._segs_to_master.clear()
+            self._master_id = None
             return
         try:
             curr_master = self.zk.get_lock_holder()
@@ -202,6 +203,14 @@ class CorePathServer(PathServer):
         if self.zk.have_lock() or not self._master_id:
             return
         src_ia = src_ia or self.addr.isd_as
+        # XXX(kormat) Requests forwarded to the master CPS should be cache-only, as they only happen
+        # in the case where a core segment is missing or a local down-segment is missing, and there
+        # is nothing to query if the master CPS doesn't already have the information.
+        # This has the side-effect of preventing query loops that could occur when two non-master
+        # CPSes each believe the other is the master, for example.
+        sflags = set(flags)
+        sflags.add(PATH_FLAG_CACHEONLY)
+        flags = tuple(sflags)
         req = PathSegmentReq.from_values(src_ia, dst_ia, flags=flags)
         logging.debug("Asking master for segment: %s" % req.short_desc())
         self._send_to_master(req)
@@ -267,7 +276,7 @@ class CorePathServer(PathServer):
         params["sibra"] = sibra
         params.update(dst_ia.params())
         core_segs = set(self.core_segments(**params))
-        if not core_segs and new_request:
+        if not core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             # Segments not found and it is a new request.
             self.pending_req[(dst_ia, sibra)].append((req, meta))
             # If dst is in remote ISD then a segment may be kept by master.
@@ -284,7 +293,7 @@ class CorePathServer(PathServer):
         down_segs = set()
         # Check if there exists any down-segs to dst.
         tmp_down_segs = self.down_segments(last_ia=dst_ia, sibra=sibra)
-        if not tmp_down_segs and new_request:
+        if not tmp_down_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             self._resolve_not_core_failed(seg_req, meta, dst_ia, flags)
 
         for dseg in tmp_down_segs:
@@ -298,7 +307,7 @@ class CorePathServer(PathServer):
             # Now try core segments that connect to down segment.
             tmp_core_segs = self.core_segments(
                 first_ia=dseg_ia, last_ia=self.addr.isd_as, sibra=sibra)
-            if not tmp_core_segs and new_request:
+            if not tmp_core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
                 # Core segment not found and it is a new request.
                 self.pending_req[(dseg_ia, sibra)].append((seg_req, meta))
                 if dst_ia[0] != self.addr.isd_as[0]:

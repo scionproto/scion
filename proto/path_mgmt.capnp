@@ -12,6 +12,7 @@ struct SegReq {
     dstIA @1 :UInt32;
     flags :group {
         sibra @2 :Bool;
+        cacheOnly @3 :Bool;
     }
 }
 
