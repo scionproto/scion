@@ -29,6 +29,18 @@ from lib.types import ExtEndToEndType
 from lib.util import hex_str, Raw
 
 
+class SCMPAuthHashtreeLengths:
+    """
+    Constant lengths.
+    """
+    HASH = 16
+    HEIGHT = 1
+    RESERVED = 1
+    ORDER = 2
+    SIGNATURE = 64
+    HASH_TREE_MIN_LENGTH = SPSELengths.SECMODE + HEIGHT + RESERVED + ORDER + SIGNATURE
+
+
 class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
     """
     Implementation of the SCMPAuthHashTree extension, which is based on the
@@ -38,9 +50,9 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
     +--------+--------+--------+--------+--------+--------+--------+--------+
     | xxxxxxxxxxxxxxxxxxxxxxxx |  0x05  | Height |reserved|      Order      |
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    |                               Signature (8 lines)                     |
+    |                          Signature (8 lines)                          |
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    |                               Hashes (height * 2)                     |
+    |                         Hashes (height * 2 lines)                     |
     +--------+--------+--------+--------+--------+--------+--------+--------+
 
     Height: Height of the hash tree. MAX_HEIGHT is 24.
@@ -76,11 +88,11 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         super()._parse(data)
 
         self.sec_mode = data.pop(SPSELengths.SECMODE)
-        self.height = data.pop(Lengths.HEIGHT)
-        data.pop(Lengths.RESERVED)
-        self.order = data.pop(Lengths.ORDER)
-        self.signature = data.pop(Lengths.SIGNATURE)
-        self.hashes = data.pop(self.height * Lengths.HASH)
+        self.height = data.pop(SCMPAuthHashtreeLengths.HEIGHT)
+        data.pop(SCMPAuthHashtreeLengths.RESERVED)
+        self.order = data.pop(SCMPAuthHashtreeLengths.ORDER)
+        self.signature = data.pop(SCMPAuthHashtreeLengths.SIGNATURE)
+        self.hashes = data.pop(self.height * SCMPAuthHashtreeLengths.HASH)
 
     @classmethod
     def from_values(cls, height, order, signature, hashes):  # pragma: no cover
@@ -95,9 +107,7 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         :rtype: SCMPAuthHashTreeExtn
         :raises: SPSEValidationError
         """
-        error = cls.check_validity(height, order, signature, hashes)
-        if error:
-            raise error
+        cls.check_validity(height, order, signature, hashes)
 
         inst = cls()
         inst.height = height
@@ -105,8 +115,8 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         inst.signature = signature
         inst.hashes = hashes
         hdr_len = inst.bytes_to_hdr_len(
-            Lengths.HASH_TREE_MIN_LENGTH +
-            height * Lengths.HASH)
+            SCMPAuthHashtreeLengths.HASH_TREE_MIN_LENGTH +
+            height * SCMPAuthHashtreeLengths.HASH)
         inst._init_size(hdr_len)
         return inst
 
@@ -119,7 +129,7 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         """
         packed = [struct.pack("!B", self.sec_mode),
                   struct.pack("!B", self.height),
-                  bytes(Lengths.RESERVED),
+                  bytes(SCMPAuthHashtreeLengths.RESERVED),
                   self.order,
                   self.signature,
                   self.hashes]
@@ -142,29 +152,17 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         if not 0 <= height <= SCMPAuthHashTreeExtn.MAX_HEIGHT:
             raise SPSEValidationError("Invalid height %s. Max height %s" % (
                 height, SCMPAuthHashTreeExtn.MAX_HEIGHT))
-        if len(order) != Lengths.ORDER:
+        if len(order) != SCMPAuthHashtreeLengths.ORDER:
             raise SPSEValidationError("Invalid order length %sB. Expected %sB" % (
-                len(order), Lengths.ORDER))
-        if len(signature) != Lengths.SIGNATURE:
+                len(order), SCMPAuthHashtreeLengths.ORDER))
+        if len(signature) != SCMPAuthHashtreeLengths.SIGNATURE:
             raise SPSEValidationError("Invalid signature length %sB. Expected %sB" % (
-                len(signature), Lengths.SIGNATURE))
-        if len(hashes) != height * Lengths.HASH:
+                len(signature), SCMPAuthHashtreeLengths.SIGNATURE))
+        if len(hashes) != height * SCMPAuthHashtreeLengths.HASH:
             raise SPSEValidationError("Invalid hashes length %sB. Expected %sB" % (
-                len(hashes), height * Lengths.HASH))
+                len(hashes), height * SCMPAuthHashtreeLengths.HASH))
 
     def __str__(self):
         return ("%s(%sB): Height: %s Order: %s\n\tSignature: %s\n\tHashes: %s" % (
                  self.NAME, len(self), self.height, hex_str(self.order),
                  hex_str(self.signature), hex_str(self.hashes)))
-
-
-class Lengths:
-    """
-    Constant lengths.
-    """
-    HASH = 16
-    HEIGHT = 1
-    RESERVED = 1
-    ORDER = 2
-    SIGNATURE = 64
-    HASH_TREE_MIN_LENGTH = SPSELengths.SECMODE + HEIGHT + RESERVED + ORDER + SIGNATURE
