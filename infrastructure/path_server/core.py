@@ -293,8 +293,6 @@ class CorePathServer(PathServer):
         # Check if there exists any down-segs to dst.
         tmp_down_segs = self.down_segments(last_ia=dst_ia, sibra=sibra)
         if not tmp_down_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
-            self._resolve_not_core_failed(seg_req, meta, dst_ia, flags)
-        if not tmp_down_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             self._resolve_not_core_failed(seg_req, meta, dst_ia, flags, logger)
 
         for dseg in tmp_down_segs:

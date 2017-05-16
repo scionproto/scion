@@ -190,11 +190,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
             self._add_rev_mappings(pcb)
-            logging.info("%s-Segment registered: %s", name, pcb.short_desc())
+            logging.info("%s-Segment registered: %s", name, pcb.short_id())
             return True
         elif res == DBResult.ENTRY_UPDATED:
             self._add_rev_mappings(pcb)
-            logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
+            logging.debug("%s-Segment updated: %s", name, pcb.short_id())
         return False
 
     def _handle_scmp_revocation(self, pld, meta):
@@ -252,7 +252,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                         if (self.up_segments.delete(sid) ==
                                 DBResult.ENTRY_DELETED):
                             up_segs_removed += 1
-            logging.debug("Removed segments revoked by %s: UP: %d DOWN: %d CORE: %d" %
+            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
                           (rev_info.short_desc(), up_segs_removed, down_segs_removed,
                            core_segs_removed))
 
