@@ -22,7 +22,7 @@ import nose
 import nose.tools as ntools
 
 from lib.packet.spse.defines import SPSESecModes, SPSEValidationError
-from lib.packet.spse.scmp_auth.ext_hashtree import Lengths, SCMPAuthHashTreeExtn
+from lib.packet.spse.scmp_auth.ext_hashtree import SCMPAuthHashtreeLengths, SCMPAuthHashTreeExtn
 from test.testcommon import create_mock
 
 
@@ -58,9 +58,9 @@ class TestSCMPAuthHashTreeExtnPack(object):
     """
     def test(self):
         height = 2
-        order = bytes(range(Lengths.ORDER))
-        signature = bytes(range(Lengths.SIGNATURE))
-        hashes = bytes(range(height * Lengths.HASH))
+        order = bytes(range(SCMPAuthHashtreeLengths.ORDER))
+        signature = bytes(range(SCMPAuthHashtreeLengths.SIGNATURE))
+        hashes = bytes(range(height * SCMPAuthHashtreeLengths.HASH))
 
         inst = SCMPAuthHashTreeExtn.from_values(
             height, order, signature, hashes)
@@ -78,23 +78,34 @@ class TestSCMPAuthDRKeyCheckValidity(object):
     """
     Unit tests for lib.packet.spse.scmp_auth.extn.SCMPAuthDRKeyExtn.check_validity
     """
+    def _setup(self):
+        return (13, bytes(SCMPAuthHashtreeLengths.ORDER), bytes(SCMPAuthHashtreeLengths.SIGNATURE),
+                bytes(SCMPAuthHashtreeLengths.HASH * 13))
+
     def test(self):
+        height, order, signature, hashes = self._setup()
+        SCMPAuthHashTreeExtn.check_validity(height, order, signature, hashes)
 
-        height = 13
-        hashes = bytes(Lengths.HASH * height)
-        signature = bytes(Lengths.SIGNATURE)
-        order = bytes(Lengths.ORDER)
-
+    def test_invalid_order_length(self):
+        height, order, signature, hashes = self._setup()
         func = SCMPAuthHashTreeExtn.check_validity
-        func(height, order, signature, hashes)
-
-        ntools.assert_raises(SPSEValidationError, func, height+1, order, signature, hashes)
-        ntools.assert_raises(SPSEValidationError, func, height, order, signature + bytes(1), hashes)
         ntools.assert_raises(SPSEValidationError, func, height, order + bytes(1), signature, hashes)
-        ntools.assert_raises(SPSEValidationError, func, -1, order, signature, hashes)
-        ntools.assert_raises(SPSEValidationError, func, 17, order, signature,
-                             bytes(Lengths.HASH * 17))
 
+    def test_invalid_signature_length(self):
+        height, order, signature, hashes = self._setup()
+        func = SCMPAuthHashTreeExtn.check_validity
+        ntools.assert_raises(SPSEValidationError, func, height, order, signature + bytes(1), hashes)
+
+    def test_invalid_hashes_length(self):
+        height, order, signature, hashes = self._setup()
+        func = SCMPAuthHashTreeExtn.check_validity
+        ntools.assert_raises(SPSEValidationError, func, height, order, signature, hashes + bytes(1))
+
+    def test_invalid_height(self):
+        height, order, signature, hashes = self._setup()
+        func = SCMPAuthHashTreeExtn.check_validity
+        ntools.assert_raises(SPSEValidationError, func, -1, order, signature, hashes)
+        ntools.assert_raises(SPSEValidationError, func, 17, order, signature, hashes)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
