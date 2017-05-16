@@ -262,6 +262,8 @@ class SCIONElement(object):
         find missing TRCs and certs and request them.
         :param seg_meta: PathSegMeta object that contains pcb/path segment
         """
+        meta_str = str(seg_meta.meta) if seg_meta.meta else "ZK"
+        logging.debug("Handling PCB from %s: %s" % (meta_str, seg_meta.seg.short_desc()))
         with self.unv_segs_lock:
             if seg_meta not in self.unverified_segs:
                 self.unverified_segs.add(seg_meta)
@@ -288,14 +290,15 @@ class SCIONElement(object):
         """
         try:
             self._verify_path_seg(seg_meta)
-            with self.unv_segs_lock:
-                self.unverified_segs.discard(seg_meta)
-            if seg_meta.meta:
-                seg_meta.meta.close()
-            seg_meta.callback(seg_meta)
-        except SCIONVerificationError:
-            logging.error("Signature verification failed for %s" %
-                          seg_meta.seg.short_desc())
+        except SCIONVerificationError as e:
+            logging.error("Signature verification failed for %s: %s" %
+                          (seg_meta.seg.short_id(), e))
+            return
+        with self.unv_segs_lock:
+            self.unverified_segs.discard(seg_meta)
+        if seg_meta.meta:
+            seg_meta.meta.close()
+        seg_meta.callback(seg_meta)
 
     def get_cs(self):
         """
@@ -327,7 +330,7 @@ class SCIONElement(object):
                 self.requested_trcs.add((isd, ver))
             isd_as = ISD_AS.from_values(isd, 0)
             trc_req = TRCRequest.from_values(isd_as, ver)
-            logging.info("Requesting %sv%s TRC", isd, ver)
+            logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
             if not seg_meta.meta:
                 meta = self.get_cs()
                 if meta:
@@ -357,8 +360,12 @@ class SCIONElement(object):
             if not meta:
                 meta = self.get_cs()
             if meta:
-                logging.info("Requesting %sv%s CERTCHAIN from %s", isd_as, ver, meta)
+                logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
+                             isd_as, ver, meta, seg_meta.seg.short_id())
                 self.send_meta(cert_req, meta)
+            else:
+                logging.error("Couldn't find a CS to request CERTCHAIN for PCB %s",
+                              seg_meta.seg.short_id())
 
     def _missing_trc_versions(self, trc_versions):
         """

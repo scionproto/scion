@@ -27,7 +27,7 @@ class MetadataBase(object):
         self.host = None
         self.path = None  # Ready for sending (i.e., in correct direction)
         self.port = 0
-        self.ext_hdr = ()
+        self.ext_hdrs = ()
 
     @classmethod
     def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(),

@@ -365,4 +365,6 @@ class CorePathServer(PathServer):
                 (meta.ia not in self._core_ases[self.addr.isd_as[0]]) or
                 (meta.ia == self.addr.isd_as and
                  rev_isd_as[0] != self.addr.isd_as[0])):
+            logging.debug("Propagating revocation to other cores: %s"
+                          % rev_info.short_desc())
             self._propagate_to_core_ases(rev_info)

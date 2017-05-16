@@ -326,7 +326,6 @@ class PathStore(object):
         try:
             self.path_policy.check_filters(pcb)
         except SCIONPathPolicyViolated:
-            print("mooo")
             return
         for candidate in self.candidates:
             if candidate.id == pcb_hash:

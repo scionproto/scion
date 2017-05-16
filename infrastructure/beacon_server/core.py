@@ -60,7 +60,7 @@ class CoreBeaconServer(BeaconServer):
         """
         Propagates the core beacons to other core ASes.
         """
-        count = 0
+        propagated_pcbs = defaultdict(list)
         for r in self.topology.core_border_routers:
             dst_ia = r.interface.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
@@ -70,8 +70,8 @@ class CoreBeaconServer(BeaconServer):
             if not new_pcb:
                 continue
             self.send_meta(new_pcb, meta)
-            count += 1
-        return count
+            propagated_pcbs[(r.interface.isd_as, r.interface.if_id)].append(pcb.short_id())
+        return propagated_pcbs
 
     def handle_pcbs_propagation(self):
         """
@@ -81,11 +81,13 @@ class CoreBeaconServer(BeaconServer):
         # Create beacon for downstream ASes.
         down_iof = InfoOpaqueField.from_values(timestamp, self.addr.isd_as[0])
         downstream_pcb = PathSegment.from_values(down_iof)
-        self.propagate_downstream_pcb(downstream_pcb)
+        propagated_pcbs = self.propagate_downstream_pcb(downstream_pcb)
         # Create beacon for core ASes.
         core_iof = InfoOpaqueField.from_values(timestamp, self.addr.isd_as[0])
         core_pcb = PathSegment.from_values(core_iof)
-        core_count = self.propagate_core_pcb(core_pcb)
+        propagated = self.propagate_core_pcb(core_pcb)
+        for k, v in propagated.items():
+            propagated_pcbs[k].extend(v)
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
         beacons = []
@@ -93,9 +95,12 @@ class CoreBeaconServer(BeaconServer):
             for ps in self.core_beacons.values():
                 beacons.extend(ps.get_best_segments())
         for pcb in beacons:
-            core_count += self.propagate_core_pcb(pcb)
-        if core_count:
-            logging.debug("Propagated %d Core PCBs", core_count)
+            propagated = self.propagate_core_pcb(pcb)
+            for k, v in propagated.items():
+                propagated_pcbs[k].extend(v)
+        for (isd_as, if_id), pcbs in propagated_pcbs.items():
+            logging.debug("Propagated %d PCBs to %s via %s (%s)", len(pcbs), isd_as,
+                          if_id, ", ".join(pcbs))
 
     def register_segments(self):
         self.register_core_segments()
@@ -107,18 +112,17 @@ class CoreBeaconServer(BeaconServer):
         """
         pcb.sign(self.signing_key)
         # Register core path with local core path server.
-        try:
-            addr, port = self.dns_query_topo(PATH_SERVICE)[0]
-        except SCIONServiceLookupError:
-            # If there are no local path servers, stop here.
-            return
+        addr, port = self.dns_query_topo(PATH_SERVICE)[0]
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
+        ps_meta = self._build_meta(host=addr, port=port, reuse=True)
+        self.send_meta(records.copy(), ps_meta)
+        try:
+            addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
+        except SCIONServiceLookupError:
+            return ps_meta
         meta = self._build_meta(host=addr, port=port, reuse=True)
-        self.send_meta(records.copy(), meta)
-        addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        meta = self._build_meta(host=addr, port=port, reuse=True)
-        logging.debug("Registering core-segment to %s: %s" % (meta, pcb.short_desc()))
         self.send_meta(records, meta)
+        return ps_meta
 
     def _filter_pcb(self, pcb, dst_ia=None):
         """
@@ -171,14 +175,20 @@ class CoreBeaconServer(BeaconServer):
         with self._rev_seg_lock:
             for ps in self.core_beacons.values():
                 core_segments.extend(ps.get_best_segments(sending=False))
-        count = 0
+        registered_paths = defaultdict(list)
         for pcb in core_segments:
-            pcb = self._terminate_pcb(pcb)
-            if not pcb:
+            new_pcb = self._terminate_pcb(pcb)
+            if not new_pcb:
                 continue
-            pcb.sign(self.signing_key)
-            self.register_core_segment(pcb)
-            count += 1
+            new_pcb.sign(self.signing_key)
+            try:
+                dst_ps = self.register_core_segment(new_pcb)
+            except SCIONServiceLookupError as e:
+                logging.warning("Unable to send core-segment registration: %s", e)
+                continue
+            # Keep the ID of the not-terminated PCB to relate to previously received ones.
+            registered_paths[str(dst_ps)].append(pcb.short_id())
+        self._log_registrations(registered_paths, "core")
 
     def _remove_revoked_pcbs(self, rev_info):
         candidates = []
