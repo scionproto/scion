@@ -98,31 +98,25 @@ class CoreBeaconServer(BeaconServer):
             propagated = self.propagate_core_pcb(pcb)
             for k, v in propagated.items():
                 propagated_pcbs[k].extend(v)
-        for (isd_as, if_id), pcbs in propagated_pcbs.items():
-            logging.debug("Propagated %d PCBs to %s via %s (%s)", len(pcbs), isd_as,
-                          if_id, ", ".join(pcbs))
+        self._log_propagations(propagated_pcbs)
 
     def register_segments(self):
         self.register_core_segments()
 
-    def register_core_segment(self, pcb):
+    def register_core_segment(self, pcb, svc_type):
         """
-        Register the core segment contained in 'pcb' with the local core path
-        server.
+        Send core-segment to Local Path Servers and Sibra Servers
+
+        :raises:
+            SCIONServiceLookupError: service type lookup failure
         """
         pcb.sign(self.signing_key)
         # Register core path with local core path server.
-        addr, port = self.dns_query_topo(PATH_SERVICE)[0]
+        addr, port = self.dns_query_topo(svc_type)[0]
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
-        ps_meta = self._build_meta(host=addr, port=port, reuse=True)
-        self.send_meta(records.copy(), ps_meta)
-        try:
-            addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
-        except SCIONServiceLookupError:
-            return ps_meta
         meta = self._build_meta(host=addr, port=port, reuse=True)
-        self.send_meta(records, meta)
-        return ps_meta
+        self.send_meta(records.copy(), meta)
+        return meta
 
     def _filter_pcb(self, pcb, dst_ia=None):
         """
@@ -181,13 +175,14 @@ class CoreBeaconServer(BeaconServer):
             if not new_pcb:
                 continue
             new_pcb.sign(self.signing_key)
-            try:
-                dst_ps = self.register_core_segment(new_pcb)
-            except SCIONServiceLookupError as e:
-                logging.warning("Unable to send core-segment registration: %s", e)
-                continue
-            # Keep the ID of the not-terminated PCB to relate to previously received ones.
-            registered_paths[str(dst_ps)].append(pcb.short_id())
+            for svc_type in [PATH_SERVICE, SIBRA_SERVICE]:
+                try:
+                    dst_meta = self.register_core_segment(new_pcb, svc_type)
+                except SCIONServiceLookupError as e:
+                    logging.warning("Unable to send core-segment registration: %s", e)
+                    continue
+                # Keep the ID of the not-terminated PCB to relate to previously received ones.
+                registered_paths[(str(dst_meta), svc_type)].append(pcb.short_id())
         self._log_registrations(registered_paths, "core")
 
     def _remove_revoked_pcbs(self, rev_info):

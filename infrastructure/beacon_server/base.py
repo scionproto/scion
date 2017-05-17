@@ -235,6 +235,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
+    def _log_propagations(self, propagated_pcbs):
+        for (isd_as, if_id), pcbs in propagated_pcbs.items():
+            logging.debug("Propagated %d PCBs to %s via %s (%s)", len(pcbs), isd_as,
+                          if_id, ", ".join(pcbs))
+
     def _handle_pcbs_from_zk(self, pcbs):
         """
         Handles cached pcbs through ZK, passed as a list.
@@ -306,9 +311,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         raise NotImplementedError
 
     def _log_registrations(self, registrations, seg_type):
-        for dst_ps, pcbs in registrations.items():
-            logging.debug("Registered %d %s-segments to %s (%s)", len(pcbs),
-                          seg_type, dst_ps, ", ".join(pcbs))
+        for (dst_meta, dst_type), pcbs in registrations.items():
+            logging.debug("Registered %d %s-segments @ %s:%s (%s)", len(pcbs),
+                          seg_type, dst_type.upper(), dst_meta, ", ".join(pcbs))
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))

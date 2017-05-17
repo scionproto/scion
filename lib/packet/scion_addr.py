@@ -208,4 +208,4 @@ class SCIONAddr(object):
         """
         Return a string containing ISD-AS, and host address.
         """
-        return "(%s (%s) %s)" % (self.isd_as or "local", self.host.name(), self.host)
+        return "(%s (%s) %s)" % (self.isd_as, self.host.name(), self.host)
