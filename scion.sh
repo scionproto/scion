@@ -39,6 +39,7 @@ cmd_run() {
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     supervisor/supervisor.sh stop all
+    find /run/shm/dispatcher /run/shm/sciond -type s -print0 | xargs -r0 rm -v
 }
 
 cmd_status() {
