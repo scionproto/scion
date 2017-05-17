@@ -25,7 +25,6 @@ from lib.packet.spse.defines import (
     SPSESecModes,
 )
 from lib.packet.spse.ext import SCIONPacketSecurityBaseExtn
-from lib.types import ExtEndToEndType
 from lib.util import hex_str, Raw
 
 
@@ -63,7 +62,6 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         index height is the root hash.
     """
     NAME = "SCMPAuthHashTreeExtn"
-    EXT_TYPE = ExtEndToEndType.SPS
     # max height of the hash tree
     MAX_HEIGHT = 16
 
@@ -110,6 +108,7 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         cls.check_validity(height, order, signature, hashes)
 
         inst = cls()
+        inst.sec_mode = SPSESecModes.SCMP_AUTH_HASH_TREE
         inst.height = height
         inst.order = order
         inst.signature = signature
@@ -137,8 +136,8 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         self._check_len(raw)
         return raw
 
-    @staticmethod
-    def check_validity(height, order, signature, hashes):
+    @classmethod
+    def check_validity(cls, height, order, signature, hashes):
         """
         Check if parameters are valid
 
@@ -149,9 +148,9 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         :raises: SPSEValidationError
         """
 
-        if not 0 <= height <= SCMPAuthHashTreeExtn.MAX_HEIGHT:
+        if not 0 <= height <= cls.MAX_HEIGHT:
             raise SPSEValidationError("Invalid height %s. Max height %s" % (
-                height, SCMPAuthHashTreeExtn.MAX_HEIGHT))
+                height, cls.MAX_HEIGHT))
         if len(order) != SCMPAuthHashtreeLengths.ORDER:
             raise SPSEValidationError("Invalid order length %sB. Expected %sB" % (
                 len(order), SCMPAuthHashtreeLengths.ORDER))

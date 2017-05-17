@@ -74,7 +74,7 @@ class ExtHopByHopType(TypeBase):
 class ExtEndToEndType(TypeBase):
     PATH_TRANSPORT = 0
     PATH_PROBE = 1
-    SPS = 2
+    SPSE = 2
 
 
 class L4Proto(TypeBase):

@@ -118,6 +118,7 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         """
         cls.check_validity(direction, mac)
         inst = cls()
+        inst.sec_mode = SPSESecModes.SCMP_AUTH_DRKEY
         inst._init_size(inst.bytes_to_hdr_len(SCMPAuthDRKeyLengths.DRKEY_TOTAL_LENGTH))
         inst.direction = direction
         inst.mac = mac or bytes(SCMPAuthDRKeyLengths.MAC)
@@ -138,8 +139,8 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         self._check_len(raw)
         return raw
 
-    @staticmethod
-    def check_validity(direction, mac):
+    @classmethod
+    def check_validity(cls, direction, mac):
         """
         Check if parameters are valid.
 
@@ -156,4 +157,4 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
 
     def __str__(self):
         return "%s(%sB): Direction: %s MAC: %s" % (
-            self.NAME, len(self), TypeBase.to_str(self.direction), hex_str(self.mac))
+            self.NAME, len(self), SCMPAuthDRKeyDirections.to_str(self.direction), hex_str(self.mac))
