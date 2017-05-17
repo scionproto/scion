@@ -85,10 +85,6 @@ class LocalPathServer(PathServer):
         if new_request:
             self._request_paths_from_core(req)
             self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta))
-        else:
-            # That could happend when needed segment expired.
-            logging.warning("Handling pending request and needed seg "
-                            "is missing. Shouldn't be here (too often).")
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):
