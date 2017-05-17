@@ -37,6 +37,8 @@ LOG_BACKUP_COUNT = 1
 # formatting error), when we re-raise the exception, it'll get handled by the
 # normal process.
 
+_dispatch_formatter = None
+
 
 def _handleError(self, _):
     self.stream.write("Exception in logging module:\n")
@@ -54,7 +56,7 @@ class _ConsoleErrorHandler(logging.StreamHandler):
     handleError = _handleError
 
 
-class _Rfc3339Formatter(logging.Formatter):
+class Rfc3339Formatter(logging.Formatter):
     def format(self, record):  # pragma: no cover
         lines = super().format(record).splitlines()
         return "\n> ".join(lines)
@@ -65,13 +67,37 @@ class _Rfc3339Formatter(logging.Formatter):
         return str(datetime.fromtimestamp(record.created, tz=timezone.utc))
 
 
+class DispatchFormatter:
+    """
+    A dispatching formatter that allows modules to install custom formatters for
+    their child loggers.
+    """
+    def __init__(self, default_formatter, formatters=None):
+        self._default_formatter = default_formatter
+        self._formatters = formatters or {}
+
+    def add_formatter(self, key, formatter):
+        self._formatters[key] = formatter
+
+    def format(self, record):
+        formatter = self._formatters.get(record.name, self._default_formatter)
+        return formatter.format(record)
+
+
+def add_formatter(name, formatter):
+    global _dispatch_formatter
+    _dispatch_formatter.add_formatter(name, formatter)
+
+
 def init_logging(log_base=None, file_level=logging.DEBUG,
                  console_level=logging.NOTSET):
     """
     Configure logging for components (servers, routers, gateways).
     """
-    formatter = _Rfc3339Formatter(
+    default_formatter = Rfc3339Formatter(
         "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s")
+    global _dispatch_formatter
+    _dispatch_formatter = DispatchFormatter(default_formatter)
     handlers = []
     if log_base:
         for lvl in sorted(logging._levelToName):
@@ -88,7 +114,7 @@ def init_logging(log_base=None, file_level=logging.DEBUG,
         h.setLevel(console_level)
         handlers.append(h)
     for h in handlers:
-        h.setFormatter(formatter)
+        h.setFormatter(_dispatch_formatter)
     # Use logging.DEBUG here, so that the handlers themselves can decide what to
     # filter.
     logging.basicConfig(level=logging.DEBUG, handlers=handlers)

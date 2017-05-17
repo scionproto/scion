@@ -47,6 +47,9 @@ class MetadataBase(object):
     def close(self):  # Close communication between peers.
         pass
 
+    def __str__(self):
+        return str(self.get_addr())
+
 
 class UDPMetadata(MetadataBase):
     """

@@ -61,15 +61,17 @@ class LocalPathServer(PathServer):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
-    def path_resolution(self, req, meta, new_request=True):
+    def path_resolution(self, req, meta, new_request=True, logger=None):
         """
         Handle generic type of a path request.
         """
+        if logger is None:
+            logger = self.get_request_logger(req, meta)
         dst_ia = req.dst_ia()
         if new_request:
-            logging.info("PATH_REQ received: %s", req.short_desc())
+            logger.info("PATH_REQ received")
         if dst_ia == self.addr.isd_as:
-            logging.warning("Dropping request: requested DST is local AS")
+            logger.warning("Dropping request: requested DST is local AS")
             return False
         up_segs = set()
         core_segs = set()
@@ -80,15 +82,11 @@ class LocalPathServer(PathServer):
         else:
             self._resolve_not_core(req, up_segs, core_segs, down_segs)
         if up_segs | core_segs | down_segs:
-            self._send_path_segments(req, meta, up_segs, core_segs, down_segs)
+            self._send_path_segments(req, meta, logger, up_segs, core_segs, down_segs)
             return True
         if new_request:
-            self._request_paths_from_core(req)
-            self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta))
-        else:
-            # That could happend when needed segment expired.
-            logging.warning("Handling pending request and needed seg "
-                            "is missing. Shouldn't be here (too often).")
+            self._request_paths_from_core(req, logger)
+            self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta, logger))
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):
@@ -135,21 +133,20 @@ class LocalPathServer(PathServer):
                     core_segs.add(cseg)
                     down_segs.add(dseg)
 
-    def _request_paths_from_core(self, req):
+    def _request_paths_from_core(self, req, logger):
         """
         Try to request core PS for given target.
         """
         up_segs = self.up_segments(sibra=req.p.flags.sibra)
         if not up_segs:
-            logging.info('Pending target added for %s', req.short_desc())
+            logger.info('Pending target added.')
             # Wait for path to any local core AS
-            self.waiting_targets[self.addr.isd_as[0]].append(req)
+            self.waiting_targets[self.addr.isd_as[0]].append((req, logger))
             return
 
         # PSz: for multipath it makes sense to query with multiple core ASes
         pcb = up_segs[0]
-        logging.info('Send request to core (%s) via %s',
-                     req.short_desc(), pcb.short_desc())
+        logger.info('Send request to core via %s', pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
         meta = self._build_meta(ia=pcb.first_ia(), path=path,
                                 host=SVCType.PS_A, reuse=True)
@@ -173,7 +170,7 @@ class LocalPathServer(PathServer):
         paths = self.up_segments()
         if not paths:
             logging.warning("No paths to core ASes available for forwarding"
-                            "revocation.")
+                            "revocation: %s", rev_info.short_desc())
             return
         seg = paths[0]
         core_ia = seg.first_ia()

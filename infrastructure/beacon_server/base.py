@@ -45,6 +45,7 @@ from lib.defines import (
 from lib.errors import (
     SCIONKeyError,
     SCIONParseError,
+    SCIONPathPolicyViolated,
     SCIONServiceLookupError,
 )
 from lib.msg_meta import UDPMetadata
@@ -190,8 +191,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not new_pcb:
                 continue
             self.send_meta(new_pcb, meta)
-            logging.info("Downstream PCB propagated to %s via IF %s",
-                         r.interface.isd_as, r.interface.if_id)
+            logging.debug("Downstream PCB propagated to %s via IF %s",
+                          r.interface.isd_as, r.interface.if_id)
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
@@ -244,7 +245,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 logging.error("Unable to parse raw pcb: %s", e)
                 continue
             self.handle_pcb(pcb)
-        logging.debug("Processed %s PCBs from ZK", len(pcbs))
+        if pcbs:
+            logging.debug("Processed %s PCBs from ZK", len(pcbs))
 
     def handle_pcb(self, pcb, meta=None):
         """
@@ -252,9 +254,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         if meta:
             pcb.p.ifID = meta.path.get_hof().ingress_if
-        if not self.path_policy.check_filters(pcb):
-            logging.debug("Segment dropped due to path policy: %s" %
-                          pcb.short_desc())
+        try:
+            self.path_policy.check_filters(pcb)
+        except SCIONPathPolicyViolated as e:
+            logging.debug("Segment dropped due to path policy: %s\n%s" %
+                          (e, pcb.short_desc()))
             return
         if not self._filter_pcb(pcb):
             logging.debug("Segment dropped due to looping: %s" %
@@ -265,7 +269,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def continue_seg_processing(self, seg_meta):
         """
-        For every pcb(that can be verified) received from the network or ZK
+        For every verified pcb received from the network or ZK
         this function gets called to continue the processing for the pcb.
         """
         pcb = seg_meta.seg
@@ -319,7 +323,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             with self.ifid_state_lock:
                 if (not self.ifid_state[in_if].is_active() and
                         not self._quiet_startup()):
-                    logging.warning('Peer ifid:%d inactive (not added).', in_if)
                     continue
             peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
                                           xover=True)
@@ -417,14 +420,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             # at this point, there should be <= HASHTREE_UPDATE_WINDOW
             # seconds left in current ttl
-            logging.info("Started computing hashtree for next ttl")
+            logging.info("Started computing hashtree for next ttl (%d)", cur_ttl_window + 2)
             last_ttl_window = ConnectedHashTree.get_ttl_window()
 
+            ht_start = time.time()
             ifs = list(self.ifid2br.keys())
             tree = ConnectedHashTree.get_next_tree(self.addr.isd_as, ifs,
                                                    self.hashtree_gen_key)
+            ht_end = time.time()
             with self._hash_tree_lock:
                 self._next_tree = tree
+            logging.info("Finished computing hashtree for TTL %d in %.3fs" %
+                         (cur_ttl_window + 2, ht_end - ht_start))
 
     def _maintain_hash_tree(self):
         """
@@ -437,7 +444,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             else:
                 logging.critical("Did not create hashtree in time; dying")
                 kill_self()
-        logging.info("New Hash Tree TTL beginning")
+        logging.info("New Hash Tree TTL window beginning: %s",
+                     ConnectedHashTree.get_ttl_window())
 
     def worker(self):
         """
@@ -482,7 +490,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 try:
                     self.register_segments()
                 except SCIONKeyError as e:
-                    logging.error("Register_segments: %s", e)
+                    logging.error("Error while registering segments: %s", e)
                     pass
                 last_registration = now
 
@@ -538,7 +546,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.zk.have_lock():
             return
         rev_info = self._get_ht_proof(if_id)
-        logging.error("Issuing revocation for IF %d.", if_id)
+        logging.info("Issuing revocation: %s", rev_info.short_desc())
         # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
@@ -560,18 +568,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONServiceLookupError:
                 # If there are no local path servers, stop here.
                 return
-            logging.info("Sending revocation to local PS.")
             meta = UDPMetadata.from_values(host=addr, port=port)
             self.send_meta(rev_info.copy(), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        logging.info("Received revocation via SCMP:\n%s", rev_info.short_desc())
+        logging.debug("Received revocation via SCMP:\n%s", rev_info.short_desc())
         self._process_revocation(rev_info)
 
     def _handle_revocation(self, rev_info, meta):
-        logging.info("Received revocation via TCP/UDP:\n%s",
-                     rev_info.short_desc())
+        logging.debug("Received revocation via TCP/UDP:\n%s", rev_info.short_desc())
         if not self._validate_revocation(rev_info):
             return
         self._process_revocation(rev_info)
@@ -598,7 +604,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         with self._rev_seg_lock:
             self.local_rev_cache[rev_info] = rev_info.copy()
 
-        logging.info("Storing revocation in ZK.")
         rev_token = rev_info.copy().pack()
         entry_name = "%s:%s" % (hash(rev_token), time.time())
         try:
@@ -638,12 +643,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 continue
 
             # If the interface on which we received the PCB is
-            # revoked, then the corresponding pcb needs to be removed, if
-            # the proof can be verified with the own AS's root for the current
-            # epoch and  the if_id of the interface on which pcb was received
-            # matches that in the rev_info
-            root_verify = ConnectedHashTree.verify(
-                            rev_info, self._get_ht_root())
+            # revoked, then the corresponding pcb needs to be removed.
+            root_verify = ConnectedHashTree.verify(rev_info, self._get_ht_root())
             if (self.addr.isd_as == rev_info.isd_as() and
                     cand.pcb.p.ifID == rev_info.p.ifID and root_verify):
                 to_remove.append(cand.id)
@@ -672,7 +673,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         continue
                     if_id_last_revoked[if_id] = cur_epoch
                     if not if_state.is_revoked():
-                        logging.info("IF %d appears to be down.", if_id)
+                        logging.info("IF %d went down.", if_id)
                     self._issue_revocation(if_id)
                     if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
@@ -683,7 +684,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.zk.have_lock():
             return
         assert isinstance(req, IFStateRequest)
-        logging.debug("Received ifstate req:\n%s", req)
         infos = []
         with self.ifid_state_lock:
             if req.p.ifID == IFStateRequest.ALL_INTERFACES:
@@ -703,7 +703,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                                self._get_ht_proof(ifid))
                 infos.append(info)
         if not infos and not self._quiet_startup():
-            logging.warning("No IF state info to put in response.")
+            logging.warning("No IF state info to put in response. Req: %s" % req.short_desc())
             return
         payload = IFStatePayload.from_values(infos)
         self.send_meta(payload, meta, (meta.host, meta.port))

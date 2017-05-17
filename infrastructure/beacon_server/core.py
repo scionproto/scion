@@ -95,7 +95,7 @@ class CoreBeaconServer(BeaconServer):
         for pcb in beacons:
             core_count += self.propagate_core_pcb(pcb)
         if core_count:
-            logging.info("Propagated %d Core PCBs", core_count)
+            logging.debug("Propagated %d Core PCBs", core_count)
 
     def register_segments(self):
         self.register_core_segments()
@@ -117,6 +117,7 @@ class CoreBeaconServer(BeaconServer):
         self.send_meta(records.copy(), meta)
         addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
         meta = self._build_meta(host=addr, port=port, reuse=True)
+        logging.debug("Registering core-segment to %s: %s" % (meta, pcb.short_desc()))
         self.send_meta(records, meta)
 
     def _filter_pcb(self, pcb, dst_ia=None):
@@ -178,7 +179,6 @@ class CoreBeaconServer(BeaconServer):
             pcb.sign(self.signing_key)
             self.register_core_segment(pcb)
             count += 1
-        logging.info("Registered %d Core paths", count)
 
     def _remove_revoked_pcbs(self, rev_info):
         candidates = []
