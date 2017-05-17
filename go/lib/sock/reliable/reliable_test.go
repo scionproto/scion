@@ -20,8 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/netsec-ethz/scion/go/lib/addr"
 )
 
 const (
@@ -126,7 +127,7 @@ func TestConnection(t *testing.T) {
 	})
 }
 
-func ExampleRegister(t *testing.T) {
+func ExampleRegister() {
 	dispatcher := "/run/shm/dispatcher/default.sock"
 	e := make(chan error)
 
