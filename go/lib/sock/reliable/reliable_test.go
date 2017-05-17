@@ -15,6 +15,7 @@
 package reliable
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -143,9 +144,9 @@ func ExampleRegister() {
 	select {
 	case err := <-e:
 		if err != nil {
-			t.Fatalf("%v", err)
+			fmt.Printf("Error: %v", err)
 		}
 	case <-time.After(time.Second * 3):
-		t.Fatalf("Dispatcher registration timed out")
+		fmt.Printf("Dispatcher registration timed out")
 	}
 }
