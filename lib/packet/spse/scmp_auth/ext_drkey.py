@@ -86,7 +86,6 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         """
         :param bytes raw: Raw data holding direction and mac.
         """
-        self.sec_mode = SPSESecModes.SCMP_AUTH_DRKEY
         self.direction = 0
         self.mac = b""
         super().__init__(raw)

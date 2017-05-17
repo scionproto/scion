@@ -36,7 +36,7 @@ class SCIONPacketSecurityBaseExtn(EndToEndExtension):
     EXT_TYPE = ExtEndToEndType.SPSE
 
     def __init__(self, raw=None):
-        self.sec_mode = 0
+        self.sec_mode = None
         super().__init__(raw)
 
 

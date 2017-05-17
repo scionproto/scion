@@ -69,7 +69,6 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         """
         :param bytes raw: Raw data holding height, order, signature and hashes.
         """
-        self.sec_mode = SPSESecModes.SCMP_AUTH_HASH_TREE
         self.height = 0
         self.order = b""
         self.signature = b""
