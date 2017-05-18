@@ -17,7 +17,7 @@
 """
 # Stdlib
 import builtins
-from signal import SIGQUIT, SIGTERM
+from signal import SIGINT, SIGQUIT, SIGTERM
 from unittest.mock import patch, call, mock_open, MagicMock
 
 # External packages
@@ -291,10 +291,18 @@ class TestSignalHandler(object):
     """
     @patch("lib.util.sys.exit", autospec=True)
     @patch("lib.util.logging.info", autospec=True)
-    def test_basic(self, info, exit):
-        _signal_handler(SIGTERM, "")
+    def test_term(self, info, exit):
+        exit.side_effect = SystemExit
+        ntools.assert_raises(SystemExit, _signal_handler, SIGTERM, "")
         ntools.ok_(info.called)
         exit.assert_called_once_with(0)
+
+    @patch("lib.util.sys.exit", autospec=True)
+    @patch("lib.util.logging.info", autospec=True)
+    def test_int(self, info, exit):
+        _signal_handler(SIGINT, "")
+        ntools.ok_(info.called)
+        exit.assert_called_once_with(1)
 
     @patch("lib.util.sys.exit", autospec=True)
     @patch("lib.util.logging.error", autospec=True)
