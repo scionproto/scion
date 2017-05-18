@@ -26,7 +26,26 @@ const HashTreeTTL = 30 * 60
 // HashTreeEpochTime is the duration of one epoch (in seconds).
 const HashTreeEpochTime = 10
 
+// HashTreeEpochTolerance is the duration after a revocation expired within which a
+// revocation is still accepted by a verifier.
+const HashTreeEpochTolerance float64 = 2.0
+
+// GetCurrentHashTreeEpoch returns the current epoch within a TTL window.
 func GetCurrentHashTreeEpoch() uint16 {
 	window := time.Now().Unix() % HashTreeTTL
 	return uint16(window / HashTreeEpochTime)
+}
+
+// GetTimeSinceHashTreeEpoch returns the time (in s) since the start of the epoch.
+func GetTimeSinceHashTreeEpoch() float64 {
+	return float64(time.Now().UnixNano()%HashTreeEpochTime) / 1e9
+}
+
+// VerifyHashTreeEpoch verifies a given hash tree epoch. An epoch is valid if it is
+// equal to the current epoch or within the tolerance limit of the next epoch.
+func VerifyHashTreeEpoch(epoch uint16) bool {
+	currEpoch := GetCurrentHashTreeEpoch()
+	gapTime := GetTimeSinceHashTreeEpoch()
+	return (epoch == currEpoch ||
+		(currEpoch == epoch+1 && gapTime < HashTreeEpochTolerance))
 }
