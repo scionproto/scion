@@ -19,7 +19,6 @@
 
 # Stdlib
 import logging
-import sys
 import threading
 
 # SCION
@@ -39,7 +38,7 @@ from test.integration.base_cli_srv import (
 
 
 class TestCertClient(TestClientBase):
-    def __init__(self, finished, addr):
+    def __init__(self, finished, addr, dst_ia):
         # We need the lib sciond here already.
         connector = lib_sciond.init(get_sciond_api_addr(addr))
         cs_info = lib_sciond.get_service_info(
@@ -47,9 +46,10 @@ class TestCertClient(TestClientBase):
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert_done = False
-        super().__init__("", finished, addr, cs_addr, cs.p.port)
+        super().__init__("", finished, addr, cs_addr, cs.p.port, retries=2)
+        self.dst_ia = dst_ia
 
-    def _get_path(self, api):
+    def _get_path(self, api, flush=None):
         pass  # No path required. All queries go to local CS
 
     def _build_pkt(self):
@@ -63,20 +63,20 @@ class TestCertClient(TestClientBase):
 
     def _create_payload(self, _):
         if not self.cert_done:
-            return CertChainRequest.from_values(self.addr.isd_as, 0)
-        return TRCRequest.from_values(self.addr.isd_as, 0)
+            return CertChainRequest.from_values(self.dst_ia, 0)
+        return TRCRequest.from_values(self.dst_ia, 0)
 
     def _handle_response(self, spkt):
         pld = spkt.parse_payload()
         logging.debug("Got:\n%s", spkt)
         if not self.cert_done:
-            if (self.addr.isd_as, 0 == pld.chain.get_leaf_isd_as_ver()):
+            if (self.dst_ia, 0 == pld.chain.get_leaf_isd_as_ver()):
                 logging.debug("Cert query success")
                 self.cert_done = True
                 return True
             logging.error("Cert query failed")
             return False
-        if (self.addr.isd_as[0], 0 == pld.trc.get_isd_ver()):
+        if (self.dst_ia[0], 0 == pld.trc.get_isd_ver()):
             logging.debug("TRC query success")
             self.success = True
             self.finished.set()
@@ -88,24 +88,18 @@ class TestCertClient(TestClientBase):
 class TestCertReq(TestClientServerBase):
     NAME = "CertReqTest"
 
-    def run(self):
-        for isd_as in self.src_ias:
-            if not self._run_test(isd_as):
-                sys.exit(1)
-
-    def _run_test(self, isd_as):
-        logging.info("Testing: %s", isd_as)
+    def _run_test(self, src, dst):
+        logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
         finished = threading.Event()
-        addr = SCIONAddr.from_values(isd_as, self.client_ip)
-        client = self._create_client(finished, addr)
+        client = self._create_client(finished, src, dst.isd_as)
         client.run()
         if client.success:
             return True
         logging.error("Client success? %s", client.success)
         return False
 
-    def _create_client(self, finished, addr):
-        return TestCertClient(finished, addr)
+    def _create_client(self, finished, addr, dst_ia):
+        return TestCertClient(finished, addr, dst_ia)
 
 
 def main():
