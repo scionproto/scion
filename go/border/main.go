@@ -62,7 +62,7 @@ func main() {
 	} else {
 		log.Info("Router was built with assertions OFF.")
 	}
-	log.Info("Starting up", "id", *id)
+	log.Info("Starting up", "id", *id, "pid", os.Getpid())
 	if err := r.Run(); err != nil {
 		log.Crit("Run failed", err.Ctx...)
 		liblog.Flush()
