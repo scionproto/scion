@@ -49,5 +49,4 @@ screen
 sudo
 uthash-dev
 xtail
-zlib1g-dev
 zookeeperd
