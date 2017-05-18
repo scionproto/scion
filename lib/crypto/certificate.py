@@ -18,11 +18,11 @@
 # Stdlib
 import base64
 import json
-import logging
 import time
 
 # SCION
 from lib.crypto.asymcrypto import sign, verify
+from lib.errors import SCIONVerificationError
 
 SUBJECT_STRING = 'Subject'
 ISSUER_STRING = 'Issuer'
@@ -104,24 +104,20 @@ class Certificate(object):
             the certificate subject. It can either be an AS, an email address or
             a domain address.
         :param str issuer_cert: the certificate issuer. It can only be an AS.
-        :returns: True or False whether the verification succeeds or fails.
-        :rtype: bool
+        :raises: SCIONVerificationError if the verification fails.
         """
         if subject != self.subject:
-            logging.error("The given subject(%s) doesn't match the \
-            certificate's subject(%s)" % (str(subject), str(self.subject)))
-            return False
-        if not self._verify_signature(self.signature_raw,
-                                      issuer_cert.subject_sig_key_raw):
-            logging.error("Signature verification failed.")
-            return False
+            raise SCIONVerificationError(
+                "The given subject (%s) doesn't match the certificate's subject (%s):\n%s" %
+                (subject, self.subject, self))
         if int(time.time()) >= self.expiration_time:
-            logging.error("This certificate expired.")
-            return False
+            raise SCIONVerificationError("This certificate expired:\n%s" % self)
         if int(time.time()) >= issuer_cert.expiration_time:
-            logging.error("The issuer certificate expired.")
-            return False
-        return True
+            raise SCIONVerificationError("The issuer certificate expired:\n%s" % issuer_cert)
+        try:
+            self._verify_signature(self.signature_raw, issuer_cert.subject_sig_key_raw)
+        except SCIONVerificationError:
+            raise SCIONVerificationError("Signature verification failed:\n%s" % self)
 
     def verify_core(self, pub_online_root_key):
         """
@@ -130,16 +126,15 @@ class Certificate(object):
         :param bytes pub_online_root_key:
             The online root key of the core AS  which signed this
             root certificate
-        :returns: True or False whether the verification succeeds or fails.
-        :rtype: bool
+        :raises: SCIONVerificationError if the verification fails.
         """
-        return self._verify_signature(self.signature_raw, pub_online_root_key)
+        self._verify_signature(self.signature_raw, pub_online_root_key)
 
     def _verify_signature(self, signature, public_key):
         """
         Checks if the signature can be verified with the given public key
         """
-        return verify(self._sig_input(), signature, public_key)
+        verify(self._sig_input(), signature, public_key)
 
     def dict(self, with_signature=True):
         """

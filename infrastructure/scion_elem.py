@@ -28,7 +28,7 @@ from collections import defaultdict
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
-from lib.errors import SCIONParseError
+from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.flagtypes import TCPFlags
 from lib.defines import (
     AS_CONF_FILE,
@@ -262,6 +262,8 @@ class SCIONElement(object):
         find missing TRCs and certs and request them.
         :param seg_meta: PathSegMeta object that contains pcb/path segment
         """
+        meta_str = str(seg_meta.meta) if seg_meta.meta else "ZK"
+        logging.debug("Handling PCB from %s: %s" % (meta_str, seg_meta.seg.short_desc()))
         with self.unv_segs_lock:
             if seg_meta not in self.unverified_segs:
                 self.unverified_segs.add(seg_meta)
@@ -286,15 +288,17 @@ class SCIONElement(object):
         If this pcb/path segment can be verified, call the function
         to process a verified pcb/path segment
         """
-        if self._verify_path_seg(seg_meta):
-            with self.unv_segs_lock:
-                self.unverified_segs.discard(seg_meta)
-            if seg_meta.meta:
-                seg_meta.meta.close()
-            seg_meta.callback(seg_meta)
-        else:
-            logging.error("Verification failed for %s" %
-                          seg_meta.seg.short_desc())
+        try:
+            self._verify_path_seg(seg_meta)
+        except SCIONVerificationError as e:
+            logging.error("Signature verification failed for %s: %s" %
+                          (seg_meta.seg.short_id(), e))
+            return
+        with self.unv_segs_lock:
+            self.unverified_segs.discard(seg_meta)
+        if seg_meta.meta:
+            seg_meta.meta.close()
+        seg_meta.callback(seg_meta)
 
     def get_cs(self):
         """
@@ -326,7 +330,7 @@ class SCIONElement(object):
                 self.requested_trcs.add((isd, ver))
             isd_as = ISD_AS.from_values(isd, 0)
             trc_req = TRCRequest.from_values(isd_as, ver)
-            logging.info("Requesting %sv%s TRC", isd, ver)
+            logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
             if not seg_meta.meta:
                 meta = self.get_cs()
                 if meta:
@@ -352,13 +356,16 @@ class SCIONElement(object):
                     continue
                 self.requested_certs.add((isd_as, ver))
             cert_req = CertChainRequest.from_values(isd_as, ver)
-            logging.info("Requesting %sv%s CERTCHAIN", isd_as, ver)
-            if not seg_meta.meta:
+            meta = seg_meta.meta
+            if not meta:
                 meta = self.get_cs()
-                if meta:
-                    self.send_meta(cert_req, meta)
+            if meta:
+                logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
+                             isd_as, ver, meta, seg_meta.seg.short_id())
+                self.send_meta(cert_req, meta)
             else:
-                self.send_meta(cert_req, seg_meta.meta)
+                logging.error("Couldn't find a CS to request CERTCHAIN for PCB %s",
+                              seg_meta.seg.short_id())
 
     def _missing_trc_versions(self, trc_versions):
         """
@@ -408,7 +415,7 @@ class SCIONElement(object):
         """
         meta.close()
         isd, ver = rep.trc.get_isd_ver()
-        logging.info("TRC reply received for %sv%s" % (isd, ver))
+        logging.info("TRC reply received for %sv%s from %s" % (isd, ver, meta))
         self.trust_store.add_trc(rep.trc, True)
         # Update core ases for isd this trc belongs to
         max_local_ver = self.trust_store.get_trc(rep.trc.isd)
@@ -442,7 +449,7 @@ class SCIONElement(object):
         """Process a TRC request."""
         assert isinstance(req, TRCRequest)
         isd, ver = req.isd_as()[0], req.p.version
-        logging.info("TRC request received for %sv%s" % (isd, ver))
+        logging.info("TRC request received for %sv%s from %s" % (isd, ver, meta))
         trc = self.trust_store.get_trc(isd, ver)
         if trc:
             self.send_meta(TRCReply.from_values(trc), meta)
@@ -454,7 +461,7 @@ class SCIONElement(object):
         assert isinstance(rep, CertChainReply)
         meta.close()
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
-        logging.info("Cert chain reply received for %sv%s" % (isd_as, ver))
+        logging.info("Cert chain reply received for %sv%s from %s" % (isd_as, ver, meta))
         self.trust_store.add_cert(rep.chain, True)
         with self.req_certs_lock:
             self.requested_certs.discard((isd_as, ver))
@@ -484,7 +491,7 @@ class SCIONElement(object):
         """Process a certificate chain request."""
         assert isinstance(req, CertChainRequest)
         isd_as, ver = req.isd_as(), req.p.version
-        logging.info("Cert chain request received for %sv%s" % (isd_as, ver))
+        logging.info("Cert chain request received for %sv%s from %s" % (isd_as, ver, meta))
         cert = self.trust_store.get_cert(isd_as, ver)
         if cert:
             self.send_meta(CertChainReply.from_values(cert), meta)
@@ -505,11 +512,8 @@ class SCIONElement(object):
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
             ver_seg.add_asm(asm)
-            if not verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig,
-                                        str(cert_ia), chain, trc, asm.p.trcVer):
-                logging.error("ASM verification failed: %s" % asm.short_desc())
-                return False
-        return True
+            verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig,
+                                 str(cert_ia), chain, trc, asm.p.trcVer)
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.
@@ -719,7 +723,7 @@ class SCIONElement(object):
         elif isinstance(meta, UDPMetadata):
             dst_port = meta.port
         else:
-            logging.error("Unsupported metadata for:\n%s" % meta.__name__)
+            logging.error("Unsupported metadata: %s" % meta.__name__)
             return False
 
         pkt = self._build_packet(meta.host, meta.path, meta.ext_hdrs,

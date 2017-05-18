@@ -21,6 +21,9 @@ from nacl.public import Box, PrivateKey
 from nacl.signing import SigningKey, VerifyKey
 from nacl.utils import random
 
+# SCION
+from lib.errors import SCIONVerificationError
+
 
 def generate_sign_keypair():
     """
@@ -69,7 +72,7 @@ def verify(msg, sig, verifying_key):
     try:
         return msg == VerifyKey(verifying_key).verify(msg, sig)
     except BadSignatureError:
-        return False
+        raise SCIONVerificationError("Signature corrupt or forged.")
 
 
 def encrypt(msg, private_key, public_key):

@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import random
 import threading
 from collections import defaultdict, deque
 from abc import ABCMeta, abstractmethod
@@ -34,6 +35,7 @@ from lib.defines import (
     HASHTREE_TTL,
     PATH_SERVICE,
 )
+from lib.log import add_formatter, Rfc3339Formatter
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
@@ -82,6 +84,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         self.pen_req_lock = threading.Lock()
+        self._request_logger = None
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache()
@@ -119,6 +122,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                                         self._handle_paths_from_zk)
         self.rev_cache = ZkSharedCache(self.zk, self.ZK_REV_CACHE_PATH,
                                        self._rev_entries_handler)
+        self._init_request_logger()
 
     def worker(self):
         """
@@ -186,11 +190,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
             self._add_rev_mappings(pcb)
-            logging.info("%s-Segment registered: %s", name, pcb.short_desc())
+            logging.info("%s-Segment registered: %s", name, pcb.short_id())
             return True
         elif res == DBResult.ENTRY_UPDATED:
             self._add_rev_mappings(pcb)
-            logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
+            logging.debug("%s-Segment updated: %s", name, pcb.short_id())
         return False
 
     def _handle_scmp_revocation(self, pld, meta):
@@ -207,15 +211,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not self._validate_revocation(rev_info):
             return
         if meta.ia[0] != self.addr.isd_as[0]:
-            logging.info("Dropping revocation received from a different ISD.")
+            logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
+                         (meta, rev_info.short_desc()))
             return
 
         if rev_info in self.revocations:
-            logging.debug("Already received revocation. Dropping...")
             return False
         self.revocations.add(rev_info)
-        logging.debug("Received revocation from %s:\n%s",
-                      meta.get_addr(), rev_info)
+        logging.debug("Received revocation from %s: %s", meta.get_addr(), rev_info.short_desc())
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
@@ -249,10 +252,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                         if (self.up_segments.delete(sid) ==
                                 DBResult.ENTRY_DELETED):
                             up_segs_removed += 1
-            logging.info("Removed segments containing IF %d: "
-                         "UP: %d DOWN: %d CORE: %d" %
-                         (if_id, up_segs_removed, down_segs_removed,
-                          core_segs_removed))
+            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
+                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
+                           core_segs_removed))
 
     @abstractmethod
     def _forward_revocation(self, rev_info, meta):
@@ -264,7 +266,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _send_path_segments(self, req, meta, up=None, core=None, down=None):
+    def _send_path_segments(self, req, meta, logger, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
         """
@@ -273,7 +275,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         down = down or set()
         all_segs = up | core | down
         if not all_segs:
-            logging.warning("No segments to send")
+            logger.warning("No segments to send for request: %s from: %s" %
+                           (req.short_desc(), meta))
             return
         revs_to_add = self._peer_revs_for_segs(all_segs)
         pld = PathRecordsReply.from_values(
@@ -281,11 +284,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             revs_to_add
         )
         self.send_meta(pld, meta)
-        logging.info(
-            "Sending PATH_REPLY with %d segment(s) to:%s "
-            "port:%s in response to: %s", len(all_segs),
-            meta.get_addr(), meta.port, req.short_desc(),
-        )
+        logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
 
     def _peer_revs_for_segs(self, segs):
         """Returns a list of peer revocations for segments in 'segs'."""
@@ -310,10 +309,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         with self.pen_req_lock:
             for key in self.pending_req:
                 to_remove = []
-                for req, meta in self.pending_req[key]:
-                    if self.path_resolution(req, meta, new_request=False):
+                for req, meta, logger in self.pending_req[key]:
+                    if self.path_resolution(req, meta, new_request=False, logger=logger):
                         meta.close()
-                        to_remove.append((req, meta))
+                        to_remove.append((req, meta, logger))
                 # Clean state.
                 for req_meta in to_remove:
                     self.pending_req[key].remove(req_meta)
@@ -332,7 +331,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                        type_=type_, params={'from_zk': True})
                 self.process_path_seg(seg_meta)
-        logging.debug("Processed %s segments from ZK", len(raw_entries))
+        if raw_entries:
+            logging.debug("Processed %s segments from ZK", len(raw_entries))
 
     def handle_path_segment_record(self, seg_recs, meta):
         """
@@ -356,6 +356,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         The segment is added to pathdb and pending requests are checked.
         """
         pcb = seg_meta.seg
+        logging.debug("Successfully verified PCB %s" % pcb.short_id())
         type_ = seg_meta.type
         params = seg_meta.params
         self._dispatch_segment_record(type_, pcb, **params)
@@ -364,8 +365,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         # Check that segment does not contain a revoked interface.
         if not self._validate_segment(seg):
-            logging.debug("Not adding segment due to revoked interface:\n%s" %
-                          seg.short_desc())
             return
         handle_map = {
             PST.UP: self._handle_up_segment_record,
@@ -387,8 +386,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for if_id in [pcbm.p.inIF, pcbm.p.outIF]:
                 rev_info = self.revocations.get((asm.isd_as(), if_id))
                 if rev_info:
-                    logging.debug("Found revoked interface (%d) in segment "
-                                  "%s." % (rev_info.p.ifID, seg.short_desc()))
+                    logging.debug("Found revoked interface (%d, %s) in segment %s." %
+                                  (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
                     return False
         return True
 
@@ -414,7 +413,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             yield(pcbs)
 
     @abstractmethod
-    def path_resolution(self, path_request, meta, new_request):
+    def path_resolution(self, path_request, meta, new_request=True, logger=None):
         """
         Handles all types of path request.
         """
@@ -437,11 +436,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         path = pcb.get_path(reverse_direction=True)
         src_ia = pcb.first_ia()
         while targets:
-            seg_req = targets.pop(0)
+            (seg_req, logger) = targets.pop(0)
             meta = self._build_meta(ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
             self.send_meta(seg_req, meta)
-            logging.info("Waiting request (%s) sent via %s",
-                         seg_req.short_desc(), pcb.short_desc())
+            logger.info("Waiting request (%s) sent via %s",
+                        seg_req.short_desc(), pcb.short_desc())
 
     def _share_via_zk(self):
         if not self._segs_to_zk:
@@ -474,6 +473,27 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.warning("Unable to store revocation(s) in shared path: "
                             "no connection to ZK")
+
+    def _init_request_logger(self):
+        """
+        Initializes the request logger.
+        """
+        self._request_logger = logging.getLogger("RequestLogger")
+        # Create new formatter to include the random request id and the request in the log.
+        formatter = formatter = Rfc3339Formatter(
+            "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s "
+            "{id=%(id)s, req=%(req)s, from=%(from)s}")
+        add_formatter('RequestLogger', formatter)
+
+    def get_request_logger(self, req, meta):
+        """
+        Returns a logger adapter for 'req'.
+        """
+        # Random ID to relate log entries for a request.
+        req_id = "%08x" % random.randint(0, 2**32 - 1)
+        # Create a logger for the request to log with context.
+        return logging.LoggerAdapter(
+            self._request_logger, {"id": req_id, "req": req.short_desc(), "from": str(meta)})
 
     def run(self):
         """

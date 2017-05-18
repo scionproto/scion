@@ -27,7 +27,7 @@ class MetadataBase(object):
         self.host = None
         self.path = None  # Ready for sending (i.e., in correct direction)
         self.port = 0
-        self.ext_hdr = ()
+        self.ext_hdrs = ()
 
     @classmethod
     def from_values(cls, ia=None, host=None, path=None, ext_hdrs=(),
@@ -46,6 +46,9 @@ class MetadataBase(object):
 
     def close(self):  # Close communication between peers.
         pass
+
+    def __str__(self):
+        return str(self.get_addr())
 
 
 class UDPMetadata(MetadataBase):

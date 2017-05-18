@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+from collections import defaultdict
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
@@ -50,20 +51,18 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
 
-    def register_up_segment(self, pcb):
+    def register_up_segment(self, pcb, svc_type):
         """
         Send up-segment to Local Path Servers and Sibra Servers
 
         :raises:
-            SCIONServiceLookupError: path server lookup failure
+            SCIONServiceLookupError: service type lookup failure
         """
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
-        addr, port = self.dns_query_topo(PATH_SERVICE)[0]
-        meta = self._build_meta(host=addr, port=port)
-        self.send_meta(records.copy(), meta)
-        addr, port = self.dns_query_topo(SIBRA_SERVICE)[0]
+        addr, port = self.dns_query_topo(svc_type)[0]
         meta = self._build_meta(host=addr, port=port)
         self.send_meta(records, meta)
+        return meta
 
     def register_down_segment(self, pcb):
         """
@@ -74,6 +73,7 @@ class LocalBeaconServer(BeaconServer):
         dst_ia = pcb.asm(0).isd_as()
         meta = self._build_meta(ia=dst_ia, host=SVCType.PS_A, path=core_path, reuse=True)
         self.send_meta(records, meta)
+        return meta
 
     def register_segments(self):
         """
@@ -109,8 +109,12 @@ class LocalBeaconServer(BeaconServer):
         # TODO: define function that dispatches the pcbs among the interfaces
         with self._rev_seg_lock:
             best_segments = self.beacons.get_best_segments()
+        propagated_pcbs = defaultdict(list)
         for pcb in best_segments:
-            self.propagate_downstream_pcb(pcb)
+            propagated = self.propagate_downstream_pcb(pcb)
+            for k, v in propagated.items():
+                propagated_pcbs[k].extend(v)
+        self._log_propagations(propagated_pcbs)
 
     def register_up_segments(self):
         """
@@ -118,17 +122,21 @@ class LocalBeaconServer(BeaconServer):
         """
         with self._rev_seg_lock:
             best_segments = self.up_segments.get_best_segments(sending=False)
+        registered_paths = defaultdict(list)
         for pcb in best_segments:
-            pcb = self._terminate_pcb(pcb)
-            if not pcb:
+            new_pcb = self._terminate_pcb(pcb)
+            if not new_pcb:
                 continue
-            pcb.sign(self.signing_key)
-            try:
-                self.register_up_segment(pcb)
-            except SCIONServiceLookupError as e:
-                logging.warning("Unable to send up path registration: %s", e)
-                continue
-            logging.info("Up path registered: %s", pcb.short_desc())
+            new_pcb.sign(self.signing_key)
+            for svc_type in [PATH_SERVICE, SIBRA_SERVICE]:
+                try:
+                    dst_meta = self.register_up_segment(new_pcb, svc_type)
+                except SCIONServiceLookupError as e:
+                    logging.warning("Unable to send up-segment registration: %s", e)
+                    continue
+                # Keep the ID of the not-terminated PCB to relate to previously received ones.
+                registered_paths[(str(dst_meta), svc_type)].append(pcb.short_id())
+        self._log_registrations(registered_paths, "up")
 
     def register_down_segments(self):
         """
@@ -136,10 +144,13 @@ class LocalBeaconServer(BeaconServer):
         """
         with self._rev_seg_lock:
             best_segments = self.down_segments.get_best_segments(sending=False)
+        registered_paths = defaultdict(list)
         for pcb in best_segments:
-            pcb = self._terminate_pcb(pcb)
-            if not pcb:
+            new_pcb = self._terminate_pcb(pcb)
+            if not new_pcb:
                 continue
-            pcb.sign(self.signing_key)
-            self.register_down_segment(pcb)
-            logging.info("Down path registered: %s", pcb.short_desc())
+            new_pcb.sign(self.signing_key)
+            dst_ps = self.register_down_segment(new_pcb)
+            # Keep the ID of the not-terminated PCB to relate to previously received ones.
+            registered_paths[(str(dst_ps), PATH_SERVICE)].append(pcb.short_id())
+        self._log_registrations(registered_paths, "down")
