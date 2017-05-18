@@ -71,8 +71,7 @@ class TestHashTreeCreateTree(object):
         if_ids = [1, 2, 3]
         hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300"]
-        hash_new = create_mock_full({"digest()...": hashes})
-        hash_func = create_mock_full({"new()": hash_new})
+        hash_func = create_mock_full(side_effect=hashes)
         inst = HashTree(isd_as, if_ids, b"s", hash_func)
         inst._n_epochs = 1
         inst._depth = 2
@@ -95,8 +94,7 @@ class TestHashTreeGetProof(object):
         if_ids = [1, 2, 3]
         hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300", b"s20"]
-        hash_new = create_mock_full({"digest()...": hashes})
-        hash_func = create_mock_full({"new()": hash_new})
+        hash_func = create_mock_full(side_effect=hashes)
         inst = HashTree(isd_as, if_ids, b"s", hash_func)
         inst._n_epochs = 1
         inst._depth = 2
@@ -149,8 +147,7 @@ class TestConnectedHashtreeGetPossibleHashes(object):
         revProof = create_mock_full({"p": p})
         hashes = ["20s20", "10s1020s20", "10s1020s2030s300",
                   "p10s1020s2030s300", "10s1020s2030s300n"]
-        hash_new = create_mock_full({"digest()...": hashes})
-        hash_func = create_mock_full({"new()": hash_new})
+        hash_func = create_mock_full(side_effect=hashes)
         # Call
         hash01, hash12 = ConnectedHashTree.get_possible_hashes(
             revProof, hash_func)

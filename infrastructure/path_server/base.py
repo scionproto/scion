@@ -24,12 +24,12 @@ from abc import ABCMeta, abstractmethod
 from threading import Lock
 
 # External packages
-from Crypto.Hash import SHA256
 from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_tree import ConnectedHashTree
+from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_TTL,
@@ -459,7 +459,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._zk_write_rev(self._revs_to_zk.popleft())
 
     def _zk_write(self, data):
-        hash_ = SHA256.new(data).hexdigest()
+        hash_ = crypto_hash(data).hex()
         try:
             self.path_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
         except ZkNoConnection:
@@ -467,7 +467,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                             "no connection to ZK")
 
     def _zk_write_rev(self, data):
-        hash_ = SHA256.new(data).hexdigest()
+        hash_ = crypto_hash(data).hex()
         try:
             self.rev_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
         except ZkNoConnection:
