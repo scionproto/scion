@@ -815,6 +815,9 @@ class SupervisorGenerator(object):
                 prog['environment'] += ',SCIOND_PATH="%s"' % path
         if elem.startswith("br") and self.router == "go":
             prog['environment'] += ',GODEBUG="cgocheck=0"'
+        if elem.startswith("zk") and self.zk_config["Environment"]:
+            for k, v in self.zk_config["Environment"].items():
+                prog['environment'] += ',%s="%s"' % (k, v)
         config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)
@@ -848,7 +851,7 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
-            'environment': 'PYTHONPATH=.',
+            'environment': 'PYTHONPATH=.,TZ=UTC',
             'stdout_logfile': "NONE",
             'stderr_logfile': "NONE",
             'startretries': 0,
@@ -967,12 +970,12 @@ class ZKTopo(object):
         base_dir = os.path.join(out_dir, topo_id.ISD(), topo_id.AS(), name)
         cfg_path = os.path.join(base_dir, "zoo.cfg")
         class_path = ":".join([
-            base_dir, self.zk_config["Environment"]["CLASSPATH"],
+            base_dir, self.zk_config["Config"]["CLASSPATH"],
         ])
         return [
             "java", "-cp", class_path,
             '-Dzookeeper.log.file=logs/%s.log' % name,
-            self.zk_config["Environment"]["ZOOMAIN"], cfg_path,
+            self.zk_config["Config"]["ZOOMAIN"], cfg_path,
         ]
 
 

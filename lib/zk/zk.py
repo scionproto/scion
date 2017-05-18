@@ -197,8 +197,12 @@ class Zookeeper(object):
         if clid is None:
             # Protect against a race-condition.
             return
-        logging.debug("Connection to Zookeeper succeeded (Session: %s)",
-                      hex(clid[0]))
+        try:
+            zk_peer = self.kazoo._connection._socket.getpeername()
+        except AttributeError:
+            zk_peer = "?", "?"
+        logging.debug("Connection to Zookeeper succeeded (Session: %s, ZK: [%s]:%s)",
+                      hex(clid[0]), zk_peer[0], zk_peer[1])
         try:
             self.ensure_path(self.prefix, abs=True)
             # Use a copy of the dictionary values, as the dictioary is changed
