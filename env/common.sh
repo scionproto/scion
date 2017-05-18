@@ -8,7 +8,7 @@ lower() {
 }
 
 pip_installed() {
-    "${1:?}" --disable-pip-version-check freeze | lower | LC_ALL=C sort
+    "${1:?}" --disable-pip-version-check freeze --all | lower | LC_ALL=C sort
 }
 
 pip_reqs() {
