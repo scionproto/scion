@@ -284,12 +284,14 @@ def handle_signals():
 def _signal_handler(signum, _):
     """Basic signal handler function."""
     text = "Received %s" % _SIG_MAP[signum]
-    if signum in (signal.SIGTERM, signal.SIGINT):
+    if signum == signal.SIGTERM:
         logging.info(text)
         sys.exit(0)
+    elif signum == signal.SIGINT:
+        logging.info(text)
     else:
         logging.error(text)
-        sys.exit(1)
+    sys.exit(1)
 
 
 def iso_timestamp(ts):  # pragma: no cover

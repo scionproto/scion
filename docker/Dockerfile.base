@@ -71,6 +71,7 @@ COPY docker/profile $HOME/.profile
 COPY docker/screenrc $HOME/.screenrc
 # Install ZK config
 COPY docker/zoo.cfg /etc/zookeeper/conf/
+RUN echo 'JAVA_OPTS="-Xmx150m" # Added by Dockerfile.base' >> /etc/zookeeper/conf/environment
 
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
