@@ -43,8 +43,13 @@ class Element(object):
     """
     def __init__(self, public=None, bind=None, name=None):
         """
-        :param dict public: ((addr_type, address), port) of the element's public address.
-        :param dict bind: ((addr_type, address), port) of the element's private address.
+        :param dict public:
+            ((addr_type, address), port) of the element's public address.
+            (i.e. the address visible to other network elements).
+        :param dict bind:
+            ((addr_type, address), port) of the element's bind address, if any
+            (i.e. the address the element uses to identify itself to the local
+            operating system, if it differs from the public address due to NAT).
         :param str name: element name or id
         """
         self.public = self._parse_addrs(public)
@@ -102,6 +107,9 @@ class InterfaceElement(Element):
         self.remote = self._parse_addrs(interface_dict['Remote'])
         super().__init__(interface_dict['Public'], interface_dict.get('Bind'), name)
 
+    def __lt__(self, other):  # pragma: no cover
+        return self.if_id < other.if_id
+
 
 class RouterElement(object):
     """
@@ -151,10 +159,11 @@ class Topology(object):
         self.certificate_servers = []
         self.path_servers = []
         self.sibra_servers = []
-        self.parent_border_routers = []
-        self.child_border_routers = []
-        self.peer_border_routers = []
-        self.core_border_routers = []
+        self.border_routers = []
+        self.parent_interfaces = []
+        self.child_interfaces = []
+        self.peer_interfaces = []
+        self.core_interfaces = []
         self.zookeepers = []
 
     @classmethod
@@ -206,14 +215,15 @@ class Topology(object):
     def _parse_router_dicts(self, topology):
         for k, v in topology['BorderRouters'].items():
             router = RouterElement(v, k)
-            ntype_map = {
-                LinkType.PARENT: self.parent_border_routers,
-                LinkType.CHILD: self.child_border_routers,
-                LinkType.PEER: self.peer_border_routers,
-                LinkType.CORE: self.core_border_routers,
-            }
+            self.border_routers.append(router)
             for intf in router.interfaces.values():
-                ntype_map[intf.link_type].append(router)
+                ntype_map = {
+                    LinkType.PARENT: self.parent_interfaces,
+                    LinkType.CHILD: self.child_interfaces,
+                    LinkType.PEER: self.peer_interfaces,
+                    LinkType.CORE: self.core_interfaces,
+                }
+                ntype_map[intf.link_type].append(intf)
 
     def _parse_zk_dicts(self, topology):
         for zk in topology['ZookeeperService'].values():
@@ -221,26 +231,26 @@ class Topology(object):
             zk_host = "[%s]:%s" % (haddr, zk['L4Port'])
             self.zookeepers.append(zk_host)
 
-    def get_all_border_routers(self):
+    def get_all_interfaces(self):
         """
-        Return all border routers associated to the AS.
+        Return all border router interfaces associated to the AS.
 
-        :returns: all border routers associated to the AS.
+        :returns: all border router interfaces associated to the AS.
         :rtype: list
         """
-        all_border_routers = []
-        all_border_routers.extend(self.parent_border_routers)
-        all_border_routers.extend(self.child_border_routers)
-        all_border_routers.extend(self.peer_border_routers)
-        all_border_routers.extend(self.core_border_routers)
-        return all_border_routers
+        all_interfaces = []
+        all_interfaces.extend(self.parent_interfaces)
+        all_interfaces.extend(self.child_interfaces)
+        all_interfaces.extend(self.peer_interfaces)
+        all_interfaces.extend(self.core_interfaces)
+        return all_interfaces
 
     def get_own_config(self, server_type, server_id):
         type_map = {
             BEACON_SERVICE: self.beacon_servers,
             CERTIFICATE_SERVICE: self.certificate_servers,
             PATH_SERVICE: self.path_servers,
-            ROUTER_SERVICE: self.get_all_border_routers(),
+            ROUTER_SERVICE: self.border_routers,
             SIBRA_SERVICE: self.sibra_servers,
         }
         try:

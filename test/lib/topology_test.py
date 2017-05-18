@@ -169,20 +169,13 @@ class TestTopologyParseRouterDicts(object):
             routers[type_].append(m)
             return m
         routers = defaultdict(list)
-        router_dict = {
-            "br-parent": "PARENT", "br-child": "CHILD",
-            "br-peer": "PEER", "br-core0": "CORE",
-            "br-core1": "CORE",
-        }
+        router_dict = {"br-parent": "PARENT"}
         inst = Topology()
         router.side_effect = lambda v, k: _mk_router(v)
         # Call
         inst._parse_router_dicts({"BorderRouters": router_dict})
         # Tests
-        ntools.assert_count_equal(inst.parent_border_routers, routers["PARENT"])
-        ntools.assert_count_equal(inst.child_border_routers, routers["CHILD"])
-        ntools.assert_count_equal(inst.peer_border_routers, routers["PEER"])
-        ntools.assert_count_equal(inst.core_border_routers, routers["CORE"])
+        ntools.assert_count_equal(inst.border_routers, routers["PARENT"])
 
 
 class TestTopologyParseZkDicts(object):
@@ -204,25 +197,24 @@ class TestTopologyParseZkDicts(object):
                                   ["[zkv4]:2181", "[zkv6]:2182"])
 
 
-class TestTopologyGetAllBorderRouters(object):
+class TestTopologyGetAllInterfaces(object):
     """
     Unit tests for lib.topology.Topology.get_all_border_routers
     """
     def test(self):
         topology = Topology()
-        topology.parent_border_routers = [0, 1]
-        topology.child_border_routers = [2]
-        topology.peer_border_routers = [3, 4, 5]
-        topology.core_border_routers = [6, 7]
-        ntools.eq_(topology.get_all_border_routers(), list(range(8)))
+        topology.parent_interfaces = [0, 1]
+        topology.child_interfaces = [2]
+        topology.peer_interfaces = [3, 4, 5]
+        topology.core_interfaces = [6, 7]
+        ntools.eq_(topology.get_all_interfaces(), list(range(8)))
 
 
 class TestTopologyGetOwnConfig(object):
     """
     Unit tests for lib.topology.Topology.get_own_config
     """
-    @patch("lib.topology.Topology.get_all_border_routers", autospec=True)
-    def test_basic(self, _):
+    def test_basic(self):
         inst = Topology()
         for i in range(4):
             bs = create_mock(["name"])
@@ -232,14 +224,12 @@ class TestTopologyGetOwnConfig(object):
         ntools.eq_(inst.get_own_config("bs", "bs3"),
                    inst.beacon_servers[3])
 
-    @patch("lib.topology.Topology.get_all_border_routers", autospec=True)
-    def test_unknown_type(self, _):
+    def test_unknown_type(self):
         inst = Topology()
         # Call
         ntools.assert_raises(SCIONKeyError, inst.get_own_config, "asdf", 1)
 
-    @patch("lib.topology.Topology.get_all_border_routers", autospec=True)
-    def test_unknown_server(self, _):
+    def test_unknown_server(self):
         inst = Topology()
         # Call
         ntools.assert_raises(SCIONKeyError, inst.get_own_config, "bs", "name")

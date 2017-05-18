@@ -47,7 +47,6 @@ FilterSocket *filter_socket = NULL;
 
 #define IS_REG_CMD(x) ((x) & 1)
 #define IS_SCMP_REQ(x) (((x) >> 1) & 1)
-#define IS_PRIV_SOCKET(x) (((x) >> 2) & 1)
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr_in6 sockaddr_in6;
@@ -58,11 +57,6 @@ typedef struct {
     uint8_t host[MAX_HOST_ADDR_LEN];
     uint64_t flow_id;
 } L4Key;
-
-typedef struct {
-    uint16_t port;
-    uint8_t host[MAX_HOST_ADDR_LEN];
-} PRVKey;
 
 #define MIN_UDP_PORT 1025
 #define MAX_UDP_PORT USHRT_MAX
@@ -83,7 +77,6 @@ typedef struct {
 
 typedef struct Entry {
     L4Key l4_key;
-    PRVKey prv_key;
     int sock;
     uint8_t scmp;
     struct Entry **list;
@@ -564,23 +557,12 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
-        if (IS_PRIV_SOCKET(*buf)) {
-            /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
-            uint16_t r_port = ntohs(*(uint16_t *)(buf + common + addr_len));
-            uint8_t r_type = *(uint8_t *)(buf + common + addr_len + 2);
-            int r_addr_len = get_addr_len(r_type);
-            e->prv_key.port = r_port;
-            memcpy(e->prv_key.host, buf + common + addr_len + 3, r_addr_len);
-            end = addr_len + r_addr_len + common + 3;
-        } else {
-            /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
-            end = addr_len + common;
-        }
+        /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
+        end = addr_len + common;
         zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
-
     } else {
         zlog_error(zc, "unsupported L4 proto %d", proto);
         close(sock);
@@ -598,10 +580,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
 
     if (len > end) {
-        if (proto == L4_SSP)
-            memcpy(svc_key.host, buf + common + 8, addr_len);
-        else
-            memcpy(svc_key.host, buf + common, addr_len);
+        memcpy(svc_key.host, buf + end - addr_len, addr_len);
         svc_key.addr = ntohs(*(uint16_t *)(buf + end));
         svc_key.isd_as = isd_as;
         zlog_info(zc, "SVC for %s", addr_to_str(svc_key.host, type, NULL));

@@ -184,17 +184,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param pcb: path segment.
         :type pcb: PathSegment
         """
-        for r in self.topology.child_border_routers:
-            for if_id, intf in r.interfaces.items():
-                if not intf.to_if_id:
-                    continue
-                new_pcb, meta = self._mk_prop_pcb_meta(
-                    pcb.copy(), intf.isd_as, if_id)
-                if not new_pcb:
-                    continue
-                self.send_meta(new_pcb, meta)
-                logging.info("Downstream PCB propagated to %s via IF %s",
-                             intf.isd_as, if_id)
+        for intf in self.topology.child_interfaces:
+            if not intf.to_if_id:
+                continue
+            new_pcb, meta = self._mk_prop_pcb_meta(
+                pcb.copy(), intf.isd_as, intf.if_id)
+            if not new_pcb:
+                continue
+            self.send_meta(new_pcb, meta)
+            logging.info("Downstream PCB propagated to %s via IF %s",
+                         intf.isd_as, intf.if_id)
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
@@ -322,17 +321,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not up_pcbm:
             return
         yield up_pcbm
-        for br in sorted(self.topology.peer_border_routers):
-            for in_if in br.interfaces:
-                with self.ifid_state_lock:
-                    if (not self.ifid_state[in_if].is_active() and
-                            not self._quiet_startup()):
-                        logging.warning('Peer ifid:%d inactive (not added).', in_if)
-                        continue
-                peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
-                                              xover=True)
-                if peer_pcbm:
-                    yield peer_pcbm
+        for intf in sorted(self.topology.peer_interfaces):
+            in_if = intf.if_id
+            with self.ifid_state_lock:
+                if (not self.ifid_state[in_if].is_active() and
+                        not self._quiet_startup()):
+                    logging.warning('Peer ifid:%d inactive (not added).', in_if)
+                    continue
+            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
+                                          xover=True)
+            if peer_pcbm:
+                yield peer_pcbm
 
     def _create_pcbm(self, in_if, out_if, ts, prev_hof, xover=False):
         in_info = self._mk_if_info(in_if)
@@ -389,7 +388,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     state_info = IFStateInfo.from_values(
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
-                    for br in self.topology.get_all_border_routers():
+                    for br in self.topology.border_routers:
                         br_addr, br_port = br.int_addrs[0].public[0]
                         meta = UDPMetadata.from_values(
                             host=br_addr, port=br_port)
@@ -551,7 +550,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
-        for br in self.topology.get_all_border_routers():
+        for br in self.topology.border_routers:
             br_addr, br_port = br.int_addrs[0].public[0]
             meta = UDPMetadata.from_values(host=br_addr, port=br_port)
             self.send_meta(pld.copy(), meta, (br_addr, br_port))

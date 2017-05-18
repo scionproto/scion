@@ -192,7 +192,7 @@ class ReliableSocket(Socket):
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, reg=None, rep=None, bind=None, sock=None):
+    def __init__(self, reg=None, bind=None, sock=None):
         """
         Initialise a socket of the specified type, and optionally bind it to an
         address/port.
@@ -212,11 +212,7 @@ class ReliableSocket(Socket):
         self.addr = None
         if reg:
             addr, port, init, svc = reg
-            if rep:
-                b_addr, b_port = rep
-                self.registered = reg_dispatcher(self, addr, port, b_addr, b_port, init, svc)
-            else:
-                self.registered = reg_dispatcher(self, addr, port, init=init, svc=svc)
+            self.registered = reg_dispatcher(self, addr, port, init, svc)
         if bind:
             self.bind(*bind)
         self.active = True

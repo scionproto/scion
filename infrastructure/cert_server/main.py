@@ -293,19 +293,18 @@ class CertServer(SCIONElement):
         logging.info("TRC for %sv%s sent to %s:%s", isd, ver, dst, port)
 
     def _get_next_hop(self, isd_as, parent=False, child=False, core=False):
-        routers = []
+        interfaces = []
         if parent:
-            routers += self.topology.parent_border_routers
+            interfaces += self.topology.parent_interfaces
         if child:
-            routers += self.topology.child_border_routers
+            interfaces += self.topology.child_interfaces
         if core:
-            routers += self.topology.core_border_routers
-        for r in routers:
-            for ifid, intf in r.interfaces.items():
-                r_ia = intf.isd_as
-                if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):
-                    r_addr, r_port = r.int_addrs[intf.addr_idx].public[0]
-                    return r_addr, r_port
+            interfaces += self.topology.core_interfaces
+        for intf in interfaces:
+            r_ia = intf.isd_as
+            if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):
+                r_addr, r_port = intf.public[0]
+                return r_addr, r_port
         return None, None
 
     def run(self):

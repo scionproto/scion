@@ -122,13 +122,13 @@ class SCIONElement(object):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param list public: (host_addr, port) of the element's public address
-            the interface and port to bind to. Overrides the address in the topology
-            config.
-        :param list bind: (host_addr, port) of the element's bind address
-            the interface and port to bind to. Overrides the address in the topology
-            config.
-
+        :param list public:
+            (host_addr, port) of the element's public address
+            (i.e. the address visible to other network elements).
+        :param list bind:
+            (host_addr, port) of the element's bind address, if any
+            (i.e. the address the element uses to identify itself to the local
+            operating system, if it differs from the public address due to NAT).
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -189,15 +189,8 @@ class SCIONElement(object):
         # Setup TCP "accept" socket.
         self._setup_tcp_accept_socket(svc)
         # Setup UDP socket
-        if self.bind:
-            host_addr, r_port = self.bind[0]
-            r_addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
-            self._udp_sock = ReliableSocket(
-                reg=(self.addr, self._port, init, svc),
-                rep=(r_addr, r_port))
-        else:
-            self._udp_sock = ReliableSocket(
-                reg=(self.addr, self._port, init, svc))
+        self._udp_sock = ReliableSocket(
+            reg=(self.addr, self._port, init, svc))
         if not self._udp_sock.registered:
             self._udp_sock = None
             return
@@ -224,7 +217,7 @@ class SCIONElement(object):
             kill_self()
 
     def init_ifid2br(self):
-        for br in self.topology.get_all_border_routers():
+        for br in self.topology.border_routers:
             for if_id in br.interfaces:
                 self.ifid2br[if_id] = br
 
