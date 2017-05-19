@@ -58,10 +58,11 @@ func Test_Topo(t *testing.T) {
 
 	// Finally testing
 	Convey("Loading test config `testdata/basic.yml`", t, func() {
-		if err := Load("testdata/basic.yml"); err != nil {
+		tm, err := Load("testdata/basic.yml")
+		if err != nil {
 			t.Fatalf("Error loading config: %v", err)
 		}
-		c := Curr.T
+		c := tm.T
 		So(c.BS, ShouldResemble, bses)
 		So(c.CS, ShouldResemble, cses)
 		So(c.BR, ShouldResemble, brs)

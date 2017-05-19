@@ -17,7 +17,6 @@
 package rpkt
 
 import (
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
@@ -32,7 +31,7 @@ const (
 // Validate performs basic validation of a packet, including calling any
 // registered validation hooks.
 func (rp *RtrPkt) Validate() *common.Error {
-	intf, ok := conf.C.Net.IFs[*rp.ifCurr]
+	intf, ok := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	if !ok {
 		return common.NewError(errCurrIntfInvalid, "ifid", *rp.ifCurr)
 	}

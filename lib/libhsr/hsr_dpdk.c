@@ -371,6 +371,9 @@ int router_init(char *zlog_cfg, char *zlog_cat, int argc, char **argv)
         zlog_fini();
         return 1;
     }
+    for(int i=0; i<argc; ++i) {
+        zlog_debug(zc, "argv[%d]: %s", i, argv[i]);
+    }
 
     /* init EAL */
     ret = rte_eal_init(argc, argv);
@@ -623,7 +626,7 @@ int send_packet(RouterPacket *packet)
         hop_addr = get_ss_addr(packet->dst);
         zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
 #else
-        zlog_error(zc, "do not know how to reach %s (error %d)", 
+        zlog_error(zc, "do not know how to reach %s (error %d)",
                 addr_to_str(get_ss_addr(packet->dst), family_to_type(packet->dst->ss_family), NULL),
                 ret);
         rte_pktmbuf_free(m);

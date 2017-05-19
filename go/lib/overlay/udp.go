@@ -63,3 +63,9 @@ func (u *UDP) Connect(raddr *net.UDPAddr) error {
 	u.Conn, err = net.DialUDP("udp", u.BindAddr(), raddr)
 	return err
 }
+
+func (u *UDP) Equal(other *UDP) bool {
+	return (u.pubIP.Equal(*other.pubIP) && u.pubPort == other.pubPort &&
+		((u.bindIP == nil && other.bindIP == nil) ||
+			(u.bindIP.Equal(*other.bindIP) && u.bindPort == other.bindPort)))
+}

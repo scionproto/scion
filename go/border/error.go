@@ -20,7 +20,7 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -59,7 +59,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 		return
 	}
 	// Certain errors are not respondable to if the source lies in a remote AS.
-	if !srcIA.Eq(conf.C.IA) {
+	if !srcIA.Eq(rctx.IA()) {
 		switch sdata.CT.Class {
 		case scmp.C_CmnHdr:
 			switch sdata.CT.Type {
@@ -114,7 +114,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	sp.Pld = scmp.PldFromQuotes(ct, info, l4Type, rp.GetRaw)
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
 	// Convert back to RtrPkt
-	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom)
+	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom, rp.Ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		return nil, err
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS.
-	if !dstIA.Eq(conf.C.IA) {
+	if !dstIA.Eq(rctx.IA()) {
 		hopF, err := reply.HopF()
 		if err != nil {
 			return nil, err
@@ -173,7 +173,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 		return nil, err
 	}
 	// Use the ingress address as the source host
-	sp.SrcIA = conf.C.IA
+	sp.SrcIA = rctx.IA()
 	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
 	return sp, nil
 }
@@ -181,13 +181,14 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
+	ctx := rctx.Get()
 	if rp.DirFrom == rpkt.DirLocal {
-		locIdx := conf.C.Net.LocAddrMap[rp.Ingress.Dst.String()]
-		return rpkt.EgressPair{F: r.locOutFs[locIdx], Dst: rp.Ingress.Src}, nil
+		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.String()]
+		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: rp.Ingress.Src}, nil
 	}
 	intf, err := rp.IFCurr()
 	if err != nil {
 		return rpkt.EgressPair{}, err
 	}
-	return rpkt.EgressPair{F: r.intfOutFs[*intf], Dst: rp.Ingress.Src}, nil
+	return rpkt.EgressPair{F: ctx.IntfOutFs[*intf], Dst: rp.Ingress.Src}, nil
 }
