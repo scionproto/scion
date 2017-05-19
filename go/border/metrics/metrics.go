@@ -148,6 +148,7 @@ func Export(addresses []string) {
 	for _, addr := range addresses {
 		if _, ok := servers[addr]; ok {
 			newServers[addr] = servers[addr]
+			delete(servers, addr)
 			continue // Exporter already running on this address
 		}
 		// Run new exporter on addr.
@@ -162,21 +163,10 @@ func Export(addresses []string) {
 	}
 	// Stop exporting metrics on non-exported addresses.
 	for addr, closer := range servers {
-		if !contains(addresses, addr) {
-			log.Info("Stop exporting metrics", "addr", addr)
-			closer.Close()
-		}
+		log.Info("Stop exporting metrics", "addr", addr)
+		closer.Close()
 	}
 	servers = newServers
-}
-
-func contains(addrs []string, addr string) bool {
-	for _, entry := range addrs {
-		if entry == addr {
-			return true
-		}
-	}
-	return false
 }
 
 func listenAndServeWithClose(addr string) (io.Closer, *common.Error) {

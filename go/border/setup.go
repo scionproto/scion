@@ -219,8 +219,7 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 		}
 		return rpkt.HookFinish, nil
 	}
-	bindAddr := over.BindAddr().String()
-	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[bindAddr]; !ok {
+	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[over.BindAddr().String()]; !ok {
 		// New local address got added. Configure Posix I/O.
 		if err := addPosixLocal(r, ctx, idx, over, labels); err != nil {
 			return rpkt.HookError, err
@@ -228,7 +227,7 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 	} else {
 		log.Debug("No change detected for local socket.", "conn", over.BindAddr().String())
 		// Nothing changed. Copy I/O functions from old context.
-		ctx.LocInputFs[bindAddr] = oldCtx.LocInputFs[bindAddr]
+		ctx.LocInputFs[idx] = oldCtx.LocInputFs[oldIdx]
 		ctx.LocOutFs[idx] = oldCtx.LocOutFs[oldIdx]
 	}
 	return rpkt.HookFinish, nil
@@ -257,11 +256,10 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 		StopChan:      make(chan struct{}),
 		StoppedChan:   make(chan struct{}),
 	}
-	pif := &PosixInput{
+	ctx.LocInputFs[idx] = &PosixInput{
 		Args: args,
 		Func: readPosixInput,
 	}
-	ctx.LocInputFs[over.BindAddr().String()] = pif
 	// Add an output callback for the socket.
 	f := func(b common.RawBytes, dst *net.UDPAddr) (int, error) {
 		return over.Conn.WriteToUDP(b, dst)
