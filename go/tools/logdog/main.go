@@ -148,7 +148,8 @@ func entriesFromFile(fn string) LogEntries {
 		}
 		ts, err = time.Parse(ts_format, line[:entry_offset-1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s:%d: Could not parse timestamp %+v: %+v\n", fn, lineno, line[:entry_offset-1], err)
+			fmt.Fprintf(os.Stderr, "%s:%d: Could not parse timestamp %+v: %+v\n",
+				fn, lineno, line[:entry_offset-1], err)
 			continue
 		}
 		entries = append(entries, Logentry{
