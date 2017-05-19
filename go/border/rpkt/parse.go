@@ -18,7 +18,6 @@
 package rpkt
 
 import (
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -41,7 +40,7 @@ func (rp *RtrPkt) Parse() *common.Error {
 	if _, err := rp.DstIA(); err != nil {
 		return err
 	}
-	if *rp.dstIA == *conf.C.IA {
+	if *rp.dstIA == *rp.Ctx.Conf.IA {
 		// If the destination is local, parse the destination host as well.
 		if _, err := rp.DstHost(); err != nil {
 			return err
@@ -62,7 +61,7 @@ func (rp *RtrPkt) Parse() *common.Error {
 	if _, err := rp.IFNext(); err != nil {
 		return err
 	}
-	if *rp.dstIA != *conf.C.IA {
+	if *rp.dstIA != *rp.Ctx.Conf.IA {
 		// If the destination isn't local, parse the next interface ID as well.
 		if _, err := rp.IFNext(); err != nil {
 			return err
@@ -154,7 +153,7 @@ func (rp *RtrPkt) setDirTo() {
 		assert.Must(rp.DirFrom != DirUnset, rp.ErrStr("DirFrom must not be DirUnset."))
 		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil."))
 	}
-	if *rp.dstIA != *conf.C.IA {
+	if *rp.dstIA != *rp.Ctx.Conf.IA {
 		// Packet is not destined to the local AS, so it can't be DirSelf.
 		if rp.DirFrom == DirLocal {
 			rp.DirTo = DirExternal
@@ -166,12 +165,12 @@ func (rp *RtrPkt) setDirTo() {
 		return
 	}
 	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	var intfHost addr.HostAddr
 	if rp.DirFrom == DirExternal {
 		intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
 	} else {
-		intfHost = addr.HostFromIP(conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
+		intfHost = addr.HostFromIP(rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
 	}
 	if addr.HostEq(rp.dstHost, intfHost) {
 		rp.DirTo = DirSelf

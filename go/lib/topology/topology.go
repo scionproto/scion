@@ -101,28 +101,23 @@ const (
 	LinkPeer   = "PEER"
 )
 
-var Curr *TopoMeta
-
-func Load(path string) *common.Error {
+// Load returns a new TopoMeta object loaded from 'path'.
+func Load(path string) (*TopoMeta, *common.Error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return common.NewError(ErrorOpen, "err", err)
+		return nil, common.NewError(ErrorOpen, "err", err)
 	}
-	if err := Parse(b, path); err != nil {
-		return err
-	}
-	return nil
+	return parse(b, path)
 }
 
-func Parse(data []byte, path string) *common.Error {
+func parse(data []byte, path string) (*TopoMeta, *common.Error) {
 	tm := &TopoMeta{}
 	tm.IFMap = make(map[int]TopoBR)
 	if err := yaml.Unmarshal(data, &tm.T); err != nil {
-		return common.NewError(ErrorParse, "err", err, "path", path)
+		return nil, common.NewError(ErrorParse, "err", err, "path", path)
 	}
 	tm.populateMeta()
-	Curr = tm
-	return nil
+	return tm, nil
 }
 
 func (tm *TopoMeta) populateMeta() {

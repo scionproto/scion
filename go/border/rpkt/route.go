@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"net"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -70,12 +70,11 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 		return HookError, common.NewError("Destination host is NOT an SVC address",
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-
 	// Use any local output function in case the packet has no path (e.g., ifstate requests)
-	f := callbacks.locOutFs[0]
+	f := rp.Ctx.LocOutFs[0]
 	if rp.ifCurr != nil {
-		intf := conf.C.Net.IFs[*rp.ifCurr]
-		f = callbacks.locOutFs[intf.LocAddrIdx]
+		intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+		f := rp.Ctx.LocOutFs[intf.LocAddrIdx]
 	}
 	if svc.IsMulticast() {
 		return rp.RouteResolveSVCMulti(svc, f)
@@ -85,8 +84,9 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 
 // RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
 // a single instance of a local infrastructure service).
-func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
-	names, elemMap, err := getSVCNamesMap(svc)
+func (rp *RtrPkt) RouteResolveSVCAny(
+	svc addr.HostSVC, f rctx.OutputFunc) (HookResult, *common.Error) {
+	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
 	}
@@ -102,8 +102,9 @@ func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC, f OutputFunc) (HookResult
 // RouteResolveSVCMulti handles routing a packet to a multicast SVC address
 // (i.e. one packet per machine hosting instances for a local infrastructure
 // service).
-func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC, f OutputFunc) (HookResult, *common.Error) {
-	_, elemMap, err := getSVCNamesMap(svc)
+func (rp *RtrPkt) RouteResolveSVCMulti(
+	svc addr.HostSVC, f rctx.OutputFunc) (HookResult, *common.Error) {
+	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
 	}
@@ -142,15 +143,15 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 		return HookError, common.NewError(
 			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
-	if rp.dstIA.Eq(conf.C.IA) {
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
 			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
 				"hopF", rp.hopF)
 		}
 		dst := &net.UDPAddr{IP: rp.dstHost.IP(), Port: overlay.EndhostPort}
-		rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
+		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocOutFs[intf.LocAddrIdx], dst})
 		return HookContinue, nil
 	}
 	// If this is a cross-over Hop Field, increment the path.
@@ -164,9 +165,9 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	// Destination is in a remote ISD-AS, so forward to egress router.
 	// FIXME(kormat): this will need to change when multiple interfaces per
 	// router are supported.
-	nextBR := conf.C.TopoMeta.IFMap[int(*rp.ifNext)]
+	nextBR := rp.Ctx.Conf.TopoMeta.IFMap[int(*rp.ifNext)]
 	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
-	rp.Egress = append(rp.Egress, EgressPair{callbacks.locOutFs[intf.LocAddrIdx], dst})
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
 }
 
@@ -216,8 +217,8 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 		// If the segment didn't change, no more checks to make.
 		return nil
 	}
-	prevLink := conf.C.Net.IFs[origIFCurr].Type
-	nextLink := conf.C.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
+	prevLink := rp.Ctx.Conf.Net.IFs[origIFCurr].Type
+	nextLink := rp.Ctx.Conf.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
 	// Never allowed to switch between core segments.
 	if prevLink == topology.LinkCore && nextLink == topology.LinkCore {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
@@ -248,7 +249,7 @@ func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 			return HookError, err
 		}
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
-	rp.Egress = append(rp.Egress, EgressPair{callbacks.intfOutFs[*rp.ifCurr], intf.RemoteAddr})
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.IntfOutFs[*rp.ifCurr], intf.RemoteAddr})
 	return HookContinue, nil
 }
