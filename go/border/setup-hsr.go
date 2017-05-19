@@ -115,8 +115,8 @@ func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
 		return rpkt.HookContinue, nil
 	}
 	if oldCtx != nil {
-		if pif, ok := oldCtx.LocInputFs["hsr"]; ok {
-			ctx.LocInputFs["hsr"] = pif
+		if f, ok := oldCtx.LocInputFs[0]; ok {
+			ctx.LocInputFs[0] = f
 			return rpkt.HookContinue, nil
 		}
 	}
@@ -125,7 +125,7 @@ func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	ctx.LocInputFs["hsr"] = &HSRInput{
+	ctx.LocInputFs[0] = &HSRInput{
 		Router:      r,
 		StopChan:    make(chan struct{}),
 		StoppedChan: make(chan struct{}),

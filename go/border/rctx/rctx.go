@@ -56,7 +56,7 @@ type Ctx struct {
 	IntfOutFs map[spath.IntfID]OutputFunc
 	// IntInputFs is a slice of IOCtrl objects to stop the corresponding local
 	// input goroutines.
-	LocInputFs map[string]IOCtrl
+	LocInputFs map[int]IOCtrl
 	// ExtInputFs is a slice of IOCtrl objects to stop the corresponding external
 	// input goroutines.
 	ExtInputFs map[spath.IntfID]IOCtrl
@@ -67,7 +67,7 @@ func New(conf *conf.Conf) *Ctx {
 		Conf:       conf,
 		LocOutFs:   make(map[int]OutputFunc),
 		IntfOutFs:  make(map[spath.IntfID]OutputFunc),
-		LocInputFs: make(map[string]IOCtrl),
+		LocInputFs: make(map[int]IOCtrl),
 		ExtInputFs: make(map[spath.IntfID]IOCtrl),
 	}
 	return ctx
