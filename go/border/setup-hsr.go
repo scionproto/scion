@@ -53,7 +53,7 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router, ctx *rctx.Ctx, _ *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+func setupHSRNetStart(r *Router, _ *rctx.Ctx, _ *rctx.Ctx) (rpkt.HookResult, *common.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
@@ -125,12 +125,11 @@ func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	hi := &HSRInput{
+	ctx.LocInputFs["hsr"] = &HSRInput{
 		Router:      r,
 		StopChan:    make(chan struct{}),
 		StoppedChan: make(chan struct{}),
 		Func:        readHSRInput,
 	}
-	ctx.LocInputFs["hsr"] = hi
 	return rpkt.HookContinue, nil
 }

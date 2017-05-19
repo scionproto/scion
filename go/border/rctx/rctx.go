@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
@@ -92,10 +91,4 @@ func Set(newCtx *Ctx) {
 	ctxLock.Lock()
 	defer ctxLock.Unlock()
 	ctx = newCtx
-}
-
-// IA returns the ISD-AS of the router. This is shortcutted to avoid acquiring
-// locks, since the ISD-AS cannot change dynamically.
-func IA() *addr.ISD_AS {
-	return ctx.Conf.IA
 }

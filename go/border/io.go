@@ -33,8 +33,8 @@ import (
 
 // PosixInputFuncArgs defines the arguments needed by a PosixInputFunc.
 type PosixInputFuncArgs struct {
-	// Router is a reference to the main router object.
-	Router *Router
+	// ProcessPacket is the main packet processing routine.
+	ProcessPacket func(*rpkt.RtrPkt)
 	// Conn is the connection the input function is listening on.
 	Conn *net.UDPConn
 	// DirFrom is the direction of the incoming packets.
@@ -115,7 +115,7 @@ func readPosixInput(args *PosixInputFuncArgs) {
 			metrics.PktsRecv.With(args.Labels).Inc()
 			metrics.BytesRecv.With(args.Labels).Add(float64(length))
 			// TODO(kormat): experiment with performance by calling processPacket directly instead.
-			args.Router.processPacket(rp)
+			args.ProcessPacket(rp)
 			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 			// Reset rpkt buffer so it can be reused.
 			rp.Reset()
