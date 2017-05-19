@@ -664,10 +664,7 @@ class SCIONElement(object):
                 return self._empty_first_hop(dst)
             if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
-            br = self.ifid2br[if_id]
-            addr_idx = br.interfaces[if_id].addr_idx
-            br_addr, br_port = br.int_addrs[addr_idx].public[0]
-            return br_addr, br_port
+            return self.get_border_addr(if_id)
         logging.error("Unable to find first hop:\n%s", path)
         return None, None
 
@@ -1006,10 +1003,7 @@ class SCIONElement(object):
             SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
-        results = []
-        for srv in service_map[qname]:
-            for addr, port in srv.public:
-                results.append((addr, port))
+        results = [(srv.addr, srv.port) for srv in service_map[qname]]
         # FIXME(kormat): replace with new discovery service when that's ready.
         if not results:
             # No results from local toplogy either

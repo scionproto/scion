@@ -583,7 +583,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         memcpy(svc_key.host, buf + end - addr_len, addr_len);
         svc_key.addr = ntohs(*(uint16_t *)(buf + end));
         svc_key.isd_as = isd_as;
-        zlog_info(zc, "SVC for %s", addr_to_str(svc_key.host, type, NULL));
         zlog_info(zc, "SVC (%d) registration included", svc_key.addr);
         SVCEntry *se;
         HASH_FIND(hh, svc_list, &svc_key, sizeof(svc_key), se);
