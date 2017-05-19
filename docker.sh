@@ -7,7 +7,7 @@ image_tag=
 get_params() {
   # If we're on a local branch, use that. If we're on a detached HEAD from a
   # remote branch, or from a bare rev id, use that instead.
-  branch=$(git status | head -n1 |
+  branch=$(LC_ALL=C git status | head -n1 |
            awk '/^On branch|HEAD detached at/ {print $NF}')
   build_dir="docker/_build/$branch"
   image_tag=$(echo "$branch" | tr '/' '.')
