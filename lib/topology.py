@@ -41,18 +41,32 @@ class Element(object):
     :ivar HostAddrBase addr: Host address of a server or border router.
     :ivar str name: element name or id
     """
-    def __init__(self, addr=None, port=None, name=None):
+    def __init__(self, public=None, bind=None, name=None):
         """
-        :param str addr: (addr_type, address) of the element's Host address.
+        :param dict public:
+            ((addr_type, address), port) of the element's public address.
+            (i.e. the address visible to other network elements).
+        :param dict bind:
+            ((addr_type, address), port) of the element's bind address, if any
+            (i.e. the address the element uses to identify itself to the local
+            operating system, if it differs from the public address due to NAT).
         :param str name: element name or id
         """
-        self.addr = None
-        if addr:
-            self.addr = haddr_parse_interface(addr)
-        self.port = port
+        self.public = self._parse_addrs(public)
+        self.bind = self._parse_addrs(bind)
         self.name = None
         if name is not None:
             self.name = str(name)
+
+    def _parse_addrs(self, value):
+        if not value:
+            return []
+        addrs = []
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+        for val in value:
+            addrs.append((haddr_parse_interface(val['Addr']), val['L4Port']))
+        return addrs
 
 
 class ServerElement(Element):
@@ -62,7 +76,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict['Addr'], server_dict.get('Port'), name)
+        super().__init__(server_dict['Public'], server_dict.get('Bind'), name)
 
 
 class InterfaceElement(Element):
@@ -77,26 +91,27 @@ class InterfaceElement(Element):
         the port number receiving UDP traffic on the other end of the link.
     :ivar int udp_port: the port number used to send UDP traffic.
     """
-    def __init__(self, interface_dict, name=None):
+    def __init__(self, if_id, interface_dict, name=None):
         """
+        :pacam int if_id: interface id
         :param dict interface_dict: contains information about the interface.
         """
-        super().__init__(interface_dict['Addr'], name)
-        self.if_id = interface_dict['IFID']
+        self.if_id = int(if_id)
+        self.addr_idx = interface_dict['InternalAddrIdx']
         self.isd_as = ISD_AS(interface_dict['ISD_AS'])
         self.link_type = interface_dict['LinkType']
-        self.to_udp_port = interface_dict['ToUdpPort']
-        self.udp_port = interface_dict['UdpPort']
         self.bandwidth = interface_dict['Bandwidth']
         self.mtu = interface_dict['MTU']
-        to_addr = interface_dict['ToAddr']
-        self.to_addr = None
-        if to_addr:
-            self.to_addr = haddr_parse_interface(to_addr)
+        self.overlay = interface_dict['Overlay']
         self.to_if_id = 0  # Filled in later by IFID packets
+        self.remote = self._parse_addrs(interface_dict['Remote'])
+        super().__init__(interface_dict['Public'], interface_dict.get('Bind'), name)
+
+    def __lt__(self, other):  # pragma: no cover
+        return self.if_id < other.if_id
 
 
-class RouterElement(Element):
+class RouterElement(object):
     """
     The RouterElement class represents one of the border routers.
     """
@@ -105,11 +120,17 @@ class RouterElement(Element):
         :param dict router_dict: contains information about an border router.
         :param str name: router element name or id
         """
-        super().__init__(router_dict['Addr'], router_dict['Port'], name)
-        self.interface = InterfaceElement(router_dict['Interface'])
+        self.name = name
+        self.int_addrs = []
+        for addrs in router_dict['InternalAddrs']:
+            self.int_addrs.append(Element(public=addrs["Public"], bind=addrs.get("Bind")))
+        self.interfaces = {}
+        for if_id, intf in router_dict['Interfaces'].items():
+            if_id = int(if_id)
+            self.interfaces[if_id] = InterfaceElement(if_id, intf)
 
     def __lt__(self, other):  # pragma: no cover
-        return self.interface.if_id < other.interface.if_id
+        return self.name < other.name
 
 
 class Topology(object):
@@ -138,10 +159,11 @@ class Topology(object):
         self.certificate_servers = []
         self.path_servers = []
         self.sibra_servers = []
-        self.parent_border_routers = []
-        self.child_border_routers = []
-        self.peer_border_routers = []
-        self.core_border_routers = []
+        self.border_routers = []
+        self.parent_interfaces = []
+        self.child_interfaces = []
+        self.peer_interfaces = []
+        self.core_interfaces = []
         self.zookeepers = []
 
     @classmethod
@@ -175,16 +197,17 @@ class Topology(object):
         self.is_core_as = topology['Core']
         self.isd_as = ISD_AS(topology['ISD_AS'])
         self.mtu = topology['MTU']
+        self.overlay = topology['Overlay']
         self._parse_srv_dicts(topology)
         self._parse_router_dicts(topology)
         self._parse_zk_dicts(topology)
 
     def _parse_srv_dicts(self, topology):
         for type_, list_ in (
-            ("BeaconServers", self.beacon_servers),
-            ("CertificateServers", self.certificate_servers),
-            ("PathServers", self.path_servers),
-            ("SibraServers", self.sibra_servers),
+            ("BeaconService", self.beacon_servers),
+            ("CertificateService", self.certificate_servers),
+            ("PathService", self.path_servers),
+            ("SibraService", self.sibra_servers),
         ):
             for k, v in topology[type_].items():
                 list_.append(ServerElement(v, k))
@@ -192,40 +215,42 @@ class Topology(object):
     def _parse_router_dicts(self, topology):
         for k, v in topology['BorderRouters'].items():
             router = RouterElement(v, k)
-            ntype_map = {
-                LinkType.PARENT: self.parent_border_routers,
-                LinkType.CHILD: self.child_border_routers,
-                LinkType.PEER: self.peer_border_routers,
-                LinkType.CORE: self.core_border_routers,
-            }
-            ntype_map[router.interface.link_type].append(router)
+            self.border_routers.append(router)
+            for intf in router.interfaces.values():
+                ntype_map = {
+                    LinkType.PARENT: self.parent_interfaces,
+                    LinkType.CHILD: self.child_interfaces,
+                    LinkType.PEER: self.peer_interfaces,
+                    LinkType.CORE: self.core_interfaces,
+                }
+                ntype_map[intf.link_type].append(intf)
 
     def _parse_zk_dicts(self, topology):
-        for zk in topology['Zookeepers'].values():
+        for zk in topology['ZookeeperService'].values():
             haddr = haddr_parse_interface(zk['Addr'])
-            zk_host = "[%s]:%s" % (haddr, zk['Port'])
+            zk_host = "[%s]:%s" % (haddr, zk['L4Port'])
             self.zookeepers.append(zk_host)
 
-    def get_all_border_routers(self):
+    def get_all_interfaces(self):
         """
-        Return all border routers associated to the AS.
+        Return all border router interfaces associated to the AS.
 
-        :returns: all border routers associated to the AS.
+        :returns: all border router interfaces associated to the AS.
         :rtype: list
         """
-        all_border_routers = []
-        all_border_routers.extend(self.parent_border_routers)
-        all_border_routers.extend(self.child_border_routers)
-        all_border_routers.extend(self.peer_border_routers)
-        all_border_routers.extend(self.core_border_routers)
-        return all_border_routers
+        all_interfaces = []
+        all_interfaces.extend(self.parent_interfaces)
+        all_interfaces.extend(self.child_interfaces)
+        all_interfaces.extend(self.peer_interfaces)
+        all_interfaces.extend(self.core_interfaces)
+        return all_interfaces
 
     def get_own_config(self, server_type, server_id):
         type_map = {
             BEACON_SERVICE: self.beacon_servers,
             CERTIFICATE_SERVICE: self.certificate_servers,
             PATH_SERVICE: self.path_servers,
-            ROUTER_SERVICE: self.get_all_border_routers(),
+            ROUTER_SERVICE: self.border_routers,
             SIBRA_SERVICE: self.sibra_servers,
         }
         try:

@@ -184,15 +184,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         propagated_pcbs = defaultdict(list)
-        for r in self.topology.child_border_routers:
-            if not r.interface.to_if_id:
+        for intf in self.topology.child_interfaces:
+            if not intf.to_if_id:
                 continue
             new_pcb, meta = self._mk_prop_pcb_meta(
-                pcb.copy(), r.interface.isd_as, r.interface.if_id)
+                pcb.copy(), intf.isd_as, intf.if_id)
             if not new_pcb:
                 continue
             self.send_meta(new_pcb, meta)
-            propagated_pcbs[(r.interface.isd_as, r.interface.if_id)].append(pcb.short_id())
+            propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
         return propagated_pcbs
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
@@ -223,9 +223,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not if_id:
             return d
         br = self.ifid2br[if_id]
-        d["remote_ia"] = br.interface.isd_as
-        d["remote_if"] = br.interface.to_if_id
-        d["mtu"] = br.interface.mtu
+        d["remote_ia"] = br.interfaces[if_id].isd_as
+        d["remote_if"] = br.interfaces[if_id].to_if_id
+        d["mtu"] = br.interfaces[if_id].mtu
         return d
 
     @abstractmethod
@@ -330,8 +330,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not up_pcbm:
             return
         yield up_pcbm
-        for br in sorted(self.topology.peer_border_routers):
-            in_if = br.interface.if_id
+        for intf in sorted(self.topology.peer_interfaces):
+            in_if = intf.if_id
             with self.ifid_state_lock:
                 if (not self.ifid_state[in_if].is_active() and
                         not self._quiet_startup()):
@@ -383,7 +383,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
             br = self.ifid2br[ifid]
-            br.interface.to_if_id = pld.p.origIF
+            br.interfaces[ifid].to_if_id = pld.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
                 logging.info("IF %d activated", ifid)
@@ -396,10 +396,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     state_info = IFStateInfo.from_values(
                         ifid, True, self._get_ht_proof(ifid))
                     pld = IFStatePayload.from_values([state_info])
-                    for br in self.topology.get_all_border_routers():
-                        meta = UDPMetadata.from_values(host=br.addr,
-                                                       port=br.port)
-                        self.send_meta(pld.copy(), meta, (br.addr, br.port))
+                    for br in self.topology.border_routers:
+                        br_addr, br_port = br.int_addrs[0].public[0]
+                        meta = UDPMetadata.from_values(
+                            host=br_addr, port=br_port)
+                        self.send_meta(pld.copy(), meta, (br_addr, br_port))
 
     def run(self):
         """
@@ -563,9 +564,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])
-        for br in self.topology.get_all_border_routers():
-            meta = UDPMetadata.from_values(host=br.addr, port=br.port)
-            self.send_meta(pld.copy(), meta, (br.addr, br.port))
+        for br in self.topology.border_routers:
+            br_addr, br_port = br.int_addrs[0].public[0]
+            meta = UDPMetadata.from_values(host=br_addr, port=br_port)
+            self.send_meta(pld.copy(), meta, (br_addr, br_port))
         self._process_revocation(rev_info)
         self._send_rev_to_local_ps(rev_info)
 
@@ -613,10 +615,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not if_id:
             logging.error("Trying to revoke IF with ID 0.")
             return
-
         with self._rev_seg_lock:
             self.local_rev_cache[rev_info] = rev_info.copy()
-
         rev_token = rev_info.copy().pack()
         entry_name = "%s:%s" % (hash(rev_token), time.time())
         try:

@@ -96,11 +96,11 @@ class SibraServerBase(SCIONElement):
         self.zk.retry("Joining party", self.zk.party_setup)
 
     def _find_links(self):
-        for br in self.topology.get_all_border_routers():
-            iface = br.interface
-            self.link_states[iface.if_id] = SibraState(
-                iface.bandwidth, self.addr.isd_as)
-            self.link_types[iface.if_id] = iface.link_type
+        for br in self.topology.border_routers:
+            for ifid, intf in br.interfaces.items():
+                self.link_states[ifid] = SibraState(
+                    intf.bandwidth, self.addr.isd_as)
+                self.link_types[ifid] = intf.link_type
 
     def run(self):
         threading.Thread(
