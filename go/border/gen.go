@@ -47,12 +47,12 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
 	srcAddr *net.UDPAddr, pld *spkt.CtrlPld) *common.Error {
 	ctx := rctx.Get()
 	dirTo := rpkt.DirExternal
-	if dstIA.Eq(rctx.IA()) {
+	if dstIA.Eq(ctx.Conf.IA) {
 		dirTo = rpkt.DirLocal
 	}
 	// Create base packet
 	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: dstIA, SrcIA: rctx.IA(), DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(dstPort)},
 	}, dirTo, ctx)
 	if err != nil {
@@ -61,7 +61,7 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
 	if err = rp.SetPld(pld); err != nil {
 		return err
 	}
-	if dstIA.Eq(rctx.IA()) {
+	if dstIA.Eq(ctx.Conf.IA) {
 		if dstHost.Type() == addr.HostTypeSVC {
 			if _, err := rp.RouteResolveSVC(); err != nil {
 				return err
@@ -139,7 +139,7 @@ func (r *Router) genIFStateReq() {
 		log.Error("Unable to create IFStateReq struct", "err", cerr)
 		return
 	}
-	if err := r.genPkt(rctx.IA(), addr.SvcBS.Multicast(), 0, srcAddr,
+	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr,
 		&spkt.CtrlPld{SCION: scion}); err != nil {
 		log.Error("Error generating IFID packet", err.Ctx...)
 	}

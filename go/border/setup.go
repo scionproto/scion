@@ -73,14 +73,19 @@ func (r *Router) setup() *common.Error {
 		return err
 	}
 	// Setup new context.
-	if err = r.setupNewContext(config, true); err != nil {
+	if err = r.setupNewContext(config); err != nil {
+		return err
+	}
+	// Clear capabilities after setting up the network. Capabilities are currently
+	// only needed by the HSR for which the router never reconfigures the network.
+	if err := r.clearCapabilities(); err != nil {
 		return err
 	}
 	return nil
 }
 
-// loadCapabilities drops and immediately reloads the capabilities on startup.
-func (r *Router) loadCapabilities() *common.Error {
+// clearCapabilities drops unnecessary capabilities after startup
+func (r *Router) clearCapabilities() *common.Error {
 	caps, err := capability.NewPid(0)
 	if err != nil {
 		return common.NewError("Error retrieving capabilities", "err", err)
@@ -106,19 +111,13 @@ func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
 }
 
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(config *conf.Conf, loadCaps bool) *common.Error {
+func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
 	oldCtx := rctx.Get()
 	ctx := rctx.New(config)
 	if err := r.setupNet(ctx, oldCtx); err != nil {
 		return err
 	}
 	rctx.Set(ctx)
-	// Load capabilities
-	if loadCaps {
-		if err := r.loadCapabilities(); err != nil {
-			return err
-		}
-	}
 	// Start local input functions.
 	for _, f := range ctx.LocInputFs {
 		f.Start()
@@ -131,7 +130,8 @@ func (r *Router) setupNewContext(config *conf.Conf, loadCaps bool) *common.Error
 }
 
 // setupNet configures networking for the router, using any setup hooks that
-// have been registered.
+// have been registered. If an old context is provided, setupNet reconfigures
+// networking, e.g., starting/stopping new/old input routines if necessary.
 func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 	// Run startup hooks, if any.
 	for _, f := range setupNetStartHooks {
@@ -195,14 +195,14 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 	}
 	// Stop input functions that are no longer needed.
 	if oldCtx != nil {
-		for k, pif := range oldCtx.LocInputFs {
+		for k, f := range oldCtx.LocInputFs {
 			if _, ok := ctx.LocInputFs[k]; !ok {
-				pif.Stop()
+				f.Stop()
 			}
 		}
-		for k, pif := range oldCtx.ExtInputFs {
+		for k, f := range oldCtx.ExtInputFs {
 			if _, ok := ctx.ExtInputFs[k]; !ok {
-				pif.Stop()
+				f.Stop()
 			}
 		}
 	}
@@ -249,13 +249,13 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 	}
 	// Setup input goroutine.
 	args := &PosixInputFuncArgs{
-		Router:      r,
-		Conn:        over.Conn,
-		DirFrom:     rpkt.DirLocal,
-		Ifids:       ifids,
-		Labels:      labels,
-		StopChan:    make(chan struct{}),
-		StoppedChan: make(chan struct{}),
+		ProcessPacket: r.processPacket,
+		Conn:          over.Conn,
+		DirFrom:       rpkt.DirLocal,
+		Ifids:         ifids,
+		Labels:        labels,
+		StopChan:      make(chan struct{}),
+		StoppedChan:   make(chan struct{}),
 	}
 	pif := &PosixInput{
 		Args: args,
@@ -324,13 +324,13 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	}
 	// Setup input goroutine.
 	args := &PosixInputFuncArgs{
-		Router:      r,
-		Conn:        intf.IFAddr.Conn,
-		DirFrom:     rpkt.DirExternal,
-		Ifids:       []spath.IntfID{intf.Id},
-		Labels:      labels,
-		StopChan:    make(chan struct{}),
-		StoppedChan: make(chan struct{}),
+		ProcessPacket: r.processPacket,
+		Conn:          intf.IFAddr.Conn,
+		DirFrom:       rpkt.DirExternal,
+		Ifids:         []spath.IntfID{intf.Id},
+		Labels:        labels,
+		StopChan:      make(chan struct{}),
+		StoppedChan:   make(chan struct{}),
 	}
 	pif := &PosixInput{
 		Args: args,

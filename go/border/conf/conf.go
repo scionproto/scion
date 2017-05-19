@@ -27,10 +27,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/as_conf"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // Conf is the main config structure.
@@ -50,18 +48,6 @@ type Conf struct {
 	Net *netconf.NetConf
 	// Dir is the configuration directory.
 	Dir string
-	// IFStates is a map of interface IDs to interface states, protected by a RWMutex.
-	IFStates struct {
-		sync.RWMutex
-		M map[spath.IntfID]IFState
-	}
-}
-
-// IFState stores the IFStateInfo capnp message, as well as the raw revocation
-// info for a given interface.
-type IFState struct {
-	P      proto.IFStateInfo
-	RawRev common.RawBytes
 }
 
 // Load sets up the configuration, loading it from the supplied config directory.

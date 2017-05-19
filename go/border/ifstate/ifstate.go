@@ -24,16 +24,35 @@ package ifstate
 
 import (
 	"fmt"
+	"sync"
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/proto"
 )
+
+func init() {
+	S = &States{M: make(map[spath.IntfID]State)}
+}
+
+// States is a map of interface IDs to interface states, protected by a RWMutex.
+type States struct {
+	sync.RWMutex
+	M map[spath.IntfID]State
+}
+
+// State stores the IFStateInfo capnp message, as well as the raw revocation
+// info for a given interface.
+type State struct {
+	P      proto.IFStateInfo
+	RawRev common.RawBytes
+}
+
+// S contains the interface states.
+var S *States
 
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates proto.IFStateInfos) {
@@ -43,7 +62,7 @@ func Process(ifStates proto.IFStateInfos) {
 		return
 	}
 	// Convert IFState infos to map
-	m := make(map[spath.IntfID]conf.IFState, infos.Len())
+	m := make(map[spath.IntfID]State, infos.Len())
 	for i := 0; i < infos.Len(); i++ {
 		info := infos.At(i)
 		ifid := spath.IntfID(info.IfID())
@@ -57,7 +76,7 @@ func Process(ifStates proto.IFStateInfos) {
 			log.Error("Unable to pack RevInfo", err.Ctx...)
 			return
 		}
-		m[ifid] = conf.IFState{P: info, RawRev: rawRev}
+		m[ifid] = State{P: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
 		if info.Active() {
 			gauge.Set(1)
@@ -65,19 +84,17 @@ func Process(ifStates proto.IFStateInfos) {
 			gauge.Set(0)
 		}
 	}
-	ctx := rctx.Get()
-	// Lock local IFState config for writing, and replace existing map
-	ctx.Conf.IFStates.Lock()
-	ctx.Conf.IFStates.M = m
-	ctx.Conf.IFStates.Unlock()
+	// Lock IFState config for writing, and replace existing map
+	S.Lock()
+	S.M = m
+	S.Unlock()
 }
 
 // Activate updates the state of a single interface to active.
 func Activate(ifID spath.IntfID) *common.Error {
-	ctx := rctx.Get()
-	ctx.Conf.IFStates.Lock()
-	defer ctx.Conf.IFStates.Unlock()
-	ifState, ok := ctx.Conf.IFStates.M[ifID]
+	S.Lock()
+	defer S.Unlock()
+	ifState, ok := S.M[ifID]
 	if !ok {
 		return common.NewError("Trying to activate non-existing interface", "intf", ifID)
 	}

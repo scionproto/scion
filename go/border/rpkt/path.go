@@ -87,9 +87,9 @@ func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
 		return common.NewErrorData("Unknown IF", sdata, "ifid", ifid)
 	}
-	rp.Ctx.Conf.IFStates.RLock()
-	info, ok := rp.Ctx.Conf.IFStates.M[*ifid]
-	rp.Ctx.Conf.IFStates.RUnlock()
+	ifstate.S.RLock()
+	info, ok := ifstate.S.M[*ifid]
+	ifstate.S.RUnlock()
 	if !ok || info.P.Active() || rp.DirTo == DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
 		// router, in which case revocations are ignored to allow communication

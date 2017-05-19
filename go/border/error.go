@@ -59,7 +59,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 		return
 	}
 	// Certain errors are not respondable to if the source lies in a remote AS.
-	if !srcIA.Eq(rctx.IA()) {
+	if !srcIA.Eq(rp.Ctx.Conf.IA) {
 		switch sdata.CT.Class {
 		case scmp.C_CmnHdr:
 			switch sdata.CT.Type {
@@ -123,7 +123,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 		return nil, err
 	}
 	// Only (potentially) call IncPath if the dest is not in the local AS.
-	if !dstIA.Eq(rctx.IA()) {
+	if !dstIA.Eq(rp.Ctx.Conf.IA) {
 		hopF, err := reply.HopF()
 		if err != nil {
 			return nil, err
@@ -173,7 +173,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 		return nil, err
 	}
 	// Use the ingress address as the source host
-	sp.SrcIA = rctx.IA()
+	sp.SrcIA = rp.Ctx.Conf.IA
 	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
 	return sp, nil
 }

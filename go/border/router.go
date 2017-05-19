@@ -56,8 +56,8 @@ func (r *Router) Run() *common.Error {
 	go r.RevInfoFwd()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
-	done := make(chan struct{})
-	<-done
+	var wait chan struct{}
+	<-wait
 	return nil
 }
 
