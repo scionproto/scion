@@ -65,7 +65,7 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
 	inIF := o.rp.Ctx.Conf.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
 	hopF := spath.NewHopField(o.rp.Raw[o.rp.CmnHdr.CurrHopF:], inIF, 0)
-	hfmac := conf.C.HFMacPool.Get().(hash.Hash)
+	hfmac := o.rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)
 	o.rp.Ctx.Conf.HFMacPool.Put(hfmac)
 	if err != nil {
