@@ -1003,7 +1003,10 @@ class SCIONElement(object):
             SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
-        results = [(srv.addr, srv.port) for srv in service_map[qname]]
+        results = []
+        for srv in service_map[qname]:
+            addr, port = srv.public[0]
+            results.append((addr, port))
         # FIXME(kormat): replace with new discovery service when that's ready.
         if not results:
             # No results from local toplogy either
