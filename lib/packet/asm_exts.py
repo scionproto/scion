@@ -54,7 +54,7 @@ class RoutingPolicyExt(Cerealizable):
 
     def short_desc(self):
         a = []
-        a.append("RoutingPolicyExt extension: Policy type: %s, Interface: %s, ASes: " %
+        a.append("RoutingPolicyExt extension: Policy type: %s, Interface: %s, ASes:" %
                  (RoutingPolType.to_str(self.p.polType), self.p.ifID))
         for isd_as in self.p.isdases:
             a.append(" %s" % ISD_AS(isd_as))
