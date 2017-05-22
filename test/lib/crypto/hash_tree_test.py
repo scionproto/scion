@@ -43,7 +43,7 @@ class TestHashTreeCalcTreeDepth(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test_for_non2power(self, _):
         # Setup
-        inst = HashTree(ISD_AS("1-11"), "if_ids", "seed", HashType.SHA256)
+        inst = HashTree(ISD_AS("1-11"), "if_ids", "seed", 1, HashType.SHA256)
         # Call
         inst.calc_tree_depth(6)
         # Tests
@@ -54,7 +54,7 @@ class TestHashTreeCalcTreeDepth(object):
         # Setup
         if_ids = [1, 2, 3, 4]
         seed = b"abc"
-        inst = HashTree(ISD_AS("1-11"), if_ids, seed, HashType.SHA256)
+        inst = HashTree(ISD_AS("1-11"), if_ids, seed, 1, HashType.SHA256)
         # Call
         inst.calc_tree_depth(8)
         # Tests
@@ -65,6 +65,7 @@ class TestHashTreeCreateTree(object):
     """
     Unit test for lib.crypto.hash_tree.HashTree.create_tree
     """
+    @patch("lib.crypto.hash_tree.HASHTREE_N_EPOCHS", 1)
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     @patch("lib.crypto.hash_tree.hash_func_for_type", autospec=True)
     def test(self, hash_func_for_type, _):
@@ -75,8 +76,7 @@ class TestHashTreeCreateTree(object):
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300"]
         hash_func = create_mock_full(side_effect=hashes)
         hash_func_for_type.return_value = hash_func
-        inst = HashTree(isd_as, if_ids, b"s", HashType.SHA256)
-        inst._n_epochs = 1
+        inst = HashTree(isd_as, if_ids, b"s", 1, HashType.SHA256)
         inst._depth = 2
         # Call
         inst.create_tree(if_ids)
@@ -90,6 +90,7 @@ class TestHashTreeGetProof(object):
     """
     Unit test for lib.crypto.hash_tree.HashTree.get_proof
     """
+    @patch("lib.crypto.hash_tree.HASHTREE_N_EPOCHS", 1)
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     @patch("lib.crypto.hash_tree.hash_func_for_type", autospec=True)
     def test(self, hash_func_for_type, _):
@@ -100,8 +101,7 @@ class TestHashTreeGetProof(object):
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300", b"s20"]
         hash_func = create_mock_full(side_effect=hashes)
         hash_func_for_type.return_value = hash_func
-        inst = HashTree(isd_as, if_ids, b"s", HashType.SHA256)
-        inst._n_epochs = 1
+        inst = HashTree(isd_as, if_ids, b"s", 1, HashType.SHA256)
         inst._depth = 2
         inst.create_tree(if_ids)
         # Call
@@ -115,6 +115,7 @@ class TestHashTreeGetProof(object):
         ntools.eq_(proof.p.siblings[1].hash, b"30s300")
 
 
+@patch("lib.crypto.hash_tree.HASHTREE_N_EPOCHS", 1)
 class TestConnectedHashTreeUpdate(object):
     """
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.update
@@ -167,6 +168,18 @@ class TestConnectedHashTreeUpdateAndVerify(object):
     Unit tests for lib.crypto.hash_tree.ConnectedHashTree.verify
     used along with lib.crypto.hash_tree.ConnectedHashTree.update
     """
+    def test(self):
+        # Check that the revocation proof is verifiable in T.
+        isd_as = ISD_AS("1-11")
+        if_ids = [23, 35, 120]
+        initial_seed = b"qwerty"
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, HashType.SHA256)
+        root = inst.get_root()
+        # Call
+        proof = inst.get_proof(120)
+        # Tests
+        ntools.eq_(ConnectedHashTree.verify(proof, root), True)
+
     def test_one_timestep(self):
         # Check that the revocation proof is verifiable across T and T+1.
         # Setup
