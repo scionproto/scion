@@ -8,6 +8,7 @@ using CertMgmt = import "cert_mgmt.capnp";
 using IFID = import "ifid.capnp";
 using PathMgmt = import "path_mgmt.capnp";
 using SIBRA = import "sibra.capnp";
+using DRKeyMgmt = import "drkey_mgmt.capnp";
 
 struct SCION {
     union {
@@ -17,5 +18,6 @@ struct SCION {
         certMgmt @3 :CertMgmt.CertMgmt;
         pathMgmt @4 :PathMgmt.PathMgmt;
         sibra @5 :SIBRA.SibraPayload;
+        drkeyMgmt @6 :DRKeyMgmt.DRKeyMgmt;
     }
 }
