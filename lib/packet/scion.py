@@ -25,6 +25,7 @@ import capnp
 # SCION
 import proto.scion_capnp as P
 from lib.defines import MAX_HOPBYHOP_EXT, SCION_PROTO_VERSION
+from lib.drkey.drkey_mgmt import parse_drkeymgmt_payload
 from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
 from lib.packet.ext_hdr import ExtensionHeader
@@ -700,6 +701,7 @@ def msg_from_raw(raw):
         PayloadClass.CERT: parse_certmgmt_payload,
         PayloadClass.PATH: parse_pathmgmt_payload,
         PayloadClass.SIBRA: parse_sibra_payload,
+        PayloadClass.DRKEY: parse_drkeymgmt_payload,
     }
     handler = class_map.get(pld_class)
     if not handler:

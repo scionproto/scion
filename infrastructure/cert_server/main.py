@@ -17,21 +17,41 @@
 ========================================
 """
 # Stdlib
+import base64
+import datetime
 import logging
 import os
 import threading
 
 # External packages
+from nacl.public import PrivateKey
+from nacl.exceptions import CryptoError
 import time
 
 # SCION
 import lib.app.sciond as lib_sciond
 from endhost.sciond import SCIOND_API_SOCKDIR
+from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
+from lib.crypto.symcrypto import kdf
 from lib.defines import CERTIFICATE_SERVICE
+from lib.drkey.drkey_mgmt import (
+    DRKeyReply,
+    DRKeyRequest,
+)
+from lib.drkey.suite import (
+    decrypt_drkey,
+    drkey_signing_input_req,
+    get_drkey_reply,
+    get_drkey_request,
+    get_signing_input_rep,
+)
+from lib.drkey.types import DRKeySecretValue, DRKeyVerifyError, FirstOrderDRKey
+from lib.drkey.util import drkey_time, get_drkey_exp_time
+from lib.errors import SCIONVerificationError
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainReply,
@@ -43,15 +63,28 @@ from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
-from lib.types import CertMgmtType, PayloadClass
+from lib.types import (
+    CertMgmtType,
+    DRKeyMgmtType,
+    PayloadClass,
+)
 from lib.util import (
+    get_enc_key_file_path,
+    get_sig_key_file_path,
     SCIONTime,
     sleep_interval,
+    read_file,
 )
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
+
+API_TOUT = 1
+DRKEY_MAX_SV = 3
+DRKEY_MAX_TTL = datetime.timedelta(2).total_seconds()
+DRKEY_MAX_KEYS = 10**6
+DRKEY_REQUEST_TIMEOUT = 5
 
 
 API_TOUT = 1
@@ -66,6 +99,7 @@ class CertServer(SCIONElement):
     ZK_CC_CACHE_PATH = "cert_chain_cache"
     # ZK path for incoming TRCs
     ZK_TRC_CACHE_PATH = "trc_cache"
+    ZK_DRKEY_PATH = "drkey_cache"
 
     def __init__(self, server_id, conf_dir):
         """
@@ -79,6 +113,11 @@ class CertServer(SCIONElement):
         self.trc_requests = RequestHandler.start(
             "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
         )
+        self.drkey_protocol_requests = RequestHandler.start(
+            "DRKey Requests", self._check_drkey,
+            self._fetch_drkey, lambda x, y: None,  # Placeholder for future PR
+            key_map=lambda key, keys: [k for k in keys if k.tuple() == key.tuple()]
+        )
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.CERT: {
@@ -86,6 +125,12 @@ class CertServer(SCIONElement):
                 CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
                 CertMgmtType.TRC_REQ: self.process_trc_request,
                 CertMgmtType.TRC_REPLY: self.process_trc_reply,
+            },
+            PayloadClass.DRKEY: {
+                DRKeyMgmtType.FIRST_ORDER_REQUEST:
+                    self.process_drkey_request,
+                DRKeyMgmtType.FIRST_ORDER_REPLY:
+                    self.process_drkey_reply,
             },
         }
 
@@ -98,9 +143,19 @@ class CertServer(SCIONElement):
                                        self._cached_trcs_handler)
         self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
                                       self._cached_certs_handler)
+        self.drkey_cache = ZkSharedCache(self.zk, self.ZK_DRKEY_PATH,
+                                         self._chached_drkeys_handler)
+
+        sig_key_file = get_sig_key_file_path(self.conf_dir)
+        self.signing_key = base64.b64decode(read_file(sig_key_file))
+        enc_key_file = get_enc_key_file_path(self.conf_dir)
+        self.private_key = PrivateKey(base64.b64decode(read_file(enc_key_file)))
+        self.public_key = self.private_key.public_key
         self._api_addr = os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" %
                                       self.addr.isd_as)
         self._connector = lib_sciond.init(self._api_addr)
+        self.drkey_secrets = ExpiringDict(DRKEY_MAX_SV, DRKEY_MAX_TTL)
+        self.first_order_drkeys = ExpiringDict(DRKEY_MAX_KEYS, DRKEY_MAX_TTL)
 
     def worker(self):
         """
@@ -117,6 +172,7 @@ class CertServer(SCIONElement):
                 self.zk.wait_connected()
                 self.trc_cache.process()
                 self.cc_cache.process()
+                self.drkey_cache.process()
                 # Try to become a master.
                 ret = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
                 if ret:  # Either got the lock, or already had it.
@@ -124,6 +180,7 @@ class CertServer(SCIONElement):
                         logging.info("Became master")
                     self.trc_cache.expire(worker_cycle * 10)
                     self.cc_cache.expire(worker_cycle * 10)
+                    self.drkey_cache.expire(worker_cycle * 10)
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass
@@ -149,6 +206,11 @@ class CertServer(SCIONElement):
             self.process_cert_chain_reply(rep, None, from_zk=True)
         if len(raw_entries) > 0:
             logging.debug("Processed %s certs from ZK", len(raw_entries))
+
+    def _chached_drkeys_handler(self, raw_entries):
+        for raw in raw_entries:
+            msg = DRKeyReply.from_raw(raw)
+            self.process_drkey_reply(msg, None, from_zk=True)
 
     def _share_object(self, pld, is_trc):
         """
@@ -294,6 +356,182 @@ class CertServer(SCIONElement):
         trc = self.trust_store.get_trc(isd, ver)
         self.send_meta(TRCReply.from_values(trc), meta)
         logging.info("TRC for %sv%s sent to %s", isd, ver, meta)
+
+    def process_drkey_request(self, req, meta):
+        """
+        Process first order DRKey requests from other ASes.
+
+        :param DRKeyRequest req: the DRKey request
+        :param UDPMetadata meta: the metadata
+        """
+        assert isinstance(req, DRKeyRequest)
+        logging.info("DRKeyRequest received from ISD-AS %s", meta.ia)
+        try:
+            cert = self._verify_drkey_request(req, meta)
+        except DRKeyVerifyError as e:
+            logging.info("Invalid DRKeyRequest from %s. Reason: %s", meta.get_addr(), str(e))
+            return
+        sv = self._get_drkey_secret(get_drkey_exp_time(req.p.prefetch))
+        cert_ver = self.trust_store.get_cert(self.addr.isd_as).certs[0].version
+        trc_ver = self.trust_store.get_trc(self.addr.isd_as[0]).version
+        rep = get_drkey_reply(sv, self.addr.isd_as, meta.ia, self.private_key,
+                              self.signing_key, cert_ver, cert, trc_ver)
+        self.send_meta(rep, meta)
+        logging.info("DRKeyReply for %s sent to %s:%s", req.isd_as, meta.get_addr(), meta.port)
+
+    def _verify_drkey_request(self, req, meta):
+        """
+        Verify that the first order DRKey request is legit.
+        I.e. the signature is valid, the correct ISD AS is queried, timestamp is recent.
+
+        :param DRKeyRequest req: the first order DRKey request.
+        :param UDPMetadata meta: the metadata.
+        :returns Certificate of the requester.
+        :rtype: Certificate
+        :raises: DRKeyVerifyError
+        """
+        if self.addr.isd_as != req.isd_as:
+            raise DRKeyVerifyError("Request for other ISD-AS: %s" % req.isd_as)
+        if drkey_time() - req.p.timestamp > DRKEY_REQUEST_TIMEOUT:
+            raise DRKeyVerifyError("Expired request from %s. %ss old. Max %ss" % (
+                meta.ia, drkey_time() - req.p.timestamp, DRKEY_REQUEST_TIMEOUT))
+        trc = self.trust_store.get_trc(meta.ia[0])
+        chain = self.trust_store.get_cert(meta.ia, req.p.certVer)
+        error = None
+        if not chain:
+            self._fetch_cc((meta.ia, req.p.certVer), None)
+            error = DRKeyVerifyError(
+                "Certificate not present for %s(v: %s)" % (meta.ia, req.p.certVer))
+        if not trc:
+            self._fetch_trc((req.isd_as[0], req.p.trcVer), (None, req.isd_as[1]))
+            error = DRKeyVerifyError(
+                "TRC not present for %s(v: %s)" % (meta.ia[0], req.p.trcVer))
+        if error:
+            raise error
+        raw = drkey_signing_input_req(req.isd_as, req.p.prefetch, req.p.timestamp)
+        try:
+            verify_sig_chain_trc(raw, req.p.signature, str(meta.ia), chain, trc, req.p.trcVer)
+        except SCIONVerificationError as e:
+            raise DRKeyVerifyError(str(e))
+        return chain.certs[0]
+
+    def process_drkey_reply(self, rep, meta, from_zk=False):
+        """
+        Process first order DRKey reply from other ASes.
+
+        :param DRKeyReply rep: the received DRKey reply
+        :param UDPMetadata meta: the metadata
+        :param Bool from_zk: if the reply has been received from Zookeeper
+        """
+        assert isinstance(rep, DRKeyReply)
+        logging.info("DRKeyReply received from ISD-AS %s", rep.isd_as)
+        src = meta.get_addr() if meta else "zookeeper"
+
+        try:
+            cert = self._verify_drkey_reply(rep, meta)
+            raw = decrypt_drkey(rep.p.cipher, self.private_key, cert.subject_enc_key_raw)
+        except DRKeyVerifyError as e:
+            logging.info("Invalid DRKeyReply from %s: %s", src, str(e))
+            return
+        except CryptoError as e:
+            logging.info("Unable to decrypt DRKeyReply from %s: %s", src, str(e))
+            return
+        drkey = FirstOrderDRKey(rep.isd_as, self.addr.isd_as, rep.p.expTime, raw)
+        self.first_order_drkeys[drkey] = drkey
+        logging.debug("Insert key with expiration time %s, now is %s", rep.p.expTime, time.time())
+        if not from_zk:
+            pld_packed = rep.copy().pack()
+            try:
+                self.drkey_cache.store("%s-%s" % (rep.isd_as, rep.p.expTime),
+                                       pld_packed)
+            except ZkNoConnection:
+                logging.warning("Unable to store DRKey for %s in shared path: "
+                                "no connection to ZK" % rep.isd_as)
+                return
+            logging.debug("DRKey for %s stored in ZK." % rep.isd_as)
+        self.drkey_protocol_requests.put((drkey, None))
+
+    def _verify_drkey_reply(self, rep, meta):
+        """
+        Verify that the first order DRKey reply is legit.
+        I.e. the signature matches, timestamp is recent.
+
+        :param DRKeyReply rep: the first order DRKey reply.
+        :param UDPMetadata meta: the metadata.
+        :returns Certificate of the responder.
+        :rtype: Certificate
+        :raises: DRKeyVerifyError
+        """
+        if meta and meta.ia != rep.isd_as:
+            raise DRKeyVerifyError("Response from other ISD-AS: %s" % rep.isd_as)
+        if drkey_time() - rep.p.timestamp > DRKEY_REQUEST_TIMEOUT:
+            raise DRKeyVerifyError("Expired reply from %s. %ss old. Max %ss" % (
+                rep.isd_as, drkey_time() - rep.p.timestamp, DRKEY_REQUEST_TIMEOUT))
+        trc = self.trust_store.get_trc(rep.isd_as[0])
+        chain = self.trust_store.get_cert(rep.isd_as, rep.p.certVerSrc)
+        error = None
+        if not chain:
+            self._fetch_cc((rep.isd_as, rep.p.certVerSrc), None)
+            error = DRKeyVerifyError(
+                "Certificate not present for %s(v: %s)" % (rep.isd_as, rep.p.certVerSrc))
+        if not trc:
+            self._fetch_trc((rep.isd_as[0], rep.p.trcVerSrc), (None, rep.isd_as[1]))
+            error = DRKeyVerifyError(
+                "TRC not present for %s(v: %s)" % (rep.isd_as[0], rep.p.trcVerSrc))
+        if error:
+            raise error
+
+        raw = get_signing_input_rep(rep.isd_as, rep.p.timestamp, rep.p.expTime, rep.p.cipher)
+        try:
+            verify_sig_chain_trc(raw, rep.p.signature, str(rep.isd_as), chain, trc, rep.p.trcVerSrc)
+        except SCIONVerificationError as e:
+            raise DRKeyVerifyError(str(e))
+        return chain.certs[0]
+
+    def _check_drkey(self, drkey):
+        """
+        Check if first order DRKey with the same (SrcIA, DstIA, expTime)
+        is available.
+
+        :param FirstOrderDRKey drkey: the searched DRKey.
+        :returns: if the the first order DRKey is available.
+        :rtype: Bool
+        """
+        if drkey in self.first_order_drkeys:
+            return True
+        return False
+
+    def _fetch_drkey(self, drkey, _):
+        """
+        Fetch missing first order DRKey with the same (SrcIA, DstIA, expTime).
+
+        :param FirstOrderDRKey drkey: The missing DRKey.
+        """
+        cert_ver = self.trust_store.get_cert(self.addr.isd_as).certs[0].version
+        trc_ver = self.trust_store.get_trc(self.addr.isd_as[0]).version
+        req = get_drkey_request(drkey.src_ia, False, self.signing_key, cert_ver, trc_ver)
+        path_meta = self._get_path_via_api(drkey.src_ia)
+        if path_meta:
+            meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
+            self.send_meta(req, meta)
+            logging.info("DRKeyRequest sent to %s: %s", drkey.src_ia, req)
+        else:
+            logging.warning("DRKeyRequest (for %s) not sent",
+                            req.short_desc())
+
+    def _get_drkey_secret(self, exp_time):
+        """
+        Get the drkey secret. A new secret is initialized no secret is found.
+
+        :param int exp_time: expiration time of the drkey secret
+        :return: the according drkey secret
+        :rtype: DRKeySecretValue
+        """
+        sv = self.drkey_secrets.get(exp_time)
+        if not sv:
+            sv = DRKeySecretValue(kdf(self.config.master_as_key, b"Derive DRKey Key"), exp_time)
+            self.drkey_secrets[sv.exp_time] = sv
+        return sv
 
     def _get_path_via_api(self, isd_as, flush=False):
         flags = lib_sciond.PathRequestFlags(flush=flush)
