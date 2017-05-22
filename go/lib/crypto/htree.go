@@ -31,9 +31,9 @@ const HashTreeEpochTime = 10
 const HashTreeEpochTolerance float64 = 2.0
 
 // GetCurrentHashTreeEpoch returns the current epoch within a TTL window.
-func GetCurrentHashTreeEpoch() uint16 {
+func GetCurrentHashTreeEpoch() uint64 {
 	window := time.Now().Unix() % HashTreeTTL
-	return uint16(window / HashTreeEpochTime)
+	return uint64(window / HashTreeEpochTime)
 }
 
 // GetTimeSinceHashTreeEpoch returns the time (in s) since the start of the epoch.
@@ -43,7 +43,7 @@ func GetTimeSinceHashTreeEpoch() float64 {
 
 // VerifyHashTreeEpoch verifies a given hash tree epoch. An epoch is valid if it is
 // equal to the current epoch or within the tolerance limit of the next epoch.
-func VerifyHashTreeEpoch(epoch uint16) bool {
+func VerifyHashTreeEpoch(epoch uint64) bool {
 	currEpoch := GetCurrentHashTreeEpoch()
 	gapTime := GetTimeSinceHashTreeEpoch()
 	return (epoch == currEpoch ||
