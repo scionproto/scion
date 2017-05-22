@@ -519,6 +519,8 @@ class TopoGenerator(object):
     def _read_links(self):
         br_ids = defaultdict(int)
         if_ids = defaultdict(lambda: IFIDGenerator())
+        if not self.topo_config.get("links", None):
+            return
         for attrs in self.topo_config["links"]:
             # Pop the basic attributes, then append the remainder to the link
             # entry.
