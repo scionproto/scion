@@ -37,23 +37,23 @@ class HashTree(object):
     The used hash function needs to implement the hashlib interface.
     """
 
-    def __init__(self, isd_as, if_ids, seed, hash_type):
+    def __init__(self, isd_as, if_ids, seed, ttl_window, hash_type):
         """
         :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: List of interface IDs of the AS.
         :param str seed: Seed for creating hash-tree nonces.
+        :param int ttl_window: The TTL window for which this hash tree is valid.
         :param hash_type: Hash function type.
         """
         self._isd_as = isd_as
         self._seed = seed
-        self._n_epochs = HASHTREE_N_EPOCHS
+        self._ttl_window = ttl_window
         self._hash_type = hash_type
         self._hash_func = hash_func_for_type(hash_type)
-        print(self._hash_func)
         self._setup(if_ids)
 
     def _setup(self, if_ids):
-        self.calc_tree_depth(len(if_ids) * self._n_epochs)
+        self.calc_tree_depth(len(if_ids) * HASHTREE_N_EPOCHS)
         self.create_tree(if_ids)
 
     def calc_tree_depth(self, leaf_count):
@@ -92,14 +92,15 @@ class HashTree(object):
         self._if2idx = {}
         for if_id in if_ids:  # For given (if_id, epoch) leaves
             self._if2idx[if_id] = idx
-            for i in range(self._n_epochs):
+            for i in range(HASHTREE_N_EPOCHS):
                 raw_nonce = (self._seed + struct.pack("!qq", if_id, i))
                 nonce = self._hash_func(raw_nonce)
                 if_tuple = struct.pack("!qq", if_id, i) + nonce
                 self._nodes[idx] = self._hash_func(if_tuple)
                 idx = idx + 1
+        null_hash = self._hash_func(b"0")
         while idx < node_count:  # For extra leaves added to complete tree
-            self._nodes[idx] = self._hash_func(b"0")
+            self._nodes[idx] = null_hash
             idx = idx + 1
 
         # Compute and fill in the hash values for internal nodes (bottom up).
@@ -117,13 +118,14 @@ class HashTree(object):
         :param bytes next_root: hash of the next root.
         """
         assert if_id in self._if2idx.keys(), "if_id not found in AS"
+        relative_epoch = epoch % HASHTREE_N_EPOCHS
         # Obtain the nonce for the (if_id, epoch) pair using the seed.
-        raw_nonce = self._seed + struct.pack("!qq", if_id, epoch)
+        raw_nonce = self._seed + struct.pack("!qq", if_id, relative_epoch)
         nonce = self._hash_func(raw_nonce)
 
         # Obtain the sibling hashes along with their left/right position info.
         siblings = []
-        idx = self._if2idx[if_id] + epoch
+        idx = self._if2idx[if_id] + relative_epoch
         while idx > 0:
             if idx % 2 == 0:
                 siblings.append((True, self._nodes[idx - 1]))
@@ -161,18 +163,16 @@ class ConnectedHashTree(object):
 
         self._hash_func = hash_func_for_type(hash_type)
         self._ht0_root = self._hash_func(str(seed1).encode('utf-8'))
-        self._ht1 = HashTree(isd_as, if_ids, seed2, hash_type)
-        self._ht2 = HashTree(isd_as, if_ids, seed3, hash_type)
+        self._ht1 = HashTree(isd_as, if_ids, seed2, ttl_window, hash_type)
+        self._ht2 = HashTree(isd_as, if_ids, seed3, ttl_window + 1, hash_type)
 
     @classmethod
     def get_ttl_window(cls):
-        cur_time = int(time.time())
-        return cur_time // HASHTREE_TTL
+        return int(time.time()) // HASHTREE_TTL
 
     @classmethod
     def get_current_epoch(cls):
-        cur_window = int(time.time()) % HASHTREE_TTL
-        return cur_window // HASHTREE_EPOCH_TIME
+        return int(time.time()) // HASHTREE_EPOCH_TIME
 
     @classmethod
     def get_time_since_epoch(cls):
@@ -188,8 +188,9 @@ class ConnectedHashTree(object):
 
     @classmethod
     def get_next_tree(cls, isd_as, if_ids, seed, hash_type):
-        seed += (cls.get_ttl_window() + 2).to_bytes(8, 'big')
-        return HashTree(isd_as, if_ids, seed, hash_type)
+        ttl_window = cls.get_ttl_window() + 2
+        seed += ttl_window.to_bytes(8, 'big')
+        return HashTree(isd_as, if_ids, seed, ttl_window, hash_type)
 
     def update(self, next_tree):
         self._ht0_root = self._ht1._nodes[0]
@@ -219,7 +220,8 @@ class ConnectedHashTree(object):
         proof = rev_info.p
         hash_func = hash_func_for_type(proof.hashType)
         # Calculate the hashes upwards till the tree root (of T).
-        if_tuple = struct.pack("!qq", proof.ifID, proof.epoch) + proof.nonce
+        relative_epoch = proof.epoch % HASHTREE_N_EPOCHS
+        if_tuple = struct.pack("!qq", proof.ifID, relative_epoch) + proof.nonce
         curr_hash = hash_func(if_tuple)
 
         for i in range(len(proof.siblings)):
