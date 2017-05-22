@@ -18,13 +18,10 @@ package rpkt
 
 import (
 	"fmt"
-
-	//log "github.com/inconshreveable/log15"
-
 	"net"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/ifstate"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -41,7 +38,7 @@ const (
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
-	if *rp.dstIA != *conf.C.IA {
+	if *rp.dstIA != *rp.Ctx.Conf.IA {
 		// Packet isn't to this ISD-AS, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
@@ -54,9 +51,9 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	// Check to see if the destination IP is the address the packet was received
 	// on.
 	dstIP := rp.dstHost.IP()
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	extPub := intf.IFAddr.PublicAddr()
-	locPub := conf.C.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
+	locPub := rp.Ctx.Conf.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
 	if rp.DirFrom == DirExternal && extPub.IP.Equal(dstIP) {
 		return rp.isDestSelf(extPub)
 	} else if rp.DirFrom == DirLocal && locPub.IP.Equal(dstIP) {
@@ -152,14 +149,14 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 	if err := rp.SetPld(rp.pld); err != nil {
 		return HookError, err
 	}
-	intf := conf.C.Net.IFs[*rp.ifCurr]
-	srcAddr := conf.C.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+	srcAddr := rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
-		DstIA: conf.C.IA, SrcIA: conf.C.IA,
+		DstIA: rp.Ctx.Conf.IA, SrcIA: rp.Ctx.Conf.IA,
 		DstHost: addr.SvcBS.Multicast(), SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
-	}, DirLocal)
+	}, DirLocal, rp.Ctx)
 	if err != nil {
 		return HookError, err
 	}
@@ -202,13 +199,13 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 		var args RevTokenCallbackArgs
 		pld := rp.pld.(*scmp.Payload)
 		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
-		if rp.srcIA.I == topology.Curr.T.IA.I && rp.isDownstreamRouter() {
+		if rp.srcIA.I == rp.Ctx.Conf.IA.I && rp.isDownstreamRouter() {
 			// Forward to PS and BS if router is downstream of the failed interface.
 			args.Addrs = append(args.Addrs, addr.SvcBS)
-			if len(topology.Curr.T.PS) > 0 {
+			if len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
 				args.Addrs = append(args.Addrs, addr.SvcPS)
 			}
-		} else if rp.dstIA.Eq(topology.Curr.T.IA) && len(topology.Curr.T.PS) > 0 {
+		} else if rp.dstIA.Eq(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
 			// Forward to PS if we are in the AS of the destination.
 			args.Addrs = append(args.Addrs, addr.SvcPS)
 		}
@@ -224,14 +221,15 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 }
 
 func (rp *RtrPkt) isDownstreamRouter() bool {
-	intf := conf.C.Net.IFs[*rp.ifCurr]
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	return intf.Type == "PARENT"
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given
 // SVC address.
-func getSVCNamesMap(svc addr.HostSVC) ([]string, map[string]topology.BasicElem, *common.Error) {
-	tm := conf.C.TopoMeta
+func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
+	[]string, map[string]topology.BasicElem, *common.Error) {
+	tm := ctx.Conf.TopoMeta
 	var names []string
 	var elemMap map[string]topology.BasicElem
 	switch svc.Base() {

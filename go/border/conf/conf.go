@@ -27,10 +27,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/as_conf"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // Conf is the main config structure.
@@ -50,46 +48,30 @@ type Conf struct {
 	Net *netconf.NetConf
 	// Dir is the configuration directory.
 	Dir string
-	// IFStates is a map of interface IDs to interface states, protected by a RWMutex.
-	IFStates struct {
-		sync.RWMutex
-		M map[spath.IntfID]IFState
-	}
 }
-
-// IFState stores the IFStateInfo capnp message, as well as the raw revocation
-// info for a given interface.
-type IFState struct {
-	P      proto.IFStateInfo
-	RawRev common.RawBytes
-}
-
-// C is a pointer to the current configuration.
-var C *Conf
 
 // Load sets up the configuration, loading it from the supplied config directory.
-func Load(id, confDir string) *common.Error {
+func Load(id, confDir string) (*Conf, *common.Error) {
 	var err *common.Error
 
 	// Declare a new Conf instance, and load the topology config.
 	conf := &Conf{}
 	conf.Dir = confDir
 	topoPath := filepath.Join(conf.Dir, topology.CfgName)
-	if err = topology.Load(topoPath); err != nil {
-		return err
+	if conf.TopoMeta, err = topology.Load(topoPath); err != nil {
+		return nil, err
 	}
-	conf.TopoMeta = topology.Curr
 	conf.IA = conf.TopoMeta.T.IA
 	// Find the config for this router.
 	topoBR, ok := conf.TopoMeta.T.BR[id]
 	if !ok {
-		return common.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
+		return nil, common.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
 	}
 	conf.BR = &topoBR
 	// Load AS configuration
 	asConfPath := filepath.Join(conf.Dir, as_conf.CfgName)
 	if err = as_conf.Load(asConfPath); err != nil {
-		return err
+		return nil, err
 	}
 	conf.ASConf = as_conf.CurrConf
 
@@ -100,7 +82,7 @@ func Load(id, confDir string) *common.Error {
 
 	// First check for MAC creation errors.
 	if _, err = util.InitMac(hfGenKey); err != nil {
-		return err
+		return nil, err
 	}
 	// Create a pool of MAC instances.
 	conf.HFMacPool = sync.Pool{
@@ -113,6 +95,5 @@ func Load(id, confDir string) *common.Error {
 	// Create network configuration
 	conf.Net = netconf.FromTopo(conf.BR)
 	// Save config
-	C = conf
-	return nil
+	return conf, nil
 }

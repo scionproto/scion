@@ -17,10 +17,16 @@
 package metrics
 
 import (
+	"io"
+	"net"
 	"net/http"
+
+	log "github.com/inconshreveable/log15"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 // Declare prometheus metrics to export.
@@ -127,11 +133,58 @@ func init() {
 	prometheus.MustRegister(OutputProcessTime)
 }
 
-// Export accepts a slice of addresses in the form of "ip:port", and exports
-// promethetus metrics on each address over http.
-func Export(addresses []string) {
+var servers map[string]io.Closer
+
+func init() {
+	servers = make(map[string]io.Closer)
 	http.Handle("/metrics", promhttp.Handler())
+}
+
+// Export accepts a slice of addresses in the form of "ip:port", and exports
+// promethetus metrics on each address over http (if not done so already). It also
+// stops exporting metrics on addresses that are not used anymore.
+func Export(addresses []string) {
+	newServers := make(map[string]io.Closer)
 	for _, addr := range addresses {
-		go http.ListenAndServe(addr, nil)
+		if _, ok := servers[addr]; ok {
+			newServers[addr] = servers[addr]
+			delete(servers, addr)
+			continue // Exporter already running on this address
+		}
+		// Run new exporter on addr.
+		log.Info("Exporting metrics", "addr", addr)
+		var closer io.Closer
+		var err *common.Error
+		if closer, err = listenAndServeWithClose(addr); err != nil {
+			log.Error(err.String())
+			continue
+		}
+		newServers[addr] = closer
 	}
+	// Stop exporting metrics on non-exported addresses.
+	for addr, closer := range servers {
+		log.Info("Stop exporting metrics", "addr", addr)
+		closer.Close()
+	}
+	servers = newServers
+}
+
+func listenAndServeWithClose(addr string) (io.Closer, *common.Error) {
+	var listener net.Listener
+	var err error
+
+	srv := &http.Server{Addr: addr}
+	listener, err = net.Listen("tcp", addr)
+	if err != nil {
+		return nil, common.NewError("Error setting up http server",
+			"addr", addr, "err", err.Error())
+	}
+	go func() {
+		err := srv.Serve(listener)
+		if err != nil {
+			log.Error("HTTP Server Error - ", "err", err)
+		}
+	}()
+
+	return listener, nil
 }

@@ -29,9 +29,9 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/hsr"
 	"github.com/netsec-ethz/scion/go/border/netconf"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
@@ -46,6 +46,8 @@ var (
 	hsrAddrMs []hsr.AddrMeta
 )
 
+const HSRInputFIdx int = -1
+
 func init() {
 	setupNetStartHooks = append(setupNetStartHooks, setupHSRNetStart)
 	setupAddLocalHooks = append(setupAddLocalHooks, setupHSRAddLocal)
@@ -53,58 +55,83 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router) (rpkt.HookResult, *common.Error) {
+func setupHSRNetStart(r *Router, _ *rctx.Ctx, _ *rctx.Ctx) (rpkt.HookResult, *common.Error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
 	return rpkt.HookContinue, nil
 }
 
-func setupHSRAddLocal(r *Router, idx int, over *overlay.UDP,
-	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
+func setupHSRAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
+	// Check if there is already an output function for this index.
+	if oldCtx != nil {
+		if outf, ok := oldCtx.LocOutFs[idx]; ok {
+			ctx.LocOutFs[idx] = outf
+			return rpkt.HookFinish, nil
+		}
+	}
+
 	var ifids []spath.IntfID
-	for _, intf := range conf.C.Net.IFs {
+	for _, intf := range ctx.Conf.Net.IFs {
 		if intf.LocAddrIdx == idx {
 			ifids = append(ifids, intf.Id)
 		}
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{GoAddr: bind,
 		DirFrom: rpkt.DirLocal, IfIDs: ifids, Labels: labels})
-	r.locOutFs[idx] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
-		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
+	ctx.LocOutFs[idx] = func(oo rctx.OutputObj, dst *net.UDPAddr) {
+		writeHSROutput(oo, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRAddExt(r *Router, intf *netconf.Interface,
-	labels prometheus.Labels) (rpkt.HookResult, *common.Error) {
+func setupHSRAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
 	}
+	// Check if there is already an output function for this index.
+	if oldCtx != nil {
+		if outf, ok := oldCtx.IntfOutFs[intf.Id]; ok {
+			ctx.IntfOutFs[intf.Id] = outf
+			return rpkt.HookFinish, nil
+		}
+	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
 		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
-	r.intfOutFs[intf.Id] = func(rp *rpkt.RtrPkt, dst *net.UDPAddr) {
-		r.writeHSROutput(rp, dst, len(hsrAddrMs)-1, labels)
+	ctx.IntfOutFs[intf.Id] = func(oo rctx.OutputObj, dst *net.UDPAddr) {
+		writeHSROutput(oo, dst, len(hsrAddrMs)-1, labels)
 	}
 	return rpkt.HookFinish, nil
 }
 
-func setupHSRNetFinish(r *Router) (rpkt.HookResult, *common.Error) {
+func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
+	oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}
-	err := hsr.Init(filepath.Join(conf.C.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
+	if oldCtx != nil {
+		if f, ok := oldCtx.LocInputFs[HSRInputFIdx]; ok {
+			ctx.LocInputFs[HSRInputFIdx] = f
+			return rpkt.HookContinue, nil
+		}
+	}
+	err := hsr.Init(filepath.Join(ctx.Conf.Dir, fmt.Sprintf("%s.zlog.conf", r.Id)),
 		flag.Args(), hsrAddrMs)
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	q := make(chan *rpkt.RtrPkt)
-	r.inQs = append(r.inQs, q)
-	go r.readHSRInput(q)
+	ctx.LocInputFs[HSRInputFIdx] = &HSRInput{
+		Router:      r,
+		StopChan:    make(chan struct{}),
+		StoppedChan: make(chan struct{}),
+		Func:        readHSRInput,
+	}
 	return rpkt.HookContinue, nil
 }
