@@ -178,3 +178,10 @@ class SCIONDMsgType(TypeBase):
     IF_REPLY = "ifInfoReply"
     SERVICE_REQUEST = "serviceInfoRequest"
     SERVICE_REPLY = "serviceInfoReply"
+
+
+#######################
+# Hash function types
+#######################
+class HashType(TypeBase):
+    SHA256 = 0

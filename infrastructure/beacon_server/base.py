@@ -70,6 +70,7 @@ from lib.path_store import PathPolicy
 from lib.thread import thread_safety_net, kill_self
 from lib.types import (
     CertMgmtType,
+    HashType,
     PathMgmtType as PMT,
     PayloadClass,
 )
@@ -165,8 +166,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
-        self._hash_tree = ConnectedHashTree(self.addr.isd_as,
-                                            ifs, self.hashtree_gen_key)
+        self._hash_tree = ConnectedHashTree(
+            self.addr.isd_as, ifs, self.hashtree_gen_key, HashType.SHA256)
 
     def _get_ht_proof(self, if_id):
         with self._hash_tree_lock:
@@ -439,8 +440,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             ht_start = time.time()
             ifs = list(self.ifid2br.keys())
-            tree = ConnectedHashTree.get_next_tree(self.addr.isd_as, ifs,
-                                                   self.hashtree_gen_key)
+            tree = ConnectedHashTree.get_next_tree(
+                self.addr.isd_as, ifs, self.hashtree_gen_key, HashType.SHA256)
             ht_end = time.time()
             with self._hash_tree_lock:
                 self._next_tree = tree
