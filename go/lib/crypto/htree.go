@@ -18,27 +18,29 @@ import (
 	"time"
 )
 
-// HashTreeTTL is the TTL of one hash tree (in seconds).
-// FIXME(shitz): This should really be matching spath.MaxTTL, but more importantly,
-// it needs to match the hash tree ttl used by the BS, which is currently set to 30 mins.
-const HashTreeTTL = 30 * 60
+const (
+	// HashTreeTTL is the TTL of one hash tree (in seconds).
+	// FIXME(shitz): This should really be matching spath.MaxTTL, but more importantly,
+	// it needs to match the hash tree ttl used by the BS, which is currently set to 30 mins.
+	HashTreeTTL = 30 * 60 * time.Second
 
-// HashTreeEpochTime is the duration of one epoch (in seconds).
-const HashTreeEpochTime = 10
+	// HashTreeEpochTime is the duration of one epoch (in seconds).
+	HashTreeEpochTime = 10 * time.Second
 
-// HashTreeEpochTolerance is the duration after a revocation expired within which a
-// revocation is still accepted by a verifier.
-const HashTreeEpochTolerance float64 = 2.0
+	// HashTreeEpochTolerance is the duration after a revocation expired within which a
+	// revocation is still accepted by a verifier.
+	HashTreeEpochTolerance = 2 * time.Second
+)
 
-// GetCurrentHashTreeEpoch returns the current epoch within a TTL window.
+// GetCurrentHashTreeEpoch returns the current epoch ID.
 func GetCurrentHashTreeEpoch() uint64 {
-	window := time.Now().Unix() % HashTreeTTL
-	return uint64(window / HashTreeEpochTime)
+	return uint64(time.Now().Unix() / int64(HashTreeEpochTime.Seconds()))
 }
 
-// GetTimeSinceHashTreeEpoch returns the time (in s) since the start of the epoch.
-func GetTimeSinceHashTreeEpoch() float64 {
-	return float64(time.Now().UnixNano()%HashTreeEpochTime) / 1e9
+// GetTimeSinceHashTreeEpoch returns the time since the start of the current epoch.
+func GetTimeSinceHashTreeEpoch() time.Duration {
+	nanoSecs := time.Now().UnixNano() % HashTreeEpochTime.Nanoseconds()
+	return time.Unix(0, nanoSecs).Sub(time.Unix(0, 0))
 }
 
 // VerifyHashTreeEpoch verifies a given hash tree epoch. An epoch is valid if it is
