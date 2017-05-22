@@ -139,7 +139,7 @@ func entriesFromFile(fn string) LogEntries {
 			if len(entries) == 0 {
 				continue
 			}
-			entries[len(entries)-1].Entry += fmt.Sprintf("%s %s", indent, line)
+			entries[len(entries)-1].Entry += fmt.Sprintf("\n%s %s", indent, line)
 			continue
 		}
 		if len(line) < entry_offset-1 {
