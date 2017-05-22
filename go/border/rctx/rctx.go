@@ -50,12 +50,14 @@ type Ctx struct {
 	// LocOutFs is a slice of functions for sending packets to local
 	// destinations (i.e. within the local ISD-AS), indexed by the local
 	// address id.
+	// TODO(shitz): Change this to be a slice.
 	LocOutFs map[int]OutputFunc
 	// IntfOutFs is a slice of functions for sending packets to neighbouring
 	// ISD-ASes, indexed by the interface ID of the relevant link.
 	IntfOutFs map[spath.IntfID]OutputFunc
 	// IntInputFs is a slice of IOCtrl objects to stop the corresponding local
 	// input goroutines.
+	// TODO(shitz): Changes this to be a slice.
 	LocInputFs map[int]IOCtrl
 	// ExtInputFs is a slice of IOCtrl objects to stop the corresponding external
 	// input goroutines.

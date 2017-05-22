@@ -46,6 +46,8 @@ var (
 	hsrAddrMs []hsr.AddrMeta
 )
 
+const HSRInputFIdx int = -1
+
 func init() {
 	setupNetStartHooks = append(setupNetStartHooks, setupHSRNetStart)
 	setupAddLocalHooks = append(setupAddLocalHooks, setupHSRAddLocal)
@@ -115,8 +117,8 @@ func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
 		return rpkt.HookContinue, nil
 	}
 	if oldCtx != nil {
-		if f, ok := oldCtx.LocInputFs[0]; ok {
-			ctx.LocInputFs[0] = f
+		if f, ok := oldCtx.LocInputFs[HSRInputFIdx]; ok {
+			ctx.LocInputFs[HSRInputFIdx] = f
 			return rpkt.HookContinue, nil
 		}
 	}
@@ -125,7 +127,7 @@ func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
 	if err != nil {
 		return rpkt.HookError, err
 	}
-	ctx.LocInputFs[0] = &HSRInput{
+	ctx.LocInputFs[HSRInputFIdx] = &HSRInput{
 		Router:      r,
 		StopChan:    make(chan struct{}),
 		StoppedChan: make(chan struct{}),
