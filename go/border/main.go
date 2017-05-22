@@ -26,6 +26,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/profile"
 )
@@ -55,6 +56,11 @@ func main() {
 		log.Crit("Startup failed", err.Ctx...)
 		liblog.Flush()
 		os.Exit(1)
+	}
+	if assert.On {
+		log.Info("Router was built with assertions ON.")
+	} else {
+		log.Info("Router was built with assertions OFF.")
 	}
 	log.Info("Starting up", "id", *id)
 	if err := r.Run(); err != nil {
