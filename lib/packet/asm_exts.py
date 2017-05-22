@@ -20,7 +20,8 @@
 import proto.asm_exts_capnp as P
 from lib.errors import SCIONSigVerError
 from lib.packet.packet_base import Cerealizable
-from lib.types import ASMExtType
+from lib.packet.scion_addr import ISD_AS
+from lib.types import ASMExtType, RoutingPolType
 
 
 class RoutingPolicyExt(Cerealizable):
@@ -53,8 +54,8 @@ class RoutingPolicyExt(Cerealizable):
 
     def short_desc(self):
         a = []
-        a.append("RoutingPolicyExt extension: Policy type: %s, Interface: %s" %
-                 (self.p.polType, self.p.ifID))
+        a.append("RoutingPolicyExt extension: Policy type: %s, Interface: %s, ASes: " %
+                 (RoutingPolType.to_str(self.p.polType), self.p.ifID))
         for isd_as in self.p.isdases:
-            a.append(" %s" % isd_as)
+            a.append(" %s" % ISD_AS(isd_as))
         return "\n".join(a)
