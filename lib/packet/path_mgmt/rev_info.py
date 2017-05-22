@@ -67,9 +67,9 @@ class RevocationInfo(PathMgmtPayloadBase):
 
     def cmp_str(self):
         b = []
-        b.append(self.p.isdas.to_bytes(8, 'big'))
+        b.append(self.p.isdas.to_bytes(4, 'big'))
         b.append(self.p.ifID.to_bytes(8, 'big'))
-        b.append(self.p.epoch.to_bytes(2, 'big'))
+        b.append(self.p.epoch.to_bytes(8, 'big'))
         b.append(self.p.nonce)
         return b"".join(b)
 
