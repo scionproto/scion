@@ -16,12 +16,16 @@
 =====================================================
 """
 # Stdlib
-from hashlib import pbkdf2_hmac, sha256
+import hashlib
 
 # External packages
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
 from cryptography.hazmat.primitives.cmac import CMAC
+
+# SCION
+from lib.errors import SCIONTypeError
+from lib.types import HashType
 
 
 def mac(key, msg):
@@ -52,13 +56,26 @@ def kdf(secret, phrase):
     """
     Default key derivation function.
     """
-    return pbkdf2_hmac('sha256', secret, phrase, 1000)[:16]
+    return hashlib.pbkdf2_hmac('sha256', secret, phrase, 1000)[:16]
 
 
-def crypto_hash(data):
+def sha256(data):
     """
     Default hash function.
     """
-    digest = sha256()
+    digest = hashlib.sha256()
     digest.update(data)
     return digest.digest()
+
+
+# Default hash function
+crypto_hash = sha256
+
+
+def hash_func_for_type(type):
+    """
+    Returns a callable corresponding to 'type'.
+    """
+    if type == HashType.SHA256:
+        return sha256
+    raise SCIONTypeError("Unknown hash function type.")
