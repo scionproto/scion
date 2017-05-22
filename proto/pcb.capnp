@@ -25,7 +25,7 @@ struct ASMarking {
     sig @6 :Data;
     mtu @7 :UInt16;  # Internal MTU
     exts :group {
-        policy @8 :Exts.RoutingPolicyExt;
+        routingPolicy @8 :Exts.RoutingPolicyExt;
     }
 }
 

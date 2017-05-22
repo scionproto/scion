@@ -94,7 +94,7 @@ class ASMarking(Cerealizable):
     VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts,
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
                     ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
@@ -104,7 +104,7 @@ class ASMarking(Cerealizable):
             p.pcbms[i] = pm.p
         for ext in exts:
             if ext.extType == ASMExtType.ROUTING_POLICY:
-                p.exts.policy = ext.p
+                p.exts.routingPolicy = ext.p
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
@@ -118,7 +118,7 @@ class ASMarking(Cerealizable):
             yield self.pcbm(i)
 
     def routing_pol_ext(self):
-        return RoutingPolicyExt(self.p.exts.policy)
+        return RoutingPolicyExt(self.p.exts.routingPolicy)
 
     def add_ext(self, ext):  # pragma: no cover
         """

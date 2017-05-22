@@ -24,13 +24,13 @@ from lib.types import ASMExtType
 
 
 class RoutingPolicyExt(Cerealizable):
-    NAME = "PolicyExt"
+    NAME = "RoutingPolicyExt"
     P_CLS = P.RoutingPolicyExt
     VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
     def from_values(cls, type_, if_, isd_ases):
-        p = cls.P_CLS.new_message(polType=type_, itf=if_)
+        p = cls.P_CLS.new_message(polType=type_, ifID=if_)
         p.init("isdases", len(isd_ases))
         for i, isd_as in enumerate(isd_ases):
             p.isdases[i] = int(isd_as)
@@ -44,9 +44,9 @@ class RoutingPolicyExt(Cerealizable):
         b = []
         if self.VER != 2:
             raise SCIONSigVerError(
-                "RoutingPolicyExt.sig_pack3 cannot support version %s", self.VER)
+                "RoutingPolicyExt.sig_pack2 cannot support version %s", self.VER)
         b.append(self.p.polType.to_bytes(1, 'big'))
-        b.append(self.p.itf.to_bytes(2, 'big'))
+        b.append(self.p.ifID.to_bytes(2, 'big'))
         for isd_as in self.p.isdases:
             b.append(isd_as.to_bytes(4, 'big'))
         return b"".join(b)
@@ -54,7 +54,7 @@ class RoutingPolicyExt(Cerealizable):
     def short_desc(self):
         a = []
         a.append("RoutingPolicyExt extension: Policy type: %s, Interface: %s" %
-                 (self.p.polType, self.p.itf))
+                 (self.p.polType, self.p.ifID))
         for isd_as in self.p.isdases:
             a.append(" %s" % isd_as)
         return "\n".join(a)

@@ -301,8 +301,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
-            if asm.p.exts.policy:
-                self.handle_routing_pol_ext(asm.p.exts.policy)
+            if asm.p.exts.routingPolicy:
+                self.handle_routing_pol_ext(asm.p.exts.routingPolicy)
 
     def handle_routing_pol_ext(self, ext):
         # TODO(Sezer): Implement extension handling
@@ -324,7 +324,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return None
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
-        test_isd_ases = [ISD_AS.from_values(1, 10), ISD_AS.from_values(2, 23)]
+        test_isd_ases = [ISD_AS.from_values(2, 24)]
         test_pol_ext = self._create_pol_ext(RoutingPolType.DENY_AS,
                                             0, test_isd_ases)
         return ASMarking.from_values(
