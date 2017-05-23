@@ -78,7 +78,11 @@ func (r *Router) setup() *common.Error {
 	}
 	// Clear capabilities after setting up the network. Capabilities are currently
 	// only needed by the HSR for which the router never reconfigures the network.
-	if err := r.clearCapabilities(); err != nil {
+	if err = r.clearCapabilities(); err != nil {
+		return err
+	}
+	// Export prometheus metrics.
+	if err = metrics.Start(); err != nil {
 		return err
 	}
 	return nil
@@ -146,9 +150,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 		}
 	}
 	// Iterate over local addresses, configuring them via provided hooks.
-	var addrs []string
 	for i, a := range ctx.Conf.Net.LocAddr {
-		addrs = append(addrs, a.BindAddr().String())
 		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
 		for _, f := range setupAddLocalHooks {
 			ret, err := f(r, ctx, i, a, labels, oldCtx)
@@ -162,8 +164,6 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 			}
 		}
 	}
-	// Export prometheus metrics on all local addresses
-	metrics.Export(addrs)
 	// Iterate over interfaces, configuring them via provided hooks.
 	for _, intf := range ctx.Conf.Net.IFs {
 		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", intf.Id)}

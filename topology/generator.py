@@ -667,7 +667,7 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.topo_dicts.items():
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                router_list.append("[%s]:%s" % (br_ele['Addr'].ip, br_ele['Port']))
+                router_list.append("[%s]:%s" % (br_ele['Addr'].ip, br_ele['Port']+1))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -745,9 +745,10 @@ class SupervisorGenerator(object):
 
     def _br_entries(self, topo, cmd, base):
         entries = []
-        for elem in topo.get("BorderRouters", {}):
-            conf_dir = os.path.join(base, elem)
-            entries.append((elem, [cmd, "-id", elem, "-confd", conf_dir]))
+        for k, v in topo.get("BorderRouters", {}).items():
+            conf_dir = os.path.join(base, k)
+            promAddr = "[%s]:%d" % (v["Addr"].ip, v["Port"]+1)
+            entries.append((k, [cmd, "-id", k, "-confd", conf_dir, "-prom", promAddr]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
