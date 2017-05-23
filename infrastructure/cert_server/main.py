@@ -18,14 +18,20 @@
 """
 # Stdlib
 import logging
+import os
 import threading
 
+# External packages
+import time
+
 # SCION
+import lib.app.sciond as lib_sciond
+from endhost.sciond import SCIOND_API_SOCKDIR
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
-from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
+from lib.defines import CERTIFICATE_SERVICE
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainReply,
@@ -46,6 +52,9 @@ from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
+
+
+API_TOUT = 1
 
 
 class CertServer(SCIONElement):
@@ -89,6 +98,9 @@ class CertServer(SCIONElement):
                                        self._cached_trcs_handler)
         self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
                                       self._cached_certs_handler)
+        self._api_addr = os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" %
+                                      self.addr.isd_as)
+        self._connector = lib_sciond.init(self._api_addr)
 
     def worker(self):
         """
@@ -124,7 +136,8 @@ class CertServer(SCIONElement):
             trc = TRC.from_raw(raw.decode('utf-8'))
             rep = TRCReply.from_values(trc)
             self.process_trc_reply(rep, None, from_zk=True)
-        logging.debug("Processed %s trcs from ZK", len(raw_entries))
+        if len(raw_entries) > 0:
+            logging.debug("Processed %s trcs from ZK", len(raw_entries))
 
     def _cached_certs_handler(self, raw_entries):
         """
@@ -134,7 +147,8 @@ class CertServer(SCIONElement):
             cert = CertificateChain.from_raw(raw.decode('utf-8'))
             rep = CertChainReply.from_values(cert)
             self.process_cert_chain_reply(rep, None, from_zk=True)
-        logging.debug("Processed %s certs from ZK", len(raw_entries))
+        if len(raw_entries) > 0:
+            logging.debug("Processed %s certs from ZK", len(raw_entries))
 
     def _share_object(self, pld, is_trc):
         """
@@ -156,22 +170,6 @@ class CertServer(SCIONElement):
         logging.debug("%s stored in ZK: %s" % ("TRC" if is_trc else "CC",
                                                pld_hash))
 
-    def _send_reply(self, src, src_port, payload):
-        if src.isd_as == self.addr.isd_as:
-            # Local request
-            next_hop, port = src.host, SCION_UDP_EH_DATA_PORT
-            dst_addr = next_hop
-        else:
-            # Remote request
-            next_hop, port = self._get_next_hop(src.isd_as, False, True, True)
-            dst_addr = SVCType.CS_A
-        if next_hop:
-            rep_pkt = self._build_packet(
-                dst_addr, dst_ia=src.isd_as, payload=payload, dst_port=src_port)
-            self.send(rep_pkt, next_hop, port)
-        else:
-            logging.warning("Reply not sent: no destination found")
-
     def process_cert_chain_request(self, req, meta):
         """Process a certificate chain request."""
         assert isinstance(req, CertChainRequest)
@@ -183,6 +181,7 @@ class CertServer(SCIONElement):
                 "Dropping CC request from %s for %sv%s: "
                 "CC not found && requester is not local)",
                 meta.get_addr(), *key)
+            return
         if req.p.cacheOnly:
             self._reply_cc(key, meta)
             return
@@ -209,11 +208,10 @@ class CertServer(SCIONElement):
 
     def _fetch_cc(self, key, _):
         isd_as, ver = key
-        req = CertChainRequest.from_values(isd_as, ver)
-        dst_addr, port = self._get_next_hop(isd_as, True)
-        req_pkt = self._build_packet(SVCType.CS_A, dst_ia=isd_as, payload=req)
-        if dst_addr:
-            self.send(req_pkt, dst_addr, port)
+        req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+        path = self._get_path_via_api(isd_as)
+        meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
+        if path and self.send_meta(req, meta):
             logging.info("Cert chain request sent: %s", req.short_desc())
         else:
             logging.warning("Cert chain request (for %s) not sent: "
@@ -221,12 +219,9 @@ class CertServer(SCIONElement):
 
     def _reply_cc(self, key, meta):
         isd_as, ver = key
-        dst = meta.get_addr()
-        port = meta.port
         cert_chain = self.trust_store.get_cert(isd_as, ver)
-        self._send_reply(dst, port, CertChainReply.from_values(cert_chain))
-        logging.info("Cert chain for %sv%s sent to %s:%s",
-                     isd_as, ver, dst, port)
+        self.send_meta(CertChainReply.from_values(cert_chain), meta)
+        logging.info("Cert chain for %sv%s sent to %s:%s", isd_as, ver, meta.get_addr(), meta.port)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -239,6 +234,7 @@ class CertServer(SCIONElement):
                 "Dropping TRC request from %s for %sv%s: "
                 "TRC not found && requester is not local)",
                 meta.get_addr(), *key)
+            return
         if req.p.cacheOnly:
             self._reply_trc(key, meta)
             return
@@ -271,11 +267,10 @@ class CertServer(SCIONElement):
     def _fetch_trc(self, key, info):
         isd, ver = key
         isd_as = ISD_AS.from_values(isd, info[1])
-        trc_req = TRCRequest.from_values(isd_as, ver)
-        req_pkt = self._build_packet(SVCType.CS_A, payload=trc_req)
-        next_hop, port = self._get_next_hop(isd_as, True, False, True)
-        if next_hop:
-            self.send(req_pkt, next_hop, port)
+        trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
+        path = self._get_path_via_api(isd_as)
+        meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
+        if path and self.send_meta(trc_req, meta):
             logging.info("TRC request sent for %sv%s.", *key)
         else:
             logging.warning("TRC request not sent for %sv%s: "
@@ -284,25 +279,24 @@ class CertServer(SCIONElement):
     def _reply_trc(self, key, info):
         isd, ver = key
         meta = info[0]
-        dst = meta.get_addr()
-        port = meta.port
         trc = self.trust_store.get_trc(isd, ver)
-        self._send_reply(dst, port, TRCReply.from_values(trc))
-        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, dst, port)
+        self.send_meta(TRCReply.from_values(trc), meta)
+        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, meta.get_addr(), meta.port)
 
-    def _get_next_hop(self, isd_as, parent=False, child=False, core=False):
-        routers = []
-        if parent:
-            routers += self.topology.parent_border_routers
-        if child:
-            routers += self.topology.child_border_routers
-        if core:
-            routers += self.topology.core_border_routers
-        for r in routers:
-            r_ia = r.interface.isd_as
-            if (isd_as == r_ia) or (isd_as[0] == r_ia[0] and isd_as[1] == 0):
-                return r.addr, r.port
-        return None, None
+    def _get_path_via_api(self, isd_as, flush=False):
+        flags = lib_sciond.PathRequestFlags(flush=flush)
+        start = time.time()
+        while time.time() - start < API_TOUT:
+            try:
+                path_entries = lib_sciond.get_paths(
+                    isd_as, flags=flags, connector=self._connector)
+            except lib_sciond.SCIONDLibError as e:
+                logging.error("Error during path lookup: %s" % e)
+                continue
+            if path_entries:
+                return path_entries[0].path().fwd_path()
+        logging.warning("Unable to get path to %s from local api.", isd_as)
+        return None
 
     def run(self):
         """
