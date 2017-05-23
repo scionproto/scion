@@ -20,10 +20,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
+	"fmt"
 )
 
 // SCION Packet structure.
 type ScnPkt struct {
+	CmnHdr  *CmnHdr
 	DstIA   *addr.ISD_AS
 	SrcIA   *addr.ISD_AS
 	DstHost addr.HostAddr
@@ -33,6 +35,12 @@ type ScnPkt struct {
 	E2EExt  []common.Extension
 	L4      l4.L4Header
 	Pld     common.Payload
+}
+
+func (scnPkt ScnPkt) String() string {
+	return fmt.Sprintf("%v DstIA:%v SrcIA:%v DstHost:%v SrcHost:%v HBHExt:%v E2EExt:%v L4:(%v)",
+		scnPkt.CmnHdr, scnPkt.DstIA, scnPkt.SrcIA, scnPkt.DstHost, scnPkt.SrcHost,
+		scnPkt.HBHExt, scnPkt.E2EExt, scnPkt.L4)
 }
 
 func (s *ScnPkt) Copy() *ScnPkt {
