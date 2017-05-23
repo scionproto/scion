@@ -37,17 +37,14 @@ func GetCurrentHashTreeEpoch() uint64 {
 	return uint64(time.Now().Unix() / int64(HashTreeEpochTime.Seconds()))
 }
 
-// GetTimeSinceHashTreeEpoch returns the time since the start of the current epoch.
-func GetTimeSinceHashTreeEpoch() time.Duration {
-	nanoSecs := time.Now().UnixNano() % HashTreeEpochTime.Nanoseconds()
-	return time.Unix(0, nanoSecs).Sub(time.Unix(0, 0))
+// GetTimeSinceHashTreeEpoch returns the time since the start of epoch.
+func GetTimeSinceHashTreeEpoch(epoch uint64) time.Duration {
+	epochStart := time.Unix(0, int64(epoch)*HashTreeEpochTime.Nanoseconds())
+	return time.Since(epochStart)
 }
 
 // VerifyHashTreeEpoch verifies a given hash tree epoch. An epoch is valid if it is
 // equal to the current epoch or within the tolerance limit of the next epoch.
 func VerifyHashTreeEpoch(epoch uint64) bool {
-	currEpoch := GetCurrentHashTreeEpoch()
-	gapTime := GetTimeSinceHashTreeEpoch()
-	return (epoch == currEpoch ||
-		(currEpoch == epoch+1 && gapTime < HashTreeEpochTolerance))
+	return GetTimeSinceHashTreeEpoch(epoch) < (HashTreeEpochTime + HashTreeEpochTolerance)
 }
