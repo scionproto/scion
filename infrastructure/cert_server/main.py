@@ -31,7 +31,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
-from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_EH_DATA_PORT
+from lib.defines import CERTIFICATE_SERVICE
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainReply,
