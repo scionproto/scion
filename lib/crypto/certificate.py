@@ -26,6 +26,7 @@ from lib.errors import SCIONVerificationError
 
 SUBJECT_STRING = 'Subject'
 ISSUER_STRING = 'Issuer'
+TRC_VERSION_STRING = "TRCVersion"
 VERSION_STRING = 'Version'
 COMMENT_STRING = 'Comment'
 CAN_ISSUE_STRING = 'CanIssue'
@@ -45,6 +46,7 @@ class Certificate(object):
 
     :ivar str subject: the certificate subject.
     :ivar str issuer: the certificate issuer. It can only be an AS.
+    :ivar int trc_version: the version of the issuing trc.
     :ivar int version: the certificate version.
     :ivar str comment: is an arbitrary and optional string used by the subject
         to describe the certificate
@@ -70,6 +72,7 @@ class Certificate(object):
     FIELDS_MAP = {
         SUBJECT_STRING: ("subject", str),
         ISSUER_STRING: ("issuer", str),
+        TRC_VERSION_STRING: ("trc_version", int),
         VERSION_STRING: ("version", int),
         COMMENT_STRING: ("comment", str),
         CAN_ISSUE_STRING: ("can_issue", bool),
@@ -159,7 +162,7 @@ class Certificate(object):
         self.signature = base64.b64encode(self.signature_raw).decode('utf-8')
 
     @classmethod
-    def from_values(cls, subject, issuer, version, comment, can_issue,
+    def from_values(cls, subject, issuer, trc_version, version, comment, can_issue,
                     subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
@@ -170,6 +173,7 @@ class Certificate(object):
         :param bytes subject_sig_key: the public key of the subject.
         :param bytes subject_enc_key: the public part of the encryption key.
         :param str issuer: the certificate issuer. It can only be an AS.
+        :param int trc_version: the version of the issuing certificate/trc.
         :param SigningKey iss_priv_key:
             the issuer's signing key. It is used to sign the certificate.
         :param int version: the certificate version.
@@ -180,6 +184,7 @@ class Certificate(object):
         cert_dict = {
             SUBJECT_STRING: subject,
             ISSUER_STRING: issuer,
+            TRC_VERSION_STRING: trc_version,
             VERSION_STRING: version,
             COMMENT_STRING: comment,
             CAN_ISSUE_STRING: can_issue,

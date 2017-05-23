@@ -85,7 +85,8 @@ from lib.util import (
     copy_file,
     load_yaml_file,
     read_file,
-    write_file,)
+    write_file,
+)
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
@@ -354,8 +355,8 @@ class CertGenerator(object):
         else:
             signing_key = self.sig_priv_keys[issuer]
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
-            self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
+            str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
+            "", False, self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
             SigningKey(signing_key)
         )
 

@@ -41,25 +41,22 @@ def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
     return os.path.join(conf_dir, CERT_DIR, 'ISD%s-AS%s-V%s.crt' % (isd_as[0], isd_as[1], version))
 
 
-def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_ver):
+def verify_sig_chain_trc(msg, sig, subject, chain, trc):
     """
     Verify whether the packed message with attached signature is validly
     signed by a particular subject belonging to a valid certificate chain.
 
-    :param str msg: message corresponding to the given signature.
+    :param bytes msg: message corresponding to the given signature.
     :param bytes sig: signature computed on msg.
-    :param str subject: signer identity.
-    :param chain: Certificate chain containing the signing entity's certificate.
-    :type chain: :class:`CertificateChain`
-    :param trc: Current TRC containing all root of trust certificates for
-        one ISD.
-    :type trc: :class:`TRC`
-    :param trc_ver: The TRCs version
+    :param ISD_AS subject: signer identity.
+    :param CertificateChain chain: Certificate chain containing the signing entity's certificate.
+    :param TRC trc: Issuing TRC containing all root of trust certificates for one ISD.
 
     :raises: SCIONVerificationError if the verification fails.
     """
     assert isinstance(chain, CertificateChain)
     assert isinstance(trc, TRC)
+    subject = str(subject)
     try:
         chain.verify(subject, trc)
     except SCIONVerificationError as e:
