@@ -207,9 +207,10 @@ class CertServer(SCIONElement):
 
     def _fetch_cc(self, key, _):
         isd_as, ver = key
-        req = CertChainRequest.from_values(isd_as, ver)
+        req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
         path = self._get_path_via_api(isd_as)
-        if path and self._send_payload(isd_as, req, path):
+        meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
+        if path and self.send_meta(req, meta):
             logging.info("Cert chain request sent: %s", req.short_desc())
         else:
             logging.warning("Cert chain request (for %s) not sent: "
@@ -217,13 +218,9 @@ class CertServer(SCIONElement):
 
     def _reply_cc(self, key, meta):
         isd_as, ver = key
-        dst = meta.get_addr()
-        port = meta.port
         cert_chain = self.trust_store.get_cert(isd_as, ver)
-        self._send_payload(meta.ia, CertChainReply.from_values(cert_chain),
-                           meta.path, meta.host, meta.port)
-        logging.info("Cert chain for %sv%s sent to %s:%s",
-                     isd_as, ver, dst, port)
+        self.send_meta(CertChainReply.from_values(cert_chain), meta)
+        logging.info("Cert chain for %sv%s sent to %s:%s", isd_as, ver, meta.get_addr(), meta.port)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -268,9 +265,10 @@ class CertServer(SCIONElement):
     def _fetch_trc(self, key, info):
         isd, ver = key
         isd_as = ISD_AS.from_values(isd, info[1])
-        trc_req = TRCRequest.from_values(isd_as, ver)
+        trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
         path = self._get_path_via_api(isd_as)
-        if path and self._send_payload(isd_as, trc_req, path):
+        meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
+        if path and self.send_meta(trc_req, meta):
             logging.info("TRC request sent for %sv%s.", *key)
         else:
             logging.warning("TRC request not sent for %sv%s: "
@@ -279,14 +277,11 @@ class CertServer(SCIONElement):
     def _reply_trc(self, key, info):
         isd, ver = key
         meta = info[0]
-        dst = meta.get_addr()
-        port = meta.port
         trc = self.trust_store.get_trc(isd, ver)
-        self._send_payload(meta.ia, TRCReply.from_values(trc), meta.path, meta.host, meta.port)
-        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, dst, port)
+        self.send_meta(TRCReply.from_values(trc), meta)
+        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, meta.get_addr(), meta.port)
 
     def _get_path_via_api(self, isd_as, flush=False):
-        path_entries = None
         flags = lib_sciond.PathRequestFlags(flush=flush)
         start = time.time()
         while time.time() - start < API_TOUT:
@@ -296,21 +291,10 @@ class CertServer(SCIONElement):
             except lib_sciond.SCIONDLibError as e:
                 logging.error("Error during path lookup: %s" % e)
                 continue
-        if path_entries:
-            return path_entries[0].path().fwd_path()
-        logging.info("Unable to get path from local api.")
+            if path_entries:
+                return path_entries[0].path().fwd_path()
+        logging.warning("Unable to get path to %s from local api.", isd_as)
         return None
-
-    def _send_payload(self, isd_as, payload, path, host=SVCType.CS_A, port=0):
-        pkt = self._build_packet(host, dst_ia=isd_as, payload=payload,
-                                 path=path, dst_port=port)
-        next, next_port = self.get_first_hop(pkt)
-        if (next, next_port) == (None, None):
-            logging.error("Cannot find first hop, dropping packet\n%s", pkt)
-            return False
-        if next == host:
-            next_port = SCION_UDP_EH_DATA_PORT
-        return self.send(pkt, next, next_port)
 
     def run(self):
         """
