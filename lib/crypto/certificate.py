@@ -26,6 +26,7 @@ from lib.errors import SCIONVerificationError
 
 SUBJECT_STRING = 'Subject'
 ISSUER_STRING = 'Issuer'
+ISSUER_VERSION_STRING = "IssuerVersion"
 VERSION_STRING = 'Version'
 COMMENT_STRING = 'Comment'
 CAN_ISSUE_STRING = 'CanIssue'
@@ -45,6 +46,7 @@ class Certificate(object):
 
     :ivar str subject: the certificate subject.
     :ivar str issuer: the certificate issuer. It can only be an AS.
+    :ivar int issuer_version: the version of the issuing certificate/trc.
     :ivar int version: the certificate version.
     :ivar str comment: is an arbitrary and optional string used by the subject
         to describe the certificate
@@ -70,6 +72,7 @@ class Certificate(object):
     FIELDS_MAP = {
         SUBJECT_STRING: ("subject", str),
         ISSUER_STRING: ("issuer", str),
+        ISSUER_VERSION_STRING: ("issuer_version", int),
         VERSION_STRING: ("version", int),
         COMMENT_STRING: ("comment", str),
         CAN_ISSUE_STRING: ("can_issue", bool),
@@ -114,20 +117,26 @@ class Certificate(object):
             raise SCIONVerificationError("This certificate expired:\n%s" % self)
         if int(time.time()) >= issuer_cert.expiration_time:
             raise SCIONVerificationError("The issuer certificate expired:\n%s" % issuer_cert)
+        if self.issuer_version != issuer_cert.version:
+            raise SCIONVerificationError("The issuer version (%s) does not match:\n%s", issuer_cert)
         try:
             self._verify_signature(self.signature_raw, issuer_cert.subject_sig_key_raw)
         except SCIONVerificationError:
             raise SCIONVerificationError("Signature verification failed:\n%s" % self)
 
-    def verify_core(self, pub_online_root_key):
+    def verify_core(self, pub_online_root_key, trc_version):
         """
         Verify core signature with given online root key.
 
         :param bytes pub_online_root_key:
             The online root key of the core AS  which signed this
             root certificate
+        :param int trc_version: The version of the issuing TRC.
         :raises: SCIONVerificationError if the verification fails.
         """
+        if self.issuer_version != trc_version:
+            raise SCIONVerificationError("The TRC version (%s) does not match. Expected %s." %
+                                         trc_version, self.issuer_version)
         self._verify_signature(self.signature_raw, pub_online_root_key)
 
     def _verify_signature(self, signature, public_key):
@@ -159,7 +168,7 @@ class Certificate(object):
         self.signature = base64.b64encode(self.signature_raw).decode('utf-8')
 
     @classmethod
-    def from_values(cls, subject, issuer, version, comment, can_issue,
+    def from_values(cls, subject, issuer, issuer_version, version, comment, can_issue,
                     subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
@@ -170,6 +179,7 @@ class Certificate(object):
         :param bytes subject_sig_key: the public key of the subject.
         :param bytes subject_enc_key: the public part of the encryption key.
         :param str issuer: the certificate issuer. It can only be an AS.
+        :param int issuer_version: the version of the issuing certificate/trc.
         :param bytes iss_priv_key:
             the issuer's private key. It is used to sign the certificate.
         :param int version: the certificate version.
@@ -180,6 +190,7 @@ class Certificate(object):
         cert_dict = {
             SUBJECT_STRING: subject,
             ISSUER_STRING: issuer,
+            ISSUER_VERSION_STRING: issuer_version,
             VERSION_STRING: version,
             COMMENT_STRING: comment,
             CAN_ISSUE_STRING: can_issue,
