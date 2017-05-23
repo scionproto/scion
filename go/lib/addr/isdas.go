@@ -36,7 +36,10 @@ const (
 )
 
 func IAFromRaw(b common.RawBytes) *ISD_AS {
-	iaInt := common.Order.Uint32(b)
+	return IAFromInt(int(common.Order.Uint32(b)))
+}
+
+func IAFromInt(iaInt int) *ISD_AS {
 	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
 }
 

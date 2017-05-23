@@ -78,9 +78,19 @@ func Process(ifStates proto.IFStateInfos) {
 		}
 		m[ifid] = State{P: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
+		oldState, ok := S.M[ifid]
+		if !ok {
+			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active())
+		}
 		if info.Active() {
+			if ok && !oldState.P.Active() {
+				log.Info("IFState: intf activated", "ifid", ifid)
+			}
 			gauge.Set(1)
 		} else {
+			if ok && oldState.P.Active() {
+				log.Info("IFState: intf deactivated", "ifid", ifid)
+			}
 			gauge.Set(0)
 		}
 	}
