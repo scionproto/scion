@@ -56,6 +56,15 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 		// instead.
 		return HookContinue, nil, nil
 	}
+	currHopF, err := spath.HopFFromRaw(o.rp.Raw[o.rp.CmnHdr.CurrHopF:])
+	if err != nil {
+		return HookError, nil, err
+	}
+	if currHopF.Ingress != 0 || currHopF.Egress != 0 {
+		// The current hop field has already been generated.
+		o.Debug("HopF: not regenning", "currHopF", currHopF)
+		return HookContinue, nil, nil
+	}
 	infoF, err := o.rp.InfoF()
 	if err != nil {
 		return HookError, nil, err
