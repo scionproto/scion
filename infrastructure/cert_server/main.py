@@ -174,18 +174,18 @@ class CertServer(SCIONElement):
         """Process a certificate chain request."""
         assert isinstance(req, CertChainRequest)
         key = req.isd_as(), req.p.version
-        logging.info("Cert chain request received for %sv%s", *key)
+        logging.info("Cert chain request received for %sv%s from %s", *key, meta)
         local = meta.ia == self.addr.isd_as
-        if not self._check_cc(key) and not local:
-            logging.warning(
-                "Dropping CC request from %s for %sv%s: "
-                "CC not found && requester is not local)",
-                meta.get_addr(), *key)
+        if not self._check_cc(key):
+            if not local:
+                logging.warning(
+                    "Dropping CC request from %s for %sv%s: "
+                    "CC not found && requester is not local)",
+                    meta.get_addr(), *key)
+            elif not req.p.cacheOnly:
+                self.cc_requests.put((key, meta))
             return
-        if req.p.cacheOnly:
-            self._reply_cc(key, meta)
-            return
-        self.cc_requests.put((key, meta))
+        self._reply_cc(key, meta)
 
     def process_cert_chain_reply(self, rep, meta, from_zk=False):
         """Process a certificate chain reply."""
@@ -212,7 +212,7 @@ class CertServer(SCIONElement):
         path = self._get_path_via_api(isd_as)
         meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
         if path and self.send_meta(req, meta):
-            logging.info("Cert chain request sent: %s", req.short_desc())
+            logging.info("Cert chain request sent to %s: %s", meta, req.short_desc())
         else:
             logging.warning("Cert chain request (for %s) not sent: "
                             "no destination found", req.short_desc())
@@ -227,18 +227,18 @@ class CertServer(SCIONElement):
         """Process a TRC request."""
         assert isinstance(req, TRCRequest)
         key = req.isd_as()[0], req.p.version
-        logging.info("TRC request received for %sv%s", *key)
+        logging.info("TRC request received for %sv%s from %s", *key, meta)
         local = meta.ia == self.addr.isd_as
-        if not self._check_trc(key) and not local:
-            logging.warning(
-                "Dropping TRC request from %s for %sv%s: "
-                "TRC not found && requester is not local)",
-                meta.get_addr(), *key)
+        if not self._check_trc(key):
+            if not local:
+                logging.warning(
+                    "Dropping TRC request from %s for %sv%s: "
+                    "TRC not found && requester is not local)",
+                    meta.get_addr(), *key)
+            elif not req.p.cacheOnly:
+                self.trc_requests.put((key, (meta, req.isd_as()[1]),))
             return
-        if req.p.cacheOnly:
-            self._reply_trc(key, meta)
-            return
-        self.trc_requests.put((key, (meta, req.isd_as()[1]),))
+        self._reply_trc(key, meta)
 
     def process_trc_reply(self, trc_rep, meta, from_zk=False):
         """
