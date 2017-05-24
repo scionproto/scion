@@ -21,6 +21,7 @@ import argparse
 import base64
 import configparser
 import getpass
+import json
 import logging
 import math
 import os
@@ -59,6 +60,7 @@ from lib.defines import (
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     PROM_FILE,
+    PRV_NETWORKS_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
     SCIOND_API_SOCKDIR,
@@ -105,18 +107,22 @@ INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 
 DEFAULT_NETWORK = "127.0.0.0/8"
+DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 DEFAULT_ROUTER = "go"
 
 SCION_SERVICE_NAMES = (
-    "BeaconServers",
-    "CertificateServers",
+    "BeaconService",
+    "CertificateService",
     "BorderRouters",
-    "PathServers",
-    "SibraServers",
+    "PathService",
+    "SibraService",
 )
 
 DEFAULT_KEYGEN_ALG = 'Ed25519'
+
+GENERATE_BOTH_TOPOLOGY = True
+GENERATE_BIND_ADDRESS = False
 
 
 class ConfigGenerator(object):
@@ -126,7 +132,7 @@ class ConfigGenerator(object):
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False, router="py"):
+                 use_mininet=False, router="py", bind_addr=GENERATE_BIND_ADDRESS):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -146,6 +152,7 @@ class ConfigGenerator(object):
         self.default_zookeepers = {}
         self.default_mtu = None
         self.router = router
+        self.gen_bind_addr = bind_addr
         self._read_defaults(network)
 
     def _read_defaults(self, network):
@@ -162,6 +169,7 @@ class ConfigGenerator(object):
             else:
                 def_network = DEFAULT_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
+        self.prvnet_gen = SubnetGenerator(DEFAULT_PRIV_NETWORK)
         for key, val in defaults.get("zookeepers", {}).items():
             if self.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
@@ -175,7 +183,7 @@ class ConfigGenerator(object):
         """
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files = self._generate_certs_trcs(ca_certs)
-        topo_dicts, zookeepers, networks = self._generate_topology()
+        topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
         self._generate_prom_conf(topo_dicts)
@@ -184,7 +192,9 @@ class ConfigGenerator(object):
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
-        self._write_networks_conf(networks)
+        self._write_networks_conf(networks, NETWORKS_FILE)
+        if self.gen_bind_addr:
+            self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _generate_cas(self):
         ca_gen = CA_Generator(self.topo_config)
@@ -196,8 +206,8 @@ class ConfigGenerator(object):
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(
-            self.topo_config, self.out_dir, self.subnet_gen, self.zk_config,
-            self.default_mtu)
+            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
+            self.default_mtu, self.gen_bind_addr)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
@@ -255,10 +265,10 @@ class ConfigGenerator(object):
             'PropagateTime': 5,
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
-            'RegisterPath': True if as_topo["PathServers"] else False,
+            'RegisterPath': True if as_topo["PathService"] else False,
         }
 
-    def _write_networks_conf(self, networks):
+    def _write_networks_conf(self, networks, out_file):
         config = configparser.ConfigParser(interpolation=None)
         for i, net in enumerate(networks):
             sub_conf = {}
@@ -267,7 +277,7 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.out_dir, NETWORKS_FILE), text.getvalue())
+        write_file(os.path.join(self.out_dir, out_file), text.getvalue())
 
 
 class CertGenerator(object):
@@ -478,13 +488,15 @@ class CA_Generator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, zk_config,
-                 default_mtu):
+    def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
+                 default_mtu, gen_bind_addr):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
+        self.prvnet_gen = prvnet_gen
         self.zk_config = zk_config
         self.default_mtu = default_mtu
+        self.gen_bind_addr = gen_bind_addr
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -496,6 +508,10 @@ class TopoGenerator(object):
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
         return subnet.register(elem_id)
+
+    def _reg_bind_addr(self, topo_id, elem_id):
+        prvnet = self.prvnet_gen.register(topo_id)
+        return prvnet.register(elem_id)
 
     def _reg_link_addrs(self, local_br, remote_br):
         link_name = str(sorted((local_br, remote_br)))
@@ -511,10 +527,11 @@ class TopoGenerator(object):
         self._iterate(self._generate_as_topo)
         self._iterate(self._generate_as_list)
         networks = self.subnet_gen.alloc_subnets()
+        prv_networks = self.prvnet_gen.alloc_subnets()
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
-        return self.topo_dicts, self.zookeepers, networks
+        return self.topo_dicts, self.zookeepers, networks, prv_networks
 
     def _read_links(self):
         br_ids = defaultdict(int)
@@ -550,7 +567,7 @@ class TopoGenerator(object):
         assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
-            'Zookeepers': {}, 'MTU': mtu,
+            'ZookeeperService': {}, 'MTU': mtu, 'Overlay': 'UDP/IPv4'
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
@@ -560,11 +577,11 @@ class TopoGenerator(object):
 
     def _gen_srv_entries(self, topo_id, as_conf):
         for conf_key, def_num, nick, topo_key in (
-            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconServers"),
+            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService"),
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-             "CertificateServers"),
-            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
-            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
+             "CertificateService"),
+            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
+            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -574,9 +591,17 @@ class TopoGenerator(object):
         count = as_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id, i)
-            d = {}
-            d["Addr"] = self._reg_addr(topo_id, elem_id)
-            d["Port"] = random.randint(30050, 30100)
+            d = {
+                'Public': [{
+                    'Addr': self._reg_addr(topo_id, elem_id),
+                    'L4Port': random.randint(30050, 30100),
+                }]
+            }
+            if self.gen_bind_addr:
+                d['Bind'] = [{
+                    'Addr': self._reg_bind_addr(topo_id, elem_id),
+                    'L4Port': random.randint(30050, 30100),
+                }]
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
@@ -590,18 +615,29 @@ class TopoGenerator(object):
         public_addr, remote_addr = self._reg_link_addrs(
             local_br, remote_br)
         self.topo_dicts[local]["BorderRouters"][local_br] = {
-            'Addr': self._reg_addr(local, local_br),
-            'Port': random.randint(30050, 30100),
-            'Interface': {
-                'IFID': ifid,
-                'ISD_AS': str(remote),
-                'LinkType': remote_type,
-                'Addr': public_addr,
-                'ToAddr': remote_addr,
-                'UdpPort': SCION_ROUTER_PORT,
-                'ToUdpPort': SCION_ROUTER_PORT,
-                'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
-                'MTU': attrs.get('mtu', DEFAULT_MTU),
+            'InternalAddrs': [{
+                'Public': [{
+                    'Addr': self._reg_addr(local, local_br),
+                    'L4Port': random.randint(30050, 30100),
+                }]
+            }],
+            'Interfaces': {
+                ifid: {  # Interface ID.
+                    'InternalAddrIdx': 0,
+                    'Overlay': 'UDP/IPv4',
+                    'Public': {
+                        'Addr': public_addr,
+                        'L4Port': SCION_ROUTER_PORT
+                    },
+                    'Remote': {
+                        'Addr': remote_addr,
+                        'L4Port': SCION_ROUTER_PORT
+                    },
+                    'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
+                    'ISD_AS': str(remote),
+                    'LinkType': remote_type,
+                    'MTU': attrs.get('mtu', DEFAULT_MTU)
+                }
             }
         }
 
@@ -622,9 +658,9 @@ class TopoGenerator(object):
             self.zookeepers[topo_id][elem_id] = zk_id, zk
         else:
             addr = str(zk.addr)
-        self.topo_dicts[topo_id]["Zookeepers"][zk_id] = {
+        self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
             'Addr': addr,
-            'Port': zk.clientPort,
+            'L4Port': zk.clientPort
         }
 
     def _generate_as_list(self, topo_id, as_conf):
@@ -638,9 +674,15 @@ class TopoGenerator(object):
         for topo_id, as_topo, base in _srv_iter(
                 self.topo_dicts, self.out_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
-            contents = yaml.dump(self.topo_dicts[topo_id],
-                                 default_flow_style=False)
-            write_file(path, contents)
+            contents_json = json.dumps(self.topo_dicts[topo_id],
+                                       default=_json_default, indent=2)
+            write_file(path, contents_json)
+            if GENERATE_BOTH_TOPOLOGY:
+                path_yaml = os.path.join(base, "topology.yml")
+                topo_dicts_old = _topo_json_to_yaml(self.topo_dicts[topo_id])
+                contents_yaml = yaml.dump(topo_dicts_old,
+                                          default_flow_style=False)
+                write_file(path_yaml, contents_yaml)
             # Test if topo file parses cleanly
             Topology.from_file(path)
 
@@ -667,7 +709,7 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.topo_dicts.items():
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                router_list.append("[%s]:%s" % (br_ele['Addr'].ip, br_ele['Port']+1))
+                router_list.append(_prom_addr_br(br_ele))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -722,10 +764,10 @@ class SupervisorGenerator(object):
         entries = []
         base = self._get_base_path(topo_id)
         for key, cmd in (
-            ("BeaconServers", "bin/beacon_server"),
-            ("CertificateServers", "bin/cert_server"),
-            ("PathServers", "bin/path_server"),
-            ("SibraServers", "bin/sibra_server"),
+            ("BeaconService", "bin/beacon_server"),
+            ("CertificateService", "bin/cert_server"),
+            ("PathService", "bin/path_server"),
+            ("SibraService", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         if self.router == "go":
@@ -747,8 +789,7 @@ class SupervisorGenerator(object):
         entries = []
         for k, v in topo.get("BorderRouters", {}).items():
             conf_dir = os.path.join(base, k)
-            promAddr = "[%s]:%d" % (v["Addr"].ip, v["Port"]+1)
-            entries.append((k, [cmd, "-id", k, "-confd", conf_dir, "-prom", promAddr]))
+            entries.append((k, [cmd, "-id", k, "-confd", conf_dir, "-prom", _prom_addr_br(v)]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
@@ -995,7 +1036,10 @@ class SubnetGenerator(object):
         # - 127.0.0.0 is treated as a broadcast address by the kernel
         # - 127.0.0.1 is the normal loopback address
         # - 127.0.0.[23] are used for clients to bind to for testing purposes.
-        v4_lo = ip_network("127.0.0.0/30")
+        if network is DEFAULT_PRIV_NETWORK:
+            v4_lo = ip_network("192.168.0.0/30")
+        else:
+            v4_lo = ip_network("127.0.0.0/30")
         if self._net.overlaps(v4_lo):
             self._exclude_net(self._net, v4_lo)
         else:
@@ -1102,6 +1146,109 @@ def _srv_iter(topo_dicts, out_dir, common=False):
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
 
 
+def _json_default(o):
+    if isinstance(o, AddressProxy):
+        return str(o.ip)
+    raise TypeError
+
+
+def _topo_json_to_yaml(topo_dicts):
+    """
+    Convert the new topology format (which uses json) to the old format (which uses yaml).
+    XXX(kormat): This is only needed until the BR is switched over to the new topo format.
+
+    :pram dict topo_dicts: new topology dict
+    :return dict topo_old: old topology dict
+    """
+    topo_old = {}
+    for service, attributes in topo_dicts.items():
+        if service == "Overlay":
+            continue
+        elif service == "BeaconService":
+            topo_old["BeaconServers"] = {}
+            for bs_id, entity in attributes.items():
+                bs_addr = topo_dicts[service][bs_id]["Public"][0]["Addr"]
+                bs_port = topo_dicts[service][bs_id]["Public"][0]["L4Port"]
+                topo_old["BeaconServers"][bs_id] = {
+                    'Addr': bs_addr,
+                    'Port': bs_port
+                }
+        elif service == "BorderRouters":
+            topo_old["BorderRouters"] = {}
+            for br_id, entity in attributes.items():
+                br_addr = topo_dicts[service][br_id]["InternalAddrs"][0]["Public"][0]["Addr"]
+                br_port = topo_dicts[service][br_id]["InternalAddrs"][0]["Public"][0]["L4Port"]
+                for ifid, temp in topo_dicts[service][br_id]["Interfaces"].items():
+                    if_addr = topo_dicts[service][br_id]["Interfaces"][ifid]["Public"]["Addr"]
+                    if_port = topo_dicts[service][br_id]["Interfaces"][ifid]["Public"]["L4Port"]
+                    bandwidth = topo_dicts[service][br_id]["Interfaces"][ifid]["Bandwidth"]
+                    isdas = topo_dicts[service][br_id]["Interfaces"][ifid]["ISD_AS"]
+                    linktype = topo_dicts[service][br_id]["Interfaces"][ifid]["LinkType"]
+                    mtu = topo_dicts[service][br_id]["Interfaces"][ifid]["MTU"]
+                    toaddr = topo_dicts[service][br_id]["Interfaces"][ifid]["Remote"]["Addr"]
+                    toport = topo_dicts[service][br_id]["Interfaces"][ifid]["Remote"]["L4Port"]
+                    topo_old[service][br_id] = {
+                        'Addr': br_addr,
+                        'Port': br_port,
+                        'Interface': {
+                            'Addr': if_addr,
+                            'UdpPort': if_port,
+                            'IFID': ifid,
+                            'Bandwidth': bandwidth,
+                            'ISD_AS': isdas,
+                            'LinkType': linktype,
+                            'MTU': mtu,
+                            'ToAddr': toaddr,
+                            'ToUdpPort': toport,
+                        }
+                    }
+        elif service == "CertificateService":
+            topo_old["CertificateServers"] = {}
+            for cs_id, entity in attributes.items():
+                cs_addr = topo_dicts[service][cs_id]["Public"][0]["Addr"]
+                cs_port = topo_dicts[service][cs_id]["Public"][0]["L4Port"]
+                topo_old["CertificateServers"][cs_id] = {
+                    'Addr': cs_addr,
+                    'Port': cs_port
+                }
+        elif service == "PathService":
+            topo_old["PathServers"] = {}
+            for ps_id, entity in attributes.items():
+                ps_addr = topo_dicts[service][ps_id]["Public"][0]["Addr"]
+                ps_port = topo_dicts[service][ps_id]["Public"][0]["L4Port"]
+                topo_old["PathServers"][ps_id] = {
+                    'Addr': ps_addr,
+                    'Port': ps_port
+                }
+        elif service == "SibraService":
+            topo_old["SibraServers"] = {}
+            for sb_id, entity in attributes.items():
+                sb_addr = topo_dicts[service][sb_id]["Public"][0]["Addr"]
+                sb_port = topo_dicts[service][sb_id]["Public"][0]["L4Port"]
+                topo_old["SibraServers"][sb_id] = {
+                    'Addr': sb_addr,
+                    'Port': sb_port
+                }
+        elif service == "ZookeeperService":
+            topo_old["Zookeepers"] = {}
+            for zk_id, entity in attributes.items():
+                zk_addr = topo_dicts[service][zk_id]["Addr"]
+                zk_port = topo_dicts[service][zk_id]["L4Port"]
+                topo_old["Zookeepers"][zk_id] = {
+                    'Addr': zk_addr,
+                    'Port': zk_port
+                }
+        else:
+            topo_old[service] = attributes
+    return topo_old
+
+
+def _prom_addr_br(br_ele):
+    """Get the prometheus address for a border router"""
+    int_addr = br_ele['InternalAddrs'][0]['Public'][0]
+    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port']+1)
+
+
 def main():
     """
     Main function.
@@ -1121,10 +1268,12 @@ def main():
                         help='Zookeeper configuration file')
     parser.add_argument('-r', '--router', default=DEFAULT_ROUTER,
                         help='Router implementation to use ("go" or "py")')
+    parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
+                        help='Generate bind addresses (E.g. "192.168.0.0/16"')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.router)
+        args.network, args.mininet, args.router, args.bind_addr)
     confgen.generate_all()
 
 

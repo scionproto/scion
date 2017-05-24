@@ -119,20 +119,21 @@ class SCIONElement(object):
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
     USE_TCP = False
 
-    def __init__(self, server_id, conf_dir, host_addr=None, port=None):
+    def __init__(self, server_id, conf_dir, public=None, bind=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param `HostAddrBase` host_addr:
-            the interface to bind to. Overrides the address in the topology
-            config.
-        :param int port:
-            the port to bind to. Overrides the address in the topology config.
+        :param list public:
+            (host_addr, port) of the element's public address
+            (i.e. the address visible to other network elements).
+        :param list bind:
+            (host_addr, port) of the element's bind address, if any
+            (i.e. the address the element uses to identify itself to the local
+            operating system, if it differs from the public address due to NAT).
         """
         self.id = server_id
         self.conf_dir = conf_dir
         self.ifid2br = {}
-        self._port = port
         self.topology = Topology.from_file(
             os.path.join(self.conf_dir, TOPO_FILE))
         self.config = Config.from_file(
@@ -140,14 +141,15 @@ class SCIONElement(object):
         # Must be over-ridden by child classes:
         self.CTRL_PLD_CLASS_MAP = {}
         self.SCMP_PLD_CLASS_MAP = {}
+        self.public = public
+        self.bind = bind
         if self.SERVICE_TYPE:
             own_config = self.topology.get_own_config(self.SERVICE_TYPE,
                                                       server_id)
-            if host_addr is None:
-                host_addr = own_config.addr
-            if self._port is None:
-                self._port = own_config.port
-        self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+            if public is None:
+                self.public = own_config.public
+            if bind is None:
+                self.bind = own_config.bind
         self.init_ifid2br()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
@@ -159,7 +161,6 @@ class SCIONElement(object):
         self.stopped_flag.clear()
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
-        self._setup_sockets(True)
         self._startup = time.time()
         if self.USE_TCP:
             self._DefaultMeta = TCPMetadata
@@ -171,6 +172,10 @@ class SCIONElement(object):
         self.req_trcs_lock = threading.Lock()
         self.requested_certs = set()
         self.req_certs_lock = threading.Lock()
+        # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
+        host_addr, self._port = self.public[0]
+        self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+        self._setup_sockets(True)
 
     def _setup_sockets(self, init):
         """
@@ -213,8 +218,9 @@ class SCIONElement(object):
             kill_self()
 
     def init_ifid2br(self):
-        for br in self.topology.get_all_border_routers():
-            self.ifid2br[br.interface.if_id] = br
+        for br in self.topology.border_routers:
+            for if_id in br.interfaces:
+                self.ifid2br[if_id] = br
 
     def init_core_ases(self):
         """
@@ -234,6 +240,12 @@ class SCIONElement(object):
         update the core ases map
         """
         self._core_ases[trc.isd] = trc.get_core_ases()
+
+    def get_border_addr(self, ifid):
+        br = self.ifid2br[ifid]
+        addr_idx = br.interfaces[ifid].addr_idx
+        br_addr, br_port = br.int_addrs[addr_idx].public[0]
+        return br_addr, br_port
 
     def handle_msg_meta(self, msg, meta):
         """
@@ -657,8 +669,7 @@ class SCIONElement(object):
                 return self._empty_first_hop(dst)
             if_id = path.get_fwd_if()
         if if_id in self.ifid2br:
-            br = self.ifid2br[if_id]
-            return br.addr, br.port
+            return self.get_border_addr(if_id)
         logging.error("Unable to find first hop:\n%s", path)
         return None, None
 
@@ -846,7 +857,6 @@ class SCIONElement(object):
 
         # FIXME(PSz): for now it is needed by SIBRA service.
         meta.pkt = pkt
-
         try:
             pkt.parse_payload()
         except SCIONParseError as e:
@@ -994,9 +1004,11 @@ class SCIONElement(object):
             SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
-        results = [(srv.addr, srv.port) for srv in service_map[qname]]
+        results = []
+        for srv in service_map[qname]:
+            addr, port = srv.public[0]
+            results.append((addr, port))
         # FIXME(kormat): replace with new discovery service when that's ready.
-        #  results = self._dns.query(qname, fallback, self._quiet_startup())
         if not results:
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)

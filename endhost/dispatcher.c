@@ -563,7 +563,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
-    /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
+        /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
