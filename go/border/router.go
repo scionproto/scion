@@ -17,10 +17,15 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/assert"
@@ -54,11 +59,33 @@ func (r *Router) Run() *common.Error {
 	go r.SyncInterface()
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
+	go r.confSig()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
 	var wait chan struct{}
 	<-wait
 	return nil
+}
+
+// confSig handles reloading the configuration when SIGHUP is received.
+func (r *Router) confSig() {
+	sig := make(chan os.Signal)
+	signal.Notify(sig, syscall.SIGHUP)
+	go func() {
+		for range sig {
+			var err *common.Error
+			var config *conf.Conf
+			if config, err = r.loadNewConfig(); err != nil {
+				log.Error("Error reloading config", err.Ctx...)
+				continue
+			}
+			if err = r.setupNewContext(config); err != nil {
+				log.Error("Error setting up new context", err.Ctx...)
+				continue
+			}
+			log.Info("Config reloaded")
+		}
+	}()
 }
 
 func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
