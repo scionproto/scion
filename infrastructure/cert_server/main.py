@@ -182,7 +182,7 @@ class CertServer(SCIONElement):
                     "Dropping CC request from %s for %sv%s: "
                     "CC not found && requester is not local)",
                     meta.get_addr(), *key)
-            elif not req.p.cacheOnly:
+            else:
                 self.cc_requests.put((key, (meta, req)))
             return
         self._reply_cc(key, (meta, req))
@@ -242,7 +242,7 @@ class CertServer(SCIONElement):
                     "Dropping TRC request from %s for %sv%s: "
                     "TRC not found && requester is not local)",
                     meta.get_addr(), *key)
-            elif not req.p.cacheOnly:
+            else:
                 self.trc_requests.put((key, (meta, req)))
             return
         self._reply_trc(key, (meta, req))

@@ -439,8 +439,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             (seg_req, logger) = targets.pop(0)
             meta = self._build_meta(ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
             self.send_meta(seg_req, meta)
-            logger.info("Waiting request (%s) sent via %s",
-                        seg_req.short_desc(), pcb.short_desc())
+            logger.info("Waiting request (%s) sent to %s via %s",
+                        seg_req.short_desc(), meta, pcb.short_desc())
 
     def _share_via_zk(self):
         if not self._segs_to_zk:
