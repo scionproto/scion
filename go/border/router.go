@@ -59,7 +59,7 @@ func (r *Router) Run() *common.Error {
 	go r.SyncInterface()
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
-	go r.ConfSig()
+	go r.confSig()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
 	var wait chan struct{}
@@ -67,7 +67,8 @@ func (r *Router) Run() *common.Error {
 	return nil
 }
 
-func (r *Router) ConfSig() {
+// confSig handles reloading the configuration when SIGHUP is received.
+func (r *Router) confSig() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGHUP)
 	go func() {
