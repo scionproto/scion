@@ -709,8 +709,7 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.topo_dicts.items():
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                int_addr = br_ele['InternalAddrs'][0]['Public'][0]
-                router_list.append("[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port']+1))
+                router_list.append(_prom_addr_br(br_ele))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -790,8 +789,7 @@ class SupervisorGenerator(object):
         entries = []
         for k, v in topo.get("BorderRouters", {}).items():
             conf_dir = os.path.join(base, k)
-            promAddr = "[%s]:%d" % (v["Addr"].ip, v["Port"]+1)
-            entries.append((k, [cmd, "-id", k, "-confd", conf_dir, "-prom", promAddr]))
+            entries.append((k, [cmd, "-id", k, "-confd", conf_dir, "-prom", _prom_addr_br(v)]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
@@ -1245,6 +1243,12 @@ def _topo_json_to_yaml(topo_dicts):
         else:
             topo_old[service] = attributes
     return topo_old
+
+
+def _prom_addr_br(br_ele):
+    """Get the prometheus address for a border router"""
+    int_addr = br_ele['InternalAddrs'][0]['Public'][0]
+    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port']+1)
 
 
 def main():
