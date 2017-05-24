@@ -117,6 +117,10 @@ class ASMarking(Cerealizable):
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
 
+    def iter_exts(self):
+        for ext in self.p.exts:
+            yield self.asm_ext(ext)
+
     def asm_ext(self, ext_raw):
         return ASMExt(ext_raw)
 
@@ -144,8 +148,8 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        for ext in self.p.exts:
-            b.append(self.asm_ext(ext).sig_pack0())
+        for ext in self.iter_exts():
+            b.append(ext.sig_pack0())
         return b"".join(b)
 
     def short_desc(self):
