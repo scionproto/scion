@@ -20,6 +20,7 @@
 import argparse
 import logging
 import time
+import random as rand
 
 # SCION
 from lib.log import init_logging
@@ -38,6 +39,8 @@ class PktGen(TestClientBase):
     def __init__(self, *args, size=0, **kwargs):
         super().__init__(*args, **kwargs)
         self.size = size
+        self.bytes_sent = 0
+        self.start = None
 
     def run(self, count, wait_time):
         self.sent = 0
@@ -46,20 +49,54 @@ class PktGen(TestClientBase):
         overlay_dest, overlay_port = str(self.first_hop[0]), self.first_hop[1]
         logging.debug("Sending (via %s:%s):\n%s", overlay_dest, overlay_port, spkt)
         logging.debug(self.path_meta)
+        wait_time = wait_time / 1000.0
+        self.start = time.time()
         while not count or self.sent < count:
             self.sock.send(raw, (overlay_dest, overlay_port))
             self.sent += 1
-            time.sleep(wait_time/1000.0)
+            time.sleep(wait_time)
+        self._shutdown()
+
+    def random_run(self, count, lambd, number):
+        rand.seed()
+        self.sent = 0
+
+        packets = []
+        for i in range(0, number):
+            spkt = self._build_pkt()
+            spkt.set_payload(self._create_payload(spkt, True))
+            spkt.update()
+            raw = spkt.pack()
+            packets.append(raw)
+
+        overlay_dest, overlay_port = str(self.first_hop[0]), self.first_hop[1]
+        logging.debug("Sending (via %s:%s)", overlay_dest, overlay_port)
+        logging.debug(self.path_meta)
+        self.start = time.time()
+
+        while not count or self.sent < count:
+            packet = packets[rand.randint(0, number - 1)]
+            self.sock.send(packet, (overlay_dest, overlay_port))
+            self.sent += 1
+            self.bytes_sent += len(packet)
+            if lambd:
+                time.sleep(rand.expovariate(lambd))
+
         self._shutdown()
 
     def _create_socket(self, addr):
         # Use UDPSocket directly to bypass the overhead of the dispatcher.
         return UDPSocket(bind=(str(addr.host), 0, ""), addr_type=addr.host.TYPE)
 
-    def _create_payload(self, spkt):
+    def _create_payload(self, spkt, randlen=False):
         data = b"ping " + self.data
         hdr_len = spkt.cmn_hdr.hdr_len + len(spkt.l4_hdr)
         min_size = hdr_len + len(data)
+        if randlen:
+            mean = (self.path_meta.p.mtu - min_size) / 2
+            mu = mean + min_size
+            sigma = mean / 3
+            self.size = int(rand.gauss(mu, sigma))
         if not self.size or self.size > self.path_meta.p.mtu:
             self.size = self.path_meta.p.mtu
         if self.size < min_size:
@@ -85,6 +122,15 @@ def main():
                         help='Size of packets to send. 0 means use the MTU of the path.')
     parser.add_argument('-w', '--wait', default=0, type=int,
                         help='Wait time in milliseconds after a packet has been sent.')
+    parser.add_argument('-r', '--random', action='store_true',
+                        help='Run with randomized wait time and packet size')
+    parser.add_argument('-la', '--lambd', default=50, type=int,
+                        help='Number of packets that are sent in average per second. '
+                             '0 means that as many packets as possible are sent.'
+                             ' Only used with -r flag')
+    parser.add_argument('-n', '--number', default=1000, type=int,
+                        help='Number of random sized packets to be used. Only used with -r flag.'
+                             '(Default: %(default)s)')
     parser.add_argument('src_ia', help='Src ISD-AS')
     parser.add_argument('src_addr', help='Src IP')
     parser.add_argument('dst_ia', help='Dst ISD-AS')
@@ -96,14 +142,28 @@ def main():
     dst = SCIONAddr.from_values(ISD_AS(args.dst_ia),
                                 haddr_parse_interface(args.dst_addr))
     gen = PktGen(b"data", "finished", src, dst, 3000, size=args.size)
-    start = time.time()
+
+    if args.random and (args.wait or args.size):
+        logging.warning("Flags -w and -s are not used in random mode. See -h for help.")
+    elif not args.random and (args.lambd != 50 or args.number != 1000):
+        logging.warning("Flags -la and -n are not used in performance mode. See -h for help.")
+
     try:
-        gen.run(args.count, args.wait)
+        if args.random:
+            gen.random_run(args.count, args.lambd, args.number)
+        else:
+            gen.run(args.count, args.wait)
     except KeyboardInterrupt:
         pass
-    total = time.time() - start
-    logging.info("Sent %d %dB packets in %.3fs (%d pps, %d bps)",
-                 gen.sent, gen.size, total, gen.sent / total, (gen.sent * gen.size * 8) / total)
+    total = time.time() - gen.start
+
+    if args.random:
+        logging.info("Sent %d bytes in %d packets in %.3fs (%d pps, %d bps)", gen.bytes_sent,
+                     gen.sent, total, gen.sent / total, (gen.bytes_sent * 8) / total)
+    else:
+        logging.info("Sent %d %dB packets in %.3fs (%d pps, %d bps)", gen.sent, gen.size,
+                     total, gen.sent / total, (gen.sent * gen.size * 8) / total)
+
 
 if __name__ == "__main__":
     main_wrapper(main)
