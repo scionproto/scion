@@ -62,7 +62,6 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	}
 	if currHopF.Ingress != 0 || currHopF.Egress != 0 {
 		// The current hop field has already been generated.
-		o.Debug("HopF: not regenning", "currHopF", currHopF)
 		return HookContinue, nil, nil
 	}
 	infoF, err := o.rp.InfoF()
