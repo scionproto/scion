@@ -143,13 +143,12 @@ class Topology(object):
     :ivar list beacon_servers: beacons servers in the AS.
     :ivar list certificate_servers: certificate servers in the AS.
     :ivar list path_servers: path servers in the AS.
-    :ivar list parent_border_routers:
-        border routers linking the AS to its parents.
-    :ivar list child_border_routers:
-        border routers linking the AS to its children.
-    :ivar list peer_border_routers: border router linking the AS to its peers.
-    :ivar list core_border_routers:
-        border router linking the core AS to another core AS.
+    :ivar list border_routers: border routers in the AS.
+    :ivar list parent_interfaces: BR interfaces linking to upstream ASes.
+    :ivar list child_interfaces: BR interfaces linking to downstream ASes.
+    :ivar list peer_interfaces: BR interfaces linking to peer ASes.
+    :ivar list core_interfaces: BR interfaces linking to core ASes.
+    :ivar list zookeepers: zookeeper instances in the AS.
     """
     def __init__(self):  # pragma: no cover
         self.is_core_as = False

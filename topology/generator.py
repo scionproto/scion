@@ -1154,14 +1154,12 @@ def _json_default(o):
 
 def _topo_json_to_yaml(topo_dicts):
     """
-    Convert the new topology format to an old format
+    Convert the new topology format (which uses json) to the old format (which uses yaml).
+    XXX(kormat): This is only needed until the BR is switched over to the new topo format.
 
     :pram dict topo_dicts: new topology dict
     :return dict topo_old: old topology dict
     """
-    # This method will not be necessary for the final version,
-    # since this method is to generate old version of topology format(.yml)
-    # to test with go router for integration_test.sh.
     topo_old = {}
     for service, attributes in topo_dicts.items():
         if service == "Overlay":
