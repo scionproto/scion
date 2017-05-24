@@ -37,7 +37,7 @@ class RevocationInfo(PathMgmtPayloadBase):
 
     @classmethod
     def from_values(cls, isd_as, if_id, epoch, nonce, siblings, prev_root,
-                    next_root):
+                    next_root, hash_type):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -48,10 +48,11 @@ class RevocationInfo(PathMgmtPayloadBase):
         :param list[(bool, bytes)] siblings: Positions and hashes of siblings
         :param bytes prev_root: Hash of the tree root at time T-1
         :param bytes next_root: Hash of the tree root at time T+1
+        :param hash_type: The hash function needed to verify the revocation.
         """
         # Put the isd_as, if_id, epoch and nonce of the leaf into the proof.
         p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, epoch=epoch,
-                                  nonce=nonce)
+                                  nonce=nonce, hashType=hash_type)
         # Put the list of sibling hashes (along with l/r) into the proof.
         sibs = p.init('siblings', len(siblings))
         for i, sibling in enumerate(siblings):
@@ -66,9 +67,9 @@ class RevocationInfo(PathMgmtPayloadBase):
 
     def cmp_str(self):
         b = []
-        b.append(self.p.isdas.to_bytes(8, 'big'))
+        b.append(self.p.isdas.to_bytes(4, 'big'))
         b.append(self.p.ifID.to_bytes(8, 'big'))
-        b.append(self.p.epoch.to_bytes(2, 'big'))
+        b.append(self.p.epoch.to_bytes(8, 'big'))
         b.append(self.p.nonce)
         return b"".join(b)
 

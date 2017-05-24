@@ -341,7 +341,7 @@ class SCIONElement(object):
                     continue
                 self.requested_trcs.add((isd, ver))
             isd_as = ISD_AS.from_values(isd, 0)
-            trc_req = TRCRequest.from_values(isd_as, ver)
+            trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
             logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
             if not seg_meta.meta:
                 meta = self.get_cs()
@@ -367,7 +367,7 @@ class SCIONElement(object):
                 if (isd_as, ver) in self.requested_certs:
                     continue
                 self.requested_certs.add((isd_as, ver))
-            cert_req = CertChainRequest.from_values(isd_as, ver)
+            cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta
             if not meta:
                 meta = self.get_cs()
