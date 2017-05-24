@@ -60,8 +60,8 @@ bin: deps_proto
 	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
 
 libs: deps_proto
-	govendor install -v +local,^program
+	govendor install --tags "$(GOTAGS)" -v +local,^program
 
 hsr: libs
-	GOBIN=${LOCAL_GOBIN} go install -v -tags hsr ./border/...
+	GOBIN=${LOCAL_GOBIN} go install -v -tags "$(GOTAGS) hsr" ./border/...
 	sudo setcap cap_dac_read_search,cap_dac_override,cap_sys_admin,cap_net_raw+ep ../bin/border
