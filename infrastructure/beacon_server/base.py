@@ -50,6 +50,7 @@ from lib.errors import (
 from lib.flagtypes import TCPFlags
 from lib.msg_meta import TCPMetadata, UDPMetadata
 from lib.path_seg_meta import PathSegMeta
+from lib.packet.asm_exts import ASMExt, RoutingPolicyExt
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
@@ -63,7 +64,6 @@ from lib.packet.pcb import (
     ASMarking,
     PathSegment,
     PCBMarking,
-    RoutingPolicyExt,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
@@ -301,8 +301,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
-            if asm.p.exts.routingPolicy:
-                self.handle_routing_pol_ext(asm.p.exts.routingPolicy)
+            for ext in asm.p.exts:
+                if ext.extension.which() == 'routingPolicy':
+                    self.handle_routing_pol_ext(ext.extension.routingPolicy)
 
     def handle_routing_pol_ext(self, ext):
         # TODO(Sezer): Implement extension handling
@@ -315,8 +316,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _create_pol_ext(self, pol_type, interface, isd_ases):
-        return RoutingPolicyExt.from_values(pol_type, interface, isd_ases)
+    def _create_routing_pol_ext(self, pol_type, interface, isd_ases):
+        rpe = RoutingPolicyExt.from_values(pol_type, interface, isd_ases)
+        return ASMExt.from_values(rpe)
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
@@ -325,8 +327,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
         test_isd_ases = [ISD_AS.from_values(2, 24)]
-        test_pol_ext = self._create_pol_ext(RoutingPolType.DENY_AS,
-                                            0, test_isd_ases)
+        test_pol_ext = self._create_routing_pol_ext(RoutingPolType.DENY_AS, 0, test_isd_ases)
         return ASMarking.from_values(
             self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
             self._get_ht_root(), self.topology.mtu, [test_pol_ext])

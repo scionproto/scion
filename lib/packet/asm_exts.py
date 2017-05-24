@@ -21,7 +21,35 @@ import proto.asm_exts_capnp as P
 from lib.errors import SCIONSigVerError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.types import ASMExtType, RoutingPolType
+from lib.types import RoutingPolType
+
+
+class ASMExt(Cerealizable):
+    NAME = "ASMExt"
+    P_CLS = P.ASMExt
+    VER = len(P_CLS.schema.fields) - 1
+
+    @classmethod
+    def from_values(cls, routingPolicy=None):
+        p = cls.P_CLS.new_message()
+        if routingPolicy:
+            p.extension.routingPolicy = routingPolicy.p
+        return cls(p)
+
+    def routing_pol_ext(self):
+        return RoutingPolicyExt(self.p.extension.routingPolicy)
+
+    def sig_pack0(self):
+        """
+        Pack for signing version 0 (defined by highest field number).
+        """
+        b = []
+        if self.VER != 0:
+            raise SCIONSigVerError(
+                "ASMExt.sig_pack0 cannot support version %s", self.VER)
+        if self.p.extension.which() == 'routingPolicy':
+            b.append(self.routing_pol_ext().sig_pack2())
+        return b"".join(b)
 
 
 class RoutingPolicyExt(Cerealizable):
@@ -35,7 +63,6 @@ class RoutingPolicyExt(Cerealizable):
         p.init("isdases", len(isd_ases))
         for i, isd_as in enumerate(isd_ases):
             p.isdases[i] = int(isd_as)
-        cls.extType = ASMExtType.ROUTING_POLICY
         return cls(p)
 
     def sig_pack2(self):
