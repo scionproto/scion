@@ -17,7 +17,6 @@
 """
 # Stdlib
 from unittest.mock import patch
-import logging
 
 # External packages
 import nose
@@ -74,7 +73,7 @@ class TestASMarkingFromValues(object):
         p_cls.new_message.assert_called_once_with(
             isdas=_ISD_AS1, trcVer=2, certVer=3, ifIDSize=14,
             hashTreeRoot="root", mtu="mtu")
-       #  msg.init.assert_called_once_with("pcbms", 3)
+        #  msg.init.assert_called_once_with("pcbms", 3)
         for i, pcbm in enumerate(msg.pcbms):
             ntools.eq_("pcbm %d" % i, pcbm)
 
