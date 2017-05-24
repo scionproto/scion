@@ -183,9 +183,9 @@ class CertServer(SCIONElement):
                     "CC not found && requester is not local)",
                     meta.get_addr(), *key)
             elif not req.p.cacheOnly:
-                self.cc_requests.put((key, meta))
+                self.cc_requests.put((key, (meta, req)))
             return
-        self._reply_cc(key, meta)
+        self._reply_cc(key, (meta, req))
 
     def process_cert_chain_reply(self, rep, meta, from_zk=False):
         """Process a certificate chain reply."""
@@ -206,19 +206,26 @@ class CertServer(SCIONElement):
         logging.debug('Cert chain not found for %sv%s', *key)
         return False
 
-    def _fetch_cc(self, key, _):
+    def _fetch_cc(self, key, req_info):
+        # Do not attempt to fetch the CertChain from a remote AS if the cacheOnly flag is set.
+        _, orig_req = req_info
+        if orig_req.p.cacheOnly:
+            return
         isd_as, ver = key
         req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
-        path = self._get_path_via_api(isd_as)
-        meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
-        if path and self.send_meta(req, meta):
-            logging.info("Cert chain request sent to %s: %s", meta, req.short_desc())
+        path_meta = self._get_path_via_api(isd_as)
+        if path_meta:
+            meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
+            self.send_meta(req, meta)
+            logging.info("Cert chain request sent to %s via [%s]: %s",
+                         meta, path_meta.short_desc(), req.short_desc())
         else:
             logging.warning("Cert chain request (for %s) not sent: "
-                            "no destination found", req.short_desc())
+                            "no path found", req.short_desc())
 
-    def _reply_cc(self, key, meta):
+    def _reply_cc(self, key, req_info):
         isd_as, ver = key
+        meta = req_info[0]
         cert_chain = self.trust_store.get_cert(isd_as, ver)
         self.send_meta(CertChainReply.from_values(cert_chain), meta)
         logging.info("Cert chain for %sv%s sent to %s:%s", isd_as, ver, meta.get_addr(), meta.port)
@@ -236,9 +243,9 @@ class CertServer(SCIONElement):
                     "TRC not found && requester is not local)",
                     meta.get_addr(), *key)
             elif not req.p.cacheOnly:
-                self.trc_requests.put((key, (meta, req.isd_as()[1]),))
+                self.trc_requests.put((key, (meta, req)))
             return
-        self._reply_trc(key, meta)
+        self._reply_trc(key, (meta, req))
 
     def process_trc_reply(self, trc_rep, meta, from_zk=False):
         """
@@ -264,21 +271,26 @@ class CertServer(SCIONElement):
         logging.debug('TRC not found for %sv%s', *key)
         return False
 
-    def _fetch_trc(self, key, info):
+    def _fetch_trc(self, key, req_info):
+        # Do not attempt to fetch the TRC from a remote AS if the cacheOnly flag is set.
+        _, orig_req = req_info
+        if orig_req.p.cacheOnly:
+            return
         isd, ver = key
-        isd_as = ISD_AS.from_values(isd, info[1])
+        isd_as = ISD_AS.from_values(isd, orig_req.isd_as()[1])
         trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
-        path = self._get_path_via_api(isd_as)
-        meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path)
-        if path and self.send_meta(trc_req, meta):
-            logging.info("TRC request sent for %sv%s.", *key)
+        path_meta = self._get_path_via_api(isd_as)
+        if path_meta:
+            meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
+            self.send_meta(trc_req, meta)
+            logging.info("TRC request sent to %s via [%s]: %s",
+                         meta, path_meta.short_desc(), trc_req.short_desc())
         else:
-            logging.warning("TRC request not sent for %sv%s: "
-                            "no destination found.", *key)
+            logging.warning("TRC request not sent for %s: no path found.", trc_req.short_desc())
 
-    def _reply_trc(self, key, info):
+    def _reply_trc(self, key, req_info):
         isd, ver = key
-        meta = info[0]
+        meta = req_info[0]
         trc = self.trust_store.get_trc(isd, ver)
         self.send_meta(TRCReply.from_values(trc), meta)
         logging.info("TRC for %sv%s sent to %s:%s", isd, ver, meta.get_addr(), meta.port)
@@ -294,7 +306,7 @@ class CertServer(SCIONElement):
                 logging.error("Error during path lookup: %s" % e)
                 continue
             if path_entries:
-                return path_entries[0].path().fwd_path()
+                return path_entries[0].path()
         logging.warning("Unable to get path to %s from local api.", isd_as)
         return None
 

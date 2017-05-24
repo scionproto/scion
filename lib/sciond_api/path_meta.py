@@ -54,7 +54,7 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
 
     def short_desc(self):
         if_str = ", ".join([if_.short_desc() for if_ in self.iter_ifs()])
-        return "MTU: %d Interfaces: %s" % (self.p.mtu, if_str)
+        return "Interfaces: %s MTU: %d" % (if_str, self.p.mtu)
 
     def __eq__(self, other):
         return list(self.iter_ifs()) == list(other.iter_ifs())
