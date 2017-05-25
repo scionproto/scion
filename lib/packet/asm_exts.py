@@ -71,8 +71,7 @@ class RoutingPolicyExt(Cerealizable):
         """
         b = []
         if self.VER != 2:
-            raise SCIONSigVerError(
-                "RoutingPolicyExt.sig_pack2 cannot support version %s", self.VER)
+            raise SCIONSigVerError("RoutingPolicyExt.sig_pack2 cannot support version %s", self.VER)
         b.append(self.p.polType.to_bytes(1, 'big'))
         b.append(self.p.ifID.to_bytes(2, 'big'))
         for isd_as in self.p.isdases:
