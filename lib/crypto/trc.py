@@ -355,8 +355,7 @@ class TRC(object):
         Parses the subject string only for cross signatures.
 
         The subject strings have the different forms depending on subject.
-        CA entry begins with the string "ISD x, CA:",
-        on which the CAs name follows.
+        CA entry begins with the string "ISD x, CA:", on which the CAs name follows.
         RAINS entry begins with the string "ISD x, RAINS:"
         Core AS entry contains the SCION name of the AS.
         """
@@ -365,7 +364,7 @@ class TRC(object):
         if sub[0].split(' ')[0] == "ISD":
             isd = sub[0].split(' ')[1]
             if not isd.isdigit() or len(sub) < 2:
-                logging.error("Subject parse failed! %s" % subject)
+                logging.error("Cannot parse subject: %s" % subject)
                 return
             if sub[1].strip() == "RAINS":
                 return "RAINS", isd, ""
@@ -373,7 +372,7 @@ class TRC(object):
                 ca = sub[1].split(':')[1].strip()
                 return "CA", isd, ca
             else:
-                logging.error("Subject parse failed! %s" % subject)
+                logging.error("Cannot parse subject: %s" % subject)
                 return
         # We have any AS
         else:
@@ -381,7 +380,7 @@ class TRC(object):
                 isd_as = ISD_AS(sub[0])
                 return "AS", isd_as, ""
             except:
-                logging.error("Subject parse failed! %s" % subject)
+                logging.error("Cannot parse subject: %s" % subject)
                 return
 
     def pack(self, lz4_=False):
@@ -432,7 +431,7 @@ def verify_new_trc(old_trc, new_trc):
     return True
 
 
-def verify_trc_chain(local_trc, verified_rem_trcs, remote_trc):
+def verify_trc_chain(local_trc, verified_rem_trcs, rem_trc):
     """
     Checks if remote TRC can be verified using local TRC or already
     verified remote TRCs. i.e. checks if there is a trust chain between
@@ -440,19 +439,19 @@ def verify_trc_chain(local_trc, verified_rem_trcs, remote_trc):
 
     :param TRC local_trc: The local TRC to this ISD.
     :param List(TRC) verified_rem_trcs: Already verified remote TRCs.
-    :param TRC remote_trc: Remote TRC to verify.
-    :returns: True if remote_trc can be verified, false otherwise.
+    :param TRC rem_trc: Remote TRC to verify.
+    :returns: True if rem_trc can be verified, false otherwise.
     """
     # Get neighbors of remote TRC
-    rem_nbs = remote_trc.get_neighbors()
+    rem_nbs = rem_trc.get_neighbors()
     if local_trc.isd in rem_nbs:
         # Try to verify with local TRC
-        if verify_trc_xsigs(local_trc, remote_trc) and verify_trc_xsigs(remote_trc, local_trc):
+        if verify_trc_xsigs(local_trc, rem_trc) and verify_trc_xsigs(rem_trc, local_trc):
             return True
     # Only take TRCs that are neighbors of remote TRC
     ver_trcs = [trc for trc in verified_rem_trcs if trc.isd in rem_nbs]
     for trc in ver_trcs:
-        if verify_trc_xsigs(trc, remote_trc) and verify_trc_xsigs(remote_trc, trc):
+        if verify_trc_xsigs(trc, rem_trc) and verify_trc_xsigs(rem_trc, trc):
             return True
     return False
 
@@ -492,8 +491,8 @@ def verify_core_as_xsigs(src_trc, dst_trc):
         if dst_trc.verify_signature(signature, pub_key):
             return True
         else:
-            logging.error("TRC(ISD %s) contains invalid signature from core AS"
-                          "(ISD %s)" % (dst_trc.isd, src_trc.isd))
+            logging.error("TRC(ISD %s) contains invalid signature from core AS (ISD %s)"
+                          % (dst_trc.isd, src_trc.isd))
     return False
 
 
@@ -514,8 +513,8 @@ def verify_rains_xsigs(src_trc, dst_trc):
         if dst_trc.verify_signature(signature, pub_key):
             return True
         else:
-            logging.error("TRC(ISD %s) contains invalid signature from RAINS"
-                          "(ISD %s)" % (dst_trc.isd, src_trc.isd))
+            logging.error("TRC(ISD %s) contains invalid signature from RAINS (ISD %s)"
+                          % (dst_trc.isd, src_trc.isd))
     return False
 
 
@@ -536,6 +535,6 @@ def verify_ca_xsigs(src_trc, dst_trc):
         if dst_trc.verify_signature(signature, pub_key):
             return True
         else:
-            logging.error("Remote TRC(ISD %s) contains invalid signature from CA"
-                          "(ISD %s)" % (dst_trc.isd, src_trc.isd))
+            logging.error("Remote TRC(ISD %s) contains invalid signature from CA (ISD %s)"
+                          % (dst_trc.isd, src_trc.isd))
     return False
