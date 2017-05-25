@@ -185,7 +185,7 @@ class ConfigGenerator(object):
         """
         ca_private_key_files, ca_cert_files, ca_certs, ca_online_key_pairs = self._generate_cas()
         cert_files, trc_files = self._generate_certs_trcs(ca_certs, ca_online_key_pairs)
-        topo_dicts, zookeepers, networks = self._generate_topology()
+        topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
         self._generate_prom_conf(topo_dicts)
