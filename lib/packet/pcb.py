@@ -94,7 +94,7 @@ class ASMarking(Cerealizable):
     VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=[],
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
                     ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
