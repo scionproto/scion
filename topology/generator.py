@@ -391,7 +391,8 @@ class CertGenerator(object):
         # Add public online key, certificate for CAs to TRC
         ca_certs = defaultdict(dict)
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
-            ca_certs[ca_name][CERTIFICATE_STRING] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
+            ca_certs[ca_name][CERTIFICATE_STRING] = \
+                crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
             ca_certs[ca_name][ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
             ca_certs[ca_name][ONLINE_KEY_STRING] = self.ca_online_key_pairs[ca_name][0]
         trc.root_cas = ca_certs
