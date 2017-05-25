@@ -19,7 +19,6 @@
 import base64
 import copy
 import json
-import logging
 import time
 
 # External
@@ -383,7 +382,7 @@ class TRC(object):
         return ret
 
     def short_desc(self):
-        desc = "TRC(" 
+        desc = "TRC("
         for attr in (ISDID_STRING, VERSION_STRING, DESCRIPTION_STRING,
                      CREATION_TIME_STRING, EXPIRATION_TIME_STRING):
             desc += attr + ": " + str(getattr(self, self.FIELDS_MAP[attr][0])) + ", "
