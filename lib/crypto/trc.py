@@ -112,22 +112,17 @@ class TRC(object):
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
             key = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
-            self.core_ases[subject][ONLINE_KEY_STRING] = \
-                base64.b64decode(key.encode('utf-8'))
+            self.core_ases[subject][ONLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
             key = trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING]
-            self.core_ases[subject][OFFLINE_KEY_STRING] = \
-                base64.b64decode(key.encode('utf-8'))
+            self.core_ases[subject][OFFLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
         for subject in trc_dict[SIGNATURES_STRING]:
             sig = trc_dict[SIGNATURES_STRING][subject]
-            self.signatures[subject] = \
-                base64.b64decode(sig.encode('utf-8'))
+            self.signatures[subject] = base64.b64decode(sig.encode('utf-8'))
         for subject in trc_dict[ROOT_CAS_STRING]:
             key = trc_dict[ROOT_CAS_STRING][subject][CERTIFICATE_STRING]
-            self.root_cas[subject][CERTIFICATE_STRING] = \
-                base64.b64decode(key.encode('utf-8'))
+            self.root_cas[subject][CERTIFICATE_STRING] = base64.b64decode(key.encode('utf-8'))
             key = trc_dict[ROOT_CAS_STRING][subject][ONLINE_KEY_STRING]
-            self.root_cas[subject][ONLINE_KEY_STRING] = \
-                base64.b64decode(key.encode('utf-8'))
+            self.root_cas[subject][ONLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
         if trc_dict[RAINS_STRING]:
             key = trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING]
             self.rains[ROOT_RAINS_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
@@ -219,12 +214,10 @@ class TRC(object):
             if self.verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
             else:
-                logging.warning("TRC contains a signature which could not \
-                be verified.")
+                logging.warning("TRC contains a signature which could not be verified.")
         # We have fewer valid signatrues for this TRC than quorum_own_trc
         if len(valid_signature_signers) < old_trc.quorum_own_trc:
-            logging.error("TRC does not have the number of required valid \
-            signatures")
+            logging.error("TRC does not have the number of required valid signatures")
             return False
         logging.debug("TRC verified.")
         return True
@@ -258,8 +251,7 @@ class TRC(object):
         encoded_dict = {}
         for key_ in dict_:
             if type(dict_[key_]) is str:
-                encoded_dict[key_] = base64.b64encode(
-                    dict_[key_].encode('utf-8')).decode('utf-8')
+                encoded_dict[key_] = base64.b64encode(dict_[key_].encode('utf-8')).decode('utf-8')
         return encoded_dict
 
     def to_json(self, with_signatures=True):
@@ -268,11 +260,9 @@ class TRC(object):
         """
         trc_dict = copy.deepcopy(self.dict(with_signatures))
         key = trc_dict[RAINS_STRING][ONLINE_KEY_STRING]
-        trc_dict[RAINS_STRING][ONLINE_KEY_STRING] = \
-            base64.b64encode(key).decode('utf-8')
+        trc_dict[RAINS_STRING][ONLINE_KEY_STRING] = base64.b64encode(key).decode('utf-8')
         key = trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING]
-        trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING] = \
-            base64.b64encode(key).decode('utf-8')
+        trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING] = base64.b64encode(key).decode('utf-8')
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
             d = trc_dict[CORE_ASES_STRING][subject]
@@ -436,8 +426,7 @@ def verify_new_trc(old_trc, new_trc):
         return False
     # Check if there are enough valid signatures for new TRC
     if not new_trc.verify(old_trc):
-        logging.error("New TRC verification failed, missing or"
-                      "invalid signatures")
+        logging.error("New TRC verification failed, missing or invalid signatures")
         return False
     logging.debug("New TRC verified")
     return True
@@ -458,8 +447,7 @@ def verify_trc_chain(local_trc, verified_rem_trcs, remote_trc):
     rem_nbs = remote_trc.get_neighbors()
     if local_trc.isd in rem_nbs:
         # Try to verify with local TRC
-        if verify_trc_xsigs(local_trc, remote_trc) \
-                and verify_trc_xsigs(remote_trc, local_trc):
+        if verify_trc_xsigs(local_trc, remote_trc) and verify_trc_xsigs(remote_trc, local_trc):
             return True
     # Only take TRCs that are neighbors of remote TRC
     ver_trcs = [trc for trc in verified_rem_trcs if trc.isd in rem_nbs]
