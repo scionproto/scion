@@ -27,6 +27,7 @@ import lz4
 
 # SCION
 from lib.crypto.asymcrypto import verify, sign
+from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.packet.scion_addr import ISD_AS
 
 ISDID_STRING = 'ISDID'
@@ -199,28 +200,20 @@ class TRC(object):
         in old TRC.
 
         :param: old_trc: the previous TRC which has already been verified.
-        :returns: True if verification succeeds, false otherwise.
-        :rtype: bool
+        :raises: SCIONVerificationError if the verification fails.
         """
         # Only look at signatures which are from core ASes as defined in old TRC
         signatures = {k: self.signatures[k] for k in old_trc.core_ases.keys()}
-        # We have more signatures than the number of core ASes in old TRC
-        if len(signatures) < len(self.signatures):
-            logging.warning("TRC has more signatures than number of core ASes.")
         valid_signature_signers = set()
         # Add every signer to this set whose signature was verified successfully
         for signer in signatures:
             public_key = self.core_ases[signer].subject_sig_key_raw
             if self.verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
-            else:
-                logging.warning("TRC contains a signature which could not be verified.")
         # We have fewer valid signatrues for this TRC than quorum_own_trc
         if len(valid_signature_signers) < old_trc.quorum_own_trc:
-            logging.error("TRC does not have the number of required valid signatures")
-            return False
-        logging.debug("TRC verified.")
-        return True
+            raise SCIONVerificationError("TRC does not have the number of required valid"
+                                         "signatures: %s" % self)
 
     def verify_signature(self, signature, public_key):
         """
@@ -341,8 +334,9 @@ class TRC(object):
         """
         neighbors = set()
         for subject, signature in self.signatures.items():
-            res = self._parse_subject_str(subject)
-            if not res:
+            try:
+                res = self._parse_subject_str(subject)
+            except SCIONParseError:
                 continue
             _, isd, _ = res
             if isinstance(isd, ISD_AS):
@@ -358,36 +352,44 @@ class TRC(object):
         CA entry begins with the string "ISD x, CA:", on which the CAs name follows.
         RAINS entry begins with the string "ISD x, RAINS:"
         Core AS entry contains the SCION name of the AS.
+
+        :raises: SCIONParseError if the subject parse fails.
         """
         sub = subject.split(',', 1)
         # We have a CA or rains as subject
         if sub[0].split(' ')[0] == "ISD":
             isd = sub[0].split(' ')[1]
             if not isd.isdigit() or len(sub) < 2:
-                logging.error("Cannot parse subject: %s" % subject)
-                return
+                raise SCIONParseError("Cannot parse subject: %s" % subject)
             if sub[1].strip() == "RAINS":
                 return "RAINS", isd, ""
             elif sub[1].strip().startswith('CA:'):
                 ca = sub[1].split(':')[1].strip()
                 return "CA", isd, ca
             else:
-                logging.error("Cannot parse subject: %s" % subject)
-                return
+                raise SCIONParseError("Cannot parse subject: %s" % subject)
         # We have any AS
         else:
             try:
                 isd_as = ISD_AS(sub[0])
                 return "AS", isd_as, ""
             except:
-                logging.error("Cannot parse subject: %s" % subject)
-                return
+                raise SCIONParseError("Cannot parse subject: %s" % subject)
 
     def pack(self, lz4_=False):
         ret = self.to_json().encode('utf-8')
         if lz4_:
             return lz4.dumps(ret)
         return ret
+
+    def short_desc(self):
+        desc = "TRC(" 
+        for attr in (ISDID_STRING, VERSION_STRING, DESCRIPTION_STRING,
+                     CREATION_TIME_STRING, EXPIRATION_TIME_STRING):
+            desc += attr + ": " + str(getattr(self, self.FIELDS_MAP[attr][0])) + ", "
+        desc = desc[:-2]
+        desc += ")"
+        return desc
 
     def __str__(self):
         return self.to_json()
@@ -402,33 +404,26 @@ def verify_new_trc(old_trc, new_trc):
     is correct and checks if the new TRC has enough valid signatures as defined
     in the current TRC.
 
-    :returns: True if update is valid, False otherwise
+    :raises: SCIONVerificationError if the verification fails.
     """
     # Check if update is correct
     if old_trc.isd != new_trc.isd:
-        logging.error("TRC isdid mismatch")
-        return False
+        raise SCIONVerificationError("TRC isdid mismatch")
     if old_trc.version + 1 != new_trc.version:
-        logging.error("TRC versions mismatch")
-        return False
+        raise SCIONVerificationError("TRC versions mismatch")
     if new_trc.time < old_trc.time:
-        logging.error("New TRC timestamp is not valid")
-        return False
+        raise SCIONVerificationError("New TRC timestamp is not valid")
     if old_trc.exp_time >= time.time():
-        logging.error("Current TRC expired")
-        return False
+        raise SCIONVerificationError("Current TRC expired")
     if new_trc.exp_time >= time.time():
-        logging.error("New TRC expired")
-        return False
+        raise SCIONVerificationError("New TRC expired")
     if new_trc.quarantine or old_trc.quarantine:
-        logging.error("Early announcement")
-        return False
+        raise SCIONVerificationError("Early announcement")
     # Check if there are enough valid signatures for new TRC
-    if not new_trc.verify(old_trc):
-        logging.error("New TRC verification failed, missing or invalid signatures")
-        return False
-    logging.debug("New TRC verified")
-    return True
+    try:
+        new_trc.verify(old_trc)
+    except SCIONVerificationError:
+        raise SCIONVerificationError("New TRC verification failed, missing or invalid signatures")
 
 
 def verify_trc_chain(local_trc, verified_rem_trcs, rem_trc):
@@ -440,7 +435,7 @@ def verify_trc_chain(local_trc, verified_rem_trcs, rem_trc):
     :param TRC local_trc: The local TRC to this ISD.
     :param List(TRC) verified_rem_trcs: Already verified remote TRCs.
     :param TRC rem_trc: Remote TRC to verify.
-    :returns: True if rem_trc can be verified, false otherwise.
+    :raises: SCIONVerificationError if the verification fails.
     """
     # Get neighbors of remote TRC
     rem_nbs = rem_trc.get_neighbors()
@@ -451,9 +446,14 @@ def verify_trc_chain(local_trc, verified_rem_trcs, rem_trc):
     # Only take TRCs that are neighbors of remote TRC
     ver_trcs = [trc for trc in verified_rem_trcs if trc.isd in rem_nbs]
     for trc in ver_trcs:
-        if verify_trc_xsigs(trc, rem_trc) and verify_trc_xsigs(rem_trc, trc):
-            return True
-    return False
+        try:
+            verify_trc_xsigs(trc, rem_trc)
+            verify_trc_xsigs(rem_trc, trc)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("TRC chaiun verification between %s and %s failed."
+                                 % (local_trc.short_desc(), rem_trc.short_desc()))
 
 
 def verify_trc_xsigs(src_trc, dst_trc):
@@ -462,16 +462,19 @@ def verify_trc_xsigs(src_trc, dst_trc):
 
     :param TRC src_trc: The signing ISD's TRC.
     :param TRC dst_trc: The TRC whose signatures need to be checked.
-    :returns: True if dst_trc is signed correctly by src_trc, False otherwise.
+    :raises: SCIONVerificationError if the verification fails.
     """
     assert isinstance(src_trc, TRC)
     assert isinstance(dst_trc, TRC)
     if src_trc.isd == dst_trc.isd:
-        logging.warning("TRCs are from the same ISD.")
-        return False
-    return (verify_core_as_xsigs(src_trc, dst_trc) and
-            verify_rains_xsigs(src_trc, dst_trc) and
-            verify_ca_xsigs(src_trc, dst_trc))
+        raise SCIONVerificationError("TRCs are from the same ISD(%s)." % src_trc.isd)
+    try:
+        verify_core_as_xsigs(src_trc, dst_trc)
+        verify_rains_xsigs(src_trc, dst_trc)
+        verify_ca_xsigs(src_trc, dst_trc)
+    except SCIONVerificationError:
+        raise SCIONVerificationError("Cross signature verification between %s and %s failded."
+                                     % (src_trc.short_desc(), dst_trc.short_desc()))
 
 
 def verify_core_as_xsigs(src_trc, dst_trc):
@@ -480,20 +483,20 @@ def verify_core_as_xsigs(src_trc, dst_trc):
 
     :param TRC src_trc: The signing ISD's TRC.
     :param TRC dst_trc: The TRC whose signatures need to be checked.
-    :returns: True if dst_trc has a valid signature of a core AS in src_trc.
-              False otherwise.
+    :raises: SCIONVerificationError if the verification fails.
     """
     as_sigs = dst_trc.get_as_sigs()
     for isd_as, signature in as_sigs:
         if isd_as[0] != src_trc.isd:
             continue
         pub_key = src_trc.core_ases[str(isd_as)][ONLINE_KEY_STRING]
-        if dst_trc.verify_signature(signature, pub_key):
-            return True
-        else:
-            logging.error("TRC(ISD %s) contains invalid signature from core AS (ISD %s)"
-                          % (dst_trc.isd, src_trc.isd))
-    return False
+        try:
+            dst_trc.verify_signature(signature, pub_key)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("%s is not correctly signed by a core AS in %s"
+                                 % (src_trc.short_desc(), dst_trc.short_desc()))
 
 
 def verify_rains_xsigs(src_trc, dst_trc):
@@ -502,20 +505,20 @@ def verify_rains_xsigs(src_trc, dst_trc):
 
     :param TRC src_trc: The signing ISD's TRC.
     :param TRC dst_trc: The TRC whose signatures need to be checked.
-    :returns: True if dst_trc has a valid signature of RAINS in src_trc.
-              False otherwise.
+    :raises: SCIONVerificationError if the verification fails.
     """
     rains_sigs = dst_trc.get_rains_sigs()
     for isd, signature in rains_sigs:
         if isd != src_trc.isd:
             continue
         pub_key = src_trc.rains[ONLINE_KEY_STRING]
-        if dst_trc.verify_signature(signature, pub_key):
-            return True
-        else:
-            logging.error("TRC(ISD %s) contains invalid signature from RAINS (ISD %s)"
-                          % (dst_trc.isd, src_trc.isd))
-    return False
+        try:
+            dst_trc.verify_signature(signature, pub_key)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("%s is not correctly signed by RAINS in %s"
+                                 % (src_trc.short_desc(), dst_trc.short_desc()))
 
 
 def verify_ca_xsigs(src_trc, dst_trc):
@@ -524,17 +527,17 @@ def verify_ca_xsigs(src_trc, dst_trc):
 
     :param TRC src_trc: The signing ISD's TRC.
     :param TRC dst_trc: The TRC whose signatures need to be checked.
-    :returns: True if dst_trc has a valid signature of a CA in src_trc.
-              False otherwise.
+    :raises: SCIONVerificationError if the verification fails.
     """
     ca_sigs = dst_trc.get_ca_sigs()
     for isd, ca_name, signature in ca_sigs:
         if isd != src_trc.isd:
             continue
         pub_key = src_trc.root_cas[ca_name][ONLINE_KEY_STRING]
-        if dst_trc.verify_signature(signature, pub_key):
-            return True
-        else:
-            logging.error("Remote TRC(ISD %s) contains invalid signature from CA (ISD %s)"
-                          % (dst_trc.isd, src_trc.isd))
-    return False
+        try:
+            dst_trc.verify_signature(signature, pub_key)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("%s is not correctly signed by a CA in %s"
+                                 % (src_trc.short_desc(), dst_trc.short_desc()))
