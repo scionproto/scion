@@ -281,50 +281,22 @@ class TRC(object):
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
 
-    def get_ca_sigs(self):
+    def get_sigs(self, sig_type):
         """
-        Returns a list of tuples (isd, ca name, ca signature) for all CA
-        signatures on this TRC
+        Returns a list of tuples (isd, ca name, ca signature) for all signatures of
+        type sig_type on this TRC. ca_name is empty for sig_type AS and RAINS
         """
-        cas = []
+        assert sig_type in ("AS", "CA", "RAINS", )
+        sigs = []
         for subject, signature in self.signatures.items():
-            res = self._parse_subject_str(subject)
-            if not res:
+            try:
+                res = self._parse_subject_str(subject)
+            except SCIONParseError:
                 continue
             type_, isd, ca_name = res
-            if type_ == "CA":
-                cas.append((int(isd), ca_name, signature))
-        return cas
-
-    def get_rains_sigs(self):
-        """
-        Returns a list of tuples (isd, rains signature) for all RAINS signatures
-        on this TRC
-        """
-        rains = []
-        for subject, signature in self.signatures.items():
-            res = self._parse_subject_str(subject)
-            if not res:
-                continue
-            type_, isd, _ = res
-            if type_ == "RAINS":
-                rains.append((int(isd), signature))
-        return rains
-
-    def get_as_sigs(self):
-        """
-        Returns a list of tuples (isd_as, as signature) for all AS signatures
-        on this TRC
-        """
-        ases = []
-        for subject, signature in self.signatures.items():
-            res = self._parse_subject_str(subject)
-            if not res:
-                continue
-            type_, isd_as, _ = res
-            if type_ == "AS":
-                ases.append((isd_as, signature))
-        return ases
+            if type_ == sig_type:
+                sigs.append((int(isd), ca_name, signature))
+        return sigs
 
     def get_neighbors(self):
         """
@@ -407,22 +379,27 @@ def verify_new_trc(old_trc, new_trc):
     """
     # Check if update is correct
     if old_trc.isd != new_trc.isd:
-        raise SCIONVerificationError("TRC isdid mismatch")
+        raise SCIONVerificationError("TRC isdid mismatch. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     if old_trc.version + 1 != new_trc.version:
-        raise SCIONVerificationError("TRC versions mismatch")
+        raise SCIONVerificationError("TRC versions mismatch. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     if new_trc.time < old_trc.time:
-        raise SCIONVerificationError("New TRC timestamp is not valid")
+        raise SCIONVerificationError("New TRC timestamp is not valid. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     if old_trc.exp_time >= time.time():
-        raise SCIONVerificationError("Current TRC expired")
+        raise SCIONVerificationError("Current TRC expired: %s" % old_trc.short_desc())
     if new_trc.exp_time >= time.time():
-        raise SCIONVerificationError("New TRC expired")
+        raise SCIONVerificationError("New TRC expired: %s" % new_trc.short_desc())
     if new_trc.quarantine or old_trc.quarantine:
-        raise SCIONVerificationError("Early announcement")
+        raise SCIONVerificationError("Early announcement. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     # Check if there are enough valid signatures for new TRC
     try:
         new_trc.verify(old_trc)
     except SCIONVerificationError:
-        raise SCIONVerificationError("New TRC verification failed, missing or invalid signatures")
+        raise SCIONVerificationError("New TRC verification failed, missing or invalid"
+                                     "signatures %s" % new_trc.short_desc())
 
 
 def verify_trc_chain(local_trc, verified_rem_trcs, rem_trc):
@@ -484,11 +461,11 @@ def verify_core_as_xsigs(src_trc, dst_trc):
     :param TRC dst_trc: The TRC whose signatures need to be checked.
     :raises: SCIONVerificationError if the verification fails.
     """
-    as_sigs = dst_trc.get_as_sigs()
-    for isd_as, signature in as_sigs:
-        if isd_as[0] != src_trc.isd:
+    as_sigs = dst_trc.get_sigs("AS")
+    for isd_as, _, signature in as_sigs:
+        if ISD_AS(isd_as)[0] != src_trc.isd:
             continue
-        pub_key = src_trc.core_ases[str(isd_as)][ONLINE_KEY_STRING]
+        pub_key = src_trc.core_ases[str(ISD_AS(isd_as))][ONLINE_KEY_STRING]
         try:
             dst_trc.verify_signature(signature, pub_key)
             return
@@ -506,8 +483,8 @@ def verify_rains_xsigs(src_trc, dst_trc):
     :param TRC dst_trc: The TRC whose signatures need to be checked.
     :raises: SCIONVerificationError if the verification fails.
     """
-    rains_sigs = dst_trc.get_rains_sigs()
-    for isd, signature in rains_sigs:
+    rains_sigs = dst_trc.get_sigs("RAINS")
+    for isd, _, signature in rains_sigs:
         if isd != src_trc.isd:
             continue
         pub_key = src_trc.rains[ONLINE_KEY_STRING]
@@ -528,7 +505,7 @@ def verify_ca_xsigs(src_trc, dst_trc):
     :param TRC dst_trc: The TRC whose signatures need to be checked.
     :raises: SCIONVerificationError if the verification fails.
     """
-    ca_sigs = dst_trc.get_ca_sigs()
+    ca_sigs = dst_trc.get_sigs("CA")
     for isd, ca_name, signature in ca_sigs:
         if isd != src_trc.isd:
             continue
