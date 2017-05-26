@@ -49,7 +49,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc):
     assert isinstance(trc, TRC)
     subject = str(subject)
     try:
-        chain.verify(str(subject), trc)
+        chain.verify(subject, trc)
     except SCIONVerificationError as e:
         raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
     verifying_key = None
