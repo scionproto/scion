@@ -227,31 +227,3 @@ func TestRegister(t *testing.T) {
 		})
 	})
 }
-
-func ExampleRegister() {
-	dispatcher := "/run/shm/dispatcher/default.sock"
-	e := make(chan error)
-
-	go func() {
-		ia, _ := addr.IAFromString("1-10")
-		host := addr.HostFromIP(net.IPv4(127, 0, 0, 42))
-		port := uint16(40001)
-
-		_, err := Register(dispatcher, ia, AppAddr{Addr: host, Port: port})
-		e <- err
-	}()
-
-	select {
-	case err := <-e:
-		if err != nil {
-			fmt.Printf("Error: %v", err)
-		}
-	case <-time.After(time.Second * 3):
-		fmt.Printf("Dispatcher registration timed out")
-	}
-
-	fmt.Println("Registered with 1,10,127.0.0.42:40001")
-
-	// Output:
-	// Registered with 1,10,127.0.0.42:40001
-}
