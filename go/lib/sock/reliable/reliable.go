@@ -27,7 +27,6 @@
 //
 package reliable
 
-
 import (
 	"bytes"
 	"encoding/binary"
@@ -73,24 +72,19 @@ func Dial(address string) (*Conn, error) {
 // Register connects to a SCION Dispatcher listening on a UNIX socket specified by dispatcher.
 // Future messages for address a in AS ia which arrive at the dispatcher can be read by
 // calling Read on the returned Conn structure.
+//
+// ReliableSocket registration message format:
+//  13-bytes: [Common header with address type NONE]
+//   1-byte: Command (bit mask with 0x02=SCMP enable, 0x01 always set)
+//   1-byte: L4 Proto (IANA number)
+//   4-bytes: ISD-AS
+//   2-bytes: Registered port
+//   1-byte: Address type
+//   var-byte: Address
 func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, error) {
-
-	// ReliableSocket common header message format:
-	//   8-bytes: COOKIE (0xde00ad01be02ef03)
-	//   1-byte: ADDR TYPE (NONE=0, IPv4=1, IPv6=2, SVC=3, UNIX=4)
-	//   4-byte: data length, in Little Endian byte order
-	//   var-byte: Destination address (0 bytes for SCIOND API)
-	//     +2-byte: If destination address not NONE, destination port
-	//   var-byte: Payload
-	//
-	// ReliableSocket registration message format:
-	//  13-bytes: [Common header with address type NONE]
-	//   1-byte: Command (bit mask with 0x02=SCMP enable, 0x01 always set)
-	//   1-byte: L4 Proto (IANA number)
-	//   4-bytes: ISD-AS
-	//   2-bytes: Registered port
-	//   1-byte: Address type
-	//   var-byte: Address
+	if a.Addr.Type() == addr.HostTypeNone {
+		return nil, common.NewError("Cannot register with NoneType address")
+	}
 
 	conn, err := Dial(dispatcher)
 	if err != nil {
@@ -99,26 +93,20 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, error) {
 
 	request := make([]byte, regBaseHeaderLen+a.Addr.Size())
 	offset := 0
-
 	// Enable SCMP
 	request[offset] = regCommandField
 	offset++
-
 	request[offset] = byte(common.L4UDP)
 	offset++
-
 	ia.Write(request[offset : offset+4])
 	offset += 4
-
 	binary.BigEndian.PutUint16(request[offset:offset+2], a.Port)
 	offset += 2
-
 	if a.Addr.Type() == addr.HostTypeNone {
 		return nil, common.NewError("Cannot register NoneType address")
 	}
 	request[offset] = byte(a.Addr.Type())
 	offset++
-
 	copy(request[offset:], a.Addr.Pack())
 
 	_, err = conn.Write(request)
@@ -133,28 +121,23 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, error) {
 		return nil, err
 	}
 
-	// TODO(scrye): Fix the dispatcher replying with ports in little-endian
-	replyPort := binary.LittleEndian.Uint16(reply[0:read])
-
+	replyPort := common.Order.Uint16(reply[0:read])
 	if a.Port != replyPort {
 		return nil, common.NewError("Port mismatch when registering with dispatcher", "expected",
 			a.Port, "actual", replyPort)
 	}
-
 	return conn, nil
 }
 
 // Read blocks until it reads the next framed message payload from conn and stores it in buf.
 // The first return value contains the number of payload bytes read.
 // buf must be large enough to fit the entire message. No addressing data is returned,
-// only the payload. On error, return value n is always 0 and might not contain the
-// correct number of bytes read from the socket.
+// only the payload. On error, the number of bytes returned is meaningless.
 func (conn *Conn) Read(buf []byte) (int, error) {
 	read, _, err := conn.ReadFrom(buf)
 	if err != nil {
 		return 0, err
 	}
-
 	return read, nil
 }
 
@@ -162,23 +145,20 @@ func (conn *Conn) Read(buf []byte) (int, error) {
 // (usually, the border router) which sent the message.
 func (conn *Conn) ReadFrom(buf []byte) (int, AppAddr, error) {
 	var lastHop AppAddr
-	var n int
+	var read int
 
 	header := make([]byte, hdrLen)
 	_, err := io.ReadFull(conn.UnixConn, header)
 	if err != nil {
 		return 0, lastHop, err
 	}
-
 	offset := 0
 	if bytes.Compare(header[offset:offset+len(cookie)], cookie) != 0 {
 		return 0, lastHop, common.NewError("Protocol desynchronized", "conn", conn)
 	}
 	offset += len(cookie)
-
 	rcvdAddrType := addr.HostAddrType(header[offset])
 	offset++
-
 	// Force endianness (although endianness not explicit in SCIOND)
 	length := binary.LittleEndian.Uint32(header[offset : offset+4])
 	offset += 4
@@ -191,11 +171,10 @@ func (conn *Conn) ReadFrom(buf []byte) (int, AppAddr, error) {
 		addrLen, _ := addr.HostLen(rcvdAddrType)
 		// Add 2 bytes for port
 		addrBuf := make([]byte, addrLen+2)
-		n, err = io.ReadFull(conn.UnixConn, addrBuf)
+		read, err = io.ReadFull(conn.UnixConn, addrBuf)
 		if err != nil {
 			return 0, lastHop, err
 		}
-
 		lastHop.Port = binary.LittleEndian.Uint16(addrBuf[addrLen : addrLen+2])
 		// NOTE: ierr is used to avoid nil stored in interface issue
 		var ierr *common.Error
@@ -213,26 +192,32 @@ func (conn *Conn) ReadFrom(buf []byte) (int, AppAddr, error) {
 		return 0, lastHop, common.NewError("Insufficient buffer size", "have", len(buf),
 			"need", length)
 	}
-
-	n, err = io.ReadFull(conn.UnixConn, buf[:length])
+	read, err = io.ReadFull(conn.UnixConn, buf[:length])
 	if err != nil {
 		return 0, lastHop, err
 	}
-
-	return n, lastHop, nil
+	return read, lastHop, nil
 }
 
 // Write blocks until it sends buf as a single framed message through conn.
-// On error, return value n is always 0 and might not contain the correct number of
-// bytes written to the socket. On success, return value n is always len(buf).
-func (conn *Conn) Write(buf []byte) (n int, err error) {
+// On error, the number of bytes returned is meaningless. On success, the number
+// of bytes is always len(buf).
+//
+// ReliableSocket common header message format:
+//   8-bytes: COOKIE (0xde00ad01be02ef03)
+//   1-byte: ADDR TYPE (NONE=0, IPv4=1, IPv6=2, SVC=3, UNIX=4)
+//   4-byte: data length, in Little Endian byte order
+//   var-byte: Destination address (0 bytes for SCIOND API)
+//     +2-byte: If destination address not NONE, destination port
+//   var-byte: Payload
+func (conn *Conn) Write(buf []byte) (int, error) {
 	a, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 	return conn.WriteTo(buf, AppAddr{Addr: a, Port: 0})
 }
 
 // WriteTo works similarly to Write. In addition to Write, the ReliableSocket message header
-// will contain the address and port information in br.
-func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (n int, err error) {
+// will contain the address and port information in dst.
+func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	if len(buf) > MaxLength {
 		return 0, common.NewError("Payload exceed max length", "len", len(buf), "max", MaxLength)
 	}
@@ -249,34 +234,31 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (n int, err error) {
 
 	header := make([]byte, hdrLen+destLength)
 	offset := 0
-
 	copy(header[offset:offset+len(cookie)], cookie)
 	offset += len(cookie)
-
 	header[offset] = byte(dst.Addr.Type())
 	offset++
-
 	// TODO(scrye): fix endianness (SCIOND expects machine order)
 	binary.LittleEndian.PutUint32(header[offset:offset+4], uint32(len(buf)))
 	offset += 4
-
 	if dst.Addr.Type() == addr.HostTypeIPv4 || dst.Addr.Type() == addr.HostTypeIPv6 ||
 		dst.Addr.Type() == addr.HostTypeSVC {
 		copy(header[offset:], dst.Addr.Pack())
 		offset += dst.Addr.Size()
-
 		// TODO(scrye): fix endianness (dispatcher expects machine order)
 		binary.LittleEndian.PutUint16(header[offset:offset+2], dst.Port)
 		offset += 2
 	}
 
-	_, err = io.Copy(conn.UnixConn, bytes.NewReader(header))
+	_, err := io.Copy(conn.UnixConn, bytes.NewReader(header))
 	if err != nil {
 		return 0, err
 	}
-
-	ntmp, err := io.Copy(conn.UnixConn, bytes.NewReader(buf))
-	return int(ntmp), err
+	written, err := io.Copy(conn.UnixConn, bytes.NewReader(buf))
+	if err != nil {
+		return 0, err
+	}
+	return int(written), nil
 }
 
 func (conn *Conn) String() string {
@@ -295,7 +277,6 @@ func Listen(laddr string) (*Listener, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to listen on address", "addr", laddr)
 	}
-
 	return &Listener{l.(*net.UnixListener)}, nil
 }
 
@@ -306,7 +287,6 @@ func (listener *Listener) Accept() (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to accept", "listener", listener)
 	}
-
 	return &Conn{c.(*net.UnixConn)}, nil
 }
 
