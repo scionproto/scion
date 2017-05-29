@@ -143,21 +143,21 @@ func ClientRegister(t *testing.T, ia *addr.ISD_AS, dst AppAddr) {
 func TestWriteTo(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 	testCases := []struct {
-		payload     string
-		dst AppAddr
-		want        []byte
+		payload string
+		dst     AppAddr
+		want    []byte
 	}{
 		{"", AppAddr{Addr: nilAddr, Port: 0},
 			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0}},
 		{"test", AppAddr{Addr: nilAddr, Port: 0},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 4, 0, 0, 0, 't', 'e', 's', 't'}},
+			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 4, 't', 'e', 's', 't'}},
 		{"foo", AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 3, 0, 0, 0,
-				127, 0, 0, 1, 80, 0, 'f', 'o', 'o'}},
+			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 3,
+				127, 0, 0, 1, 0, 80, 'f', 'o', 'o'}},
 		{"bar", AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 3, 0, 0, 0,
+			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 3,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-				80, 0, 'b', 'a', 'r'}}}
+				0, 80, 'b', 'a', 'r'}}}
 
 	Convey("Client sending message to Server using WriteTo", t, func() {
 		Convey("Server should receive correct raw messages", func() {
@@ -189,18 +189,18 @@ func TestRegister(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 
 	testCases := []struct {
-		ia          addr.ISD_AS
-		dst AppAddr
-		want        []byte
-		timeoutOK   bool
+		ia        addr.ISD_AS
+		dst       AppAddr
+		want      []byte
+		timeoutOK bool
 	}{
 		{addr.ISD_AS{I: 1, A: 10}, AppAddr{Addr: nilAddr, Port: 0},
 			[]byte{}, true},
 		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 13, 0, 0, 0,
+			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 13,
 				3, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1}, false},
 		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 25, 0, 0, 0,
+			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 25,
 				3, 17, 0, 32, 0, 21, 0, 80, 2,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, false}}
 

@@ -25,7 +25,7 @@ void parse_dp_header(uint8_t *buf, uint8_t *addr_type, int *packet_len)
     }
     if (addr_type)
         *addr_type = buf[DP_COOKIE_LEN];
-    *packet_len = *(uint32_t *)(buf + DP_COOKIE_LEN + 1);
+    *packet_len = ntohl(*(uint32_t *)(buf + DP_COOKIE_LEN + 1));
 }
 
 void write_dp_header(uint8_t *buf, HostAddr *host, int packet_len)
@@ -39,12 +39,12 @@ void write_dp_header(uint8_t *buf, HostAddr *host, int packet_len)
     memcpy(buf, cookie, DP_COOKIE_LEN);
     buf += DP_COOKIE_LEN;
     *buf++ = addr_type;
-    *(uint32_t *)buf = packet_len;
+    *(uint32_t *)buf = htonl(packet_len);
     buf += 4;
     if (addr_len > 0) {
         memcpy(buf, host->addr, addr_len);
         buf += addr_len;
-        *(uint16_t *)buf = host->port;
+        *(uint16_t *)buf = htons(host->port);
     }
 }
 

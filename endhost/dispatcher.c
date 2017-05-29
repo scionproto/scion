@@ -996,7 +996,7 @@ void handle_send(int index)
     memset(&hop, 0, sizeof(hop));
     hop.addr_type = addr_type;
     memcpy(hop.addr, buf, addr_len);
-    hop.port = *(uint16_t *)(buf + addr_len);
+    hop.port = ntohs(*(uint16_t *)(buf + addr_len));
 
 #ifdef USE_FILTER_SOCKET
     SCIONAddr s_hop;
