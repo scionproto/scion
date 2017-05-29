@@ -349,11 +349,13 @@ class CertGenerator(object):
         issuer = TopoID(as_conf.get('cert_issuer', str(topo_id)))
         if self.is_core(as_conf):
             signing_key = self.priv_online_root_keys[topo_id]
+            issuer_version = INITIAL_TRC_VERSION
         else:
             signing_key = self.sig_priv_keys[issuer]
+            issuer_version = INITIAL_CERT_VERSION
         self.certs[topo_id] = Certificate.from_values(
-            str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
-            self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
+            str(topo_id), str(issuer), issuer_version, INITIAL_CERT_VERSION,
+            "", False, self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
             signing_key
         )
 

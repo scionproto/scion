@@ -32,27 +32,24 @@ from lib.errors import SCIONVerificationError
 from lib.packet.scion_addr import ISD_AS
 
 
-def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_ver):
+def verify_sig_chain_trc(msg, sig, subject, chain, trc):
     """
     Verify whether the packed message with attached signature is validly
     signed by a particular subject belonging to a valid certificate chain.
 
-    :param str msg: message corresponding to the given signature.
+    :param bytes msg: message corresponding to the given signature.
     :param bytes sig: signature computed on msg.
-    :param str subject: signer identity.
-    :param chain: Certificate chain containing the signing entity's certificate.
-    :type chain: :class:`CertificateChain`
-    :param trc: Current TRC containing all root of trust certificates for
-        one ISD.
-    :type trc: :class:`TRC`
-    :param trc_ver: The TRCs version
+    :param ISD_AS subject: signer identity.
+    :param CertificateChain chain: Certificate chain containing the signing entity's certificate.
+    :param TRC trc: Issuing TRC containing all root of trust certificates for one ISD.
 
     :raises: SCIONVerificationError if the verification fails.
     """
     assert isinstance(chain, CertificateChain)
     assert isinstance(trc, TRC)
+    subject = str(subject)
     try:
-        chain.verify(subject, trc)
+        chain.verify(str(subject), trc)
     except SCIONVerificationError as e:
         raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
     verifying_key = None
@@ -121,7 +118,7 @@ class CertificateChain(object):
             raise SCIONVerificationError("Root Certificate added to chain:\n%s" % cert)
         # Try to find a root cert in the trc.
         try:
-            cert.verify_core(trc.core_ases[cert.issuer][ONLINE_KEY_STRING])
+            cert.verify_core(trc.core_ases[cert.issuer][ONLINE_KEY_STRING], trc.version)
         except SCIONVerificationError:
             raise SCIONVerificationError("Core AS certificate verification failed.")
 
