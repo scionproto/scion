@@ -259,11 +259,11 @@ class ReliableSocket(Socket):
             if isinstance(dst_addr, str):
                 dst_addr = haddr_parse_interface(dst_addr)
             addr_type = struct.pack("B", dst_addr.TYPE)
-            packed_dst = dst_addr.pack() + struct.pack("H", dst_port)
+            packed_dst = dst_addr.pack() + struct.pack("!H", dst_port)
         else:
             addr_type = struct.pack("B", AddrType.NONE)
             packed_dst = b""
-        data_len = struct.pack("I", len(data))
+        data_len = struct.pack("!I", len(data))
         data = b"".join([self.COOKIE, addr_type, data_len, packed_dst, data])
         try:
             self.sock.sendall(data)
@@ -284,7 +284,7 @@ class ReliableSocket(Socket):
         buf = recv_all(self.sock, self.COOKIE_LEN + 5, flags)
         if not buf:
             return None, None
-        cookie, addr_type, packet_len = struct.unpack("=8sBI", buf)
+        cookie, addr_type, packet_len = struct.unpack("!8sBI", buf)
         if cookie != self.COOKIE:
             logging.critical("Dispatcher socket out of sync")
             raise SCIONIOError
@@ -296,7 +296,7 @@ class ReliableSocket(Socket):
         buf = recv_all(self.sock, addr_len + port_len + packet_len, 0)
         if addr_len > 0:
             addr = buf[:addr_len]
-            port = buf[addr_len:addr_len + port_len]
+            port = struct.unpack("!H", buf[addr_len:addr_len + port_len])
             sender = (str(ipaddress.ip_address(addr)), port)
         else:
             addr = ""
