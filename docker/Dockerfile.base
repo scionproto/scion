@@ -28,7 +28,7 @@ COPY env/common.sh env/
 
 # Debian packages
 COPY env/debian env/debian
-RUN apt-get update && APTARGS=-y env/debian/deps && apt-get clean
+RUN sudo apt-get update && APTARGS=-y env/debian/deps && sudo apt-get clean
 
 # Pip3 packages
 COPY env/pip3 env/pip3
@@ -52,10 +52,11 @@ COPY env/go env/go
 RUN env/go/deps
 
 # Cleanup
-RUN rm -r env
+RUN sudo rm -r env
 
 # Vendored go packages
 COPY go/vendor/ go/vendor
+RUN sudo chown -R scion .
 RUN \
     set -ex; cd go; govendor sync -v; govendor install ./vendor/...; \
     cd vendor; tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
@@ -71,7 +72,7 @@ COPY docker/profile $HOME/.profile
 COPY docker/screenrc $HOME/.screenrc
 # Install ZK config
 COPY docker/zoo.cfg /etc/zookeeper/conf/
-RUN echo 'JAVA_OPTS="-Xmx150m" # Added by Dockerfile.base' >> /etc/zookeeper/conf/environment
+RUN sudo sh -c "echo 'JAVA_OPTS=-Xmx150m # Added by Dockerfile.base' >> /etc/zookeeper/conf/environment"
 
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
