@@ -65,7 +65,8 @@ class DRKeyRequest(DRKeyMgmtBase):
             signature=signature, certVer=cert_ver, trcVer=trc_ver))
 
     def short_desc(self):
-        return "%s" % self.isd_as
+        return ("ISD-AS: %s Timestamp: %s Prefetch: %s" %
+                (self.isd_as, self.p.timestamp, self.p.prefetch))
 
     def __str__(self):
         return ("%s: ISD-AS: %s Timestamp: %s Prefetch: %s" %
@@ -83,7 +84,7 @@ class DRKeyReply(DRKeyMgmtBase):
 
     @classmethod
     def from_values(cls, isd_as, time, exp_time, cipher, signature,
-                    cert_ver_src, cert_ver_dst, trc_ver_src):
+                    cert_ver_src, cert_ver_dst, trc_ver):
         """
         Get the DRKeyReply from values.
 
@@ -94,21 +95,24 @@ class DRKeyReply(DRKeyMgmtBase):
         :param bytes signature: the signature of (isd_as, cipher, time, exp_time).
         :param int cert_ver_src: version of certificate for signing key/public key.
         :param int cert_ver_dst: version of certificate for private key.
-        :param int trc_ver_src: version of trc associated with source cert.
+        :param int trc_ver: version of trc associated with source cert.
         :returns: the resulting DRKeyReply.
         :rtype: DRKeyReply
         """
         return cls(cls.P_CLS.new_message(
             isdas=isd_as.int(), timestamp=time, expTime=exp_time,
             cipher=cipher, signature=signature, certVerSrc=cert_ver_src,
-            certVerDst=cert_ver_dst, trcVerSrc=trc_ver_src))
+            certVerDst=cert_ver_dst, trcVer=trc_ver))
 
     def short_desc(self):
-        return "%s" % self.isd_as
+        return ("ISD-AS: %s Timestamp: %s Prefetch: %s CertVerSrc: %s CetVerDst: %s TRCVer: %s"
+                % (self.isd_as, self.p.timestamp, self.p.prefetch, self.p.certVerSrc,
+                   self.p.certVerDst, self.p.trcVer))
 
     def __str__(self):
-        return "%s: ISD-AS: %s Timestamp: %s Prefetch: %s" % (
-            self.NAME, self.isd_as, self.p.timestamp, self.p.prefetch)
+        return ("%s: ISD-AS: %s Timestamp: %s Prefetch: %s CertVerSrc: %s CetVerDst: %s TRCVer: %s"
+                % (self.NAME, self.isd_as, self.p.timestamp, self.p.prefetch, self.p.certVerSrc,
+                   self.p.certVerDst, self.p.trcVer))
 
 
 def parse_drkeymgmt_payload(wrapper):  # pragma: no cover
