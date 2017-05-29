@@ -37,8 +37,8 @@ func Server(t *testing.T, timeoutOK bool) []byte {
 		t.Fatalf("Error: %v.", err)
 	}
 
-	e := make(chan error, 1)
-	v := make(chan []byte, 1)
+	errChan := make(chan error, 1)
+	dataChan := make(chan []byte, 1)
 	go func() {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -48,22 +48,22 @@ func Server(t *testing.T, timeoutOK bool) []byte {
 		buf := make([]byte, 128)
 		n, err := conn.UnixConn.Read(buf)
 		if err != nil {
-			e <- err
+			errChan <- err
 			return
 		}
 
 		err = conn.Close()
 		if err != nil {
-			e <- err
+			errChan <- err
 			return
 		}
 
-		e <- nil
-		v <- buf[:n]
+		errChan <- nil
+		dataChan <- buf[:n]
 	}()
 
 	select {
-	case err := <-e:
+	case err := <-errChan:
 		if err != nil {
 			t.Fatalf("%v", err.Error())
 		}
@@ -74,40 +74,40 @@ func Server(t *testing.T, timeoutOK bool) []byte {
 		}
 		t.Fatalf("Read timed out waiting for message from Client")
 	}
-	return <-v
+	return <-dataChan
 }
 
-func Client(t *testing.T, message []byte, destination AppAddr) {
-	e := make(chan error, 1)
-	v := make(chan interface{}, 1)
+func Client(t *testing.T, msg []byte, dst AppAddr) {
+	errChan := make(chan error, 1)
+	dataChan := make(chan interface{}, 1)
 
 	go func() {
 		// Sleep to avoid connecting before server is up
 		time.Sleep(200 * time.Millisecond)
 		conn, err := Dial(sockName)
-		e <- err
+		errChan <- err
 		if err == nil {
-			v <- conn
+			dataChan <- conn
 		}
 	}()
 
 	select {
-	case err := <-e:
+	case err := <-errChan:
 		if err != nil {
 			t.Fatalf("%v", err.Error())
 		}
 	case <-time.After(time.Second * 3):
 		t.Fatalf("Dial timed out for socket %v", sockName)
 	}
-	conn := (<-v).(*Conn)
+	conn := (<-dataChan).(*Conn)
 
 	go func() {
-		_, err := conn.WriteTo(message, destination)
-		e <- err
+		_, err := conn.WriteTo(msg, dst)
+		errChan <- err
 	}()
 
 	select {
-	case err := <-e:
+	case err := <-errChan:
 		if err != nil {
 			t.Fatalf("%v", err.Error())
 		}
@@ -121,17 +121,17 @@ func Client(t *testing.T, message []byte, destination AppAddr) {
 	}
 }
 
-func ClientRegister(t *testing.T, ia *addr.ISD_AS, destination AppAddr) {
-	e := make(chan error, 1)
+func ClientRegister(t *testing.T, ia *addr.ISD_AS, dst AppAddr) {
+	errChan := make(chan error, 1)
 	go func() {
 		// Sleep to avoid connecting before server is up
 		time.Sleep(200 * time.Millisecond)
-		Register(sockName, ia, destination)
-		e <- nil
+		Register(sockName, ia, dst)
+		errChan <- nil
 	}()
 
 	select {
-	case err := <-e:
+	case err := <-errChan:
 		if err != nil {
 			t.Fatalf("%v", err.Error())
 		}
@@ -144,7 +144,7 @@ func TestWriteTo(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 	testCases := []struct {
 		payload     string
-		destination AppAddr
+		dst AppAddr
 		want        []byte
 	}{
 		{"", AppAddr{Addr: nilAddr, Port: 0},
@@ -169,7 +169,7 @@ func TestWriteTo(t *testing.T) {
 					}(t)
 
 					go func(t *testing.T) {
-						Client(t, []byte(tc.payload), tc.destination)
+						Client(t, []byte(tc.payload), tc.dst)
 					}(t)
 
 					mc := <-c
@@ -190,7 +190,7 @@ func TestRegister(t *testing.T) {
 
 	testCases := []struct {
 		ia          addr.ISD_AS
-		destination AppAddr
+		dst AppAddr
 		want        []byte
 		timeoutOK   bool
 	}{
@@ -207,14 +207,14 @@ func TestRegister(t *testing.T) {
 	Convey("Client registering to SCIOND", t, func() {
 		Convey("SCIOND should receive correct raw messages", func() {
 			for _, tc := range testCases {
-				Convey(fmt.Sprintf("Client registered to %v, %v", tc.ia, tc.destination), func() {
+				Convey(fmt.Sprintf("Client registered to %v, %v", tc.ia, tc.dst), func() {
 					c := make(chan []byte, 1)
 					go func(t *testing.T) {
 						c <- Server(t, tc.timeoutOK)
 					}(t)
 
 					go func(t *testing.T) {
-						ClientRegister(t, &tc.ia, tc.destination)
+						ClientRegister(t, &tc.ia, tc.dst)
 					}(t)
 
 					mc := <-c
