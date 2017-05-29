@@ -43,8 +43,6 @@ from lib.errors import (
     SCIONYAMLError,
 )
 
-CERT_DIR = 'certs'
-KEYS_DIR = 'keys'
 TRACE_DIR = 'traces'
 
 _SIG_MAP = {
@@ -54,63 +52,6 @@ _SIG_MAP = {
     signal.SIGTERM: "SIGTERM",
     signal.SIGUSR2: "SIGUSR2"
 }
-
-
-def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
-    """
-    Return the certificate chain file path for a given ISD.
-    """
-    return os.path.join(conf_dir, CERT_DIR,
-                        'ISD%s-AS%s-V%s.crt' % (isd_as[0], isd_as[1], version))
-
-
-def get_trc_file_path(conf_dir, isd, version):  # pragma: no cover
-    """
-    Return the TRC file path for a given ISD.
-    """
-    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd, version))
-
-
-def get_sig_key_file_path(conf_dir):  # pragma: no cover
-    """
-    Return the signing key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
-
-
-def get_enc_key_file_path(conf_dir):  # pragma: no cover
-    """
-    Return the encryption key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "as-decrypt.key")
-
-
-def get_online_key_file_path(conf_dir):  # pragma: no cover
-    """
-    Return the online key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "online-root.key")
-
-
-def get_offline_key_file_path(conf_dir):  # pragma: no cover
-    """
-    Return the offline key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "offline-root.key")
-
-
-def get_ca_private_key_file_path(conf_dir, name):
-    """
-    Return the ca private key file path
-    """
-    return os.path.join(conf_dir, "%s.key" % name)
-
-
-def get_ca_cert_file_path(conf_dir, name):
-    """
-    Return the ca certificate file path
-    """
-    return os.path.join(conf_dir, "%s.cert" % name)
 
 
 def read_file(file_path):

@@ -15,6 +15,10 @@
 :mod:`asymcrypto` --- SCION asymmetric crypto functions
 =======================================================
 """
+# stdlib
+import base64
+import os
+
 # External
 from nacl.exceptions import BadSignatureError
 from nacl.public import Box, PrivateKey
@@ -22,7 +26,40 @@ from nacl.signing import SigningKey, VerifyKey
 from nacl.utils import random
 
 # SCION
+from lib.crypto.util import KEYS_DIR
 from lib.errors import SCIONVerificationError
+from lib.util import read_file
+
+
+def get_sig_key_file_path(conf_dir):
+    """
+    Return the signing key file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
+
+
+def get_sig_key(conf_dir):
+    """
+    Return the signing key.
+
+    :rtype: SigningKey
+    """
+    return SigningKey(base64.b64decode(read_file(get_sig_key_file_path(conf_dir))))
+
+
+def get_enc_key_file_path(conf_dir):
+    """
+    Return the encryption key file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "as-decrypt.key")
+
+
+def get_enc_key(conf_dir):
+    """
+    Return the private key.
+    :rtype: PrivateKey
+    """
+    return PrivateKey(base64.b64decode(read_file(get_enc_key_file_path(conf_dir))))
 
 
 def generate_sign_keypair():
@@ -52,11 +89,11 @@ def sign(msg, signing_key):
     Sign a message with a given signing key and return the signature.
 
     :param bytes msg: message to be signed.
-    :param bytes signing_key: signing key from generate_signature_keypair().
+    :param SigningKey signing_key: signing key from generate_signature_keypair().
     :returns: ed25519 signature.
     :rtype: bytes
     """
-    return SigningKey(signing_key).sign(msg)[:64]
+    return signing_key.sign(msg)[:64]
 
 
 def verify(msg, sig, verifying_key):

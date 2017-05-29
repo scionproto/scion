@@ -24,7 +24,8 @@ import threading
 # SCION
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
-from lib.util import CERT_DIR, read_file, write_file
+from lib.crypto.util import CERT_DIR
+from lib.util import read_file, write_file
 
 
 class TrustStore(object):

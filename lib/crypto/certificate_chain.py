@@ -17,6 +17,7 @@
 """
 # Stdlib
 import json
+import os
 
 # External
 import lz4
@@ -28,8 +29,16 @@ from lib.crypto.trc import (
     ONLINE_KEY_STRING,
     TRC,
 )
+from lib.crypto.util import CERT_DIR
 from lib.errors import SCIONVerificationError
 from lib.packet.scion_addr import ISD_AS
+
+
+def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
+    """
+    Return the certificate chain file path for a given ISD.
+    """
+    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-AS%s-V%s.crt' % (isd_as[0], isd_as[1], version))
 
 
 def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_ver):

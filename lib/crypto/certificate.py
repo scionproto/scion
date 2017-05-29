@@ -170,8 +170,8 @@ class Certificate(object):
         :param bytes subject_sig_key: the public key of the subject.
         :param bytes subject_enc_key: the public part of the encryption key.
         :param str issuer: the certificate issuer. It can only be an AS.
-        :param bytes iss_priv_key:
-            the issuer's private key. It is used to sign the certificate.
+        :param SigningKey iss_priv_key:
+            the issuer's signing key. It is used to sign the certificate.
         :param int version: the certificate version.
         :returns: the newly created Certificate instance.
         :rtype: :class:`Certificate`

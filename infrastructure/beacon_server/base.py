@@ -16,7 +16,6 @@
 ==================================
 """
 # Stdlib
-import base64
 import logging
 import os
 import threading
@@ -31,6 +30,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from infrastructure.beacon_server.if_state import InterfaceState
+from lib.crypto.asymcrypto import get_sig_key
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
@@ -76,8 +76,6 @@ from lib.types import (
 )
 from lib.util import (
     SCIONTime,
-    get_sig_key_file_path,
-    read_file,
     sleep_interval,
 )
 from lib.zk.cache import ZkSharedCache
@@ -117,8 +115,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
-        sig_key_file = get_sig_key_file_path(self.conf_dir)
-        self.signing_key = base64.b64decode(read_file(sig_key_file))
+        self.signing_key = get_sig_key(self.conf_dir)
         self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
         self.hashtree_gen_key = kdf(
                             self.config.master_as_key, b"Derive hashtree Key")

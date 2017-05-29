@@ -16,7 +16,6 @@
 =====================================
 """
 # Stdlib
-import base64
 import logging
 import threading
 import time
@@ -29,6 +28,7 @@ from infrastructure.sibra_server.steady import (
     SteadyPathErrorNoReservation,
 )
 from infrastructure.sibra_server.util import find_last_ifid
+from lib.crypto.asymcrypto import get_sig_key
 from lib.defines import SIBRA_SERVICE
 from lib.packet.ext_util import find_ext_hdr
 from lib.path_db import DBResult, PathSegmentDB
@@ -44,9 +44,7 @@ from lib.types import (
 )
 from lib.util import (
     SCIONTime,
-    get_sig_key_file_path,
     hex_str,
-    read_file,
     sleep_interval,
 )
 from lib.zk.id import ZkID
@@ -72,8 +70,7 @@ class SibraServerBase(SCIONElement):
         """
         super().__init__(server_id, conf_dir)
         self.sendq = Queue()
-        sig_key_file = get_sig_key_file_path(self.conf_dir)
-        self.signing_key = base64.b64decode(read_file(sig_key_file))
+        self.signing_key = get_sig_key(self.conf_dir)
         self.segments = PathSegmentDB(max_res_no=1)
         # Maps of {ISD-AS: {steady path id: steady path}} for all incoming
         # (srcs) and outgoing (dests) steady paths:
@@ -260,7 +257,7 @@ class SibraServerBase(SCIONElement):
         link_type = self.link_types[ifid]
         # FIXME(kormat): un-hardcode these bandwidths
         bwsnap = BWSnapshot(500 * 1024, 500 * 1024)
-        steady = SteadyPath(self.addr, self._port, self.sendq, self.signing_key,
+        steady = SteadyPath(self.addr, self._port, self.sendq, self.signing_key.encode(),
                             link_type, link_state, seg, bwsnap)
         self.dests[isd_as][steady.id] = steady
         logging.debug("Setting up steady path %s -> %s over %s",
