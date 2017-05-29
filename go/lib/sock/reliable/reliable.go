@@ -29,7 +29,6 @@ package reliable
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -49,15 +48,15 @@ const (
 	regCommandField  = 0x03
 )
 
-// Conn implements the ReliableSocket framing protocol over UNIX sockets.
-type Conn struct {
-	*net.UnixConn
-}
-
 // AppAddr is a L3 + L4 address container, it currently only supports UDP for L4.
 type AppAddr struct {
 	Addr addr.HostAddr
 	Port uint16
+}
+
+// Conn implements the ReliableSocket framing protocol over UNIX sockets.
+type Conn struct {
+	*net.UnixConn
 }
 
 // Dial connects to the UNIX socket specified by address.
@@ -100,7 +99,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, error) {
 	offset++
 	ia.Write(request[offset : offset+4])
 	offset += 4
-	binary.BigEndian.PutUint16(request[offset:offset+2], a.Port)
+	common.Order.PutUint16(request[offset:offset+2], a.Port)
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
 		return nil, common.NewError("Cannot register NoneType address")
@@ -159,8 +158,8 @@ func (conn *Conn) ReadFrom(buf []byte) (int, AppAddr, error) {
 	offset += len(cookie)
 	rcvdAddrType := addr.HostAddrType(header[offset])
 	offset++
-	// Force endianness (although endianness not explicit in SCIOND)
-	length := binary.LittleEndian.Uint32(header[offset : offset+4])
+	// TODO(scrye): fix endianness
+	length := HostOrder.Uint32(header[offset : offset+4])
 	offset += 4
 
 	// Skip address bytes
@@ -175,7 +174,8 @@ func (conn *Conn) ReadFrom(buf []byte) (int, AppAddr, error) {
 		if err != nil {
 			return 0, lastHop, err
 		}
-		lastHop.Port = binary.LittleEndian.Uint16(addrBuf[addrLen : addrLen+2])
+		// TODO(scrye): Fix endianness
+		lastHop.Port = HostOrder.Uint16(addrBuf[addrLen : addrLen+2])
 		// NOTE: ierr is used to avoid nil stored in interface issue
 		var ierr *common.Error
 		lastHop.Addr, ierr = addr.HostFromRaw(addrBuf[0:addrLen], rcvdAddrType)
@@ -238,15 +238,15 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	offset += len(cookie)
 	header[offset] = byte(dst.Addr.Type())
 	offset++
-	// TODO(scrye): fix endianness (SCIOND expects machine order)
-	binary.LittleEndian.PutUint32(header[offset:offset+4], uint32(len(buf)))
+	// TODO(scrye): fix endianness (SCIOND expects host byte order)
+	HostOrder.PutUint32(header[offset:offset+4], uint32(len(buf)))
 	offset += 4
 	if dst.Addr.Type() == addr.HostTypeIPv4 || dst.Addr.Type() == addr.HostTypeIPv6 ||
 		dst.Addr.Type() == addr.HostTypeSVC {
 		copy(header[offset:], dst.Addr.Pack())
 		offset += dst.Addr.Size()
-		// TODO(scrye): fix endianness (dispatcher expects machine order)
-		binary.LittleEndian.PutUint16(header[offset:offset+2], dst.Port)
+		// TODO(scrye): fix endianness (dispatcher expects host byte order)
+		HostOrder.PutUint16(header[offset:offset+2], dst.Port)
 		offset += 2
 	}
 
