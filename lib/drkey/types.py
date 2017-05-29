@@ -18,22 +18,9 @@
 For all type classes used in DRKey
 """
 
-# External
-
-# SCION
-from lib.errors import SCIONBaseError
-
 ###########################
 # DRKey types
 ###########################
-
-
-class DRKeyBaseError(SCIONBaseError):
-    """Root DRKey Error exception. All other DRKey errors derive from this."""
-
-
-class DRKeyVerifyError(DRKeyBaseError):
-    """Validation error"""
 
 
 class DRKeySecretValue(object):
