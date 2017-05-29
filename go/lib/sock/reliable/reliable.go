@@ -154,7 +154,7 @@ func (conn *Conn) ReadFrom(buf []byte) (int, AppAddr, error) {
 	}
 	offset := 0
 	if bytes.Compare(header[offset:offset+len(cookie)], cookie) != 0 {
-		return 0, lastHop, common.NewError("Protocol desynchronized", "conn", conn)
+		return 0, lastHop, common.NewError("ReliableSock protocol desynchronized", "conn", conn)
 	}
 	offset += len(cookie)
 	rcvdAddrType := addr.HostAddrType(header[offset])

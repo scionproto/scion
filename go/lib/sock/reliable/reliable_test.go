@@ -143,9 +143,9 @@ func ClientRegister(t *testing.T, ia *addr.ISD_AS, destination AppAddr) {
 func TestWriteTo(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 	testCases := []struct {
-		payload string
+		payload     string
 		destination AppAddr
-		want []byte
+		want        []byte
 	}{
 		{"", AppAddr{Addr: nilAddr, Port: 0},
 			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0}},
@@ -158,7 +158,7 @@ func TestWriteTo(t *testing.T) {
 			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 3, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 				80, 0, 'b', 'a', 'r'}}}
-	
+
 	Convey("Client sending message to Server using WriteTo", t, func() {
 		Convey("Server should receive correct raw messages", func() {
 			for _, tc := range testCases {
@@ -189,17 +189,17 @@ func TestRegister(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 
 	testCases := []struct {
-		ia addr.ISD_AS
+		ia          addr.ISD_AS
 		destination AppAddr
-		want []byte
-		timeoutOK bool
+		want        []byte
+		timeoutOK   bool
 	}{
-		{addr.ISD_AS{I:1, A:10}, AppAddr{Addr: nilAddr, Port: 0},
+		{addr.ISD_AS{I: 1, A: 10}, AppAddr{Addr: nilAddr, Port: 0},
 			[]byte{}, true},
-		{addr.ISD_AS{I:2, A:21}, AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
+		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
 			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 13, 0, 0, 0,
 				3, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1}, false},
-		{addr.ISD_AS{I:2, A:21}, AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
+		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
 			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 25, 0, 0, 0,
 				3, 17, 0, 32, 0, 21, 0, 80, 2,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, false}}
@@ -216,7 +216,7 @@ func TestRegister(t *testing.T) {
 					go func(t *testing.T) {
 						ClientRegister(t, &tc.ia, tc.destination)
 					}(t)
-					
+
 					mc := <-c
 
 					time.Sleep(200 * time.Millisecond)
@@ -251,7 +251,7 @@ func ExampleRegister() {
 	}
 
 	fmt.Println("Registered with 1,10,127.0.0.42:40001")
-	
+
 	// Output:
 	// Registered with 1,10,127.0.0.42:40001
 }
