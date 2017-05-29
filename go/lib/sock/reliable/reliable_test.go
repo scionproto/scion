@@ -16,6 +16,7 @@ package reliable
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"testing"
@@ -26,11 +27,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 )
 
-const (
-	sockName = "/tmp/unixtest.sock"
-)
-
-func Server(t *testing.T, timeoutOK bool) []byte {
+func Server(t *testing.T, sockName string, timeoutOK bool) []byte {
 	os.Remove(sockName)
 	listener, err := Listen(sockName)
 	if err != nil {
@@ -45,6 +42,8 @@ func Server(t *testing.T, timeoutOK bool) []byte {
 			t.Fatalf("Error: %v", err)
 		}
 
+		// Sleep so we get all the data in one chunk
+		time.Sleep(300 * time.Millisecond)
 		buf := make([]byte, 128)
 		n, err := conn.UnixConn.Read(buf)
 		if err != nil {
@@ -74,10 +73,11 @@ func Server(t *testing.T, timeoutOK bool) []byte {
 		}
 		t.Fatalf("Read timed out waiting for message from Client")
 	}
+
 	return <-dataChan
 }
 
-func Client(t *testing.T, msg []byte, dst AppAddr) {
+func Client(t *testing.T, sockName string, msg []byte, dst AppAddr) {
 	errChan := make(chan error, 1)
 	dataChan := make(chan interface{}, 1)
 
@@ -115,13 +115,14 @@ func Client(t *testing.T, msg []byte, dst AppAddr) {
 		t.Fatalf("Write timed out for socket %v", sockName)
 	}
 
+	// Give the server time to get the data
 	err := conn.Close()
 	if err != nil {
 		t.Fatal("close failed", "err", err)
 	}
 }
 
-func ClientRegister(t *testing.T, ia *addr.ISD_AS, dst AppAddr) {
+func ClientRegister(t *testing.T, sockName string, ia *addr.ISD_AS, dst AppAddr) {
 	errChan := make(chan error, 1)
 	go func() {
 		// Sleep to avoid connecting before server is up
@@ -163,22 +164,22 @@ func TestWriteTo(t *testing.T) {
 		Convey("Server should receive correct raw messages", func() {
 			for _, tc := range testCases {
 				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.payload), func() {
+					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
+
 					c := make(chan []byte, 1)
 					go func(t *testing.T) {
-						c <- Server(t, false)
+						c <- Server(t, sockName, false)
 					}(t)
 
 					go func(t *testing.T) {
-						Client(t, []byte(tc.payload), tc.dst)
+						Client(t, sockName, []byte(tc.payload), tc.dst)
 					}(t)
 
 					mc := <-c
 
 					// Wait for goroutines to finish
-					time.Sleep(200 * time.Millisecond)
 					So(mc, ShouldResemble, tc.want)
 					// Wait for cleanup to finish
-					time.Sleep(200 * time.Millisecond)
 				})
 			}
 		})
@@ -208,20 +209,19 @@ func TestRegister(t *testing.T) {
 		Convey("SCIOND should receive correct raw messages", func() {
 			for _, tc := range testCases {
 				Convey(fmt.Sprintf("Client registered to %v, %v", tc.ia, tc.dst), func() {
+					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 					c := make(chan []byte, 1)
 					go func(t *testing.T) {
-						c <- Server(t, tc.timeoutOK)
+						c <- Server(t, sockName, tc.timeoutOK)
 					}(t)
 
 					go func(t *testing.T) {
-						ClientRegister(t, &tc.ia, tc.dst)
+						ClientRegister(t, sockName, &tc.ia, tc.dst)
 					}(t)
 
 					mc := <-c
 
-					time.Sleep(200 * time.Millisecond)
 					So(mc, ShouldResemble, tc.want)
-					time.Sleep(200 * time.Millisecond)
 				})
 			}
 		})
