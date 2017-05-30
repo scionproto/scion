@@ -55,7 +55,7 @@ def get_drkey_request(dst_ia, prefetch, signing_key, cert_ver, trc_ver):
 
     :param ISD_AS dst_ia: destination of the DRKey request.
     :param Bool prefetch: indicator if prefetch (True) or not (False).
-    :param bytes signing_key: the signing key
+    :param SigningKey signing_key: the signing key
     :param int cert_ver: version of the certificate associated with singing key
     :param int trc_ver: version of the trc associated with the certificate.
     :returns: the signed DRKeyRequest.
@@ -121,7 +121,7 @@ def get_drkey_reply(sv, src_ia, dst_ia, priv_key, signing_key, cert_ver, dst_cer
     :param ISD_AS src_ia: the local ISD-AS address.
     :param ISD_AS dst_ia: the ISD-AS for which the DRKey is computed.
     :param PrivateKey priv_key: local private key.
-    :param bytes signing_key: local signing key.
+    :param SigningKey signing_key: local signing key.
     :param int cert_ver: version of the certificate, priv_key and signing_key are associated with.
     :param Certificate dst_cert: the certificated of the destination ISD-AS.
     :param int trc_ver: version of trc associated with cert_ver.
