@@ -33,6 +33,8 @@ from string import Template
 
 # External packages
 import yaml
+from nacl.signing import SigningKey
+
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
@@ -41,15 +43,24 @@ from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_sign_keypair,
     generate_enc_keypair,
+    get_enc_key_file_path,
+    get_sig_key_file_path
 )
 from lib.crypto.certificate import Certificate
-from lib.crypto.certificate_chain import CertificateChain
+from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
 from lib.crypto.trc import (
+    get_trc_file_path,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
     ONLINE_KEY_ALG_STRING,
     ONLINE_KEY_STRING,
     TRC,
+)
+from lib.crypto.util import (
+    get_ca_cert_file_path,
+    get_ca_private_key_file_path,
+    get_offline_key_file_path,
+    get_online_key_file_path,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -72,18 +83,9 @@ from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import (
     copy_file,
-    get_ca_cert_file_path,
-    get_ca_private_key_file_path,
-    get_cert_chain_file_path,
-    get_sig_key_file_path,
-    get_enc_key_file_path,
-    get_offline_key_file_path,
-    get_online_key_file_path,
-    get_trc_file_path,
     load_yaml_file,
     read_file,
-    write_file,
-)
+    write_file,)
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
@@ -354,7 +356,7 @@ class CertGenerator(object):
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), str(issuer), INITIAL_CERT_VERSION, "", False,
             self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
-            signing_key
+            SigningKey(signing_key)
         )
 
     def _build_chains(self):
@@ -368,8 +370,7 @@ class CertGenerator(object):
                     break
                 chain.append(cert)
                 issuer = TopoID(cert.issuer)
-            cert_path = get_cert_chain_file_path(
-                "", topo_id, INITIAL_CERT_VERSION)
+            cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = \
                 CertificateChain(chain).to_json()
 
@@ -405,7 +406,7 @@ class CertGenerator(object):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
+        trc.sign(str(topo_id), SigningKey(self.priv_online_root_keys[topo_id]))
 
     def _gen_trc_files(self, topo_id, _):
         trc = self.trcs[topo_id[0]]

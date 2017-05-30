@@ -20,6 +20,7 @@ import base64
 import copy
 import json
 import logging
+import os
 import time
 
 # External
@@ -27,6 +28,7 @@ import lz4
 
 # SCION
 from lib.crypto.asymcrypto import verify, sign
+from lib.crypto.util import CERT_DIR
 from lib.packet.scion_addr import ISD_AS
 
 ISDID_STRING = 'ISDID'
@@ -47,6 +49,13 @@ ONLINE_KEY_ALG_STRING = 'OnlineKeyAlg'
 ONLINE_KEY_STRING = 'OnlineKey'
 OFFLINE_KEY_ALG_STRING = 'OfflineKeyAlg'
 OFFLINE_KEY_STRING = 'OfflineKey'
+
+
+def get_trc_file_path(conf_dir, isd, version):  # pragma: no cover
+    """
+    Return the TRC file path for a given ISD.
+    """
+    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd, version))
 
 
 class TRC(object):
