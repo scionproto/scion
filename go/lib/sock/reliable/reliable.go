@@ -26,7 +26,7 @@
 // ReliableSocket common header message format:
 //   8-bytes: COOKIE (0xde00ad01be02ef03)
 //   1-byte: ADDR TYPE (NONE=0, IPv4=1, IPv6=2, SVC=3)
-//   4-byte: data length, in Little Endian byte order
+//   4-byte: data length
 //   var-byte: Destination address (0 bytes for SCIOND API)
 //     +2-byte: If destination address not NONE, destination port
 //   var-byte: Payload
@@ -67,12 +67,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-// MaxLength contains the maximum payload length for the ReliableSocket framing protocol.
 var (
 	cookie           = []byte{0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0x03}
 	regBaseHeaderLen = len(cookie) + 1
 	hdrLen           = regBaseHeaderLen + 4
-	MaxLength        = (1 << 16) - 1 - hdrLen
+	// MaxLength contains the maximum payload length for the ReliableSocket framing protocol.
+	MaxLength = (1 << 16) - 1 - hdrLen
 )
 
 const (
@@ -83,6 +83,47 @@ const (
 type AppAddr struct {
 	Addr addr.HostAddr
 	Port uint16
+}
+
+func (a *AppAddr) packAddr() []byte {
+	return a.Addr.Pack()
+}
+
+func (a *AppAddr) packPort() []byte {
+	if a.Addr.Type() == addr.HostTypeNone {
+		return make([]byte, 0)
+	}
+	buf := make([]byte, 2)
+	common.Order.PutUint16(buf, a.Port)
+	return buf
+}
+
+func (a *AppAddr) Pack() []byte {
+	buf := make([]byte, a.Len())
+	copy(buf, a.packAddr())
+	copy(buf[a.Addr.Size():], a.packPort())
+	return buf
+}
+
+func ParseAppAddr(buf []byte, addrType addr.HostAddrType) (*AppAddr, error) {
+	var a AppAddr
+	// NOTE: cerr is used to avoid nil stored in interface issue
+	var cerr *common.Error
+	// The last two bytes contain the port
+	a.Addr, cerr = addr.HostFromRaw(buf[:len(buf)-2], addrType)
+	if cerr != nil {
+		return nil, common.NewError("Unable to parse address", "address",
+			buf[:len(buf)-2], "type", addrType)
+	}
+	a.Port = common.Order.Uint16(buf[len(buf)-2:])
+	return &a, nil
+}
+
+func (a *AppAddr) Len() int {
+	if a.Addr.Type() == addr.HostTypeNone {
+		return a.Addr.Size()
+	}
+	return a.Addr.Size() + 2
 }
 
 // Conn implements the ReliableSocket framing protocol over UNIX sockets.
@@ -121,7 +162,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	offset++
 	ia.Write(request[offset : offset+4])
 	offset += 4
-	common.Order.PutUint16(request[offset:offset+2], a.Port)
+	copy(request[offset:offset+2], a.packPort())
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
 		conn.UnixConn.Close()
@@ -129,7 +170,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	}
 	request[offset] = byte(a.Addr.Type())
 	offset++
-	copy(request[offset:], a.Addr.Pack())
+	copy(request[offset:], a.packAddr())
 
 	_, err = conn.Write(request)
 	if err != nil {
@@ -169,7 +210,7 @@ func (conn *Conn) Read(buf []byte) (int, error) {
 // ReadFrom works similarly to Read. In addition to Read, it also returns the last hop
 // (usually, the border router) which sent the message.
 func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
-	var lastHop AppAddr
+	var lastHop *AppAddr
 	var read int
 
 	header := make([]byte, hdrLen)
@@ -186,12 +227,11 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 	rcvdAddrType := addr.HostAddrType(header[offset])
 	offset++
 	length := common.Order.Uint32(header[offset : offset+4])
-	offset += 4
 
-	// Skip address bytes
+	// Read first hop address
 	switch rcvdAddrType {
 	case addr.HostTypeNone:
-		// Nothing to skip
+		// No first hop
 	case addr.HostTypeIPv4, addr.HostTypeIPv6, addr.HostTypeSVC:
 		addrLen, _ := addr.HostLen(rcvdAddrType)
 		// Add 2 bytes for port
@@ -201,14 +241,10 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 			conn.UnixConn.Close()
 			return 0, nil, err
 		}
-		lastHop.Port = common.Order.Uint16(addrBuf[addrLen : addrLen+2])
-		// NOTE: cerr is used to avoid nil stored in interface issue
-		var cerr *common.Error
-		lastHop.Addr, cerr = addr.HostFromRaw(addrBuf[:addrLen], rcvdAddrType)
-		if cerr != nil {
+		lastHop, err = ParseAppAddr(addrBuf, rcvdAddrType)
+		if err != nil {
 			conn.UnixConn.Close()
-			return 0, nil, common.NewError("Unable to parse address", "address",
-				addrBuf[0:addrLen], "type", rcvdAddrType)
+			return 0, nil, err
 		}
 	default:
 		conn.UnixConn.Close()
@@ -226,7 +262,7 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 		conn.UnixConn.Close()
 		return 0, nil, err
 	}
-	return read, &lastHop, nil
+	return read, lastHop, nil
 }
 
 // Write blocks until it sends buf as a single framed message through conn.
@@ -248,8 +284,7 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	switch dst.Addr.Type() {
 	case addr.HostTypeNone:
 	case addr.HostTypeIPv4, addr.HostTypeIPv6, addr.HostTypeSVC:
-		// Add 2 bytes for L4 port
-		destLength += dst.Addr.Size() + 2
+		destLength += dst.Len()
 	default:
 		return 0, common.NewError("Unknown address type", "type", dst.Addr.Type())
 	}
@@ -261,12 +296,8 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	offset++
 	common.Order.PutUint32(header[offset:offset+4], uint32(len(buf)))
 	offset += 4
-	if dst.Addr.Type() != addr.HostTypeNone {
-		copy(header[offset:], dst.Addr.Pack())
-		offset += dst.Addr.Size()
-		common.Order.PutUint16(header[offset:offset+2], dst.Port)
-		offset += 2
-	}
+	copy(header[offset:], dst.Pack())
+	offset += dst.Len()
 
 	_, err := io.Copy(conn.UnixConn, bytes.NewReader(header))
 	if err != nil {
