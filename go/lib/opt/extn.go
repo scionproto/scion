@@ -59,15 +59,15 @@ type Extn struct { // fields of the extension
 func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
 	e := &Extn{}
 	//flags := b[0]
-	e.Flags = b[0:8] //(flags & ExtnHBHFlag) != 0 // mask out the HopByHop flag and check if set
+	/*e.Flags = b[0:8] //(flags & ExtnHBHFlag) != 0 // mask out the HopByHop flag and check if set
 	e.DataHash = b[8:24]
 	e.SessionId = b[24:40]
-	e.PVF = b[40:56]
+	e.PVF = b[40:56]*/
 	return e, nil
 }
 
 func (e *Extn) Len() int {
-	return common.ExtnFirstLineLen + len(e.SessionId) + len(e.PVF)
+	return 0  // common.ExtnFirstLineLen + len(e.SessionId) + len(e.PVF)
 }
 
 func (e *Extn) Class() common.L4ProtocolType {
@@ -99,10 +99,10 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 	b[0] = flags */
 	// Pad rest of first line
 	//copy(b[1:8], make(common.RawBytes, common.ExtnFirstLineLen-1))
-	copy(b[0:8], make(common.RawBytes, common.ExtnFirstLineLen))
+	/*copy(b[0:8], make(common.RawBytes, common.ExtnFirstLineLen))
 	b[8:24] = e.DataHash
 	b[24:40] = e.SessionId
-	b[40:56] = e.PVF
+	b[40:56] = e.PVF*/
 	return nil
 }
 

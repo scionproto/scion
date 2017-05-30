@@ -22,8 +22,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/opt"
 	//"fmt"
-	"crypto/cipher"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	//"crypto/cipher"
+	//"github.com/netsec-ethz/scion/go/lib/util"
 	//"github.com/netsec-ethz/scion/go/border/conf"
 )
 
@@ -79,12 +79,12 @@ func (o *RtrPkt) processOPT() (HookResult, *common.Error) {
 }
 
 // getDRKeyBlock returns a cipher block for the given DRKey
-func (o *RtrPkt) getDRKeyBlock(drkey common.RawBytes, e *common.Error) (cipher.Block, *common.Error) {
+/*func (o *RtrPkt) getDRKeyBlock(drkey common.RawBytes, e *common.Error) (cipher.Block, *common.Error) {
 	if e != nil {
 		return nil, e
 	}
 	return util.InitAES(drkey)
-}
+}*/
 
 // calcDRKey calculates the DRKey for this packet.
 func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
