@@ -21,11 +21,26 @@ import datetime
 import time
 
 
+# Validity period of DRKey secret value
+DRKEY_VALIDITY_PERIOD = 1
+
+
 def drkey_time():
     return int(time.time())
 
 
 def get_drkey_exp_time(prefetch=False):
-    offset = 2 if prefetch else 1
-    exp_time = datetime.datetime.utcnow() + datetime.timedelta(offset)
+    """
+    Return the expiration time of DRKey secret value, first/second order DRKey
+    if it is derived now. If prefetch, expiration time of the next day is returned.
+    The expiration time of a DRKey secret value, first order DRKey and
+    second order DRKey is fixed to 00:00 UTC of the day after derivation.
+    (i.e. midnight of the same day)
+
+    :param Bool prefetch: If the DRKey is prefetched
+    :returns: the expiration time.
+    :rtype: int
+    """
+    offset = DRKEY_VALIDITY_PERIOD * (2 if prefetch else 1)
+    exp_time = datetime.datetime.utcnow() + datetime.timedelta(days=offset)
     return int(exp_time.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
