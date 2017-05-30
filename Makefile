@@ -1,4 +1,4 @@
-.PHONY: all clean go gohsr clibs libscion libfilter liblwip libtcpmw libssocket dispatcher libhsr uninstall
+.PHONY: all clean go gohsr clibs libscion libfilter liblwip libtcpmw libssocket dispatcher libhsr uninstall tags
 
 SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
 
@@ -7,6 +7,7 @@ all: clibs dispatcher go
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 	if type -P go >/dev/null; then cd go && make clean; fi
+	rm -f tags
 
 go: libscion
 	@# `make -C go` breaks if there are symlinks in $PWD
@@ -41,3 +42,6 @@ libhsr: libscion
 
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
+
+tags:
+	{ git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | grep -v sub/web/ad_manager/static/js/ | ctags -L -
