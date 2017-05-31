@@ -42,34 +42,37 @@ type TestCase struct {
 	timeoutOK bool
 }
 
-func Server(x chan ExitData, tc TestCase, sockName string) {
+func Server(sx chan ExitData, cx chan ExitData, tc TestCase, sockName string,
+	client func(chan ExitData, TestCase, string)) {
 	os.Remove(sockName)
 	defer os.Remove(sockName)
 	listener, err := Listen(sockName)
 	if err != nil {
-		x <- ExitData{err: err}
+		sx <- ExitData{err: err}
 		return
 	}
 
+	go client(cx, tc, sockName)
+
 	conn, err := listener.Accept()
 	if err != nil {
-		x <- ExitData{err: err}
+		sx <- ExitData{err: err}
 		return
 	}
 
 	buf := make([]byte, len(tc.want))
 	_, err = io.ReadFull(conn.UnixConn, buf)
 	if err != nil {
-		x <- ExitData{err: err}
+		sx <- ExitData{err: err}
 		return
 	}
 
 	err = conn.Close()
 	if err != nil {
-		x <- ExitData{err: err}
+		sx <- ExitData{err: err}
 		return
 	}
-	x <- ExitData{value: buf}
+	sx <- ExitData{value: buf}
 }
 
 func Client(x chan ExitData, tc TestCase, sockName string) {
@@ -123,11 +126,8 @@ func TestWriteTo(t *testing.T) {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
 					sc := make(chan ExitData, 1)
-					go Server(sc, tc, sockName)
-					// Sleep to avoid connecting before server is up
-					time.Sleep(200 * time.Millisecond)
 					cc := make(chan ExitData, 1)
-					go Client(cc, tc, sockName)
+					go Server(sc, cc, tc, sockName, Client)
 
 					var sData ExitData
 					select {
@@ -174,11 +174,8 @@ func TestRegister(t *testing.T) {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
 					sc := make(chan ExitData, 1)
-					go Server(sc, tc, sockName)
-					// Sleep to avoid connecting before server is up
-					time.Sleep(200 * time.Millisecond)
 					cc := make(chan ExitData, 1)
-					go ClientRegister(cc, tc, sockName)
+					go Server(sc, cc, tc, sockName, ClientRegister)
 
 					var sData ExitData
 					select {
