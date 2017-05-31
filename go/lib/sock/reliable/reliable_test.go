@@ -42,37 +42,36 @@ type TestCase struct {
 	timeoutOK bool
 }
 
-func Server(sx chan ExitData, cx chan ExitData, tc TestCase, sockName string,
-	client func(chan ExitData, TestCase, string)) {
+func Server(x chan ExitData, tc TestCase, sockName string, client func()) {
 	os.Remove(sockName)
 	defer os.Remove(sockName)
 	listener, err := Listen(sockName)
 	if err != nil {
-		sx <- ExitData{err: err}
+		x <- ExitData{err: err}
 		return
 	}
 
-	go client(cx, tc, sockName)
+	client()
 
 	conn, err := listener.Accept()
 	if err != nil {
-		sx <- ExitData{err: err}
+		x <- ExitData{err: err}
 		return
 	}
 
 	buf := make([]byte, len(tc.want))
 	_, err = io.ReadFull(conn.UnixConn, buf)
 	if err != nil {
-		sx <- ExitData{err: err}
+		x <- ExitData{err: err}
 		return
 	}
 
 	err = conn.Close()
 	if err != nil {
-		sx <- ExitData{err: err}
+		x <- ExitData{err: err}
 		return
 	}
-	sx <- ExitData{value: buf}
+	x <- ExitData{value: buf}
 }
 
 func Client(x chan ExitData, tc TestCase, sockName string) {
@@ -127,7 +126,9 @@ func TestWriteTo(t *testing.T) {
 
 					sc := make(chan ExitData, 1)
 					cc := make(chan ExitData, 1)
-					go Server(sc, cc, tc, sockName, Client)
+					go Server(sc, tc, sockName, func() {
+						go Client(cc, tc, sockName)
+					})
 
 					var sData ExitData
 					select {
@@ -175,7 +176,9 @@ func TestRegister(t *testing.T) {
 
 					sc := make(chan ExitData, 1)
 					cc := make(chan ExitData, 1)
-					go Server(sc, cc, tc, sockName, ClientRegister)
+					go Server(sc, tc, sockName, func() {
+						go ClientRegister(cc, tc, sockName)
+					})
 
 					var sData ExitData
 					select {
