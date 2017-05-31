@@ -23,10 +23,6 @@ import (
 // satisfies the interface common.Extension in common/extn.go
 var _ common.Extension = (*Extn)(nil)
 
-const (
-	ExtnHBHFlag   = 0x2
-)
-
 /*
 OPT extension Header
 
@@ -49,25 +45,30 @@ OPT extension Header
 */
 
 type Extn struct { // fields of the extension
-	//HopByHop bool
-	Flags     [8]common.RawBytes
-	DataHash  [16]common.RawBytes
-	SessionId [16]common.RawBytes
-	PVF       [16]common.RawBytes
+	DataHash  common.RawBytes
+	SessionId common.RawBytes
+	PVF       common.RawBytes
 }
+
+const (
+	preambleLength = 8
+	DataHashLength = 16
+	SessionIdLength = 16
+	PVFLength = 16
+)
 
 func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
 	e := &Extn{}
-	//flags := b[0]
-	/*e.Flags = b[0:8] //(flags & ExtnHBHFlag) != 0 // mask out the HopByHop flag and check if set
-	e.DataHash = b[8:24]
-	e.SessionId = b[24:40]
-	e.PVF = b[40:56]*/
+	copy(e.DataHash, b[preambleLength:preambleLength+DataHashLength])
+	dataHashOffset := preambleLength+DataHashLength
+	copy(e.SessionId, b[dataHashOffset:SessionIdLength])
+	sessionOffset := dataHashOffset + SessionIdLength
+	copy(e.PVF, b[sessionOffset:PVFLength])
 	return e, nil
 }
 
 func (e *Extn) Len() int {
-	return 0  // common.ExtnFirstLineLen + len(e.SessionId) + len(e.PVF)
+	return len(e.SessionId) + len(e.PVF)
 }
 
 func (e *Extn) Class() common.L4ProtocolType {
@@ -79,7 +80,7 @@ func (e *Extn) Type() common.ExtnType {
 }
 
 func (e *Extn) String() string {
-	return fmt.Sprintf("OPT Ext(%dB): Flags? %v PVF: %v", e.Len(), e.Flags, e.PVF)
+	return fmt.Sprintf("OPT Ext(%dB): DataHash: %v, Session: %v, PVF: %v", e.Len(), e.DataHash, e.SessionId, e.PVF)
 }
 
 
@@ -92,22 +93,18 @@ func (e *Extn) Pack() (common.RawBytes, *common.Error) {
 }
 
 func (e *Extn) Write(b common.RawBytes) *common.Error {
-	/* var flags uint8
-	if (e.Flags) {
-		flags |= ExtnHBHFlag // set HopByHop flag
-	}
-	b[0] = flags */
-	// Pad rest of first line
-	//copy(b[1:8], make(common.RawBytes, common.ExtnFirstLineLen-1))
-	/*copy(b[0:8], make(common.RawBytes, common.ExtnFirstLineLen))
-	b[8:24] = e.DataHash
-	b[24:40] = e.SessionId
-	b[40:56] = e.PVF*/
+	preambleLen := 8
+	dataHashOffset := preambleLen + len(e.DataHash)
+	sessionOffset := dataHashOffset + len(e.SessionId)
+	pvfOffset := sessionOffset + len(e.PVF)
+	copy(b[preambleLen:dataHashOffset], e.DataHash)
+	copy(b[dataHashOffset:sessionOffset], e.SessionId)
+	copy(b[sessionOffset:pvfOffset], e.PVF)
 	return nil
 }
 
 func (e *Extn) Copy() common.Extension {
-	return &Extn{Flags: e.Flags, DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF}
+	return &Extn{DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF}
 }
 
 func (e *Extn) Reverse() (bool, *common.Error) {
