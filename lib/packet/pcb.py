@@ -69,8 +69,7 @@ class PCBMarking(Cerealizable):
         """
         b = []
         if self.VER != 5:
-            raise SCIONSigVerError(
-                "PCBMarking.sig_pack5 cannot support version %s", self.VER)
+            raise SCIONSigVerError("PCBMarking.sig_pack5 cannot support version %s", self.VER)
         b.append(self.p.inIA.to_bytes(4, 'big'))
         b.append(self.p.inIF.to_bytes(8, 'big'))
         b.append(self.p.inMTU.to_bytes(2, 'big'))
@@ -120,6 +119,9 @@ class ASMarking(Cerealizable):
     def routing_pol_ext(self):
         return RoutingPolicyExt(self.p.exts.routingPolicy)
 
+    def routing_pol_ext_set(self):
+        return self.p.exts.routingPolicy.set
+
     def add_ext(self, ext):  # pragma: no cover
         """
         Appends a new ASMarking extension.
@@ -134,8 +136,7 @@ class ASMarking(Cerealizable):
         """
         b = []
         if self.VER != 8:
-            raise SCIONSigVerError(
-                "ASMarking.sig_pack8 cannot support version %s", self.VER)
+            raise SCIONSigVerError("ASMarking.sig_pack8 cannot support version %s", self.VER)
         b.append(self.p.isdas.to_bytes(4, 'big'))
         b.append(self.p.trcVer.to_bytes(4, 'big'))
         b.append(self.p.certVer.to_bytes(4, 'big'))
@@ -144,7 +145,11 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        b.append(self.routing_pol_ext().sig_pack2())
+        if self.routing_pol_ext_set():
+            b.append(self.routing_pol_ext().sig_pack3())
+        else:
+            b.append(self.routing_pol_ext().sigpack0())
+        # TODO(Sezer): handle other extensions here
         return b"".join(b)
 
     def short_desc(self):
@@ -204,8 +209,7 @@ class PathSegment(SCIONPayloadBaseProto):
         Pack for signing version 3 (defined by highest field number).
         """
         if self.VER != 3:
-            raise SCIONSigVerError(
-                "PathSegment.sig_pack3 cannot support version %s", self.VER)
+            raise SCIONSigVerError("PathSegment.sig_pack3 cannot support version %s", self.VER)
         b = []
         b.append(self.p.info)
         # ifID field is changed on the fly, and so is ignored.

@@ -375,10 +375,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             # TODO(Sezer): Implement sibra extension handling
             logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
-            if asm.p.exts.routingPolicy:
+            if asm.p.exts.routingPolicy.set:
                 self.handle_routing_pol_ext(asm.p.exts.routingPolicy)
 
     def handle_routing_pol_ext(self, ext):
+        # TODO(Sezer): Implement extension handling
         logging.debug("Routing policy extension: %s" % ext)
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):

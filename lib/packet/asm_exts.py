@@ -31,25 +31,35 @@ class RoutingPolicyExt(Cerealizable):
 
     @classmethod
     def from_values(cls, type_, if_, isd_ases):
-        p = cls.P_CLS.new_message(polType=type_, ifID=if_)
+        p = cls.P_CLS.new_message(set=True, polType=type_, ifID=if_)
         p.init("isdases", len(isd_ases))
         for i, isd_as in enumerate(isd_ases):
             p.isdases[i] = int(isd_as)
         cls.extType = ASMExtType.ROUTING_POLICY
         return cls(p)
 
-    def sig_pack2(self):
+    def sig_pack3(self):
         """
-        Pack for signing version 2 (defined by highest field number).
+        Pack for signing version 3 (defined by highest field number).
         """
         b = []
-        if self.VER != 2:
-            raise SCIONSigVerError(
-                "RoutingPolicyExt.sig_pack2 cannot support version %s", self.VER)
+        if self.VER != 3:
+            raise SCIONSigVerError("RoutingPolicyExt.sig_pack3 cannot support version %s", self.VER)
+        b.append(self.p.set.to_bytes(1, 'big'))
         b.append(self.p.polType.to_bytes(1, 'big'))
         b.append(self.p.ifID.to_bytes(2, 'big'))
         for isd_as in self.p.isdases:
             b.append(isd_as.to_bytes(4, 'big'))
+        return b"".join(b)
+
+    def sig_pack0(self):
+        """
+        Pack for signing version 0 (defined by highest field number).
+        """
+        b = []
+        if self.VER != 0:
+            raise SCIONSigVerError("RoutingPolicyExt.sig_pack0 cannot support version %s", self.VER)
+        b.append(self.p.set.to_bytes(1, 'big'))
         return b"".join(b)
 
     def short_desc(self):

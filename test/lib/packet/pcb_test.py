@@ -87,12 +87,14 @@ class TestASMarkingSigPack8(object):
         for i in range(3):
             pcbms.append(create_mock_full({
                 "sig_pack5()": bytes("pcbm %i" % i, "ascii")}))
+        rpe = create_mock_full({"routingPolicy": bytes("exts", "ascii")})
         inst = ASMarking(create_mock_full({
             "isdas": _ISD_AS1, "trcVer": 2, "certVer": 3, "ifIDSize": 4,
-            "hashTreeRoot": b"root", "mtu": 1482}))
+            "hashTreeRoot": b"root", "mtu": 1482, "exts": rpe}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
-        rpe = create_mock_full({"sig_pack2()": bytes("exts", "ascii")})
-        inst.routing_pol_ext = create_mock_full(return_value=rpe)
+        inst.routing_pol_ext_set = create_mock_full(return_value=True)
+        sgp3 = create_mock_full({"sig_pack3()": bytes("exts", "ascii")})
+        inst.routing_pol_ext = create_mock_full(return_value=sgp3)
         expected = b"".join([
             _ISD_AS1_BYTES, bytes.fromhex("00000002 00000003 04"),
             b"pcbm 0", b"pcbm 1", b"pcbm 2", b"root",

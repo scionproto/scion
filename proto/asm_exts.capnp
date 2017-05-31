@@ -4,7 +4,12 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct RoutingPolicyExt{
-    polType @0 :UInt8;  # The policy type
-    ifID @1 :UInt64;
-    isdases @2 :List(UInt32);
+    set @0 :Bool;   # Is the extension present? Every extension must include this field.
+    polType @1 :UInt8;  # The policy type
+    ifID @2 :UInt64;
+    isdases @3 :List(UInt32);
+}
+
+struct ISDAnnouncementExt{
+    set @0 :Bool;   # TODO(Sezer): Implement announcement extension
 }
