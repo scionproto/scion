@@ -38,13 +38,13 @@ func Server(x chan ExitData, sockName string, timeoutOK bool) {
 	defer os.Remove(sockName)
 	listener, err := Listen(sockName)
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
 
 	conn, err := listener.Accept()
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
 
@@ -52,45 +52,45 @@ func Server(x chan ExitData, sockName string, timeoutOK bool) {
 	buf := make([]byte, 128)
 	n, err := conn.UnixConn.Read(buf)
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
 
 	err = conn.Close()
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
-	x <- ExitData{buf[:n], nil}
+	x <- ExitData{value: buf[:n]}
 }
 
 func Client(x chan ExitData, sockName string, msg []byte, dst AppAddr) {
 	time.Sleep(200 * time.Millisecond)
 	conn, err := Dial(sockName)
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
 
 	_, err = conn.WriteTo(msg, dst)
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
 
 	err = conn.Close()
 	if err != nil {
-		x <- ExitData{nil, err}
+		x <- ExitData{err: err}
 		return
 	}
-	x <- ExitData{nil, nil}
+	x <- ExitData{}
 }
 
 func ClientRegister(x chan ExitData, sockName string, ia *addr.ISD_AS, dst AppAddr) {
 	// Sleep to avoid connecting before server is up
 	time.Sleep(200 * time.Millisecond)
 	Register(sockName, ia, dst)
-	x <- ExitData{nil, nil}
+	x <- ExitData{}
 }
 
 func TestWriteTo(t *testing.T) {
