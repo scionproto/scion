@@ -63,7 +63,6 @@ from lib.packet.pcb import (
     ASMarking,
     PathSegment,
     PCBMarking,
-    RoutingPolicyExt,
 )
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
@@ -74,7 +73,6 @@ from lib.types import (
     CertMgmtType,
     PathMgmtType as PMT,
     PayloadClass,
-    RoutingPolType,
 )
 from lib.util import (
     SCIONTime,
@@ -301,8 +299,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
-            if asm.p.exts.routingPolicy.set:
-                self.handle_routing_pol_ext(asm.p.exts.routingPolicy)
+            pol = asm.routing_pol_ext()
+            if pol:
+                self.handle_routing_pol_ext(pol)
 
     def handle_routing_pol_ext(self, ext):
         # TODO(Sezer): Implement extension handling
