@@ -16,6 +16,7 @@ package reliable
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"os"
@@ -33,7 +34,15 @@ type ExitData struct {
 	err   error
 }
 
-func Server(x chan ExitData, sockName string, timeoutOK bool) {
+type TestCase struct {
+	msg       string
+	ia        addr.ISD_AS
+	dst       AppAddr
+	want      []byte
+	timeoutOK bool
+}
+
+func Server(x chan ExitData, tc TestCase, sockName string) {
 	os.Remove(sockName)
 	defer os.Remove(sockName)
 	listener, err := Listen(sockName)
@@ -48,9 +57,8 @@ func Server(x chan ExitData, sockName string, timeoutOK bool) {
 		return
 	}
 
-	time.Sleep(300 * time.Millisecond)
-	buf := make([]byte, 128)
-	n, err := conn.UnixConn.Read(buf)
+	buf := make([]byte, len(tc.want))
+	_, err = io.ReadFull(conn.UnixConn, buf)
 	if err != nil {
 		x <- ExitData{err: err}
 		return
@@ -61,18 +69,17 @@ func Server(x chan ExitData, sockName string, timeoutOK bool) {
 		x <- ExitData{err: err}
 		return
 	}
-	x <- ExitData{value: buf[:n]}
+	x <- ExitData{value: buf}
 }
 
-func Client(x chan ExitData, sockName string, msg []byte, dst AppAddr) {
-	time.Sleep(200 * time.Millisecond)
+func Client(x chan ExitData, tc TestCase, sockName string) {
 	conn, err := Dial(sockName)
 	if err != nil {
 		x <- ExitData{err: err}
 		return
 	}
 
-	_, err = conn.WriteTo(msg, dst)
+	_, err = conn.WriteTo([]byte(tc.msg), tc.dst)
 	if err != nil {
 		x <- ExitData{err: err}
 		return
@@ -86,42 +93,41 @@ func Client(x chan ExitData, sockName string, msg []byte, dst AppAddr) {
 	x <- ExitData{}
 }
 
-func ClientRegister(x chan ExitData, sockName string, ia *addr.ISD_AS, dst AppAddr) {
-	// Sleep to avoid connecting before server is up
-	time.Sleep(200 * time.Millisecond)
-	Register(sockName, ia, dst)
+func ClientRegister(x chan ExitData, tc TestCase, sockName string) {
+	// The below returns with error because the server never replies before
+	// closing the connection, but we're not interested in testing this
+	// behavior
+	Register(sockName, &tc.ia, tc.dst)
 	x <- ExitData{}
 }
 
 func TestWriteTo(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
-	testCases := []struct {
-		payload string
-		dst     AppAddr
-		want    []byte
-	}{
-		{"", AppAddr{Addr: nilAddr, Port: 0},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0}},
-		{"test", AppAddr{Addr: nilAddr, Port: 0},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 4, 't', 'e', 's', 't'}},
-		{"foo", AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 3,
+	testCases := []TestCase{
+		{msg: "", dst: AppAddr{Addr: nilAddr, Port: 0},
+			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0}},
+		{msg: "test", dst: AppAddr{Addr: nilAddr, Port: 0},
+			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 4, 't', 'e', 's', 't'}},
+		{msg: "foo", dst: AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
+			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 3,
 				127, 0, 0, 1, 0, 80, 'f', 'o', 'o'}},
-		{"bar", AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 3,
+		{msg: "bar", dst: AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
+			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 3,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 				0, 80, 'b', 'a', 'r'}}}
 
 	Convey("Client sending message to Server using WriteTo", t, func() {
 		Convey("Server should receive correct raw messages", func() {
 			for _, tc := range testCases {
-				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.payload), func() {
+				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.msg), func() {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
 					sc := make(chan ExitData, 1)
-					go Server(sc, sockName, false)
+					go Server(sc, tc, sockName)
+					// Sleep to avoid connecting before server is up
+					time.Sleep(200 * time.Millisecond)
 					cc := make(chan ExitData, 1)
-					go Client(cc, sockName, []byte(tc.payload), tc.dst)
+					go Client(cc, tc, sockName)
 
 					var sData ExitData
 					select {
@@ -136,9 +142,9 @@ func TestWriteTo(t *testing.T) {
 						cData = ExitData{nil, common.NewError("Client timed out")}
 					}
 
-					So(sData.value, ShouldResemble, tc.want)
 					So(sData.err, ShouldEqual, nil)
 					So(cData.err, ShouldEqual, nil)
+					So(sData.value, ShouldResemble, tc.want)
 				})
 			}
 		})
@@ -148,21 +154,18 @@ func TestWriteTo(t *testing.T) {
 func TestRegister(t *testing.T) {
 	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
 
-	testCases := []struct {
-		ia        addr.ISD_AS
-		dst       AppAddr
-		want      []byte
-		timeoutOK bool
-	}{
-		{addr.ISD_AS{I: 1, A: 10}, AppAddr{Addr: nilAddr, Port: 0},
-			nil, true},
-		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 13,
-				3, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1}, false},
-		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
-			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 25,
+	testCases := []TestCase{
+		{ia: addr.ISD_AS{I: 1, A: 10}, dst: AppAddr{Addr: nilAddr, Port: 0},
+			want: nil, timeoutOK: true},
+		{ia: addr.ISD_AS{I: 2, A: 21},
+			dst: AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
+			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 13,
+				3, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1}, timeoutOK: false},
+		{ia: addr.ISD_AS{I: 2, A: 21},
+			dst: AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
+			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 25,
 				3, 17, 0, 32, 0, 21, 0, 80, 2,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, false}}
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, timeoutOK: false}}
 
 	Convey("Client registering to SCIOND", t, func() {
 		Convey("SCIOND should receive correct raw messages", func() {
@@ -171,9 +174,11 @@ func TestRegister(t *testing.T) {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
 					sc := make(chan ExitData, 1)
-					go Server(sc, sockName, false)
+					go Server(sc, tc, sockName)
+					// Sleep to avoid connecting before server is up
+					time.Sleep(200 * time.Millisecond)
 					cc := make(chan ExitData, 1)
-					go ClientRegister(cc, sockName, &tc.ia, tc.dst)
+					go ClientRegister(cc, tc, sockName)
 
 					var sData ExitData
 					select {
@@ -188,11 +193,11 @@ func TestRegister(t *testing.T) {
 						cData = ExitData{nil, common.NewError("Client timed out")}
 					}
 
-					So(sData.value, ShouldResemble, tc.want)
 					if !tc.timeoutOK {
 						So(sData.err, ShouldEqual, nil)
 					}
 					So(cData.err, ShouldEqual, nil)
+					So(sData.value, ShouldResemble, tc.want)
 				})
 			}
 		})
