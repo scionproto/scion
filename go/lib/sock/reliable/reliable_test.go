@@ -120,7 +120,7 @@ func TestWriteTo(t *testing.T) {
 
 	Convey("Client sending message to Server using WriteTo", t, func() {
 		Convey("Server should receive correct raw messages", func() {
-			for _, tc := range testCases {
+			for i, tc := range testCases {
 				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.msg), func() {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
@@ -143,9 +143,10 @@ func TestWriteTo(t *testing.T) {
 						cData = ExitData{nil, common.NewError("Client timed out")}
 					}
 
-					So(sData.err, ShouldEqual, nil)
-					So(cData.err, ShouldEqual, nil)
-					So(sData.value, ShouldResemble, tc.want)
+					prefix := fmt.Sprintf("WriteTo %d", i)
+					SoMsg(prefix+" server error", sData.err, ShouldBeNil)
+					SoMsg(prefix+" client error", cData.err, ShouldBeNil)
+					SoMsg(prefix+" server data", sData.value, ShouldResemble, tc.want)
 				})
 			}
 		})
@@ -170,7 +171,7 @@ func TestRegister(t *testing.T) {
 
 	Convey("Client registering to SCIOND", t, func() {
 		Convey("SCIOND should receive correct raw messages", func() {
-			for _, tc := range testCases {
+			for i, tc := range testCases {
 				Convey(fmt.Sprintf("Client registered to %v, %v", tc.ia, tc.dst), func() {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
@@ -184,7 +185,9 @@ func TestRegister(t *testing.T) {
 					select {
 					case sData = <-sc:
 					case <-time.After(3 * time.Second):
-						sData = ExitData{nil, common.NewError("Server timed out")}
+						if !tc.timeoutOK {
+							sData = ExitData{nil, common.NewError("Server timed out")}
+						}
 					}
 					var cData ExitData
 					select {
@@ -193,11 +196,10 @@ func TestRegister(t *testing.T) {
 						cData = ExitData{nil, common.NewError("Client timed out")}
 					}
 
-					if !tc.timeoutOK {
-						So(sData.err, ShouldEqual, nil)
-					}
-					So(cData.err, ShouldEqual, nil)
-					So(sData.value, ShouldResemble, tc.want)
+					prefix := fmt.Sprintf("Register %d", i)
+					SoMsg(prefix+" server error", sData.err, ShouldBeNil)
+					SoMsg(prefix+" client error", cData.err, ShouldBeNil)
+					SoMsg(prefix+" server data", sData.value, ShouldResemble, tc.want)
 				})
 			}
 		})
