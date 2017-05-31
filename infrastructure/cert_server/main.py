@@ -401,7 +401,7 @@ class CertServer(SCIONElement):
             raise SCIONVerificationError("".join(err_desc))
         raw = drkey_signing_input_req(req.isd_as, req.p.flags.prefetch, req.p.timestamp)
         try:
-            verify_sig_chain_trc(raw, req.p.signature, str(meta.ia), chain, trc, req.p.trcVer)
+            verify_sig_chain_trc(raw, req.p.signature, meta.ia, chain, trc)
         except SCIONVerificationError as e:
             raise SCIONVerificationError(str(e))
         return chain.certs[0]
@@ -470,7 +470,7 @@ class CertServer(SCIONElement):
             raise SCIONVerificationError(err_str)
         raw = get_signing_input_rep(rep.isd_as, rep.p.timestamp, rep.p.expTime, rep.p.cipher)
         try:
-            verify_sig_chain_trc(raw, rep.p.signature, str(rep.isd_as), chain, trc, rep.p.trcVer)
+            verify_sig_chain_trc(raw, rep.p.signature, rep.isd_as, chain, trc)
         except SCIONVerificationError as e:
             raise SCIONVerificationError(str(e))
         return chain.certs[0]
