@@ -8,14 +8,3 @@ struct RoutingPolicyExt{
     ifID @1 :UInt64;
     isdases @2 :List(UInt32);
 }
-
-struct ISDAnnouncementExt{
-    test @0 :UInt8; # TODO(Sezer): implement this
-}
-
-struct ASMExt {
-    extension :union {
-        routingPolicy @0 :RoutingPolicyExt;
-        isdAnnouncement @1 :ISDAnnouncementExt; # TODO(Sezer): implement this
-    }
-}

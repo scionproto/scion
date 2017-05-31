@@ -375,9 +375,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             # TODO(Sezer): Implement sibra extension handling
             logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
-            for ext in asm.p.exts:
-                if ext.extension.which() == 'routingPolicy':
-                    self.handle_routing_pol_ext(ext.extension.routingPolicy)
+            if asm.p.exts.routingPolicy:
+                self.handle_routing_pol_ext(asm.p.exts.routingPolicy)
 
     def handle_routing_pol_ext(self, ext):
         logging.debug("Routing policy extension: %s" % ext)

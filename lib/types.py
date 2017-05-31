@@ -76,6 +76,10 @@ class ExtEndToEndType(TypeBase):
     PATH_PROBE = 1
 
 
+class ASMExtType(TypeBase):
+    ROUTING_POLICY = 0
+
+
 class RoutingPolType(TypeBase):
     ALLOW_AS = 0
     DENY_AS = 1

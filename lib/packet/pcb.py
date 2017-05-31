@@ -29,13 +29,13 @@ from lib.crypto.asymcrypto import sign
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONSigVerError
 from lib.flagtypes import PathSegFlags as PSF
-from lib.packet.asm_exts import ASMExt
+from lib.packet.asm_exts import RoutingPolicyExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
-from lib.types import PayloadClass
+from lib.types import ASMExtType, PayloadClass
 from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
@@ -102,9 +102,9 @@ class ASMarking(Cerealizable):
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
-        p.init("exts", len(exts))
-        for i, ext in enumerate(exts):
-            p.exts[i] = ext.p
+        for ext in exts:
+            if ext.extType == ASMExtType.ROUTING_POLICY:
+                p.exts.routingPolicy = ext.p
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
@@ -117,12 +117,8 @@ class ASMarking(Cerealizable):
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
 
-    def iter_exts(self):
-        for ext in self.p.exts:
-            yield self.asm_ext(ext)
-
-    def asm_ext(self, ext_raw):
-        return ASMExt(ext_raw)
+    def routing_pol_ext(self):
+        return RoutingPolicyExt(self.p.exts.routingPolicy)
 
     def add_ext(self, ext):  # pragma: no cover
         """
@@ -148,8 +144,7 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        for ext in self.iter_exts():
-            b.append(ext.sig_pack0())
+        b.append(self.routing_pol_ext().sig_pack2())
         return b"".join(b)
 
     def short_desc(self):

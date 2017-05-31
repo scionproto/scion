@@ -24,7 +24,9 @@ struct ASMarking {
     hashTreeRoot @5 :Data;
     sig @6 :Data;
     mtu @7 :UInt16;  # Internal MTU
-    exts @8 :List(Exts.ASMExt); # AS Marking extensions
+    exts :group {
+        routingPolicy @8 :Exts.RoutingPolicyExt;
+    }
 }
 
 struct PathSegment {
