@@ -113,6 +113,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
+	// XXX(kormat): uncomment for debugging:
+	//rp.Debug("processPacket", "raw", rp.Raw)
 	if err := rp.Parse(); err != nil {
 		r.handlePktError(rp, err, "Error parsing packet")
 		return

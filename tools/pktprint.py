@@ -19,14 +19,20 @@ A very simple utility to parse a hex-encoded scion packet and pretty-print it.
 """
 
 # Stdlib
-import sys
+import argparse
 
 # SCION
 import lib.packet.scion
 
-raw = "".join(sys.argv[1].split())
-hexes = bytes.fromhex(raw)
-p = lib.packet.scion.SCIONExtPacket(hexes)
+parser = argparse.ArgumentParser()
+parser.add_argument("raw", metavar='RAW', nargs='+',
+                    help="hex-encoded raw packet (whitespace is ignored)")
+parser.add_argument("--ctrl", action="store_true", help="Parse a SCION control payload")
+args = parser.parse_args()
+
+hexes = bytes.fromhex("".join(args.raw))
+p = lib.packet.scion.SCIONL4Packet(hexes)
 print("=============> Packet:\n%s" % p)
 print("=============> Validate: %s" % p.validate(len(hexes)))
-print("=============> Payload:\n%s" % p.parse_payload())
+if args.ctrl:
+    print("=============> SCION control payload:\n: %s" % p.parse_payload())
