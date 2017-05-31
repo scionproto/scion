@@ -25,120 +25,72 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-func Server(t *testing.T, sockName string, timeoutOK bool) []byte {
+type ExitData struct {
+	value []byte
+	err   error
+}
+
+func Server(x chan ExitData, sockName string, timeoutOK bool) {
 	os.Remove(sockName)
+	defer os.Remove(sockName)
 	listener, err := Listen(sockName)
 	if err != nil {
-		t.Fatalf("Error: %v.", err)
+		x <- ExitData{nil, err}
+		return
 	}
 
-	errChan := make(chan error, 1)
-	dataChan := make(chan []byte, 1)
-	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			t.Fatalf("Error: %v", err)
-		}
-
-		// Sleep so we get all the data in one chunk
-		time.Sleep(300 * time.Millisecond)
-		buf := make([]byte, 128)
-		n, err := conn.UnixConn.Read(buf)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		err = conn.Close()
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		errChan <- nil
-		dataChan <- buf[:n]
-	}()
-
-	select {
-	case err := <-errChan:
-		if err != nil {
-			t.Fatalf("%v", err.Error())
-		}
-	case <-time.After(time.Second * 1):
-		if timeoutOK {
-			// Just return
-			return []byte{}
-		}
-		t.Fatalf("Read timed out waiting for message from Client")
-	}
-
-	return <-dataChan
-}
-
-func Client(t *testing.T, sockName string, msg []byte, dst AppAddr) {
-	errChan := make(chan error, 1)
-	dataChan := make(chan interface{}, 1)
-
-	go func() {
-		// Sleep to avoid connecting before server is up
-		time.Sleep(200 * time.Millisecond)
-		conn, err := Dial(sockName)
-		errChan <- err
-		if err == nil {
-			dataChan <- conn
-		}
-	}()
-
-	select {
-	case err := <-errChan:
-		if err != nil {
-			t.Fatalf("%v", err.Error())
-		}
-	case <-time.After(time.Second * 3):
-		t.Fatalf("Dial timed out for socket %v", sockName)
-	}
-	conn := (<-dataChan).(*Conn)
-
-	go func() {
-		_, err := conn.WriteTo(msg, dst)
-		errChan <- err
-	}()
-
-	select {
-	case err := <-errChan:
-		if err != nil {
-			t.Fatalf("%v", err.Error())
-		}
-	case <-time.After(time.Second * 3):
-		t.Fatalf("Write timed out for socket %v", sockName)
-	}
-
-	// Give the server time to get the data
-	err := conn.Close()
+	conn, err := listener.Accept()
 	if err != nil {
-		t.Fatal("close failed", "err", err)
+		x <- ExitData{nil, err}
+		return
 	}
+
+	time.Sleep(300 * time.Millisecond)
+	buf := make([]byte, 128)
+	n, err := conn.UnixConn.Read(buf)
+	if err != nil {
+		x <- ExitData{nil, err}
+		return
+	}
+
+	err = conn.Close()
+	if err != nil {
+		x <- ExitData{nil, err}
+		return
+	}
+	x <- ExitData{buf[:n], nil}
 }
 
-func ClientRegister(t *testing.T, sockName string, ia *addr.ISD_AS, dst AppAddr) {
-	errChan := make(chan error, 1)
-	go func() {
-		// Sleep to avoid connecting before server is up
-		time.Sleep(200 * time.Millisecond)
-		Register(sockName, ia, dst)
-		errChan <- nil
-	}()
-
-	select {
-	case err := <-errChan:
-		if err != nil {
-			t.Fatalf("%v", err.Error())
-		}
-	case <-time.After(time.Second * 3):
-		t.Fatalf("Dial timed out for socket %v", sockName)
+func Client(x chan ExitData, sockName string, msg []byte, dst AppAddr) {
+	time.Sleep(200 * time.Millisecond)
+	conn, err := Dial(sockName)
+	if err != nil {
+		x <- ExitData{nil, err}
+		return
 	}
+
+	_, err = conn.WriteTo(msg, dst)
+	if err != nil {
+		x <- ExitData{nil, err}
+		return
+	}
+
+	err = conn.Close()
+	if err != nil {
+		x <- ExitData{nil, err}
+		return
+	}
+	x <- ExitData{nil, nil}
+}
+
+func ClientRegister(x chan ExitData, sockName string, ia *addr.ISD_AS, dst AppAddr) {
+	// Sleep to avoid connecting before server is up
+	time.Sleep(200 * time.Millisecond)
+	Register(sockName, ia, dst)
+	x <- ExitData{nil, nil}
 }
 
 func TestWriteTo(t *testing.T) {
@@ -166,20 +118,27 @@ func TestWriteTo(t *testing.T) {
 				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.payload), func() {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
 
-					c := make(chan []byte, 1)
-					go func(t *testing.T) {
-						c <- Server(t, sockName, false)
-					}(t)
+					sc := make(chan ExitData, 1)
+					go Server(sc, sockName, false)
+					cc := make(chan ExitData, 1)
+					go Client(cc, sockName, []byte(tc.payload), tc.dst)
 
-					go func(t *testing.T) {
-						Client(t, sockName, []byte(tc.payload), tc.dst)
-					}(t)
+					var sData ExitData
+					select {
+					case sData = <-sc:
+					case <-time.After(3 * time.Second):
+						sData = ExitData{nil, common.NewError("Server timed out")}
+					}
+					var cData ExitData
+					select {
+					case cData = <-cc:
+					case <-time.After(3 * time.Second):
+						cData = ExitData{nil, common.NewError("Client timed out")}
+					}
 
-					mc := <-c
-
-					// Wait for goroutines to finish
-					So(mc, ShouldResemble, tc.want)
-					// Wait for cleanup to finish
+					So(sData.value, ShouldResemble, tc.want)
+					So(sData.err, ShouldEqual, nil)
+					So(cData.err, ShouldEqual, nil)
 				})
 			}
 		})
@@ -196,7 +155,7 @@ func TestRegister(t *testing.T) {
 		timeoutOK bool
 	}{
 		{addr.ISD_AS{I: 1, A: 10}, AppAddr{Addr: nilAddr, Port: 0},
-			[]byte{}, true},
+			nil, true},
 		{addr.ISD_AS{I: 2, A: 21}, AppAddr{Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)), Port: 80},
 			[]byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 13,
 				3, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1}, false},
@@ -210,18 +169,30 @@ func TestRegister(t *testing.T) {
 			for _, tc := range testCases {
 				Convey(fmt.Sprintf("Client registered to %v, %v", tc.ia, tc.dst), func() {
 					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
-					c := make(chan []byte, 1)
-					go func(t *testing.T) {
-						c <- Server(t, sockName, tc.timeoutOK)
-					}(t)
 
-					go func(t *testing.T) {
-						ClientRegister(t, sockName, &tc.ia, tc.dst)
-					}(t)
+					sc := make(chan ExitData, 1)
+					go Server(sc, sockName, false)
+					cc := make(chan ExitData, 1)
+					go ClientRegister(cc, sockName, &tc.ia, tc.dst)
 
-					mc := <-c
+					var sData ExitData
+					select {
+					case sData = <-sc:
+					case <-time.After(3 * time.Second):
+						sData = ExitData{nil, common.NewError("Server timed out")}
+					}
+					var cData ExitData
+					select {
+					case cData = <-cc:
+					case <-time.After(3 * time.Second):
+						cData = ExitData{nil, common.NewError("Client timed out")}
+					}
 
-					So(mc, ShouldResemble, tc.want)
+					So(sData.value, ShouldResemble, tc.want)
+					if !tc.timeoutOK {
+						So(sData.err, ShouldEqual, nil)
+					}
+					So(cData.err, ShouldEqual, nil)
 				})
 			}
 		})
