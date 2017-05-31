@@ -104,7 +104,7 @@ func ClientRegister(x chan ExitData, tc TestCase, sockName string) {
 }
 
 func TestWriteTo(t *testing.T) {
-	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
+	nilAddr := addr.HostNone{}
 	testCases := []TestCase{
 		{msg: "", dst: AppAddr{Addr: nilAddr, Port: 0},
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0}},
@@ -154,7 +154,7 @@ func TestWriteTo(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	nilAddr, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
+	nilAddr := addr.HostNone{}
 
 	testCases := []TestCase{
 		{ia: addr.ISD_AS{I: 1, A: 10}, dst: AppAddr{Addr: nilAddr, Port: 0},
