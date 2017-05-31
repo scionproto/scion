@@ -295,7 +295,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handle beacon extensions.
         """
-        # Handle PCB extensions:
+        # Handle PCB extensions
         if pcb.is_sibra():
             logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
