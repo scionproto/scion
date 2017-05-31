@@ -64,7 +64,7 @@ class TestASMarkingFromValues(object):
         for i in range(3):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         exts = []
-        exts.append(create_mock_full({"extType": 0, "p":
+        exts.append(create_mock_full({"EXT_TYPE": 0, "p":
                     {"polType": 0, "itf": 0, "isdases": [_ISD_AS1]}}))
         # Call
         ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "root", "mtu",
@@ -92,7 +92,6 @@ class TestASMarkingSigPack8(object):
             "isdas": _ISD_AS1, "trcVer": 2, "certVer": 3, "ifIDSize": 4,
             "hashTreeRoot": b"root", "mtu": 1482, "exts": rpe}))
         inst.iter_pcbms = create_mock_full(return_value=pcbms)
-        inst.routing_pol_ext_set = create_mock_full(return_value=True)
         sgp3 = create_mock_full({"sig_pack3()": bytes("exts", "ascii")})
         inst.routing_pol_ext = create_mock_full(return_value=sgp3)
         expected = b"".join([

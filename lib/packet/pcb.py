@@ -102,7 +102,7 @@ class ASMarking(Cerealizable):
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
         for ext in exts:
-            if ext.extType == ASMExtType.ROUTING_POLICY:
+            if ext.EXT_TYPE == ASMExtType.ROUTING_POLICY:
                 p.exts.routingPolicy = ext.p
         return cls(p)
 
@@ -117,10 +117,9 @@ class ASMarking(Cerealizable):
             yield self.pcbm(i)
 
     def routing_pol_ext(self):
-        return RoutingPolicyExt(self.p.exts.routingPolicy)
-
-    def routing_pol_ext_set(self):
-        return self.p.exts.routingPolicy.set
+        if self.p.exts.routingPolicy.set:
+            return RoutingPolicyExt(self.p.exts.routingPolicy)
+        return None
 
     def add_ext(self, ext):  # pragma: no cover
         """
@@ -145,10 +144,9 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
-        if self.routing_pol_ext_set():
-            b.append(self.routing_pol_ext().sig_pack3())
-        else:
-            b.append(self.routing_pol_ext().sigpack0())
+        rpe = self.routing_pol_ext()
+        if rpe:
+            b.append(rpe.sig_pack3())
         # TODO(Sezer): handle other extensions here
         return b"".join(b)
 
