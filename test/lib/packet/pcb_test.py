@@ -24,6 +24,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.pcb import ASMarking, PCBMarking, PathSegment
+from lib.types import ASMExtType, RoutingPolType
 from test.testcommon import create_mock_full
 
 _ISD_AS1 = 1 << 20 | 1
@@ -64,8 +65,8 @@ class TestASMarkingFromValues(object):
         for i in range(3):
             pcbms.append(create_mock_full({"p": "pcbm %d" % i}))
         exts = []
-        exts.append(create_mock_full({"EXT_TYPE": 0, "p":
-                    {"polType": 0, "itf": 0, "isdases": [_ISD_AS1]}}))
+        exts.append(create_mock_full({"EXT_TYPE": ASMExtType.ROUTING_POLICY, "p":
+                    {"polType": RoutingPolType.ALLOW_AS, "itf": 0, "isdases": [_ISD_AS1]}}))
         # Call
         ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "root", "mtu",
                               exts, ifid_size=14)
