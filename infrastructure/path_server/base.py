@@ -359,8 +359,26 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         logging.debug("Successfully verified PCB %s" % pcb.short_id())
         type_ = seg_meta.type
         params = seg_meta.params
+        self.handle_ext(pcb)
         self._dispatch_segment_record(type_, pcb, **params)
         self._handle_pending_requests()
+
+    def handle_ext(self, pcb):
+        """
+        Handle beacon extensions.
+        """
+        # Handle PCB extensions:
+        if pcb.is_sibra():
+            # TODO(Sezer): Implement sibra extension handling
+            logging.debug("%s", pcb.sibra_ext)
+        for asm in pcb.iter_asms():
+            pol = asm.routing_pol_ext()
+            if pol:
+                self.handle_routing_pol_ext(pol)
+
+    def handle_routing_pol_ext(self, ext):
+        # TODO(Sezer): Implement extension handling
+        logging.debug("Routing policy extension: %s" % ext)
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         # Check that segment does not contain a revoked interface.

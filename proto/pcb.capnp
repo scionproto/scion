@@ -4,6 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using Sibra = import "sibra.capnp";
+using Exts = import "asm_exts.capnp";
 
 struct PCBMarking {
     inIA @0 :UInt32;  # Ingress (incl peer) ISD-AS
@@ -23,6 +24,9 @@ struct ASMarking {
     hashTreeRoot @5 :Data;
     sig @6 :Data;
     mtu @7 :UInt16;  # Internal MTU
+    exts :group {
+        routingPolicy @8 :Exts.RoutingPolicyExt;
+    }
 }
 
 struct PathSegment {

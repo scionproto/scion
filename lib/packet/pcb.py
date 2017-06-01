@@ -29,12 +29,13 @@ from lib.crypto.symcrypto import crypto_hash
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONSigVerError
 from lib.flagtypes import PathSegFlags as PSF
+from lib.packet.asm_exts import RoutingPolicyExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable, SCIONPayloadBaseProto
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
-from lib.types import PayloadClass
+from lib.types import ASMExtType, PayloadClass
 from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
@@ -68,8 +69,7 @@ class PCBMarking(Cerealizable):
         """
         b = []
         if self.VER != 5:
-            raise SCIONSigVerError(
-                "PCBMarking.sig_pack5 cannot support version %s", self.VER)
+            raise SCIONSigVerError("PCBMarking.sig_pack5 cannot support version %s", self.VER)
         b.append(self.p.inIA.to_bytes(4, 'big'))
         b.append(self.p.inIF.to_bytes(8, 'big'))
         b.append(self.p.inMTU.to_bytes(2, 'big'))
@@ -93,7 +93,7 @@ class ASMarking(Cerealizable):
     VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu,
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
                     ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
@@ -101,6 +101,9 @@ class ASMarking(Cerealizable):
         p.init("pcbms", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.pcbms[i] = pm.p
+        for ext in exts:
+            if ext.EXT_TYPE == ASMExtType.ROUTING_POLICY:
+                p.exts.routingPolicy = ext.p
         return cls(p)
 
     def isd_as(self):  # pragma: no cover
@@ -113,6 +116,11 @@ class ASMarking(Cerealizable):
         for i in range(start, len(self.p.pcbms)):
             yield self.pcbm(i)
 
+    def routing_pol_ext(self):
+        if self.p.exts.routingPolicy.set:
+            return RoutingPolicyExt(self.p.exts.routingPolicy)
+        return None
+
     def add_ext(self, ext):  # pragma: no cover
         """
         Appends a new ASMarking extension.
@@ -121,14 +129,13 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def sig_pack7(self):
+    def sig_pack8(self):
         """
         Pack for signing version 8 (defined by highest field number).
         """
         b = []
-        if self.VER != 7:
-            raise SCIONSigVerError(
-                "ASMarking.sig_pack8 cannot support version %s", self.VER)
+        if self.VER != 8:
+            raise SCIONSigVerError("ASMarking.sig_pack8 cannot support version %s", self.VER)
         b.append(self.p.isdas.to_bytes(4, 'big'))
         b.append(self.p.trcVer.to_bytes(4, 'big'))
         b.append(self.p.certVer.to_bytes(4, 'big'))
@@ -137,6 +144,10 @@ class ASMarking(Cerealizable):
             b.append(pcbm.sig_pack5())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
+        rpe = self.routing_pol_ext()
+        if rpe:
+            b.append(rpe.sig_pack3())
+        # TODO(Sezer): handle other extensions here
         return b"".join(b)
 
     def short_desc(self):
@@ -196,13 +207,12 @@ class PathSegment(SCIONPayloadBaseProto):
         Pack for signing version 3 (defined by highest field number).
         """
         if self.VER != 3:
-            raise SCIONSigVerError(
-                "PathSegment.sig_pack3 cannot support version %s", self.VER)
+            raise SCIONSigVerError("PathSegment.sig_pack3 cannot support version %s", self.VER)
         b = []
         b.append(self.p.info)
         # ifID field is changed on the fly, and so is ignored.
         for asm in self.iter_asms():
-            b.append(asm.sig_pack7())
+            b.append(asm.sig_pack8())
         if self.is_sibra():
             b.append(self.sibra_ext.sig_pack3())
         return b"".join(b)
