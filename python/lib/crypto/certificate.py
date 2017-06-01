@@ -45,7 +45,7 @@ class Certificate(object):
     information for further use.
 
     :ivar str subject: the certificate subject.
-    :ivar str issuer: the certificate issuer. It can only be an AS.
+    :ivar str issuer: the certificate issuer. It can only be a core AS.
     :ivar int trc_version: the version of the issuing trc.
     :ivar int version: the certificate version.
     :ivar str comment: is an arbitrary and optional string used by the subject
@@ -60,13 +60,15 @@ class Certificate(object):
     :ivar bytes subject_sig_key: the public key used for signing.
     :ivar bytes signature: the certificate signature. It is computed over the
         rest of the certificate.
-    :cvar int validity_period:
-        default validity period (in real seconds) of a new certificate.
+    :cvar int as_validity_period:
+        default validity period (in real seconds) of a new regular AS certificate.
+    :cvar int core_as_validity_period:
+        default validity period (in real seconds) of a new core AS certificate.
     :cvar str sign_algortihm: default algorithm used to sign a certificate.
     :cvar str enc_alorithm: default algorithm used to encrypt messages.
     """
-
-    VALIDITY_PERIOD = 365 * 24 * 60 * 60
+    AS_VALIDITY_PERIOD = 3 * 24 * 60 * 60
+    CORE_AS_VALIDITY_PERIOD = 7 * 24 * 60 * 60
     SIGN_ALGORTIHM = 'ed25519'
     ENC_ALGORITHM = 'curve25519xsalsa20poly1305'
     FIELDS_MAP = {
@@ -99,14 +101,14 @@ class Certificate(object):
         self.subject_sig_key_raw = base64.b64decode(self.subject_sig_key)
         self.signature_raw = base64.b64decode(self.signature)
 
-    def verify(self, subject, issuer_cert):
+    def verify(self, subject, verifying_key):
         """
         Perform one step verification.
 
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
-        :param str issuer_cert: the certificate issuer. It can only be an AS.
+        :param bytes verifying_key: the key to be used for signature verification.
         :raises: SCIONVerificationError if the verification fails.
         """
         if subject != self.subject:
@@ -115,23 +117,10 @@ class Certificate(object):
                 (subject, self.subject, self))
         if int(time.time()) >= self.expiration_time:
             raise SCIONVerificationError("This certificate expired:\n%s" % self)
-        if int(time.time()) >= issuer_cert.expiration_time:
-            raise SCIONVerificationError("The issuer certificate expired:\n%s" % issuer_cert)
         try:
-            self._verify_signature(self.signature_raw, issuer_cert.subject_sig_key_raw)
+            self._verify_signature(self.signature_raw, verifying_key)
         except SCIONVerificationError:
             raise SCIONVerificationError("Signature verification failed:\n%s" % self)
-
-    def verify_core(self, pub_online_root_key):
-        """
-        Verify core signature with given online root key.
-
-        :param bytes pub_online_root_key:
-            The online root key of the core AS  which signed this
-            root certificate
-        :raises: SCIONVerificationError if the verification fails.
-        """
-        self._verify_signature(self.signature_raw, pub_online_root_key)
 
     def _verify_signature(self, signature, public_key):
         """
@@ -162,7 +151,7 @@ class Certificate(object):
         self.signature = base64.b64encode(self.signature_raw).decode('utf-8')
 
     @classmethod
-    def from_values(cls, subject, issuer, trc_version, version, comment, can_issue,
+    def from_values(cls, subject, issuer, trc_version, version, comment, can_issue, validity_period,
                     subject_enc_key, subject_sig_key, iss_priv_key):
         """
         Generate a Certificate instance.
@@ -170,13 +159,17 @@ class Certificate(object):
         :param str subject:
             the certificate subject. It can either be an AS, an email address or
             a domain address.
-        :param bytes subject_sig_key: the public key of the subject.
-        :param bytes subject_enc_key: the public part of the encryption key.
         :param str issuer: the certificate issuer. It can only be an AS.
         :param int trc_version: the version of the issuing certificate/trc.
+        :param int version: the certificate version.
+        :param str comment: a comment describing the certificate.
+        :param bool can_issue:
+            states whether the subject is allowed to issue certificates for other ASes.
+        :param int validity_period: the validity period after creation of this certificate.
         :param SigningKey iss_priv_key:
             the issuer's signing key. It is used to sign the certificate.
-        :param int version: the certificate version.
+        :param bytes subject_sig_key: the public key of the subject.
+        :param bytes subject_enc_key: the public part of the encryption key.
         :returns: the newly created Certificate instance.
         :rtype: :class:`Certificate`
         """
@@ -189,7 +182,7 @@ class Certificate(object):
             COMMENT_STRING: comment,
             CAN_ISSUE_STRING: can_issue,
             ISSUING_TIME_STRING: now,
-            EXPIRATION_TIME_STRING: now + cls.VALIDITY_PERIOD,
+            EXPIRATION_TIME_STRING: now + validity_period,
             ENC_ALGORITHM_STRING: cls.ENC_ALGORITHM,
             SUBJECT_ENC_KEY_STRING:
                 base64.b64encode(subject_enc_key).decode("utf-8"),
