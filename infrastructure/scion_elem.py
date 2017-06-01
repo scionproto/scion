@@ -1044,7 +1044,7 @@ class SCIONElement(object):
             otherwise.
         """
         if rev_info.p.ifID == 0:
-            logging.warning("Received revocation for ifID 0. Ignoring.\n%s" %
+            logging.warning("Received revocation for ifID 0. Ignoring. %s" %
                             rev_info.short_desc())
             return False
         return True
