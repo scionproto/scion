@@ -304,7 +304,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.handle_routing_pol_ext(pol)
 
     def handle_routing_pol_ext(self, ext):
-        # TODO(Sezer): Implement extension handling
+        # TODO(Sezer): Implement routing policy extension handling
         logging.debug("Routing policy extension: %s" % ext)
 
     @abstractmethod
