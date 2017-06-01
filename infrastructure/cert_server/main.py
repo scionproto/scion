@@ -181,7 +181,7 @@ class CertServer(SCIONElement):
                 logging.warning(
                     "Dropping CC request from %s for %sv%s: "
                     "CC not found && requester is not local)",
-                    meta.get_addr(), *key)
+                    meta, *key)
             else:
                 self.cc_requests.put((key, (meta, req)))
             return
@@ -228,7 +228,7 @@ class CertServer(SCIONElement):
         meta = req_info[0]
         cert_chain = self.trust_store.get_cert(isd_as, ver)
         self.send_meta(CertChainReply.from_values(cert_chain), meta)
-        logging.info("Cert chain for %sv%s sent to %s:%s", isd_as, ver, meta.get_addr(), meta.port)
+        logging.info("Cert chain for %sv%s sent to %s", isd_as, ver, meta)
 
     def process_trc_request(self, req, meta):
         """Process a TRC request."""
@@ -241,7 +241,7 @@ class CertServer(SCIONElement):
                 logging.warning(
                     "Dropping TRC request from %s for %sv%s: "
                     "TRC not found && requester is not local)",
-                    meta.get_addr(), *key)
+                    meta, *key)
             else:
                 self.trc_requests.put((key, (meta, req)))
             return
@@ -293,7 +293,7 @@ class CertServer(SCIONElement):
         meta = req_info[0]
         trc = self.trust_store.get_trc(isd, ver)
         self.send_meta(TRCReply.from_values(trc), meta)
-        logging.info("TRC for %sv%s sent to %s:%s", isd, ver, meta.get_addr(), meta.port)
+        logging.info("TRC for %sv%s sent to %s", isd, ver, meta)
 
     def _get_path_via_api(self, isd_as, flush=False):
         flags = lib_sciond.PathRequestFlags(flush=flush)
