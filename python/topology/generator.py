@@ -77,6 +77,7 @@ from lib.defines import (
     SCIOND_API_SOCKDIR,
     TOPO_FILE,
 )
+from lib.errors import SCIONParseError
 from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
 from lib.topology import Topology
@@ -296,6 +297,7 @@ class CertGenerator(object):
         self.pub_offline_root_keys = {}
         self.priv_offline_root_keys = {}
         self.certs = {}
+        self.core_certs = {}
         self.trcs = {}
         self.cert_files = defaultdict(dict)
         self.trc_files = defaultdict(dict)
@@ -312,10 +314,8 @@ class CertGenerator(object):
 
     def _self_sign_keys(self):
         topo_id = TopoID.from_values(0, 0)
-        self.sig_pub_keys[topo_id], self.sig_priv_keys[topo_id] = \
-            generate_sign_keypair()
-        self.enc_pub_keys[topo_id], self.enc_priv_keys[topo_id] = \
-            generate_enc_keypair()
+        self.sig_pub_keys[topo_id], self.sig_priv_keys[topo_id] = generate_sign_keypair()
+        self.enc_pub_keys[topo_id], self.enc_priv_keys[topo_id] = generate_enc_keypair()
 
     def _iterate(self, f):
         for isd_as, as_conf in self.topo_config["ASes"].items():
@@ -342,38 +342,44 @@ class CertGenerator(object):
             self.priv_offline_root_keys[topo_id] = off_root_priv
             online_key_path = get_online_key_file_path("")
             offline_key_path = get_offline_key_file_path("")
-            self.cert_files[topo_id][online_key_path] = \
-                base64.b64encode(on_root_priv).decode()
-            self.cert_files[topo_id][offline_key_path] = \
-                base64.b64encode(off_root_priv).decode()
+            self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
+            self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
         issuer = TopoID(as_conf.get('cert_issuer', str(topo_id)))
+        # Make sure that issuer is a core AS
+        if issuer not in self.pub_online_root_keys:
+            raise SCIONParseError("Certificate issuer is not a core AS: %s" % issuer)
+        # Create core AS certificate
         if self.is_core(as_conf):
             signing_key = self.priv_online_root_keys[topo_id]
-        else:
-            signing_key = self.sig_priv_keys[issuer]
+            can_issue = True
+            comment = "Core AS Certificate"
+            validity_period = Certificate.CORE_AS_VALIDITY_PERIOD
+            self.core_certs[topo_id] = Certificate.from_values(
+                str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
+                comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
+                self.sig_pub_keys[topo_id], SigningKey(signing_key)
+            )
+        # Create regular AS certificate
+        signing_key = self.sig_priv_keys[issuer]
+        can_issue = False
+        comment = "AS Certificate"
+        validity_period = Certificate.AS_VALIDITY_PERIOD
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
-            "", False, self.enc_pub_keys[topo_id], self.sig_pub_keys[topo_id],
-            SigningKey(signing_key)
+            comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
+            self.sig_pub_keys[topo_id], SigningKey(signing_key)
         )
 
     def _build_chains(self):
         for topo_id, cert in self.certs.items():
             chain = [cert]
             issuer = TopoID(cert.issuer)
-            while issuer in self.certs:
-                cert = self.certs[issuer]
-                if str(issuer) == cert.issuer:
-                    chain.append(cert)
-                    break
-                chain.append(cert)
-                issuer = TopoID(cert.issuer)
+            chain.append(self.core_certs[issuer])
             cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
-            self.cert_files[topo_id][cert_path] = \
-                CertificateChain(chain).to_json()
+            self.cert_files[topo_id][cert_path] = CertificateChain(chain).to_json()
 
     def is_core(self, as_conf):
         return as_conf.get("core")
@@ -393,8 +399,7 @@ class CertGenerator(object):
         trc.core_ases[str(topo_id)] = core
         ca_certs = {}
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
-            ca_certs[ca_name] = \
-                crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
+            ca_certs[ca_name] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         trc.root_cas = ca_certs
 
     def _create_trc(self, isd):

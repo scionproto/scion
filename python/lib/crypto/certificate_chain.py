@@ -30,7 +30,7 @@ from lib.crypto.trc import (
     TRC,
 )
 from lib.crypto.util import CERT_DIR
-from lib.errors import SCIONVerificationError
+from lib.errors import SCIONVerificationError, SCIONParseError
 from lib.packet.scion_addr import ISD_AS
 
 
@@ -61,15 +61,9 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc):
         chain.verify(subject, trc)
     except SCIONVerificationError as e:
         raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
-    verifying_key = None
-    for signer_cert in chain.certs:
-        if signer_cert.subject == subject:
-            verifying_key = signer_cert.subject_sig_key_raw
-            break
-    if verifying_key is None:
-        if subject not in trc.core_ases:
-            raise SCIONVerificationError("Signer's public key has not been found: %s" % subject)
-        verifying_key = trc.core_ases[subject].subject_sig_key_raw
+    verifying_key = chain.as_cert.subject_sig_key_raw
+    if not verifying_key:
+        raise SCIONVerificationError("Signer's public key has not been found: %s" % subject)
     verify(msg, sig, verifying_key)
 
 
@@ -88,7 +82,10 @@ class CertificateChain(object):
         """
         :param str cert_list: certificate chain as list.
         """
-        self.certs = cert_list
+        if len(cert_list) != 2:
+            raise SCIONParseError("Certificate chains must have length 2.")
+        self.as_cert = cert_list[0]
+        self.core_as_cert = cert_list[1]
 
     @classmethod
     def from_raw(cls, chain_raw, lz4_=False):
@@ -103,9 +100,8 @@ class CertificateChain(object):
 
     def verify(self, subject, trc):
         """
-        Perform the entire chain verification. It verifies each pair and at the
-        end verifies the last certificate of the chain with the root certificate
-        that was used to sign it.
+        Perform the entire chain verification. First verifies the AS certificate against the core AS
+        certificate, then verifies the core AS certificate against the TRC.
 
         :param str subject:
             the subject of the first certificate in the certificate chain.
@@ -113,30 +109,21 @@ class CertificateChain(object):
         :type trc: :class:`TRC`
         :raises: SCIONVerificationError if the verification fails.
         """
-        if not self.certs:
-            raise SCIONVerificationError("The certificate chain is not initialized.")
-        cert = self.certs[0]
-        for issuer_cert in self.certs[1:]:
-            if issuer_cert.subject == subject:
-                break
-            cert.verify(subject, issuer_cert)
-            cert = issuer_cert
-            subject = cert.subject
-        # First check whether a root cert was added to the chain.
-        if cert.issuer != subject:
-            raise SCIONVerificationError("Root Certificate added to chain:\n%s" % cert)
-        # Try to find a root cert in the trc.
+        # Verify AS certificate against core AS certificate
         try:
-            cert.verify_core(trc.core_ases[cert.issuer][ONLINE_KEY_STRING])
+            self.as_cert.verify(subject, self.core_as_cert.subject_sig_key_raw)
+        except SCIONVerificationError as e:
+            raise SCIONVerificationError("AS certificate verification failed: %s" % e)
+        # Verify core AS certificate against TRC
+        try:
+            self.core_as_cert.verify(self.as_cert.issuer,
+                                     trc.core_ases[self.core_as_cert.issuer][ONLINE_KEY_STRING])
         except SCIONVerificationError:
-            raise SCIONVerificationError("Core AS certificate verification failed.")
+            raise SCIONVerificationError("Core AS certificate verification failed: %s" % e)
 
     def get_leaf_isd_as_ver(self):
-        if not self.certs:
-            return None
-        leaf_cert = self.certs[0]
-        isd_as = ISD_AS(leaf_cert.subject)
-        return isd_as, leaf_cert.version
+        isd_as = ISD_AS(self.as_cert.subject)
+        return isd_as, self.as_cert.version
 
     def to_json(self):
         """
@@ -147,7 +134,7 @@ class CertificateChain(object):
         """
         chain_dict = {}
         index = 0
-        for cert in self.certs:
+        for cert in (self.as_cert, self.core_as_cert):
             chain_dict[index] = cert.dict(True)
             index += 1
         chain_str = json.dumps(chain_dict, indent=4)

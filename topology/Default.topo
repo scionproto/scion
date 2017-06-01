@@ -43,16 +43,16 @@ ASes:
     certificate_servers: 3
     cert_issuer: 1-13
   1-17:
-    cert_issuer: 1-14
+    cert_issuer: 1-11
     mtu: 1450
   1-18:
-    cert_issuer: 1-15
+    cert_issuer: 1-12
   1-19:
     path_servers: 2
     certificate_servers: 3
-    cert_issuer: 1-16
+    cert_issuer: 1-13
   1-10:
-    cert_issuer: 1-19
+    cert_issuer: 1-13
   2-21:
     core: true
     mtu: 1280
@@ -64,9 +64,9 @@ ASes:
     cert_issuer: 2-22
     certificate_servers: 3
   2-25:
-    cert_issuer: 2-23
+    cert_issuer: 2-21
   2-26:
-    cert_issuer: 2-24
+    cert_issuer: 2-22
 CAs:
   CA1-1:
     ISD: 1
