@@ -17,7 +17,6 @@ package util
 import (
 	"encoding/base64"
 	"fmt"
-	"net"
 )
 
 type B64Bytes []byte
@@ -40,21 +39,5 @@ func (b *B64Bytes) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	*b = B64Bytes(data)
-	return nil
-}
-
-type YamlIP struct {
-	net.IP
-}
-
-func (y *YamlIP) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	var err error
-	if err = unmarshal(&s); err != nil {
-		return err
-	}
-	if y.IP = net.ParseIP(s); y.IP == nil {
-		return fmt.Errorf("Invalid IP '%v'", s)
-	}
 	return nil
 }

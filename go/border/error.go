@@ -24,8 +24,10 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP
@@ -183,12 +185,33 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
 	ctx := rctx.Get()
 	if rp.DirFrom == rpkt.DirLocal {
-		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.String()]
-		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: rp.Ingress.Src}, nil
+		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.Key()]
+		ot, err := overlay.OverlayFromIP(rp.Ingress.Src.IP, rp.Ctx.Conf.Topo.Overlay)
+		if err != nil {
+			return rpkt.EgressPair{}, err
+		}
+		dst := topology.AddrInfo{
+			Overlay:     ot,
+			IP:          rp.Ingress.Src.IP,
+			L4Port:      rp.Ingress.Src.L4Port,
+			OverlayPort: overlay.EndhostPort,
+		}
+		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: &dst}, nil
 	}
 	intf, err := rp.IFCurr()
 	if err != nil {
 		return rpkt.EgressPair{}, err
 	}
-	return rpkt.EgressPair{F: ctx.IntfOutFs[*intf], Dst: rp.Ingress.Src}, nil
+	ot, err := overlay.OverlayFromIP(rp.Ingress.Src.IP, rp.Ctx.Conf.Topo.IFInfoMap[*intf].Overlay)
+	if err != nil {
+		return rpkt.EgressPair{}, err
+	}
+	dst := topology.AddrInfo{
+		Overlay:     ot,
+		IP:          rp.Ingress.Src.IP,
+		L4Port:      rp.Ingress.Src.L4Port,
+		OverlayPort: rp.Ingress.Src.L4Port,
+	}
+	return rpkt.EgressPair{F: rp.Ctx.IntfOutFs[*intf], Dst: &dst}, nil
+
 }

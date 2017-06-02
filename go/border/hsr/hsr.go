@@ -69,7 +69,7 @@ type AddrMeta struct {
 	DirFrom rpkt.Dir
 	// IfIDs is a list of matching interface IDs. Local (i.e. facing the local
 	// AS) addresses can have multiple interfaces associated with them.
-	IfIDs []spath.IntfID
+	IfIDs []common.IFIDType
 	// Labels is a set of prometheus labels to apply to packets using this port.
 	Labels prometheus.Labels
 }

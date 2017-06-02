@@ -15,135 +15,208 @@
 package topology
 
 import (
-	"fmt"
-	"io/ioutil"
 	"sort"
 
-	"gopkg.in/yaml.v2"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
-type TopoMeta struct {
-	T       Topo
-	BRNames []string
-	BSNames []string
-	PSNames []string
-	CSNames []string
-	SBNames []string
-	ZKIDs   []int
-	IFMap   map[int]TopoBR
-}
-
+/*   Structures used by Go code, filled in by populate()   */
 type Topo struct {
-	BR   map[string]TopoBR    `yaml:"BorderRouters"`
-	BS   map[string]BasicElem `yaml:"BeaconServers"`
-	PS   map[string]BasicElem `yaml:"PathServers"`
-	CS   map[string]BasicElem `yaml:"CertificateServers"`
-	SB   map[string]BasicElem `yaml:"SibraServers"`
-	ZK   map[int]BasicElem    `yaml:"Zookeepers"`
-	Core bool                 `yaml:"Core"`
-	IA   *addr.ISD_AS         `yaml:"ISD_AS"`
-	MTU  int                  `yaml:"MTU"`
+	Timestamp      int64
+	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
+	ISD_AS         *addr.ISD_AS
+	Overlay        overlay.Type
+	MTU            int
+	BR             map[string]BRInfo
+	BRNames        []string
+
+	BS      map[string]TopoAddr
+	BSNames []string
+	CS      map[string]TopoAddr
+	CSNames []string
+	PS      map[string]TopoAddr
+	PSNames []string
+	SB      map[string]TopoAddr
+	SBNames []string
+	RS      map[string]TopoAddr
+	RSNames []string
+	DS      map[string]TopoAddr
+	DSNames []string
+
+	ZK map[int]TopoAddr
+	// This maps Interface IDs to internal addresses. Clients use this to
+	// figure out which internal BR address they have to send their traffic to
+	// if they want to use a given (external) interface.
+	IFInfoMap map[common.IFIDType]IFInfo
 }
 
-type BasicElem struct {
-	Addr *util.YamlIP `yaml:"Addr"`
-	Port int          `yaml:"Port"`
-}
-
-func (b BasicElem) String() string {
-	return fmt.Sprintf("%s:%d", b.Addr, b.Port)
-}
-
-type TopoBR struct {
-	BasicElem `yaml:",inline"`
-	IF        *TopoIF `yaml:"Interface"`
-}
-
-func (t TopoBR) String() string {
-	return fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:\n  %s", t.BasicElem, t.IF)
-}
-
-type TopoIF struct {
-	Addr      *util.YamlIP `yaml:"Addr"`
-	UdpPort   int          `yaml:"UdpPort"`
-	ToAddr    *util.YamlIP `yaml:"ToAddr"`
-	ToUdpPort int          `yaml:"ToUdpPort"`
-	IFID      int          `yaml:"IFID"`
-	IA        *addr.ISD_AS `yaml:"ISD_AS"`
-	MTU       int          `yaml:"MTU"`
-	BW        int          `yaml:"Bandwidth"`
-	LinkType  string       `yaml:"LinkType"`
-}
-
-func (t *TopoIF) String() string {
-	return fmt.Sprintf(
-		"IFID: %d Link: %s Local: %s:%d Remote: %s:%d IA: %s MTU: %d BW: %d",
-		t.IFID, t.LinkType, t.Addr, t.UdpPort, t.ToAddr, t.ToUdpPort, t.IA, t.MTU, t.BW,
-	)
-
-}
-
-const CfgName = "topology.yml"
-
-const (
-	ErrorOpen  = "Unable to open topology"
-	ErrorParse = "Unable to parse topology"
-)
-
-const (
-	LinkCore   = "CORE"
-	LinkParent = "PARENT"
-	LinkChild  = "CHILD"
-	LinkPeer   = "PEER"
-)
-
-// Load returns a new TopoMeta object loaded from 'path'.
-func Load(path string) (*TopoMeta, *common.Error) {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, common.NewError(ErrorOpen, "err", err)
+// Create new empty Topo object, including all possible service maps etc.
+func NewTopo() *Topo {
+	return &Topo{
+		BR:        make(map[string]BRInfo),
+		BS:        make(map[string]TopoAddr),
+		CS:        make(map[string]TopoAddr),
+		PS:        make(map[string]TopoAddr),
+		SB:        make(map[string]TopoAddr),
+		RS:        make(map[string]TopoAddr),
+		DS:        make(map[string]TopoAddr),
+		ZK:        make(map[int]TopoAddr),
+		IFInfoMap: make(map[common.IFIDType]IFInfo),
 	}
-	return parse(b, path)
 }
 
-func parse(data []byte, path string) (*TopoMeta, *common.Error) {
-	tm := &TopoMeta{}
-	tm.IFMap = make(map[int]TopoBR)
-	if err := yaml.Unmarshal(data, &tm.T); err != nil {
-		return nil, common.NewError(ErrorParse, "err", err, "path", path)
+// Convert a JSON-filled RawTopo to a Topo usabled by Go code.
+func TopoFromRaw(i *RawTopo) (*Topo, *common.Error) {
+	n := NewTopo()
+	var err *common.Error
+
+	if err = populateMeta(i, n); err != nil {
+		return nil, err
 	}
-	tm.populateMeta()
-	return tm, nil
+	if err = populateBR(i, n); err != nil {
+		return nil, err
+	}
+	if err = populateServices(i, n); err != nil {
+		return nil, err
+	}
+	if err = zkSvcFromRaw(i.ZookeeperService, n); err != nil {
+		return nil, err
+	}
+
+	return n, nil
 }
 
-func (tm *TopoMeta) populateMeta() {
-	for k, v := range tm.T.BR {
-		tm.BRNames = append(tm.BRNames, k)
-		tm.IFMap[v.IF.IFID] = v
+func populateMeta(i *RawTopo, n *Topo) *common.Error {
+	// These fields can be simply copied
+	var err *common.Error
+	n.Timestamp = i.Timestamp
+	n.TimestampHuman = i.TimestampHuman
+
+	if n.ISD_AS, err = addr.IAFromString(i.ISD_AS); err != nil {
+		return err
 	}
-	for k := range tm.T.BS {
-		tm.BSNames = append(tm.BSNames, k)
+	if n.Overlay, err = overlay.TypeFromString(i.Overlay); err != nil {
+		return err
 	}
-	for k := range tm.T.PS {
-		tm.PSNames = append(tm.PSNames, k)
+	n.MTU = i.MTU
+	return nil
+}
+
+func populateBR(i *RawTopo, n *Topo) *common.Error {
+	var err *common.Error
+	for name, br := range i.BorderRouters {
+		info := BRInfo{}
+		for ifid, brInt := range br.Interfaces {
+			info.IFIDs = append(info.IFIDs, ifid)
+			ifinfo := IFInfo{
+				BRName: name,
+			}
+			intAddr := br.InternalAddrs[brInt.InternalAddrIdx]
+			if ifinfo.InternalAddr, err = TopoAddrFromRawAddrInfo(intAddr, n.Overlay); err != nil {
+				return err
+			}
+			if ifinfo.Overlay, err = overlay.TypeFromString(brInt.Overlay); err != nil {
+				return err
+			}
+			if ifinfo.Local, err = localTopoAddrFromBrInt(brInt, ifinfo.Overlay); err != nil {
+				return err
+			}
+			if ifinfo.Remote, err = remoteAddrInfoFromBrInt(brInt, ifinfo.Overlay); err != nil {
+				return err
+			}
+			ifinfo.Bandwidth = brInt.Bandwidth
+			if ifinfo.ISD_AS, err = addr.IAFromString(brInt.ISD_AS); err != nil {
+				return err
+			}
+			if ifinfo.LinkType, err = LinkTypeFromString(brInt.LinkType); err != nil {
+				return err
+			}
+			ifinfo.MTU = brInt.MTU
+			n.IFInfoMap[ifid] = ifinfo
+
+		}
+		n.BR[name] = info
+		n.BRNames = append(n.BRNames, name)
 	}
-	for k := range tm.T.CS {
-		tm.CSNames = append(tm.CSNames, k)
+	sort.Strings(n.BRNames)
+	return nil
+}
+
+func populateServices(i *RawTopo, n *Topo) *common.Error {
+	// Populate BS, CS, PS, SB, RS and DS maps
+	var err *common.Error
+	if n.BSNames, err = svcMapFromRaw(i.BeaconService, "BS", n.BS, n.Overlay); err != nil {
+		return err
 	}
-	for k := range tm.T.SB {
-		tm.SBNames = append(tm.SBNames, k)
+	if n.CSNames, err = svcMapFromRaw(i.CertificateService, "CS", n.CS, n.Overlay); err != nil {
+		return err
 	}
-	for k := range tm.T.ZK {
-		tm.ZKIDs = append(tm.ZKIDs, k)
+	if n.PSNames, err = svcMapFromRaw(i.PathService, "PS", n.PS, n.Overlay); err != nil {
+		return err
 	}
-	sort.Strings(tm.BRNames)
-	sort.Strings(tm.BSNames)
-	sort.Strings(tm.PSNames)
-	sort.Strings(tm.CSNames)
-	sort.Strings(tm.SBNames)
-	sort.Ints(tm.ZKIDs)
+	if n.SBNames, err = svcMapFromRaw(i.SibraService, "SB", n.SB, n.Overlay); err != nil {
+		return err
+	}
+	if n.RSNames, err = svcMapFromRaw(i.RainsService, "RS", n.RS, n.Overlay); err != nil {
+		return err
+	}
+	if n.DSNames, err = svcMapFromRaw(i.DiscoveryService, "DS", n.DS, n.Overlay); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
+// stype is only used for error reporting
+func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]TopoAddr,
+	ot overlay.Type) ([]string, *common.Error) {
+	var snames []string
+	for name, svc := range rais {
+		svcTopoAddr, err := TopoAddrFromRawAddrInfo(&svc, ot)
+		if err != nil {
+			return nil, common.NewError("Could not convert RawAddrInfo to TopoAddr", "servicetype", stype, "RawAddrInfo", svc, "err", err)
+		}
+		smap[name] = *svcTopoAddr
+		snames = append(snames, name)
+	}
+	sort.Strings(snames)
+	return snames, nil
+}
+
+func zkSvcFromRaw(zksvc map[int]RawAddrPort, n *Topo) *common.Error {
+	for id, ap := range zksvc {
+		rai := RawAddrInfo{Public: []RawAddrPortOverlay{RawAddrPortOverlay{ap, 0}}}
+		tai, err := TopoAddrFromRawAddrInfo(&rai, n.Overlay)
+		if err != nil {
+			return err
+		}
+		n.ZK[id] = *tai
+	}
+	return nil
+}
+
+// A list of AS-wide unique interface IDs for a router. These IDs are also used
+// to point to the specific internal address clients should send their traffic
+// to in order to use that interface, via the IFInfoMap member of the Topo
+// struct.
+type BRInfo struct {
+	IFIDs []common.IFIDType
+}
+
+type IFInfo struct {
+	BRName          string
+	InternalAddr    *TopoAddr
+	InternalAddrIdx int
+	Overlay         overlay.Type
+	Local           *TopoAddr
+	Remote          *AddrInfo
+	RemoteIFID      common.IFIDType
+	Bandwidth       int
+	ISD_AS          *addr.ISD_AS
+	LinkType        LinkType
+	MTU             int
 }

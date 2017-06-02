@@ -85,7 +85,7 @@ func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
 func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
+	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
 	scion, pathMgmt, err := proto.NewPathMgmtMsg()
 	if err != nil {
 		log.Error("Error creating PathMgmt payload", err.Ctx...)

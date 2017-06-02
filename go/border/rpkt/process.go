@@ -18,7 +18,8 @@ package rpkt
 
 import (
 	"fmt"
-	"net"
+
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/ifstate"
 	"github.com/netsec-ethz/scion/go/border/rctx"
@@ -50,14 +51,26 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	}
 	// Check to see if the destination IP is the address the packet was received
 	// on.
-	dstIP := rp.dstHost.IP()
+	dstHost := addr.HostFromIP(rp.dstHost.IP())
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	extPub := intf.IFAddr.PublicAddr()
-	locPub := rp.Ctx.Conf.Net.IntfLocalAddr(*rp.ifCurr).PublicAddr()
-	if rp.DirFrom == DirExternal && extPub.IP.Equal(dstIP) {
-		return rp.isDestSelf(extPub)
-	} else if rp.DirFrom == DirLocal && locPub.IP.Equal(dstIP) {
-		return rp.isDestSelf(locPub)
+	extPub := intf.IFAddr
+	locPub := rp.Ctx.Conf.Net.IntfLocalAddr(*rp.ifCurr)
+	if rp.DirFrom == DirExternal {
+		port, equal, err := extPub.PubL4PortFromAddr(dstHost)
+		if err != nil {
+			return err
+		}
+		if equal {
+			return rp.isDestSelf(port)
+		}
+	} else if rp.DirFrom == DirLocal {
+		port, equal, err := locPub.PubL4PortFromAddr(dstHost)
+		if err != nil {
+			return err
+		}
+		if equal {
+			return rp.isDestSelf(port)
+		}
 	}
 	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
@@ -67,13 +80,13 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 // isDestSelf checks if the packet's destination port (if any) matches the
 // router's L4 port. If it does, hooks are registered to parse and process the
 // payload. Otherwise it is forwarded to the local dispatcher.
-func (rp *RtrPkt) isDestSelf(addr *net.UDPAddr) *common.Error {
+func (rp *RtrPkt) isDestSelf(ownPort int) *common.Error {
 	if _, err := rp.L4Hdr(true); err != nil && err.Desc != UnsupportedL4 {
 		return err
 	}
 	switch h := rp.l4.(type) {
 	case *l4.UDP:
-		if int(h.DstPort) == addr.Port {
+		if int(h.DstPort) == ownPort {
 			goto Self
 		}
 	case *scmp.Hdr:
@@ -150,12 +163,12 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 		return HookError, err
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	srcAddr := rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddr()
+	srcAddr := rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
 		DstIA: rp.Ctx.Conf.IA, SrcIA: rp.Ctx.Conf.IA,
 		DstHost: addr.SvcBS.Multicast(), SrcHost: addr.HostFromIP(srcAddr.IP),
-		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: 0},
+		L4: &l4.UDP{SrcPort: uint16(srcAddr.L4Port), DstPort: 0},
 	}, DirLocal, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -219,14 +232,14 @@ func (rp *RtrPkt) processSCMPRevocation() {
 	pld := rp.pld.(*scmp.Payload)
 	args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	if (rp.dstIA.I == rp.Ctx.Conf.IA.I && intf.Type == topology.LinkCore) ||
-		(rp.srcIA.I == rp.Ctx.Conf.IA.I && intf.Type == topology.LinkParent) {
+	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.CoreLink) ||
+		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.ParentLink) {
 		// Case 1 & 2
 		args.Addrs = append(args.Addrs, addr.SvcBS)
-		if len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
+		if len(rp.Ctx.Conf.Topo.PS) > 0 {
 			args.Addrs = append(args.Addrs, addr.SvcPS)
 		}
-	} else if rp.dstIA.Eq(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
+	} else if rp.dstIA.Eq(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.PS) > 0 {
 		// Case 3
 		args.Addrs = append(args.Addrs, addr.SvcPS)
 	}
@@ -238,19 +251,19 @@ func (rp *RtrPkt) processSCMPRevocation() {
 // getSVCNamesMap returns the slice of instance names and addresses for a given
 // SVC address.
 func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
-	[]string, map[string]topology.BasicElem, *common.Error) {
-	tm := ctx.Conf.TopoMeta
+	[]string, map[string]topology.TopoAddr, *common.Error) {
+	t := ctx.Conf.Topo
 	var names []string
-	var elemMap map[string]topology.BasicElem
+	var elemMap map[string]topology.TopoAddr
 	switch svc.Base() {
 	case addr.SvcBS:
-		names, elemMap = tm.BSNames, tm.T.BS
+		names, elemMap = t.BSNames, t.BS
 	case addr.SvcPS:
-		names, elemMap = tm.PSNames, tm.T.PS
+		names, elemMap = t.PSNames, t.PS
 	case addr.SvcCS:
-		names, elemMap = tm.CSNames, tm.T.CS
+		names, elemMap = t.CSNames, t.CS
 	case addr.SvcSB:
-		names, elemMap = tm.SBNames, tm.T.SB
+		names, elemMap = t.SBNames, t.SB
 	default:
 		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
 		return nil, nil, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)

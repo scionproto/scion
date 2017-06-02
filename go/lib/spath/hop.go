@@ -32,8 +32,8 @@ type HopField struct {
 	ForwardOnly bool
 	Recurse     bool
 	ExpTime     uint8
-	Ingress     IntfID
-	Egress      IntfID
+	Ingress     common.IFIDType
+	Egress      common.IFIDType
 	Mac         common.RawBytes
 }
 
@@ -46,7 +46,7 @@ const (
 	ErrorHopFBadMac     = "Bad HopF MAC"
 )
 
-func NewHopField(b common.RawBytes, in IntfID, out IntfID) *HopField {
+func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *HopField {
 	h := &HopField{}
 	h.data = b
 	h.ExpTime = DefaultHopFExpiry
@@ -71,8 +71,8 @@ func HopFFromRaw(b []byte) (*HopField, *common.Error) {
 	h.ExpTime = h.data[offset]
 	offset += 1
 	// Interface IDs are 12b each, encoded into 3B
-	h.Ingress = IntfID(int(h.data[offset])<<4 | int(h.data[offset+1])>>4)
-	h.Egress = IntfID((int(h.data[offset+1])&0xF)<<8 | int(h.data[offset+2]))
+	h.Ingress = common.IFIDType(int(h.data[offset])<<4 | int(h.data[offset+1])>>4)
+	h.Egress = common.IFIDType((int(h.data[offset+1])&0xF)<<8 | int(h.data[offset+2]))
 	offset += 3
 	h.Mac = h.data[offset:]
 	return h, nil

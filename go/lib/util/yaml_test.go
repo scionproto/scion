@@ -15,7 +15,6 @@
 package util
 
 import (
-	"net"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -62,39 +61,5 @@ func Test_B64B_UnmarshalYAML_Success(t *testing.T) {
 		var b B64Bytes
 		So(yaml.Unmarshal([]byte("aGVsbG8sIHdvcmxk"), &b), ShouldBeNil)
 		So(b, ShouldResemble, B64Bytes("hello, world"))
-	})
-}
-
-// Interface assertion
-var _ yaml.Unmarshaler = (*YamlIP)(nil)
-
-func Test_YamlIP_UnmarshalYAML_YAMLParseError(t *testing.T) {
-	Convey("YAML parse error", t, func() {
-		var y YamlIP
-		So(yaml.Unmarshal([]byte("a: b"), &y), ShouldNotBeNil)
-		So(y, ShouldBeZeroValue)
-	})
-}
-
-func Test_YamlIP_UnmarshalYAML_IPParseError(t *testing.T) {
-	Convey("IP parse error", t, func() {
-		var y YamlIP
-		So(yaml.Unmarshal([]byte("ip addr"), &y), ShouldNotBeNil)
-		So(y, ShouldBeZeroValue)
-	})
-}
-
-func Test_YamlIP_UnmarshalYAML_Success(t *testing.T) {
-	Convey("Valid IPs", t, func() {
-		var y YamlIP
-		cases := []string{"127.0.0.1", "198.51.100.0",
-			"::1", "2001:db8:a0b:12f0::1",
-		}
-		for _, ip := range cases {
-			Convey(ip, func() {
-				So(yaml.Unmarshal([]byte(ip), &y), ShouldBeNil)
-				So(y.IP, ShouldResemble, net.ParseIP(ip))
-			})
-		}
 	})
 }
