@@ -177,7 +177,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	// FIXME(kormat): this will need to change when multiple interfaces per
 	// router are supported.
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	nextAI := nextBR.Remote
+	nextAI := nextBR.InternalAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
 	ot, err := overlay.OverlayFromIP(nextAI.IP, rp.Ctx.Conf.Topo.Overlay)
 	if err != nil {
 		return HookError, err
