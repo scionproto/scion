@@ -18,12 +18,11 @@
 package rctx
 
 import (
-	"net"
 	"sync"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 // OutputObj defines a minimal interface needed to send an object over a socket.
@@ -35,7 +34,7 @@ type OutputObj interface {
 }
 
 // OutputFunc is the type of callback required for sending a packet.
-type OutputFunc func(OutputObj, *net.UDPAddr)
+type OutputFunc func(OutputObj, *topology.AddrInfo)
 
 // IOCtrl defines an interface for starting and stopping I/O goroutines.
 type IOCtrl interface {
@@ -54,23 +53,23 @@ type Ctx struct {
 	LocOutFs map[int]OutputFunc
 	// IntfOutFs is a slice of functions for sending packets to neighbouring
 	// ISD-ASes, indexed by the interface ID of the relevant link.
-	IntfOutFs map[spath.IntfID]OutputFunc
+	IntfOutFs map[common.IFIDType]OutputFunc
 	// IntInputFs is a slice of IOCtrl objects to stop the corresponding local
 	// input goroutines.
 	// TODO(shitz): Changes this to be a slice.
 	LocInputFs map[int]IOCtrl
 	// ExtInputFs is a slice of IOCtrl objects to stop the corresponding external
 	// input goroutines.
-	ExtInputFs map[spath.IntfID]IOCtrl
+	ExtInputFs map[common.IFIDType]IOCtrl
 }
 
 func New(conf *conf.Conf) *Ctx {
 	ctx := &Ctx{
 		Conf:       conf,
 		LocOutFs:   make(map[int]OutputFunc),
-		IntfOutFs:  make(map[spath.IntfID]OutputFunc),
+		IntfOutFs:  make(map[common.IFIDType]OutputFunc),
 		LocInputFs: make(map[int]IOCtrl),
-		ExtInputFs: make(map[spath.IntfID]IOCtrl),
+		ExtInputFs: make(map[common.IFIDType]IOCtrl),
 	}
 	return ctx
 }

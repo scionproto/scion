@@ -15,6 +15,7 @@
 package addr
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -43,20 +44,20 @@ func IAFromInt(iaInt int) *ISD_AS {
 	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
 }
 
-func IAFromString(s string) (*ISD_AS, error) {
+func IAFromString(s string) (*ISD_AS, *common.Error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Invalid ISD-AS %q", s)
+		return nil, common.NewError("Invalid ISD-AS", "val", s)
 	}
 	isd, err := strconv.Atoi(parts[0])
 	if err != nil {
 		e := err.(*strconv.NumError)
-		return nil, fmt.Errorf("Unable to parse ISD from %q: %v", s, e.Err)
+		return nil, common.NewError("Unable to parse ISD", "val", s, "err", e.Err)
 	}
 	as, err := strconv.Atoi(parts[1])
 	if err != nil {
 		e := err.(*strconv.NumError)
-		return nil, fmt.Errorf("Unable to parse AS from %q: %v", s, e.Err)
+		return nil, common.NewError("Unable to parse AS", "val", s, "err", e.Err)
 	}
 	return &ISD_AS{I: isd, A: as}, nil
 }
@@ -93,4 +94,8 @@ func (ia *ISD_AS) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	ia.I = resIA.I
 	ia.A = resIA.A
 	return nil
+}
+
+func (isdas ISD_AS) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fmt.Sprintf("%v-%v", isdas.I, isdas.A))
 }

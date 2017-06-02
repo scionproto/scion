@@ -168,9 +168,9 @@ func (rp *RtrPkt) setDirTo() {
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	var intfHost addr.HostAddr
 	if rp.DirFrom == DirExternal {
-		intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
+		intfHost = addr.HostFromIP(intf.IFAddr.IPv4.PublicAddr())
 	} else {
-		intfHost = addr.HostFromIP(rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
+		intfHost = addr.HostFromIP(rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].IPv4.PublicAddr())
 	}
 	if addr.HostEq(rp.dstHost, intfHost) {
 		rp.DirTo = DirSelf

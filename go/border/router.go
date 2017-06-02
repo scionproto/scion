@@ -119,6 +119,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		r.handlePktError(rp, err, "Error parsing packet")
 		return
 	}
+	rp.Debug("postparse", "pkt", rp)
 	// Validation looks for errors in the packet that didn't break basic
 	// parsing.
 	if err := rp.Validate(); err != nil {

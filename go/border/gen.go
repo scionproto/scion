@@ -18,7 +18,7 @@
 package main
 
 import (
-	"net"
+	"fmt"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -29,8 +29,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -43,18 +43,21 @@ const (
 )
 
 // genPkt is a generic function to generate packets that originate at the router.
-func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
-	srcAddr *net.UDPAddr, pld *spkt.CtrlPld) *common.Error {
+func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int,
+	srcAddr *topology.AddrInfo, pld *spkt.CtrlPld) *common.Error {
 	ctx := rctx.Get()
 	dirTo := rpkt.DirExternal
 	if dstIA.Eq(ctx.Conf.IA) {
 		dirTo = rpkt.DirLocal
 	}
 	// Create base packet
-	rp, err := rpkt.RtrPktFromScnPkt(&spkt.ScnPkt{
+	sp := &spkt.ScnPkt{
 		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
-		L4: &l4.UDP{SrcPort: uint16(srcAddr.Port), DstPort: uint16(dstPort)},
-	}, dirTo, ctx)
+	}
+	if srcAddr.Overlay.IsUDP() {
+		sp.L4 = &l4.UDP{SrcPort: uint16(srcAddr.L4Port), DstPort: uint16(dstL4Port)}
+	}
+	rp, err := rpkt.RtrPktFromScnPkt(sp, dirTo, ctx)
 	if err != nil {
 		return err
 	}
@@ -68,10 +71,10 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstPort int,
 			}
 		} else {
 			rp.Egress = append(rp.Egress, rpkt.EgressPair{
-				F: ctx.LocOutFs[0], Dst: &net.UDPAddr{IP: dstHost.IP(), Port: dstPort}})
+				F: ctx.LocOutFs[0], Dst: &topology.AddrInfo{Overlay: srcAddr.Overlay, IP: dstHost.IP(), L4Port: dstL4Port}})
 		}
 	} else {
-		ifid := ctx.Conf.Net.IFAddrMap[srcAddr.String()]
+		ifid := ctx.Conf.Net.IFAddrMap[fmt.Sprintf("%s:%d", srcAddr.IP, srcAddr.L4Port)]
 		intf := ctx.Conf.Net.IFs[ifid]
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{F: ctx.IntfOutFs[ifid], Dst: intf.RemoteAddr})
 	}
@@ -92,10 +95,10 @@ func (r *Router) SyncInterface() {
 }
 
 // genIFIDPkt generates an IFID-packet for the specified interface.
-func (r *Router) genIFIDPkt(ifid spath.IntfID, ctx *rctx.Ctx) {
+func (r *Router) genIFIDPkt(ifid common.IFIDType, ctx *rctx.Ctx) {
 	logger := log.New("ifid", ifid)
 	intf := ctx.Conf.Net.IFs[ifid]
-	srcAddr := intf.IFAddr.PublicAddr()
+	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
 	scion, ifidMsg, err := proto.NewIFIDMsg()
 	if err != nil {
 		logger.Error("Error creating IFID payload", err.Ctx...)
@@ -103,7 +106,7 @@ func (r *Router) genIFIDPkt(ifid spath.IntfID, ctx *rctx.Ctx) {
 	}
 	ifidMsg.SetOrigIF(uint16(ifid))
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
-		intf.RemoteAddr.Port, srcAddr, &spkt.CtrlPld{SCION: scion}); err != nil {
+		intf.RemoteAddr.L4Port, srcAddr, &spkt.CtrlPld{SCION: scion}); err != nil {
 		logger.Error("Error generating IFID packet", err.Ctx...)
 	}
 }
@@ -128,7 +131,7 @@ func (r *Router) IFStateUpdate() {
 func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddr()
+	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
 	scion, pathMgmt, err := proto.NewPathMgmtMsg()
 	if err != nil {
 		log.Error("Error creating PathMgmt payload", err.Ctx...)

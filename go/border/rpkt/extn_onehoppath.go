@@ -54,24 +54,28 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 	if o.rp.DirFrom == DirLocal {
 		// The existing HopF is still in use, so use HookContinue to read that
 		// instead.
+		log.Debug("OHPE local from", "from", o.rp.DirFrom)
 		return HookContinue, nil, nil
 	}
 	currHopF, err := spath.HopFFromRaw(o.rp.Raw[o.rp.CmnHdr.CurrHopF:])
 	if err != nil {
+		log.Debug("OHPE HopFFromRaw err", "err", err)
 		return HookError, nil, err
 	}
 	if currHopF.Ingress != 0 || currHopF.Egress != 0 {
 		// The current hop field has already been generated.
+		log.Debug("OHPE Already gen'd", "currHopF.Ingress", currHopF.Ingress, "currHopF.Egress", currHopF.Egress)
 		return HookContinue, nil, nil
 	}
 	infoF, err := o.rp.InfoF()
 	if err != nil {
+		log.Debug("OHPE InfoF failure", "err", err)
 		return HookError, nil, err
 	}
 	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
 	prevIdx := o.rp.CmnHdr.CurrHopF - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : o.rp.CmnHdr.CurrHopF]
-	inIF := o.rp.Ctx.Conf.Net.IFAddrMap[o.rp.Ingress.Dst.String()]
+	inIF := o.rp.Ctx.Conf.Net.IFAddrMap[o.rp.Ingress.Dst.Key()]
 	hopF := spath.NewHopField(o.rp.Raw[o.rp.CmnHdr.CurrHopF:], inIF, 0)
 	hfmac := o.rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)
