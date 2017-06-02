@@ -30,13 +30,13 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.svc import SVCType
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.util import recv_all
-from test.integration.base_cli_srv import start_sciond
+from test.integration.base_cli_srv import get_sciond_api_addr
+import lib.app.sciond as lib_sciond
 
-s_isd_as = ISD_AS("1-18")
+s_isd_as = ISD_AS("1-17")
 s_ip = haddr_parse(1, "127.1.1.1")
-c_isd_as = ISD_AS("2-26")
+c_isd_as = ISD_AS("2-25")
 c_ip = haddr_parse(1, "127.2.2.2")
-# TODO(PSz): test with 0
 MAX_MSG_SIZE = 500000
 
 
@@ -61,31 +61,35 @@ def server(svc=False):
         new_sock, addr, path = s.accept()
         print("Accepted: addr and path:", addr, path)
         msg = get_msg()
-        # time.sleep(10)
-        new_sock.send(msg)
+        new_sock.sendall(msg)
+        msg2 = recv_all(new_sock, len(msg)-4, 0)
+        assert msg2 == msg[4:]
         new_sock.close()
 
 
 def client(svc, counter):
-    def get_path_info(myaddr, dst_isd_as):
-        sd = start_sciond(myaddr)
-        path = sd.get_paths(dst_isd_as)[0]
-        if_id = path.get_fwd_if()
-        return (path, sd.ifid2br[if_id].addr, sd.ifid2br[if_id].port)
+    def get_paths_info(myaddr, dst_isd_as):
+        lib_sciond.init(get_sciond_api_addr(myaddr))
+        # Get path(s) to AS (1, 17)
+        paths = []
+        for reply in lib_sciond.get_paths(dst_isd_as):
+            paths.append((reply.path().fwd_path(), reply.first_hop().ipv4(),
+                         reply.first_hop().p.port))
+        return paths
 
     print("client %d running:" % counter)
     s = SCIONTCPSocket()
     caddr = SCIONAddr.from_values(c_isd_as, c_ip)
     s.bind((caddr, 0))
-    path_info = get_path_info(caddr, s_isd_as)
-    print(path_info)
+    paths = get_paths_info(caddr, s_isd_as)
+    print("Obtained %d paths: %s" % (len(paths), paths))
 
     if svc:
         saddr = SCIONAddr.from_values(s_isd_as, SVCType.PS_A)
-        s.connect(saddr, 0, *path_info)  # SVC does not have a port specified
+        s.connect(saddr, 0, *paths[0])  # SVC does not have a port specified
     else:
         saddr = SCIONAddr.from_values(s_isd_as, s_ip)
-        s.connect(saddr, 5000, *path_info)
+        s.connect(saddr, 5000, *paths[0])
     # s.set_recv_tout(5.0)
     # print(s.get_recv_tout())
     start = time.time()
@@ -97,18 +101,16 @@ def client(svc, counter):
         print('.', end="", flush=True)
     print("\nMSG received, len, svc", len(tmp), svc)
     time_elapsed = time.time()-start
-    print("Time elapsed: %s, speed %.2fkB/s\n" % (time_elapsed,
-                                                  size/time_elapsed/1000))
+    print("Time elapsed: %s, speed %.2fkB/s" % (time_elapsed, size/time_elapsed/1000))
+    print("Sending it back with a random path...\n")
+    s.set_path(*random.choice(paths))
+    s.sendall(tmp)
     s.close()
-
 
 threading.Thread(target=server, args=[False]).start()
 threading.Thread(target=server, args=[True]).start()
 time.sleep(0.5)
 for i in range(10):
-    # input()
-    # time.sleep(0.005)
-    # threading.Thread(target=client, args=[False, i]).start()
-    svc = (i % 2 == 0)
+    svc = (i % 2 == 0)  # set to False if USE_TCP=True (o/w client can connect to a real server)
     start = time.time()
     client(svc, i)
