@@ -13,6 +13,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 
 # SCION
 from lib.topology import Topology
+from lib.defines import TOPO_FILE
 
 
 def main():
@@ -33,7 +34,7 @@ def main():
 
 def find_servers():
     for as_dir in glob.glob("gen/ISD*/AS*"):
-        t = Topology.from_file(os.path.join(as_dir, "endhost", "topology.yml"))
+        t = Topology.from_file(os.path.join(as_dir, "endhost", TOPO_FILE))
         for zk_host in t.zookeepers:
             yield zk_host
 

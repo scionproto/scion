@@ -194,25 +194,8 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
-	case rp.DirFrom == DirExternal && hdr.Class == scmp.C_Path &&
-		hdr.Type == scmp.T_P_RevokedIF:
-		var args RevTokenCallbackArgs
-		pld := rp.pld.(*scmp.Payload)
-		args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
-		if rp.srcIA.I == rp.Ctx.Conf.IA.I && rp.isDownstreamRouter() {
-			// Forward to PS and BS if router is downstream of the failed interface.
-			args.Addrs = append(args.Addrs, addr.SvcBS)
-			if len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
-				args.Addrs = append(args.Addrs, addr.SvcPS)
-			}
-		} else if rp.dstIA.Eq(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
-			// Forward to PS if we are in the AS of the destination.
-			args.Addrs = append(args.Addrs, addr.SvcPS)
-		}
-
-		if len(args.Addrs) > 0 {
-			callbacks.revTokenF(args)
-		}
+	case rp.DirFrom == DirExternal && hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+		rp.processSCMPRevocation()
 	default:
 		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class,
 			"type", hdr.Type)
@@ -220,9 +203,36 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	return HookFinish, nil
 }
 
-func (rp *RtrPkt) isDownstreamRouter() bool {
+// processSCMPRevocation handles SCMP revocations.
+// There are 3 cases where the router does more than just forward an SCMP revocation message.
+// 1. The revocation was received on a core interface, and the destination is in this ISD. In this
+//    case the revocation is forked, and forwarded to the local BS and PS services. This prevents
+//    the BS from propagating/registering revoked core PCBs. The destination check ensures that this
+//    is only done for revocations which impact the local ISD.
+// 2. The revocation was received from a parent AS, and the revoked interface is in the same ISD.
+//    In this case the revocation is also forked to the local BS and PS services. This ensures that
+//    ASes downstream of a revoked interface get informed quickly.
+// 3. The revocation's destination is the local AS. The revocation notification is forked to the
+//    local PS, to ensure that it stops providing segments with revoked interfaces to clients.
+func (rp *RtrPkt) processSCMPRevocation() {
+	var args RevTokenCallbackArgs
+	pld := rp.pld.(*scmp.Payload)
+	args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	return intf.Type == "PARENT"
+	if (rp.dstIA.I == rp.Ctx.Conf.IA.I && intf.Type == topology.LinkCore) ||
+		(rp.srcIA.I == rp.Ctx.Conf.IA.I && intf.Type == topology.LinkParent) {
+		// Case 1 & 2
+		args.Addrs = append(args.Addrs, addr.SvcBS)
+		if len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
+			args.Addrs = append(args.Addrs, addr.SvcPS)
+		}
+	} else if rp.dstIA.Eq(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.TopoMeta.T.PS) > 0 {
+		// Case 3
+		args.Addrs = append(args.Addrs, addr.SvcPS)
+	}
+	if len(args.Addrs) > 0 {
+		callbacks.revTokenF(args)
+	}
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given

@@ -75,7 +75,7 @@ class E2EClient(TestClientBase):
                 scmp_hdr.type == SCMPPathClass.REVOKED_IF):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
-            logging.info("Received revocation for IF %d." % rev_info.p.ifID)
+            logging.info("Received revocation: %s (from %s)", rev_info.short_desc(), spkt.addrs.src)
             lib_sciond.send_rev_notification(
                 rev_info, connector=self._connector)
             return ResponseRV.RETRY

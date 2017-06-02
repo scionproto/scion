@@ -48,7 +48,7 @@ class MetadataBase(object):
         pass
 
     def __str__(self):
-        return str(self.get_addr())
+        return "%s:%d" % (self.get_addr(), self.port)
 
 
 class UDPMetadata(MetadataBase):

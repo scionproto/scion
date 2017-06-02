@@ -218,7 +218,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if rev_info in self.revocations:
             return False
         self.revocations.add(rev_info)
-        logging.debug("Received revocation from %s: %s", meta.get_addr(), rev_info.short_desc())
+        logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
         self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
