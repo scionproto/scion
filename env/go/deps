@@ -1,12 +1,76 @@
 #!/bin/bash
 
+# The $GO_INSTALL environment variable, if set, tells this script to
+# install/upgrade (as appropriate) a compatible Go version. This env var isn't
+# set by default, and should only be used in an automated environment, or if
+# the user knows what they're doing. If you already have a /usr/local/go dir,
+# setting $GO_INSTALL may remove that directory (if your existing Go install is
+# not in your $PATH, or if the version isn't compatible), so use with caution.
+
 set -e
 
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
+. "$BASE/common.sh"
 
-if ! go version | grep -q ' go1\.[67]\>'; then
-    echo "ERROR: Go version 1.6 or 1.7 required. Unsupported go version found ($(type -p go)): $(go version)"
+go_check_install() {
+    if go_installed; then
+        go_ver_check && return
+        go_ver_msg
+    fi
+    [ -d /usr/local/go ] && sudo rm -r /usr/local/go
+    go_install
+}
+
+go_install() {
+    if [ -d /usr/local/go ]; then
+        echo "ERROR: cannot install Go, /usr/local/go already exists"
+        exit 1
+    fi
+    if [ "$(uname -o)" = "Linux" ]; then
+        # Feeling paranoid.
+        echo "ERROR: Non-linux OSes ($(uname -o)) aren't supported"
+        exit 1
+    fi
+    local src sum
+    case "$(uname -m)" in
+        x86_64)
+            src=https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
+            sum=1862f4c3d3907e59b04a757cfda0ea7aa9ef39274af99a784f5be843c80c6772
+            ;;
+        i?86)
+            src=https://storage.googleapis.com/golang/go1.8.3.linux-386.tar.gz
+            sum=ff4895eb68fb1daaec41c540602e8bb4c1e8bb2f0e7017367171913fc9995ed2
+            ;;
+        arm*|aarch*)
+            src=https://storage.googleapis.com/golang/go1.8.3.linux-armv6l.tar.gz
+            sum=3c30a3e24736ca776fc6314e5092fb8584bd3a4a2c2fa7307ae779ba2735e668
+            ;;
+        *)
+            echo "ERROR: unsupported architecture '$(uname -m)'"
+            exit 1
+    esac
+    tmpdir=$(mktemp -d /tmp/go_install.XXXXXXX)
+    file="${tmpdir:?}/$(basename ${src:?})"
+    echo "$sum  $file"  > "$tmpdir/SHA256SUM"
+    echo "Downloading $src to $file"
+    curl -# "$src" -o "$file"
+    echo "$sum $file" | sha256sum -c -
+    echo "Installing to /usr/local/go. Ensure that /usr/local/go/bin is in your \$PATH"
+    sudo tar -C /usr/local -xf "$file"
+    rm -r "${tmpdir:?}"
+}
+
+# First handle the case where Go isn't installed, or needs to be upgraded.
+if [ -n "$GO_INSTALL" ]; then
+    go_check_install
+fi
+
+# Then confirm that go is installed, and with an appropriate version.
+if go_installed; then
+    go_ver_check || { echo "ERROR: $(go_ver_msg)"; exit 1; }
+else
+    echo "ERROR: Go not found in \$PATH ($PATH)"
     exit 1
 fi
 

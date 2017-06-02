@@ -10,7 +10,6 @@ flake8
 g++
 gcc
 git
-golang
 libcapnp-dev
 libcurl4-openssl-dev
 libffi-dev
