@@ -14,6 +14,7 @@ RUN docker/deps_check
 RUN make -C go deps
 
 # Setup scion-web
+ENV PYTHONPATH=python/:.
 RUN cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/private.py
 RUN sub/web/manage.py makemigrations
 
