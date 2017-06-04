@@ -14,8 +14,8 @@
 # limitations under the License.
 
 # SCION
-from infrastructure.path_server.core import CorePathServer
-from infrastructure.path_server.local import LocalPathServer
+from path_server.core import CorePathServer
+from path_server.local import LocalPathServer
 from lib.main import main_default, main_wrapper
 
 main_wrapper(main_default, CorePathServer, LocalPathServer)

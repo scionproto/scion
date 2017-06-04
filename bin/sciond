@@ -19,7 +19,7 @@ import os
 import logging
 
 # SCION
-from endhost.sciond import SCIONDaemon, SCIOND_API_SOCKDIR
+from sciond.sciond import SCIONDaemon, SCIOND_API_SOCKDIR
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import haddr_parse_interface

@@ -48,7 +48,7 @@ topology/mininet/*.pyc
 # Test coverage
 ##########################
 /.coverage
-/htmlcov/
+/python/htmlcov/
 /go/gocover.html
 
 # C library binaries
@@ -63,10 +63,9 @@ bin/border
 bin/discovery
 bin/dispatcher
 bin/logdog
-endhost/dispatcher
-endhost/ssp/test/*client
-endhost/ssp/test/*server
-endhost/ssp/test/*file
+c/ssp/test/*client
+c/ssp/test/*server
+c/ssp/test/*file
 
 # CTags
 ##########################
@@ -74,4 +73,4 @@ tags
 
 # HSR
 ##########################
-lib/libhsr/build
+c/lib/hsr/build

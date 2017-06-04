@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # SCION
-from infrastructure.cert_server.main import CertServer
+from cert_server.main import CertServer
 from lib.main import main_default, main_wrapper
 
 main_wrapper(main_default, CertServer)

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # SCION
-from infrastructure.router.main import Router
+from router.main import Router
 from lib.main import main_default, main_wrapper
 
 main_wrapper(main_default, Router)

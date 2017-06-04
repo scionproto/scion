@@ -21,13 +21,13 @@
 package hsr
 
 /*
-#cgo CFLAGS: -I../../../lib
+#cgo CFLAGS: -I../../../c/lib
 #cgo LDFLAGS: -lhsr -ldpdk -lmnl -lzlog -lscion
 #include <stdint.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <zlog.h>
-#include "libhsr/hsr_interface.h"
+#include "hsr/hsr_interface.h"
 
 typedef struct sockaddr_in saddr_in;
 typedef struct sockaddr_in6 saddr_in6;

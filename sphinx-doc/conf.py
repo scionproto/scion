@@ -51,7 +51,7 @@ master_doc = 'sphinx-doc/index'
 
 # General information about the project.
 project = u'SCION'
-copyright = u'2014, Pawel Szalachowski et al.'
+copyright = u'2014, ETH Zurich'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -204,7 +204,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'SCION.tex', u'SCION Documentation',
-   u'Pawel Szalachowski et al.', 'manual'),
+   u'ETH Zurich', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -234,7 +234,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'scion', u'SCION Documentation',
-     [u'Pawel Szalachowski et al.'], 1)
+     [u'ETH Zurich'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -248,7 +248,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'SCION', u'SCION Documentation',
-   u'Pawel Szalachowski et al.', 'SCION', 'One line description of project.',
+   u'ETH Zurich', 'SCION', 'One line description of project.',
    'Miscellaneous'),
 ]
 
