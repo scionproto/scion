@@ -27,7 +27,6 @@ from threading import Lock
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from scion_elem.scion_elem import SCIONElement
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
@@ -55,6 +54,7 @@ from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
+from scion_elem.scion_elem import SCIONElement
 
 
 class PathServer(SCIONElement, metaclass=ABCMeta):

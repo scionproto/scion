@@ -94,10 +94,6 @@ from http.client import HTTPMessage
 from urllib.parse import urlparse, urlunparse
 
 # SCION
-from sciond.sciond import SCIONDaemon
-from scion_proxy.scion_socket import ScionServerSocket, ScionClientSocket
-from scion_proxy.scion_socket import SCION_OPTION_ISD_WLIST
-from scion_proxy.socket_kbase import SocketKnowledgeBase
 from lib.defines import GEN_PATH, SCIOND_API_SOCKDIR
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import HostAddrIPv4
@@ -105,6 +101,11 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.types import L4Proto
 from lib.util import handle_signals, hex_str
+from sciond.sciond import SCIONDaemon
+from scion_proxy.scion_socket import ScionServerSocket, ScionClientSocket
+from scion_proxy.scion_socket import SCION_OPTION_ISD_WLIST
+from scion_proxy.socket_kbase import SocketKnowledgeBase
+
 
 VERSION = '0.1.0'
 BUFLEN = 8192

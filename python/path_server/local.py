@@ -19,10 +19,10 @@
 import logging
 
 # SCION
-from path_server.base import PathServer
 from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
+from path_server.base import PathServer
 
 
 class LocalPathServer(PathServer):

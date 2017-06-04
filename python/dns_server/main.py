@@ -36,7 +36,6 @@ from dns_server.servers import (
     SCIONDnsTcpServer,
     SCIONDnsUdpServer,
 )
-from scion_elem.scion_elem import SCIONElement
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -47,6 +46,7 @@ from lib.defines import (
 )
 from lib.zk.errors import ZkNoConnection
 from lib.zk.zk import Zookeeper
+from scion_elem.scion_elem import SCIONElement
 
 
 class SCIONDnsServer(SCIONElement):

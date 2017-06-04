@@ -24,16 +24,6 @@ from collections import defaultdict
 
 # SCION
 from external.expiring_dict import ExpiringDict
-from router.if_state import InterfaceState
-from router.errors import (
-    SCIONIFVerificationError,
-    SCIONInterfaceDownException,
-    SCIONOFExpiredError,
-    SCIONOFVerificationError,
-    SCIONPacketHeaderCorruptedError,
-    SCIONSegmentSwitchError,
-)
-from scion_elem.scion_elem import SCIONElement
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
@@ -88,6 +78,16 @@ from lib.types import (
     RouterFlag,
 )
 from lib.util import SCIONTime, hex_str, sleep_interval
+from router.if_state import InterfaceState
+from router.errors import (
+    SCIONIFVerificationError,
+    SCIONInterfaceDownException,
+    SCIONOFExpiredError,
+    SCIONOFVerificationError,
+    SCIONPacketHeaderCorruptedError,
+    SCIONSegmentSwitchError,
+)
+from scion_elem.scion_elem import SCIONElement
 
 
 class Router(SCIONElement):

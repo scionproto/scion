@@ -25,7 +25,6 @@ from itertools import product
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from scion_elem.scion_elem import SCIONElement
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
@@ -71,6 +70,7 @@ from lib.types import (
     TypeBase,
 )
 from lib.util import SCIONTime
+from scion_elem.scion_elem import SCIONElement
 
 
 _FLUSH_FLAG = "FLUSH"

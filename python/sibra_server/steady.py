@@ -27,7 +27,6 @@ from lib.defines import (
     SIBRA_MAX_STEADY_TICKS,
     SIBRA_TICK,
 )
-from sibra_server.util import seg_to_hops
 from lib.errors import SCIONBaseError
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
@@ -43,6 +42,8 @@ from lib.sibra.pcb_ext import SibraPCBExt
 from lib.sibra.util import current_tick, tick_to_time
 from lib.types import LinkType, PathSegmentType as PST
 from lib.util import SCIONTime, hex_str
+from sibra_server.util import seg_to_hops
+
 
 RESV_LEN = SIBRA_MAX_STEADY_TICKS - 1
 TIMEOUT = 1.0

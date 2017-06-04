@@ -39,7 +39,7 @@ RTE_TARGET ?= x86_64-native-linuxapp-clang
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
-SHARED = hsr.so
+SHARED = libhsr.so
 LIBABIVER := 1
 
 # all source are stored in SRCS-y

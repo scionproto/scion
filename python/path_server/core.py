@@ -20,13 +20,13 @@ import logging
 from collections import deque
 
 # SCION
-from path_server.base import PathServer
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zk.errors import ZkNoConnection
+from path_server.base import PathServer
 
 
 class CorePathServer(PathServer):
