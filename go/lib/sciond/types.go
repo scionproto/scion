@@ -63,26 +63,21 @@ type PathReq struct {
 	Dst      uint32
 	Src      uint32
 	MaxPaths uint16
-	Flags    struct {
-		Flush bool
-		Sibra bool
-	}
+	Flags    PathReqFlags
+}
+
+type PathReqFlags struct {
+	Flush bool
+	Sibra bool
 }
 
 type PathReply struct {
 	RawErrorCode uint16 `capnp:"errorCode"`
-	ErrorCode    PathErrorCode
 	Entries      []PathReplyEntry
 }
 
-func (reply *PathReply) postprocess() {
-	for i := range reply.Entries {
-		for j := range reply.Entries[i].Path.Interfaces {
-			reply.Entries[i].Path.Interfaces[j].IA =
-				addr.IAFromInt(int(reply.Entries[i].Path.Interfaces[j].RawIsdas))
-		}
-	}
-	reply.ErrorCode = PathErrorCode(reply.RawErrorCode)
+func (reply *PathReply) ErrorCode() PathErrorCode {
+	return PathErrorCode(reply.RawErrorCode)
 }
 
 type PathReplyEntry struct {
@@ -107,11 +102,14 @@ type FwdPathMeta struct {
 type PathInterface struct {
 	RawIsdas uint32 `capnp:"isdas"`
 	IfID     uint64
-	IA       *addr.ISD_AS `capnp:"-"`
+}
+
+func (iface *PathInterface) ISD_AS() *addr.ISD_AS {
+	return addr.IAFromInt(int(iface.RawIsdas))
 }
 
 func (entry PathInterface) String() string {
-	return fmt.Sprintf("%v.%v", entry.IA, entry.IfID)
+	return fmt.Sprintf("%v.%v", entry.ISD_AS(), entry.IfID)
 }
 
 type ASInfoReq struct {
@@ -122,21 +120,18 @@ type ASInfoReply struct {
 	Entries []ASInfoReplyEntry
 }
 
-func (reply *ASInfoReply) postprocess() {
-	for i := range reply.Entries {
-		reply.Entries[i].IA = addr.IAFromInt(int(reply.Entries[i].RawIsdas))
-	}
-}
-
 type ASInfoReplyEntry struct {
-	RawIsdas uint32       `capnp:"isdas"`
-	IA       *addr.ISD_AS `capnp:"-"`
+	RawIsdas uint32 `capnp:"isdas"`
 	Mtu      uint16
 	IsCore   bool
 }
 
+func (entry *ASInfoReplyEntry) ISD_AS() *addr.ISD_AS {
+	return addr.IAFromInt(int(entry.RawIsdas))
+}
+
 func (entry ASInfoReplyEntry) String() string {
-	return fmt.Sprintf("ia:%v, mtu:%v, core:%t", entry.IA, entry.Mtu, entry.IsCore)
+	return fmt.Sprintf("ia:%v, mtu:%v, core:%t", entry.ISD_AS(), entry.Mtu, entry.IsCore)
 }
 
 type RevNotification struct {
