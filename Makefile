@@ -1,6 +1,6 @@
 .PHONY: all clean go gohsr clibs libscion libfilter liblwip libtcpmw libssocket dispatcher libhsr uninstall tags
 
-SRC_DIRS = c/lib/scion c/lib/filter c/ssp sub/lwip-contrib c/lib/tcp c
+SRC_DIRS = c/lib/scion c/lib/filter c/ssp sub/lwip-contrib c/lib/tcp c/dispatcher
 
 all: clibs dispatcher go
 

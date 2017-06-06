@@ -20,5 +20,5 @@ From the SCION root directory, after running the SCION infrastructure:
 
 ## C wrapper for library
 A C wrapper for the SCIONSocket library is defined in
-[scion root dir]/endhost/ssp/SCIONWrapper.h
+c/lib/ssp/SCIONWrapper.h
 Refer to wrapper_client.c and wrapper_server.c for usage.
