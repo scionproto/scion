@@ -29,7 +29,7 @@ from lib.packet.ext.path_transport import (
 )
 from lib.packet.packet_base import PayloadRaw
 from lib.types import ExtensionClass, ExtHopByHopType
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
     TestClientServerBase,

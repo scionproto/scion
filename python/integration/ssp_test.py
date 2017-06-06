@@ -23,7 +23,7 @@ import logging
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.main import main_wrapper
 from lib.types import L4Proto
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     API_TOUT,
     setup_main,
     TestClientBase,

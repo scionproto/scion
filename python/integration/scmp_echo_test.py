@@ -28,7 +28,7 @@ from lib.packet.scmp.hdr import SCMPHeader
 from lib.packet.scmp.types import SCMPClass, SCMPGeneralClass
 from lib.thread import kill_self
 from lib.types import L4Proto
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
     TestClientServerBase,

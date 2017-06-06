@@ -38,7 +38,7 @@ from lib.packet.scmp.types import (
     SCMPRoutingClass,
 )
 from lib.types import L4Proto
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     TestClientBase,
     TestClientServerBase,
     setup_main,

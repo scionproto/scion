@@ -29,7 +29,7 @@ from lib.sibra.ext.info import ResvInfoEphemeral
 from lib.sibra.ext.ephemeral import SibraExtEphemeral
 from lib.sibra.util import BWSnapshot
 from lib.types import ExtensionClass
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
     TestClientServerBase,
