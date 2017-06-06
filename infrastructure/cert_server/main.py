@@ -265,7 +265,9 @@ class CertServer(SCIONElement):
         _, orig_req = req_info
         if orig_req.p.cacheOnly:
             return
-        isd_as, ver = key
+        self._send_cc_request(*key)
+
+    def _send_cc_request(self, isd_as, ver):
         req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
         path_meta = self._get_path_via_api(isd_as)
         if path_meta:
@@ -330,8 +332,10 @@ class CertServer(SCIONElement):
         _, orig_req = req_info
         if orig_req.p.cacheOnly:
             return
-        isd, ver = key
-        isd_as = ISD_AS.from_values(isd, orig_req.isd_as()[1])
+        self._send_cc_request(*key, orig_req.isd_as()[1])
+
+    def _send_trc_request(self, isd, ver, as_):
+        isd_as = ISD_AS.from_values(isd, as_)
         trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
         path_meta = self._get_path_via_api(isd_as)
         if path_meta:
@@ -390,15 +394,15 @@ class CertServer(SCIONElement):
                 meta.ia, drkey_time() - req.p.timestamp, DRKEY_REQUEST_TIMEOUT))
         trc = self.trust_store.get_trc(meta.ia[0])
         chain = self.trust_store.get_cert(meta.ia, req.p.certVer)
-        err_desc = []
+        err = []
         if not chain:
-            self._fetch_cc((meta.ia, req.p.certVer), None)
-            err_desc.append("Certificate not present for %s(v: %s)" % (meta.ia, req.p.certVer))
+            self._send_cc_request(meta.ia, req.p.certVer)
+            err.append("Certificate not present for %s(v: %s)" % (meta.ia, req.p.certVer))
         if not trc:
-            self._fetch_trc((req.isd_as[0], req.p.trcVer), (None, req.isd_as[1]))
-            err_desc.append("TRC not present for %s(v: %s)" % (meta.ia[0], req.p.trcVer))
-        if err_desc:
-            raise SCIONVerificationError("".join(err_desc))
+            self._send_trc_request(req.isd_as[0], req.p.trcVer, req.isd_as[1])
+            err.append("TRC not present for %s(v: %s)" % (meta.ia[0], req.p.trcVer))
+        if err:
+            raise SCIONVerificationError(",".join(err))
         raw = drkey_signing_input_req(req.isd_as, req.p.flags.prefetch, req.p.timestamp)
         try:
             verify_sig_chain_trc(raw, req.p.signature, meta.ia, chain, trc)
@@ -459,15 +463,15 @@ class CertServer(SCIONElement):
                 rep.isd_as, drkey_time() - rep.p.timestamp, DRKEY_REQUEST_TIMEOUT))
         trc = self.trust_store.get_trc(rep.isd_as[0])
         chain = self.trust_store.get_cert(rep.isd_as, rep.p.certVerSrc)
-        err_str = ""
+        err = []
         if not chain:
-            self._fetch_cc((rep.isd_as, rep.p.certVerSrc), None)
-            err_str += "Certificate not present for %s(v: %s)" % (rep.isd_as, rep.p.certVerSrc)
+            self._send_cc_request(rep.isd_as, rep.p.certVerSrc)
+            err.append("Certificate not present for %s(v: %s)" % (rep.isd_as, rep.p.certVerSrc))
         if not trc:
-            self._fetch_trc((rep.isd_as[0], rep.p.trcVer), (None, rep.isd_as[1]))
-            err_str += "TRC not present for %s(v: %s)" % (rep.isd_as[0], rep.p.trcVer)
-        if err_str:
-            raise SCIONVerificationError(err_str)
+            self._send_trc_request(rep.isd_as[0], rep.p.trcVer, rep.isd_as[1])
+            err.append("TRC not present for %s(v: %s)" % (rep.isd_as[0], rep.p.trcVer))
+        if err:
+            raise SCIONVerificationError(",".join(err))
         raw = get_signing_input_rep(rep.isd_as, rep.p.timestamp, rep.p.expTime, rep.p.cipher)
         try:
             verify_sig_chain_trc(raw, rep.p.signature, rep.isd_as, chain, trc)
@@ -506,13 +510,12 @@ class CertServer(SCIONElement):
         if path_meta:
             meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
             self.send_meta(req, meta)
-            logging.info("DRKeyRequest (%s) sent. Meta: %s. PathMeta: %s", req.short_desc(),
-                         meta, path_meta)
+            logging.info("DRKeyRequest (%s) sent to %s via %s", req.short_desc(), meta, path_meta)
         else:
             logging.warning("DRKeyRequest (for %s) not sent", req.short_desc())
 
     def _reply_proto_drkey(self, drkey, meta):
-        pass
+        pass  # TODO(roosd): implement in future PR
 
     def _get_drkey_secret(self, exp_time):
         """

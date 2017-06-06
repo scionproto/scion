@@ -21,7 +21,7 @@ import datetime
 import time
 
 
-# Validity period of DRKey secret value
+# Validity period of DRKey secret value in days.
 DRKEY_VALIDITY_PERIOD = 1
 
 

@@ -69,10 +69,6 @@ class DRKeyRequest(DRKeyMgmtBase):
         return ("ISD-AS: %s prefetch: %s TS: %s" %
                 (self.isd_as, self.p.flags.prefetch, self.p.timestamp))
 
-    def __str__(self):
-        return ("%s: ISD-AS: %s prefetch: %s TS: %s" %
-                (self.NAME, self.isd_as, self.p.flags.prefetch, self.p.timestamp))
-
 
 class DRKeyReply(DRKeyMgmtBase):
     NAME = "DRKeyReply"
@@ -108,11 +104,6 @@ class DRKeyReply(DRKeyMgmtBase):
     def short_desc(self):
         return ("ISD-AS: %s expTime: %s certs: (src=%s, dst=%s, trc=%s) TS: %s"
                 % (self.isd_as, self.p.expTime, self.p.certVerSrc,
-                   self.p.certVerDst, self.p.trcVer, self.p.timestamp))
-
-    def __str__(self):
-        return ("%s: ISD-AS: %s expTime: %s certs: (src=%s, dst=%s, trc=%s) TS: %s"
-                % (self.NAME, self.isd_as, self.p.expTime, self.p.certVerSrc,
                    self.p.certVerDst, self.p.trcVer, self.p.timestamp))
 
 
