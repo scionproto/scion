@@ -402,7 +402,7 @@ class CertServer(SCIONElement):
             self._send_trc_request(req.isd_as[0], req.p.trcVer, req.isd_as[1])
             err.append("TRC not present for %s(v: %s)" % (meta.ia[0], req.p.trcVer))
         if err:
-            raise SCIONVerificationError(",".join(err))
+            raise SCIONVerificationError(", ".join(err))
         raw = drkey_signing_input_req(req.isd_as, req.p.flags.prefetch, req.p.timestamp)
         try:
             verify_sig_chain_trc(raw, req.p.signature, meta.ia, chain, trc)
@@ -471,7 +471,7 @@ class CertServer(SCIONElement):
             self._send_trc_request(rep.isd_as[0], rep.p.trcVer, rep.isd_as[1])
             err.append("TRC not present for %s(v: %s)" % (rep.isd_as[0], rep.p.trcVer))
         if err:
-            raise SCIONVerificationError(",".join(err))
+            raise SCIONVerificationError(", ".join(err))
         raw = get_signing_input_rep(rep.isd_as, rep.p.timestamp, rep.p.expTime, rep.p.cipher)
         try:
             verify_sig_chain_trc(raw, rep.p.signature, rep.isd_as, chain, trc)
