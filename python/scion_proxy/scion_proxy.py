@@ -59,7 +59,7 @@ Currently supported HTTP(S) methods:
 Simple usage of the proxy would be as follows:
 1) Start the proxy server from the top level SCION directory:
 
-endhost/scion_proxy.py
+python/scion_proxy/scion_proxy.py
 
 By default, the proxy will start at port 8080 on the localhost.
 
@@ -80,7 +80,7 @@ This mode can be used to connect to another SCION proxy. Bridge mode can
 be enabled using the -f (or --forward) flag from the command line
 as follows:
 
-scion_proxy/scion_proxy.py -f
+python/scion_proxy/scion_proxy.py -f
 """
 
 # Stdlib

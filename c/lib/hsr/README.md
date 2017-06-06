@@ -70,7 +70,7 @@ Libhsr is built as a static library. From scion base directory:
 ```
 make libhsr
 ```
-This builds the library at lib/hsr/build/lib
+This builds the library at c/lib/hsr/build/lib
 
 ## Linking against libhsr
 In addition to libhsr.a, you must also link libmnl and libdpdk, for example:
@@ -82,7 +82,7 @@ LDFLAGS += -L$(RTE_SDK)/build/lib -ldpdk -lmnl
 # Running
 
 ## Library path
-To run HSR, LD_LIBRARY_PATH must contain lib/hsr/build/lib
+To run HSR, LD_LIBRARY_PATH must contain c/lib/hsr/build/lib
 
 ## DPDK drivers
 Any NICs to be used with DPDK must be bound to the igb_uio driver before running HSR. To see a list of devices and their status (managed by DPDK/kernel):
