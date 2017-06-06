@@ -88,10 +88,10 @@ from lib.util import (
     write_file,
 )
 
-DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
-DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
-DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
-DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
+DEFAULT_TOPOLOGY_FILE = "python/topology/Default.topo"
+DEFAULT_PATH_POLICY_FILE = "python/topology/PathPolicy.yml"
+DEFAULT_ZK_CONFIG = "python/topology/Zookeeper.yml"
+DEFAULT_ZK_LOG4J = "python/topology/Zookeeper.log4j"
 
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
@@ -869,7 +869,7 @@ class SupervisorGenerator(object):
         write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
 
     def _write_elem_mininet_conf(self, elem, elem_dir):
-        tmpl = Template(read_file("topology/mininet/supervisord.conf"))
+        tmpl = Template(read_file("python/mininet/supervisord.conf"))
         mn_conf_path = os.path.join(self.out_dir, "mininet", "%s.conf" % elem)
         rel_conf_path = os.path.relpath(
             os.path.join(elem_dir, SUPERVISOR_CONF),
@@ -880,7 +880,7 @@ class SupervisorGenerator(object):
                                    user=getpass.getuser()))
 
     def _write_zlog_cfg(self, name, elem, elem_dir):
-        tmpl = Template(read_file("topology/zlog.tmpl"))
+        tmpl = Template(read_file("python/topology/zlog.tmpl"))
         cfg = os.path.join(elem_dir, "%s.zlog.conf" % elem)
         write_file(cfg, tmpl.substitute(name=name, elem=elem))
 

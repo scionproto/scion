@@ -16,7 +16,7 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
-    topology/generator.py "$@" || exit 1
+    python/topology/generator.py "$@" || exit 1
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
         rm -rf /run/shm/scion-zk
@@ -100,11 +100,11 @@ cmd_lint() {
 
 py_lint() {
     local ret=0
-    for i in python topology/mininet sub/web; do
+    for i in python python/mininet sub/web; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       local cmd="flake8"
-      [ "$i" = "topology/mininet" ] && cmd="python2 -m flake8"
+      [ "$i" = "python/mininet" ] && cmd="python2 -m flake8"
       echo "============================================="
       ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
