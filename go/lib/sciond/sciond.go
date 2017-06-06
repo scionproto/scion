@@ -23,6 +23,8 @@
 // Fields prefixed with Raw (e.g., RawErrorCode) contain data in the format received from SCIOND.
 // These are rarely useful, and the same fields without the prefix (e.g., ErrorCode) should be used
 // instead.
+//
+// TODO: Revocation notifications are not implemented yet.
 package sciond
 
 import (
@@ -106,16 +108,33 @@ func (c *Connector) receive() (*SCIONDMsg, error) {
 	return message, nil
 }
 
+// Connect connects to a SCIOND server listening on socketName. Future method calls on the
+// returned Connector request information from SCIOND. The information is not
+// guaranteed to be fresh, as the returned connector caches ASInfo replies for ASInfoTTL time,
+// IFInfo replies for IFInfoTTL time and SVCInfo for SVCInfoTTL time.
+func Connect(socketName string) (*Connector, error) {
+	conn, err := reliable.Dial(socketName)
+	if err != nil {
+		return nil, err
+	}
+	rand.Seed(time.Now().UnixNano())
+	c := &Connector{conn: conn, requestID: uint64(rand.Uint32())}
+
+	cleanupInterval := time.Minute
+	c.asInfos = cache.New(ASInfoTTL, cleanupInterval)
+	c.ifInfos = cache.New(IFInfoTTL, cleanupInterval)
+	c.svcInfos = cache.New(SVCInfoTTL, cleanupInterval)
+	return c, nil
+}
+
 // Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
 // maximum number of paths returned.
-func (c *Connector) Paths(src, dst *addr.ISD_AS, max uint16, flush bool,
-	sibra bool) (*PathReply, error) {
+func (c *Connector) Paths(src, dst *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error) {
 	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_pathReq}
 	request.PathReq.Dst = dst.Uint32()
 	request.PathReq.Src = src.Uint32()
 	request.PathReq.MaxPaths = max
-	request.PathReq.Flags.Flush = flush
-	request.PathReq.Flags.Sibra = sibra
+	request.PathReq.Flags = f
 
 	err := c.send(request)
 	if err != nil {
@@ -126,8 +145,6 @@ func (c *Connector) Paths(src, dst *addr.ISD_AS, max uint16, flush bool,
 		return nil, err
 	}
 
-	// Expose "pretty" ISD-ASes
-	reply.PathReply.postprocess()
 	return &reply.PathReply, nil
 }
 
@@ -135,8 +152,7 @@ func (c *Connector) Paths(src, dst *addr.ISD_AS, max uint16, flush bool,
 func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 	// Check if information for this ISD-AS is cached
 	key := ia.String()
-	value, found := c.asInfos.Get(key)
-	if found {
+	if value, found := c.asInfos.Get(key); found {
 		return value.(*ASInfoReply), nil
 	}
 
@@ -152,15 +168,13 @@ func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 		return nil, err
 	}
 
-	// Expose "pretty" ISD-ASes
-	reply.AsInfoReply.postprocess()
 	// Cache result
-	c.asInfos.Set(key, &reply.AsInfoReply, cache.DefaultExpiration)
+	c.asInfos.SetDefault(key, &reply.AsInfoReply)
 	return &reply.AsInfoReply, nil
 }
 
-// IFInfo requests from SCIOND information about addresses and ports of border routers (BRs).
-// Slice ifs contains interface IDs of BRs. If unset, all BRs are
+// IFInfo requests from SCIOND addresses and ports of interfaces.
+// Slice ifs contains interface IDs of BRs. If empty, all interfaces are
 // returned.
 func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	// Store uncached interface IDs
@@ -168,8 +182,7 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	cachedEntries := make([]IFInfoReplyEntry, 0, len(ifs))
 	for _, iface := range ifs {
 		key := strconv.FormatUint(iface, 10)
-		value, found := c.ifInfos.Get(key)
-		if found {
+		if value, found := c.ifInfos.Get(key); found {
 			cachedEntries = append(cachedEntries, value.(IFInfoReplyEntry))
 		} else {
 			uncachedIfs = append(uncachedIfs, iface)
@@ -197,7 +210,7 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	// null answer is not added to the cache.
 	for _, entry := range reply.IfInfoReply.Entries {
 		key := strconv.FormatUint(entry.IfID, 10)
-		c.ifInfos.Set(key, entry, cache.DefaultExpiration)
+		c.ifInfos.SetDefault(key, entry)
 	}
 
 	// Append old cached entries to our reply
@@ -214,8 +227,7 @@ func (c *Connector) SVCInfo(svcTypes []addr.HostSVC) (*ServiceInfoReply, error) 
 	cachedEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
 	for _, svcType := range svcTypes {
 		key := strconv.FormatUint(uint64(svcType), 10)
-		value, found := c.svcInfos.Get(key)
-		if found {
+		if value, found := c.svcInfos.Get(key); found {
 			cachedEntries = append(cachedEntries, value.(ServiceInfoReplyEntry))
 		} else {
 			uncachedSVCs = append(uncachedSVCs, svcType)
@@ -241,30 +253,11 @@ func (c *Connector) SVCInfo(svcTypes []addr.HostSVC) (*ServiceInfoReply, error) 
 	// Add new information to cache
 	for _, entry := range reply.ServiceInfoReply.Entries {
 		key := strconv.FormatUint(uint64(entry.ServiceType), 10)
-		c.svcInfos.Set(key, entry, cache.DefaultExpiration)
+		c.svcInfos.SetDefault(key, entry)
 	}
 
 	reply.ServiceInfoReply.Entries = append(reply.ServiceInfoReply.Entries, cachedEntries...)
 	return &reply.ServiceInfoReply, nil
-}
-
-// Connect connects to a SCIOND server listening on socketName. Future method calls on the
-// returned Connector request information from SCIOND. The information is not
-// guaranteed to be fresh, as the returned connector caches ASInfo replies for ASInfoTTL time,
-// IFInfo replies for IFInfoTTL time and SVCInfo for SVCInfoTTL time.
-func Connect(socketName string) (*Connector, error) {
-	conn, err := reliable.Dial(socketName)
-	if err != nil {
-		return nil, err
-	}
-	rand.Seed(time.Now().UnixNano())
-	c := &Connector{conn: conn, requestID: uint64(rand.Uint32())}
-
-	cleanupInterval := time.Minute
-	c.asInfos = cache.New(ASInfoTTL, cleanupInterval)
-	c.ifInfos = cache.New(IFInfoTTL, cleanupInterval)
-	c.svcInfos = cache.New(SVCInfoTTL, cleanupInterval)
-	return c, nil
 }
 
 // Close shuts down the connection to a SCIOND server.
