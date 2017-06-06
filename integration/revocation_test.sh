@@ -36,7 +36,7 @@ done
 
 export PYTHONPATH=python/:.
 log "Testing connectivity between all the hosts."
-tests/end2end_test.py -l ERROR
+python/integration/end2end_test.py -l ERROR
 result=$?
 if [ ${result} -ne 0 ]; then
     log "E2E test failed. (${result})"
@@ -53,7 +53,7 @@ fi
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."
-tests/end2end_test.py -l ERROR --retries 3
+python/integration/end2end_test.py -l ERROR --retries 3
 result=$?
 if [ $result -ne 0 ]; then
     log "E2E test with failed routers failed. (${result})"

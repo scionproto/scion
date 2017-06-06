@@ -27,7 +27,7 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.thread import kill_self
 from lib.types import L4Proto
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     ResponseRV,
     setup_main,
     TestClientBase,

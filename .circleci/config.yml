@@ -18,7 +18,7 @@ jobs:
             - run: ./tools/ci/run ./scion.sh coverage |& tee logs/coverage.run
             - run: ./tools/ci/run ./sub/web/manage.py test &> logs/sweb_test.run
             - run: ./tools/ci/run make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
-            - run: ./tools/ci/run ./docker/integration_test.sh |& tee logs/integration.run
+            - run: ./tools/ci/run ./integration/integration_test.sh |& tee logs/integration.run
             - run: *artifacts
 
             - run: mv /tmp/artifacts.out/* /tmp/artifacts/
@@ -40,7 +40,7 @@ jobs:
             - run: ./tools/ci/run ./scion.sh coverage |& tee logs/coverage.run
             - run: ./tools/ci/run ./sub/web/manage.py test &> logs/sweb_test.run
             - run: ./tools/ci/run make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
-            - run: ./tools/ci/run ./docker/integration_test.sh |& tee logs/integration.run
+            - run: ./tools/ci/run ./integration/integration_test.sh |& tee logs/integration.run
             - run: *artifacts
 
             - run: ./tools/ci/post_check
@@ -61,7 +61,7 @@ scion_defaults:
         name: Gather test artifacts
         command: |
             set +e -x
-            mv -n htmlcov logs go/gocover.html gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
+            mv -n python/htmlcov logs go/gocover.html gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
             cp -a /tmp/test_flags "/tmp/artifacts/$ARTIFACTS"
             tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
 

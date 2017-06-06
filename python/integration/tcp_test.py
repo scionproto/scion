@@ -30,7 +30,7 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.svc import SVCType
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.util import recv_all
-from tests.base_cli_srv import start_sciond
+from integration.base_cli_srv import start_sciond
 
 s_isd_as = ISD_AS("1-18")
 s_ip = haddr_parse(1, "127.1.1.1")

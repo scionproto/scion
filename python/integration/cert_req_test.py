@@ -29,7 +29,7 @@ from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.types import ServiceType
-from tests.base_cli_srv import (
+from integration.base_cli_srv import (
     get_sciond_api_addr,
     setup_main,
     TestClientBase,
