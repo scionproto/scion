@@ -21,8 +21,8 @@
 // API calls return the entire answer of SCIOND.
 //
 // Fields prefixed with Raw (e.g., RawErrorCode) contain data in the format received from SCIOND.
-// These are rarely useful, and the same fields without the prefix (e.g., ErrorCode) should be used
-// instead.
+// These are used internally, and the accessors without the prefix (e.g., ErrorCode()) should be
+// used instead.
 //
 // TODO: Revocation notifications are not implemented yet.
 package sciond
@@ -221,9 +221,9 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 // SVCInfo requests from SCIOND information about addresses and ports of infrastructure services.
 // Slice svcTypes contains a list of desired service types. If unset, all service types are
 // returned.
-func (c *Connector) SVCInfo(svcTypes []addr.HostSVC) (*ServiceInfoReply, error) {
+func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	// Store uncached SVC Types
-	uncachedSVCs := make([]addr.HostSVC, 0, len(svcTypes))
+	uncachedSVCs := make([]ServiceType, 0, len(svcTypes))
 	cachedEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
 	for _, svcType := range svcTypes {
 		key := strconv.FormatUint(uint64(svcType), 10)

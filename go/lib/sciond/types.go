@@ -24,10 +24,10 @@ import (
 type PathErrorCode uint16
 
 const (
-	ErrorOk        PathErrorCode = 0
-	ErrorNoPaths   PathErrorCode = 1
-	ErrorPSTimeout PathErrorCode = 2
-	ErrorInternal  PathErrorCode = 3
+	ErrorOk PathErrorCode = iota
+	ErrorNoPaths
+	ErrorPSTimeout
+	ErrorInternal
 )
 
 func (c PathErrorCode) String() string {
@@ -167,8 +167,18 @@ type IFInfoReplyEntry struct {
 }
 
 type ServiceInfoRequest struct {
-	ServiceTypes []addr.HostSVC
+	ServiceTypes []ServiceType
 }
+
+type ServiceType uint16
+
+const (
+	SvcBS ServiceType = iota
+	SvcPS
+	SvcCS
+	SvcBR
+	SvcSB
+)
 
 type ServiceInfoReply struct {
 	Entries []ServiceInfoReplyEntry
