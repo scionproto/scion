@@ -105,6 +105,7 @@ class PayloadClass(object):
     CERT = "certMgmt"
     PATH = "pathMgmt"
     SIBRA = "sibra"
+    DRKEY = "drkeyMgmt"
 
 
 class CertMgmtType(object):
@@ -134,6 +135,11 @@ class PathSegmentType(TypeBase):
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
     GENERIC = 3  # FIXME(PSz): experimental for now.
+
+
+class DRKeyMgmtType(object):
+    FIRST_ORDER_REQUEST = "drkeyReq"
+    FIRST_ORDER_REPLY = "drkeyRep"
 
 
 ############################
@@ -188,6 +194,8 @@ class SCIONDMsgType(TypeBase):
     IF_REPLY = "ifInfoReply"
     SERVICE_REQUEST = "serviceInfoRequest"
     SERVICE_REPLY = "serviceInfoReply"
+    DRKEY_REQUEST = "drkeyRequest"
+    DRKEY_REPLY = "drkeyReply"
 
 
 #######################
