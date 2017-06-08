@@ -95,8 +95,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     SERVICE_TYPE = BEACON_SERVICE
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
-    # Timeout for TRC or Certificate requests.
-    REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # ZK path for revocations.
@@ -269,7 +267,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                           pcb.short_desc())
             return
         seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta)
-        self.process_path_seg(seg_meta)
+        self._process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -422,6 +420,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self._create_next_tree,),
             name="BS._create_next_tree", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._check_trc_cert_reqs,),
+            name="Elem.check_trc_cert_reqs", daemon=True).start()
         super().run()
 
     def _create_next_tree(self):
