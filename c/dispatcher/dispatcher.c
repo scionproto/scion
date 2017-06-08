@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 
     char *zlog_cfg = getenv("ZLOG_CFG");
     if (!zlog_cfg)
-        zlog_cfg = "endhost/dispatcher.conf";
+        zlog_cfg = "c/dispatcher/dispatcher.conf";
     if (zlog_init(zlog_cfg) < 0) {
         fprintf(stderr, "failed to init zlog (cfg: %s)\n", zlog_cfg);
         return -1;

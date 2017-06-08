@@ -18,7 +18,7 @@ if [ -e "$POX_PID" ]; then
     exit 1
 fi
 
-PYTHONPATH=topology/mininet pox \
+PYTHONPATH=python/mininet pox \
     pox_signal \
     forwarding.l2_learning \
     misc.pidfile --file=$POX_PID \
@@ -40,11 +40,11 @@ done
 log "POX running on localhost:$POX_PORT"
 log "Starting mininet"
 
-make -C endhost; make install -C endhost
+make -C c/dispatcher; make install -C c/dispatcher
 bin/dispatcher 2>logs/dispatcher.OUT &
 DISPATCHER_PID=$!
 echo "Dispatcher: $DISPATCHER_PID"
-sudo SUPERVISORD=$(which supervisord) python topology/mininet/topology.py
+sudo SUPERVISORD=$(which supervisord) python python/mininet/topology.py
 kill $DISPATCHER_PID
 
 for i in "$TMP_DIR"/*.pid; do
