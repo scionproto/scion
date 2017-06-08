@@ -42,7 +42,7 @@ run() {
 }
 export -f run log
 
-export PYTHONPATH=.
+export PYTHONPATH=python/:.
 
 log "Starting scion (without building)"
 ./scion.sh run nobuild | grep -v "started"
@@ -53,17 +53,17 @@ sleep 5
 
 cat << EOF | parallel --no-notice -n2 -j2 run
 End2End
-test/integration/end2end_test.py -l ERROR
+tests/end2end_test.py -l ERROR
 C2S_extn
-test/integration/cli_srv_ext_test.py -l ERROR
+tests/cli_srv_ext_test.py -l ERROR
 SCMP error
-test/integration/scmp_error_test.py -l ERROR --runs 60
+tests/scmp_error_test.py -l ERROR --runs 60
 Cert/TRC request
-test/integration/cert_req_test.py -l ERROR
+tests/cert_req_test.py -l ERROR
 EOF
 result=$?
 
-run Revocation "test/integration/revocation_test.sh\
+run Revocation "tests/revocation_test.sh\
  ${REV_BRS:-as1-11:br1-11-3 as2-26:br2-26-2 as1-14:br1-14-3 as1-16:br1-16-2}"
 result=$((result+$?))
 

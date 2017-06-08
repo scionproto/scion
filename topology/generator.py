@@ -896,7 +896,7 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
-            'environment': 'PYTHONPATH=.,TZ=UTC',
+            'environment': 'PYTHONPATH=python/:.,TZ=UTC',
             'stdout_logfile': "NONE",
             'stderr_logfile': "NONE",
             'startretries': 0,

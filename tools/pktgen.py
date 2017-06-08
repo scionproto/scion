@@ -29,7 +29,7 @@ from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.socket import UDPSocket
-from test.integration.base_cli_srv import TestClientBase
+from tests.base_cli_srv import TestClientBase
 
 
 class PktGen(TestClientBase):

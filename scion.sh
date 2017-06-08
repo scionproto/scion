@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-export PYTHONPATH=.
+export PYTHONPATH=python/:.
 
-EXTRA_NOSE_ARGS="--with-xunit --xunit-file=logs/nosetests.xml"
+EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 # BEGIN subcommand functions
 
@@ -79,7 +79,7 @@ cmd_coverage(){
 }
 
 py_cover() {
-    nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
+    nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html --cover-html-dir "$@"
     echo
     echo "Python coverage report here: file://$PWD/htmlcov/index.html"
 }
@@ -100,7 +100,7 @@ cmd_lint() {
 
 py_lint() {
     local ret=0
-    for i in . topology/mininet sub/web; do
+    for i in python topology/mininet sub/web; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       local cmd="flake8"
