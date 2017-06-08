@@ -189,7 +189,7 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 		}
 	}
 
-	if len(uncachedIfs) == 0 {
+	if len(uncachedIfs) == 0 && len(ifs) != 0 {
 		return &IFInfoReply{Entries: cachedEntries}, nil
 	}
 
@@ -234,7 +234,7 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 		}
 	}
 
-	if len(uncachedSVCs) == 0 {
+	if len(uncachedSVCs) == 0 && len(svcTypes) != 0 {
 		return &ServiceInfoReply{Entries: cachedEntries}, nil
 	}
 

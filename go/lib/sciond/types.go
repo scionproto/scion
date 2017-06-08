@@ -180,12 +180,29 @@ const (
 	SvcSB
 )
 
+func (st ServiceType) String() string {
+	switch st {
+	case SvcBS:
+		return "BS"
+	case SvcPS:
+		return "PS"
+	case SvcCS:
+		return "CS"
+	case SvcBR:
+		return "BR"
+	case SvcSB:
+		return "SB"
+	default:
+		return "??"
+	}
+}
+
 type ServiceInfoReply struct {
 	Entries []ServiceInfoReplyEntry
 }
 
 type ServiceInfoReplyEntry struct {
-	ServiceType addr.HostSVC
+	ServiceType ServiceType
 	Ttl         uint32
 	HostInfos   []HostInfo
 }
