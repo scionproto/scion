@@ -15,10 +15,10 @@
 package libscion
 
 /*
- #cgo CFLAGS: -I../../../lib
+ #cgo CFLAGS: -I../../../c/lib
  #cgo LDFLAGS: -lscion
  #include <stdint.h>
- #include "libscion/scion.h"
+ #include "scion/scion.h"
 */
 import "C"
 

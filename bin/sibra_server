@@ -14,8 +14,8 @@
 # limitations under the License.
 
 # SCION
-from infrastructure.sibra_server.core import SibraServerCore
-from infrastructure.sibra_server.local import SibraServerLocal
+from sibra_server.core import SibraServerCore
+from sibra_server.local import SibraServerLocal
 from lib.main import main_default, main_wrapper
 
 main_wrapper(main_default, SibraServerCore, SibraServerLocal)

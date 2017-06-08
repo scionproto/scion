@@ -1,6 +1,6 @@
 .PHONY: all clean go gohsr clibs libscion libfilter liblwip libtcpmw libssocket dispatcher libhsr uninstall tags
 
-SRC_DIRS = lib/libscion lib/libfilter endhost/ssp sub/lwip-contrib lib/tcp endhost
+SRC_DIRS = c/lib/scion c/lib/filter c/ssp sub/lwip-contrib c/lib/tcp c/dispatcher
 
 all: clibs dispatcher go
 
@@ -20,25 +20,25 @@ gohsr: libhsr
 clibs: libscion libfilter liblwip libtcpmw
 
 libscion:
-	$(MAKE) -C lib/libscion install
+	$(MAKE) -C c/lib/scion install
 
 libfilter: libscion
-	$(MAKE) -C lib/libfilter install
+	$(MAKE) -C c/lib/filter install
 
 liblwip: libscion
 	$(MAKE) -C sub/lwip-contrib install
 
 libtcpmw: libscion liblwip
-	$(MAKE) -C lib/tcp install
+	$(MAKE) -C c/lib/tcp install
 
 libssocket: libscion
-	$(MAKE) -C endhost/ssp install
+	$(MAKE) -C c/ssp install
 
 dispatcher: clibs
-	$(MAKE) -C endhost install
+	$(MAKE) -C c/dispatcher install
 
 libhsr: libscion
-	$(MAKE) -C lib/libhsr doinstall
+	$(MAKE) -C c/lib/hsr doinstall
 
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)

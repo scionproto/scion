@@ -14,8 +14,8 @@
 # limitations under the License.
 
 # SCION
-from infrastructure.beacon_server.core import CoreBeaconServer
-from infrastructure.beacon_server.local import LocalBeaconServer
+from beacon_server.core import CoreBeaconServer
+from beacon_server.local import LocalBeaconServer
 from lib.main import main_default, main_wrapper
 
 main_wrapper(main_default, CoreBeaconServer, LocalBeaconServer)

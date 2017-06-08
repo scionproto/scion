@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-export PYTHONPATH=.
+export PYTHONPATH=python/:.
 
-EXTRA_NOSE_ARGS="--with-xunit --xunit-file=logs/nosetests.xml"
+EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 # BEGIN subcommand functions
 
@@ -16,7 +16,7 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
-    topology/generator.py "$@" || exit 1
+    python/topology/generator.py "$@" || exit 1
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
         rm -rf /run/shm/scion-zk
@@ -81,7 +81,7 @@ cmd_coverage(){
 py_cover() {
     nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
     echo
-    echo "Python coverage report here: file://$PWD/htmlcov/index.html"
+    echo "Python coverage report here: file://$PWD/python/htmlcov/index.html"
 }
 
 go_cover() {
@@ -100,11 +100,11 @@ cmd_lint() {
 
 py_lint() {
     local ret=0
-    for i in . topology/mininet sub/web; do
+    for i in python python/mininet sub/web; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       local cmd="flake8"
-      [ "$i" = "topology/mininet" ] && cmd="python2 -m flake8"
+      [ "$i" = "python/mininet" ] && cmd="python2 -m flake8"
       echo "============================================="
       ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     done
