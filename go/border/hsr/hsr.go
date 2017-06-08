@@ -47,7 +47,6 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 var hsrInMin = flag.Int("hsr.in.min_pkts", 20, "Minimum packets to read per loop")

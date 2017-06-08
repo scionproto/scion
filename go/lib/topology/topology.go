@@ -189,7 +189,7 @@ func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]To
 
 func zkSvcFromRaw(zksvc map[int]RawAddrPort, n *Topo) *common.Error {
 	for id, ap := range zksvc {
-		rai := RawAddrInfo{Public: []RawAddrPortOverlay{RawAddrPortOverlay{ap, 0}}}
+		rai := RawAddrInfo{Public: []RawAddrPortOverlay{{ap, 0}}}
 		tai, err := TopoAddrFromRawAddrInfo(&rai, n.Overlay)
 		if err != nil {
 			return err

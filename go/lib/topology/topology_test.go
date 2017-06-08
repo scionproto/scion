@@ -80,7 +80,7 @@ func Test_Meta(t *testing.T) {
 
 func Test_BRs(t *testing.T) {
 	brs := map[string]BRInfo{
-		"br1-11-1": BRInfo{
+		"br1-11-1": {
 			IFIDs: []common.IFIDType{1, 3, 8},
 		},
 	}
@@ -119,7 +119,7 @@ func Test_Service_Details(t *testing.T) {
 	}
 	loadTopo(fn, t)
 	c := testTopo
-	for name, _ := range cses {
+	for name := range cses {
 		Convey(fmt.Sprintf("Checking service details for %s", name), t, func() {
 			So(c.CS[name], ShouldResemble, cses[name])
 		})
@@ -153,7 +153,7 @@ func Test_ZK(t *testing.T) {
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)
 	c := testTopo
-	for name, _ := range zks {
+	for name := range zks {
 		Convey(fmt.Sprintf("Checking ZK details for ZK id %d", name), t, func() {
 			So(c.ZK[name], ShouldResemble, zks[name])
 		})

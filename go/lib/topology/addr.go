@@ -60,11 +60,11 @@ func TopoAddrFromRawAddrInfo(s *RawAddrInfo, ot overlay.Type) (t *TopoAddr, err 
 func localTopoAddrFromBrInt(b RawBRIntf, o overlay.Type) (*TopoAddr, *common.Error) {
 	s := &RawAddrInfo{
 		Public: []RawAddrPortOverlay{
-			RawAddrPortOverlay{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
+			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
 		},
 	}
 	if b.Bind != nil {
-		s.Bind = []RawAddrPort{RawAddrPort{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
+		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
 	}
 	return TopoAddrFromRawAddrInfo(s, o)
 }
