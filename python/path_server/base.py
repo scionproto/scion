@@ -330,7 +330,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for type_, pcb in recs.iter_pcbs():
                 seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                        type_=type_, params={'from_zk': True})
-                self.process_path_seg(seg_meta)
+                self._process_path_seg(seg_meta)
         if raw_entries:
             logging.debug("Processed %s segments from ZK", len(raw_entries))
 
@@ -346,7 +346,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for type_, pcb in seg_recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
                                    type_, params)
-            self.process_path_seg(seg_meta)
+            self._process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -520,4 +520,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self.worker,),
             name="PS.worker", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._check_trc_cert_reqs,),
+            name="Elem.check_trc_cert_reqs", daemon=True).start()
         super().run()
