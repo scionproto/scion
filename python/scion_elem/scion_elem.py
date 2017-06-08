@@ -118,6 +118,8 @@ class SCIONElement(object):
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
     USE_TCP = False
+    # Timeout for TRC or Certificate requests.
+    REQUESTS_TIMEOUT = 10
 
     def __init__(self, server_id, conf_dir, public=None, bind=None):
         """
@@ -168,9 +170,9 @@ class SCIONElement(object):
             self._DefaultMeta = UDPMetadata
         self.unverified_segs = set()
         self.unv_segs_lock = threading.RLock()
-        self.requested_trcs = set()
+        self.requested_trcs = defaultdict()
         self.req_trcs_lock = threading.Lock()
-        self.requested_certs = set()
+        self.requested_certs = defaultdict()
         self.req_certs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
@@ -268,6 +270,30 @@ class SCIONElement(object):
         except SCIONBaseError:
             log_exception("Error handling message:\n%s" % msg)
 
+    def check_trc_reqs(self):
+        """
+        Checks if TRC requests timeout and resends requests if so.
+        """
+        with self.req_trcs_lock:
+            for (isd, ver), (req_time, meta) in self.requested_trcs.items():
+                if time.time() - req_time >= self.REQUESTS_TIMEOUT:
+                    logging.info("Re-Requesting %sv%s TRC from %s", isd, ver, meta)
+                    trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+                    self.send_meta(trc_req, meta)
+                    self.requested_trcs[(isd, ver)] = (time.time(), meta)
+
+    def check_cert_reqs(self):
+        """
+        Checks if certificate requests timeout and resends requests if so.
+        """
+        with self.req_certs_lock:
+            for (isd_as, ver), (req_time, meta) in self.requested_certs.items():
+                if time.time() - req_time >= self.REQUESTS_TIMEOUT:
+                    logging.info("Re-Requesting %sv%s CERTCHAIN from %s", isd_as, ver, meta)
+                    cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+                    self.send_meta(cert_req, meta)
+                    self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+
     def process_path_seg(self, seg_meta):
         """
         When a pcb or path segment is received, this function is called to
@@ -339,16 +365,19 @@ class SCIONElement(object):
             with self.req_trcs_lock:
                 if (isd, ver) in self.requested_trcs:
                     continue
-                self.requested_trcs.add((isd, ver))
             isd_as = ISD_AS.from_values(isd, 0)
             trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
-            logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
-            if not seg_meta.meta:
+            meta = seg_meta.meta
+            if not meta:
                 meta = self.get_cs()
-                if meta:
-                    self.send_meta(trc_req, meta)
+            if meta:
+                logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
+                with self.req_trcs_lock:
+                    self.requested_trcs[(isd, ver)] = (time.time(), meta)
+                self.send_meta(trc_req, meta)
             else:
-                self.send_meta(trc_req, seg_meta.meta)
+                logging.error("Couldn't find a CS to request TRC for PCB %s",
+                              seg_meta.seg.short_id())
 
     def request_missing_certs(self, seg_meta):
         """
@@ -366,7 +395,6 @@ class SCIONElement(object):
             with self.req_certs_lock:
                 if (isd_as, ver) in self.requested_certs:
                     continue
-                self.requested_certs.add((isd_as, ver))
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta
             if not meta:
@@ -374,6 +402,8 @@ class SCIONElement(object):
             if meta:
                 logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
                              isd_as, ver, meta, seg_meta.seg.short_id())
+                with self.req_certs_lock:
+                    self.requested_certs[(isd_as, ver)] = (time.time(), meta)
                 self.send_meta(cert_req, meta)
             else:
                 logging.error("Couldn't find a CS to request CERTCHAIN for PCB %s",
@@ -434,7 +464,8 @@ class SCIONElement(object):
         if max_local_ver.version == rep.trc.version:
             self._update_core_ases(rep.trc)
         with self.req_trcs_lock:
-            self.requested_trcs.discard((isd, ver))
+            if (isd, ver) in self.requested_trcs:
+                del self.requested_trcs[(isd, ver)]
         # Send trc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
             cs_meta = self.get_cs()
@@ -476,7 +507,8 @@ class SCIONElement(object):
         logging.info("Cert chain reply received for %sv%s from %s" % (isd_as, ver, meta))
         self.trust_store.add_cert(rep.chain, True)
         with self.req_certs_lock:
-            self.requested_certs.discard((isd_as, ver))
+            if (isd_as, ver) in self.requested_certs:
+                del self.requested_certs[(isd_as, ver)]
         # Send cc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
             cs_meta = self.get_cs()

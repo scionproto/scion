@@ -95,8 +95,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     SERVICE_TYPE = BEACON_SERVICE
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
-    # Timeout for TRC or Certificate requests.
-    REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # ZK path for revocations.
@@ -513,6 +511,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     logging.error("Error while registering segments: %s", e)
                     pass
                 last_registration = now
+            self.check_cert_reqs()
+            self.check_trc_reqs()
 
     def _became_master(self):
         """

@@ -152,6 +152,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._update_master()
             self._propagate_and_sync()
             self._handle_pending_requests()
+            self.check_cert_reqs()
+            self.check_trc_reqs()
 
     def _update_master(self):
         pass
