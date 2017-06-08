@@ -17,8 +17,8 @@
 """
 
 # SCION
-from sibra_server.main import SibraServerBase
 from lib.types import PathSegmentType as PST
+from sibra_server.main import SibraServerBase
 
 
 class SibraServerCore(SibraServerBase):

@@ -22,12 +22,6 @@ import time
 from queue import Queue
 
 # SCION
-from scion_elem.scion_elem import SCIONElement
-from sibra_server.steady import (
-    SteadyPath,
-    SteadyPathErrorNoReservation,
-)
-from sibra_server.util import find_last_ifid
 from lib.crypto.asymcrypto import get_sig_key
 from lib.defines import SIBRA_SERVICE
 from lib.packet.ext_util import find_ext_hdr
@@ -49,6 +43,13 @@ from lib.util import (
 )
 from lib.zk.id import ZkID
 from lib.zk.zk import Zookeeper
+from scion_elem.scion_elem import SCIONElement
+from sibra_server.steady import (
+    SteadyPath,
+    SteadyPathErrorNoReservation,
+)
+from sibra_server.util import find_last_ifid
+
 
 # How long to wait for path propagation before setting up steady paths over
 # core links

@@ -79,9 +79,9 @@ cmd_coverage(){
 }
 
 py_cover() {
-    nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html --cover-html-dir "$@"
+    nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
     echo
-    echo "Python coverage report here: file://$PWD/htmlcov/index.html"
+    echo "Python coverage report here: file://$PWD/python/htmlcov/index.html"
 }
 
 go_cover() {

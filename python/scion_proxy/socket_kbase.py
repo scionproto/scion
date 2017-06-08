@@ -23,8 +23,8 @@ import time
 import threading
 
 # SCION
-from scion_proxy.kbase_lookup_service import KnowledgeBaseLookupService
 from lib.thread import thread_safety_net
+from scion_proxy.kbase_lookup_service import KnowledgeBaseLookupService
 
 
 STATS_PERIOD = 5  # seconds

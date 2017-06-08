@@ -28,7 +28,6 @@ from threading import Lock, RLock
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from scion_elem.scion_elem import SCIONElement
 from beacon_server.if_state import InterfaceState
 from lib.crypto.asymcrypto import get_sig_key
 from lib.crypto.hash_tree import ConnectedHashTree
@@ -82,6 +81,7 @@ from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
+from scion_elem.scion_elem import SCIONElement
 
 
 class BeaconServer(SCIONElement, metaclass=ABCMeta):

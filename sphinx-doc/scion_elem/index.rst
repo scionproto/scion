@@ -1,4 +1,4 @@
-SCION Proxy Code
+SCION Element Code
 ==================
 
 Contents:

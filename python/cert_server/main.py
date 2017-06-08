@@ -28,9 +28,7 @@ import time
 
 # SCION
 import lib.app.sciond as lib_sciond
-from sciond.sciond import SCIOND_API_SOCKDIR
 from external.expiring_dict import ExpiringDict
-from scion_elem.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import get_enc_key, get_sig_key
 from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
@@ -75,6 +73,8 @@ from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
+from sciond.sciond import SCIOND_API_SOCKDIR
+from scion_elem.scion_elem import SCIONElement
 
 # Timeout for API path requests
 API_TOUT = 1
