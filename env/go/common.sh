@@ -1,5 +1,5 @@
 go_installed() {
-    type -p go >/dev/null
+    type -p go &>/dev/null
 }
 
 go_ver_check() {

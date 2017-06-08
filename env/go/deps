@@ -1,10 +1,26 @@
 #!/bin/bash
 
+# The $GO_INSTALL environment variable, if set, tells this script to
+# install/upgrade (as appropriate) a compatible Go version. This env var isn't
+# set by default, and should only be used in an automated environment, or if
+# the user knows what they're doing. If you already have a /usr/local/go dir,
+# setting $GO_INSTALL may remove that directory (if your existing Go install is
+# not in your $PATH, or if the version isn't compatible), so use with caution.
+
 set -e
 
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
 . "$BASE/common.sh"
+
+go_check_install() {
+    if go_installed; then
+        go_ver_check && return
+        go_ver_msg
+    fi
+    [ -d /usr/local/go ] && sudo rm -r /usr/local/go
+    go_install
+}
 
 go_install() {
     if [ -d /usr/local/go ]; then
@@ -46,17 +62,15 @@ go_install() {
 }
 
 # First handle the case where Go isn't installed, or needs to be upgraded.
-if ! go_installed || ! go_ver_check && [ -n "$GO_INSTALL" ]; then
-    [ -d /usr/local/go ] && sudo rm -r /usr/local/go
-    go_ver_msg
-    go_install
+if [ -n "$GO_INSTALL" ]; then
+    go_check_install
 fi
 
 # Then confirm that go is installed, and with an appropriate version.
 if go_installed; then
     go_ver_check || { echo "ERROR: $(go_ver_msg)"; exit 1; }
 else
-    echo "ERROR: Go not found in \$PATH"
+    echo "ERROR: Go not found in \$PATH ($PATH)"
     exit 1
 fi
 
