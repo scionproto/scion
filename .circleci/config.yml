@@ -27,7 +27,7 @@ jobs:
 
     build:
         docker:
-            - image: kormat/scion_base@sha256:57dc4f1947a4321a1dc0e8058976723303407a08a8f4a27ee15ecaa01a827f69
+            - image: kormat/scion_base@sha256:7ffe4f41d882e18b2a6f09c76e8f261127b85bd81b5f58e4faed630990812444
         <<: *job
         steps:
             - checkout
