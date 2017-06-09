@@ -72,12 +72,8 @@ type PathReqFlags struct {
 }
 
 type PathReply struct {
-	RawErrorCode uint16 `capnp:"errorCode"`
-	Entries      []PathReplyEntry
-}
-
-func (reply *PathReply) ErrorCode() PathErrorCode {
-	return PathErrorCode(reply.RawErrorCode)
+	ErrorCode PathErrorCode
+	Entries   []PathReplyEntry
 }
 
 type PathReplyEntry struct {
@@ -108,8 +104,8 @@ func (iface *PathInterface) ISD_AS() *addr.ISD_AS {
 	return addr.IAFromInt(int(iface.RawIsdas))
 }
 
-func (entry PathInterface) String() string {
-	return fmt.Sprintf("%v.%v", entry.ISD_AS(), entry.IfID)
+func (iface PathInterface) String() string {
+	return fmt.Sprintf("%v.%v", iface.ISD_AS(), iface.IfID)
 }
 
 type ASInfoReq struct {
@@ -158,7 +154,18 @@ type IFInfoRequest struct {
 }
 
 type IFInfoReply struct {
-	Entries []IFInfoReplyEntry
+	RawEntries []IFInfoReplyEntry `capnp:"entries"`
+}
+
+// Entries maps IFIDs to their addresses and ports; the map is rebuilt each time.
+func (reply *IFInfoReply) Entries() map[uint64]HostInfo {
+	m := make(map[uint64]HostInfo)
+
+	for _, entry := range reply.RawEntries {
+		m[entry.IfID] = entry.HostInfo
+	}
+
+	return m
 }
 
 type IFInfoReplyEntry struct {
