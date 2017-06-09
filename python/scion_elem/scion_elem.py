@@ -170,9 +170,9 @@ class SCIONElement(object):
             self._DefaultMeta = UDPMetadata
         self.unverified_segs = set()
         self.unv_segs_lock = threading.RLock()
-        self.requested_trcs = defaultdict()
+        self.requested_trcs = {}
         self.req_trcs_lock = threading.Lock()
-        self.requested_certs = defaultdict()
+        self.requested_certs = {}
         self.req_certs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
@@ -270,7 +270,7 @@ class SCIONElement(object):
         except SCIONBaseError:
             log_exception("Error handling message:\n%s" % msg)
 
-    def check_trc_reqs(self):
+    def _check_trc_reqs(self):
         """
         Checks if TRC requests timeout and resends requests if so.
         """
@@ -284,7 +284,7 @@ class SCIONElement(object):
                     self.send_meta(trc_req, meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
 
-    def check_cert_reqs(self):
+    def _check_cert_reqs(self):
         """
         Checks if certificate requests timeout and resends requests if so.
         """
@@ -298,7 +298,7 @@ class SCIONElement(object):
                     self.send_meta(cert_req, meta)
                     self.requested_certs[(isd_as, ver)] = (time.time(), meta)
 
-    def process_path_seg(self, seg_meta):
+    def _process_path_seg(self, seg_meta):
         """
         When a pcb or path segment is received, this function is called to
         find missing TRCs and certs and request them.
@@ -320,8 +320,8 @@ class SCIONElement(object):
             self._try_to_verify_seg(seg_meta)
             return
         # Otherwise request missing trcs, certs
-        self.request_missing_trcs(seg_meta)
-        self.request_missing_certs(seg_meta)
+        self._request_missing_trcs(seg_meta)
+        self._request_missing_certs(seg_meta)
         if seg_meta.meta:
             seg_meta.meta.close()
 
@@ -342,7 +342,7 @@ class SCIONElement(object):
             seg_meta.meta.close()
         seg_meta.callback(seg_meta)
 
-    def get_cs(self):
+    def _get_cs(self):
         """
         Lookup certificate servers address and return meta.
         """
@@ -353,7 +353,7 @@ class SCIONElement(object):
             return None
         return UDPMetadata.from_values(host=addr, port=port)
 
-    def request_missing_trcs(self, seg_meta):
+    def _request_missing_trcs(self, seg_meta):
         """
         For all missing TRCs which are missing to verify this pcb/path segment,
         request them. Request is sent to certificate server, if the
@@ -373,7 +373,7 @@ class SCIONElement(object):
             trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta
             if not meta:
-                meta = self.get_cs()
+                meta = self._get_cs()
             if meta:
                 logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
                 with self.req_trcs_lock:
@@ -383,7 +383,7 @@ class SCIONElement(object):
                 logging.error("Couldn't find a CS to request TRC for PCB %s",
                               seg_meta.seg.short_id())
 
-    def request_missing_certs(self, seg_meta):
+    def _request_missing_certs(self, seg_meta):
         """
         For all missing CCs which are missing to verify this pcb/path segment,
         request them. Request is sent to certificate server, if the
@@ -402,7 +402,7 @@ class SCIONElement(object):
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta
             if not meta:
-                meta = self.get_cs()
+                meta = self._get_cs()
             if meta:
                 logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
                              isd_as, ver, meta, seg_meta.seg.short_id())
@@ -472,7 +472,7 @@ class SCIONElement(object):
                 del self.requested_trcs[(isd, ver)]
         # Send trc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
-            cs_meta = self.get_cs()
+            cs_meta = self._get_cs()
             self.send_meta(rep, cs_meta)
             cs_meta.close()
         # Remove received TRC from map
@@ -515,7 +515,7 @@ class SCIONElement(object):
                 del self.requested_certs[(isd_as, ver)]
         # Send cc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
-            cs_meta = self.get_cs()
+            cs_meta = self._get_cs()
             self.send_meta(rep, cs_meta)
             cs_meta.close()
         # Remove received cert chain from map

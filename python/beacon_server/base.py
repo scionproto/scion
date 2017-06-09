@@ -267,7 +267,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                           pcb.short_desc())
             return
         seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta)
-        self.process_path_seg(seg_meta)
+        self._process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -511,8 +511,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     logging.error("Error while registering segments: %s", e)
                     pass
                 last_registration = now
-            self.check_cert_reqs()
-            self.check_trc_reqs()
+            self._check_cert_reqs()
+            self._check_trc_reqs()
 
     def _became_master(self):
         """

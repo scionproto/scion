@@ -152,8 +152,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._update_master()
             self._propagate_and_sync()
             self._handle_pending_requests()
-            self.check_cert_reqs()
-            self.check_trc_reqs()
+            self._check_cert_reqs()
+            self._check_trc_reqs()
 
     def _update_master(self):
         pass
@@ -332,7 +332,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for type_, pcb in recs.iter_pcbs():
                 seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                        type_=type_, params={'from_zk': True})
-                self.process_path_seg(seg_meta)
+                self._process_path_seg(seg_meta)
         if raw_entries:
             logging.debug("Processed %s segments from ZK", len(raw_entries))
 
@@ -348,7 +348,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for type_, pcb in seg_recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
                                    type_, params)
-            self.process_path_seg(seg_meta)
+            self._process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
         """
