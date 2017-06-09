@@ -119,7 +119,7 @@ class SCIONElement(object):
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
     USE_TCP = False
     # Timeout for TRC or Certificate requests.
-    REQUESTS_TIMEOUT = 10
+    TRC_CC_REQ_TIMEOUT = 3
 
     def __init__(self, server_id, conf_dir, public=None, bind=None):
         """
@@ -275,10 +275,12 @@ class SCIONElement(object):
         Checks if TRC requests timeout and resends requests if so.
         """
         with self.req_trcs_lock:
+            now = time.time()
             for (isd, ver), (req_time, meta) in self.requested_trcs.items():
-                if time.time() - req_time >= self.REQUESTS_TIMEOUT:
-                    logging.info("Re-Requesting %sv%s TRC from %s", isd, ver, meta)
+                if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
                     trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+                    logging.info("Re-Requesting %sv%s TRC from %s: %s",
+                                 isd, ver, meta, trc_req.short_desc())
                     self.send_meta(trc_req, meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
 
@@ -287,10 +289,12 @@ class SCIONElement(object):
         Checks if certificate requests timeout and resends requests if so.
         """
         with self.req_certs_lock:
+            now = time.time()
             for (isd_as, ver), (req_time, meta) in self.requested_certs.items():
-                if time.time() - req_time >= self.REQUESTS_TIMEOUT:
-                    logging.info("Re-Requesting %sv%s CERTCHAIN from %s", isd_as, ver, meta)
+                if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
                     cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+                    logging.info("Re-Requesting %sv%s CERTCHAIN from %s: %s",
+                                 isd_as, ver, meta, cert_req.short_desc())
                     self.send_meta(cert_req, meta)
                     self.requested_certs[(isd_as, ver)] = (time.time(), meta)
 
