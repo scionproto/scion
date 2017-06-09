@@ -37,7 +37,7 @@ MAX_HOPBYHOP_EXT = 3
 LINE_LEN = 8
 
 #: Base path of project
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 #: Generated files directory
 GEN_PATH = 'gen'
 #: Topology configuration
