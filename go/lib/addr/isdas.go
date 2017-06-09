@@ -62,7 +62,11 @@ func IAFromString(s string) (*ISD_AS, error) {
 }
 
 func (ia *ISD_AS) Write(b common.RawBytes) {
-	common.Order.PutUint32(b, uint32((ia.I<<20)|(ia.A&0x000FFFFF)))
+	common.Order.PutUint32(b, ia.Uint32())
+}
+
+func (ia *ISD_AS) Uint32() uint32 {
+	return uint32((ia.I << 20) | (ia.A & 0x000FFFFF))
 }
 
 func (ia *ISD_AS) SizeOf() int {

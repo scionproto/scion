@@ -339,9 +339,9 @@ def get_as_info(isd_as=None, connector=None):  # pragma: no cover
 
 def get_if_info(if_list=None, connector=None):  # pragma: no cover
     """
-    Request addresses and ports of border routers.
+    Request addresses and ports of interfaces.
 
-    :param if_list: The interface IDs of BRs. If unset, all BRs are
+    :param if_list: The interface IDs of BRs. If empty, all interfaces are
         returned.
     :returns: Dict that maps from if_id to SCIONDIFInfoReplyEntry objects.
     """
