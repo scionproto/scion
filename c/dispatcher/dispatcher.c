@@ -48,6 +48,7 @@ FilterSocket *filter_socket = NULL;
 
 #define IS_REG_CMD(x) ((x) & 1)
 #define IS_SCMP_REQ(x) (((x) >> 1) & 1)
+#define IS_BIND_SOCKET(x) (((x) >> 2) & 1)
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr_in6 sockaddr_in6;
@@ -86,12 +87,27 @@ typedef struct Entry {
     UT_hash_handle pollhh;
 } Entry;
 
+typedef struct {
+    L4Key key;
+    L4Key bind_key;
+    UT_hash_handle hh;
+} L4AddrPair;
+
+typedef struct {
+    SVCKey key;
+    SVCKey bind_key;
+    UT_hash_handle hh;
+} SVCAddrPair;
+
 Entry *ssp_flow_list = NULL;
 Entry *ssp_wildcard_list = NULL;
 Entry *udp_port_list = NULL;
 Entry *poll_fd_list = NULL;
 
 SVCEntry *svc_list = NULL;
+
+L4AddrPair *l4_addr_list = NULL;
+SVCAddrPair *svc_addr_list = NULL;
 
 static struct pollfd sockets[MAX_SOCKETS];
 static int num_sockets;
@@ -547,9 +563,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         return NULL;
     }
 
-    SVCKey svc_key;
-    memset(&svc_key, 0, sizeof(SVCKey));
-
     int addr_len = get_addr_len(type);
     int end;
 
@@ -568,6 +581,27 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = addr_len + common;
+        if (IS_BIND_SOCKET(*buf)) {
+            /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
+               bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
+            L4AddrPair *ap = (L4AddrPair *)malloc(sizeof(L4AddrPair));
+            ap->key.port = port;
+            ap->key.isd_as = isd_as;
+            memcpy(ap->key.host, buf + common, addr_len);
+
+            uint16_t b_port = ntohs(*(uint16_t *)(buf + end));
+            uint8_t b_type = *(uint8_t *)(buf + end + 2);
+            int b_addr_len = get_addr_len(b_type);
+            ap->bind_key.port = b_port;
+            ap->bind_key.isd_as = isd_as;
+            memcpy(ap->bind_key.host, buf + end + 3, b_addr_len);
+
+            HASH_ADD(hh, l4_addr_list, bind_key, sizeof(L4Key), ap);
+            unsigned int cnt;
+            cnt = HASH_COUNT(l4_addr_list);
+
+            end = end + b_addr_len + 3;
+        }
         zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
     } else {
         zlog_error(zc, "unsupported L4 proto %d", proto);
@@ -585,10 +619,27 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->scmp = 1;
     }
 
+    SVCKey svc_key;
+    memset(&svc_key, 0, sizeof(SVCKey));
+
     if (len > end) {
-        memcpy(svc_key.host, buf + end - addr_len, addr_len);
+        if (proto == L4_SSP)
+            memcpy(svc_key.host, buf + common + 8, addr_len);
+        else
+            memcpy(svc_key.host, buf + common, addr_len);
         svc_key.addr = ntohs(*(uint16_t *)(buf + end));
         svc_key.isd_as = isd_as;
+
+        if (IS_BIND_SOCKET(*buf)) {
+            SVCAddrPair *sp = (SVCAddrPair *)malloc(sizeof(SVCAddrPair));
+            sp->key = svc_key;
+            sp->bind_key.addr = svc_key.addr;
+            sp->bind_key.isd_as = isd_as;
+            memcpy(sp->bind_key.host, buf + end - addr_len, addr_len);
+            HASH_ADD(hh, svc_addr_list, bind_key, sizeof(SVCKey), sp);
+            unsigned int cnt;
+            cnt = HASH_COUNT(svc_addr_list);
+        }
         zlog_info(zc, "SVC (%d) registration included", svc_key.addr);
         SVCEntry *se;
         HASH_FIND(hh, svc_list, &svc_key, sizeof(svc_key), se);
@@ -810,6 +861,12 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     key.isd_as = get_dst_isd_as(buf);
     memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
 
+    L4AddrPair *ap;
+    HASH_FIND(hh, l4_addr_list, &key, sizeof(L4Key), ap);
+    if (ap) {
+        key = ap->key;
+    }
+
     Entry *e;
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
@@ -831,6 +888,13 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     svc_key.addr = addr & ~SVC_MULTICAST;  // Mask off top multicast bit
     svc_key.isd_as = get_dst_isd_as(buf);
     memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
+
+    SVCAddrPair *sp;
+    HASH_FIND(hh, svc_addr_list, &svc_key, sizeof(SVCKey), sp);
+    if (sp) {
+        svc_key = sp->key;
+    }
+
     SVCEntry *se;
     HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
     if (!se) {
