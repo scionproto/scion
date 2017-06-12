@@ -98,7 +98,7 @@ from lib.thread import thread_safety_net, kill_self
 from lib.trust_store import TrustStore
 from lib.types import AddrType, L4Proto, PayloadClass
 from lib.topology import Topology
-from lib.util import hex_str
+from lib.util import hex_str, sleep_interval
 
 
 MAX_QUEUE = 50
@@ -118,6 +118,8 @@ class SCIONElement(object):
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
     USE_TCP = False
+    # Timeout for TRC or Certificate requests.
+    TRC_CC_REQ_TIMEOUT = 3
 
     def __init__(self, server_id, conf_dir, public=None, bind=None):
         """
@@ -168,9 +170,9 @@ class SCIONElement(object):
             self._DefaultMeta = UDPMetadata
         self.unverified_segs = set()
         self.unv_segs_lock = threading.RLock()
-        self.requested_trcs = set()
+        self.requested_trcs = {}
         self.req_trcs_lock = threading.Lock()
-        self.requested_certs = set()
+        self.requested_certs = {}
         self.req_certs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
@@ -268,7 +270,41 @@ class SCIONElement(object):
         except SCIONBaseError:
             log_exception("Error handling message:\n%s" % msg)
 
-    def process_path_seg(self, seg_meta):
+    def _check_trc_cert_reqs(self):
+        check_cyle = 1.0
+        while self.run_flag.is_set():
+            start = time.time()
+            self._check_cert_reqs()
+            self._check_trc_reqs()
+            sleep_interval(start, check_cyle, "Elem._check_trc_cert_reqs cycle")
+
+    def _check_trc_reqs(self):
+        """
+        Checks if TRC requests timeout and resends requests if so.
+        """
+        with self.req_trcs_lock:
+            now = time.time()
+            for (isd, ver), (req_time, meta) in self.requested_trcs.items():
+                if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
+                    trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+                    logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
+                    self.send_meta(trc_req, meta)
+                    self.requested_trcs[(isd, ver)] = (time.time(), meta)
+
+    def _check_cert_reqs(self):
+        """
+        Checks if certificate requests timeout and resends requests if so.
+        """
+        with self.req_certs_lock:
+            now = time.time()
+            for (isd_as, ver), (req_time, meta) in self.requested_certs.items():
+                if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
+                    cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+                    logging.info("Re-Requesting CERTCHAIN from %s: %s", meta, cert_req.short_desc())
+                    self.send_meta(cert_req, meta)
+                    self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+
+    def _process_path_seg(self, seg_meta):
         """
         When a pcb or path segment is received, this function is called to
         find missing TRCs and certs and request them.
@@ -290,8 +326,8 @@ class SCIONElement(object):
             self._try_to_verify_seg(seg_meta)
             return
         # Otherwise request missing trcs, certs
-        self.request_missing_trcs(seg_meta)
-        self.request_missing_certs(seg_meta)
+        self._request_missing_trcs(seg_meta)
+        self._request_missing_certs(seg_meta)
         if seg_meta.meta:
             seg_meta.meta.close()
 
@@ -312,7 +348,7 @@ class SCIONElement(object):
             seg_meta.meta.close()
         seg_meta.callback(seg_meta)
 
-    def get_cs(self):
+    def _get_cs(self):
         """
         Lookup certificate servers address and return meta.
         """
@@ -323,7 +359,7 @@ class SCIONElement(object):
             return None
         return UDPMetadata.from_values(host=addr, port=port)
 
-    def request_missing_trcs(self, seg_meta):
+    def _request_missing_trcs(self, seg_meta):
         """
         For all missing TRCs which are missing to verify this pcb/path segment,
         request them. Request is sent to certificate server, if the
@@ -339,18 +375,20 @@ class SCIONElement(object):
             with self.req_trcs_lock:
                 if (isd, ver) in self.requested_trcs:
                     continue
-                self.requested_trcs.add((isd, ver))
             isd_as = ISD_AS.from_values(isd, 0)
             trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
-            logging.info("Requesting %sv%s TRC for PCB %s", isd, ver, seg_meta.seg.short_id())
-            if not seg_meta.meta:
-                meta = self.get_cs()
-                if meta:
-                    self.send_meta(trc_req, meta)
-            else:
-                self.send_meta(trc_req, seg_meta.meta)
+            meta = seg_meta.meta or self._get_cs()
+            if not meta:
+                logging.error("Couldn't find a CS to request TRC for PCB %s",
+                              seg_meta.seg.short_id())
+                continue
+            logging.info("Requesting %sv%s TRC from %s, for PCB %s",
+                         isd, ver, meta, seg_meta.seg.short_id())
+            with self.req_trcs_lock:
+                self.requested_trcs[(isd, ver)] = (time.time(), meta)
+            self.send_meta(trc_req, meta)
 
-    def request_missing_certs(self, seg_meta):
+    def _request_missing_certs(self, seg_meta):
         """
         For all missing CCs which are missing to verify this pcb/path segment,
         request them. Request is sent to certificate server, if the
@@ -366,18 +404,17 @@ class SCIONElement(object):
             with self.req_certs_lock:
                 if (isd_as, ver) in self.requested_certs:
                     continue
-                self.requested_certs.add((isd_as, ver))
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
-            meta = seg_meta.meta
+            meta = seg_meta.meta or self._get_cs()
             if not meta:
-                meta = self.get_cs()
-            if meta:
-                logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
-                             isd_as, ver, meta, seg_meta.seg.short_id())
-                self.send_meta(cert_req, meta)
-            else:
                 logging.error("Couldn't find a CS to request CERTCHAIN for PCB %s",
                               seg_meta.seg.short_id())
+                continue
+            logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
+                         isd_as, ver, meta, seg_meta.seg.short_id())
+            with self.req_certs_lock:
+                self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+            self.send_meta(cert_req, meta)
 
     def _missing_trc_versions(self, trc_versions):
         """
@@ -434,10 +471,10 @@ class SCIONElement(object):
         if max_local_ver.version == rep.trc.version:
             self._update_core_ases(rep.trc)
         with self.req_trcs_lock:
-            self.requested_trcs.discard((isd, ver))
+            self.requested_trcs.pop((isd, ver), None)
         # Send trc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
-            cs_meta = self.get_cs()
+            cs_meta = self._get_cs()
             self.send_meta(rep, cs_meta)
             cs_meta.close()
         # Remove received TRC from map
@@ -476,10 +513,10 @@ class SCIONElement(object):
         logging.info("Cert chain reply received for %sv%s from %s" % (isd_as, ver, meta))
         self.trust_store.add_cert(rep.chain, True)
         with self.req_certs_lock:
-            self.requested_certs.discard((isd_as, ver))
+            self.requested_certs.pop((isd_as, ver), None)
         # Send cc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
-            cs_meta = self.get_cs()
+            cs_meta = self._get_cs()
             self.send_meta(rep, cs_meta)
             cs_meta.close()
         # Remove received cert chain from map
