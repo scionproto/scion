@@ -564,6 +564,9 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
 
     int addr_len = get_addr_len(type);
+    int port_len = 2;
+    int type_len = 1;
+    int flow_id_len = 8;
     int end;
 
     if (proto == L4_SSP) {
@@ -571,8 +574,8 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.flow_id = *(uint64_t *)(buf + common);
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
-        memcpy(e->l4_key.host, buf + common + 8, addr_len);
-        end = addr_len + common + 8;
+        memcpy(e->l4_key.host, buf + common + flow_id_len, addr_len);
+        end = common + flow_id_len + addr_len;
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
@@ -580,7 +583,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
-        end = addr_len + common;
+        end = common + addr_len;
         if (IS_BIND_SOCKET(*buf)) {
             /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
                bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
@@ -594,18 +597,21 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
             ap->key.isd_as = isd_as;
             memcpy(ap->key.host, buf + common, addr_len);
 
+            int b_port_len = port_len;
+            int b_type_len = type_len;
+
             uint16_t b_port = ntohs(*(uint16_t *)(buf + end));
-            uint8_t b_type = *(uint8_t *)(buf + end + 2);
+            uint8_t b_type = *(uint8_t *)(buf + end + b_port_len);
             int b_addr_len = get_addr_len(b_type);
             ap->bind_key.port = b_port;
             ap->bind_key.isd_as = isd_as;
-            memcpy(ap->bind_key.host, buf + end + 3, b_addr_len);
+            memcpy(ap->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
 
             HASH_ADD(hh, l4_addr_list, bind_key, sizeof(L4Key), ap);
             unsigned int cnt;
             cnt = HASH_COUNT(l4_addr_list);
 
-            end = end + b_addr_len + 3;
+            end = end + b_port_len + b_type_len + b_addr_len;
         }
         zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
     } else {
@@ -629,7 +635,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 
     if (len > end) {
         if (proto == L4_SSP)
-            memcpy(svc_key.host, buf + common + 8, addr_len);
+            memcpy(svc_key.host, buf + common + flow_id_len, addr_len);
         else
             memcpy(svc_key.host, buf + common, addr_len);
         svc_key.addr = ntohs(*(uint16_t *)(buf + end));
