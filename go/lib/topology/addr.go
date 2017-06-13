@@ -337,6 +337,11 @@ func (ti1 *topoAddrInt) equal(ti2 *topoAddrInt) bool {
 	return true
 }
 
+func (til *topoAddrInt) String() string {
+	return fmt.Sprintf("public: [%s]:%d bind: [%s]:%d overlayPort: %d",
+		til.pubIP, til.pubL4Port, til.bindIP, til.bindL4Port, til.OverlayPort)
+}
+
 func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
 	if t1.Overlay != t2.Overlay {
 		return false
@@ -348,4 +353,26 @@ func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
 		return false
 	}
 	return true
+}
+
+// Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
+func localTopoAddrFromBrInt(b RawBRIntf, o overlay.Type) (*TopoAddr, *common.Error) {
+	s := &RawAddrInfo{
+		Public: []RawAddrPortOverlay{
+			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
+		},
+	}
+	if b.Bind != nil {
+		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
+	}
+	return s.ToTopoAddr(o)
+}
+
+// make an AddrInfo object from a BR interface Remote entry
+func remoteAddrInfoFromBrInt(b RawBRIntf, o overlay.Type) (*AddrInfo, *common.Error) {
+	ip := net.ParseIP(b.Remote.Addr)
+	if ip == nil {
+		return nil, common.NewError("Could not parse remote IP from string", "ip", b.Remote.Addr)
+	}
+	return &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}, nil
 }
