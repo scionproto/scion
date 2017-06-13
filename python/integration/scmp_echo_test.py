@@ -26,13 +26,13 @@ from lib.packet.scmp.info import SCMPInfoEcho
 from lib.packet.scmp.payload import SCMPPayload
 from lib.packet.scmp.hdr import SCMPHeader
 from lib.packet.scmp.types import SCMPClass, SCMPGeneralClass
-from lib.thread import kill_self
 from lib.types import L4Proto
 from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
     TestClientServerBase,
     TestServerBase,
+    ResponseRV
 )
 
 
@@ -61,10 +61,11 @@ class SCMPEchoClient(TestClientBase):
                 l4.type == SCMPGeneralClass.ECHO_REPLY and
                 pld.info.id == self.info.id and
                 pld.info.seq == self.info.seq):
-            logging.info("Success!\n%s", spkt)
+            logging.debug("Success!\n%s", spkt)
+            return ResponseRV.SUCCESS
         else:
             logging.error("Failure:\n%s", spkt)
-            kill_self()
+            return ResponseRV.FAILURE
 
 
 class SCMPEchoServer(TestServerBase):
@@ -76,7 +77,7 @@ class SCMPEchoServer(TestServerBase):
         pass
 
     def run(self):
-        self.done = True
+        self.success = True
 
 
 class TestSCMPEcho(TestClientServerBase):
