@@ -19,7 +19,6 @@
 import logging
 
 # SCION
-from lib.cache.base import CacheFullException
 from lib.cache.seg import SegmentCache
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
@@ -94,11 +93,7 @@ class CorePathServer(PathServer):
                 if not pcb.is_sibra() and key in seen_ases:
                     continue
                 seen_ases.add(key)
-                try:
-                    self._segs_to_master.add(pcb, (hash(pcb), seg_type))
-                except CacheFullException as e:
-                    logging.warning("Adding %s to SegsToMaster cache failed: %s",
-                                    pcb.short_desc(), e)
+                self._segs_to_master.add(pcb, (hash(pcb), seg_type))
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -112,18 +107,10 @@ class CorePathServer(PathServer):
         if first_ia == self.addr.isd_as:
             # Segment is to us, so propagate to all other core ASes within the
             # local ISD.
-            try:
-                self._segs_to_prop.add(pcb, (hash(pcb), PST.DOWN))
-            except CacheFullException as e:
-                logging.warning("Adding %s to SegsToProp cache failed: %s",
-                                pcb.short_desc(), e)
+            self._segs_to_prop.add(pcb, (hash(pcb), PST.DOWN))
         if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not from_zk):
             # Sync all local down segs via zk
-            try:
-                self._segs_to_zk.add(pcb, (hash(pcb), PST.DOWN))
-            except CacheFullException as e:
-                logging.warning("Adding %s to SegsToZK cache failed: %s",
-                                pcb.short_desc(), e)
+            self._segs_to_zk.add(pcb, (hash(pcb), PST.DOWN))
         if added:
             return set([(last_ia, pcb.is_sibra())])
         return set()
@@ -140,18 +127,10 @@ class CorePathServer(PathServer):
         if not from_zk and not from_master:
             if first_ia[0] == self.addr.isd_as[0]:
                 # Local core segment, share via ZK
-                try:
-                    self._segs_to_zk.add(pcb, (hash(pcb), PST.CORE))
-                except CacheFullException as e:
-                    logging.warning("Adding %s to SegsToZK cache failed: %s",
-                                    pcb.short_desc(), e)
+                self._segs_to_zk.add(pcb, (hash(pcb), PST.CORE))
             else:
                 # Remote core segment, send to master
-                try:
-                    self._segs_to_master.add(pcb, (hash(pcb), PST.CORE))
-                except CacheFullException as e:
-                    logging.warning("Adding %s to SegsToMaster cache failed: %s",
-                                    pcb.short_desc(), e)
+                self._segs_to_master.add(pcb, (hash(pcb), PST.CORE))
         if not added:
             return set()
         # Send pending requests that couldn't be processed due to the lack of

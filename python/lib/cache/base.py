@@ -49,8 +49,7 @@ class Cache:
     def popitem(self, last=True):
         """
         Returns and removes a (key, value) pair. The pairs are returned in
-        LIFO order if last is true or FIFO order if false. Raises CacheEmptyException
-        if there is no item to pop.
+        LIFO order if last is true or FIFO order if false.
         """
         with self._lock:
             # Pop items until a non expired one is returned or the dictionary is empty.

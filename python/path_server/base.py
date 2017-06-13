@@ -27,7 +27,7 @@ from threading import Lock
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from lib.cache.base import CacheEmptyException, CacheFullException
+from lib.cache.base import CacheEmptyException
 from lib.cache.rev import RevCache
 from lib.cache.seg import SegmentCache
 from lib.crypto.hash_tree import ConnectedHashTree
@@ -221,11 +221,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return False
         self.revocations.add(rev_info)
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        try:
-            self._revs_to_zk.add(rev_info.copy())
-        except CacheFullException as e:
-            logging.warning("Adding %s to RevsToZK cache failed: %s",
-                            rev_info.short_desc(), e)
+        self._revs_to_zk.add(rev_info.copy())
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
