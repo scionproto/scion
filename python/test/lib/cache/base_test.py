@@ -22,7 +22,7 @@ from unittest.mock import call
 import nose.tools as ntools
 
 # SCION
-from lib.cache.base import Cache, CacheEmptyException, CacheFullException
+from lib.cache.base import Cache, CacheEmptyException
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
@@ -183,7 +183,7 @@ class TestCacheAdd:
         assert_these_calls(cache.get, [call(key2)])
         assert_these_calls(cache._expire_entry, [call(key1, entry1)])
 
-    def test_with_no_free_up(self):
+    def test_with_overwrite(self):
         key1 = "key1"
         key2 = "key2"
         entry1 = "entry1"
@@ -200,10 +200,10 @@ class TestCacheAdd:
         cache.get = create_mock()
         cache.get.return_value = None
         # Call
-        ntools.assert_raises(CacheFullException, cache.add, entry2)
+        ntools.assert_true(cache.add(entry2))
         # Tests
-        ntools.assert_true(key1 in cache._cache)
-        ntools.assert_false(key2 in cache._cache)
+        ntools.assert_false(key1 in cache._cache)
+        ntools.assert_true(key2 in cache._cache)
         assert_these_calls(cache._validate_entry, [call(entry2)])
         assert_these_calls(cache._mk_key, [call(entry2)])
         assert_these_calls(cache.get, [call(key2)])

@@ -20,10 +20,6 @@ import threading
 from collections import OrderedDict
 
 
-class CacheFullException(Exception):
-    """Cache is full exception."""
-
-
 class CacheEmptyException(Exception):
     """Cache is empty exception."""
 
@@ -89,14 +85,14 @@ class Cache:
             key = key or self._mk_key(entry)
             stored_entry = self.get(key)
             if not stored_entry:
-                # Try to free up space in case the cache reaches the cap limit.
+                # Try to free up space in case the cache reaches the cap limit by removing
+                # expired entries.
                 if len(self._cache) >= self._capacity:
                     for k, e in list(self._cache.items()):
                         self._expire_entry(k, e)
-                # Couldn't free up enough space...
+                # Couldn't free up enough space, evict the oldest entry.
                 if len(self._cache) >= self._capacity:
-                    raise CacheFullException(
-                        "Cache at max capacity (%d)." % self._capacity)
+                    self._cache.popitem(last=False)
                 self._cache[key] = entry
                 return True
             if self._is_newer(entry, stored_entry):
