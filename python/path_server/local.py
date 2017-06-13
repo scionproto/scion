@@ -19,6 +19,7 @@
 import logging
 
 # SCION
+from lib.cache.base import CacheFullException
 from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -43,7 +44,11 @@ class LocalPathServer(PathServer):
 
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
-            self._segs_to_zk.append((PST.UP, pcb))
+            try:
+                self._segs_to_zk.add(pcb, (hash(pcb), PST.UP))
+            except CacheFullException as e:
+                logging.warning("Adding %s to SegsToZK cache failed: %s",
+                                pcb.short_desc(), e)
         if self._add_segment(pcb, self.up_segments, "Up"):
             # Sending pending targets to the core using first registered
             # up-segment.

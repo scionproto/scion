@@ -22,7 +22,7 @@ from unittest.mock import call
 import nose.tools as ntools
 
 # SCION
-from lib.cache.base import Cache, CacheFullException
+from lib.cache.base import Cache, CacheEmptyException, CacheFullException
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
@@ -40,7 +40,7 @@ class TestCacheGet:
         # Call
         ntools.eq_(cache.get(key, default=default), entry)
         # Tests
-        assert_these_calls(cache._expire_entry, [call(entry)])
+        assert_these_calls(cache._expire_entry, [call(key, entry)])
 
     def test_missing_entry(self):
         key = "key"
@@ -60,7 +60,7 @@ class TestCacheGet:
         # Call
         ntools.eq_(cache.get(key, default=default), default)
         # Tests
-        assert_these_calls(cache._expire_entry, [call(entry)])
+        assert_these_calls(cache._expire_entry, [call(key, entry)])
 
 
 class TestCacheAdd:
@@ -83,6 +83,23 @@ class TestCacheAdd:
         # Tests
         ntools.eq_(cache._cache[key], entry)
         assert_these_calls(cache._validate_entry, [call(entry)])
+        assert_these_calls(cache._mk_key, [call(entry)])
+        assert_these_calls(cache.get, [call(key)])
+
+    def test_with_key(self):
+        key = "key"
+        entry = "entry"
+        cache = Cache()
+        cache._mk_key = create_mock_full(return_value=key)
+        cache._validate_entry = create_mock_full(return_value=True)
+        cache.get = create_mock()
+        cache.get.return_value = None
+        # Call
+        ntools.assert_true(cache.add(entry, key))
+        # Tests
+        ntools.eq_(cache._cache[key], entry)
+        assert_these_calls(cache._validate_entry, [call(entry)])
+        ntools.assert_false(cache._mk_key.called)
         assert_these_calls(cache.get, [call(key)])
 
     def test_invalid_entry(self):
@@ -143,9 +160,9 @@ class TestCacheAdd:
         def validate_entry_side_effect(entry):
             return entry == entry2
 
-        def expire_entry_side_effect(entry):
-            if entry == entry1:
-                del cache._cache[key1]
+        def expire_entry_side_effect(key, entry):
+            if key == key1:
+                del cache._cache[key]
                 return True
             return False
 
@@ -164,7 +181,7 @@ class TestCacheAdd:
         assert_these_calls(cache._validate_entry, [call(entry2)])
         assert_these_calls(cache._mk_key, [call(entry2)])
         assert_these_calls(cache.get, [call(key2)])
-        assert_these_calls(cache._expire_entry, [call(entry1)])
+        assert_these_calls(cache._expire_entry, [call(key1, entry1)])
 
     def test_with_no_free_up(self):
         key1 = "key1"
@@ -190,4 +207,63 @@ class TestCacheAdd:
         assert_these_calls(cache._validate_entry, [call(entry2)])
         assert_these_calls(cache._mk_key, [call(entry2)])
         assert_these_calls(cache.get, [call(key2)])
-        assert_these_calls(cache._expire_entry, [call(entry1)])
+        assert_these_calls(cache._expire_entry, [call(key1, entry1)])
+
+
+class TestCachePopitem:
+    """Unit tests for lib.cache.base.Cache.popitem."""
+    def test_first(self):
+        key1, key2 = "key1", "key2"
+        entry1, entry2 = "entry1", "entry2"
+        cache = Cache()
+        cache._validate_entry = create_mock_full(return_value=True)
+        cache._cache[key1] = entry1
+        cache._cache[key2] = entry2
+        # Call
+        ntools.eq_(cache.popitem(last=False), (key1, entry1))
+        # Tests
+        ntools.assert_true(key1 not in cache._cache)
+        ntools.assert_true(key2 in cache._cache)
+        assert_these_calls(cache._validate_entry, [call(entry1)])
+
+    def test_last(self):
+        key1, key2 = "key1", "key2"
+        entry1, entry2 = "entry1", "entry2"
+        cache = Cache()
+        cache._validate_entry = create_mock_full(return_value=True)
+        cache._cache[key1] = entry1
+        cache._cache[key2] = entry2
+        # Call
+        ntools.eq_(cache.popitem(), (key2, entry2))
+        # Tests
+        ntools.assert_true(key2 not in cache._cache)
+        ntools.assert_true(key1 in cache._cache)
+        assert_these_calls(cache._validate_entry, [call(entry2)])
+
+    def test_with_expired(self):
+        key1, key2 = "key1", "key2"
+        entry1, entry2 = "entry1", "entry2"
+
+        cache = Cache()
+        cache._cache[key1] = entry1
+        cache._cache[key2] = entry2
+
+        def validate_entry_side_effect(entry):
+            return entry == entry1
+
+        cache._validate_entry = create_mock_full(side_effect=validate_entry_side_effect)
+        # Call
+        ntools.eq_(cache.popitem(), (key1, entry1))
+        # Tests
+        ntools.eq_(len(cache), 0)
+        assert_these_calls(cache._validate_entry, [call(entry2), call(entry1)])
+
+    def test_empty(self):
+        key1, key2 = "key1", "key2"
+        entry1, entry2 = "entry1", "entry2"
+        cache = Cache()
+        cache._cache[key1] = entry1
+        cache._cache[key2] = entry2
+        cache._validate_entry = create_mock_full(return_value=False)
+        # Call
+        ntools.assert_raises(CacheEmptyException, cache.popitem)

@@ -17,9 +17,10 @@
 """
 # Stdlib
 import logging
-from collections import deque
 
 # SCION
+from lib.cache.base import CacheFullException
+from lib.cache.seg import SegmentCache
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
@@ -44,8 +45,8 @@ class CorePathServer(PathServer):
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.
-        self._segs_to_master = deque()
-        self._segs_to_prop = deque()
+        self._segs_to_master = SegmentCache()
+        self._segs_to_prop = SegmentCache()
 
     def _update_master(self):
         """
@@ -93,7 +94,11 @@ class CorePathServer(PathServer):
                 if not pcb.is_sibra() and key in seen_ases:
                     continue
                 seen_ases.add(key)
-                self._segs_to_master.append((seg_type, pcb))
+                try:
+                    self._segs_to_master.add(pcb, (hash(pcb), seg_type))
+                except CacheFullException as e:
+                    logging.warning("Adding %s to SegsToMaster cache failed: %s",
+                                    pcb.short_desc(), e)
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -107,10 +112,18 @@ class CorePathServer(PathServer):
         if first_ia == self.addr.isd_as:
             # Segment is to us, so propagate to all other core ASes within the
             # local ISD.
-            self._segs_to_prop.append((PST.DOWN, pcb))
+            try:
+                self._segs_to_prop.add(pcb, (hash(pcb), PST.DOWN))
+            except CacheFullException as e:
+                logging.warning("Adding %s to SegsToProp cache failed: %s",
+                                pcb.short_desc(), e)
         if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not from_zk):
             # Sync all local down segs via zk
-            self._segs_to_zk.append((PST.DOWN, pcb))
+            try:
+                self._segs_to_zk.add(pcb, (hash(pcb), PST.DOWN))
+            except CacheFullException as e:
+                logging.warning("Adding %s to SegsToZK cache failed: %s",
+                                pcb.short_desc(), e)
         if added:
             return set([(last_ia, pcb.is_sibra())])
         return set()
@@ -127,10 +140,18 @@ class CorePathServer(PathServer):
         if not from_zk and not from_master:
             if first_ia[0] == self.addr.isd_as[0]:
                 # Local core segment, share via ZK
-                self._segs_to_zk.append((PST.CORE, pcb))
+                try:
+                    self._segs_to_zk.add(pcb, (hash(pcb), PST.CORE))
+                except CacheFullException as e:
+                    logging.warning("Adding %s to SegsToZK cache failed: %s",
+                                    pcb.short_desc(), e)
             else:
                 # Remote core segment, send to master
-                self._segs_to_master.append((PST.CORE, pcb))
+                try:
+                    self._segs_to_master.add(pcb, (hash(pcb), PST.CORE)):
+                except CacheFullException as e:
+                    logging.warning("Adding %s to SegsToMaster cache failed: %s",
+                                    pcb.short_desc(), e)
         if not added:
             return set()
         # Send pending requests that couldn't be processed due to the lack of
@@ -160,10 +181,11 @@ class CorePathServer(PathServer):
         assert self.zk.have_lock()
         if not self._segs_to_prop:
             return
-        logging.debug("Propagating %d segment(s) to other core ASes",
-                      len(self._segs_to_prop))
         for pcbs in self._gen_prop_recs(self._segs_to_prop):
-            self._propagate_to_core_ases(PathRecordsReply.from_values(pcbs))
+            reply = PathRecordsReply.from_values(pcbs)
+            logging.debug("Propagating %d segments to other core ASes: %s", reply.num_segs(),
+                          ", ".join([seg.short_id() for _, seg in reply.iter_pcbs()]))
+            self._propagate_to_core_ases(reply)
 
     def _prop_to_master(self):
         assert not self.zk.have_lock()
@@ -172,10 +194,11 @@ class CorePathServer(PathServer):
             return
         if not self._segs_to_master:
             return
-        logging.debug("Propagating %d segment(s) to master PS: %s",
-                      len(self._segs_to_master), self._master_id)
         for pcbs in self._gen_prop_recs(self._segs_to_master):
-            self._send_to_master(PathRecordsReply.from_values(pcbs))
+            reply = PathRecordsReply.from_values(pcbs)
+            logging.debug("Propagating %d segments to master: %s", reply.num_segs(),
+                          ", ".join([seg.short_id() for _, seg in reply.iter_pcbs()]))
+            self._send_to_master(reply)
 
     def _send_to_master(self, pld):
         """

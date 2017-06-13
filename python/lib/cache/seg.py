@@ -28,4 +28,4 @@ class SegmentCache(Cache):  # pragma: no cover
         return seg1.get_timestamp() > seg2.get_timestamp()
 
     def _validate_entry(self, seg):
-        return seg.get_expiration_time() < time.time()
+        return seg.get_expiration_time() > time.time()

@@ -19,7 +19,7 @@
 import logging
 import random
 import threading
-from collections import defaultdict, deque
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 
@@ -27,7 +27,9 @@ from threading import Lock
 from external.expiring_dict import ExpiringDict
 
 # SCION
+from lib.cache.base import CacheEmptyException, CacheFullException
 from lib.cache.rev import RevCache
+from lib.cache.seg import SegmentCache
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
@@ -111,8 +113,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
             },
         }
-        self._segs_to_zk = deque()
-        self._revs_to_zk = deque()
+        self._segs_to_zk = SegmentCache()
+        self._revs_to_zk = RevCache()
         self._zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                       [(self.addr.host, self._port)])
         self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE,
@@ -219,7 +221,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return False
         self.revocations.add(rev_info)
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
+        try:
+            self._revs_to_zk.add(rev_info.copy())
+        except CacheFullException as e:
+            logging.warning("Adding %s to RevsToZK cache failed: %s",
+                            rev_info.short_desc(), e)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
@@ -416,12 +422,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self._share_via_zk()
         self._share_revs_via_zk()
 
-    def _gen_prop_recs(self, queue, limit=PROP_LIMIT):
+    def _gen_prop_recs(self, cache, limit=PROP_LIMIT):
         count = 0
         pcbs = defaultdict(list)
-        while queue:
+        while cache:
             count += 1
-            type_, pcb = queue.popleft()
+            try:
+                (id_, type_), pcb = cache.popleft()
+            except CacheEmptyException:
+                break
             pcbs[type_].append(pcb.copy())
             if count >= limit:
                 yield(pcbs)
@@ -474,7 +483,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return
         logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
         while self._revs_to_zk:
-            self._zk_write_rev(self._revs_to_zk.popleft())
+            try:
+                _, rev_info = self._revs_to_zk.popleft()
+            except CacheEmptyException:
+                break
+            self._zk_write_rev(rev_info.pack())
 
     def _zk_write(self, data):
         hash_ = crypto_hash(data).hex()

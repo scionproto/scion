@@ -17,27 +17,54 @@
 """
 # Stdlib
 import threading
+from collections import OrderedDict
 
 
 class CacheFullException(Exception):
     """Cache is full exception."""
 
 
+class CacheEmptyException(Exception):
+    """Cache is empty exception."""
+
+
 class Cache:
     """Thread-safe cache with auto expiration of entries."""
 
     def __init__(self, capacity=1000):  # pragma: no cover
-        self._cache = {}
+        self._cache = OrderedDict()
         self._lock = threading.RLock()
         self._capacity = capacity
 
     def __contains__(self, key):  # pragma: no cover
         with self._lock:
             stored_entry = self._cache.get(key)
-            return stored_entry and not self._expire_entry(stored_entry)
+            return stored_entry and not self._expire_entry(key, stored_entry)
 
     def __getitem__(self, key):  # pragma: no cover
         return self.get(key)
+
+    def __len__(self):  # pragma: no cover
+        return len(self._cache)
+
+    def popleft(self):  # pragma: no cover
+        return self.popitem(last=False)
+
+    def popitem(self, last=True):
+        """
+        Returns and removes a (key, value) pair. The pairs are returned in
+        LIFO order if last is true or FIFO order if false. Raises CacheEmptyException
+        if there is no item to pop.
+        """
+        with self._lock:
+            # Pop items until a non expired one is returned or the dictionary is empty.
+            while True:
+                try:
+                    key, entry = self._cache.popitem(last=last)
+                except KeyError:
+                    raise CacheEmptyException
+                if self._validate_entry(entry):
+                    return key, entry
 
     def get(self, key, default=None):
         with self._lock:
@@ -45,11 +72,11 @@ class Cache:
                 entry = self._cache[key]
             except KeyError:
                 return default
-            if not self._expire_entry(entry):
+            if not self._expire_entry(key, entry):
                 return entry
             return default
 
-    def add(self, entry):
+    def add(self, entry, key=None):
         """
         Adds entry to the cache.
 
@@ -59,13 +86,13 @@ class Cache:
         if not self._validate_entry(entry):
             return False
         with self._lock:
-            key = self._mk_key(entry)
+            key = key or self._mk_key(entry)
             stored_entry = self.get(key)
             if not stored_entry:
                 # Try to free up space in case the cache reaches the cap limit.
                 if len(self._cache) >= self._capacity:
-                    for e in list(self._cache.values()):
-                        self._expire_entry(e)
+                    for k, e in list(self._cache.items()):
+                        self._expire_entry(k, e)
                 # Couldn't free up enough space...
                 if len(self._cache) >= self._capacity:
                     raise CacheFullException(
@@ -77,16 +104,20 @@ class Cache:
                 return True
             return False
 
+    def clear(self):  # pragma: no cover
+        with self._lock:
+            self._cache = OrderedDict()
+
     def _mk_key(self, entry):  # pragma: no cover
         return hash(entry)
 
     def _is_newer(self, e1, e2):  # pragma: no cover
         return e1 > e2
 
-    def _expire_entry(self, entry):  # pragma: no cover
+    def _expire_entry(self, key, entry):  # pragma: no cover
         """Removes an expired entry from the cache."""
         if not self._validate_entry(entry):
-            del self._cache[self._mk_key(entry)]
+            del self._cache[key]
             return True
         return False
 
