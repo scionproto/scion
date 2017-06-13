@@ -10,7 +10,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
-#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -96,8 +95,7 @@ typedef struct Entry {
 typedef struct PingEntry {
     int sock;
     uint16_t id;
-    uint16_t seq;
-    TAILQ_ENTRY(PingEntry) entries;
+    UT_hash_handle hh;
 } PingEntry;
 
 Entry *ssp_flow_list = NULL;
@@ -160,10 +158,8 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 #endif
 char socket_path[UNIX_PATH_MAX];
 
-#define MAX_NUMBER_PINGS 1028
-PingEntry ping_entries[MAX_NUMBER_PINGS];
-TAILQ_HEAD(PingListHead, PingEntry) ping_list;
-struct PingListHead ping_empty_list;
+#define MAX_NUMBER_PINGS MAX_SOCKETS
+PingEntry *ping_list = NULL;
 
 int main(int argc, char **argv)
 {
@@ -210,12 +206,6 @@ int main(int argc, char **argv)
 
     if (init_tcpmw() < 0)
         return -1;
-
-    TAILQ_INIT(&ping_list);
-    TAILQ_INIT(&ping_empty_list);
-    for(int i = 0; i < MAX_NUMBER_PINGS; i++){
-        TAILQ_INSERT_HEAD(&ping_empty_list, ping_entries + i, entries);
-    }
 
     res = run();
 
@@ -1007,15 +997,15 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
 void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 {
     SCMPPayload *pld = scmp_parse_payload(scmp);
-    PingEntry *it;
     uint16_t *info = (uint16_t *)pld->info;
-    for(it = ping_list.tqh_first; it != NULL && it->id != info[0] && it->seq != info[1]; it = it->entries.tqe_next);
-    if(it != NULL) {
-        TAILQ_REMOVE(&ping_list, it, entries);
-        send_dp_header(it->sock, from, len);
-        send_all(it->sock, buf, len);
-        TAILQ_INSERT_TAIL(&ping_empty_list, it, entries);
-        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", it->id, it->seq);
+    uint16_t id = info[0];
+
+    PingEntry *e;
+    HASH_FIND(hh, ping_list, &id, sizeof(id), e);
+    if( e != NULL) {
+        send_dp_header(e->sock, from, len);
+        send_all(e->sock, buf, len);
+        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", info[0], info[1]);
     }else{
         zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", info[0], info[1]);
     }
@@ -1081,17 +1071,26 @@ void add_ping_entry(SCMPL4Header *scmp, int sock)
 {
     SCMPPayload *pld = scmp_parse_payload(scmp);
     uint16_t *info = (uint16_t *)pld->info;
-    PingEntry *elem = ping_empty_list.tqh_first;
-    if(elem != NULL){
-        TAILQ_REMOVE(&ping_empty_list, elem, entries);
-    }else{
-        elem = ping_list.tqh_first;
-        TAILQ_REMOVE(&ping_list, elem, entries);
+    uint16_t id = info[0];
+
+    PingEntry *e;
+    HASH_FIND(hh, ping_list, &id, sizeof(id), e);
+    if(e == NULL){
+        if(HASH_COUNT(ping_list) < MAX_NUMBER_PINGS){
+            e = (PingEntry *)malloc(sizeof(PingEntry));
+            if (!e) {
+                zlog_fatal(zc, "malloc failed, abandon ship");
+                exit(1);
+            }
+        }else {
+            e = ping_list;
+            HASH_DELETE(hh, ping_list, e);
+        }
+        memset(e, 0, sizeof(PingEntry));
+        e->id = info[0];
+        e->sock = sock;
+        HASH_ADD(hh, ping_list, id, sizeof(uint16_t), e);
     }
-    elem->sock = sock;
-    elem->id = info[0];
-    elem->seq = info[1];
-    TAILQ_INSERT_TAIL(&ping_list, elem, entries);
 }
 
 
