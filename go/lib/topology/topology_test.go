@@ -70,9 +70,10 @@ func Test_Meta(t *testing.T) {
 	Convey("Checking metadata", t, func() {
 		loadTopo(fn, t)
 		c := testTopo
-		SoMsg("Checking field 'Timestamp'", c.Timestamp.Equal(time.Unix(168562800, 0)), ShouldBeTrue)
+		SoMsg("Checking field 'Timestamp'", c.Timestamp.Equal(time.Unix(168570123, 0)), ShouldBeTrue)
 		// Is testing this piece of data really useful?
-		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman, ShouldContainSubstring, "May  6 00:00:00 CET 1975")
+		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman,
+			ShouldContainSubstring, "1975-05-06 01:02:03.000000+0000")
 		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, &addr.ISD_AS{I: 1, A: 11})
 		SoMsg("Checking field 'Overlay'", c.Overlay, ShouldEqual, overlay.IPv46)
 		SoMsg("Checking field 'MTU'", c.MTU, ShouldEqual, 1472)
@@ -137,11 +138,11 @@ func Test_Service_Count(t *testing.T) {
 	loadTopo(fn, t)
 	c := testTopo
 	Convey(fmt.Sprintf("Checking count of service entries"), t, func() {
-		SoMsg("Checking BS", len(c.BS), ShouldEqual, 1)
-		SoMsg("Checking PS", len(c.PS), ShouldEqual, 1)
-		SoMsg("Checking SB", len(c.SB), ShouldEqual, 1)
-		SoMsg("Checking RS", len(c.RS), ShouldEqual, 1)
-		SoMsg("Checking DS", len(c.DS), ShouldEqual, 1)
+		SoMsg("Checking BS", len(c.BS), ShouldEqual, 2)
+		SoMsg("Checking PS", len(c.PS), ShouldEqual, 2)
+		SoMsg("Checking SB", len(c.SB), ShouldEqual, 2)
+		SoMsg("Checking RS", len(c.RS), ShouldEqual, 2)
+		SoMsg("Checking DS", len(c.DS), ShouldEqual, 2)
 	})
 
 }

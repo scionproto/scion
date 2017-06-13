@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package topology
-
 /*
 The topology package wraps two versions of the topology. The first is RawTopo
 (in raw.go), which closely matches the JSON format. It is mainly used for
 loading the topology from disk. The second data structure is Topo. It is used
 by Go code directly and thus has a different structure and stricter types.
-
-
-Overall structure
------------------
 
 Since the RawTopo format is pretty self-explanatory, we will focus on the Topo
 structure here.
@@ -101,7 +95,7 @@ type TopoAddr struct {
     Overlay overlay.Type
 }
 
-This structure wraps the  possible addresses of a SCION service and describes
+This structure wraps the possible addresses of a SCION service and describes
 the overlay to be used for contacting said service.
 
 The two sub-structures for IPv4 and IPv6 only differ in the type of addresses
@@ -130,6 +124,7 @@ type AddrInfo struct {
 This struct is used to point to a specific endpoint, i.e. it does not
 distinguish bind and public ports and can only hold either an IPv4 or an IPv6
 address.
+*/
+package topology
 
 //vim: tw=78 fo+=t
-*/

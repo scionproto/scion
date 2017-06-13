@@ -28,15 +28,16 @@ import (
 
 // Structures used by Go code, filled in by populate()
 
-// The main struct encompassing topology information for use in Go code
+// Topo is the main struct encompassing topology information for use in Go code.
 type Topo struct {
 	Timestamp      time.Time
 	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
 	ISD_AS         *addr.ISD_AS
 	Overlay        overlay.Type
 	MTU            int
-	BR             map[string]BRInfo
-	BRNames        []string
+
+	BR      map[string]BRInfo
+	BRNames []string
 	// This maps Interface IDs to internal addresses. Clients use this to
 	// figure out which internal BR address they have to send their traffic to
 	// if they want to use a given (external) interface.
@@ -123,10 +124,10 @@ func (t *Topo) populateBR(raw *RawTopo) *common.Error {
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Local, err = localTopoAddrFromBrInt(rawIntf, ifinfo.Overlay); err != nil {
+			if ifinfo.Local, err = rawIntf.localTopoAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Remote, err = remoteAddrInfoFromBrInt(rawIntf, ifinfo.Overlay); err != nil {
+			if ifinfo.Remote, err = rawIntf.remoteAddrInfo(ifinfo.Overlay); err != nil {
 				return err
 			}
 			ifinfo.Bandwidth = rawIntf.Bandwidth
@@ -226,7 +227,7 @@ type IFInfo struct {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddr[%+v]:%d Overlay:%s Local:%+v Remote:+%v:%d Bw:%d IA:%s Type:%s MTU:%d",
-		i.BRName, i.InternalAddr, i.InternalAddrIdx, i.Overlay, i.Local, i.Remote, i.RemoteIFID,
-		i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
+		"IFinfo: Name[%s] IntAddr[%+v]:%d Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
+		i.BRName, i.InternalAddr, i.InternalAddrIdx, i.Overlay, i.Local, i.Remote, i.Bandwidth,
+		i.ISD_AS, i.LinkType, i.MTU)
 }

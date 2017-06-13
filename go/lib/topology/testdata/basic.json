@@ -1,6 +1,6 @@
 {
-    "Timestamp": 168562800,
-    "TimestampHuman": "May  6 00:00:00 CET 1975",
+    "Timestamp": 168570123,
+    "TimestampHuman": "1975-05-06 01:02:03.000000+0000",
     "ISD_AS": "1-11",
     "MTU": 1472,
     "Overlay": "IPv4+6",
@@ -64,7 +64,8 @@
     },
 
     "BeaconService": {
-        "bs1-11-1": {"Public": [{"Addr": "127.0.0.65", "L4Port": 30054}]}
+        "bs1-11-1": {"Public": [{"Addr": "127.0.0.65", "L4Port": 30054}]},
+        "bs1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}]}
     },
     "CertificateService": {
         "cs1-11-1": {
@@ -80,15 +81,19 @@
     
     },
     "PathService": {
-        "ps1-11-1": {"Public": [{"Addr": "127.0.0.73", "L4Port": 30091}]}
+        "ps1-11-1": {"Public": [{"Addr": "127.0.0.73", "L4Port": 30091}]},
+        "ps1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::73", "L4Port": 30091}]}
     },
     "SibraService": {
-        "sb1-11-1": {"Public": [{"Addr": "127.0.0.76", "L4Port": 30058}]}
+        "sb1-11-1": {"Public": [{"Addr": "127.0.0.76", "L4Port": 30058}]},
+        "sb1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::76", "L4Port": 30058}]}
     },
     "RainsService": {
-        "rs1-11-1": {"Public": [{"Addr": "127.0.0.78", "L4Port": 30098}]}
+        "rs1-11-1": {"Public": [{"Addr": "127.0.0.78", "L4Port": 30098}]},
+        "rs1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::78", "L4Port": 30098}]}
     },
     "DiscoveryService": {
-        "ds1-11-1": {"Public": [{"Addr": "127.0.0.99", "L4Port": 53535}]}
+        "ds1-11-1": {"Public": [{"Addr": "127.0.0.99", "L4Port": 53535}]},
+        "ds1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::99", "L4Port": 53535}]}
     }
 }

@@ -18,9 +18,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"strings"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
 const CfgName = "topology.json"
@@ -77,6 +79,28 @@ type RawBRIntf struct {
 	ISD_AS          string
 	LinkType        string
 	MTU             int
+}
+
+// Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
+func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, *common.Error) {
+	s := &RawAddrInfo{
+		Public: []RawAddrPortOverlay{
+			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
+		},
+	}
+	if b.Bind != nil {
+		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
+	}
+	return s.ToTopoAddr(o)
+}
+
+// make an AddrInfo object from a BR interface Remote entry
+func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (*AddrInfo, *common.Error) {
+	ip := net.ParseIP(b.Remote.Addr)
+	if ip == nil {
+		return nil, common.NewError("Could not parse remote IP from string", "ip", b.Remote.Addr)
+	}
+	return &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}, nil
 }
 
 type RawAddrInfo struct {
