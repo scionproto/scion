@@ -27,6 +27,7 @@ from threading import Lock
 from external.expiring_dict import ExpiringDict
 
 # SCION
+from lib.cache.rev import RevCache
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
@@ -41,7 +42,6 @@ from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
-from lib.rev_cache import RevCache
 from lib.thread import thread_safety_net
 from lib.types import (
     CertMgmtType,

@@ -25,6 +25,7 @@ from itertools import product
 from external.expiring_dict import ExpiringDict
 
 # SCION
+from lib.cache.rev import RevCache
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
@@ -42,7 +43,6 @@ from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
-from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry
