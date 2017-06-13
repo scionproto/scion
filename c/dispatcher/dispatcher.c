@@ -585,6 +585,11 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
             /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
                bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
             L4AddrPair *ap = (L4AddrPair *)malloc(sizeof(L4AddrPair));
+            if (!ap) {
+                zlog_fatal(zc, "malloc failed, abandon ship");
+                exit(1);
+            }
+            memset(ap, 0, sizeof(L4AddrPair));
             ap->key.port = port;
             ap->key.isd_as = isd_as;
             memcpy(ap->key.host, buf + common, addr_len);
@@ -632,6 +637,11 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 
         if (IS_BIND_SOCKET(*buf)) {
             SVCAddrPair *sp = (SVCAddrPair *)malloc(sizeof(SVCAddrPair));
+            if (!sp) {
+                zlog_fatal(zc, "malloc failed, abandon ship");
+                exit(1);
+            }
+            memset(sp, 0, sizeof(SVCAddrPair));
             sp->key = svc_key;
             sp->bind_key.addr = svc_key.addr;
             sp->bind_key.isd_as = isd_as;
