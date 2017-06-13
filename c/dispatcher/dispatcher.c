@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -92,6 +93,13 @@ typedef struct Entry {
     UT_hash_handle pollhh;
 } Entry;
 
+typedef struct PingEntry {
+    int sock;
+    uint16_t id;
+    uint16_t seq;
+    TAILQ_ENTRY(PingEntry) entries;
+} PingEntry;
+
 Entry *ssp_flow_list = NULL;
 Entry *ssp_wildcard_list = NULL;
 Entry *udp_port_list = NULL;
@@ -139,6 +147,7 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, HostAddr *from);
 void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, HostAddr *from);
+void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from);
 void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, HostAddr *from);
 
 void handle_send(int index);
@@ -150,6 +159,11 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop);
 #define UNIX_PATH_MAX 108
 #endif
 char socket_path[UNIX_PATH_MAX];
+
+#define MAX_NUMBER_PINGS 1028
+PingEntry ping_entries[MAX_NUMBER_PINGS];
+TAILQ_HEAD(PingListHead, PingEntry) ping_list;
+struct PingListHead ping_empty_list;
 
 int main(int argc, char **argv)
 {
@@ -196,6 +210,12 @@ int main(int argc, char **argv)
 
     if (init_tcpmw() < 0)
         return -1;
+
+    TAILQ_INIT(&ping_list);
+    TAILQ_INIT(&ping_empty_list);
+    for(int i = 0; i < MAX_NUMBER_PINGS; i++){
+        TAILQ_INSERT_HEAD(&ping_empty_list, ping_entries + i, entries);
+    }
 
     res = run();
 
@@ -965,14 +985,11 @@ void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
         if (ntohs(scmp->type) == SCMP_ECHO_REQUEST) {
             send_scmp_echo_reply(buf, scmp, from);
             return;
-        } /*
-            TODO(kormat): not implemented yet. Needs a hashmap so map SCMP echo IDs to programs
-
-            else if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
-            deliver_scmp_echo_reply(buf, scmp, from);
+        }
+        if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
+            deliver_scmp_echo_reply(buf, scmp, len, from);
             return;
         }
-        */
     }
     deliver_scmp(buf, scmp, len, from);
 }
@@ -985,6 +1002,23 @@ void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
     update_scmp_checksum(buf);
     zlog_debug(zc, "send echo reply to %s:%d", addr_to_str(from->addr, from->addr_type, NULL), ntohs(from->port));
     send_data(buf, ntohs(sch->total_len), from);
+}
+
+void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
+{
+    SCMPPayload *pld = scmp_parse_payload(scmp);
+    PingEntry *it;
+    uint16_t *info = (uint16_t *)pld->info;
+    for(it = ping_list.tqh_first; it != NULL && it->id != info[0] && it->seq != info[1]; it = it->entries.tqe_next);
+    if(it != NULL) {
+        TAILQ_REMOVE(&ping_list, it, entries);
+        send_dp_header(it->sock, from, len);
+        send_all(it->sock, buf, len);
+        TAILQ_INSERT_TAIL(&ping_empty_list, it, entries);
+        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", it->id, it->seq);
+    }else{
+        zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", info[0], info[1]);
+    }
 }
 
 void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
@@ -1043,6 +1077,24 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     send_all(e->sock, buf, len);
 }
 
+void add_ping_entry(SCMPL4Header *scmp, int sock)
+{
+    SCMPPayload *pld = scmp_parse_payload(scmp);
+    uint16_t *info = (uint16_t *)pld->info;
+    PingEntry *elem = ping_empty_list.tqh_first;
+    if(elem != NULL){
+        TAILQ_REMOVE(&ping_empty_list, elem, entries);
+    }else{
+        elem = ping_list.tqh_first;
+        TAILQ_REMOVE(&ping_list, elem, entries);
+    }
+    elem->sock = sock;
+    elem->id = info[0];
+    elem->seq = info[1];
+    TAILQ_INSERT_TAIL(&ping_list, elem, entries);
+}
+
+
 void handle_send(int index)
 {
     uint8_t buf[DATA_BUFSIZE];
@@ -1094,6 +1146,12 @@ void handle_send(int index)
     send_data(buf + addr_len + 2, packet_len, &hop);
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
+    if(l4 == L4_SCMP){
+        SCMPL4Header *scmp = (SCMPL4Header *) l4ptr;
+        if(ntohs(scmp->class_) == SCMP_GENERAL_CLASS && ntohs(scmp->type) == SCMP_ECHO_REQUEST){
+            add_ping_entry(scmp, sock);
+        }
+    }
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
             packet_len, l4, addr_to_str(hop.addr, hop.addr_type, NULL), hop.port);
 }
