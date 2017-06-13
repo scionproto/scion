@@ -32,7 +32,7 @@ type TopoAddr struct {
 }
 
 // Create TopoAddr from RawAddrInfo, depending on desired Overlay type
-func TopoAddrFromRawAddrInfo(s *RawAddrInfo, ot overlay.Type) (t *TopoAddr, err *common.Error) {
+func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
 	switch ot {
 	case overlay.IPv4:
 		t, err = topoAddrFromIPv4(s, false)
@@ -66,7 +66,7 @@ func localTopoAddrFromBrInt(b RawBRIntf, o overlay.Type) (*TopoAddr, *common.Err
 	if b.Bind != nil {
 		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
 	}
-	return TopoAddrFromRawAddrInfo(s, o)
+	return s.ToTopoAddr(o)
 }
 
 // make an AddrInfo object from a BR interface Remote entry

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	// External
 	. "github.com/smartystreets/goconvey/convey"
@@ -69,7 +70,7 @@ func Test_Meta(t *testing.T) {
 	Convey("Checking metadata", t, func() {
 		loadTopo(fn, t)
 		c := testTopo
-		SoMsg("Checking field 'Timestamp'", c.Timestamp, ShouldEqual, int64(168562800))
+		SoMsg("Checking field 'Timestamp'", c.Timestamp.Equal(time.Unix(168562800, 0)), ShouldBeTrue)
 		// Is testing this piece of data really useful?
 		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman, ShouldContainSubstring, "May  6 00:00:00 CET 1975")
 		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, &addr.ISD_AS{I: 1, A: 11})

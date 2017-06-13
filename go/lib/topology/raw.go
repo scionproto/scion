@@ -34,7 +34,9 @@ const (
 var RawCurr *RawTopo
 
 // Structures directly filled from JSON
-// Should not be used by Go code directly, with the exception of the Discovery Service
+
+// RawTopo is used to un/marshal from/to JSON and should usually not be used by
+// Go code directly. Use Topo (from lib/topology/topology.go) instead.
 type RawTopo struct {
 	Timestamp          int64
 	TimestampHuman     string
@@ -52,7 +54,7 @@ type RawTopo struct {
 }
 
 type RawBRInfo struct {
-	InternalAddrs []*RawAddrInfo
+	InternalAddrs []RawAddrInfo
 	Interfaces    map[common.IFIDType]RawBRIntf
 }
 
@@ -122,11 +124,10 @@ func Load(path string) (*Topo, *common.Error) {
 
 func parse(data []byte, path string) (*Topo, *common.Error) {
 	rt := &RawTopo{}
-	if err := json.Unmarshal(data, &rt); err != nil {
+	if err := json.Unmarshal(data, rt); err != nil {
 		return nil, common.NewError(ErrorParse, "err", err, "path", path)
 	}
 	RawCurr = rt
-	// We use := here since the err above is scoped to the if statement
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
 		return nil, common.NewError(ErrorConvert, "err", err, "path", path)

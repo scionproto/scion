@@ -40,14 +40,14 @@ const (
 )
 
 func LinkTypeFromString(s string) (LinkType, *common.Error) {
-	switch strings.ToLower(s) {
-	case strings.ToLower(CoreLinkName):
+	switch strings.ToUpper(s) {
+	case CoreLinkName:
 		return CoreLink, nil
-	case strings.ToLower(ParentLinkName):
+	case ParentLinkName:
 		return ParentLink, nil
-	case strings.ToLower(ChildLinkName):
+	case ChildLinkName:
 		return ChildLink, nil
-	case strings.ToLower(PeerLinkName):
+	case PeerLinkName:
 		return PeerLink, nil
 	default:
 		return InvalidLink, common.NewError("Unknown link type", "type", s)
