@@ -148,7 +148,7 @@ class CorePathServer(PathServer):
             else:
                 # Remote core segment, send to master
                 try:
-                    self._segs_to_master.add(pcb, (hash(pcb), PST.CORE)):
+                    self._segs_to_master.add(pcb, (hash(pcb), PST.CORE))
                 except CacheFullException as e:
                     logging.warning("Adding %s to SegsToMaster cache failed: %s",
                                     pcb.short_desc(), e)
