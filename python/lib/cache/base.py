@@ -16,6 +16,7 @@
 ==========================================
 """
 # Stdlib
+import abc
 import threading
 from collections import OrderedDict
 
@@ -24,8 +25,11 @@ class CacheEmptyException(Exception):
     """Cache is empty exception."""
 
 
-class Cache:
-    """Thread-safe cache with auto expiration of entries."""
+class Cache(metaclass=abc.ABCMeta):
+    """
+    Thread-safe cache with auto expiration of entries. Subclasses have to implement
+    their own way how to validate an entry.
+    """
 
     def __init__(self, capacity=1000):  # pragma: no cover
         self._cache = OrderedDict()
@@ -73,10 +77,11 @@ class Cache:
 
     def add(self, entry, key=None):
         """
-        Adds entry to the cache.
+        Adds entry to the cache. The caller can optionally provide a key under which
+        the entry will be stored. If no key is provided, a key for the entry will be
+        calculated. In case the cache is at its capacity, the oldest entry is replaced.
 
         :returns: True if the entry was added, False if a newer entry was present.
-        :raises: CacheFullException if the cache is full.
         """
         if not self._validate_entry(entry):
             return False
@@ -116,5 +121,6 @@ class Cache:
             return True
         return False
 
+    @abc.abstractmethod
     def _validate_entry(self, entry):  # pragma: no cover
         raise NotImplementedError
