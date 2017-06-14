@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright 2014 ETH Zurich
+# Copyright 2017 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`end2end_test` --- SCION end2end tests
+:mod:`opt_end2end_test` --- SCION OPT end2end tests
 ===========================================
 """
 # Stdlib
 import logging
 
-# SCION
 import time
 
 import lib.app.sciond as lib_sciond
-from lib.drkey.opt.protocol import get_sciond_params
+from lib.drkey.opt.protocol import get_sciond_params, set_pvf, verify_pvf
+from lib.errors import SCIONVerificationError
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
@@ -38,7 +38,8 @@ from integration.base_cli_srv import (
     TestClientBase,
     TestClientServerBase,
     TestServerBase,
-    API_TOUT)
+    API_TOUT
+)
 
 
 class E2EClient(TestClientBase):
@@ -48,7 +49,7 @@ class E2EClient(TestClientBase):
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
-        extn = SCIONOriginPathTraceExtn.from_values(b" "*16, b" "*16, b" "*16)
+        extn = SCIONOriginPathTraceExtn.from_values(b' '*16, b' '*16, b' '*16)
         if path is None:
             path = self.path_meta.fwd_path()
         spkt = SCIONL4Packet.from_values(
@@ -56,15 +57,13 @@ class E2EClient(TestClientBase):
         spkt.set_payload(self._create_payload(spkt))
         spkt.update()
         drkey = _try_sciond_api(spkt, self._connector)
-        #set_scmp_auth_mac(spkt, drkey)
+        set_pvf(spkt, drkey)
         return spkt
 
     def _create_payload(self, spkt):
-        path = [i.isd_as() for i in self.path_meta.iter_ifs()]
-        drkey, misc = _try_sciond_api(
-            spkt, self._connector)
-        data = drkey.drkey + b" " + self.data
-        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
+        data = b"ping " + self.data
+        pld_len = (self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len -
+                   len(spkt.l4_hdr) - len(spkt.ext_hdrs[0]))
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):
@@ -80,13 +79,15 @@ class E2EClient(TestClientBase):
                           len(spkt), self.path_meta.p.mtu)
             return ResponseRV.FAILURE
         payload = spkt.get_payload()
-        drkey, misc = _try_sciond_api(spkt, self._connector)
-        logging.debug(drkey)
-        logging.debug(misc)
-        pong = self._gen_max_pld(drkey.drkey + b" " + self.data, len(payload))
+        pong = self._gen_max_pld(b"pong " + self.data, len(payload))
+        drkey = _try_sciond_api(spkt, self._connector)
         if payload == pong:
-            logging.debug('%s:%d: pong received.', self.addr.host,
-                          self.sock.port)
+            logging.debug('%s:%d: pong received.', self.addr.host, self.sock.port)
+            try:
+                verify_pvf(spkt, drkey)
+            except SCIONVerificationError as e:
+                logging.error("Verification failed: %s", e)
+                return False
             return ResponseRV.SUCCESS
         logging.error(
             "Unexpected payload:\n  Received (%dB): %s\n  "
@@ -136,17 +137,28 @@ class E2EServer(TestServerBase):
     Simple pong app.
     """
     def _handle_request(self, spkt):
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector)
-        logging.debug(drkey)
-        expected = drkey.drkey + b" " + self.data
+        logging.debug("received on server")
+        expected = b"ping " + self.data
         raw_pld = spkt.get_payload().pack()
         if not raw_pld.startswith(expected):
             return False
+
+        drkey = _try_sciond_api(spkt, self._connector)
+        try:
+            verify_pvf(spkt, drkey)
+        except SCIONVerificationError as e:
+            logging.warning("Verification failed: %s", e)
+            return False
+
         # Reverse the packet and send "pong".
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
         spkt.set_payload(self._create_payload(spkt))
+        spkt.update()
+        drkey = _try_sciond_api(spkt, self._connector)
+        set_pvf(spkt, drkey)
+
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()
@@ -154,9 +166,7 @@ class E2EServer(TestServerBase):
 
     def _create_payload(self, spkt):
         old_pld = spkt.get_payload()
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector)
-        logging.debug(drkey)
-        data = drkey.drkey + b" " + self.data
+        data = b"pong " + self.data
         padding = len(old_pld) - len(data)
         return PayloadRaw(data + bytes(padding))
 
@@ -166,14 +176,15 @@ def _try_sciond_api(spkt, connector):
     start = time.time()
     while time.time() - start < API_TOUT:
         try:
-            drkey, misc = lib_sciond.get_protocol_drkey(get_sciond_params(spkt), connector=connector)
+            drkey, _ = lib_sciond.get_protocol_drkey(
+                get_sciond_params(spkt), connector=connector)
         except lib_sciond.SCIONDConnectionError as e:
             logging.error("Connection to SCIOND failed: %s " % e)
             break
         except lib_sciond.SCIONDLibError as e:
             logging.error("Error during protocol DRKey request: %s" % e)
             continue
-        return drkey, misc
+        return drkey
     logging.critical("Unable to get protocol DRKey from local api.")
     kill_self()
 

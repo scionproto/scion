@@ -32,7 +32,7 @@ from lib.drkey.types import (
 from lib.drkey.util import drkey_time, get_drkey_exp_time
 from lib.errors import SCIONVerificationError
 from lib.msg_meta import UDPMetadata
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.opt.ext import SCIONOriginPathTraceExtn
 
 
 class OPTProtocol(DRKeyProtocolBase):
@@ -114,17 +114,42 @@ class OPTProtocol(DRKeyProtocolBase):
             ))
 
 
-def get_sciond_params(src, dst, path=None):
-    assert isinstance(src, SCIONAddr)
-    assert isinstance(dst, SCIONAddr)
+def set_pvf(spkt, drkey):
+    assert isinstance(drkey, SecondOrderDRKey)
+    return
+
+
+def verify_pvf(spkt, drkey):
+    assert isinstance(drkey, SecondOrderDRKey)
+    raise SCIONVerificationError("Invalid PVF")
+
+
+def _find_opt_extn(spkt):
+    for e in spkt.ext_hdrs:
+        if isinstance(e, SCIONOriginPathTraceExtn):
+            return e
+    return None
+
+
+def get_sciond_params(spkt, path=None):
+    extn = _find_opt_extn(spkt)
+    if not extn:
+        return None
+
     params = DRKeyProtocolRequest.Params()
     params.timestamp = drkey_time()
     params.protocol = DRKeyProtocols.OPT
     params.request_id = 0
+
+
+    # MAC created with key S->D
     params.request_type = DRKeyProtoKeyType.HOST_TO_HOST
-    params.src_ia = src.isd_as
-    params.src_host = src.host
-    params.dst_ia = dst.isd_as
-    params.dst_host = dst.host
+    params.src_ia = spkt.addrs.src.isd_as
+    params.dst_ia = spkt.addrs.dst.isd_as
+
+    params.src_host = spkt.addrs.src.host
+    params.dst_host = spkt.addrs.dst.host
+
     params.misc = OPTMiscRequest.from_values(bytes(16), path or [])
+
     return params
