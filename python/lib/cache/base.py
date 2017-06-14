@@ -16,7 +16,6 @@
 ==========================================
 """
 # Stdlib
-import abc
 import threading
 from collections import OrderedDict
 
@@ -25,7 +24,7 @@ class CacheEmptyException(Exception):
     """Cache is empty exception."""
 
 
-class Cache(metaclass=abc.ABCMeta):
+class Cache:
     """
     Thread-safe cache with auto expiration of entries. Subclasses have to implement
     their own way how to validate an entry.
@@ -121,6 +120,5 @@ class Cache(metaclass=abc.ABCMeta):
             return True
         return False
 
-    @abc.abstractmethod
     def _validate_entry(self, entry):  # pragma: no cover
         raise NotImplementedError
