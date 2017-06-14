@@ -31,7 +31,8 @@ type TopoAddr struct {
 	Overlay overlay.Type
 }
 
-// Create TopoAddr from RawAddrInfo, depending on desired Overlay type
+// Create TopoAddr from RawAddrInfo, depending on Overlay type of the
+// RawAddrInfo
 func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
 	switch ot {
 	case overlay.IPv4:
