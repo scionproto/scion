@@ -45,7 +45,6 @@ type TopoAddr struct {
 	Overlay overlay.Type
 }
 
-
 //FIXME(kormat): move this to RawAddrInfo
 func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
 	return TopoAddrFromRAI(s, ot)
