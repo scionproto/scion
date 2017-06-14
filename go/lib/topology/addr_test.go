@@ -109,6 +109,15 @@ func shouldEqTopoAddr(actual interface{}, expected ...interface{}) string {
 	return fmt.Sprintf("Expected: %+v\nActual: %+v", expected[0], actual)
 }
 
+func shouldBeInStrings(actual interface{}, expected ...interface{}) string {
+	for _, exp := range expected[0].([]string) {
+		if actual.(string) == exp {
+			return ""
+		}
+	}
+	return fmt.Sprintf("Expected a member of: %+q\nActual: %+q", expected, actual)
+}
+
 func Test_ToTopoAddr_Basic(t *testing.T) {
 	var basic_tests = []struct {
 		name  string
@@ -143,9 +152,9 @@ func Test_ToTopoAddr_Basic(t *testing.T) {
 }
 
 type errorTest struct {
-	name       string
-	in         *RawAddrInfo
-	errSnippet string
+	name    string
+	in      *RawAddrInfo
+	errDesc []string
 }
 
 func mkErrorTests(ot overlay.Type) []errorTest {
@@ -155,73 +164,73 @@ func mkErrorTests(ot overlay.Type) []errorTest {
 	return mkErrorTestsDual(ot)
 }
 
+func mkErrorTest(name string, pubAddrs []testRAIOver,
+	bindAddrs []RawAddrPort, desc ...string) errorTest {
+	return errorTest{name, mkRAI(pubAddrs, bindAddrs), desc}
+}
+
 func mkErrorTestsSingle(ot overlay.Type) []errorTest {
-	var pubAddr = v4Pub
-	var bindAddr = v4Bind
-	switch ot {
-	case overlay.UDPIPv4:
-		pubAddr = v4PubUDP
-	case overlay.IPv6:
-		pubAddr = v6Pub
-		bindAddr = v6Bind
-	case overlay.UDPIPv6:
-		pubAddr = v6PubUDP
-		bindAddr = v6Bind
+	over_info := map[overlay.Type]struct {
+		pubs  []testRAIOver
+		binds []RawAddrPort
+	}{
+		overlay.IPv4:    {[]testRAIOver{v4Pub}, []RawAddrPort{v4Bind}},
+		overlay.UDPIPv4: {[]testRAIOver{v4PubUDP}, []RawAddrPort{v4Bind}},
+		overlay.IPv6:    {[]testRAIOver{v6Pub}, []RawAddrPort{v6Bind}},
+		overlay.UDPIPv6: {[]testRAIOver{v6PubUDP}, []RawAddrPort{v6Bind}},
 	}
-	badPub := pubAddr
-	badPub.ip = "bad pub ip"
-	badBind := bindAddr
-	badBind.Addr = "bad bind ip"
+	info := over_info[ot]
 	tests := []errorTest{
-		{"pub parse error", mkRAI([]testRAIOver{badPub}, nil), "Invalid public"},
-		{"bind parse error", mkRAI([]testRAIOver{pubAddr}, []RawAddrPort{badBind}), "Invalid bind"},
-		{"no pub addr", mkRAI(nil, nil), "must have exactly one public address"},
-		{"too many pub addrs", mkRAI([]testRAIOver{pubAddr, pubAddr}, nil),
-			"must have exactly one public address"},
-		{"too many bind addrs", mkRAI([]testRAIOver{pubAddr}, []RawAddrPort{bindAddr, bindAddr}),
-			"must have at most one bind address"},
+		mkErrorTest("pub parse error",
+			[]testRAIOver{{"bad pub ip", 40000, 0}}, nil, ErrInvalidPub),
+		mkErrorTest("bind parse error", info.pubs,
+			[]RawAddrPort{{"bad bind ip", 40002}}, ErrInvalidBind),
+		mkErrorTest("no addrs", nil, nil, ErrExactlyOnePub),
+		mkErrorTest("no pub addr", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6),
+		mkErrorTest("too many pub addrs", append(info.pubs, info.pubs[0]), nil,
+			ErrTooManyPubV4, ErrTooManyPubV6),
+		mkErrorTest("too many bind addrs", info.pubs, append(info.binds, info.binds[0]),
+			ErrTooManyBindV4, ErrTooManyBindV6),
 	}
 	if !ot.IsUDP() {
-		tests = append(tests, mkErrorTestNotUDP([]testRAIOver{pubAddr}))
+		tests = append(tests, mkErrorTestNotUDP(info.pubs))
 	}
 	return tests
 }
 
 func mkErrorTestsDual(ot overlay.Type) []errorTest {
-	var pubAddrs = []testRAIOver{v4Pub, v6Pub}
-	var bindAddrs = []RawAddrPort{v4Bind, v6Bind}
-	if ot.IsUDP() {
-		pubAddrs = []testRAIOver{v4PubUDP, v6PubUDP}
+	over_info := map[overlay.Type]struct {
+		pubs  []testRAIOver
+		binds []RawAddrPort
+	}{
+		overlay.IPv46:   {[]testRAIOver{v4Pub, v6Pub}, []RawAddrPort{v4Bind, v6Bind}},
+		overlay.UDPIPv4: {[]testRAIOver{v4PubUDP, v6PubUDP}, []RawAddrPort{v4Bind, v6Bind}},
 	}
-	badPubs := append([]testRAIOver(nil), pubAddrs...)
-	badPubs[1].ip = "bad pub v6 ip"
-	badBinds := append([]RawAddrPort(nil), bindAddrs...)
-	badBinds[0].Addr = "bad bind v4 ip"
+	info := over_info[ot]
 	tests := []errorTest{
-		{"pub parse error", mkRAI(badPubs, nil), "Invalid public"},
-		{"bind parse error", mkRAI(pubAddrs, badBinds), "Invalid bind"},
-		{"no pub addr", mkRAI(nil, nil), "must have at least one public address"},
-		{"multiple pub v4", mkRAI(append(pubAddrs, pubAddrs[0]), nil),
-			"have more than one public IPv4 address"},
-		{"multiple pub v6", mkRAI(append(pubAddrs, pubAddrs[1]), nil),
-			"have more than one public IPv6 address"},
-		{"multiple bind v4", mkRAI(pubAddrs, append(bindAddrs, bindAddrs[0])),
-			"have more than one IPv4 bind address"},
-		{"multiple bind v6", mkRAI(pubAddrs, append(bindAddrs, bindAddrs[1])),
-			"have more than one IPv6 bind address"},
+		mkErrorTest("no addrs", nil, nil, ErrAtLeastOnePub),
+		mkErrorTest("no pub addrs", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6),
+		mkErrorTest("too many pub v4", append(info.pubs, info.pubs[0]), nil, ErrTooManyPubV4),
+		mkErrorTest("too many pub v6", append(info.pubs, info.pubs[1]), nil, ErrTooManyPubV6),
+		mkErrorTest("too many bind v4", info.pubs, append(info.binds, info.binds[0]),
+			ErrTooManyBindV4),
+		mkErrorTest("too many bind v6", info.pubs, append(info.binds, info.binds[1]),
+			ErrTooManyBindV6),
+		mkErrorTest("bind v4 without pub", info.pubs[1:], info.binds, ErrBindWithoutPubV4),
+		mkErrorTest("bind v6 without pub", info.pubs[:1], info.binds, ErrBindWithoutPubV6),
 	}
 	if !ot.IsUDP() {
-		tests = append(tests, mkErrorTestNotUDP(pubAddrs))
+		tests = append(tests, mkErrorTestNotUDP(info.pubs))
 	}
 	return tests
 }
 
 func mkErrorTestNotUDP(pubAddrs []testRAIOver) errorTest {
+	// Copy the public addrs
 	badOverlay := append([]testRAIOver(nil), pubAddrs...)
+	// Set the overlay port of the first public addr
 	badOverlay[0].overPort = 1
-	return errorTest{
-		"overlay port set", mkRAI(badOverlay, nil), "Overlay port set for non-UDP overlay",
-	}
+	return mkErrorTest("overlay port set", badOverlay, nil, ErrOverlayPort)
 }
 
 func Test_ToTopoAddr_Errors(t *testing.T) {
@@ -233,7 +242,7 @@ func Test_ToTopoAddr_Errors(t *testing.T) {
 			Convey(desc, t, func() {
 				_, err := test.in.ToTopoAddr(ot)
 				SoMsg("Error returned", err, ShouldNotBeNil)
-				SoMsg("Error description", err.Desc, ShouldContainSubstring, test.errSnippet)
+				SoMsg("Error description", err.Desc, shouldBeInStrings, test.errDesc)
 			})
 		}
 	}
