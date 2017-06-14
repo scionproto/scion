@@ -25,145 +25,65 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
+const (
+	ErrInvalidPub       = "Invalid public IP address in topology"
+	ErrInvalidBind      = "Invalid bind IP address in topology"
+	ErrTooManyPubV4     = "Too many public IPv4 addresses"
+	ErrTooManyPubV6     = "Too many public IPv6 addresses"
+	ErrTooManyBindV4    = "Too many bind IPv4 addresses"
+	ErrTooManyBindV6    = "Too many bind IPv6 addresses"
+	ErrBindWithoutPubV4 = "Bind IPv4 address without any public IPv4 address"
+	ErrBindWithoutPubV6 = "Bind IPv6 address without any public IPv6 address"
+	ErrExactlyOnePub    = "Overlay requires exactly one public address"
+	ErrAtLeastOnePub    = "Overlay requires at least one public address"
+	ErrOverlayPort      = "Overlay port set for non-UDP overlay"
+)
+
 type TopoAddr struct {
 	IPv4    *topoAddrInt
 	IPv6    *topoAddrInt
 	Overlay overlay.Type
 }
 
-// Create TopoAddr from RawAddrInfo, depending on Overlay type of the
-// RawAddrInfo
+
+//FIXME(kormat): move this to RawAddrInfo
 func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
+	return TopoAddrFromRAI(s, ot)
+}
+
+// Create TopoAddr from RawAddrInfo, depending on desired Overlay type
+func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, *common.Error) {
 	switch ot {
-	case overlay.IPv4:
-		t, err = topoAddrFromIPv4(s, false)
-	case overlay.IPv6:
-		t, err = topoAddrFromIPv6(s, false)
-	case overlay.IPv46:
-		t, err = topoAddrFromIPv46(s, false)
-	case overlay.UDPIPv4:
-		t, err = topoAddrFromIPv4(s, true)
-	case overlay.UDPIPv6:
-		t, err = topoAddrFromIPv6(s, true)
-	case overlay.UDPIPv46:
-		t, err = topoAddrFromIPv46(s, true)
+	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
+		overlay.UDPIPv6, overlay.UDPIPv46:
 	default:
-		err = common.NewError("Unsupported overlay type", "type", ot)
+		return nil, common.NewError("Unsupported overlay type", "type", ot)
 	}
-	if err != nil {
-		return
+	t := &TopoAddr{Overlay: ot}
+	if err := t.FromRAI(s); err != nil {
+		return nil, err
 	}
-	t.Overlay = ot
-	return
-}
-
-// TopoAddr from RawAddrInfo for IPv4 addresses
-func topoAddrFromIPv4(s *RawAddrInfo, udp bool) (*TopoAddr, *common.Error) {
-	t := &TopoAddr{}
-	t.IPv4 = &topoAddrInt{}
-	if len(s.Public) != 1 {
-		return t, common.NewError(
-			fmt.Sprintf("Topology with %s overlay must have exactly one public address",
-				overlay.IPv4),
-			"addr", s)
-	}
-	pub := s.Public[0]
-	t.IPv4.pubIP = net.ParseIP(pub.Addr)
-	if t.IPv4.pubIP == nil || t.IPv4.pubIP.To4() == nil {
-		return nil, common.NewError("Invalid public IPv4 address in topology", "addr", s)
-	}
-	t.IPv4.OverlayPort = pub.OverlayPort
-	if !udp && t.IPv4.OverlayPort != 0 {
-		return nil, common.NewError("Overlay port set for non-UDP overlay", "addr", s)
-	}
-	t.IPv4.pubL4Port = pub.L4Port
-	if len(s.Bind) > 1 {
-		return t, common.NewError(
-			fmt.Sprintf("Topology with %s overlay must have at most one bind address", overlay.IPv4),
-			"addr", s)
-	}
-	if len(s.Bind) == 1 {
-		bind := s.Bind[0]
-		t.IPv4.bindIP = net.ParseIP(bind.Addr)
-		if t.IPv4.bindIP == nil || t.IPv4.bindIP.To4() == nil {
-			return nil, common.NewError("Invalid bind IPv4 address in topology", "addr", s)
-		}
-		t.IPv4.bindL4Port = bind.L4Port
+	if desc := t.validate(); len(desc) > 0 {
+		return nil, common.NewError(desc, "addr", s, "overlay", t.Overlay)
 	}
 	return t, nil
 }
 
-// TODO(klausman) The three functions below (topoAddrFromIPv{4,6,46}) are very
-// repetitive. Can parts be factored out?
-
-// TopoAddr from RawAddrInfo for IPv6 addresses
-func topoAddrFromIPv6(s *RawAddrInfo, udp bool) (*TopoAddr, *common.Error) {
-	t := &TopoAddr{}
-	t.IPv6 = &topoAddrInt{}
-	if len(s.Public) != 1 {
-		return t, common.NewError(
-			fmt.Sprintf("Topology with %s overlay must have exactly one public address",
-				overlay.IPv6),
-			"addr", s)
-	}
-	pub := s.Public[0]
-	t.IPv6.pubIP = net.ParseIP(pub.Addr)
-	if t.IPv6.pubIP == nil || t.IPv6.pubIP.To4() != nil {
-		return nil, common.NewError("Invalid public IPv6 address in topology", "addr", s)
-	}
-	t.IPv6.OverlayPort = pub.OverlayPort
-	if !udp && t.IPv6.OverlayPort != 0 {
-		return nil, common.NewError("Overlay port set for non-UDP overlay", "addr", s)
-	}
-	t.IPv6.pubL4Port = pub.L4Port
-	if len(s.Bind) > 1 {
-		return t, common.NewError(
-			fmt.Sprintf("Topology with %s overlay must have at most one bind address", overlay.IPv6),
-			"addr", s)
-	}
-	if len(s.Bind) == 1 {
-		bind := s.Bind[0]
-		t.IPv6.bindIP = net.ParseIP(bind.Addr)
-		if t.IPv6.bindIP == nil || t.IPv6.bindIP.To4() != nil {
-			return nil, common.NewError("Invalid bind IPv6 address in topology", "addr", bind.Addr)
-		}
-		t.IPv6.bindL4Port = bind.L4Port
-	}
-	return t, nil
-}
-
-// TopoAddr from RawAddrInfo for IPv4 and/or IPv6 addresses
-func topoAddrFromIPv46(s *RawAddrInfo, udp bool) (*TopoAddr, *common.Error) {
-	t := &TopoAddr{}
-	if len(s.Public) == 0 {
-		return t, common.NewError(
-			fmt.Sprintf("Topology with %s overlay must have at least one public address",
-				overlay.IPv46),
-			"addr", s)
-	}
+func (t *TopoAddr) FromRAI(s *RawAddrInfo) *common.Error {
 	// Public addresses
 	for _, pub := range s.Public {
-		if !udp && pub.OverlayPort != 0 {
-			return nil, common.NewError("Overlay port set for non-UDP overlay", "addr", s)
-		}
 		ip := net.ParseIP(pub.Addr)
 		if ip == nil {
-			return nil, common.NewError("Invalid public IP address in topology", "addr", s, "ip", pub.Addr)
+			return common.NewError(ErrInvalidPub, "addr", s, "ip", pub.Addr)
 		}
 		if ip.To4() != nil {
 			if t.IPv4 != nil {
-				return t, common.NewError(
-					fmt.Sprintf("Topology with %s overlay can not have more than one public IPv4 address",
-						overlay.IPv46),
-					"addr", s)
+				return common.NewError(ErrTooManyPubV4, "addr", s)
 			}
 			t.IPv4 = &topoAddrInt{pubIP: ip, pubL4Port: pub.L4Port, OverlayPort: pub.OverlayPort}
 		} else {
 			if t.IPv6 != nil {
-				return t, common.NewError(
-					fmt.Sprintf("Topology with %s overlay can not have more than one public IPv6 address",
-						overlay.IPv46),
-					"addr", s)
+				return common.NewError(ErrTooManyPubV6, "addr", s)
 			}
 			t.IPv6 = &topoAddrInt{pubIP: ip, pubL4Port: pub.L4Port, OverlayPort: pub.OverlayPort}
 		}
@@ -172,35 +92,51 @@ func topoAddrFromIPv46(s *RawAddrInfo, udp bool) (*TopoAddr, *common.Error) {
 	for _, bind := range s.Bind {
 		ip := net.ParseIP(bind.Addr)
 		if ip == nil {
-			return nil, common.NewError("Invalid bind IP address in topology", "addr", s, "ip", bind.Addr)
+			return common.NewError(ErrInvalidBind, "addr", s, "ip", bind.Addr)
 		}
 		if ip.To4() != nil {
 			if t.IPv4 == nil {
-				return t, common.NewError("Topology with IPv4 bind address but no public IPv4 address")
+				return common.NewError(ErrBindWithoutPubV4, "addr", s, "ip", bind.Addr)
 			}
 			if t.IPv4.bindIP != nil {
-				return t, common.NewError(
-					fmt.Sprintf("Topology with %s overlay can not have more than one IPv4 bind address",
-						overlay.IPv46),
-					"addr", s)
+				return common.NewError(ErrTooManyBindV4, "addr", s)
 			}
 			t.IPv4.bindIP = ip
 			t.IPv4.bindL4Port = bind.L4Port
 		} else {
 			if t.IPv6 == nil {
-				return t, common.NewError("Topology with IPv6 bind address but no public IPv6 address")
+				return common.NewError(ErrBindWithoutPubV6, "addr", s, "ip", bind.Addr)
 			}
 			if t.IPv6.bindIP != nil {
-				return t, common.NewError(
-					fmt.Sprintf("Topology with %s overlay can not have more than one IPv6 bind address",
-						overlay.IPv46),
-					"addr", s)
+				return common.NewError(ErrTooManyBindV6, "addr", s)
 			}
 			t.IPv6.bindIP = ip
 			t.IPv6.bindL4Port = bind.L4Port
 		}
 	}
-	return t, nil
+	return nil
+}
+
+func (t *TopoAddr) validate() string {
+	if t.Overlay.IsIPv4() != t.Overlay.IsIPv6() {
+		// Single-stack overlay
+		if (t.IPv4 == nil) == (t.IPv6 == nil) {
+			// Either both addresses are present, or both or empty.
+			return ErrExactlyOnePub
+		}
+	} else {
+		// Dual-stack overlay
+		if t.IPv4 == nil && t.IPv6 == nil {
+			return ErrAtLeastOnePub
+		}
+	}
+	if !t.Overlay.IsUDP() {
+		if (t.IPv4 != nil && t.IPv4.OverlayPort != 0) ||
+			(t.IPv6 != nil && t.IPv6.OverlayPort != 0) {
+			return ErrOverlayPort
+		}
+	}
+	return ""
 }
 
 // Extract the relevant (v4 or v6) L4Port from a TopoAddr
@@ -338,6 +274,11 @@ func (ti1 *topoAddrInt) equal(ti2 *topoAddrInt) bool {
 	return true
 }
 
+func (til *topoAddrInt) String() string {
+	return fmt.Sprintf("public: [%s]:%d bind: [%s]:%d overlayPort: %d",
+		til.pubIP, til.pubL4Port, til.bindIP, til.bindL4Port, til.OverlayPort)
+}
+
 func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
 	if t1.Overlay != t2.Overlay {
 		return false
@@ -349,4 +290,26 @@ func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
 		return false
 	}
 	return true
+}
+
+// Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
+func localTopoAddrFromBrInt(b RawBRIntf, o overlay.Type) (*TopoAddr, *common.Error) {
+	s := &RawAddrInfo{
+		Public: []RawAddrPortOverlay{
+			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
+		},
+	}
+	if b.Bind != nil {
+		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
+	}
+	return s.ToTopoAddr(o)
+}
+
+// make an AddrInfo object from a BR interface Remote entry
+func remoteAddrInfoFromBrInt(b RawBRIntf, o overlay.Type) (*AddrInfo, *common.Error) {
+	ip := net.ParseIP(b.Remote.Addr)
+	if ip == nil {
+		return nil, common.NewError("Could not parse remote IP from string", "ip", b.Remote.Addr)
+	}
+	return &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}, nil
 }
