@@ -20,6 +20,7 @@ import logging
 import threading
 
 # External packages
+from prometheus_client import Counter, Gauge
 from pydblite.pydblite import Base
 
 # SCION
