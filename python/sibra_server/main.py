@@ -64,12 +64,13 @@ class SibraServerBase(SCIONElement):
     SERVICE_TYPE = SIBRA_SERVICE
     PST_TYPE = None
 
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         self.sendq = Queue()
         self.signing_key = get_sig_key(self.conf_dir)
         self.segments = PathSegmentDB(max_res_no=1)

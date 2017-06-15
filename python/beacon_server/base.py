@@ -104,12 +104,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
