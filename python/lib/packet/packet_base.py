@@ -114,7 +114,7 @@ class Cerealizable(object, metaclass=ABCMeta):
         return True
 
     def __len__(self):
-        raise NotImplementedError
+        return self.p.total_size.word_count * 8
 
     def copy(self):
         return type(self)(self.p.copy())
