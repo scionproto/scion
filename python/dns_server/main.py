@@ -63,13 +63,14 @@ class SCIONDnsServer(SCIONElement):
     SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE,
                  DNS_SERVICE, PATH_SERVICE, SIBRA_SERVICE)
 
-    def __init__(self, server_id, conf_dir, setup=False):  # pragma: no cover
+    def __init__(self, server_id, conf_dir, setup=False, prom_export=None):  # pragma: no cover
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         :param bool setup: should setup() be called?
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         self.domain = DNSLabel(self.topology.dns_domain)
         self.lock = threading.Lock()
         self.services = {}

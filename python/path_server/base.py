@@ -84,12 +84,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     # TTL of segments in the queue for ZK (in seconds)
     SEGS_TO_ZK_TTL = 10 * 60
 
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.

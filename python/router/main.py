@@ -101,12 +101,13 @@ class Router(SCIONElement):
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
-    def __init__(self, server_id, conf_dir, ):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir, )
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         self.interface = None
         for border_router in self.topology.get_all_border_routers():
             if border_router.name == self.id:
