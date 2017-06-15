@@ -35,9 +35,9 @@ ISDID_STRING = 'ISDID'
 DESCRIPTION_STRING = 'Description'
 VERSION_STRING = 'Version'
 CREATION_TIME_STRING = 'CreationTime'
-CORE_ASES_STRING = 'CoreCAs'
+CORE_ASES_STRING = 'CoreASes'
 ROOT_CAS_STRING = 'RootCAs'
-PKI_LOGS_STRING = 'PKILogs'
+CERT_LOGS_STRING = 'CertLogs'
 QUORUM_EEPKI_STRING = 'QuorumEEPKI'
 ROOT_RAINS_KEY_STRING = 'RootRainsKey'
 QUORUM_OWN_TRC_STRING = 'QuorumOwnTRC'
@@ -49,6 +49,8 @@ ONLINE_KEY_ALG_STRING = 'OnlineKeyAlg'
 ONLINE_KEY_STRING = 'OnlineKey'
 OFFLINE_KEY_ALG_STRING = 'OfflineKeyAlg'
 OFFLINE_KEY_STRING = 'OfflineKey'
+ADDR_STRING = 'Addr'
+PUBLIC_KEY_STRING = 'PublicKey'
 
 
 def get_trc_file_path(conf_dir, isd, version):  # pragma: no cover
@@ -69,7 +71,7 @@ class TRC(object):
     :ivar int creation_time: the TRC file creation timestamp.
     :ivar dict core_ases: the set of core ASes and their certificates.
     :ivar dict root_cas: the set of root CAs and their certificates.
-    :ivar dict pki_logs: is a dictionary of end entity certificate logs, and
+    :ivar dict cert_logs: is a dictionary of end entity certificate logs, and
         their addresses and public key certificates
     :ivar int quroum_eepki: is a threshold number (nonnegative integer) of
         CAs that have to sign a domain’s policy
@@ -90,7 +92,7 @@ class TRC(object):
         CREATION_TIME_STRING: ("time", int),
         CORE_ASES_STRING: ("core_ases", dict),
         ROOT_CAS_STRING: ("root_cas", dict),
-        PKI_LOGS_STRING: ("pki_logs", dict),
+        CERT_LOGS_STRING: ("cert_logs", dict),
         QUORUM_EEPKI_STRING: ("quorum_eepki", int),
         ROOT_RAINS_KEY_STRING: ("root_rains_key", bytes),
         QUORUM_OWN_TRC_STRING: ("quorum_own_trc", int),
@@ -125,6 +127,9 @@ class TRC(object):
         for subject in trc_dict[ROOT_CAS_STRING]:
             self.root_cas[subject] = base64.b64decode(
                 trc_dict[ROOT_CAS_STRING][subject].encode('utf-8'))
+        for subject, entry in trc_dict[CERT_LOGS_STRING].items():
+            key = entry[PUBLIC_KEY_STRING]
+            self.cert_logs[subject][PUBLIC_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
 
     def get_isd_ver(self):
         return self.isd, self.version
@@ -160,7 +165,7 @@ class TRC(object):
 
     @classmethod
     def from_values(cls, isd, description, version, core_ases, root_cas,
-                    pki_logs, quorum_eepki, root_rains_key, quorum_own_trc,
+                    cert_logs, quorum_eepki, root_rains_key, quorum_own_trc,
                     quorum_cas, grace_period, quarantine, signatures):
         """
         Generate a TRC instance.
@@ -173,7 +178,7 @@ class TRC(object):
             CREATION_TIME_STRING: now,
             CORE_ASES_STRING: core_ases,
             ROOT_CAS_STRING: root_cas,
-            PKI_LOGS_STRING: pki_logs,
+            CERT_LOGS_STRING: cert_logs,
             QUORUM_EEPKI_STRING: quorum_eepki,
             ROOT_RAINS_KEY_STRING: root_rains_key,
             QUORUM_OWN_TRC_STRING: quorum_own_trc,
@@ -268,6 +273,11 @@ class TRC(object):
         for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
             root_cas[subject] = base64.b64encode(cert_str).decode('utf-8')
         trc_dict[ROOT_CAS_STRING] = root_cas
+        cert_logs = {}
+        for subject, entry in trc_dict[CERT_LOGS_STRING].items():
+            entry[PUBLIC_KEY_STRING] = base64.b64encode(entry[PUBLIC_KEY_STRING]).decode('utf-8')
+            cert_logs[subject] = entry
+        trc_dict[CERT_LOGS_STRING] = cert_logs
         if with_signatures:
             signatures = {}
             for subject in trc_dict[SIGNATURES_STRING]:

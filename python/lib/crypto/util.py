@@ -50,3 +50,10 @@ def get_ca_cert_file_path(conf_dir, name):
     Return the ca certificate file path
     """
     return os.path.join(conf_dir, "%s.cert" % name)
+
+
+def get_log_private_key_file_path(conf_dir, name):
+    """
+    Return the log offline key file path
+    """
+    return os.path.join(conf_dir, "%s.key" % name)

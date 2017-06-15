@@ -70,6 +70,37 @@ CAs:
   CA5-3:
     ISD: 5
     commonName: CA5-3
+LogServers:
+  Log1:
+    ISD: 1
+    addr: 127.0.0.1
+  Log2:
+    ISD: 1
+    addr: 127.0.0.2
+  Log3:
+    ISD: 2
+    addr: 127.0.0.3
+  Log4:
+    ISD: 2
+    addr: 127.0.0.4
+  Log5:
+    ISD: 3
+    addr: 127.0.0.5
+  Log6:
+    ISD: 3
+    addr: 127.0.0.6
+  Log7:
+    ISD: 4
+    addr: 127.0.0.7
+  Log8:
+    ISD: 4
+    addr: 127.0.0.8
+  Log9:
+    ISD: 5
+    addr: 127.0.0.9
+  Log10:
+    ISD: 5
+    addr: 127.0.0.10
 links:
   - {a: 1-1, b: 1-2, ltype: CORE}
   - {a: 1-1, b: 2-1, ltype: CORE}
