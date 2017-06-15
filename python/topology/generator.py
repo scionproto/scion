@@ -705,7 +705,7 @@ class TopoGenerator(object):
 
 class PrometheusGenerator(object):
     PROM_DIR = "prometheus"
-    BR_TARGET_FILE = "br.yml"
+    BR_TARGET_FILE = "prometheus.yml"
 
     def __init__(self, out_dir, topo_dicts):
         self.out_dir = out_dir
@@ -717,6 +717,9 @@ class PrometheusGenerator(object):
             router_list = []
             for br_id, br_ele in as_topo["BorderRouters"].items():
                 router_list.append(_prom_addr_br(br_ele))
+            for svc_type in ["BeaconService", "PathService", "CertificateService"]:
+                for elem_id, elem in as_topo[svc_type].items():
+                    router_list.append(_prom_addr_infra(elem))
             router_dict[topo_id] = router_list
         self._write_config_files(router_dict)
 
@@ -740,7 +743,7 @@ class PrometheusGenerator(object):
                 }
             },
             'scrape_configs': [{
-                'job_name': 'border',
+                'job_name': 'infrastructure',
                 'file_sd_configs': [{'files': file_paths}]
             }],
         }
@@ -787,9 +790,9 @@ class SupervisorGenerator(object):
 
     def _std_entries(self, topo, topo_key, cmd, base):
         entries = []
-        for elem in topo.get(topo_key, {}):
-            conf_dir = os.path.join(base, elem)
-            entries.append((elem, [cmd, elem, conf_dir]))
+        for elem_id, elem in topo.get(topo_key, {}).items():
+            conf_dir = os.path.join(base, elem_id)
+            entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem), elem_id, conf_dir]))
         return entries
 
     def _br_entries(self, topo, cmd, base):
@@ -1253,7 +1256,13 @@ def _topo_json_to_yaml(topo_dicts):
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
     int_addr = br_ele['InternalAddrs'][0]['Public'][0]
-    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port']+1)
+    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port'] + 1)
+
+
+def _prom_addr_infra(infra_ele):
+    """Get the prometheus address for an infrastructure element."""
+    int_addr = infra_ele["Public"][0]
+    return "[%s]:%s" % (int_addr["Addr"].ip, int_addr["L4Port"] + 1)
 
 
 def main():

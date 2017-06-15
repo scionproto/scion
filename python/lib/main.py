@@ -58,6 +58,7 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
     """
     handle_signals()
     parser = argparse.ArgumentParser()
+    parser.add_argument('--prom', type=str, help='Address to export prometheus metrics on')
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('conf_dir', nargs='?', default='.',
                         help='Configuration directory (Default: ./)')

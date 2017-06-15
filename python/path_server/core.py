@@ -21,6 +21,9 @@ import logging
 # External
 from external.expiring_dict import ExpiringDict
 
+# External packages
+from prometheus_client import Gauge
+
 # SCION
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
@@ -219,7 +222,7 @@ class CorePathServer(PathServer):
         Query master for a segment.
         """
         if self.zk.have_lock() or not self._master_id:
-            returnpath_re
+            return
         src_ia = src_ia or self.addr.isd_as
         # XXX(kormat) Requests forwarded to the master CPS should be cache-only, as they only happen
         # in the case where a core segment is missing or a local down-segment is missing, and there
