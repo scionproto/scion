@@ -50,7 +50,7 @@ func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Erro
 	return TopoAddrFromRAI(s, ot)
 }
 
-// Create TopoAddr from RawAddrInfo, depending on desired Overlay type
+// Create TopoAddr from RawAddrInfo, depending on supplied Overlay type
 func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, *common.Error) {
 	switch ot {
 	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
@@ -120,7 +120,7 @@ func (t *TopoAddr) validate() string {
 	if t.Overlay.IsIPv4() != t.Overlay.IsIPv6() {
 		// Single-stack overlay
 		if (t.IPv4 == nil) == (t.IPv6 == nil) {
-			// Either both addresses are present, or both or empty.
+			// Either both addresses are present, or both are empty.
 			return ErrExactlyOnePub
 		}
 	} else {
@@ -152,8 +152,7 @@ func (t *TopoAddr) PubL4PortFromAddr(a addr.HostAddr) (int, bool, *common.Error)
 		}
 		return t.IPv6.pubL4Port, t.IPv6.pubIP.Equal(a.IP()), nil
 	default:
-		// TODO(klausman): Log? Return error?
-		log.Debug("Unknown type of a", "type", fmt.Sprintf("%T", a))
+		log.Debug("Unknown HostAddr type", "type", fmt.Sprintf("%T", a))
 		return 0, false, common.NewError(fmt.Sprintf("Unknown HostAddr type: %T", a))
 
 	}
