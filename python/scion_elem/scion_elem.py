@@ -865,10 +865,10 @@ class SCIONElement(object):
         Try to put incoming packet in queue
         If queue is full, drop oldest packet in queue
         """
-        msg, pkt_len, meta = self._get_msg_meta(packet, addr, sock)
+        msg, meta = self._get_msg_meta(packet, addr, sock)
         if msg is None:
             return
-        self._in_buf_put((msg, pkt_len, meta))
+        self._in_buf_put((msg, meta))
 
     def _in_buf_put(self, item):
         dropped = 0
@@ -876,12 +876,12 @@ class SCIONElement(object):
             try:
                 self._in_buf.put(item, block=False)
                 PKT_BUF_TOTAL.inc()
-                PKT_BUF_BYTES.inc(item[1])
+                PKT_BUF_BYTES.inc(len(item[0]))
             except queue.Full:
-                _, pkt_len, _ = self._in_buf.get_nowait()
+                msg, _ = self._in_buf.get_nowait()
                 dropped += 1
                 PKT_BUF_TOTAL.dec()
-                PKT_BUF_BYTES.dec(pkt_len)
+                PKT_BUF_BYTES.dec(len(msg))
             else:
                 break
         if dropped > 0:
@@ -924,8 +924,8 @@ class SCIONElement(object):
             pkt.parse_payload()
         except SCIONParseError as e:
             logging.error("Cannot parse payload\n  Error: %s\n  Pkt: %s", e, pkt)
-            return None, meta
-        return pkt.get_payload(), len(pkt), meta
+            return None, 0, meta
+        return pkt.get_payload(), meta
 
     def handle_accept(self, sock):
         """
@@ -969,7 +969,7 @@ class SCIONElement(object):
         """
         while self.run_flag.is_set():
             try:
-                msg, _, meta = self._in_buf.get(timeout=1.0)
+                msg, meta = self._in_buf.get(timeout=1.0)
                 self.handle_msg_meta(msg, meta)
             except queue.Empty:
                 continue

@@ -87,11 +87,11 @@ class SCIONDaemon(SCIONElement):
     SEGMENT_TTL = 300
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=None):
+                 port=None, prom_export=None):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir, public=[(addr, port)])
+        super().__init__("sciond", conf_dir, prom_export=prom_export, public=[(addr, port)])
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
