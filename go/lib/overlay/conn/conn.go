@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/topology"
@@ -34,6 +35,9 @@ type Conn interface {
 
 func New(listen, remote *topology.AddrInfo) (Conn, *common.Error) {
 	// FIXME(klausman): use assert to make sure either remote or listen is defined
+	if assert.On {
+		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
+	}
 	var ot overlay.Type
 	if remote != nil {
 		ot = remote.Overlay

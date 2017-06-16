@@ -59,7 +59,7 @@ func (o Type) String() string {
 	case UDPIPv46:
 		return UDPIPv46Name
 	default:
-		return fmt.Sprintf("UNKNOWN (%d)", int(o))
+		return fmt.Sprintf("UNKNOWN (%d)", o)
 	}
 }
 
@@ -145,12 +145,10 @@ func OverlayFromIP(ip net.IP, ot Type) (Type, *common.Error) {
 		return IPv4, nil
 	} else {
 		// Address is IPv6
-		switch ot {
-		case IPv6, IPv46:
-			return IPv6, nil
-		case UDPIPv6, UDPIPv46:
+		if ot.IsUDP() {
 			return UDPIPv6, nil
 		}
+		return IPv6, nil
 	}
 	return Invalid, common.NewError("Unsupported addr type for overlay", "addr", ip, "type", ot)
 }

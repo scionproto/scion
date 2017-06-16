@@ -108,8 +108,7 @@ func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
 	if config, err = conf.Load(r.Id, r.confDir); err != nil {
 		return nil, err
 	}
-	log.Debug("Topology loaded", "topo", config)
-	log.Debug("AS Conf loaded", "conf", config.ASConf)
+	log.Debug("Topology and AS config loaded", "IA", config.IA, "IfIDs", config.BR, "dir", r.confDir)
 	return config, nil
 }
 

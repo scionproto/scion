@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -157,7 +157,6 @@ func (t *TopoAddr) PubL4PortFromAddr(a addr.HostAddr) (int, bool, *common.Error)
 		}
 		return t.IPv6.pubL4Port, t.IPv6.pubIP.Equal(a.IP()), nil
 	default:
-		log.Debug("Unknown HostAddr type", "type", fmt.Sprintf("%T", a))
 		return 0, false, common.NewError("Unknown HostAddr type", "type", a)
 	}
 }
@@ -188,11 +187,7 @@ func (t *TopoAddr) mkAddrInfo(ti *topoAddrInt, ot overlay.Type, public bool) *Ad
 	}
 	if ot.IsUDP() {
 		ai.Overlay = ot
-		if ti.OverlayPort != 0 {
-			ai.OverlayPort = ti.OverlayPort
-		} else {
-			ai.OverlayPort = overlay.EndhostPort
-		}
+		ai.OverlayPort = ti.OverlayPort
 	}
 	return ai
 }
