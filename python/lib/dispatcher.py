@@ -34,11 +34,11 @@ from lib.thread import kill_self
 from lib.types import L4Proto
 
 
-def reg_dispatcher(sock, addr, port, b_addr, b_port, init=True, svc=None, scmp=True):
+def reg_dispatcher(sock, addr, port, bind_addr, bind_port, init=True, svc=None, scmp=True):
     """
     Helper function for registering app with dispatcher
     """
-    buf = _pack_dispatcher_msg(addr, port, b_addr, b_port, svc, scmp)
+    buf = _pack_dispatcher_msg(addr, port, bind_addr, bind_port, svc, scmp)
     if not _connect_dispatcher(sock, init):
         return
     try:
@@ -65,18 +65,18 @@ def reg_dispatcher(sock, addr, port, b_addr, b_port, init=True, svc=None, scmp=T
     return True
 
 
-def _pack_dispatcher_msg(addr, port, b_addr, b_port, svc, scmp):
+def _pack_dispatcher_msg(addr, port, bind_addr, bind_port, svc, scmp):
     cmd = 1
     if scmp:
         cmd |= 1 << 1
-    if b_addr:
+    if bind_addr:
         cmd |= 1 << 2
         data = [
             struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port,
                         addr.host.TYPE),
             addr.host.pack(),
-            struct.pack("!HB", b_port, b_addr.host.TYPE),
-            b_addr.host.pack()
+            struct.pack("!HB", bind_port, bind_addr.host.TYPE),
+            bind_addr.host.pack()
         ]
     else:
         data = [

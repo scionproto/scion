@@ -608,8 +608,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
             memcpy(ap->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
 
             HASH_ADD(hh, l4_addr_list, bind_key, sizeof(L4Key), ap);
-            unsigned int cnt;
-            cnt = HASH_COUNT(l4_addr_list);
 
             end = end + b_port_len + b_type_len + b_addr_len;
         }
@@ -653,8 +651,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
             sp->bind_key.isd_as = isd_as;
             memcpy(sp->bind_key.host, buf + end - addr_len, addr_len);
             HASH_ADD(hh, svc_addr_list, bind_key, sizeof(SVCKey), sp);
-            unsigned int cnt;
-            cnt = HASH_COUNT(svc_addr_list);
         }
         zlog_info(zc, "SVC (%d) registration included", svc_key.addr);
         SVCEntry *se;
