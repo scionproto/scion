@@ -33,11 +33,8 @@ type Conn interface {
 }
 
 func New(listen, remote *topology.AddrInfo) (Conn, *common.Error) {
-	// FIXME(kormat): use assert to make sure either remote or listen is defined
+	// FIXME(klausman): use assert to make sure either remote or listen is defined
 	var ot overlay.Type
-	var connection connUDPIPv4
-	connection.Listen = listen
-	connection.Remote = remote
 	if remote != nil {
 		ot = remote.Overlay
 	} else {
@@ -46,20 +43,23 @@ func New(listen, remote *topology.AddrInfo) (Conn, *common.Error) {
 	switch ot {
 	case overlay.UDPIPv4:
 		var laddr, raddr *net.UDPAddr
+		connection := connUDPIPv4{Listen: listen, Remote: remote}
 		if listen != nil {
 			laddr = &net.UDPAddr{IP: listen.IP, Port: listen.L4Port}
 		}
 		if remote == nil {
 			c, err := net.ListenUDP("udp4", laddr)
 			if err != nil {
-				return nil, common.NewError("Error listening on socket", "overlay", ot, "err", err)
+				return nil, common.NewError("Error listening on socket",
+					"overlay", ot, "listen", listen, "err", err)
 			}
 			connection.conn = c
 		} else {
 			raddr = &net.UDPAddr{IP: remote.IP, Port: remote.L4Port}
 			c, err := net.DialUDP("udp4", laddr, raddr)
 			if err != nil {
-				return nil, common.NewError("Error setting up connection", "overlay", ot, "err", err)
+				return nil, common.NewError("Error setting up connection",
+					"overlay", ot, "listen", listen, "remote", remote, "err", err)
 			}
 			connection.conn = c
 		}
@@ -75,6 +75,10 @@ type connUDPIPv4 struct {
 }
 
 func (c *connUDPIPv4) Read(b common.RawBytes) (int, *topology.AddrInfo, error) {
+	if c.Remote != nil {
+		l, err := c.conn.Read(b)
+		return l, c.Remote, err
+	}
 	len, src, err := c.conn.ReadFromUDP(b)
 	if err != nil {
 		return len, nil, err

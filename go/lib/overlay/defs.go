@@ -59,7 +59,7 @@ func (o Type) String() string {
 	case UDPIPv46:
 		return UDPIPv46Name
 	default:
-		return fmt.Sprintf("Overlay type %+v unknown", int(o))
+		return fmt.Sprintf("UNKNOWN (%d)", int(o))
 	}
 }
 
@@ -139,12 +139,10 @@ func (ot Type) To4() Type {
 func OverlayFromIP(ip net.IP, ot Type) (Type, *common.Error) {
 	if ip.To4() != nil {
 		// Address is IPv4
-		switch ot {
-		case IPv4, IPv46:
-			return IPv4, nil
-		case UDPIPv4, UDPIPv46:
+		if ot.IsUDP() {
 			return UDPIPv4, nil
 		}
+		return IPv4, nil
 	} else {
 		// Address is IPv6
 		switch ot {

@@ -65,7 +65,11 @@
 
     "BeaconService": {
         "bs1-11-1": {"Public": [{"Addr": "127.0.0.65", "L4Port": 30054}]},
-        "bs1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}]}
+        "bs1-11-2": {"Public": [{"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}]},
+        "bs1-11-3": {"Public": [
+		{"Addr": "2001:db8:f00:b43::123", "L4Port": 10054},
+		{"Addr": "127.0.0.123", "L4Port": 10054}
+	]}
     },
     "CertificateService": {
         "cs1-11-1": {

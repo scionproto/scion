@@ -40,7 +40,7 @@ type Topo struct {
 	BRNames []string
 	// This maps Interface IDs to internal addresses. Clients use this to
 	// figure out which internal BR address they have to send their traffic to
-	// if they want to use a given (external) interface.
+	// if they want to use a given interface.
 	IFInfoMap map[common.IFIDType]IFInfo
 
 	BS      map[string]TopoAddr
@@ -227,7 +227,7 @@ type IFInfo struct {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddr[%+v]:%d Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
+		"IFinfo: Name[%s] IntAddr[%+v]#%d Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
 		i.BRName, i.InternalAddr, i.InternalAddrIdx, i.Overlay, i.Local, i.Remote, i.Bandwidth,
 		i.ISD_AS, i.LinkType, i.MTU)
 }

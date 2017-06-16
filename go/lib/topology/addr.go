@@ -45,11 +45,6 @@ type TopoAddr struct {
 	Overlay overlay.Type
 }
 
-//FIXME(kormat): move this to RawAddrInfo
-func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
-	return TopoAddrFromRAI(s, ot)
-}
-
 // Create TopoAddr from RawAddrInfo, depending on supplied Overlay type
 func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, *common.Error) {
 	switch ot {
@@ -142,19 +137,28 @@ func (t *TopoAddr) validate() string {
 func (t *TopoAddr) PubL4PortFromAddr(a addr.HostAddr) (int, bool, *common.Error) {
 	switch a.Type() {
 	case addr.HostTypeIPv4:
-		if t.IPv4 == nil || !t.Overlay.IsIPv4() {
-			return 0, false, common.NewError("IPv4 Hostaddr with empty IPv4 field")
+		if t.IPv4 == nil {
+			return 0, false, common.NewError("HostAddr is v4, but Topoaddr does not have v4 address",
+				"topoaddr", t, "hostaddr", a)
+		}
+		if !t.Overlay.IsIPv4() {
+			return 0, false, common.NewError("HostAddr is v4, but TopoAddr has non-v4 overlay",
+				"topoaddr", t, "hostaddr", a)
 		}
 		return t.IPv4.pubL4Port, t.IPv4.pubIP.Equal(a.IP()), nil
 	case addr.HostTypeIPv6:
-		if t.IPv6 == nil || !t.Overlay.IsIPv6() {
-			return 0, false, common.NewError("IPv6 Hostaddr with empty IPv6 field")
+		if t.IPv6 == nil {
+			return 0, false, common.NewError("HostAddr is v6, but Topoaddr does not have v6 address",
+				"topoaddr", t, "hostaddr", a)
+		}
+		if !t.Overlay.IsIPv6() {
+			return 0, false, common.NewError("HostAddr is v6, but TopoAddr has non-v6 overlay",
+				"topoaddr", t, "hostaddr", a)
 		}
 		return t.IPv6.pubL4Port, t.IPv6.pubIP.Equal(a.IP()), nil
 	default:
 		log.Debug("Unknown HostAddr type", "type", fmt.Sprintf("%T", a))
-		return 0, false, common.NewError(fmt.Sprintf("Unknown HostAddr type: %T", a))
-
+		return 0, false, common.NewError("Unknown HostAddr type", "type", a)
 	}
 }
 
@@ -191,6 +195,19 @@ func (t *TopoAddr) mkAddrInfo(ti *topoAddrInt, ot overlay.Type, public bool) *Ad
 		}
 	}
 	return ai
+}
+
+func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
+	if t1.Overlay != t2.Overlay {
+		return false
+	}
+	if !t1.IPv4.equal(t2.IPv4) {
+		return false
+	}
+	if !t1.IPv6.equal(t2.IPv6) {
+		return false
+	}
+	return true
 }
 
 type AddrInfo struct {
@@ -275,39 +292,4 @@ func (ti1 *topoAddrInt) equal(ti2 *topoAddrInt) bool {
 func (til *topoAddrInt) String() string {
 	return fmt.Sprintf("public: [%s]:%d bind: [%s]:%d overlayPort: %d",
 		til.pubIP, til.pubL4Port, til.bindIP, til.bindL4Port, til.OverlayPort)
-}
-
-func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
-	if t1.Overlay != t2.Overlay {
-		return false
-	}
-	if !t1.IPv4.equal(t2.IPv4) {
-		return false
-	}
-	if !t1.IPv6.equal(t2.IPv6) {
-		return false
-	}
-	return true
-}
-
-// Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
-func localTopoAddrFromBrInt(b RawBRIntf, o overlay.Type) (*TopoAddr, *common.Error) {
-	s := &RawAddrInfo{
-		Public: []RawAddrPortOverlay{
-			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
-		},
-	}
-	if b.Bind != nil {
-		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
-	}
-	return s.ToTopoAddr(o)
-}
-
-// make an AddrInfo object from a BR interface Remote entry
-func remoteAddrInfoFromBrInt(b RawBRIntf, o overlay.Type) (*AddrInfo, *common.Error) {
-	ip := net.ParseIP(b.Remote.Addr)
-	if ip == nil {
-		return nil, common.NewError("Could not parse remote IP from string", "ip", b.Remote.Addr)
-	}
-	return &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}, nil
 }

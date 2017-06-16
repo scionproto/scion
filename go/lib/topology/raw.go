@@ -108,6 +108,10 @@ type RawAddrInfo struct {
 	Bind   []RawAddrPort `json:",omitempty"`
 }
 
+func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
+	return TopoAddrFromRAI(s, ot)
+}
+
 func (rai RawAddrInfo) String() string {
 	var s []string
 	s = append(s, fmt.Sprintf("Public: %s", rai.Public))

@@ -138,7 +138,7 @@ func Test_Service_Count(t *testing.T) {
 	loadTopo(fn, t)
 	c := testTopo
 	Convey(fmt.Sprintf("Checking count of service entries"), t, func() {
-		SoMsg("Checking BS", len(c.BS), ShouldEqual, 2)
+		SoMsg("Checking BS", len(c.BS), ShouldEqual, 3)
 		SoMsg("Checking PS", len(c.PS), ShouldEqual, 2)
 		SoMsg("Checking SB", len(c.SB), ShouldEqual, 2)
 		SoMsg("Checking RS", len(c.RS), ShouldEqual, 2)
