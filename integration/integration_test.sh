@@ -49,7 +49,7 @@ log "Starting scion (without building)"
 log "Scion status:"
 ./scion.sh status || exit 1
 
-sleep 5
+sleep 10
 
 cat << EOF | parallel --no-notice -n2 -j2 run
 End2End
