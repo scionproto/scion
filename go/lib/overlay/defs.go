@@ -150,5 +150,4 @@ func OverlayFromIP(ip net.IP, ot Type) (Type, *common.Error) {
 		}
 		return IPv6, nil
 	}
-	return Invalid, common.NewError("Unsupported addr type for overlay", "addr", ip, "type", ot)
 }
