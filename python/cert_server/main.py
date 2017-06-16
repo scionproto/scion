@@ -399,7 +399,7 @@ class CertServer(SCIONElement):
             self._send_cc_request(meta.ia, req.p.certVer)
             err.append("Certificate not present for %s(v: %s)" % (meta.ia, req.p.certVer))
         if not trc:
-            self._send_trc_request(req.isd_as[0], req.p.trcVer, req.isd_as[1])
+            self._send_trc_request(meta.ia[0], req.p.trcVer, meta.ia[1])
             err.append("TRC not present for %s(v: %s)" % (meta.ia[0], req.p.trcVer))
         if err:
             raise SCIONVerificationError(", ".join(err))
