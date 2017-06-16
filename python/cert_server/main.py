@@ -32,24 +32,31 @@ import lib.app.sciond as lib_sciond
 from external.expiring_dict import ExpiringDict
 from lib.crypto.asymcrypto import get_enc_key, get_sig_key
 from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
-from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
+from lib.crypto.trc import TRC
 from lib.defines import CERTIFICATE_SERVICE
 from lib.drkey.drkey_mgmt import (
     DRKeyReply,
     DRKeyRequest,
+    DRKeyProtocolReply,
+    DRKeyProtocolRequest,
 )
 from lib.drkey.suite import (
     decrypt_drkey,
+    derive_drkey_raw,
     drkey_signing_input_req,
+    get_drkey_generator,
+    get_drkey_misc_rep_generator,
+    get_drkey_proto_req_verifer,
     get_drkey_reply,
     get_drkey_request,
+    get_required_drkeys_handler,
     get_signing_input_rep,
 )
 from lib.drkey.types import DRKeySecretValue, FirstOrderDRKey
 from lib.drkey.util import drkey_time, get_drkey_exp_time
-from lib.errors import SCIONVerificationError
+from lib.errors import SCIONKeyError, SCIONVerificationError
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainReply,
@@ -125,7 +132,7 @@ class CertServer(SCIONElement):
             labels=trc_labels,
         )
         self.drkey_protocol_requests = RequestHandler.start(
-            "DRKey Requests", self._check_drkey, self._fetch_drkey, self._reply_proto_drkey,
+            "DRKey Requests", self._check_drkey, self._fetch_drkey, self._reply_drkey_proto_req,
             labels=drkey_labels,
         )
 
@@ -141,6 +148,8 @@ class CertServer(SCIONElement):
                     self.process_drkey_request,
                 DRKeyMgmtType.FIRST_ORDER_REPLY:
                     self.process_drkey_reply,
+                DRKeyMgmtType.PROTOCOL_REQUEST:
+                    self.process_drkey_protocol_request,
             },
         }
 
@@ -388,7 +397,7 @@ class CertServer(SCIONElement):
                             req.short_desc())
             return
         sv = self._get_drkey_secret(get_drkey_exp_time(req.p.flags.prefetch))
-        cert_version = self.trust_store.get_cert(self.addr.isd_as).certs[0].version
+        cert_version = self.trust_store.get_cert(self.addr.isd_as).as_cert.version
         trc_version = self.trust_store.get_trc(self.addr.isd_as[0]).version
         rep = get_drkey_reply(sv, self.addr.isd_as, meta.ia, self.private_key,
                               self.signing_key, cert_version, cert, trc_version)
@@ -427,7 +436,7 @@ class CertServer(SCIONElement):
             verify_sig_chain_trc(raw, req.p.signature, meta.ia, chain, trc)
         except SCIONVerificationError as e:
             raise SCIONVerificationError(str(e))
-        return chain.certs[0]
+        return chain.as_cert
 
     def process_drkey_reply(self, rep, meta, from_zk=False):
         """
@@ -496,7 +505,7 @@ class CertServer(SCIONElement):
             verify_sig_chain_trc(raw, rep.p.signature, rep.isd_as, chain, trc)
         except SCIONVerificationError as e:
             raise SCIONVerificationError(str(e))
-        return chain.certs[0]
+        return chain.as_cert
 
     def _check_drkey(self, drkey):
         """
@@ -517,14 +526,14 @@ class CertServer(SCIONElement):
 
         :param FirstOrderDRKey drkey: The missing DRKey.
         """
-        cert = self.trust_store.get_cert(self.addr.isd_as)
+        cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         trc = self.trust_store.get_trc(self.addr.isd_as[0])
-        if not cert or not trc:
+        if not cert_chain or not trc:
             logging.warning("DRKeyRequest for %s not sent. Own CertChain/TRC not present.",
                             drkey.src_ia)
             return
         req = get_drkey_request(drkey.src_ia, False, self.signing_key,
-                                cert.certs[0].version, trc.version)
+                                cert_chain.as_cert.version, trc.version)
         path_meta = self._get_path_via_api(drkey.src_ia)
         if path_meta:
             meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
@@ -532,9 +541,6 @@ class CertServer(SCIONElement):
             logging.info("DRKeyRequest (%s) sent to %s via %s", req.short_desc(), meta, path_meta)
         else:
             logging.warning("DRKeyRequest (for %s) not sent", req.short_desc())
-
-    def _reply_proto_drkey(self, drkey, meta):
-        pass  # TODO(roosd): implement in future PR
 
     def _get_drkey_secret(self, exp_time):
         """
@@ -549,6 +555,82 @@ class CertServer(SCIONElement):
             sv = DRKeySecretValue(kdf(self.config.master_as_key, b"Derive DRKey Key"), exp_time)
             self.drkey_secrets[sv.exp_time] = sv
         return sv
+
+    def process_drkey_protocol_request(self, req, meta):
+        """
+        Process a DRKey protocol request. Missing first order DRKeys are
+        automatically fetched.
+
+        :param DRKeyProtocolRequest req: the protocol DRKey request.
+        :param UDPMetadata meta: the metadata.
+        """
+        assert isinstance(req, DRKeyProtocolRequest)
+        logging.info("DRKeyRequest received from %s: %s", meta, req.short_desc())
+        try:
+            get_drkey_proto_req_verifer(req.p.protocol)(req, meta)
+        except (SCIONKeyError, SCIONVerificationError) as e:
+            logging.info("Invalid DRKeyProtocolRequest from %s: %s", meta.host, str(e))
+            return
+        needed_drkeys = get_required_drkeys_handler(req.p.protocol)(req, meta)
+        for drkey in (k for k in needed_drkeys if k.src_ia != self.addr.isd_as):
+            if not self._check_drkey(drkey):
+                self.drkey_protocol_requests.put(
+                    (drkey, (req, meta, needed_drkeys)))
+        self._reply_drkey_proto_req(None, (req, meta, needed_drkeys))
+
+    def _reply_drkey_proto_req(self, _, value):
+        """
+        Reply to DRKey protocol requests which were waiting for missing first
+        order DRKeys. A reply is only sent if all missing first order DRKeys
+        are present.
+
+        :param tuple value: (DRKeyProtocolRequest, metadata, list of needed DRKeys).
+        """
+        req, meta, needed_drkeys = value
+        assert isinstance(req, DRKeyProtocolRequest)
+        for key in needed_drkeys:
+            if not self._check_drkey(key) and key.src_ia != self.addr.isd_as:
+                return
+        try:
+            self._set_needed_drkeys(needed_drkeys)
+            pld = self._generate_drkey_proto_reply(needed_drkeys, req, meta)
+            self.send_meta(pld, meta)
+            logging.info("DRKeyProtocolReply to %s: %s", meta, pld.short_desc())
+        except KeyError:
+            return
+
+    def _set_needed_drkeys(self, drkeys):
+        """
+        Sets the drkey field for each first order DRKey in the list.
+
+        :param [FirstOrderDRKey] drkeys: list of DRKeys with missing raw drkey.
+        :raises KeyError
+        """
+        for drkey in drkeys:
+            if drkey.src_ia == self.addr.isd_as:
+                sv = self._get_drkey_secret(drkey.exp_time)
+                drkey.drkey = derive_drkey_raw(sv, drkey.dst_ia)
+            else:
+                remote = self.first_order_drkeys[drkey]
+                drkey.drkey = remote.drkey
+
+    def _generate_drkey_proto_reply(self, drkeys, req, meta):
+        """
+        Generate a DRKey protocol reply.
+
+        :param [FirstOrderDRKey] drkeys: needed DRKeys for the derivation.
+        :param DRKeyProtocolRequest req: the request.
+        :param UDPMetadata meta: the metadata.
+        :returns: The encrypted protocol DRKey reply.
+        :rtype: DRKeyProtocolReply
+        """
+        timestamp = drkey_time()
+        generator = get_drkey_generator(req.p.protocol)
+        drkey = generator(drkeys, req, meta)
+        generator = get_drkey_misc_rep_generator(req.p.protocol)
+        misc = generator(drkeys, req, meta)
+        return DRKeyProtocolReply.from_values(
+            req.p.reqID, drkey, drkeys[0].exp_time, timestamp, misc)
 
     def _get_path_via_api(self, isd_as, flush=False):
         flags = lib_sciond.PathRequestFlags(flush=flush)

@@ -61,6 +61,9 @@ func (s *rSCMPAuthDRKeyExtn) Validate() (HookResult, *common.Error) {
 		return HookError, common.NewError("Invalid header length", "expected",
 			scmp_auth.DRKeyTotalLength, "actual", len(s.raw))
 	}
+	if err := s.VerifyMAC(); err != nil {
+		return HookError, err
+	}
 	return HookContinue, nil
 }
 

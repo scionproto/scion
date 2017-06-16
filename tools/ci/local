@@ -13,5 +13,5 @@ fi
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 
 echo "Artifacts dir: $tmpdir"
-"$TOOL" build --job local -v "$tmpdir:/tmp/artifacts"
+"$TOOL" -i kormat/picard build --job local -v "$tmpdir:/tmp/artifacts"
 echo "Artifacts dir: $tmpdir"

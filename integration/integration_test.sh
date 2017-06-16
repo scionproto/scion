@@ -63,6 +63,10 @@ python/integration/cert_req_test.py -l ERROR
 EOF
 result=$?
 
+run "SCMPAuth error" "python/integration/scmp_auth_error_test.py -l ERROR --runs 60"
+result=$((result+$?))
+
+
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-as1-11:br1-11-3 as2-26:br2-26-2 as1-14:br1-14-3 as1-16:br1-16-2}"
 result=$((result+$?))

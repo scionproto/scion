@@ -21,7 +21,10 @@ import capnp  # noqa
 # SCION
 import proto.drkey_mgmt_capnp as P
 
+from lib.drkey.opt.misc import OPTMiscReply, OPTMiscRequest
+from lib.drkey.types import DRKeyMiscType
 from lib.errors import SCIONParseError
+from lib.packet.host_addr import haddr_parse
 from lib.packet.packet_base import SCIONPayloadBaseProto
 from lib.packet.scion_addr import ISD_AS
 from lib.types import DRKeyMgmtType, PayloadClass
@@ -107,9 +110,162 @@ class DRKeyReply(DRKeyMgmtBase):
                    self.p.certVerDst, self.p.trcVer, self.p.timestamp))
 
 
+class DRKeyProtocolRequest(DRKeyMgmtBase):
+    """ DRKey protocol request for second order DRKey. """
+    NAME = "DRKeyProtocolRequest"
+    PAYLOAD_TYPE = DRKeyMgmtType.PROTOCOL_REQUEST
+    P_CLS = P.DRKeyProtocolReq
+
+    class Params(object):
+        timestamp = None        # int (format: drkey_time())
+        request_type = None     # DRKeyProtoKeyType (4 > x >= 0)
+        request_id = None       # int
+        protocol = None         # DRKeyProtocols
+        src_ia = None           # ISD_AS
+        dst_ia = None           # ISD_AS
+        add_ia = None           # ISD_AS
+        src_host = None         # HostAddrBase
+        dst_host = None         # HostAddrBase
+        add_host = None         # HostAddrBase
+        misc = None             # DRKeyMiscType
+
+    @classmethod
+    def _parse_host(cls, union):
+        if union.which() == "holder":
+            return haddr_parse(union.holder.type, union.holder.host)
+        return None
+
+    @classmethod
+    def _parse_misc(cls, union):
+        type_ = union.which()
+        misc_map = {
+            DRKeyMiscType.UNSET: lambda x: None,
+            DRKeyMiscType.OPT: OPTMiscRequest,
+        }
+        handler = misc_map.get(type_)
+        if not handler:
+            raise SCIONParseError("Unsupported misc type: %s" % type_)
+        return handler(getattr(union, type_))
+
+    @classmethod
+    def _set_misc(cls, union, misc):
+        misc_map = {
+            OPTMiscRequest: DRKeyMiscType.OPT,
+        }
+        type_ = misc_map.get(type(misc))
+        if not type_:
+            raise SCIONParseError("Unsupported misc type: %s" % type(misc))
+        setattr(union, type_, misc.p)
+
+    def __init__(self, p):
+        super().__init__(p)
+
+        self.src_ia = ISD_AS(p.srcIA)
+        self.dst_ia = ISD_AS(p.dstIA)
+        if p.addIA.which() == "ia":
+            self.add_ia = ISD_AS(p.addIA.ia)
+        else:
+            self.add_ia = None
+        self.src_host = self._parse_host(p.srcHost)
+        self.dst_host = self._parse_host(p.dstHost)
+        self.add_host = self._parse_host(p.addHost)
+        self.misc = self._parse_misc(p.misc)
+
+    @classmethod
+    def from_values(cls, params):  # pragma: no cover
+        """
+        Get the DRKeyProtocolRequest from values.
+
+        :param Params params: object holding the necessary parameters.
+        :returns: the resulting DRKeyProtocolRequest.
+        :rtype: DRKeyProtocolRequest
+        """
+        proto = cls.P_CLS.new_message(
+            reqType=params.request_type, srcIA=params.src_ia.int(), dstIA=params.dst_ia.int(),
+            protocol=params.protocol, reqID=params.request_id, timestamp=params.timestamp)
+        if params.add_ia:
+            proto.addIA.ia = params.add_ia.int()
+        if params.src_host:
+            proto.srcHost.holder = P.DRKeyHostHolder.new_message(
+                type=params.src_host.TYPE, host=params.src_host.pack())
+        if params.dst_host:
+            proto.dstHost.holder = P.DRKeyHostHolder.new_message(
+                type=params.dst_host.TYPE, host=params.dst_host.pack())
+        if params.add_host:
+            proto.addHost.holder = P.DRKeyHostHolder.new_message(
+                type=params.add_host.TYPE, host=params.add_host.pack())
+        if params.misc:
+            cls._set_misc(proto.misc, params.misc)
+        return cls(proto)
+
+    def tuple(self):
+        return (self.p.reqType, self.p.protocol, self.src_host, self.dst_host,
+                self.add_host, self.src_ia, self.dst_ia, self.add_ia)
+
+    def short_desc(self):
+        return "ID: %s ReqType: %s Src (%s,%s) Dst: (%s,%s) Add: (%s,%s)" % (
+            self.p.reqID, self.p.reqType, self.src_ia, self.src_host,
+            self.dst_ia, self.dst_host, self.add_ia, self.dst_host)
+
+
+class DRKeyProtocolReply(DRKeyMgmtBase):
+    """ DRKey protocol reply for second order DRKey. """
+    NAME = "DRKeyProtocolReply"
+    PAYLOAD_TYPE = DRKeyMgmtType.PROTOCOL_REPLY
+    P_CLS = P.DRKeyProtocolRep
+
+    @classmethod
+    def _parse_misc(cls, union):
+        type_ = union.which()
+        misc_map = {
+            DRKeyMiscType.UNSET: lambda x: None,
+            DRKeyMiscType.OPT: OPTMiscReply,
+        }
+        handler = misc_map.get(type_)
+        if not handler:
+            raise SCIONParseError("Unsupported misc type: %s" % type_)
+        return handler(getattr(union, type_))
+
+    @classmethod
+    def _set_misc(cls, union, misc):
+        misc_map = {
+            OPTMiscReply: DRKeyMiscType.OPT,
+        }
+        type_ = misc_map.get(type(misc))
+        if not type_:
+            raise SCIONParseError("Unsupported misc type: %s" % type(misc))
+        setattr(union, type_, misc.p)
+
+    def __init__(self, p):
+        super().__init__(p)
+        self.misc = self._parse_misc(p.misc)
+
+    @classmethod
+    def from_values(cls, req_id, drkey, exp_time, timestamp, misc=None):   # pragma: no cover
+        """
+        Get DRKeyProtocolReply from values.
+
+        :param int req_id: id of the corresponding request.
+        :param bytes drkey: the protocol DRKey.
+        :param int exp_time: expiration time of the protocol DRKey
+        :param int timestamp: timestamp of the creation time.
+        :param misc:
+        :returns: the resulting DRKeyProtocolReply
+        :rtype: DRKeyProtocolReply
+        """
+        proto = cls.P_CLS.new_message(
+            reqID=req_id, drkey=drkey, expTime=exp_time, timestamp=timestamp)
+        if misc:
+            cls._set_misc(proto.misc, misc)
+        return cls(proto)
+
+    def short_desc(self):
+        return "ID: %s expTime: %s" % (self.p.reqID, self.p.expTime)
+
+
 def parse_drkeymgmt_payload(wrapper):  # pragma: no cover
     type_ = wrapper.which()
-    for c in (DRKeyRequest, DRKeyReply):
+    for c in (DRKeyRequest, DRKeyReply, DRKeyProtocolRequest, DRKeyProtocolReply):
         if c.PAYLOAD_TYPE == type_:
             return c(getattr(wrapper, type_))
     raise SCIONParseError("Unsupported DRKey management type: %s" % type_)

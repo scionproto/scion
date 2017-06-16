@@ -34,9 +34,13 @@ from lib.defines import (
     SCIOND_API_PATH_ENV_VAR,
     SCIOND_API_SOCKDIR,
 )
+from lib.drkey.drkey_mgmt import DRKeyProtocolRequest
+from lib.drkey.suite import get_drkey_misc_rep_parser
+from lib.drkey.types import SecondOrderDRKey
 from lib.errors import SCIONBaseError, SCIONIOError, SCIONParseError
 from lib.packet.svc import SVC_TO_SERVICE
 from lib.sciond_api.as_req import SCIONDASInfoRequest
+from lib.sciond_api.drkey import SCIONDDRKeyRequest, SCIONDDRKeyError
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoRequest
 from lib.sciond_api.parse import parse_sciond_msg
@@ -224,6 +228,23 @@ class SCIONDConnector:
             if not socket.send(rev_not.pack_full()):
                 raise SCIONDRequestError
 
+    def get_protocol_drkey(self, params):
+        assert isinstance(params, DRKeyProtocolRequest.Params)
+        req_id = self._req_id.inc()
+        request = SCIONDDRKeyRequest.from_values(req_id, params)
+        with closing(self._create_socket()) as socket:
+            if not socket.send(request.pack_full()):
+                raise SCIONDRequestError
+            response = self._get_response(socket, req_id, SMT.DRKEY_REPLY)
+            if response.p.errorCode != SCIONDDRKeyError.OK:
+                raise SCIONDResponseError(
+                    SCIONDDRKeyError.describe(response.p.errorCode))
+            drkey = SecondOrderDRKey.from_protocol_exchange(
+                request.request(), response.reply())
+            parse = get_drkey_misc_rep_parser(request.request().p.protocol)
+            parse(request.request(), response.reply())
+            return drkey, response.reply().misc
+
     def _create_socket(self):  # pragma: no cover
         socket = ReliableSocket()
         socket.settimeout(_SCIOND_TOUT)
@@ -396,3 +417,23 @@ def send_rev_notification(rev_info, connector=None):  # pragma: no cover
     if not connector:
         raise SCIONDLibNotInitializedError
     connector.send_rev_notification(rev_info)
+
+
+def get_protocol_drkey(params, connector=None):
+    """
+    Returns the second order DRKey with the specified parameters.
+    src, dst, add, protocol and request_type have to be set appropriately.
+    Timestamp and request_id are set internally.
+
+    :param params: DRKeyProtocolRequest.Params
+    :return: The corresponding DRKey of type ProtocolDRKey
+    """
+    global _connector
+    if not connector:
+        connector = _connector
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    drkey = connector.get_protocol_drkey(params)
+    if not drkey:
+        raise SCIONDResponseError("DRKey could not be resolved.")
+    return drkey

@@ -19,6 +19,7 @@
 import proto.sciond_capnp as P
 from lib.errors import SCIONParseError
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoRequest
+from lib.sciond_api.drkey import SCIONDDRKeyReply, SCIONDDRKeyRequest
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoRequest
 from lib.sciond_api.path_req import SCIONDPathReply, SCIONDPathRequest
 from lib.sciond_api.revocation import SCIONDRevNotification
@@ -30,6 +31,8 @@ from lib.sciond_api.service_req import (
 _MSG_TYPES = (
     SCIONDASInfoReply,
     SCIONDASInfoRequest,
+    SCIONDDRKeyReply,
+    SCIONDDRKeyRequest,
     SCIONDIFInfoReply,
     SCIONDIFInfoRequest,
     SCIONDPathReply,
