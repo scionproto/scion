@@ -91,8 +91,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param str prom_export: prometheus export address.
         """
         super().__init__(server_id, conf_dir, prom_export=prom_export)
-        self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
-        self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
+        self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, label="down")
+        self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, label="core")
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         self.pen_req_lock = threading.Lock()
         self._request_logger = None

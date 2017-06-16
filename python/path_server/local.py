@@ -40,7 +40,7 @@ class LocalPathServer(PathServer):
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.
-        self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
+        self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, label="up")
 
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
