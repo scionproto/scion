@@ -17,7 +17,9 @@
 """
 # Stdlib
 import logging
-from collections import deque
+
+# External
+from external.expiring_dict import ExpiringDict
 
 # SCION
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
@@ -44,8 +46,8 @@ class CorePathServer(PathServer):
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.
-        self._segs_to_master = deque()
-        self._segs_to_prop = deque()
+        self._segs_to_master = ExpiringDict(1000, 10)
+        self._segs_to_prop = ExpiringDict(1000, 2 * self.config.propagation_time)
 
     def _update_master(self):
         """
@@ -93,7 +95,7 @@ class CorePathServer(PathServer):
                 if not pcb.is_sibra() and key in seen_ases:
                     continue
                 seen_ases.add(key)
-                self._segs_to_master.append((seg_type, pcb))
+                self._segs_to_master[pcb.get_hops_hash()] = (seg_type, pcb)
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -107,10 +109,10 @@ class CorePathServer(PathServer):
         if first_ia == self.addr.isd_as:
             # Segment is to us, so propagate to all other core ASes within the
             # local ISD.
-            self._segs_to_prop.append((PST.DOWN, pcb))
+            self._segs_to_prop[pcb.get_hops_hash()] = (PST.DOWN, pcb)
         if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not from_zk):
             # Sync all local down segs via zk
-            self._segs_to_zk.append((PST.DOWN, pcb))
+            self._segs_to_zk[pcb.get_hops_hash()] = (PST.DOWN, pcb)
         if added:
             return set([(last_ia, pcb.is_sibra())])
         return set()
@@ -127,10 +129,10 @@ class CorePathServer(PathServer):
         if not from_zk and not from_master:
             if first_ia[0] == self.addr.isd_as[0]:
                 # Local core segment, share via ZK
-                self._segs_to_zk.append((PST.CORE, pcb))
+                self._segs_to_zk[pcb.get_hops_hash()] = (PST.CORE, pcb)
             else:
                 # Remote core segment, send to master
-                self._segs_to_master.append((PST.CORE, pcb))
+                self._segs_to_master[pcb.get_hops_hash()] = (PST.CORE, pcb)
         if not added:
             return set()
         # Send pending requests that couldn't be processed due to the lack of
