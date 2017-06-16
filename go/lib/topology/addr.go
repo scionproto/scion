@@ -57,6 +57,12 @@ func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, *common.Error)
 	if err := t.FromRAI(s); err != nil {
 		return nil, err
 	}
+	if t.IPv4 != nil && ot.IsUDP() && t.IPv4.OverlayPort == 0 {
+		t.IPv4.OverlayPort = overlay.EndhostPort
+	}
+	if t.IPv6 != nil && ot.IsUDP() && t.IPv6.OverlayPort == 0 {
+		t.IPv6.OverlayPort = overlay.EndhostPort
+	}
 	if desc := t.validate(); len(desc) > 0 {
 		return nil, common.NewError(desc, "addr", s, "overlay", t.Overlay)
 	}

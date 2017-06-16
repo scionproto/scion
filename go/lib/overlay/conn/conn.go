@@ -34,7 +34,6 @@ type Conn interface {
 }
 
 func New(listen, remote *topology.AddrInfo) (Conn, *common.Error) {
-	// FIXME(klausman): use assert to make sure either remote or listen is defined
 	if assert.On {
 		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
 	}
@@ -87,7 +86,8 @@ func (c *connUDPIPv4) Read(b common.RawBytes) (int, *topology.AddrInfo, error) {
 	if err != nil {
 		return len, nil, err
 	}
-	ai := &topology.AddrInfo{Overlay: overlay.UDPIPv4, IP: src.IP, L4Port: src.Port, OverlayPort: overlay.EndhostPort}
+	ai := &topology.AddrInfo{Overlay: overlay.UDPIPv4, IP: src.IP, L4Port: src.Port,
+		OverlayPort: overlay.EndhostPort}
 	return len, ai, nil
 
 }
@@ -97,6 +97,9 @@ func (c *connUDPIPv4) Write(b common.RawBytes) (int, error) {
 }
 
 func (c *connUDPIPv4) WriteTo(b common.RawBytes, dst *topology.AddrInfo) (int, error) {
+	if assert.On {
+		assert.Must(dst.OverlayPort != 0, "OverlayPort must not be 0")
+	}
 	addr := &net.UDPAddr{IP: dst.IP, Port: dst.OverlayPort}
 	return c.conn.WriteTo(b, addr)
 }

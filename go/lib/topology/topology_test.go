@@ -178,9 +178,12 @@ func Test_IFInfoMap(t *testing.T) {
 		Local: &TopoAddr{
 			IPv4: &topoAddrInt{
 				pubIP: net.ParseIP("192.0.2.1"), pubL4Port: 44997,
-				bindIP: net.ParseIP("10.0.0.1"), bindL4Port: 30090},
+				bindIP: net.ParseIP("10.0.0.1"), bindL4Port: 30090,
+				OverlayPort: 44997,
+			},
 			Overlay: overlay.UDPIPv4},
-		Remote:    &AddrInfo{Overlay: overlay.UDPIPv4, IP: net.ParseIP("192.0.2.2"), L4Port: 44998},
+		Remote: &AddrInfo{Overlay: overlay.UDPIPv4, IP: net.ParseIP("192.0.2.2"),
+			L4Port: 44998, OverlayPort: 44998},
 		Bandwidth: 1000,
 		ISD_AS:    isdas,
 		LinkType:  ParentLink,
@@ -323,9 +326,12 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 		Local: &TopoAddr{
 			IPv4: &topoAddrInt{
 				pubIP: net.ParseIP("192.0.2.1"), pubL4Port: 4997,
-				bindIP: net.ParseIP("10.0.0.1"), bindL4Port: 3090},
+				bindIP: net.ParseIP("10.0.0.1"), bindL4Port: 3090,
+				OverlayPort: 4997,
+			},
 			Overlay: overlay.UDPIPv4},
-		Remote:    &AddrInfo{Overlay: overlay.UDPIPv4, IP: net.ParseIP("192.0.2.2"), L4Port: 4998},
+		Remote: &AddrInfo{Overlay: overlay.UDPIPv4, IP: net.ParseIP("192.0.2.2"),
+			L4Port: 4998, OverlayPort: 4998},
 		Bandwidth: 100000,
 		ISD_AS:    isdas,
 		LinkType:  CoreLink,

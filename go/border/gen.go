@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/proto"
@@ -70,8 +71,12 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int
 				return err
 			}
 		} else {
+			ai := &topology.AddrInfo{Overlay: srcAddr.Overlay, IP: dstHost.IP(), L4Port: dstL4Port}
+			if srcAddr.Overlay.IsUDP() {
+				ai.OverlayPort = overlay.EndhostPort
+			}
 			rp.Egress = append(rp.Egress, rpkt.EgressPair{
-				F: ctx.LocOutFs[0], Dst: &topology.AddrInfo{Overlay: srcAddr.Overlay, IP: dstHost.IP(), L4Port: dstL4Port}})
+				F: ctx.LocOutFs[0], Dst: ai})
 		}
 	} else {
 		ifid := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]

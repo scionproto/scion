@@ -88,6 +88,9 @@ func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, *common.Error) {
 			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
 		},
 	}
+	if o.IsUDP() {
+		s.Public[0].OverlayPort = b.Public.L4Port
+	}
 	if b.Bind != nil {
 		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
 	}
@@ -100,7 +103,11 @@ func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (*AddrInfo, *common.Error) {
 	if ip == nil {
 		return nil, common.NewError("Could not parse remote IP from string", "ip", b.Remote.Addr)
 	}
-	return &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}, nil
+	ai := &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}
+	if o.IsUDP() {
+		ai.OverlayPort = b.Remote.L4Port
+	}
+	return ai, nil
 }
 
 type RawAddrInfo struct {
