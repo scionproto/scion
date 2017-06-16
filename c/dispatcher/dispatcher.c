@@ -72,42 +72,37 @@ typedef struct {
 
 typedef struct {
     SVCKey key;
+    SVCKey bind_key;
     int count;
     int sockets[MAX_SVCS_PER_ADDR];
     UT_hash_handle hh;
+    UT_hash_handle bindhh;
 } SVCEntry;
 
 typedef struct Entry {
     L4Key l4_key;
+    L4Key bind_key;
     int sock;
     uint8_t scmp;
     struct Entry **list;
+    struct Entry **bind_list;
     SVCEntry *se;
     UT_hash_handle hh;
+    UT_hash_handle bindhh;
     UT_hash_handle pollhh;
 } Entry;
-
-typedef struct {
-    L4Key key;
-    L4Key bind_key;
-    UT_hash_handle hh;
-} L4AddrPair;
-
-typedef struct {
-    SVCKey key;
-    SVCKey bind_key;
-    UT_hash_handle hh;
-} SVCAddrPair;
 
 Entry *ssp_flow_list = NULL;
 Entry *ssp_wildcard_list = NULL;
 Entry *udp_port_list = NULL;
 Entry *poll_fd_list = NULL;
 
-SVCEntry *svc_list = NULL;
+Entry *bind_ssp_flow_list = NULL;
+Entry *bind_ssp_wildcard_list = NULL;
+Entry *bind_udp_port_ist = NULL;
 
-L4AddrPair *l4_addr_list = NULL;
-SVCAddrPair *svc_addr_list = NULL;
+SVCEntry *svc_list = NULL;
+SVCEntry *bind_svc_list = NULL;
 
 static struct pollfd sockets[MAX_SOCKETS];
 static int num_sockets;
@@ -510,6 +505,10 @@ void register_ssp(uint8_t *buf, int len, int sock)
         }
         e->list = &ssp_flow_list;
         HASH_ADD(hh, ssp_flow_list, l4_key, sizeof(L4Key), e);
+        if (IS_BIND_SOCKET(*buf)) {
+            e->bind_list = &bind_ssp_flow_list;
+            HASH_ADD(bindhh, bind_ssp_flow_list, bind_key, sizeof(L4Key), e);
+        }
         zlog_info(zc, "flow registration success: %" PRIu64, e->l4_key.flow_id);
     } else {
         if (find_available_port(ssp_wildcard_list, &e->l4_key) < 0) {
@@ -519,6 +518,10 @@ void register_ssp(uint8_t *buf, int len, int sock)
         }
         e->list = &ssp_wildcard_list;
         HASH_ADD(hh, ssp_wildcard_list, l4_key, sizeof(L4Key), e);
+        if (IS_BIND_SOCKET(*buf)) {
+            e->bind_list = &bind_ssp_wildcard_list;
+            HASH_ADD(bindhh, bind_ssp_wildcard_list, bind_key, sizeof(L4Key), e);
+        }
         zlog_info(zc, "wildcard registration success: %d", e->l4_key.port);
     }
     reply(sock, e->l4_key.port);
@@ -537,6 +540,12 @@ void register_udp(uint8_t *buf, int len, int sock)
     }
     e->list = &udp_port_list;
     HASH_ADD(hh, udp_port_list, l4_key, sizeof(L4Key), e);
+
+    /* Register bind address info if the app has a bind address */
+    if (IS_BIND_SOCKET(*buf)) {
+        e->bind_list = &bind_udp_port_ist;
+        HASH_ADD(bindhh, bind_udp_port_ist, bind_key, sizeof(L4Key), e);
+    }
     reply(sock, e->l4_key.port);
 }
 
@@ -564,6 +573,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
 
     int addr_len = get_addr_len(type);
+    int b_addr_len = 0;
     int port_len = 2;
     int type_len = 1;
     int flow_id_len = 8;
@@ -575,7 +585,23 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common + flow_id_len, addr_len);
-        end = common + flow_id_len + addr_len;
+        common = common + flow_id_len;
+        end = common + addr_len;
+        if (IS_BIND_SOCKET(*buf)) {
+            /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | flow ID (8B) | addr (?B) |
+               bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
+            int b_port_len = port_len;
+            int b_type_len = type_len;
+
+            uint16_t b_port = ntohs(*(uint16_t *)(buf + end));
+            uint8_t b_type = *(uint8_t *)(buf + end + b_port_len);
+            b_addr_len = get_addr_len(b_type);
+            e->bind_key.port = b_port;
+            e->bind_key.isd_as = isd_as;
+            memcpy(e->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
+
+            end = end + b_port_len + b_type_len + b_addr_len;
+        }
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
     } else if (proto == L4_UDP) {
@@ -587,27 +613,15 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         if (IS_BIND_SOCKET(*buf)) {
             /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
                bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
-            L4AddrPair *ap = (L4AddrPair *)malloc(sizeof(L4AddrPair));
-            if (!ap) {
-                zlog_fatal(zc, "malloc failed, abandon ship");
-                exit(1);
-            }
-            memset(ap, 0, sizeof(L4AddrPair));
-            ap->key.port = port;
-            ap->key.isd_as = isd_as;
-            memcpy(ap->key.host, buf + common, addr_len);
-
             int b_port_len = port_len;
             int b_type_len = type_len;
 
             uint16_t b_port = ntohs(*(uint16_t *)(buf + end));
             uint8_t b_type = *(uint8_t *)(buf + end + b_port_len);
-            int b_addr_len = get_addr_len(b_type);
-            ap->bind_key.port = b_port;
-            ap->bind_key.isd_as = isd_as;
-            memcpy(ap->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
-
-            HASH_ADD(hh, l4_addr_list, bind_key, sizeof(L4Key), ap);
+            b_addr_len = get_addr_len(b_type);
+            e->bind_key.port = b_port;
+            e->bind_key.isd_as = isd_as;
+            memcpy(e->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
 
             end = end + b_port_len + b_type_len + b_addr_len;
         }
@@ -632,26 +646,10 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     memset(&svc_key, 0, sizeof(SVCKey));
 
     if (len > end) {
-        if (proto == L4_SSP)
-            memcpy(svc_key.host, buf + common + flow_id_len, addr_len);
-        else
-            memcpy(svc_key.host, buf + common, addr_len);
+        memcpy(svc_key.host, buf + common, addr_len);
         svc_key.addr = ntohs(*(uint16_t *)(buf + end));
         svc_key.isd_as = isd_as;
 
-        if (IS_BIND_SOCKET(*buf)) {
-            SVCAddrPair *sp = (SVCAddrPair *)malloc(sizeof(SVCAddrPair));
-            if (!sp) {
-                zlog_fatal(zc, "malloc failed, abandon ship");
-                exit(1);
-            }
-            memset(sp, 0, sizeof(SVCAddrPair));
-            sp->key = svc_key;
-            sp->bind_key.addr = svc_key.addr;
-            sp->bind_key.isd_as = isd_as;
-            memcpy(sp->bind_key.host, buf + end - addr_len, addr_len);
-            HASH_ADD(hh, svc_addr_list, bind_key, sizeof(SVCKey), sp);
-        }
         zlog_info(zc, "SVC (%d) registration included", svc_key.addr);
         SVCEntry *se;
         HASH_FIND(hh, svc_list, &svc_key, sizeof(svc_key), se);
@@ -669,6 +667,14 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
             memset(se, 0, sizeof(SVCEntry));
             se->key = svc_key;
             se->sockets[se->count++] = sock;
+
+            if (IS_BIND_SOCKET(*buf)) {
+                memcpy(se->bind_key.host, buf + end - b_addr_len, b_addr_len);
+                se->bind_key.addr = ntohs(*(uint16_t *)(buf + end));
+                se->bind_key.isd_as = isd_as;
+
+                HASH_ADD(bindhh, bind_svc_list, bind_key, sizeof(SVCKey), se);
+            }
             HASH_ADD(hh, svc_list, key, sizeof(SVCKey), se);
         }
         e->se = se;
@@ -828,17 +834,23 @@ void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
     if (key.port != 0) {
         HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
-                    key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL));
-            return;
+            HASH_FIND(bindhh, bind_ssp_wildcard_list, &key, sizeof(key), e);
+            if (!e) {
+                zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
+                        key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL));
+                return;
+            }
         }
     } else {
         key.flow_id = be64toh(*(uint64_t *)l4ptr);
         HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
-                    ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL), key.flow_id);
-            return;
+            HASH_FIND(bindhh, bind_ssp_flow_list, &key, sizeof(key), e);
+            if (!e) {
+                zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
+                        ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL), key.flow_id);
+                return;
+            }
         }
     }
     zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64,
@@ -873,19 +885,17 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     key.isd_as = get_dst_isd_as(buf);
     memcpy(key.host, get_dst_addr(buf), get_dst_len(buf));
 
-    L4AddrPair *ap;
-    HASH_FIND(hh, l4_addr_list, &key, sizeof(L4Key), ap);
-    if (ap) {
-        key = ap->key;
-    }
-
     Entry *e;
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
-        zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
-                ISD(key.isd_as), AS(key.isd_as),
-                addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
-        return;
+        /* Find dst info from the bind address list if the lookup fails with the public address list*/
+        HASH_FIND(bindhh, bind_udp_port_ist, &key, sizeof(key), e);
+        if (!e) {
+            zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
+                    ISD(key.isd_as), AS(key.isd_as),
+                    addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
+            return;
+        }
     }
     sock = e->sock;
     send_dp_header(sock, from, len);
@@ -901,19 +911,17 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     svc_key.isd_as = get_dst_isd_as(buf);
     memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
 
-    SVCAddrPair *sp;
-    HASH_FIND(hh, svc_addr_list, &svc_key, sizeof(SVCKey), sp);
-    if (sp) {
-        svc_key = sp->key;
-    }
-
     SVCEntry *se;
     HASH_FIND(hh, svc_list, &svc_key, sizeof(SVCKey), se);
     if (!se) {
-        zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %02x IP: %s",
-                ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
-                addr_to_str(dst->addr, dst->addr_type, NULL));
-        return;
+        /* Find dst info from the bind address list if the lookup fails with the public address list*/
+        HASH_FIND(bindhh, bind_svc_list, &svc_key, sizeof(SVCKey), se);
+        if (!se) {
+            zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %02x IP: %s",
+                    ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
+                    addr_to_str(dst->addr, dst->addr_type, NULL));
+            return;
+        }
     }
     char dststr[MAX_HOST_ADDR_STR];
     char svcstr[MAX_HOST_ADDR_STR];
@@ -1108,8 +1116,11 @@ void cleanup_socket(int sock, int index, int err)
     HASH_FIND(pollhh, poll_fd_list, &sock, sizeof(sock), e);
     if (e) {
         HASH_DELETE(pollhh, poll_fd_list, e);
-        if (e->list)
+        if (e->list) {
             HASH_DELETE(hh, *(e->list), e);
+            if (e->bind_list)
+                HASH_DELETE(bindhh, *(e->bind_list), e);
+        }
         if (e->se) {
             int i;
             for (i = 0; i < e->se->count; i++) {
@@ -1122,6 +1133,8 @@ void cleanup_socket(int sock, int index, int err)
                     zlog_info(zc, "removed socket from SVC listeners for host");
                     if (count == 0) {
                         HASH_DELETE(hh, svc_list, e->se);
+                        if (e->se->bind_key.addr)
+                            HASH_DELETE(bindhh, bind_svc_list, e->se);
                         free(e->se);
                         e->se = NULL;
                         zlog_info(zc, "no more SVC listeners on host, remove entry");
