@@ -1134,6 +1134,11 @@ class SCIONElement(object):
         """
         Starts an HTTP server endpoint for prometheus to scrape.
         """
+        # Create a dummy counter to export the server_id as a label for correlating
+        # server_id and other metrics.
+        id_metric = Counter("scion_server_id", "Server ID", ["server_id"])
+        id_metric.labels(server_id=self.id).inc()
+
         addr, port = export_addr.split(":")
         port = int(port)
         addr = addr.strip("[]")
