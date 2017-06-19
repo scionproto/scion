@@ -21,9 +21,16 @@ import threading
 import queue
 from collections import defaultdict
 
+# External
+from prometheus_client import Gauge
+
 # SCION
 from lib.thread import thread_safety_net
 from lib.util import SCIONTime
+
+
+# Exported metrics.
+REQS_PENDING = Gauge("rh_requests_pending", "# of pending requests", ["type"])
 
 
 class RequestHandler(object):
@@ -48,7 +55,7 @@ class RequestHandler(object):
     MAX_LEN = 16
 
     def __init__(self, queue, check, fetch, reply, ttl=TTL,
-                 key_map=None):  # pragma: no cover
+                 key_map=None, label=""):  # pragma: no cover
         """
         :param queue.Queue queue:
             Used to receive request notifications, see class docstring for
@@ -62,6 +69,7 @@ class RequestHandler(object):
         :param function reply:
             Called with the provided key and request info, should return the
             result to the requester.
+        :param str label: A label for the exported metric.
         """
         self._queue = queue
         self._check = check
@@ -70,6 +78,8 @@ class RequestHandler(object):
         self._ttl = ttl
         self._req_map = defaultdict(list)
         self._key_map = key_map or self._def_key_map
+        self._label = label
+        self._pending = 0
 
     @classmethod
     def start(cls, name, *args, **kwargs):  # pragma: no cover
@@ -96,11 +106,13 @@ class RequestHandler(object):
             for k in self._key_map(key, self._req_map.keys()):
                 self._answer_reqs(k)
 
+
     def _add_req(self, key, request):
         self._expire_reqs(key)
         if not self._check(key):
             self._fetch(key, request)
         self._req_map[key].append((SCIONTime.get_time(), request))
+        REQS_PENDING.labels(type=self._label).inc()
 
     def _answer_reqs(self, key):
         if not self._check(key):
@@ -108,9 +120,12 @@ class RequestHandler(object):
             return
         self._expire_reqs(key)
         reqs = self._req_map[key]
+        count = 0
         while reqs:
             _, req = reqs.pop(0)
             self._reply(key, req)
+            count += 1
+        REQS_PENDING.labels(type=self._label).dec(count)
         del self._req_map[key]
 
     def _expire_reqs(self, key):
@@ -124,6 +139,7 @@ class RequestHandler(object):
                 self._req_map[key].remove((ts, req))
         if count:
             logging.debug("Expired %d requests for %s", count, key)
+            REQS_PENDING.labels(type=self._label).dec(count)
 
     @staticmethod
     def _def_key_map(key, keys):  # pragma: no cover
