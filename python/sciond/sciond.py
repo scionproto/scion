@@ -126,7 +126,7 @@ class SCIONDaemon(SCIONElement):
         }
 
         if run_local_api:
-            self._api_sock = ReliableSocket(bind=(self.api_addr, "sciond"))
+            self._api_sock = ReliableSocket(bind_unix=(self.api_addr, "sciond"))
             self._socks.add(self._api_sock, self.handle_accept)
 
     @classmethod

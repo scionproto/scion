@@ -192,7 +192,7 @@ class ReliableSocket(Socket):
     COOKIE = bytes.fromhex("de00ad01be02ef03")
     COOKIE_LEN = len(COOKIE)
 
-    def __init__(self, reg=None, bind=None, sock=None):
+    def __init__(self, reg=None, bind_ip=(), bind_unix=None, sock=None):
         """
         Initialise a socket of the specified type, and optionally bind it to an
         address/port.
@@ -202,7 +202,11 @@ class ReliableSocket(Socket):
             describing respectively the address, port, SVC type, and init value
             to register with the dispatcher. In sockets that do not connect to
             the dispatcher, this argument is None.
-        :param tuple bind:
+        :param tuple bind_ip:
+            Optional tuple of (`SCIONAddr`, `int`) describing the address and port
+            of the bind address. Only needed if the bind address is different from
+            the public address.
+        :param tuple bind_unix:
             Optional tuple of (`str`, `str`) describing path to bind to, and an
             optional description.
         :param sock:
@@ -212,9 +216,10 @@ class ReliableSocket(Socket):
         self.addr = None
         if reg:
             addr, port, init, svc = reg
-            self.registered = reg_dispatcher(self, addr, port, init, svc)
-        if bind:
-            self.bind(*bind)
+            self.registered = reg_dispatcher(
+                    self, addr, port, bind_ip, init, svc)
+        if bind_unix:
+            self.bind(*bind_unix)
         self.active = True
 
     @classmethod
