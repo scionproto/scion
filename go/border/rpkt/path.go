@@ -78,11 +78,11 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 // validateLocalIF makes sure a given interface ID exists in the local AS, and
 // that it isn't revoked. Note that revocations are ignored if the packet's
 // destination is this router.
-func (rp *RtrPkt) validateLocalIF(ifid *spath.IntfID) *common.Error {
+func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) *common.Error {
 	if ifid == nil {
 		return common.NewError("validateLocalIF: Interface is nil")
 	}
-	if _, ok := rp.Ctx.Conf.TopoMeta.IFMap[int(*ifid)]; !ok {
+	if _, ok := rp.Ctx.Conf.Topo.IFInfoMap[common.IFIDType(*ifid)]; !ok {
 		// No such interface.
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
 		return common.NewErrorData("Unknown IF", sdata, "ifid", ifid)
@@ -376,7 +376,7 @@ func (rp *RtrPkt) UpFlag() (*bool, *common.Error) {
 }
 
 // IFCurr retrieves the current interface ID if not already known.
-func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
+func (rp *RtrPkt) IFCurr() (*common.IFIDType, *common.Error) {
 	if rp.ifCurr != nil {
 		return rp.ifCurr, nil
 	}
@@ -410,7 +410,7 @@ func (rp *RtrPkt) IFCurr() (*spath.IntfID, *common.Error) {
 
 // checkSetCurrIF is a helper function that ensures the given interface ID is
 // valid before setting the ifCurr field and returning the value.
-func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Error) {
+func (rp *RtrPkt) checkSetCurrIF(ifid *common.IFIDType) (*common.IFIDType, *common.Error) {
 	if ifid == nil {
 		return nil, common.NewError("No interface found")
 	}
@@ -423,7 +423,7 @@ func (rp *RtrPkt) checkSetCurrIF(ifid *spath.IntfID) (*spath.IntfID, *common.Err
 
 // IFNext retrieves the next interface ID if not already known. As this may be
 // an interface in an external ISD-AS, this is not sanity-checked.
-func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
+func (rp *RtrPkt) IFNext() (*common.IFIDType, *common.Error) {
 	if rp.ifNext == nil && rp.upFlag != nil {
 		var err *common.Error
 		// Try to get IFID from registered hooks.
@@ -444,7 +444,7 @@ func (rp *RtrPkt) IFNext() (*spath.IntfID, *common.Error) {
 
 // hookIF is a helper function used by IFCurr/IFNext to run interface ID
 // retrival hooks.
-func (rp *RtrPkt) hookIF(up bool, hooks []hookIntf) (*spath.IntfID, *common.Error) {
+func (rp *RtrPkt) hookIF(up bool, hooks []hookIntf) (*common.IFIDType, *common.Error) {
 	for _, f := range hooks {
 		ret, intf, err := f(up, rp.DirFrom, rp.DirTo)
 		switch {

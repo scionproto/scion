@@ -33,13 +33,13 @@ import (
 
 // Conf is the main config structure.
 type Conf struct {
-	// TopoMeta contains the names of all local infrastructure elements, a map
+	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
-	TopoMeta *topology.TopoMeta
+	Topo *topology.Topo
 	// IA is the current ISD-AS.
 	IA *addr.ISD_AS
 	// BR is the topology information of this router.
-	BR *topology.TopoBR
+	BR *topology.BRInfo
 	// ASConf is the local AS configuration.
 	ASConf *as_conf.ASConf
 	// HFMacPool is the pool of Hop Field MAC generation instances.
@@ -58,12 +58,12 @@ func Load(id, confDir string) (*Conf, *common.Error) {
 	conf := &Conf{}
 	conf.Dir = confDir
 	topoPath := filepath.Join(conf.Dir, topology.CfgName)
-	if conf.TopoMeta, err = topology.Load(topoPath); err != nil {
+	if conf.Topo, err = topology.Load(topoPath); err != nil {
 		return nil, err
 	}
-	conf.IA = conf.TopoMeta.T.IA
+	conf.IA = conf.Topo.ISD_AS
 	// Find the config for this router.
-	topoBR, ok := conf.TopoMeta.T.BR[id]
+	topoBR, ok := conf.Topo.BR[id]
 	if !ok {
 		return nil, common.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
 	}
@@ -93,7 +93,9 @@ func Load(id, confDir string) (*Conf, *common.Error) {
 	}
 
 	// Create network configuration
-	conf.Net = netconf.FromTopo(conf.BR)
+	if conf.Net, err = netconf.FromTopo(conf.BR.IFIDs, conf.Topo.IFInfoMap); err != nil {
+		return nil, err
+	}
 	// Save config
 	return conf, nil
 }

@@ -43,20 +43,20 @@ func IAFromInt(iaInt int) *ISD_AS {
 	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
 }
 
-func IAFromString(s string) (*ISD_AS, error) {
+func IAFromString(s string) (*ISD_AS, *common.Error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Invalid ISD-AS %q", s)
+		return nil, common.NewError("Invalid ISD-AS", "val", s)
 	}
 	isd, err := strconv.Atoi(parts[0])
 	if err != nil {
 		e := err.(*strconv.NumError)
-		return nil, fmt.Errorf("Unable to parse ISD from %q: %v", s, e.Err)
+		return nil, common.NewError("Unable to parse ISD", "val", s, "err", e.Err)
 	}
 	as, err := strconv.Atoi(parts[1])
 	if err != nil {
 		e := err.(*strconv.NumError)
-		return nil, fmt.Errorf("Unable to parse AS from %q: %v", s, e.Err)
+		return nil, common.NewError("Unable to parse AS", "val", s, "err", e.Err)
 	}
 	return &ISD_AS{I: isd, A: as}, nil
 }
@@ -83,18 +83,4 @@ func (ia *ISD_AS) Eq(other *ISD_AS) bool {
 
 func (ia ISD_AS) String() string {
 	return fmt.Sprintf("%d-%d", ia.I, ia.A)
-}
-
-func (ia *ISD_AS) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	resIA, err := IAFromString(s)
-	if err != nil {
-		return err
-	}
-	ia.I = resIA.I
-	ia.A = resIA.A
-	return nil
 }

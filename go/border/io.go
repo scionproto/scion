@@ -17,8 +17,6 @@
 package main
 
 import (
-	"net"
-
 	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
@@ -28,7 +26,8 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 // PosixInputFuncArgs defines the arguments needed by a PosixInputFunc.
@@ -36,17 +35,19 @@ type PosixInputFuncArgs struct {
 	// ProcessPacket is the main packet processing routine.
 	ProcessPacket func(*rpkt.RtrPkt)
 	// Conn is the connection the input function is listening on.
-	Conn *net.UDPConn
+	Conn conn.Conn
 	// DirFrom is the direction of the incoming packets.
 	DirFrom rpkt.Dir
 	// Ifids is a slice of interface IDs that are served by this input function.
-	Ifids []spath.IntfID
+	Ifids []common.IFIDType
 	// Labels holds the exported prometheus labels.
 	Labels prometheus.Labels
 	// StopChan is used to stop the input function.
 	StopChan chan struct{}
 	// StoppedChan is used to inform the stopper, when the input function has stopped.
 	StoppedChan chan struct{}
+	// Local address index, only meaningful for packets received from the local AS.
+	LocIdx int
 }
 
 type PosixInputFunc func(args *PosixInputFuncArgs)
@@ -88,8 +89,8 @@ func (pi *PosixInput) Stop() {
 func readPosixInput(args *PosixInputFuncArgs) {
 	defer liblog.PanicLog()
 	defer close(args.StoppedChan)
-	log.Info("Listening", "addr", args.Conn.LocalAddr())
-	dst := args.Conn.LocalAddr().(*net.UDPAddr)
+	dst := args.Conn.LocalAddr()
+	log.Info("Listening", "addr", dst)
 	// Create a new rpkt buffer to be used by this input routine.
 	rp := rpkt.NewRtrPkt()
 	for { // Run until stop signal is received.
@@ -100,7 +101,7 @@ func readPosixInput(args *PosixInputFuncArgs) {
 			rp.Ctx = rctx.Get()
 			rp.DirFrom = args.DirFrom
 			start := monotime.Now()
-			length, src, err := args.Conn.ReadFromUDP(rp.Raw)
+			length, src, err := args.Conn.Read(rp.Raw)
 			if err != nil {
 				log.Error("Error reading from socket", "socket", dst, "err", err)
 				continue
@@ -112,6 +113,7 @@ func readPosixInput(args *PosixInputFuncArgs) {
 			rp.Ingress.Dst = dst
 			rp.Ingress.Src = src
 			rp.Ingress.IfIDs = args.Ifids
+			rp.Ingress.LocIdx = args.LocIdx
 			metrics.PktsRecv.With(args.Labels).Inc()
 			metrics.BytesRecv.With(args.Labels).Add(float64(length))
 			// TODO(kormat): experiment with performance by calling processPacket directly instead.
@@ -128,12 +130,12 @@ func readPosixInput(args *PosixInputFuncArgs) {
 	}
 }
 
-type posixOutputFunc func(common.RawBytes, *net.UDPAddr) (int, error)
+type posixOutputFunc func(common.RawBytes, *topology.AddrInfo) (int, error)
 
 // writePosixOutput writes packets to a POSIX(/BSD) socket using the provided
 // function (a wrapper around net.UDPConn.WriteToUDP or net.UDPConn.Write).
 func writePosixOutput(labels prometheus.Labels,
-	oo rctx.OutputObj, dst *net.UDPAddr, f posixOutputFunc) {
+	oo rctx.OutputObj, dst *topology.AddrInfo, f posixOutputFunc) {
 	start := monotime.Now()
 	raw := oo.Bytes()
 	if count, err := f(raw, dst); err != nil {

@@ -19,7 +19,8 @@ package rpkt
 import (
 	"fmt"
 	"math/rand"
-	"net"
+
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -94,7 +95,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(
 	// consistent selection for a given source.
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
-	dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
+	dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
 	rp.Egress = append(rp.Egress, EgressPair{f, dst})
 	return HookContinue, nil
 }
@@ -108,16 +109,18 @@ func (rp *RtrPkt) RouteResolveSVCMulti(
 	if err != nil {
 		return HookError, err
 	}
-	// Only send once per IP address.
-	seen := make(map[string]bool)
+	// Only send once per IP:OverlayPort combination. Adding the overlay port
+	// allows this to work even when multiple instances are NAT'd to the same
+	// IP address.
+	seen := make(map[string]struct{})
 	for _, elem := range elemMap {
-		strIP := string(elem.Addr.IP)
+		ai := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+		strIP := fmt.Sprintf("%s:%d", ai.IP, ai.OverlayPort)
 		if _, ok := seen[strIP]; ok {
 			continue
 		}
-		seen[strIP] = true
-		dst := &net.UDPAddr{IP: elem.Addr.IP, Port: overlay.EndhostPort}
-		rp.Egress = append(rp.Egress, EgressPair{f, dst})
+		seen[strIP] = struct{}{}
+		rp.Egress = append(rp.Egress, EgressPair{f, ai})
 	}
 	return HookContinue, nil
 }
@@ -150,7 +153,15 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
 				"hopF", rp.hopF)
 		}
-		dst := &net.UDPAddr{IP: rp.dstHost.IP(), Port: overlay.EndhostPort}
+		ot, err := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
+		if err != nil {
+			return HookError, err
+		}
+		dst := &topology.AddrInfo{
+			Overlay:     ot,
+			IP:          rp.dstHost.IP(),
+			OverlayPort: overlay.EndhostPort,
+		}
 		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocOutFs[intf.LocAddrIdx], dst})
 		return HookContinue, nil
 	}
@@ -165,8 +176,19 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	// Destination is in a remote ISD-AS, so forward to egress router.
 	// FIXME(kormat): this will need to change when multiple interfaces per
 	// router are supported.
-	nextBR := rp.Ctx.Conf.TopoMeta.IFMap[int(*rp.ifNext)]
-	dst := &net.UDPAddr{IP: nextBR.BasicElem.Addr.IP, Port: nextBR.BasicElem.Port}
+	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
+	nextAI := nextBR.InternalAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+	ot, err := overlay.OverlayFromIP(nextAI.IP, rp.Ctx.Conf.Topo.Overlay)
+	if err != nil {
+		return HookError, err
+	}
+
+	dst := &topology.AddrInfo{
+		Overlay:     ot,
+		IP:          nextAI.IP,
+		L4Port:      nextAI.L4Port,
+		OverlayPort: nextAI.L4Port,
+	}
 	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocOutFs[intf.LocAddrIdx], dst})
 	return HookContinue, nil
 }
@@ -218,21 +240,21 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 		return nil
 	}
 	prevLink := rp.Ctx.Conf.Net.IFs[origIFCurr].Type
-	nextLink := rp.Ctx.Conf.TopoMeta.IFMap[int(*rp.ifNext)].IF.LinkType
+	nextLink := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext].LinkType
 	// Never allowed to switch between core segments.
-	if prevLink == topology.LinkCore && nextLink == topology.LinkCore {
+	if prevLink == topology.CoreLink && nextLink == topology.CoreLink {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
 		return common.NewError("Segment change between CORE links.", sdata)
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
-	if infoF.Up && rp.infoF.Up && nextLink != topology.LinkCore {
+	if infoF.Up && rp.infoF.Up && nextLink != topology.CoreLink {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
 		return common.NewError(
 			"Segment change from up segment to up segment with non-CORE next link", sdata,
 			"prevLink", prevLink, "nextLink", nextLink)
 	}
 	// Only allowed to switch from down- to down-segment if the previous link is CORE.
-	if !infoF.Up && !rp.infoF.Up && prevLink != topology.LinkCore {
+	if !infoF.Up && !rp.infoF.Up && prevLink != topology.CoreLink {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
 		return common.NewError(
 			"Segment change from down segment to down segment with non-CORE previous link",
@@ -250,6 +272,6 @@ func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 		}
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.IntfOutFs[*rp.ifCurr], intf.RemoteAddr})
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.IntfOutFs[*rp.ifCurr], intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)})
 	return HookContinue, nil
 }

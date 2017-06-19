@@ -21,7 +21,6 @@ package rpkt
 
 import (
 	"fmt"
-	"net"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -33,6 +32,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 // pktBufSize is the maxiumum size of a packet buffer.
@@ -95,9 +95,9 @@ type RtrPkt struct {
 	// hopF is the current Hop Field, if any. (PARSE)
 	hopF *spath.HopField
 	// ifCurr is the current interface ID. (PARSE)
-	ifCurr *spath.IntfID
+	ifCurr *common.IFIDType
 	// ifNext is the next interface ID, if any. (PARSE)
-	ifNext *spath.IntfID
+	ifNext *common.IFIDType
 	// upFlag indicates if the packet is currently on an up path. (PARSE)
 	upFlag *bool
 	// HBHExt is the list of Hop-by-hop extensions, if any. (PARSE)
@@ -167,16 +167,17 @@ func (d Dir) String() string {
 // addrIFPair contains the overlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
-	Dst   *net.UDPAddr
-	Src   *net.UDPAddr
-	IfIDs []spath.IntfID
+	Dst    *topology.AddrInfo
+	Src    *topology.AddrInfo
+	IfIDs  []common.IFIDType
+	LocIdx int // only set for packets from the local AS.
 }
 
 // EgressPair contains the output function to send a packet with, along with an
 // overlay destination address.
 type EgressPair struct {
 	F   rctx.OutputFunc
-	Dst *net.UDPAddr
+	Dst *topology.AddrInfo
 }
 
 // packetIdxs provides offsets into a packet buffer to the start of various
@@ -222,6 +223,7 @@ func (rp *RtrPkt) Reset() {
 	rp.Ingress.Dst = nil
 	rp.Ingress.Src = nil
 	rp.Ingress.IfIDs = nil
+	rp.Ingress.LocIdx = -1
 	rp.Egress = rp.Egress[:0]
 	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}

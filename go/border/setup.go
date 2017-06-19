@@ -21,7 +21,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,13 +32,13 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 type setupNetHook func(r *Router, ctx *rctx.Ctx,
 	oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error)
-type setupAddLocalHook func(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
+type setupAddLocalHook func(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error)
 type setupAddExtHook func(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error)
@@ -109,8 +108,7 @@ func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
 	if config, err = conf.Load(r.Id, r.confDir); err != nil {
 		return nil, err
 	}
-	log.Debug("Topology loaded", "topo", config.BR)
-	log.Debug("AS Conf loaded", "conf", config.ASConf)
+	log.Debug("Topology and AS config loaded", "IA", config.IA, "IfIDs", config.BR, "dir", r.confDir)
 	return config, nil
 }
 
@@ -210,22 +208,23 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 }
 
 // setupPosixAddLocal configures a local POSIX(/BSD) socket.
-func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
+func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
-		if err := addPosixLocal(r, ctx, idx, over, labels); err != nil {
+		if err := addPosixLocal(r, ctx, idx, ta.BindAddrInfo(ctx.Conf.Topo.Overlay), labels); err != nil {
 			return rpkt.HookError, err
 		}
 		return rpkt.HookFinish, nil
 	}
-	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[over.BindAddr().String()]; !ok {
+	ba := ta.BindAddrInfo(ctx.Conf.Topo.Overlay)
+	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[ba.Key()]; !ok {
 		// New local address got added. Configure Posix I/O.
-		if err := addPosixLocal(r, ctx, idx, over, labels); err != nil {
+		if err := addPosixLocal(r, ctx, idx, ba, labels); err != nil {
 			return rpkt.HookError, err
 		}
 	} else {
-		log.Debug("No change detected for local socket.", "conn", over.BindAddr().String())
+		log.Debug("No change detected for local socket.", "bindaddr", ba)
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.LocInputFs[idx] = oldCtx.LocInputFs[oldIdx]
 		ctx.LocOutFs[idx] = oldCtx.LocOutFs[oldIdx]
@@ -233,14 +232,16 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 	return rpkt.HookFinish, nil
 }
 
-func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
+func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 	labels prometheus.Labels) *common.Error {
+	// FIXME(kormat): this does not support dual-stack local addresses (e.g. ipv4+6).
 	// Listen on the socket.
-	if err := over.Listen(); err != nil {
+	over, err := conn.New(ba, nil)
+	if err != nil {
 		return common.NewError("Unable to listen on local socket", "err", err)
 	}
 	// Find interfaces that use this local address.
-	var ifids []spath.IntfID
+	var ifids []common.IFIDType
 	for _, intf := range ctx.Conf.Net.IFs {
 		if intf.LocAddrIdx == idx {
 			ifids = append(ifids, intf.Id)
@@ -249,25 +250,26 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 	// Setup input goroutine.
 	args := &PosixInputFuncArgs{
 		ProcessPacket: r.processPacket,
-		Conn:          over.Conn,
+		Conn:          over,
 		DirFrom:       rpkt.DirLocal,
 		Ifids:         ifids,
 		Labels:        labels,
 		StopChan:      make(chan struct{}),
 		StoppedChan:   make(chan struct{}),
+		LocIdx:        idx,
 	}
 	ctx.LocInputFs[idx] = &PosixInput{
 		Args: args,
 		Func: readPosixInput,
 	}
 	// Add an output callback for the socket.
-	f := func(b common.RawBytes, dst *net.UDPAddr) (int, error) {
-		return over.Conn.WriteToUDP(b, dst)
+	f := func(b common.RawBytes, dst *topology.AddrInfo) (int, error) {
+		return over.WriteTo(b, dst)
 	}
-	ctx.LocOutFs[idx] = func(oo rctx.OutputObj, dst *net.UDPAddr) {
+	ctx.LocOutFs[idx] = func(oo rctx.OutputObj, dst *topology.AddrInfo) {
 		writePosixOutput(labels, oo, dst, f)
 	}
-	log.Debug("Set up new local socket.", "conn", over.BindAddr().String())
+	log.Debug("Set up new local socket.", "conn", over.LocalAddr())
 	return nil
 }
 
@@ -298,7 +300,7 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 	} else {
 		log.Debug("No change detected for external socket.", "conn",
-			intf.IFAddr.BindAddr().String())
+			intf.IFAddr.BindAddrInfo(ctx.Conf.Topo.Overlay))
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.ExtInputFs[intf.Id] = oldCtx.ExtInputFs[intf.Id]
 		ctx.IntfOutFs[intf.Id] = oldCtx.IntfOutFs[intf.Id]
@@ -317,18 +319,21 @@ func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bo
 func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) *common.Error {
 	// Connect to remote address.
-	if err := intf.IFAddr.Connect(intf.RemoteAddr); err != nil {
+	ba := intf.IFAddr.BindAddrInfo(intf.IFAddr.Overlay)
+	c, err := conn.New(ba, intf.RemoteAddr)
+	if err != nil {
 		return common.NewError("Unable to listen on external socket", "err", err)
 	}
 	// Setup input goroutine.
 	args := &PosixInputFuncArgs{
 		ProcessPacket: r.processPacket,
-		Conn:          intf.IFAddr.Conn,
+		Conn:          c,
 		DirFrom:       rpkt.DirExternal,
-		Ifids:         []spath.IntfID{intf.Id},
+		Ifids:         []common.IFIDType{intf.Id},
 		Labels:        labels,
 		StopChan:      make(chan struct{}),
 		StoppedChan:   make(chan struct{}),
+		LocIdx:        -1,
 	}
 	pif := &PosixInput{
 		Args: args,
@@ -336,14 +341,12 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	}
 	ctx.ExtInputFs[intf.Id] = pif
 	// Add an output callback for the socket.
-	conn := intf.IFAddr.Conn
-	dst := conn.RemoteAddr().(*net.UDPAddr)
-	f := func(b common.RawBytes, _ *net.UDPAddr) (int, error) {
-		return conn.Write(b)
+	f := func(b common.RawBytes, _ *topology.AddrInfo) (int, error) {
+		return c.Write(b)
 	}
-	ctx.IntfOutFs[intf.Id] = func(oo rctx.OutputObj, _ *net.UDPAddr) {
+	ctx.IntfOutFs[intf.Id] = func(oo rctx.OutputObj, _ *topology.AddrInfo) {
 		// An interface can only send packets to a fixed remote address, so ignore the UDPAddr arg.
-		writePosixOutput(labels, oo, dst, f)
+		writePosixOutput(labels, oo, c.RemoteAddr(), f)
 	}
 	log.Debug("Set up new external socket.", "intf", intf)
 	return nil

@@ -35,7 +35,6 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 var (
@@ -76,7 +75,7 @@ func setupHSRAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 		}
 	}
 
-	var ifids []spath.IntfID
+	var ifids []common.IFIDType
 	for _, intf := range ctx.Conf.Net.IFs {
 		if intf.LocAddrIdx == idx {
 			ifids = append(ifids, intf.Id)
@@ -104,7 +103,7 @@ func setupHSRAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 	}
 	hsrAddrMs = append(hsrAddrMs, hsr.AddrMeta{
-		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []spath.IntfID{intf.Id}, Labels: labels})
+		GoAddr: bind, DirFrom: rpkt.DirExternal, IfIDs: []common.IFIDType{intf.Id}, Labels: labels})
 	ctx.IntfOutFs[intf.Id] = func(oo rctx.OutputObj, dst *net.UDPAddr) {
 		writeHSROutput(oo, dst, len(hsrAddrMs)-1, labels)
 	}

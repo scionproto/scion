@@ -1,0 +1,55 @@
+{
+    "Timestamp": 168562800,
+    "TimestampHuman": "May  6 00:00:00 CET 1975",
+    "ISD_AS": "6-22",
+    "MTU": 1472,
+    "Overlay": "IPv4+6",
+    "BorderRouters": {
+        "borderrouter6-22-1": {
+            "InternalAddrs": [
+                {
+                  "Public": [
+                    {"Addr": "10.1.0.1", "L4Port": 30097},
+                    {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}
+                  ]
+                }
+            ],
+            "Interfaces": {
+                "91": {
+                    "InternalAddrIdx": 0,
+                    "Overlay": "UDP/IPv4",
+                    "Bind": {"Addr": "10.0.0.1", "L4Port": 3090},
+                    "Public": {"Addr": "192.0.2.1", "L4Port": 4997},
+                    "Remote": {"Addr": "192.0.2.2", "L4Port": 4998},
+                    "Bandwidth": 100000,
+                    "ISD_AS": "6-23",
+                    "LinkType": "CORE",
+                    "MTU": 1472
+                }
+            }
+        },
+        "borderrouter6-22-9": {
+            "InternalAddrs": [
+                {
+                  "Public": [
+                    {"Addr": "10.1.0.2", "L4Port": 3097},
+                    {"Addr": "2001:db8:a0b:12f0::2", "L4Port": 3097}
+                  ]
+                }
+            ],
+            "Interfaces": {
+                "32": {
+                    "InternalAddrIdx": 0,
+                    "Overlay": "IPv6",
+                    "Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 50000},
+                    "Remote": {"Addr":"2001:db8:a0b:12f0::2", "L4Port": 50000},
+                    "Bind": {"Addr":"2001:db8:a0b:12f0::8", "L4Port": 10000},
+                    "Bandwidth": 5000,
+                    "ISD_AS": "6-14",
+                    "LinkType": "CHILD",
+                    "MTU": 4430
+                }
+            }
+        }
+    }
+}
