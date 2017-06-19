@@ -192,8 +192,16 @@ class SCIONElement(object):
         # Setup TCP "accept" socket.
         self._setup_tcp_accept_socket(svc)
         # Setup UDP socket
-        self._udp_sock = ReliableSocket(
-            reg=(self.addr, self._port, init, svc))
+        if self.bind:
+            # TODO(jonghoonkwon): Fix me to setup socket for a proper bind address,
+            # if the element has more than one bind addresses
+            host_addr, b_port = self.bind[0]
+            b_addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
+            self._udp_sock = ReliableSocket(
+                reg=(self.addr, self._port, init, svc), bind_addr=(b_addr, b_port))
+        else:
+            self._udp_sock = ReliableSocket(
+                reg=(self.addr, self._port, init, svc))
         if not self._udp_sock.registered:
             self._udp_sock = None
             return
