@@ -27,6 +27,13 @@ from lib.packet.pcb import PathSegment
 from lib.util import SCIONTime
 
 
+# Exported metrics
+SEGS_TOTAL = Gauge("pathdb_segs_total", "# of path segments", ["type"])
+SEGS_BYTES = Gauge("pathdb_segs_bytes", "Path segments memory usage", ["type"])
+SEGS_ADDED = Counter("pathdb_segs_added_total", "Total path segments added", ["type"])
+SEGS_REMOVED = Counter("pathdb_segs_removed_total", "Total path segments removed", ["type"])
+
+
 class DBResult(object):
     """Enum type for the different result of an insertion"""
     NONE = 0
@@ -66,17 +73,19 @@ class PathSegmentDBRecord(object):
 
 class PathSegmentDB(object):
     """Simple database for paths using PyDBLite"""
-    def __init__(self, segment_ttl=None, max_res_no=None):  # pragma: no cover
+    def __init__(self, segment_ttl=None, max_res_no=None, label=""):  # pragma: no cover
         """
         :param int segment_ttl:
             The TTL for each record in the database (in s) or None to just use
             the segment's expiration time.
         :param int max_res_no: Number of results returned for a query.
+        :param str label: Optional label to export metrics for this PathSegmentDB.
         """
         self._db = None
         self._lock = threading.Lock()
         self._segment_ttl = segment_ttl
         self._max_res_no = max_res_no
+        self._label = label
         self._setup_db()
 
     def _setup_db(self):  # pragma: no cover
@@ -103,6 +112,9 @@ class PathSegmentDB(object):
 
     def flush(self):  # pragma: no cover
         """Removes all records from the database."""
+        SEGS_REMOVED.labels(type=self._label).inc(len(self))
+        SEGS_TOTAL.labels(type=self._label).set(0)
+        SEGS_BYTES.labels(type=self._label).set(0)
         self._setup_db()
 
     def update(self, pcb, reverse=False):
@@ -128,15 +140,22 @@ class PathSegmentDB(object):
                     last_ia[0], last_ia[1], pcb.is_sibra())
                 logging.debug("Added segment from %s to %s: %s",
                               first_ia, last_ia, pcb.short_desc())
+                SEGS_ADDED.labels(type=self._label).inc()
+                SEGS_TOTAL.labels(type=self._label).inc()
+                SEGS_BYTES.labels(type=self._label).inc(len(pcb))
                 return DBResult.ENTRY_ADDED
             cur_rec = recs[0]['record']
             if pcb.get_expiration_time() < cur_rec.pcb.get_expiration_time():
                 return DBResult.NONE
+            old_pcb = cur_rec.pcb
             cur_rec.pcb = pcb
             if self._segment_ttl:
                 cur_rec.exp_time = now + self._segment_ttl
             else:
                 cur_rec.exp_time = pcb.get_expiration_time()
+            SEGS_ADDED.labels(type=self._label).inc()
+            SEGS_REMOVED.labels(type=self._label).inc()
+            SEGS_BYTES.labels(type=self._label).inc(len(pcb) - len(old_pcb))
             return DBResult.ENTRY_UPDATED
 
     def delete(self, segment_id):

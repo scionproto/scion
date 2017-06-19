@@ -24,6 +24,9 @@ import threading
 import time
 from collections import defaultdict
 
+# External packages
+from prometheus_client import Counter, Gauge, start_http_server
+
 # SCION
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_sig_chain_trc
@@ -101,6 +104,12 @@ from lib.topology import Topology
 from lib.util import hex_str, sleep_interval
 
 
+# Exported metrics.
+PKT_BUF_TOTAL = Gauge("se_pkt_buf_total", "Total packets in input buffer")
+PKT_BUF_BYTES = Gauge("se_pkt_buf_bytes", "Memory usage of input buffer")
+PKTS_DROPPED_TOTAL = Counter("se_packets_dropped_total", "Total packets dropped")
+
+
 MAX_QUEUE = 50
 
 
@@ -121,7 +130,7 @@ class SCIONElement(object):
     # Timeout for TRC or Certificate requests.
     TRC_CC_REQ_TIMEOUT = 3
 
-    def __init__(self, server_id, conf_dir, public=None, bind=None):
+    def __init__(self, server_id, conf_dir, public=None, bind=None, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -132,6 +141,9 @@ class SCIONElement(object):
             (host_addr, port) of the element's bind address, if any
             (i.e. the address the element uses to identify itself to the local
             operating system, if it differs from the public address due to NAT).
+        :param str prom_export:
+            String of the form 'addr:port' specifying the prometheus endpoint.
+            If no string is provided, no metrics are exported.
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -178,6 +190,8 @@ class SCIONElement(object):
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         self._setup_sockets(True)
+        if prom_export:
+            self._export_metrics(prom_export)
 
     def _setup_sockets(self, init):
         """
@@ -861,15 +875,20 @@ class SCIONElement(object):
         while True:
             try:
                 self._in_buf.put(item, block=False)
+                PKT_BUF_TOTAL.inc()
+                PKT_BUF_BYTES.inc(len(item[0]))
             except queue.Full:
-                self._in_buf.get_nowait()
+                pkt, _ = self._in_buf.get_nowait()
                 dropped += 1
+                PKT_BUF_TOTAL.dec()
+                PKT_BUF_BYTES.dec(len(pkt))
             else:
                 break
         if dropped > 0:
             self.total_dropped += dropped
-            logging.debug("%d packet(s) dropped (%d total dropped so far)",
-                          dropped, self.total_dropped)
+            PKTS_DROPPED_TOTAL.inc(dropped)
+            logging.warning("%d packet(s) dropped (%d total dropped so far)",
+                            dropped, self.total_dropped)
 
     def _get_msg_meta(self, packet, addr, sock):
         pkt = self._parse_packet(packet)
@@ -1109,3 +1128,10 @@ class SCIONElement(object):
                                            flags=TCPFlags.ONEHOPPATH)
         return UDPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
                                        ext_hdrs=[OneHopPathExt()])
+
+    def _export_metrics(self, export_addr):
+        """
+        Starts an HTTP server endpoint for prometheus to scrape.
+        """
+        addr, port = export_addr.split(":")
+        start_http_server(port, addr=addr)
