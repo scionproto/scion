@@ -126,6 +126,7 @@ void handle_app();
 void register_ssp(uint8_t *buf, int len, int sock);
 void register_udp(uint8_t *buf, int len, int sock);
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock);
+int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset);
 int find_available_port(Entry *list, L4Key *key);
 void reply(int sock, int port);
 static inline uint16_t get_next_port();
@@ -551,24 +552,9 @@ void register_udp(uint8_t *buf, int len, int sock)
         e->bind_list = &bind_udp_port_list;
         HASH_ADD(bindhh, bind_udp_port_list, bind_key, sizeof(L4Key), e);
     }
+    // FIXME(shitz): If the app specifies 0 as the bind port, it won't get notified
+    // which port it actually gets bound to.
     reply(sock, e->l4_key.port);
-}
-
-// Adds a bind address to and entry and returns the offset in the buffer.
-// When registering a socket with a bind address the command format looks like:
-// command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
-// bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional)
-int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset)
-{
-    int port_len = 2;
-    int type_len = 1;
-
-    int b_addr_len = get_addr_len(buf[offset + port_len]);
-    e->bind_key.port = ntohs(*(uint16_t *)(buf + offset));
-    e->bind_key.isd_as = isd_as;
-    memcpy(e->bind_key.host, buf + offset + port_len + type_len, b_addr_len);
-
-    return offset + port_len + type_len + b_addr_len;
 }
 
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
@@ -677,6 +663,23 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
 
     return e;
+}
+
+// Adds a bind address to and entry and returns the offset in the buffer.
+// When registering a socket with a bind address the command format looks like:
+// command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
+// bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional)
+int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset)
+{
+    int port_len = 2;
+    int type_len = 1;
+
+    int b_addr_len = get_addr_len(buf[offset + port_len]);
+    e->bind_key.port = ntohs(*(uint16_t *)(buf + offset));
+    e->bind_key.isd_as = isd_as;
+    memcpy(e->bind_key.host, buf + offset + port_len + type_len, b_addr_len);
+
+    return offset + port_len + type_len + b_addr_len;
 }
 
 int find_available_port(Entry *list, L4Key *key)
