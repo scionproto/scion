@@ -549,6 +549,25 @@ void register_udp(uint8_t *buf, int len, int sock)
     reply(sock, e->l4_key.port);
 }
 
+// Adds a bind address to and entry and returns the offset in the buffer.
+// When registering a socket with a bind address the command format looks like:
+// command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
+// bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional)
+int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset)
+{
+    int b_port_len = 2;
+    int b_type_len = 1;
+
+    uint16_t b_port = ntohs(*(uint16_t *)(buf + offset));
+    uint8_t b_type = *(uint8_t *)(buf + offset + b_port_len);
+    int b_addr_len = get_addr_len(b_type);
+    e->bind_key.port = b_port;
+    e->bind_key.isd_as = isd_as;
+    memcpy(e->bind_key.host, buf + offset + b_port_len + b_type_len, b_addr_len);
+
+    return offset + b_port_len + b_type_len + b_addr_len;
+}
+
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 {
     uint32_t isd_as = ntohl(*(uint32_t *)(buf + 2));
@@ -574,8 +593,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 
     int addr_len = get_addr_len(type);
     int b_addr_len = 0;
-    int port_len = 2;
-    int type_len = 1;
     int flow_id_len = 8;
     int end;
 
@@ -588,19 +605,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         common = common + flow_id_len;
         end = common + addr_len;
         if (IS_BIND_SOCKET(*buf)) {
-            /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | flow ID (8B) | addr (?B) |
-               bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
-            int b_port_len = port_len;
-            int b_type_len = type_len;
-
-            uint16_t b_port = ntohs(*(uint16_t *)(buf + end));
-            uint8_t b_type = *(uint8_t *)(buf + end + b_port_len);
-            b_addr_len = get_addr_len(b_type);
-            e->bind_key.port = b_port;
-            e->bind_key.isd_as = isd_as;
-            memcpy(e->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
-
-            end = end + b_port_len + b_type_len + b_addr_len;
+            end = add_bind_addr(e, buf, isd_as, end);
         }
         zlog_info(zc, "registration for %s:%d:%" PRIu64,
                 addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
@@ -611,19 +616,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = common + addr_len;
         if (IS_BIND_SOCKET(*buf)) {
-            /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
-               bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional) */
-            int b_port_len = port_len;
-            int b_type_len = type_len;
-
-            uint16_t b_port = ntohs(*(uint16_t *)(buf + end));
-            uint8_t b_type = *(uint8_t *)(buf + end + b_port_len);
-            b_addr_len = get_addr_len(b_type);
-            e->bind_key.port = b_port;
-            e->bind_key.isd_as = isd_as;
-            memcpy(e->bind_key.host, buf + end + b_port_len + b_type_len, b_addr_len);
-
-            end = end + b_port_len + b_type_len + b_addr_len;
+            end = add_bind_addr(e, buf, isd_as, end);
         }
         zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
     } else {
