@@ -1005,9 +1005,9 @@ void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr
     if( e != NULL) {
         send_dp_header(e->sock, from, len);
         send_all(e->sock, buf, len);
-        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", info[0], info[1]);
+        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", ntohs(info[0]), ntohs(info[1]));
     }else{
-        zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", info[0], info[1]);
+        zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", ntohs(info[0]), ntohs(info[1]));
     }
 }
 
@@ -1090,6 +1090,10 @@ void add_ping_entry(SCMPL4Header *scmp, int sock)
         e->id = info[0];
         e->sock = sock;
         HASH_ADD(hh, ping_list, id, sizeof(uint16_t), e);
+    } else {
+        if(e->sock != sock){
+            zlog_error(zc, "failed adding SCMP echo mapping. ID %d already in use.", ntohs(id));
+        }
     }
 }
 
@@ -1201,6 +1205,13 @@ void cleanup_socket(int sock, int index, int err)
         }
         free(e);
         zlog_info(zc, "deleted entry from hash table");
+    }
+    PingEntry *p, *tmp = NULL;
+    HASH_ITER(hh, ping_list, p, tmp) {
+        if(p->sock == sock){
+            HASH_DELETE(hh, ping_list, p);
+            free(p);
+        }
     }
 }
 
