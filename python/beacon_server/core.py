@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 
 # SCION
-from beacon_server.base import BeaconServer
+from beacon_server.base import BeaconServer, BEACONS_PROPAGATED
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
@@ -62,6 +62,7 @@ class CoreBeaconServer(BeaconServer):
         Propagates the core beacons to other core ASes.
         """
         propagated_pcbs = defaultdict(list)
+        prop_cnt = 0
         for intf in self.topology.core_interfaces:
             dst_ia = intf.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
@@ -72,6 +73,8 @@ class CoreBeaconServer(BeaconServer):
                 continue
             self.send_meta(new_pcb, meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
+            prop_cnt += 1
+        BEACONS_PROPAGATED.labels(type="core").inc(prop_cnt)
         return propagated_pcbs
 
     def handle_pcbs_propagation(self):

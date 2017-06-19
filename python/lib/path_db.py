@@ -155,7 +155,6 @@ class PathSegmentDB(object):
             else:
                 cur_rec.exp_time = pcb.get_expiration_time()
             SEGS_ADDED.labels(type=self._label).inc()
-            SEGS_REMOVED.labels(type=self._label).inc()
             SEGS_BYTES.labels(type=self._label).inc(len(pcb) - len(old_pcb))
             return DBResult.ENTRY_UPDATED
 
@@ -166,6 +165,7 @@ class PathSegmentDB(object):
             if not recs:
                 return DBResult.NONE
             self._db.delete(recs)
+            SEGS_REMOVED.labels(type=self._label).inc()
         return DBResult.ENTRY_DELETED
 
     def delete_all(self, segment_ids):

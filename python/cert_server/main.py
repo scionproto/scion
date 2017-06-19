@@ -21,10 +21,10 @@ import datetime
 import logging
 import os
 import threading
+import time
 
 # External packages
 from nacl.exceptions import CryptoError
-import time
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -76,6 +76,10 @@ from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
 from sciond.sciond import SCIOND_API_SOCKDIR
 from scion_elem.scion_elem import SCIONElement
 
+
+# Exported metrics.
+REQS_TOTAL = Counter("cs_requests_total", "# of total requests", ["type"])
+
 # Timeout for API path requests
 API_TOUT = 1
 # Max amount of DRKey secret values. 1 current, 1 prefetch, 1 buffer.
@@ -99,20 +103,22 @@ class CertServer(SCIONElement):
     ZK_TRC_CACHE_PATH = "trc_cache"
     ZK_DRKEY_PATH = "drkey_cache"
 
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         self.cc_requests = RequestHandler.start(
-            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
+            "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc, label="cc",
         )
         self.trc_requests = RequestHandler.start(
-            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
+            "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc, label="trc",
         )
         self.drkey_protocol_requests = RequestHandler.start(
             "DRKey Requests", self._check_drkey, self._fetch_drkey, self._reply_proto_drkey,
+            label="drkey",
         )
 
         self.CTRL_PLD_CLASS_MAP = {
@@ -229,6 +235,7 @@ class CertServer(SCIONElement):
         assert isinstance(req, CertChainRequest)
         key = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s from %s", *key, meta)
+        REQS_TOTAL.labels(type="cc").inc()
         local = meta.ia == self.addr.isd_as
         if not self._check_cc(key):
             if not local:
@@ -291,6 +298,7 @@ class CertServer(SCIONElement):
         assert isinstance(req, TRCRequest)
         key = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s from %s", *key, meta)
+        REQS_TOTAL.labels(type="trc").inc()
         local = meta.ia == self.addr.isd_as
         if not self._check_trc(key):
             if not local:
@@ -362,6 +370,7 @@ class CertServer(SCIONElement):
         """
         assert isinstance(req, DRKeyRequest)
         logging.info("DRKeyRequest received from %s: %s", meta, req.short_desc())
+        REQS_TOTAL.labels(type="drkey").inc()
         try:
             cert = self._verify_drkey_request(req, meta)
         except SCIONVerificationError as e:
