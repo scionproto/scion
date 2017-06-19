@@ -77,7 +77,7 @@ class TracerouteExt(HopByHopExtension):
             packed.append(isd_as.pack())
             packed.append(struct.pack("!HH", if_id, timestamp))
         # Compute and set padding for the rest of the payload.
-        pad_hops = self._hdr_len - len(self.hops)
+        pad_hops = self._hdr_len - len(self.hops) - 1
         packed.append(bytes(pad_hops * self.HOP_LEN))
         raw = b"".join(packed)
         self._check_len(raw)
@@ -88,7 +88,7 @@ class TracerouteExt(HopByHopExtension):
         Append hop's information as a new field in the extension.
         """
         # Check whether
-        assert len(self.hops) < self._hdr_len
+        assert len(self.hops) < self._hdr_len - 1
         if timestamp is None:
             # Truncate milliseconds to 2B
             timestamp = int(SCIONTime.get_time() * 1000) % 2**16

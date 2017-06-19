@@ -24,7 +24,7 @@ import capnp
 
 # SCION
 import proto.scion_capnp as P
-from lib.defines import MAX_HOPBYHOP_EXT, SCION_PROTO_VERSION
+from lib.defines import LINE_LEN, MAX_HOPBYHOP_EXT, SCION_PROTO_VERSION
 from lib.drkey.drkey_mgmt import parse_drkeymgmt_payload
 from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
@@ -103,16 +103,19 @@ class SCIONCommonHdr(Serializable):
         self.src_addr_type = types & 0x3f
         self.addrs_len, _ = SCIONAddrHdr.calc_lens(
             self.dst_addr_type, self.src_addr_type)
-        if self.hdr_len < self.LEN + self.addrs_len:
+        if self.hdr_len_bytes() < self.LEN + self.addrs_len:
             # Can't send an SCMP error, as there isn't enough information to
             # parse the path and the l4 header.
             raise SCIONParseError(
-                "hdr_len (%sB) < common header len (%sB) + addrs len (%sB)" %
-                (self.hdr_len, self.LEN, self.addrs_len))
+                "hdr_len (%sB) < common header len (%sB) + addrs len (%sB) " %
+                (self.hdr_len_bytes(), self.LEN, self.addrs_len))
+        if iof_off == hof_off:
+            self._iof_idx = self._hof_idx = 0
+            return
         first_of_offset = self.LEN + self.addrs_len
         # FIXME(kormat): NB this assumes that all OFs have the same length.
-        self._iof_idx = (iof_off - first_of_offset) // OpaqueField.LEN
-        self._hof_idx = (hof_off - first_of_offset) // OpaqueField.LEN
+        self._iof_idx = (iof_off * LINE_LEN - first_of_offset) // OpaqueField.LEN
+        self._hof_idx = (hof_off * LINE_LEN - first_of_offset) // OpaqueField.LEN
 
     @classmethod
     def from_values(cls, dst_type, src_type, next_hdr):
@@ -128,7 +131,8 @@ class SCIONCommonHdr(Serializable):
         inst.src_addr_type = src_type
         inst.addrs_len, _ = SCIONAddrHdr.calc_lens(dst_type, src_type)
         inst.next_hdr = next_hdr
-        inst.total_len = inst.hdr_len = cls.LEN + inst.addrs_len
+        inst.total_len = cls.LEN + inst.addrs_len
+        inst.hdr_len = cls.bytes_to_hdr_len(inst.total_len)
         inst._iof_idx = inst._hof_idx = 0
         return inst
 
@@ -143,7 +147,8 @@ class SCIONCommonHdr(Serializable):
             curr_iof_p += self._iof_idx * OpaqueField.LEN
         if self._hof_idx:
             curr_hof_p += self._hof_idx * OpaqueField.LEN
-        packed.append(struct.pack("!BBB", curr_iof_p, curr_hof_p, self.next_hdr))
+        packed.append(struct.pack("!BBB",
+                                  curr_iof_p//LINE_LEN, curr_hof_p//LINE_LEN, self.next_hdr))
         raw = b"".join(packed)
         assert len(raw) == self.LEN
         return raw
@@ -171,6 +176,14 @@ class SCIONCommonHdr(Serializable):
         self._iof_idx = iof_idx
         self._hof_idx = hof_idx
 
+    @classmethod
+    def bytes_to_hdr_len(cls, bytes_):
+        assert bytes_ % LINE_LEN == 0
+        return bytes_ // LINE_LEN
+
+    def hdr_len_bytes(self):  # pragma: no cover
+        return self.hdr_len * LINE_LEN
+
     def __len__(self):  # pragma: no cover
         return self.LEN
 
@@ -179,9 +192,9 @@ class SCIONCommonHdr(Serializable):
             "dst_addr_type": haddr_get_type(self.dst_addr_type).name(),
             "src_addr_type": haddr_get_type(self.src_addr_type).name(),
         }
-        for i in ("version", "total_len", "hdr_len",
-                  "_iof_idx", "_hof_idx", "next_hdr"):
+        for i in ("version", "total_len", "_iof_idx", "_hof_idx", "next_hdr"):
             values[i] = getattr(self, i)
+        values["hdr_len"] = self.hdr_len_bytes()
         return (
             "CH ver: %(version)s, dst type: %(dst_addr_type)s, src type: %(src_addr_type)s, "
             "total len: %(total_len)sB, hdr len: %(hdr_len)sB, "
@@ -327,17 +340,17 @@ class SCIONBasePacket(PacketBase):
         data.pop(len(self.addrs))
 
     def _parse_path(self, data):
-        count = self.cmn_hdr.hdr_len - data.offset()
+        count = self.cmn_hdr.hdr_len_bytes() - data.offset()
         if count < 0:
             raise SCIONParseError(
                 "Bad header len field (%sB), implies negative path length" %
-                self.cmn_hdr.hdr_len,
+                self.cmn_hdr.hdr_len_bytes(),
             )
         if count > len(data):
             raise SCIONParseError(
                 "Bad header len field (%sB), "
                 "implies path is longer than packet (%sB)"
-                % (self.cmn_hdr.hdr_len, len(data) + data.offset())
+                % (self.cmn_hdr.hdr_len_bytes(), len(data) + data.offset())
             )
         self.path = parse_path(data.get(count))
         data.pop(len(self.path))
@@ -375,7 +388,7 @@ class SCIONBasePacket(PacketBase):
         self.update()
         packed = []
         inner = self._inner_pack()
-        self.cmn_hdr.total_len = self.cmn_hdr.hdr_len + len(inner)
+        self.cmn_hdr.total_len = self.cmn_hdr.hdr_len_bytes() + len(inner)
         packed.append(self.cmn_hdr.pack())
         packed.append(self.addrs.pack())
         packed.append(self.path.pack())
@@ -418,8 +431,8 @@ class SCIONBasePacket(PacketBase):
         hdr.dst_addr_type = self.addrs.dst_type()
         hdr.src_addr_type = self.addrs.src_type()
         hdr.addrs_len = len(self.addrs)
-        hdr.hdr_len = len(hdr) + len(self.addrs) + len(self.path)
-        hdr.total_len = hdr.hdr_len + self._get_offset_len()
+        hdr.hdr_len = hdr.bytes_to_hdr_len(len(hdr) + len(self.addrs) + len(self.path))
+        hdr.total_len = hdr.hdr_len_bytes() + self._get_offset_len()
         hdr.set_of_idxs(*self.path.get_of_idxs())
         hdr.next_hdr = self._get_next_hdr()
 

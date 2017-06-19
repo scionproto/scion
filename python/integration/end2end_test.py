@@ -42,7 +42,7 @@ class E2EClient(TestClientBase):
     """
     def _create_payload(self, spkt):
         data = b"ping " + self.data
-        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
+        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len_bytes() - len(spkt.l4_hdr)
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):

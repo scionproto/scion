@@ -35,7 +35,7 @@ class ExtensionHeader(Serializable):
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        self._hdr_len = 0
+        self._hdr_len = 1
         super().__init__(raw)
 
     def _parse(self, raw):  # pragma: no cover
@@ -46,7 +46,7 @@ class ExtensionHeader(Serializable):
         Initialize `additional_lines` of payload.
         All extensions have to have constant size.
         """
-        self._hdr_len = additional_lines
+        self._hdr_len = additional_lines + 1
 
     def _check_len(self, payload):  # pragma: no cover
         """
@@ -68,11 +68,11 @@ class ExtensionHeader(Serializable):
     def bytes_to_hdr_len(cls, bytes_):
         total_len = (bytes_ + cls.SUBHDR_LEN)
         assert total_len % cls.LINE_LEN == 0
-        return (total_len // cls.LINE_LEN) - 1
+        return total_len // cls.LINE_LEN
 
     @classmethod
     def hdr_len_to_bytes(cls, hdr_len):  # pragma: no cover
-        return (hdr_len + 1) * cls.LINE_LEN
+        return hdr_len * cls.LINE_LEN
 
     def reverse(self):  # pragma: no cover
         pass

@@ -39,9 +39,9 @@ class TestParseExtensions(object):
     def test(self, l4_protos, ext_map):
         data = create_mock(["pop"])
         data.pop.side_effect = (
-            bytes.fromhex("881003"), "ext0 data",
-            bytes.fromhex("011599"), "ext1 data",
-            bytes.fromhex("FF0706"), "ext1 data",
+            bytes.fromhex("881103"), "ext0 data",
+            bytes.fromhex("011699"), "ext1 data",
+            bytes.fromhex("FF0806"), "ext1 data",
         )
         l4_protos.append(0xFF)
         ext0 = create_mock()

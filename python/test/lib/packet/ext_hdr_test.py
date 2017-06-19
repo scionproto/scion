@@ -47,9 +47,9 @@ class TestExtensionHeaderBytesToHdrLen(object):
 
     def test_valid(self):
         for count, expected in (
-            (5, 0),
-            (13, 1),
-            (21, 2),
+            (5, 1),
+            (13, 2),
+            (21, 3),
         ):
             yield self._check_valid, count, expected
 

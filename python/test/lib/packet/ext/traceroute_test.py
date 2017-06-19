@@ -67,7 +67,7 @@ class TestTracerouteExtPack(object):
     def test(self):
         inst = TracerouteExt()
         inst._check_len = create_mock()
-        inst._hdr_len = 2
+        inst._hdr_len = 3
         isd_as_1_2 = create_mock(["pack"])
         isd_as_1_2.pack.return_value = b"1-2"
         isd_as_5_6 = create_mock(["pack"])
@@ -90,7 +90,7 @@ class TestTracerouteExtAppendHop(object):
     def test(self):
         inst = TracerouteExt()
         inst.hops = [1]
-        inst._hdr_len = 2
+        inst._hdr_len = 3
         # Call
         inst.append_hop("3-4", 5, 6)
         # Tests

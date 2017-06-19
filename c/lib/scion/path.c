@@ -57,22 +57,22 @@ int reverse_path(uint8_t *buf, uint8_t *reverse)
 
     /* Update current_iof pointer to reversed location */
     uint8_t *start = (uint8_t *)buf;
-    uint8_t *current_iof = sch->current_iof + start;
+    uint8_t *current_iof = sch->current_iof * LINE_LEN + start;
     /* Original current_iof pointer was at first IOF -> set to last */
     if (current_iof == iof[0])
-        sch->current_iof = iof[segments - 1] - start;
+        sch->current_iof = (iof[segments - 1] - start)/LINE_LEN;
     /* Original current_iof pointer was at last IOF -> set to first */
     else if (current_iof == iof[segments - 1])
-        sch->current_iof = iof[0] - start;
+        sch->current_iof = (iof[0] - start)/LINE_LEN;
 
     int of_count = segments;
     for (i = 0; i < segments; i++)
         of_count += hops[i];
     /* Get index of current HOF in OF list */
-    int hof_index = (sch->current_hof + start - original) / SCION_OF_LEN;
+    int hof_index = (sch->current_hof * LINE_LEN + start - original) / SCION_OF_LEN;
     hof_index = of_count - hof_index;
     /* Update current_hof pointer to reversed location */
-    sch->current_hof = original + hof_index * SCION_OF_LEN - start;
+    sch->current_hof = (original + hof_index * SCION_OF_LEN - start)/LINE_LEN;
 
     return 0;
 }
