@@ -23,6 +23,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -165,14 +166,14 @@ func (rp *RtrPkt) setDirTo() {
 		return
 	}
 	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	var intfHost addr.HostAddr
+	var taddr *topology.TopoAddr
 	if rp.DirFrom == DirExternal {
-		intfHost = addr.HostFromIP(intf.IFAddr.PublicAddr().IP)
+		taddr = rp.Ctx.Conf.Net.IFs[*rp.ifCurr].IFAddr
 	} else {
-		intfHost = addr.HostFromIP(rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddr().IP)
+		taddr = rp.Ctx.Conf.Net.LocAddr[rp.Ingress.LocIdx]
 	}
-	if addr.HostEq(rp.dstHost, intfHost) {
+	locIP := taddr.PublicAddrInfo(rp.Ingress.Dst.Overlay).IP
+	if locIP.Equal(rp.dstHost.IP()) {
 		rp.DirTo = DirSelf
 	} else {
 		rp.DirTo = DirLocal

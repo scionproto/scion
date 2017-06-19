@@ -30,18 +30,17 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
 func init() {
-	S = &States{M: make(map[spath.IntfID]State)}
+	S = &States{M: make(map[common.IFIDType]State)}
 }
 
 // States is a map of interface IDs to interface states, protected by a RWMutex.
 type States struct {
 	sync.RWMutex
-	M map[spath.IntfID]State
+	M map[common.IFIDType]State
 }
 
 // State stores the IFStateInfo capnp message, as well as the raw revocation
@@ -62,10 +61,10 @@ func Process(ifStates proto.IFStateInfos) {
 		return
 	}
 	// Convert IFState infos to map
-	m := make(map[spath.IntfID]State, infos.Len())
+	m := make(map[common.IFIDType]State, infos.Len())
 	for i := 0; i < infos.Len(); i++ {
 		info := infos.At(i)
-		ifid := spath.IntfID(info.IfID())
+		ifid := common.IFIDType(info.IfID())
 		revInfo, serr := info.RevInfo()
 		if serr != nil {
 			log.Error("Unable to extract RevInfo from IFStateInfo", "err", serr, "info", info)
@@ -101,7 +100,7 @@ func Process(ifStates proto.IFStateInfos) {
 }
 
 // Activate updates the state of a single interface to active.
-func Activate(ifID spath.IntfID) *common.Error {
+func Activate(ifID common.IFIDType) *common.Error {
 	S.Lock()
 	defer S.Unlock()
 	ifState, ok := S.M[ifID]

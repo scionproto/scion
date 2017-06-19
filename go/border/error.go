@@ -20,7 +20,6 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -181,14 +180,13 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
-	ctx := rctx.Get()
 	if rp.DirFrom == rpkt.DirLocal {
-		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.String()]
-		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: rp.Ingress.Src}, nil
+		return rpkt.EgressPair{F: rp.Ctx.LocOutFs[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
 	}
-	intf, err := rp.IFCurr()
+	ifid, err := rp.IFCurr()
 	if err != nil {
 		return rpkt.EgressPair{}, err
 	}
-	return rpkt.EgressPair{F: ctx.IntfOutFs[*intf], Dst: rp.Ingress.Src}, nil
+	intf := rp.Ctx.Conf.Net.IFs[*ifid]
+	return rpkt.EgressPair{F: rp.Ctx.IntfOutFs[*ifid], Dst: intf.RemoteAddr}, nil
 }

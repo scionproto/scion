@@ -20,8 +20,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-type IntfID uint16
-
 const (
 	MaxTTL      = 24 * 60 * 60 // One day in seconds
 	ExpTimeUnit = MaxTTL / 2 << 8

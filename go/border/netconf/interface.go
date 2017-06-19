@@ -22,11 +22,13 @@
 package netconf
 
 import (
-	"net"
+	"fmt"
+
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
@@ -35,45 +37,82 @@ import (
 type NetConf struct {
 	// LocAddr is a slice containing the local addresses in order from the
 	// topology.
-	LocAddr []*overlay.UDP
+	LocAddr []*topology.TopoAddr
 	// IFs maps interface IDs to Interfaces.
-	IFs map[spath.IntfID]*Interface
+	IFs map[common.IFIDType]*Interface
 	// LocAddrMap maps local address strings to LocAddr indices.
 	LocAddrMap map[string]int
 	// IFAddrMap maps external address strings to interface IDs.
-	IFAddrMap map[string]spath.IntfID
+	IFAddrMap map[string]common.IFIDType
 	// LocAddrIFIDMap maps local address strings to (potentially multiple)
 	// interface IDs.
-	LocAddrIFIDMap map[string][]spath.IntfID
+	LocAddrIFIDMap map[string][]common.IFIDType
 }
 
 // FromTopo creates a NetConf instance from the topology.
-func FromTopo(t *topology.TopoBR) *NetConf {
+func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFInfo) (
+	*NetConf, *common.Error) {
 	n := &NetConf{}
-	// TODO(kormat): support multiple addresses
-	n.LocAddr = append(n.LocAddr, overlay.NewUDP(t.BasicElem.Addr.IP, t.BasicElem.Port))
-	n.IFs = make(map[spath.IntfID]*Interface)
-	n.LocAddrMap = make(map[string]int, len(n.LocAddr))
-	n.IFAddrMap = make(map[string]spath.IntfID, len(n.IFs))
-	n.LocAddrIFIDMap = make(map[string][]spath.IntfID, len(n.LocAddr))
-	// TODO(kormat): support multiple interfaces
-	x := intfFromTopoIF(t.IF)
-	n.IFs[x.Id] = x
-	for i, addr := range n.LocAddr {
-		n.LocAddrMap[addr.BindAddr().String()] = i
+	locIdxes := make(map[int]*topology.TopoAddr)
+	n.IFs = make(map[common.IFIDType]*Interface)
+	for _, ifid := range intfs {
+		ifinfo := infomap[ifid]
+		if v, ok := locIdxes[ifinfo.InternalAddrIdx]; ok && v != ifinfo.InternalAddr {
+			return nil, common.NewError("Duplicate local address index",
+				"idx", ifinfo.InternalAddrIdx, "first", v, "second", ifinfo.InternalAddr)
+		}
+		locIdxes[ifinfo.InternalAddrIdx] = ifinfo.InternalAddr
+		v, ok := n.IFs[ifid]
+		newIF := intfFromTopoIF(&ifinfo, ifid)
+		if ok {
+			return nil, common.NewError("Duplicate ifid", "ifid", ifid, "first", v, "second", newIF)
+		}
+		n.IFs[ifid] = newIF
 	}
+	n.LocAddr = make([]*topology.TopoAddr, len(locIdxes))
+	n.LocAddrMap = make(map[string]int, len(locIdxes))
+	n.LocAddrIFIDMap = make(map[string][]common.IFIDType, len(locIdxes))
+	// XXX(kormat): deliberately using a counter, and not iterating over the keys of the map,
+	// so that non-contiguous indexes will be caught.
+	for idx := 0; idx < len(locIdxes); idx++ {
+		taddr, ok := locIdxes[idx]
+		if !ok {
+			return nil, common.NewError("Non-contiguous local address indexes", "missing", idx)
+		}
+		n.LocAddr[idx] = taddr
+		if taddr.IPv4 != nil {
+			n.LocAddrMap[keyFromTopoAddr(taddr, overlay.IPv4)] = idx
+		}
+		if taddr.IPv6 != nil {
+			n.LocAddrMap[keyFromTopoAddr(taddr, overlay.IPv6)] = idx
+		}
+	}
+	n.IFAddrMap = make(map[string]common.IFIDType, len(n.IFs))
 	for ifid, intf := range n.IFs {
+		var key string
 		// Add mapping of interface bind address to this interface ID.
-		n.IFAddrMap[intf.IFAddr.BindAddr().String()] = ifid
-		key := n.LocAddr[intf.LocAddrIdx].BindAddr().String()
-		// Add interface ID to local addr -> ifid mapping.
-		n.LocAddrIFIDMap[key] = append(n.LocAddrIFIDMap[key], ifid)
+		if intf.IFAddr.IPv4 != nil {
+			n.IFAddrMap[keyFromTopoAddr(intf.IFAddr, overlay.IPv4)] = ifid
+		}
+		if intf.IFAddr.IPv6 != nil {
+			n.IFAddrMap[keyFromTopoAddr(intf.IFAddr, overlay.IPv6)] = ifid
+		}
+		if n.LocAddr[intf.LocAddrIdx].IPv4 != nil {
+			key = keyFromTopoAddr(n.LocAddr[intf.LocAddrIdx], overlay.IPv4)
+			// Add interface ID to local addr -> ifid mapping.
+			n.LocAddrIFIDMap[key] = append(n.LocAddrIFIDMap[key], ifid)
+		}
+		if n.LocAddr[intf.LocAddrIdx].IPv6 != nil {
+			key = keyFromTopoAddr(n.LocAddr[intf.LocAddrIdx], overlay.IPv6)
+			// Add interface ID to local addr -> ifid mapping.
+			n.LocAddrIFIDMap[key] = append(n.LocAddrIFIDMap[key], ifid)
+		}
 	}
-	return n
+	return n, nil
 }
 
 // IntfLocalAddr retrieves the local address for a given interface.
-func (n *NetConf) IntfLocalAddr(ifid spath.IntfID) *overlay.UDP {
+func (n *NetConf) IntfLocalAddr(ifid common.IFIDType) *topology.TopoAddr {
 	intf := n.IFs[ifid]
 	return n.LocAddr[intf.LocAddrIdx]
 }
@@ -81,7 +120,7 @@ func (n *NetConf) IntfLocalAddr(ifid spath.IntfID) *overlay.UDP {
 // Interface describes the configuration of a router interface.
 type Interface struct {
 	// Id is the interface ID. It is unique per AS.
-	Id spath.IntfID
+	Id common.IFIDType
 	// LocAddrIdx specifies which local address is associated with this
 	// interface.
 	LocAddrIdx int
@@ -89,10 +128,10 @@ type Interface struct {
 	// interface. Normally these are the same, but for example in the case of
 	// NAT, the bind address may differ from the address visible from outside
 	// the AS.
-	IFAddr *overlay.UDP
+	IFAddr *topology.TopoAddr
 	// RemoteAddr is the public address of the border router on the other end
 	// of the link.
-	RemoteAddr *net.UDPAddr
+	RemoteAddr *topology.AddrInfo
 	// RemoteIA is the ISD-AS of the other end of the link.
 	RemoteIA *addr.ISD_AS
 	// BW is the bandwidth of the link.
@@ -102,21 +141,28 @@ type Interface struct {
 	// Type describes the type of link, in terms of relationship between this
 	// AS and the remote AS.
 	// TODO(kormat): switch to a non-string type.
-	Type string
+	Type topology.LinkType
 }
 
 // intfFromTopoIF is a constructor to create a new Interface instance from a
 // TopoIF.
-func intfFromTopoIF(t *topology.TopoIF) *Interface {
+func intfFromTopoIF(t *topology.IFInfo, ifid common.IFIDType) *Interface {
 	intf := Interface{}
-	intf.Id = spath.IntfID(t.IFID)
-	// FIXME(kormat): to be changed when the topo format is updated.
-	intf.LocAddrIdx = 0
-	intf.IFAddr = overlay.NewUDP(t.Addr.IP, t.UdpPort)
-	intf.RemoteAddr = &net.UDPAddr{IP: t.ToAddr.IP, Port: t.ToUdpPort}
-	intf.RemoteIA = t.IA
-	intf.BW = t.BW
+	intf.Id = ifid
+	intf.LocAddrIdx = t.InternalAddrIdx
+	intf.IFAddr = t.Local
+	intf.RemoteAddr = t.Remote
+	intf.RemoteIA = t.ISD_AS
+	intf.BW = t.Bandwidth
 	intf.MTU = t.MTU
 	intf.Type = t.LinkType
 	return &intf
+}
+
+// This format must be kept in sync with AddrInfo.Key() (from lib/topology/addr.go)
+func keyFromTopoAddr(t *topology.TopoAddr, ot overlay.Type) string {
+	if ot.IsIPv4() {
+		return fmt.Sprintf("%s:%d", t.IPv4.BindAddr(), t.IPv4.BindL4Port())
+	}
+	return fmt.Sprintf("%s:%d", t.IPv6.BindAddr(), t.IPv6.BindL4Port())
 }
