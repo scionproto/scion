@@ -25,6 +25,7 @@ from threading import Lock
 
 # External packages
 from external.expiring_dict import ExpiringDict
+from prometheus_client import Counter, Gauge
 
 # SCION
 from lib.crypto.hash_tree import ConnectedHashTree
@@ -55,6 +56,13 @@ from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
 from scion_elem.scion_elem import SCIONElement
+
+
+# Exported metrics.
+REQS_TOTAL = Counter("ps_reqs_total", "# of path requests")
+REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests")
+SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK")
+REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK")
 
 
 class PathServer(SCIONElement, metaclass=ABCMeta):
@@ -318,6 +326,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 # Clean state.
                 for req_meta in to_remove:
                     self.pending_req[key].remove(req_meta)
+                REQS_PENDING.dec(len(to_remove))
                 if not self.pending_req[key]:
                     rem_keys.append(key)
             for key in rem_keys:
@@ -472,6 +481,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for pcb_dict in self._gen_prop_recs(self._segs_to_zk,
                                             limit=self.ZK_SHARE_LIMIT):
             seg_recs = PathSegmentRecords.from_values(pcb_dict)
+            SEGS_TO_ZK.dec(seg_recs.num_segs())
             self._zk_write(seg_recs.pack())
 
     def _share_revs_via_zk(self):
