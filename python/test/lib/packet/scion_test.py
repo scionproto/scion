@@ -24,6 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.defines import LINE_LEN
 from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.host_addr import HostAddrInvalidType
@@ -66,7 +67,7 @@ class TestSCIONCommonHdrParse(object):
         inst = SCIONCommonHdr()
         data = create_mock(["pop"])
         data.pop.return_value = bytes([first_b, 0b00111111]) + \
-            bytes.fromhex('0304 20 38 40 07')
+            bytes.fromhex('0304 04 07 08 07')
         return inst, data
 
     @patch("lib.packet.scion.Raw", autospec=True)
@@ -87,7 +88,8 @@ class TestSCIONCommonHdrParse(object):
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
         ntools.eq_(inst.total_len, 0x0304)
-        ntools.eq_(inst.hdr_len, 0x20)
+        ntools.eq_(inst.hdr_len, 0x04)
+        ntools.eq_(inst.hdr_len_bytes(), 0x20)
         ntools.eq_(inst.next_hdr, 0x07)
         ntools.eq_(inst.version, 0b0)
         ntools.eq_(inst.dst_addr_type, 0b111100)
@@ -116,8 +118,8 @@ class TestSCIONCommonHdrFromValues(object):
         # Setup
         dst_type = 1
         src_type = 2
-        calc_lens.return_value = 44, 0
-        hdr_len = SCIONCommonHdr.LEN + 44
+        calc_lens.return_value = 24, 0
+        hdr_len = (SCIONCommonHdr.LEN + 24)//8
         # Call
         inst = SCIONCommonHdr.from_values(dst_type, src_type, 3)
         # Tests
@@ -125,10 +127,10 @@ class TestSCIONCommonHdrFromValues(object):
         ntools.eq_(inst.dst_addr_type, dst_type)
         ntools.eq_(inst.src_addr_type, src_type)
         calc_lens.assert_called_once_with(dst_type, src_type)
-        ntools.eq_(inst.addrs_len, 44)
+        ntools.eq_(inst.addrs_len, 24)
         ntools.eq_(inst.next_hdr, 3)
         ntools.eq_(inst.hdr_len, hdr_len)
-        ntools.eq_(inst.total_len, hdr_len)
+        ntools.eq_(inst.total_len, hdr_len * 8)
 
 
 class TestSCIONCommonHdrPack(object):
@@ -148,7 +150,7 @@ class TestSCIONCommonHdrPack(object):
         inst.next_hdr = 0x07
         expected = b"".join([
             bytes([0b11110000, 0b00111111]),
-            bytes.fromhex('0304 08 38 40 07'),
+            bytes.fromhex('0304 08 07 08 07'),
         ])
         # Call
         ntools.eq_(inst.pack(), expected)
@@ -413,11 +415,12 @@ class TestSCIONBasePacketParsePath(object):
     """
     Unit tests for lib.packet.scion.SCIONBasePacket._parse_path
     """
-    def _setup(self, data_offset=10, hdr_len=20):
+    def _setup(self, data_offset=10, hdr_len_bytes=20):
         inst = SCIONBasePacket()
-        inst.cmn_hdr = create_mock(["get_of_idxs", "hdr_len"])
+        inst.cmn_hdr = create_mock(["get_of_idxs", "hdr_len", "hdr_len_bytes"])
         inst.cmn_hdr.get_of_idxs.return_value = "iof", "hof"
-        inst.cmn_hdr.hdr_len = hdr_len
+        inst.cmn_hdr.hdr_len = hdr_len_bytes // LINE_LEN
+        inst.cmn_hdr.hdr_len_bytes = lambda: hdr_len_bytes
         data = create_mock(["__len__", "get", "offset", "pop"])
         data.__len__.return_value = 40 - data_offset
         data.offset.return_value = data_offset
@@ -425,13 +428,13 @@ class TestSCIONBasePacketParsePath(object):
 
     @patch("lib.packet.scion.parse_path", autospec=True)
     def test_too_short(self, parse_path):
-        inst, data = self._setup(hdr_len=9)
+        inst, data = self._setup(hdr_len_bytes=9)
         # Call
         ntools.assert_raises(SCIONParseError, inst._parse_path, data)
 
     @patch("lib.packet.scion.parse_path", autospec=True)
     def test_too_long(self, parse_path):
-        inst, data = self._setup(hdr_len=50)
+        inst, data = self._setup(hdr_len_bytes=50)
         # Call
         ntools.assert_raises(SCIONParseError, inst._parse_path, data)
 
@@ -492,8 +495,8 @@ class TestSCIONBasePacketPack(object):
         total_exp = hdr_exp + b"inner pack"
         inst = SCIONBasePacket()
         inst.update = create_mock()
-        inst.cmn_hdr = create_mock(["hdr_len", "pack", "total_len"])
-        inst.cmn_hdr.hdr_len = len(hdr_exp)
+        inst.cmn_hdr = create_mock(["hdr_len_bytes", "pack", "total_len"])
+        inst.cmn_hdr.hdr_len_bytes = lambda: len(hdr_exp)
         inst.cmn_hdr.total_len = len(total_exp)
         inst.cmn_hdr.pack.return_value = b"cmn hdr"
         inst.addrs = create_mock(["pack"])
@@ -569,11 +572,13 @@ class TestSCIONBasePacketUpdateCmnHdr(object):
         inst = SCIONBasePacket()
         cmn_hdr = create_mock([
             "__len__", "src_addr_type", "dst_addr_type", "addrs_len", "hdr_len",
-            "total_len", "set_of_idxs", "next_hdr", "update",
+            "hdr_len_bytes", "bytes_to_hdr_len", "total_len", "set_of_idxs", "next_hdr", "update",
         ])
-        cmn_hdr.__len__.return_value = 2
+        cmn_hdr.__len__.return_value = SCIONCommonHdr.LEN
+        cmn_hdr.bytes_to_hdr_len = lambda x: x//8
+        cmn_hdr.hdr_len_bytes.return_value = 32
         addrs = create_mock(["__len__", "src_type", "dst_type"])
-        addrs.__len__.return_value = 4
+        addrs.__len__.return_value = 16
         path = create_mock(["__len__", "get_of_idxs"])
         path.__len__.return_value = 8
         path.get_of_idxs.return_value = 3, 7
@@ -588,9 +593,9 @@ class TestSCIONBasePacketUpdateCmnHdr(object):
         # Tests
         ntools.eq_(cmn_hdr.src_addr_type, addrs.src_type.return_value)
         ntools.eq_(cmn_hdr.dst_addr_type, addrs.dst_type.return_value)
-        ntools.eq_(cmn_hdr.addrs_len, 4)
-        ntools.eq_(cmn_hdr.hdr_len, 2 + 4 + 8)
-        ntools.eq_(cmn_hdr.total_len, 14 + 42)
+        ntools.eq_(cmn_hdr.addrs_len, 16)
+        ntools.eq_(cmn_hdr.hdr_len, (8 + 16 + 8)//8)
+        ntools.eq_(cmn_hdr.total_len, 32 + 42)
         cmn_hdr.set_of_idxs.assert_called_once_with(3, 7)
         ntools.eq_(cmn_hdr.next_hdr, inst._get_next_hdr.return_value)
 

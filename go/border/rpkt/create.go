@@ -44,9 +44,9 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *comm
 	rp.CmnHdr.SrcType = sp.SrcHost.Type()
 	rp.CmnHdr.TotalLen = uint16(totalLen) // Updated later as necessary.
 	rp.CmnHdr.HdrLen = uint8(hdrLen)
-	rp.CmnHdr.CurrInfoF = uint8(hdrLen) // Updated later as necessary.
-	rp.CmnHdr.CurrHopF = uint8(hdrLen)  // Updated later as necessary.
-	rp.CmnHdr.NextHdr = common.L4None   // Updated later as necessary.
+	rp.CmnHdr.CurrInfoF = 0           // Updated later as necessary.
+	rp.CmnHdr.CurrHopF = 0            // Updated later as necessary.
+	rp.CmnHdr.NextHdr = common.L4None // Updated later as necessary.
 	// Fill in address header and indexes.
 	rp.idxs.dstIA = spkt.CmnHdrLen
 	rp.dstIA = sp.DstIA
@@ -64,11 +64,11 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *comm
 	rp.idxs.path = spkt.CmnHdrLen + sp.AddrLen()
 	if sp.Path != nil {
 		copy(rp.Raw[rp.idxs.path:], sp.Path.Raw)
-		rp.CmnHdr.CurrInfoF = uint8(rp.idxs.path) + sp.Path.InfOff
-		rp.CmnHdr.CurrHopF = uint8(rp.idxs.path) + sp.Path.HopOff
+		rp.CmnHdr.CurrInfoF = uint8((rp.idxs.path + int(sp.Path.InfOff)) / common.LineLen)
+		rp.CmnHdr.CurrHopF = uint8((rp.idxs.path + int(sp.Path.HopOff)) / common.LineLen)
 	}
 	// Fill in extensions
-	rp.idxs.l4 = hdrLen // Will be updated as necessary by extnAddHBH and extnAddE2E
+	rp.idxs.l4 = int(hdrLen) * common.LineLen // Will be updated as necessary by extnAddHBH and extnAddE2E
 	for _, se := range sp.HBHExt {
 		if err := rp.extnAddHBH(se); err != nil {
 			return nil, err
@@ -82,7 +82,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *comm
 	}
 
 	// Fill in L4 Header
-	rp.idxs.pld = hdrLen // Will be updated as necessary by addL4
+	rp.idxs.pld = int(hdrLen) * common.LineLen // Will be updated as necessary by addL4
 	if sp.L4 != nil {
 		if err := rp.addL4(sp.L4); err != nil {
 			return nil, err

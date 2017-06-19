@@ -17,7 +17,7 @@
 void build_scion_udp(uint8_t *buf, uint16_t src_port, uint16_t dst_port, uint16_t payload_len)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    SCIONUDPHeader *uhdr = (SCIONUDPHeader *)(buf + sch->header_len);
+    SCIONUDPHeader *uhdr = (SCIONUDPHeader *)(buf + sch->header_len * LINE_LEN);
     uhdr->src_port = src_port;
     uhdr->dst_port = dst_port;
     uhdr->len = payload_len;
@@ -32,7 +32,7 @@ void build_scion_udp(uint8_t *buf, uint16_t src_port, uint16_t dst_port, uint16_
 uint8_t get_payload_class(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return *(uint8_t *)((uint8_t *)sch + sch->header_len + sizeof(SCIONUDPHeader));
+    return *(uint8_t *)((uint8_t *)sch + sch->header_len * LINE_LEN + sizeof(SCIONUDPHeader));
 }
 
 /*
@@ -43,7 +43,7 @@ uint8_t get_payload_class(uint8_t *buf)
 uint8_t get_payload_type(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return *(uint8_t *)((uint8_t *)sch + sch->header_len + sizeof(SCIONUDPHeader) + 1);
+    return *(uint8_t *)((uint8_t *)sch + sch->header_len * LINE_LEN + sizeof(SCIONUDPHeader) + 1);
 }
 
 /*

@@ -185,7 +185,7 @@ class ErrorGenBadIOFOffsetShort(ErrorGenBase):
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self._get_next_hop(spkt)
         barr = bytearray(spkt.pack())
-        barr[5] -= 8
+        barr[5] -= 1
         self._send_raw_pkt(barr, next_hop, port)
 
 
@@ -329,7 +329,7 @@ class ErrorGenBadHopByHop(ErrorGenBase):
         next_hop, port = self._get_next_hop(spkt)
         spkt.update()
         barr = bytearray(spkt.pack())
-        idx = spkt.cmn_hdr.hdr_len + 2
+        idx = spkt.cmn_hdr.hdr_len_bytes() + 2
         barr[idx] = 255
         self._send_raw_pkt(barr, next_hop, port)
 

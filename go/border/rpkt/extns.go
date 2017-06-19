@@ -135,7 +135,7 @@ func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, *common.Error) {
 	if isHBH && len(rp.E2EExt) > 0 {
 		return 0, nil, common.NewError("HBH extension illegal to add after E2E extension")
 	}
-	offset := int(rp.CmnHdr.HdrLen)
+	offset := int(rp.CmnHdr.HdrLen) * common.LineLen
 	nextHdr := (*uint8)(&rp.CmnHdr.NextHdr)
 	for i, hIdx := range rp.idxs.hbhExt {
 		nextHdr = &rp.Raw[hIdx.Index]
@@ -167,7 +167,7 @@ func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, 
 	*nextHdr = uint8(et.Class)
 	// Write extension sub-header into buffer
 	rp.Raw[offset] = uint8(common.L4None)
-	rp.Raw[offset+1] = uint8(eLen/common.LineLen) - 1
+	rp.Raw[offset+1] = uint8(eLen / common.LineLen)
 	rp.Raw[offset+2] = et.Type
 	// Write extension into buffer
 	if err := e.Write(rp.Raw[offset+common.ExtnSubHdrLen : offset+eLen]); err != nil {
