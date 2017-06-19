@@ -50,27 +50,44 @@ type NetConf struct {
 }
 
 // FromTopo creates a NetConf instance from the topology.
-//func FromTopo(infomap map[common.IFIDType]topology.IFInfo) *NetConf {
-func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFInfo) *NetConf {
+func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFInfo) (
+	*NetConf, *common.Error) {
 	n := &NetConf{}
+	locIdxes := make(map[int]*topology.TopoAddr)
 	n.IFs = make(map[common.IFIDType]*Interface)
 	for _, ifid := range intfs {
 		ifinfo := infomap[ifid]
-		n.LocAddr = append(n.LocAddr, ifinfo.InternalAddr)
-		x := intfFromTopoIF(&ifinfo, ifid)
-		n.IFs[x.Id] = x
+		if v, ok := locIdxes[ifinfo.InternalAddrIdx]; ok && v != ifinfo.InternalAddr {
+			return nil, common.NewError("Duplicate local address index",
+				"idx", ifinfo.InternalAddrIdx, "first", v, "second", ifinfo.InternalAddr)
+		}
+		locIdxes[ifinfo.InternalAddrIdx] = ifinfo.InternalAddr
+		v, ok := n.IFs[ifid]
+		newIF := intfFromTopoIF(&ifinfo, ifid)
+		if ok {
+			return nil, common.NewError("Duplicate ifid", "ifid", ifid, "first", v, "second", newIF)
+		}
+		n.IFs[ifid] = newIF
 	}
-	n.LocAddrMap = make(map[string]int, len(n.LocAddr))
-	n.IFAddrMap = make(map[string]common.IFIDType, len(n.IFs))
-	n.LocAddrIFIDMap = make(map[string][]common.IFIDType, len(n.LocAddr))
-	for i, taddr := range n.LocAddr {
+	n.LocAddr = make([]*topology.TopoAddr, len(locIdxes))
+	n.LocAddrMap = make(map[string]int, len(locIdxes))
+	n.LocAddrIFIDMap = make(map[string][]common.IFIDType, len(locIdxes))
+	// XXX(kormat): deliberately using a counter, and not iterating over the keys of the map,
+	// so that non-contiguous indexes will be caught.
+	for idx := 0; idx < len(locIdxes); idx++ {
+		taddr, ok := locIdxes[idx]
+		if !ok {
+			return nil, common.NewError("Non-contiguous local address indexes", "missing", idx)
+		}
+		n.LocAddr[idx] = taddr
 		if taddr.IPv4 != nil {
-			n.LocAddrMap[keyFromTopoAddr(taddr, overlay.IPv4)] = i
+			n.LocAddrMap[keyFromTopoAddr(taddr, overlay.IPv4)] = idx
 		}
 		if taddr.IPv6 != nil {
-			n.LocAddrMap[keyFromTopoAddr(taddr, overlay.IPv6)] = i
+			n.LocAddrMap[keyFromTopoAddr(taddr, overlay.IPv6)] = idx
 		}
 	}
+	n.IFAddrMap = make(map[string]common.IFIDType, len(n.IFs))
 	for ifid, intf := range n.IFs {
 		var key string
 		// Add mapping of interface bind address to this interface ID.
@@ -91,7 +108,7 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 			n.LocAddrIFIDMap[key] = append(n.LocAddrIFIDMap[key], ifid)
 		}
 	}
-	return n
+	return n, nil
 }
 
 // IntfLocalAddr retrieves the local address for a given interface.

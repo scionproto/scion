@@ -93,7 +93,9 @@ func Load(id, confDir string) (*Conf, *common.Error) {
 	}
 
 	// Create network configuration
-	conf.Net = netconf.FromTopo(conf.BR.IFIDs, conf.Topo.IFInfoMap)
+	if conf.Net, err = netconf.FromTopo(conf.BR.IFIDs, conf.Topo.IFInfoMap); err != nil {
+		return nil, err
+	}
 	// Save config
 	return conf, nil
 }
