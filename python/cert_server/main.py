@@ -25,6 +25,7 @@ import time
 
 # External packages
 from nacl.exceptions import CryptoError
+from prometheus_client import Counter
 
 # SCION
 import lib.app.sciond as lib_sciond

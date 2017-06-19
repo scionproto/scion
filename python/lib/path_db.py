@@ -165,7 +165,10 @@ class PathSegmentDB(object):
             if not recs:
                 return DBResult.NONE
             self._db.delete(recs)
+            assert len(recs) == 1
             SEGS_REMOVED.labels(type=self._label).inc()
+            SEGS_TOTAL.labels(type=self._label).dec()
+            SEGS_BYTES.labels(type=self._label).dec(len(recs[0].pcb))
         return DBResult.ENTRY_DELETED
 
     def delete_all(self, segment_ids):

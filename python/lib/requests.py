@@ -79,7 +79,6 @@ class RequestHandler(object):
         self._req_map = defaultdict(list)
         self._key_map = key_map or self._def_key_map
         self._label = label
-        self._pending = 0
 
     @classmethod
     def start(cls, name, *args, **kwargs):  # pragma: no cover
@@ -105,7 +104,6 @@ class RequestHandler(object):
             # Answer existing requests, if possible.
             for k in self._key_map(key, self._req_map.keys()):
                 self._answer_reqs(k)
-
 
     def _add_req(self, key, request):
         self._expire_reqs(key)
