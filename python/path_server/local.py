@@ -43,7 +43,7 @@ class LocalPathServer(PathServer):
 
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
-            self._segs_to_zk.append((PST.UP, pcb))
+            self._segs_to_zk[pcb.get_hops_hash()] = (PST.UP, pcb)
         if self._add_segment(pcb, self.up_segments, "Up"):
             # Sending pending targets to the core using first registered
             # up-segment.

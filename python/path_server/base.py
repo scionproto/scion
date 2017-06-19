@@ -19,7 +19,7 @@
 import logging
 import random
 import threading
-from collections import defaultdict, deque
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from threading import Lock
 
@@ -73,6 +73,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     ZK_SHARE_LIMIT = 10
     # Time to store revocations in zookeeper
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
+    # TTL of segments in the queue for ZK (in seconds)
+    SEGS_TO_ZK_TTL = 10 * 60
 
     def __init__(self, server_id, conf_dir):
         """
@@ -111,8 +113,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
             },
         }
-        self._segs_to_zk = deque()
-        self._revs_to_zk = deque()
+        self._segs_to_zk = ExpiringDict(1000, self.SEGS_TO_ZK_TTL)
+        self._revs_to_zk = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
         self._zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                       [(self.addr.host, self._port)])
         self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE,
@@ -219,7 +221,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return False
         self.revocations.add(rev_info)
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        self._revs_to_zk.append(rev_info.copy().pack())  # have to pack copy
+        self._revs_to_zk[rev_info] = rev_info.copy().pack()  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
@@ -416,12 +418,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self._share_via_zk()
         self._share_revs_via_zk()
 
-    def _gen_prop_recs(self, queue, limit=PROP_LIMIT):
+    def _gen_prop_recs(self, container, limit=PROP_LIMIT):
         count = 0
         pcbs = defaultdict(list)
-        while queue:
+        while container:
+            try:
+                _, (type_, pcb) = container.popitem(last=False)
+            except KeyError:
+                continue
             count += 1
-            type_, pcb = queue.popleft()
             pcbs[type_].append(pcb.copy())
             if count >= limit:
                 yield(pcbs)
@@ -474,7 +479,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return
         logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
         while self._revs_to_zk:
-            self._zk_write_rev(self._revs_to_zk.popleft())
+            try:
+                data = self._revs_to_zk.popitem(last=False)[1]
+            except KeyError:
+                continue
+            self._zk_write_rev(data)
 
     def _zk_write(self, data):
         hash_ = crypto_hash(data).hex()
