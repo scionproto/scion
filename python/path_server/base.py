@@ -422,11 +422,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         count = 0
         pcbs = defaultdict(list)
         while container:
-            count += 1
             try:
                 _, (type_, pcb) = container.popitem(last=False)
             except KeyError:
                 continue
+            count += 1
             pcbs[type_].append(pcb.copy())
             if count >= limit:
                 yield(pcbs)
