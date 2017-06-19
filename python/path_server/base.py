@@ -423,7 +423,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pcbs = defaultdict(list)
         while container:
             count += 1
-            _, (type_, pcb) = container.popitem(last=False)
+            try:
+                _, (type_, pcb) = container.popitem(last=False)
+            except KeyError:
+                continue
             pcbs[type_].append(pcb.copy())
             if count >= limit:
                 yield(pcbs)
@@ -476,7 +479,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return
         logging.info("Sharing %d revocation(s) via ZK", len(self._revs_to_zk))
         while self._revs_to_zk:
-            self._zk_write_rev(self._revs_to_zk.popitem(last=False)[1])
+            try:
+                data = self._revs_to_zk.popitem(last=False)[1]
+            except KeyError:
+                continue
+            self._zk_write_rev(data)
 
     def _zk_write(self, data):
         hash_ = crypto_hash(data).hex()
