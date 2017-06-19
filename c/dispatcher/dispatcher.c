@@ -99,7 +99,7 @@ Entry *poll_fd_list = NULL;
 
 Entry *bind_ssp_flow_list = NULL;
 Entry *bind_ssp_wildcard_list = NULL;
-Entry *bind_udp_port_ist = NULL;
+Entry *bind_udp_port_list = NULL;
 
 SVCEntry *svc_list = NULL;
 SVCEntry *bind_svc_list = NULL;
@@ -543,8 +543,8 @@ void register_udp(uint8_t *buf, int len, int sock)
 
     /* Register bind address info if the app has a bind address */
     if (IS_BIND_SOCKET(*buf)) {
-        e->bind_list = &bind_udp_port_ist;
-        HASH_ADD(bindhh, bind_udp_port_ist, bind_key, sizeof(L4Key), e);
+        e->bind_list = &bind_udp_port_list;
+        HASH_ADD(bindhh, bind_udp_port_list, bind_key, sizeof(L4Key), e);
     }
     reply(sock, e->l4_key.port);
 }
@@ -889,7 +889,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
     if (!e) {
         /* Find dst info from the bind address list if the lookup fails with the public address list*/
-        HASH_FIND(bindhh, bind_udp_port_ist, &key, sizeof(key), e);
+        HASH_FIND(bindhh, bind_udp_port_list, &key, sizeof(key), e);
         if (!e) {
             zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
                     ISD(key.isd_as), AS(key.isd_as),
