@@ -34,10 +34,13 @@ from lib.thread import kill_self
 from lib.types import L4Proto
 
 
-def reg_dispatcher(sock, addr, port, bind_addr, bind_port, init=True, svc=None, scmp=True):
+def reg_dispatcher(sock, addr, port, bind=(), init=True, svc=None, scmp=True):
     """
     Helper function for registering app with dispatcher
     """
+    bind_addr, bind_port = None, None
+    if bind:
+        bind_addr, bind_port = bind
     buf = _pack_dispatcher_msg(addr, port, bind_addr, bind_port, svc, scmp)
     if not _connect_dispatcher(sock, init):
         return
@@ -69,21 +72,14 @@ def _pack_dispatcher_msg(addr, port, bind_addr, bind_port, svc, scmp):
     cmd = 1
     if scmp:
         cmd |= 1 << 1
+    data = []
     if bind_addr:
         cmd |= 1 << 2
-        data = [
-            struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port,
-                        addr.host.TYPE),
-            addr.host.pack(),
-            struct.pack("!HB", bind_port, bind_addr.host.TYPE),
-            bind_addr.host.pack()
-        ]
-    else:
-        data = [
-            struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port,
-                        addr.host.TYPE),
-            addr.host.pack()
-        ]
+    data.append(struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port, addr.host.TYPE))
+    data.append(addr.host.pack())
+    if bind_addr:
+        data.append(struct.pack("!HB", bind_port, bind_addr.host.TYPE))
+        data.append(bind_addr.host.pack())
     if svc is not None:
         data.append(svc.pack())
     return b"".join(data)

@@ -543,6 +543,11 @@ void register_udp(uint8_t *buf, int len, int sock)
 
     /* Register bind address info if the app has a bind address */
     if (IS_BIND_SOCKET(*buf)) {
+        if (find_available_port(bind_udp_port_list, &e->bind_key) < 0) {
+            reply(sock, 0);
+            cleanup_socket(sock, num_sockets - 1, EINVAL);
+            return;
+        }
         e->bind_list = &bind_udp_port_list;
         HASH_ADD(bindhh, bind_udp_port_list, bind_key, sizeof(L4Key), e);
     }
@@ -555,17 +560,15 @@ void register_udp(uint8_t *buf, int len, int sock)
 // bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional)
 int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset)
 {
-    int b_port_len = 2;
-    int b_type_len = 1;
+    int port_len = 2;
+    int type_len = 1;
 
-    uint16_t b_port = ntohs(*(uint16_t *)(buf + offset));
-    uint8_t b_type = *(uint8_t *)(buf + offset + b_port_len);
-    int b_addr_len = get_addr_len(b_type);
-    e->bind_key.port = b_port;
+    int b_addr_len = get_addr_len(buf[offset + port_len]);
+    e->bind_key.port = ntohs(*(uint16_t *)(buf + offset));
     e->bind_key.isd_as = isd_as;
-    memcpy(e->bind_key.host, buf + offset + b_port_len + b_type_len, b_addr_len);
+    memcpy(e->bind_key.host, buf + offset + port_len + type_len, b_addr_len);
 
-    return offset + b_port_len + b_type_len + b_addr_len;
+    return offset + port_len + type_len + b_addr_len;
 }
 
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
