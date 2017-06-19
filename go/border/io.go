@@ -46,6 +46,8 @@ type PosixInputFuncArgs struct {
 	StopChan chan struct{}
 	// StoppedChan is used to inform the stopper, when the input function has stopped.
 	StoppedChan chan struct{}
+	// Local address index, only meaningful for packets received from the local AS.
+	LocIdx int
 }
 
 type PosixInputFunc func(args *PosixInputFuncArgs)
@@ -111,6 +113,7 @@ func readPosixInput(args *PosixInputFuncArgs) {
 			rp.Ingress.Dst = dst
 			rp.Ingress.Src = src
 			rp.Ingress.IfIDs = args.Ifids
+			rp.Ingress.LocIdx = args.LocIdx
 			metrics.PktsRecv.With(args.Labels).Inc()
 			metrics.BytesRecv.With(args.Labels).Add(float64(length))
 			// TODO(kormat): experiment with performance by calling processPacket directly instead.

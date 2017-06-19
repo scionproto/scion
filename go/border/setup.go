@@ -234,6 +234,7 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr
 
 func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 	labels prometheus.Labels) *common.Error {
+	// FIXME(kormat): this does not support dual-stack local addresses (e.g. ipv4+6).
 	// Listen on the socket.
 	over, err := conn.New(ba, nil)
 	if err != nil {
@@ -255,6 +256,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 		Labels:        labels,
 		StopChan:      make(chan struct{}),
 		StoppedChan:   make(chan struct{}),
+		LocIdx:        idx,
 	}
 	ctx.LocInputFs[idx] = &PosixInput{
 		Args: args,
@@ -331,6 +333,7 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		Labels:        labels,
 		StopChan:      make(chan struct{}),
 		StoppedChan:   make(chan struct{}),
+		LocIdx:        -1,
 	}
 	pif := &PosixInput{
 		Args: args,

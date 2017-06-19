@@ -109,17 +109,18 @@ func (rp *RtrPkt) RouteResolveSVCMulti(
 	if err != nil {
 		return HookError, err
 	}
-	// Only send once per IP address.
-	seen := make(map[string]bool)
+	// Only send once per IP:OverlayPort combination. Adding the overlay port
+	// allows this to work even when multiple instances are NAT'd to the same
+	// IP address.
+	seen := make(map[string]struct{})
 	for _, elem := range elemMap {
-		// TODO(klausman,kormat): This is using all the AddrInfo fields, would
-		// it be better to switch to using .Key() (which only contains ip:port)?
-		strIP := string(elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay).String())
+		ai := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+		strIP := fmt.Sprintf("%s:%d", ai.IP, ai.OverlayPort)
 		if _, ok := seen[strIP]; ok {
 			continue
 		}
-		seen[strIP] = true
-		rp.Egress = append(rp.Egress, EgressPair{f, elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)})
+		seen[strIP] = struct{}{}
+		rp.Egress = append(rp.Egress, EgressPair{f, ai})
 	}
 	return HookContinue, nil
 }

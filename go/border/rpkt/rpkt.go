@@ -167,9 +167,10 @@ func (d Dir) String() string {
 // addrIFPair contains the overlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
-	Dst   *topology.AddrInfo
-	Src   *topology.AddrInfo
-	IfIDs []common.IFIDType
+	Dst    *topology.AddrInfo
+	Src    *topology.AddrInfo
+	IfIDs  []common.IFIDType
+	LocIdx int // only set for packets from the local AS.
 }
 
 // EgressPair contains the output function to send a packet with, along with an
@@ -222,6 +223,7 @@ func (rp *RtrPkt) Reset() {
 	rp.Ingress.Dst = nil
 	rp.Ingress.Src = nil
 	rp.Ingress.IfIDs = nil
+	rp.Ingress.LocIdx = -1
 	rp.Egress = rp.Egress[:0]
 	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}

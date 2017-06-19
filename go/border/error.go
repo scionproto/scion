@@ -20,14 +20,11 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP
@@ -183,35 +180,13 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
-	ctx := rctx.Get()
 	if rp.DirFrom == rpkt.DirLocal {
-		locIdx := ctx.Conf.Net.LocAddrMap[rp.Ingress.Dst.Key()]
-		ot, err := overlay.OverlayFromIP(rp.Ingress.Src.IP, rp.Ctx.Conf.Topo.Overlay)
-		if err != nil {
-			return rpkt.EgressPair{}, err
-		}
-		dst := topology.AddrInfo{
-			Overlay:     ot,
-			IP:          rp.Ingress.Src.IP,
-			L4Port:      rp.Ingress.Src.L4Port,
-			OverlayPort: overlay.EndhostPort,
-		}
-		return rpkt.EgressPair{F: ctx.LocOutFs[locIdx], Dst: &dst}, nil
+		return rpkt.EgressPair{F: rp.Ctx.LocOutFs[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
 	}
-	intf, err := rp.IFCurr()
+	ifid, err := rp.IFCurr()
 	if err != nil {
 		return rpkt.EgressPair{}, err
 	}
-	ot, err := overlay.OverlayFromIP(rp.Ingress.Src.IP, rp.Ctx.Conf.Topo.IFInfoMap[*intf].Overlay)
-	if err != nil {
-		return rpkt.EgressPair{}, err
-	}
-	dst := topology.AddrInfo{
-		Overlay:     ot,
-		IP:          rp.Ingress.Src.IP,
-		L4Port:      rp.Ingress.Src.L4Port,
-		OverlayPort: rp.Ingress.Src.L4Port,
-	}
-	return rpkt.EgressPair{F: rp.Ctx.IntfOutFs[*intf], Dst: &dst}, nil
-
+	intf := rp.Ctx.Conf.Net.IFs[*ifid]
+	return rpkt.EgressPair{F: rp.Ctx.IntfOutFs[*ifid], Dst: intf.RemoteAddr}, nil
 }
