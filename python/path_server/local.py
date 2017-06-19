@@ -22,7 +22,7 @@ import logging
 from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
-from path_server.base import PathServer
+from path_server.base import PathServer, REQS_PENDING, REQS_TOTAL, SEGS_TO_ZK
 
 
 class LocalPathServer(PathServer):
@@ -44,6 +44,7 @@ class LocalPathServer(PathServer):
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
             self._segs_to_zk[pcb.get_hops_hash()] = (PST.UP, pcb)
+            SEGS_TO_ZK.set(len(self._segs_to_zk))
         if self._add_segment(pcb, self.up_segments, "Up"):
             # Sending pending targets to the core using first registered
             # up-segment.
@@ -70,6 +71,7 @@ class LocalPathServer(PathServer):
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
+            REQS_TOTAL.inc()
         if dst_ia == self.addr.isd_as:
             logger.warning("Dropping request: requested DST is local AS")
             return False
@@ -87,6 +89,8 @@ class LocalPathServer(PathServer):
         if new_request:
             self._request_paths_from_core(req, logger)
             self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta, logger))
+            REQS_PENDING.inc()
+
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):
