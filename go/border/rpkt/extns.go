@@ -135,7 +135,7 @@ func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, *common.Error) {
 	if isHBH && len(rp.E2EExt) > 0 {
 		return 0, nil, common.NewError("HBH extension illegal to add after E2E extension")
 	}
-	offset := int(rp.CmnHdr.HdrLen) * common.LineLen
+	offset := rp.CmnHdr.HdrLenBytes()
 	nextHdr := (*uint8)(&rp.CmnHdr.NextHdr)
 	for i, hIdx := range rp.idxs.hbhExt {
 		nextHdr = &rp.Raw[hIdx.Index]

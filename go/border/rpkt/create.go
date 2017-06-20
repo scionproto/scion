@@ -33,7 +33,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *comm
 	rp := NewRtrPkt()
 	rp.Ctx = ctx
 	totalLen := sp.TotalLen()
-	hdrLen := sp.HdrLen()
+	hdrLen := sp.HdrLen() / common.LineLen
 	rp.TimeIn = monotime.Now()
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
@@ -64,8 +64,8 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *comm
 	rp.idxs.path = spkt.CmnHdrLen + sp.AddrLen()
 	if sp.Path != nil {
 		copy(rp.Raw[rp.idxs.path:], sp.Path.Raw)
-		rp.CmnHdr.CurrInfoF = uint8((rp.idxs.path + int(sp.Path.InfOff)) / common.LineLen)
-		rp.CmnHdr.CurrHopF = uint8((rp.idxs.path + int(sp.Path.HopOff)) / common.LineLen)
+		rp.CmnHdr.CurrInfoF = uint8((rp.idxs.path + sp.Path.InfOff) / common.LineLen)
+		rp.CmnHdr.CurrHopF = uint8((rp.idxs.path + sp.Path.HopOff) / common.LineLen)
 	}
 	// Fill in extensions
 	rp.idxs.l4 = int(hdrLen) * common.LineLen // Will be updated as necessary by extnAddHBH and extnAddE2E

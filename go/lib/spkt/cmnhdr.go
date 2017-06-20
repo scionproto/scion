@@ -100,6 +100,18 @@ func (c *CmnHdr) UpdatePathOffsets(b common.RawBytes, iOff, hOff uint8) {
 	b[6] = c.CurrHopF
 }
 
+func (c *CmnHdr) HdrLenBytes() int {
+	return int(c.HdrLen) * common.LineLen
+}
+
+func (c *CmnHdr) InfoFOffBytes() int {
+	return int(c.CurrInfoF) * common.LineLen
+}
+
+func (c *CmnHdr) HopFOffBytes() int {
+	return int(c.CurrHopF) * common.LineLen
+}
+
 func (c CmnHdr) String() string {
 	return fmt.Sprintf(
 		"Ver:%d Dst:%s Src:%s TotalLen:%dB HdrLen: %dB CurrInfoF:%dB CurrHopF:%dB NextHdr:%s",

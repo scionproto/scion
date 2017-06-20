@@ -109,7 +109,7 @@ class SCIONCommonHdr(Serializable):
             raise SCIONParseError(
                 "hdr_len (%sB) < common header len (%sB) + addrs len (%sB) " %
                 (self.hdr_len_bytes(), self.LEN, self.addrs_len))
-        if iof_off == hof_off:
+        if iof_off == hof_off == 0:
             self._iof_idx = self._hof_idx = 0
             return
         first_of_offset = self.LEN + self.addrs_len
@@ -191,10 +191,10 @@ class SCIONCommonHdr(Serializable):
         values = {
             "dst_addr_type": haddr_get_type(self.dst_addr_type).name(),
             "src_addr_type": haddr_get_type(self.src_addr_type).name(),
+            "hdr_len": self.hdr_len_bytes(),
         }
         for i in ("version", "total_len", "_iof_idx", "_hof_idx", "next_hdr"):
             values[i] = getattr(self, i)
-        values["hdr_len"] = self.hdr_len_bytes()
         return (
             "CH ver: %(version)s, dst type: %(dst_addr_type)s, src type: %(src_addr_type)s, "
             "total len: %(total_len)sB, hdr len: %(hdr_len)sB, "
