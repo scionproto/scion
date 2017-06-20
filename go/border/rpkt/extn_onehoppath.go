@@ -56,7 +56,7 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 		// instead.
 		return HookContinue, nil, nil
 	}
-	currHopF, err := spath.HopFFromRaw(o.rp.Raw[int(o.rp.CmnHdr.CurrHopF)*common.LineLen:])
+	currHopF, err := spath.HopFFromRaw(o.rp.Raw[o.rp.CmnHdr.HopFOffBytes():])
 	if err != nil {
 		return HookError, nil, err
 	}
@@ -69,10 +69,11 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 		return HookError, nil, err
 	}
 	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
-	prevIdx := int(o.rp.CmnHdr.CurrHopF)*common.LineLen - spath.HopFieldLength
-	prevHof := o.rp.Raw[prevIdx+1 : int(o.rp.CmnHdr.CurrHopF)*common.LineLen]
+	hOff := o.rp.CmnHdr.HopFOffBytes()
+	prevIdx := hOff - spath.HopFieldLength
+	prevHof := o.rp.Raw[prevIdx+1 : hOff]
 	inIFid := o.rp.Ingress.IfIDs[0]
-	hopF := spath.NewHopField(o.rp.Raw[int(o.rp.CmnHdr.CurrHopF)*common.LineLen:], inIFid, 0)
+	hopF := spath.NewHopField(o.rp.Raw[hOff:], inIFid, 0)
 	hfmac := o.rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)
 	o.rp.Ctx.Conf.HFMacPool.Put(hfmac)

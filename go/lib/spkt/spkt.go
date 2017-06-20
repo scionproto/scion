@@ -90,11 +90,11 @@ func (s *ScnPkt) HdrLen() int {
 	if s.Path != nil {
 		l += len(s.Path.Raw)
 	}
-	return l / common.LineLen
+	return l
 }
 
 func (s *ScnPkt) TotalLen() int {
-	l := s.HdrLen() * common.LineLen
+	l := s.HdrLen()
 	for _, h := range s.HBHExt {
 		l += h.Len() + common.ExtnSubHdrLen
 	}

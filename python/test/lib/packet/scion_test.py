@@ -67,7 +67,7 @@ class TestSCIONCommonHdrParse(object):
         inst = SCIONCommonHdr()
         data = create_mock(["pop"])
         data.pop.return_value = bytes([first_b, 0b00111111]) + \
-            bytes.fromhex('0304 04 07 08 07')
+            bytes.fromhex('0304 04 07 08 09')
         return inst, data
 
     @patch("lib.packet.scion.Raw", autospec=True)
@@ -90,7 +90,7 @@ class TestSCIONCommonHdrParse(object):
         ntools.eq_(inst.total_len, 0x0304)
         ntools.eq_(inst.hdr_len, 0x04)
         ntools.eq_(inst.hdr_len_bytes(), 0x20)
-        ntools.eq_(inst.next_hdr, 0x07)
+        ntools.eq_(inst.next_hdr, 0x09)
         ntools.eq_(inst.version, 0b0)
         ntools.eq_(inst.dst_addr_type, 0b111100)
         ntools.eq_(inst.src_addr_type, 0b111111)

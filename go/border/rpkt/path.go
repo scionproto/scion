@@ -156,7 +156,7 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen: // Parse
 			var err *common.Error
-			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[int(rp.CmnHdr.CurrInfoF)*common.LineLen:]); err != nil {
+			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[rp.CmnHdr.InfoFOffBytes():]); err != nil {
 				return nil, err
 			}
 		}
@@ -179,24 +179,26 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 				return rp.hopF, nil
 			}
 		}
+
+		hOff := rp.CmnHdr.HopFOffBytes()
+		iOff := rp.CmnHdr.InfoFOffBytes()
 		// Check if the common header path metadata is valid, and if so
 		// extracts the current Hop Field.
 		switch {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
 			// There is no path, so do nothing.
-		case int(rp.CmnHdr.CurrHopF)*common.LineLen < int(rp.CmnHdr.CurrInfoF)*common.LineLen+spath.InfoFieldLength: // Error
+		case hOff < iOff+spath.InfoFieldLength: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
 			return nil, common.NewErrorData("Hop field too small", sdata, "min",
-				(int(rp.CmnHdr.CurrInfoF)*common.LineLen+spath.InfoFieldLength)/common.LineLen,
-				"actual", rp.CmnHdr.CurrHopF)
+				(iOff+spath.InfoFieldLength)/common.LineLen, "actual", rp.CmnHdr.CurrHopF)
 		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
 			return nil, common.NewErrorData("Hop field too large", sdata, "max",
-				(int(rp.CmnHdr.HdrLen)*common.LineLen-spath.HopFieldLength)/common.LineLen,
+				(rp.CmnHdr.HdrLenBytes()-spath.HopFieldLength)/common.LineLen,
 				"actual", rp.CmnHdr.CurrHopF)
 		default: // Parse
 			var err *common.Error
-			if rp.hopF, err = spath.HopFFromRaw(rp.Raw[int(rp.CmnHdr.CurrHopF)*common.LineLen:]); err != nil {
+			if rp.hopF, err = spath.HopFFromRaw(rp.Raw[hOff:]); err != nil {
 				return nil, err
 			}
 		}
@@ -245,8 +247,8 @@ func (rp *RtrPkt) getHopFVer(dirFrom Dir) common.RawBytes {
 // where the verification Hop Field (if any) is directly before or after
 // (depending on the Up flag) the current Hop Field.
 func (rp *RtrPkt) getHopFVerNormalOffset() int {
-	iOff := int(rp.CmnHdr.CurrInfoF) * common.LineLen
-	hOff := int(rp.CmnHdr.CurrHopF) * common.LineLen
+	iOff := rp.CmnHdr.InfoFOffBytes()
+	hOff := rp.CmnHdr.HopFOffBytes()
 	// If this is the last hop of an Up path, or the first hop of a Down path, there's no previous
 	// HOF to verify against.
 	if (rp.infoF.Up &&
@@ -288,8 +290,9 @@ func (rp *RtrPkt) IncPath() (bool, *common.Error) {
 	var hopF *spath.HopField
 	// Initialize to the current InfoF and offset values.
 	infoF := rp.infoF
-	iOff := int(rp.CmnHdr.CurrInfoF) * common.LineLen
-	hOff := int(rp.CmnHdr.CurrHopF) * common.LineLen
+	iOff := rp.CmnHdr.InfoFOffBytes()
+	hOff := rp.CmnHdr.HopFOffBytes()
+	hdrLen := rp.CmnHdr.HdrLenBytes()
 	vOnly := 0
 	origUp := *rp.upFlag
 	for {
@@ -314,12 +317,11 @@ func (rp *RtrPkt) IncPath() (bool, *common.Error) {
 		}
 		vOnly++
 	}
-	if hOff > int(rp.CmnHdr.HdrLen)*common.LineLen {
-		return false, common.NewError("New HopF offset > header length", "max",
-			int(rp.CmnHdr.HdrLen)*common.LineLen, "actual", hOff)
+	if hOff > hdrLen {
+		return false, common.NewError("New HopF offset > header length", "max", hdrLen, "actual", hOff)
 	}
 	// Update common header, and packet's InfoF/HopF fields.
-	segChgd := iOff != int(rp.CmnHdr.CurrInfoF)*common.LineLen
+	segChgd := iOff != rp.CmnHdr.InfoFOffBytes()
 	rp.CmnHdr.UpdatePathOffsets(rp.Raw, uint8(iOff/common.LineLen), uint8(hOff/common.LineLen))
 	rp.infoF = infoF
 	rp.hopF = hopF

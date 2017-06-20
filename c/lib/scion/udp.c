@@ -25,28 +25,6 @@ void build_scion_udp(uint8_t *buf, uint16_t src_port, uint16_t dst_port, uint16_
 }
 
 /*
- * Get payload class of SCION UDP packet
- * buf: Pointer to start of SCION packet
- * return value: Payload class
- */
-uint8_t get_payload_class(uint8_t *buf)
-{
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return *(uint8_t *)((uint8_t *)sch + sch->header_len * LINE_LEN + sizeof(SCIONUDPHeader));
-}
-
-/*
- * Get payload type of SCION UDP packet
- * buf: Pointer to start of SCION packet
- * return value: Payload type
- */
-uint8_t get_payload_type(uint8_t *buf)
-{
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return *(uint8_t *)((uint8_t *)sch + sch->header_len * LINE_LEN + sizeof(SCIONUDPHeader) + 1);
-}
-
-/*
  * Calculate UDP checksum
  * Same as regular IP/UDP checksum but IP addrs replaced with SCION addrs
  * buf: Pointer to start of SCION packet

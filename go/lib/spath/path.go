@@ -28,8 +28,8 @@ const (
 
 type Path struct {
 	Raw    common.RawBytes
-	InfOff uint8 // Offset of current Info Field
-	HopOff uint8 // Offset of current Hop Field
+	InfOff int // Offset of current Info Field
+	HopOff int // Offset of current Hop Field
 }
 
 func (p *Path) Copy() *Path {
@@ -66,7 +66,7 @@ func (p *Path) Reverse() *common.Error {
 	switch {
 	case p.InfOff == 0:
 		newInfIdx = len(infOffs) - 1
-	case p.InfOff == uint8(infOffs[len(infOffs)-1]):
+	case p.InfOff == infOffs[len(infOffs)-1]:
 		newInfIdx = 0
 	default:
 		newInfIdx = 1
@@ -75,7 +75,7 @@ func (p *Path) Reverse() *common.Error {
 	// Fill in reversed path, starting with last segment.
 	for i := len(infoFs) - 1; i >= 0; i-- {
 		if idx == newInfIdx {
-			p.InfOff = uint8(revOff)
+			p.InfOff = revOff
 		}
 		infoF := infoFs[i]
 		infoF.Up = !infoF.Up // Reverse Up flag
@@ -93,7 +93,7 @@ func (p *Path) Reverse() *common.Error {
 	}
 
 	// Calculate Hop Field offset.
-	p.HopOff = uint8(len(p.Raw)) - p.HopOff
+	p.HopOff = len(p.Raw) - p.HopOff
 
 	// Update path with reversed copy.
 	p.Raw = revRaw
