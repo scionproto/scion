@@ -591,7 +591,6 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
 
     int addr_len = get_addr_len(type);
-    int b_addr_len = 0;
     int flow_id_len = 8;
     int end;
 
@@ -614,10 +613,11 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
         e->l4_key.isd_as = isd_as;
         memcpy(e->l4_key.host, buf + common, addr_len);
         end = common + addr_len;
+        zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
         if (IS_BIND_SOCKET(*buf)) {
             end = add_bind_addr(e, buf, isd_as, end);
+            zlog_info(zc, "bind addr %s:%d", addr_to_str(e->bind_key.host, type, NULL), e->bind_key.port);
         }
-        zlog_info(zc, "registration for %s:%d", addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port);
     } else {
         zlog_error(zc, "unsupported L4 proto %d", proto);
         close(sock);
@@ -661,13 +661,18 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
             se->sockets[se->count++] = sock;
 
             if (IS_BIND_SOCKET(*buf)) {
-                memcpy(se->bind_key.host, buf + end - b_addr_len, b_addr_len);
+                memcpy(se->bind_key.host, e->bind_key.host, MAX_HOST_ADDR_LEN);
                 se->bind_key.addr = ntohs(*(uint16_t *)(buf + end));
                 se->bind_key.isd_as = isd_as;
 
                 HASH_ADD(bindhh, bind_svc_list, bind_key, sizeof(SVCKey), se);
+                zlog_info(zc, "Adding Bind SVC entry. SVC:%d ISD_AS:%d-%d Host:%s",
+                    se->bind_key.addr, ISD(se->bind_key.isd_as), AS(se->bind_key.isd_as),
+                    addr_to_str(se->bind_key.host, type, NULL));
             }
             HASH_ADD(hh, svc_list, key, sizeof(SVCKey), se);
+            zlog_info(zc, "Adding SVC entry. SVC:%d ISD_AS:%d-%d Host:%s",
+                    se->key.addr, ISD(se->key.isd_as), AS(se->key.isd_as), addr_to_str(se->key.host, type, NULL));
         }
         e->se = se;
     }

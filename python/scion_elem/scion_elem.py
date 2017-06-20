@@ -198,7 +198,7 @@ class SCIONElement(object):
             host_addr, b_port = self.bind[0]
             b_addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
             self._udp_sock = ReliableSocket(
-                reg=(self.addr, self._port, init, svc), bind_addr=(b_addr, b_port))
+                reg=(self.addr, self._port, init, svc), bind_ip=(b_addr, b_port))
         else:
             self._udp_sock = ReliableSocket(
                 reg=(self.addr, self._port, init, svc))
