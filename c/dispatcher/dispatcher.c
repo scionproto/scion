@@ -1069,31 +1069,28 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 
 void add_ping_entry(SCMPL4Header *scmp, int sock)
 {
+    if(HASH_COUNT(ping_list) >= MAX_NUMBER_PINGS){
+        zlog_error(zc, "failed adding SCMP echo mapping. Max number of mappings (%d) reached.", MAX_NUMBER_PINGS);
+        return;
+    }
+
     SCMPPayload *pld = scmp_parse_payload(scmp);
     uint16_t *info = (uint16_t *)pld->info;
     uint16_t id = info[0];
-
     PingEntry *e;
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
     if(e == NULL){
-        if(HASH_COUNT(ping_list) < MAX_NUMBER_PINGS){
-            e = (PingEntry *)malloc(sizeof(PingEntry));
-            if (!e) {
-                zlog_fatal(zc, "malloc failed, abandon ship");
-                exit(1);
-            }
-        }else {
-            e = ping_list;
-            HASH_DELETE(hh, ping_list, e);
+        e = (PingEntry *)malloc(sizeof(PingEntry));
+        if (!e) {
+            zlog_fatal(zc, "malloc failed, abandon ship");
+            exit(1);
         }
         memset(e, 0, sizeof(PingEntry));
         e->id = info[0];
         e->sock = sock;
         HASH_ADD(hh, ping_list, id, sizeof(uint16_t), e);
-    } else {
-        if(e->sock != sock){
-            zlog_error(zc, "failed adding SCMP echo mapping. ID %d already in use.", ntohs(id));
-        }
+    } else if(e->sock != sock){
+        zlog_error(zc, "failed adding SCMP echo mapping. ID %d already in use.", ntohs(id));
     }
 }
 
