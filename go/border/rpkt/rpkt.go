@@ -269,7 +269,7 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	// SCION common header uses offsets relative to the start of the packet, so
 	// convert from one to the other.
 	sp.Path = &spath.Path{
-		Raw:    rp.Raw[rp.idxs.path : rp.CmnHdr.HdrLenBytes()],
+		Raw:    rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLenBytes()],
 		InfOff: rp.CmnHdr.InfoFOffBytes() - rp.idxs.path,
 		HopOff: rp.CmnHdr.HopFOffBytes() - rp.idxs.path,
 	}

@@ -31,29 +31,29 @@ type pathCase struct {
 var pathReverseCases = []struct {
 	in      []pathCase
 	out     []pathCase
-	inOffs  [][2]uint8
-	outOffs [][2]uint8
+	inOffs  [][2]int
+	outOffs [][2]int
 }{
 	// 1 segment, 2 hops
 	{
 		[]pathCase{{true, []uint8{11, 12}}},
 		[]pathCase{{false, []uint8{12, 11}}},
-		[][2]uint8{{0, 8}, {0, 16}},
-		[][2]uint8{{0, 16}, {0, 8}},
+		[][2]int{{0, 8}, {0, 16}},
+		[][2]int{{0, 16}, {0, 8}},
 	},
 	// 1 segment, 5 hops
 	{
 		[]pathCase{{true, []uint8{11, 12, 13, 14, 15}}},
 		[]pathCase{{false, []uint8{15, 14, 13, 12, 11}}},
-		[][2]uint8{{0, 8}, {0, 16}, {0, 24}, {0, 32}, {0, 40}},
-		[][2]uint8{{0, 40}, {0, 32}, {0, 24}, {0, 16}, {0, 8}},
+		[][2]int{{0, 8}, {0, 16}, {0, 24}, {0, 32}, {0, 40}},
+		[][2]int{{0, 40}, {0, 32}, {0, 24}, {0, 16}, {0, 8}},
 	},
 	// 2 segments, 5 hops
 	{
 		[]pathCase{{true, []uint8{11, 12}}, {false, []uint8{13, 14, 15}}},
 		[]pathCase{{true, []uint8{15, 14, 13}}, {false, []uint8{12, 11}}},
-		[][2]uint8{{0, 8}, {0, 16}, {24, 32}, {24, 40}, {24, 48}},
-		[][2]uint8{{32, 48}, {32, 40}, {0, 24}, {0, 16}, {0, 8}},
+		[][2]int{{0, 8}, {0, 16}, {24, 32}, {24, 40}, {24, 48}},
+		[][2]int{{32, 48}, {32, 40}, {0, 24}, {0, 16}, {0, 8}},
 	},
 	// 3 segments, 9 hops
 	{
@@ -67,10 +67,10 @@ var pathReverseCases = []struct {
 			{true, []uint8{16, 15, 14, 13}},
 			{false, []uint8{12, 11}},
 		},
-		[][2]uint8{
+		[][2]int{
 			{0, 8}, {0, 16}, {24, 32}, {24, 40}, {24, 48}, {24, 56}, {64, 72}, {64, 80}, {64, 88},
 		},
-		[][2]uint8{
+		[][2]int{
 			{72, 88}, {72, 80}, {32, 64}, {32, 56}, {32, 48}, {32, 40}, {0, 24}, {0, 16}, {0, 8},
 		},
 	},
@@ -109,7 +109,7 @@ func Test_Path_Reverse(t *testing.T) {
 	}
 }
 
-func mkPathRevCase(in []pathCase, inInfOff, inHopfOff uint8) *Path {
+func mkPathRevCase(in []pathCase, inInfOff, inHopfOff int) *Path {
 	path := &Path{InfOff: inInfOff, HopOff: inHopfOff}
 	plen := 0
 	for _, seg := range in {
