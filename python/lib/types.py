@@ -74,6 +74,7 @@ class ExtEndToEndType(TypeBase):
     PATH_TRANSPORT = 0
     PATH_PROBE = 1
     SPSE = 2
+    OPT = 3
 
 
 class ASMExtType(TypeBase):
