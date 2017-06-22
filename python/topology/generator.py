@@ -50,6 +50,7 @@ from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
 from lib.crypto.trc import (
     ADDR_STRING,
+    AS_STRING,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
     ONLINE_KEY_ALG_STRING,
@@ -452,9 +453,14 @@ class LogServerGenerator(object):
         self.sig_pub_keys = {}
         self.log_entries = defaultdict(dict)
         self.log_private_key_files = defaultdict(dict)
+        self.sng = SubnetGenerator(DEFAULT_NETWORK)
+        self.sngg = self.sng.register("LogServers")
+        self.log_addrs = {}
 
     def generate(self):
         self._iterate(self._gen_sig_keys)
+        self._iterate(self._gen_addresses)
+        _, self.log_addrs = self.sng.alloc_subnets().popitem()
         self._iterate(self._gen_log_entries)
         return self.log_private_key_files, self.log_entries
 
@@ -470,9 +476,13 @@ class LogServerGenerator(object):
         log_private_key_path = get_log_private_key_file_path("ISD%s" % isd, log_name)
         self.log_private_key_files[isd][log_private_key_path] = base64.b64encode(sig_priv).decode()
 
+    def _gen_addresses(self, log_name, log_config):
+        self.sngg.register(log_name)
+
     def _gen_log_entries(self, log_name, log_config):
         log_entry = {}
-        log_entry[ADDR_STRING] = log_config["addr"]
+        log_entry[AS_STRING] = log_config["AS"]
+        log_entry[ADDR_STRING] = str(self.log_addrs[log_name])
         log_entry[PUBLIC_KEY_STRING] = self.sig_pub_keys[log_name]
         self.log_entries[log_config["ISD"]][log_name] = log_entry
 

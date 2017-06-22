@@ -89,16 +89,16 @@ CAs:
 LogServers:
   Log1:
     ISD: 1
-    addr: 127.0.0.1
+    AS: 11
   Log2:
     ISD: 1
-    addr: 127.0.0.2
+    AS: 13
   Log3:
     ISD: 2
-    addr: 127.0.0.3
+    AS: 21
   Log4:
     ISD: 2
-    addr: 127.0.0.4
+    AS: 22
 links:
   - {a: 1-11, b: 1-12, ltype: CORE}
   - {a: 1-11, b: 1-13, ltype: CORE}

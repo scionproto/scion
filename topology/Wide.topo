@@ -73,34 +73,34 @@ CAs:
 LogServers:
   Log1:
     ISD: 1
-    addr: 127.0.0.1
+    AS: 1
   Log2:
     ISD: 1
-    addr: 127.0.0.2
+    AS: 2
   Log3:
     ISD: 2
-    addr: 127.0.0.3
+    AS: 1
   Log4:
     ISD: 2
-    addr: 127.0.0.4
+    AS: 2
   Log5:
     ISD: 3
-    addr: 127.0.0.5
+    AS: 1
   Log6:
     ISD: 3
-    addr: 127.0.0.6
+    AS: 1
   Log7:
     ISD: 4
-    addr: 127.0.0.7
+    AS: 1
   Log8:
     ISD: 4
-    addr: 127.0.0.8
+    AS: 1
   Log9:
     ISD: 5
-    addr: 127.0.0.9
+    AS: 1
   Log10:
     ISD: 5
-    addr: 127.0.0.10
+    AS: 3
 links:
   - {a: 1-1, b: 1-2, ltype: CORE}
   - {a: 1-1, b: 2-1, ltype: CORE}

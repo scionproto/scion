@@ -50,6 +50,7 @@ ONLINE_KEY_STRING = 'OnlineKey'
 OFFLINE_KEY_ALG_STRING = 'OfflineKeyAlg'
 OFFLINE_KEY_STRING = 'OfflineKey'
 ADDR_STRING = 'Addr'
+AS_STRING = 'AS'
 PUBLIC_KEY_STRING = 'PublicKey'
 
 
