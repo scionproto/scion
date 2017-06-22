@@ -90,11 +90,11 @@ class OPTProtocol(DRKeyProtocolBase):
                 raise SCIONVerificationError(
                     "Invalid destination %s. Expected" % req.misc.path[-1], req.src_ia)
 
-    @staticmethod
-    def generate_misc_reply(drkeys, req, meta):
+    @classmethod
+    def generate_misc_reply(cls, drkeys, req, meta):
         assert isinstance(req, DRKeyProtocolRequest)
         assert isinstance(meta, UDPMetadata)
-        proto_drkeys = [mac(super()._derive_drkey(drkey, req.src_host, req.dst_host),
+        proto_drkeys = [mac(cls._derive_drkey(drkey, req.src_host, req.dst_host),
                             req.misc.p.sessionID) for drkey in drkeys[1:]]
         return OPTMiscReply.from_values(proto_drkeys)
 
