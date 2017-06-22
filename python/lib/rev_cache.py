@@ -27,10 +27,10 @@ from lib.crypto.hash_tree import ConnectedHashTree
 
 
 # Exported metrics.
-REVS_TOTAL = Gauge("rc_revs_total", "# of cached revocations")
-REVS_BYTES = Gauge("rc_revs_bytes", "RevCache memory usage")
-REVS_ADDED = Counter("rc_revs_added_total", "Total revocations added")
-REVS_REMOVED = Counter("rc_revs_removed_total", "Total revocations removed")
+REVS_TOTAL = Gauge("rc_revs_total", "# of cached revocations", ["type"])
+REVS_BYTES = Gauge("rc_revs_bytes", "RevCache memory usage", ["type"])
+REVS_ADDED = Counter("rc_revs_added_total", "Total revocations added", ["type"])
+REVS_REMOVED = Counter("rc_revs_removed_total", "Total revocations removed", ["type"])
 
 
 def _mk_key(rev_info):
