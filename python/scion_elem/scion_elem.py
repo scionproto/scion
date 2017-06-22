@@ -875,18 +875,18 @@ class SCIONElement(object):
         while True:
             try:
                 self._in_buf.put(item, block=False)
-                PKT_BUF_TOTAL.inc()
                 PKT_BUF_BYTES.inc(len(item[0]))
             except queue.Full:
                 msg, _ = self._in_buf.get_nowait()
                 dropped += 1
-                PKT_BUF_TOTAL.dec()
+                PKTS_DROPPED_TOTAL.inc()
                 PKT_BUF_BYTES.dec(len(msg))
             else:
                 break
+            finally:
+                PKT_BUF_TOTAL.set(self._in_buf.qsize())
         if dropped > 0:
             self.total_dropped += dropped
-            PKTS_DROPPED_TOTAL.inc(dropped)
             logging.warning("%d packet(s) dropped (%d total dropped so far)",
                             dropped, self.total_dropped)
 
@@ -924,7 +924,7 @@ class SCIONElement(object):
             pkt.parse_payload()
         except SCIONParseError as e:
             logging.error("Cannot parse payload\n  Error: %s\n  Pkt: %s", e, pkt)
-            return None, 0, meta
+            return None, meta
         return pkt.get_payload(), meta
 
     def handle_accept(self, sock):
@@ -970,6 +970,8 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             try:
                 msg, meta = self._in_buf.get(timeout=1.0)
+                PKT_BUF_BYTES.dec(len(msg))
+                PKT_BUF_TOTAL.set(self._in_buf.qsize())
                 self.handle_msg_meta(msg, meta)
             except queue.Empty:
                 continue
