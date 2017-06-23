@@ -10,4 +10,4 @@ APTARGS=${APTARGS:---no-remove}
 pkgs="$($BASE/check)"
 [ -z "$pkgs" ] && exit
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
+sudo DEBIAN_FRONTEND=noninteractive apt-get -y install $APTARGS --no-install-recommends $pkgs
