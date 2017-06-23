@@ -208,11 +208,11 @@ class Topology(object):
             ("PathService", self.path_servers),
             ("SibraService", self.sibra_servers),
         ):
-            for k, v in topology[type_].items():
+            for k, v in topology.get(type_, {}).items():
                 list_.append(ServerElement(v, k))
 
     def _parse_router_dicts(self, topology):
-        for k, v in topology['BorderRouters'].items():
+        for k, v in topology.get('BorderRouters', {}).items():
             router = RouterElement(v, k)
             self.border_routers.append(router)
             for intf in router.interfaces.values():
@@ -225,7 +225,7 @@ class Topology(object):
                 ntype_map[intf.link_type].append(intf)
 
     def _parse_zk_dicts(self, topology):
-        for zk in topology['ZookeeperService'].values():
+        for zk in topology.get('ZookeeperService', {}).values():
             haddr = haddr_parse_interface(zk['Addr'])
             zk_host = "[%s]:%s" % (haddr, zk['L4Port'])
             self.zookeepers.append(zk_host)
