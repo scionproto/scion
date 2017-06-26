@@ -144,13 +144,13 @@ class TestSCIONCommonHdrPack(object):
         inst.src_addr_type = 0b111111
         inst.addrs_len = 24
         inst.total_len = 0x0304
-        inst.hdr_len = 0x04
+        inst.hdr_len = 0x05
         inst._iof_idx = 0x03
         inst._hof_idx = 0x04
         inst.next_hdr = 0x09
         expected = b"".join([
             bytes([0b11110000, 0b00111111]),
-            bytes.fromhex('0304 04 07 08 09'),
+            bytes.fromhex('0304 05 07 08 09'),
         ])
         # Call
         ntools.eq_(inst.pack(), expected)
