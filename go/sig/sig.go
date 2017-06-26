@@ -17,6 +17,7 @@ const (
 func main() {
 	var config = flag.String("config", "", "optional config file")
 	var sciond = flag.String("sciond", "/run/shm/sciond.sock", "SCIOND socket path")
+	var silent = flag.Bool("silent", false, "disable interactive console")
 	flag.Parse()
 
 	// Create main SIG table
@@ -35,6 +36,10 @@ func main() {
 	// Load config file (if specified) and start interactive console
 	if *config != "" {
 		management.RunConfig(Version, static, *config)
+	}
+	if *silent == true {
+		// Block forever
+		select {}
 	}
 	management.Run(Version, static)
 }
