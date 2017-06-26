@@ -89,6 +89,13 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	if err != nil {
 		return nil, err
 	}
+	if ct.Class == scmp.C_CmnHdr &&
+		(ct.Type == scmp.T_C_BadInfoFOffset || ct.Type == scmp.T_C_BadHopFOffset) {
+		// If the infoF or hopF offsets are bad, then don't include the path
+		// header in the response. This is only relevant for packets sent from the local AS,
+		// packets from external ASes are already filtered out in handlePktError() above.
+		sp.Path = nil
+	}
 	oldHBH := sp.HBHExt
 	sp.HBHExt = make([]common.Extension, 0, common.ExtnMaxHBH+1)
 	// Add new SCMP HBH extension at the start.
