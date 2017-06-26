@@ -85,6 +85,7 @@ func (s *ScnPkt) AddrLen() int {
 	return addrLen + util.CalcPadding(addrLen, common.LineLen)
 }
 
+// HdrLen returns the length of the header, in bytes.
 func (s *ScnPkt) HdrLen() int {
 	l := CmnHdrLen + s.AddrLen()
 	if s.Path != nil {

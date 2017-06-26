@@ -112,6 +112,9 @@ class SCIONCommonHdr(Serializable):
         if iof_off == hof_off == 0:
             self._iof_idx = self._hof_idx = 0
             return
+        if iof_off == hof_off or (iof_off == 0 or hof_off == 0) and iof_off != hof_off:
+            raise SCIONParseError(
+                "invalid CurrINF, CurrHF combination: (%s, %s) " % (iof_off, hof_off))
         first_of_offset = self.LEN + self.addrs_len
         # FIXME(kormat): NB this assumes that all OFs have the same length.
         self._iof_idx = (iof_off * LINE_LEN - first_of_offset) // OpaqueField.LEN
@@ -141,12 +144,15 @@ class SCIONCommonHdr(Serializable):
         types = ((self.version << 12) | (self.dst_addr_type << 6) |
                  self.src_addr_type)
         packed.append(struct.pack("!HHB", types, self.total_len, self.hdr_len))
-        curr_iof_p = curr_hof_p = self.LEN + self.addrs_len
+        curr_iof_p = curr_hof_p = offset = self.LEN + self.addrs_len
         # FIXME(kormat): NB this assumes that all OFs have the same length.
         if self._iof_idx:
             curr_iof_p += self._iof_idx * OpaqueField.LEN
         if self._hof_idx:
             curr_hof_p += self._hof_idx * OpaqueField.LEN
+        if curr_hof_p == offset and curr_iof_p == offset:
+            curr_hof_p = curr_iof_p = 0
+
         packed.append(struct.pack("!BBB",
                                   curr_iof_p//LINE_LEN, curr_hof_p//LINE_LEN, self.next_hdr))
         raw = b"".join(packed)

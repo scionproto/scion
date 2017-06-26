@@ -56,7 +56,8 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 		// instead.
 		return HookContinue, nil, nil
 	}
-	currHopF, err := spath.HopFFromRaw(o.rp.Raw[o.rp.CmnHdr.HopFOffBytes():])
+	hOff := o.rp.CmnHdr.HopFOffBytes()
+	currHopF, err := spath.HopFFromRaw(o.rp.Raw[hOff:])
 	if err != nil {
 		return HookError, nil, err
 	}
@@ -69,7 +70,6 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
 		return HookError, nil, err
 	}
 	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
-	hOff := o.rp.CmnHdr.HopFOffBytes()
 	prevIdx := hOff - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : hOff]
 	inIFid := o.rp.Ingress.IfIDs[0]

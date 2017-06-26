@@ -143,20 +143,21 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, *common.Error) {
 		}
 		// Check the common header path metadata validity, and if so extract
 		// the current Info Field.
+		hOff := rp.CmnHdr.InfoFOffBytes()
 		switch {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
 			// There is no path, so do nothing.
-		case rp.CmnHdr.CurrInfoF < uint8(rp.idxs.path/common.LineLen): // Error
+		case hOff < rp.idxs.path: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewErrorData("Info field too small", sdata,
+			return nil, common.NewErrorData("Info field index too small", sdata,
 				"min", rp.idxs.path/common.LineLen, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewErrorData("Info field too large", sdata,
+			return nil, common.NewErrorData("Info field index too large", sdata,
 				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
 		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen: // Parse
 			var err *common.Error
-			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[rp.CmnHdr.InfoFOffBytes():]); err != nil {
+			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[hOff:]); err != nil {
 				return nil, err
 			}
 		}
@@ -189,11 +190,11 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 			// There is no path, so do nothing.
 		case hOff < iOff+spath.InfoFieldLength: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData("Hop field too small", sdata, "min",
+			return nil, common.NewErrorData("Hop field index too small", sdata, "min",
 				(iOff+spath.InfoFieldLength)/common.LineLen, "actual", rp.CmnHdr.CurrHopF)
 		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen: // Error
 			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewErrorData("Hop field too large", sdata, "max",
+			return nil, common.NewErrorData("Hop field index too large", sdata, "max",
 				(rp.CmnHdr.HdrLenBytes()-spath.HopFieldLength)/common.LineLen,
 				"actual", rp.CmnHdr.CurrHopF)
 		default: // Parse
