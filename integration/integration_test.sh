@@ -42,7 +42,7 @@ run() {
 }
 export -f run log
 
-export PYTHONPATH=python/:.
+export PYTHONPATH=python/:proto/:.
 
 log "Starting scion (without building)"
 ./scion.sh run nobuild | grep -v "started"
@@ -66,10 +66,13 @@ result=$?
 run "SCMPAuth error" "python/integration/scmp_auth_error_test.py -l ERROR --runs 60"
 result=$((result+$?))
 
+run "OPT test" "python/integration/opt_req_test.py"
+result=$((result+$?))
 
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-as1-11:br1-11-3 as2-26:br2-26-2 as1-14:br1-14-3 as1-16:br1-16-2}"
 result=$((result+$?))
+
 
 shutdown
 

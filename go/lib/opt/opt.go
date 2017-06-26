@@ -15,7 +15,7 @@
 package opt
 
 import (
-	"fmt"
+	//"fmt"
 )
 
 // https://github.com/Oncilla/scion-detached/blob/opt/lib/opt/ext/opt.py definitions

@@ -15,29 +15,33 @@
 package opt
 
 import (
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/util"
-	"crypto/sha256"
+	//"github.com/netsec-ethz/scion/go/border/rpkt"
+	//"github.com/netsec-ethz/scion/go/lib/util"
+	//"crypto/sha256"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-func (e *Extn) DataHashed(packet rpkt.RtrPkt) []byte {
-	shaChecksum := sha256.New
-	return shaChecksum(packet)
+//func (e *Extn) DataHashed(packet rpkt.RtrPkt) []byte {
+func (e *Extn) DataHashed(packet interface{}) []byte {
+	/*shaChecksum := sha256.New
+	return shaChecksum(packet)*/
+	return make(common.RawBytes, 16)
 }
 
 func (e *Extn) InitializePVF(sessionKey []byte, payload []byte) {
-	dataHash := e.DataHashed(payload)
-        e.PVF = cbcMAC(sessionKey, dataHash)
+	/*dataHash := e.DataHashed(payload)
+        e.PVF = cbcMAC(sessionKey, dataHash)*/
 }
 
-func (e *Extn) UpdatePVF(packet *rpkt.RtrPkt) {
-	localSecret, _ := packet.CalcDRKey()
+func (e *Extn) UpdatePVF(packet interface{}) {
+	/*localSecret, _ := packet.CalcDRKey()
 	// K_{AS_i}^session = PRF_{AS_i -> S, D}(SessionId)
 	sessionKey := cbcMAC(localSecret, e.SessionId)
-	e.PVF = cbcMAC(sessionKey, e.PVF)
+	e.PVF = cbcMAC(sessionKey, e.PVF)*/
 }
 
 func cbcMAC(session []byte, PVF []byte) []byte {
-	mac, _ := util.CBCMac(session, PVF)
-	return mac
+	/*mac, _ := util.CBCMac(session, PVF)
+	return mac*/
+	return make(common.RawBytes, 16)
 }

@@ -22,9 +22,9 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/opt"
 	"fmt"
-	"crypto/cipher"
+	/*"crypto/cipher"
 	"github.com/netsec-ethz/scion/go/lib/util"
-	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/conf"*/
 )
 
 // satisfies the interface rExtension in extns.go
@@ -63,28 +63,28 @@ func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
 func (o *RtrPkt) processOPT() (HookResult, *common.Error) {
 	exts := o.HBHExt
 	for _, ext := range exts {
-		if ext.Type() == 4 {
+		if ext.Type() == common.ExtnOPTType {
 			fmt.Sprintf("%T", ext)
-			repr, err := o.extnParseHBH(common.ExtnOPTType, 0, ext.Len(), 4)
+			/*repr, err := o.extnParseHBH(common.ExtnOPTType, 0, ext.Len(), 4)
 			// process OPT field here, update pvf
 			if err != nil {
 				return err
 			} else {
 				rOPTExt(repr).UpdatePVF()
 			}
-			break
+			break*/
 		}
 	}
 	return HookFinish, nil
 }
 
 // getDRKeyBlock returns a cipher block for the given DRKey
-func (o *RtrPkt) getDRKeyBlock(drkey common.RawBytes, e *common.Error) (cipher.Block, *common.Error) {
+/*func (o *RtrPkt) getDRKeyBlock(drkey common.RawBytes, e *common.Error) (cipher.Block, *common.Error) {
 	if e != nil {
 		return nil, e
 	}
 	return util.InitAES(drkey)
-}
+}*/
 
 // calcDRKey calculates the DRKey for this packet.
 func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
@@ -93,10 +93,10 @@ func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
 	common.Order.PutUint32(in, uint32(o.srcIA.I))
 	common.Order.PutUint32(in[4:], uint32(o.srcIA.A))
 	// blockFstOrder is K_{SV_{AS_i}}
-	blockFstOrder, e := o.getDRKeyBlock(util.CBCMac(conf.C.DRKeyAESBlock, in))
+	/*blockFstOrder, e := o.getDRKeyBlock(util.CBCMac(conf.C.DRKeyAESBlock, in))
 	if e != nil {
 		return nil, e
-	}
+	}*/
 
 	// stuff in with OPT|src host addr|dst host addr, compute CBCMac over it with key K_x = cbcmac(K_x, in)
 	in = make(common.RawBytes, 48)
@@ -104,6 +104,7 @@ func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
 	copy(in[16:32], o.srcHost.Pack())
 	copy(in[32:48], o.dstHost.Pack())
 	// keyOpt is K^OPT_{AS_i -> S:H_S, D:H_D}
-	keyOpt, e := util.CBCMac(blockFstOrder, in)
-	return keyOpt, e
+	/*keyOpt, e := util.CBCMac(blockFstOrder, in)
+	return keyOpt, e*/
+	return make(common.RawBytes, 16), common.NewError("")
 }
