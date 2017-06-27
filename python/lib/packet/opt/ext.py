@@ -21,7 +21,7 @@
 from lib.packet.ext_hdr import EndToEndExtension
 from lib.packet.opt.defines import (
     OPTLengths,
-)
+    OPTValidationError)
 from lib.types import ExtEndToEndType
 from lib.util import hex_str, Raw
 
@@ -114,6 +114,27 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         raw = b"".join(packed)
         self._check_len(raw)
         return raw
+
+    @classmethod
+    def check_validity(cls, datahash, sessionID, PVF):
+        """
+        Check if parameters are valid.
+
+        :param bytes datahash: The hash of the payload
+        :param bytes sessionID: The session ID of the extension.
+        :param bytes PVF: The Path Verification Field for the extension
+        :raises: OPTValidationError
+        """
+
+        if len(datahash) != OPTLengths.DATAHASH:
+            raise OPTValidationError("Invalid datahash length %sB. Expected %sB" % (
+                len(datahash), OPTLengths.DATAHASH))
+        if len(sessionID) != OPTLengths.SESSIONID:
+            raise OPTValidationError("Invalid sessionID length %sB. Expected %sB" % (
+                len(sessionID), OPTLengths.SESSIONID))
+        if len(PVF) != OPTLengths.PVF:
+            raise OPTValidationError("Invalid PVF length %sB. Expected %sB" % (
+                len(PVF), OPTLengths.PVF))
 
     def __str__(self):
         return "%s(%sB):\n\tDatahash: %s\n\tSessionID: %s\n\tPVF: %s" % (
