@@ -59,10 +59,10 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
-REQS_TOTAL = Counter("ps_reqs_total", "# of path requests")
-REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests")
-SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK")
-REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK")
+REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_as"])
+REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
+SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
+REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", ["server_id", "isd_as"])
 
 
 class PathServer(SCIONElement, metaclass=ABCMeta):
@@ -91,14 +91,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param str prom_export: prometheus export address.
         """
         super().__init__(server_id, conf_dir, prom_export=prom_export)
-        self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, label="down")
-        self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, label="core")
+        down_labels = {**self._labels, "type": "down"} if self._labels else None
+        core_labels = {**self._labels, "type": "core"} if self._labels else None
+        self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=down_labels)
+        self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=core_labels)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         self.pen_req_lock = threading.Lock()
         self._request_logger = None
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
-        self.revocations = RevCache()
+        self.revocations = RevCache(labels=self._labels)
         # A mapping from (hash tree root of AS, IFID) to segments
         self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
         self.htroot_if2seglock = Lock()
@@ -163,6 +165,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._update_master()
             self._propagate_and_sync()
             self._handle_pending_requests()
+            self._update_metrics()
 
     def _update_master(self):
         pass
@@ -327,7 +330,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 # Clean state.
                 for req_meta in to_remove:
                     self.pending_req[key].remove(req_meta)
-                REQS_PENDING.dec(len(to_remove))
                 if not self.pending_req[key]:
                     rem_keys.append(key)
             for key in rem_keys:
@@ -482,7 +484,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for pcb_dict in self._gen_prop_recs(self._segs_to_zk,
                                             limit=self.ZK_SHARE_LIMIT):
             seg_recs = PathSegmentRecords.from_values(pcb_dict)
-            SEGS_TO_ZK.dec(seg_recs.num_segs())
             self._zk_write(seg_recs.pack())
 
     def _share_revs_via_zk(self):
@@ -532,6 +533,25 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Create a logger for the request to log with context.
         return logging.LoggerAdapter(
             self._request_logger, {"id": req_id, "req": req.short_desc(), "from": str(meta)})
+
+    def _update_metrics(self):
+        """
+        Updates all Gauge metrics. Subclass can update their own metrics but must
+        call the superclass' implementation.
+        """
+        if not self._labels:
+            return
+        # Update pending requests metric.
+        # XXX(shitz): This could become a performance problem should there ever be
+        # a large amount of pending requests (>100'000).
+        total_pending = 0
+        with self.pen_req_lock:
+            for reqs in self.pending_req.values():
+                total_pending += len(reqs)
+        REQS_PENDING.labels(**self._labels).set(total_pending)
+        # Update SEGS_TO_ZK and REVS_TO_ZK metrics.
+        SEGS_TO_ZK.labels(**self._labels).set(len(self._segs_to_zk))
+        REVS_TO_ZK.labels(**self._labels).set(len(self._revs_to_zk))
 
     def run(self):
         """
