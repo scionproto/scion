@@ -10,6 +10,7 @@ ASes:
     beacon_servers: 1
     certificate_servers: 3
     path_servers: 3
+    trc_update: true
   1-12:
     core: true
     zookeepers:

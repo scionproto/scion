@@ -154,6 +154,7 @@ class Topology(object):
         self.is_core_as = False
         self.isd_as = None
         self.mtu = None
+        self.trc_update = None
         self.beacon_servers = []
         self.certificate_servers = []
         self.path_servers = []
@@ -197,6 +198,7 @@ class Topology(object):
         self.isd_as = ISD_AS(topology['ISD_AS'])
         self.mtu = topology['MTU']
         self.overlay = topology['Overlay']
+        self.trc_update = topology['TRCUpdate']
         self._parse_srv_dicts(topology)
         self._parse_router_dicts(topology)
         self._parse_zk_dicts(topology)

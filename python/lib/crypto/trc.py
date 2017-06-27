@@ -58,6 +58,14 @@ def get_trc_file_path(conf_dir, isd, version):  # pragma: no cover
     return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd, version))
 
 
+def get_trc_up_file_path(conf_dir, isd, version):  # pragma: no cover
+    """
+    Return the updated TRC file path for a given ISD.
+    """
+    up_dir = os.path.join(CERT_DIR, "update")
+    return os.path.join(conf_dir, up_dir, 'ISD%s-V%s.trc' % (isd, version))
+
+
 class TRC(object):
     """
     The TRC class parses the TRC file of an ISD and stores such
@@ -206,16 +214,16 @@ class TRC(object):
         valid_signature_signers = set()
         # Add every signer to this set whose signature was verified successfully
         for signer in signatures:
-            public_key = self.core_ases[signer].subject_sig_key_raw
+            public_key = self.core_ases[signer][ONLINE_KEY_STRING]
             if self._verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
             else:
-                logging.warning("TRC contains a signature which could not \
-                be verified.")
+                logging.warning("TRC contains a signature which could not "
+                                "be verified.")
         # We have fewer valid signatrues for this TRC than quorum_own_trc
         if len(valid_signature_signers) < old_trc.quorum_own_trc:
-            logging.error("TRC does not have the number of required valid \
-            signatures")
+            logging.error("TRC does not have the number of required valid "
+                          "signatures")
             return False
         logging.debug("TRC verified.")
         return True
@@ -314,8 +322,8 @@ def verify_new_trc(old_trc, new_trc):
         return False
     # Check if there are enough valid signatures for new TRC
     if not new_trc.verify(old_trc):
-        logging.error("New TRC verification failed, missing or \
-        invalid signatures")
+        logging.error("New TRC verification failed, missing or "
+                      "invalid signatures")
         return False
-    logging.debug("New TRC verified")
+    logging.debug("New TRC verified: %sv%s" % (new_trc.isd, new_trc.version))
     return True

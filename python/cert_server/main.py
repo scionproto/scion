@@ -21,10 +21,10 @@ import datetime
 import logging
 import os
 import threading
+import time
 
 # External packages
 from nacl.exceptions import CryptoError
-import time
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -34,7 +34,8 @@ from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
-from lib.defines import CERTIFICATE_SERVICE
+from lib.crypto.util import CERT_DIR
+from lib.defines import BEACON_SERVICE, CERTIFICATE_SERVICE
 from lib.drkey.drkey_mgmt import (
     DRKeyReply,
     DRKeyRequest,
@@ -48,8 +49,9 @@ from lib.drkey.suite import (
 )
 from lib.drkey.types import DRKeySecretValue, FirstOrderDRKey
 from lib.drkey.util import drkey_time, get_drkey_exp_time
-from lib.errors import SCIONVerificationError
+from lib.errors import SCIONServiceLookupError, SCIONVerificationError
 from lib.main import main_default, main_wrapper
+from lib.msg_meta import UDPMetadata
 from lib.packet.cert_mgmt import (
     CertChainReply,
     CertChainRequest,
@@ -66,8 +68,8 @@ from lib.types import (
     PayloadClass,
 )
 from lib.util import (
-    SCIONTime,
     sleep_interval,
+    read_file
 )
 from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
@@ -98,6 +100,8 @@ class CertServer(SCIONElement):
     # ZK path for incoming TRCs
     ZK_TRC_CACHE_PATH = "trc_cache"
     ZK_DRKEY_PATH = "drkey_cache"
+    # Update TRC after running for 10 secs
+    TRC_UPDATE_TIME = 10
 
     def __init__(self, server_id, conf_dir):
         """
@@ -148,6 +152,11 @@ class CertServer(SCIONElement):
         self.public_key = self.private_key.public_key
         self.drkey_secrets = ExpiringDict(DRKEY_MAX_SV, DRKEY_MAX_TTL)
         self.first_order_drkeys = ExpiringDict(DRKEY_MAX_KEYS, DRKEY_MAX_TTL)
+        self._api_addr = os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" %
+                                      self.addr.isd_as)
+        self._connector = lib_sciond.init(self._api_addr)
+        self.trc_updated = False
+        self.start_time = time.time()
 
     def worker(self):
         """
@@ -155,11 +164,11 @@ class CertServer(SCIONElement):
         handling master election.
         """
         worker_cycle = 1.0
-        start = SCIONTime.get_time()
+        start = time.time()
         while self.run_flag.is_set():
             sleep_interval(start, worker_cycle, "CS.worker cycle",
                            self._quiet_startup())
-            start = SCIONTime.get_time()
+            start = time.time()
             try:
                 self.zk.wait_connected()
                 self.trc_cache.process()
@@ -173,6 +182,12 @@ class CertServer(SCIONElement):
                     self.trc_cache.expire(worker_cycle * 10)
                     self.cc_cache.expire(worker_cycle * 10)
                     self.drkey_cache.expire(worker_cycle * 10)
+                    # TRC Update
+                    if self.topology.trc_update and not self.trc_updated:
+                        if time.time() - self.start_time >= self.TRC_UPDATE_TIME:
+                            logging.info("Updating TRC")
+                            self.trc_updated = True
+                            self.update_trc()
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass
@@ -212,11 +227,9 @@ class CertServer(SCIONElement):
         pld_hash = crypto_hash(pld_packed).hex()
         try:
             if is_trc:
-                self.trc_cache.store("%s-%s" % (pld_hash, SCIONTime.get_time()),
-                                     pld_packed)
+                self.trc_cache.store("%s-%s" % (pld_hash, time.time()), pld_packed)
             else:
-                self.cc_cache.store("%s-%s" % (pld_hash, SCIONTime.get_time()),
-                                    pld_packed)
+                self.cc_cache.store("%s-%s" % (pld_hash, time.time()), pld_packed)
         except ZkNoConnection:
             logging.warning("Unable to store %s in shared path: "
                             "no connection to ZK" % "TRC" if is_trc else "CC")
@@ -544,6 +557,28 @@ class CertServer(SCIONElement):
                 return path_entries[0].path()
         logging.warning("Unable to get path to %s from local api.", isd_as)
         return None
+
+    def update_trc(self):
+        """
+        Reads new TRC file from update configuration directory. Shares new TRC
+        with CS replicas, and sends new TRC to BS.
+        """
+        # Read updated TRC from fs
+        path = os.path.join(self.conf_dir, CERT_DIR, "update")
+        path = os.path.join(path, "ISD1-V1.trc")
+        trc_raw = read_file(path)
+        trc = TRC.from_raw(trc_raw)
+        # Send to other CS instances
+        self.trust_store.add_trc(trc, write=True)
+        self._share_object(trc, is_trc=True)
+        # Send TRC update to BS
+        try:
+            addr, port = self.dns_query_topo(BEACON_SERVICE)[0]
+        except SCIONServiceLookupError as e:
+            logging.warning("Lookup for beacon service failed: %s", e)
+            return
+        meta = UDPMetadata.from_values(host=addr, port=port)
+        self.send_meta(TRCReply.from_values(trc), meta)
 
     def run(self):
         """
