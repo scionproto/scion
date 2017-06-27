@@ -16,10 +16,30 @@ package opt
 
 import (
 	//"fmt"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 // https://github.com/Oncilla/scion-detached/blob/opt/lib/opt/ext/opt.py definitions
 
 // defines the types used by the Origin validation & PathTrace (OPT) extension
+
+/*type Extn struct { // fields of the extension
+	Flags     common.RawBytes
+	DataHash  common.RawBytes
+	SessionId common.RawBytes
+	PVF       common.RawBytes
+}*/
+
+const (
+	// Basic definitions
+	DatahashLength = 16
+	SessionIDLength = 16
+	PVFLength = 16
+)
+
+func NewExtn() (*Extn, *common.Error) {
+	o := &Extn{}
+	return o, nil
+}
 
 type RawBlock int

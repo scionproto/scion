@@ -33,15 +33,20 @@ func (e *Extn) InitializePVF(sessionKey []byte, payload []byte) {
         e.PVF = cbcMAC(sessionKey, dataHash)*/
 }
 
-func (e *Extn) UpdatePVF(packet interface{}) {
+// return an updated PVF
+func (e *Extn) UpdatePVF() common.RawBytes {
 	/*localSecret, _ := packet.CalcDRKey()
 	// K_{AS_i}^session = PRF_{AS_i -> S, D}(SessionId)
 	sessionKey := cbcMAC(localSecret, e.SessionId)
 	e.PVF = cbcMAC(sessionKey, e.PVF)*/
+	//PVF := e.PVF
+	// WIP
+	return make(common.RawBytes, 16)
 }
 
 func cbcMAC(session []byte, PVF []byte) []byte {
 	/*mac, _ := util.CBCMac(session, PVF)
 	return mac*/
+	// WIP
 	return make(common.RawBytes, 16)
 }

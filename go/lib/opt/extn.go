@@ -50,14 +50,15 @@ OPT extension Header
 
 type Extn struct { // fields of the extension
 	//HopByHop bool
-	Flags     [8]common.RawBytes
-	DataHash  [16]common.RawBytes
-	SessionId [16]common.RawBytes
-	PVF       [16]common.RawBytes
+	Flags     common.RawBytes
+	DataHash  common.RawBytes
+	SessionId common.RawBytes
+	PVF       common.RawBytes
 }
 
 func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
 	e := &Extn{}
+        // WIP
 	//flags := b[0]
 	/*e.Flags = b[0:8] //(flags & ExtnHBHFlag) != 0 // mask out the HopByHop flag and check if set
 	e.DataHash = b[8:24]
@@ -106,10 +107,29 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
+// Set the Datahash.
+func (s *Extn) SetDatahash(datahash common.RawBytes) *common.Error {
+	// WIP
+        return common.NewError("")
+}
+
+// Set the SessionID.
+func (s *Extn) SetSessionID(sessionID common.RawBytes) *common.Error {
+	// WIP
+        return common.NewError("")
+}
+
+// Set the PVF
+func (s *Extn) SetPVF(pathVerificationField common.RawBytes) *common.Error {
+	// WIP
+        return common.NewError("")
+}
+
 func (e *Extn) Copy() common.Extension {
 	return &Extn{Flags: e.Flags, DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF}
 }
 
 func (e *Extn) Reverse() (bool, *common.Error) {
-	return false, nil
+	// WIP
+	return false, common.NewError("")
 }

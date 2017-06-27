@@ -32,59 +32,113 @@ var _ rExtension = (*rOPTExt)(nil)
 
 // rOPTExt is the router's representation of the OPT extension.
 type rOPTExt struct {
-	*opt.Extn
 	rp  *RtrPkt
 	raw common.RawBytes
 	log.Logger
 }
 
 func rOPTExtFromRaw(rp *RtrPkt, start, end int) (*rOPTExt, *common.Error) {
-	var err *common.Error
-	o := &rOPTExt{rp: rp, raw: rp.Raw[start:end]}
-	o.Extn, err = opt.ExtnFromRaw(o.raw)
-	if err != nil {
-		return nil, err
-	}
-	o.Logger = rp.Logger.New("ext", "opt")
+	raw := rp.Raw[start:end]
+	o := &rOPTExt{rp: rp, raw: raw}
+	o.Logger = rp.Logger.New("ext", "SCIONOriginPathTrace")
 	return o, nil
 }
 
+func (o *rOPTExt) Len() int {
+	return len(o.raw)
+}
+
+func (o *rOPTExt) Class() common.L4ProtocolType {
+	return common.HopByHopClass
+}
+
+func (o *rOPTExt) Type() common.ExtnType {
+	return common.ExtnOPTType
+}
+
 func (o *rOPTExt) RegisterHooks(h *hooks) *common.Error {
-	// process field and update pvf
-	h.Process = append(h.Process, o.rp.processOPT)
+	// add hook to process field and update pvf
+	h.Process = append(h.Process, o.processOPT)
 	return nil
 }
 
-func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
-	return o.Extn, nil
-}
-
 // processOPT is a processing hook used to handle OPT payloads.
-func (o *RtrPkt) processOPT() (HookResult, *common.Error) {
-	exts := o.HBHExt
-	for _, ext := range exts {
-		if ext.Type() == common.ExtnOPTType {
-			fmt.Sprintf("%T", ext)
-			/*repr, err := o.extnParseHBH(common.ExtnOPTType, 0, ext.Len(), 4)
-			// process OPT field here, update pvf
-			if err != nil {
-				return err
-			} else {
-				rOPTExt(repr).UpdatePVF()
-			}
-			break*/
-		}
+func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
+	// retrieve updated PVF via opt.Extn
+	extn, err := o.GetOPTExtn()
+	if err != nil {
+		fmt.Sprintf("SCIONOriginPathTrace - Failed to update PVF, %v: %v", err.Desc, err.String())
 	}
-	return HookFinish, nil
+	updatedPVF := extn.UpdatePVF()
+	o.SetPVF(updatedPVF)
+	return HookContinue, nil
 }
 
-// getDRKeyBlock returns a cipher block for the given DRKey
-/*func (o *RtrPkt) getDRKeyBlock(drkey common.RawBytes, e *common.Error) (cipher.Block, *common.Error) {
-	if e != nil {
-		return nil, e
+// Datahash returns a slice of the underlying buffer
+func (o *rOPTExt) Datahash() (common.RawBytes, *common.Error) {
+	l, h, err := o.limitsDatahash()
+	if err != nil {
+		return  nil, err
 	}
-	return util.InitAES(drkey)
-}*/
+	return o.raw[l:h], nil
+}
+
+// Set the Datahash directly in the underlying buffer
+func (o *rOPTExt) SetDatahash(datahash common.RawBytes) *common.Error {
+	hash, err := o.Datahash()
+	if err != nil {
+		return err
+	}
+	if len(hash) != len(datahash) {
+		return common.NewError("Invalid datahash length", "expected", len(hash), "actual", len(datahash))
+	}
+	copy(hash, datahash)
+	return nil
+}
+
+// SessionID returns a slice of the underlying buffer
+func (o *rOPTExt) SessionID() (common.RawBytes, *common.Error) {
+	l, h, err := o.limitsSessionID()
+	if err != nil {
+		return  nil, err
+	}
+	return o.raw[l:h], nil
+}
+
+// Set the SessionID directly in the underlying buffer
+func (o *rOPTExt) SetSessionID(sessionID common.RawBytes) *common.Error {
+	session, err := o.SessionID()
+	if err != nil {
+		return err
+	}
+	if len(session) != len(sessionID) {
+		return common.NewError("Invalid datahash length", "expected", len(session), "actual", len(sessionID))
+	}
+	copy(session, sessionID)
+	return nil
+}
+
+// PVF returns a slice of the underlying buffer
+func (o *rOPTExt) PVF() (common.RawBytes, *common.Error) {
+	l, h, err := o.limitsPVF()
+	if err != nil {
+		return  nil, err
+	}
+	return o.raw[l:h], nil
+}
+
+// Set the PVF directly in the underlying buffer
+func (o *rOPTExt) SetPVF(pathVerificationField common.RawBytes) *common.Error {
+	PVF, err := o.SessionID()
+	if err != nil {
+		return err
+	}
+	if len(PVF) != len(pathVerificationField) {
+		return common.NewError("Invalid datahash length", "expected", len(PVF), "actual", len(pathVerificationField))
+	}
+	copy(PVF, pathVerificationField)
+	return nil
+}
 
 // calcDRKey calculates the DRKey for this packet.
 func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
@@ -107,4 +161,64 @@ func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
 	/*keyOpt, e := util.CBCMac(blockFstOrder, in)
 	return keyOpt, e*/
 	return make(common.RawBytes, 16), common.NewError("")
+}
+
+// GetExtn returns the opt.Extn representation,
+// which does not have direct access to the underlying buffer.
+func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
+        extn, err := opt.NewExtn()
+        if err != nil {
+                return nil, err
+        }
+        hash, err := o.Datahash()
+        if err != nil {
+                return nil, err
+        }
+        extn.SetDatahash(hash)
+        session, err := o.SessionID()
+        if err != nil {
+                return nil, err
+        }
+        extn.SetSessionID(session)
+	PVF, err := o.PVF()
+        if err != nil {
+                return nil, err
+        }
+        extn.SetPVF(PVF)
+        return extn, nil
+}
+
+func (o *rOPTExt) GetOPTExtn() (opt.Extn, *common.Error) {
+        extn, _ := opt.NewExtn()
+	// WIP
+        return *extn, nil
+}
+
+func (o *rOPTExt) String() string {
+	// retrieve string representation via opt.Extn
+	extn, err := o.GetExtn()
+	if err != nil {
+		return fmt.Sprintf("SCIONOriginPathTrace - %v: %v", err.Desc, err.String())
+	}
+	return extn.String()
+}
+
+// limitsDatahash returns the limits of the Datahas in the raw buffer
+func (o *rOPTExt) limitsDatahash() (int, int, *common.Error) {
+	size := opt.DatahashLength
+	return 0, 0 + size, nil
+}
+
+// limitsSessionID returns the limits of the Datahas in the raw buffer
+func (o *rOPTExt) limitsSessionID() (int, int, *common.Error) {
+	size := opt.SessionIDLength
+	_, l, _ := o.limitsDatahash()
+	return l, l + size, nil
+}
+
+// limitsDatahash returns the limits of the Datahas in the raw buffer
+func (o *rOPTExt) limitsPVF() (int, int, *common.Error) {
+	size := opt.PVFLength
+	_, l, _ := o.limitsSessionID()
+	return l, l + size, nil
 }
