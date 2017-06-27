@@ -74,7 +74,8 @@ class CoreBeaconServer(BeaconServer):
             self.send_meta(new_pcb, meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
             prop_cnt += 1
-        BEACONS_PROPAGATED.labels(type="core").inc(prop_cnt)
+        if self._labels:
+            BEACONS_PROPAGATED.labels(**self._labels, type="core").inc(prop_cnt)
         return propagated_pcbs
 
     def handle_pcbs_propagation(self):

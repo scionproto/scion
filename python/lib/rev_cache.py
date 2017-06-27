@@ -27,10 +27,12 @@ from lib.crypto.hash_tree import ConnectedHashTree
 
 
 # Exported metrics.
-REVS_TOTAL = Gauge("rc_revs_total", "# of cached revocations", ["type"])
-REVS_BYTES = Gauge("rc_revs_bytes", "RevCache memory usage", ["type"])
-REVS_ADDED = Counter("rc_revs_added_total", "Total revocations added", ["type"])
-REVS_REMOVED = Counter("rc_revs_removed_total", "Total revocations removed", ["type"])
+REVS_TOTAL = Gauge("rc_revs_total", "# of cached revocations", ["server_id", "isd_as", "type"])
+REVS_BYTES = Gauge("rc_revs_bytes", "RevCache memory usage", ["server_id", "isd_as", "type"])
+REVS_ADDED = Counter("rc_revs_added_total", "Total revocations added",
+                     ["server_id", "isd_as", "type"])
+REVS_REMOVED = Counter("rc_revs_removed_total", "Total revocations removed",
+                       ["server_id", "isd_as", "type"])
 
 
 def _mk_key(rev_info):
@@ -41,11 +43,18 @@ def _mk_key(rev_info):
 class RevCache:
     """Thread-safe cache for revocations with auto expiration of entries."""
 
-    def __init__(self, capacity=1000, label=""):  # pragma: no cover
+    def __init__(self, capacity=1000, labels=None):  # pragma: no cover
+        """
+        :param dict labels:
+            Labels added to the exported metrics. The following labels are supported:
+                - server_id: A unique identifier of the server that is exporting
+                - isd_as: The ISD_AS of where the server is running
+                - type: A generic label for the type of the revocations.
+        """
         self._cache = {}
         self._lock = threading.RLock()
         self._capacity = capacity
-        self._label = label
+        self._labels = labels
 
     def __contains__(self, rev_info):  # pragma: no cover
         return self.contains_key(_mk_key(rev_info))
@@ -87,15 +96,17 @@ class RevCache:
                     logging.error("Revocation cache full!.")
                     return False
                 self._cache[key] = rev_info
-                REVS_ADDED.labels(self._label).inc()
-                REVS_TOTAL.labels(self._label).inc()
-                REVS_BYTES.labels(self._label).inc(len(rev_info))
+                if self._labels:
+                    REVS_ADDED.labels(**self._labels).inc()
+                    REVS_TOTAL.labels(**self._labels).inc()
+                    REVS_BYTES.labels(**self._labels).inc(len(rev_info))
                 return True
             if rev_info.p.epoch > stored_info.p.epoch:
                 self._cache[key] = rev_info
-                REVS_ADDED.labels(self._label).inc()
-                REVS_REMOVED.labels(self._label).inc()
-                REVS_BYTES.labels(self._label).inc(len(rev_info) - len(stored_info))
+                if self._labels:
+                    REVS_ADDED.labels(**self._labels).inc()
+                    REVS_REMOVED.labels(**self._labels).inc()
+                    REVS_BYTES.labels(**self._labels).inc(len(rev_info) - len(stored_info))
                 return True
             return False
 
@@ -103,8 +114,9 @@ class RevCache:
         """Removes an expired revocation from the cache."""
         if not ConnectedHashTree.verify_epoch(rev_info.p.epoch, cur_epoch):
             del self._cache[_mk_key(rev_info)]
-            REVS_REMOVED.labels(self._label).inc()
-            REVS_TOTAL.labels(self._label).dec()
-            REVS_BYTES.labels(self._label).dec(len(rev_info))
+            if self._labels:
+                REVS_REMOVED.labels(**self._labels).inc()
+                REVS_TOTAL.labels(**self._labels).dec()
+                REVS_BYTES.labels(**self._labels).dec(len(rev_info))
             return False
         return True

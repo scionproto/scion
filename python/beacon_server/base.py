@@ -86,9 +86,12 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
-BEACONS_PROPAGATED = Counter("bs_beacons_propagated_total", "# of propagated beacons", ["type"])
-SEGMENTS_REGISTERED = Counter("bs_segments_registered_total", "# of registered segments", ["type"])
-REVOCATIONS_ISSUED = Counter("bs_revocations_issued_total", "# of issued revocations")
+BEACONS_PROPAGATED = Counter("bs_beacons_propagated_total", "# of propagated beacons",
+                             ["server_id", "isd_as", "type"])
+SEGMENTS_REGISTERED = Counter("bs_segments_registered_total", "# of registered segments",
+                              ["server_id", "isd_as", "type"])
+REVOCATIONS_ISSUED = Counter("bs_revocations_issued_total", "# of issued revocations",
+                             ["server_id", "isd_as"])
 
 
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
@@ -199,7 +202,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.send_meta(new_pcb, meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
             prop_cnt += 1
-        BEACONS_PROPAGATED.labels(type="down").inc(prop_cnt)
+        if self._labels:
+            BEACONS_PROPAGATED.labels(**self._labels, type="down").inc(prop_cnt)
         return propagated_pcbs
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
@@ -331,7 +335,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             reg_cnt += len(pcbs)
             logging.debug("Registered %d %s-segments @ %s:%s (%s)", len(pcbs),
                           seg_type, dst_type.upper(), dst_meta, ", ".join(pcbs))
-        SEGMENTS_REGISTERED.labels(type=seg_type).inc(reg_cnt)
+        if self._labels:
+            SEGMENTS_REGISTERED.labels(**self._labels, type=seg_type).inc(reg_cnt)
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
@@ -582,7 +587,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         rev_info = self._get_ht_proof(if_id)
         logging.info("Issuing revocation: %s", rev_info.short_desc())
-        REVOCATIONS_ISSUED.inc()
+        if self._labels:
+            REVOCATIONS_ISSUED.labels(**self._labels).inc()
         # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])

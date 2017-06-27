@@ -105,9 +105,12 @@ from lib.util import hex_str, sleep_interval
 
 
 # Exported metrics.
-PKT_BUF_TOTAL = Gauge("se_pkt_buf_total", "Total packets in input buffer")
-PKT_BUF_BYTES = Gauge("se_pkt_buf_bytes", "Memory usage of input buffer")
-PKTS_DROPPED_TOTAL = Counter("se_packets_dropped_total", "Total packets dropped")
+PKT_BUF_TOTAL = Gauge("se_pkt_buf_total", "Total packets in input buffer",
+                      ["server_id", "isd_as"])
+PKT_BUF_BYTES = Gauge("se_pkt_buf_bytes", "Memory usage of input buffer",
+                      ["server_id", "isd_as"])
+PKTS_DROPPED_TOTAL = Counter("se_packets_dropped_total", "Total packets dropped",
+                             ["server_id", "isd_as"])
 
 
 MAX_QUEUE = 50
@@ -190,6 +193,7 @@ class SCIONElement(object):
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         self._setup_sockets(True)
+        self._labels = None
         if prom_export:
             self._export_metrics(prom_export)
 
@@ -875,16 +879,19 @@ class SCIONElement(object):
         while True:
             try:
                 self._in_buf.put(item, block=False)
-                PKT_BUF_BYTES.inc(len(item[0]))
+                if self._labels:
+                    PKT_BUF_BYTES.labels(**self._labels).inc(len(item[0]))
             except queue.Full:
                 msg, _ = self._in_buf.get_nowait()
                 dropped += 1
-                PKTS_DROPPED_TOTAL.inc()
-                PKT_BUF_BYTES.dec(len(msg))
+                if self._labels:
+                    PKTS_DROPPED_TOTAL.labels(**self._labels).inc()
+                    PKT_BUF_BYTES.labels(**self._labels).dec(len(msg))
             else:
                 break
             finally:
-                PKT_BUF_TOTAL.set(self._in_buf.qsize())
+                if self._labels:
+                    PKT_BUF_TOTAL.labels(**self._labels).set(self._in_buf.qsize())
         if dropped > 0:
             self.total_dropped += dropped
             logging.warning("%d packet(s) dropped (%d total dropped so far)",
@@ -970,8 +977,9 @@ class SCIONElement(object):
         while self.run_flag.is_set():
             try:
                 msg, meta = self._in_buf.get(timeout=1.0)
-                PKT_BUF_BYTES.dec(len(msg))
-                PKT_BUF_TOTAL.set(self._in_buf.qsize())
+                if self._labels:
+                    PKT_BUF_BYTES.labels(**self._labels).dec(len(msg))
+                    PKT_BUF_TOTAL.labels(**self._labels).set(self._in_buf.qsize())
                 self.handle_msg_meta(msg, meta)
             except queue.Empty:
                 continue
@@ -1138,8 +1146,7 @@ class SCIONElement(object):
         """
         # Create a dummy counter to export the server_id as a label for correlating
         # server_id and other metrics.
-        id_metric = Counter("scion_server_id", "Server ID", ["server_id"])
-        id_metric.labels(server_id=self.id).inc()
+        self._labels = {"server_id": self.id, "isd_as": str(self.topology.isd_as)}
 
         addr, port = export_addr.split(":")
         port = int(port)

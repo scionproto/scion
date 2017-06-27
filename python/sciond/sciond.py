@@ -92,10 +92,12 @@ class SCIONDaemon(SCIONElement):
         Initialize an instance of the class SCIONDaemon.
         """
         super().__init__("sciond", conf_dir, prom_export=prom_export, public=[(addr, port)])
-        # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, label="up")
-        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, label="down")
-        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, label="core")
+        up_labels = {**self._labels, "type": "up"} if self._labels else None
+        down_labels = {**self._labels, "type": "down"} if self._labels else None
+        core_labels = {**self._labels, "type": "core"} if self._labels else None
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=up_labels)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=down_labels)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=core_labels)
         self.peer_revs = RevCache()
         # Keep track of requested paths.
         self.requested_paths = ExpiringDict(self.MAX_REQS, self.PATH_REQ_TOUT)

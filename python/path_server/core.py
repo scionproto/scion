@@ -31,12 +31,14 @@ from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zk.errors import ZkNoConnection
-from path_server.base import PathServer, REQS_PENDING, REQS_TOTAL, SEGS_TO_ZK
+from path_server.base import PathServer, REQS_TOTAL
 
 
 # Exported metrics.
-SEGS_TO_MASTER = Gauge("ps_segs_to_master_total", "# of path segments to master")
-SEGS_TO_PROP = Gauge("ps_segs_to_prop_total", "# of segments to propagate")
+SEGS_TO_MASTER = Gauge("ps_segs_to_master_total", "# of path segments to master",
+                       ["server_id", "isd_as"])
+SEGS_TO_PROP = Gauge("ps_segs_to_prop_total", "# of segments to propagate",
+                     ["server_id", "isd_as"])
 
 
 class CorePathServer(PathServer):
@@ -66,7 +68,6 @@ class CorePathServer(PathServer):
         if self.zk.have_lock():
             self._segs_to_master.clear()
             self._master_id = None
-            SEGS_TO_MASTER.set(0)
             return
         try:
             curr_master = self.zk.get_lock_holder()
@@ -106,7 +107,6 @@ class CorePathServer(PathServer):
                     continue
                 seen_ases.add(key)
                 self._segs_to_master[pcb.get_hops_hash()] = (seg_type, pcb)
-                SEGS_TO_MASTER.set(len(self._segs_to_master))
 
     def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
@@ -121,11 +121,9 @@ class CorePathServer(PathServer):
             # Segment is to us, so propagate to all other core ASes within the
             # local ISD.
             self._segs_to_prop[pcb.get_hops_hash()] = (PST.DOWN, pcb)
-            SEGS_TO_PROP.set(len(self._segs_to_prop))
         if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not from_zk):
             # Sync all local down segs via zk
             self._segs_to_zk[pcb.get_hops_hash()] = (PST.DOWN, pcb)
-            SEGS_TO_ZK.set(len(self._segs_to_zk))
         if added:
             return set([(last_ia, pcb.is_sibra())])
         return set()
@@ -143,11 +141,9 @@ class CorePathServer(PathServer):
             if first_ia[0] == self.addr.isd_as[0]:
                 # Local core segment, share via ZK
                 self._segs_to_zk[pcb.get_hops_hash()] = (PST.CORE, pcb)
-                SEGS_TO_ZK.set(len(self._segs_to_zk))
             else:
                 # Remote core segment, send to master
                 self._segs_to_master[pcb.get_hops_hash()] = (PST.CORE, pcb)
-                SEGS_TO_MASTER.set(len(self._segs_to_master))
         if not added:
             return set()
         # Send pending requests that couldn't be processed due to the lack of
@@ -181,14 +177,12 @@ class CorePathServer(PathServer):
                       len(self._segs_to_prop))
         for pcbs in self._gen_prop_recs(self._segs_to_prop):
             reply = PathRecordsReply.from_values(pcbs)
-            SEGS_TO_PROP.dec(reply.num_segs())
             self._propagate_to_core_ases(reply)
 
     def _prop_to_master(self):
         assert not self.zk.have_lock()
         if not self._master_id:
             self._segs_to_master.clear()
-            SEGS_TO_MASTER.set(0)
             return
         if not self._segs_to_master:
             return
@@ -196,7 +190,6 @@ class CorePathServer(PathServer):
                       len(self._segs_to_master), self._master_id)
         for pcbs in self._gen_prop_recs(self._segs_to_master):
             reply = PathRecordsReply.from_values(pcbs)
-            SEGS_TO_MASTER.dec(reply.num_segs())
             self._send_to_master(reply)
 
     def _send_to_master(self, pld):
@@ -267,7 +260,7 @@ class CorePathServer(PathServer):
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
-            REQS_TOTAL.inc()
+            REQS_TOTAL.labels(**self._labels).inc()
         if dst_ia == self.addr.isd_as:
             logger.warning("Dropping request: requested DST is local AS")
             return False
@@ -301,7 +294,6 @@ class CorePathServer(PathServer):
         if not core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             # Segments not found and it is a new request.
             self.pending_req[(dst_ia, sibra)].append((req, meta, logger))
-            REQS_PENDING.inc()
             # If dst is in remote ISD then a segment may be kept by master.
             if dst_ia[0] != self.addr.isd_as[0]:
                 self._query_master(dst_ia, logger, flags=flags)
@@ -333,7 +325,6 @@ class CorePathServer(PathServer):
             if not tmp_core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
                 # Core segment not found and it is a new request.
                 self.pending_req[(dseg_ia, sibra)].append((seg_req, meta, logger))
-                REQS_PENDING.inc()
                 if dst_ia[0] != self.addr.isd_as[0]:
                     # Master may know a segment.
                     self._query_master(dseg_ia, logger, flags=flags)
@@ -350,7 +341,6 @@ class CorePathServer(PathServer):
         """
         sibra = PATH_FLAG_SIBRA in flags
         self.pending_req[(dst_ia, sibra)].append((seg_req, meta, logger))
-        REQS_PENDING.inc()
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.
             self._query_master(dst_ia, logger, flags=flags)
@@ -392,3 +382,9 @@ class CorePathServer(PathServer):
             logging.debug("Propagating revocation to other cores: %s"
                           % rev_info.short_desc())
             self._propagate_to_core_ases(rev_info)
+
+    def _update_metrics(self):
+        super()._update_metrics()
+        if self._labels:
+            SEGS_TO_MASTER.labels(**self._labels).set(len(self._segs_to_master))
+            SEGS_TO_PROP.labels(**self._labels).set(len(self._segs_to_prop))
