@@ -102,11 +102,12 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 	// Set index for path header.
 	addrLen := int(addr.IABytes*2 + dstLen + srcLen)
 	addrPad := util.CalcPadding(addrLen, common.LineLen)
+	hdrLen := rp.CmnHdr.HdrLenBytes()
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
-	if rp.idxs.path > int(rp.CmnHdr.HdrLen) {
+	if rp.idxs.path > hdrLen {
 		// Can't generate SCMP error as we can't parse anything after the address header
 		return common.NewError("Header length indicated in common header is too small",
-			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen)
+			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen, "byteSize", hdrLen)
 	}
 	return nil
 }
@@ -117,7 +118,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 	// +1 to allow for a leading SCMP hop-by-hop extension.
 	rp.idxs.hbhExt = make([]extnIdx, 0, common.ExtnMaxHBH+1)
 	rp.idxs.nextHdrIdx.Type = rp.CmnHdr.NextHdr
-	rp.idxs.nextHdrIdx.Index = int(rp.CmnHdr.HdrLen)
+	rp.idxs.nextHdrIdx.Index = rp.CmnHdr.HdrLenBytes()
 	nextHdr := &rp.idxs.nextHdrIdx.Type
 	offset := &rp.idxs.nextHdrIdx.Index
 	for *offset < len(rp.Raw) {
@@ -126,7 +127,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 			break
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
-		hdrLen := (int(rp.Raw[*offset+1]) + 1) * common.LineLen
+		hdrLen := int(rp.Raw[*offset+1]) * common.LineLen
 		e, err := rp.extnParseHBH(
 			currExtn, *offset+common.ExtnSubHdrLen, *offset+hdrLen, len(rp.idxs.hbhExt))
 		if err != nil {

@@ -15,7 +15,7 @@
 uint8_t * get_current_iof(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return buf + sch->current_iof;
+    return buf + sch->current_iof * LINE_LEN;
 }
 
 /*
@@ -26,7 +26,7 @@ uint8_t * get_current_iof(uint8_t *buf)
 uint8_t * get_current_hof(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return buf + sch->current_hof;
+    return buf + sch->current_hof * LINE_LEN;
 }
 
 /*

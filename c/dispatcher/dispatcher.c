@@ -788,7 +788,7 @@ void handle_data(int v6)
     }
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    if (sch->header_len > len || ntohs(sch->total_len) > len) {
+    if (sch->header_len * LINE_LEN > len || ntohs(sch->total_len) > len) {
         zlog_error(zc, "invalid SCION packet");
         return;
     }

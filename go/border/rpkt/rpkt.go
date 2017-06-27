@@ -269,9 +269,9 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
 	// SCION common header uses offsets relative to the start of the packet, so
 	// convert from one to the other.
 	sp.Path = &spath.Path{
-		Raw:    rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLen],
-		InfOff: rp.CmnHdr.CurrInfoF - uint8(rp.idxs.path),
-		HopOff: rp.CmnHdr.CurrHopF - uint8(rp.idxs.path),
+		Raw:    rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLenBytes()],
+		InfOff: rp.CmnHdr.InfoFOffBytes() - rp.idxs.path,
+		HopOff: rp.CmnHdr.HopFOffBytes() - rp.idxs.path,
 	}
 	for _, re := range rp.HBHExt {
 		// Extract the higher-level SExtension (which is self-contained) from
@@ -310,9 +310,9 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	case scmp.RawAddrHdr:
 		return rp.Raw[rp.idxs.dstIA:rp.idxs.path]
 	case scmp.RawPathHdr:
-		return rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLen]
+		return rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLenBytes()]
 	case scmp.RawExtHdrs:
-		return rp.Raw[rp.CmnHdr.HdrLen:rp.idxs.l4]
+		return rp.Raw[rp.CmnHdr.HdrLenBytes():rp.idxs.l4]
 	case scmp.RawL4Hdr:
 		return rp.Raw[rp.idxs.l4:rp.idxs.pld]
 	}

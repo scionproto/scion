@@ -85,11 +85,11 @@ void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
     exts_t *exts = (exts_t *)malloc(sizeof(exts_t));
     memset(exts, 0, sizeof(exts_t));
     uint8_t curr = spkt->sch->next_header;
-    uint8_t *ptr = buf + spkt->sch->header_len;
+    uint8_t *ptr = buf + spkt->sch->header_len * LINE_LEN;
     while (!is_known_proto(curr)) {
         // first pass to get ext count
         curr = *ptr;
-        uint8_t len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
+        uint8_t len = (*(ptr + 1)) * SCION_EXT_LINE;
         ptr += len;
         exts->count++;
     }
@@ -98,11 +98,11 @@ void parse_spkt_extensions(uint8_t *buf, spkt_t *spkt)
     memset(exts->extensions, 0, size);
 
     curr = spkt->sch->next_header;
-    ptr = buf + spkt->sch->header_len;
+    ptr = buf + spkt->sch->header_len * LINE_LEN;
     seh_t *seh = exts->extensions;
     while (!is_known_proto(curr)) {
         // second pass to populate array
-        seh->len = (*(ptr + 1) + 1) * SCION_EXT_LINE;
+        seh->len = (*(ptr + 1)) * SCION_EXT_LINE;
         seh->ext_class = curr;
         seh->ext_type = *(ptr + 2);
         seh->payload = ptr + 3;
@@ -185,7 +185,7 @@ uint8_t * pack_spkt_extensions(spkt_t *spkt, uint8_t *ptr)
         else
             next_header = spkt->exts->extensions[i + 1].ext_class;
         *ptr++ = next_header;
-        *ptr++ = seh->len / SCION_EXT_LINE - 1;
+        *ptr++ = seh->len / SCION_EXT_LINE;
         *ptr++ = seh->ext_type;
         memcpy(ptr, seh->payload, seh->len - SCION_EXT_SUBHDR);
         ptr += seh->len - SCION_EXT_SUBHDR;
@@ -254,10 +254,13 @@ void pack_cmn_hdr(uint8_t *buf, int dst_type, int src_type, int next_hdr,
     sch->next_header = next_hdr;
 
     int addr_len = padded_addr_len(buf);
-    sch->header_len = sizeof(SCIONCommonHeader) + addr_len + path_len;
-    sch->total_len = htons(sch->header_len + exts_len + l4_len);
+    int header_len = sizeof(SCIONCommonHeader) + addr_len + path_len;
+    sch->header_len = header_len/LINE_LEN;
+    sch->total_len = htons(header_len + exts_len + l4_len);
     /* Set of pointers to start of path (which has not been set yet) */
-    sch->current_iof = sizeof(SCIONCommonHeader) + addr_len;
+    sch->current_iof = (sizeof(SCIONCommonHeader) + addr_len)/LINE_LEN;
+    if(path_len < 1)
+        sch->current_iof = 0;
     sch->current_hof = sch->current_iof;
 }
 
@@ -284,9 +287,9 @@ void set_path(uint8_t *buf, uint8_t *path, int len)
 
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     /* pre-condition: header_len points to end of address header */
-    memcpy(buf + sch->header_len, path, len);
-    sch->header_len += len;
-    sch->total_len = htons(sch->header_len);
+    memcpy(buf + sch->header_len * LINE_LEN, path, len);
+    sch->header_len += len/LINE_LEN;
+    sch->total_len = htons(sch->header_len * LINE_LEN);
 }
 
 /*
@@ -307,7 +310,7 @@ uint8_t * get_path(uint8_t *buf)
 int get_path_len(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    return sch->header_len - sizeof(SCIONCommonHeader) - padded_addr_len(buf);
+    return sch->header_len * LINE_LEN - sizeof(SCIONCommonHeader) - padded_addr_len(buf);
 }
 
 /*
@@ -318,10 +321,10 @@ void init_of_idx(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
 
-    uint8_t *iof = buf + sch->current_iof;
-    uint8_t *hof = buf + sch->current_iof + SCION_OF_LEN;
+    uint8_t *iof = buf + sch->current_iof * LINE_LEN;
+    uint8_t *hof = buf + sch->current_iof * LINE_LEN + SCION_OF_LEN;
     if ((*iof & IOF_FLAG_PEER) && (*hof & HOF_FLAG_XOVER))
-        sch->current_hof += SCION_OF_LEN;
+        sch->current_hof += SCION_OF_LEN/LINE_LEN;
 
     inc_hof_idx(buf);
 }
@@ -333,20 +336,20 @@ void init_of_idx(uint8_t *buf)
 void inc_hof_idx(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint8_t *iof = buf + sch->current_iof;
-    uint8_t *hof = buf + sch->current_hof;
+    uint8_t *iof = buf + sch->current_iof * LINE_LEN;
+    uint8_t *hof = buf + sch->current_hof * LINE_LEN;
     int hops = *(iof + SCION_OF_LEN - 1);
 
     while (1) {
-        sch->current_hof += SCION_OF_LEN;
-        if ((sch->current_hof - sch->current_iof) / SCION_OF_LEN > hops) {
+        sch->current_hof += SCION_OF_LEN/LINE_LEN;
+        if (((sch->current_hof - sch->current_iof) * LINE_LEN) / SCION_OF_LEN > hops) {
             /* Move to next segment */
             sch->current_iof = sch->current_hof;
-            iof = buf + sch->current_iof;
+            iof = buf + sch->current_iof * LINE_LEN;
             hops = *(iof + SCION_OF_LEN - 1);
             continue;
         }
-        hof = buf + sch->current_hof;
+        hof = buf + sch->current_hof * LINE_LEN;
         /* Skip VERIFY_ONLY HOFs */
         if (!(*hof & HOF_FLAG_VERIFY_ONLY))
             break;
@@ -379,11 +382,11 @@ uint8_t get_l4_proto(uint8_t **l4ptr)
     uint8_t *ptr = *l4ptr;
     SCIONCommonHeader *sch = (SCIONCommonHeader *)ptr;
     uint8_t currentHeader = sch->next_header;
-    ptr += sch->header_len;
+    ptr += sch->header_len * LINE_LEN;
     while (!is_known_proto(currentHeader)) {
         currentHeader = *ptr;
         size_t nextLen = *(ptr + 1);
-        nextLen = (nextLen + 1) * 8;
+        nextLen *= SCION_EXT_LINE;
         ptr += nextLen;
     }
     *l4ptr = ptr;
@@ -436,5 +439,5 @@ void print_header(uint8_t *buf) {
     fprintf(stderr, "Version: %d Dest type: %d Src type: %d Total len: %dB\n",
            PROTO_VER(sch), DST_TYPE(sch), SRC_TYPE(sch), ntohs(sch->total_len));
     fprintf(stderr, "Header len: %dB IOF offset: %dB HOF offset: %dB Next hdr: %d\n",
-           sch->header_len, sch->current_iof, sch->current_hof, sch->next_header);
+           sch->header_len*LINE_LEN, sch->current_iof*LINE_LEN, sch->current_hof*LINE_LEN, sch->next_header);
 }

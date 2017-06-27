@@ -19,7 +19,7 @@ uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type)
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t next_header = sch->next_header;
     uint8_t curr_header = next_header;
-    uint8_t header_len = sch->header_len;
+    int header_len = sch->header_len * LINE_LEN;
     uint8_t *ptr = buf + header_len;
     uint8_t type = 0;
     while (!is_known_proto(curr_header)) {
@@ -28,7 +28,7 @@ uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type)
         type = *(ptr + 2);
         if (curr_header == ext_class && type == ext_type)
             return ptr;
-        uint8_t real_len = (header_len + 1) * SCION_EXT_LINE;
+        int real_len = header_len * SCION_EXT_LINE;
         curr_header = next_header;
         ptr += real_len;
     }
@@ -43,13 +43,13 @@ uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type)
 int get_total_ext_len(uint8_t *buf)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint8_t *ptr = buf + sch->header_len;
+    uint8_t *ptr = buf + sch->header_len * LINE_LEN;
     int current_header = sch->next_header;
     int size = 0;
     while (!is_known_proto(current_header)) {
         current_header = *ptr;
         int header_len = *(ptr + 1);
-        header_len = (header_len + 1) * SCION_EXT_LINE;
+        header_len *= SCION_EXT_LINE;
         ptr += header_len;
         size += header_len;
     }

@@ -82,7 +82,7 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 		}
 		// TODO(kormat): handle detecting unknown L4 protocols.
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
-		hdrLen := int((rp.Raw[offset+1] + 1) * common.LineLen)
+		hdrLen := int(rp.Raw[offset+1]) * common.LineLen
 		rp.idxs.e2eExt = append(rp.idxs.e2eExt, extnIdx{currExtn, offset})
 		nextHdr = common.L4ProtocolType(rp.Raw[offset])
 		offset += hdrLen
