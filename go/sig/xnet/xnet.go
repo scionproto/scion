@@ -50,3 +50,15 @@ func AddRouteIF(destination *net.IPNet, ifname string) error {
 	}
 	return nil
 }
+
+// OpenUDP returns a connection for reading UDP datagrams on 0.0.0.0:port
+func OpenUDP(port int) (net.Conn, error) {
+	// Listen for data on port 10080
+	addr := &net.UDPAddr{IP: net.IPv4zero, Port: 10080}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}

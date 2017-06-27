@@ -81,6 +81,12 @@
 			"revisionTime": "2013-12-04T01:25:54Z"
 		},
 		{
+			"checksumSHA1": "qeRfTcajK9KjSoLOleRognRLwgw=",
+			"path": "github.com/glycerine/rbuf",
+			"revision": "e57eda7aada105c8b00090b66e338a6413c3fbe9",
+			"revisionTime": "2016-09-06T14:05:16Z"
+		},
+		{
 			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
 			"license": "APL 2.0",
 			"path": "github.com/go-stack/stack",
