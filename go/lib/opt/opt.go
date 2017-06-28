@@ -25,6 +25,7 @@ import (
 
 const (
 	// Basic definitions
+	PaddingLength   = 5
 	DatahashLength  = 16
 	SessionIDLength = 16
 	PVFLength       = 16

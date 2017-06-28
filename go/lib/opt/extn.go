@@ -23,10 +23,6 @@ import (
 // satisfies the interface common.Extension in common/extn.go
 var _ common.Extension = (*Extn)(nil)
 
-const (
-	ExtnHBHFlag = 0x2
-)
-
 /*
 OPT extension Header
 
@@ -49,22 +45,9 @@ OPT extension Header
 */
 
 type Extn struct { // fields of the extension
-	//HopByHop bool
-	Flags     common.RawBytes
 	DataHash  common.RawBytes
 	SessionId common.RawBytes
 	PVF       common.RawBytes
-}
-
-func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
-	e := &Extn{}
-	// WIP
-	//flags := b[0]
-	/*e.Flags = b[0:8] //(flags & ExtnHBHFlag) != 0 // mask out the HopByHop flag and check if set
-	e.DataHash = b[8:24]
-	e.SessionId = b[24:40]
-	e.PVF = b[40:56]*/
-	return e, nil
 }
 
 func (e *Extn) Len() int {
@@ -80,7 +63,7 @@ func (e *Extn) Type() common.ExtnType {
 }
 
 func (e *Extn) String() string {
-	return fmt.Sprintf("OPT Ext(%dB): Flags? %v PVF: %v", e.Len(), e.Flags, e.PVF)
+	return fmt.Sprintf("OPT Ext(%dB): DataHash: %v SessionID: %v PVF: %v", e.Len(), e.DataHash, e.SessionId, e.PVF)
 }
 
 func (e *Extn) Pack() (common.RawBytes, *common.Error) {
@@ -92,43 +75,57 @@ func (e *Extn) Pack() (common.RawBytes, *common.Error) {
 }
 
 func (e *Extn) Write(b common.RawBytes) *common.Error {
-	/* var flags uint8
-	if (e.Flags) {
-		flags |= ExtnHBHFlag // set HopByHop flag
+	if len(b) < e.Len() {
+		return common.NewError("Buffer too short", "method", "SCIONOriginPathTraceExtn.Write",
+			"expected min", e.Len(), "actual", len(b))
 	}
-	b[0] = flags */
-	// Pad rest of first line
-	//copy(b[1:8], make(common.RawBytes, common.ExtnFirstLineLen-1))
-	/*copy(b[0:8], make(common.RawBytes, common.ExtnFirstLineLen))
-	b[8:24] = e.DataHash
-	b[24:40] = e.SessionId
-	b[40:56] = e.PVF*/
+
+	datahashOffset := PaddingLength
+	sessionIDOffset := datahashOffset + DatahashLength
+	PVFOffset := sessionIDOffset + SessionIDLength
+	totalLength := sessionIDOffset + PVFOffset
+
+	copy(b[datahashOffset:sessionIDOffset], e.DataHash)
+	copy(b[sessionIDOffset:PVFOffset], e.SessionId)
+	copy(b[PVFOffset:totalLength], e.PVF)
 	return nil
 }
 
 // Set the Datahash.
-func (s *Extn) SetDatahash(datahash common.RawBytes) *common.Error {
-	// WIP
-	return common.NewError("")
+func (e *Extn) SetDatahash(datahash common.RawBytes) *common.Error {
+	if len(e.DataHash) != len(datahash) {
+		return common.NewError("The length does not match",
+			"expected", len(e.DataHash), "actual", len(datahash))
+	}
+	copy(e.DataHash, datahash)
+	return nil
 }
 
 // Set the SessionID.
-func (s *Extn) SetSessionID(sessionID common.RawBytes) *common.Error {
-	// WIP
-	return common.NewError("")
+func (e *Extn) SetSessionID(sessionID common.RawBytes) *common.Error {
+	if len(e.SessionId) != len(sessionID) {
+		return common.NewError("The length does not match",
+			"expected", len(e.SessionId), "actual", len(sessionID))
+	}
+	copy(e.SessionId, sessionID)
+	return nil
 }
 
 // Set the PVF
-func (s *Extn) SetPVF(pathVerificationField common.RawBytes) *common.Error {
-	// WIP
-	return common.NewError("")
+func (e *Extn) SetPVF(pathVerificationField common.RawBytes) *common.Error {
+	if len(e.PVF) != len(pathVerificationField) {
+		return common.NewError("The length does not match",
+			"expected", len(e.PVF), "actual", len(pathVerificationField))
+	}
+	copy(e.PVF, pathVerificationField)
+	return nil
 }
 
 func (e *Extn) Copy() common.Extension {
-	return &Extn{Flags: e.Flags, DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF}
+	return &Extn{DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF}
 }
 
 func (e *Extn) Reverse() (bool, *common.Error) {
 	// WIP
-	return false, common.NewError("")
+	return true, nil
 }

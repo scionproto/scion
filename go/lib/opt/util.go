@@ -22,7 +22,7 @@ import (
 )
 
 //func (e *Extn) DataHashed(packet rpkt.RtrPkt) []byte {
-func (e *Extn) DataHashed(packet interface{}) []byte {
+func (e *Extn) DataHashed(packet Extn) []byte {
 	/*shaChecksum := sha256.New
 	return shaChecksum(packet)*/
 	return make(common.RawBytes, 16)
