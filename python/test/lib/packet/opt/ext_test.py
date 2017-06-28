@@ -33,9 +33,9 @@ class TestSCIONPacketSecurityExtnParse(object):
     """
     Unit tests for lib.packet.opt.ext.SCIONOriginPathTraceExtn._parse
     """
-    @patch("lib.packet.spse.ext.SPSELengths", autospec=True)
-    @patch("lib.packet.spse.ext.EndToEndExtension._parse", autospec=True)
-    @patch("lib.packet.spse.ext.Raw", autospec=True)
+    @patch("lib.packet.opt.ext.OPTLengths", autospec=True)
+    @patch("lib.packet.opt.ext.EndToEndExtension._parse", autospec=True)
+    @patch("lib.packet.opt.ext.Raw", autospec=True)
     def test(self, raw, super_parse, lengths):
         inst = SCIONOriginPathTraceExtn()
         inst.append_hop = create_mock()
@@ -81,7 +81,8 @@ class TestCheckValidity(object):
 
     def test_invalid_datahash_length(self):
         func = SCIONOriginPathTraceExtn.check_validity
-        ntools.assert_raises(OPTValidationError, func, -1, None, None)
+        datahash = bytes(1)
+        ntools.assert_raises(OPTValidationError, func, datahash, None, None)
 
     def test_invalid_sessionID_length(self):
         func = SCIONOriginPathTraceExtn.check_validity

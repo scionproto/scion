@@ -33,8 +33,9 @@ class OPTLengths:
     """
     SCIONOriginPathTrace extension constant lengths.
     """
+    PADDING = 5
     DATAHASH = 16
     SESSIONID = 16
     PVF = 16
 
-    TOTAL = DATAHASH + SESSIONID + PVF
+    TOTAL = PADDING + DATAHASH + SESSIONID + PVF
