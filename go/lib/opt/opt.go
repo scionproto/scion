@@ -23,18 +23,18 @@ import (
 
 // defines the types used by the Origin validation & PathTrace (OPT) extension
 
-/*type Extn struct { // fields of the extension
+type Extn struct { // fields of the extension
 	Flags     common.RawBytes
 	DataHash  common.RawBytes
 	SessionId common.RawBytes
 	PVF       common.RawBytes
-}*/
+}
 
 const (
 	// Basic definitions
-	DatahashLength = 16
+	DatahashLength  = 16
 	SessionIDLength = 16
-	PVFLength = 16
+	PVFLength       = 16
 )
 
 func NewExtn() (*Extn, *common.Error) {

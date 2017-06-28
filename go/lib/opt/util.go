@@ -28,18 +28,18 @@ func (e *Extn) DataHashed(packet interface{}) []byte {
 	return make(common.RawBytes, 16)
 }
 
-func (e *Extn) InitializePVF(sessionKey []byte, payload []byte) {
-	/*dataHash := e.DataHashed(payload)
-        e.PVF = cbcMAC(sessionKey, dataHash)*/
-}
+/*func (e *Extn) InitializePVF(sessionKey []byte, payload []byte) {
+	dataHash := e.DataHashed(payload)
+        e.PVF = cbcMAC(sessionKey, dataHash)
+}*/
 
 // return an updated PVF
 func (e *Extn) UpdatePVF() common.RawBytes {
 	/*localSecret, _ := packet.CalcDRKey()
 	// K_{AS_i}^session = PRF_{AS_i -> S, D}(SessionId)
 	sessionKey := cbcMAC(localSecret, e.SessionId)
-	e.PVF = cbcMAC(sessionKey, e.PVF)*/
-	//PVF := e.PVF
+	e.PVF = cbcMAC(sessionKey, e.PVF)
+	PVF := e.PVF*/
 	// WIP
 	return make(common.RawBytes, 16)
 }

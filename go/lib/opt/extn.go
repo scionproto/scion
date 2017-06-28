@@ -24,7 +24,7 @@ import (
 var _ common.Extension = (*Extn)(nil)
 
 const (
-	ExtnHBHFlag   = 0x2
+	ExtnHBHFlag = 0x2
 )
 
 /*
@@ -58,7 +58,7 @@ type Extn struct { // fields of the extension
 
 func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
 	e := &Extn{}
-        // WIP
+	// WIP
 	//flags := b[0]
 	/*e.Flags = b[0:8] //(flags & ExtnHBHFlag) != 0 // mask out the HopByHop flag and check if set
 	e.DataHash = b[8:24]
@@ -82,7 +82,6 @@ func (e *Extn) Type() common.ExtnType {
 func (e *Extn) String() string {
 	return fmt.Sprintf("OPT Ext(%dB): Flags? %v PVF: %v", e.Len(), e.Flags, e.PVF)
 }
-
 
 func (e *Extn) Pack() (common.RawBytes, *common.Error) {
 	b := make(common.RawBytes, e.Len())
@@ -110,19 +109,19 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 // Set the Datahash.
 func (s *Extn) SetDatahash(datahash common.RawBytes) *common.Error {
 	// WIP
-        return common.NewError("")
+	return common.NewError("")
 }
 
 // Set the SessionID.
 func (s *Extn) SetSessionID(sessionID common.RawBytes) *common.Error {
 	// WIP
-        return common.NewError("")
+	return common.NewError("")
 }
 
 // Set the PVF
 func (s *Extn) SetPVF(pathVerificationField common.RawBytes) *common.Error {
 	// WIP
-        return common.NewError("")
+	return common.NewError("")
 }
 
 func (e *Extn) Copy() common.Extension {

@@ -23,7 +23,7 @@ import nose.tools as ntools
 
 from lib.packet.opt.defines import (
     OPTLengths,
-    OPTBaseError,
+    # OPTBaseError,
     OPTValidationError)
 from lib.packet.opt.ext import SCIONOriginPathTraceExtn
 from test.testcommon import create_mock
@@ -95,7 +95,7 @@ class TestCheckValidity(object):
         datahash = bytes(OPTLengths.DATAHASH)
         sessionID = bytes(OPTLengths.SESSIONID)
         PVF = bytes(OPTLengths.PVF)
-        ntools.assert_raises(OPTValidationError, func, datahash, sessionID, PVF+ bytes(1))
+        ntools.assert_raises(OPTValidationError, func, datahash, sessionID, PVF + bytes(1))
 
 
 if __name__ == "__main__":

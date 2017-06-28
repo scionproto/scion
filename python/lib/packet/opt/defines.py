@@ -20,12 +20,14 @@
 # SCION
 from lib.errors import SCIONBaseError
 
+
 class OPTBaseError(SCIONBaseError):
     """Root SPSE Error exception. All other SPSE errors derive from this."""
 
 
 class OPTValidationError(OPTBaseError):
     """Validation error"""
+
 
 class OPTLengths:
     """

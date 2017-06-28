@@ -21,10 +21,10 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/opt"
-	"fmt"
 	/*"crypto/cipher"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/border/conf"*/
+	"fmt"
 )
 
 // satisfies the interface rExtension in extns.go
@@ -67,7 +67,7 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	// retrieve updated PVF via opt.Extn
 	extn, err := o.GetOPTExtn()
 	if err != nil {
-		fmt.Sprintf("SCIONOriginPathTrace - Failed to update PVF, %v: %v", err.Desc, err.String())
+		_ := fmt.Sprintf("SCIONOriginPathTrace - Failed to update PVF, %v: %v", err.Desc, err.String())
 	}
 	updatedPVF := extn.UpdatePVF()
 	o.SetPVF(updatedPVF)
@@ -78,7 +78,7 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 func (o *rOPTExt) Datahash() (common.RawBytes, *common.Error) {
 	l, h, err := o.limitsDatahash()
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	return o.raw[l:h], nil
 }
@@ -100,7 +100,7 @@ func (o *rOPTExt) SetDatahash(datahash common.RawBytes) *common.Error {
 func (o *rOPTExt) SessionID() (common.RawBytes, *common.Error) {
 	l, h, err := o.limitsSessionID()
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	return o.raw[l:h], nil
 }
@@ -122,7 +122,7 @@ func (o *rOPTExt) SetSessionID(sessionID common.RawBytes) *common.Error {
 func (o *rOPTExt) PVF() (common.RawBytes, *common.Error) {
 	l, h, err := o.limitsPVF()
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	return o.raw[l:h], nil
 }
@@ -166,32 +166,32 @@ func (o *RtrPkt) CalcDRKey() (common.RawBytes, *common.Error) {
 // GetExtn returns the opt.Extn representation,
 // which does not have direct access to the underlying buffer.
 func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
-        extn, err := opt.NewExtn()
-        if err != nil {
-                return nil, err
-        }
-        hash, err := o.Datahash()
-        if err != nil {
-                return nil, err
-        }
-        extn.SetDatahash(hash)
-        session, err := o.SessionID()
-        if err != nil {
-                return nil, err
-        }
-        extn.SetSessionID(session)
+	extn, err := opt.NewExtn()
+	if err != nil {
+		return nil, err
+	}
+	hash, err := o.Datahash()
+	if err != nil {
+		return nil, err
+	}
+	extn.SetDatahash(hash)
+	session, err := o.SessionID()
+	if err != nil {
+		return nil, err
+	}
+	extn.SetSessionID(session)
 	PVF, err := o.PVF()
-        if err != nil {
-                return nil, err
-        }
-        extn.SetPVF(PVF)
-        return extn, nil
+	if err != nil {
+		return nil, err
+	}
+	extn.SetPVF(PVF)
+	return extn, nil
 }
 
 func (o *rOPTExt) GetOPTExtn() (opt.Extn, *common.Error) {
-        extn, _ := opt.NewExtn()
+	extn, _ := opt.NewExtn()
 	// WIP
-        return *extn, nil
+	return *extn, nil
 }
 
 func (o *rOPTExt) String() string {
