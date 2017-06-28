@@ -67,7 +67,8 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	// retrieve updated PVF via opt.Extn
 	extn, err := o.GetOPTExtn()
 	if err != nil {
-		_ := fmt.Sprintf("SCIONOriginPathTrace - Failed to update PVF, %v: %v", err.Desc, err.String())
+		// fmt.Sprintf("SCIONOriginPathTrace - Failed to update PVF, %v: %v", err.Desc, err.String())
+		return HookFinish, err
 	}
 	updatedPVF := extn.UpdatePVF()
 	o.SetPVF(updatedPVF)

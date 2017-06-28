@@ -21,14 +21,7 @@ import (
 
 // https://github.com/Oncilla/scion-detached/blob/opt/lib/opt/ext/opt.py definitions
 
-// defines the types used by the Origin validation & PathTrace (OPT) extension
-
-type Extn struct { // fields of the extension
-	Flags     common.RawBytes
-	DataHash  common.RawBytes
-	SessionId common.RawBytes
-	PVF       common.RawBytes
-}
+// defines the lengths used by the Origin validation & PathTrace (OPT) extension
 
 const (
 	// Basic definitions
