@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 
 # SCION
-from beacon_server.base import BeaconServer
+from beacon_server.base import BeaconServer, BEACONS_PROPAGATED
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
@@ -38,12 +38,13 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_as, "This shouldn't be a local BS!"
         self.core_beacons = defaultdict(self._ps_factory)
@@ -61,6 +62,7 @@ class CoreBeaconServer(BeaconServer):
         Propagates the core beacons to other core ASes.
         """
         propagated_pcbs = defaultdict(list)
+        prop_cnt = 0
         for intf in self.topology.core_interfaces:
             dst_ia = intf.isd_as
             if not self._filter_pcb(pcb, dst_ia=dst_ia):
@@ -71,6 +73,9 @@ class CoreBeaconServer(BeaconServer):
                 continue
             self.send_meta(new_pcb, meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
+            prop_cnt += 1
+        if self._labels:
+            BEACONS_PROPAGATED.labels(**self._labels, type="core").inc(prop_cnt)
         return propagated_pcbs
 
     def handle_pcbs_propagation(self):

@@ -26,6 +26,7 @@ from threading import Lock, RLock
 
 # External packages
 from external.expiring_dict import ExpiringDict
+from prometheus_client import Counter
 
 # SCION
 from beacon_server.if_state import InterfaceState
@@ -84,6 +85,15 @@ from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
 from scion_elem.scion_elem import SCIONElement
 
 
+# Exported metrics.
+BEACONS_PROPAGATED = Counter("bs_beacons_propagated_total", "# of propagated beacons",
+                             ["server_id", "isd_as", "type"])
+SEGMENTS_REGISTERED = Counter("bs_segments_registered_total", "# of registered segments",
+                              ["server_id", "isd_as", "type"])
+REVOCATIONS_ISSUED = Counter("bs_revocations_issued_total", "# of issued revocations",
+                             ["server_id", "isd_as"])
+
+
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION PathConstructionBeacon Server.
@@ -104,12 +114,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
@@ -180,6 +191,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         propagated_pcbs = defaultdict(list)
+        prop_cnt = 0
         for intf in self.topology.child_interfaces:
             if not intf.to_if_id:
                 continue
@@ -189,6 +201,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 continue
             self.send_meta(new_pcb, meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
+            prop_cnt += 1
+        if self._labels:
+            BEACONS_PROPAGATED.labels(**self._labels, type="down").inc(prop_cnt)
         return propagated_pcbs
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
@@ -233,8 +248,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _log_propagations(self, propagated_pcbs):
         for (isd_as, if_id), pcbs in propagated_pcbs.items():
-            logging.debug("Propagated %d PCBs to %s via %s (%s)", len(pcbs), isd_as,
-                          if_id, ", ".join(pcbs))
+            logging.debug("Propagated %d PCBs to %s via %s (%s)", len(pcbs),
+                          isd_as, if_id, ", ".join(pcbs))
 
     def _handle_pcbs_from_zk(self, pcbs):
         """
@@ -315,9 +330,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         raise NotImplementedError
 
     def _log_registrations(self, registrations, seg_type):
+        reg_cnt = 0
         for (dst_meta, dst_type), pcbs in registrations.items():
+            reg_cnt += len(pcbs)
             logging.debug("Registered %d %s-segments @ %s:%s (%s)", len(pcbs),
                           seg_type, dst_type.upper(), dst_meta, ", ".join(pcbs))
+        if self._labels:
+            SEGMENTS_REGISTERED.labels(**self._labels, type=seg_type).inc(reg_cnt)
 
     def _create_asm(self, in_if, out_if, ts, prev_hof):
         pcbms = list(self._create_pcbms(in_if, out_if, ts, prev_hof))
@@ -568,6 +587,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         rev_info = self._get_ht_proof(if_id)
         logging.info("Issuing revocation: %s", rev_info.short_desc())
+        if self._labels:
+            REVOCATIONS_ISSUED.labels(**self._labels).inc()
         # Issue revocation to all BRs.
         info = IFStateInfo.from_values(if_id, False, rev_info)
         pld = IFStatePayload.from_values([info])

@@ -22,7 +22,7 @@ import logging
 from lib.packet.svc import SVCType
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
-from path_server.base import PathServer
+from path_server.base import PathServer, REQS_TOTAL
 
 
 class LocalPathServer(PathServer):
@@ -30,16 +30,18 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AS. Stores up-segments to the core and
     registers down-segments with the CPS. Can cache segments learned from a CPS.
     """
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.
-        self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
+        up_labels = {**self._labels, "type": "up"} if self._labels else None
+        self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=up_labels)
 
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
@@ -70,6 +72,7 @@ class LocalPathServer(PathServer):
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
+            REQS_TOTAL.labels(**self._labels).inc()
         if dst_ia == self.addr.isd_as:
             logger.warning("Dropping request: requested DST is local AS")
             return False
@@ -87,6 +90,7 @@ class LocalPathServer(PathServer):
         if new_request:
             self._request_paths_from_core(req, logger)
             self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta, logger))
+
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):

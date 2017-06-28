@@ -21,6 +21,9 @@ import logging
 # External
 from external.expiring_dict import ExpiringDict
 
+# External packages
+from prometheus_client import Gauge
+
 # SCION
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
@@ -28,7 +31,14 @@ from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zk.errors import ZkNoConnection
-from path_server.base import PathServer
+from path_server.base import PathServer, REQS_TOTAL
+
+
+# Exported metrics.
+SEGS_TO_MASTER = Gauge("ps_segs_to_master_total", "# of path segments to master",
+                       ["server_id", "isd_as"])
+SEGS_TO_PROP = Gauge("ps_segs_to_prop_total", "# of segments to propagate",
+                     ["server_id", "isd_as"])
 
 
 class CorePathServer(PathServer):
@@ -37,12 +47,13 @@ class CorePathServer(PathServer):
     core segments and forwards inter-ISD path requests to the corresponding path
     server.
     """
-    def __init__(self, server_id, conf_dir):
+    def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
+        :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir)
+        super().__init__(server_id, conf_dir, prom_export=prom_export)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.
@@ -165,7 +176,8 @@ class CorePathServer(PathServer):
         logging.debug("Propagating %d segment(s) to other core ASes",
                       len(self._segs_to_prop))
         for pcbs in self._gen_prop_recs(self._segs_to_prop):
-            self._propagate_to_core_ases(PathRecordsReply.from_values(pcbs))
+            reply = PathRecordsReply.from_values(pcbs)
+            self._propagate_to_core_ases(reply)
 
     def _prop_to_master(self):
         assert not self.zk.have_lock()
@@ -177,7 +189,8 @@ class CorePathServer(PathServer):
         logging.debug("Propagating %d segment(s) to master PS: %s",
                       len(self._segs_to_master), self._master_id)
         for pcbs in self._gen_prop_recs(self._segs_to_master):
-            self._send_to_master(PathRecordsReply.from_values(pcbs))
+            reply = PathRecordsReply.from_values(pcbs)
+            self._send_to_master(reply)
 
     def _send_to_master(self, pld):
         """
@@ -247,6 +260,7 @@ class CorePathServer(PathServer):
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
+            REQS_TOTAL.labels(**self._labels).inc()
         if dst_ia == self.addr.isd_as:
             logger.warning("Dropping request: requested DST is local AS")
             return False
@@ -368,3 +382,9 @@ class CorePathServer(PathServer):
             logging.debug("Propagating revocation to other cores: %s"
                           % rev_info.short_desc())
             self._propagate_to_core_ases(rev_info)
+
+    def _update_metrics(self):
+        super()._update_metrics()
+        if self._labels:
+            SEGS_TO_MASTER.labels(**self._labels).set(len(self._segs_to_master))
+            SEGS_TO_PROP.labels(**self._labels).set(len(self._segs_to_prop))

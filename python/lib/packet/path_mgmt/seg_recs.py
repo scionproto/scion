@@ -66,6 +66,10 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         for i in range(start, len(self.p.revInfos)):
             yield self.rev_info(i)
 
+    def num_segs(self):
+        """Returns the total number of path segments."""
+        return len(self.p.recs)
+
     def __str__(self):
         s = []
         s.append("%s:" % self.NAME)

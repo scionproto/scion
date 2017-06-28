@@ -20,11 +20,22 @@ import logging
 import threading
 
 # External packages
+from prometheus_client import Counter, Gauge
 from pydblite.pydblite import Base
 
 # SCION
 from lib.packet.pcb import PathSegment
 from lib.util import SCIONTime
+
+
+# Exported metrics
+SEGS_TOTAL = Gauge("pathdb_segs_total", "# of path segments", ["server_id", "isd_as", "type"])
+SEGS_BYTES = Gauge("pathdb_segs_bytes", "Path segments memory usage",
+                   ["server_id", "isd_as", "type"])
+SEGS_ADDED = Counter("pathdb_segs_added_total", "Total path segments added",
+                     ["server_id", "isd_as", "type"])
+SEGS_REMOVED = Counter("pathdb_segs_removed_total", "Total path segments removed",
+                       ["server_id", "isd_as", "type"])
 
 
 class DBResult(object):
@@ -66,17 +77,23 @@ class PathSegmentDBRecord(object):
 
 class PathSegmentDB(object):
     """Simple database for paths using PyDBLite"""
-    def __init__(self, segment_ttl=None, max_res_no=None):  # pragma: no cover
+    def __init__(self, segment_ttl=None, max_res_no=None, labels=None):  # pragma: no cover
         """
         :param int segment_ttl:
             The TTL for each record in the database (in s) or None to just use
             the segment's expiration time.
         :param int max_res_no: Number of results returned for a query.
+        :param dict labels:
+            Labels added to the exported metrics. The following labels are supported:
+                - server_id: A unique identifier of the server that is exporting
+                - isd_as: The ISD_AS of where the server is running
+                - type: A generic label for the type of the revocations.
         """
         self._db = None
         self._lock = threading.Lock()
         self._segment_ttl = segment_ttl
         self._max_res_no = max_res_no
+        self._labels = labels
         self._setup_db()
 
     def _setup_db(self):  # pragma: no cover
@@ -103,6 +120,10 @@ class PathSegmentDB(object):
 
     def flush(self):  # pragma: no cover
         """Removes all records from the database."""
+        if self._labels:
+            SEGS_REMOVED.labels(**self._labels).inc(len(self))
+            SEGS_TOTAL.labels(**self._labels).set(0)
+            SEGS_BYTES.labels(**self._labels).set(0)
         self._setup_db()
 
     def update(self, pcb, reverse=False):
@@ -128,15 +149,23 @@ class PathSegmentDB(object):
                     last_ia[0], last_ia[1], pcb.is_sibra())
                 logging.debug("Added segment from %s to %s: %s",
                               first_ia, last_ia, pcb.short_desc())
+                if self._labels:
+                    SEGS_ADDED.labels(**self._labels).inc()
+                    SEGS_TOTAL.labels(**self._labels).inc()
+                    SEGS_BYTES.labels(**self._labels).inc(len(pcb))
                 return DBResult.ENTRY_ADDED
             cur_rec = recs[0]['record']
             if pcb.get_expiration_time() < cur_rec.pcb.get_expiration_time():
                 return DBResult.NONE
+            old_pcb = cur_rec.pcb
             cur_rec.pcb = pcb
             if self._segment_ttl:
                 cur_rec.exp_time = now + self._segment_ttl
             else:
                 cur_rec.exp_time = pcb.get_expiration_time()
+            if self._labels:
+                SEGS_ADDED.labels(**self._labels).inc()
+                SEGS_BYTES.labels(**self._labels).inc(len(pcb) - len(old_pcb))
             return DBResult.ENTRY_UPDATED
 
     def delete(self, segment_id):
@@ -146,6 +175,11 @@ class PathSegmentDB(object):
             if not recs:
                 return DBResult.NONE
             self._db.delete(recs)
+            assert len(recs) == 1
+            if self._labels:
+                SEGS_REMOVED.labels(**self._labels).inc()
+                SEGS_TOTAL.labels(**self._labels).dec()
+                SEGS_BYTES.labels(**self._labels).dec(len(recs[0]['record'].pcb))
         return DBResult.ENTRY_DELETED
 
     def delete_all(self, segment_ids):

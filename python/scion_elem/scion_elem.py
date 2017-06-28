@@ -24,6 +24,9 @@ import threading
 import time
 from collections import defaultdict
 
+# External packages
+from prometheus_client import Counter, Gauge, start_http_server
+
 # SCION
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_sig_chain_trc
@@ -101,6 +104,15 @@ from lib.topology import Topology
 from lib.util import hex_str, sleep_interval
 
 
+# Exported metrics.
+PKT_BUF_TOTAL = Gauge("se_pkt_buf_total", "Total packets in input buffer",
+                      ["server_id", "isd_as"])
+PKT_BUF_BYTES = Gauge("se_pkt_buf_bytes", "Memory usage of input buffer",
+                      ["server_id", "isd_as"])
+PKTS_DROPPED_TOTAL = Counter("se_packets_dropped_total", "Total packets dropped",
+                             ["server_id", "isd_as"])
+
+
 MAX_QUEUE = 50
 
 
@@ -121,7 +133,7 @@ class SCIONElement(object):
     # Timeout for TRC or Certificate requests.
     TRC_CC_REQ_TIMEOUT = 3
 
-    def __init__(self, server_id, conf_dir, public=None, bind=None):
+    def __init__(self, server_id, conf_dir, public=None, bind=None, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -132,6 +144,9 @@ class SCIONElement(object):
             (host_addr, port) of the element's bind address, if any
             (i.e. the address the element uses to identify itself to the local
             operating system, if it differs from the public address due to NAT).
+        :param str prom_export:
+            String of the form 'addr:port' specifying the prometheus endpoint.
+            If no string is provided, no metrics are exported.
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -178,6 +193,9 @@ class SCIONElement(object):
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         self._setup_sockets(True)
+        self._labels = None
+        if prom_export:
+            self._export_metrics(prom_export)
 
     def _setup_sockets(self, init):
         """
@@ -861,15 +879,23 @@ class SCIONElement(object):
         while True:
             try:
                 self._in_buf.put(item, block=False)
+                if self._labels:
+                    PKT_BUF_BYTES.labels(**self._labels).inc(len(item[0]))
             except queue.Full:
-                self._in_buf.get_nowait()
+                msg, _ = self._in_buf.get_nowait()
                 dropped += 1
+                if self._labels:
+                    PKTS_DROPPED_TOTAL.labels(**self._labels).inc()
+                    PKT_BUF_BYTES.labels(**self._labels).dec(len(msg))
             else:
                 break
+            finally:
+                if self._labels:
+                    PKT_BUF_TOTAL.labels(**self._labels).set(self._in_buf.qsize())
         if dropped > 0:
             self.total_dropped += dropped
-            logging.debug("%d packet(s) dropped (%d total dropped so far)",
-                          dropped, self.total_dropped)
+            logging.warning("%d packet(s) dropped (%d total dropped so far)",
+                            dropped, self.total_dropped)
 
     def _get_msg_meta(self, packet, addr, sock):
         pkt = self._parse_packet(packet)
@@ -950,7 +976,11 @@ class SCIONElement(object):
         """
         while self.run_flag.is_set():
             try:
-                self.handle_msg_meta(*self._in_buf.get(timeout=1.0))
+                msg, meta = self._in_buf.get(timeout=1.0)
+                if self._labels:
+                    PKT_BUF_BYTES.labels(**self._labels).dec(len(msg))
+                    PKT_BUF_TOTAL.labels(**self._labels).set(self._in_buf.qsize())
+                self.handle_msg_meta(msg, meta)
             except queue.Empty:
                 continue
 
@@ -1109,3 +1139,17 @@ class SCIONElement(object):
                                            flags=TCPFlags.ONEHOPPATH)
         return UDPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
                                        ext_hdrs=[OneHopPathExt()])
+
+    def _export_metrics(self, export_addr):
+        """
+        Starts an HTTP server endpoint for prometheus to scrape.
+        """
+        # Create a dummy counter to export the server_id as a label for correlating
+        # server_id and other metrics.
+        self._labels = {"server_id": self.id, "isd_as": str(self.topology.isd_as)}
+
+        addr, port = export_addr.split(":")
+        port = int(port)
+        addr = addr.strip("[]")
+        logging.info("Exporting metrics on %s", export_addr)
+        start_http_server(port, addr=addr)
