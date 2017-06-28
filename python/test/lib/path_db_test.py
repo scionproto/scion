@@ -128,10 +128,10 @@ class TestPathSegmentDBDelete(object):
     def test_basic(self):
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = create_mock(['delete'])
-        pth_seg_db._db.return_value = "data1"
-        ntools.eq_(pth_seg_db.delete("data2"), DBResult.ENTRY_DELETED)
-        pth_seg_db._db.assert_called_once_with(id="data2")
-        pth_seg_db._db.delete.assert_called_once_with("data1")
+        pth_seg_db._db.return_value = ["data1"]
+        ntools.eq_(pth_seg_db.delete("data1"), DBResult.ENTRY_DELETED)
+        pth_seg_db._db.assert_called_once_with(id="data1")
+        pth_seg_db._db.delete.assert_called_once_with(["data1"])
 
     def test_not_present(self):
         pth_seg_db = PathSegmentDB()

@@ -115,7 +115,8 @@ class RequestHandler(object):
         if not self._check(key):
             self._fetch(key, request)
         self._req_map[key].append((SCIONTime.get_time(), request))
-        REQS_PENDING.labels(**self._labels).inc()
+        if self._labels:
+            REQS_PENDING.labels(**self._labels).inc()
 
     def _answer_reqs(self, key):
         if not self._check(key):
@@ -128,7 +129,8 @@ class RequestHandler(object):
             _, req = reqs.pop(0)
             self._reply(key, req)
             count += 1
-        REQS_PENDING.labels(**self._labels).dec(count)
+        if self._labels:
+            REQS_PENDING.labels(**self._labels).dec(count)
         del self._req_map[key]
 
     def _expire_reqs(self, key):
@@ -142,7 +144,8 @@ class RequestHandler(object):
                 self._req_map[key].remove((ts, req))
         if count:
             logging.debug("Expired %d requests for %s", count, key)
-            REQS_PENDING.labels(**self._labels).dec(count)
+            if self._labels:
+                REQS_PENDING.labels(**self._labels).dec(count)
 
     @staticmethod
     def _def_key_map(key, keys):  # pragma: no cover
