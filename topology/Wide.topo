@@ -70,6 +70,37 @@ CAs:
   CA5-3:
     ISD: 5
     commonName: CA5-3
+LogServers:
+  Log1:
+    ISD: 1
+    AS: 1
+  Log2:
+    ISD: 1
+    AS: 2
+  Log3:
+    ISD: 2
+    AS: 1
+  Log4:
+    ISD: 2
+    AS: 2
+  Log5:
+    ISD: 3
+    AS: 1
+  Log6:
+    ISD: 3
+    AS: 1
+  Log7:
+    ISD: 4
+    AS: 1
+  Log8:
+    ISD: 4
+    AS: 1
+  Log9:
+    ISD: 5
+    AS: 1
+  Log10:
+    ISD: 5
+    AS: 3
 links:
   - {a: 1-1, b: 1-2, ltype: CORE}
   - {a: 1-1, b: 2-1, ltype: CORE}

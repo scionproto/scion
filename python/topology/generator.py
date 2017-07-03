@@ -49,16 +49,20 @@ from lib.crypto.asymcrypto import (
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
 from lib.crypto.trc import (
-    get_trc_file_path,
+    ADDR_STRING,
+    AS_STRING,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
     ONLINE_KEY_ALG_STRING,
     ONLINE_KEY_STRING,
+    PUBLIC_KEY_STRING,
     TRC,
+    get_trc_file_path,
 )
 from lib.crypto.util import (
     get_ca_cert_file_path,
     get_ca_private_key_file_path,
+    get_log_private_key_file_path,
     get_offline_key_file_path,
     get_online_key_file_path,
 )
@@ -186,13 +190,15 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
+        log_private_key_files, log_entries = self._generate_log_servers()
+        cert_files, trc_files = self._generate_certs_trcs(ca_certs, log_entries)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
         self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
+        self._write_log_files(topo_dicts, log_private_key_files)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
@@ -201,11 +207,15 @@ class ConfigGenerator(object):
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _generate_cas(self):
-        ca_gen = CA_Generator(self.topo_config)
+        ca_gen = CAGenerator(self.topo_config)
         return ca_gen.generate()
 
-    def _generate_certs_trcs(self, ca_certs):
-        certgen = CertGenerator(self.topo_config, ca_certs)
+    def _generate_log_servers(self):
+        log_gen = LogServerGenerator(self.topo_config)
+        return log_gen.generate()
+
+    def _generate_certs_trcs(self, ca_certs, log_entries):
+        certgen = CertGenerator(self.topo_config, ca_certs, log_entries)
         return certgen.generate()
 
     def _generate_topology(self):
@@ -229,13 +239,24 @@ class ConfigGenerator(object):
         prom_gen.generate()
 
     def _write_ca_files(self, topo_dicts, ca_files):
-        isds = set()
-        for topo_id, as_topo in topo_dicts.items():
-            isds.add(topo_id[0])
+        isds = self._get_isds(topo_dicts)
         for isd in isds:
             base = os.path.join(self.out_dir, "CAS")
             for path, value in ca_files[int(isd)].items():
                 write_file(os.path.join(base, path), value.decode())
+
+    def _write_log_files(self, topo_dicts, log_files):
+        isds = self._get_isds(topo_dicts)
+        for isd in isds:
+            base = os.path.join(self.out_dir, "Logs")
+            for path, value in log_files[int(isd)].items():
+                write_file(os.path.join(base, path), value)
+
+    def _get_isds(self, topo_dicts):
+        isds = set()
+        for topo_id, as_topo in topo_dicts.items():
+            isds.add(topo_id[0])
+        return isds
 
     def _write_trust_files(self, topo_dicts, cert_files):
         for topo_id, as_topo, base in _srv_iter(
@@ -285,9 +306,10 @@ class ConfigGenerator(object):
 
 
 class CertGenerator(object):
-    def __init__(self, topo_config, ca_certs):
+    def __init__(self, topo_config, ca_certs, log_entries):
         self.topo_config = topo_config
         self.ca_certs = ca_certs
+        self.log_entries = log_entries
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
@@ -401,6 +423,10 @@ class CertGenerator(object):
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
             ca_certs[ca_name] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
         trc.root_cas = ca_certs
+        log_entries = {}
+        for log_name, log_cert in self.log_entries[topo_id[0]].items():
+            log_entries[log_name] = log_cert
+        trc.cert_logs = log_entries
 
     def _create_trc(self, isd):
         self.trcs[isd] = TRC.from_values(
@@ -420,7 +446,48 @@ class CertGenerator(object):
         self.trc_files[topo_id][trc_path] = str(trc)
 
 
-class CA_Generator(object):
+class LogServerGenerator(object):
+    def __init__(self, topo_config):
+        self.topo_config = topo_config
+        self.sig_priv_keys = {}
+        self.sig_pub_keys = {}
+        self.log_entries = defaultdict(dict)
+        self.log_private_key_files = defaultdict(dict)
+        self.sng = SubnetGenerator(DEFAULT_NETWORK)
+        self.sngg = self.sng.register("LogServers")
+        self.log_addrs = {}
+
+    def generate(self):
+        self._iterate(self._gen_sig_keys)
+        self._iterate(self._gen_addresses)
+        _, self.log_addrs = self.sng.alloc_subnets().popitem()
+        self._iterate(self._gen_log_entries)
+        return self.log_private_key_files, self.log_entries
+
+    def _iterate(self, f):
+        for log_name, log_config in self.topo_config["LogServers"].items():
+            f(log_name, log_config)
+
+    def _gen_sig_keys(self, log_name, log_config):
+        sig_pub, sig_priv = generate_sign_keypair()
+        self.sig_priv_keys[log_name] = sig_priv
+        self.sig_pub_keys[log_name] = sig_pub
+        isd = log_config["ISD"]
+        log_private_key_path = get_log_private_key_file_path("ISD%s" % isd, log_name)
+        self.log_private_key_files[isd][log_private_key_path] = base64.b64encode(sig_priv).decode()
+
+    def _gen_addresses(self, log_name, log_config):
+        self.sngg.register(log_name)
+
+    def _gen_log_entries(self, log_name, log_config):
+        log_entry = {}
+        log_entry[AS_STRING] = log_config["AS"]
+        log_entry[ADDR_STRING] = str(self.log_addrs[log_name])
+        log_entry[PUBLIC_KEY_STRING] = self.sig_pub_keys[log_name]
+        self.log_entries[log_config["ISD"]][log_name] = log_entry
+
+
+class CAGenerator(object):
     def __init__(self, topo_config):
         self.topo_config = topo_config
         self.ca_key_pairs = {}
