@@ -26,50 +26,112 @@ ASes:
   5-5: {cert_issuer: 5-3}
 CAs:
   CA1-1:
-    ISD: 1
+    ISD-AS: 1-1
     commonName: CA1-1
+    trc_servers: 1
+    arpki_servers: 1
   CA1-2:
-    ISD: 1
+    ISD-AS: 1-2
     commonName: CA1-2
+    trc_servers: 1
+    arpki_servers: 1
   CA1-3:
-    ISD: 1
+    ISD-AS: 1-3
     commonName: CA1-3
+    trc_servers: 1
+    arpki_servers: 1
   CA2-1:
-    ISD: 2
+    ISD-AS: 2-1
     commonName: CA2-1
+    trc_servers: 1
+    arpki_servers: 1
   CA2-2:
-    ISD: 2
+    ISD-AS: 2-2
     commonName: CA2-2
+    trc_servers: 1
+    arpki_servers: 1
   CA2-3:
-    ISD: 2
+    ISD-AS: 2-3
     commonName: CA2-3
+    trc_servers: 1
+    arpki_servers: 1
   CA3-1:
-    ISD: 3
+    ISD-AS: 3-1
     commonName: CA3-1
+    trc_servers: 1
+    arpki_servers: 1
   CA3-2:
-    ISD: 3
+    ISD-AS: 3-1
     commonName: CA3-2
+    trc_servers: 1
+    arpki_servers: 1
   CA3-3:
-    ISD: 3
+    ISD-AS: 3-3
     commonName: CA3-3
+    trc_servers: 1
+    arpki_servers: 1
   CA4-1:
-    ISD: 4
+    ISD-AS: 4-1
     commonName: CA4-1
+    trc_servers: 1
+    arpki_servers: 1
   CA4-2:
-    ISD: 4
+    ISD-AS: 4-1
     commonName: CA4-2
+    trc_servers: 1
+    arpki_servers: 1
   CA4-3:
-    ISD: 4
+    ISD-AS: 4-1
     commonName: CA4-3
+    trc_servers: 1
+    arpki_servers: 1
   CA5-1:
-    ISD: 5
+    ISD-AS: 5-1
     commonName: CA5-1
+    trc_servers: 1
+    arpki_servers: 1
   CA5-2:
-    ISD: 5
+    ISD-AS: 5-2
     commonName: CA5-2
+    trc_servers: 1
+    arpki_servers: 1
   CA5-3:
-    ISD: 5
+    ISD-AS: 5-3
     commonName: CA5-3
+    trc_servers: 1
+    arpki_servers: 1
+LogServers:
+  Log1:
+    ISD-AS: 1-1
+  Log2:
+    ISD-AS: 1-2
+  Log3:
+    ISD-AS: 2-1
+  Log4:
+    ISD-AS: 2-2
+  Log5:
+    ISD-AS: 3-1
+  Log6:
+    ISD-AS: 3-1
+  Log7:
+    ISD-AS: 4-1
+  Log8:
+    ISD-AS: 4-1
+  Log9:
+    ISD-AS: 5-1
+  Log10:
+    ISD-AS: 5-3
+RAINS:
+  1:
+    trc_servers: {1-1: 3}
+  2:
+    trc_servers: {2-1: 2}
+  3:
+    trc_servers: {3-1: 3}
+  4:
+    trc_servers: {4-1: 2}
+  5:
+    trc_servers: {5-1: 3}
 links:
   - {a: 1-1, b: 1-2, ltype: CORE}
   - {a: 1-1, b: 2-1, ltype: CORE}

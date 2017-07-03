@@ -14,14 +14,16 @@ ASes:
     cert_issuer: 1-11
 CAs:
   CA1-1:
-    ISD: 1
+    ISD-AS: 1-11
     commonName: CA1-1
-  CA1-2:
-    ISD: 1
-    commonName: CA1-2
-  CA1-3:
-    ISD: 1
-    commonName: CA1-3
+    trc_servers: 1
+    arpki_servers: 1
+LogServers:
+  Log1:
+    ISD-AS: 1-11
+RAINS:
+  1:
+    trc_servers: {1-11: 1}
 links:
   - {a: 1-11, b: 1-12, ltype: PARENT, mtu: 1280}
   - {a: 1-11, b: 1-13, ltype: PARENT, bw: 500}

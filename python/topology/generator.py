@@ -40,26 +40,34 @@ from OpenSSL import crypto
 # SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
-    generate_sign_keypair,
     generate_enc_keypair,
+    generate_sign_keypair,
     get_enc_key_file_path,
-    get_sig_key_file_path
+    get_sig_key_file_path,
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
 from lib.crypto.trc import (
-    get_trc_file_path,
+    ARPKI_KEY_STRING,
+    ARPKI_SRV_STRING,
+    CERTIFICATE_STRING,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
     ONLINE_KEY_ALG_STRING,
     ONLINE_KEY_STRING,
+    ROOT_RAINS_KEY_STRING,
     TRC,
+    TRC_SRV_STRING,
+    get_trc_file_path,
 )
 from lib.crypto.util import (
+    get_arpki_private_key_file_path,
     get_ca_cert_file_path,
     get_ca_private_key_file_path,
+    get_cert_log_private_key_file_path,
     get_offline_key_file_path,
     get_online_key_file_path,
+    get_rains_private_key_file_path,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -188,14 +196,19 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
-        ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
+        ca_private_key_files, ca_cert_files, ca_entries = self._generate_cas()
+        cert_log_private_key_files, cert_log_entries = self._generate_log_servers()
+        rains_private_key_files, rains_entries = self._generate_rains()
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
+        cert_files, trc_files = self._generate_certs_trcs(
+            ca_entries, cert_log_entries, rains_entries)
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
         self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
+        self._write_cert_log_files(cert_log_private_key_files)
+        self._write_rains_files(rains_private_key_files)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
@@ -204,12 +217,20 @@ class ConfigGenerator(object):
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _generate_cas(self):
-        ca_gen = CA_Generator(self.topo_config)
+        ca_gen = CAGenerator(self.topo_config, self.subnet_gen)
         return ca_gen.generate()
 
-    def _generate_certs_trcs(self, ca_certs):
-        certgen = CertGenerator(self.topo_config, ca_certs)
-        return certgen.generate()
+    def _generate_certs_trcs(self, ca_entries, cert_log_entries, rains_entries):
+        cert_gen = CertGenerator(self.topo_config, ca_entries, cert_log_entries, rains_entries)
+        return cert_gen.generate()
+
+    def _generate_log_servers(self):
+        log_gen = CertLogsGenerator(self.topo_config, self.subnet_gen)
+        return log_gen.generate()
+
+    def _generate_rains(self):
+        rains_gen = RAINSGenerator(self.topo_config, self.subnet_gen)
+        return rains_gen.generate()
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(
@@ -238,6 +259,17 @@ class ConfigGenerator(object):
         for isd in isds:
             base = os.path.join(self.out_dir, "CAS")
             for path, value in ca_files[int(isd)].items():
+                write_file(os.path.join(base, path), value.decode())
+
+    def _write_cert_log_files(self, log_files):
+        for path, value in log_files.items():
+            base = os.path.join(self.out_dir, "CertLogs")
+            write_file(os.path.join(base, path), value)
+
+    def _write_rains_files(self, rains_files):
+        for isd, entry in rains_files.items():
+            for path, value in entry.items():
+                base = os.path.join(self.out_dir, "RAINS")
                 write_file(os.path.join(base, path), value.decode())
 
     def _write_trust_files(self, topo_dicts, cert_files):
@@ -290,9 +322,11 @@ class ConfigGenerator(object):
 
 
 class CertGenerator(object):
-    def __init__(self, topo_config, ca_certs):
+    def __init__(self, topo_config, ca_entries, cert_log_entries, rains_entries):
         self.topo_config = topo_config
-        self.ca_certs = ca_certs
+        self.ca_entries = ca_entries
+        self.cert_log_entries = cert_log_entries
+        self.rains_entries = rains_entries
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
@@ -396,28 +430,64 @@ class CertGenerator(object):
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
         # Add public root online/offline key to TRC
-        core = {}
-        core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[ONLINE_KEY_STRING] = self.pub_online_root_keys[topo_id]
-        core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = self.pub_offline_root_keys[topo_id]
-        trc.core_ases[str(topo_id)] = core
-        ca_certs = {}
-        for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
-            ca_certs[ca_name] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
-        trc.root_cas = ca_certs
+
+        trc.core_ases[str(topo_id)] = self._populate_core(topo_id)
+        trc.root_cas = self._populate_root_cas(topo_id[0])
+        trc.cert_logs = self._populate_cert_logs(topo_id[0])
+        trc.rains = self._populate_rains(topo_id[0])
+
+    def _populate_core(self, topo_id):
+        return {ONLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                ONLINE_KEY_STRING: self.pub_online_root_keys[topo_id],
+                OFFLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                OFFLINE_KEY_STRING: self.pub_offline_root_keys[topo_id]}
+
+    def _populate_root_cas(self, isd):
+        ca_dict = defaultdict(dict)
+        for ca_name, entry in self.ca_entries[isd].items():
+            ca_dict[ca_name][CERTIFICATE_STRING] = crypto.dump_certificate(
+                crypto.FILETYPE_ASN1, entry.cert)
+            ca_dict[ca_name][ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
+            ca_dict[ca_name][ONLINE_KEY_STRING] = entry.online_key
+            ca_dict[ca_name][ARPKI_KEY_STRING] = entry.arpki_key
+            ca_dict[ca_name][TRC_SRV_STRING] = self._create_addr_strings(
+                entry.addrs_trc, entry.topo_id)
+            ca_dict[ca_name][ARPKI_SRV_STRING] = self._create_addr_strings(
+                entry.addrs_arpki, entry.topo_id)
+        return ca_dict
+
+    def _populate_cert_logs(self, isd):
+        cert_logs = {}
+        for name, entry in self.cert_log_entries[isd].items():
+            cert_logs[name] = {"%s %s" % (entry.topo_id, entry.addr.ip): entry.pub_key}
+        return cert_logs
+
+    def _populate_rains(self, isd):
+        return {ONLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                ONLINE_KEY_STRING: self.rains_entries[isd].online_key,
+                ROOT_RAINS_KEY_STRING: self.rains_entries[isd].rains_key,
+                TRC_SRV_STRING: self._create_addr_strings(
+                    self.rains_entries[isd].addrs, topo_ids=self.rains_entries[isd].topo_ids)
+                }
+
+    def _create_addr_strings(self, addrs, topo_id=None, topo_ids=None):
+        addr_strings = []
+        for i, addr in enumerate(addrs):
+            if topo_ids:
+                topo_id = topo_ids[0]
+            addr_strings.append("%s %s" % (topo_id, addr.ip))
+        return addr_strings
 
     def _create_trc(self, isd):
-        self.trcs[isd] = TRC.from_values(
-            isd, "ISD %s" % isd, 0, {}, {},
-            {}, 2, 'dns_srv_addr', 2,
-            3, 18000, True, {})
+        validity_period = TRC.VALIDITY_PERIOD
+        self.trcs[isd] = TRC.from_values(isd, "ISD %s" % isd, 0, {}, {}, {}, 2, {}, 2, 3,
+                                         18000, False, {}, validity_period)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
+        trc.sign(topo_id, self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         trc = self.trcs[topo_id[0]]
@@ -425,30 +495,59 @@ class CertGenerator(object):
         self.trc_files[topo_id][trc_path] = str(trc)
 
 
-class CA_Generator(object):
-    def __init__(self, topo_config):
-        self.topo_config = topo_config
-        self.ca_key_pairs = {}
-        self.ca_certs = defaultdict(dict)
-        self.ca_private_key_files = defaultdict(dict)
+class CAGenerator(object):
+    def __init__(self, topo_config, subnet_gen):
+        self.addrs = defaultdict(dict)
+        self.arpki_priv_keys = {}
+        self.arpki_pub_keys = {}
+        self.ca_certs = {}
         self.ca_cert_files = defaultdict(dict)
+        self.ca_entries = defaultdict(dict)
+        self.ca_key_pairs = {}
+        self.ca_private_key_files = defaultdict(dict)
+        self.online_priv_keys = {}
+        self.online_pub_keys = {}
+        self.subnet_gen = subnet_gen
+        self.topo_config = topo_config
 
     def generate(self):
-        self._iterate(self._gen_ca_key)
+        self._iterate(self._gen_keys)
         self._iterate(self._gen_ca)
         self._iterate(self._gen_private_key_files)
         self._iterate(self._gen_cert_files)
-        return self.ca_private_key_files, self.ca_cert_files, self.ca_certs
+        self._iterate(self._gen_addr)
+        self._iterate(self._gen_entry)
+        return self.ca_private_key_files, self.ca_cert_files, self.ca_entries
 
     def _iterate(self, f):
         for ca_name, ca_config in self.topo_config["CAs"].items():
-            f(ca_name, ca_config)
+            f(ca_name, ca_config, TopoID(ca_config["ISD-AS"]))
 
-    def _gen_ca_key(self, ca_name, ca_config):
+    def _gen_addr(self, ca_name, ca_config, topo_id):
+        trc = ca_config["trc_servers"]
+        arpki = ca_config["arpki_servers"]
+        self.addrs[ca_name]["trc"] = self._reg_addrs(topo_id, ca_name, trc, "trc")
+        self.addrs[ca_name]["arpki"] = self._reg_addrs(topo_id, ca_name, arpki, "arpki")
+
+    def _reg_addrs(self, topo_id, ca_name, num, type):
+        subnet = self.subnet_gen.register(topo_id)
+        prefix = "ca%s_%s" % (topo_id, ca_name)
+        addrs = []
+        for i in range(num):
+            addrs.append(subnet.register("%s-%s-%s" % (prefix, type, i+1)))
+        return addrs
+
+    def _gen_keys(self, ca_name, ca_config, topoid):
         self.ca_key_pairs[ca_name] = crypto.PKey()
         self.ca_key_pairs[ca_name].generate_key(crypto.TYPE_RSA, 2048)
+        sig_pub, sig_priv = generate_sign_keypair()
+        self.online_priv_keys[ca_name] = sig_priv
+        self.online_pub_keys[ca_name] = sig_pub
+        arpki_pub, arpki_priv = generate_sign_keypair()
+        self.arpki_priv_keys[ca_name] = arpki_priv
+        self.arpki_pub_keys[ca_name] = arpki_pub
 
-    def _gen_ca(self, ca_name, ca_config):
+    def _gen_ca(self, ca_name, ca_config, topo_id):
         ca = crypto.X509()
         ca.set_version(3)
         ca.set_serial_number(1)
@@ -481,22 +580,140 @@ class CA_Generator(object):
                                  subject=ca),
         ])
         ca.sign(self.ca_key_pairs[ca_name], "sha256")
-        self.ca_certs[ca_config["ISD"]][ca_name] = ca
+        self.ca_certs[ca_name] = ca
 
-    def _gen_private_key_files(self, ca_name, ca_config):
-        isd = ca_config["ISD"]
-        ca_private_key_path = \
-            get_ca_private_key_file_path("ISD%s" % isd, ca_name)
-        self.ca_private_key_files[isd][ca_private_key_path] = \
-            crypto.dump_privatekey(crypto.FILETYPE_PEM,
-                                   self.ca_key_pairs[ca_name])
+    def _gen_private_key_files(self, ca_name, ca_config, topo_id):
+        base = os.path.join(topo_id.ISD(), ca_name)
+        path = get_ca_private_key_file_path(base, ca_name)
+        self.ca_private_key_files[topo_id[0]][path] = crypto.dump_privatekey(
+            crypto.FILETYPE_PEM, self.ca_key_pairs[ca_name])
+        path = get_online_key_file_path(base)
+        self.ca_private_key_files[topo_id[0]][path] = base64.b64encode(
+            self.online_priv_keys[ca_name])
+        path = get_arpki_private_key_file_path(base)
+        self.ca_private_key_files[topo_id[0]][path] = base64.b64encode(
+            self.arpki_priv_keys[ca_name])
 
-    def _gen_cert_files(self, ca_name, ca_config):
-        isd = ca_config["ISD"]
-        ca_cert_path = get_ca_cert_file_path("ISD%s" % isd, ca_name)
-        self.ca_cert_files[isd][ca_cert_path] = \
-            crypto.dump_certificate(crypto.FILETYPE_PEM,
-                                    self.ca_certs[ca_config["ISD"]][ca_name])
+    def _gen_cert_files(self, ca_name, ca_config, topo_id):
+        path = get_ca_cert_file_path(os.path.join(topo_id.ISD(), ca_name), ca_name)
+        self.ca_cert_files[topo_id[0]][path] = crypto.dump_certificate(
+            crypto.FILETYPE_PEM, self.ca_certs[ca_name])
+
+    def _gen_entry(self, ca_name, ca_config, topo_id):
+        self.ca_entries[topo_id[0]][ca_name] = self.Entry(
+            topo_id, self.addrs[ca_name]["trc"], self.addrs[ca_name]["arpki"],
+            self.ca_certs[ca_name], self.online_pub_keys[ca_name], self.arpki_pub_keys[ca_name])
+
+    class Entry:
+        def __init__(self, topo_id, addrs_trc, addrs_arpki, cert, online_key, arpki_key):
+            self.topo_id = topo_id
+            self.addrs_trc = addrs_trc
+            self.addrs_arpki = addrs_arpki
+            self.cert = cert
+            self.online_key = online_key
+            self.arpki_key = arpki_key
+
+
+class CertLogsGenerator(object):
+    def __init__(self, topo_config, subnet_gen):
+        self.topo_config = topo_config
+        self.sig_priv_keys = {}
+        self.sig_pub_keys = {}
+        self.log_entries = defaultdict(dict)
+        self.log_private_key_files = {}
+        self.subnet_gen = subnet_gen
+        self.addrs = {}
+
+    def generate(self):
+        self._iterate(self._gen_sig_key)
+        self._iterate(self._gen_addr)
+        self._iterate(self._gen_entry)
+        return self.log_private_key_files, self.log_entries
+
+    def _iterate(self, f):
+        for log_name, log_config in self.topo_config["LogServers"].items():
+            f(log_name, TopoID(log_config["ISD-AS"]))
+
+    def _gen_addr(self, log_name, topo_id):
+        subnet = self.subnet_gen.register(topo_id)
+        self.addrs[log_name] = subnet.register("lg%s_%s" % (topo_id, log_name))
+
+    def _gen_sig_key(self, log_name, topo_id):
+        sig_pub, sig_priv = generate_sign_keypair()
+        self.sig_priv_keys[log_name] = sig_priv
+        self.sig_pub_keys[log_name] = sig_pub
+        log_private_key_path = get_cert_log_private_key_file_path(topo_id.ISD(), log_name)
+        self.log_private_key_files[log_private_key_path] = base64.b64encode(sig_priv).decode()
+
+    def _gen_entry(self, log_name, topo_id):
+        self.log_entries[topo_id[0]][log_name] = self.Entry(topo_id, self.addrs[log_name],
+                                                            self.sig_pub_keys[log_name])
+
+    class Entry:
+        def __init__(self, topo_id, addr, pub_key):
+            self.topo_id = topo_id
+            self.addr = addr
+            self.pub_key = pub_key
+
+
+class RAINSGenerator(object):
+    def __init__(self, topo_config, subnet_gen):
+        self.addrs = defaultdict(list)
+        self.topo_ids = defaultdict(list)
+        self.entries = {}
+        self.online_priv_keys = {}
+        self.online_pub_keys = {}
+        self.private_key_files = defaultdict(dict)
+        self.rains_priv_keys = {}
+        self.rains_pub_keys = {}
+        self.subnet_gen = subnet_gen
+        self.topo_config = topo_config
+
+    def generate(self):
+        self._iterate(self._gen_keys)
+        self._iterate(self._gen_private_key_files)
+        self._iterate(self._gen_addr)
+        self._iterate(self._gen_entry)
+        return self.private_key_files, self.entries
+
+    def _iterate(self, f):
+        for isd, config in self.topo_config["RAINS"].items():
+            f(isd, config)
+
+    def _gen_addr(self, isd, config):
+        for isd_as, num_srvs in config["trc_servers"].items():
+            topo_id = TopoID(isd_as)
+            subnet = self.subnet_gen.register(topo_id)
+            for i in range(num_srvs):
+                self.addrs[isd].append(subnet.register("rs%s-%s" % (topo_id, i+1)))
+                self.topo_ids[isd].append(topo_id)
+
+    def _gen_keys(self, isd, config):
+        on_pub, on_priv = generate_sign_keypair()
+        self.online_priv_keys[isd] = on_priv
+        self.online_pub_keys[isd] = on_pub
+        rains_pub, rains_priv = generate_sign_keypair()
+        self.rains_priv_keys[isd] = rains_priv
+        self.rains_pub_keys[isd] = rains_pub
+
+    def _gen_private_key_files(self, isd, config):
+        conf_dir = "ISD%s" % isd
+        path = get_online_key_file_path(conf_dir)
+        self.private_key_files[isd][path] = base64.b64encode(self.online_priv_keys[isd])
+        path = get_rains_private_key_file_path(conf_dir)
+        self.private_key_files[isd][path] = base64.b64encode(self.rains_priv_keys[isd])
+
+    def _gen_entry(self, isd, config):
+        self.entries[isd] = self.Entry(isd, self.addrs[isd], self.topo_ids[isd],
+                                       self.online_pub_keys[isd], self.rains_pub_keys[isd])
+
+    class Entry:
+        def __init__(self, isd, addrs, topo_ids, online_key, rains_key):
+            self.isd = isd
+            self.addrs = addrs
+            self.topo_ids = topo_ids
+            self.online_key = online_key
+            self.rains_key = rains_key
 
 
 class TopoGenerator(object):

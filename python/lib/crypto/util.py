@@ -42,7 +42,7 @@ def get_ca_private_key_file_path(conf_dir, name):
     """
     Return the ca private key file path
     """
-    return os.path.join(conf_dir, "%s.key" % name)
+    return os.path.join(conf_dir, KEYS_DIR, "%s.key" % name)
 
 
 def get_ca_cert_file_path(conf_dir, name):
@@ -50,3 +50,24 @@ def get_ca_cert_file_path(conf_dir, name):
     Return the ca certificate file path
     """
     return os.path.join(conf_dir, "%s.cert" % name)
+
+
+def get_arpki_private_key_file_path(conf_dir):
+    """
+    Return the arpki private key file path
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "arpki.key")
+
+
+def get_cert_log_private_key_file_path(conf_dir, name):
+    """
+    Return the cert log private key file path.
+    """
+    return os.path.join(conf_dir, "%s.key" % name)
+
+
+def get_rains_private_key_file_path(conf_dir):
+    """
+    Return the root rains key file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "rains-root.key")
