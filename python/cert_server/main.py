@@ -25,7 +25,7 @@ import time
 
 # External packages
 from nacl.exceptions import CryptoError
-from prometheus_client import Counter
+from prometheus_client import Counter, Gauge
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -80,6 +80,8 @@ from scion_elem.scion_elem import SCIONElement
 
 # Exported metrics.
 REQS_TOTAL = Counter("cs_requests_total", "# of total requests", ["server_id", "isd_as", "type"])
+IS_MASTER = Gauge("cs_is_master", "true if this process is the replication master",
+                  ["server_id", "isd_as"])
 
 # Timeout for API path requests
 API_TOUT = 1
@@ -172,6 +174,8 @@ class CertServer(SCIONElement):
             sleep_interval(start, worker_cycle, "CS.worker cycle",
                            self._quiet_startup())
             start = SCIONTime.get_time()
+            # Update IS_MASTER metric.
+            IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
             try:
                 self.zk.wait_connected()
                 self.trc_cache.process()

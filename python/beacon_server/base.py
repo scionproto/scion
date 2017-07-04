@@ -26,7 +26,7 @@ from threading import Lock, RLock
 
 # External packages
 from external.expiring_dict import ExpiringDict
-from prometheus_client import Counter
+from prometheus_client import Counter, Gauge
 
 # SCION
 from beacon_server.if_state import InterfaceState
@@ -92,6 +92,8 @@ SEGMENTS_REGISTERED = Counter("bs_segments_registered_total", "# of registered s
                               ["server_id", "isd_as", "type"])
 REVOCATIONS_ISSUED = Counter("bs_revocations_issued_total", "# of issued revocations",
                              ["server_id", "isd_as"])
+IS_MASTER = Gauge("bs_is_master", "true if this process is the replication master",
+                  ["server_id", "isd_as"])
 
 
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
@@ -500,6 +502,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start, worker_cycle, "BS.worker cycle",
                            self._quiet_startup())
             start = time.time()
+            # Update IS_MASTER metric.
+            IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
             try:
                 self.zk.wait_connected()
                 self.pcb_cache.process()
