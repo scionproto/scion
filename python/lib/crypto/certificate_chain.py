@@ -118,7 +118,7 @@ class CertificateChain(object):
         try:
             self.core_as_cert.verify(self.as_cert.issuer,
                                      trc.core_ases[self.core_as_cert.issuer][ONLINE_KEY_STRING])
-        except SCIONVerificationError:
+        except SCIONVerificationError as e:
             raise SCIONVerificationError("Core AS certificate verification failed: %s" % e)
 
     def get_leaf_isd_as_ver(self):
