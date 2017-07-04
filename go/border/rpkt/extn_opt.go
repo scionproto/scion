@@ -26,6 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"*/
 	"fmt"
 	"hash"
+
 	"github.com/netsec-ethz/scion/go/lib/drkey"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )

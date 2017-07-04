@@ -32,7 +32,7 @@ from lib.drkey.types import (
 from lib.drkey.util import drkey_time, get_drkey_exp_time
 from lib.errors import SCIONVerificationError
 from lib.msg_meta import UDPMetadata
-from lib.packet.opt.ext import SCIONOriginPathTraceExtn
+from lib.packet.opt.pt_ext import SCIONOriginPathTraceExtn
 
 
 class OPTProtocol(DRKeyProtocolBase):
@@ -140,7 +140,6 @@ def get_sciond_params(spkt, path=None):
     params.timestamp = drkey_time()
     params.protocol = DRKeyProtocols.OPT
     params.request_id = 0
-
 
     # MAC created with key S->D
     params.request_type = DRKeyProtoKeyType.HOST_TO_HOST

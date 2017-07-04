@@ -28,7 +28,7 @@ from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.spse.parse import parse_spse
-from lib.packet.opt.parse import parse_opt
+from lib.packet.opt.pt_parse import parse_opt
 from lib.sibra.ext.util import parse_sibra_ext
 from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType, L4Proto
 

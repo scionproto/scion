@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`parse` --- Parse SCIONOriginPathTrace extension
+:mod:`parse` --- Parse SCIONOriginValidationExtn extension
 ========================================
 """
 
 # SCION
-from lib.packet.opt.ext import SCIONOriginPathTraceExtn
+from lib.packet.opt.ov_ext import SCIONOriginValidationExtn
 
 
-def parse_opt(raw):  # pragma: no cover
+def parse_sova(raw):  # pragma: no cover
     """
     Parses the SCIONOriginPathTrace extension
     """
-    return SCIONOriginPathTraceExtn(raw)
+    return SCIONOriginValidationExtn(raw)

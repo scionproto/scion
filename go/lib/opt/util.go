@@ -29,7 +29,7 @@ func (e *Extn) DataHashed(payload common.RawBytes) common.RawBytes {
 
 func (e *Extn) InitializePVF(key common.RawBytes, payload common.RawBytes) (common.RawBytes, *common.Error) {
 	dataHash := e.DataHashed(payload)
-        mac, err := util.InitMac(key)
+	mac, err := util.InitMac(key)
 	if err != nil {
 		return nil, err
 	}

@@ -18,22 +18,11 @@
 # Stdlib
 
 # SCION
-from lib.packet.ext_hdr import EndToEndExtension
 from lib.packet.opt.defines import (
     OPTLengths,
-    OPTValidationError)
-from lib.types import ExtEndToEndType
+    OPTValidationError, OPTMode)
+from lib.packet.opt.ext_base import SCIONOriginPathTraceBaseExtn
 from lib.util import hex_str, Raw
-
-
-class SCIONOriginPathTraceBaseExtn(EndToEndExtension):
-    """
-    Base class of SCION Packet Security extension.
-    """
-    EXT_TYPE = ExtEndToEndType.OPT
-
-    def __init__(self, raw=None):
-        super().__init__(raw)
 
 
 class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
@@ -44,7 +33,7 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
 
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    | xxxxxxxxxxxxxxxxxxxxxxxx |                    padding                 |
+    | xxxxxxxxxxxxxxxxxxxxxxxx |  Mode  |            Timestamp              |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     |                               DataHash...                             |
     +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -66,10 +55,7 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         """
         :param bytes raw: Raw data holding DataHash, SessionID and PVF
         """
-        self.padding = b" "*5
-        self.datahash = b" "*16
-        self.sessionID = b" "*16
-        self.PVF = b" "*16
+        self.PVF = bytes(OPTLengths.PVF)
         super().__init__(raw)
 
     def _parse(self, raw):
@@ -80,15 +66,19 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         data = Raw(raw, self.NAME)
         super()._parse(data)
 
+        self.mode = bytes([data.pop(OPTLengths.MODE)])
+        self.timestamp = data.pop(OPTLengths.TIMESTAMP)
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
         self.PVF = data.pop(OPTLengths.PVF)
 
     @classmethod
-    def from_values(cls, datahash, sessionID, PVF):  # pragma: no cover
+    def from_values(cls, mode, timestamp,  datahash, sessionID, PVF):  # pragma: no cover
         """
         Construct extension.
 
+        :param bytes mode: The mode of the extension
+        :param bytes timestamp: The timestamp when the extension was created
         :param bytes datahash: The hash of the payload
         :param bytes sessionID: The session ID of the extension.
         :param bytes PVF: The Path Verification Field for the extension
@@ -97,7 +87,9 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL))
+        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.PATH_TRACE_ONLY]))
+        inst.mode = mode
+        inst.timestamp = timestamp
         inst.datahash = datahash
         inst.sessionID = sessionID
         inst.PVF = PVF
@@ -110,7 +102,7 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         :returns: packed extension.
         :rtype: bytes
         """
-        packed = [self.padding, self.datahash, self.sessionID,
+        packed = [self.mode, self.timestamp, self.datahash, self.sessionID,
                   self.PVF]
         raw = b"".join(packed)
         self._check_len(raw)

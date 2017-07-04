@@ -22,20 +22,35 @@ from lib.errors import SCIONBaseError
 
 
 class OPTBaseError(SCIONBaseError):
-    """Root SPSE Error exception. All other SPSE errors derive from this."""
+    """Root OPT Error exception. All other OPT errors derive from this."""
 
 
 class OPTValidationError(OPTBaseError):
     """Validation error"""
 
 
+class OPTMode:
+    """
+    SCION Origin Validation and Path Trace extension modes
+    """
+    OPT = 0
+    PATH_TRACE_ONLY = 1
+    ORIGIN_VALIDATION_ONLY = 2
+
+
 class OPTLengths:
     """
     SCIONOriginPathTrace extension constant lengths.
     """
-    PADDING = 5
+    MODE = 1
+    TIMESTAMP = 4
     DATAHASH = 16
     SESSIONID = 16
     PVF = 16
+    OVs = 16
 
-    TOTAL = PADDING + DATAHASH + SESSIONID + PVF
+    TOTAL = {
+        OPTMode.OPT: MODE + TIMESTAMP + DATAHASH + SESSIONID + PVF + OVs,
+        OPTMode.PATH_TRACE_ONLY: MODE + TIMESTAMP + DATAHASH + SESSIONID + PVF,
+        OPTMode.ORIGIN_VALIDATION_ONLY: MODE + TIMESTAMP + DATAHASH + OVs
+    }
