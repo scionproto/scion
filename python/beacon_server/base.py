@@ -503,7 +503,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                            self._quiet_startup())
             start = time.time()
             # Update IS_MASTER metric.
-            IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
+            if self._labels:
+                IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
             try:
                 self.zk.wait_connected()
                 self.pcb_cache.process()
