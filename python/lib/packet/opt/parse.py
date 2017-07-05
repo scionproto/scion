@@ -12,16 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`parse` --- Parse SCIONOriginValidationExtn extension
+:mod:`parse` --- Parse SCIONOriginPathTrace extension
 ========================================
 """
 
 # SCION
-from lib.packet.opt.ov_ext import SCIONOriginValidationExtn
+from lib.packet.opt.base_ext import SCIONOriginPathTraceBaseExtn
+from lib.packet.opt.defines import OPTMode
 
 
-def parse_sova(raw):  # pragma: no cover
+def parse_opt(raw):  # pragma: no cover
     """
-    Parses the SCIONOriginPathTrace extension
+    Parses the SCIONOriginPathTrace extension depending on the OPT mode
     """
-    return SCIONOriginValidationExtn(raw)
+    mode = raw[0]
+    if mode in OPTMode.OPT:
+        return SCIONOriginValidationPathTraceExtn(raw)
+    if mode in OPTMode.PATH_TRACE_ONLY:
+        return SCIONPathTraceExtn(raw)
+    if mode in OPTMode.ORIGIN_VALIDATION_ONLY:
+        return SCIONOriginValidationExtn(raw)
+    raise SCIONParseError("Unable to parse OPT. Invalid sec mode %s" % mode)

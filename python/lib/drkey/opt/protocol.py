@@ -32,7 +32,7 @@ from lib.drkey.types import (
 from lib.drkey.util import drkey_time, get_drkey_exp_time
 from lib.errors import SCIONVerificationError
 from lib.msg_meta import UDPMetadata
-from lib.packet.opt.pt_ext import SCIONOriginPathTraceExtn
+from lib.packet.opt.pt_ext import SCIONPathTraceExtn
 
 
 class OPTProtocol(DRKeyProtocolBase):

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`extn` --- SCION Origin Validation extension
+:mod:`extn` --- SCION Origin validation and Path Trace extension
 =================================================================
 """
 # Stdlib
@@ -25,11 +25,11 @@ from lib.packet.opt.base_ext import SCIONOriginPathTraceBaseExtn
 from lib.util import hex_str, Raw
 
 
-class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
+class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
     """
-    Implementation of SCION Origin Validation extension.
+    Implementation of SCION Origin Validation and Path Trace extension.
 
-    OV extension Header
+    OPT extension Header
 
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -43,18 +43,23 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
     +--------+--------+--------+--------+--------+--------+--------+--------+
     |                            ...Session ID                              |
     +--------+--------+--------+--------+--------+--------+--------+--------+
+    |                                  PVF...                               |
+    +--------+--------+--------+--------+--------+--------+--------+--------+
+    |                               ...PVF                                  |
+    +--------+--------+----i----+--------+--------+--------+--------+-------+
     |                                  OV_i ...                             |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     |                               ...OV_i  (var length)                   |
     +--------+--------+--------+--------+--------+--------+--------+--------+
 
     """
-    NAME = "SCIONOriginValidationExtn"
+    NAME = "SCIONOriginPathTraceExtn"
 
     def __init__(self, raw=None):  # pragma: no cover
         """
-        :param bytes raw: Raw data holding DataHash, SessionID and OVs
+        :param bytes raw: Raw data holding DataHash, SessionID and PVF
         """
+        self.PVF = bytes(OPTLengths.PVF)
         self.OVs = []
         super().__init__(raw)
 
@@ -66,18 +71,20 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         data = Raw(raw, self.NAME)
         super()._parse(data)
 
-        self.mode = bytes([data.pop(OPTLengths.MODE)])
+        mode_int = int(data.pop(OPTLengths.MODE))
+        self.mode = bytes([mode_int])
         self.timestamp = data.pop(OPTLengths.TIMESTAMP)
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
-        all_OVs = data.pop()
+        self.PVF = data.pop(OPTLengths.PVF)
         self.OVs = []
         if len(all_OVs) % 16 == 0:  # check we got valid OVs
+            self.ov_count = len(all_OVs)//16
             for ov_index in len(all_OVs):
                 self.OVs.append(bytes(all_OVs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
 
     @classmethod
-    def from_values(cls, mode, timestamp, datahash, sessionID, OVs):  # pragma: no cover
+    def from_values(cls, mode, timestamp,  datahash, sessionID, PVF, OVs):  # pragma: no cover
         """
         Construct extension.
 
@@ -85,17 +92,18 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         :param bytes timestamp: The timestamp when the extension was created
         :param bytes datahash: The hash of the payload
         :param bytes sessionID: The session ID of the extension.
-        :param bytes OVs: The Origin Validation Field for the extension
+        :param bytes PVF: The Path Verification Field for the extension
         :returns: The created instance.
-        :rtype: SCIONOriginValidationExtn
+        :rtype: SCIONOriginPathTraceExtn
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.ORIGIN_VALIDATION_ONLY]))
+        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.PATH_TRACE_ONLY]))
         inst.mode = mode
         inst.timestamp = timestamp
         inst.datahash = datahash
         inst.sessionID = sessionID
+        inst.PVF = PVF
         inst.OVs = OVs
         return inst
 
@@ -107,19 +115,19 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         :rtype: bytes
         """
         packed = [self.mode, self.timestamp, self.datahash, self.sessionID,
-                  b"".join(self.OVs)]
+                  self.PVF, b"".join(self.OVs)]
         raw = b"".join(packed)
         self._check_len(raw)
         return raw
 
     @classmethod
-    def check_validity(cls, datahash, sessionID, OVs):
+    def check_validity(cls, datahash, sessionID, PVF, OVs):
         """
         Check if parameters are valid.
 
         :param bytes datahash: The hash of the payload
         :param bytes sessionID: The session ID of the extension.
-        :param bytes OVs: The Origin Validation Field for the extension
+        :param bytes PVF: The Path Verification Field for the extension
         :raises: OPTValidationError
         """
 
@@ -129,11 +137,14 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         if len(sessionID) != OPTLengths.SESSIONID:
             raise OPTValidationError("Invalid sessionID length %sB. Expected %sB" % (
                 len(sessionID), OPTLengths.SESSIONID))
+        if len(PVF) != OPTLengths.PVF:
+            raise OPTValidationError("Invalid PVF length %sB. Expected %sB" % (
+                len(PVF), OPTLengths.PVF))
         if len(OVs) % OPTLengths.OVs != 0:
             raise OPTValidationError("Invalid OVs length %sB. Expected a multiple of %sB" % (
                 len(OVs), OPTLengths.OVs))
 
     def __str__(self):
-        return "%s(%sB):\n\tDatahash: %s\n\tSessionID: %s\n\tOVs: %s" % (
+        return "%s(%sB):\n\tDatahash: %s\n\tSessionID: %s\n\tPVF: %s" % (
             self.NAME, len(self), hex_str(self.datahash),
-            hex_str(self.sessionID), hex_str(self.OVs))
+            hex_str(self.sessionID), hex_str(self.PVF))

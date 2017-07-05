@@ -21,11 +21,11 @@
 from lib.packet.opt.defines import (
     OPTLengths,
     OPTValidationError, OPTMode)
-from lib.packet.opt.ext_base import SCIONOriginPathTraceBaseExtn
+from lib.packet.opt.base_ext import SCIONOriginPathTraceBaseExtn
 from lib.util import hex_str, Raw
 
 
-class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
+class SCIONPathTraceExtn(SCIONOriginPathTraceBaseExtn):
     """
     Implementation of SCION Origin Validation and Path Trace extension.
 
