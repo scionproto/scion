@@ -347,11 +347,18 @@ class PathSegment(SCIONPayloadBaseProto):
         desc.append("%s, %s, " % (self.short_id(), iso_timestamp(self.get_timestamp())))
         hops = []
         for asm in self.iter_asms():
-            hops.append(str(asm.isd_as()))
+            hop = []
+            hof = asm.pcbm(0).hof()
+            if hof.ingress_if:
+                hop.append("%d " % hof.ingress_if)
+            hop.append("%s" % asm.isd_as())
+            if hof.egress_if:
+                hop.append(" %d" % hof.egress_if)
+            hops.append("".join(hop))
         exts = []
         if self.is_sibra():
             exts.append("  %s" % self.sibra_ext.short_desc())
-        desc.append(" > ".join(hops))
+        desc.append(">".join(hops))
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
