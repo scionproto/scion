@@ -132,7 +132,7 @@ class CertServer(SCIONElement):
             labels=trc_labels,
         )
         self.drkey_protocol_requests = RequestHandler.start(
-            "DRKey Requests", self._check_drkey, self._fetch_drkey, self._reply_proto_drkey,
+            "DRKey Requests", self._check_drkey, self._fetch_drkey, self._reply_drkey_proto_req,
             labels=drkey_labels,
         )
 
@@ -397,7 +397,7 @@ class CertServer(SCIONElement):
                             req.short_desc())
             return
         sv = self._get_drkey_secret(get_drkey_exp_time(req.p.flags.prefetch))
-        cert_version = self.trust_store.get_cert(self.addr.isd_as).certs[0].version
+        cert_version = self.trust_store.get_cert(self.addr.isd_as).as_cert.version
         trc_version = self.trust_store.get_trc(self.addr.isd_as[0]).version
         rep = get_drkey_reply(sv, self.addr.isd_as, meta.ia, self.private_key,
                               self.signing_key, cert_version, cert, trc_version)
@@ -505,7 +505,7 @@ class CertServer(SCIONElement):
             verify_sig_chain_trc(raw, rep.p.signature, rep.isd_as, chain, trc)
         except SCIONVerificationError as e:
             raise SCIONVerificationError(str(e))
-        return chain.certs[0]
+        return chain.as_cert
 
     def _check_drkey(self, drkey):
         """
@@ -526,14 +526,14 @@ class CertServer(SCIONElement):
 
         :param FirstOrderDRKey drkey: The missing DRKey.
         """
-        cert = self.trust_store.get_cert(self.addr.isd_as)
+        cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         trc = self.trust_store.get_trc(self.addr.isd_as[0])
-        if not cert or not trc:
+        if not cert_chain or not trc:
             logging.warning("DRKeyRequest for %s not sent. Own CertChain/TRC not present.",
                             drkey.src_ia)
             return
         req = get_drkey_request(drkey.src_ia, False, self.signing_key,
-                                cert.certs[0].version, trc.version)
+                                cert_chain.as_cert.version, trc.version)
         path_meta = self._get_path_via_api(drkey.src_ia)
         if path_meta:
             meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
