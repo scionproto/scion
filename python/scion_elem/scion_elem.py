@@ -312,7 +312,8 @@ class SCIONElement(object):
             now = time.time()
             for (isd, ver), (req_time, meta) in self.requested_trcs.items():
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
-                    trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+                    trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver,
+                                                     cache_only=True)
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
                     self.send_meta(trc_req, meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
@@ -401,8 +402,7 @@ class SCIONElement(object):
             with self.req_trcs_lock:
                 if (isd, ver) in self.requested_trcs:
                     continue
-            isd_as = ISD_AS.from_values(isd, 0)
-            trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
+            trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
             if not meta:
                 logging.error("Couldn't find a CS to request TRC for PCB %s",
