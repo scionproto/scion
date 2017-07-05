@@ -66,7 +66,8 @@ class SCIONOriginPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         data = Raw(raw, self.NAME)
         super()._parse(data)
 
-        self.mode = bytes([data.pop(OPTLengths.MODE)])
+        mode_int = int(data.pop(OPTLengths.MODE))
+        self.mode = bytes([mode_int])
         self.timestamp = data.pop(OPTLengths.TIMESTAMP)
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
