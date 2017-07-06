@@ -126,7 +126,7 @@ def verify_pvf(spkt, drkey):
 
 def _find_opt_extn(spkt):
     for e in spkt.ext_hdrs:
-        if isinstance(e, SCIONOriginPathTraceExtn):
+        if isinstance(e, SCIONPathTraceExtn):
             return e
     return None
 

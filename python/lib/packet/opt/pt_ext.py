@@ -23,6 +23,7 @@ from lib.packet.opt.defines import (
     OPTValidationError, OPTMode)
 from lib.packet.opt.base_ext import SCIONOriginPathTraceBaseExtn
 from lib.util import hex_str, Raw
+from lib.crypto.symcrypto import mac
 
 
 class SCIONPathTraceExtn(SCIONOriginPathTraceBaseExtn):
@@ -49,7 +50,7 @@ class SCIONPathTraceExtn(SCIONOriginPathTraceBaseExtn):
     +--------+--------+--------+--------+--------+--------+--------+--------+
 
     """
-    NAME = "SCIONOriginPathTraceExtn"
+    NAME = "SCIONPathTraceExtn"
 
     def __init__(self, raw=None):  # pragma: no cover
         """
@@ -84,11 +85,11 @@ class SCIONPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         :param bytes sessionID: The session ID of the extension.
         :param bytes PVF: The Path Verification Field for the extension
         :returns: The created instance.
-        :rtype: SCIONOriginPathTraceExtn
+        :rtype: SCIONPathTraceExtn
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.PATH_TRACE_ONLY]))
+        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.PATH_TRACE_ONLY])-1)
         inst.mode = mode
         inst.timestamp = timestamp
         inst.datahash = datahash
@@ -108,6 +109,9 @@ class SCIONPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         raw = b"".join(packed)
         self._check_len(raw)
         return raw
+
+    def init_pvf(self, key):
+        self.PVF = mac(key, self.datahash)
 
     @classmethod
     def check_validity(cls, datahash, sessionID, PVF):

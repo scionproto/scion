@@ -18,6 +18,7 @@
 # Stdlib
 
 # SCION
+from lib.crypto.symcrypto import mac
 from lib.packet.opt.defines import (
     OPTLengths,
     OPTValidationError, OPTMode)
@@ -77,6 +78,10 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
                 self.OVs.append(bytes(all_OVs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
 
     @classmethod
+    def ov_from_values(cls, ov_list):
+        return b''.join(ov_list)
+
+    @classmethod
     def from_values(cls, mode, timestamp, datahash, sessionID, OVs):  # pragma: no cover
         """
         Construct extension.
@@ -91,7 +96,7 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.ORIGIN_VALIDATION_ONLY]))
+        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.ORIGIN_VALIDATION_ONLY])-1)
         inst.mode = mode
         inst.timestamp = timestamp
         inst.datahash = datahash
@@ -111,6 +116,13 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         raw = b"".join(packed)
         self._check_len(raw)
         return raw
+
+    def create_ovs_from_path(self, key_list):
+        ov_list = []
+        for key in key_list:
+            ov_list.append(mac(key, self.datahash))
+        ovs = b''.join(ov_list)
+        return ovs
 
     @classmethod
     def check_validity(cls, datahash, sessionID, OVs):

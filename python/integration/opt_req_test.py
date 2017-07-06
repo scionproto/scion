@@ -29,7 +29,7 @@ from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion import build_base_hdrs, SCIONL4Packet
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.packet.opt.pt_ext import SCIONOriginPathTraceExtn
+from lib.packet.opt.pt_ext import SCIONPathTraceExtn
 from lib.packet.opt.defines import OPTLengths
 from lib.thread import kill_self
 from lib.types import L4Proto
@@ -49,21 +49,27 @@ class E2EClient(TestClientBase):
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
-        extn = SCIONOriginPathTraceExtn.from_values(bytes(OPTLengths.MODE),
-                                                    bytes(OPTLengths.TIMESTAMP),
-                                                    bytes(OPTLengths.DATAHASH),
-                                                    bytes(OPTLengths.SESSIONID),
-                                                    bytes(OPTLengths.PVF)
-                                                    )
+
+        extn = SCIONPathTraceExtn.from_values(bytes([1]),
+                                              bytes(OPTLengths.TIMESTAMP),
+                                              bytes(OPTLengths.DATAHASH),
+                                              bytes(OPTLengths.SESSIONID),
+                                              bytes(OPTLengths.PVF)
+                                              )
+
         if path is None:
             path = self.path_meta.fwd_path()
             print(path)
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [extn], l4_hdr)
-        spkt.set_payload(self._create_payload(spkt))
+        payload = self._create_payload(spkt)
+        spkt.set_payload(payload)
         spkt.update()
         drkey = _try_sciond_api(spkt, self._connector)
         print(drkey)
+
+        extn.init_pvf(drkey[0].drkey)
+
         return spkt
 
     def _create_payload(self, spkt):

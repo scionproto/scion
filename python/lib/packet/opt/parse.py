@@ -17,8 +17,11 @@
 """
 
 # SCION
-from lib.packet.opt.base_ext import SCIONOriginPathTraceBaseExtn
+from lib.errors import SCIONParseError
 from lib.packet.opt.defines import OPTMode
+from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
+from lib.packet.opt.ov_ext import SCIONOriginValidationExtn
+from lib.packet.opt.pt_ext import SCIONPathTraceExtn
 
 
 def parse_opt(raw):  # pragma: no cover
@@ -26,10 +29,10 @@ def parse_opt(raw):  # pragma: no cover
     Parses the SCIONOriginPathTrace extension depending on the OPT mode
     """
     mode = raw[0]
-    if mode in OPTMode.OPT:
+    if mode == OPTMode.OPT:
         return SCIONOriginValidationPathTraceExtn(raw)
-    if mode in OPTMode.PATH_TRACE_ONLY:
+    if mode == OPTMode.PATH_TRACE_ONLY:
         return SCIONPathTraceExtn(raw)
-    if mode in OPTMode.ORIGIN_VALIDATION_ONLY:
+    if mode == OPTMode.ORIGIN_VALIDATION_ONLY:
         return SCIONOriginValidationExtn(raw)
     raise SCIONParseError("Unable to parse OPT. Invalid sec mode %s" % mode)

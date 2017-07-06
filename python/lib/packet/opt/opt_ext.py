@@ -18,6 +18,7 @@
 # Stdlib
 
 # SCION
+from lib.crypto.symcrypto import mac
 from lib.packet.opt.defines import (
     OPTLengths,
     OPTValidationError, OPTMode)
@@ -53,7 +54,7 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
     +--------+--------+--------+--------+--------+--------+--------+--------+
 
     """
-    NAME = "SCIONOriginPathTraceExtn"
+    NAME = "OriginValidationPathTrace"
 
     def __init__(self, raw=None):  # pragma: no cover
         """
@@ -77,11 +78,12 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
         self.PVF = data.pop(OPTLengths.PVF)
+        all_ovs = data.pop()
         self.OVs = []
-        if len(all_OVs) % 16 == 0:  # check we got valid OVs
-            self.ov_count = len(all_OVs)//16
-            for ov_index in len(all_OVs):
-                self.OVs.append(bytes(all_OVs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
+        if len(all_ovs) % 16 == 0:  # check we got valid OVs
+            self.ov_count = len(all_ovs)//16
+            for ov_index in range(len(all_ovs)):
+                self.OVs.append(bytes(all_ovs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
 
     @classmethod
     def from_values(cls, mode, timestamp,  datahash, sessionID, PVF, OVs):  # pragma: no cover
@@ -94,11 +96,11 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         :param bytes sessionID: The session ID of the extension.
         :param bytes PVF: The Path Verification Field for the extension
         :returns: The created instance.
-        :rtype: SCIONOriginPathTraceExtn
+        :rtype: OriginValidationPathTrace
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.PATH_TRACE_ONLY]))
+        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.OPT])-1)
         inst.mode = mode
         inst.timestamp = timestamp
         inst.datahash = datahash
@@ -119,6 +121,9 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         raw = b"".join(packed)
         self._check_len(raw)
         return raw
+
+    def init_pvf(self, key):
+        self.PVF = mac(key, self.datahash)
 
     @classmethod
     def check_validity(cls, datahash, sessionID, PVF, OVs):

@@ -69,9 +69,9 @@ result=$((result+$?))
 run "SCMPAuth End2End" "python/integration/scmp_auth_end2end_test.py -l ERROR --runs 60"
 result=$((result+$?))
 
-#echo -e "\n\n"
-#run "OPT test" "python/integration/opt_req_test.py"
-#result=$((result+$?))
+echo -e "\n\n"
+run "OPT test" "python/integration/opt_req_test.py"
+result=$((result+$?))
 
 #run "OPT End2End" "python/integration/opt_end2end_test.py -l ERROR --runs 60"
 #result=$((result+$?))

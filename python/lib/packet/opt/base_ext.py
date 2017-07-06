@@ -45,7 +45,7 @@ class SCIONOriginPathTraceBaseExtn(EndToEndExtension):
     +--------+--------+--------+--------+--------+--------+--------+--------+
     """
     EXT_TYPE = ExtEndToEndType.OPT
-    NAME = "SCIONOriginPathTraceExtn"
+    NAME = "SCIONOriginPathTraceBase"
 
     def __init__(self, raw=None):  # pragma: no cover
         """
