@@ -350,7 +350,7 @@ class CertServer(SCIONElement):
         _, orig_req = req_info
         if orig_req.p.cacheOnly:
             return
-        self._send_cc_request(*key, orig_req.isd_as()[1])
+        self._send_trc_request(*key, orig_req.isd_as()[1])
 
     def _send_trc_request(self, isd, ver, as_):
         isd_as = ISD_AS.from_values(isd, as_)
