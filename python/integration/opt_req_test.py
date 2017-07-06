@@ -23,14 +23,16 @@ import logging
 import time
 
 import lib.app.sciond as lib_sciond
+from lib.crypto.symcrypto import sha256
 from lib.drkey.opt.protocol import get_sciond_params
+from lib.drkey.util import drkey_time
 from lib.main import main_wrapper
+from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion import build_base_hdrs, SCIONL4Packet
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.packet.opt.pt_ext import SCIONPathTraceExtn
-from lib.packet.opt.defines import OPTLengths
+from lib.packet.opt.defines import OPTLengths, OPTMode
 from lib.thread import kill_self
 from lib.types import L4Proto
 from integration.base_cli_srv import (
@@ -46,16 +48,20 @@ class E2EClient(TestClientBase):
     """
     Simple ping app.
     """
+
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
+        path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
 
-        extn = SCIONPathTraceExtn.from_values(bytes([1]),
-                                              bytes(OPTLengths.TIMESTAMP),
-                                              bytes(OPTLengths.DATAHASH),
-                                              bytes(OPTLengths.SESSIONID),
-                                              bytes(OPTLengths.PVF)
-                                              )
+        extn = SCIONOriginValidationPathTraceExtn.\
+            from_values(bytes([0]),
+                        bytes(OPTLengths.TIMESTAMP),
+                        bytes(OPTLengths.DATAHASH),
+                        bytes(OPTLengths.SESSIONID),
+                        bytes(OPTLengths.PVF),
+                        [bytes(OPTLengths.OVs)]*len(path_meta)
+                        )
 
         if path is None:
             path = self.path_meta.fwd_path()
@@ -65,10 +71,14 @@ class E2EClient(TestClientBase):
         payload = self._create_payload(spkt)
         spkt.set_payload(payload)
         spkt.update()
-        drkey = _try_sciond_api(spkt, self._connector)
-        print(drkey)
 
-        extn.init_pvf(drkey[0].drkey)
+        drkey, misc = _try_sciond_api(spkt, self._connector, path_meta)
+        print(drkey)
+        extn.timestamp = drkey_time().to_bytes(4, 'big')
+        extn.datahash = sha256(payload.pack())[:16]
+        extn.init_pvf(drkey.drkey)
+        if misc.drkeys:
+            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
 
         return spkt
 
@@ -76,9 +86,10 @@ class E2EClient(TestClientBase):
         path = [i.isd_as() for i in self.path_meta.iter_ifs()]
         print(path)
         drkey, misc = _try_sciond_api(
-            spkt, self._connector)
+            spkt, self._connector, path)
         data = drkey.drkey + b" " + self.data
-        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len - len(spkt.l4_hdr)
+        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len_bytes() - \
+            len(spkt.l4_hdr) - len(spkt.ext_hdrs[0])
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):
@@ -94,7 +105,7 @@ class E2EClient(TestClientBase):
                           len(spkt), self.path_meta.p.mtu)
             return ResponseRV.FAILURE
         payload = spkt.get_payload()
-        drkey, misc = _try_sciond_api(spkt, self._connector)
+        drkey, misc = _try_sciond_api(spkt, self._connector, path=None)
         logging.debug(drkey)
         logging.debug(misc)
         pong = self._gen_max_pld(drkey.drkey + b" " + self.data, len(payload))
@@ -149,8 +160,9 @@ class E2EServer(TestServerBase):
     """
     Simple pong app.
     """
+
     def _handle_request(self, spkt):
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector)
+        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=None)
         logging.debug(drkey)
         expected = drkey.drkey + b" " + self.data
         raw_pld = spkt.get_payload().pack()
@@ -168,20 +180,20 @@ class E2EServer(TestServerBase):
 
     def _create_payload(self, spkt):
         old_pld = spkt.get_payload()
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector)
+        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=None)
         logging.debug(drkey)
         data = drkey.drkey + b" " + self.data
         padding = len(old_pld) - len(data)
         return PayloadRaw(data + bytes(padding))
 
 
-def _try_sciond_api(spkt, connector):
-
+def _try_sciond_api(spkt, connector, path):
     start = time.time()
     while time.time() - start < API_TOUT:
         try:
-            drkey, misc = lib_sciond.get_protocol_drkey(get_sciond_params(spkt),
-                                                        connector=connector)
+            drkey, misc = lib_sciond.get_protocol_drkey(
+                get_sciond_params(spkt, mode=OPTMode.OPT, path=path),
+                connector=connector)
         except lib_sciond.SCIONDConnectionError as e:
             logging.error("Connection to SCIOND failed: %s " % e)
             break
@@ -198,7 +210,7 @@ class TestEnd2End(TestClientServerBase):
     End to end packet transmission test.
     For this test a infrastructure must be running.
     """
-    NAME = "End2End"
+    NAME = "OPT_request"
 
     def _create_server(self, data, finished, addr):
         return E2EServer(data, finished, addr)
@@ -208,7 +220,7 @@ class TestEnd2End(TestClientServerBase):
 
 
 def main():
-    args, srcs, dsts = setup_main("end2end")
+    args, srcs, dsts = setup_main("OPT_request")
     TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs,
                 retries=args.retries).run()
 

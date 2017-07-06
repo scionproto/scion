@@ -71,11 +71,11 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         self.timestamp = data.pop(OPTLengths.TIMESTAMP)
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
-        all_OVs = data.pop()
+        all_ovs = data.pop()
         self.OVs = []
-        if len(all_OVs) % 16 == 0:  # check we got valid OVs
-            for ov_index in len(all_OVs):
-                self.OVs.append(bytes(all_OVs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
+        if len(all_ovs) % 16 == 0:  # check we got valid OVs
+            for ov_index in range(len(all_ovs)):
+                self.OVs.append(bytes(all_ovs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
 
     @classmethod
     def ov_from_values(cls, ov_list):
@@ -96,7 +96,8 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.ORIGIN_VALIDATION_ONLY])-1)
+        init_length = OPTLengths.TOTAL[OPTMode.ORIGIN_VALIDATION_ONLY]+16*len(OVs)
+        inst._init_size(inst.bytes_to_hdr_len(init_length)-1)
         inst.mode = mode
         inst.timestamp = timestamp
         inst.datahash = datahash
@@ -121,8 +122,7 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         ov_list = []
         for key in key_list:
             ov_list.append(mac(key, self.datahash))
-        ovs = b''.join(ov_list)
-        return ovs
+        return ov_list
 
     @classmethod
     def check_validity(cls, datahash, sessionID, OVs):
@@ -148,4 +148,4 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
     def __str__(self):
         return "%s(%sB):\n\tDatahash: %s\n\tSessionID: %s\n\tOVs: %s" % (
             self.NAME, len(self), hex_str(self.datahash),
-            hex_str(self.sessionID), hex_str(self.OVs))
+            hex_str(self.sessionID), hex_str(b"".join(self.OVs)))

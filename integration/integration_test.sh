@@ -73,9 +73,9 @@ echo -e "\n\n"
 run "OPT test" "python/integration/opt_req_test.py"
 result=$((result+$?))
 
-#run "OPT End2End" "python/integration/opt_end2end_test.py -l ERROR --runs 60"
-#result=$((result+$?))
-#echo -e "\n\n"
+run "OPT End2End" "python/integration/opt_end2end_test.py -l ERROR --runs 60"
+result=$((result+$?))
+echo -e "\n\n"
 
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-as1-11:br1-11-3 as2-26:br2-26-2 as1-14:br1-14-3 as1-16:br1-16-2}"

@@ -72,8 +72,7 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         data = Raw(raw, self.NAME)
         super()._parse(data)
 
-        mode_int = int(data.pop(OPTLengths.MODE))
-        self.mode = bytes([mode_int])
+        self.mode = bytes([data.pop(OPTLengths.MODE)])
         self.timestamp = data.pop(OPTLengths.TIMESTAMP)
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
@@ -86,7 +85,7 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
                 self.OVs.append(bytes(all_ovs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
 
     @classmethod
-    def from_values(cls, mode, timestamp,  datahash, sessionID, PVF, OVs):  # pragma: no cover
+    def from_values(cls, mode, timestamp, datahash, sessionID, PVF, OVs):  # pragma: no cover
         """
         Construct extension.
 
@@ -100,7 +99,7 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         :raises: None
         """
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.OPT])-1)
+        inst._init_size(inst.bytes_to_hdr_len(OPTLengths.TOTAL[OPTMode.OPT]+16*len(OVs))-1)
         inst.mode = mode
         inst.timestamp = timestamp
         inst.datahash = datahash
@@ -125,6 +124,12 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
     def init_pvf(self, key):
         self.PVF = mac(key, self.datahash)
 
+    def create_ovs_from_path(self, key_list):
+        ov_list = []
+        for key in key_list:
+            ov_list.append(mac(key.drkey, self.datahash))
+        return ov_list
+
     @classmethod
     def check_validity(cls, datahash, sessionID, PVF, OVs):
         """
@@ -133,6 +138,7 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         :param bytes datahash: The hash of the payload
         :param bytes sessionID: The session ID of the extension.
         :param bytes PVF: The Path Verification Field for the extension
+        :param bytes OVs: The Origin Validation Field for the extension
         :raises: OPTValidationError
         """
 
@@ -150,6 +156,6 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
                 len(OVs), OPTLengths.OVs))
 
     def __str__(self):
-        return "%s(%sB):\n\tDatahash: %s\n\tSessionID: %s\n\tPVF: %s" % (
+        return "%s(%sB):\n\tDatahash: %s\n\tSessionID: %s\n\tPVF: %s\n\tOVs: %s" % (
             self.NAME, len(self), hex_str(self.datahash),
-            hex_str(self.sessionID), hex_str(self.PVF))
+            hex_str(self.sessionID), hex_str(self.PVF), hex_str(b"".join(self.OVs)))

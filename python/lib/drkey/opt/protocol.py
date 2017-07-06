@@ -32,7 +32,14 @@ from lib.drkey.types import (
 from lib.drkey.util import drkey_time, get_drkey_exp_time
 from lib.errors import SCIONVerificationError
 from lib.msg_meta import UDPMetadata
+from lib.packet.opt.defines import OPTMode
+from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
+from lib.packet.opt.ov_ext import SCIONOriginValidationExtn
 from lib.packet.opt.pt_ext import SCIONPathTraceExtn
+
+
+# Validity period for timestamp check, in ms
+expiration_delay = 2 * 1000
 
 
 class OPTProtocol(DRKeyProtocolBase):
@@ -114,25 +121,67 @@ class OPTProtocol(DRKeyProtocolBase):
             ))
 
 
-def set_pvf(spkt, drkey):
-    assert isinstance(drkey, SecondOrderDRKey)
-    return
-
-
-def verify_pvf(spkt, drkey):
-    assert isinstance(drkey, SecondOrderDRKey)
-    raise SCIONVerificationError("Invalid PVF")
-
-
 def _find_opt_extn(spkt):
+    for e in spkt.ext_hdrs:
+        if isinstance(e, SCIONOriginValidationPathTraceExtn):
+            return e
+    return None
+
+
+def _find_pathtrace_extn(spkt):
     for e in spkt.ext_hdrs:
         if isinstance(e, SCIONPathTraceExtn):
             return e
     return None
 
 
-def get_sciond_params(spkt, path=None):
-    extn = _find_opt_extn(spkt)
+def _find_originvalidation_extn(spkt):
+    for e in spkt.ext_hdrs:
+        if isinstance(e, SCIONOriginValidationExtn):
+            return e
+    return None
+
+
+def set_pvf(spkt, drkey):
+    assert isinstance(drkey, SecondOrderDRKey)
+    pathtrace_hdr = _find_pathtrace_extn(spkt)
+    pathtrace_hdr.PVF = mac(drkey.drkey, pathtrace_hdr.datahash)
+    return
+
+
+def verify_pvf(spkt, drkey, keylist):
+    assert isinstance(drkey, SecondOrderDRKey)
+    pathtrace_hdr = _find_pathtrace_extn(spkt)
+    packet_hash = pathtrace_hdr.datahash  # compute over payload
+    computed_pvf = mac(drkey.drkey, packet_hash)
+    for key in keylist:
+        computed_pvf = mac(key, computed_pvf.join(packet_hash))
+    header_timestamp = int.from_bytes(pathtrace_hdr.timestamp, byteorder='big')
+    timestamp_valid = (drkey_time() - header_timestamp) < expiration_delay
+    print(timestamp_valid)
+    if not pathtrace_hdr.PVF == computed_pvf:
+        raise SCIONVerificationError("Invalid PVF")
+    return
+
+
+def verify_ov(spkt, drkey):
+    assert isinstance(drkey, SecondOrderDRKey)
+    origin_validation_hdr = _find_originvalidation_extn(spkt)
+    packet_hash = origin_validation_hdr.datahash
+    computed_ov = mac(drkey.drkey, packet_hash)
+    if not origin_validation_hdr.OVs[:-1] == computed_ov:
+        raise SCIONVerificationError("Invalid OV")
+    return
+
+
+def get_sciond_params(spkt, mode=1, path=None):
+    extn = _find_pathtrace_extn(spkt)
+    if mode == OPTMode.OPT:
+        extn = _find_opt_extn(spkt)
+    if mode == OPTMode.PATH_TRACE_ONLY:
+        extn = _find_pathtrace_extn(spkt)
+    if mode == OPTMode.ORIGIN_VALIDATION_ONLY:
+        extn = _find_originvalidation_extn(spkt)
     if not extn:
         return None
 
