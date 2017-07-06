@@ -33,7 +33,6 @@ from string import Template
 
 # External packages
 import yaml
-from nacl.signing import SigningKey
 
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
@@ -360,7 +359,7 @@ class CertGenerator(object):
             self.core_certs[topo_id] = Certificate.from_values(
                 str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
                 comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
-                self.sig_pub_keys[topo_id], SigningKey(signing_key)
+                self.sig_pub_keys[topo_id], signing_key
             )
         # Create regular AS certificate
         signing_key = self.sig_priv_keys[issuer]
@@ -370,7 +369,7 @@ class CertGenerator(object):
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
             comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
-            self.sig_pub_keys[topo_id], SigningKey(signing_key)
+            self.sig_pub_keys[topo_id], signing_key
         )
 
     def _build_chains(self):
@@ -412,7 +411,7 @@ class CertGenerator(object):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc.sign(str(topo_id), SigningKey(self.priv_online_root_keys[topo_id]))
+        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         trc = self.trcs[topo_id[0]]

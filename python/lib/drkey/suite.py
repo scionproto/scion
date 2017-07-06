@@ -20,7 +20,6 @@ Rules for DRKey suite and first order DRKey exchange
 
 # External
 import struct
-from nacl.public import PublicKey
 
 # SCION
 from lib.crypto.asymcrypto import encrypt, decrypt, sign
@@ -55,7 +54,7 @@ def get_drkey_request(dst_ia, prefetch, signing_key, cert_ver, trc_ver):
 
     :param ISD_AS dst_ia: destination of the DRKey request.
     :param Bool prefetch: indicator if prefetch (True) or not (False).
-    :param SigningKey signing_key: the signing key
+    :param bytes signing_key: the signing key
     :param int cert_ver: version of the certificate associated with singing key
     :param int trc_ver: version of the trc associated with the certificate.
     :returns: the signed DRKeyRequest.
@@ -104,11 +103,11 @@ def _encrypt_drkey(drkey, private_key, public_key):
     Encrypt the first order DRKey.
 
     :param bytes drkey: the raw first order DRKey.
-    :param PrivateKey private_key: the local private key.
+    :param bytes private_key: the local private key.
     :param bytes public_key: the raw public key.
     :return:
     """
-    return bytes(encrypt(drkey, private_key, PublicKey(public_key)))
+    return bytes(encrypt(drkey, private_key, public_key))
 
 
 def get_drkey_reply(sv, src_ia, dst_ia, priv_key, signing_key, cert_ver, dst_cert, trc_ver):
@@ -120,8 +119,8 @@ def get_drkey_reply(sv, src_ia, dst_ia, priv_key, signing_key, cert_ver, dst_cer
     :param DRKeySecretValue sv: the local secret value used to derive the DRKey.
     :param ISD_AS src_ia: the local ISD-AS address.
     :param ISD_AS dst_ia: the ISD-AS for which the DRKey is computed.
-    :param PrivateKey priv_key: local private key.
-    :param SigningKey signing_key: local signing key.
+    :param bytes priv_key: local private key.
+    :param bytes signing_key: local signing key.
     :param int cert_ver: version of the certificate, priv_key and signing_key are associated with.
     :param Certificate dst_cert: the certificated of the destination ISD-AS.
     :param int trc_ver: version of trc associated with cert_ver.
@@ -129,7 +128,7 @@ def get_drkey_reply(sv, src_ia, dst_ia, priv_key, signing_key, cert_ver, dst_cer
     :rtype: DRKeyReply
     """
     drkey = derive_drkey_raw(sv, dst_ia)
-    cipher = bytes(encrypt(drkey, priv_key, PublicKey(dst_cert.subject_enc_key_raw)))
+    cipher = bytes(encrypt(drkey, priv_key, dst_cert.subject_enc_key_raw))
     timestamp = drkey_time()
     signature = sign(get_signing_input_rep(src_ia, timestamp, sv.exp_time, cipher), signing_key)
     return DRKeyReply.from_values(src_ia, timestamp, sv.exp_time, cipher, signature,
@@ -141,10 +140,10 @@ def decrypt_drkey(cipher, private_key, public_key):
     Decrypt the encrypted first order DRKey.
 
     :param bytes cipher: the encrypted DRKey
-    :param PrivateKey private_key: the local private key.
+    :param bytes private_key: the local private key.
     :param bytes public_key: the public key of the sender.
     :returns: the raw first order DRKey.
     :rtype: bytes
     :raises: CryptoError
     """
-    return decrypt(cipher, private_key, PublicKey(public_key))
+    return decrypt(cipher, private_key, public_key)
