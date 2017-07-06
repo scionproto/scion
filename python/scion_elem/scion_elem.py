@@ -111,7 +111,12 @@ PKT_BUF_BYTES = Gauge("se_pkt_buf_bytes", "Memory usage of input buffer",
                       ["server_id", "isd_as"])
 PKTS_DROPPED_TOTAL = Counter("se_packets_dropped_total", "Total packets dropped",
                              ["server_id", "isd_as"])
-
+UNV_SEGS_TOTAL = Gauge("se_unverified_segs_total", "# of unverified segments",
+                       ["server_id", "isd_as"])
+PENDING_TRC_REQS_TOTAL = Gauge("se_pending_trc_reqs", "# of pending TRC requests",
+                               ["server_id", "isd_as"])
+PENDING_CERT_REQS_TOTAL = Gauge("se_pending_cert_reqs", "# of pending CERT requests",
+                                ["server_id", "isd_as"])
 
 MAX_QUEUE = 50
 
@@ -155,6 +160,8 @@ class SCIONElement(object):
             os.path.join(self.conf_dir, TOPO_FILE))
         self.config = Config.from_file(
             os.path.join(self.conf_dir, AS_CONF_FILE))
+        # Labels attached to every exported metric.
+        self._labels = {"server_id": self.id, "isd_as": str(self.topology.isd_as)}
         # Must be over-ridden by child classes:
         self.CTRL_PLD_CLASS_MAP = {}
         self.SCMP_PLD_CLASS_MAP = {}
@@ -168,7 +175,7 @@ class SCIONElement(object):
             if bind is None:
                 self.bind = own_config.bind
         self.init_ifid2br()
-        self.trust_store = TrustStore(self.conf_dir)
+        self.trust_store = TrustStore(self.conf_dir, self._labels)
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
         self.init_core_ases()
@@ -193,7 +200,6 @@ class SCIONElement(object):
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         self._setup_sockets(True)
-        self._labels = None
         if prom_export:
             self._export_metrics(prom_export)
 
@@ -317,6 +323,8 @@ class SCIONElement(object):
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
                     self.send_meta(trc_req, meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
+                    if self._labels:
+                        PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
 
     def _check_cert_reqs(self):
         """
@@ -330,6 +338,9 @@ class SCIONElement(object):
                     logging.info("Re-Requesting CERTCHAIN from %s: %s", meta, cert_req.short_desc())
                     self.send_meta(cert_req, meta)
                     self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+                    if self._labels:
+                        PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(
+                            len(self.requested_certs))
 
     def _process_path_seg(self, seg_meta):
         """
@@ -342,6 +353,8 @@ class SCIONElement(object):
         with self.unv_segs_lock:
             if seg_meta not in self.unverified_segs:
                 self.unverified_segs.add(seg_meta)
+                if self._labels:
+                    UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
         # Find missing TRCs and certificates
         missing_trcs = self._missing_trc_versions(seg_meta.trc_vers)
         missing_certs = self._missing_cert_versions(seg_meta.cert_vers)
@@ -371,6 +384,8 @@ class SCIONElement(object):
             return
         with self.unv_segs_lock:
             self.unverified_segs.discard(seg_meta)
+            if self._labels:
+                UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
         if seg_meta.meta:
             seg_meta.meta.close()
         seg_meta.callback(seg_meta)
@@ -412,6 +427,8 @@ class SCIONElement(object):
                          isd, ver, meta, seg_meta.seg.short_id())
             with self.req_trcs_lock:
                 self.requested_trcs[(isd, ver)] = (time.time(), meta)
+                if self._labels:
+                    PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
             self.send_meta(trc_req, meta)
 
     def _request_missing_certs(self, seg_meta):
@@ -440,6 +457,8 @@ class SCIONElement(object):
                          isd_as, ver, meta, seg_meta.seg.short_id())
             with self.req_certs_lock:
                 self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+                if self._labels:
+                    PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
             self.send_meta(cert_req, meta)
 
     def _missing_trc_versions(self, trc_versions):
@@ -498,6 +517,8 @@ class SCIONElement(object):
             self._update_core_ases(rep.trc)
         with self.req_trcs_lock:
             self.requested_trcs.pop((isd, ver), None)
+            if self._labels:
+                PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
         # Send trc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
             cs_meta = self._get_cs()
@@ -540,6 +561,8 @@ class SCIONElement(object):
         self.trust_store.add_cert(rep.chain, True)
         with self.req_certs_lock:
             self.requested_certs.pop((isd_as, ver), None)
+            if self._labels:
+                PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
         # Send cc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
             cs_meta = self._get_cs()
@@ -1144,10 +1167,6 @@ class SCIONElement(object):
         """
         Starts an HTTP server endpoint for prometheus to scrape.
         """
-        # Create a dummy counter to export the server_id as a label for correlating
-        # server_id and other metrics.
-        self._labels = {"server_id": self.id, "isd_as": str(self.topology.isd_as)}
-
         addr, port = export_addr.split(":")
         port = int(port)
         addr = addr.strip("[]")

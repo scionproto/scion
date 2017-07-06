@@ -21,6 +21,9 @@ import glob
 import logging
 import threading
 
+# External packages
+from prometheus_client import Gauge
+
 # SCION
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
@@ -28,10 +31,22 @@ from lib.crypto.util import CERT_DIR
 from lib.util import read_file, write_file
 
 
+TRCS_TOTAL = Gauge("ts_trcs_total", "# of TRCs in TrustStore", ["server_id", "isd_as"])
+CERTS_TOTAL = Gauge("ts_certs_total", "# of Certs in TrustStore", ["server_id", "isd_as"])
+
+
 class TrustStore(object):
     """Trust Store class."""
-    def __init__(self, conf_dir):  # pragma: no cover
+    def __init__(self, conf_dir, labels=None):  # pragma: no cover
+        """
+        :param str conf_dir: configuration directory.
+        :param dict labels:
+            Labels added to the exported metrics. The following labels are supported:
+                - server_id: A unique identifier of the server that is exporting
+                - isd_as: The ISD_AS of where the server is running
+        """
         self._dir = "%s/%s" % (conf_dir, CERT_DIR)
+        self._labels = labels
         self._certs = defaultdict(list)
         self._trcs = defaultdict(list)
         self._trcs_lock = threading.Lock()
@@ -93,6 +108,8 @@ class TrustStore(object):
                 if version == ver:
                     return
             self._trcs[isd].append((version, trc))
+            if self._labels:
+                TRCS_TOTAL.labels(**self._labels).inc()
         if write:
             write_file("%s/ISD%s-V%s.trc" % (self._dir, isd, version), str(trc))
 
@@ -103,6 +120,8 @@ class TrustStore(object):
                 if version == ver:
                     return
             self._certs[isd_as].append((version, cert))
+            if self._labels:
+                CERTS_TOTAL.labels(**self._labels).inc()
         if write:
             write_file("%s/ISD%s-AS%s-V%s.crt" %
                        (self._dir, isd_as[0], isd_as[1], version),
