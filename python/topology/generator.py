@@ -395,7 +395,7 @@ class CertGenerator(object):
         core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
         core[ONLINE_KEY_STRING] = self.pub_online_root_keys[topo_id]
         core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = self.priv_online_root_keys[topo_id]
+        core[OFFLINE_KEY_STRING] = self.pub_offline_root_keys[topo_id]
         trc.core_ases[str(topo_id)] = core
         ca_certs = {}
         for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
