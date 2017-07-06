@@ -63,6 +63,8 @@ REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_a
 REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
 SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
 REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", ["server_id", "isd_as"])
+HT_ROOT_MAPPTINGS = Gauge("ps_ht_root_mappings_total", "# of hashtree root to segment mappings",
+                          ["server_id", "isd_as"])
 IS_MASTER = Gauge("ps_is_master", "true if this process is the replication master",
                   ["server_id", "isd_as"])
 
@@ -554,6 +556,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Update SEGS_TO_ZK and REVS_TO_ZK metrics.
         SEGS_TO_ZK.labels(**self._labels).set(len(self._segs_to_zk))
         REVS_TO_ZK.labels(**self._labels).set(len(self._revs_to_zk))
+        # Update HT_ROOT_MAPPTINGS metric.
+        HT_ROOT_MAPPTINGS.labels(**self._labels).set(len(self.htroot_if2seg))
         # Update IS_MASTER metric.
         IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
 
