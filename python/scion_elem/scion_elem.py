@@ -195,7 +195,7 @@ class SCIONElement(object):
             self._DefaultMeta = TCPMetadata
         else:
             self._DefaultMeta = UDPMetadata
-        self.unverified_segs = set()
+        self.unverified_segs = {}
         self.unv_segs_lock = threading.RLock()
         self.requested_trcs = {}
         self.req_trcs_lock = threading.Lock()
@@ -359,10 +359,13 @@ class SCIONElement(object):
         meta_str = str(seg_meta.meta) if seg_meta.meta else "ZK"
         logging.debug("Handling PCB from %s: %s" % (meta_str, seg_meta.seg.short_desc()))
         with self.unv_segs_lock:
-            if seg_meta not in self.unverified_segs:
-                self.unverified_segs.add(seg_meta)
-                if self._labels:
-                    UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
+            # Close the meta of the previous seg_meta, if there was one.
+            prev_meta = self.unverified_segs.get(seg_meta.id)
+            if prev_meta and prev_meta.meta:
+                prev_meta.meta.close()
+            self.unverified_segs[seg_meta.id] = seg_meta
+            if self._labels:
+                UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
         # Find missing TRCs and certificates
         missing_trcs = self._missing_trc_versions(seg_meta.trc_vers)
         missing_certs = self._missing_cert_versions(seg_meta.cert_vers)
@@ -391,7 +394,7 @@ class SCIONElement(object):
                           (seg_meta.seg.short_id(), e))
             return
         with self.unv_segs_lock:
-            self.unverified_segs.discard(seg_meta)
+            self.unverified_segs.pop(seg_meta.id, None)
             if self._labels:
                 UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
         if seg_meta.meta:
@@ -542,7 +545,7 @@ class SCIONElement(object):
         the processing is continued.
         """
         with self.unv_segs_lock:
-            for seg_meta in list(self.unverified_segs):
+            for seg_meta in list(self.unverified_segs.values()):
                 with seg_meta.miss_trc_lock:
                     seg_meta.missing_trcs.discard((isd, ver))
                 # If all required trcs and certs are received
@@ -586,7 +589,7 @@ class SCIONElement(object):
         the processing is continued.
         """
         with self.unv_segs_lock:
-            for seg_meta in list(self.unverified_segs):
+            for seg_meta in list(self.unverified_segs.values()):
                 with seg_meta.miss_cert_lock:
                     seg_meta.missing_certs.discard((isd_as, ver))
                 # If all required trcs and certs are received.
