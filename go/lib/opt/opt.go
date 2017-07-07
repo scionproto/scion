@@ -25,7 +25,8 @@ import (
 
 const (
 	// Basic definitions
-	PaddingLength   = 5
+	MetaLength      = 1
+	TimestampLength = 4
 	DatahashLength  = 16
 	SessionIDLength = 16
 	PVFLength       = 16

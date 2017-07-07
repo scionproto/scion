@@ -38,11 +38,11 @@ EXTENSION_MAP = {
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.TRACEROUTE): TracerouteExt,
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.ONE_HOP_PATH): OneHopPathExt,
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SCMP): SCMPExt,
+    (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.OPT): parse_opt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.SPSE): parse_spse,
-    (ExtensionClass.END_TO_END, ExtEndToEndType.OPT): parse_opt,
 }
 
 

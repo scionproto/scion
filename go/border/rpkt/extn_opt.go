@@ -77,15 +77,59 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	}
 	key, err := o.calcOPTRKey()
 	if err != nil {
-		return HookFinish, err
+		return HookError, err
 	}
 	updatedPVF, err := extn.UpdatePVF(key)
 	if err != nil {
-		return HookFinish, err
+		return HookError, err
 	}
 	o.rp.Logger.Error("B Eye")
 	o.SetPVF(updatedPVF)
 	return HookContinue, nil
+}
+
+// Meta returns a slice of the underlying buffer
+func (o *rOPTExt) Meta() (common.RawBytes, *common.Error) {
+	l, h, err := o.limitsMeta()
+	if err != nil {
+		return nil, err
+	}
+	return o.raw[l:h], nil
+}
+
+// Set the Meta field directly in the underlying buffer
+func (o *rOPTExt) SetMeta(meta common.RawBytes) *common.Error {
+	Meta, err := o.Meta()
+	if err != nil {
+		return err
+	}
+	if len(Meta) != len(meta) {
+		return common.NewError("Invalid datahash length", "expected", len(Meta), "actual", len(meta))
+	}
+	copy(Meta, meta)
+	return nil
+}
+
+// Timestamp returns a slice of the underlying buffer
+func (o *rOPTExt) Timestamp() (common.RawBytes, *common.Error) {
+	l, h, err := o.limitsTimestamp()
+	if err != nil {
+		return nil, err
+	}
+	return o.raw[l:h], nil
+}
+
+// Set the Timestamp directly in the underlying buffer
+func (o *rOPTExt) SetTimestamp(timestamp common.RawBytes) *common.Error {
+	Timestamp, err := o.Timestamp()
+	if err != nil {
+		return err
+	}
+	if len(Timestamp) != len(timestamp) {
+		return common.NewError("Invalid datahash length", "expected", len(Timestamp), "actual", len(timestamp))
+	}
+	copy(Timestamp, timestamp)
+	return nil
 }
 
 // Datahash returns a slice of the underlying buffer
@@ -99,14 +143,14 @@ func (o *rOPTExt) Datahash() (common.RawBytes, *common.Error) {
 
 // Set the Datahash directly in the underlying buffer
 func (o *rOPTExt) SetDatahash(datahash common.RawBytes) *common.Error {
-	hash, err := o.Datahash()
+	Datahash, err := o.Datahash()
 	if err != nil {
 		return err
 	}
-	if len(hash) != len(datahash) {
-		return common.NewError("Invalid datahash length", "expected", len(hash), "actual", len(datahash))
+	if len(Datahash) != len(datahash) {
+		return common.NewError("Invalid datahash length", "expected", len(Datahash), "actual", len(datahash))
 	}
-	copy(hash, datahash)
+	copy(Datahash, datahash)
 	return nil
 }
 
@@ -143,7 +187,7 @@ func (o *rOPTExt) PVF() (common.RawBytes, *common.Error) {
 
 // Set the PVF directly in the underlying buffer
 func (o *rOPTExt) SetPVF(pathVerificationField common.RawBytes) *common.Error {
-	PVF, err := o.SessionID()
+	PVF, err := o.PVF()
 	if err != nil {
 		return err
 	}
@@ -229,20 +273,34 @@ func (o *rOPTExt) String() string {
 	return extn.String()
 }
 
-// limitsDatahash returns the limits of the Datahas in the raw buffer
-func (o *rOPTExt) limitsDatahash() (int, int, *common.Error) {
-	size := opt.DatahashLength
+// limitsTimestmap returns the limits of the Timestamp in the raw buffer
+func (o *rOPTExt) limitsMeta() (int, int, *common.Error) {
+	size := opt.MetaLength
 	return 0, 0 + size, nil
 }
 
-// limitsSessionID returns the limits of the Datahas in the raw buffer
+// limitsTimestmap returns the limits of the Timestamp in the raw buffer
+func (o *rOPTExt) limitsTimestamp() (int, int, *common.Error) {
+	size := opt.TimestampLength
+	_, l, _ := o.limitsMeta()
+	return l, l + size, nil
+}
+
+// limitsDatahash returns the limits of the Datahash in the raw buffer
+func (o *rOPTExt) limitsDatahash() (int, int, *common.Error) {
+	size := opt.DatahashLength
+	_, l, _ := o.limitsTimestamp()
+	return l, l + size, nil
+}
+
+// limitsSessionID returns the limits of the SessionID in the raw buffer
 func (o *rOPTExt) limitsSessionID() (int, int, *common.Error) {
 	size := opt.SessionIDLength
 	_, l, _ := o.limitsDatahash()
 	return l, l + size, nil
 }
 
-// limitsDatahash returns the limits of the Datahas in the raw buffer
+// limitsPVF returns the limits of the PVF in the raw buffer
 func (o *rOPTExt) limitsPVF() (int, int, *common.Error) {
 	size := opt.PVFLength
 	_, l, _ := o.limitsSessionID()

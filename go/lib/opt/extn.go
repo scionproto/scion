@@ -28,7 +28,7 @@ OPT extension Header
 
 0B       1        2        3        4        5        6        7
 +--------+--------+--------+--------+--------+--------+--------+--------+
-| xxxxxxxxxxxxxxxxxxxxxxxx |                    padding                 |
+| xxxxxxxxxxxxxxxxxxxxxxxx |  Meta  |           Timestamp               |
 +--------+--------+--------+--------+--------+--------+--------+--------+
 |                               DataHash...                             |
 +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -45,13 +45,15 @@ OPT extension Header
 */
 
 type Extn struct { // fields of the extension
+	Meta      common.RawBytes
+	Timestamp common.RawBytes
 	DataHash  common.RawBytes
 	SessionId common.RawBytes
 	PVF       common.RawBytes
 }
 
 func (e *Extn) Len() int {
-	return common.ExtnFirstLineLen + len(e.SessionId) + len(e.PVF)
+	return common.ExtnFirstLineLen + +len(e.Meta) + len(e.Timestamp) + len(e.SessionId) + len(e.PVF)
 }
 
 func (e *Extn) Class() common.L4ProtocolType {
@@ -80,14 +82,38 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 			"expected min", e.Len(), "actual", len(b))
 	}
 
-	datahashOffset := PaddingLength
+	metaOffset := 0
+	timestampOffset := metaOffset + MetaLength
+	datahashOffset := timestampOffset + TimestampLength
 	sessionIDOffset := datahashOffset + DatahashLength
 	PVFOffset := sessionIDOffset + SessionIDLength
 	totalLength := sessionIDOffset + PVFOffset
 
+	copy(b[metaOffset:timestampOffset], e.Meta)
+	copy(b[timestampOffset:datahashOffset], e.Timestamp)
 	copy(b[datahashOffset:sessionIDOffset], e.DataHash)
 	copy(b[sessionIDOffset:PVFOffset], e.SessionId)
 	copy(b[PVFOffset:totalLength], e.PVF)
+	return nil
+}
+
+// Set the Meta field.
+func (e *Extn) SetMeta(meta common.RawBytes) *common.Error {
+	if len(e.Meta) != len(meta) {
+		return common.NewError("The length does not match",
+			"expected", len(e.Meta), "actual", len(meta))
+	}
+	copy(e.Timestamp, meta)
+	return nil
+}
+
+// Set the Timestamp.
+func (e *Extn) SetTimestamp(timestamp common.RawBytes) *common.Error {
+	if len(e.Timestamp) != len(timestamp) {
+		return common.NewError("The length does not match",
+			"expected", len(e.Timestamp), "actual", len(timestamp))
+	}
+	copy(e.Timestamp, timestamp)
 	return nil
 }
 

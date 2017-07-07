@@ -55,7 +55,8 @@ class E2EClient(TestClientBase):
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
 
         extn = SCIONOriginValidationExtn.\
-            from_values(bytes([2]),
+            from_values(2,
+                        0,
                         bytes(OPTLengths.TIMESTAMP),
                         bytes(OPTLengths.DATAHASH),
                         bytes(OPTLengths.SESSIONID),

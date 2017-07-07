@@ -34,7 +34,7 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
 
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    | xxxxxxxxxxxxxxxxxxxxxxxx |  Mode  |            Timestamp              |
+    | xxxxxxxxxxxxxxxxxxxxxxxx |  Meta  |            Timestamp              |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     |                               DataHash...                             |
     +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -67,7 +67,9 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         data = Raw(raw, self.NAME)
         super()._parse(data)
 
-        self.mode = bytes([data.pop(OPTLengths.MODE)])
+        self.meta = bytes([data.pop(OPTLengths.META)])
+        self.mode = int(self.meta[0] >> 6)
+        self.path_index = int(self.meta[0] & 0x3f)
         self.timestamp = data.pop(OPTLengths.TIMESTAMP)
         self.datahash = data.pop(OPTLengths.DATAHASH)
         self.sessionID = data.pop(OPTLengths.SESSIONID)
@@ -82,15 +84,16 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         return b''.join(ov_list)
 
     @classmethod
-    def from_values(cls, mode, timestamp, datahash, sessionID, OVs):  # pragma: no cover
+    def from_values(cls, mode, path_index, timestamp, datahash, sessionID, OVs):  # pragma: no cover
         """
         Construct extension.
 
-        :param bytes mode: The mode of the extension
+        :param int mode: The mode of the extension, 0 <= mode <= 3
+        :param int path_index: The path_index for the OV field
         :param bytes timestamp: The timestamp when the extension was created
         :param bytes datahash: The hash of the payload
         :param bytes sessionID: The session ID of the extension.
-        :param bytes OVs: The Origin Validation Field for the extension
+        :param []bytes OVs: The Origin Validation Fields for the extension
         :returns: The created instance.
         :rtype: SCIONOriginValidationExtn
         :raises: None
@@ -98,7 +101,10 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         inst = cls()
         init_length = OPTLengths.TOTAL[OPTMode.ORIGIN_VALIDATION_ONLY]+16*len(OVs)
         inst._init_size(inst.bytes_to_hdr_len(init_length)-1)
+        assert 0 <= mode <= 3
         inst.mode = mode
+        inst.path_index = path_index
+        inst.meta = (mode << 6) | path_index
         inst.timestamp = timestamp
         inst.datahash = datahash
         inst.sessionID = sessionID
@@ -112,7 +118,8 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         :returns: packed extension.
         :rtype: bytes
         """
-        packed = [self.mode, self.timestamp, self.datahash, self.sessionID,
+        meta = (self.mode << 6) | self.path_index
+        packed = [bytes([meta]), self.timestamp, self.datahash, self.sessionID,
                   b"".join(self.OVs)]
         raw = b"".join(packed)
         self._check_len(raw)

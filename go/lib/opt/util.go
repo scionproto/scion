@@ -15,16 +15,16 @@
 package opt
 
 import (
-	//"crypto/sha256"
+	"bytes"
+	"crypto/sha256"
+
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-//func (e *Extn) DataHashed(packet rpkt.RtrPkt) []byte {
 func (e *Extn) DataHashed(payload common.RawBytes) common.RawBytes {
-	/*shaChecksum := sha256.New
-	return shaChecksum(packet)*/
-	return payload
+	shaChecksum := sha256.New()
+	return shaChecksum.Sum(payload)[:16]
 }
 
 func (e *Extn) InitializePVF(key common.RawBytes, payload common.RawBytes) (common.RawBytes, *common.Error) {
@@ -47,7 +47,7 @@ func (e *Extn) UpdatePVF(key common.RawBytes) (common.RawBytes, *common.Error) {
 	if err != nil {
 		return nil, err
 	}
-	updatedPVF, err := util.Mac(mac, e.PVF)
+	updatedPVF, err := util.Mac(mac, append(e.PVF, e.DataHash...))
 	if err != nil {
 		return nil, err
 	}
@@ -57,4 +57,21 @@ func (e *Extn) UpdatePVF(key common.RawBytes) (common.RawBytes, *common.Error) {
 	sessionKey := cbcMAC(localSecret, e.SessionId)
 	e.PVF = cbcMAC(sessionKey, e.PVF)*/
 	return updatedPVF, nil
+}
+
+// check the OV is valid for the current hop
+func (e *Extn) ValidateOV(key common.RawBytes) (bool, *common.Error) {
+	mac, err := util.InitMac(key)
+	if err != nil {
+		return false, err
+	}
+	currentOV := e.PVF // check with correct OV for the current hop
+	computedOV, err := util.Mac(mac, currentOV)
+	if err != nil {
+		return false, err
+	}
+	if !bytes.Equal(computedOV, currentOV) {
+		return false, err
+	}
+	return true, nil
 }

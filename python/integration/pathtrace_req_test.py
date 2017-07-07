@@ -23,7 +23,9 @@ import logging
 import time
 
 import lib.app.sciond as lib_sciond
+from lib.crypto.symcrypto import sha256
 from lib.drkey.opt.protocol import get_sciond_params
+from lib.drkey.util import drkey_time
 from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
@@ -51,7 +53,7 @@ class E2EClient(TestClientBase):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
 
-        extn = SCIONPathTraceExtn.from_values(bytes([1]),
+        extn = SCIONPathTraceExtn.from_values(1,
                                               bytes(OPTLengths.TIMESTAMP),
                                               bytes(OPTLengths.DATAHASH),
                                               bytes(OPTLengths.SESSIONID),
@@ -66,10 +68,11 @@ class E2EClient(TestClientBase):
         payload = self._create_payload(spkt)
         spkt.set_payload(payload)
         spkt.update()
-        drkey = _try_sciond_api(spkt, self._connector)
+        drkey, misc = _try_sciond_api(spkt, self._connector)
         print(drkey)
-
-        extn.init_pvf(drkey[0].drkey)
+        extn.timestamp = drkey_time().to_bytes(4, 'big')
+        extn.datahash = sha256(payload.pack())[:16]
+        extn.init_pvf(drkey.drkey)
 
         return spkt
 

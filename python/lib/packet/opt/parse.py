@@ -28,11 +28,11 @@ def parse_opt(raw):  # pragma: no cover
     """
     Parses the SCIONOriginPathTrace extension depending on the OPT mode
     """
-    mode = raw[0]
+    mode = raw[0] >> 6  # raw[0] == mmii iiii where mm is mode and ii iiii is index when using OV
     if mode == OPTMode.OPT:
         return SCIONOriginValidationPathTraceExtn(raw)
     if mode == OPTMode.PATH_TRACE_ONLY:
         return SCIONPathTraceExtn(raw)
     if mode == OPTMode.ORIGIN_VALIDATION_ONLY:
         return SCIONOriginValidationExtn(raw)
-    raise SCIONParseError("Unable to parse OPT. Invalid sec mode %s" % mode)
+    raise SCIONParseError("Unable to parse OPT. Invalid OPT mode %s" % mode)

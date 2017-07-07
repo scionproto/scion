@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright 2014 ETH Zurich
+# Copyright 2017 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,7 +55,8 @@ class E2EClient(TestClientBase):
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
 
         extn = SCIONOriginValidationPathTraceExtn.\
-            from_values(bytes([0]),
+            from_values(0,
+                        0,
                         bytes(OPTLengths.TIMESTAMP),
                         bytes(OPTLengths.DATAHASH),
                         bytes(OPTLengths.SESSIONID),

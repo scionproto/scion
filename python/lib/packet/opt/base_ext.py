@@ -18,14 +18,14 @@
 # Stdlib
 
 # SCION
-from lib.packet.ext_hdr import EndToEndExtension
+from lib.packet.ext_hdr import HopByHopExtension
 from lib.packet.opt.defines import (
     OPTLengths
 )
-from lib.types import ExtEndToEndType
+from lib.types import ExtHopByHopType
 
 
-class SCIONOriginPathTraceBaseExtn(EndToEndExtension):
+class SCIONOriginPathTraceBaseExtn(HopByHopExtension):
     """
     Implementation of SCION Origin Validation and Path Trace Base extension.
 
@@ -33,7 +33,7 @@ class SCIONOriginPathTraceBaseExtn(EndToEndExtension):
 
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    | xxxxxxxxxxxxxxxxxxxxxxxx |  Mode  |            Timestamp              |
+    | xxxxxxxxxxxxxxxxxxxxxxxx |  Meta  |            Timestamp              |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     |                               DataHash...                             |
     +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -44,14 +44,16 @@ class SCIONOriginPathTraceBaseExtn(EndToEndExtension):
     |                            ...Session ID                              |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     """
-    EXT_TYPE = ExtEndToEndType.OPT
+    EXT_TYPE = ExtHopByHopType.OPT
     NAME = "SCIONOriginPathTraceBase"
 
     def __init__(self, raw=None):  # pragma: no cover
         """
-        :param bytes raw: Raw data holding DataHash, SessionID and PVF
+        :param bytes raw: Raw data holding Timestamp, DataHash, SessionID
         """
-        self.mode = bytes(OPTLengths.MODE)
+        self.meta = bytes(OPTLengths.META)
+        self.mode = 0
+        self.path_index = 0
         self.timestamp = bytes(OPTLengths.TIMESTAMP)
         self.datahash = bytes(OPTLengths.DATAHASH)
         self.sessionID = bytes(OPTLengths.SESSIONID)

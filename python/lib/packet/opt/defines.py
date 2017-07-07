@@ -42,7 +42,7 @@ class OPTLengths:
     """
     SCIONOriginPathTrace extension constant lengths.
     """
-    MODE = 1
+    META = 1
     TIMESTAMP = 4
     DATAHASH = 16
     SESSIONID = 16
@@ -50,7 +50,7 @@ class OPTLengths:
     OVs = 16
 
     TOTAL = {  # OVs are not accounted for
-        OPTMode.OPT: MODE + TIMESTAMP + DATAHASH + SESSIONID + PVF,
-        OPTMode.PATH_TRACE_ONLY: MODE + TIMESTAMP + DATAHASH + SESSIONID + PVF,
-        OPTMode.ORIGIN_VALIDATION_ONLY: MODE + TIMESTAMP + DATAHASH + SESSIONID
+        OPTMode.OPT: META + TIMESTAMP + DATAHASH + SESSIONID + PVF,
+        OPTMode.PATH_TRACE_ONLY: META + TIMESTAMP + DATAHASH + SESSIONID + PVF,
+        OPTMode.ORIGIN_VALIDATION_ONLY: META + TIMESTAMP + DATAHASH + SESSIONID
     }

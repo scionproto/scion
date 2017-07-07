@@ -146,6 +146,9 @@ def set_pvf(spkt, drkey):
     assert isinstance(drkey, SecondOrderDRKey)
     pathtrace_hdr = _find_pathtrace_extn(spkt)
     pathtrace_hdr.PVF = mac(drkey.drkey, pathtrace_hdr.datahash)
+    # print("\n\nS:\nUsed key {}, on hash {}, got PVF {}".format(
+    #     drkey, pathtrace_hdr.datahash, pathtrace_hdr.PVF)
+    # )
     return
 
 
@@ -156,11 +159,16 @@ def verify_pvf(spkt, drkey, keylist):
     computed_pvf = mac(drkey.drkey, packet_hash)
     for key in keylist:
         computed_pvf = mac(key, computed_pvf.join(packet_hash))
+    # print("\n\nV:\nUsed key {}, on hash {}, got PVF {}".format(drkey, packet_hash, computed_pvf))
     header_timestamp = int.from_bytes(pathtrace_hdr.timestamp, byteorder='big')
     timestamp_valid = (drkey_time() - header_timestamp) < expiration_delay
     print(timestamp_valid)
     if not pathtrace_hdr.PVF == computed_pvf:
-        raise SCIONVerificationError("Invalid PVF")
+        raise SCIONVerificationError(
+            "Invalid PVF\n Got ({}): {}\n Expected ({}): {}".format(
+             len(pathtrace_hdr.PVF), pathtrace_hdr.PVF,
+             len(computed_pvf), computed_pvf)
+        )
     return
 
 
@@ -175,7 +183,7 @@ def verify_ov(spkt, drkey):
 
 
 def get_sciond_params(spkt, mode=1, path=None):
-    extn = _find_pathtrace_extn(spkt)
+    extn = None
     if mode == OPTMode.OPT:
         extn = _find_opt_extn(spkt)
     if mode == OPTMode.PATH_TRACE_ONLY:
