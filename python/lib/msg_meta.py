@@ -50,6 +50,9 @@ class MetadataBase(object):
     def __str__(self):
         return "%s:%d" % (self.get_addr(), self.port)
 
+    def __eq__(self, other):
+        return self.ia == other.ia and self.host == other.host and self.port == other.port
+
 
 class UDPMetadata(MetadataBase):
     """

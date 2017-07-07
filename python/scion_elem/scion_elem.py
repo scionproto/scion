@@ -426,7 +426,9 @@ class SCIONElement(object):
             return
         for isd, ver in missing_trcs:
             with self.req_trcs_lock:
-                if (isd, ver) in self.requested_trcs:
+                _, meta = self.requested_trcs.get((isd, ver), (None, None))
+                # Prefer requesting from remote BS.
+                if meta and (not seg_meta.meta or seg_meta.meta == self._get_cs()):
                     continue
             trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -456,7 +458,9 @@ class SCIONElement(object):
             return
         for isd_as, ver in missing_certs:
             with self.req_certs_lock:
-                if (isd_as, ver) in self.requested_certs:
+                _, meta = self.requested_certs.get((isd_as, ver), (None, None))
+                # Prefer requesting from remote BS.
+                if meta and (not seg_meta.meta or seg_meta.meta == self._get_cs()):
                     continue
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
