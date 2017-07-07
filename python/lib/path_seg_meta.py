@@ -19,7 +19,7 @@
 import threading
 
 
-class PathSegMeta(object):
+class PathSegMeta(object):  # pragma: no cover
     """
     The PathSegMeta class holds missing trcs and certificates and
     necessary metadata for a path segment.
@@ -36,6 +36,7 @@ class PathSegMeta(object):
         self.meta = meta
         self.type = type_
         self.params = params
+        self.id = seg.get_hops_hash()
 
     def verifiable(self):
         with self.miss_cert_lock and self.miss_trc_lock:
