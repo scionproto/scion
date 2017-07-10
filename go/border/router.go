@@ -33,6 +33,16 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
+var sighup chan os.Signal
+
+func init() {
+	// Add a SIGHUP handler as soon as possible on startup, to reduce the
+	// chance that a premature SIGHUP will kill the process. This channel is
+	// used by confSig below.
+	sighup = make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+}
+
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-21-9".
 	Id string
@@ -69,23 +79,19 @@ func (r *Router) Run() *common.Error {
 
 // confSig handles reloading the configuration when SIGHUP is received.
 func (r *Router) confSig() {
-	sig := make(chan os.Signal)
-	signal.Notify(sig, syscall.SIGHUP)
-	go func() {
-		for range sig {
-			var err *common.Error
-			var config *conf.Conf
-			if config, err = r.loadNewConfig(); err != nil {
-				log.Error("Error reloading config", err.Ctx...)
-				continue
-			}
-			if err = r.setupNewContext(config); err != nil {
-				log.Error("Error setting up new context", err.Ctx...)
-				continue
-			}
-			log.Info("Config reloaded")
+	for range sighup {
+		var err *common.Error
+		var config *conf.Conf
+		if config, err = r.loadNewConfig(); err != nil {
+			log.Error("Error reloading config", err.Ctx...)
+			continue
 		}
-	}()
+		if err = r.setupNewContext(config); err != nil {
+			log.Error("Error setting up new context", err.Ctx...)
+			continue
+		}
+		log.Info("Config reloaded")
+	}
 }
 
 func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
