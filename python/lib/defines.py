@@ -40,6 +40,8 @@ LINE_LEN = 8
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 #: Generated files directory
 GEN_PATH = 'gen'
+#: Path for retrieved TRCs and certificates
+GEN_CACHE_PATH = 'gen-cache'
 #: Topology configuration
 TOPO_FILE = "topology.json"
 #: AS configuration

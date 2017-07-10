@@ -120,6 +120,7 @@ class TrustStore(object):
             if self._labels:
                 TRCS_TOTAL.labels(**self._labels).inc()
         if write:
+            os.makedirs(self._cachedir, exist_ok=True)
             write_file(os.path.join(self._cachedir,
                                     "%s-ISD%s-V%s.trc" % (self._ename, isd, version)),
                        str(trc))
@@ -134,6 +135,7 @@ class TrustStore(object):
             if self._labels:
                 CERTS_TOTAL.labels(**self._labels).inc()
         if write:
+            os.makedirs(self._cachedir, exist_ok=True)
             write_file(
                 os.path.join(self._cachedir, "%s-ISD%s-AS%s-V%s.crt" %
                              (self._ename, isd_as[0], isd_as[1], version)),
