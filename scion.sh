@@ -11,6 +11,8 @@ cmd_topology() {
     echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
+    [ -e gen-cache ] && rm -r gen-cache
+    mkdir gen-cache
     if [ "$1" = "zkclean" ]; then
         shift
         zkclean="y"

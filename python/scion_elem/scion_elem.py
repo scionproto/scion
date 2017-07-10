@@ -175,7 +175,7 @@ class SCIONElement(object):
             if bind is None:
                 self.bind = own_config.bind
         self.init_ifid2br()
-        self.trust_store = TrustStore(self.conf_dir, self._labels)
+        self.trust_store = TrustStore(self.conf_dir, "gen-cache", self.id, self._labels)
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
         self.init_core_ases()
