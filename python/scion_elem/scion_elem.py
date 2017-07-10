@@ -37,6 +37,7 @@ from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    GEN_CACHE_PATH,
     PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SERVICE_TYPES,
@@ -175,7 +176,7 @@ class SCIONElement(object):
             if bind is None:
                 self.bind = own_config.bind
         self.init_ifid2br()
-        self.trust_store = TrustStore(self.conf_dir, "gen-cache", self.id, self._labels)
+        self.trust_store = TrustStore(self.conf_dir, GEN_CACHE_PATH, self.id, self._labels)
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
         self.init_core_ases()
