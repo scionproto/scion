@@ -19,6 +19,7 @@
 from collections import defaultdict
 import glob
 import logging
+import os
 import threading
 
 # External packages
@@ -37,15 +38,19 @@ CERTS_TOTAL = Gauge("ts_certs_total", "# of Certs in TrustStore", ["server_id", 
 
 class TrustStore(object):
     """Trust Store class."""
-    def __init__(self, conf_dir, labels=None):  # pragma: no cover
+    def __init__(self, conf_dir, cache_dir, ename, labels=None):  # pragma: no cover
         """
         :param str conf_dir: configuration directory.
+        :param str cache_dir: directory to cache TRCs and certs in.
+        :param str ename: element name, used to generate cache file names.
         :param dict labels:
             Labels added to the exported metrics. The following labels are supported:
                 - server_id: A unique identifier of the server that is exporting
                 - isd_as: The ISD_AS of where the server is running
         """
-        self._dir = "%s/%s" % (conf_dir, CERT_DIR)
+        self._dir = os.path.join(conf_dir, CERT_DIR)
+        self._cachedir = cache_dir
+        self._ename = ename
         self._labels = labels
         self._certs = defaultdict(list)
         self._trcs = defaultdict(list)
@@ -55,13 +60,17 @@ class TrustStore(object):
         self._init_certs()
 
     def _init_trcs(self):  # pragma: no cover
-        for path in glob.glob("%s/*.trc" % self._dir):
+        trcfiles = list(glob.glob("%s/*.trc" % self._dir))
+        trcfiles.extend(glob.glob("%s/%s-*.trc" % (self._cachedir, self._ename)))
+        for path in trcfiles:
             trc_raw = read_file(path)
             self.add_trc(TRC.from_raw(trc_raw), write=False)
             logging.debug("Loaded: %s" % path)
 
     def _init_certs(self):  # pragma: no cover
-        for path in glob.glob("%s/*.crt" % self._dir):
+        certfiles = list(glob.glob("%s/*.crt" % self._dir))
+        certfiles.extend(glob.glob("%s/%s-*.crt" % (self._cachedir, self._ename)))
+        for path in certfiles:
             cert_raw = read_file(path)
             self.add_cert(CertificateChain.from_raw(cert_raw), write=False)
             logging.debug("Loaded: %s" % path)
@@ -111,7 +120,9 @@ class TrustStore(object):
             if self._labels:
                 TRCS_TOTAL.labels(**self._labels).inc()
         if write:
-            write_file("%s/ISD%s-V%s.trc" % (self._dir, isd, version), str(trc))
+            write_file(os.path.join(self._cachedir,
+                                    "%s-ISD%s-V%s.trc" % (self._ename, isd, version)),
+                       str(trc))
 
     def add_cert(self, cert, write=True):
         isd_as, version = cert.get_leaf_isd_as_ver()
@@ -123,6 +134,7 @@ class TrustStore(object):
             if self._labels:
                 CERTS_TOTAL.labels(**self._labels).inc()
         if write:
-            write_file("%s/ISD%s-AS%s-V%s.crt" %
-                       (self._dir, isd_as[0], isd_as[1], version),
-                       str(cert))
+            write_file(
+                os.path.join(self._cachedir, "%s-ISD%s-AS%s-V%s.crt" %
+                             (self._ename, isd_as[0], isd_as[1], version)),
+                str(cert))
