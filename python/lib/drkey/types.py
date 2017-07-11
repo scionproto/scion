@@ -19,6 +19,7 @@ For all type classes used in DRKey
 """
 
 # stdlib
+import logging
 import struct
 
 # SCION
@@ -168,7 +169,7 @@ class DRKeyProtocolBase(object):
     def _derive_drkey(cls, drkey, first=None, second=None):
         """
         Derive raw second order DRKey. Prepends the type of the input and the length of the
-        protocol prefix befor deriving.
+        protocol prefix before deriving.
 
         :param FirstOrderDRKey drkey: First order DRKey used for derivation.
         :param HostAddrBase first: First host address in the input
@@ -178,11 +179,18 @@ class DRKeyProtocolBase(object):
         """
         l = [struct.pack("!B", DRKeyInputType.from_hosts(first, second)),
              struct.pack("!B", len(cls.PREFIX)), cls.PREFIX]
+        logging.debug("Deriving key:")
+        for elem in l:
+            logging.debug(elem)
         if first:
             l.append(first.pack())
         if second:
             l.append(second.pack())
         l.append(bytes(BLOCK_SIZE - (sum((len(e) for e in l)) % BLOCK_SIZE)))
+        # logging.debug('\nDerived on input: ' +
+        #               str(binascii.hexlify(b"".join(l))) +
+        #               ' with key ' + str(binascii.hexlify(drkey.drkey)) +
+        #               ' to get key ' + str(binascii.hexlify(mac(drkey.drkey, b"".join(l)))))
         return mac(drkey.drkey, b"".join(l))
 
     @staticmethod

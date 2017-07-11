@@ -17,6 +17,7 @@
 """
 # External
 import logging
+import binascii
 
 # SCION
 from lib.crypto.symcrypto import mac
@@ -101,8 +102,20 @@ class OPTProtocol(DRKeyProtocolBase):
     def generate_misc_reply(cls, drkeys, req, meta):
         assert isinstance(req, DRKeyProtocolRequest)
         assert isinstance(meta, UDPMetadata)
+        text = ['\n\nSession: '+str(binascii.hexlify(req.misc.p.sessionID))]
+        temp_list = [cls._derive_drkey(drkey, req.src_host, req.dst_host) for drkey in drkeys[1:]]
+        text.append("\nFirstOrders:")
+        for k in drkeys[1:]:
+            text.append('\n' + str(binascii.hexlify(k.drkey)))
+        text.append("\nSecondOrders:")
+        for raw in temp_list:
+            text.append('\n' + str(binascii.hexlify(raw)))
         proto_drkeys = [mac(cls._derive_drkey(drkey, req.src_host, req.dst_host),
                             req.misc.p.sessionID) for drkey in drkeys[1:]]
+        text.append("\nProtoKeys:")
+        for val in proto_drkeys:
+            text.append('\n' + str(binascii.hexlify(val)))
+        # logging.debug(''.join(text))
         return OPTMiscReply.from_values(proto_drkeys)
 
     @staticmethod
@@ -146,7 +159,7 @@ def set_pvf(spkt, drkey):
     assert isinstance(drkey, SecondOrderDRKey)
     pathtrace_hdr = _find_pathtrace_extn(spkt)
     pathtrace_hdr.PVF = mac(drkey.drkey, pathtrace_hdr.datahash)
-    # print("\n\nS:\nUsed key {}, on hash {}, got PVF {}".format(
+    # logging.debug("\nS:\nUsed key {}, on hash {}, got PVF {}".format(
     #     drkey, pathtrace_hdr.datahash, pathtrace_hdr.PVF)
     # )
     return
@@ -154,21 +167,42 @@ def set_pvf(spkt, drkey):
 
 def verify_pvf(spkt, drkey, keylist):
     assert isinstance(drkey, SecondOrderDRKey)
-    pathtrace_hdr = _find_pathtrace_extn(spkt)
+    pathtrace_hdr = _find_opt_extn(spkt)
     packet_hash = pathtrace_hdr.datahash  # compute over payload
     computed_pvf = mac(drkey.drkey, packet_hash)
+    text = []
+    text.append("\n\nInitial  computed_pvf:\n from {} to {} with key {}".format(
+        binascii.hexlify(packet_hash),
+        binascii.hexlify(computed_pvf),
+        binascii.hexlify(drkey.drkey))
+    )
     for key in keylist:
-        computed_pvf = mac(key, computed_pvf.join(packet_hash))
-    # print("\n\nV:\nUsed key {}, on hash {}, got PVF {}".format(drkey, packet_hash, computed_pvf))
+        old_pvf = binascii.hexlify(computed_pvf)
+        extended_pvf = packet_hash + computed_pvf
+        computed_pvf = mac(key.drkey, extended_pvf)
+        text.append("\nIntermediate computed_pvf: from {} to {} with key {} over {}".format(
+            old_pvf, binascii.hexlify(computed_pvf),
+            binascii.hexlify(key.drkey),
+            binascii.hexlify(extended_pvf))
+        )
+    # logging.debug("".join(text))
     header_timestamp = int.from_bytes(pathtrace_hdr.timestamp, byteorder='big')
-    timestamp_valid = (drkey_time() - header_timestamp) < expiration_delay
-    print(timestamp_valid)
+    drk_time = drkey_time()
+    timestamp_valid = (drk_time - header_timestamp) < expiration_delay
+    if not timestamp_valid:
+        raise SCIONVerificationError(
+            "OPT Timestamp expired\n Got: {}\n Expected value larger than: {}".format(
+             header_timestamp,
+             drk_time - expiration_delay)
+        )
     if not pathtrace_hdr.PVF == computed_pvf:
         raise SCIONVerificationError(
             "Invalid PVF\n Got ({}): {}\n Expected ({}): {}".format(
-             len(pathtrace_hdr.PVF), pathtrace_hdr.PVF,
-             len(computed_pvf), computed_pvf)
+             len(pathtrace_hdr.PVF), binascii.hexlify(pathtrace_hdr.PVF),
+             len(computed_pvf), binascii.hexlify(computed_pvf))
         )
+    else:
+        logging.debug("PVF validated")
     return
 
 

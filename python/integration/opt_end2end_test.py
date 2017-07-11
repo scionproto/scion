@@ -13,23 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`opt_end2end_test` --- SCION OPT end2end tests
+:mod:`end2end_test` --- SCION OPT end2end tests
 ===========================================
 """
 # Stdlib
 import logging
+import binascii
 
+# SCION
 import time
 
 import lib.app.sciond as lib_sciond
-from lib.drkey.opt.protocol import get_sciond_params, set_pvf  # , verify_pvf
-# from lib.errors import SCIONVerificationError
+from lib.crypto.symcrypto import sha256
+from lib.drkey.opt.protocol import get_sciond_params, verify_pvf
+from lib.drkey.util import drkey_time
+from lib.errors import SCIONVerificationError
 from lib.main import main_wrapper
+from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion import build_base_hdrs, SCIONL4Packet
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
-from lib.packet.opt.pt_ext import SCIONPathTraceExtn
 from lib.packet.opt.defines import OPTLengths, OPTMode
 from lib.thread import kill_self
 from lib.types import L4Proto
@@ -39,40 +43,69 @@ from integration.base_cli_srv import (
     TestClientBase,
     TestClientServerBase,
     TestServerBase,
-    API_TOUT
-)
+    API_TOUT)
 
-shared_key = ""
+shared_keys = []
+shared_path = []
 
 
 class E2EClient(TestClientBase):
     """
     Simple ping app.
     """
+
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
+        path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
+        global shared_path
+        shared_path = path_meta
 
-        extn = SCIONPathTraceExtn.from_values(1,
-                                              bytes(OPTLengths.TIMESTAMP),
-                                              bytes(OPTLengths.DATAHASH),
-                                              bytes(OPTLengths.SESSIONID),
-                                              bytes(OPTLengths.PVF)
-                                              )
+        extn = SCIONOriginValidationPathTraceExtn.\
+            from_values(0,
+                        0,
+                        bytes(OPTLengths.TIMESTAMP),
+                        bytes(OPTLengths.DATAHASH),
+                        bytes(OPTLengths.SESSIONID),
+                        bytes(OPTLengths.PVF),
+                        [bytes(OPTLengths.OVs)]*len(path_meta)
+                        )
+
         if path is None:
             path = self.path_meta.fwd_path()
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [extn], l4_hdr)
-        spkt.set_payload(self._create_payload(spkt))
+        payload = self._create_payload(spkt)
+        spkt.set_payload(payload)
         spkt.update()
-        drkey, misc = _try_sciond_api(spkt, self._connector)
-        set_pvf(spkt, drkey)
+
+        drkey, misc = _try_sciond_api(spkt, self._connector, path_meta)
+        global shared_keys
+        shared_keys = [drkey]
+        shared_keys.extend(misc.drkeys)
+        for k in misc.drkeys:
+            logging.debug(binascii.hexlify(k.drkey))
+        extn.timestamp = drkey_time().to_bytes(4, 'big')
+        extn.datahash = sha256(payload.pack())[:16]
+        logging.debug(binascii.hexlify(extn.datahash))
+        extn.init_pvf(drkey.drkey)
+        if misc.drkeys:
+            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
+
+        logging.debug("Shared path %s", shared_path)
+        logging.debug("misc.drkeys:")
+        for k in misc.drkeys:
+            logging.debug("key: %s", k)
+
         return spkt
 
     def _create_payload(self, spkt):
-        data = b"ping " + self.data
-        pld_len = (self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len_bytes() -
-                   len(spkt.l4_hdr) - len(spkt.ext_hdrs[0]))
+        path = [i.isd_as() for i in self.path_meta.iter_ifs()]
+        drkey, misc = _try_sciond_api(
+            spkt, self._connector, path)
+        data = drkey.drkey + b" " + self.data
+        pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len_bytes() - \
+            len(spkt.l4_hdr) - len(spkt.ext_hdrs[0])
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):
@@ -88,16 +121,13 @@ class E2EClient(TestClientBase):
                           len(spkt), self.path_meta.p.mtu)
             return ResponseRV.FAILURE
         payload = spkt.get_payload()
-        pong = self._gen_max_pld(b"pong " + self.data, len(payload))
-        drkey, misc = _try_sciond_api(spkt, self._connector)
+        drkey, misc = _try_sciond_api(spkt, self._connector, path=None)
+        logging.debug(drkey)
+        logging.debug(misc)
+        pong = self._gen_max_pld(drkey.drkey + b" " + self.data, len(payload))
         if payload == pong:
-            logging.debug('%s:%d: pong received.', self.addr.host, self.sock.port)
-            global shared_key
-            # try:
-            #     verify_pvf(spkt, shared_key, [])
-            # except SCIONVerificationError as e:
-            #     logging.error("Path Trace verification failed: %s", e)
-            #     return False
+            logging.debug('%s:%d: pong received.', self.addr.host,
+                          self.sock.port)
             return ResponseRV.SUCCESS
         logging.error(
             "Unexpected payload:\n  Received (%dB): %s\n  "
@@ -146,31 +176,34 @@ class E2EServer(TestServerBase):
     """
     Simple pong app.
     """
+
     def _handle_request(self, spkt):
-        logging.debug("received on server")
-        expected = b"ping " + self.data
+        global shared_path
+        drkey, misc = _try_sciond_api(spkt, self._connector, None)
+        logging.debug(drkey)
+        expected = drkey.drkey + b" " + self.data
         raw_pld = spkt.get_payload().pack()
         if not raw_pld.startswith(expected):
             return False
 
-        drkey, misc = _try_sciond_api(spkt, self._connector)
-        # try:
-        #     verify_pvf(spkt, drkey, [])
-        # except SCIONVerificationError as e:
-        #     logging.warning("Verification failed: %s", e)
-        #     return False
+        global shared_keys
+        try:
+            verify_pvf(spkt, shared_keys[0], shared_keys[1:])
+        except SCIONVerificationError as e:
+            logging.warning("Verification failed: %s", e)
+            return False
 
         # Reverse the packet and send "pong".
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
         spkt.set_payload(self._create_payload(spkt))
-        spkt.update()
-        drkey, misc = _try_sciond_api(spkt, self._connector)
-        set_pvf(spkt, drkey)
-        global shared_key
-        shared_key = drkey
-
+        shared_path.reverse()
+        _, misc = _try_sciond_api(spkt, connector=self._connector, path=shared_path)
+        logging.debug("Shared path %s", shared_path)
+        logging.debug("misc.drkeys:")
+        for k in misc.drkeys:
+            logging.debug("key: %s", k)
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()
@@ -178,17 +211,20 @@ class E2EServer(TestServerBase):
 
     def _create_payload(self, spkt):
         old_pld = spkt.get_payload()
-        data = b"pong " + self.data
+        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=None)
+        logging.debug(drkey)
+        data = drkey.drkey + b" " + self.data
         padding = len(old_pld) - len(data)
         return PayloadRaw(data + bytes(padding))
 
 
-def _try_sciond_api(spkt, connector):
+def _try_sciond_api(spkt, connector, path):
     start = time.time()
     while time.time() - start < API_TOUT:
         try:
+            request_parameters = get_sciond_params(spkt, mode=OPTMode.OPT, path=path)
             drkey, misc = lib_sciond.get_protocol_drkey(
-                get_sciond_params(spkt, mode=OPTMode.PATH_TRACE_ONLY),
+                request_parameters,
                 connector=connector)
         except lib_sciond.SCIONDConnectionError as e:
             logging.error("Connection to SCIOND failed: %s " % e)

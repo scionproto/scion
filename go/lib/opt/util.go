@@ -47,7 +47,8 @@ func (e *Extn) UpdatePVF(key common.RawBytes) (common.RawBytes, *common.Error) {
 	if err != nil {
 		return nil, err
 	}
-	updatedPVF, err := util.Mac(mac, append(e.PVF, e.DataHash...))
+	extendedPVF := append(e.DataHash, e.PVF...)
+	updatedPVF, err := util.Mac(mac, extendedPVF)
 	if err != nil {
 		return nil, err
 	}

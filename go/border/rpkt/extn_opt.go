@@ -21,13 +21,12 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/opt"
-	/*"crypto/cipher"
-	"github.com/netsec-ethz/scion/go/lib/util"
-	"github.com/netsec-ethz/scion/go/border/conf"*/
+
 	"fmt"
 	"hash"
 
 	"github.com/netsec-ethz/scion/go/lib/drkey"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -62,29 +61,42 @@ func (o *rOPTExt) Type() common.ExtnType {
 
 func (o *rOPTExt) RegisterHooks(h *hooks) *common.Error {
 	// add hook to process field and update pvf
-	o.rp.Logger.Error("B Nic")
+	o.rp.Logger.Info("Registered OPT hook")
 	h.Process = append(h.Process, o.processOPT)
 	return nil
 }
 
 // processOPT is a processing hook used to handle OPT payloads.
 func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
-	// retrieve updated PVF via opt.Extn
-	extn, err := o.GetOPTExtn()
-	if err != nil {
-		// fmt.Sprintf("SCIONOriginPathTrace - Failed to update PVF, %v: %v", err.Desc, err.String())
-		return HookFinish, err
-	}
-	key, err := o.calcOPTRKey()
+	// Check if we need to process the extension
+	hOff := o.rp.CmnHdr.HopFOffBytes()
+	currHopF, err := spath.HopFFromRaw(o.rp.Raw[hOff:])
 	if err != nil {
 		return HookError, err
 	}
+	o.rp.Logger.Info(fmt.Sprint(currHopF.Ingress))
+
+	key, err := o.calcOPTDRKey()
+	if err != nil {
+		return HookError, err
+	}
+	datahash, _ := o.Datahash()
+	o.rp.Logger.Info(fmt.Sprintf("Extension with datahash (%d): %v", len(datahash.String()), datahash.String()))
+	PVF, _ := o.PVF()
+	o.rp.Logger.Info(fmt.Sprintf("Received PVF (%d): %v", len(PVF.String()), PVF.String()))
+	extn, err := opt.NewExtn()
+	extn.SetDatahash(datahash)
+	extn.SetPVF(PVF)
+	sessionID, _ := o.SessionID()
+	extn.SetSessionID(sessionID)
 	updatedPVF, err := extn.UpdatePVF(key)
+	o.rp.Logger.Info(fmt.Sprintf("updatedPVF (%d): from %v to %v with key %v",
+		len(updatedPVF.String()), PVF.String(), updatedPVF.String(), key.String()))
 	if err != nil {
 		return HookError, err
 	}
-	o.rp.Logger.Error("B Eye")
 	o.SetPVF(updatedPVF)
+	o.rp.Logger.Info("Processed OPT hook")
 	return HookContinue, nil
 }
 
@@ -199,18 +211,18 @@ func (o *rOPTExt) SetPVF(pathVerificationField common.RawBytes) *common.Error {
 }
 
 // calcDRKey calculates the DRKey for this packet.
-func (o *rOPTExt) calcOPTRKey() (common.RawBytes, *common.Error) {
+func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
 	// stuff in with src ISD|src AS, compute CBCMac over it with key DRKeyAESBlock: K_x = cbcmac(DRKeyAESBlock, in)
 	in := make(common.RawBytes, 16)
 	common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
 	common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
 
+	o.rp.Logger.Info(fmt.Sprintf("Packet source %v, packet destination %v", o.rp.srcHost, o.rp.dstHost))
 	mac := o.rp.Ctx.Conf.DRKeyPool.Get().(hash.Hash)
 	key, err := util.Mac(mac, in)
+	// o.rp.Logger.Info(fmt.Sprintf("FirstOrder: %v", key))
 	o.rp.Ctx.Conf.DRKeyPool.Put(mac)
 
-	// blockFstOrder is K_{SV_{AS_i}}
-	/*blockFstOrder, e := o.getDRKeyBlock(util.CBCMac(conf.C.DRKeyAESBlock, in))*/
 	if err != nil {
 		return nil, err
 	}
@@ -220,17 +232,27 @@ func (o *rOPTExt) calcOPTRKey() (common.RawBytes, *common.Error) {
 		return nil, err
 	}
 
-	inputType, err := drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), 0)
+	inputType, err := drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), o.rp.dstHost.Type())
+	size := 16
+	if inputType.RequiredLength() > (size - 1 - 1 - 3) {
+		size = 32
+	}
 
-	in = make(common.RawBytes, 48)
+	in = make(common.RawBytes, size)
 	in[0] = uint8(inputType)
 	in[1] = uint8(len("OPT"))
 	copy(in[2:5], []byte("OPT"))
-	copy(in[16:32], o.rp.srcHost.Pack())
-	copy(in[32:48], o.rp.dstHost.Pack())
+	copy(in[5:9], o.rp.srcHost.Pack())
+	copy(in[9:13], o.rp.dstHost.Pack())
 	// keyOpt is K^OPT_{AS_i -> S:H_S, D:H_D}
 	//keyOpt, e := util.CBCMac(blockFstOrder, in)
-	return util.Mac(mac, in)
+	secondOrderKey, err := util.Mac(mac, in)
+	// o.rp.Logger.Info(fmt.Sprintf("Computed second order DRKey: %v over input %v with key %v", secondOrderKey, in, key))
+	mac, err = util.InitMac(secondOrderKey)
+	in = make(common.RawBytes, 16)
+	protoDRKey, err := util.Mac(mac, in)
+	// o.rp.Logger.Info(fmt.Sprintf("Computed protoDRKey %v with key %v over blank SessionID", protoDRKey, secondOrderKey))
+	return protoDRKey, err
 }
 
 // GetExtn returns the opt.Extn representation,
@@ -240,11 +262,16 @@ func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
 	if err != nil {
 		return nil, err
 	}
-	hash, err := o.Datahash()
+	meta, err := o.Meta()
 	if err != nil {
 		return nil, err
 	}
-	extn.SetDatahash(hash)
+	extn.SetMeta(meta)
+	datahash, err := o.Datahash()
+	if err != nil {
+		return nil, err
+	}
+	extn.SetDatahash(datahash)
 	session, err := o.SessionID()
 	if err != nil {
 		return nil, err
@@ -256,12 +283,6 @@ func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
 	}
 	extn.SetPVF(PVF)
 	return extn, nil
-}
-
-func (o *rOPTExt) GetOPTExtn() (opt.Extn, *common.Error) {
-	extn, _ := opt.NewExtn()
-	// WIP
-	return *extn, nil
 }
 
 func (o *rOPTExt) String() string {

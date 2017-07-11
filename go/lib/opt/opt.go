@@ -34,6 +34,11 @@ const (
 
 func NewExtn() (*Extn, *common.Error) {
 	o := &Extn{}
+	o.Meta = make(common.RawBytes, MetaLength)
+	o.Timestamp = make(common.RawBytes, TimestampLength)
+	o.DataHash = make(common.RawBytes, DatahashLength)
+	o.SessionId = make(common.RawBytes, SessionIDLength)
+	o.PVF = make(common.RawBytes, PVFLength)
 	return o, nil
 }
 
