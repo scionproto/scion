@@ -84,6 +84,11 @@ class RequestHandler(object):
         self._req_map = defaultdict(list)
         self._key_map = key_map or self._def_key_map
         self._labels = labels
+        if self._labels:
+            self._init_metrics()
+
+    def _init_metrics(self):  # pragma: no cover
+        REQS_PENDING.labels(**self._labels).set(0)
 
     @classmethod
     def start(cls, name, *args, **kwargs):  # pragma: no cover

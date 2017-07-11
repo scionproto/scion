@@ -118,6 +118,10 @@ PENDING_TRC_REQS_TOTAL = Gauge("se_pending_trc_reqs", "# of pending TRC requests
                                ["server_id", "isd_as"])
 PENDING_CERT_REQS_TOTAL = Gauge("se_pending_cert_reqs", "# of pending CERT requests",
                                 ["server_id", "isd_as"])
+CONNECTED_TO_DISPATCHER = Gauge(
+    "se_connected_to_dispatcher",
+    "Is the element successfully registered with the dispatcher.",
+    ["server_id", "isd_as"])
 
 MAX_QUEUE = 50
 
@@ -200,9 +204,10 @@ class SCIONElement(object):
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
-        self._setup_sockets(True)
         if prom_export:
             self._export_metrics(prom_export)
+            self._init_metrics()
+        self._setup_sockets(True)
 
     def _setup_sockets(self, init):
         """
@@ -230,6 +235,8 @@ class SCIONElement(object):
         if not self._udp_sock.registered:
             self._udp_sock = None
             return
+        if self._labels:
+            CONNECTED_TO_DISPATCHER.labels(**self._labels).set(1)
         self._port = self._udp_sock.port
         self._socks.add(self._udp_sock, self.handle_recv)
 
@@ -978,6 +985,8 @@ class SCIONElement(object):
             sock.close()
             if sock == self._udp_sock:
                 self._udp_sock = None
+                if self._labels:
+                    CONNECTED_TO_DISPATCHER.labels(**self._labels).set(0)
             return
         self.packet_put(packet, addr, sock)
 
@@ -1173,3 +1182,16 @@ class SCIONElement(object):
         addr = addr.strip("[]")
         logging.info("Exporting metrics on %s", export_addr)
         start_http_server(port, addr=addr)
+
+    def _init_metrics(self):
+        """
+        Initializes all metrics to 0. Subclasses should initialize their metrics here and
+        must call the super method.
+        """
+        PKT_BUF_TOTAL.labels(**self._labels).set(0)
+        PKT_BUF_BYTES.labels(**self._labels).set(0)
+        PKTS_DROPPED_TOTAL.labels(**self._labels).inc(0)
+        UNV_SEGS_TOTAL.labels(**self._labels).set(0)
+        PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(0)
+        PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(0)
+        CONNECTED_TO_DISPATCHER.labels(**self._labels).set(0)

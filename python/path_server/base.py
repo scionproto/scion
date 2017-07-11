@@ -538,6 +538,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         return logging.LoggerAdapter(
             self._request_logger, {"id": req_id, "req": req.short_desc(), "from": str(meta)})
 
+    def _init_metrics(self):
+        super()._init_metrics()
+        REQS_TOTAL.labels(**self._labels).inc(0)
+        REQS_PENDING.labels(**self._labels).set(0)
+        SEGS_TO_ZK.labels(**self._labels).set(0)
+        REVS_TO_ZK.labels(**self._labels).set(0)
+        HT_ROOT_MAPPTINGS.labels(**self._labels).set(0)
+        IS_MASTER.labels(**self._labels).set(0)
+
     def _update_metrics(self):
         """
         Updates all Gauge metrics. Subclass can update their own metrics but must
