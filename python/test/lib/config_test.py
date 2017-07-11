@@ -51,8 +51,8 @@ class TestConfigParseDict(BaseLibConfig):
         "PropagateTime": 5,
         "RegisterPath": 1,
         "RegisterTime": 5,
-        "PathSegmentTTL": 6 * 24 * 60 * 60,
-        "RevocationTreeTTL": 6 *24 * 60 * 60,
+        "PathSegmentTTL": 6 * 60 * 60,
+        "RevocationTreeTTL": 6 * 60 * 60,
     }
 
     def test_basic(self):
