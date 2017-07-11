@@ -985,6 +985,8 @@ class SCIONElement(object):
             sock.close()
             if sock == self._udp_sock:
                 self._udp_sock = None
+                if self._labels:
+                    CONNECTED_TO_DISPATCHER.labels(**self._labels).set(0)
             return
         self.packet_put(packet, addr, sock)
 
