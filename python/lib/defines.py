@@ -132,10 +132,6 @@ MAX_HOST_ADDR_LEN = 16
 HASHTREE_EPOCH_TIME = 10
 # The tolerable error in epoch in seconds.
 HASHTREE_EPOCH_TOLERANCE = 2
-# Number of epochs in one TTL per interface
-HASHTREE_N_EPOCHS = HASHTREE_TTL // HASHTREE_EPOCH_TIME
-# How much time in advance to compute the next hash tree
-HASHTREE_UPDATE_WINDOW = HASHTREE_TTL / 3
 
 # TCP polling timeouts, used by accept() and recv().
 TCP_ACCEPT_POLLING_TOUT = 1.0

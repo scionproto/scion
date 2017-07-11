@@ -21,6 +21,6 @@ import (
 )
 
 func (s RevInfo) Pretty() string {
-	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d",
-		addr.IAFromInt(int(s.Isdas())), s.IfID(), s.Epoch())
+	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d TreeTTL: %d",
+		addr.IAFromInt(int(s.Isdas())), s.IfID(), s.Epoch(), s.TreeTTL())
 }
