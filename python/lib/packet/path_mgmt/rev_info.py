@@ -35,7 +35,7 @@ class RevocationInfo(Cerealizable):
 
     @classmethod
     def from_values(cls, isd_as, if_id, epoch, nonce, siblings, prev_root,
-                    next_root, hash_type):
+                    next_root, hash_type, tree_ttl):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -46,11 +46,12 @@ class RevocationInfo(Cerealizable):
         :param list[(bool, bytes)] siblings: Positions and hashes of siblings
         :param bytes prev_root: Hash of the tree root at time T-1
         :param bytes next_root: Hash of the tree root at time T+1
-        :param hash_type: The hash function needed to verify the revocation.
+        :param int hash_type: The hash function needed to verify the revocation.
+        :param int tree_ttl: The validity period of the revocation tree.
         """
         # Put the isd_as, if_id, epoch and nonce of the leaf into the proof.
         p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, epoch=epoch,
-                                  nonce=nonce, hashType=hash_type)
+                                  nonce=nonce, hashType=hash_type, treeTTL=tree_ttl)
         # Put the list of sibling hashes (along with l/r) into the proof.
         sibs = p.init('siblings', len(siblings))
         for i, sibling in enumerate(siblings):

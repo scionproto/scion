@@ -24,8 +24,6 @@ from lib.crypto.symcrypto import hash_func_for_type
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
-    HASHTREE_N_EPOCHS,
-    HASHTREE_TTL,
 )
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 
@@ -37,23 +35,24 @@ class HashTree(object):
     The used hash function needs to implement the hashlib interface.
     """
 
-    def __init__(self, isd_as, if_ids, seed, ttl_window, hash_type):
+    def __init__(self, isd_as, if_ids, seed, ttl, hash_type):
         """
         :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: List of interface IDs of the AS.
         :param str seed: Seed for creating hash-tree nonces.
-        :param int ttl_window: The TTL window for which this hash tree is valid.
+        :param int ttl: The TTL window for which this hash tree is valid (in seconds).
         :param hash_type: Hash function type.
         """
         self._isd_as = isd_as
         self._seed = seed
-        self._ttl_window = ttl_window
+        self._ttl = ttl
         self._hash_type = hash_type
         self._hash_func = hash_func_for_type(hash_type)
+        self._n_epochs = ttl // HASHTREE_EPOCH_TIME
         self._setup(if_ids)
 
     def _setup(self, if_ids):
-        self.calc_tree_depth(len(if_ids) * HASHTREE_N_EPOCHS)
+        self.calc_tree_depth(len(if_ids) * self._n_epochs)
         self.create_tree(if_ids)
 
     def calc_tree_depth(self, leaf_count):
@@ -92,7 +91,7 @@ class HashTree(object):
         self._if2idx = {}
         for if_id in if_ids:  # For given (if_id, epoch) leaves
             self._if2idx[if_id] = idx
-            for i in range(HASHTREE_N_EPOCHS):
+            for i in range(self._n_epochs):
                 raw_nonce = (self._seed + struct.pack("!qq", if_id, i))
                 nonce = self._hash_func(raw_nonce)
                 if_tuple = struct.pack("!qq", if_id, i) + nonce
@@ -118,7 +117,7 @@ class HashTree(object):
         :param bytes next_root: hash of the next root.
         """
         assert if_id in self._if2idx.keys(), "if_id not found in AS"
-        relative_epoch = epoch % HASHTREE_N_EPOCHS
+        relative_epoch = epoch % self._n_epochs
         # Obtain the nonce for the (if_id, epoch) pair using the seed.
         raw_nonce = self._seed + struct.pack("!qq", if_id, relative_epoch)
         nonce = self._hash_func(raw_nonce)
@@ -136,7 +135,7 @@ class HashTree(object):
         # Using the above fields, construct a RevInfo capnp as the proof.
         return RevocationInfo.from_values(
             self._isd_as, if_id, epoch, nonce, siblings, prev_root, next_root,
-            self._hash_type)
+            self._hash_type, self._ttl)
 
 
 class ConnectedHashTree(object):
@@ -152,14 +151,16 @@ class ConnectedHashTree(object):
     EPOCH_PAST = 2
     EPOCH_FUTURE = 3
 
-    def __init__(self, isd_as, if_ids, seed, hash_type):  # pragma: no cover
+    def __init__(self, isd_as, if_ids, seed, hashtree_ttl, hash_type):  # pragma: no cover
         """
         :param ISD_AS isd_as: The ISD_AS of the AS.
         :param List[int] if_ids: list of interface IDs of the AS.
         :param List[str] seeds: list of 3 seeds for creating hash-tree nonces.
+        :param int hashtree_ttl: The TTL of each hash tree (in seconds).
         :param hash_type: Hash function type.
         """
-        assert len(if_ids)*HASHTREE_N_EPOCHS >= 1, "Must have at least 1 leaf"
+        assert len(if_ids), "Must have at least 1 leaf"
+        assert hashtree_ttl > 0, "HashTree TTL cannot be <= 0"
         ttl_window = self.get_ttl_window()
         seed1 = seed + (ttl_window - 1).to_bytes(8, 'big')
         seed2 = seed + (ttl_window + 0).to_bytes(8, 'big')
@@ -171,8 +172,8 @@ class ConnectedHashTree(object):
         self._ht2 = HashTree(isd_as, if_ids, seed3, ttl_window + 1, hash_type)
 
     @classmethod
-    def get_ttl_window(cls):
-        return int(time.time()) // HASHTREE_TTL
+    def get_ttl_window(cls, ttl):
+        return int(time.time()) // ttl
 
     @classmethod
     def get_current_epoch(cls):
@@ -183,12 +184,8 @@ class ConnectedHashTree(object):
         return time.time() % HASHTREE_EPOCH_TIME
 
     @classmethod
-    def get_time_since_ttl(cls):
-        return time.time() % HASHTREE_TTL
-
-    @classmethod
-    def get_time_till_next_ttl(cls):
-        return HASHTREE_TTL - cls.get_time_since_ttl()
+    def time_until_next_window(cls, ttl):
+        return ttl - (time.time() % ttl)
 
     @classmethod
     def get_next_tree(cls, isd_as, if_ids, seed, hash_type):
@@ -223,8 +220,9 @@ class ConnectedHashTree(object):
         """
         proof = rev_info.p
         hash_func = hash_func_for_type(proof.hashType)
+        n_epochs = proof.treeTTL // HASHTREE_EPOCH_TIME
         # Calculate the hashes upwards till the tree root (of T).
-        relative_epoch = proof.epoch % HASHTREE_N_EPOCHS
+        relative_epoch = proof.epoch % n_epochs
         if_tuple = struct.pack("!qq", proof.ifID, relative_epoch) + proof.nonce
         curr_hash = hash_func(if_tuple)
 

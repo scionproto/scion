@@ -35,6 +35,7 @@ from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
+    EXP_TIME_UNIT,
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
     HASHTREE_TTL,
@@ -108,8 +109,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             hash-chain for each interface.
     """
     SERVICE_TYPE = BEACON_SERVICE
-    # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
-    HOF_EXP_TIME = 63
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # ZK path for revocations.
@@ -134,6 +133,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.hashtree_gen_key = kdf(
                             self.config.master_as_key, b"Derive hashtree Key")
         logging.info(self.config.__dict__)
+        # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
+        self.hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
         self._next_tree = None
@@ -225,7 +226,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())
         info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0], hops=2)
-        hf1 = HopOpaqueField.from_values(self.HOF_EXP_TIME, 0, egress_if)
+        hf1 = HopOpaqueField.from_values(self.hof_exp_time, 0, egress_if)
         hf1.set_mac(self.of_gen_key, ts, None)
         # Return a path where second HF is empty.
         return SCIONPath.from_values(info, [hf1, HopOpaqueField()])
@@ -379,7 +380,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if out_info["remote_ia"].int() and not out_info["remote_if"]:
             return None
         hof = HopOpaqueField.from_values(
-            self.HOF_EXP_TIME, in_if, out_if, xover=xover)
+            self.hof_exp_time, in_if, out_if, xover=xover)
         hof.set_mac(self.of_gen_key, ts, prev_hof)
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
@@ -452,13 +453,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_next_tree(self):
         last_ttl_window = 0
+        ttl = self.config.revocation_tree_ttl
         while self.run_flag.is_set():
             start = time.time()
-            cur_ttl_window = ConnectedHashTree.get_ttl_window()
-            time_to_sleep = (ConnectedHashTree.get_time_till_next_ttl() -
-                             HASHTREE_UPDATE_WINDOW)
+            cur_ttl_window = ConnectedHashTree.get_ttl_window(ttl)
+            time_to_sleep = ConnectedHashTree.time_until_next_window(ttl) - HASHTREE_UPDATE_WINDOW
             if cur_ttl_window == last_ttl_window:
-                time_to_sleep += HASHTREE_TTL
+                time_to_sleep += ttl
             if time_to_sleep > 0:
                 sleep_interval(start, time_to_sleep, "BS._create_next_tree",
                                self._quiet_startup())
