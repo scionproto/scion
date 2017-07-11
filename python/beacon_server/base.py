@@ -753,3 +753,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
         payload = IFStatePayload.from_values(infos)
         self.send_meta(payload, meta, (meta.host, meta.port))
+
+    def _init_metrics(self):
+        super()._init_metrics()
+        for type_ in ("core", "up", "down"):
+            BEACONS_PROPAGATED.labels(**self._labels, type=type_).inc(0)
+            SEGMENTS_REGISTERED.labels(**self._labels, type=type_).inc(0)
+        REVOCATIONS_ISSUED.labels(**self._labels).inc(0)
+        IS_MASTER.labels(**self._labels).set(0)

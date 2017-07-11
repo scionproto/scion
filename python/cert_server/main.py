@@ -565,6 +565,12 @@ class CertServer(SCIONElement):
         logging.warning("Unable to get path to %s from local api.", isd_as)
         return None
 
+    def _init_metrics(self):
+        super()._init_metrics()
+        for type_ in ("trc", "cc", "drkey"):
+            REQS_TOTAL.labels(**self._labels, type=type_).inc(0)
+        IS_MASTER.labels(**self._labels).set(0)
+
     def run(self):
         """
         Run an instance of the Cert Server.

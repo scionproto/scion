@@ -383,6 +383,11 @@ class CorePathServer(PathServer):
                           % rev_info.short_desc())
             self._propagate_to_core_ases(rev_info)
 
+    def _init_metrics(self):
+        super()._init_metrics()
+        SEGS_TO_MASTER.labels(**self._labels).set(0)
+        SEGS_TO_PROP.labels(**self._labels).set(0)
+
     def _update_metrics(self):
         super()._update_metrics()
         if self._labels:

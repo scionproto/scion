@@ -55,6 +55,14 @@ class RevCache:
         self._lock = threading.RLock()
         self._capacity = capacity
         self._labels = labels
+        if self._labels:
+            self._init_metrics()
+
+    def _init_metrics(self):  # pragma: no cover
+        REVS_TOTAL.labels(**self._labels).set(0)
+        REVS_BYTES.labels(**self._labels).set(0)
+        REVS_ADDED.labels(**self._labels).inc(0)
+        REVS_REMOVED.labels(**self._labels).inc(0)
 
     def __contains__(self, rev_info):  # pragma: no cover
         return self.contains_key(_mk_key(rev_info))

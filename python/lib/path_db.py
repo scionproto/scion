@@ -94,7 +94,15 @@ class PathSegmentDB(object):
         self._segment_ttl = segment_ttl
         self._max_res_no = max_res_no
         self._labels = labels
+        if self._labels:
+            self._init_metrics()
         self._setup_db()
+
+    def _init_metrics(self):  # pragma: no cover
+        SEGS_TOTAL.labels(**self._labels).set(0)
+        SEGS_BYTES.labels(**self._labels).set(0)
+        SEGS_ADDED.labels(**self._labels).inc(0)
+        SEGS_REMOVED.labels(**self._labels).inc(0)
 
     def _setup_db(self):  # pragma: no cover
         with self._lock:

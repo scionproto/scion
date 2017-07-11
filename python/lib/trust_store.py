@@ -58,6 +58,12 @@ class TrustStore(object):
         self._certs_lock = threading.Lock()
         self._init_trcs()
         self._init_certs()
+        if self._labels:
+            self._init_metrics()
+
+    def _init_metrics(self):  # pragma: no cover
+        TRCS_TOTAL.labels(**self._labels).set(0)
+        CERTS_TOTAL.labels(**self._labels).set(0)
 
     def _init_trcs(self):  # pragma: no cover
         trcfiles = list(glob.glob("%s/*.trc" % self._dir))
