@@ -9,18 +9,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
-	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/control"
-	"github.com/netsec-ethz/scion/go/sig/defines"
+	"github.com/netsec-ethz/scion/go/sig/global"
+	"github.com/netsec-ethz/scion/go/sig/lib/scion"
 	"github.com/netsec-ethz/scion/go/sig/management"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
-)
-
-const (
-	Version             = "0.0.1"
-	InternalIngressName = "scion.local"
-	ExternalIngressPort = 10080
 )
 
 func main() {
@@ -37,24 +31,26 @@ func main() {
 	// Parse arguments and connect to relevant services
 	var err error
 	var cerr *common.Error
-
-	global := &defines.Global{}
 	global.DispatcherPath = *dispatcherPath
 	global.Config = *config
 	global.Silent = *silent
+	global.CtrlIP = net.ParseIP(global.DefaultCtrlIP)
+	if global.CtrlIP == nil {
+		log.Crit("Unable to parse bind IP address for control traffic", "address", global.DefaultCtrlIP)
+		return
+	}
+	global.CtrlPort = global.DefaultCtrlPort
 
 	switch *encapsulation {
 	case "ip":
 		global.Encapsulation = "ip"
 		global.SCIOND = nil
 		global.IA = nil
-
-		global.ExternalIngress, err = xnet.OpenUDP(ExternalIngressPort)
+		global.ExternalIngress, err = xnet.OpenUDP(global.ExternalIngressPort)
 		if err != nil {
-			log.Crit("Unable to open ingress port", "port", ExternalIngressPort, "err", err)
+			log.Crit("Unable to open ingress port", "port", global.ExternalIngressPort, "err", err)
 			return
 		}
-
 		global.ExternalEgress = nil
 	case "scion":
 		global.Encapsulation = "scion"
@@ -76,18 +72,21 @@ func main() {
 		}
 		global.Addr = addr.HostFromIP(netip)
 
+		global.Context, err = scion.NewContext(global.IA, *sciondPath, global.DispatcherPath)
+		if err != nil {
+			log.Crit("Unable to initialize local SCION context", "err", err)
+			return
+		}
+
 		global.Port = uint16(*port)
-		if global.Port < 0 || global.Port > 65535 {
+		if global.Port == 0 {
 			log.Crit("Invalid port number", "port", global.Port)
 			return
 		}
 
-		a := reliable.AppAddr{Addr: global.Addr, Port: global.Port}
-
-		global.ExternalIngress, _, err = reliable.Register(*dispatcherPath, global.IA, a)
+		global.ExternalIngress, err = global.Context.ListenSCION(global.Addr, global.Port)
 		if err != nil {
-			log.Crit("Unable to register with dispatcher", "dispatcher", *dispatcherPath,
-				"IA", global.IA, "addr", a, "err", err)
+			log.Crit("Unable to listen on SCION address", "addr", global.Addr, "port", global.Port)
 			return
 		}
 	default:
@@ -95,14 +94,13 @@ func main() {
 		return
 	}
 
-	global.InternalIngress, err = xnet.ConnectTun(InternalIngressName)
+	global.InternalIngress, err = xnet.ConnectTun(global.InternalIngressName)
 	if err != nil {
-		log.Crit("Unable to open local TUN interface", "name", InternalIngressName, "err", err)
+		log.Crit("Unable to open local TUN interface", "name", global.InternalIngressName, "err", err)
 		return
 	}
 
-	// Create main SIG table
-	sdb, err := base.NewSDB(global)
+	sdb, err := base.NewSDB()
 	if err != nil {
 		log.Error("Failed to create SDB", "err", err)
 		return
@@ -112,15 +110,15 @@ func main() {
 	static := control.Static(sdb)
 
 	// Launch data plane receiver
-	go base.IngressWorker(global)
+	go base.IngressWorker()
 
 	// Load config file (if specified) and start interactive console
 	if *config != "" {
-		management.RunConfig(Version, static, global.Config)
+		management.RunConfig(static, global.Config)
 	}
 	if *silent == true {
 		// Block forever
 		select {}
 	}
-	management.Run(Version, static)
+	management.Run(static)
 }

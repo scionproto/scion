@@ -8,9 +8,10 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/sig/control"
+	"github.com/netsec-ethz/scion/go/sig/global"
 )
 
-func NewShell(version string, static *control.StaticRP, cfg *readline.Config) *ishell.Shell {
+func NewShell(static *control.StaticRP, cfg *readline.Config) *ishell.Shell {
 	shell := ishell.NewWithConfig(cfg)
 
 	shell.AddCmd(&ishell.Cmd{
@@ -55,22 +56,22 @@ func NewShell(version string, static *control.StaticRP, cfg *readline.Config) *i
 
 	shell.AddCmd(&ishell.Cmd{
 		Name: "static.sig.add",
-		Help: "static.sig.add <isdas> <ipv4-address> <port>",
+		Help: "static.sig.add <isdas> <encap-ipv4-addr> <encap-port> <ctrl-ipv4-addr> <ctrl-port>",
 		Func: func(c *ishell.Context) {
-			if len(c.Args) != 3 {
-				c.Println("Error, usage: static.sig.add <isdas> <ipv4-address> <port>")
+			if len(c.Args) != 5 {
+				c.Println("Error, usage: static.sig.add <isdas> <encap-ipv4-addr> <encap-port> <ctrl-ipv4-addr> <ctrl-port>")
 				return
 			}
-			static.AddSig(c.Args[0], c.Args[1], c.Args[2])
+			static.AddSig(c.Args[0], c.Args[1], c.Args[2], c.Args[3], c.Args[4])
 		},
 	})
 
 	shell.AddCmd(&ishell.Cmd{
 		Name: "static.sig.del",
-		Help: "static.sig.del <isdas> <ipv4-address> <port>",
+		Help: "static.sig.del <isdas> <encap-ipv4-address> <encap-port>",
 		Func: func(c *ishell.Context) {
 			if len(c.Args) != 3 {
-				c.Println("Error, usage: static.sig.del <isdas> <ipv4-address> <port>")
+				c.Println("Error, usage: static.sig.del <isdas> <encap-ipv4-addr> <encap-port>")
 				return
 			}
 			static.DelSig(c.Args[0], c.Args[1], c.Args[2])
@@ -80,7 +81,7 @@ func NewShell(version string, static *control.StaticRP, cfg *readline.Config) *i
 	return shell
 }
 
-func RunConfig(version string, static *control.StaticRP, config string) {
+func RunConfig(static *control.StaticRP, config string) {
 	c := new(readline.Config)
 	err := c.Init()
 	if err != nil {
@@ -97,14 +98,14 @@ func RunConfig(version string, static *control.StaticRP, config string) {
 		return
 	}
 
-	shell := NewShell(version, static, c)
+	shell := NewShell(static, c)
 	shell.Run()
 	log.Debug("Successfully loaded config", "filename", config)
 }
 
-func Run(version string, static *control.StaticRP) {
+func Run(static *control.StaticRP) {
 	c := new(readline.Config)
-	shell := NewShell(version, static, c)
-	shell.Printf("SCION IP Gateway, version %v\n", version)
+	shell := NewShell(static, c)
+	shell.Printf("SCION IP Gateway, version %v\n", global.Version)
 	shell.Run()
 }

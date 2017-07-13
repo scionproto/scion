@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
-	"github.com/netsec-ethz/scion/go/sig/base/ftracker"
+	"github.com/netsec-ethz/scion/go/sig/global"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
@@ -19,8 +19,7 @@ type asInfo struct {
 	Name string
 	IA   *addr.ISD_AS
 	SDB  *SDB
-
-	flows *ftracker.FlowTracker
+	sigs map[string]net.Conn
 
 	// NOTE(scrye): A map would probably be a better fit for subnets
 	Subnets *list.List
@@ -32,7 +31,7 @@ type asInfo struct {
 }
 
 // newASInfo initializes the internal structures and creates the tunnel interface for a new remote AS.
-func newASInfo(sdb *SDB, isdas string, fm ftracker.FlowManager, lb ftracker.LoadBalancer) (*asInfo, error) {
+func newASInfo(sdb *SDB, isdas string) (*asInfo, error) {
 	var err error
 	info := new(asInfo)
 	info.DeviceName = fmt.Sprintf("scion.%s", isdas)
@@ -43,7 +42,7 @@ func newASInfo(sdb *SDB, isdas string, fm ftracker.FlowManager, lb ftracker.Load
 	}
 	info.IA = ia
 	info.SDB = sdb
-	info.flows = ftracker.NewFlowMap(sdb.Global, info.IA, fm, lb)
+	info.sigs = make(map[string]net.Conn)
 
 	// Create tunnel interface for this AS
 	info.Device, err = xnet.ConnectTun(info.DeviceName)
@@ -84,30 +83,73 @@ func (as *asInfo) delRoute(subnet *net.IPNet) error {
 	return common.NewError("Subnet not found", "subnet", subnet)
 }
 
-func (as *asInfo) addSig(address string, port string, source string) error {
+func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
 	as.lock.Lock()
 	defer as.lock.Unlock()
 
-	err := as.flows.AddSig(address, port)
-	if err != nil {
-		return err
+	sig := encapAddr + ":" + encapPort
+	if _, found := as.sigs[sig]; found {
+		return common.NewError("SIG entry exists", "sig", sig)
 	}
+
+	ip := net.ParseIP(encapAddr)
+	if ip == nil {
+		return common.NewError("Unable to parse IP address", "address", encapAddr)
+	}
+
+	nport, err := strconv.ParseUint(encapPort, 10, 16)
+	if err != nil {
+		return common.NewError("Unable to parse port", "port", encapPort, "err", err)
+	}
+
+	var conn net.Conn
+	switch global.Encapsulation {
+	case "ip":
+		remote := &net.UDPAddr{IP: ip, Port: int(nport)}
+		conn, err = net.DialUDP("udp", nil, remote)
+		if err != nil {
+			return common.NewError("Unable to establish flow", "err", err)
+		}
+	case "scion":
+		conn, err = global.Context.DialSCION(as.IA, addr.HostFromIP(ip), uint16(nport))
+		if err != nil {
+			return common.NewError("Unable to establish flow", "err", err)
+		}
+	default:
+		return common.NewError("Unknown encapsulation", "encapsulation", global.Encapsulation)
+	}
+
+	as.sigs[sig] = conn
+
+	// Register with keepalive module
+	/*
+		remote := hello.Remote{
+			IA:      as.IA,
+			Address: ctrlAddr,
+			Port:    ctrlPort,
+			OnDown:  func() { log.Debug("OnDown") },
+			OnUp:    func() { log.Debug("OnUp") },
+			OnError: func() { log.Debug("OnError") }}
+		err = as.SDB.helloModule.Register(&remote)
+		if err != nil {
+			return common.NewError("Unable to Register", "err", err)
+		}
+	*/
+
 	return nil
 }
 
 func (as *asInfo) delSig(address string, port string, source string) error {
-	as.lock.Lock()
-	defer as.lock.Unlock()
-	return as.flows.DelSig(address, port)
+	return common.NewError("NotImplemented", "function", "delSig")
 }
 
-func (as *asInfo) updatePaths(paths []sciond.PathReplyEntry) {
+func (as *asInfo) getConn() (net.Conn, error) {
 	as.lock.Lock()
 	defer as.lock.Unlock()
-	as.flows.UpdatePaths(ftracker.PathSetFromSlice(paths))
-}
 
-func (as *asInfo) getConn() (*ftracker.Flow, error) {
-	// Synchronization happens in the flow tracker
-	return as.flows.GetFlow()
+	// Just grab one
+	for _, v := range as.sigs {
+		return v, nil
+	}
+	return nil, common.NewError("SIG not found", "DstIA", as.IA)
 }

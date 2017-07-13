@@ -25,8 +25,8 @@ func (rp *StaticRP) DelRoute(destination string, isdas string) {
 	log.Warn("Not implemented")
 }
 
-func (rp *StaticRP) AddSig(isdas string, address string, port string) {
-	err := rp.SDB.AddSig(isdas, address, port, "static")
+func (rp *StaticRP) AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, ctrlPort string) {
+	err := rp.SDB.AddSig(isdas, encapAddr, encapPort, ctrlAddr, ctrlPort, "static")
 	if err != nil {
 		log.Warn("Unable to add SIG", "err", err)
 	}

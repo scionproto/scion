@@ -1,3 +1,4 @@
+// Package xnet contains low level Linux networking calls (generally related to netlink and tunneling)
 package xnet
 
 import (
