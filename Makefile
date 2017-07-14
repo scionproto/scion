@@ -6,15 +6,15 @@ all: clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
-	if type -P go >/dev/null; then cd go && make clean; fi
+	if type -P go >/dev/null; then cd go && $(MAKE) clean; fi
 	rm -f tags
 
 go: libscion
 	@# `make -C go` breaks if there are symlinks in $PWD
-	cd go && make
+	cd go && $(MAKE)
 
 gohsr: libhsr
-	cd go && make hsr
+	cd go && $(MAKE) hsr
 
 # Order is important
 clibs: libscion libfilter liblwip libtcpmw
