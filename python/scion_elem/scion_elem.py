@@ -195,7 +195,7 @@ class SCIONElement(object):
             self._DefaultMeta = TCPMetadata
         else:
             self._DefaultMeta = UDPMetadata
-        self.unverified_segs = {}
+        self.unverified_segs = ExpiringDict(500, 60 * 60)
         self.unv_segs_lock = threading.RLock()
         self.requested_trcs = {}
         self.req_trcs_lock = threading.Lock()
