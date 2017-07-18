@@ -13,14 +13,12 @@ const (
 	Version             = "0.1.0"
 	InternalIngressName = "scion.local"
 	ExternalIngressPort = 10080
-	DefaultCtrlIP       = "0.0.0.0"
 	DefaultCtrlPort     = 10081
 )
 
 var (
-	Config        string
-	Silent        bool
-	Encapsulation string
+	Config         string
+	ConsoleEnabled bool
 
 	Context *scion.Context
 	IA      *addr.ISD_AS

@@ -204,7 +204,7 @@ func IngressWorker() {
 
 	lastSequenceNumber := -1
 	packetStart := 0
-	reassembledLength := 0
+	packetLength := 0
 ReceiveLoop:
 	for {
 		// Flag when current frame contains data belonging to a last packet in the previous frames
@@ -257,7 +257,7 @@ ReceiveLoop:
 			packetStart += len(payload)
 
 			// Does the packet end here?
-			if packetStart == reassembledLength {
+			if packetStart == packetLength {
 				err = send(packet[:packetStart])
 				if err != nil {
 					log.Error("IngressWorker: Unable to send reassembled packet", "err", err)
@@ -306,22 +306,22 @@ ReceiveLoop:
 			}
 
 			// Version is correct, grab total length
-			length := int(common.Order.Uint16(payload[2:4]))
-			//log.Debug("Found IP packet", "length", length)
-			if length > 1500 {
-				log.Warn("Found large IP packet", "length", length)
+			packetLength = int(common.Order.Uint16(payload[2:4]))
+			//log.Debug("Found IP packet", "length", packetLength)
+			if packetLength > 1500 {
+				log.Warn("Found large IP packet", "length", packetLength)
 			}
 
-			if length > len(payload) {
-				// log.Debug("length > len(payload)", "length", length, "len(payload)", len(payload))
+			if packetLength > len(payload) {
 				// Need to reconstruct the full IP packet across frames
 				copy(packet[packetStart:], payload)
 				packetStart += len(payload)
 				continue ReceiveLoop
 			}
 
-			if length == len(payload) {
+			if packetLength == len(payload) {
 				// The end of the IP packet is the end of the frame
+				//log.Debug("Sending packet", "payload", payload, "len", len(payload))
 				err := send(payload)
 				if err != nil {
 					log.Error("Unable to send IP packet", "packet", payload)
@@ -331,7 +331,7 @@ ReceiveLoop:
 			}
 
 			// This frame contains data after this packet, try to parse another one
-			payload = payload[length:]
+			payload = payload[packetLength:]
 		}
 	}
 }

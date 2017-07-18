@@ -1,7 +1,9 @@
 package management
 
 import (
+	"bufio"
 	"os"
+	"strings"
 
 	"github.com/abiosoft/ishell"
 	"github.com/chzyer/readline"
@@ -11,8 +13,8 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/global"
 )
 
-func NewShell(static *control.StaticRP, cfg *readline.Config) *ishell.Shell {
-	shell := ishell.NewWithConfig(cfg)
+func NewShell(static *control.StaticRP) *ishell.Shell {
+	shell := ishell.New()
 
 	shell.AddCmd(&ishell.Cmd{
 		Name: "show.route",
@@ -77,7 +79,6 @@ func NewShell(static *control.StaticRP, cfg *readline.Config) *ishell.Shell {
 			static.DelSig(c.Args[0], c.Args[1], c.Args[2])
 		},
 	})
-
 	return shell
 }
 
@@ -98,14 +99,21 @@ func RunConfig(static *control.StaticRP, config string) {
 		return
 	}
 
-	shell := NewShell(static, c)
-	shell.Run()
+	shell := NewShell(static)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		command := scanner.Text()
+		log.Debug("Running command", "cmd", command)
+		shell.Process(strings.Split(command, " ")...)
+	}
+	if err := scanner.Err(); err != nil {
+		log.Error("Unable to read config file", "err", err)
+	}
 	log.Debug("Successfully loaded config", "filename", config)
 }
 
 func Run(static *control.StaticRP) {
-	c := new(readline.Config)
-	shell := NewShell(static, c)
+	shell := NewShell(static)
 	shell.Printf("SCION IP Gateway, version %v\n", global.Version)
 	shell.Run()
 }

@@ -4,7 +4,6 @@ package scion
 import (
 	"encoding/binary"
 	"net"
-	"sync"
 
 	log "github.com/inconshreveable/log15"
 
@@ -46,7 +45,6 @@ type SCIONConn struct {
 	raddr      *SCIONAddr
 	pm         *PathManager
 	recvBuffer []byte
-	lock       sync.Mutex
 }
 
 // DialSCION reserves a UDP port for returning traffic, registers that port
@@ -55,15 +53,16 @@ type SCIONConn struct {
 // receive SCION traffic and will not process any data. Traffic will instead
 // pass through the dispatcher, which sends it to the local application via a
 // Reliable (UNIX) socket.
-func (c *Context) DialSCION(IA *addr.ISD_AS, address addr.HostAddr, port uint16) (*SCIONConn, error) {
+func (c *Context) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port uint16) (*SCIONConn, error) {
 	// Reserve local addr and port for returning traffic.
-	udpConn, err := net.ListenUDP("udp4", nil)
+	udpLocalIP := &net.UDPAddr{IP: local.IP()}
+	udpConn, err := net.ListenUDP("udp4", udpLocalIP)
 	if err != nil {
 		return nil, common.NewError("Unable to assign port", "err", err)
 	}
 
-	local := udpConn.LocalAddr()
-	udpLocalAddr, err := net.ResolveUDPAddr(local.Network(), local.String())
+	localSocket := udpConn.LocalAddr()
+	udpLocalAddr, err := net.ResolveUDPAddr(localSocket.Network(), localSocket.String())
 	if err != nil {
 		return nil, common.NewError("Unable to extract UDP address", "err", err)
 	}
@@ -76,7 +75,7 @@ func (c *Context) DialSCION(IA *addr.ISD_AS, address addr.HostAddr, port uint16)
 	}
 	log.Debug("Registered with dispatcher", "ia", c.IA, "addr", regAddr)
 
-	raddr := &SCIONAddr{ia: IA, host: address, port: port}
+	raddr := &SCIONAddr{ia: IA, host: remote, port: port}
 	laddr := &SCIONAddr{ia: c.IA, host: regAddr.Addr, port: regAddr.Port}
 	sconn := &SCIONConn{
 		Conn:       conn,
@@ -96,7 +95,7 @@ func (c *Context) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, e
 	udpAddr := &net.UDPAddr{IP: address.IP(), Port: int(port)}
 	udpConn, err := net.ListenUDP("udp4", udpAddr)
 	if err != nil {
-		return nil, common.NewError("Unable to reserver UDP port for SCION listen", "addr", address,
+		return nil, common.NewError("Unable to reserve UDP port for SCION listen", "addr", address,
 			"port", port)
 	}
 
@@ -120,9 +119,6 @@ func (c *Context) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, e
 }
 
 func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAddr, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	if c.laddr == nil {
 		return 0, nil, common.NewError("Unable to read from uninitialized SCION socket")
 	}
@@ -161,9 +157,6 @@ func (c *SCIONConn) Read(b []byte) (int, error) {
 }
 
 func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAddr) (int, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	if c.laddr == nil {
 		return 0, common.NewError("Unable to write to unitialized SCION socket")
 	}
@@ -174,6 +167,7 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAddr) (int, error) {
 
 	packet, err := c.createUDPPacket(b, address, path)
 	if err != nil {
+		log.Warn("Error happened", "err", err)
 		return 0, err
 	}
 
@@ -185,7 +179,6 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAddr) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	return conn.Write(packet)
 }
 
@@ -204,6 +197,13 @@ func (c *SCIONConn) Write(b []byte) (int, error) {
 	return c.WriteToSCION(b, c.raddr)
 }
 
+func (c *SCIONConn) WriteFoo(b []byte) (int, error) {
+	if c.raddr == nil {
+		return 0, common.NewError("Unable to write to socket without remote address")
+	}
+	return c.WriteToSCION(b, c.raddr)
+}
+
 func (c *SCIONConn) LocalAddr() net.Addr {
 	return c.laddr
 }
@@ -213,9 +213,6 @@ func (c *SCIONConn) RemoteAddr() net.Addr {
 }
 
 func (c *SCIONConn) Close() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	err := c.Conn.Close()
 	if err != nil {
 		return common.NewError("Unable to close reliable socket", "err", err)

@@ -59,7 +59,7 @@ func NewModule() *Module {
 }
 
 func (m *Module) Register(remote *Remote) error {
-	ipAddr := net.ParseIP("0.0.0.0")
+	ipAddr := net.ParseIP(remote.Address)
 	if ipAddr == nil {
 		return common.NewError("Unable to parse IP address", "address", remote.Address)
 	}
@@ -70,7 +70,7 @@ func (m *Module) Register(remote *Remote) error {
 	}
 
 	log.Debug("Dialing for hello module")
-	conn, err := m.context.DialSCION(remote.IA, addr.HostFromIP(ipAddr), uint16(port))
+	conn, err := m.context.DialSCION(remote.IA, addr.HostFromIP(global.CtrlIP), addr.HostFromIP(ipAddr), uint16(port))
 	if err != nil {
 		return common.NewError("Unable to dial SCION", "err", err)
 	}
@@ -89,7 +89,7 @@ func (m *Module) Deregister(remote *Remote) error {
 
 func (m *Module) echoServer() {
 	b := make([]byte, 1500)
-
+	msg := []byte("BBBB    BBBB    BBBB    BBBB    ")
 	// Start listening on control channel
 	conn, err := m.context.ListenSCION(addr.HostFromIP(global.CtrlIP), global.CtrlPort)
 	if err != nil {
@@ -97,19 +97,12 @@ func (m *Module) echoServer() {
 	}
 
 	for {
-		log.Warn("Key 2 - PreRead", "conn", conn)
-		n, sa, err := conn.ReadFromSCION(b)
-		log.Warn("Key 2 - PostRead", "conn", conn)
-
+		_, sa, err := conn.ReadFromSCION(b)
 		if err != nil {
 			log.Error("Unable to read from SCION socket", "err", err)
 			continue
 		}
-
-		log.Debug("Received SCION Control message", "length", n, "sa", sa)
-		msg := []byte("EchoReply")
-		log.Warn("Key 3 - Sending hello reply", "sa", sa)
-		n, err = conn.WriteTo(msg, sa)
+		_, err = conn.WriteTo(msg, sa)
 		if err != nil {
 			log.Error("Unable to write to SCION destination", "msg", msg, "sa", sa)
 		}
@@ -122,7 +115,6 @@ func (m *Module) run() {
 		go func(queue chan<- *Remote, remote *Remote) {
 			var err error
 
-			log.Warn("Key 1 - Sending hello", "remote", remote)
 			err = m.sendHello(remote)
 			if err != nil {
 				remote.OnError()
@@ -134,9 +126,8 @@ func (m *Module) run() {
 				return
 			}
 
-			log.Warn("Key 4 - PreRead", "remote", remote)
+			// FIXME(scrye): add timeout for receiving
 			err = m.receiveHello(remote)
-			log.Warn("Key 4 - PostRead", "remote", remote)
 			if err != nil {
 				atomic.AddUint64(&remote.failures, 1)
 				log.Warn("Unable to receive Hello", "err", err)
@@ -149,9 +140,7 @@ func (m *Module) run() {
 
 			// On successful receive reset error counter
 			atomic.StoreUint64(&remote.failures, 0)
-			log.Debug("value of state before", "state", remote.state)
 			if remote.swapState(StateDown, StateUp) {
-				log.Debug("value of state after", "state", remote.state)
 				remote.OnUp()
 			}
 		}(m.queue, remote)
@@ -165,8 +154,7 @@ func (m *Module) run() {
 }
 
 func (m *Module) sendHello(remote *Remote) error {
-	log.Debug("Sending hello", "time", time.Now())
-	_, err := remote.conn.Write([]byte("EchoRequest"))
+	_, err := remote.conn.WriteFoo([]byte("AAAA    AAAA    AAAA    AAAA    "))
 	if err != nil {
 		return common.NewError("Unable to write", "err", err)
 	}
@@ -175,12 +163,9 @@ func (m *Module) sendHello(remote *Remote) error {
 
 func (m *Module) receiveHello(remote *Remote) error {
 	// FIXME(scrye): add deadline for this operation
-	log.Debug("Receiving hello", "time", time.Now())
 	_, err := remote.conn.Read(remote.rcvBuffer)
-	log.Debug("... after received hello")
 	if err != nil {
 		return common.NewError("Unable to read hello reply", "err", err)
 	}
-	log.Debug("Received hello reply", "message", remote.rcvBuffer)
 	return nil
 }

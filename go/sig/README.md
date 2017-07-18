@@ -18,11 +18,13 @@ Disable Reverse Path Filtering:
 
 ### Testing
 
-Run the SIG as root (note that root needs to have a valid path to the SIG binary):
+Run the SIG as root:
 
 ```
-sudo -E sig -config sig.config -sciond /run/shm/sciond/sd1-1.sock
+sudo sig -config sig.config -sciond /run/shm/sciond/sd1-1.sock -dispatcher /run/shm/dispatcher/default.sock -isdas 100-2 -encapip 169.254.1.2 -encapport 10080 -ctrlip 169.254.1.2 -ctrlport 10081
 ```
+
+Argument `-cli` can be used to enable the optional interactive console.
 
 
 ### Management
@@ -38,8 +40,8 @@ Commands:
   show.route            show.route
   static.route.add      static.route.add <ipv4-subnet> <isdas>
   static.route.del      static.route.del <ipv4-subnet> <isdas>
-  static.sig.add        static.sig.add <isdas> <ipv4-address> <port>
-  static.sig.del        static.sig.del <isdas> <ipv4-address> <port>
+  static.sig.add        static.sig.add <isdas> <encap-ip> <encap-port> <ctrl-ip> <ctrl-port>
+  static.sig.del        static.sig.del <isdas> <encap-ip> <encap-port> <ctrl-ip> <ctrl-port>
 ```
 
 #### Config files
@@ -50,8 +52,8 @@ Config file example:
 ```
 # ETH-Test config file with two SIGs on remote AS 1-10
 
-static.sig.add 1-10 198.51.100.1 10080
-static.sig.add 1-10 198.51.100.2 10080
+static.sig.add 1-10 198.51.100.1 10080 198.51.100.1 10080
+static.sig.add 1-10 198.51.100.2 10080 198.51.100.2 10080
 static.route.add 203.0.113.0/24 1-10
 ```
 
@@ -59,28 +61,20 @@ static.route.add 203.0.113.0/24 1-10
 
 Current status:
 * Control plane:
-  * Static only (using built-in console and config files)
-  * Built-in interactive console
+  * Static only (using interactive console or config files)
   * Can register multiple SIGs for each remote AS
   * Can register multiple prefixes for each remote AS
+  * SIG-SIG transport protocol
 * Data plane:
-  * Current performance: 3.3Mbps on Vagrant testbed using iperf TCP (out of 1.03Gbps native performance)
   * Encapsulation/decapsulation is done in user space
-  * Per packet processing, no async operations
-  * Only POC IP in IP encapsulation
-  * No SIG-SIG packet aggregation protocol
   * No load balancing logic
-  * Only tested for IPv4
+  * IPv4 only
 
 TODOs:
 * Control plane:
-  * Run as a service and connect to it using remote console
+  * SIG-SIG Keepalive protocol
 * Data plane:
-  * Implement SCION/UDP encapsulation
-  * Implement SIG-SIG packet aggregation protocol
-  * Implement Round Robin load balancer
-  * Move encapsulation and decapsulation to kernel space
-  * Add IPv6 support
+  * IPv6 support
 
 
 ### Design

@@ -103,24 +103,12 @@ func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string, ct
 	}
 
 	var conn net.Conn
-	switch global.Encapsulation {
-	case "ip":
-		remote := &net.UDPAddr{IP: ip, Port: int(nport)}
-		conn, err = net.DialUDP("udp", nil, remote)
-		if err != nil {
-			return common.NewError("Unable to establish flow", "err", err)
-		}
-	case "scion":
-		conn, err = global.Context.DialSCION(as.IA, addr.HostFromIP(ip), uint16(nport))
-		if err != nil {
-			return common.NewError("Unable to establish flow", "err", err)
-		}
-	default:
-		return common.NewError("Unknown encapsulation", "encapsulation", global.Encapsulation)
+	conn, err = global.Context.DialSCION(as.IA, global.Addr, addr.HostFromIP(ip), uint16(nport))
+	if err != nil {
+		return common.NewError("Unable to establish flow", "err", err)
 	}
 
 	as.sigs[sig] = conn
-
 	// Register with keepalive module
 	/*
 		remote := hello.Remote{
