@@ -429,9 +429,17 @@ class SCIONElement(object):
             return
         for isd, ver in missing_trcs:
             with self.req_trcs_lock:
-                _, meta = self.requested_trcs.get((isd, ver), (None, None))
+                req_time, meta = self.requested_trcs.get((isd, ver), (None, None))
                 if meta:
-                    # There is already an outstanding request for the missing TRC.
+                    # There is already an outstanding request for the missing TRC
+                    # from somewhere else than than the local CS
+                    if seg_meta.meta:
+                        # Update the stored meta with the latest known server that has the TRC.
+                        self.requested_trcs[(isd, ver)] = (req_time, seg_meta.meta)
+                    continue
+                if req_time and not seg_meta.meta:
+                    # There is already an outstanding request for the missing TRC
+                    # to the local CS and we don't have a new meta.
                     continue
             trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -461,9 +469,17 @@ class SCIONElement(object):
             return
         for isd_as, ver in missing_certs:
             with self.req_certs_lock:
-                _, meta = self.requested_certs.get((isd_as, ver), (None, None))
+                req_time, meta = self.requested_certs.get((isd_as, ver), (None, None))
                 if meta:
-                    # There is already an outstanding request for the missing cert.
+                    # There is already an outstanding request for the missing cert
+                    # from somewhere else than than the local CS
+                    if seg_meta.meta:
+                        # Update the stored meta with the latest known server that has the cert.
+                        self.requested_certs[(isd_as, ver)] = (req_time, seg_meta.meta)
+                    continue
+                if req_time and not seg_meta.meta:
+                    # There is already an outstanding request for the missing cert
+                    # to the local CS and we don't have a new meta.
                     continue
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
