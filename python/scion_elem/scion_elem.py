@@ -25,6 +25,7 @@ import time
 from collections import defaultdict
 
 # External packages
+from external.expiring_dict import ExpiringDict
 from prometheus_client import Counter, Gauge, start_http_server
 
 # SCION
@@ -427,8 +428,8 @@ class SCIONElement(object):
         for isd, ver in missing_trcs:
             with self.req_trcs_lock:
                 _, meta = self.requested_trcs.get((isd, ver), (None, None))
-                # Prefer requesting from remote BS.
-                if meta and (not seg_meta.meta or seg_meta.meta == self._get_cs()):
+                # There is already an outstanding request for the missing TRC.
+                if meta:
                     continue
             trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -439,7 +440,7 @@ class SCIONElement(object):
             logging.info("Requesting %sv%s TRC from %s, for PCB %s",
                          isd, ver, meta, seg_meta.seg.short_id())
             with self.req_trcs_lock:
-                self.requested_trcs[(isd, ver)] = (time.time(), meta)
+                self.requested_trcs[(isd, ver)] = (time.time(), seg_meta.meta)
                 if self._labels:
                     PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
             self.send_meta(trc_req, meta)
@@ -459,8 +460,8 @@ class SCIONElement(object):
         for isd_as, ver in missing_certs:
             with self.req_certs_lock:
                 _, meta = self.requested_certs.get((isd_as, ver), (None, None))
-                # Prefer requesting from remote BS.
-                if meta and (not seg_meta.meta or seg_meta.meta == self._get_cs()):
+                # There is already an outstanding request for the missing TRC.
+                if meta:
                     continue
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -471,7 +472,7 @@ class SCIONElement(object):
             logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
                          isd_as, ver, meta, seg_meta.seg.short_id())
             with self.req_certs_lock:
-                self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+                self.requested_certs[(isd_as, ver)] = (time.time(), seg_meta.meta)
                 if self._labels:
                     PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
             self.send_meta(cert_req, meta)
