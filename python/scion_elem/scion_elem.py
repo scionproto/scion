@@ -430,8 +430,8 @@ class SCIONElement(object):
         for isd, ver in missing_trcs:
             with self.req_trcs_lock:
                 _, meta = self.requested_trcs.get((isd, ver), (None, None))
-                # There is already an outstanding request for the missing TRC.
                 if meta:
+                    # There is already an outstanding request for the missing TRC.
                     continue
             trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -462,8 +462,8 @@ class SCIONElement(object):
         for isd_as, ver in missing_certs:
             with self.req_certs_lock:
                 _, meta = self.requested_certs.get((isd_as, ver), (None, None))
-                # There is already an outstanding request for the missing TRC.
                 if meta:
+                    # There is already an outstanding request for the missing cert.
                     continue
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
