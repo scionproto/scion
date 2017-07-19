@@ -319,15 +319,17 @@ ReceiveLoop:
 				continue ReceiveLoop
 			}
 
-			if packetLength == len(payload) {
-				// The end of the IP packet is the end of the frame
+			if packetLength <= len(payload) {
 				//log.Debug("Sending packet", "payload", payload, "len", len(payload))
 				err := send(payload)
 				if err != nil {
 					log.Error("Unable to send IP packet", "packet", payload)
 					continue ReceiveLoop
 				}
-				continue ReceiveLoop
+				if packetLength == len(payload) {
+					// The end of the IP packet is the end of the frame
+					continue ReceiveLoop
+				}
 			}
 
 			// This frame contains data after this packet, try to parse another one
