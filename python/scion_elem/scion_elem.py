@@ -329,6 +329,7 @@ class SCIONElement(object):
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
                     trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver,
                                                      cache_only=True)
+                    meta = meta or self._get_cs()
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
                     self.send_meta(trc_req, meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
@@ -344,6 +345,7 @@ class SCIONElement(object):
             for (isd_as, ver), (req_time, meta) in self.requested_certs.items():
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
                     cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+                    meta = meta or self._get_cs()
                     logging.info("Re-Requesting CERTCHAIN from %s: %s", meta, cert_req.short_desc())
                     self.send_meta(cert_req, meta)
                     self.requested_certs[(isd_as, ver)] = (time.time(), meta)
