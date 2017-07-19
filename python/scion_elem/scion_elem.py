@@ -25,6 +25,7 @@ import time
 from collections import defaultdict
 
 # External packages
+from external.expiring_dict import ExpiringDict
 from prometheus_client import Counter, Gauge, start_http_server
 
 # SCION
@@ -195,7 +196,7 @@ class SCIONElement(object):
             self._DefaultMeta = TCPMetadata
         else:
             self._DefaultMeta = UDPMetadata
-        self.unverified_segs = set()
+        self.unverified_segs = ExpiringDict(500, 60 * 60)
         self.unv_segs_lock = threading.RLock()
         self.requested_trcs = {}
         self.req_trcs_lock = threading.Lock()
@@ -328,6 +329,7 @@ class SCIONElement(object):
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
                     trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver,
                                                      cache_only=True)
+                    meta = meta or self._get_cs()
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
                     self.send_meta(trc_req, meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
@@ -343,6 +345,7 @@ class SCIONElement(object):
             for (isd_as, ver), (req_time, meta) in self.requested_certs.items():
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
                     cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+                    meta = meta or self._get_cs()
                     logging.info("Re-Requesting CERTCHAIN from %s: %s", meta, cert_req.short_desc())
                     self.send_meta(cert_req, meta)
                     self.requested_certs[(isd_as, ver)] = (time.time(), meta)
@@ -359,10 +362,13 @@ class SCIONElement(object):
         meta_str = str(seg_meta.meta) if seg_meta.meta else "ZK"
         logging.debug("Handling PCB from %s: %s" % (meta_str, seg_meta.seg.short_desc()))
         with self.unv_segs_lock:
-            if seg_meta not in self.unverified_segs:
-                self.unverified_segs.add(seg_meta)
-                if self._labels:
-                    UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
+            # Close the meta of the previous seg_meta, if there was one.
+            prev_meta = self.unverified_segs.get(seg_meta.id)
+            if prev_meta and prev_meta.meta:
+                prev_meta.meta.close()
+            self.unverified_segs[seg_meta.id] = seg_meta
+            if self._labels:
+                UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
         # Find missing TRCs and certificates
         missing_trcs = self._missing_trc_versions(seg_meta.trc_vers)
         missing_certs = self._missing_cert_versions(seg_meta.cert_vers)
@@ -391,7 +397,7 @@ class SCIONElement(object):
                           (seg_meta.seg.short_id(), e))
             return
         with self.unv_segs_lock:
-            self.unverified_segs.discard(seg_meta)
+            self.unverified_segs.pop(seg_meta.id, None)
             if self._labels:
                 UNV_SEGS_TOTAL.labels(**self._labels).set(len(self.unverified_segs))
         if seg_meta.meta:
@@ -423,7 +429,17 @@ class SCIONElement(object):
             return
         for isd, ver in missing_trcs:
             with self.req_trcs_lock:
-                if (isd, ver) in self.requested_trcs:
+                req_time, meta = self.requested_trcs.get((isd, ver), (None, None))
+                if meta:
+                    # There is already an outstanding request for the missing TRC
+                    # from somewhere else than than the local CS
+                    if seg_meta.meta:
+                        # Update the stored meta with the latest known server that has the TRC.
+                        self.requested_trcs[(isd, ver)] = (req_time, seg_meta.meta)
+                    continue
+                if req_time and not seg_meta.meta:
+                    # There is already an outstanding request for the missing TRC
+                    # to the local CS and we don't have a new meta.
                     continue
             trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -434,7 +450,7 @@ class SCIONElement(object):
             logging.info("Requesting %sv%s TRC from %s, for PCB %s",
                          isd, ver, meta, seg_meta.seg.short_id())
             with self.req_trcs_lock:
-                self.requested_trcs[(isd, ver)] = (time.time(), meta)
+                self.requested_trcs[(isd, ver)] = (time.time(), seg_meta.meta)
                 if self._labels:
                     PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
             self.send_meta(trc_req, meta)
@@ -453,7 +469,17 @@ class SCIONElement(object):
             return
         for isd_as, ver in missing_certs:
             with self.req_certs_lock:
-                if (isd_as, ver) in self.requested_certs:
+                req_time, meta = self.requested_certs.get((isd_as, ver), (None, None))
+                if meta:
+                    # There is already an outstanding request for the missing cert
+                    # from somewhere else than than the local CS
+                    if seg_meta.meta:
+                        # Update the stored meta with the latest known server that has the cert.
+                        self.requested_certs[(isd_as, ver)] = (req_time, seg_meta.meta)
+                    continue
+                if req_time and not seg_meta.meta:
+                    # There is already an outstanding request for the missing cert
+                    # to the local CS and we don't have a new meta.
                     continue
             cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
@@ -464,7 +490,7 @@ class SCIONElement(object):
             logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s",
                          isd_as, ver, meta, seg_meta.seg.short_id())
             with self.req_certs_lock:
-                self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+                self.requested_certs[(isd_as, ver)] = (time.time(), seg_meta.meta)
                 if self._labels:
                     PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
             self.send_meta(cert_req, meta)
@@ -542,7 +568,7 @@ class SCIONElement(object):
         the processing is continued.
         """
         with self.unv_segs_lock:
-            for seg_meta in list(self.unverified_segs):
+            for seg_meta in list(self.unverified_segs.values()):
                 with seg_meta.miss_trc_lock:
                     seg_meta.missing_trcs.discard((isd, ver))
                 # If all required trcs and certs are received
@@ -586,7 +612,7 @@ class SCIONElement(object):
         the processing is continued.
         """
         with self.unv_segs_lock:
-            for seg_meta in list(self.unverified_segs):
+            for seg_meta in list(self.unverified_segs.values()):
                 with seg_meta.miss_cert_lock:
                     seg_meta.missing_certs.discard((isd_as, ver))
                 # If all required trcs and certs are received.
