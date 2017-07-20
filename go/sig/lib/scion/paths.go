@@ -40,11 +40,11 @@ func getKey(srcIA *addr.ISD_AS, dstIA *addr.ISD_AS) uint64 {
 
 // PathManager asynchronously keeps paths up to date for known remote ASes
 type PathManager struct {
+	pathLock           sync.RWMutex
 	requestQueue       chan *PathQuery
 	context            *Context
 	defaultPathTimeout time.Duration
 	pathCache          map[uint64]PathSet
-	pathLock           sync.Mutex
 	sciond             *sciond.Connector
 }
 
@@ -109,12 +109,13 @@ func (pm *PathManager) run() {
 // destinations.
 func (pm *PathManager) FindPath(src, dst *addr.ISD_AS) (sciond.PathReplyEntry, error) {
 	key := getKey(src, dst)
-	pm.pathLock.Lock()
+	pm.pathLock.RLock()
 	if pathSet, found := pm.pathCache[key]; found && len(pathSet) > 0 {
-		pm.pathLock.Unlock()
-		return pathSet.first(), nil
+		pm.pathLock.RUnlock()
+		path, err := pathSet.first()
+		return *path, err
 	}
-	pm.pathLock.Unlock()
+	pm.pathLock.RUnlock()
 
 	query := NewPathQuery(src, dst)
 	pm.requestQueue <- query
@@ -171,9 +172,9 @@ func (s PathSet) remove(op PathSet) {
 	}
 }
 
-func (s PathSet) first() sciond.PathReplyEntry {
+func (s PathSet) first() (*sciond.PathReplyEntry, error) {
 	for _, v := range s {
-		return v
+		return &v, nil
 	}
-	panic("Unable to select first of empty pathSet")
+	return nil, common.NewError("Unable to select first of empty pathSet")
 }

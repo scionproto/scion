@@ -1,7 +1,6 @@
 package base
 
 import (
-	"fmt"
 	"net"
 	"sync"
 
@@ -15,8 +14,8 @@ import (
 // SDB contains the aggregated information for remote SIGs, ASes and their prefixes
 type SDB struct {
 	// TODO(scrye) per AS lock granularity
-	topo        *topology
 	lock        sync.RWMutex
+	topo        *topology
 	helloModule *hello.Module
 }
 
@@ -29,8 +28,8 @@ func NewSDB() (*SDB, error) {
 }
 
 func (sdb *SDB) AddRoute(prefix string, isdas string) error {
-	sdb.lock.Lock()
-	defer sdb.lock.Unlock()
+	sdb.lock.RLock()
+	defer sdb.lock.RUnlock()
 
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
@@ -54,13 +53,12 @@ func (sdb *SDB) AddRoute(prefix string, isdas string) error {
 		log.Error("Unable to add route", "subnet", subnet, "device", info.DeviceName)
 		return err
 	}
-
 	return nil
 }
 
 func (sdb *SDB) DelRoute(prefix string, isdas string) error {
-	sdb.lock.Lock()
-	defer sdb.lock.Unlock()
+	sdb.lock.RLock()
+	defer sdb.lock.RUnlock()
 
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
@@ -73,7 +71,6 @@ func (sdb *SDB) DelRoute(prefix string, isdas string) error {
 		return common.NewError("Unable to delete prefix from unreachable AS", "prefix",
 			prefix, "AS", isdas)
 	}
-
 	return info.delRoute(subnet)
 }
 
@@ -93,8 +90,7 @@ func (sdb *SDB) AddSig(isdas string, encapAddr string, encapPort string, ctrlAdd
 	}
 	sdb.topo.set(isdas, info)
 
-	// Spawn worker for this AS
-	// TODO(scrye) channel for data worker commands (to signal remote AS entry destruction/worker)
+	// FIXME(scrye) channel for worker commands (to cancel goroutine when remote AS is removed)
 	go EgressWorker(info)
 	return info.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 }
@@ -110,16 +106,15 @@ func (sdb *SDB) DelSig(isdas string, address string, port string, source string)
 }
 
 func (sdb *SDB) Print(source string) string {
-	sdb.lock.Lock()
-	defer sdb.lock.Unlock()
-
+	sdb.lock.RLock()
+	defer sdb.lock.RUnlock()
 	return sdb.topo.print()
 }
 
 // topology keeps track of which ASes have been defined
 type topology struct {
 	info map[string]*asInfo
-	lock sync.Mutex
+	lock sync.RWMutex
 }
 
 func newTopology() *topology {
@@ -129,8 +124,8 @@ func newTopology() *topology {
 }
 
 func (t *topology) get(key string) (*asInfo, bool) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
+	t.lock.RLock()
+	defer t.lock.RUnlock()
 
 	value, found := t.info[key]
 	return value, found
@@ -144,16 +139,11 @@ func (t *topology) set(key string, value *asInfo) {
 }
 
 func (t *topology) print() string {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
 	output := ""
-	for k, v := range t.info {
-		output += fmt.Sprintf("  ISDAS %v:\n", k)
-		if v.Subnets.Len() == 0 {
-			output += fmt.Sprintf("    (no prefixes)\n")
-		}
-		for e := v.Subnets.Front(); e != nil; e = e.Next() {
-			output += fmt.Sprintf("      %v\n", e.Value.(*net.IPNet))
-		}
-		output += "\n"
+	for _, v := range t.info {
+		output += v.String()
 	}
 	return output
 }

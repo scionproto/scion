@@ -39,6 +39,7 @@ func NewShell(static *control.StaticRP) *ishell.Shell {
 			}
 			err := static.AddRoute(c.Args[0], c.Args[1])
 			if err != nil {
+				log.Error("static.route.add", "err", err)
 				c.Println(err)
 			}
 		},
@@ -52,7 +53,11 @@ func NewShell(static *control.StaticRP) *ishell.Shell {
 				c.Println("Error, usage: static.route.del <ipv4-subnet> <isdas>")
 				return
 			}
-			static.DelRoute(c.Args[0], c.Args[1])
+			err := static.DelRoute(c.Args[0], c.Args[1])
+			if err != nil {
+				log.Error("static.route.del", "err", err)
+				c.Println(err)
+			}
 		},
 	})
 
@@ -64,7 +69,10 @@ func NewShell(static *control.StaticRP) *ishell.Shell {
 				c.Println("Error, usage: static.sig.add <isdas> <encap-ipv4-addr> <encap-port> <ctrl-ipv4-addr> <ctrl-port>")
 				return
 			}
-			static.AddSig(c.Args[0], c.Args[1], c.Args[2], c.Args[3], c.Args[4])
+			err := static.AddSig(c.Args[0], c.Args[1], c.Args[2], c.Args[3], c.Args[4])
+			if err != nil {
+				log.Error("static.sig.add", "err", err)
+			}
 		},
 	})
 
@@ -76,7 +84,10 @@ func NewShell(static *control.StaticRP) *ishell.Shell {
 				c.Println("Error, usage: static.sig.del <isdas> <encap-ipv4-addr> <encap-port>")
 				return
 			}
-			static.DelSig(c.Args[0], c.Args[1], c.Args[2])
+			err := static.DelSig(c.Args[0], c.Args[1], c.Args[2])
+			if err != nil {
+				log.Error("static.sig.del", "err", err)
+			}
 		},
 	})
 	return shell

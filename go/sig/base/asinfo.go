@@ -1,8 +1,6 @@
 package base
 
 import (
-	"bytes"
-	"container/list"
 	"fmt"
 	"io"
 	"net"
@@ -16,71 +14,57 @@ import (
 )
 
 type asInfo struct {
-	Name string
-	IA   *addr.ISD_AS
-	SDB  *SDB
-	sigs map[string]net.Conn
-
-	// NOTE(scrye): A map would probably be a better fit for subnets
-	Subnets *list.List
-
-	Device     io.ReadWriteCloser
+	lock       sync.RWMutex
+	Name       string
+	IA         *addr.ISD_AS
+	SDB        *SDB
+	sigs       map[string]net.Conn
+	Subnets    map[string]*net.IPNet
 	DeviceName string
-
-	lock sync.Mutex
+	Device     io.ReadWriteCloser
 }
 
 // newASInfo initializes the internal structures and creates the tunnel interface for a new remote AS.
 func newASInfo(sdb *SDB, isdas string) (*asInfo, error) {
 	var err error
-	info := new(asInfo)
-	info.DeviceName = fmt.Sprintf("scion.%s", isdas)
-
-	ia, nerr := addr.IAFromString(isdas)
-	if nerr != nil {
-		return nil, nerr
+	ia, cerr := addr.IAFromString(isdas)
+	if cerr != nil {
+		return nil, cerr
 	}
-	info.IA = ia
-	info.SDB = sdb
-	info.sigs = make(map[string]net.Conn)
-
-	// Create tunnel interface for this AS
-	info.Device, err = xnet.ConnectTun(info.DeviceName)
-	if err != nil {
+	info := &asInfo{
+		Name:       isdas,
+		IA:         ia,
+		SDB:        sdb,
+		sigs:       make(map[string]net.Conn),
+		Subnets:    make(map[string]*net.IPNet),
+		DeviceName: fmt.Sprintf("scion.%s", isdas),
+	}
+	if info.Device, err = xnet.ConnectTun(info.DeviceName); err != nil {
 		return nil, err
 	}
-
-	info.Name = isdas
-	info.Subnets = list.New()
-
 	return info, nil
 }
 
 func (as *asInfo) addRoute(subnet *net.IPNet) error {
 	as.lock.Lock()
 	defer as.lock.Unlock()
-
-	for e := as.Subnets.Front(); e != nil; e = e.Next() {
-		network := e.Value.(*net.IPNet)
-		if bytes.Equal(network.IP, subnet.IP) && bytes.Equal(network.Mask, subnet.Mask) {
-			return common.NewError("Subnet exists", "subnet", subnet)
-		}
+	subnetKey := subnet.String()
+	if _, found := as.Subnets[subnetKey]; found {
+		return common.NewError("Subnet already exists", "subnet", subnet)
 	}
-	as.Subnets.PushBack(subnet)
+	as.Subnets[subnet.String()] = subnet
 	return nil
 }
 
 func (as *asInfo) delRoute(subnet *net.IPNet) error {
 	as.lock.Lock()
 	defer as.lock.Unlock()
-
-	for e := as.Subnets.Front(); e != nil; e = e.Next() {
-		network := e.Value.(*net.IPNet)
-		if bytes.Equal(network.IP, subnet.IP) && bytes.Equal(network.Mask, subnet.Mask) {
-			as.Subnets.Remove(e)
-		}
+	subnetKey := subnet.String()
+	if _, found := as.Subnets[subnetKey]; !found {
+		return common.NewError("Subnet not found", "subnet", subnet)
 	}
-	return common.NewError("Subnet not found", "subnet", subnet)
+	delete(as.Subnets, subnetKey)
+	return nil
 }
 
 func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
@@ -91,12 +75,10 @@ func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string, ct
 	if _, found := as.sigs[sig]; found {
 		return common.NewError("SIG entry exists", "sig", sig)
 	}
-
 	ip := net.ParseIP(encapAddr)
 	if ip == nil {
 		return common.NewError("Unable to parse IP address", "address", encapAddr)
 	}
-
 	nport, err := strconv.ParseUint(encapPort, 10, 16)
 	if err != nil {
 		return common.NewError("Unable to parse port", "port", encapPort, "err", err)
@@ -123,7 +105,6 @@ func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string, ct
 			return common.NewError("Unable to Register", "err", err)
 		}
 	*/
-
 	return nil
 }
 
@@ -132,12 +113,33 @@ func (as *asInfo) delSig(address string, port string, source string) error {
 }
 
 func (as *asInfo) getConn() (net.Conn, error) {
-	as.lock.Lock()
-	defer as.lock.Unlock()
+	as.lock.RLock()
+	defer as.lock.RUnlock()
 
-	// Just grab one
 	for _, v := range as.sigs {
 		return v, nil
 	}
 	return nil, common.NewError("SIG not found", "DstIA", as.IA)
+}
+
+func (as *asInfo) String() string {
+	as.lock.RLock()
+	defer as.lock.RUnlock()
+
+	output := fmt.Sprintf("ISDAS %v:\n", as.IA)
+	output += "  SIGs:\n"
+	if len(as.sigs) == 0 {
+		output += fmt.Sprintf("    (no SIGs)\n")
+	}
+	for sig, _ := range as.sigs {
+		output += "    " + sig + "\n"
+	}
+	output += "Prefixes:\n"
+	if len(as.Subnets) == 0 {
+		output += fmt.Sprintf("    (no prefixes)\n")
+	}
+	for subnet, _ := range as.Subnets {
+		output += "    " + subnet + "\n"
+	}
+	return output
 }
