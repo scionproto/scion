@@ -171,15 +171,10 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAddr) (int, error) {
 		return 0, err
 	}
 
-	// FIXME(scrye): change from ephemeral UDP sockets to reusable ones
 	var addr net.UDPAddr
 	addr.IP = path.HostInfo.Addrs.Ipv4
 	addr.Port = int(path.HostInfo.Port)
-	conn, err := net.DialUDP("udp", nil, &addr)
-	if err != nil {
-		return 0, err
-	}
-	return conn.Write(packet)
+	return c.udpConn.WriteToUDP(packet, &net.UDPAddr{IP: addr.IP, Port: addr.Port})
 }
 
 func (c *SCIONConn) WriteTo(b []byte, address net.Addr) (int, error) {

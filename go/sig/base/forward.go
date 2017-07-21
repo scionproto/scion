@@ -178,7 +178,7 @@ func EgressWorker(info *asInfo) {
 		// cannot help anyway). Other than buffering more packets
 		// (which for high speed links will not be a solution), there's
 		// nothing we can do here.
-		flow.Write(packet[:SIGHdrSize+bytesRead])
+		_, err = flow.Write(packet[:SIGHdrSize+bytesRead])
 		if err != nil {
 			log.Error("Egress write error", "err", err)
 			return
