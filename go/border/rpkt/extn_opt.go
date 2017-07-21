@@ -80,11 +80,13 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	if err != nil {
 		return HookError, err
 	}
+	extn, err := opt.NewExtn()
+	meta, _ := o.Meta()
+	extn.SetMeta(meta)
 	datahash, _ := o.Datahash()
 	o.rp.Logger.Info(fmt.Sprintf("Extension with datahash (%d): %v", len(datahash.String()), datahash.String()))
 	PVF, _ := o.PVF()
 	o.rp.Logger.Info(fmt.Sprintf("Received PVF (%d): %v", len(PVF.String()), PVF.String()))
-	extn, err := opt.NewExtn()
 	extn.SetDatahash(datahash)
 	extn.SetPVF(PVF)
 	sessionID, _ := o.SessionID()
@@ -96,6 +98,19 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 		return HookError, err
 	}
 	o.SetPVF(updatedPVF)
+	OVs, _ := o.OVs()
+	err = extn.SetOVs(OVs)
+	o.rp.Logger.Info(fmt.Sprintf("OVs count %v, First OV (%v): %x, meta: %v", len(extn.OVs), len(extn.OVs[0]), extn.OVs[0], meta))
+	valid, err := extn.ValidateOV(key)
+	if !valid { // drop packet because OV is not valid
+		o.rp.Logger.Info(err.String())
+		o.rp.Logger.Info(fmt.Sprintln("Dropped packet, invalid OV"))
+		return HookError, err
+	}
+	o.rp.Logger.Info(fmt.Sprintf("Validated OVi with key %v", key.String()))
+	updatedMeta, err := extn.UpdateMeta(meta)
+	o.rp.Logger.Info(fmt.Sprintf("Updated Meta from %v to %v", meta, updatedMeta))
+	o.SetMeta(updatedMeta)
 	o.rp.Logger.Info("Processed OPT hook")
 	return HookContinue, nil
 }
@@ -116,7 +131,7 @@ func (o *rOPTExt) SetMeta(meta common.RawBytes) *common.Error {
 		return err
 	}
 	if len(Meta) != len(meta) {
-		return common.NewError("Invalid datahash length", "expected", len(Meta), "actual", len(meta))
+		return common.NewError("Invalid meta field length", "expected", len(Meta), "actual", len(meta))
 	}
 	copy(Meta, meta)
 	return nil
@@ -138,7 +153,7 @@ func (o *rOPTExt) SetTimestamp(timestamp common.RawBytes) *common.Error {
 		return err
 	}
 	if len(Timestamp) != len(timestamp) {
-		return common.NewError("Invalid datahash length", "expected", len(Timestamp), "actual", len(timestamp))
+		return common.NewError("Invalid timestamp length", "expected", len(Timestamp), "actual", len(timestamp))
 	}
 	copy(Timestamp, timestamp)
 	return nil
@@ -182,7 +197,7 @@ func (o *rOPTExt) SetSessionID(sessionID common.RawBytes) *common.Error {
 		return err
 	}
 	if len(session) != len(sessionID) {
-		return common.NewError("Invalid datahash length", "expected", len(session), "actual", len(sessionID))
+		return common.NewError("Invalid SessionID length", "expected", len(session), "actual", len(sessionID))
 	}
 	copy(session, sessionID)
 	return nil
@@ -204,15 +219,36 @@ func (o *rOPTExt) SetPVF(pathVerificationField common.RawBytes) *common.Error {
 		return err
 	}
 	if len(PVF) != len(pathVerificationField) {
-		return common.NewError("Invalid datahash length", "expected", len(PVF), "actual", len(pathVerificationField))
+		return common.NewError("Invalid PVF length", "expected", len(PVF), "actual", len(pathVerificationField))
 	}
 	copy(PVF, pathVerificationField)
 	return nil
 }
 
+// Set the OVs directly in the underlying buffer
+func (o *rOPTExt) SetOVs(originValidationFields common.RawBytes) *common.Error {
+	OVs, err := o.OVs()
+	if err != nil {
+		return err
+	}
+	if len(originValidationFields)%opt.OVLength == 0 {
+		return common.NewError("Invalid OVs length", "expected a mutiple of ", opt.OVLength, "actual", len(originValidationFields))
+	}
+	copy(OVs, originValidationFields)
+	return nil
+}
+
+// OVs returns a slice of the underlying buffer
+func (o *rOPTExt) OVs() (common.RawBytes, *common.Error) {
+	l, _, err := o.limitsOVs()
+	if err != nil {
+		return nil, err
+	}
+	return o.raw[l:], nil
+}
+
 // calcDRKey calculates the DRKey for this packet.
 func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
-	// stuff in with src ISD|src AS, compute CBCMac over it with key DRKeyAESBlock: K_x = cbcmac(DRKeyAESBlock, in)
 	in := make(common.RawBytes, 16)
 	common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
 	common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
@@ -244,12 +280,10 @@ func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
 	copy(in[2:5], []byte("OPT"))
 	copy(in[5:9], o.rp.srcHost.Pack())
 	copy(in[9:13], o.rp.dstHost.Pack())
-	// keyOpt is K^OPT_{AS_i -> S:H_S, D:H_D}
-	//keyOpt, e := util.CBCMac(blockFstOrder, in)
 	secondOrderKey, err := util.Mac(mac, in)
 	// o.rp.Logger.Info(fmt.Sprintf("Computed second order DRKey: %v over input %v with key %v", secondOrderKey, in, key))
 	mac, err = util.InitMac(secondOrderKey)
-	in = make(common.RawBytes, 16)
+	in, _ = o.SessionID()
 	protoDRKey, err := util.Mac(mac, in)
 	// o.rp.Logger.Info(fmt.Sprintf("Computed protoDRKey %v with key %v over blank SessionID", protoDRKey, secondOrderKey))
 	return protoDRKey, err
@@ -294,7 +328,7 @@ func (o *rOPTExt) String() string {
 	return extn.String()
 }
 
-// limitsTimestmap returns the limits of the Timestamp in the raw buffer
+// limitsMeta returns the limits of the Meta field in the raw buffer
 func (o *rOPTExt) limitsMeta() (int, int, *common.Error) {
 	size := opt.MetaLength
 	return 0, 0 + size, nil
@@ -326,4 +360,10 @@ func (o *rOPTExt) limitsPVF() (int, int, *common.Error) {
 	size := opt.PVFLength
 	_, l, _ := o.limitsSessionID()
 	return l, l + size, nil
+}
+
+// OVs returns the limits of the OVs in the raw buffer
+func (o *rOPTExt) limitsOVs() (int, int, *common.Error) {
+	_, l, _ := o.limitsPVF()
+	return l, -1, nil
 }

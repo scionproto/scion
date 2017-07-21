@@ -197,6 +197,9 @@ class E2EServer(TestServerBase):
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
+        spkt.ext_hdrs[0].meta = bytes([0])
+        spkt.ext_hdrs[0].sessionID = bytes([3]+[0]*15)
+        spkt.update()
         spkt.set_payload(self._create_payload(spkt))
         shared_path.reverse()
         _, misc = _try_sciond_api(spkt, connector=self._connector, path=shared_path)
@@ -204,6 +207,7 @@ class E2EServer(TestServerBase):
         logging.debug("misc.drkeys:")
         for k in misc.drkeys:
             logging.debug("key: %s", k)
+        logging.debug("Sending packet with meta: " + str(spkt.ext_hdrs[0].meta))
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()

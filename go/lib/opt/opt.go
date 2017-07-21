@@ -15,7 +15,6 @@
 package opt
 
 import (
-	//"fmt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
@@ -30,6 +29,7 @@ const (
 	DatahashLength  = 16
 	SessionIDLength = 16
 	PVFLength       = 16
+	OVLength        = 16
 )
 
 func NewExtn() (*Extn, *common.Error) {
@@ -39,6 +39,7 @@ func NewExtn() (*Extn, *common.Error) {
 	o.DataHash = make(common.RawBytes, DatahashLength)
 	o.SessionId = make(common.RawBytes, SessionIDLength)
 	o.PVF = make(common.RawBytes, PVFLength)
+	o.OVs = []common.RawBytes{}
 	return o, nil
 }
 

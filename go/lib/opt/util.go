@@ -15,11 +15,11 @@
 package opt
 
 import (
-	"bytes"
 	"crypto/sha256"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/util"
+	"bytes"
 )
 
 func (e *Extn) DataHashed(payload common.RawBytes) common.RawBytes {
@@ -53,10 +53,6 @@ func (e *Extn) UpdatePVF(key common.RawBytes) (common.RawBytes, *common.Error) {
 		return nil, err
 	}
 	e.PVF = updatedPVF
-	/*localSecret, _ := packet.CalcDRKey()
-	// K_{AS_i}^session = PRF_{AS_i -> S, D}(SessionId)
-	sessionKey := cbcMAC(localSecret, e.SessionId)
-	e.PVF = cbcMAC(sessionKey, e.PVF)*/
 	return updatedPVF, nil
 }
 
@@ -66,13 +62,29 @@ func (e *Extn) ValidateOV(key common.RawBytes) (bool, *common.Error) {
 	if err != nil {
 		return false, err
 	}
-	currentOV := e.PVF // check with correct OV for the current hop
-	computedOV, err := util.Mac(mac, currentOV)
+	meta := e.Meta
+	index := int(byte(meta[0]) & byte(0x3f)) // mask out top 2 bits
+	if index >= len(e.OVs) {
+		return false, common.NewError("Invalid OV meta index", "index", index, "meta", meta, "sessionID", e.SessionId)
+	}
+	currentOV := e.OVs[index] // check with correct OV for the current hop
+	computedOV, err := util.Mac(mac, e.DataHash)
 	if err != nil {
 		return false, err
 	}
 	if !bytes.Equal(computedOV, currentOV) {
-		return false, err
+		return false, common.NewError("Invalid OV", "expected OV", computedOV, "got OV", currentOV, "at index", index, "from meta", meta)
 	}
 	return true, nil
+}
+
+// return an updated Meta index
+func (e *Extn) UpdateMeta(meta common.RawBytes) (common.RawBytes, *common.Error) {
+	mode := byte(meta[0]) & byte(0xc) // mask out lower 6 bits
+	index := int(byte(meta[0]) & byte(0x3f)) // mask out top 2 bits
+	index += 1
+	if index >= 0x3f { // value 0x3f is reserved for future use, larger values overflow
+		return nil, common.NewError("Invalid OV, overflowed meta index", "index", index)
+	}
+	return common.RawBytes{mode | byte(index)}, nil
 }
