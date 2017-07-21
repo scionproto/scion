@@ -7,27 +7,28 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/mod/hello"
+	"github.com/netsec-ethz/scion/go/sig/lib/scion"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
-// SDB contains the aggregated information for remote SIGs, ASes and their prefixes
-type SDB struct {
+// Topology contains the aggregated information for remote SIGs, ASes and their prefixes
+type Topology struct {
 	// TODO(scrye) per AS lock granularity
-	lock        sync.RWMutex
-	topo        *topology
-	helloModule *hello.Module
+	lock     sync.RWMutex
+	topo     *asMap
+	scionNet *scion.SCIONNet
 }
 
-func NewSDB() (*SDB, error) {
-	sdb := new(SDB)
-	sdb.topo = newTopology()
+func NewTopology(scionNet *scion.SCIONNet) (*Topology, error) {
+	topology := new(Topology)
+	topology.topo = newASMap()
+	topology.scionNet = scionNet
 	// FIXME(scrye): reactivate keepalive module
 	//sdb.helloModule = hello.NewModule()
-	return sdb, nil
+	return topology, nil
 }
 
-func (sdb *SDB) AddRoute(prefix string, isdas string) error {
+func (sdb *Topology) AddRoute(prefix string, isdas string) error {
 	sdb.lock.RLock()
 	defer sdb.lock.RUnlock()
 
@@ -56,7 +57,7 @@ func (sdb *SDB) AddRoute(prefix string, isdas string) error {
 	return nil
 }
 
-func (sdb *SDB) DelRoute(prefix string, isdas string) error {
+func (sdb *Topology) DelRoute(prefix string, isdas string) error {
 	sdb.lock.RLock()
 	defer sdb.lock.RUnlock()
 
@@ -74,17 +75,17 @@ func (sdb *SDB) DelRoute(prefix string, isdas string) error {
 	return info.delRoute(subnet)
 }
 
-func (sdb *SDB) AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
+func (sdb *Topology) AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
 	sdb.lock.Lock()
 	defer sdb.lock.Unlock()
 
 	var err error
-	if e, found := sdb.topo.get(isdas); found {
+	if e, ok := sdb.topo.get(isdas); ok {
 		return e.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 	}
 
 	// Create tunnel interface for remote AS
-	info, err := newASInfo(sdb, isdas)
+	info, err := newASInfo(sdb.scionNet, isdas)
 	if err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func (sdb *SDB) AddSig(isdas string, encapAddr string, encapPort string, ctrlAdd
 	return info.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 }
 
-func (sdb *SDB) DelSig(isdas string, address string, port string, source string) error {
+func (sdb *Topology) DelSig(isdas string, address string, port string, source string) error {
 	sdb.lock.Lock()
 	defer sdb.lock.Unlock()
 
@@ -105,40 +106,39 @@ func (sdb *SDB) DelSig(isdas string, address string, port string, source string)
 	return common.NewError("SIG entry not found", "address", address, "port", port)
 }
 
-func (sdb *SDB) Print(source string) string {
+func (sdb *Topology) Print(source string) string {
 	sdb.lock.RLock()
 	defer sdb.lock.RUnlock()
 	return sdb.topo.print()
 }
 
-// topology keeps track of which ASes have been defined
-type topology struct {
+// asMap keeps track of which ASes have been defined
+type asMap struct {
 	info map[string]*asInfo
 	lock sync.RWMutex
 }
 
-func newTopology() *topology {
-	topo := &topology{}
+func newASMap() *asMap {
+	topo := &asMap{}
 	topo.info = make(map[string]*asInfo)
 	return topo
 }
 
-func (t *topology) get(key string) (*asInfo, bool) {
+func (t *asMap) get(key string) (*asInfo, bool) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-
-	value, found := t.info[key]
-	return value, found
+	v, ok := t.info[key]
+	return v, ok
 }
 
-func (t *topology) set(key string, value *asInfo) {
+func (t *asMap) set(key string, value *asInfo) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
 	t.info[key] = value
 }
 
-func (t *topology) print() string {
+func (t *asMap) print() string {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	output := ""

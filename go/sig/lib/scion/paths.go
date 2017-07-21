@@ -11,6 +11,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
+const (
+	RequestQueueCapacity = 256
+	DefaultPathTimeout   = 30 * time.Second
+	ShortPathTimeout     = 5 * time.Second
+)
+
 type PathQuery struct {
 	src   *addr.ISD_AS
 	dst   *addr.ISD_AS
@@ -40,20 +46,16 @@ func getKey(srcIA *addr.ISD_AS, dstIA *addr.ISD_AS) uint64 {
 
 // PathManager asynchronously keeps paths up to date for known remote ASes
 type PathManager struct {
-	pathLock           sync.RWMutex
-	requestQueue       chan *PathQuery
-	context            *Context
-	defaultPathTimeout time.Duration
-	pathCache          map[uint64]PathSet
-	sciond             *sciond.Connector
+	pathLock     sync.RWMutex
+	requestQueue chan *PathQuery
+	pathCache    map[uint64]PathSet
+	sciond       *sciond.Connector
 }
 
-func NewPathManager(context *Context, sciondPath string) (*PathManager, error) {
+func NewPathManager(sciondPath string) (*PathManager, error) {
 	var err error
 	pm := &PathManager{}
-	pm.requestQueue = make(chan *PathQuery, 256)
-	pm.context = context
-	pm.defaultPathTimeout = 30 * time.Second
+	pm.requestQueue = make(chan *PathQuery, RequestQueueCapacity)
 	pm.pathCache = make(map[uint64]PathSet)
 
 	pm.sciond, err = sciond.Connect(sciondPath)
@@ -67,12 +69,16 @@ func NewPathManager(context *Context, sciondPath string) (*PathManager, error) {
 func (pm *PathManager) run() {
 	for {
 		query := <-pm.requestQueue
-		// FIXME(scrye): sciond might timeout indefinitely here, need to add a deadline
+		// FIXME(scrye): sciond might timeout indefinitely here, need
+		// to add a deadline
 		reply, err := pm.sciond.Paths(query.dst, query.src, 1, sciond.PathReqFlags{})
 		if err != nil {
-			log.Warn("Path retrieval error", "src", query.src, "dst", query.dst, "err", err)
-			// rearm path query, this time with no response channel (since nobody's listening)
-			time.AfterFunc(5*time.Second, func() { pm.requestQueue <- query.DisconnectedCopy() })
+			log.Warn("Path retrieval error", "src", query.src,
+				"dst", query.dst, "err", err)
+			// rearm path query, this time with no response channel
+			// (since nobody's listening)
+			time.AfterFunc(ShortPathTimeout,
+				func() { pm.requestQueue <- query.DisconnectedCopy() })
 			if query.reply != nil {
 				query.reply <- PathResponse{sciond.PathReplyEntry{}, err}
 			}
@@ -80,24 +86,27 @@ func (pm *PathManager) run() {
 		}
 
 		if reply.ErrorCode != sciond.ErrorOk {
-			log.Info("Path query resolved with error", "src", query.src, "dst", query.dst,
-				"error", reply.ErrorCode)
-			// rearm path query, this time with no response channel (since nobody's listening)
-			time.AfterFunc(5*time.Second, func() { pm.requestQueue <- query.DisconnectedCopy() })
+			log.Info("Path query resolved with error", "src", query.src,
+				"dst", query.dst, "error", reply.ErrorCode)
+			// rearm path query, this time with no response channel
+			// (since nobody's listening)
+			time.AfterFunc(ShortPathTimeout,
+				func() { pm.requestQueue <- query.DisconnectedCopy() })
 			if query.reply != nil {
 				query.reply <- PathResponse{sciond.PathReplyEntry{},
-					common.NewError("Error from SCIOND", "code", reply.ErrorCode)}
+					common.NewError("Error from SCIOND",
+						"code", reply.ErrorCode)}
 			}
 			continue
 		}
 
-		pm.UpdatePaths(query.src, query.dst, PathSetFromSlice(reply.Entries))
+		pm.UpdatePaths(query.src, query.dst, reply.Entries)
 		if query.reply != nil {
 			query.reply <- PathResponse{reply.Entries[0], nil}
 		}
 
 		// Rearm path query for reachable destination AS
-		time.AfterFunc(60*time.Second, func() { pm.requestQueue <- query.DisconnectedCopy() })
+		time.AfterFunc(DefaultPathTimeout, func() { pm.requestQueue <- query.DisconnectedCopy() })
 	}
 }
 
@@ -132,49 +141,16 @@ func (pm *PathManager) UpdatePaths(src, dst *addr.ISD_AS, paths PathSet) error {
 	}
 
 	key := getKey(src, dst)
-	if pm.pathCache[key] == nil {
-		pm.pathCache[key] = paths
-	} else {
-		pm.pathCache[key].removeExcept(paths)
-		pm.pathCache[key].insert(paths)
-	}
+	pm.pathCache[key] = paths
 	return nil
 }
 
 // PathSet contains MTU and BR information for known paths
-type PathSet map[string]sciond.PathReplyEntry
-
-func PathSetFromSlice(paths []sciond.PathReplyEntry) PathSet {
-	s := make(PathSet)
-	for _, v := range paths {
-		s[string(v.Path.FwdPath)] = v
-	}
-	return s
-}
-
-func (s PathSet) removeExcept(op PathSet) {
-	for k := range s {
-		if _, found := op[k]; !found {
-			delete(s, k)
-		}
-	}
-}
-
-func (s PathSet) insert(op PathSet) {
-	for k, v := range op {
-		s[k] = v
-	}
-}
-
-func (s PathSet) remove(op PathSet) {
-	for k := range op {
-		delete(s, k)
-	}
-}
+type PathSet []sciond.PathReplyEntry
 
 func (s PathSet) first() (*sciond.PathReplyEntry, error) {
-	for _, v := range s {
-		return &v, nil
+	if len(s) == 0 {
+		return nil, common.NewError("Unable to select first of empty pathSet")
 	}
-	return nil, common.NewError("Unable to select first of empty pathSet")
+	return &s[0], nil
 }

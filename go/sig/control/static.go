@@ -3,13 +3,13 @@ package control
 import "github.com/netsec-ethz/scion/go/sig/base"
 
 type StaticRP struct {
-	SDB    *base.SDB
+	SDB    *base.Topology
 	File   string
 	Routes map[string]string
 	Device string
 }
 
-func Static(sdb *base.SDB) *StaticRP {
+func NewStaticRP(sdb *base.Topology) *StaticRP {
 	return &StaticRP{SDB: sdb}
 }
 

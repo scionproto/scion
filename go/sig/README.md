@@ -7,13 +7,13 @@ Current version is a barebone proof of concept for the SIG.
 Enable routing:
 
 ```
-  echo 1 > /proc/sys/net/ipv4/ip_forward
+  sudo sysctl -w net.ipv4.ip_forward=1
 ```
 
 Disable Reverse Path Filtering:
 
 ```
-  echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
+  sudo sysctl -w net.ipv4.conf.all.rp_filter=0 net.ipv4.conf.default.rp_filter=0
 ```
 
 ### Testing
@@ -21,11 +21,10 @@ Disable Reverse Path Filtering:
 Run the SIG as root:
 
 ```
-sudo sig -config sig.config -sciond /run/shm/sciond/sd1-1.sock -dispatcher /run/shm/dispatcher/default.sock -isdas 100-2 -encapip 169.254.1.2 -encapport 10080 -ctrlip 169.254.1.2 -ctrlport 10081
+sudo sig -config sig.config -sciond /run/shm/sciond/sd1-14.sock -dispatcher /run/shm/dispatcher/default.sock -isdas 1-14 -encapip 169.254.1.2 -encapport 10080 -ctrlport 10081
 ```
 
 Argument `-cli` can be used to enable the optional interactive console.
-
 
 ### Management
 

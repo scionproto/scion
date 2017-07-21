@@ -20,6 +20,6 @@ struct SCION {
         pathMgmt @4 :PathMgmt.PathMgmt;
         sibra @5 :SIBRA.SibraPayload;
         drkeyMgmt @6 :DRKeyMgmt.DRKeyMgmt;
-	sig @7 :SIG.SIGControl;
+        sig @7 :SIG.SIGControl;
     }
 }

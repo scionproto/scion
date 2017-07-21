@@ -21,30 +21,21 @@ const (
 	RecvBufferSize = 1500
 )
 
-type Context struct {
+type SCIONNet struct {
 	IA             *addr.ISD_AS
 	dispatcherPath string
 	pm             *PathManager
 }
 
-func NewContext(ia *addr.ISD_AS, sciondPath string, dispatcherPath string) (*Context, error) {
+func NewSCIONNet(ia *addr.ISD_AS, sciondPath string, dispatcherPath string) (*SCIONNet, error) {
 	var err error
-	context := &Context{IA: ia}
+	context := &SCIONNet{IA: ia}
 	context.dispatcherPath = dispatcherPath
-	context.pm, err = NewPathManager(context, sciondPath)
+	context.pm, err = NewPathManager(sciondPath)
 	if err != nil {
 		return nil, common.NewError("Unable to initialize PathManager", "err", err)
 	}
 	return context, nil
-}
-
-type SCIONConn struct {
-	*reliable.Conn
-	udpConn    *net.UDPConn
-	laddr      *SCIONAddr
-	raddr      *SCIONAddr
-	pm         *PathManager
-	recvBuffer []byte
 }
 
 // DialSCION reserves a UDP port for returning traffic, registers that port
@@ -53,7 +44,7 @@ type SCIONConn struct {
 // receive SCION traffic and will not process any data. Traffic will instead
 // pass through the dispatcher, which sends it to the local application via a
 // Reliable (UNIX) socket.
-func (c *Context) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port uint16) (*SCIONConn, error) {
+func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port uint16) (*SCIONConn, error) {
 	// Reserve local addr and port for returning traffic.
 	udpLocalIP := &net.UDPAddr{IP: local.IP()}
 	udpConn, err := net.ListenUDP("udp4", udpLocalIP)
@@ -75,8 +66,8 @@ func (c *Context) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port u
 	}
 	log.Debug("Registered with dispatcher", "ia", c.IA, "addr", regAddr)
 
-	raddr := &SCIONAddr{ia: IA, host: remote, port: port}
-	laddr := &SCIONAddr{ia: c.IA, host: regAddr.Addr, port: regAddr.Port}
+	raddr := &SCIONAppAddr{ia: IA, host: remote, port: port}
+	laddr := &SCIONAppAddr{ia: c.IA, host: regAddr.Addr, port: regAddr.Port}
 	sconn := &SCIONConn{
 		Conn:       conn,
 		laddr:      laddr,
@@ -90,7 +81,7 @@ func (c *Context) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port u
 // ListenSCION registers a port with the dispatcher and returns a connection
 // object capable of Read and WriteTo calls. ReadFrom and ReadFromSCION can be
 // used to get the SCION address which sent the packet.
-func (c *Context) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, error) {
+func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, error) {
 	// Open up local UDP port for sending traffic
 	udpAddr := &net.UDPAddr{IP: address.IP(), Port: int(port)}
 	udpConn, err := net.ListenUDP("udp4", udpAddr)
@@ -108,7 +99,7 @@ func (c *Context) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, e
 	log.Debug("Registered with dispatcher", "ia", c.IA, "addr", regAddr)
 
 	// When we start listening we do not know any paths
-	laddr := &SCIONAddr{host: address, port: port, ia: c.IA}
+	laddr := &SCIONAppAddr{host: address, port: port, ia: c.IA}
 	sconn := &SCIONConn{
 		Conn:       conn,
 		laddr:      laddr,
@@ -118,7 +109,16 @@ func (c *Context) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, e
 	return sconn, nil
 }
 
-func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAddr, error) {
+type SCIONConn struct {
+	*reliable.Conn
+	udpConn    *net.UDPConn
+	laddr      *SCIONAppAddr
+	raddr      *SCIONAppAddr
+	pm         *PathManager
+	recvBuffer []byte
+}
+
+func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAppAddr, error) {
 	if c.laddr == nil {
 		return 0, nil, common.NewError("Unable to read from uninitialized SCION socket")
 	}
@@ -138,7 +138,7 @@ func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAddr, error) {
 		return 0, nil, common.NewError("Unable to parse L4 header", "header", scnPkt.L4)
 	}
 	// FIXME(scrye): Populate with an empty path for now, since SCION hosts do a path lookup anyway
-	sa := &SCIONAddr{
+	sa := &SCIONAppAddr{
 		ia:   scnPkt.SrcIA,
 		host: scnPkt.SrcHost,
 		port: udpHeader.SrcPort,
@@ -156,7 +156,7 @@ func (c *SCIONConn) Read(b []byte) (int, error) {
 	return n, err
 }
 
-func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAddr) (int, error) {
+func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAppAddr) (int, error) {
 	if c.laddr == nil {
 		return 0, common.NewError("Unable to write to unitialized SCION socket")
 	}
@@ -178,7 +178,7 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAddr) (int, error) {
 }
 
 func (c *SCIONConn) WriteTo(b []byte, address net.Addr) (int, error) {
-	saddr, ok := address.(*SCIONAddr)
+	saddr, ok := address.(*SCIONAppAddr)
 	if !ok {
 		return 0, common.NewError("Unable to write (non-SCION address)", "address", address)
 	}
@@ -222,7 +222,7 @@ func (c *SCIONConn) Close() error {
 }
 
 // createUDPPacket encapsulates a payload with a L4 UDP header and a L3 SCION header
-func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAddr, path sciond.PathReplyEntry) (common.RawBytes, error) {
+func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.PathReplyEntry) (common.RawBytes, error) {
 	// SCION Version 0 common headers are 8-byte long
 	commonHeaderSize := 8
 	commonHeader := make([]byte, commonHeaderSize)

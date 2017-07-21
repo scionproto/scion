@@ -9,12 +9,29 @@ import (
 
 	"github.com/glycerine/rbuf"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/global"
+	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
+//   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
+//   number is used to determine packet reordering and loss. The index is used
+//   to determine where the first packet in the frame starts.
+//
+//      0B       1        2        3        4        5        6        7
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//  |         Sequence number           |     Index       |    Reserved     |
+//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//
 const (
-	SIGHdrSize = 8
+	SIGHdrSize          = 8
+	InternalIngressName = "scion.local"
+)
+
+var (
+	InternalIngress io.ReadWriteCloser
+	ExternalIngress *scion.SCIONConn
 )
 
 // PC contains a classic condition-based Producer/Consumer ringbuffer. Readers
@@ -53,7 +70,7 @@ func min(x int, y int) int {
 // asyncReader continuously takes data from source and writes it to pc.
 // Packet bounds are communicated through packetOffsets.
 func asyncReader(source io.ReadWriteCloser, pc *PC, packetOffsets chan<- offset) {
-	packet := make([]byte, 1500)
+	packet := make([]byte, 64*1024)
 	counter := 0
 	// TODO(scrye): this will break on int overflow, luckily Go panics anyway
 	for {
@@ -95,7 +112,7 @@ func EgressWorker(info *asInfo) {
 	packetStartOffsets := make(chan offset, 256)
 	pc := NewPC(512 * 1024)
 	counter := 0
-	seqNumber := uint32(0)
+	var seqNumber uint32
 	lastOffset := offset{start: -1, end: -1}
 
 	// Continuously read from tunnel interface, putting data into pc
@@ -151,7 +168,11 @@ func EgressWorker(info *asInfo) {
 
 		// Encapsulate and flush
 		common.Order.PutUint32(packet[:4], seqNumber)
-		seqNumber += 1
+		if seqNumber == uint32(0xFFFFFFFF) {
+			seqNumber = 0
+		} else {
+			seqNumber += 1
+		}
 
 		startOffset := lastOffset
 		nonZeroIndex := false
@@ -187,29 +208,40 @@ func EgressWorker(info *asInfo) {
 }
 
 func send(packet []byte) error {
-	_, err := global.InternalIngress.Write(packet)
+	_, err := InternalIngress.Write(packet)
 	if err != nil {
-		log.Error("Unable to write to Internal Ingress", "err", err,
+		return common.NewError("Unable to write to Internal Ingress", "err", err,
 			"length", len(packet))
-		return err
 	}
 	return nil
 }
 
-func IngressWorker() {
+func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPort uint16) {
 	// Buffer for reading from the SCION socket
-	scionBuffer := make([]byte, 1500)
+	scionBuffer := make([]byte, 64*1024)
 	// Buffer to reassemble IP packets
-	packet := make([]byte, 3000)
+	packet := make([]byte, 64*1024)
 
 	lastSequenceNumber := -1
 	packetStart := 0
 	packetLength := 0
+	var err error
+
+	ExternalIngress, err = scionNet.ListenSCION(listenAddr, listenPort)
+	if err != nil {
+		log.Error("Unable to initialize ExternalIngress", "err", err)
+		return
+	}
+	InternalIngress, err = xnet.ConnectTun(InternalIngressName)
+	if err != nil {
+		log.Error("Unable to connect to InternalIngress", "err", err)
+		return
+	}
 ReceiveLoop:
 	for {
 		// Flag when current frame contains data belonging to a last packet in the previous frames
 		discardContinuation := false
-		read, err := global.ExternalIngress.Read(scionBuffer)
+		read, err := ExternalIngress.Read(scionBuffer)
 		//log.Debug("Read SCION packet", "size", read, "data", scionBuffer[:read])
 		if err != nil {
 			log.Error("IngressWorker: Unable to read from External Ingress", "err", err)

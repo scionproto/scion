@@ -10,7 +10,10 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/sig/control"
-	"github.com/netsec-ethz/scion/go/sig/global"
+)
+
+const (
+	Version = "0.1.0"
 )
 
 func NewShell(static *control.StaticRP) *ishell.Shell {
@@ -125,6 +128,6 @@ func RunConfig(static *control.StaticRP, config string) {
 
 func Run(static *control.StaticRP) {
 	shell := NewShell(static)
-	shell.Printf("SCION IP Gateway, version %v\n", global.Version)
+	shell.Printf("SCION IP Gateway, version %v\n", Version)
 	shell.Run()
 }

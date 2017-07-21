@@ -2,20 +2,6 @@
 // NOTE(all): Work in progress, do not recommend reviewing this code yet
 package hello
 
-import (
-	"net"
-	"strconv"
-	"sync/atomic"
-	"time"
-
-	log "github.com/inconshreveable/log15"
-
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/global"
-	"github.com/netsec-ethz/scion/go/sig/lib/scion"
-)
-
 type State uint64
 
 const (
@@ -23,6 +9,8 @@ const (
 	StateDown      State = iota
 	StateUp
 )
+
+/*
 
 type Remote struct {
 	IA      *addr.ISD_AS
@@ -45,13 +33,13 @@ func (r *Remote) swapState(old State, new State) bool {
 
 type Module struct {
 	queue   chan *Remote
-	context *scion.Context
+	context *scion.SCIONNet
 }
 
 func NewModule() *Module {
 	m := &Module{}
 	m.queue = make(chan *Remote, 128)
-	m.context = global.Context
+	m.context = global.SCIONNet
 
 	go m.echoServer()
 	go m.run()
@@ -169,3 +157,5 @@ func (m *Module) receiveHello(remote *Remote) error {
 	}
 	return nil
 }
+
+*/
