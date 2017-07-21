@@ -186,7 +186,7 @@ func EgressWorker(info *asInfo) {
 	}
 }
 
-func send(packet []byte) error {
+func send_old(packet []byte) error {
 	_, err := global.InternalIngress.Write(packet)
 	if err != nil {
 		log.Error("Unable to write to Internal Ingress", "err", err,
@@ -196,7 +196,7 @@ func send(packet []byte) error {
 	return nil
 }
 
-func IngressWorker() {
+func IngressWorker_old() {
 	// Buffer for reading from the SCION socket
 	scionBuffer := make([]byte, 1500)
 	// Buffer to reassemble IP packets
