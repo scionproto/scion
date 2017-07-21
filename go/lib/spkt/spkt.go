@@ -24,6 +24,7 @@ import (
 
 // SCION Packet structure.
 type ScnPkt struct {
+	CmnHdr  *CmnHdr
 	DstIA   *addr.ISD_AS
 	SrcIA   *addr.ISD_AS
 	DstHost addr.HostAddr
