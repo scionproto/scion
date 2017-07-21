@@ -2,12 +2,11 @@ package base
 
 import (
 	"io"
+	"net"
 	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
-
-	"github.com/glycerine/rbuf"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -34,175 +33,170 @@ var (
 	ExternalIngress *scion.SCIONConn
 )
 
-// PC contains a classic condition-based Producer/Consumer ringbuffer. Readers
-// take all the data they can. If there is no data available, they block
-// indefinitely. Writers write all the data they can. If there is no space
-// available, they block indefinitely. Blocked readers and writers are
-// unblocked as soon as data or space becomes available.
-type PC struct {
-	ring          *rbuf.FixedSizeRingBuf
-	mutex         sync.Mutex
-	writePossible sync.Cond
-	readPossible  sync.Cond
+type BufferPool struct {
+	pool *sync.Pool
 }
 
-func NewPC(capacity int) *PC {
-	pc := &PC{}
-	pc.writePossible = *sync.NewCond(&pc.mutex)
-	pc.readPossible = *sync.NewCond(&pc.mutex)
-	pc.ring = rbuf.NewFixedSizeRingBuf(capacity)
-	return pc
-}
-
-type offset struct {
-	start int
-	end   int
-}
-
-func min(x int, y int) int {
-	if x < y {
-		return x
-	} else {
-		return y
+func NewBufferPool() *BufferPool {
+	new := func() interface{} {
+		//log.Debug("Alloc'ing")
+		return make([]byte, 64*1024)
 	}
+	bp := &BufferPool{
+		pool: &sync.Pool{New: new},
+	}
+	for i := 0; i < 32; i++ {
+		bp.Put(make([]byte, 64*1024))
+	}
+	return bp
+}
+
+func (bp *BufferPool) Get() []byte {
+	// Reset slice to entire buffer
+	b := bp.pool.Get().([]byte)
+	return b[:cap(b)]
+}
+
+func (bp *BufferPool) Put(b []byte) {
+	bp.pool.Put(b)
 }
 
 // asyncReader continuously takes data from source and writes it to pc.
 // Packet bounds are communicated through packetOffsets.
-func asyncReader(source io.ReadWriteCloser, pc *PC, packetOffsets chan<- offset) {
-	packet := make([]byte, 64*1024)
-	counter := 0
-	// TODO(scrye): this will break on int overflow, luckily Go panics anyway
+func tunnelReader(source io.ReadWriteCloser, bp *BufferPool, buffers chan<- []byte) {
 	for {
-		bytesRead, err := source.Read(packet)
+		pktBuffer := bp.Get()
+		bytesRead, err := source.Read(pktBuffer)
 		if err != nil {
 			log.Error("Egress read error", "err", err)
 			return
 		}
-		packetOffsets <- offset{start: counter, end: counter + bytesRead}
-		counter += bytesRead
-
-		bytesToWrite := bytesRead
-		bytesWritten := 0
-		for bytesToWrite > 0 {
-			// Condition variable critical region start
-			pc.mutex.Lock()
-			for pc.ring.N-pc.ring.Readable <= 0 {
-				pc.writePossible.Wait()
-			}
-			writeCapacity := pc.ring.N - pc.ring.Readable
-			writeSize := min(writeCapacity, bytesToWrite)
-			bytesNow, err := pc.ring.Write(packet[bytesWritten : bytesWritten+writeSize])
-			pc.readPossible.Signal()
-			pc.mutex.Unlock()
-			// Condition variable critical region end
-
-			if err != nil {
-				log.Info("RingBuffer write error", "err", err, "bytesNow", bytesNow)
-				continue
-			}
-			bytesToWrite -= bytesNow
-			bytesWritten += bytesNow
-		}
+		//log.Debug("Wrote to channel", "len", bytesRead)
+		buffers <- pktBuffer[:bytesRead]
 	}
 }
 
+func incSeqNumber(seqNumber uint32) uint32 {
+	return seqNumber + 1
+}
+
+func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int) error {
+	// Encapsulate and flush
+	common.Order.PutUint32(frame[:4], *seqNumber)
+	*seqNumber = incSeqNumber(*seqNumber)
+	common.Order.PutUint16(frame[4:6], uint16(index)+1)
+
+	// NOTE(scrye): This _might_ block (although it means that the
+	// outgoing OS-level socket is saturated with data, which we
+	// cannot help anyway). Other than buffering more packets
+	// (which for high speed links will not be a solution), there's
+	// nothing we can do here.
+	//log.Debug("Sent frame", "length", len(frame), "data", frame)
+	_, err := conn.Write(frame)
+	if err != nil {
+		return common.NewError("Egress write error", "err", err)
+	}
+	return nil
+}
+
+type State int
+
+const (
+	NEW_FRAME State = iota
+	COPY_PKT
+	EMPTY_FRAME
+	PARTIAL_FRAME
+	SEND_FRAME
+)
+
 func EgressWorker(info *asInfo) {
-	packet := make([]byte, 1500)
-	packetStartOffsets := make(chan offset, 256)
-	pc := NewPC(512 * 1024)
-	counter := 0
+	frameBuffer := make([]byte, 64*1024)
 	var seqNumber uint32
-	lastOffset := offset{start: -1, end: -1}
 
 	// Continuously read from tunnel interface, putting data into pc
-	go asyncReader(info.Device, pc, packetStartOffsets)
+	bp := NewBufferPool()
+	buffers := make(chan []byte, 128)
+	go tunnelReader(info.Device, bp, buffers)
 
-	// Continuously get data from pc, putting it on the wire
+	var frame, frameFreeSpace []byte
+	var pkt, pktRemaining []byte
+	var fillOffset int
+	var index int
+	var state State
+	var flow net.Conn
+	var err error
 	for {
-		// Get a SCIONConn connection object to the destination
-		flow, err := info.getConn()
-		if err != nil {
-			log.Error("Unable to get flow", "err", err)
-			// No connection is available, back off for 500ms and try again
-			<-time.After(500 * time.Millisecond)
-			continue
-		}
-
-		// (say no to Nagle)
-		// Read until there's nothing available or we have enough data for a packet
-		// FIXME(scrye): compute correct MTU based on information in flow object
-		// bytesMaxToRead := flow.MTU
-		bytesMaxToRead := 1280
-		bytesRead := 0
-
-		// flushable signals that we have some data that we can push to the wire, we
-		// do not need to wait for more
-		flushable := false
-	ReadLoop:
-		for bytesMaxToRead > 0 {
-			// Condition variable critical region start
-			pc.mutex.Lock()
-			for pc.ring.Readable == 0 {
-				if flushable {
-					// We have some data and are unwilling to wait for more
-					pc.mutex.Unlock()
-					break ReadLoop
-				}
-				pc.readPossible.Wait()
-			}
-			readSize := min(pc.ring.Readable, bytesMaxToRead)
-			bytesNow, err := pc.ring.Read(packet[SIGHdrSize+bytesRead : SIGHdrSize+bytesRead+readSize])
-			pc.writePossible.Signal()
-			pc.mutex.Unlock()
-			// Condition variable critical region end
-
+		switch state {
+		case NEW_FRAME:
+			//log.Debug("State", "state", "NEW_FRAME")
+			flow, err = info.getConn()
 			if err != nil {
-				log.Info("RingBuffer read error", "err", err, "bytesNow", bytesNow)
-				panic("RingBuffer read error")
+				log.Error("Unable to get flow", "err", err)
+				// No connection is available, back off for 500ms and try again
+				<-time.After(500 * time.Millisecond)
+				continue
 			}
-			bytesRead += bytesNow
-			bytesMaxToRead -= bytesNow
-			flushable = true
-		}
-
-		// Encapsulate and flush
-		common.Order.PutUint32(packet[:4], seqNumber)
-		if seqNumber == uint32(0xFFFFFFFF) {
-			seqNumber = 0
-		} else {
-			seqNumber += 1
-		}
-
-		startOffset := lastOffset
-		nonZeroIndex := false
-		// Read all offsets that end before the current frame
-		for lastOffset.end < counter+bytesRead {
-			// Grab a new offset, this will never block
-			lastOffset = <-packetStartOffsets
-			if lastOffset.start >= counter {
-				// We found the first packet in the current frame, this will be our index
-				startOffset = lastOffset
-				nonZeroIndex = true
-				break
+			// TODO bytesMaxToRead := flow.MTU
+			bytesMaxToRead := 1280
+			frame = frameBuffer[:SIGHdrSize+bytesMaxToRead]
+			frameFreeSpace = frame[SIGHdrSize:]
+			fillOffset = 0
+			index = -1
+			state = COPY_PKT
+			if pkt == nil {
+				state = EMPTY_FRAME
+			} else {
+				state = COPY_PKT
 			}
-		}
-		if nonZeroIndex {
-			// Numbering in SIG-SIG frames starts at 1
-			common.Order.PutUint16(packet[4:6], uint16(startOffset.start-counter)+1)
-		} else {
-			common.Order.PutUint16(packet[4:6], 0)
-		}
-		counter += bytesRead
-		// NOTE(scrye): This _might_ block (although it means that the
-		// outgoing OS-level socket is saturated with data, which we
-		// cannot help anyway). Other than buffering more packets
-		// (which for high speed links will not be a solution), there's
-		// nothing we can do here.
-		_, err = flow.Write(packet[:SIGHdrSize+bytesRead])
-		if err != nil {
-			log.Error("Egress write error", "err", err)
-			return
+		case PARTIAL_FRAME:
+			// We already have some data, if there's no more data just flush
+			//log.Debug("State", "state", "GET_PACKET")
+			select {
+			case pkt = <-buffers:
+				//log.Debug("Got packet", "length", len(pkt))
+				pktRemaining = pkt
+				// If this is the first packet in the
+				// frame, store the index
+				if index == -1 {
+					index = fillOffset
+				}
+				state = COPY_PKT
+			default:
+				//log.Debug("Flushing")
+				state = SEND_FRAME
+			}
+		case EMPTY_FRAME:
+			// We do not have data, block while waiting
+			pkt = <-buffers
+			//log.Debug("Got packet", "length", len(pkt))
+			pktRemaining = pkt
+			if index == -1 {
+				index = fillOffset
+			}
+			state = COPY_PKT
+		case COPY_PKT:
+			//log.Debug("State", "state", "FILL_FRAME")
+			bytesCopied := copy(frameFreeSpace, pktRemaining)
+			frameFreeSpace = frameFreeSpace[bytesCopied:]
+			fillOffset += bytesCopied
+			if bytesCopied < len(pktRemaining) {
+				// Not enough space for this packet in
+				// this frame, continue in next frame
+				pktRemaining = pktRemaining[bytesCopied:]
+				state = SEND_FRAME
+			} else {
+				// Packet was fully copied, release buffer
+				bp.Put(pkt)
+				pkt = nil
+				state = PARTIAL_FRAME
+			}
+		case SEND_FRAME:
+			//log.Debug("State", "state", "SEND_FRAME")
+			err = sendFrame(flow, frame[:fillOffset+SIGHdrSize], &seqNumber, index)
+			if err != nil {
+				log.Error("Unable to send frame", "len", fillOffset, "err", err)
+			}
+			state = NEW_FRAME
 		}
 	}
 }
@@ -253,7 +247,7 @@ ReceiveLoop:
 		index := common.Order.Uint16(frame[4:6])
 		// Reslice after the header to simplify parsing
 		payload := frame[SIGHdrSize:]
-		//log.Debug("Frame payload", "payload", payload)
+		//log.Debug("Received frame", "length", len(frame))
 
 		if sequenceNumber <= lastSequenceNumber {
 			log.Warn("IngressWorker: Received out of order sequence number", "last", lastSequenceNumber, "now", sequenceNumber)
