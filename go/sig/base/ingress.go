@@ -1,6 +1,8 @@
 package base
 
 import (
+	"fmt"
+
 	log "github.com/inconshreveable/log15"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/global"
@@ -40,6 +42,11 @@ func (b *PktBuf) Reset() {
 	b.finished = false
 }
 
+func (b *PktBuf) String() string {
+	return fmt.Sprintf("len: %d offset: %d startSeqNr: %d nextSeqNr: %d finished: %t",
+		b.len, b.offset, b.startSeqNr, b.nextSeqNr, b.finished)
+}
+
 func (b *PktBuf) AddFragment(fragment []byte) error {
 	if b.offset+len(fragment) > len(b.raw) {
 		return common.NewError("Not enough space in PktBuf for fragment.",
@@ -47,6 +54,7 @@ func (b *PktBuf) AddFragment(fragment []byte) error {
 	}
 	copy(b.raw[b.offset:], fragment)
 	b.offset += len(fragment)
+	log.Debug("Fragment added to pkt", "buf", b.String())
 	return nil
 }
 
@@ -110,19 +118,24 @@ func processFrame(frame []byte) error {
 	pldLen := len(pld)
 	offset := 0
 
+	log.Debug("Received Frame", "seqNr", seqNr, "index", index, "pldLen", pldLen)
+
 	for offset < pldLen {
 		processedBytes := 0
 		var err error
 		switch index {
 		case 0:
 			// No new packets in this frame.
+			log.Debug("No new packets in frame", "seqNr", seqNr)
 			processedBytes, err = processFragment(pld, seqNr)
 		case 1, -1:
 			// New packet starts at the beginning of the frame or we already processed
 			// the fragment at the beginning of the frame.
+			log.Debug("Found new packet", "seqNr", seqNr, "offset", offset)
 			processedBytes, err = processPkt(pld[offset:], seqNr)
 		default:
 			// There is a fragment from a previous packet and a new packet starting at index.
+			log.Debug("Processing fragment at start of frame", "segNr", seqNr)
 			processedBytes, err = processFragment(pld[:index], seqNr)
 			// Set index to -1 to indicate that we already processed the fragment.
 			index = -1
@@ -141,14 +154,15 @@ func processPkt(raw []byte, seqNr int) (int, error) {
 	if len(raw) <= pktLen {
 		// We got everything, write it out to the wire without copying to pkt buf.
 		err := send(raw[:pktLen])
+		log.Debug("ProcessPkt: directly write pkt", "len", pktLen)
 		return pktLen, err
 	}
 	// Fragmented packet. Add to outstanding packets.
 	pktBuf := queue.getPktBuf()
 	pktBuf.len = pktLen
-	err := pktBuf.AddFragment(raw[:pktLen])
 	pktBuf.startSeqNr = seqNr
 	pktBuf.nextSeqNr = seqNr + 1
+	err := pktBuf.AddFragment(raw[:pktLen])
 	return min(pktLen, len(raw)), err
 }
 
@@ -159,6 +173,7 @@ func processFragment(raw []byte, seqNr int) (int, error) {
 			buf.AddFragment(raw)
 			if buf.offset == buf.len {
 				// We got all the fragments. Write to wire.
+				log.Debug("Reassembled pkt", "buf", buf.String())
 				err := buf.Write()
 				return len(raw), err
 			}
