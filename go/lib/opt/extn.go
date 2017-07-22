@@ -42,6 +42,10 @@ OPT extension Header
 +--------+--------+--------+--------+--------+--------+--------+--------+
 |                               ...PVF                                  |
 +--------+--------+--------+--------+--------+--------+--------+--------+
+|                                  OV_i ...                             |
++--------+--------+--------+--------+--------+--------+--------+--------+
+|                               ...OV_i  (var length)                   |
++--------+--------+--------+--------+--------+--------+--------+--------+
 */
 
 type Extn struct { // fields of the extension
@@ -50,6 +54,7 @@ type Extn struct { // fields of the extension
 	DataHash  common.RawBytes
 	SessionId common.RawBytes
 	PVF       common.RawBytes
+	OVs       []common.RawBytes
 }
 
 func (e *Extn) Len() int {
@@ -87,13 +92,16 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 	datahashOffset := timestampOffset + TimestampLength
 	sessionIDOffset := datahashOffset + DatahashLength
 	PVFOffset := sessionIDOffset + SessionIDLength
-	totalLength := sessionIDOffset + PVFOffset
+	OVsOffset := PVFOffset + PVFLength
 
 	copy(b[metaOffset:timestampOffset], e.Meta)
 	copy(b[timestampOffset:datahashOffset], e.Timestamp)
 	copy(b[datahashOffset:sessionIDOffset], e.DataHash)
 	copy(b[sessionIDOffset:PVFOffset], e.SessionId)
-	copy(b[PVFOffset:totalLength], e.PVF)
+	copy(b[PVFOffset:OVsOffset], e.PVF)
+	for i, OV := range e.OVs {
+		copy(b[OVsOffset+i*OVLength:OVsOffset+(i+1)*OVLength], OV)
+	}
 	return nil
 }
 
@@ -103,7 +111,7 @@ func (e *Extn) SetMeta(meta common.RawBytes) *common.Error {
 		return common.NewError("The length does not match",
 			"expected", len(e.Meta), "actual", len(meta))
 	}
-	copy(e.Timestamp, meta)
+	copy(e.Meta, meta)
 	return nil
 }
 
@@ -147,8 +155,34 @@ func (e *Extn) SetPVF(pathVerificationField common.RawBytes) *common.Error {
 	return nil
 }
 
+// Set the ith OV
+func (e *Extn) SetOV(OriginValidationField common.RawBytes, i int) *common.Error {
+	if len(e.OVs[i]) != len(OriginValidationField) {
+		return common.NewError("The length does not match",
+			"expected", len(e.OVs[i]), "actual", len(OriginValidationField))
+	}
+	copy(e.OVs[i], OriginValidationField)
+	return nil
+}
+
+// Set all OVs from a raw RawBytes
+func (e *Extn) SetOVs(OriginValidationFields common.RawBytes) *common.Error {
+	if len(OriginValidationFields)%OVLength != 0 {
+		return common.NewError("The length does not match",
+			"expected a mutiple of ", OVLength, "actual", len(OriginValidationFields))
+	}
+	OVcount := len(OriginValidationFields) / OVLength
+	e.OVs = make([]common.RawBytes, OVcount)
+	for i := 0; i < OVcount; i += 1 {
+		OVi := make(common.RawBytes, OVLength)
+		copy(OVi, OriginValidationFields[i*OVLength:(i+1)*OVLength])
+		e.OVs[i] = OVi
+	}
+	return nil
+}
+
 func (e *Extn) Copy() common.Extension {
-	return &Extn{DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF}
+	return &Extn{Meta: e.Meta, Timestamp: e.Timestamp, DataHash: e.DataHash, SessionId: e.SessionId, PVF: e.PVF, OVs: e.OVs}
 }
 
 func (e *Extn) Reverse() (bool, *common.Error) {

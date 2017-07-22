@@ -102,20 +102,20 @@ class OPTProtocol(DRKeyProtocolBase):
     def generate_misc_reply(cls, drkeys, req, meta):
         assert isinstance(req, DRKeyProtocolRequest)
         assert isinstance(meta, UDPMetadata)
-        text = ['\n\nSession: '+str(binascii.hexlify(req.misc.p.sessionID))]
+        log_entry = ['\n\nSession: '+str(binascii.hexlify(req.misc.p.sessionID))]
         temp_list = [cls._derive_drkey(drkey, req.src_host, req.dst_host) for drkey in drkeys[1:]]
-        text.append("\nFirstOrders:")
+        log_entry.append("\nFirstOrders:")
         for k in drkeys[1:]:
-            text.append('\n' + str(binascii.hexlify(k.drkey)))
-        text.append("\nSecondOrders:")
+            log_entry.append('\n' + str(binascii.hexlify(k.drkey)))
+        log_entry.append("\nSecondOrders:")
         for raw in temp_list:
-            text.append('\n' + str(binascii.hexlify(raw)))
+            log_entry.append('\n' + str(binascii.hexlify(raw)))
         proto_drkeys = [mac(cls._derive_drkey(drkey, req.src_host, req.dst_host),
                             req.misc.p.sessionID) for drkey in drkeys[1:]]
-        text.append("\nProtoKeys:")
+        log_entry.append("\nProtoKeys:")
         for val in proto_drkeys:
-            text.append('\n' + str(binascii.hexlify(val)))
-        # logging.debug(''.join(text))
+            log_entry.append('\n' + str(binascii.hexlify(val)))
+        # logging.debug(''.join(log_entry))
         return OPTMiscReply.from_values(proto_drkeys)
 
     @staticmethod
@@ -134,21 +134,21 @@ class OPTProtocol(DRKeyProtocolBase):
             ))
 
 
-def _find_opt_extn(spkt):
+def find_opt_extn(spkt):
     for e in spkt.ext_hdrs:
         if isinstance(e, SCIONOriginValidationPathTraceExtn):
             return e
     return None
 
 
-def _find_pathtrace_extn(spkt):
+def find_pathtrace_extn(spkt):
     for e in spkt.ext_hdrs:
         if isinstance(e, SCIONPathTraceExtn):
             return e
     return None
 
 
-def _find_originvalidation_extn(spkt):
+def find_originvalidation_extn(spkt):
     for e in spkt.ext_hdrs:
         if isinstance(e, SCIONOriginValidationExtn):
             return e
@@ -157,8 +157,10 @@ def _find_originvalidation_extn(spkt):
 
 def set_pvf(spkt, drkey):
     assert isinstance(drkey, SecondOrderDRKey)
-    pathtrace_hdr = _find_pathtrace_extn(spkt)
-    pathtrace_hdr.PVF = mac(drkey.drkey, pathtrace_hdr.datahash)
+    extn_hdr = find_opt_extn(spkt)
+    if not extn_hdr:
+        extn_hdr = find_pathtrace_extn(spkt)
+    extn_hdr.PVF = mac(drkey.drkey, extn_hdr.datahash)
     # logging.debug("\nS:\nUsed key {}, on hash {}, got PVF {}".format(
     #     drkey, pathtrace_hdr.datahash, pathtrace_hdr.PVF)
     # )
@@ -167,11 +169,13 @@ def set_pvf(spkt, drkey):
 
 def verify_pvf(spkt, drkey, keylist):
     assert isinstance(drkey, SecondOrderDRKey)
-    pathtrace_hdr = _find_opt_extn(spkt)
-    packet_hash = pathtrace_hdr.datahash  # compute over payload
+    extn_hdr = find_opt_extn(spkt)
+    if not extn_hdr:
+        extn_hdr = find_pathtrace_extn(spkt)
+    packet_hash = extn_hdr.datahash  # compute over payload
     computed_pvf = mac(drkey.drkey, packet_hash)
-    text = []
-    text.append("\n\nInitial  computed_pvf:\n from {} to {} with key {}".format(
+    log_entry = []
+    log_entry.append("\n\nInitial  computed_pvf:\n from {} to {} with key {}".format(
         binascii.hexlify(packet_hash),
         binascii.hexlify(computed_pvf),
         binascii.hexlify(drkey.drkey))
@@ -180,13 +184,13 @@ def verify_pvf(spkt, drkey, keylist):
         old_pvf = binascii.hexlify(computed_pvf)
         extended_pvf = packet_hash + computed_pvf
         computed_pvf = mac(key.drkey, extended_pvf)
-        text.append("\nIntermediate computed_pvf: from {} to {} with key {} over {}".format(
+        log_entry.append("\nIntermediate computed_pvf: from {} to {} with key {} over {}".format(
             old_pvf, binascii.hexlify(computed_pvf),
             binascii.hexlify(key.drkey),
             binascii.hexlify(extended_pvf))
         )
-    # logging.debug("".join(text))
-    header_timestamp = int.from_bytes(pathtrace_hdr.timestamp, byteorder='big')
+    # logging.debug("".join(log_entry))
+    header_timestamp = int.from_bytes(extn_hdr.timestamp, byteorder='big')
     drk_time = drkey_time()
     timestamp_valid = (drk_time - header_timestamp) < expiration_delay
     if not timestamp_valid:
@@ -195,10 +199,10 @@ def verify_pvf(spkt, drkey, keylist):
              header_timestamp,
              drk_time - expiration_delay)
         )
-    if not pathtrace_hdr.PVF == computed_pvf:
+    if not extn_hdr.PVF == computed_pvf:
         raise SCIONVerificationError(
             "Invalid PVF\n Got ({}): {}\n Expected ({}): {}".format(
-             len(pathtrace_hdr.PVF), binascii.hexlify(pathtrace_hdr.PVF),
+             len(extn_hdr.PVF), binascii.hexlify(extn_hdr.PVF),
              len(computed_pvf), binascii.hexlify(computed_pvf))
         )
     else:
@@ -208,7 +212,7 @@ def verify_pvf(spkt, drkey, keylist):
 
 def verify_ov(spkt, drkey):
     assert isinstance(drkey, SecondOrderDRKey)
-    origin_validation_hdr = _find_originvalidation_extn(spkt)
+    origin_validation_hdr = find_originvalidation_extn(spkt)
     packet_hash = origin_validation_hdr.datahash
     computed_ov = mac(drkey.drkey, packet_hash)
     if not origin_validation_hdr.OVs[:-1] == computed_ov:
@@ -219,11 +223,11 @@ def verify_ov(spkt, drkey):
 def get_sciond_params(spkt, mode=1, path=None):
     extn = None
     if mode == OPTMode.OPT:
-        extn = _find_opt_extn(spkt)
+        extn = find_opt_extn(spkt)
     if mode == OPTMode.PATH_TRACE_ONLY:
-        extn = _find_pathtrace_extn(spkt)
+        extn = find_pathtrace_extn(spkt)
     if mode == OPTMode.ORIGIN_VALIDATION_ONLY:
-        extn = _find_originvalidation_extn(spkt)
+        extn = find_originvalidation_extn(spkt)
     if not extn:
         return None
 

@@ -76,6 +76,7 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         all_ovs = data.pop()
         self.OVs = []
         if len(all_ovs) % 16 == 0:  # check we got valid OVs
+            self.ov_count = len(all_ovs)//16
             for ov_index in range(len(all_ovs)):
                 self.OVs.append(bytes(all_ovs[ov_index*OPTLengths.OVs:(ov_index+1)*OPTLengths.OVs]))
 
@@ -128,7 +129,7 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
     def create_ovs_from_path(self, key_list):
         ov_list = []
         for key in key_list:
-            ov_list.append(mac(key, self.datahash))
+            ov_list.append(mac(key.drkey, self.datahash))
         return ov_list
 
     @classmethod

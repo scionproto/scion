@@ -18,12 +18,12 @@
 # Stdlib
 
 # SCION
+from lib.crypto.symcrypto import mac
 from lib.packet.opt.defines import (
     OPTLengths,
     OPTValidationError, OPTMode)
 from lib.packet.opt.base_ext import SCIONOriginPathTraceBaseExtn
 from lib.util import hex_str, Raw
-from lib.crypto.symcrypto import mac
 
 
 class SCIONPathTraceExtn(SCIONOriginPathTraceBaseExtn):

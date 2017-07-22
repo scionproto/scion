@@ -24,12 +24,17 @@ import (
 // defines the lengths used by the Origin validation & PathTrace (OPT) extension
 
 const (
+	// OPT modes
+	OPT              = 0
+	PathTrace        = 1
+	OriginValidation = 2
 	// Basic definitions
 	MetaLength      = 1
 	TimestampLength = 4
 	DatahashLength  = 16
 	SessionIDLength = 16
 	PVFLength       = 16
+	OVLength        = 16
 )
 
 func NewExtn() (*Extn, *common.Error) {
@@ -39,6 +44,7 @@ func NewExtn() (*Extn, *common.Error) {
 	o.DataHash = make(common.RawBytes, DatahashLength)
 	o.SessionId = make(common.RawBytes, SessionIDLength)
 	o.PVF = make(common.RawBytes, PVFLength)
+	o.OVs = []common.RawBytes{}
 	return o, nil
 }
 

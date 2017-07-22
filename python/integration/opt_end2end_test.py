@@ -25,7 +25,7 @@ import time
 
 import lib.app.sciond as lib_sciond
 from lib.crypto.symcrypto import sha256
-from lib.drkey.opt.protocol import get_sciond_params, verify_pvf
+from lib.drkey.opt.protocol import get_sciond_params, verify_pvf, find_opt_extn
 from lib.drkey.util import drkey_time
 from lib.errors import SCIONVerificationError
 from lib.main import main_wrapper
@@ -197,6 +197,10 @@ class E2EServer(TestServerBase):
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
+        extn = find_opt_extn(spkt)
+        extn.path_index = 0
+        extn.sessionID = bytes([0]*16)
+        spkt.update()
         spkt.set_payload(self._create_payload(spkt))
         shared_path.reverse()
         _, misc = _try_sciond_api(spkt, connector=self._connector, path=shared_path)
@@ -204,6 +208,9 @@ class E2EServer(TestServerBase):
         logging.debug("misc.drkeys:")
         for k in misc.drkeys:
             logging.debug("key: %s", k)
+        if misc.drkeys:
+            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
+        logging.debug("Raw packet header sent: {}".format(binascii.hexlify(extn.pack())))
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()
