@@ -198,13 +198,8 @@ TopLoop:
 	}
 }
 
-<<<<<<< HEAD
-func send(packet []byte) error {
-	_, err := InternalIngress.Write(packet)
-=======
 func send_old(packet []byte) error {
-	_, err := global.InternalIngress.Write(packet)
->>>>>>> 2777424... refactored ingress worker
+	_, err := InternalIngress.Write(packet)
 	if err != nil {
 		return common.NewError("Unable to write to Internal Ingress", "err", err,
 			"length", len(packet))
@@ -212,11 +207,7 @@ func send_old(packet []byte) error {
 	return nil
 }
 
-<<<<<<< HEAD
-func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPort uint16) {
-=======
-func IngressWorker_old() {
->>>>>>> 2777424... refactored ingress worker
+func IngressWorker_old(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPort uint16) {
 	// Buffer for reading from the SCION socket
 	scionBuffer := make([]byte, 64*1024)
 	// Buffer to reassemble IP packets

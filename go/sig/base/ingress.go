@@ -7,8 +7,11 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/global"
+	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 const (
@@ -279,7 +282,18 @@ func (s *IngressState) cleanUp() {
 	}
 }
 
-func IngressWorker() {
+func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPort uint16) {
+	var err error
+	ExternalIngress, err = scionNet.ListenSCION(listenAddr, listenPort)
+	if err != nil {
+		log.Error("Unable to initialize ExternalIngress", "err", err)
+		return
+	}
+	InternalIngress, err = xnet.ConnectTun(InternalIngressName)
+	if err != nil {
+		log.Error("Unable to connect to InternalIngress", "err", err)
+		return
+	}
 	state := NewIngressState()
 	for {
 		select {
@@ -287,7 +301,7 @@ func IngressWorker() {
 			go state.cleanUp()
 		default:
 			frame := state.getFrameBuf()
-			read, err := global.ExternalIngress.Read(frame.raw)
+			read, err := ExternalIngress.Read(frame.raw)
 			if err != nil {
 				log.Error("IngressWorker: Unable to read from External Ingress", "err", err)
 				continue
@@ -364,4 +378,11 @@ func send(packet []byte) error {
 		return err
 	}
 	return nil
+}
+
+func min (x, y int) int {
+	if x <= y {
+		return x
+	}
+	return y
 }
