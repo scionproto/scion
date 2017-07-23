@@ -15,7 +15,7 @@ import (
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
 //   number is used to determine packet reordering and loss. The index is used
 //   to determine where the first packet in the frame starts. The epoch is used
-//   to handle sequence number resets, whetherh from a SIG restarting, or the
+//   to handle sequence number resets, whether from a SIG restarting, or the
 //   sequence number wrapping. The epoch values are the lowest 16b of the unix
 //   timestamp at the reset point.
 //
