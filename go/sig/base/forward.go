@@ -8,24 +8,26 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
-	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
 //   number is used to determine packet reordering and loss. The index is used
-//   to determine where the first packet in the frame starts.
+//   to determine where the first packet in the frame starts. The epoch is used
+//   to handle sequence number resets, whetherh from a SIG restarting, or the
+//   sequence number wrapping. The epoch values are the lowest 16b of the unix
+//   timestamp at the reset point.
 //
 //      0B       1        2        3        4        5        6        7
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
-//  |         Sequence number           |     Index       |    Reserved     |
+//  |         Sequence number           |     Index       |      Epoch      |
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 const (
 	SIGHdrSize          = 8
-	PktLenSize          = 4
+	PktLenSize          = 2
+	MinSpace            = 16
 	InternalIngressName = "scion.local"
 )
 
@@ -62,71 +64,48 @@ func (bp *BufferPool) Put(b []byte) {
 	bp.pool.Put(b)
 }
 
-// asyncReader continuously takes data from source and writes it to pc.
-// Packet bounds are communicated through packetOffsets.
-func tunnelReader(source io.ReadWriteCloser, bp *BufferPool, buffers chan<- []byte) {
-	for {
-		pktBuffer := bp.Get()
-		bytesRead, err := source.Read(pktBuffer)
-		if err != nil {
-			log.Error("Egress read error", "err", err)
-			return
-		}
-		//log.Debug("Wrote to channel", "len", bytesRead)
-		buffers <- pktBuffer[:bytesRead]
+type EgressWorker struct {
+	info *asInfo
+	src  io.ReadWriteCloser
+	c    chan common.RawBytes
+	bp   *BufferPool
+
+	epoch    uint16
+	seq      uint32
+	index    uint16
+	frameOff int
+}
+
+const EgressChanSize = 128
+
+func NewEgressWorker(info *asInfo) *EgressWorker {
+	return &EgressWorker{
+		info: info,
+		src:  info.Device,
+		c:    make(chan common.RawBytes, EgressChanSize),
+		bp:   NewBufferPool(),
 	}
 }
 
-func incSeqNumber(seqNumber uint32) uint32 {
-	return seqNumber + 1
-}
+func (e *EgressWorker) Run() error {
+	// Start reader goroutine
+	go e.Read()
 
-func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int) error {
-	log.Debug("sendFrame", "len", len(frame), "seq", *seqNumber, "index", index)
-	// Encapsulate and flush
-	common.Order.PutUint32(frame[:4], *seqNumber)
-	*seqNumber += 1
-	// FIXME(kormat): hack to work around current IngressWorker not
-	// implementing index according to design.
-	if index > 0 {
-		index += 1
-		index -= SIGHdrSize
-	}
-	common.Order.PutUint16(frame[4:6], uint16(index))
-
-	// NOTE(scrye): This _might_ block (although it means that the
-	// outgoing OS-level socket is saturated with data, which we
-	// cannot help anyway). Other than buffering more packets
-	// (which for high speed links will not be a solution), there's
-	// nothing we can do here.
-	//log.Debug("Sent frame", "length", len(frame), "data", frame)
-	_, err := conn.Write(frame)
-	if err != nil {
-		return common.NewError("Egress write error", "err", err)
-	}
-	return nil
-}
-
-func EgressWorker(info *asInfo) {
-	var seqNumber uint32
-
-	// Continuously read from tunnel interface, putting data into pc
-	bp := NewBufferPool()
-	buffers := make(chan []byte, 128)
-	go tunnelReader(info.Device, bp, buffers)
-
-	frame := make([]byte, 1<<16)
-	var pkt []byte
-	var pktOff int
-	var index int
-	var flow net.Conn
+	frame := make(common.RawBytes, 1<<16)
+	var pkt common.RawBytes
+	var conn net.Conn
 	var err error
-	frameOff := SIGHdrSize
+	e.frameOff = SIGHdrSize
+
 TopLoop:
 	for {
+		if e.frameOff%8 != 0 {
+			// Pad to multiple of 8B
+			e.frameOff += 8 - (e.frameOff % 8)
+		}
 		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
 		// also, this should be dropping old packets to keep the buffer queue clear.
-		flow, err = info.getConn()
+		conn, err = e.info.getConn()
 		if err != nil {
 			log.Error("Unable to get flow", "err", err)
 			// No connection is available, back off for 500ms and try again
@@ -135,67 +114,104 @@ TopLoop:
 		}
 		// FIXME(kormat): calculate the max payload size based on path's MTU
 		frame = frame[:1280]
-		log.Debug("Top of loop", "frameOff", frameOff, "seqNumber", seqNumber, "index", index)
-		if frameOff == SIGHdrSize {
+
+		log.Debug("Top of loop", "frameOff", e.frameOff, "seqNumber", e.seq, "index", e.index)
+		if e.frameOff == SIGHdrSize {
 			// Don't have a partial frame, so block indefiniely for the next packet.
-			pkt = <-buffers
+			pkt = <-e.c
 			log.Debug("No partial frame, got new packet")
 		} else {
 			// Have partial frame
 			select {
-			case pkt = <-buffers:
+			case pkt = <-e.c:
 				// Another packet was available, process it
 				log.Debug("Have partial frame, got new packet")
 			default:
 				log.Debug("Have partial frame, no new packet, send partial frame",
-					"frameOff", frameOff, "seqNumber", seqNumber, "index", index)
+					"frameOff", e.frameOff, "seqNumber", e.seq, "index", e.index)
 				// No packets available, send existing frame.
-				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
-				frameOff = SIGHdrSize
-				index = 0
+				err := e.Write(conn, frame[:e.frameOff])
 				if err != nil {
 					log.Error("Error sending frame", "err", err)
 				}
-				bp.Put(pkt)
+				e.bp.Put(pkt)
 				continue TopLoop
 			}
 		}
-		if index == 0 {
-			// This is the first start of a packet in this frame, so set the index
-			// TODO(kormat): index should be multiple of 8B
-			index = frameOff
+		if err := e.CopyPkt(conn, frame, pkt); err != nil {
+			log.Error("Error sending frame", "err", err)
 		}
-		// Write packet length to frame
-		// FIXME(kormat): uncomment this when ingressworker handles packet len fields.
-		//common.Order.PutUint32(frame[frameOff:], uint32(len(pkt)))
-		//frameOff += 4
-		pktOff = 0
-		log.Debug("Starting to copy packet")
-		// Write chunks of the packet to frames, sending off frames as they fill up.
-		for {
-			log.Debug("Copy packet top", "frameOff", frameOff, "pktOff", pktOff)
-			copied := copy(frame[frameOff:], pkt[pktOff:])
-			pktOff += copied
-			frameOff += copied
-			log.Debug("Copy packet middle", "frameOff", frameOff, "pktOff", pktOff, "copied", copied)
-			if len(frame)-frameOff < PktLenSize*2 {
-				// There's no point in trying to fit another packet into this frame.
-				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
-				frameOff = SIGHdrSize
-				index = 0
-				if err != nil {
-					log.Error("Error sending frame", "err", err)
-				}
-			}
-			if pktOff == len(pkt) {
-				// This packet is now finished, time to get a new one.
-				// FIXME(kormat): add padding here.
-				bp.Put(pkt)
-				continue TopLoop
-			}
-			// Otherwise continue copying packet into next frame.
-		}
+		e.bp.Put(pkt)
 	}
+}
+
+func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error {
+	if e.index == 0 {
+		// This is the first start of a packet in this frame, so set the index
+		e.index = uint16(e.frameOff / 8)
+	}
+	// Write packet length to frame
+	common.Order.PutUint16(frame[e.frameOff:], uint16(len(pkt)))
+	e.frameOff += PktLenSize
+	pktOff := 0
+	log.Debug("Starting to copy packet")
+	// Write chunks of the packet to frames, sending off frames as they fill up.
+	for {
+		log.Debug("Copy packet top", "frameOff", e.frameOff, "pktOff", pktOff)
+		copied := copy(frame[e.frameOff:], pkt[pktOff:])
+		pktOff += copied
+		e.frameOff += copied
+		log.Debug("Copy packet middle", "frameOff", e.frameOff, "pktOff", pktOff, "copied", copied)
+		if len(frame)-e.frameOff < MinSpace {
+			// There's no point in trying to fit another packet into this frame.
+			if err := e.Write(conn, frame[:e.frameOff]); err != nil {
+				// Skip the rest of this packet.
+				return err
+			}
+		}
+		if pktOff == len(pkt) {
+			// This packet is now finished, time to get a new one.
+			break
+		}
+		// Otherwise continue copying packet into next frame.
+	}
+
+	return nil
+}
+
+func (e *EgressWorker) Read() {
+	for {
+		pktBuffer := e.bp.Get()
+		bytesRead, err := e.src.Read(pktBuffer)
+		if err != nil {
+			log.Error("Egress read error", "err", err)
+			return
+		}
+		e.c <- pktBuffer[:bytesRead]
+	}
+}
+
+func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
+	if e.seq == 0 {
+		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
+	}
+	log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
+		"seq", e.seq, "index", e.index)
+
+	// Write SIG header
+	common.Order.PutUint32(frame[:4], e.seq)
+	common.Order.PutUint16(frame[4:6], e.index)
+	common.Order.PutUint16(frame[6:8], e.epoch)
+	// Update metadata
+	e.seq += 1
+	e.index = 0
+	e.frameOff = SIGHdrSize
+	// Send frame
+	_, err := conn.Write(frame)
+	if err != nil {
+		return common.NewError("Egress write error", "err", err)
+	}
+	return nil
 }
 
 func send(packet []byte) error {
