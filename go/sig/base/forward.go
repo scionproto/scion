@@ -25,6 +25,7 @@ import (
 //
 const (
 	SIGHdrSize          = 8
+	PktLenSize          = 4
 	InternalIngressName = "scion.local"
 )
 
@@ -81,10 +82,17 @@ func incSeqNumber(seqNumber uint32) uint32 {
 }
 
 func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int) error {
+	log.Debug("sendFrame", "len", len(frame), "seq", *seqNumber, "index", index)
 	// Encapsulate and flush
 	common.Order.PutUint32(frame[:4], *seqNumber)
-	*seqNumber = incSeqNumber(*seqNumber)
-	common.Order.PutUint16(frame[4:6], uint16(index)+1)
+	*seqNumber += 1
+	// FIXME(kormat): hack to work around current IngressWorker not
+	// implementing index according to design.
+	if index > 0 {
+		index += 1
+		index -= SIGHdrSize
+	}
+	common.Order.PutUint16(frame[4:6], uint16(index))
 
 	// NOTE(scrye): This _might_ block (although it means that the
 	// outgoing OS-level socket is saturated with data, which we
@@ -99,18 +107,7 @@ func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int) error 
 	return nil
 }
 
-type State int
-
-const (
-	NEW_FRAME State = iota
-	COPY_PKT
-	EMPTY_FRAME
-	PARTIAL_FRAME
-	SEND_FRAME
-)
-
 func EgressWorker(info *asInfo) {
-	frameBuffer := make([]byte, 64*1024)
 	var seqNumber uint32
 
 	// Continuously read from tunnel interface, putting data into pc
@@ -118,85 +115,85 @@ func EgressWorker(info *asInfo) {
 	buffers := make(chan []byte, 128)
 	go tunnelReader(info.Device, bp, buffers)
 
-	var frame, frameFreeSpace []byte
-	var pkt, pktRemaining []byte
-	var fillOffset int
+	frame := make([]byte, 1<<16)
+	var pkt []byte
+	var pktOff int
 	var index int
-	var state State
 	var flow net.Conn
 	var err error
+	frameOff := SIGHdrSize
+TopLoop:
 	for {
-		switch state {
-		case NEW_FRAME:
-			//log.Debug("State", "state", "NEW_FRAME")
-			flow, err = info.getConn()
-			if err != nil {
-				log.Error("Unable to get flow", "err", err)
-				// No connection is available, back off for 500ms and try again
-				<-time.After(500 * time.Millisecond)
-				continue
-			}
-			// TODO bytesMaxToRead := flow.MTU
-			bytesMaxToRead := 1280
-			frame = frameBuffer[:SIGHdrSize+bytesMaxToRead]
-			frameFreeSpace = frame[SIGHdrSize:]
-			fillOffset = 0
-			index = -1
-			state = COPY_PKT
-			if pkt == nil {
-				state = EMPTY_FRAME
-			} else {
-				state = COPY_PKT
-			}
-		case PARTIAL_FRAME:
-			// We already have some data, if there's no more data just flush
-			//log.Debug("State", "state", "GET_PACKET")
+		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
+		// also, this should be dropping old packets to keep the buffer queue clear.
+		flow, err = info.getConn()
+		if err != nil {
+			log.Error("Unable to get flow", "err", err)
+			// No connection is available, back off for 500ms and try again
+			<-time.After(500 * time.Millisecond)
+			continue
+		}
+		// FIXME(kormat): calculate the max payload size based on path's MTU
+		frame = frame[:1280]
+		log.Debug("Top of loop", "frameOff", frameOff, "seqNumber", seqNumber, "index", index)
+		if frameOff == SIGHdrSize {
+			// Don't have a partial frame, so block indefiniely for the next packet.
+			pkt = <-buffers
+			log.Debug("No partial frame, got new packet")
+		} else {
+			// Have partial frame
 			select {
 			case pkt = <-buffers:
-				//log.Debug("Got packet", "length", len(pkt))
-				pktRemaining = pkt
-				// If this is the first packet in the
-				// frame, store the index
-				if index == -1 {
-					index = fillOffset
-				}
-				state = COPY_PKT
+				// Another packet was available, process it
+				log.Debug("Have partial frame, got new packet")
 			default:
-				//log.Debug("Flushing")
-				state = SEND_FRAME
-			}
-		case EMPTY_FRAME:
-			// We do not have data, block while waiting
-			pkt = <-buffers
-			//log.Debug("Got packet", "length", len(pkt))
-			pktRemaining = pkt
-			if index == -1 {
-				index = fillOffset
-			}
-			state = COPY_PKT
-		case COPY_PKT:
-			//log.Debug("State", "state", "FILL_FRAME")
-			bytesCopied := copy(frameFreeSpace, pktRemaining)
-			frameFreeSpace = frameFreeSpace[bytesCopied:]
-			fillOffset += bytesCopied
-			if bytesCopied < len(pktRemaining) {
-				// Not enough space for this packet in
-				// this frame, continue in next frame
-				pktRemaining = pktRemaining[bytesCopied:]
-				state = SEND_FRAME
-			} else {
-				// Packet was fully copied, release buffer
+				log.Debug("Have partial frame, no new packet, send partial frame",
+					"frameOff", frameOff, "seqNumber", seqNumber, "index", index)
+				// No packets available, send existing frame.
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
+				frameOff = SIGHdrSize
+				index = 0
+				if err != nil {
+					log.Error("Error sending frame", "err", err)
+				}
 				bp.Put(pkt)
-				pkt = nil
-				state = PARTIAL_FRAME
+				continue TopLoop
 			}
-		case SEND_FRAME:
-			//log.Debug("State", "state", "SEND_FRAME")
-			err = sendFrame(flow, frame[:fillOffset+SIGHdrSize], &seqNumber, index)
-			if err != nil {
-				log.Error("Unable to send frame", "len", fillOffset, "err", err)
+		}
+		if index == 0 {
+			// This is the first start of a packet in this frame, so set the index
+			// TODO(kormat): index should be multiple of 8B
+			index = frameOff
+		}
+		// Write packet length to frame
+		// FIXME(kormat): uncomment this when ingressworker handles packet len fields.
+		//common.Order.PutUint32(frame[frameOff:], uint32(len(pkt)))
+		//frameOff += 4
+		pktOff = 0
+		log.Debug("Starting to copy packet")
+		// Write chunks of the packet to frames, sending off frames as they fill up.
+		for {
+			log.Debug("Copy packet top", "frameOff", frameOff, "pktOff", pktOff)
+			copied := copy(frame[frameOff:], pkt[pktOff:])
+			pktOff += copied
+			frameOff += copied
+			log.Debug("Copy packet middle", "frameOff", frameOff, "pktOff", pktOff, "copied", copied)
+			if len(frame)-frameOff < PktLenSize*2 {
+				// There's no point in trying to fit another packet into this frame.
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
+				frameOff = SIGHdrSize
+				index = 0
+				if err != nil {
+					log.Error("Error sending frame", "err", err)
+				}
 			}
-			state = NEW_FRAME
+			if pktOff == len(pkt) {
+				// This packet is now finished, time to get a new one.
+				// FIXME(kormat): add padding here.
+				bp.Put(pkt)
+				continue TopLoop
+			}
+			// Otherwise continue copying packet into next frame.
 		}
 	}
 }
