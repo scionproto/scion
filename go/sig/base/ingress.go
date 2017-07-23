@@ -376,7 +376,7 @@ func (l *ReassemblyList) collectAndWrite(from *list.Element, to *list.Element) {
 	for e := from.Next(); l.buf.Len() < fromFrame.pktLen && e != to.Next(); e = next {
 		frame := e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes, frame.frameLen)])
+		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes + SIGHdrSize, frame.frameLen)])
 		frame.trailingFragProcessed = true
 		next = e.Next()
 		// Remove frame if it has been fully processed.
