@@ -352,8 +352,10 @@ func processFrame(frame *FrameBuf, state *IngressState) error {
 	epoch := int(common.Order.Uint16(frame.raw[6:8]))
 	addToReassembly := false
 
+	frame.seqNr = seqNr
+	frame.index = index
 	log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
-		"len", len(frame.raw))
+		"len", frame.len)
 
 	if index == 0 {
 		// No new packets in this frame.

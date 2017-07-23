@@ -18,7 +18,7 @@ import (
 //
 //      0B       1        2        3        4        5        6        7
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
-//  |         Sequence number           |     Index       |    Reserved     |
+//  |         Sequence number           |     Index       |      Epoch      |
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 const (
@@ -75,23 +75,21 @@ func tunnelReader(source io.ReadWriteCloser, bp *BufferPool, buffers chan<- []by
 	}
 }
 
-func incSeqNumber(seqNumber uint32) uint32 {
-	return seqNumber + 1
+func incSeqNumber(seqNumber *uint32, epoch *uint16) {
+	*seqNumber++
+	if *seqNumber == 0 {
+		// Sequence number wrapped. Increase epoch.
+		*epoch++
+	}
 }
 
-func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int) error {
-	log.Debug("sendFrame", "len", len(frame), "seq", *seqNumber, "index", index)
+func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int, epoch *uint16) error {
+	log.Debug("sendFrame", "len", len(frame), "seq", *seqNumber, "index", index, "epoch", epoch)
 	// Encapsulate and flush
 	common.Order.PutUint32(frame[:4], *seqNumber)
-	*seqNumber += 1
-	// FIXME(kormat): hack to work around current IngressWorker not
-	// implementing index according to design.
-	if index > 0 {
-		index += 1
-		index -= SIGHdrSize
-	}
 	common.Order.PutUint16(frame[4:6], uint16(index))
-
+	common.Order.PutUint16(frame[6:8], uint16(*epoch))
+	incSeqNumber(seqNumber, epoch)
 	// NOTE(scrye): This _might_ block (although it means that the
 	// outgoing OS-level socket is saturated with data, which we
 	// cannot help anyway). Other than buffering more packets
@@ -119,9 +117,13 @@ func EgressWorker(info *asInfo) {
 	var index int
 	var flow net.Conn
 	var err error
+	var epoch uint16
 	frameOff := SIGHdrSize
 TopLoop:
 	for {
+		if epoch == 0 {
+			epoch = uint16(time.Now().Unix() & 0xFFFF)
+		}
 		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
 		// also, this should be dropping old packets to keep the buffer queue clear.
 		flow, err = info.getConn()
@@ -148,7 +150,7 @@ TopLoop:
 				log.Debug("Have partial frame, no new packet, send partial frame",
 					"frameOff", frameOff, "seqNumber", seqNumber, "index", index)
 				// No packets available, send existing frame.
-				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index, &epoch)
 				frameOff = SIGHdrSize
 				index = 0
 				if err != nil {
@@ -160,13 +162,11 @@ TopLoop:
 		}
 		if index == 0 {
 			// This is the first start of a packet in this frame, so set the index
-			// TODO(kormat): index should be multiple of 8B
-			index = frameOff
+			index = frameOff / 8
 		}
 		// Write packet length to frame
-		// FIXME(kormat): uncomment this when ingressworker handles packet len fields.
-		//common.Order.PutUint32(frame[frameOff:], uint32(len(pkt)))
-		//frameOff += 4
+		common.Order.PutUint32(frame[frameOff:], uint32(len(pkt)))
+		frameOff += 4
 		pktOff = 0
 		log.Debug("Starting to copy packet")
 		// Write chunks of the packet to frames, sending off frames as they fill up.
@@ -178,7 +178,7 @@ TopLoop:
 			log.Debug("Copy packet middle", "frameOff", frameOff, "pktOff", pktOff, "copied", copied)
 			if len(frame)-frameOff < PktLenSize*2 {
 				// There's no point in trying to fit another packet into this frame.
-				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index, &epoch)
 				frameOff = SIGHdrSize
 				index = 0
 				if err != nil {
@@ -187,7 +187,7 @@ TopLoop:
 			}
 			if pktOff == len(pkt) {
 				// This packet is now finished, time to get a new one.
-				// FIXME(kormat): add padding here.
+				frameOff = pad(frameOff)
 				bp.Put(pkt)
 				continue TopLoop
 			}
