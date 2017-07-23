@@ -73,7 +73,7 @@ func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string,
 	as.Lock()
 	defer as.Unlock()
 
-	sig := fmt.Sprintf("[%s]:%d", encapAddr, encapPort)
+	sig := fmt.Sprintf("[%s]:%s", encapAddr, encapPort)
 	if _, found := as.sigs[sig]; found {
 		return common.NewError("SIG entry exists", "sig", sig)
 	}
@@ -135,14 +135,14 @@ func (as *asInfo) String() string {
 	if len(as.sigs) == 0 {
 		output += fmt.Sprintf("    (no SIGs)\n")
 	}
-	for sig, _ := range as.sigs {
+	for sig := range as.sigs {
 		output += "    " + sig + "\n"
 	}
 	output += "Prefixes:\n"
 	if len(as.Subnets) == 0 {
 		output += fmt.Sprintf("    (no prefixes)\n")
 	}
-	for subnet, _ := range as.Subnets {
+	for subnet := range as.Subnets {
 		output += "    " + subnet + "\n"
 	}
 	return output
