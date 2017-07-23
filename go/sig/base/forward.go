@@ -75,21 +75,13 @@ func tunnelReader(source io.ReadWriteCloser, bp *BufferPool, buffers chan<- []by
 	}
 }
 
-func incSeqNumber(seqNumber *uint32, epoch *uint16) {
-	*seqNumber++
-	if *seqNumber == 0 {
-		// Sequence number wrapped. Increase epoch.
-		*epoch++
-	}
-}
-
-func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int, epoch *uint16) error {
+func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int, epoch uint16) error {
 	log.Debug("sendFrame", "len", len(frame), "seq", *seqNumber, "index", index, "epoch", epoch)
 	// Encapsulate and flush
 	common.Order.PutUint32(frame[:4], *seqNumber)
 	common.Order.PutUint16(frame[4:6], uint16(index))
-	common.Order.PutUint16(frame[6:8], uint16(*epoch))
-	incSeqNumber(seqNumber, epoch)
+	common.Order.PutUint16(frame[6:8], uint16(epoch))
+	*seqNumber++
 	// NOTE(scrye): This _might_ block (although it means that the
 	// outgoing OS-level socket is saturated with data, which we
 	// cannot help anyway). Other than buffering more packets
@@ -121,7 +113,7 @@ func EgressWorker(info *asInfo) {
 	frameOff := SIGHdrSize
 TopLoop:
 	for {
-		if epoch == 0 {
+		if seqNumber == 0 {
 			epoch = uint16(time.Now().Unix() & 0xFFFF)
 		}
 		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
@@ -150,7 +142,7 @@ TopLoop:
 				log.Debug("Have partial frame, no new packet, send partial frame",
 					"frameOff", frameOff, "seqNumber", seqNumber, "index", index)
 				// No packets available, send existing frame.
-				err := sendFrame(flow, frame[:frameOff], &seqNumber, index, &epoch)
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index, epoch)
 				frameOff = SIGHdrSize
 				index = 0
 				if err != nil {
@@ -165,8 +157,8 @@ TopLoop:
 			index = frameOff / 8
 		}
 		// Write packet length to frame
-		common.Order.PutUint32(frame[frameOff:], uint32(len(pkt)))
-		frameOff += 4
+		common.Order.PutUint16(frame[frameOff:], uint16(len(pkt)))
+		frameOff += 2
 		pktOff = 0
 		log.Debug("Starting to copy packet")
 		// Write chunks of the packet to frames, sending off frames as they fill up.
@@ -178,7 +170,7 @@ TopLoop:
 			log.Debug("Copy packet middle", "frameOff", frameOff, "pktOff", pktOff, "copied", copied)
 			if len(frame)-frameOff < PktLenSize*2 {
 				// There's no point in trying to fit another packet into this frame.
-				err := sendFrame(flow, frame[:frameOff], &seqNumber, index, &epoch)
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index, epoch)
 				frameOff = SIGHdrSize
 				index = 0
 				if err != nil {

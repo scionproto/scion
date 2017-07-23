@@ -387,8 +387,8 @@ func processPkts(frame *FrameBuf, start int) bool {
 	offset := start
 	incompletePkt := false
 	for offset < frame.len {
-		pktLen := int(common.Order.Uint16(frame.raw[offset : offset+4]))
-		offset += 4
+		pktLen := int(common.Order.Uint16(frame.raw[offset : offset+2]))
+		offset += 2
 		rawPkt := frame.raw[offset:frame.len]
 		if len(rawPkt) <= pktLen {
 			// We got everything, write it out to the wire without copying to pkt buf.
