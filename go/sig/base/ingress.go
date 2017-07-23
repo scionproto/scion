@@ -15,14 +15,20 @@ import (
 )
 
 const (
+	// FrameBufPoolCap is the number of preallocated frame buffers.
 	FrameBufPoolCap    = 300
+	// FrameBufCap is the size of a preallocated frame buffer.
 	FrameBufCap        = 65535
+	// MaxSeqNrDist is the maximum difference between arriving sequence numbers.
 	MaxSeqNrDist       = 10
-	MaxReassemblyLists = 3
+	// ReassemblyListCap is the maximum capacity of a reassembly list.
 	ReassemblyListCap  = 100
+	// CleanUpInterval is the interval between clean up of outdated reassembly lists.
 	CleanUpInterval    = 1 * time.Second
 )
 
+// FrameBuf is a struct used to reassembly encapsulated packets spread over
+// multiple SIG frames. It contains the raw bytes and metadata needed for reassembly.
 type FrameBuf struct {
 	seqNr          int
 	index          int
@@ -35,6 +41,7 @@ type FrameBuf struct {
 	raw            []byte
 }
 
+// Reset resets the metadata of a frame buffer.
 func (fb *FrameBuf) Reset() {
 	fb.seqNr = -1
 	fb.index = -1
@@ -46,6 +53,7 @@ func (fb *FrameBuf) Reset() {
 	fb.startProcessed = false
 }
 
+// Processed returns true if all fragments in the frame have been processed,
 func (fb *FrameBuf) Processed() bool {
 	return fb.endProcessed && (!fb.hasStart || fb.startProcessed)
 }
@@ -55,6 +63,10 @@ func (fb *FrameBuf) String() string {
 		fb.seqNr, fb.index, fb.len, fb.pktStart)
 }
 
+// ReassemblyList is used to keep a doubly linked list of SIG frames that are
+// outstanding for reassembly. The frames kept in the reassambly list sorted by
+// their sequence numbers. There is always one reassembly list per epoch to
+// ensure that sequence numbers are monotonically increasing.
 type ReassemblyList struct {
 	epoch             int
 	capacity          int
@@ -64,6 +76,8 @@ type ReassemblyList struct {
 	buf               *bytes.Buffer
 }
 
+// NewReassemblyList returns a ReassemblyList object for the given epoch, with given
+// maximum capacity and using bufPool to release processed frame buffers into.
 func NewReassemblyList(epoch int, capacity int, bufPool chan *FrameBuf) *ReassemblyList {
 	list := &ReassemblyList{
 		epoch:             epoch,
@@ -76,8 +90,13 @@ func NewReassemblyList(epoch int, capacity int, bufPool chan *FrameBuf) *Reassem
 	return list
 }
 
+// Insert inserts a frame into the reassembly list. In case the list has no capacity
+// anymore the oldest frame (with regard to the sequence number) in the list gets evicted.
+// After inserting the frame at the correct position, Insert tries to reassemble packets
+// that involve the newly added frame. Completely processed frames get removed from the
+// list and released to the pool of frame buffers.
 func (l *ReassemblyList) Insert(frame *FrameBuf) {
-	log.Debug("Adding frame to reassembly list", "frame", frame.String())
+	log.Debug("Adding frame to reassembly list", "epoch", l.epoch,"frame", frame.String())
 	// If this is the first frame, just add it.
 	if l.entries.Len() == 0 {
 		l.entries.PushBack(frame)
@@ -135,11 +154,15 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	}
 }
 
+// tryReassemble tries to reassemble fragments starting at 'from'.
 func (l *ReassemblyList) tryReassemble(from *list.Element) {
 	if from == nil {
 		return
 	}
 	fromFrame := from.Value.(*FrameBuf)
+	if !fromFrame.hasStart {
+		return
+	}
 	prevSeqNr := fromFrame.seqNr
 	bytes := fromFrame.len - fromFrame.pktStart
 	var to *list.Element
@@ -165,6 +188,10 @@ func (l *ReassemblyList) tryReassemble(from *list.Element) {
 	}
 }
 
+// collectAndWrite collects all fragments of a reassembled packet starting in 'from'
+// and ending in 'to' and writes the reassembled packet to the wire. Completely
+// processed frames are removed from the reassembly list and returned to the frame
+// buffer pool.
 func (l *ReassemblyList) collectAndWrite(from *list.Element, to *list.Element) {
 	if from == nil || to == nil {
 		return
@@ -230,6 +257,7 @@ func (l *ReassemblyList) releaseFrame(frame *FrameBuf) {
 	l.bufPool <- frame
 }
 
+// IngressState contains the state needed by an ingress worker.
 type IngressState struct {
 	bufPool         chan *FrameBuf
 	reassemblyLists map[int]*ReassemblyList
@@ -267,7 +295,6 @@ func (s *IngressState) getReassemblyList(epoch int) *ReassemblyList {
 
 func (s *IngressState) cleanUp() {
 	for epoch, rlist := range s.reassemblyLists {
-		// Check if the reassembly list has
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
 			// Release all frames to the frame pool and remove the reassembly list.
@@ -282,6 +309,8 @@ func (s *IngressState) cleanUp() {
 	}
 }
 
+// IngressWorker handles decapsulation of SIG frames. There is one IngressWorker per
+// remote SIG.
 func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPort uint16) {
 	var err error
 	ExternalIngress, err = scionNet.ListenSCION(listenAddr, listenPort)
@@ -314,6 +343,9 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 	}
 }
 
+// processFrame processes a SIG frame by first writing all completely contained
+// packets to the wire and then adding the frame to the corresponding reassembly
+// list if needed.
 func processFrame(frame *FrameBuf, state *IngressState) error {
 	seqNr := int(common.Order.Uint32(frame.raw[:4]))
 	index := int(common.Order.Uint16(frame.raw[4:6]))
