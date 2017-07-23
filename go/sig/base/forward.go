@@ -180,9 +180,12 @@ TopLoop:
 			log.Debug("Copy packet middle", "frameOff", frameOff, "pktOff", pktOff, "copied", copied)
 			if len(frame)-frameOff < PktLenSize*2 {
 				// There's no point in trying to fit another packet into this frame.
-				sendFrame(flow, frame[:frameOff], &seqNumber, index)
+				err := sendFrame(flow, frame[:frameOff], &seqNumber, index)
 				frameOff = SIGHdrSize
 				index = 0
+				if err != nil {
+					log.Error("Error sending frame", "err", err)
+				}
 			}
 			if pktOff == len(pkt) {
 				// This packet is now finished, time to get a new one.
