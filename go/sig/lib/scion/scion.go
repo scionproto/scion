@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	RecvBufferSize = 1500
+	RecvBufferSize = 1 << 16
 )
 
 type SCIONNet struct {
