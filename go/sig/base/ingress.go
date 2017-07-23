@@ -16,15 +16,15 @@ import (
 
 const (
 	// FrameBufPoolCap is the number of preallocated frame buffers.
-	FrameBufPoolCap    = 300
+	FrameBufPoolCap = 300
 	// FrameBufCap is the size of a preallocated frame buffer.
-	FrameBufCap        = 65535
+	FrameBufCap = 65535
 	// MaxSeqNrDist is the maximum difference between arriving sequence numbers.
-	MaxSeqNrDist       = 10
+	MaxSeqNrDist = 10
 	// ReassemblyListCap is the maximum capacity of a reassembly list.
-	ReassemblyListCap  = 100
+	ReassemblyListCap = 100
 	// CleanUpInterval is the interval between clean up of outdated reassembly lists.
-	CleanUpInterval    = 1 * time.Second
+	CleanUpInterval = 1 * time.Second
 )
 
 // FrameBuf is a struct used to reassembly encapsulated packets spread over
@@ -96,7 +96,7 @@ func NewReassemblyList(epoch int, capacity int, bufPool chan *FrameBuf) *Reassem
 // that involve the newly added frame. Completely processed frames get removed from the
 // list and released to the pool of frame buffers.
 func (l *ReassemblyList) Insert(frame *FrameBuf) {
-	log.Debug("Adding frame to reassembly list", "epoch", l.epoch,"frame", frame.String())
+	log.Debug("Adding frame to reassembly list", "epoch", l.epoch, "frame", frame.String())
 	// If this is the first frame, just add it.
 	if l.entries.Len() == 0 {
 		l.entries.PushBack(frame)
@@ -382,7 +382,7 @@ func processPkts(frame *FrameBuf, start int) bool {
 	offset := start
 	incompletePkt := false
 	for offset < frame.len {
-		pktLen := int(common.Order.Uint16(frame.raw[offset:offset+4]))
+		pktLen := int(common.Order.Uint16(frame.raw[offset : offset+4]))
 		offset += 4
 		rawPkt := frame.raw[offset:frame.len]
 		if len(rawPkt) <= pktLen {
@@ -412,5 +412,5 @@ func min(x, y int) int {
 }
 
 func pad(x int) int {
-	return x + (8 - (x%8))%8
+	return x + (8-(x%8))%8
 }
