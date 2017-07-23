@@ -404,16 +404,6 @@ func processPkts(frame *FrameBuf, start int) bool {
 	return incompletePkt
 }
 
-func send(packet []byte) error {
-	_, err := InternalIngress.Write(packet)
-	if err != nil {
-		log.Error("Unable to write to Internal Ingress", "err", err,
-			"length", len(packet))
-		return err
-	}
-	return nil
-}
-
 func min(x, y int) int {
 	if x <= y {
 		return x
