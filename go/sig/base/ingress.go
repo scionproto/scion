@@ -350,14 +350,16 @@ func processPkts(frame *FrameBuf, start int) bool {
 	offset := start
 	incompletePkt := false
 	for offset < frame.len {
-		raw := frame.raw[offset:frame.len]
-		pktLen := int(common.Order.Uint16(raw[2:4]))
-		if len(raw) <= pktLen {
+		pktLen := int(common.Order.Uint16(frame.raw[offset:offset+4]))
+		offset += 4
+		rawPkt := frame.raw[offset:frame.len]
+		if len(rawPkt) <= pktLen {
 			// We got everything, write it out to the wire without copying to pkt buf.
 			log.Debug("ProcessPkt: directly write pkt", "seqNr", frame.seqNr, "len", pktLen)
-			send(raw[:pktLen])
+			send(rawPkt[:pktLen])
+			offset += pktLen
 			// Packet always starts at 8-byte boundary.
-			offset += pktLen + (8-(pktLen%8))%8
+			offset = pad(offset)
 			continue
 		}
 		// There is an incomplete packet at the end of the frame.
@@ -380,9 +382,13 @@ func send(packet []byte) error {
 	return nil
 }
 
-func min (x, y int) int {
+func min(x, y int) int {
 	if x <= y {
 		return x
 	}
 	return y
+}
+
+func pad(x int) int {
+	return x + (8 - (x%8))%8
 }
