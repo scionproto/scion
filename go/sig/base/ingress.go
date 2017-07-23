@@ -368,6 +368,9 @@ func processFrame(frame *FrameBuf, state *IngressState) error {
 			addToReassembly = true
 		}
 	}
+	// If index == 1 then we can be sure that there is no fragment at the beginning
+	// of the frame.
+	frame.endProcessed = index == 1
 	if addToReassembly {
 		// Add to frame buf reassembly list.
 		rlist := state.getReassemblyList(epoch)
