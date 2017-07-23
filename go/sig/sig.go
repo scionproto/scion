@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,6 +50,9 @@ func main() {
 	liblog.Setup("sig")
 	defer liblog.PanicLog()
 	setupSignals()
+
+	// Start http server for profiling
+	go http.ListenAndServe("localhost:6060", nil)
 
 	ia, cerr := addr.IAFromString(*isdas)
 	if cerr != nil {
