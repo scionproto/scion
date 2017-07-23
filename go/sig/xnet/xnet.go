@@ -10,6 +10,15 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+const SIGRTable = 11
+const SIGRPriority = 100
+
+var localIP net.IP
+
+func Setup(loc net.IP) {
+	localIP = loc
+}
+
 // ConnectTun creates (or opens) interface name, and then sets its state to up
 func ConnectTun(name string) (io.ReadWriteCloser, error) {
 	iface, err := water.New(water.Config{
@@ -43,7 +52,9 @@ func AddRouteIF(destination *net.IPNet, ifname string) error {
 	index := link.Attrs().Index
 
 	// NOTE: SCION injected routes have a metric of 100
-	route := netlink.Route{LinkIndex: index, Dst: destination, Priority: 100}
+	route := netlink.Route{
+		LinkIndex: index, Src: localIP, Dst: destination, Priority: SIGRPriority, Table: SIGRTable,
+	}
 	err = netlink.RouteAdd(&route)
 	if err != nil {
 		log.Error("Unable to add route", "route", route)
