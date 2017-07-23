@@ -142,12 +142,12 @@ TopLoop:
 }
 
 func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error {
+	// New packets always starts at a 8 byte boundary.
+	e.frameOff = pad(e.frameOff)
 	if e.index == 0 {
 		// This is the first start of a packet in this frame, so set the index
 		e.index = uint16(e.frameOff / 8)
 	}
-	// New packets always starts at a 8 byte boundary.
-	e.frameOff = pad(e.frameOff)
 	// Write packet length to frame
 	common.Order.PutUint16(frame[e.frameOff:], uint16(len(pkt)))
 	e.frameOff += PktLenSize

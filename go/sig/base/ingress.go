@@ -45,7 +45,7 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 	for {
 		select {
 		case <-time.Tick(CleanUpInterval):
-			go state.cleanUp()
+			state.cleanUp()
 		default:
 			frame := state.getFrameBuf()
 			read, err := ExternalIngress.Read(frame.raw)
@@ -74,13 +74,12 @@ type FrameBuf struct {
 	// Start of the last fragment that starts a new packet. 0 means that there
 	// is no such fragment. This points to the start of the header of the packet,
 	// i.e., the 2-byte packet len preceding the packet header is not included.
-	leadingFragStart int
-	// Whether the leading fragment has been processed already when reassembling.
-	leadingFragProcessed bool
-	// Whether the trailing fragment has been processed already when reassembling.
-	// A frame with index 0 is considered to have a trailing fragment.
-	trailingFragProcessed bool
-	// The packet len of the packet that starts at leadingFragStart. Has no meaning
+	fragNStart int
+	// Whether fragNStart has been processed already when reassembling.
+	fragNProcessed bool
+	// Whether fragment0 has been processed already when reassembling.
+	frag0Processed bool
+	// The packet len of the packet that starts at fragment0. Has no meaning
 	// if there is no such fragment.
 	pktLen int
 	// The raw bytes buffer for the frame.
@@ -92,20 +91,20 @@ func (fb *FrameBuf) Reset() {
 	fb.seqNr = -1
 	fb.index = -1
 	fb.frameLen = 0
-	fb.leadingFragStart = 0
-	fb.leadingFragProcessed = false
-	fb.trailingFragProcessed = false
+	fb.fragNStart = 0
+	fb.fragNProcessed = false
+	fb.frag0Processed = false
 	fb.pktLen = 0
 }
 
 // Processed returns true if all fragments in the frame have been processed,
 func (fb *FrameBuf) Processed() bool {
-	return fb.trailingFragProcessed && (fb.leadingFragStart == 0 || fb.leadingFragProcessed)
+	return fb.frag0Processed && (fb.fragNStart == 0 || fb.fragNProcessed)
 }
 
 func (fb *FrameBuf) String() string {
-	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d LeadingFragStart: %d",
-		fb.seqNr, fb.index, fb.frameLen, fb.leadingFragStart)
+	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d fragNStart: %d processed: (%t, %t)",
+		fb.seqNr, fb.index, fb.frameLen, fb.fragNStart, fb.frag0Processed, fb.fragNProcessed)
 }
 
 // IngressState contains the state needed by an ingress worker.
@@ -130,8 +129,7 @@ func NewIngressState() *IngressState {
 }
 
 func (s *IngressState) getFrameBuf() *FrameBuf {
-	buf := <-s.bufPool
-	return buf
+	return <-s.bufPool
 }
 
 func (s *IngressState) getReassemblyList(epoch int) *ReassemblyList {
@@ -148,10 +146,11 @@ func (s *IngressState) cleanUp() {
 	for epoch, rlist := range s.reassemblyLists {
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
-			// Release all frames to the frame pool and remove the reassembly list.
+			// Remove the reassembly list from the map and then release all frames
+			// back to the bufpool.
 			log.Debug("Removing reassembly list", "epoch", epoch)
-			rlist.removeAll()
 			delete(s.reassemblyLists, epoch)
+			go rlist.removeAll()
 		} else {
 			// Mark the reassembly list for deletion. If it is not accessed between now
 			// and the next cleanup interval, it will be removed.
@@ -188,7 +187,7 @@ func processFrame(frame *FrameBuf, state *IngressState) {
 	}
 	// If index == 1 then we can be sure that there is no fragment at the beginning
 	// of the frame.
-	frame.trailingFragProcessed = index == 1
+	frame.frag0Processed = index == 1
 	if addToReassembly {
 		// Add to frame buf reassembly list.
 		rlist := state.getReassemblyList(epoch)
@@ -221,7 +220,7 @@ func processPkts(frame *FrameBuf, start int) bool {
 	}
 	if offset < frame.frameLen {
 		// There is an incomplete packet at the end of the frame.
-		frame.leadingFragStart = offset
+		frame.fragNStart = offset
 		frame.pktLen = pktLen
 		return true
 	}
@@ -280,7 +279,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 		}
 		// Add entry and check for reassembly.
 		elem := l.entries.PushFront(frame)
-		if frame.leadingFragStart != 0 {
+		if frame.fragNStart != 0 {
 			l.tryReassemble(elem)
 		}
 		return
@@ -288,11 +287,12 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	// Frame should be added somewhere in the middle or at the end of the list.
 	// Check if we have capacity.
 	if l.entries.Len() == l.capacity {
+		log.Debug("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
 		l.removeOldest()
 	}
 	var lastStart *list.Element
 	var insertedElem *list.Element
-	if firstFrame.leadingFragStart != 0 && !firstFrame.leadingFragProcessed {
+	if firstFrame.fragNStart != 0 && !firstFrame.fragNProcessed {
 		lastStart = first
 	}
 	for e := first.Next(); e != nil; e = e.Next() {
@@ -302,7 +302,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 			insertedElem = l.entries.InsertBefore(frame, e)
 			break
 		}
-		if entry.leadingFragStart != 0 && !entry.leadingFragProcessed {
+		if entry.fragNStart != 0 && !entry.fragNProcessed {
 			lastStart = e
 		}
 	}
@@ -314,7 +314,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	// Case 1: The current frame contains the end of a packet or connects multiple frames.
 	l.tryReassemble(lastStart)
 	// Case 2: The current frame contains the start of a packet.
-	if frame.leadingFragStart != 0 {
+	if frame.fragNStart != 0 {
 		l.tryReassemble(insertedElem)
 	}
 }
@@ -325,23 +325,30 @@ func (l *ReassemblyList) tryReassemble(from *list.Element) {
 		return
 	}
 	fromFrame := from.Value.(*FrameBuf)
-	if fromFrame.leadingFragStart == 0 {
+	if fromFrame.fragNStart == 0 {
 		return
 	}
 	prevSeqNr := fromFrame.seqNr
-	bytes := fromFrame.frameLen - fromFrame.leadingFragStart
+	bytes := fromFrame.frameLen - fromFrame.fragNStart
 	var to *list.Element
 	for e := from.Next(); e != nil; e = e.Next() {
 		currFrame := e.Value.(*FrameBuf)
 		if currFrame.seqNr == prevSeqNr+1 {
 			prevSeqNr = currFrame.seqNr
-			// Add number of bytes contained in this frame.
-			if currFrame.index == 0 {
-				bytes += (currFrame.frameLen - 8)
-			}
+			// Add number of bytes contained in this frame. This potentially adds
+			// too much, but we are only using it to detect whether we potentially
+			// have everything we need.
+			bytes += (currFrame.frameLen - 8)
 			// Check if we have found all frames.
-			if fromFrame.pktLen-bytes <= currFrame.index*8 {
+			if bytes >= fromFrame.pktLen {
 				to = e
+				break
+			}
+			if currFrame.index != 0 {
+				log.Error("Framing error occurred. Not enough bytes to reassemble packet",
+					"startFrame", fromFrame.String(), "currFrame", currFrame.String())
+				// TODO(shitz): We can potentially throw aways fromFrame and all frames
+				// leading up to the current one.
 				break
 			}
 		}
@@ -369,15 +376,15 @@ func (l *ReassemblyList) collectAndWrite(from *list.Element, to *list.Element) {
 	l.buf.Reset()
 	// Collect the start of the packet.
 	pktLen := fromFrame.pktLen
-	l.buf.Write(fromFrame.raw[fromFrame.leadingFragStart:fromFrame.frameLen])
-	fromFrame.leadingFragProcessed = true
+	l.buf.Write(fromFrame.raw[fromFrame.fragNStart:fromFrame.frameLen])
+	fromFrame.fragNProcessed = true
 	// Collect rest.
 	var next *list.Element
-	for e := from.Next(); l.buf.Len() < fromFrame.pktLen && e != to.Next(); e = next {
+	for e := from.Next(); l.buf.Len() < pktLen && e != to.Next(); e = next {
 		frame := e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
 		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes + SIGHdrSize, frame.frameLen)])
-		frame.trailingFragProcessed = true
+		frame.frag0Processed = true
 		next = e.Next()
 		// Remove frame if it has been fully processed.
 		if frame.Processed() {
