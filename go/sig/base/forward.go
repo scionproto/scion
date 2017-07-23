@@ -43,24 +43,24 @@ type BufferPool struct {
 func NewBufferPool() *BufferPool {
 	new := func() interface{} {
 		//log.Debug("Alloc'ing")
-		return make([]byte, 64*1024)
+		return make(common.RawBytes, 64*1024)
 	}
 	bp := &BufferPool{
 		pool: &sync.Pool{New: new},
 	}
 	for i := 0; i < 32; i++ {
-		bp.Put(make([]byte, 64*1024))
+		bp.Put(make(common.RawBytes, 64*1024))
 	}
 	return bp
 }
 
-func (bp *BufferPool) Get() []byte {
+func (bp *BufferPool) Get() common.RawBytes {
 	// Reset slice to entire buffer
-	b := bp.pool.Get().([]byte)
+	b := bp.pool.Get().(common.RawBytes)
 	return b[:cap(b)]
 }
 
-func (bp *BufferPool) Put(b []byte) {
+func (bp *BufferPool) Put(b common.RawBytes) {
 	bp.pool.Put(b)
 }
 
@@ -103,7 +103,7 @@ TopLoop:
 		// also, this should be dropping old packets to keep the buffer queue clear.
 		conn, err = e.info.getConn()
 		if err != nil {
-			log.Error("Unable to get flow", "err", err)
+			log.Error("Unable to get conn", "err", err)
 			// No connection is available, back off for 500ms and try again
 			<-time.After(500 * time.Millisecond)
 			continue
@@ -130,7 +130,6 @@ TopLoop:
 				if err != nil {
 					log.Error("Error sending frame", "err", err)
 				}
-				e.bp.Put(pkt)
 				continue TopLoop
 			}
 		}
@@ -169,12 +168,10 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 		}
 		if pktOff == len(pkt) {
 			// This packet is now finished, time to get a new one.
-			break
+			return nil
 		}
 		// Otherwise continue copying packet into next frame.
 	}
-
-	return nil
 }
 
 func (e *EgressWorker) Read() {
@@ -212,7 +209,7 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	return nil
 }
 
-func send(packet []byte) error {
+func send(packet common.RawBytes) error {
 	_, err := InternalIngress.Write(packet)
 	if err != nil {
 		return common.NewError("Unable to write to Internal Ingress", "err", err,
