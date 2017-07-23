@@ -42,9 +42,10 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 		return
 	}
 	state := NewIngressState()
+	cleanupTimer := time.Tick(CleanUpInterval)
 	for {
 		select {
-		case <-time.Tick(CleanUpInterval):
+		case <-cleanupTimer:
 			state.cleanUp()
 		default:
 			frame := state.getFrameBuf()
