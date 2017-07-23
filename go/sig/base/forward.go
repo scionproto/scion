@@ -99,10 +99,6 @@ func (e *EgressWorker) Run() error {
 
 TopLoop:
 	for {
-		if e.frameOff%8 != 0 {
-			// Pad to multiple of 8B
-			e.frameOff += 8 - (e.frameOff % 8)
-		}
 		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
 		// also, this should be dropping old packets to keep the buffer queue clear.
 		conn, err = e.info.getConn()
@@ -150,6 +146,8 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 		// This is the first start of a packet in this frame, so set the index
 		e.index = uint16(e.frameOff / 8)
 	}
+	// New packets always starts at a 8 byte boundary.
+	e.frameOff = pad(e.frameOff)
 	// Write packet length to frame
 	common.Order.PutUint16(frame[e.frameOff:], uint16(len(pkt)))
 	e.frameOff += PktLenSize
