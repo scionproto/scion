@@ -16,6 +16,7 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/control"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
 	"github.com/netsec-ethz/scion/go/sig/management"
+	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 const (
@@ -112,6 +113,7 @@ func parseEncapFlags() error {
 	if netip == nil {
 		return common.NewError("Unable to parse encapsulation IP address", "addr", *ip)
 	}
+	xnet.Setup(netip)
 	Addr = addr.HostFromIP(netip)
 	Port = uint16(*port)
 	if Port == 0 {
