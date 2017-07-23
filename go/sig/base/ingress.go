@@ -390,7 +390,7 @@ func processPkts(frame *FrameBuf, start int) bool {
 		pktLen := int(common.Order.Uint16(frame.raw[offset : offset+2]))
 		offset += 2
 		rawPkt := frame.raw[offset:frame.len]
-		if len(rawPkt) <= pktLen {
+		if pktLen <= len(rawPkt) {
 			// We got everything, write it out to the wire without copying to pkt buf.
 			log.Debug("ProcessPkt: directly write pkt", "seqNr", frame.seqNr, "len", pktLen)
 			send(rawPkt[:pktLen])
