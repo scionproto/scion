@@ -64,6 +64,7 @@ bin/border
 bin/discovery
 bin/dispatcher
 bin/logdog
+bin/sig
 c/dispatcher/dispatcher
 c/ssp/test/*client
 c/ssp/test/*server
