@@ -92,7 +92,8 @@ func (sdb *Topology) AddSig(isdas string, encapAddr string, encapPort string, ct
 	sdb.topo.set(isdas, info)
 
 	// FIXME(scrye) channel for worker commands (to cancel goroutine when remote AS is removed)
-	go EgressWorker(info)
+	ework := NewEgressWorker(info)
+	go ework.Run()
 	return info.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 }
 
