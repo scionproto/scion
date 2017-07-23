@@ -334,27 +334,27 @@ func (l *ReassemblyList) tryReassemble(from *list.Element) {
 	var to *list.Element
 	for e := from.Next(); e != nil; e = e.Next() {
 		currFrame := e.Value.(*FrameBuf)
-		if currFrame.seqNr == prevSeqNr+1 {
-			prevSeqNr = currFrame.seqNr
-			// Add number of bytes contained in this frame. This potentially adds
-			// too much, but we are only using it to detect whether we potentially
-			// have everything we need.
-			bytes += (currFrame.frameLen - 8)
-			// Check if we have found all frames.
-			if bytes >= fromFrame.pktLen {
-				to = e
-				break
-			}
-			if currFrame.index != 0 {
-				log.Error("Framing error occurred. Not enough bytes to reassemble packet",
-					"startFrame", fromFrame.String(), "currFrame", currFrame.String())
-				// TODO(shitz): We can potentially throw aways fromFrame and all frames
-				// leading up to the current one.
-				break
-			}
+		if currFrame.seqNr != prevSeqNr+1 {
+			// Missing frame. Cannot reassemble packet yet.
+			break
 		}
-		// Missing frame. Cannot reassemble packet yet.
-		break
+		prevSeqNr = currFrame.seqNr
+		// Add number of bytes contained in this frame. This potentially adds
+		// too much, but we are only using it to detect whether we potentially
+		// have everything we need.
+		bytes += (currFrame.frameLen - 8)
+		// Check if we have found all frames.
+		if bytes >= fromFrame.pktLen {
+			to = e
+			break
+		}
+		if currFrame.index != 0 {
+			log.Error("Framing error occurred. Not enough bytes to reassemble packet",
+				"startFrame", fromFrame.String(), "currFrame", currFrame.String())
+			// TODO(shitz): We can potentially throw aways fromFrame and all frames
+			// leading up to the current one.
+			break
+		}
 	}
 	if to != nil {
 		l.collectAndWrite(from, to)
@@ -384,7 +384,7 @@ func (l *ReassemblyList) collectAndWrite(from *list.Element, to *list.Element) {
 	for e := from.Next(); l.buf.Len() < pktLen && e != to.Next(); e = next {
 		frame := e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes + SIGHdrSize, frame.frameLen)])
+		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes+SIGHdrSize, frame.frameLen)])
 		frame.frag0Processed = true
 		next = e.Next()
 		// Remove frame if it has been fully processed.
