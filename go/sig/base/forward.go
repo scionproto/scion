@@ -107,16 +107,6 @@ func sendFrame(conn net.Conn, frame []byte, seqNumber *uint32, index int) error 
 	return nil
 }
 
-type State int
-
-const (
-	NEW_FRAME State = iota
-	COPY_PKT
-	EMPTY_FRAME
-	PARTIAL_FRAME
-	SEND_FRAME
-)
-
 func EgressWorker(info *asInfo) {
 	var seqNumber uint32
 
