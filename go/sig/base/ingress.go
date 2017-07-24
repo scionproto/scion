@@ -72,14 +72,17 @@ type FrameBuf struct {
 	index int
 	// Total length of the frame (including 8-byte header).
 	frameLen int
-	// Start of the last fragment that starts a new packet. 0 means that there
+	// Start of the fragment that starts a new packet. 0 means that there
 	// is no such fragment. This points to the start of the header of the packet,
 	// i.e., the 2-byte packet len preceding the packet header is not included.
-	fragNStart int
-	// Whether fragNStart has been processed already when reassembling.
-	fragNProcessed bool
-	// Whether fragment0 has been processed already when reassembling.
+	frag0Start int
+	// Whether fragment 0 has been processed already when reassembling.
 	frag0Processed bool
+	// Whether fragment N has been processed already when reassembling. Fragment N
+	// denotes the fragment that completes a packet. Note that with the way packets
+	// are in encapsulated, such a fragment will always be at the start of a frame
+	// (if there is one).
+	fragNProcessed bool
 	// The packet len of the packet that starts at fragment0. Has no meaning
 	// if there is no such fragment.
 	pktLen int
@@ -92,20 +95,20 @@ func (fb *FrameBuf) Reset() {
 	fb.seqNr = -1
 	fb.index = -1
 	fb.frameLen = 0
-	fb.fragNStart = 0
-	fb.fragNProcessed = false
+	fb.frag0Start = 0
 	fb.frag0Processed = false
+	fb.fragNProcessed = false
 	fb.pktLen = 0
 }
 
 // Processed returns true if all fragments in the frame have been processed,
 func (fb *FrameBuf) Processed() bool {
-	return fb.frag0Processed && (fb.fragNStart == 0 || fb.fragNProcessed)
+	return fb.fragNProcessed && (fb.frag0Start == 0 || fb.frag0Processed)
 }
 
 func (fb *FrameBuf) String() string {
-	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d fragNStart: %d processed: (%t, %t)",
-		fb.seqNr, fb.index, fb.frameLen, fb.fragNStart, fb.frag0Processed, fb.fragNProcessed)
+	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d frag0Start: %d processed: (%t, %t)",
+		fb.seqNr, fb.index, fb.frameLen, fb.frag0Start, fb.fragNProcessed, fb.frag0Processed)
 }
 
 // IngressState contains the state needed by an ingress worker.
@@ -188,7 +191,7 @@ func processFrame(frame *FrameBuf, state *IngressState) {
 	}
 	// If index == 1 then we can be sure that there is no fragment at the beginning
 	// of the frame.
-	frame.frag0Processed = index == 1
+	frame.fragNProcessed = index == 1
 	if addToReassembly {
 		// Add to frame buf reassembly list.
 		rlist := state.getReassemblyList(epoch)
@@ -221,7 +224,7 @@ func processPkts(frame *FrameBuf, start int) bool {
 	}
 	if offset < frame.frameLen {
 		// There is an incomplete packet at the end of the frame.
-		frame.fragNStart = offset
+		frame.frag0Start = offset
 		frame.pktLen = pktLen
 		return true
 	}
@@ -280,7 +283,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 		}
 		// Add entry and check for reassembly.
 		elem := l.entries.PushFront(frame)
-		if frame.fragNStart != 0 {
+		if frame.frag0Start != 0 {
 			l.tryReassemble(elem)
 		}
 		return
@@ -293,7 +296,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	}
 	var lastStart *list.Element
 	var insertedElem *list.Element
-	if firstFrame.fragNStart != 0 && !firstFrame.fragNProcessed {
+	if firstFrame.frag0Start != 0 && !firstFrame.frag0Processed {
 		lastStart = first
 	}
 	for e := first.Next(); e != nil; e = e.Next() {
@@ -303,7 +306,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 			insertedElem = l.entries.InsertBefore(frame, e)
 			break
 		}
-		if entry.fragNStart != 0 && !entry.fragNProcessed {
+		if entry.frag0Start != 0 && !entry.frag0Processed {
 			lastStart = e
 		}
 	}
@@ -313,9 +316,11 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	}
 	// Check if we can reassemble something.
 	// Case 1: The current frame contains the end of a packet or connects multiple frames.
-	l.tryReassemble(lastStart)
+	if frame.index != 1 {
+		l.tryReassemble(lastStart)
+	}
 	// Case 2: The current frame contains the start of a packet.
-	if frame.fragNStart != 0 {
+	if frame.frag0Start != 0 {
 		l.tryReassemble(insertedElem)
 	}
 }
@@ -326,11 +331,11 @@ func (l *ReassemblyList) tryReassemble(from *list.Element) {
 		return
 	}
 	fromFrame := from.Value.(*FrameBuf)
-	if fromFrame.fragNStart == 0 {
+	if fromFrame.frag0Start == 0 {
 		return
 	}
 	prevSeqNr := fromFrame.seqNr
-	bytes := fromFrame.frameLen - fromFrame.fragNStart
+	bytes := fromFrame.frameLen - fromFrame.frag0Start
 	var to *list.Element
 	for e := from.Next(); e != nil; e = e.Next() {
 		currFrame := e.Value.(*FrameBuf)
@@ -377,15 +382,15 @@ func (l *ReassemblyList) collectAndWrite(from *list.Element, to *list.Element) {
 	l.buf.Reset()
 	// Collect the start of the packet.
 	pktLen := fromFrame.pktLen
-	l.buf.Write(fromFrame.raw[fromFrame.fragNStart:fromFrame.frameLen])
-	fromFrame.fragNProcessed = true
+	l.buf.Write(fromFrame.raw[fromFrame.frag0Start:fromFrame.frameLen])
+	fromFrame.frag0Processed = true
 	// Collect rest.
 	var next *list.Element
 	for e := from.Next(); l.buf.Len() < pktLen && e != to.Next(); e = next {
 		frame := e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
 		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes+SIGHdrSize, frame.frameLen)])
-		frame.frag0Processed = true
+		frame.fragNProcessed = true
 		next = e.Next()
 		// Remove frame if it has been fully processed.
 		if frame.Processed() {
