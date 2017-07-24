@@ -45,7 +45,10 @@ func NewSCIONNet(ia *addr.ISD_AS, sciondPath string, dispatcherPath string) (*SC
 // pass through the dispatcher, which sends it to the local application via a
 // Reliable (UNIX) socket.
 func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port uint16) (*SCIONConn, error) {
-	// Reserve local addr and port for returning traffic.
+	// We ask the OS for a free dynamic source port because the dispatcher
+	// cannot select a SCION/UDP one for us. A reference to this port is
+	// kept in the returned *SCIONConn object to prevent the GC from
+	// freeing the socket. This port is never used after reservation.
 	udpLocalIP := &net.UDPAddr{IP: local.IP()}
 	udpConn, err := net.ListenUDP("udp4", udpLocalIP)
 	if err != nil {
@@ -82,7 +85,9 @@ func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port 
 // object capable of Read and WriteTo calls. ReadFrom and ReadFromSCION can be
 // used to get the SCION address which sent the packet.
 func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, error) {
-	// Open up local UDP port for sending traffic
+	// Reserve a local port anyway so we do not get into a state where the
+	// dispatcher has a registration for one process on a SCION/UDP port,
+	// but a different process is listening on the actual UDP port.
 	udpAddr := &net.UDPAddr{IP: address.IP(), Port: int(port)}
 	udpConn, err := net.ListenUDP("udp4", udpAddr)
 	if err != nil {
@@ -111,11 +116,14 @@ func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, 
 
 type SCIONConn struct {
 	*reliable.Conn
-	udpConn    *net.UDPConn
 	laddr      *SCIONAppAddr
 	raddr      *SCIONAppAddr
 	pm         *PathManager
 	recvBuffer []byte
+
+	// udpConn is used to reserve a local dynamic port during Dial and
+	// Listen; it is never used for reading or writing data
+	udpConn *net.UDPConn
 }
 
 func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAppAddr, error) {
@@ -171,10 +179,10 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAppAddr) (int, error) {
 		return 0, err
 	}
 
-	var addr net.UDPAddr
-	addr.IP = path.HostInfo.Addrs.Ipv4
-	addr.Port = int(path.HostInfo.Port)
-	return c.udpConn.WriteToUDP(packet, &net.UDPAddr{IP: addr.IP, Port: addr.Port})
+	var appAddr reliable.AppAddr
+	appAddr.Addr = addr.HostFromIP(path.HostInfo.Addrs.Ipv4)
+	appAddr.Port = path.HostInfo.Port
+	return c.Conn.WriteTo(packet, appAddr)
 }
 
 func (c *SCIONConn) WriteTo(b []byte, address net.Addr) (int, error) {
