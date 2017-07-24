@@ -83,6 +83,8 @@ type FrameBuf struct {
 	// are in encapsulated, such a fragment will always be at the start of a frame
 	// (if there is one).
 	fragNProcessed bool
+	// Whether all packets completely contained in the frame have been processed.
+	completePktsProcessed bool
 	// The packet len of the packet that starts at fragment0. Has no meaning
 	// if there is no such fragment.
 	pktLen int
@@ -98,17 +100,64 @@ func (fb *FrameBuf) Reset() {
 	fb.frag0Start = 0
 	fb.frag0Processed = false
 	fb.fragNProcessed = false
+	fb.completePktsProcessed = false
 	fb.pktLen = 0
+}
+
+// ProcessCompletePkts write all complete packets in the frame to the wire and
+// sets the correct metadata in case there is a fragment at the end of the frame.
+func (fb *FrameBuf) ProcessCompletePkts() {
+	if fb.index == 0 || fb.completePktsProcessed {
+		fb.completePktsProcessed = true
+		return
+	}
+	offset := fb.index * 8
+	var pktLen int
+	for offset < fb.frameLen {
+		pktLen = int(common.Order.Uint16(fb.raw[offset : offset+2]))
+		offset += 2
+		rawPkt := fb.raw[offset:fb.frameLen]
+		if len(rawPkt) < pktLen {
+			break
+		}
+		// We got everything for the packet. Write it out to the wire.
+		log.Debug("ProcessCompletePkts: directly write pkt", "seqNr", fb.seqNr,
+			"offset", offset, "len", pktLen)
+		if err := send(rawPkt[:pktLen]); err != nil {
+			log.Error("Unable to send packet", "err", err)
+		}
+		offset += pktLen
+		// Packet always starts at 8-byte boundary.
+		offset = pad(offset)
+	}
+	if offset < fb.frameLen {
+		// There is an incomplete packet at the end of the frame.
+		log.Debug("Found packet fragment at the end of frame", "seqNr", fb.seqNr,
+			"start", offset, "pktLen", pktLen)
+		fb.frag0Start = offset
+		fb.pktLen = pktLen
+	}
+	fb.completePktsProcessed = true
+	fb.frag0Processed = fb.frag0Start == 0
 }
 
 // Processed returns true if all fragments in the frame have been processed,
 func (fb *FrameBuf) Processed() bool {
-	return fb.fragNProcessed && (fb.frag0Start == 0 || fb.frag0Processed)
+	return (fb.completePktsProcessed && fb.fragNProcessed &&
+		(fb.frag0Start == 0 || fb.frag0Processed))
+}
+
+// SetProcessed marks a frame as being processed.
+func (fb *FrameBuf) SetProcessed() {
+	fb.completePktsProcessed = true
+	fb.fragNProcessed = true
+	fb.frag0Processed = true
 }
 
 func (fb *FrameBuf) String() string {
-	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d frag0Start: %d processed: (%t, %t)",
-		fb.seqNr, fb.index, fb.frameLen, fb.frag0Start, fb.fragNProcessed, fb.frag0Processed)
+	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d frag0Start: %d processed: (%t, %t, %t)",
+		fb.seqNr, fb.index, fb.frameLen, fb.frag0Start, fb.fragNProcessed, fb.frag0Processed,
+		fb.completePktsProcessed)
 }
 
 // IngressState contains the state needed by an ingress worker.
@@ -133,6 +182,7 @@ func NewIngressState() *IngressState {
 }
 
 func (s *IngressState) getFrameBuf() *FrameBuf {
+	log.Debug("GetFrameBuf", "poolSize", len(s.bufPool))
 	return <-s.bufPool
 }
 
@@ -152,7 +202,6 @@ func (s *IngressState) cleanUp() {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
 			// Remove the reassembly list from the map and then release all frames
 			// back to the bufpool.
-			log.Debug("Removing reassembly list", "epoch", epoch)
 			delete(s.reassemblyLists, epoch)
 			go rlist.removeAll()
 		} else {
@@ -170,65 +219,19 @@ func processFrame(frame *FrameBuf, state *IngressState) {
 	seqNr := int(common.Order.Uint32(frame.raw[:4]))
 	index := int(common.Order.Uint16(frame.raw[4:6]))
 	epoch := int(common.Order.Uint16(frame.raw[6:8]))
-	addToReassembly := false
-
 	frame.seqNr = seqNr
 	frame.index = index
 	log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
 		"len", frame.frameLen)
-
-	if index == 0 {
-		// No new packets in this frame.
-		log.Debug("No new packets in frame", "seqNr", seqNr)
-		// Add frame to frame buf list and check if we can reassemble a packet.
-		addToReassembly = true
-	} else {
-		addToReassembly = processPkts(frame, 8*index)
-		if index > 1 {
-			// There is a fragment at the beginning of the frame.
-			addToReassembly = true
-		}
-	}
 	// If index == 1 then we can be sure that there is no fragment at the beginning
 	// of the frame.
 	frame.fragNProcessed = index == 1
-	if addToReassembly {
-		// Add to frame buf reassembly list.
-		rlist := state.getReassemblyList(epoch)
-		rlist.Insert(frame)
-	} else {
-		// The frame is already completely processed. Release it.
-		frame.Reset()
-		state.bufPool <- frame
-	}
-}
-
-// Processes all packets in a frame and returns true if there is an incomplete
-// packet at the end of the frame, otherwise false.
-func processPkts(frame *FrameBuf, start int) bool {
-	offset := start
-	var pktLen int
-	for offset < frame.frameLen {
-		pktLen = int(common.Order.Uint16(frame.raw[offset : offset+2]))
-		offset += 2
-		rawPkt := frame.raw[offset:frame.frameLen]
-		if len(rawPkt) < pktLen {
-			break
-		}
-		// We got everything, write it out to the wire without copying to pkt buf.
-		log.Debug("ProcessPkt: directly write pkt", "seqNr", frame.seqNr, "len", pktLen)
-		send(rawPkt[:pktLen])
-		offset += pktLen
-		// Packet always starts at 8-byte boundary.
-		offset = pad(offset)
-	}
-	if offset < frame.frameLen {
-		// There is an incomplete packet at the end of the frame.
-		frame.frag0Start = offset
-		frame.pktLen = pktLen
-		return true
-	}
-	return false
+	// If index == 0 then we can be sure that there are no complete packets in this
+	// frame.
+	frame.completePktsProcessed = index == 0
+	// Add to frame buf reassembly list.
+	rlist := state.getReassemblyList(epoch)
+	rlist.Insert(frame)
 }
 
 // ReassemblyList is used to keep a doubly linked list of SIG frames that are
@@ -258,159 +261,139 @@ func NewReassemblyList(epoch int, capacity int, bufPool chan *FrameBuf) *Reassem
 	return list
 }
 
-// Insert inserts a frame into the reassembly list. In case the list has no capacity
-// anymore the oldest frame (with regard to the sequence number) in the list gets evicted.
+// Insert inserts a frame into the reassembly list.
 // After inserting the frame at the correct position, Insert tries to reassemble packets
 // that involve the newly added frame. Completely processed frames get removed from the
 // list and released to the pool of frame buffers.
 func (l *ReassemblyList) Insert(frame *FrameBuf) {
-	log.Debug("Adding frame to reassembly list", "epoch", l.epoch, "frame", frame.String())
-	// If this is the first frame, just add it.
+	// If this is the first frame, write all complete packets to the wire and
+	// add the frame to the reassembly list if it contains a fragment at the end.
 	if l.entries.Len() == 0 {
-		l.entries.PushBack(frame)
+		l.insertFirst(frame)
 		return
 	}
 	first := l.entries.Front()
 	firstFrame := first.Value.(*FrameBuf)
+	// Check whether frame is too old.
 	if frame.seqNr < firstFrame.seqNr {
-		// This frame has the lowest seqNr in this epoch.
-		// If there is no capacity or if the frame is too old, don't bother adding it.
-		if l.entries.Len() == l.capacity || frame.seqNr < firstFrame.seqNr-MaxSeqNrDist {
-			log.Debug("Discarding frame: too old", "epoch", l.epoch, "seqNr", frame.seqNr,
-				"currentOldest", firstFrame.seqNr)
-			l.releaseFrame(frame)
-			return
-		}
-		// Add entry and check for reassembly.
-		elem := l.entries.PushFront(frame)
-		if frame.frag0Start != 0 {
-			l.tryReassemble(elem)
-		}
+		log.Debug("Discarding frame: too old", "epoch", l.epoch, "seqNr", frame.seqNr,
+			"currentOldest", firstFrame.seqNr)
+		l.releaseFrame(frame)
 		return
 	}
-	// Frame should be added somewhere in the middle or at the end of the list.
+	last := l.entries.Back()
+	lastFrame := last.Value.(*FrameBuf)
+	// If there is a gap between this frame and the last in the reassembly list,
+	// remove all packets from the reassembly list and only add this frame.
+	if frame.seqNr > lastFrame.seqNr+1 {
+		log.Info(fmt.Sprintf("Received frame out-of-order. Discarding %d frames.", l.entries.Len()),
+			"epoch", l.epoch, "segNr", frame.seqNr, "currentNewest", lastFrame.seqNr)
+		l.removeAll()
+		l.insertFirst(frame)
+		return
+	}
 	// Check if we have capacity.
 	if l.entries.Len() == l.capacity {
-		log.Debug("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
-		l.removeOldest()
+		log.Warn("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
+		l.removeAll()
+		l.insertFirst(frame)
+		return
 	}
-	var lastStart *list.Element
-	var insertedElem *list.Element
-	if firstFrame.frag0Start != 0 && !firstFrame.frag0Processed {
-		lastStart = first
-	}
-	for e := first.Next(); e != nil; e = e.Next() {
-		entry := e.Value.(*FrameBuf)
-		if frame.seqNr < entry.seqNr {
-			// We have found the place to insert.
-			insertedElem = l.entries.InsertBefore(frame, e)
-			break
-		}
-		if entry.frag0Start != 0 && !entry.frag0Processed {
-			lastStart = e
-		}
-	}
-	if insertedElem == nil {
-		// Add frame at end and try to reassemble from last known start of a packet.
-		insertedElem = l.entries.PushBack(frame)
-	}
-	// Check if we can reassemble something.
-	// Case 1: The current frame contains the end of a packet or connects multiple frames.
-	if frame.index != 1 {
-		l.tryReassemble(lastStart)
-	}
-	// Case 2: The current frame contains the start of a packet.
+	l.entries.PushBack(frame)
+	log.Debug("Adding frame to reassembly list", "frame", frame.String(),
+		"listLen", l.entries.Len())
+	l.tryReassemble()
+}
+
+// insertFirst handles the case when the reassembly list is empty and a frame needs
+// to be inserted.
+func (l *ReassemblyList) insertFirst(frame *FrameBuf) {
+	frame.ProcessCompletePkts()
 	if frame.frag0Start != 0 {
-		l.tryReassemble(insertedElem)
+		log.Debug("Adding frame to reassembly list", "frame", frame.String(),
+			"listLen", l.entries.Len())
+		l.entries.PushBack(frame)
+	} else {
+		l.releaseFrame(frame)
 	}
 }
 
-// tryReassemble tries to reassemble fragments starting at 'from'.
-func (l *ReassemblyList) tryReassemble(from *list.Element) {
-	if from == nil {
+// tryReassemble checks if a packet can be reassembled from the reassembly list.
+func (l *ReassemblyList) tryReassemble() {
+	if l.entries.Len() < 2 {
 		return
 	}
-	fromFrame := from.Value.(*FrameBuf)
-	if fromFrame.frag0Start == 0 {
-		return
-	}
-	prevSeqNr := fromFrame.seqNr
-	bytes := fromFrame.frameLen - fromFrame.frag0Start
-	var to *list.Element
-	for e := from.Next(); e != nil; e = e.Next() {
+	log.Debug("Trying to reassemble packet.")
+	start := l.entries.Front()
+	startFrame := start.Value.(*FrameBuf)
+	bytes := startFrame.frameLen - startFrame.frag0Start
+	canReassemble := false
+	framingError := false
+	for e := start.Next(); e != nil; e = e.Next() {
 		currFrame := e.Value.(*FrameBuf)
-		if currFrame.seqNr != prevSeqNr+1 {
-			// Missing frame. Cannot reassemble packet yet.
-			break
-		}
-		prevSeqNr = currFrame.seqNr
 		// Add number of bytes contained in this frame. This potentially adds
 		// too much, but we are only using it to detect whether we potentially
 		// have everything we need.
 		bytes += (currFrame.frameLen - 8)
 		// Check if we have found all frames.
-		if bytes >= fromFrame.pktLen {
-			to = e
+		if bytes >= startFrame.pktLen {
+			canReassemble = true
 			break
 		}
 		if currFrame.index != 0 {
 			log.Error("Framing error occurred. Not enough bytes to reassemble packet",
-				"startFrame", fromFrame.String(), "currFrame", currFrame.String())
-			// TODO(shitz): We can potentially throw aways fromFrame and all frames
-			// leading up to the current one.
+				"startFrame", startFrame.String(), "currFrame", currFrame.String())
+			framingError = true
 			break
 		}
 	}
-	if to != nil {
-		l.collectAndWrite(from, to)
+	if canReassemble {
+		l.collectAndWrite()
+	} else if framingError {
+		l.removeBefore(l.entries.Back())
 	}
 }
 
-// collectAndWrite collects all fragments of a reassembled packet starting in 'from'
-// and ending in 'to' and writes the reassembled packet to the wire. Completely
-// processed frames are removed from the reassembly list and returned to the frame
-// buffer pool.
-func (l *ReassemblyList) collectAndWrite(from *list.Element, to *list.Element) {
-	if from == nil || to == nil {
-		return
-	}
-	fromFrame := from.Value.(*FrameBuf)
-	toFrame := to.Value.(*FrameBuf)
-	log.Debug("Reassembling packet. Collecting buffers", "from", fromFrame.seqNr,
-		"to", toFrame.seqNr)
+// collectAndWrite reassembles the packet in the reassembly list and writes it
+// out to the buffer. It will also write every complete packet in the last frame.
+func (l *ReassemblyList) collectAndWrite() {
+	start := l.entries.Front()
+	startFrame := start.Value.(*FrameBuf)
+	log.Debug("Can reassemble.", "startSeqNr", startFrame.seqNr, "pktLen", startFrame.pktLen,
+		"listLen", l.entries.Len())
 	// Reset reassembly buffer.
 	l.buf.Reset()
 	// Collect the start of the packet.
-	pktLen := fromFrame.pktLen
-	l.buf.Write(fromFrame.raw[fromFrame.frag0Start:fromFrame.frameLen])
-	fromFrame.frag0Processed = true
+	pktLen := startFrame.pktLen
+	log.Debug(fmt.Sprintf("Collecting [%d, %d] from frame %d", startFrame.frag0Start,
+		startFrame.frameLen, startFrame.seqNr))
+	l.buf.Write(startFrame.raw[startFrame.frag0Start:startFrame.frameLen])
+	// We cannot process the startframe any further.
+	startFrame.SetProcessed()
 	// Collect rest.
-	var next *list.Element
-	for e := from.Next(); l.buf.Len() < pktLen && e != to.Next(); e = next {
-		frame := e.Value.(*FrameBuf)
+	var frame *FrameBuf
+	for e := start.Next(); l.buf.Len() < pktLen && e != nil; e = e.Next() {
+		frame = e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
+		log.Debug(fmt.Sprintf("Collecting [%d, %d] from frame %d", SIGHdrSize,
+			min(missingBytes+SIGHdrSize, frame.frameLen), frame.seqNr))
 		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes+SIGHdrSize, frame.frameLen)])
 		frame.fragNProcessed = true
-		next = e.Next()
-		// Remove frame if it has been fully processed.
-		if frame.Processed() {
-			l.removeEntry(e)
-		}
-	}
-	// Remove fromFrame if it has been fully processed.
-	if fromFrame.Processed() {
-		l.removeEntry(from)
 	}
 	// Check length of the reassembled packet.
 	if l.buf.Len() != pktLen {
 		log.Error("Packet len for reassembled packet does not match header",
 			"expected", pktLen, "have", l.buf.Len())
-		return
+	} else {
+		// Write the packet to the wire.
+		if err := send(l.buf.Bytes()); err != nil {
+			log.Error("Unable to send reassembled packet", "err", err)
+		}
 	}
-	// Write the packet to the wire.
-	if err := send(l.buf.Bytes()); err != nil {
-		log.Error("Unable to send reassembled packet", "err", err)
-	}
+	// Process the complete packets in the last frame
+	frame.ProcessCompletePkts()
+	// Remove all processed frames from the list.
+	l.removeProcessed()
 }
 
 func (l *ReassemblyList) removeEntry(e *list.Element) {
@@ -424,9 +407,24 @@ func (l *ReassemblyList) removeOldest() {
 	l.removeEntry(l.entries.Front())
 }
 
-func (l *ReassemblyList) removeAll() {
+func (l *ReassemblyList) removeProcessed() {
 	var next *list.Element
 	for e := l.entries.Front(); e != nil; e = next {
+		frame := e.Value.(*FrameBuf)
+		next = e.Next()
+		if frame.Processed() {
+			l.removeEntry(e)
+		}
+	}
+}
+
+func (l *ReassemblyList) removeAll() {
+	l.removeBefore(nil)
+}
+
+func (l *ReassemblyList) removeBefore(ele *list.Element) {
+	var next *list.Element
+	for e := l.entries.Front(); e != ele; e = next {
 		next = e.Next()
 		l.removeEntry(e)
 	}
