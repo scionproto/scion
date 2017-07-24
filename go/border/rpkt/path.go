@@ -32,7 +32,7 @@ import (
 // validatePath validates the path header.
 func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	if assert.On {
-		assert.Must(rp.ifCurr != nil, rp.ErrStr("rp.ifCurr must not be nil"))
+		assert.Mustf(rp.ifCurr != nil, rp.ErrStrf("rp.ifCurr must not be nil"))
 	}
 	// First check to make sure the current interface is known and not revoked.
 	if err := rp.validateLocalIF(rp.ifCurr); err != nil {
@@ -285,7 +285,7 @@ func (rp *RtrPkt) IncPath() (bool, *common.Error) {
 		return false, nil
 	}
 	if assert.On {
-		assert.Must(rp.upFlag != nil, rp.ErrStr("rp.upFlag must not be nil"))
+		assert.Mustf(rp.upFlag != nil, rp.ErrStrf("rp.upFlag must not be nil"))
 	}
 	var err *common.Error
 	var hopF *spath.HopField

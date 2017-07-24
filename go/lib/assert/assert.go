@@ -23,3 +23,9 @@ func Must(condition bool, s string, args ...interface{}) {
 		panic(fmt.Sprintf(s, args...))
 	}
 }
+
+func Mustf(condition bool, f func() string) {
+	if !condition {
+		panic(f())
+	}
+}
