@@ -232,6 +232,7 @@ func (rp *RtrPkt) processSCMPRevocation() {
 	pld := rp.pld.(*scmp.Payload)
 	args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+	rp.SrcIA() // Ensure that rp.srcIA has been set
 	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.CoreLink) ||
 		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.ParentLink) {
 		// Case 1 & 2
