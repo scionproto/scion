@@ -24,7 +24,7 @@ import time
 
 import lib.app.sciond as lib_sciond
 from lib.crypto.symcrypto import sha256
-from lib.drkey.opt.protocol import get_sciond_params
+from lib.drkey.opt.protocol import get_sciond_params, find_opt_extn
 from lib.drkey.util import drkey_time
 from lib.main import main_wrapper
 from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
@@ -43,6 +43,8 @@ from integration.base_cli_srv import (
     TestServerBase,
     API_TOUT)
 
+shared_path = []
+
 
 class E2EClient(TestClientBase):
     """
@@ -53,6 +55,8 @@ class E2EClient(TestClientBase):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
+        global shared_path
+        shared_path = path_meta
 
         extn = SCIONOriginValidationPathTraceExtn.\
             from_values(0,
@@ -163,7 +167,8 @@ class E2EServer(TestServerBase):
     """
 
     def _handle_request(self, spkt):
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=None)
+        global shared_path
+        drkey, misc = _try_sciond_api(spkt, self._connector, None)
         logging.debug(drkey)
         expected = drkey.drkey + b" " + self.data
         raw_pld = spkt.get_payload().pack()
@@ -173,7 +178,13 @@ class E2EServer(TestServerBase):
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
+        extn = find_opt_extn(spkt)
+        extn.path_index = 0
         spkt.set_payload(self._create_payload(spkt))
+        shared_path.reverse()
+        _, misc = _try_sciond_api(spkt, connector=self._connector, path=shared_path)
+        if misc.drkeys:
+            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()
