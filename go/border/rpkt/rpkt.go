@@ -345,3 +345,12 @@ func (rp *RtrPkt) String() string {
 func (rp *RtrPkt) ErrStr(desc string) string {
 	return fmt.Sprintf("Error: %v\n  RtrPkt: %v\n  Raw: %v", desc, rp, rp.Raw)
 }
+
+// ErrStrf is a wrapper for ErrStr, which returns a callback to allow lazy
+// evaluation of ErrStr. This is used for assert.Mustf in particular, so that
+// when the assertion passes, the expensive call to ErrStr is avoided.
+func (rp *RtrPkt) ErrStrf(desc string) func() string {
+	return func() string {
+		return rp.ErrStr(desc)
+	}
+}
