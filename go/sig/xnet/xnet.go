@@ -4,6 +4,7 @@ package xnet
 import (
 	"io"
 	"net"
+	"os/exec"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/songgao/water"
@@ -37,7 +38,10 @@ func ConnectTun(name string) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	cmd := exec.Command("ip", "link", "set", name, "qlen", "1000")
+	if err = cmd.Run(); err != nil {
+		return nil, err
+	}
 	return iface, nil
 }
 
