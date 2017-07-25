@@ -16,7 +16,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-var promAddr = flag.String("prom", "127.0.0.1:1280", "Address to export prometheus metrics on")
+var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
 
 // Declare prometheus metrics to export.
 var (
@@ -26,7 +26,7 @@ var (
 			Name:      "pkts_recv_total",
 			Help:      "Number of packets received.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
 	PktsSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -34,32 +34,96 @@ var (
 			Name:      "pkts_sent_total",
 			Help:      "Number of packets sent.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
-	BytesRecv = prometheus.NewCounterVec(
+	PktBytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "bytes_recv_total",
-			Help:      "Number of bytes received.",
+			Name:      "pkt_bytes_recv_total",
+			Help:      "Number of packet bytes received.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
-	BytesSent = prometheus.NewCounterVec(
+	PktBytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "bytes_sent_total",
-			Help:      "Number of bytes sent.",
+			Name:      "pkt_bytes_sent_total",
+			Help:      "Number of packets bytes sent.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
+	FramesRecv = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_recv_total",
+			Help:      "Number of frames received.",
+		},
+		[]string{"IA"},
+	)
+	FramesSent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_sent_total",
+			Help:      "Number of frames sent.",
+		},
+		[]string{"IA"},
+	)
+	FrameBytesRecv = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frame_bytes_recv_total",
+			Help:      "Number of frame bytes received.",
+		},
+		[]string{"IA"},
+	)
+	FrameBytesSent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frame_bytes_sent_total",
+			Help:      "Number of frame bytes sent.",
+		},
+		[]string{"IA"},
+	)
+	FrameDiscardEvents = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frame_discard_events_total",
+			Help:      "Number of frame-discard events.",
+		})
+	FramesDiscarded = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_discarded_total",
+			Help:      "Number of frames discarded",
+		})
+	FramesTooOld = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_too_old_total",
+			Help:      "Number of frames that are too old",
+		})
+	FramesDuplicated = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_duplicated_total",
+			Help:      "Number of duplicate frames",
+		})
 )
 
 // Ensure all metrics are registered.
 func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
-	prometheus.MustRegister(BytesRecv)
-	prometheus.MustRegister(BytesSent)
+	prometheus.MustRegister(PktBytesRecv)
+	prometheus.MustRegister(PktBytesSent)
+	prometheus.MustRegister(FramesRecv)
+	prometheus.MustRegister(FramesSent)
+	prometheus.MustRegister(FrameBytesRecv)
+	prometheus.MustRegister(FrameBytesSent)
+	prometheus.MustRegister(FrameDiscardEvents)
+	prometheus.MustRegister(FramesDiscarded)
+	prometheus.MustRegister(FramesTooOld)
+	prometheus.MustRegister(FramesDuplicated)
 }
 
 var servers map[string]io.Closer
