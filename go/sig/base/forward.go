@@ -185,7 +185,7 @@ func (e *EgressWorker) Read() {
 		}
 		e.c <- pktBuffer[:bytesRead]
 		metrics.PktsRecv.WithLabelValues(e.info.DeviceName).Inc()
-		metrics.BytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
+		metrics.PktsBytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
 	}
 }
 
@@ -209,18 +209,7 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	if err != nil {
 		return common.NewError("Egress write error", "err", err)
 	}
-	metrics.PktsSent.WithLabelValues(e.info.DeviceName).Inc()
-	metrics.BytesSent.WithLabelValues(e.info.DeviceName).Add(float64(bytesWritten))
-	return nil
-}
-
-func send(packet common.RawBytes) error {
-	bytesWritten, err := InternalIngress.Write(packet)
-	if err != nil {
-		return common.NewError("Unable to write to Internal Ingress", "err", err,
-			"length", len(packet))
-	}
-	metrics.PktsSent.WithLabelValues(InternalIngressName).Inc()
-	metrics.BytesSent.WithLabelValues(InternalIngressName).Add(float64(bytesWritten))
+	metrics.FramesSent.WithLabelValues(e.info.Name).Inc()
+	metrics.FramesBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))
 	return nil
 }

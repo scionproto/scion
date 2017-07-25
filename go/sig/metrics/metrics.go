@@ -36,19 +36,51 @@ var (
 		},
 		[]string{"intf"},
 	)
-	BytesRecv = prometheus.NewCounterVec(
+	PktsBytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "bytes_recv_total",
-			Help:      "Number of bytes received.",
+			Name:      "pkts_bytes_recv_total",
+			Help:      "Number of packet bytes received.",
 		},
 		[]string{"intf"},
 	)
-	BytesSent = prometheus.NewCounterVec(
+	PktsBytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "bytes_sent_total",
-			Help:      "Number of bytes sent.",
+			Name:      "pkts_bytes_sent_total",
+			Help:      "Number of packets bytes sent.",
+		},
+		[]string{"intf"},
+	)
+	FramesRecv = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_recv_total",
+			Help:      "Number of frames received.",
+		},
+		[]string{"intf"},
+	)
+	FramesSent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_sent_total",
+			Help:      "Number of frames sent.",
+		},
+		[]string{"intf"},
+	)
+	FramesBytesRecv = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_bytes_recv_total",
+			Help:      "Number of frame bytes received.",
+		},
+		[]string{"intf"},
+	)
+	FramesBytesSent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_bytes_sent_total",
+			Help:      "Number of frame bytes sent.",
 		},
 		[]string{"intf"},
 	)
@@ -58,8 +90,12 @@ var (
 func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
-	prometheus.MustRegister(BytesRecv)
-	prometheus.MustRegister(BytesSent)
+	prometheus.MustRegister(PktsBytesRecv)
+	prometheus.MustRegister(PktsBytesSent)
+	prometheus.MustRegister(FramesRecv)
+	prometheus.MustRegister(FramesSent)
+	prometheus.MustRegister(FramesBytesRecv)
+	prometheus.MustRegister(FramesBytesSent)
 }
 
 var servers map[string]io.Closer

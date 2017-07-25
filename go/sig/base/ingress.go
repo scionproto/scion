@@ -58,8 +58,8 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 				state.bufPool <- frame
 				continue
 			}
-			metrics.PktsRecv.WithLabelValues(InternalIngressName).Inc()
-			metrics.BytesRecv.WithLabelValues(InternalIngressName).Add(float64(read))
+			metrics.FramesRecv.WithLabelValues(scionNet.IA.String()).Inc()
+			metrics.FramesBytesRecv.WithLabelValues(scionNet.IA.String()).Add(float64(read))
 			frame.frameLen = read
 			processFrame(frame, state)
 		}
@@ -451,6 +451,17 @@ func (l *ReassemblyList) removeBefore(ele *list.Element) {
 func (l *ReassemblyList) releaseFrame(frame *FrameBuf) {
 	frame.Reset()
 	l.bufPool <- frame
+}
+
+func send(packet common.RawBytes) error {
+	bytesWritten, err := InternalIngress.Write(packet)
+	if err != nil {
+		return common.NewError("Unable to write to Internal Ingress", "err", err,
+			"length", len(packet))
+	}
+	metrics.PktsSent.WithLabelValues(InternalIngressName).Inc()
+	metrics.PktsBytesSent.WithLabelValues(InternalIngressName).Add(float64(bytesWritten))
+	return nil
 }
 
 func min(x, y int) int {
