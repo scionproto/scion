@@ -45,21 +45,8 @@ func NewSCIONNet(ia *addr.ISD_AS, sciondPath string, dispatcherPath string) (*SC
 // pass through the dispatcher, which sends it to the local application via a
 // Reliable (UNIX) socket.
 func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port uint16) (*SCIONConn, error) {
-	// Reserve local addr and port for returning traffic.
-	udpLocalIP := &net.UDPAddr{IP: local.IP()}
-	udpConn, err := net.ListenUDP("udp4", udpLocalIP)
-	if err != nil {
-		return nil, common.NewError("Unable to assign port", "err", err)
-	}
-
-	localSocket := udpConn.LocalAddr()
-	udpLocalAddr, err := net.ResolveUDPAddr(localSocket.Network(), localSocket.String())
-	if err != nil {
-		return nil, common.NewError("Unable to extract UDP address", "err", err)
-	}
-
 	// FIXME(scrye): add deadline so Register can time out if the dispatcher is not responding
-	regAddr := reliable.AppAddr{Addr: addr.HostFromIP(udpLocalAddr.IP), Port: uint16(udpLocalAddr.Port)}
+	regAddr := reliable.AppAddr{Addr: local, Port: 0}
 	conn, _, err := reliable.Register(c.dispatcherPath, c.IA, regAddr)
 	if err != nil {
 		return nil, common.NewError("Unable to register with dispatcher", "err", err)
@@ -72,7 +59,6 @@ func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port 
 		Conn:       conn,
 		laddr:      laddr,
 		raddr:      raddr,
-		udpConn:    udpConn,
 		pm:         c.pm,
 		recvBuffer: make([]byte, RecvBufferSize)}
 	return sconn, nil
@@ -82,14 +68,6 @@ func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port 
 // object capable of Read and WriteTo calls. ReadFrom and ReadFromSCION can be
 // used to get the SCION address which sent the packet.
 func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, error) {
-	// Open up local UDP port for sending traffic
-	udpAddr := &net.UDPAddr{IP: address.IP(), Port: int(port)}
-	udpConn, err := net.ListenUDP("udp4", udpAddr)
-	if err != nil {
-		return nil, common.NewError("Unable to reserve UDP port for SCION listen", "addr", address,
-			"port", port)
-	}
-
 	// FIXME(scrye): add deadline so Register can time out if the dispatcher is not responding
 	regAddr := reliable.AppAddr{Addr: address, Port: port}
 	conn, _, err := reliable.Register(c.dispatcherPath, c.IA, regAddr)
@@ -103,7 +81,6 @@ func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, 
 	sconn := &SCIONConn{
 		Conn:       conn,
 		laddr:      laddr,
-		udpConn:    udpConn,
 		pm:         c.pm,
 		recvBuffer: make([]byte, RecvBufferSize)}
 	return sconn, nil
@@ -111,7 +88,6 @@ func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, 
 
 type SCIONConn struct {
 	*reliable.Conn
-	udpConn    *net.UDPConn
 	laddr      *SCIONAppAddr
 	raddr      *SCIONAppAddr
 	pm         *PathManager
@@ -171,10 +147,10 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAppAddr) (int, error) {
 		return 0, err
 	}
 
-	var addr net.UDPAddr
-	addr.IP = path.HostInfo.Addrs.Ipv4
-	addr.Port = int(path.HostInfo.Port)
-	return c.udpConn.WriteToUDP(packet, &net.UDPAddr{IP: addr.IP, Port: addr.Port})
+	var appAddr reliable.AppAddr
+	appAddr.Addr = addr.HostFromIP(path.HostInfo.Addrs.Ipv4)
+	appAddr.Port = path.HostInfo.Port
+	return c.Conn.WriteTo(packet, appAddr)
 }
 
 func (c *SCIONConn) WriteTo(b []byte, address net.Addr) (int, error) {
@@ -211,12 +187,6 @@ func (c *SCIONConn) Close() error {
 	err := c.Conn.Close()
 	if err != nil {
 		return common.NewError("Unable to close reliable socket", "err", err)
-	}
-	if c.udpConn != nil {
-		err := c.udpConn.Close()
-		if err != nil {
-			return common.NewError("Unable to close UDP socket", "err", err)
-		}
 	}
 	return nil
 }
