@@ -25,7 +25,7 @@ import time
 
 import lib.app.sciond as lib_sciond
 from lib.crypto.symcrypto import sha256
-from lib.drkey.opt.protocol import get_sciond_params, verify_pvf
+from lib.drkey.opt.protocol import get_sciond_params, verify_pvf, find_opt_extn
 from lib.drkey.util import drkey_time
 from lib.errors import SCIONVerificationError
 from lib.main import main_wrapper
@@ -45,9 +45,6 @@ from integration.base_cli_srv import (
     TestServerBase,
     API_TOUT)
 
-shared_keys = []
-shared_path = []
-
 
 class E2EClient(TestClientBase):
     """
@@ -58,8 +55,6 @@ class E2EClient(TestClientBase):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
-        global shared_path
-        shared_path = path_meta
 
         extn = SCIONOriginValidationPathTraceExtn.\
             from_values(0,
@@ -80,9 +75,6 @@ class E2EClient(TestClientBase):
         spkt.update()
 
         drkey, misc = _try_sciond_api(spkt, self._connector, path_meta)
-        global shared_keys
-        shared_keys = [drkey]
-        shared_keys.extend(misc.drkeys)
         for k in misc.drkeys:
             logging.debug(binascii.hexlify(k.drkey))
         extn.timestamp = drkey_time().to_bytes(4, 'big')
@@ -92,7 +84,7 @@ class E2EClient(TestClientBase):
         if misc.drkeys:
             extn.OVs = extn.create_ovs_from_path(misc.drkeys)
 
-        logging.debug("Shared path %s", shared_path)
+        logging.debug("Computed path %s", path_meta)
         logging.debug("misc.drkeys:")
         for k in misc.drkeys:
             logging.debug("key: %s", k)
@@ -178,7 +170,6 @@ class E2EServer(TestServerBase):
     """
 
     def _handle_request(self, spkt):
-        global shared_path
         drkey, misc = _try_sciond_api(spkt, self._connector, None)
         logging.debug(drkey)
         expected = drkey.drkey + b" " + self.data
@@ -186,28 +177,43 @@ class E2EServer(TestServerBase):
         if not raw_pld.startswith(expected):
             return False
 
-        global shared_keys
-        try:
-            verify_pvf(spkt, shared_keys[0], shared_keys[1:])
-        except SCIONVerificationError as e:
-            logging.warning("Verification failed: %s", e)
-            return False
+        src_ia = spkt.l4_hdr._src.isd_as
+        d_path_entries = _try_sciond_path_api(src_ia, self._connector)
+        d_path_entry = d_path_entries[0]
+        d_path_meta = d_path_entry.path()
+        computed_path = [i.isd_as() for i in d_path_meta.iter_ifs()]
 
         # Reverse the packet and send "pong".
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
-        spkt.ext_hdrs[0].meta = bytes([0])
-        spkt.ext_hdrs[0].sessionID = bytes([3]+[0]*15)
+        extn = find_opt_extn(spkt)
+        extn.path_index = 0
+        extn.sessionID = bytes([0]*16)
         spkt.update()
         spkt.set_payload(self._create_payload(spkt))
-        shared_path.reverse()
-        _, misc = _try_sciond_api(spkt, connector=self._connector, path=shared_path)
-        logging.debug("Shared path %s", shared_path)
+
+        client_server_key = drkey
+        drkey, misc = _try_sciond_api(spkt, self._connector, computed_path)
+
+        # Verfiy received PVF before sending answer
+        router_server_keys = misc.drkeys.copy()
+        router_server_keys.reverse()
+        try:
+            verify_pvf(spkt, client_server_key, router_server_keys)
+        except SCIONVerificationError as e:
+            logging.warning("Verification failed: %s", e)
+            return False
+        extn.init_pvf(drkey.drkey)
+        spkt.update()
+
+        logging.debug("Computed path %s", computed_path)
         logging.debug("misc.drkeys:")
         for k in misc.drkeys:
             logging.debug("key: %s", k)
-        logging.debug("Sending packet with meta: " + str(spkt.ext_hdrs[0].meta))
+        if misc.drkeys:
+            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
+        logging.debug("Raw packet header sent: {}".format(binascii.hexlify(extn.pack())))
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()
@@ -215,7 +221,7 @@ class E2EServer(TestServerBase):
 
     def _create_payload(self, spkt):
         old_pld = spkt.get_payload()
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=None)
+        drkey, misc = _try_sciond_api(spkt, self._connector, None)
         logging.debug(drkey)
         data = drkey.drkey + b" " + self.data
         padding = len(old_pld) - len(data)
@@ -238,6 +244,24 @@ def _try_sciond_api(spkt, connector, path):
             continue
         return drkey, misc
     logging.critical("Unable to get protocol DRKey from local api.")
+    kill_self()
+
+
+def _try_sciond_path_api(dst_ia, connector, flush=False):
+    flags = lib_sciond.PathRequestFlags(flush=flush)
+    start = time.time()
+    while time.time() - start < API_TOUT:
+        try:
+            path_entries = lib_sciond.get_paths(
+                dst_ia, flags=flags, connector=connector)
+        except lib_sciond.SCIONDConnectionError as e:
+            logging.error("Connection to SCIOND failed: %s " % e)
+            break
+        except lib_sciond.SCIONDLibError as e:
+            logging.error("Error during path lookup: %s" % e)
+            continue
+        return path_entries
+    logging.critical("Unable to get path from local api.")
     kill_self()
 
 

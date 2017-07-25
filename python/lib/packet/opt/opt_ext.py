@@ -130,6 +130,9 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
         self._check_len(raw)
         return raw
 
+    def reverse(self):
+        pass
+
     def init_pvf(self, key):
         self.PVF = mac(key, self.datahash)
 

@@ -40,6 +40,11 @@ type rOPTExt struct {
 	log.Logger
 }
 
+const (
+	src_dst = 0
+	dst_src = 1
+)
+
 func rOPTExtFromRaw(rp *RtrPkt, start, end int) (*rOPTExt, *common.Error) {
 	raw := rp.Raw[start:end]
 	o := &rOPTExt{rp: rp, raw: raw}
@@ -68,6 +73,8 @@ func (o *rOPTExt) RegisterHooks(h *hooks) *common.Error {
 
 // processOPT is a processing hook used to handle OPT payloads.
 func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
+	/*logHandler := o.rp.Logger.GetHandler()
+	o.rp.Logger.SetHandler(log.DiscardHandler())*/
 	// Check if we need to process the extension
 	hOff := o.rp.CmnHdr.HopFOffBytes()
 	currHopF, err := spath.HopFFromRaw(o.rp.Raw[hOff:])
@@ -76,42 +83,54 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	}
 	o.rp.Logger.Info(fmt.Sprint(currHopF.Ingress))
 
-	key, err := o.calcOPTDRKey()
+	key, err := o.calcOPTDRKey(src_dst)
 	if err != nil {
 		return HookError, err
 	}
-	extn, err := opt.NewExtn()
-	meta, _ := o.Meta()
-	extn.SetMeta(meta)
-	datahash, _ := o.Datahash()
-	o.rp.Logger.Info(fmt.Sprintf("Extension with datahash (%d): %v", len(datahash.String()), datahash.String()))
-	PVF, _ := o.PVF()
-	o.rp.Logger.Info(fmt.Sprintf("Received PVF (%d): %v", len(PVF.String()), PVF.String()))
-	extn.SetDatahash(datahash)
-	extn.SetPVF(PVF)
-	sessionID, _ := o.SessionID()
-	extn.SetSessionID(sessionID)
-	updatedPVF, err := extn.UpdatePVF(key)
-	o.rp.Logger.Info(fmt.Sprintf("updatedPVF (%d): from %v to %v with key %v",
-		len(updatedPVF.String()), PVF.String(), updatedPVF.String(), key.String()))
+	dkey, derr := o.calcOPTDRKey(dst_src)
+	if derr != nil {
+		return HookError, err
+	}
+
+	extn, err := o.GetOPTExtn()
 	if err != nil {
 		return HookError, err
 	}
-	o.SetPVF(updatedPVF)
-	OVs, _ := o.OVs()
-	err = extn.SetOVs(OVs)
-	o.rp.Logger.Info(fmt.Sprintf("OVs count %v, First OV (%v): %x, meta: %v", len(extn.OVs), len(extn.OVs[0]), extn.OVs[0], meta))
-	valid, err := extn.ValidateOV(key)
-	if !valid { // drop packet because OV is not valid
-		o.rp.Logger.Info(err.String())
-		o.rp.Logger.Info(fmt.Sprintln("Dropped packet, invalid OV"))
+	mode, err := o.Mode()
+	if err != nil {
 		return HookError, err
 	}
-	o.rp.Logger.Info(fmt.Sprintf("Validated OVi with key %v", key.String()))
-	updatedMeta, err := extn.UpdateMeta(meta)
-	o.rp.Logger.Info(fmt.Sprintf("Updated Meta from %v to %v", meta, updatedMeta))
-	o.SetMeta(updatedMeta)
+
+	o.rp.Logger.Info(fmt.Sprintf("Extension with datahash (%d): %v", len(extn.DataHash.String()), extn.DataHash.String()))
+	o.rp.Logger.Info(fmt.Sprintf("Received PVF (%d): %v", len(extn.PVF.String()), extn.PVF.String()))
+
+	if mode != opt.OriginValidation {
+		updatedPVF, err := extn.UpdatePVF(dkey)
+		/*o.rp.Logger.Info(fmt.Sprintf("updatedPVF (%d): from %v to %v with key %v", */
+		/*	len(updatedPVF.String()), extn.PVF.String(), updatedPVF.String(), key.String())) */
+		if err != nil {
+			return HookError, err
+		}
+		o.SetPVF(updatedPVF)
+	}
+	if mode != opt.PathTrace {
+		valid, err := extn.ValidateOV(key)
+		if !valid {
+			// drop packet because OV is not valid
+			o.rp.Logger.Info(err.String())
+			o.rp.Logger.Info(fmt.Sprintln("Dropped packet, invalid OV"))
+			return HookError, err
+		}
+		/*o.rp.Logger.Info(fmt.Sprintf("Validated OVi with key %v", key.String())) */
+		updatedMeta, err := extn.UpdateMeta()
+		if err != nil {
+			return HookError, err
+		}
+		o.rp.Logger.Info(fmt.Sprintf("Updating Meta from %v to %v", extn.Meta, updatedMeta))
+		o.SetMeta(updatedMeta)
+	}
 	o.rp.Logger.Info("Processed OPT hook")
+	/*o.rp.Logger.SetHandler(logHandler)*/
 	return HookContinue, nil
 }
 
@@ -122,6 +141,16 @@ func (o *rOPTExt) Meta() (common.RawBytes, *common.Error) {
 		return nil, err
 	}
 	return o.raw[l:h], nil
+}
+
+// Mode returns the mode in which OPT is run
+func (o *rOPTExt) Mode() (int, *common.Error) {
+	meta, err := o.Meta()
+	if err != nil {
+		return -1, err
+	}
+	mode := int(byte(meta[0]) >> 6)
+	return mode, nil
 }
 
 // Set the Meta field directly in the underlying buffer
@@ -248,27 +277,42 @@ func (o *rOPTExt) OVs() (common.RawBytes, *common.Error) {
 }
 
 // calcDRKey calculates the DRKey for this packet.
-func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
+func (o *rOPTExt) calcOPTDRKey(direction uint8) (common.RawBytes, *common.Error) {
 	in := make(common.RawBytes, 16)
-	common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
-	common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
+	if direction == src_dst {
+		common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
+		common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
+	}
+	if direction == dst_src {
+		common.Order.PutUint32(in, uint32(o.rp.dstIA.I))
+		common.Order.PutUint32(in[4:], uint32(o.rp.dstIA.A))
+	}
 
 	o.rp.Logger.Info(fmt.Sprintf("Packet source %v, packet destination %v", o.rp.srcHost, o.rp.dstHost))
 	mac := o.rp.Ctx.Conf.DRKeyPool.Get().(hash.Hash)
 	key, err := util.Mac(mac, in)
-	// o.rp.Logger.Info(fmt.Sprintf("FirstOrder: %v", key))
-	o.rp.Ctx.Conf.DRKeyPool.Put(mac)
-
 	if err != nil {
 		return nil, err
 	}
+	/*o.rp.Logger.Info(fmt.Sprintf("FirstOrder: %v", key)) */
+	o.rp.Ctx.Conf.DRKeyPool.Put(mac)
 
 	mac, err = util.InitMac(key)
 	if err != nil {
 		return nil, err
 	}
 
-	inputType, err := drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), o.rp.dstHost.Type())
+	var inputType drkey.InputType
+	if direction == src_dst {
+		inputType, err = drkey.InputTypeFromHostTypes(o.rp.srcHost.Type(), o.rp.dstHost.Type())
+	}
+	if direction == dst_src {
+		inputType, err = drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), o.rp.srcHost.Type())
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	size := 16
 	if inputType.RequiredLength() > (size - 1 - 1 - 3) {
 		size = 32
@@ -278,20 +322,40 @@ func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
 	in[0] = uint8(inputType)
 	in[1] = uint8(len("OPT"))
 	copy(in[2:5], []byte("OPT"))
-	copy(in[5:9], o.rp.srcHost.Pack())
-	copy(in[9:13], o.rp.dstHost.Pack())
+	if direction == src_dst {
+		copy(in[5:9], o.rp.srcHost.Pack())
+		copy(in[9:13], o.rp.dstHost.Pack())
+	}
+	if direction == dst_src {
+		copy(in[5:9], o.rp.dstHost.Pack())
+		copy(in[9:13], o.rp.srcHost.Pack())
+	}
 	secondOrderKey, err := util.Mac(mac, in)
-	// o.rp.Logger.Info(fmt.Sprintf("Computed second order DRKey: %v over input %v with key %v", secondOrderKey, in, key))
+	if err != nil {
+		return nil, err
+	}
+	/*o.rp.Logger.Info(fmt.Sprintf("Computed second order DRKey: %v over input %v with key %v", secondOrderKey, in, key)) */
 	mac, err = util.InitMac(secondOrderKey)
-	in, _ = o.SessionID()
+	if err != nil {
+		return nil, err
+	}
+	in, err = o.SessionID()
+	if err != nil {
+		return nil, err
+	}
 	protoDRKey, err := util.Mac(mac, in)
-	// o.rp.Logger.Info(fmt.Sprintf("Computed protoDRKey %v with key %v over blank SessionID", protoDRKey, secondOrderKey))
+	/*o.rp.Logger.Info(fmt.Sprintf("Computed protoDRKey %v with key %v over blank SessionID", protoDRKey, secondOrderKey)) */
 	return protoDRKey, err
 }
 
 // GetExtn returns the opt.Extn representation,
 // which does not have direct access to the underlying buffer.
 func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
+	extn, err := o.GetOPTExtn()
+	return common.Extension(extn), err
+}
+
+func (o *rOPTExt) GetOPTExtn() (*opt.Extn, *common.Error) {
 	extn, err := opt.NewExtn()
 	if err != nil {
 		return nil, err
@@ -301,6 +365,10 @@ func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
 		return nil, err
 	}
 	extn.SetMeta(meta)
+	mode, err := o.Mode()
+	if err != nil {
+		return nil, err
+	}
 	datahash, err := o.Datahash()
 	if err != nil {
 		return nil, err
@@ -311,11 +379,20 @@ func (o *rOPTExt) GetExtn() (common.Extension, *common.Error) {
 		return nil, err
 	}
 	extn.SetSessionID(session)
-	PVF, err := o.PVF()
-	if err != nil {
-		return nil, err
+	if mode != opt.OriginValidation {
+		PVF, err := o.PVF()
+		if err != nil {
+			return nil, err
+		}
+		extn.SetPVF(PVF)
 	}
-	extn.SetPVF(PVF)
+	if mode != opt.PathTrace {
+		OVs, err := o.OVs()
+		if err != nil {
+			return nil, err
+		}
+		extn.SetOVs(OVs)
+	}
 	return extn, nil
 }
 
@@ -364,6 +441,10 @@ func (o *rOPTExt) limitsPVF() (int, int, *common.Error) {
 
 // OVs returns the limits of the OVs in the raw buffer
 func (o *rOPTExt) limitsOVs() (int, int, *common.Error) {
+	mode, _ := o.Mode()
 	_, l, _ := o.limitsPVF()
+	if mode == opt.OriginValidation { // when in OriginValidation mode, we have no PVF
+		_, l, _ = o.limitsSessionID()
+	}
 	return l, -1, nil
 }

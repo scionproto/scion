@@ -23,6 +23,10 @@ import (
 // defines the lengths used by the Origin validation & PathTrace (OPT) extension
 
 const (
+	// OPT modes
+	OPT              = 0
+	PathTrace        = 1
+	OriginValidation = 2
 	// Basic definitions
 	MetaLength      = 1
 	TimestampLength = 4

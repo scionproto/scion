@@ -99,8 +99,8 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 	copy(b[datahashOffset:sessionIDOffset], e.DataHash)
 	copy(b[sessionIDOffset:PVFOffset], e.SessionId)
 	copy(b[PVFOffset:OVsOffset], e.PVF)
-	for i, OV := range(e.OVs) {
-		copy(b[OVsOffset + i * OVLength: OVsOffset + (i + 1) * OVLength], OV)
+	for i, OV := range e.OVs {
+		copy(b[OVsOffset+i*OVLength:OVsOffset+(i+1)*OVLength], OV)
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func (e *Extn) SetOV(OriginValidationField common.RawBytes, i int) *common.Error
 
 // Set all OVs from a raw RawBytes
 func (e *Extn) SetOVs(OriginValidationFields common.RawBytes) *common.Error {
-	if len(OriginValidationFields) % OVLength != 0 {
+	if len(OriginValidationFields)%OVLength != 0 {
 		return common.NewError("The length does not match",
 			"expected a mutiple of ", OVLength, "actual", len(OriginValidationFields))
 	}
@@ -175,7 +175,7 @@ func (e *Extn) SetOVs(OriginValidationFields common.RawBytes) *common.Error {
 	e.OVs = make([]common.RawBytes, OVcount)
 	for i := 0; i < OVcount; i += 1 {
 		OVi := make(common.RawBytes, OVLength)
-		copy(OVi, OriginValidationFields[i * OVLength:(i+1) * OVLength])
+		copy(OVi, OriginValidationFields[i*OVLength:(i+1)*OVLength])
 		e.OVs[i] = OVi
 	}
 	return nil
