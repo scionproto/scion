@@ -107,8 +107,7 @@ func (fb *FrameBuf) Reset() {
 // ProcessCompletePkts write all complete packets in the frame to the wire and
 // sets the correct metadata in case there is a fragment at the end of the frame.
 func (fb *FrameBuf) ProcessCompletePkts() {
-	if fb.index == 0 || fb.completePktsProcessed {
-		fb.completePktsProcessed = true
+	if fb.completePktsProcessed || fb.index == 0 {
 		return
 	}
 	offset := fb.index * 8
@@ -285,7 +284,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	lastFrame := last.Value.(*FrameBuf)
 	// If there is a gap between this frame and the last in the reassembly list,
 	// remove all packets from the reassembly list and only add this frame.
-	if frame.seqNr > lastFrame.seqNr+1 {
+	if frame.seqNr != lastFrame.seqNr+1 {
 		log.Info(fmt.Sprintf("Received frame out-of-order. Discarding %d frames.", l.entries.Len()),
 			"epoch", l.epoch, "segNr", frame.seqNr, "currentNewest", lastFrame.seqNr)
 		l.removeAll()
@@ -326,6 +325,14 @@ func (l *ReassemblyList) tryReassemble() {
 	log.Debug("Trying to reassemble packet.")
 	start := l.entries.Front()
 	startFrame := start.Value.(*FrameBuf)
+	if startFrame.frag0Start == 0 {
+		// Should never happen.
+		log.Error("First frame in reassembly list does not contain a packet start.",
+			"frame", startFrame.String())
+		// Safest to remove all frames in the list.
+		l.removeAll()
+		return
+	}
 	bytes := startFrame.frameLen - startFrame.frag0Start
 	canReassemble := false
 	framingError := false
