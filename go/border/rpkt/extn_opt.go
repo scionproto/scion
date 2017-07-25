@@ -40,6 +40,11 @@ type rOPTExt struct {
 	log.Logger
 }
 
+const (
+	src_dst = 0
+	dst_src = 1
+)
+
 func rOPTExtFromRaw(rp *RtrPkt, start, end int) (*rOPTExt, *common.Error) {
 	raw := rp.Raw[start:end]
 	o := &rOPTExt{rp: rp, raw: raw}
@@ -78,10 +83,15 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	}
 	o.rp.Logger.Info(fmt.Sprint(currHopF.Ingress))
 
-	key, err := o.calcOPTDRKey()
+	key, err := o.calcOPTDRKey(src_dst)
 	if err != nil {
 		return HookError, err
 	}
+	dkey, derr := o.calcOPTDRKey(dst_src)
+	if derr != nil {
+		return HookError, err
+	}
+
 	extn, err := o.GetOPTExtn()
 	if err != nil {
 		return HookError, err
@@ -95,7 +105,7 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	o.rp.Logger.Info(fmt.Sprintf("Received PVF (%d): %v", len(extn.PVF.String()), extn.PVF.String()))
 
 	if mode != opt.OriginValidation {
-		updatedPVF, err := extn.UpdatePVF(key)
+		updatedPVF, err := extn.UpdatePVF(dkey)
 		/*o.rp.Logger.Info(fmt.Sprintf("updatedPVF (%d): from %v to %v with key %v", */
 		/*	len(updatedPVF.String()), extn.PVF.String(), updatedPVF.String(), key.String())) */
 		if err != nil {
@@ -267,10 +277,16 @@ func (o *rOPTExt) OVs() (common.RawBytes, *common.Error) {
 }
 
 // calcDRKey calculates the DRKey for this packet.
-func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
+func (o *rOPTExt) calcOPTDRKey(direction uint8) (common.RawBytes, *common.Error) {
 	in := make(common.RawBytes, 16)
-	common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
-	common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
+	if direction == src_dst {
+		common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
+		common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
+	}
+	if direction == dst_src {
+		common.Order.PutUint32(in, uint32(o.rp.dstIA.I))
+		common.Order.PutUint32(in[4:], uint32(o.rp.dstIA.A))
+	}
 
 	o.rp.Logger.Info(fmt.Sprintf("Packet source %v, packet destination %v", o.rp.srcHost, o.rp.dstHost))
 	mac := o.rp.Ctx.Conf.DRKeyPool.Get().(hash.Hash)
@@ -286,7 +302,13 @@ func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
 		return nil, err
 	}
 
-	inputType, err := drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), o.rp.dstHost.Type())
+	var inputType drkey.InputType
+	if direction == src_dst {
+		inputType, err = drkey.InputTypeFromHostTypes(o.rp.srcHost.Type(), o.rp.dstHost.Type())
+	}
+	if direction == dst_src {
+		inputType, err = drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), o.rp.srcHost.Type())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -299,8 +321,14 @@ func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
 	in[0] = uint8(inputType)
 	in[1] = uint8(len("OPT"))
 	copy(in[2:5], []byte("OPT"))
-	copy(in[5:9], o.rp.srcHost.Pack())
-	copy(in[9:13], o.rp.dstHost.Pack())
+	if direction == src_dst {
+		copy(in[5:9], o.rp.srcHost.Pack())
+		copy(in[9:13], o.rp.dstHost.Pack())
+	}
+	if direction == dst_src {
+		copy(in[5:9], o.rp.dstHost.Pack())
+		copy(in[9:13], o.rp.srcHost.Pack())
+	}
 	secondOrderKey, err := util.Mac(mac, in)
 	if err != nil {
 		return nil, err

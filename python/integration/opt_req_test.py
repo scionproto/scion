@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`end2end_test` --- SCION end2end tests
+:mod:`request_test` --- SCION request tests
 ===========================================
 """
 # Stdlib
@@ -43,8 +43,6 @@ from integration.base_cli_srv import (
     TestServerBase,
     API_TOUT)
 
-shared_path = []
-
 
 class E2EClient(TestClientBase):
     """
@@ -55,8 +53,6 @@ class E2EClient(TestClientBase):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
         l4_hdr = self._create_l4_hdr()
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
-        global shared_path
-        shared_path = path_meta
 
         extn = SCIONOriginValidationPathTraceExtn.\
             from_values(0,
@@ -167,7 +163,6 @@ class E2EServer(TestServerBase):
     """
 
     def _handle_request(self, spkt):
-        global shared_path
         drkey, misc = _try_sciond_api(spkt, self._connector, None)
         logging.debug(drkey)
         expected = drkey.drkey + b" " + self.data
@@ -175,14 +170,21 @@ class E2EServer(TestServerBase):
         if not raw_pld.startswith(expected):
             return False
         # Reverse the packet and send "pong".
+
+        src_ia = spkt.l4_hdr._src.isd_as
+        d_path_entries = _try_sciond_path_api(src_ia, self._connector)
+        d_path_entry = d_path_entries[0]
+        d_path_meta = d_path_entry.path()
+        computed_path = [i.isd_as() for i in d_path_meta.iter_ifs()]
+
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
         extn = find_opt_extn(spkt)
         extn.path_index = 0
         spkt.set_payload(self._create_payload(spkt))
-        shared_path.reverse()
-        _, misc = _try_sciond_api(spkt, connector=self._connector, path=shared_path)
+
+        _, misc = _try_sciond_api(spkt, connector=self._connector, path=computed_path)
         if misc.drkeys:
             extn.OVs = extn.create_ovs_from_path(misc.drkeys)
         self._send_pkt(spkt)
@@ -217,7 +219,25 @@ def _try_sciond_api(spkt, connector, path):
     kill_self()
 
 
-class TestEnd2End(TestClientServerBase):
+def _try_sciond_path_api(dst_ia, connector, flush=False):
+    flags = lib_sciond.PathRequestFlags(flush=flush)
+    start = time.time()
+    while time.time() - start < API_TOUT:
+        try:
+            path_entries = lib_sciond.get_paths(
+                dst_ia, flags=flags, connector=connector)
+        except lib_sciond.SCIONDConnectionError as e:
+            logging.error("Connection to SCIOND failed: %s " % e)
+            break
+        except lib_sciond.SCIONDLibError as e:
+            logging.error("Error during path lookup: %s" % e)
+            continue
+        return path_entries
+    logging.critical("Unable to get path from local api.")
+    kill_self()
+
+
+class TestRequests(TestClientServerBase):
     """
     End to end packet transmission test.
     For this test a infrastructure must be running.
@@ -233,8 +253,8 @@ class TestEnd2End(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("OPT_request")
-    TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs,
-                retries=args.retries).run()
+    TestRequests(args.client, args.server, srcs, dsts, max_runs=args.runs,
+                 retries=args.retries).run()
 
 
 if __name__ == "__main__":

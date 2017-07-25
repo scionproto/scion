@@ -302,6 +302,24 @@ def _try_sciond_api(spkt, connector, path):
     kill_self()
 
 
+def _try_sciond_path_api(dst_ia, connector, flush=False):
+    flags = lib_sciond.PathRequestFlags(flush=flush)
+    start = time.time()
+    while time.time() - start < API_TOUT:
+        try:
+            path_entries = lib_sciond.get_paths(
+                dst_ia, flags=flags, connector=connector)
+        except lib_sciond.SCIONDConnectionError as e:
+            logging.error("Connection to SCIOND failed: %s " % e)
+            break
+        except lib_sciond.SCIONDLibError as e:
+            logging.error("Error during path lookup: %s" % e)
+            continue
+        return path_entries
+    logging.critical("Unable to get path from local api.")
+    kill_self()
+
+
 class TestBandwitdh(TestClientServerBase):
     """
     Bandwidth test.
