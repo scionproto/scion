@@ -26,6 +26,8 @@ import (
 
 const ErrorInvalidChksum = "Invalid L4 checksum"
 
+var ZeroCSum = make(common.RawBytes, 2)
+
 type L4Header interface {
 	fmt.Stringer
 	L4Type() common.L4ProtocolType
@@ -61,11 +63,15 @@ func SetCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
 }
 
 func CheckCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
+	// FIXME(scrye) temporary support for ignoring 0 checksums
+	exp := h.GetCSum()
+	if bytes.Compare(exp, ZeroCSum) == 0 {
+		return nil
+	}
 	calc, err := CalcCSum(h, addr, pld)
 	if err != nil {
 		return err
 	}
-	exp := h.GetCSum()
 	if bytes.Compare(exp, calc) != 0 {
 		return common.NewError(ErrorInvalidChksum,
 			"expected", exp, "actual", calc, "proto", h.L4Type())
