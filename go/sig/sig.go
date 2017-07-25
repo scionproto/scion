@@ -11,6 +11,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
@@ -53,6 +54,10 @@ func main() {
 
 	// Start http server for profiling
 	go http.ListenAndServe("localhost:6060", nil)
+	// Export prometheus metrics.
+	if err := metrics.Start(); err != nil {
+		log.Error("Unable to export prometheus metrics", "err", err)
+	}
 
 	ia, cerr := addr.IAFromString(*isdas)
 	if cerr != nil {

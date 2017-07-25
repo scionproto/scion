@@ -8,6 +8,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
@@ -57,6 +58,8 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 				state.bufPool <- frame
 				continue
 			}
+			metrics.PktsRecv.WithLabelValues(InternalIngressName).Inc()
+			metrics.BytesRecv.WithLabelValues(InternalIngressName).Add(float64(read))
 			frame.frameLen = read
 			processFrame(frame, state)
 		}

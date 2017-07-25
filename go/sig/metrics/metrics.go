@@ -26,7 +26,7 @@ var (
 			Name:      "pkts_recv_total",
 			Help:      "Number of packets received.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
 	PktsSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -34,7 +34,7 @@ var (
 			Name:      "pkts_sent_total",
 			Help:      "Number of packets sent.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
 	BytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -42,7 +42,7 @@ var (
 			Name:      "bytes_recv_total",
 			Help:      "Number of bytes received.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
 	BytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -50,7 +50,7 @@ var (
 			Name:      "bytes_sent_total",
 			Help:      "Number of bytes sent.",
 		},
-		[]string{"id"},
+		[]string{"intf"},
 	)
 )
 
