@@ -108,6 +108,7 @@ func (fb *FrameBuf) Reset() {
 // sets the correct metadata in case there is a fragment at the end of the frame.
 func (fb *FrameBuf) ProcessCompletePkts() {
 	if fb.completePktsProcessed || fb.index == 0 {
+		fb.completePktsProcessed = true
 		return
 	}
 	offset := fb.index * 8
