@@ -11,6 +11,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
@@ -57,6 +58,8 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 				state.bufPool <- frame
 				continue
 			}
+			metrics.FramesRecv.WithLabelValues(scionNet.IA.String()).Inc()
+			metrics.FrameBytesRecv.WithLabelValues(scionNet.IA.String()).Add(float64(read))
 			frame.frameLen = read
 			processFrame(frame, state)
 		}
@@ -278,6 +281,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	if frame.seqNr < firstFrame.seqNr {
 		log.Debug("Discarding frame: too old", "epoch", l.epoch, "seqNr", frame.seqNr,
 			"currentOldest", firstFrame.seqNr)
+		metrics.FramesTooOld.Inc()
 		l.releaseFrame(frame)
 		return
 	}
@@ -287,14 +291,17 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	if frame.seqNr >= firstFrame.seqNr && frame.seqNr <= lastFrame.seqNr {
 		log.Error("Received duplicate frame.", "epoch", l.epoch, "seqNr", frame.seqNr,
 			"currentOldest", firstFrame.seqNr, "currentNewest", lastFrame.seqNr)
+		metrics.FramesDuplicated.Inc()
 		l.releaseFrame(frame)
 		return
 	}
 	// If there is a gap between this frame and the last in the reassembly list,
 	// remove all packets from the reassembly list and only add this frame.
 	if frame.seqNr > lastFrame.seqNr+1 {
-		log.Info(fmt.Sprintf("Received frame out-of-order. Discarding %d frames.", l.entries.Len()),
+		log.Info(fmt.Sprintf("Detected dropped frame(s). Discarding %d frames.", l.entries.Len()),
 			"epoch", l.epoch, "segNr", frame.seqNr, "currentNewest", lastFrame.seqNr)
+		metrics.FrameDiscardEvents.Inc()
+		metrics.FramesDiscarded.Add(float64(frame.seqNr - lastFrame.seqNr - 1))
 		l.removeAll()
 		l.insertFirst(frame)
 		return
@@ -448,6 +455,17 @@ func (l *ReassemblyList) removeBefore(ele *list.Element) {
 func (l *ReassemblyList) releaseFrame(frame *FrameBuf) {
 	frame.Reset()
 	l.bufPool <- frame
+}
+
+func send(packet common.RawBytes) error {
+	bytesWritten, err := InternalIngress.Write(packet)
+	if err != nil {
+		return common.NewError("Unable to write to Internal Ingress", "err", err,
+			"length", len(packet))
+	}
+	metrics.PktsSent.WithLabelValues(InternalIngressName).Inc()
+	metrics.PktBytesSent.WithLabelValues(InternalIngressName).Add(float64(bytesWritten))
+	return nil
 }
 
 func min(x, y int) int {
