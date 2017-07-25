@@ -105,7 +105,7 @@ var (
 	FramesDuplicates = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "frames_too_old_total",
+			Name:      "frames_duplicates_total",
 			Help:      "Number of duplicate frames",
 		})
 )
