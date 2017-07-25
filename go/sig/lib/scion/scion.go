@@ -10,11 +10,11 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/libscion"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
@@ -244,11 +244,9 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.P
 	binary.BigEndian.PutUint16(udpHeader[2:4], raddr.port)
 	binary.BigEndian.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
 
-	// Compute the checksum for SCION L4
-	// NOTE(scrye): is the checksum supposed to be this way? it breaks stack encap/decap
-	// principles (encapsulated UDP protocol looks at bytes from upper layer SCION protocol)
-	binary.BigEndian.PutUint16(udpHeader[6:8], libscion.Checksum(addrHeader[0:16],
-		commonHeader[7:8], udpHeader, b))
+	checksum := util.Checksum(addrHeader[0:16], commonHeader[7:8], udpHeader, b)
+	udpHeader[6] = uint8(checksum >> 8)
+	udpHeader[7] = uint8(checksum & 0xff)
 
 	packet := make([]byte, 0)
 	packet = append(packet, commonHeader...)
