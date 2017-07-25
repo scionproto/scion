@@ -63,6 +63,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/netsec-ethz/scion/go/sig/lib/awriter"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
@@ -138,6 +140,7 @@ func (a *AppAddr) Len() int {
 // Conn implements the ReliableSocket framing protocol over UNIX sockets.
 type Conn struct {
 	*net.UnixConn
+	aw *awriter.AWriter
 }
 
 // Dial connects to the UNIX socket specified by address.
@@ -146,7 +149,8 @@ func Dial(address string) (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to connect", "address", address)
 	}
-	return &Conn{c.(*net.UnixConn)}, nil
+	uc := c.(*net.UnixConn)
+	return &Conn{UnixConn: uc, aw: awriter.NewAWriter(uc)}, nil
 }
 
 // Register connects to a SCION Dispatcher's UNIX socket.
@@ -308,12 +312,14 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	copy(header[offset:], dst.Pack())
 	offset += dst.Len()
 
-	_, err := io.Copy(conn.UnixConn, bytes.NewReader(header))
+	_, err := conn.aw.Write(header)
+	//_, err := conn.UnixConn.Write(header)
 	if err != nil {
 		conn.UnixConn.Close()
 		return 0, err
 	}
-	written, err := io.Copy(conn.UnixConn, bytes.NewReader(buf))
+	written, err := conn.aw.Write(buf)
+	//written, err := conn.UnixConn.Write(buf)
 	if err != nil {
 		conn.UnixConn.Close()
 		return 0, err
@@ -347,7 +353,8 @@ func (listener *Listener) Accept() (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to accept", "listener", listener)
 	}
-	return &Conn{c.(*net.UnixConn)}, nil
+	uc := c.(*net.UnixConn)
+	return &Conn{UnixConn: uc, aw: awriter.NewAWriter(uc)}, nil
 }
 
 func (listener *Listener) String() string {
