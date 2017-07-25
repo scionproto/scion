@@ -36,18 +36,18 @@ var (
 		},
 		[]string{"intf"},
 	)
-	PktsBytesRecv = prometheus.NewCounterVec(
+	PktBytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "pkts_bytes_recv_total",
+			Name:      "pkt_bytes_recv_total",
 			Help:      "Number of packet bytes received.",
 		},
 		[]string{"intf"},
 	)
-	PktsBytesSent = prometheus.NewCounterVec(
+	PktBytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "pkts_bytes_sent_total",
+			Name:      "pkt_bytes_sent_total",
 			Help:      "Number of packets bytes sent.",
 		},
 		[]string{"intf"},
@@ -58,7 +58,7 @@ var (
 			Name:      "frames_recv_total",
 			Help:      "Number of frames received.",
 		},
-		[]string{"intf"},
+		[]string{"IA"},
 	)
 	FramesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -66,28 +66,28 @@ var (
 			Name:      "frames_sent_total",
 			Help:      "Number of frames sent.",
 		},
-		[]string{"intf"},
+		[]string{"IA"},
 	)
-	FramesBytesRecv = prometheus.NewCounterVec(
+	FrameBytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "frames_bytes_recv_total",
+			Name:      "frame_bytes_recv_total",
 			Help:      "Number of frame bytes received.",
 		},
-		[]string{"intf"},
+		[]string{"IA"},
 	)
-	FramesBytesSent = prometheus.NewCounterVec(
+	FrameBytesSent = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "frames_bytes_sent_total",
+			Name:      "frame_bytes_sent_total",
 			Help:      "Number of frame bytes sent.",
 		},
-		[]string{"intf"},
+		[]string{"IA"},
 	)
 	FrameDiscardEvents = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "frames_discard_events_total",
+			Name:      "frame_discard_events_total",
 			Help:      "Number of frame-discard events.",
 		})
 	FramesDiscarded = prometheus.NewCounter(
@@ -102,10 +102,10 @@ var (
 			Name:      "frames_too_old_total",
 			Help:      "Number of frames that are too old",
 		})
-	FramesDuplicates = prometheus.NewCounter(
+	FramesDuplicated = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "sig",
-			Name:      "frames_duplicates_total",
+			Name:      "frames_duplicated_total",
 			Help:      "Number of duplicate frames",
 		})
 )
@@ -114,16 +114,16 @@ var (
 func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
-	prometheus.MustRegister(PktsBytesRecv)
-	prometheus.MustRegister(PktsBytesSent)
+	prometheus.MustRegister(PktBytesRecv)
+	prometheus.MustRegister(PktBytesSent)
 	prometheus.MustRegister(FramesRecv)
 	prometheus.MustRegister(FramesSent)
-	prometheus.MustRegister(FramesBytesRecv)
-	prometheus.MustRegister(FramesBytesSent)
+	prometheus.MustRegister(FrameBytesRecv)
+	prometheus.MustRegister(FrameBytesSent)
 	prometheus.MustRegister(FrameDiscardEvents)
 	prometheus.MustRegister(FramesDiscarded)
 	prometheus.MustRegister(FramesTooOld)
-	prometheus.MustRegister(FramesDuplicates)
+	prometheus.MustRegister(FramesDuplicated)
 }
 
 var servers map[string]io.Closer

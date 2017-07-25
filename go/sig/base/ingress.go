@@ -59,7 +59,7 @@ func IngressWorker(scionNet *scion.SCIONNet, listenAddr addr.HostAddr, listenPor
 				continue
 			}
 			metrics.FramesRecv.WithLabelValues(scionNet.IA.String()).Inc()
-			metrics.FramesBytesRecv.WithLabelValues(scionNet.IA.String()).Add(float64(read))
+			metrics.FrameBytesRecv.WithLabelValues(scionNet.IA.String()).Add(float64(read))
 			frame.frameLen = read
 			processFrame(frame, state)
 		}
@@ -291,7 +291,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	if frame.seqNr >= firstFrame.seqNr && frame.seqNr <= lastFrame.seqNr {
 		log.Error("Received duplicate frame.", "epoch", l.epoch, "seqNr", frame.seqNr,
 			"currentOldest", firstFrame.seqNr, "currentNewest", lastFrame.seqNr)
-		metrics.FramesDuplicates.Inc()
+		metrics.FramesDuplicated.Inc()
 		l.releaseFrame(frame)
 		return
 	}
@@ -464,7 +464,7 @@ func send(packet common.RawBytes) error {
 			"length", len(packet))
 	}
 	metrics.PktsSent.WithLabelValues(InternalIngressName).Inc()
-	metrics.PktsBytesSent.WithLabelValues(InternalIngressName).Add(float64(bytesWritten))
+	metrics.PktBytesSent.WithLabelValues(InternalIngressName).Add(float64(bytesWritten))
 	return nil
 }
 

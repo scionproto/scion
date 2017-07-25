@@ -185,7 +185,7 @@ func (e *EgressWorker) Read() {
 		}
 		e.c <- pktBuffer[:bytesRead]
 		metrics.PktsRecv.WithLabelValues(e.info.DeviceName).Inc()
-		metrics.PktsBytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
+		metrics.PktBytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
 	}
 }
 
@@ -210,6 +210,6 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 		return common.NewError("Egress write error", "err", err)
 	}
 	metrics.FramesSent.WithLabelValues(e.info.Name).Inc()
-	metrics.FramesBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))
+	metrics.FrameBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))
 	return nil
 }
