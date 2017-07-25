@@ -27,6 +27,7 @@ dispatcher: dispatcher.c
 install: $(INSTALL)
 
 $(INSTALL): dispatcher
+	@rm -f $@
 	cp dispatcher $@
 
 uninstall:
