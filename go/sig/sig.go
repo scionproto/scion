@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"net"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -18,6 +17,7 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/control"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
 	"github.com/netsec-ethz/scion/go/sig/management"
+	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
@@ -51,8 +51,10 @@ func main() {
 	defer liblog.PanicLog()
 	setupSignals()
 
-	// Start http server for profiling
-	go http.ListenAndServe("localhost:6060", nil)
+	// Export prometheus metrics.
+	if err := metrics.Start(); err != nil {
+		log.Error("Unable to export prometheus metrics", "err", err)
+	}
 
 	ia, cerr := addr.IAFromString(*isdas)
 	if cerr != nil {
