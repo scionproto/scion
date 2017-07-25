@@ -82,7 +82,8 @@ func main() {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
-	go base.IngressWorker(scionNet, Addr, Port)
+	iw := base.NewIngressWorker(scionNet, Addr, Port)
+	go iw.Run()
 
 	// TODO(scrye): Launch keepalive module
 	/*
