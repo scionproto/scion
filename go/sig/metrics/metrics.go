@@ -16,7 +16,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-var promAddr = flag.String("prom", "127.0.0.1:1280", "Address to export prometheus metrics on")
+var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
 
 // Declare prometheus metrics to export.
 var (
