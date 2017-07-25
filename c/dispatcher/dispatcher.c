@@ -42,6 +42,9 @@
 FilterSocket *filter_socket = NULL;
 #endif
 
+#undef zlog_debug
+#define zlog_debug(...)
+
 #define CMSG_CTRL_SIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)) + CMSG_SPACE(sizeof(uint32_t)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
 #define DSTV6ADDR(x) (((struct in6_pktinfo *)CMSG_DATA(x))->ipi6_addr)
@@ -977,8 +980,8 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
             return;
         }
     }
-    char dststr[MAX_HOST_ADDR_STR];
-    char svcstr[MAX_HOST_ADDR_STR];
+    //char dststr[MAX_HOST_ADDR_STR];
+    //char svcstr[MAX_HOST_ADDR_STR];
     zlog_debug(zc, "deliver UDP packet to (%d-%d):%s SVC:%s",
             ISD(svc_key.isd_as), AS(svc_key.isd_as),
             addr_to_str(dst->addr, dst->addr_type, dststr),
