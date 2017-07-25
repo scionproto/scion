@@ -53,7 +53,8 @@ class SCIONOriginPathTraceBaseExtn(HopByHopExtension):
         """
         self.meta = bytes(OPTLengths.META)
         self.mode = 0
-        self.path_index = 0
+        # index is limited to range 0 <= index <= 62
+        self.path_index = 0  # path_index value 63 is reserved for extended format
         self.timestamp = bytes(OPTLengths.TIMESTAMP)
         self.datahash = bytes(OPTLengths.DATAHASH)
         self.sessionID = bytes(OPTLengths.SESSIONID)

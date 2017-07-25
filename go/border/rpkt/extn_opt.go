@@ -321,14 +321,20 @@ func (o *rOPTExt) calcOPTDRKey(direction uint8) (common.RawBytes, *common.Error)
 	in = make(common.RawBytes, size)
 	in[0] = uint8(inputType)
 	in[1] = uint8(len("OPT"))
-	copy(in[2:5], []byte("OPT"))
+	optBytes := []byte("OPT")
+	addrOffset := 2 + len(optBytes)
+	copy(in[2:addrOffset], optBytes)
+	srcHostAddr := o.rp.srcHost.Pack()
+	dstHostAddr := o.rp.dstHost.Pack()
 	if direction == src_dst {
-		copy(in[5:9], o.rp.srcHost.Pack())
-		copy(in[9:13], o.rp.dstHost.Pack())
+		copy(in[addrOffset:addrOffset+len(srcHostAddr)], srcHostAddr)
+		dstOffset := addrOffset + len(srcHostAddr)
+		copy(in[dstOffset:dstOffset+len(dstHostAddr)], dstHostAddr)
 	}
 	if direction == dst_src {
-		copy(in[5:9], o.rp.dstHost.Pack())
-		copy(in[9:13], o.rp.srcHost.Pack())
+		copy(in[addrOffset:addrOffset+len(dstHostAddr)], dstHostAddr)
+		srcOffset := addrOffset + len(dstHostAddr)
+		copy(in[srcOffset:srcOffset+len(srcHostAddr)], srcHostAddr)
 	}
 	secondOrderKey, err := util.Mac(mac, in)
 	if err != nil {

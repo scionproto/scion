@@ -244,6 +244,6 @@ def get_sciond_params(spkt, mode=1, path=None):
     params.src_host = spkt.addrs.src.host
     params.dst_host = spkt.addrs.dst.host
 
-    params.misc = OPTMiscRequest.from_values(bytes(16), path or [])
+    params.misc = OPTMiscRequest.from_values(extn.sessionID, path or [])
 
     return params

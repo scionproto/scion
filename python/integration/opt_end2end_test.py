@@ -189,7 +189,6 @@ class E2EServer(TestServerBase):
         spkt.reverse()
         extn = find_opt_extn(spkt)
         extn.path_index = 0
-        extn.sessionID = bytes([0]*16)
         spkt.update()
         spkt.set_payload(self._create_payload(spkt))
 
@@ -204,6 +203,9 @@ class E2EServer(TestServerBase):
         except SCIONVerificationError as e:
             logging.warning("Verification failed: %s", e)
             return False
+
+        # Init response
+        extn.sessionID = bytes([0]*16)
         extn.init_pvf(drkey.drkey)
         spkt.update()
 
