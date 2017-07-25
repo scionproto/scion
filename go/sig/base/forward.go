@@ -10,6 +10,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/sig/metrics"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -183,6 +184,8 @@ func (e *EgressWorker) Read() {
 			return
 		}
 		e.c <- pktBuffer[:bytesRead]
+		metrics.PktsRecv.WithLabelValues(e.info.DeviceName).Inc()
+		metrics.PktBytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
 	}
 }
 
@@ -202,18 +205,11 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	e.index = 0
 	e.frameOff = SIGHdrSize
 	// Send frame
-	_, err := conn.Write(frame)
+	bytesWritten, err := conn.Write(frame)
 	if err != nil {
 		return common.NewError("Egress write error", "err", err)
 	}
-	return nil
-}
-
-func send(packet common.RawBytes) error {
-	_, err := InternalIngress.Write(packet)
-	if err != nil {
-		return common.NewError("Unable to write to Internal Ingress", "err", err,
-			"length", len(packet))
-	}
+	metrics.FramesSent.WithLabelValues(e.info.Name).Inc()
+	metrics.FrameBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))
 	return nil
 }
