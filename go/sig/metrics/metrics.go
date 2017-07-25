@@ -84,6 +84,30 @@ var (
 		},
 		[]string{"intf"},
 	)
+	FrameDiscardEvents = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_discard_events_total",
+			Help:      "Number of frame-discard events.",
+		})
+	FramesDiscarded = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_discarded_total",
+			Help:      "Number of frames discarded",
+		})
+	FramesTooOld = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_too_old_total",
+			Help:      "Number of frames that are too old",
+		})
+	FramesDuplicates = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "sig",
+			Name:      "frames_too_old_total",
+			Help:      "Number of duplicate frames",
+		})
 )
 
 // Ensure all metrics are registered.
@@ -96,6 +120,10 @@ func init() {
 	prometheus.MustRegister(FramesSent)
 	prometheus.MustRegister(FramesBytesRecv)
 	prometheus.MustRegister(FramesBytesSent)
+	prometheus.MustRegister(FrameDiscardEvents)
+	prometheus.MustRegister(FramesDiscarded)
+	prometheus.MustRegister(FramesTooOld)
+	prometheus.MustRegister(FramesDuplicates)
 }
 
 var servers map[string]io.Closer
