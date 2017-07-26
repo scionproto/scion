@@ -3,10 +3,10 @@ package base
 import (
 	"io"
 	"net"
-	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/scrye/buffers/pring"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
@@ -37,39 +37,11 @@ var (
 	ExternalIngress *scion.SCIONConn
 )
 
-type BufferPool struct {
-	pool *sync.Pool
-}
-
-func NewBufferPool() *BufferPool {
-	new := func() interface{} {
-		//log.Debug("Alloc'ing")
-		return make(common.RawBytes, 64*1024)
-	}
-	bp := &BufferPool{
-		pool: &sync.Pool{New: new},
-	}
-	for i := 0; i < 32; i++ {
-		bp.Put(make(common.RawBytes, 64*1024))
-	}
-	return bp
-}
-
-func (bp *BufferPool) Get() common.RawBytes {
-	// Reset slice to entire buffer
-	b := bp.pool.Get().(common.RawBytes)
-	return b[:cap(b)]
-}
-
-func (bp *BufferPool) Put(b common.RawBytes) {
-	bp.pool.Put(b)
-}
-
 type EgressWorker struct {
-	info *asInfo
-	src  io.ReadWriteCloser
-	c    chan common.RawBytes
-	bp   *BufferPool
+	info  *asInfo
+	src   io.ReadWriteCloser
+	c     chan common.RawBytes
+	pRing *pring.PRing
 
 	epoch    uint16
 	seq      uint32
@@ -81,10 +53,9 @@ const EgressChanSize = 128
 
 func NewEgressWorker(info *asInfo) *EgressWorker {
 	return &EgressWorker{
-		info: info,
-		src:  info.Device,
-		c:    make(chan common.RawBytes, EgressChanSize),
-		bp:   NewBufferPool(),
+		info:  info,
+		src:   info.Device,
+		pRing: pring.NewPRing(1 << 24),
 	}
 }
 
@@ -93,13 +64,18 @@ func (e *EgressWorker) Run() error {
 	go e.Read()
 
 	frame := make(common.RawBytes, 1<<16)
-	var pkt common.RawBytes
 	var conn net.Conn
-	var err error
 	e.frameOff = SIGHdrSize
+	readBuffer := make(common.RawBytes, 1<<24)
 
-TopLoop:
 	for {
+		readBytes, err := e.pRing.Read(readBuffer)
+		if err != nil {
+			log.Error("Error while reading from PacketRing", "err", err)
+			continue
+		}
+		pr := NewPacketReader(readBuffer[:readBytes])
+
 		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
 		// also, this should be dropping old packets to keep the buffer queue clear.
 		conn, err = e.info.getConn()
@@ -112,32 +88,26 @@ TopLoop:
 		// FIXME(kormat): calculate the max payload size based on path's MTU
 		frame = frame[:1280]
 
-		log.Debug("Top of loop", "frameOff", e.frameOff, "seqNumber", e.seq, "index", e.index)
-		if e.frameOff == SIGHdrSize {
-			// Don't have a partial frame, so block indefiniely for the next packet.
-			pkt = <-e.c
-			log.Debug("No partial frame, got new packet")
-		} else {
-			// Have partial frame
-			select {
-			case pkt = <-e.c:
-				// Another packet was available, process it
-				log.Debug("Have partial frame, got new packet")
-			default:
-				log.Debug("Have partial frame, no new packet, send partial frame",
-					"frameOff", e.frameOff, "seqNumber", e.seq, "index", e.index)
-				// No packets available, send existing frame.
-				err := e.Write(conn, frame[:e.frameOff])
-				if err != nil {
-					log.Error("Error sending frame", "err", err)
-				}
-				continue TopLoop
+		for {
+			pkt, err := pr.nextPacket()
+			if err != nil {
+				log.Error("Error retrieving next packet", "err", err)
+				break
+			}
+			if pkt == nil {
+				break
+			}
+			if err := e.CopyPkt(conn, frame, pkt); err != nil {
+				log.Error("Error sending frame", "err", err)
 			}
 		}
-		if err := e.CopyPkt(conn, frame, pkt); err != nil {
-			log.Error("Error sending frame", "err", err)
+		// If bytes remaining, flush them
+		if e.frameOff != SIGHdrSize {
+			err := e.Write(conn, frame[:e.frameOff])
+			if err != nil {
+				log.Error("Error sending frame", "err", err)
+			}
 		}
-		e.bp.Put(pkt)
 	}
 }
 
@@ -152,14 +122,14 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 	common.Order.PutUint16(frame[e.frameOff:], uint16(len(pkt)))
 	e.frameOff += PktLenSize
 	pktOff := 0
-	log.Debug("Starting to copy packet")
+	//log.Debug("Starting to copy packet")
 	// Write chunks of the packet to frames, sending off frames as they fill up.
 	for {
-		log.Debug("Copy packet top", "frameOff", e.frameOff, "pktOff", pktOff)
+		//log.Debug("Copy packet top", "frameOff", e.frameOff, "pktOff", pktOff)
 		copied := copy(frame[e.frameOff:], pkt[pktOff:])
 		pktOff += copied
 		e.frameOff += copied
-		log.Debug("Copy packet middle", "frameOff", e.frameOff, "pktOff", pktOff, "copied", copied)
+		//log.Debug("Copy packet middle", "frameOff", e.frameOff, "pktOff", pktOff, "copied", copied)
 		if len(frame)-e.frameOff < MinSpace {
 			// There's no point in trying to fit another packet into this frame.
 			if err := e.Write(conn, frame[:e.frameOff]); err != nil {
@@ -176,14 +146,19 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 }
 
 func (e *EgressWorker) Read() {
+	pktBuffer := make([]byte, 1<<16)
 	for {
-		pktBuffer := e.bp.Get()
 		bytesRead, err := e.src.Read(pktBuffer)
 		if err != nil {
 			log.Error("Egress read error", "err", err)
 			return
 		}
-		e.c <- pktBuffer[:bytesRead]
+		_, err = e.pRing.Write(pktBuffer[:bytesRead])
+		if err != nil {
+			log.Error("PacketRing write error", "err", err)
+			return
+		}
+
 		metrics.PktsRecv.WithLabelValues(e.info.DeviceName).Inc()
 		metrics.PktBytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
 	}
@@ -193,8 +168,8 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	if e.seq == 0 {
 		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
-	log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
-		"seq", e.seq, "index", e.index)
+	//log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
+	//	"seq", e.seq, "index", e.index)
 
 	// Write SIG header
 	common.Order.PutUint32(frame[:4], e.seq)
@@ -212,4 +187,28 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	metrics.FramesSent.WithLabelValues(e.info.Name).Inc()
 	metrics.FrameBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))
 	return nil
+}
+
+type PacketReader struct {
+	buffer []byte
+	index  int
+}
+
+func NewPacketReader(buffer []byte) *PacketReader {
+	pr := &PacketReader{}
+	pr.buffer = buffer
+	return pr
+}
+
+func (pr *PacketReader) nextPacket() ([]byte, error) {
+	if pr.index >= len(pr.buffer) {
+		return nil, nil
+	}
+	if pr.buffer[pr.index]&0xF0 != 0x40 {
+		return nil, common.NewError("PacketReader: Unknown IP version", "version", pr.buffer[pr.index])
+	}
+	length := int((uint16(pr.buffer[pr.index+2]) << 8) + uint16(pr.buffer[pr.index+3]))
+	packet := pr.buffer[pr.index : pr.index+length]
+	pr.index += length
+	return packet, nil
 }
