@@ -64,13 +64,6 @@
 			"revisionTime": "2016-05-14T03:44:11Z"
 		},
 		{
-			"checksumSHA1": "HmbftipkadrLlCfzzVQ+iFHbl6g=",
-			"license": "APL 2.0",
-			"path": "github.com/golang/glog",
-			"revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
-			"revisionTime": "2016-01-25T20:49:56Z"
-		},
-		{
 			"checksumSHA1": "SVXOQdpDBh0ihdZ5aIflgdA+Rpw=",
 			"license": "3-BSD",
 			"path": "github.com/golang/protobuf/proto",

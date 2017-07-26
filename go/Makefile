@@ -36,6 +36,12 @@ deps_proto: deps proto
 deps: vendor/.deps.stamp ../proto/go.capnp
 
 vendor/.deps.stamp: vendor/vendor.json
+	@echo "$$(date -Iseconds) Remove unused deps"; \
+	    govendor list -no-status +unused | while read pkg; do \
+	    grep -q '"path": "'$$pkg'"' vendor/vendor.json && continue; \
+	    echo "$$pkg"; \
+	    govendor remove "$$pkg"; \
+	done
 	@echo "$$(date -Iseconds) Syncing deps"; govendor sync -v
 	@echo "$$(date -Iseconds) Installing deps"; go install ./vendor/...
 	@if [ -n "$$(govendor list -no-status +outside | grep -v '^context$$')" ]; then \
