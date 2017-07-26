@@ -1014,6 +1014,7 @@ void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr
     }else{
         zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", ntohs(info[0]), ntohs(info[1]));
     }
+    free(pld);
 }
 
 void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
@@ -1023,16 +1024,16 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_SSP &&
             pld->meta->l4_proto != L4_NONE) {
         zlog_error(zc, "SCMP not supported for protocol %d", pld->meta->l4_proto);
-        return;
+        goto cleanup;
     }
     SCIONCommonHeader *sch = pld->cmnhdr;
     if (sch == NULL) {
         zlog_info(zc, "SCMP payload has no common header snippet, ignoring");
-        return;
+        goto cleanup;
     }
     if (SRC_TYPE(sch) == ADDR_SVC_TYPE) {
         zlog_error(zc, "SCMP does not support SVC source.");
-        return;
+        goto cleanup;
     }
 
     Entry *e;
@@ -1048,7 +1049,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
             zlog_error(zc, "SCMP entry for %d-%d %s:%" PRIu64 " not found",
                     ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
-            return;
+            goto cleanup;
         }
         zlog_debug(zc, "SCMP entry for %d-%d %s:%" PRIu64 " found",
                 ISD(key.isd_as), AS(key.isd_as),
@@ -1061,7 +1062,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
             zlog_info(zc, "SCMP entry for %d-%d %s:%d not found",
                     ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
-            return;
+            goto cleanup;
         }
         zlog_debug(zc, "SCMP entry %d-%d for %s:%d found",
                 ISD(key.isd_as), AS(key.isd_as),
@@ -1070,6 +1071,8 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 
     send_dp_header(e->sock, from, len);
     send_all(e->sock, buf, len);
+cleanup:
+    free(pld);
 }
 
 void add_ping_entry(SCMPL4Header *scmp, int sock)
@@ -1097,6 +1100,7 @@ void add_ping_entry(SCMPL4Header *scmp, int sock)
     } else if(e->sock != sock){
         zlog_error(zc, "failed adding SCMP echo mapping. ID %d already in use.", ntohs(id));
     }
+    free(pld);
 }
 
 
