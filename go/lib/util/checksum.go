@@ -28,22 +28,18 @@ func Checksum(srcs ...common.RawBytes) uint16 {
 			continue
 		}
 		for ; i < length-1; i += 2 {
-			sum += toUint16(src[i], src[i+1])
+			sum += toUint32(src[i], src[i+1])
 		}
 		if i != length {
-			sum += toUint16(src[i], 0)
+			sum += toUint32(src[i], 0)
 		}
 	}
 	for sum > 0xffff {
 		sum = (sum >> 16) + (sum & 0xffff)
 	}
-	csum := ^uint16(sum)
-	if csum == 0 {
-		csum = 0xffff
-	}
-	return csum
+	return ^uint16(sum)
 }
 
-func toUint16(x uint8, y uint8) uint32 {
+func toUint32(x uint8, y uint8) uint32 {
 	return uint32(x)<<8 + uint32(y)
 }
