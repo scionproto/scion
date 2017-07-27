@@ -95,7 +95,7 @@ class TestSCMPHeaderCalcChecksum(object):
         payload = b"payload"
         expected_call = b"".join([
             b"dsIA", b"srIA", b"dHst", b"sHst", bytes([L4Proto.SCMP]),
-            b"packed with null checksum", payload,
+            b"\x00", b"packed with null checksum", payload,
         ])
         scapy_checksum.return_value = 0x3412
         # Call

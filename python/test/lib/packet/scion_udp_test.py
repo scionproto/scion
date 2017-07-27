@@ -96,7 +96,7 @@ class TestSCIONUDPHeaderCalcChecksum(object):
         payload = b"payload"
         expected_call = b"".join([
             b"dsIA", b"srIA", b"dstH", b"srcH", bytes([L4Proto.UDP]),
-            b"packed with null checksum", payload,
+            b"\x00", b"packed with null checksum", payload,
         ])
         scapy_checksum.return_value = 0x3412
         # Call
