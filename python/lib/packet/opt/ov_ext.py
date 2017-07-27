@@ -126,10 +126,11 @@ class SCIONOriginValidationExtn(SCIONOriginPathTraceBaseExtn):
         self._check_len(raw)
         return raw
 
-    def create_ovs_from_path(self, key_list):
+    def create_ovs_from_path(self, intermediate_key_list, dst_key):
         ov_list = []
-        for key in key_list:
+        for key in intermediate_key_list:
             ov_list.append(mac(key.drkey, self.datahash))
+        ov_list.append(mac(dst_key.drkey, self.datahash))
         return ov_list
 
     @classmethod

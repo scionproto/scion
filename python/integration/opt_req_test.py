@@ -24,7 +24,7 @@ import time
 
 import lib.app.sciond as lib_sciond
 from lib.crypto.symcrypto import sha256
-from lib.drkey.opt.protocol import get_sciond_params, find_opt_extn
+from lib.drkey.opt.protocol import get_sciond_params, find_opt_extn, generate_intermediate_pvfs
 from lib.drkey.util import drkey_time
 from lib.main import main_wrapper
 from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
@@ -55,18 +55,17 @@ class E2EClient(TestClientBase):
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
 
         extn = SCIONOriginValidationPathTraceExtn.\
-            from_values(0,
+            from_values(OPTMode.OPT,
                         0,
                         bytes(OPTLengths.TIMESTAMP),
                         bytes(OPTLengths.DATAHASH),
                         bytes(OPTLengths.SESSIONID),
                         bytes(OPTLengths.PVF),
-                        [bytes(OPTLengths.OVs)]*len(path_meta)
+                        [bytes(OPTLengths.OVs)]*(len(path_meta)+1)
                         )
 
         if path is None:
             path = self.path_meta.fwd_path()
-            print(path)
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [extn], l4_hdr)
         payload = self._create_payload(spkt)
@@ -74,18 +73,20 @@ class E2EClient(TestClientBase):
         spkt.update()
 
         drkey, misc = _try_sciond_api(spkt, self._connector, path_meta)
-        print(drkey)
         extn.timestamp = drkey_time().to_bytes(4, 'big')
         extn.datahash = sha256(payload.pack())[:16]
         extn.init_pvf(drkey.drkey)
         if misc.drkeys:
-            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
+            ias_keylist = [(sndkey.src_ia.int(), sndkey.drkey) for sndkey in misc.drkeys]
+            pvfs = generate_intermediate_pvfs(spkt, (drkey.src_ia.int(), drkey.drkey),
+                                              ias_keylist)
+            opvs = extn.create_opvs_from_path(misc.drkeys, drkey, pvfs)
+            extn.OVs = opvs
 
         return spkt
 
     def _create_payload(self, spkt):
         path = [i.isd_as() for i in self.path_meta.iter_ifs()]
-        print(path)
         drkey, misc = _try_sciond_api(
             spkt, self._connector, path)
         data = drkey.drkey + b" " + self.data
@@ -180,13 +181,21 @@ class E2EServer(TestServerBase):
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
         spkt.reverse()
+        spkt.update()
+
+        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=computed_path)
         extn = find_opt_extn(spkt)
         extn.path_index = 0
+        extn.init_pvf(drkey.drkey)
+        spkt.update()
         spkt.set_payload(self._create_payload(spkt))
 
-        _, misc = _try_sciond_api(spkt, connector=self._connector, path=computed_path)
         if misc.drkeys:
-            extn.OVs = extn.create_ovs_from_path(misc.drkeys)
+            ias_keylist = [(sndkey.src_ia.int(), sndkey.drkey) for sndkey in misc.drkeys]
+            pvfs = generate_intermediate_pvfs(spkt, (drkey.src_ia.int(), drkey.drkey),
+                                              ias_keylist)
+            opvs = extn.create_opvs_from_path(misc.drkeys, drkey, pvfs)
+            extn.OVs = opvs
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()

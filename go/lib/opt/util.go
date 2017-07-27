@@ -18,6 +18,7 @@ import (
 	"crypto/sha256"
 
 	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -78,6 +79,40 @@ func (e *Extn) ValidateOV(key common.RawBytes) (bool, *common.Error) {
 		return false, common.NewError(
 			fmt.Sprintf("Invalid OV: expected OV %x got OV %x at index %x", computedOV, currentOV, index))
 	}
+	return true, nil
+}
+
+// check the OPV is valid for the current hop
+func (e *Extn) ValidateOPV(key common.RawBytes, prevHopISD_AS int) (bool, *common.Error) {
+	mac, err := util.InitMac(key)
+	if err != nil {
+		return false, err
+	}
+	meta := e.Meta
+	index := int(byte(meta[0]) & byte(0x3f)) // mask out top 2 bits
+	if index >= len(e.OVs) {
+		return false, common.NewError(fmt.Sprintf("Invalid OPV meta index: index %x, meta: %x", index, meta))
+	}
+
+	currentOPV := e.OVs[index] // check with correct OPV for the current hop
+	dataLength := len(e.PVF) + len(e.DataHash) + 4 + len(e.Timestamp)
+	data := make(common.RawBytes, 0, dataLength)
+	data = append(data, e.PVF...)
+	data = append(data, e.DataHash...)
+	prevHop := make([]byte, 4)
+	binary.BigEndian.PutUint32(prevHop, uint32(prevHopISD_AS))
+	data = append(data, prevHop...)
+	data = append(data, e.Timestamp...)
+	computedOPV, err := util.Mac(mac, data)
+	computedOPV = computedOPV[:16]
+	if err != nil {
+		return false, err
+	}
+	if !bytes.Equal(computedOPV, currentOPV) {
+		return false, common.NewError(
+			fmt.Sprintf("Invalid OPV: expected OPV %v got OPV %v at index %v, data: %v, datalen: %v, prevHopISD_AS: %v", computedOPV, currentOPV, index, data, dataLength, prevHopISD_AS))
+	}
+
 	return true, nil
 }
 

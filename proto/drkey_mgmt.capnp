@@ -90,3 +90,8 @@ struct MiscOPTReq {
 struct MiscOPTRep {
     drkeys @0 :List(Data); # List of DRKeys for ASes on the path.
 }
+
+struct OPTKeyExchange {
+    keys @0 :MiscOPTRep;
+    info @1 :MiscOPTReq;
+}

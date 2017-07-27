@@ -32,7 +32,7 @@ from integration.base_cli_srv import (
     TestClientServerBase,
     TestServerBase, API_TOUT)
 from lib.crypto.symcrypto import sha256
-from lib.drkey.opt.protocol import get_sciond_params
+from lib.drkey.opt.protocol import get_sciond_params, generate_intermediate_pvfs
 from lib.drkey.util import drkey_time
 from lib.main import main_wrapper
 from lib.packet.opt.defines import OPTLengths, OPTMode
@@ -116,7 +116,7 @@ class E2EClient(TestClientBase):
                                 bytes(OPTLengths.DATAHASH),
                                 bytes(OPTLengths.SESSIONID),
                                 bytes(OPTLengths.PVF),
-                                [bytes(OPTLengths.OVs)] * len(path_meta)
+                                [bytes(OPTLengths.OVs)] * (len(path_meta) + 1)
                                 )
             elif OPT_MODE == OPTMode.PATH_TRACE_ONLY:
                 extn = SCIONPathTraceExtn. \
@@ -133,7 +133,7 @@ class E2EClient(TestClientBase):
                                 bytes(OPTLengths.TIMESTAMP),
                                 bytes(OPTLengths.DATAHASH),
                                 bytes(OPTLengths.SESSIONID),
-                                [bytes(OPTLengths.OVs)] * len(path_meta)
+                                [bytes(OPTLengths.OVs)] * (len(path_meta) + 1)
                                 )
             else:
                 logging.error("Invalid OPT mode: %s" % OPT_MODE)
@@ -150,11 +150,18 @@ class E2EClient(TestClientBase):
             drkey, misc = _try_sciond_api(spkt, self._connector, path_meta)
             extn.timestamp = drkey_time().to_bytes(4, 'big')
             extn.datahash = sha256(payload.pack())[:16]
-            if OPT_MODE != 2:
+            if OPT_MODE != OPTMode.ORIGIN_VALIDATION_ONLY:
                 extn.init_pvf(drkey.drkey)
-            if OPT_MODE != 1:
+            if OPT_MODE == OPTMode.ORIGIN_VALIDATION_ONLY:
                 if misc.drkeys:
-                    extn.OVs = extn.create_ovs_from_path(misc.drkeys)
+                    extn.OVs = extn.create_ovs_from_path(misc.drkeys, drkey)
+            if OPT_MODE == OPTMode.OPT:
+                if misc.drkeys:
+                    ias_keylist = [(sndkey.src_ia.int(), sndkey.drkey) for sndkey in misc.drkeys]
+                    pvfs = generate_intermediate_pvfs(spkt, (drkey.src_ia.int(), drkey.drkey),
+                                                      ias_keylist)
+                    opvs = extn.create_opvs_from_path(misc.drkeys, drkey, pvfs)
+                    extn.OVs = opvs
         spkt.update()
 
         self.cached_pkt = spkt

@@ -136,10 +136,28 @@ class SCIONOriginValidationPathTraceExtn(SCIONOriginPathTraceBaseExtn):
     def init_pvf(self, key):
         self.PVF = mac(key, self.datahash)
 
-    def create_ovs_from_path(self, key_list):
+    def create_opvs_from_path(self, intermediate_key_list, dst_key, pvfs):
+        opv_list = []
+        try:
+            # get raw keys from SecondOrderDRKeys
+            intermediate_key_list = [key.drkey for key in intermediate_key_list]
+        except AttributeError:
+            pass  # Unless they are already raw keys
+        for i in range(len(intermediate_key_list)):
+            key = intermediate_key_list[i]
+            prev_hop_ISD_AS, pvfi = pvfs[i]
+            data = pvfi + self.datahash + prev_hop_ISD_AS.to_bytes(4, 'big') + self.timestamp
+            opv_list.append(mac(key, data))
+        data = pvfs[-1][1] + self.datahash + (pvfs[-1][0]).to_bytes(4, 'big') + self.timestamp
+        opv_list.append(mac(dst_key.drkey, data)[:16])
+        return opv_list
+
+    def create_ovs_from_path(self, intermediate_key_list, dst_key):
         ov_list = []
-        for key in key_list:
+        for i in range(len(intermediate_key_list)):
+            key = intermediate_key_list[i]
             ov_list.append(mac(key.drkey, self.datahash))
+        ov_list.append(mac(dst_key.drkey, self.datahash))
         return ov_list
 
     @classmethod

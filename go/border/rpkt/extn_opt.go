@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"hash"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/drkey"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -82,16 +83,10 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 		return HookError, err
 	}
 	o.rp.Logger.Info(fmt.Sprint(currHopF.Ingress))
-
-	key, err := o.calcOPTDRKey(src_dst)
+	key, err := o.calcOPTDRKey()
 	if err != nil {
 		return HookError, err
 	}
-	dkey, derr := o.calcOPTDRKey(dst_src)
-	if derr != nil {
-		return HookError, err
-	}
-
 	extn, err := o.GetOPTExtn()
 	if err != nil {
 		return HookError, err
@@ -104,21 +99,27 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 	o.rp.Logger.Info(fmt.Sprintf("Extension with datahash (%d): %v", len(extn.DataHash.String()), extn.DataHash.String()))
 	o.rp.Logger.Info(fmt.Sprintf("Received PVF (%d): %v", len(extn.PVF.String()), extn.PVF.String()))
 
-	if mode != opt.OriginValidation {
-		updatedPVF, err := extn.UpdatePVF(dkey)
-		/*o.rp.Logger.Info(fmt.Sprintf("updatedPVF (%d): from %v to %v with key %v", */
-		/*	len(updatedPVF.String()), extn.PVF.String(), updatedPVF.String(), key.String())) */
-		if err != nil {
-			return HookError, err
-		}
-		o.SetPVF(updatedPVF)
-	}
 	if mode != opt.PathTrace {
-		valid, err := extn.ValidateOV(key)
+		var valid bool
+		if mode == opt.OriginValidation {
+			valid, err = extn.ValidateOV(key)
+		} else if mode == opt.OPT {
+			var ISD_AS *addr.ISD_AS
+			if o.rp.DirFrom != DirLocal {
+				ISD_AS = o.rp.Ctx.Conf.Topo.IFInfoMap[o.rp.Ingress.IfIDs[0]].ISD_AS
+			} else {
+				ISD_AS = o.rp.Ctx.Conf.IA
+			}
+			ISD_AS_int := ISD_AS.I << 20
+			ISD_AS_int |= ISD_AS.A & 0x000fffff
+			valid, err = extn.ValidateOPV(key, ISD_AS_int)
+		} else {
+			o.rp.Logger.Error(fmt.Sprintln("Dropped packet, invalid mode"))
+			return HookError, common.NewError(fmt.Sprintf("Invalid mode: %v", mode))
+		}
 		if !valid {
 			// drop packet because OV is not valid
-			o.rp.Logger.Info(err.String())
-			o.rp.Logger.Info(fmt.Sprintln("Dropped packet, invalid OV"))
+			o.rp.Logger.Error(fmt.Sprintf("Dropped packet, invalid OV: %v", err))
 			return HookError, err
 		}
 		/*o.rp.Logger.Info(fmt.Sprintf("Validated OVi with key %v", key.String())) */
@@ -128,6 +129,16 @@ func (o *rOPTExt) processOPT() (HookResult, *common.Error) {
 		}
 		o.rp.Logger.Info(fmt.Sprintf("Updating Meta from %v to %v", extn.Meta, updatedMeta))
 		o.SetMeta(updatedMeta)
+	}
+
+	if mode != opt.OriginValidation {
+		updatedPVF, err := extn.UpdatePVF(key)
+		/*o.rp.Logger.Info(fmt.Sprintf("updatedPVF (%d): from %v to %v with key %v", */
+		/*	len(updatedPVF.String()), extn.PVF.String(), updatedPVF.String(), key.String())) */
+		if err != nil {
+			return HookError, err
+		}
+		o.SetPVF(updatedPVF)
 	}
 	o.rp.Logger.Info("Processed OPT hook")
 	/*o.rp.Logger.SetHandler(logHandler)*/
@@ -277,16 +288,10 @@ func (o *rOPTExt) OVs() (common.RawBytes, *common.Error) {
 }
 
 // calcDRKey calculates the DRKey for this packet.
-func (o *rOPTExt) calcOPTDRKey(direction uint8) (common.RawBytes, *common.Error) {
+func (o *rOPTExt) calcOPTDRKey() (common.RawBytes, *common.Error) {
 	in := make(common.RawBytes, 16)
-	if direction == src_dst {
-		common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
-		common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
-	}
-	if direction == dst_src {
-		common.Order.PutUint32(in, uint32(o.rp.dstIA.I))
-		common.Order.PutUint32(in[4:], uint32(o.rp.dstIA.A))
-	}
+	common.Order.PutUint32(in, uint32(o.rp.srcIA.I))
+	common.Order.PutUint32(in[4:], uint32(o.rp.srcIA.A))
 
 	o.rp.Logger.Info(fmt.Sprintf("Packet source %v, packet destination %v", o.rp.srcHost, o.rp.dstHost))
 	mac := o.rp.Ctx.Conf.DRKeyPool.Get().(hash.Hash)
@@ -303,12 +308,7 @@ func (o *rOPTExt) calcOPTDRKey(direction uint8) (common.RawBytes, *common.Error)
 	}
 
 	var inputType drkey.InputType
-	if direction == src_dst {
-		inputType, err = drkey.InputTypeFromHostTypes(o.rp.srcHost.Type(), o.rp.dstHost.Type())
-	}
-	if direction == dst_src {
-		inputType, err = drkey.InputTypeFromHostTypes(o.rp.dstHost.Type(), o.rp.srcHost.Type())
-	}
+	inputType, err = drkey.InputTypeFromHostTypes(o.rp.srcHost.Type(), o.rp.dstHost.Type())
 	if err != nil {
 		return nil, err
 	}
@@ -326,16 +326,9 @@ func (o *rOPTExt) calcOPTDRKey(direction uint8) (common.RawBytes, *common.Error)
 	copy(in[2:addrOffset], optBytes)
 	srcHostAddr := o.rp.srcHost.Pack()
 	dstHostAddr := o.rp.dstHost.Pack()
-	if direction == src_dst {
-		copy(in[addrOffset:addrOffset+len(srcHostAddr)], srcHostAddr)
-		dstOffset := addrOffset + len(srcHostAddr)
-		copy(in[dstOffset:dstOffset+len(dstHostAddr)], dstHostAddr)
-	}
-	if direction == dst_src {
-		copy(in[addrOffset:addrOffset+len(dstHostAddr)], dstHostAddr)
-		srcOffset := addrOffset + len(dstHostAddr)
-		copy(in[srcOffset:srcOffset+len(srcHostAddr)], srcHostAddr)
-	}
+	copy(in[addrOffset:addrOffset+len(srcHostAddr)], srcHostAddr)
+	dstOffset := addrOffset + len(srcHostAddr)
+	copy(in[dstOffset:dstOffset+len(dstHostAddr)], dstHostAddr)
 	secondOrderKey, err := util.Mac(mac, in)
 	if err != nil {
 		return nil, err
@@ -375,6 +368,11 @@ func (o *rOPTExt) GetOPTExtn() (*opt.Extn, *common.Error) {
 	if err != nil {
 		return nil, err
 	}
+	timestamp, err := o.Timestamp()
+	if err != nil {
+		return nil, err
+	}
+	extn.SetTimestamp(timestamp)
 	datahash, err := o.Datahash()
 	if err != nil {
 		return nil, err

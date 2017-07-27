@@ -20,7 +20,7 @@ import logging
 import binascii
 
 # SCION
-from lib.crypto.symcrypto import mac
+from lib.crypto.symcrypto import mac, sha256
 from lib.drkey.drkey_mgmt import DRKeyProtocolRequest, DRKeyProtocolReply
 from lib.drkey.opt.misc import OPTMiscReply, OPTMiscRequest
 from lib.drkey.types import (
@@ -155,6 +155,13 @@ def find_originvalidation_extn(spkt):
     return None
 
 
+def generate_sessionID(spkt):
+    hashed_dst = sha256(str(spkt.addrs.dst.isd_as).encode('utf-8') +
+                        spkt.addrs.dst.host.addr.packed)[:16]
+    assert (len(hashed_dst) == 16)
+    return bytes(16)
+
+
 def set_pvf(spkt, drkey):
     assert isinstance(drkey, SecondOrderDRKey)
     extn_hdr = find_opt_extn(spkt)
@@ -180,13 +187,17 @@ def verify_pvf(spkt, drkey, keylist):
         binascii.hexlify(computed_pvf),
         binascii.hexlify(drkey.drkey))
     )
+    try:
+        keylist = [key.drkey for key in keylist]  # get raw keys from SecondOrderDRKeys
+    except AttributeError:
+        pass  # Unless they are already raw keys
     for key in keylist:
         old_pvf = binascii.hexlify(computed_pvf)
         extended_pvf = packet_hash + computed_pvf
-        computed_pvf = mac(key.drkey, extended_pvf)
+        computed_pvf = mac(key, extended_pvf)
         log_entry.append("\nIntermediate computed_pvf: from {} to {} with key {} over {}".format(
             old_pvf, binascii.hexlify(computed_pvf),
-            binascii.hexlify(key.drkey),
+            binascii.hexlify(key),
             binascii.hexlify(extended_pvf))
         )
     # logging.debug("".join(log_entry))
@@ -208,6 +219,26 @@ def verify_pvf(spkt, drkey, keylist):
     else:
         logging.debug("PVF validated")
     return
+
+
+def generate_pvf(drkey, datahash):
+    return mac(drkey.drkey, datahash)
+
+
+def generate_intermediate_pvfs(spkt, ia_drkey, ias_keylist):
+    extn_hdr = find_opt_extn(spkt)
+    if not extn_hdr:
+        extn_hdr = find_pathtrace_extn(spkt)
+    packet_hash = extn_hdr.datahash  # compute over payload
+    ia, drkey = ia_drkey
+    computed_pvf = mac(drkey, packet_hash)
+    intermediate_pvfs = [(ia, computed_pvf)]
+    for ia_drkey in ias_keylist:
+        ia, drkey = ia_drkey
+        extended_pvf = packet_hash + computed_pvf
+        computed_pvf = mac(drkey, extended_pvf)
+        intermediate_pvfs.append((ia, computed_pvf))
+    return intermediate_pvfs
 
 
 def verify_ov(spkt, drkey):
@@ -245,5 +276,23 @@ def get_sciond_params(spkt, mode=1, path=None):
     params.dst_host = spkt.addrs.dst.host
 
     params.misc = OPTMiscRequest.from_values(extn.sessionID, path or [])
+
+    return params
+
+
+def get_sciond_params_src(spkt):
+    params = DRKeyProtocolRequest.Params()
+    params.timestamp = drkey_time()
+    params.protocol = DRKeyProtocols.OPT
+    params.request_id = 0
+
+    params.request_type = DRKeyProtoKeyType.HOST_TO_HOST
+    params.src_ia = spkt.addrs.src.isd_as
+    params.dst_ia = spkt.addrs.dst.isd_as
+
+    params.src_host = spkt.addrs.src.host
+    params.dst_host = spkt.addrs.dst.host
+
+    params.misc = OPTMiscRequest.from_values(bytes(16), [])
 
     return params
