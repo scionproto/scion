@@ -21,7 +21,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/libscion"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const ErrorInvalidChksum = "Invalid L4 checksum"
@@ -45,7 +45,7 @@ func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, *common.E
 	if err != nil {
 		return nil, err
 	}
-	sum := libscion.Checksum(addr, []uint8{uint8(h.L4Type())}, rawh, pld)
+	sum := util.Checksum(addr, []uint8{0, uint8(h.L4Type())}, rawh, pld)
 	out := make(common.RawBytes, 2)
 	common.Order.PutUint16(out, sum)
 	return out, nil
