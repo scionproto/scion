@@ -9,9 +9,10 @@ import (
 )
 
 type AWriter struct {
-	pr  *pring.PRing
-	buf []byte
-	dst io.Writer
+	pr          *pring.PRing
+	buf         []byte
+	dst         io.Writer
+	termination bool
 }
 
 func NewAWriter(dst io.Writer) *AWriter {
@@ -28,24 +29,32 @@ func (aw *AWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
+func (aw *AWriter) Close() error {
+	aw.termination = true
+	return nil
+}
+
 func flusher(aw *AWriter) {
+	var err error
 	// FIXME(scrye): this goroutine needs to be cleaned up whenever a Dispatcher
 	// connection is reestablished
 	for {
 		n, err := aw.pr.Read(aw.buf)
 		if err != nil {
-			log.Error("Async flush unable to read from PRing", "err", err)
+			break
 		}
 
 		total := 0
 		for total < n {
 			written, err := aw.dst.Write(aw.buf[total:n])
 			if err != nil {
-				log.Error("Async flush unable to write", "err", err, "dst", aw.dst)
+				break
 			}
 			total += written
 		}
-
 		aw.buf = aw.buf[:cap(aw.buf)]
+	}
+	if !aw.termination {
+		log.Error("AWriter flush terminated abnormally", "err", err)
 	}
 }
