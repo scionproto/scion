@@ -94,12 +94,12 @@ class TestSCMPHeaderCalcChecksum(object):
         inst.pack.return_value = b"packed with null checksum"
         payload = b"payload"
         expected_call = b"".join([
-            b"dsIA", b"srIA", b"dHst", b"sHst", bytes([L4Proto.SCMP]),
+            b"dsIA", b"srIA", b"dHst", b"sHst", b"\x00", bytes([L4Proto.SCMP]),
             b"packed with null checksum", payload,
         ])
         scapy_checksum.return_value = 0x3412
         # Call
-        ntools.eq_(inst._calc_checksum(payload), bytes.fromhex("1234"))
+        ntools.eq_(inst._calc_checksum(payload), bytes.fromhex("3412"))
         # Tests
         scapy_checksum.assert_called_once_with(expected_call)
 

@@ -14,7 +14,6 @@ void _add_sum(uint32_t *sum, uint16_t val);
 uint16_t checksum(chk_input *in) {
     int i;
     uint32_t sum = 0;
-    uint8_t *carry = NULL;
 
     // Iterate over the chunks
     for (i=0; i < in->total; i++){
@@ -24,23 +23,16 @@ uint16_t checksum(chk_input *in) {
         if (len == 0) {
             continue;
         }
-        // Handle a carry byte from the previous chunk.
-        if (carry) {
-            _add_sum(&sum, *carry << 8 | ptr[0]);
-            j = 1;
-        }
         for (; j < len - 1; j+=2) {
             _add_sum(&sum, ntohs(*((uint16_t *)(ptr + j))));
         }
-        // If there's an odd number of bytes, save last one.
-        carry = j == len ? NULL : ptr + j;
-    }
-    if (carry) {
-        // Total number of bytes is odd, so pad with trailing 0.
-        _add_sum(&sum, *carry << 8);
+        // If there's an odd number of bytes, pad chunk with a 0
+        if (j != len) {
+            _add_sum(&sum, ((uint16_t)ptr[j]) << 8);
+        }
     }
     // Return 16bit ones-complement.
-    return ~sum & 0xFFFF;
+    return htons(~sum & 0xFFFF);
 }
 
 /*
