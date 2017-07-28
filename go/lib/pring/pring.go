@@ -71,11 +71,14 @@ func (r *PRing) Read(b []byte) (int, error) {
 func (r *PRing) write(b []byte) int {
 	copied := copy(r.b[r.windex:], b)
 	r.length += copied
+	// Check if we have data left to copy, which only happens on wraparound
 	left := len(b) - copied
 	if left == 0 {
+		// If copied everything, increase write index
 		r.windex += copied
 		return len(b)
 	}
+	// If we wrapped, copy remaining bytes to the beginning
 	copied = copy(r.b, b[copied:])
 	r.windex = copied
 	r.length += copied

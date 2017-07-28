@@ -258,12 +258,6 @@
 			"revisionTime": "2016-09-02T21:22:55Z"
 		},
 		{
-			"checksumSHA1": "SAqULvDxUY5gQwFEHvypcVkIxkw=",
-			"path": "github.com/scrye/buffers/pring",
-			"revision": "4312c6a952e3be53d206f26d375c8ec76f66d95b",
-			"revisionTime": "2017-07-26T22:45:40Z"
-		},
-		{
 			"checksumSHA1": "6AYg4fjEvFuAVN3wHakGApjhZAM=",
 			"license": "MIT",
 			"path": "github.com/smartystreets/assertions",

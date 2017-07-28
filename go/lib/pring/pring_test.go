@@ -1,9 +1,6 @@
 package pring
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func reader(t *testing.T, buffer []byte, expected int, r *PRing) {
 	t.Parallel()
@@ -13,9 +10,13 @@ func reader(t *testing.T, buffer []byte, expected int, r *PRing) {
 		if err != nil {
 			t.Fatalf("Read error: %v", err)
 		}
-		fmt.Printf("Read %v\n", buffer[:n])
 		count += n
 		if count == expected {
+			break
+		}
+		if count > expected {
+			t.Errorf("Read more packets than expected, expected %d, read %d",
+				expected, count)
 			break
 		}
 	}
@@ -25,7 +26,6 @@ func writer(t *testing.T, buffer []byte, pattern []int, r *PRing) {
 	t.Parallel()
 	for _, v := range pattern {
 		r.Write(buffer[:v])
-		fmt.Printf("Wrote %v\n", buffer[:v])
 	}
 }
 
@@ -69,24 +69,32 @@ func TestWrite(t *testing.T) {
 			})
 	}
 
-	/*
-		b := NewPRing(10)
-		n, err := b.Write([]byte{1, 2, 3, 4, 5})
-		if n != 5 {
-			t.Errorf("Write: Expected %d, have %d.", 5, n)
-		}
-		if err != nil {
-			t.Errorf("Write: Expected %v, have %v.", nil, err)
-		}
-
-		s := make([]byte, 10)
-		n, err = b.Read(s)
-		if n != 5 {
-			t.Errorf("Read: Expected %d, have %d", 5, n)
-		}
-		if err != nil {
-			t.Errorf("Read: Expected %v, have %v", nil, err)
-		}
-	*/
+	t.Run("Test write error",
+		func(t *testing.T) {
+			pr := NewPRing(10)
+			b := make([]byte, 20)
+			n, err := pr.Write(b)
+			if err == nil {
+				t.Errorf("Unexpected nil error value")
+			}
+			if n != 0 {
+				t.Errorf("Unexpected write byte count, expected %d, got %d",
+					0, n)
+			}
+		})
+	t.Run("Test read error",
+		func(t *testing.T) {
+			pr := NewPRing(10)
+			b := make([]byte, 8)
+			pr.Write(b)
+			n, err := pr.Read(b[:4])
+			if err == nil {
+				t.Errorf("Unexpected nil error value")
+			}
+			if n != 0 {
+				t.Errorf("Unexpected read byte count, expected %d, got %d",
+					0, n)
+			}
+		})
 
 }

@@ -314,13 +314,11 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	offset += dst.Len()
 
 	_, err := conn.aw.Write(header)
-	//_, err := conn.UnixConn.Write(header)
 	if err != nil {
 		conn.UnixConn.Close()
 		return 0, err
 	}
 	written, err := conn.aw.Write(buf)
-	//written, err := conn.UnixConn.Write(buf)
 	if err != nil {
 		conn.UnixConn.Close()
 		return 0, err

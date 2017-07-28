@@ -1,6 +1,7 @@
 package base
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
 	"time"
@@ -123,14 +124,11 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 	common.Order.PutUint16(frame[e.frameOff:], uint16(len(pkt)))
 	e.frameOff += PktLenSize
 	pktOff := 0
-	//log.Debug("Starting to copy packet")
 	// Write chunks of the packet to frames, sending off frames as they fill up.
 	for {
-		//log.Debug("Copy packet top", "frameOff", e.frameOff, "pktOff", pktOff)
 		copied := copy(frame[e.frameOff:], pkt[pktOff:])
 		pktOff += copied
 		e.frameOff += copied
-		//log.Debug("Copy packet middle", "frameOff", e.frameOff, "pktOff", pktOff, "copied", copied)
 		if len(frame)-e.frameOff < MinSpace {
 			// There's no point in trying to fit another packet into this frame.
 			if err := e.Write(conn, frame[:e.frameOff]); err != nil {
@@ -149,12 +147,18 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 func (e *EgressWorker) Read() {
 	pktBuffer := make([]byte, 1<<16)
 	for {
-		bytesRead, err := e.src.Read(pktBuffer)
+		// Leave 2 bytes for length
+		bytesRead, err := e.src.Read(pktBuffer[2:])
 		if err != nil {
 			log.Error("Egress read error", "err", err)
 			return
 		}
-		_, err = e.pRing.Write(pktBuffer[:bytesRead])
+		if bytesRead > common.MaxMTU {
+			log.Error("Read oversized packet from tun", "length", bytesRead)
+			continue
+		}
+		binary.BigEndian.PutUint16(pktBuffer[:2], uint16(bytesRead))
+		_, err = e.pRing.Write(pktBuffer[:bytesRead+2])
 		if err != nil {
 			log.Error("PacketRing write error", "err", err)
 			return
@@ -169,8 +173,8 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	if e.seq == 0 {
 		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
-	//log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
-	//	"seq", e.seq, "index", e.index)
+	log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
+		"seq", e.seq, "index", e.index)
 
 	// Write SIG header
 	common.Order.PutUint32(frame[:4], e.seq)
@@ -205,11 +209,8 @@ func (pr *PacketReader) nextPacket() ([]byte, error) {
 	if pr.index >= len(pr.buffer) {
 		return nil, nil
 	}
-	if pr.buffer[pr.index]&0xF0 != 0x40 {
-		return nil, common.NewError("PacketReader: Unknown IP version", "version", pr.buffer[pr.index])
-	}
-	length := int((uint16(pr.buffer[pr.index+2]) << 8) + uint16(pr.buffer[pr.index+3]))
-	packet := pr.buffer[pr.index : pr.index+length]
-	pr.index += length
+	length := int(binary.BigEndian.Uint16(pr.buffer[pr.index : pr.index+2]))
+	packet := pr.buffer[pr.index+2 : pr.index+length+2]
+	pr.index += length + 2
 	return packet, nil
 }

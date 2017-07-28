@@ -20,6 +20,8 @@ import (
 const (
 	RecvBufferSize = 1 << 16
 	SendBufferSize = 1 << 16
+	CmnHdrSize     = 8
+	UDPHdrSize     = 8
 )
 
 type SCIONNet struct {
@@ -198,23 +200,23 @@ func (c *SCIONConn) Close() error {
 func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.PathReplyEntry) (common.RawBytes, error) {
 	poffset := 0
 
-	commonHeader := c.sendBuffer[:8]
+	commonHeader := c.sendBuffer[:CmnHdrSize]
 	commonHeader[0] |= (uint8(raddr.host.Type()) >> 2) << 4
 	commonHeader[1] |= uint8(raddr.host.Type()) << 6
 	commonHeader[1] |= uint8(c.laddr.host.Type())
-	poffset += 8
+	poffset += CmnHdrSize
 
 	addrHeaderSize := raddr.host.Size() + c.laddr.host.Size() + raddr.ia.SizeOf() + c.laddr.ia.SizeOf()
 	// Pad to multiple of LineLen, 40 is max address header as defined by SCION specification
 	if addrHeaderSize > 40 {
 		return nil, common.NewError("Invalid address header size", "size", addrHeaderSize)
 	}
-	addrHeaderSize += (40 - addrHeaderSize) % 8
+	addrHeaderSize += (40 - addrHeaderSize) % common.LineLen
 	addrHeader := c.sendBuffer[poffset : poffset+addrHeaderSize]
 	poffset += addrHeaderSize
 
 	// We do not include the L4 header size in the total header size
-	totalHeaderSize := 8 + addrHeaderSize + len(path.Path.FwdPath)
+	totalHeaderSize := CmnHdrSize + addrHeaderSize + len(path.Path.FwdPath)
 	totalPacketSize := totalHeaderSize + l4.UDPLen + len(b)
 
 	binary.BigEndian.PutUint16(commonHeader[2:4], uint16(totalPacketSize))
@@ -228,8 +230,8 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.P
 	copy(c.sendBuffer[poffset:], path.Path.FwdPath)
 	poffset += len(path.Path.FwdPath)
 
-	commonHeader[5] = uint8(addrHeaderSize+8) / common.LineLen
-	commonHeader[6] = uint8(addrHeaderSize+8)/common.LineLen + hopIdx
+	commonHeader[5] = uint8(addrHeaderSize+CmnHdrSize) / common.LineLen
+	commonHeader[6] = uint8(addrHeaderSize+CmnHdrSize)/common.LineLen + hopIdx
 	commonHeader[7] = uint8(common.L4UDP)
 
 	// Pack the address header
@@ -243,13 +245,13 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.P
 	copy(addrHeader[offset:offset+c.laddr.host.Size()], c.laddr.host.Pack())
 	// And the padding, if it exists, contains leftover zeroes
 
-	udpHeader := c.sendBuffer[poffset : poffset+8]
+	udpHeader := c.sendBuffer[poffset : poffset+UDPHdrSize]
 	binary.BigEndian.PutUint16(udpHeader[0:2], c.laddr.port)
 	binary.BigEndian.PutUint16(udpHeader[2:4], raddr.port)
 	binary.BigEndian.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
 	binary.BigEndian.PutUint16(udpHeader[6:8], libscion.Checksum(addrHeader,
 		commonHeader[7:8], udpHeader[0:6], b))
-	poffset += 8
+	poffset += UDPHdrSize
 
 	copy(c.sendBuffer[poffset:], b)
 	poffset += len(b)
