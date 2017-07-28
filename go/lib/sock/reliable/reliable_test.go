@@ -87,11 +87,8 @@ func Client(x chan ExitData, tc TestCase, sockName string) {
 		return
 	}
 
-	err = conn.Close()
-	if err != nil {
-		x <- ExitData{err: err}
-		return
-	}
+	// Do not close the connection or the server might not have time
+	// to get the data out
 	x <- ExitData{}
 }
 

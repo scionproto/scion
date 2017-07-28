@@ -63,6 +63,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/netsec-ethz/scion/go/lib/awriter"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
@@ -138,6 +140,7 @@ func (a *AppAddr) Len() int {
 // Conn implements the ReliableSocket framing protocol over UNIX sockets.
 type Conn struct {
 	*net.UnixConn
+	aw *awriter.AWriter
 }
 
 // Dial connects to the UNIX socket specified by address.
@@ -146,7 +149,8 @@ func Dial(address string) (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to connect", "address", address)
 	}
-	return &Conn{c.(*net.UnixConn)}, nil
+	uc := c.(*net.UnixConn)
+	return &Conn{UnixConn: uc, aw: awriter.NewAWriter(uc)}, nil
 }
 
 // Register connects to a SCION Dispatcher's UNIX socket.
@@ -174,7 +178,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	copy(request[offset:offset+2], a.packPort())
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, common.NewError("Cannot register NoneType address")
 	}
 	request[offset] = byte(a.Addr.Type())
@@ -183,7 +187,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 
 	_, err = conn.Write(request)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, err
 	}
 
@@ -191,13 +195,13 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	reply := make([]byte, 2)
 	read, err := conn.Read(reply)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, err
 	}
 
 	replyPort := common.Order.Uint16(reply[:read])
 	if a.Port != 0 && a.Port != replyPort {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, common.NewError("Port mismatch when registering with dispatcher", "expected",
 			a.Port, "actual", replyPort)
 	}
@@ -225,11 +229,11 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 	header := make([]byte, hdrLen)
 	_, err := io.ReadFull(conn.UnixConn, header)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, nil, err
 	}
 	if bytes.Compare(header[:len(cookie)], cookie) != 0 {
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, nil, common.NewError("ReliableSock protocol desynchronized", "conn", conn)
 	}
 	offset := len(cookie)
@@ -247,28 +251,28 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 		addrBuf := make([]byte, addrLen+2)
 		read, err = io.ReadFull(conn.UnixConn, addrBuf)
 		if err != nil {
-			conn.UnixConn.Close()
+			conn.Close()
 			return 0, nil, err
 		}
 		lastHop, err = ParseAppAddr(addrBuf, rcvdAddrType)
 		if err != nil {
-			conn.UnixConn.Close()
+			conn.Close()
 			return 0, nil, err
 		}
 	default:
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, nil, common.NewError("Unknown address type", "type", rcvdAddrType)
 	}
 
 	// Read the payload
 	if int(length) > len(buf) {
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, nil, common.NewError("Insufficient buffer size", "have", len(buf),
 			"need", length)
 	}
 	read, err = io.ReadFull(conn.UnixConn, buf[:length])
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, nil, err
 	}
 	return read, lastHop, nil
@@ -298,6 +302,7 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 		return 0, common.NewError("Unknown address type", "type", dst.Addr.Type())
 	}
 
+	// FIXME(scrye): fix this fastpath malloc
 	header := make([]byte, hdrLen+destLength)
 	copy(header, cookie)
 	offset := len(cookie)
@@ -308,14 +313,14 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	copy(header[offset:], dst.Pack())
 	offset += dst.Len()
 
-	_, err := io.Copy(conn.UnixConn, bytes.NewReader(header))
+	_, err := conn.aw.Write(header)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, err
 	}
-	written, err := io.Copy(conn.UnixConn, bytes.NewReader(buf))
+	written, err := conn.aw.Write(buf)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return 0, err
 	}
 	return int(written), nil
@@ -324,6 +329,18 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 func (conn *Conn) String() string {
 	return fmt.Sprintf("&{laddr: %v, raddr: %v}", conn.UnixConn.LocalAddr(),
 		conn.UnixConn.RemoteAddr())
+}
+
+func (conn *Conn) Close() error {
+	err := conn.aw.Close()
+	if err != nil {
+		return common.NewError("Unable to close async writer", "err", err)
+	}
+	err = conn.UnixConn.Close()
+	if err != nil {
+		return common.NewError("Unable to close UnixConn", "err", err)
+	}
+	return nil
 }
 
 // Listener listens on Unix sockets and returns Conn sockets on Accept().
@@ -347,7 +364,8 @@ func (listener *Listener) Accept() (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to accept", "listener", listener)
 	}
-	return &Conn{c.(*net.UnixConn)}, nil
+	uc := c.(*net.UnixConn)
+	return &Conn{UnixConn: uc, aw: awriter.NewAWriter(uc)}, nil
 }
 
 func (listener *Listener) String() string {
