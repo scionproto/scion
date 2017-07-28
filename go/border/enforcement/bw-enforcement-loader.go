@@ -41,9 +41,11 @@ const (
 )
 
 type IfConfig struct {
-	Ifid    common.IFIDType
-	Ingress map[string]int64
-	Egress  map[string]int64
+	Ifid     common.IFIDType
+	MaxICapa int64
+	MaxECapa int64
+	Ingress  map[string]int64
+	Egress   map[string]int64
 }
 
 type IfConfigs struct {
@@ -86,9 +88,20 @@ func (ifConfigs *IfConfigs) toEgressContainer() map[common.IFIDType]IFEContainer
 	containerMap := make(map[common.IFIDType]IFEContainer)
 	for _, config := range ifConfigs.Interfaces {
 		ifid := config.Ifid
+		maxCapa := config.MaxECapa
 		egressConfig := config.Egress
 		if len(egressConfig) != 0 {
-			containerMap[ifid] = mapToContainer(egressConfig, ifid, "egress")
+			container, reservedBW := mapToContainer(egressConfig, ifid, "egress")
+
+			if reservedBW > maxCapa {
+				log.Warn(fmt.Sprintf("For interface %d more egress capacity than available is reserved."+
+					" This can lead to unexpected behaviour."+
+					" Reserved capacity: %d Max capacity: %d", ifid, reservedBW, maxCapa))
+			}
+
+			container.maxIfBw = maxCapa
+			container.ifMovAvg = NewMovingAverage(5, 1000*time.Millisecond)
+			containerMap[ifid] = container
 		}
 	}
 	return containerMap
@@ -98,20 +111,33 @@ func (ifConfigs *IfConfigs) toIngressContainer() map[common.IFIDType]IFEContaine
 	containerMap := make(map[common.IFIDType]IFEContainer)
 	for _, config := range ifConfigs.Interfaces {
 		ifid := config.Ifid
+		maxCapa := config.MaxICapa
 		ingressConfig := config.Ingress
 		if len(ingressConfig) != 0 {
-			containerMap[ifid] = mapToContainer(ingressConfig, ifid, "ingress")
+			container, reservedBW := mapToContainer(ingressConfig, ifid, "ingress")
+
+			if reservedBW > maxCapa {
+				log.Warn(fmt.Sprintf("For interface %d more ingress capacity than available is reserved."+
+					" This can lead to unexpected behaviour."+
+					" Reserved capacity: %d Max capacity: %d", ifid, reservedBW, maxCapa))
+			}
+
+			container.maxIfBw = maxCapa
+			container.ifMovAvg = NewMovingAverage(5, 1000*time.Millisecond)
+			containerMap[ifid] = container
 		}
 	}
 	return containerMap
 }
 
-func mapToContainer(config map[string]int64, ifid common.IFIDType, typ string) IFEContainer {
-	maxUnknownBW := int64(-1)
+func mapToContainer(config map[string]int64, ifid common.IFIDType, typ string) (IFEContainer, int64) {
+	maxUnknownBW := int64(0)
+	reservedBW := int64(0)
 	avgs := make(map[uint32]*ASEInformation)
 
 	if elem, exists := config[unknown]; exists {
 		maxUnknownBW = elem
+		reservedBW += elem
 		delete(config, unknown)
 	}
 
@@ -136,9 +162,10 @@ func mapToContainer(config map[string]int64, ifid common.IFIDType, typ string) I
 			Labels:  prometheus.Labels{"sock": fmt.Sprintf("intf:%d, as:%s", ifid, isd), "type": typ},
 		}
 
+		reservedBW += elem
 		key := isdas.Uint32()
 		avgs[key] = info
 	}
 
-	return IFEContainer{avgs: avgs, unknown: unknown}
+	return IFEContainer{avgs: avgs, unknown: unknown}, reservedBW
 }

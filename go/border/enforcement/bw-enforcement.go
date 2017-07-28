@@ -39,8 +39,13 @@ type BWEnforcer struct {
 type IFEContainer struct {
 	// avgs holds all averages associated to an AS.
 	avgs map[uint32]*ASEInformation
+	// maxIfBw indicates the maximum bandwidth for the interface
+	// either ingress or egress
+	maxIfBw int64
 	//unknown holds the current average for unknown ASes.
 	unknown ASEInformation
+	// ifMovAvg holds the current avg used by all reserved BW ASes.
+	ifMovAvg *MovingAverage
 }
 
 // ASEInformation contains all information necessary to do bandwidth
@@ -71,51 +76,55 @@ func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) bool {
 // canForward() indicates whether a packet is allowed to pass the router. It is not if
 // the AS exceeds its bandwidth limit.
 func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) bool {
-	info := ifec.getBWInfo(*isdas)
-	labels := info.Labels
+	asInfo, exists := ifec.getBWInfo(*isdas)
+	labels := asInfo.Labels
 
-	//If there is unlimited BW for an AS just forward the packet.
-	if info.maxBw == -1 {
-		return true
-	}
-
-	//If there is no BW assigned to an AS just drop the packet.
-	if info.maxBw == 0 {
-		metrics.PktsDropPerAs.With(labels).Inc()
-		return false
-	}
-
-	avg := info.getAvg()
-	if avg < info.maxBw {
-		info.addPktToAvg(length)
-		if avg > info.alertBW {
-			metrics.CurBwPerAs.With(labels).Set(float64(avg))
+	if exists {
+		if asInfo.maxBw == 0 {
+			metrics.PktsDropPerAs.With(labels).Inc()
+			return false
+		}
+		curAsBw := asInfo.getAvg()
+		if curAsBw < asInfo.maxBw {
+			asInfo.addPktToAvg(length)
+			ifec.ifMovAvg.add(length)
+			if curAsBw > asInfo.alertBW {
+				metrics.CurBwPerAs.With(labels).Set(float64(curAsBw))
+			}
+			return true
 		}
 
-		return true
+		metrics.CurBwPerAs.With(labels).Set(float64(curAsBw))
+	} else {
+		curAsBw := asInfo.getAvg()
+		curIfBw := ifec.ifMovAvg.getAverage() * 8
+		freeIfBw := ifec.maxIfBw - curIfBw
+		// 0.75 * maxIFBw && (curAsBw < maxAsBw || curAsBw < freeIfBw )
+		if (curAsBw < (ifec.maxIfBw>>1 + ifec.maxIfBw>>2)) && (curAsBw < asInfo.maxBw || curAsBw < freeIfBw) {
+			asInfo.addPktToAvg(length)
+			return true
+		}
 	}
 
-	metrics.CurBwPerAs.With(labels).Set(float64(avg))
 	metrics.PktsDropPerAs.With(labels).Inc()
 	return false
 }
 
 // getBWInfo() checks if there is a moving average for addr and returns it. If not it
 // returns the moving average for unknown ASes.
-func (ifec *IFEContainer) getBWInfo(addr addr.ISD_AS) ASEInformation {
+func (ifec *IFEContainer) getBWInfo(addr addr.ISD_AS) (ASEInformation, bool) {
 	info, exists := ifec.avgs[addr.Uint32()]
 	if exists {
-		return *info
+		return *info, true
 	}
-	return ifec.unknown
+	return ifec.unknown, false
 }
 
-// getAvg() returns the current moving average in bits.
 func (info *ASEInformation) getAvg() int64 {
 	return info.movAvg.getAverage() * 8
 }
 
-// addPktToAvg() adds the length of the packet in bytes to the moving average.
+// addPktToAvg() adds the packet to the moving average
 func (info *ASEInformation) addPktToAvg(length int) {
 	info.movAvg.add(length)
 }
