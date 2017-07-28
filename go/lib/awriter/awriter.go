@@ -4,7 +4,8 @@ import (
 	"io"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/scrye/buffers/pring"
+
+	"github.com/netsec-ethz/scion/go/lib/pring"
 )
 
 type AWriter struct {
