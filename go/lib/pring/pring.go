@@ -23,7 +23,7 @@ type PRing struct {
 	readable  *sync.Cond
 }
 
-func NewPRing(size int) *PRing {
+func New(size int) *PRing {
 	r := &PRing{}
 	r.writeable = sync.NewCond(&r.mutex)
 	r.readable = sync.NewCond(&r.mutex)

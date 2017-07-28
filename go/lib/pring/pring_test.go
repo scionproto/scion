@@ -30,6 +30,33 @@ func writer(t *testing.T, buffer []byte, pattern []int, r *PRing) {
 }
 
 func TestWrite(t *testing.T) {
+	pr := New(10)
+	b := make([]byte, 20)
+	n, err := pr.Write(b)
+	if err == nil {
+		t.Errorf("Unexpected nil error value")
+	}
+	if n != 0 {
+		t.Errorf("Unexpected write byte count, expected %d, got %d",
+			0, n)
+	}
+}
+
+func TestRead(t *testing.T) {
+	pr := New(10)
+	b := make([]byte, 8)
+	pr.Write(b)
+	n, err := pr.Read(b[:4])
+	if err == nil {
+		t.Errorf("Unexpected nil error value")
+	}
+	if n != 0 {
+		t.Errorf("Unexpected read byte count, expected %d, got %d",
+			0, n)
+	}
+}
+
+func TestReadWrite(t *testing.T) {
 	buffer := make([]byte, 256)
 	for i := 0; i < 256; i++ {
 		buffer[i] = byte(i)
@@ -56,7 +83,7 @@ func TestWrite(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Name,
 			func(t *testing.T) {
-				pr := NewPRing(test.RingSize)
+				pr := New(test.RingSize)
 				b := make([]byte, test.BufSize)
 				t.Run("writer",
 					func(t *testing.T) {
@@ -68,33 +95,4 @@ func TestWrite(t *testing.T) {
 					})
 			})
 	}
-
-	t.Run("Test write error",
-		func(t *testing.T) {
-			pr := NewPRing(10)
-			b := make([]byte, 20)
-			n, err := pr.Write(b)
-			if err == nil {
-				t.Errorf("Unexpected nil error value")
-			}
-			if n != 0 {
-				t.Errorf("Unexpected write byte count, expected %d, got %d",
-					0, n)
-			}
-		})
-	t.Run("Test read error",
-		func(t *testing.T) {
-			pr := NewPRing(10)
-			b := make([]byte, 8)
-			pr.Write(b)
-			n, err := pr.Read(b[:4])
-			if err == nil {
-				t.Errorf("Unexpected nil error value")
-			}
-			if n != 0 {
-				t.Errorf("Unexpected read byte count, expected %d, got %d",
-					0, n)
-			}
-		})
-
 }

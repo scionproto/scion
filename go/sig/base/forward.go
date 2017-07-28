@@ -57,7 +57,7 @@ func NewEgressWorker(info *asInfo) *EgressWorker {
 	return &EgressWorker{
 		info:  info,
 		src:   info.Device,
-		pRing: pring.NewPRing(1 << 24),
+		pRing: pring.New(1 << 24),
 	}
 }
 
@@ -210,7 +210,8 @@ func (pr *PacketReader) nextPacket() ([]byte, error) {
 		return nil, nil
 	}
 	length := int(binary.BigEndian.Uint16(pr.buffer[pr.index : pr.index+2]))
-	packet := pr.buffer[pr.index+2 : pr.index+length+2]
-	pr.index += length + 2
+	pr.index += 2
+	packet := pr.buffer[pr.index : pr.index+length]
+	pr.index += length
 	return packet, nil
 }

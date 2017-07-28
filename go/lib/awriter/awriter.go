@@ -16,7 +16,7 @@ type AWriter struct {
 
 func NewAWriter(dst io.Writer) *AWriter {
 	aw := &AWriter{}
-	aw.pr = pring.NewPRing(1 << 18)
+	aw.pr = pring.New(1 << 18)
 	aw.buf = make([]byte, 1<<18)
 	aw.dst = dst
 	go flusher(aw)
