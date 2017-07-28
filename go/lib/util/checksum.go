@@ -14,7 +14,9 @@
 
 package util
 
-import "github.com/netsec-ethz/scion/go/lib/common"
+import (
+	"github.com/netsec-ethz/scion/go/lib/common"
+)
 
 // Calculate RFC1071 checksum of supplied data chunks. If a chunk has
 // an odd length, it is padded with a 0 during checksum computation.

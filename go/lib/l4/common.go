@@ -16,7 +16,6 @@ package l4
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 
 	//log "github.com/inconshreveable/log15"
@@ -46,9 +45,9 @@ func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, *common.E
 	if err != nil {
 		return nil, err
 	}
-	sum := util.Checksum(addr, []uint8{uint8(h.L4Type())}, rawh, pld)
+	sum := util.Checksum(addr, []uint8{0, uint8(h.L4Type())}, rawh, pld)
 	out := make(common.RawBytes, 2)
-	binary.BigEndian.PutUint16(out, sum)
+	common.Order.PutUint16(out, sum)
 	return out, nil
 }
 

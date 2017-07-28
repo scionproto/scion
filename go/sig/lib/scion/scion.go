@@ -244,8 +244,8 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.P
 	binary.BigEndian.PutUint16(udpHeader[2:4], raddr.port)
 	binary.BigEndian.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
 
-	checksum := util.Checksum(addrHeader[0:16], commonHeader[7:8], udpHeader, b)
-	binary.BigEndian.PutUint16(udpHeader[6:8], checksum)
+	checksum := util.Checksum(addrHeader, []byte{0, commonHeader[7]}, udpHeader[0:6], b)
+	common.Order.PutUint16(udpHeader[6:8], checksum)
 
 	packet := make([]byte, 0)
 	packet = append(packet, commonHeader...)

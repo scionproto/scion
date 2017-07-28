@@ -114,11 +114,11 @@ class SCIONUDPHeader(L4HeaderBase):
         pseudo_header = b"".join([
             self._dst.isd_as.pack(), self._src.isd_as.pack(),
             self._dst.host.pack(), self._src.host.pack(),
-            struct.pack("!B", L4Proto.UDP), b"\x00",
+            b"\x00", struct.pack("!B", L4Proto.UDP),
             self.pack(payload, checksum=bytes(2)), payload,
         ])
         chk_int = scapy.utils.checksum(pseudo_header)
-        return struct.pack(">H", chk_int)
+        return struct.pack("!H", chk_int)
 
     def reverse(self):
         self._src, self._dst = self._dst, self._src
