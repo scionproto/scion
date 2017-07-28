@@ -11,17 +11,18 @@ uint16_t scmp_checksum(uint8_t *buf)
 {
     chk_input *input = mk_chk_input(6);
     SCMPL4Header *scmp_l4;
-    uint8_t l4_type;
+    uint16_t l4_type;
     uint16_t payload_len, ret, blank_sum = 0;
 
     // Address header (without padding)
     chk_add_chunk(input, buf + DST_IA_OFFSET, get_addrs_len(buf));
 
     uint8_t *ptr = buf;
-    l4_type = get_l4_proto(&ptr);
+    // Load LSB of l4_type with protocol number
+    l4_type = htons((uint16_t)get_l4_proto(&ptr));
     scmp_l4 = (SCMPL4Header *)ptr;
     // L4 protocol type
-    chk_add_chunk(input, &l4_type, 1);
+    chk_add_chunk(input, (uint8_t*)&l4_type, 2);
     // SCMP class, type & length
     ptr = chk_add_chunk(input, ptr, 6);
     // Use blank checksum field
