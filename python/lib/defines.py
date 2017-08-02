@@ -148,3 +148,6 @@ HASHTREE_UPDATE_WINDOW = HASHTREE_TTL / 3
 TCP_ACCEPT_POLLING_TOUT = 1.0
 # SCION control-plane TCP connection timeout.
 TCP_TIMEOUT = 5.0
+
+# Max time for a path lookup to succeed/fail.
+PATH_REQ_TOUT = 2
