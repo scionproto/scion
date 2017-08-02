@@ -245,8 +245,6 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.P
 	binary.BigEndian.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
 
 	// Compute the checksum for SCION L4
-	// NOTE(scrye): is the checksum supposed to be this way? it breaks stack encap/decap
-	// principles (encapsulated UDP protocol looks at bytes from upper layer SCION protocol)
 	binary.BigEndian.PutUint16(udpHeader[6:8], util.Checksum(addrHeader,
 		[]byte{0, commonHeader[7]}, udpHeader[:6], b))
 
