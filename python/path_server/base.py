@@ -331,7 +331,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     if self.path_resolution(
                             req, meta, new_request=False, logger=logger, req_id=req_id):
                         meta.close()
-                        self.pending_req[key].pop(req_id)
+                        del self.pending_req[key][req_id]
                 if not self.pending_req[key]:
                     rem_keys.append(key)
             for key in rem_keys:

@@ -133,7 +133,6 @@ PATH_FLAG_SIBRA = "SIBRA"
 
 MAX_HOST_ADDR_LEN = 16
 
-
 # Time per Epoch
 HASHTREE_EPOCH_TIME = 10
 # The tolerable error in epoch in seconds.
