@@ -2,7 +2,6 @@
 package scion
 
 import (
-	"encoding/binary"
 	"net"
 
 	log "github.com/inconshreveable/log15"
@@ -221,10 +220,9 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr,
 	poffset := 0
 	// Create Common Header
 	commonHeader := c.sendBuffer[:cmnHdrLen]
-	commonHeader[0] |= (uint8(raddr.host.Type()) >> 2) << 4
-	commonHeader[1] |= uint8(raddr.host.Type()) << 6
-	commonHeader[1] |= uint8(c.laddr.host.Type())
-	binary.BigEndian.PutUint16(commonHeader[2:4], uint16(pktLen))
+	common.Order.PutUint16(commonHeader[:2],
+		(uint16(raddr.host.Type())<<6)+uint16(c.laddr.host.Type()))
+	common.Order.PutUint16(commonHeader[2:4], uint16(pktLen))
 	commonHeader[4] = uint8(hdrLen) / common.LineLen
 	commonHeader[5] = uint8(addrHdrLen+cmnHdrLen) / common.LineLen
 	commonHeader[6] = uint8(addrHdrLen+cmnHdrLen)/common.LineLen + hopIdx
@@ -253,10 +251,10 @@ func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr,
 
 	// Create SCION/UDP Header
 	udpHeader := c.sendBuffer[poffset : poffset+l4.UDPLen]
-	binary.BigEndian.PutUint16(udpHeader[:2], c.laddr.port)
-	binary.BigEndian.PutUint16(udpHeader[2:4], raddr.port)
-	binary.BigEndian.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
-	binary.BigEndian.PutUint16(udpHeader[6:8], util.Checksum(addrHeader,
+	common.Order.PutUint16(udpHeader[:2], c.laddr.port)
+	common.Order.PutUint16(udpHeader[2:4], raddr.port)
+	common.Order.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
+	common.Order.PutUint16(udpHeader[6:8], util.Checksum(addrHeader,
 		[]byte{0, commonHeader[7]}, udpHeader[:6], b))
 	poffset += l4.UDPLen
 
