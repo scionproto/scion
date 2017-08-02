@@ -55,7 +55,7 @@ func NewMovingAverage(nOfBuckets int, bucketSize time.Duration) *MovingAverage {
 	}
 }
 
-// getAverage first performs an update of the buckets and then returns the current average.
+// getAverage first performs an update of the buckets and then returns the current average in bytes.
 func (ma *MovingAverage) getAverage() int64 {
 	ma.update()
 	duration := (float64(ma.nOfBuckets - 1)) * (ma.bucketSize.Seconds() * 1000)

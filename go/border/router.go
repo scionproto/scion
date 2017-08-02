@@ -142,11 +142,13 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if r.fBwEnf {
 		if r.ingressBWE.DoEnforcement &&
 			(rp.DirFrom == rpkt.DirExternal && (rp.DirTo == rpkt.DirLocal || rp.DirTo == rpkt.DirSelf)) {
-			if !r.ingressBWE.Check(rp) {
+			if pass, labels := r.ingressBWE.Check(rp); !pass {
+				metrics.PktsRecvDropPerAs.With(labels).Inc()
 				return
 			}
 		} else if r.egresseBWE.DoEnforcement && (rp.DirFrom == rpkt.DirLocal && rp.DirTo == rpkt.DirExternal) {
-			if !r.egresseBWE.Check(rp) {
+			if pass, labels := r.egresseBWE.Check(rp); !pass {
+				metrics.PktsSndDropPerAs.With(labels).Inc()
 				return
 			}
 		}

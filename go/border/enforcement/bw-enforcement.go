@@ -54,37 +54,40 @@ type ASEInformation struct {
 
 // Check() indicates whether a packet should be forwarded to the next stage
 // of the router or not.
-func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) bool {
+func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) (bool, prometheus.Labels) {
 	ifid, _ := rp.IFCurr()
 	if ifInfo, ex := bwe.Interfaces[*ifid]; ex {
 		srcIA, _ := rp.SrcIA()
 		length := len(rp.Raw)
-		if ifInfo.canForward(srcIA, length) {
-			return true
+		if canForward, labels := ifInfo.canForward(srcIA, length); canForward {
+			return true, labels
+		} else {
+			return false, labels
 		}
 	}
-	return false
+	return true, nil
 }
 
 // canForward() indicates whether a packet is allowed to pass the router. It is not if
 // the AS exceeds its bandwidth limit.
-func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) bool {
-	info, _ := ifec.getBWInfo(*isdas)
+func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) (bool, prometheus.Labels) {
+	info := ifec.getBWInfo(*isdas)
+	labels := info.Labels
 	if info.canAdd() {
 		info.addPktToAvg(length)
-		return true
+		return true, labels
 	}
-	return false
+	return false, labels
 }
 
 // getBWInfo() checks if there is a moving average for addr and returns it. If not it
 // returns the moving average for unknown ASes.
-func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) (ASEInformation, bool) {
+func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) ASEInformation {
 	info, exists := c.avgs[addr.Uint32()]
 	if exists {
-		return *info, true
+		return *info
 	}
-	return c.unknown, false
+	return c.unknown
 }
 
 // canAdd() checks whether the the AS is exceeding its bandwidth limit or not.
@@ -95,7 +98,7 @@ func (info *ASEInformation) canAdd() bool {
 	return info.movAvg.getAverage()*8 < info.maxBw
 }
 
-// addPktToAvg() adds the packet to the moving average
+// addPktToAvg() adds the length in bytes of the packet to the moving average
 func (info *ASEInformation) addPktToAvg(length int) {
 	if info.maxBw != -1 {
 		info.movAvg.add(length)
