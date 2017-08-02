@@ -60,8 +60,8 @@ package reliable
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net"
+	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -77,67 +77,31 @@ var (
 
 const (
 	regCommandField = 0x03 // Register command (0x01) with SCMP enabled (0x02)
+	dfltBufSize     = 1 << 18
 )
 
-// AppAddr is a L3 + L4 address container, it currently only supports UDP for L4.
-type AppAddr struct {
-	Addr addr.HostAddr
-	Port uint16
-}
-
-func (a *AppAddr) packAddr() []byte {
-	return a.Addr.Pack()
-}
-
-func (a *AppAddr) packPort() []byte {
-	if a.Addr.Type() == addr.HostTypeNone {
-		return nil
-	}
-	buf := make([]byte, 2)
-	common.Order.PutUint16(buf, a.Port)
-	return buf
-}
-
-func (a *AppAddr) Pack() []byte {
-	buf := make([]byte, 0, a.Len())
-	buf = append(buf, a.packAddr()...)
-	buf = append(buf, a.packPort()...)
-	return buf
-}
-
-func ParseAppAddr(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, error) {
-	var a AppAddr
-	// NOTE: cerr is used to avoid nil stored in interface issue
-	var cerr *common.Error
-	addrLen, cerr := addr.HostLen(addrType)
-	if cerr != nil {
-		return nil, cerr
-	}
-	// Add 2 for port
-	if len(buf) < int(addrLen)+2 {
-		return nil, common.NewError("Buffer too small for address type", "expected", addrLen+2,
-			"actual", len(buf))
-	}
-
-	a.Addr, cerr = addr.HostFromRaw(buf, addrType)
-	if cerr != nil {
-		return nil, common.NewError("Unable to parse address", "address",
-			buf[:addrLen], "type", addrType)
-	}
-	a.Port = common.Order.Uint16(buf[addrLen:])
-	return &a, nil
-}
-
-func (a *AppAddr) Len() int {
-	if a.Addr.Type() == addr.HostTypeNone {
-		return a.Addr.Size()
-	}
-	return a.Addr.Size() + 2
+type Msg struct {
+	buf    []byte
+	copied int
+	addr   *AppAddr
 }
 
 // Conn implements the ReliableSocket framing protocol over UNIX sockets.
 type Conn struct {
 	*net.UnixConn
+	sendBuf   []byte
+	recvBuf   []byte
+	header    []byte
+	readHead  int
+	writeHead int
+}
+
+func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
+	c, err := net.DialTimeout("unix", address, timeout)
+	if err != nil {
+		return nil, common.NewError("Unable to connect", "address", address)
+	}
+	return newConn(c), nil
 }
 
 // Dial connects to the UNIX socket specified by address.
@@ -146,7 +110,15 @@ func Dial(address string) (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to connect", "address", address)
 	}
-	return &Conn{c.(*net.UnixConn)}, nil
+	return newConn(c), nil
+}
+
+func newConn(c net.Conn) *Conn {
+	return &Conn{
+		UnixConn: c.(*net.UnixConn),
+		sendBuf:  make([]byte, dfltBufSize),
+		recvBuf:  make([]byte, dfltBufSize),
+		header:   make([]byte, 1<<8)}
 }
 
 // Register connects to a SCION Dispatcher's UNIX socket.
@@ -174,7 +146,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	copy(request[offset:offset+2], a.packPort())
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, common.NewError("Cannot register NoneType address")
 	}
 	request[offset] = byte(a.Addr.Type())
@@ -183,7 +155,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 
 	_, err = conn.Write(request)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, err
 	}
 
@@ -191,13 +163,13 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	reply := make([]byte, 2)
 	read, err := conn.Read(reply)
 	if err != nil {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, err
 	}
 
 	replyPort := common.Order.Uint16(reply[:read])
 	if a.Port != 0 && a.Port != replyPort {
-		conn.UnixConn.Close()
+		conn.Close()
 		return nil, 0, common.NewError("Port mismatch when registering with dispatcher", "expected",
 			a.Port, "actual", replyPort)
 	}
@@ -209,69 +181,122 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 // buf must be large enough to fit the entire message. No addressing data is returned,
 // only the payload. On error, the number of bytes returned is meaningless.
 func (conn *Conn) Read(buf []byte) (int, error) {
-	read, _, err := conn.ReadFrom(buf)
-	if err != nil {
-		return 0, err
-	}
-	return read, nil
+	n, _, err := conn.ReadFrom(buf)
+	return n, err
 }
 
 // ReadFrom works similarly to Read. In addition to Read, it also returns the last hop
 // (usually, the border router) which sent the message.
 func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
-	var lastHop *AppAddr
-	var read int
-
-	header := make([]byte, hdrLen)
-	_, err := io.ReadFull(conn.UnixConn, header)
+	msgs := make([]Msg, 1)
+	msgs[0].buf = buf
+	_, err := conn.ReadN(msgs)
 	if err != nil {
-		conn.UnixConn.Close()
 		return 0, nil, err
 	}
-	if bytes.Compare(header[:len(cookie)], cookie) != 0 {
-		conn.UnixConn.Close()
-		return 0, nil, common.NewError("ReliableSock protocol desynchronized", "conn", conn)
+	return msgs[0].copied, msgs[0].addr, nil
+}
+
+// ReadN is an extension of Read that allows callers to receive multiple
+// messages from a ReliableSocket using a reduced number of system calls. ReadN
+// copies data sequentially over each buf slice contained in msgs, blocking
+// until at least one packet has been read. The function returns immediately if
+// at least one packet has been read and the next one is not yet available.
+// Each buffer contains a full packet (similarly to datagram oriented
+// protocols).  ReadN returns the number of packets read. For each packet, the
+// copied field of the Msg struct contains the number of bytes in the read
+// packet.
+func (conn *Conn) ReadN(msgs []Msg) (int, error) {
+	fillIndex := 0
+	// If we do not have enough data for a full packet, try a blocking read
+	for fillIndex < len(msgs) {
+		ok, err := conn.copyNextPacket(&msgs[fillIndex])
+		if err != nil {
+			return fillIndex, err
+		}
+		if ok {
+			// Try to get another packet
+			fillIndex += 1
+			continue
+		}
+
+		// Not enough data to return another full packet.  Leftover
+		// fragment data might exist, move it to start of buffer
+		nCopied := copy(conn.recvBuf, conn.recvBuf[conn.readHead:conn.writeHead])
+		conn.readHead = 0
+		conn.writeHead = nCopied
+
+		// If we grabbed at least one packet, we can return the results
+		// immediately
+		if fillIndex > 0 {
+			return fillIndex, nil
+		}
+
+		// If we cannot return at least one packet, block to read more
+		// data and try again
+		nRead, err := conn.UnixConn.Read(conn.recvBuf[conn.writeHead:])
+		if err != nil {
+			return 0, err
+		}
+		conn.writeHead += nRead
 	}
-	offset := len(cookie)
-	rcvdAddrType := addr.HostAddrType(header[offset])
-	offset++
-	length := common.Order.Uint32(header[offset : offset+4])
+
+	// We read all the requested messages
+	return fillIndex, nil
+}
+
+func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
+	var lastHop *AppAddr
+	var err error
+	var addrLen int
+
+	// Peek to see if packet complete
+	peekData := conn.recvBuf[conn.readHead:conn.writeHead]
+	peekOffset := 0
+	if len(peekData) < hdrLen {
+		return false, nil
+	}
+	header := peekData[:hdrLen]
+	if bytes.Compare(header[:len(cookie)], cookie) != 0 {
+		conn.Close()
+		return false, common.NewError("ReliableSock protocol desynchronized", "conn", conn)
+	}
+	rcvdAddrType := addr.HostAddrType(header[len(cookie)])
+	length := int(common.Order.Uint32(header[len(cookie)+1 : len(cookie)+5]))
+	peekOffset += hdrLen
 
 	// Read first hop address
 	switch rcvdAddrType {
 	case addr.HostTypeNone:
 		// No first hop
 	case addr.HostTypeIPv4, addr.HostTypeIPv6, addr.HostTypeSVC:
-		addrLen, _ := addr.HostLen(rcvdAddrType)
-		// Add 2 bytes for port
-		addrBuf := make([]byte, addrLen+2)
-		read, err = io.ReadFull(conn.UnixConn, addrBuf)
-		if err != nil {
-			conn.UnixConn.Close()
-			return 0, nil, err
+		addrLenU8, _ := addr.HostLen(rcvdAddrType)
+		addrLen = int(addrLenU8)
+		// Look at 2 additional bytes for port
+		if len(peekData) < peekOffset+addrLen+2 {
+			return false, nil
 		}
+		addrBuf := peekData[peekOffset : peekOffset+addrLen+2]
 		lastHop, err = ParseAppAddr(addrBuf, rcvdAddrType)
 		if err != nil {
-			conn.UnixConn.Close()
-			return 0, nil, err
+			conn.Close()
+			return false, common.NewError("Unable to parse received address", "err", err)
 		}
+		peekOffset += addrLen + 2
 	default:
-		conn.UnixConn.Close()
-		return 0, nil, common.NewError("Unknown address type", "type", rcvdAddrType)
+		conn.Close()
+		return false, common.NewError("Unknown address type", "type", rcvdAddrType)
 	}
 
 	// Read the payload
-	if int(length) > len(buf) {
-		conn.UnixConn.Close()
-		return 0, nil, common.NewError("Insufficient buffer size", "have", len(buf),
-			"need", length)
+	if len(peekData) < peekOffset+length {
+		return false, nil
 	}
-	read, err = io.ReadFull(conn.UnixConn, buf[:length])
-	if err != nil {
-		conn.UnixConn.Close()
-		return 0, nil, err
-	}
-	return read, lastHop, nil
+	n := copy(msg.buf, peekData[peekOffset:peekOffset+length])
+	msg.copied = n
+	msg.addr = lastHop
+	conn.readHead += peekOffset + length
+	return true, nil
 }
 
 // Write blocks until it sends buf as a single framed message through conn.
@@ -279,14 +304,76 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 // of bytes is always len(buf).
 func (conn *Conn) Write(buf []byte) (int, error) {
 	a, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
-	return conn.WriteTo(buf, AppAddr{Addr: a, Port: 0})
+	n, err := conn.WriteTo(buf, AppAddr{Addr: a, Port: 0})
+	return n, err
 }
 
 // WriteTo works similarly to Write. In addition to Write, the ReliableSocket message header
 // will contain the address and port information in dst.
 func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
+	msgs := make([]Msg, 1)
+	msgs[0].buf = buf
+	msgs[0].addr = &dst
+	for {
+		n, err := conn.WriteN(msgs)
+		if err != nil {
+			return 0, err
+		}
+		if n != 0 {
+			// FIXME(scrye): if the message was succesfully written,
+			// we want to return from the function. If the message
+			// could not be written, repeatedly try to write until
+			// it works. This is far from optimal, but we will rarely
+			// block on writes anyway.
+			break
+		}
+	}
+	return len(buf), nil
+}
+
+// WriteN is an extension of Write that allows callers to send multiple
+// messages through a ReliableSocket using a reduced number of system calls.
+// WriteN copies data sequentially from each buf slice contained in msgs.
+// Destination address information can be specified in the addr field of each
+// message. If the address is nil, then a HostTypeNone address is assumed. The
+// function returns immediately if writing the next packet would block, and
+// does not guarantee that at least one packet is written.  Each buffer is
+// copied in its entirety (similarly to datagram oriented protocols); the
+// copied field of struct Msg is reset to 0 for written packets.  WriteN
+// returns the number of packets written.
+func (conn *Conn) WriteN(bufs []Msg) (int, error) {
+	copiedMsgs := 0
+	index := 0
+	for _, msg := range bufs {
+		if msg.addr == nil {
+			conn.computeHeader(msg.buf, &NilAppAddr)
+		} else {
+			conn.computeHeader(msg.buf, msg.addr)
+		}
+		if len(conn.sendBuf[index:]) < len(conn.header)+len(msg.buf) {
+			break
+		}
+		index += copy(conn.sendBuf[index:], conn.header)
+		index += copy(conn.sendBuf[index:], msg.buf)
+		copiedMsgs += 1
+		msg.copied = 0
+	}
+
+	// Flush everything, we'll rarely block on writes anyway
+	copied := 0
+	for copied < index {
+		n, err := conn.UnixConn.Write(conn.sendBuf[copied:index])
+		if err != nil {
+			return 0, common.NewError("Error writing to UNIX socket", "err", err)
+		}
+		copied += n
+	}
+	return copiedMsgs, nil
+}
+
+func (conn *Conn) computeHeader(buf []byte, dst *AppAddr) error {
 	if len(buf) > MaxLength {
-		return 0, common.NewError("Payload exceed max length", "len", len(buf), "max", MaxLength)
+		return common.NewError("Payload exceeds max length", "len", len(buf), "max", MaxLength)
 	}
 
 	var destLength int
@@ -295,30 +382,19 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 	case addr.HostTypeIPv4, addr.HostTypeIPv6, addr.HostTypeSVC:
 		destLength += dst.Len()
 	default:
-		return 0, common.NewError("Unknown address type", "type", dst.Addr.Type())
+		return common.NewError("Unknown address type", "type", dst.Addr.Type())
 	}
 
-	header := make([]byte, hdrLen+destLength)
-	copy(header, cookie)
+	conn.header = conn.header[:hdrLen+destLength]
+	copy(conn.header, cookie)
 	offset := len(cookie)
-	header[offset] = byte(dst.Addr.Type())
+	conn.header[offset] = byte(dst.Addr.Type())
 	offset++
-	common.Order.PutUint32(header[offset:offset+4], uint32(len(buf)))
+	common.Order.PutUint32(conn.header[offset:offset+4], uint32(len(buf)))
 	offset += 4
-	copy(header[offset:], dst.Pack())
+	copy(conn.header[offset:], dst.Pack())
 	offset += dst.Len()
-
-	_, err := io.Copy(conn.UnixConn, bytes.NewReader(header))
-	if err != nil {
-		conn.UnixConn.Close()
-		return 0, err
-	}
-	written, err := io.Copy(conn.UnixConn, bytes.NewReader(buf))
-	if err != nil {
-		conn.UnixConn.Close()
-		return 0, err
-	}
-	return int(written), nil
+	return nil
 }
 
 func (conn *Conn) String() string {
@@ -347,7 +423,7 @@ func (listener *Listener) Accept() (*Conn, error) {
 	if err != nil {
 		return nil, common.NewError("Unable to accept", "listener", listener)
 	}
-	return &Conn{c.(*net.UnixConn)}, nil
+	return newConn(c), nil
 }
 
 func (listener *Listener) String() string {
