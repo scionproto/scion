@@ -20,9 +20,10 @@ import (
 
 const (
 	// LineLen is the number of bytes that all SCION headers are padded to a multiple of.
-	LineLen = 8
-	MinMTU  = 1280
-	MaxMTU  = (1 << 16) - 1
+	LineLen       = 8
+	MaxAddrHdrLen = 40
+	MinMTU        = 1280
+	MaxMTU        = (1 << 16) - 1
 )
 
 var Order = binary.BigEndian
