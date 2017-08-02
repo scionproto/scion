@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import random
 
 # SCION
 from lib.packet.svc import SVCType
@@ -63,12 +64,14 @@ class LocalPathServer(PathServer):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
-    def path_resolution(self, req, meta, new_request=True, logger=None):
+    def path_resolution(self, req, meta, new_request=True, logger=None, req_id=None):
         """
         Handle generic type of a path request.
         """
+        # Random ID for a request.
+        req_id = req_id or random.randint(0, 2**32 - 1)
         if logger is None:
-            logger = self.get_request_logger(req, meta)
+            logger = self.get_request_logger(req, req_id, meta)
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
@@ -89,7 +92,7 @@ class LocalPathServer(PathServer):
             return True
         if new_request:
             self._request_paths_from_core(req, logger)
-            self.pending_req[(dst_ia, req.p.flags.sibra)].append((req, meta, logger))
+            self.pending_req[(dst_ia, req.p.flags.sibra)][req_id] = (req, meta, logger)
 
         return False
 

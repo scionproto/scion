@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import random
 import threading
 from collections import defaultdict
 from abc import ABCMeta, abstractmethod
@@ -99,7 +98,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         core_labels = {**self._labels, "type": "core"} if self._labels else None
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=down_labels)
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=core_labels)
-        self.pending_req = defaultdict(list)  # Dict of pending requests.
+        self.pending_req = defaultdict(lambda: ExpiringDict(100, 2))  # Dict of pending requests.
         self.pen_req_lock = threading.Lock()
         self._request_logger = None
         # Used when l/cPS doesn't have up/dw-path.
@@ -327,13 +326,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         with self.pen_req_lock:
             for key in self.pending_req:
                 to_remove = []
-                for req, meta, logger in self.pending_req[key]:
-                    if self.path_resolution(req, meta, new_request=False, logger=logger):
+                for req_id, (req, meta, logger) in self.pending_req[key].items():
+                    if self.path_resolution(
+                            req, meta, new_request=False, logger=logger, req_id=req_id):
                         meta.close()
-                        to_remove.append((req, meta, logger))
+                        to_remove.append(req_id)
                 # Clean state.
-                for req_meta in to_remove:
-                    self.pending_req[key].remove(req_meta)
+                for req_id in to_remove:
+                    self.pending_req[key].pop(req_id)
                 if not self.pending_req[key]:
                     rem_keys.append(key)
             for key in rem_keys:
@@ -452,7 +452,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             yield(pcbs)
 
     @abstractmethod
-    def path_resolution(self, path_request, meta, new_request=True, logger=None):
+    def path_resolution(self, path_request, meta, new_request=True, logger=None, req_id=None):
         """
         Handles all types of path request.
         """
@@ -528,15 +528,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             "{id=%(id)s, req=%(req)s, from=%(from)s}")
         add_formatter('RequestLogger', formatter)
 
-    def get_request_logger(self, req, meta):
+    def get_request_logger(self, req, req_id, meta):
         """
         Returns a logger adapter for 'req'.
         """
-        # Random ID to relate log entries for a request.
-        req_id = "%08x" % random.randint(0, 2**32 - 1)
         # Create a logger for the request to log with context.
         return logging.LoggerAdapter(
-            self._request_logger, {"id": req_id, "req": req.short_desc(), "from": str(meta)})
+            self._request_logger,
+            {"id": "%08x" % req_id, "req": req.short_desc(), "from": str(meta)})
 
     def _init_metrics(self):
         super()._init_metrics()

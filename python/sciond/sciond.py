@@ -616,3 +616,12 @@ class SCIONDaemon(SCIONElement):
             if seg:
                 core_segs.extend(seg)
         return core_segs
+
+    def run(self):
+        """
+        Run an instance of the SCION daemon.
+        """
+        threading.Thread(
+            target=thread_safety_net, args=(self._check_trc_cert_reqs,),
+            name="Elem.check_trc_cert_reqs", daemon=True).start()
+        super().run()
