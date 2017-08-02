@@ -32,6 +32,7 @@ from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
     HASHTREE_TTL,
+    PATH_REQ_TOUT,
     PATH_SERVICE,
 )
 from lib.log import add_formatter, Rfc3339Formatter
@@ -98,7 +99,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         core_labels = {**self._labels, "type": "core"} if self._labels else None
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=down_labels)
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=core_labels)
-        self.pending_req = defaultdict(lambda: ExpiringDict(100, 2))  # Dict of pending requests.
+        # Dict of pending requests.
+        self.pending_req = defaultdict(lambda: ExpiringDict(1000, PATH_REQ_TOUT))
         self.pen_req_lock = threading.Lock()
         self._request_logger = None
         # Used when l/cPS doesn't have up/dw-path.
@@ -325,15 +327,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Serve pending requests.
         with self.pen_req_lock:
             for key in self.pending_req:
-                to_remove = []
                 for req_id, (req, meta, logger) in self.pending_req[key].items():
                     if self.path_resolution(
                             req, meta, new_request=False, logger=logger, req_id=req_id):
                         meta.close()
-                        to_remove.append(req_id)
-                # Clean state.
-                for req_id in to_remove:
-                    self.pending_req[key].pop(req_id)
+                        self.pending_req[key].pop(req_id)
                 if not self.pending_req[key]:
                     rem_keys.append(key)
             for key in rem_keys:

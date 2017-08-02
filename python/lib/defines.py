@@ -133,6 +133,7 @@ PATH_FLAG_SIBRA = "SIBRA"
 
 MAX_HOST_ADDR_LEN = 16
 
+
 # Time per Epoch
 HASHTREE_EPOCH_TIME = 10
 # The tolerable error in epoch in seconds.
@@ -148,3 +149,6 @@ HASHTREE_UPDATE_WINDOW = HASHTREE_TTL / 3
 TCP_ACCEPT_POLLING_TOUT = 1.0
 # SCION control-plane TCP connection timeout.
 TCP_TIMEOUT = 5.0
+
+# Max time for a path lookup to succeed/fail.
+PATH_REQ_TOUT = 2

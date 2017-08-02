@@ -28,6 +28,7 @@ from external.expiring_dict import ExpiringDict
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     PATH_FLAG_SIBRA,
+    PATH_REQ_TOUT,
     PATH_SERVICE,
     SCIOND_API_SOCKDIR,
 )
@@ -80,8 +81,6 @@ class SCIONDaemon(SCIONElement):
     """
     The SCION Daemon used for retrieving and combining paths.
     """
-    # Max time for a path lookup to succeed/fail.
-    PATH_REQ_TOUT = 2
     MAX_REQS = 1024
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
@@ -100,7 +99,7 @@ class SCIONDaemon(SCIONElement):
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=core_labels)
         self.peer_revs = RevCache()
         # Keep track of requested paths.
-        self.requested_paths = ExpiringDict(self.MAX_REQS, self.PATH_REQ_TOUT)
+        self.requested_paths = ExpiringDict(self.MAX_REQS, PATH_REQ_TOUT)
         self.req_path_lock = threading.Lock()
         self._api_sock = None
         self.daemon_thread = None
@@ -406,7 +405,7 @@ class SCIONDaemon(SCIONElement):
                     self.requested_paths[key] = threading.Event()
                     self._fetch_segments(key)
                 e = self.requested_paths[key]
-            if not e.wait(self.PATH_REQ_TOUT):
+            if not e.wait(PATH_REQ_TOUT):
                 logging.error("Query timed out for %s", dst_ia)
                 return [], SCIONDPathReplyError.PS_TIMEOUT
             paths = self.path_resolution(dst_ia, flags=flags)
