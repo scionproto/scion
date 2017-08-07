@@ -117,6 +117,8 @@ static int data_v4_socket;
 static int data_v6_socket;
 static int app_socket;
 
+static chk_input *chk_udp_input;
+
 static zlog_category_t *zc;
 
 void handle_signal(int signal);
@@ -199,6 +201,8 @@ int main(int argc, char **argv)
         zlog_fatal(zc, "setrlimit(): %s", strerror(errno));
         return -1;
     }
+    /* Allocate for later use */
+    chk_udp_input = mk_chk_input(UDP_CHK_INPUT_SIZE);
 
     zlog_info(zc, "dispatcher with zlog starting up");
 
@@ -917,7 +921,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
     int sock;
 
-    uint16_t checksum = scion_udp_checksum(buf);
+    uint16_t checksum = scion_udp_checksum(buf, chk_udp_input);
     if (checksum != udp->checksum) {
         zlog_error(zc, "Bad UDP checksum in packet to %s. Expected:%04x Got:%04x",
                 addr_to_str(dst->addr, dst->addr_type, NULL), ntohs(udp->checksum), ntohs(checksum));

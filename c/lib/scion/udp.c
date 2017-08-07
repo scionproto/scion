@@ -30,12 +30,14 @@ void build_scion_udp(uint8_t *buf, uint16_t src_port, uint16_t dst_port, uint16_
  * buf: Pointer to start of SCION packet
  * return value: Checksum value
  */
-uint16_t scion_udp_checksum(uint8_t *buf)
+uint16_t scion_udp_checksum(uint8_t *buf, chk_input *input)
 {
-    chk_input *input = mk_chk_input(5);
     SCIONUDPHeader *udp_hdr;
     uint16_t l4_type;
-    uint16_t payload_len, ret, blank_sum = 0;
+    uint16_t payload_len, blank_sum = 0;
+
+    // Reset input index to 0, to allow simple re-use by callers.
+    input->idx = 0;
 
     // Address header (without padding)
     chk_add_chunk(input, buf + DST_IA_OFFSET, get_addrs_len(buf));
@@ -55,21 +57,7 @@ uint16_t scion_udp_checksum(uint8_t *buf)
     payload_len = ntohs(udp_hdr->len) - sizeof(SCIONUDPHeader);
     chk_add_chunk(input, ptr, payload_len);
 
-    ret = checksum(input);
-    rm_chk_input(input);
-    return ret;
-}
-
-/*
- * Calculate and update checksum field of SCION UDP header
- * buf: Pointer to start of SCION packet
- */
-void update_scion_udp_checksum(uint8_t *buf)
-{
-    uint8_t *l4ptr = buf;
-    get_l4_proto(&l4ptr);
-    SCIONUDPHeader *scion_udp_hdr = (SCIONUDPHeader *)l4ptr;
-    scion_udp_hdr->checksum = scion_udp_checksum(buf);
+    return checksum(input);
 }
 
 /*

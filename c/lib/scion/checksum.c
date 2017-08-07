@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include "checksum.h"
 
-void _add_sum(uint32_t *sum, uint16_t val);
-
 /*
  * Calculate RFC1071 checksum of supplied data chunks. The use of a gather
  * mechanism means there's 0 copies required to calculate the checksum.
@@ -13,6 +11,7 @@ void _add_sum(uint32_t *sum, uint16_t val);
  */
 uint16_t checksum(chk_input *in) {
     int i;
+    /* As the maximum packet size is 65535B, the 32-bit accumulator cannot overflow. */
     uint32_t sum = 0;
 
     // Iterate over the chunks
@@ -24,24 +23,20 @@ uint16_t checksum(chk_input *in) {
             continue;
         }
         for (; j < len - 1; j+=2) {
-            _add_sum(&sum, ntohs(*((uint16_t *)(ptr + j))));
+            sum += *((uint16_t *)(ptr + j));
         }
-        // If there's an odd number of bytes, pad chunk with a 0
+        // Add left-over byte, if any
         if (j != len) {
-            _add_sum(&sum, ((uint16_t)ptr[j]) << 8);
+            sum += ptr[j];
         }
     }
-    // Return 16bit ones-complement.
-    return htons(~sum & 0xFFFF);
-}
+    // Fold 32-bit sum to 16 bits
+    while (sum > 0xFFFF) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
 
-/*
- * Handle bit-carry operation during addition.
- */
-void _add_sum(uint32_t *sum, uint16_t val) {
-    *sum += val;
-    if (*sum > 0xFFFF)
-        *sum -= 0xFFFF;
+    // Return ones-complement.
+    return ~sum;
 }
 
 /*
