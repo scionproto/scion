@@ -59,11 +59,7 @@ func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) (bool, prometheus.Labels) {
 	if ifInfo, ex := bwe.Interfaces[*ifid]; ex {
 		srcIA, _ := rp.SrcIA()
 		length := len(rp.Raw)
-		if canForward, labels := ifInfo.canForward(srcIA, length); canForward {
-			return true, labels
-		} else {
-			return false, labels
-		}
+		return ifInfo.canForward(srcIA, length)
 	}
 	return true, nil
 }
@@ -82,7 +78,7 @@ func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) (bool, prom
 
 // getBWInfo() checks if there is a moving average for addr and returns it. If not it
 // returns the moving average for unknown ASes.
-func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) ASEInformation {
+func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) (ASEInformation) {
 	info, exists := c.avgs[addr.Uint32()]
 	if exists {
 		return *info
@@ -98,7 +94,7 @@ func (info *ASEInformation) canAdd() bool {
 	return info.movAvg.getAverage()*8 < info.maxBw
 }
 
-// addPktToAvg() adds the length in bytes of the packet to the moving average
+// addPktToAvg() adds the length of the packet in bytes to the moving average
 func (info *ASEInformation) addPktToAvg(length int) {
 	if info.maxBw != -1 {
 		info.movAvg.add(length)
