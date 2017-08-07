@@ -42,7 +42,7 @@
 FilterSocket *filter_socket = NULL;
 #endif
 
-#define DSTADDR_DATASIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)))
+#define CMSG_CTRL_SIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)) + CMSG_SPACE(sizeof(uint32_t)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
 #define DSTV6ADDR(x) (((struct in6_pktinfo *)CMSG_DATA(x))->ipi6_addr)
 
@@ -138,6 +138,7 @@ void reply(int sock, int port);
 static inline uint16_t get_next_port();
 
 void handle_data(int v6);
+void count_drops(int v6, uint32_t new_drops);
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
 void deliver_tcp(uint8_t *buf, int len, HostAddr *from);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
@@ -312,10 +313,12 @@ int set_sockopts()
     int res = 0;
     if (data_v4_socket > 0) {
         res |= setsockopt(data_v4_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        res |= setsockopt(data_v4_socket, SOL_SOCKET, SO_RXQ_OVFL, &optval, sizeof(optval));
         res |= setsockopt(data_v4_socket, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval));
     }
     if (data_v6_socket > 0) {
         res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        res |= setsockopt(data_v6_socket, SOL_SOCKET, SO_RXQ_OVFL, &optval, sizeof(optval));
         res |= setsockopt(data_v6_socket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &optval, sizeof(optval));
         res |= setsockopt(data_v6_socket, SOL_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
     }
@@ -754,7 +757,7 @@ void handle_data(int v6)
     uint8_t buf[DATA_BUFSIZE];
 
     struct msghdr msg;
-    char control_buf[DSTADDR_DATASIZE];
+    char control_buf[CMSG_CTRL_SIZE];
     struct cmsghdr *cmsgptr;
     struct iovec iov[1];
 
@@ -766,7 +769,7 @@ void handle_data(int v6)
     msg.msg_namelen = sizeof(src);
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
-    msg.msg_control = control_buf;;
+    msg.msg_control = control_buf;
     msg.msg_controllen = sizeof(control_buf);
 
     int sock = v6 ? data_v6_socket : data_v4_socket;
@@ -781,9 +784,12 @@ void handle_data(int v6)
             dst.addr_type = ADDR_IPV4_TYPE;
             memcpy(dst.addr, &(DSTADDR(cmsgptr)), ADDR_IPV4_LEN);
         }
-        if (cmsgptr->cmsg_level == IPPROTO_IPV6 && cmsgptr->cmsg_type == IPV6_PKTINFO) {
+        else if (cmsgptr->cmsg_level == IPPROTO_IPV6 && cmsgptr->cmsg_type == IPV6_PKTINFO) {
             dst.addr_type = ADDR_IPV6_TYPE;
             memcpy(dst.addr, &(DSTV6ADDR(cmsgptr)), ADDR_IPV6_LEN);
+        }
+        else if (cmsgptr->cmsg_level == SOL_SOCKET && cmsgptr->cmsg_type == SO_RXQ_OVFL) {
+            count_drops(v6, *(uint32_t *)CMSG_DATA(cmsgptr));
         }
     }
 
@@ -832,6 +838,36 @@ void handle_data(int v6)
             break;
     }
 }
+
+void count_drops(int v6, uint32_t new_drops) {
+    // Despite what the man-page says, SO_RXQ_OVFL does _not_ give a relative
+    // number of packets dropped, it actually gives an absolute value (modulo
+    // the counter wrapping), so we need to keep track of the previous values
+    // to calculate the change, if any.
+    //
+    // Last values reported by the kernel
+    static uint64_t last_v4;
+    static uint64_t last_v6;
+    // Which value to compare against, and update
+    uint64_t *last = v6? &last_v6: &last_v4;
+    static uint64_t drop_count; // Number of drops since the last report
+    static time_t last_report; // Time of the last report
+    if (new_drops < *last) {
+        // Handle wrapping.
+        drop_count += (new_drops + UINT32_MAX) - *last;
+    } else {
+        drop_count += new_drops - *last;
+    }
+    *last = new_drops;
+    time_t now = time(NULL);
+    // Only report if it's a new second, and packets have been dropped since the last report.
+    if (now != last_report && drop_count > 0) {
+        zlog_warn(zc, "Dropped UDP packets: %lu", drop_count);
+        last_report = now;
+        drop_count = 0;
+    }
+}
+
 
 void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
 {
