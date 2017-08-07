@@ -59,7 +59,11 @@ func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) (bool, prometheus.Labels) {
 	if ifInfo, ex := bwe.Interfaces[*ifid]; ex {
 		srcIA, _ := rp.SrcIA()
 		length := len(rp.Raw)
-		return ifInfo.canForward(srcIA, length)
+		if flag, labels := ifInfo.canForward(srcIA, length); flag {
+			return true, labels
+		} else {
+			return false, labels
+		}
 	}
 	return true, nil
 }
