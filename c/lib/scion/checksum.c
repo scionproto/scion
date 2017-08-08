@@ -18,16 +18,17 @@ uint16_t checksum(chk_input *in) {
     for (i=0; i < in->total; i++){
         int j = 0;
         int len = in->len[i];
-        uint8_t *ptr = in->ptr[i];
+        int len2 = len/2;
+        uint16_t *ptr = (uint16_t *)(in->ptr[i]);
         if (len == 0) {
             continue;
         }
-        for (; j < len - 1; j+=2) {
-            sum += *((uint16_t *)(ptr + j));
+        for (; j < len2; j++) {
+            sum += ptr[j];
         }
         // Add left-over byte, if any
-        if (j != len) {
-            sum += ptr[j];
+        if (len % 2 != 0) {
+            sum += in->ptr[i][len-1];
         }
     }
     // Fold 32-bit sum to 16 bits
