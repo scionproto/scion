@@ -37,6 +37,7 @@ uint16_t checksum(chk_input *in) {
     }
 
     // Return ones-complement.
+    // XXX(kormat): this value is in network-byte order.
     return ~sum;
 }
 
