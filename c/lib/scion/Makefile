@@ -4,11 +4,12 @@ CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC -O2
 LDFLAGS ?= -shared -Wl,-z,defs
 
-SRCS = $(wildcard *.c)
+SRCS = $(filter-out $(BINARY).c, $(wildcard *.c))
 OBJS = $(SRCS:.c=.o)
 STATIC = libscion.a
 DYNAMIC = libscion.so
-TARGETS = $(STATIC) $(DYNAMIC)
+BINARY = checksum_bench
+TARGETS = $(STATIC) $(DYNAMIC) $(BINARY)
 PREFIX ?= /usr/local
 
 all: $(TARGETS)
@@ -27,6 +28,9 @@ $(STATIC): $(OBJS)
 
 $(DYNAMIC): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+
+checksum_bench: checksum_bench.c libscion.a
+	$(CC) $(CFLAGS) -L. -lscion -MMD -o $@ $<
 
 install: .installstamp
 
