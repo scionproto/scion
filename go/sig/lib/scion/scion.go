@@ -2,7 +2,6 @@
 package scion
 
 import (
-	"encoding/binary"
 	"net"
 
 	log "github.com/inconshreveable/log15"
@@ -19,6 +18,7 @@ import (
 
 const (
 	RecvBufferSize = 1 << 16
+	SendBufferSize = 1 << 16
 )
 
 type SCIONNet struct {
@@ -60,7 +60,8 @@ func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port 
 		laddr:      laddr,
 		raddr:      raddr,
 		pm:         c.pm,
-		recvBuffer: make([]byte, RecvBufferSize)}
+		recvBuffer: make(common.RawBytes, RecvBufferSize),
+		sendBuffer: make(common.RawBytes, SendBufferSize)}
 	return sconn, nil
 }
 
@@ -82,7 +83,8 @@ func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, 
 		Conn:       conn,
 		laddr:      laddr,
 		pm:         c.pm,
-		recvBuffer: make([]byte, RecvBufferSize)}
+		recvBuffer: make([]byte, RecvBufferSize),
+		sendBuffer: make([]byte, SendBufferSize)}
 	return sconn, nil
 }
 
@@ -91,7 +93,8 @@ type SCIONConn struct {
 	laddr      *SCIONAppAddr
 	raddr      *SCIONAppAddr
 	pm         *PathManager
-	recvBuffer []byte
+	recvBuffer common.RawBytes
+	sendBuffer common.RawBytes
 }
 
 func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAppAddr, error) {
@@ -191,71 +194,75 @@ func (c *SCIONConn) Close() error {
 	return nil
 }
 
-// createUDPPacket encapsulates a payload with a L4 UDP header and a L3 SCION header
-func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr, path sciond.PathReplyEntry) (common.RawBytes, error) {
-	// SCION Version 0 common headers are 8-byte long
-	commonHeaderSize := 8
-	commonHeader := make([]byte, commonHeaderSize)
-	commonHeader[0] |= (uint8(raddr.host.Type()) >> 2) << 4
-	commonHeader[1] |= uint8(raddr.host.Type()) << 6
-	commonHeader[1] |= uint8(c.laddr.host.Type())
-
-	addrHeaderSize := raddr.host.Size() + c.laddr.host.Size() + raddr.ia.SizeOf() + c.laddr.ia.SizeOf()
-	addrHeader := make([]byte, addrHeaderSize)
-	// Pad to multiple of LineLen, 40 is max address header as defined by SCION specification
-	if addrHeaderSize > 40 {
-		return nil, common.NewError("Invalid address header size", "size", addrHeaderSize)
-	}
-	addrHeaderSize += (40 - addrHeaderSize) % 8
-
+func (c *SCIONConn) createUDPPacket(b []byte, raddr *SCIONAppAddr,
+	path sciond.PathReplyEntry) (common.RawBytes, error) {
+	// Compute header lengths
+	addrHdrLen := raddr.host.Size() + c.laddr.host.Size() + raddr.ia.SizeOf() +
+		c.laddr.ia.SizeOf()
+	addrHdrLen += util.CalcPadding(addrHdrLen, common.LineLen)
 	// We do not include the L4 header size in the total header size
-	totalHeaderSize := commonHeaderSize + addrHeaderSize + len(path.Path.FwdPath)
-	totalPacketSize := totalHeaderSize + l4.UDPLen + len(b)
+	hdrLen := spkt.CmnHdrLen + addrHdrLen + len(path.Path.FwdPath)
+	pktLen := hdrLen + l4.UDPLen + len(b)
 
-	binary.BigEndian.PutUint16(commonHeader[2:4], uint16(totalPacketSize))
-	commonHeader[4] = uint8(totalHeaderSize) / common.LineLen
-
+	// Prepare forwarding path info
 	// Create the packet using initial IF/HF pointers
 	_, hopIdx, err := initIndices(path.Path.FwdPath)
 	if err != nil {
 		return nil, err
 	}
 
-	commonHeader[5] = uint8(addrHeaderSize+commonHeaderSize) / common.LineLen
-	commonHeader[6] = uint8(addrHeaderSize+commonHeaderSize)/common.LineLen + hopIdx
+	poffset := 0
+	// Create Common Header
+	commonHeader := c.sendBuffer[:spkt.CmnHdrLen]
+	common.Order.PutUint16(commonHeader[:2], (uint16(spkt.SCIONVersion)<<12)+
+		(uint16(raddr.host.Type())<<6)+uint16(c.laddr.host.Type()))
+	common.Order.PutUint16(commonHeader[2:4], uint16(pktLen))
+	commonHeader[4] = uint8(hdrLen) / common.LineLen
+	commonHeader[5] = uint8(addrHdrLen+spkt.CmnHdrLen) / common.LineLen
+	commonHeader[6] = uint8(addrHdrLen+spkt.CmnHdrLen)/common.LineLen + hopIdx
 	commonHeader[7] = uint8(common.L4UDP)
+	poffset += spkt.CmnHdrLen
 
+	// Create Address Header
+	addrHeader := c.sendBuffer[poffset : poffset+addrHdrLen]
 	// Pack the address header
 	offset := 0
-	raddr.ia.Write(addrHeader[offset : offset+raddr.ia.SizeOf()])
+	raddr.ia.Write(addrHeader[offset:])
 	offset += raddr.ia.SizeOf()
-	c.laddr.ia.Write(addrHeader[offset : offset+c.laddr.ia.SizeOf()])
+	c.laddr.ia.Write(addrHeader[offset:])
 	offset += c.laddr.ia.SizeOf()
-	copy(addrHeader[offset:offset+raddr.host.Size()], raddr.host.Pack())
+	copy(addrHeader[offset:], raddr.host.Pack())
 	offset += raddr.host.Size()
-	copy(addrHeader[offset:offset+c.laddr.host.Size()], c.laddr.host.Pack())
-	// And the padding, if it exists, contains leftover zeroes
+	copy(addrHeader[offset:], c.laddr.host.Pack())
+	offset += c.laddr.host.Size()
+	// Zero memory padding because we recycle the buffer
+	zeroMemory(addrHeader[offset:])
+	poffset += addrHdrLen
 
-	// Pack the L4 header
-	// TODO(scrye): Might want to refactor L4 stuff out of lib/common?
-	udpHeader := make([]byte, l4.UDPLen)
+	// Copy Forwarding Path
+	copy(c.sendBuffer[poffset:], path.Path.FwdPath)
+	poffset += len(path.Path.FwdPath)
 
-	binary.BigEndian.PutUint16(udpHeader[0:2], c.laddr.port)
-	binary.BigEndian.PutUint16(udpHeader[2:4], raddr.port)
-	binary.BigEndian.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
-
-	// Compute the checksum for SCION L4
-	binary.BigEndian.PutUint16(udpHeader[6:8], util.Checksum(addrHeader,
+	// Create SCION/UDP Header
+	udpHeader := c.sendBuffer[poffset : poffset+l4.UDPLen]
+	common.Order.PutUint16(udpHeader[:2], c.laddr.port)
+	common.Order.PutUint16(udpHeader[2:4], raddr.port)
+	common.Order.PutUint16(udpHeader[4:6], uint16(len(b))+l4.UDPLen)
+	common.Order.PutUint16(udpHeader[6:8], util.Checksum(addrHeader,
 		[]byte{0, commonHeader[7]}, udpHeader[:6], b))
+	poffset += l4.UDPLen
 
-	packet := make([]byte, 0)
-	packet = append(packet, commonHeader...)
-	packet = append(packet, addrHeader...)
-	packet = append(packet, path.Path.FwdPath...)
-	packet = append(packet, udpHeader...)
-	packet = append(packet, b...)
+	// Copy payload
+	copy(c.sendBuffer[poffset:], b)
+	poffset += len(b)
 
-	return packet, nil
+	return c.sendBuffer[:poffset], nil
+}
+
+func zeroMemory(b common.RawBytes) {
+	for i := 0; i < len(b); i++ {
+		b[i] = 0
+	}
 }
 
 // ScnPktFromRaw parses an in-memory raw packet, useful when SCION packets are transported
