@@ -8,11 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/netsec-ethz/scion/go/lib/log"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/control"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"
@@ -47,8 +46,8 @@ var (
 
 func main() {
 	flag.Parse()
-	liblog.Setup("sig")
-	defer liblog.PanicLog()
+	log.Setup("sig")
+	defer log.PanicLog()
 	setupSignals()
 
 	// Export prometheus metrics.
@@ -111,7 +110,7 @@ func setupSignals() {
 	go func() {
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}()
 }

@@ -7,7 +7,8 @@ import (
 
 	"github.com/abiosoft/ishell"
 	"github.com/chzyer/readline"
-	log "github.com/inconshreveable/log15"
+
+	log "github.com/netsec-ethz/scion/go/lib/log"
 
 	"github.com/netsec-ethz/scion/go/sig/control"
 )

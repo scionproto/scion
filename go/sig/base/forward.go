@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/netsec-ethz/scion/go/lib/log"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/lib/scion"

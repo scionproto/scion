@@ -8,7 +8,7 @@ import (
 	"net"
 	"net/http"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/netsec-ethz/scion/go/lib/log"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

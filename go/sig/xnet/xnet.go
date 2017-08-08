@@ -6,9 +6,10 @@ import (
 	"net"
 	"os/exec"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
+
+	log "github.com/netsec-ethz/scion/go/lib/log"
 )
 
 const SIGRTable = 11
