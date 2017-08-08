@@ -4,8 +4,6 @@
 #include <unistd.h>
 #include "scion.h"
 
-#define SIMPLE_COUNT 500000000
-#define COMPLEX_COUNT 50000000
 #define RUN_TIME 15
 
 uint8_t data[4096];
@@ -42,7 +40,7 @@ void simple_test() {
         chk_add_chunk(input, data, sizeof(data));
         checksum(input);
     }
-    printf("simple_test(%ld = %ldB): %ld in %ds (%.2lfM call/s)\n",
+    printf("simple_test(%ld = %ldB): %ld in %ds (%.2lfM calls/s)\n",
             sizeof(data), sizeof(data), i, RUN_TIME, ((double)i/RUN_TIME)/1000000);
 }
 
@@ -59,6 +57,6 @@ void complex_test() {
         chk_add_chunk(input, &data[30], 1391);
         checksum(input);
     }
-    printf("complex_test(8+8+2+12+1391 = 1421B): %ld in %ds (%.2lfM call/s)\n",
+    printf("complex_test(8+8+2+12+1391 = 1421B): %ld in %ds (%.2lfM calls/s)\n",
             i, RUN_TIME, ((double)i/RUN_TIME)/1000000);
 }
