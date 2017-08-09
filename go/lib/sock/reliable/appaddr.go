@@ -9,33 +9,28 @@ var (
 	NilAppAddr AppAddr
 )
 
+func init() {
+	a, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
+	NilAppAddr = AppAddr{Addr: a, Port: 0}
+}
+
 // AppAddr is a L3 + L4 address container, it currently only supports UDP for L4.
 type AppAddr struct {
 	Addr addr.HostAddr
 	Port uint16
 }
 
-func (a *AppAddr) packAddr() []byte {
-	return a.Addr.Pack()
-}
-
-func (a *AppAddr) packPort() []byte {
-	if a.Addr.Type() == addr.HostTypeNone {
-		return nil
+func (a *AppAddr) PutRaw(buf common.RawBytes) (int, error) {
+	if len(buf) < a.Len() {
+		return 0, common.NewError("Unable to write AppAddr, insufficient size",
+			"have", len(buf), "want", a.Len())
 	}
-	buf := make([]byte, 2)
-	common.Order.PutUint16(buf, a.Port)
-	return buf
+	a.addrPutRaw(buf)
+	a.portPutRaw(buf[a.Addr.Size():])
+	return a.Len(), nil
 }
 
-func (a *AppAddr) Pack() []byte {
-	buf := make([]byte, 0, a.Len())
-	buf = append(buf, a.packAddr()...)
-	buf = append(buf, a.packPort()...)
-	return buf
-}
-
-func ParseAppAddr(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, error) {
+func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, error) {
 	var a AppAddr
 	// NOTE: cerr is used to avoid nil stored in interface issue
 	var cerr *common.Error
@@ -65,7 +60,13 @@ func (a *AppAddr) Len() int {
 	return a.Addr.Size() + 2
 }
 
-func init() {
-	a, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
-	NilAppAddr = AppAddr{Addr: a, Port: 0}
+func (a *AppAddr) addrPutRaw(buf common.RawBytes) {
+	copy(buf, a.Addr.Pack())
+}
+
+func (a *AppAddr) portPutRaw(buf common.RawBytes) {
+	if a.Addr.Type() == addr.HostTypeNone {
+		return
+	}
+	common.Order.PutUint16(buf, a.Port)
 }
