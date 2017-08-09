@@ -2,7 +2,7 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -O2
-LDFLAGS ?= -lscion -lfilter -lpthread -lzlog -ltcpmw -llwip
+LDFLAGS ?= -lpthread -lzlog -Wl,-Bstatic -ltcpmw -llwip -lfilter -lscion -Wl,-Bdynamic
 
 LIB_DIR = ../lib
 LWIPDIR = ../../sub/lwip/src/include
@@ -22,7 +22,7 @@ clean:
 # can be recompiled if any of the included header files changed.
 -include *.d
 dispatcher: dispatcher.c
-	$(CC) $(CFLAGS) $(INC) $(LDFLAGS) -MMD -o $@ $<
+	$(CC) $(CFLAGS) $(INC) -MMD -o $@ $< $(LDFLAGS)
 
 install: $(INSTALL)
 

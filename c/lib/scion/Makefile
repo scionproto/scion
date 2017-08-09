@@ -29,8 +29,8 @@ $(STATIC): $(OBJS)
 $(DYNAMIC): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
-checksum_bench: checksum_bench.c libscion.a
-	$(CC) $(CFLAGS) -L. -lscion -MMD -o $@ $<
+checksum_bench: checksum_bench.c $(DYNAMIC)
+	$(CC) $(CFLAGS) -MMD -o $@ $< -L. -lscion
 
 install: .installstamp
 
