@@ -20,16 +20,6 @@ type AppAddr struct {
 	Port uint16
 }
 
-func (a *AppAddr) PutRaw(buf common.RawBytes) (int, error) {
-	if len(buf) < a.Len() {
-		return 0, common.NewError("Unable to write AppAddr, insufficient size",
-			"have", len(buf), "want", a.Len())
-	}
-	a.addrPutRaw(buf)
-	a.portPutRaw(buf[a.Addr.Size():])
-	return a.Len(), nil
-}
-
 func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, error) {
 	var a AppAddr
 	// NOTE: cerr is used to avoid nil stored in interface issue
@@ -53,6 +43,16 @@ func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, 
 	return &a, nil
 }
 
+func (a *AppAddr) Write(buf common.RawBytes) (int, error) {
+	if len(buf) < a.Len() {
+		return 0, common.NewError("Unable to write AppAddr, buffer too small",
+			"expected", a.Len(), "actual", len(buf))
+	}
+	a.writeAddr(buf)
+	a.writePort(buf[a.Addr.Size():])
+	return a.Len(), nil
+}
+
 func (a *AppAddr) Len() int {
 	if a.Addr.Type() == addr.HostTypeNone {
 		return a.Addr.Size()
@@ -60,11 +60,11 @@ func (a *AppAddr) Len() int {
 	return a.Addr.Size() + 2
 }
 
-func (a *AppAddr) addrPutRaw(buf common.RawBytes) {
+func (a *AppAddr) writeAddr(buf common.RawBytes) {
 	copy(buf, a.Addr.Pack())
 }
 
-func (a *AppAddr) portPutRaw(buf common.RawBytes) {
+func (a *AppAddr) writePort(buf common.RawBytes) {
 	if a.Addr.Type() == addr.HostTypeNone {
 		return
 	}

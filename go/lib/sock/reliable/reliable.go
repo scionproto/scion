@@ -142,7 +142,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	offset++
 	ia.Write(request[offset : offset+4])
 	offset += 4
-	a.portPutRaw(request[offset : offset+2])
+	a.writePort(request[offset : offset+2])
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
 		conn.Close()
@@ -150,7 +150,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	}
 	request[offset] = byte(a.Addr.Type())
 	offset++
-	a.addrPutRaw(request[offset:])
+	a.writeAddr(request[offset:])
 
 	_, err = conn.Write(request)
 	if err != nil {
@@ -344,53 +344,17 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 func (conn *Conn) WriteN(bufs []Msg) (int, error) {
 	copiedMsgs := 0
 	index := 0
-	for _, msg := range bufs {
-		var dst *AppAddr
-		if msg.Addr == nil {
-			dst = &NilAppAddr
-		} else {
-			dst = msg.Addr
+	for i := range bufs {
+		indexNew, copiedMsgsNew, err := conn.copyMsg(&bufs[i], index, copiedMsgs)
+		if err != nil {
+			return 0, err
 		}
-
-		var destLen int
-		switch dst.Addr.Type() {
-		case addr.HostTypeNone:
-		case addr.HostTypeIPv4, addr.HostTypeIPv6, addr.HostTypeSVC:
-			destLen += dst.Len()
-		default:
-			return 0, common.NewError("Unknown address type", "type", dst.Addr.Type())
-		}
-
-		// If we do not have enough space for another message, break
-		if len(conn.sendBuf[index:]) < hdrLen+destLen+len(msg.Buffer) {
-			if copiedMsgs == 0 {
-				// We are unable to fit the first message in the buffer
-				return 0, common.NewError("Unable to copy first message",
-					"details", "message too large", "bufSize",
-					len(conn.sendBuf[index:]), "want",
-					hdrLen+destLen+len(msg.Buffer))
-			}
+		if copiedMsgsNew == copiedMsgs {
+			// No space for another message
 			break
 		}
-
-		// Cookie
-		index += copy(conn.sendBuf[index:], cookie)
-		// Addr type
-		conn.sendBuf[index] = byte(dst.Addr.Type())
-		index++
-		// Payload length
-		common.Order.PutUint32(conn.sendBuf[index:], uint32(len(msg.Buffer)))
-		index += 4
-		// Addr bytes
-		dst.PutRaw(conn.sendBuf[index:])
-		index += dst.Len()
-		// Payload
-		index += copy(conn.sendBuf[index:], msg.Buffer)
-
-		copiedMsgs += 1
-		// Messages are always copied in their entirety. To avoid errors,
-		// we reset the unused Copied field to 0
-		msg.Copied = 0
+		index = indexNew
+		copiedMsgs = copiedMsgsNew
 	}
 
 	// Flush everything, we'll rarely block on writes anyway
@@ -436,4 +400,47 @@ func (listener *Listener) Accept() (*Conn, error) {
 
 func (listener *Listener) String() string {
 	return fmt.Sprintf("&{addr: %v}", listener.UnixListener.Addr())
+}
+
+func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (indexNew, copiedMsgsNew int, err error) {
+	var dst *AppAddr
+	if msg.Addr == nil {
+		dst = &NilAppAddr
+	} else {
+		dst = msg.Addr
+	}
+
+	destLen := dst.Len()
+	// If we do not have enough space for another message, break
+	if len(conn.sendBuf[index:]) < hdrLen+destLen+len(msg.Buffer) {
+		if copiedMsgs == 0 {
+			// We are unable to fit the first message in the buffer
+			return 0, 0, common.NewError("Unable to copy first message",
+				"details", "message too large", "bufSize",
+				len(conn.sendBuf[index:]), "want",
+				hdrLen+destLen+len(msg.Buffer))
+		}
+		return index, copiedMsgs, nil
+	}
+
+	// Cookie
+	index += copy(conn.sendBuf[index:], cookie)
+	// Addr type
+	conn.sendBuf[index] = byte(dst.Addr.Type())
+	index++
+	// Payload length
+	common.Order.PutUint32(conn.sendBuf[index:], uint32(len(msg.Buffer)))
+	index += 4
+	// Addr bytes
+	dst.Write(conn.sendBuf[index:])
+	index += dst.Len()
+	// Payload
+	index += copy(conn.sendBuf[index:], msg.Buffer)
+
+	copiedMsgs += 1
+	// Messages are always copied in their entirety. To avoid errors,
+	// we reset the unused Copied field to 0
+	msg.Copied = 0
+
+	return index, copiedMsgs, nil
 }
