@@ -244,7 +244,7 @@ func writeFunc(conn *Conn, data interface{}) {
 func setupNFunc() interface{} {
 	msgs := make([]Msg, 1000)
 	for i := 0; i < 1000; i++ {
-		msgs[i].buf = make([]byte, 1280)
+		msgs[i].Buffer = make([]byte, 1280)
 	}
 	return msgs
 }
@@ -334,9 +334,9 @@ func setupTestNFunc() interface{} {
 	rand.Seed(time.Now().UnixNano())
 	msgs := make([]Msg, 1000)
 	for i := 0; i < len(msgs); i++ {
-		msgs[i].buf = make([]byte, rand.Intn(1280))
-		for j := 0; j < len(msgs[i].buf); j++ {
-			msgs[i].buf[j] = byte(rand.Intn(256))
+		msgs[i].Buffer = make([]byte, rand.Intn(1280))
+		for j := 0; j < len(msgs[i].Buffer); j++ {
+			msgs[i].Buffer[j] = byte(rand.Intn(256))
 		}
 	}
 	return msgs
@@ -350,7 +350,7 @@ func testNFunc(t *testing.T, expected interface{}, have interface{}) {
 		SoMsg("Messages slice length", len(msgsY), ShouldEqual, len(msgsX))
 		for i := 0; i < len(msgsX); i++ {
 			SoMsg(fmt.Sprintf("MSG%d", i)+" buffers",
-				msgsY[i].buf[:msgsY[i].copied], ShouldResemble, msgsX[i].buf)
+				msgsY[i].Buffer[:msgsY[i].Copied], ShouldResemble, msgsX[i].Buffer)
 		}
 	})
 }
