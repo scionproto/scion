@@ -17,12 +17,22 @@ package conn
 import (
 	"fmt"
 	"net"
+	"syscall"
+	"unsafe"
 
+	log "github.com/inconshreveable/log15"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/nethack"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
+
+// There isn't a way to calculate the size of a syscall integer, so use the value that the stdlib hard-codes instead. E.g. https://golang.org/pkg/syscall/#SetsockoptInt
+const syscallIntSize = 4
 
 type Conn interface {
 	Read(common.RawBytes) (int, *topology.AddrInfo, error)
@@ -33,7 +43,7 @@ type Conn interface {
 	Close() error
 }
 
-func New(listen, remote *topology.AddrInfo) (Conn, *common.Error) {
+func New(listen, remote *topology.AddrInfo, labels prometheus.Labels) (Conn, *common.Error) {
 	if assert.On {
 		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
 	}
@@ -46,50 +56,84 @@ func New(listen, remote *topology.AddrInfo) (Conn, *common.Error) {
 	switch ot {
 	case overlay.UDPIPv4:
 		var laddr, raddr *net.UDPAddr
-		connection := connUDPIPv4{Listen: listen, Remote: remote}
+		var c *net.UDPConn
+		var err error
 		if listen != nil {
 			laddr = &net.UDPAddr{IP: listen.IP, Port: listen.L4Port}
 		}
 		if remote == nil {
-			c, err := net.ListenUDP("udp4", laddr)
-			if err != nil {
+			if c, err = net.ListenUDP("udp4", laddr); err != nil {
 				return nil, common.NewError("Error listening on socket",
 					"overlay", ot, "listen", listen, "err", err)
 			}
-			connection.conn = c
 		} else {
 			raddr = &net.UDPAddr{IP: remote.IP, Port: remote.L4Port}
-			c, err := net.DialUDP("udp4", laddr, raddr)
-			if err != nil {
+			if c, err = net.DialUDP("udp4", laddr, raddr); err != nil {
 				return nil, common.NewError("Error setting up connection",
 					"overlay", ot, "listen", listen, "remote", remote, "err", err)
 			}
-			connection.conn = c
 		}
-		return &connection, nil
+		return newConnUDPIPv4(c, listen, remote, labels)
 	}
 	return nil, common.NewError(fmt.Sprintf("Unsupported overlay type '%s'", ot))
 }
 
 type connUDPIPv4 struct {
-	conn   *net.UDPConn
-	Listen *topology.AddrInfo
-	Remote *topology.AddrInfo
+	conn         *net.UDPConn
+	Listen       *topology.AddrInfo
+	Remote       *topology.AddrInfo
+	oob          common.RawBytes
+	pktsRecvOvfl prometheus.Counter
+}
+
+func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
+	labels prometheus.Labels) (*connUDPIPv4, *common.Error) {
+	fd, err := nethack.SocketOf(c)
+	if err != nil {
+		return nil, common.NewError("Unable to get fd of net.UDPConn", "listen", listen,
+			"remote", remote, "err", err)
+	}
+	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
+		return nil, common.NewError("Error setting SO_RXQ_OVFL socket option", "listen", listen,
+			"remote", remote, "err", err)
+	}
+	return &connUDPIPv4{
+		conn:         c,
+		Listen:       listen,
+		Remote:       remote,
+		oob:          make(common.RawBytes, syscall.CmsgSpace(syscallIntSize)),
+		pktsRecvOvfl: metrics.PktsRecvOvfl.With(labels),
+	}, nil
 }
 
 func (c *connUDPIPv4) Read(b common.RawBytes) (int, *topology.AddrInfo, error) {
-	if c.Remote != nil {
-		l, err := c.conn.Read(b)
-		return l, c.Remote, err
+	n, oobn, _, src, err := c.conn.ReadMsgUDP(b, c.oob)
+	if oobn > 0 {
+		c.handleCmsg(c.oob[:oobn])
 	}
-	len, src, err := c.conn.ReadFromUDP(b)
-	if err != nil {
-		return len, nil, err
+	remote := c.Remote
+	if remote == nil {
+		remote = &topology.AddrInfo{Overlay: overlay.UDPIPv4, IP: src.IP, L4Port: src.Port,
+			OverlayPort: overlay.EndhostPort}
 	}
-	ai := &topology.AddrInfo{Overlay: overlay.UDPIPv4, IP: src.IP, L4Port: src.Port,
-		OverlayPort: overlay.EndhostPort}
-	return len, ai, nil
+	return n, remote, err
+}
 
+func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
+	cmsgs, err := syscall.ParseSocketControlMessage(oob)
+	if err != nil {
+		log.Debug("Error decoding cmsg data from ReadMsgUdp", "listen", c.Listen,
+			"remote", c.Remote, "err", err)
+		return
+	}
+	for _, cmsg := range cmsgs {
+		hdr := cmsg.Header
+		switch {
+		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
+			val := *(*int)(unsafe.Pointer(&cmsg.Data[0]))
+			c.pktsRecvOvfl.Add(float64(val))
+		}
+	}
 }
 
 func (c *connUDPIPv4) Write(b common.RawBytes) (int, error) {

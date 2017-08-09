@@ -49,6 +49,14 @@ var (
 		},
 		[]string{"id"},
 	)
+	PktsRecvOvfl = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "border",
+			Name:      "pkts_recv_ovfl_total",
+			Help:      "Number of packets dropped due to receive buffer overflow.",
+		},
+		[]string{"id"},
+	)
 	BytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "border",
