@@ -131,6 +131,7 @@ var (
 func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
+	prometheus.MustRegister(PktsRecvOvfl)
 	prometheus.MustRegister(BytesRecv)
 	prometheus.MustRegister(BytesSent)
 	prometheus.MustRegister(PktBufNew)
