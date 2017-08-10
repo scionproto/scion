@@ -15,7 +15,7 @@
 // If Write or Release ever attempts to relinquish more references than would
 // fit into the ring buffer, an error is returned and no operation is
 // performed. This is generally caused by a logic error in the caller.
-package pring
+package sring
 
 import "github.com/netsec-ethz/scion/go/lib/common"
 
