@@ -133,7 +133,7 @@ func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
 		switch {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
 			val := *(*int)(unsafe.Pointer(&cmsg.Data[0]))
-			c.pktsRecvOvfl.Add(float64(val))
+			c.pktsRecvOvfl.Set(float64(val))
 		}
 	}
 }
