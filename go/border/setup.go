@@ -236,7 +236,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 	labels prometheus.Labels) *common.Error {
 	// FIXME(kormat): this does not support dual-stack local addresses (e.g. ipv4+6).
 	// Listen on the socket.
-	over, err := conn.New(ba, nil)
+	over, err := conn.New(ba, nil, labels)
 	if err != nil {
 		return common.NewError("Unable to listen on local socket", "err", err)
 	}
@@ -320,7 +320,7 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) *common.Error {
 	// Connect to remote address.
 	ba := intf.IFAddr.BindAddrInfo(intf.IFAddr.Overlay)
-	c, err := conn.New(ba, intf.RemoteAddr)
+	c, err := conn.New(ba, intf.RemoteAddr, labels)
 	if err != nil {
 		return common.NewError("Unable to listen on external socket", "err", err)
 	}
