@@ -46,11 +46,11 @@ func runOps(script []Command) *SRing {
 	for _, cmd := range script {
 		switch cmd.op {
 		case RES:
-			_, err = r.Reserve(buffers[:cmd.arg])
+			r.Reserve(buffers[:cmd.arg])
 		case WR:
 			_, err = r.Write(buffers[:cmd.arg])
 		case RD:
-			_, err = r.Read(buffers[:cmd.arg])
+			r.Read(buffers[:cmd.arg])
 		case REL:
 			_, err = r.Release(buffers[:cmd.arg])
 		}
@@ -68,21 +68,19 @@ func TestOperations(t *testing.T) {
 		fail   bool
 	}{
 		{[]Command{},
-			[4]int{8, 0, 0, 0}, false},
+			[4]int{8, 8, 0, 0}, false},
 		{[]Command{{RES, 6}},
-			[4]int{2, 6, 0, 0}, false},
+			[4]int{2, 8, 0, 6}, false},
 		{[]Command{{RES, 6}, {RES, 2}},
-			[4]int{0, 8, 0, 0}, false},
+			[4]int{0, 8, 0, 8}, false},
 		{[]Command{{RES, 6}, {WR, 2}, {RES, 2}, {WR, 4}},
-			[4]int{0, 2, 6, 0}, false},
+			[4]int{0, 2, 6, 8}, false},
 		{[]Command{{RES, 4}, {WR, 4}, {RD, 4}, {REL, 4}},
-			[4]int{8, 0, 0, 0}, false},
+			[4]int{8, 8, 0, 0}, false},
 		{[]Command{{RES, 4}, {WR, 1}, {WR, 1}, {RD, 2}, {WR, 2}, {REL, 2}, {RES, 6}},
-			[4]int{0, 6, 2, 0}, false},
+			[4]int{0, 6, 2, 8}, false},
 		{[]Command{{RES, 10}},
-			[4]int{0, 8, 0, 0}, false},
-		{[]Command{{WR, 2}},
-			[4]int{0, 0, 0, 0}, true},
+			[4]int{0, 8, 0, 8}, false},
 		{[]Command{{REL, 2}},
 			[4]int{0, 0, 0, 0}, true},
 	}
@@ -92,10 +90,10 @@ func TestOperations(t *testing.T) {
 			Convey(fmt.Sprintf("%v", test.script), func() {
 				r := runOps(test.script)
 				if test.fail == false {
-					SoMsg("Reservable", r.reservable, ShouldEqual, test.expect[0])
-					SoMsg("Writable", r.writable, ShouldEqual, test.expect[1])
-					SoMsg("Readable", r.readable, ShouldEqual, test.expect[2])
-					SoMsg("Releasable", r.releasable, ShouldEqual, test.expect[3])
+					SoMsg("Reservable", r.freeRefs.readable, ShouldEqual, test.expect[0])
+					SoMsg("Writable", r.dataRefs.writable, ShouldEqual, test.expect[1])
+					SoMsg("Readable", r.dataRefs.readable, ShouldEqual, test.expect[2])
+					SoMsg("Releasable", r.freeRefs.writable, ShouldEqual, test.expect[3])
 				} else {
 					SoMsg("Error", r, ShouldBeNil)
 				}
