@@ -369,37 +369,23 @@ func (conn *Conn) WriteN(bufs []Msg) (int, error) {
 	return copiedMsgs, nil
 }
 
+// WriteNAll is a helper function that repeatedly blocks until all messages in
+// bufs are sent on the underlying socket. WriteNAll returns the number of
+// written messages; on success, this is equal to len(bufs).
+func (conn *Conn) WriteNAll(bufs []Msg) (int, error) {
+	for copied := 0; copied < len(bufs); {
+		n, err := conn.WriteN(bufs[copied:])
+		copied += n
+		if err != nil {
+			return copied, err
+		}
+	}
+	return len(bufs), nil
+}
+
 func (conn *Conn) String() string {
 	return fmt.Sprintf("&{laddr: %v, raddr: %v}", conn.UnixConn.LocalAddr(),
 		conn.UnixConn.RemoteAddr())
-}
-
-// Listener listens on Unix sockets and returns Conn sockets on Accept().
-type Listener struct {
-	*net.UnixListener
-}
-
-// Listen listens on UNIX socket laddr.
-func Listen(laddr string) (*Listener, error) {
-	l, err := net.Listen("unix", laddr)
-	if err != nil {
-		return nil, common.NewError("Unable to listen on address", "addr", laddr)
-	}
-	return &Listener{l.(*net.UnixListener)}, nil
-}
-
-// Accept returns sockets which implement the SCION ReliableSocket protocol for reading
-// and writing.
-func (listener *Listener) Accept() (*Conn, error) {
-	c, err := listener.UnixListener.Accept()
-	if err != nil {
-		return nil, common.NewError("Unable to accept", "listener", listener)
-	}
-	return newConn(c), nil
-}
-
-func (listener *Listener) String() string {
-	return fmt.Sprintf("&{addr: %v}", listener.UnixListener.Addr())
 }
 
 func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (indexNew, copiedMsgsNew int, err error) {
@@ -443,4 +429,32 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (indexNew, copiedMsgs
 	msg.Copied = 0
 
 	return index, copiedMsgs, nil
+}
+
+// Listener listens on Unix sockets and returns Conn sockets on Accept().
+type Listener struct {
+	*net.UnixListener
+}
+
+// Listen listens on UNIX socket laddr.
+func Listen(laddr string) (*Listener, error) {
+	l, err := net.Listen("unix", laddr)
+	if err != nil {
+		return nil, common.NewError("Unable to listen on address", "addr", laddr)
+	}
+	return &Listener{l.(*net.UnixListener)}, nil
+}
+
+// Accept returns sockets which implement the SCION ReliableSocket protocol for reading
+// and writing.
+func (listener *Listener) Accept() (*Conn, error) {
+	c, err := listener.UnixListener.Accept()
+	if err != nil {
+		return nil, common.NewError("Unable to accept", "listener", listener)
+	}
+	return newConn(c), nil
+}
+
+func (listener *Listener) String() string {
+	return fmt.Sprintf("&{addr: %v}", listener.UnixListener.Addr())
 }
