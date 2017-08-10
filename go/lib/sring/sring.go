@@ -17,7 +17,7 @@
 // performed. This is generally caused by a logic error in the caller.
 package pring
 
-import "fmt"
+import "github.com/netsec-ethz/scion/go/lib/common"
 
 type SRing struct {
 	freeRefs, dataRefs *rb
@@ -47,7 +47,7 @@ func (r *SRing) Reserve(buffers [][]byte) int {
 func (r *SRing) Write(buffers [][]byte) (int, error) {
 	n, max, ok := r.dataRefs.Write(buffers)
 	if !ok {
-		return 0, fmt.Errorf("Attempted to write more buffers than reserved",
+		return 0, common.NewError("Attempted to write more buffers than reserved",
 			"expect", max, "actual", len(buffers))
 	}
 	return n, nil
@@ -68,7 +68,7 @@ func (r *SRing) Read(buffers [][]byte) int {
 func (r *SRing) Release(buffers [][]byte) (int, error) {
 	n, max, ok := r.freeRefs.Write(buffers)
 	if !ok {
-		return 0, fmt.Errorf("Attempted to release more buffers than acquired",
+		return 0, common.NewError("Attempted to release more buffers than acquired",
 			"expect", max, "actual", len(buffers))
 	}
 	return n, nil
