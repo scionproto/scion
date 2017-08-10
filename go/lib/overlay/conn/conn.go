@@ -31,7 +31,9 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
-// There isn't a way to calculate the size of a syscall integer, so use the value that the stdlib hard-codes instead. E.g. https://golang.org/pkg/syscall/#SetsockoptInt
+// There isn't a way to calculate the size of a syscall integer, so use the
+// value that the stdlib hard-codes instead.
+// E.g. https://golang.org/pkg/syscall/#SetsockoptInt
 const syscallIntSize = 4
 
 type Conn interface {
