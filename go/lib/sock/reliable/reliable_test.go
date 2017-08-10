@@ -102,6 +102,11 @@ func ClientRegister(x chan ExitData, tc TestCase, sockName string) {
 }
 
 func TestWriteTo(t *testing.T) {
+	// Create dir for test sockets if it does not exist
+	testDir := "/tmp/reliable"
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		os.Mkdir(testDir, 0700)
+	}
 	nilAddr := addr.HostNone{}
 	testCases := []TestCase{
 		{msg: "", dst: AppAddr{Addr: nilAddr, Port: 0},
@@ -120,7 +125,7 @@ func TestWriteTo(t *testing.T) {
 		Convey("Server should receive correct raw messages", func() {
 			for i, tc := range testCases {
 				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.msg), func() {
-					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
+					sockName := fmt.Sprintf(testDir+"/reliable%v.sock", rand.Uint32())
 
 					sc := make(chan ExitData, 1)
 					cc := make(chan ExitData, 1)
