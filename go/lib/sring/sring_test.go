@@ -1,4 +1,4 @@
-package pring
+package sring
 
 import (
 	"fmt"
