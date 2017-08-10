@@ -12,7 +12,6 @@ import (
 	"errors"
 	"net"
 	"reflect"
-	"runtime"
 )
 
 // From https://github.com/golang/net/blob/e1564c30db987d37eab1a340b7a2e4d2f71f7430/internal/socket/reflect.go
@@ -26,9 +25,6 @@ func SocketOf(c net.Conn) (int, error) {
 			switch e := fd.Elem(); e.Kind() {
 			case reflect.Struct:
 				sysfd := e.FieldByName("sysfd")
-				if runtime.GOOS == "windows" {
-					return int(sysfd.Uint()), nil
-				}
 				return int(sysfd.Int()), nil
 			}
 		}
