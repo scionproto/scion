@@ -124,7 +124,8 @@ func TestContents(t *testing.T) {
 	})
 }
 
-func BenchmarkSRing(b *testing.B) {
+// BenchmarkSRing1M sends 1Mil (1<<20) messages through an SRing.
+func BenchmarkSRing1M(b *testing.B) {
 	sr := New(1024, NewEntryBytes(1024))
 	wbuf := make(EntryList, 16)
 	rbuf := make(EntryList, 16)

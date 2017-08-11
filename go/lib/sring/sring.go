@@ -13,7 +13,7 @@
 // is also valid for a reader to give up ownership by calling Write, although
 // this is probably never useful.
 //
-// Note: SRing never modifies the entries itself, so any required reseting etc
+// Note: SRing never modifies the entries itself, so any required resetting etc
 // must be done by the caller(s).
 //
 // If Write or Release ever attempt to relinquish more entries than would fit
