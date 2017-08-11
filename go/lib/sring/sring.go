@@ -1,23 +1,24 @@
-// Package sring (Slice Ring) implements a simple RingBuffer where the elements
-// are slice references. SRing is organized internally as two ring buffers,
-// one containing slices with free space and one containing slices with data.
+// Package sring (Slice Ring) implements a simple RingBuffer of interface{}
+// entries. SRing is organized internally as two ring buffers, one containing
+// entries with free space and one containing entries with data.
 //
-// New allocates buffers internally.
+// New allocates entries internally.
 //
-// Writers gain exclusive access to the buffers by calling Reserve, and send
-// out the buffers after processing by calling Write. Writers can also choose
-// to free the buffers directly by calling Release.
+// Writers gain exclusive access to free entries by calling Reserve, and submit
+// the filled entries using Write. Writers can also choose to give back
+// unneeded entries directly by calling Release.
 //
-// Readers gain exclusive access to the buffers by calling Read. After
-// processing the buffers are marked as available again by calling Release. It
+// Readers gain exclusive access to data entries by calling Read. After
+// processing the entries are marked as available again by calling Release. It
 // is also valid for a reader to give up ownership by calling Write, although
 // this is probably never useful.
 //
-// Slice capacity is never reset internally, this has to be done by the caller.
+// Note: SRing never modifies the entries itself, so any required reseting etc
+// must be done by the caller(s).
 //
-// If Write or Release ever attempts to relinquish more references than would
-// fit into the ring buffer, an error is returned and no operation is
-// performed. This is generally caused by a logic error in the caller.
+// If Write or Release ever attempt to relinquish more entries than would fit
+// into the ring buffers, an error is returned and no operation is performed.
+// This is generally caused by a logic error in the caller.
 package sring
 
 import "github.com/netsec-ethz/scion/go/lib/common"
@@ -26,54 +27,53 @@ type SRing struct {
 	freeRefs, dataRefs *rb
 }
 
-// New creates a new SRing with count pre-allocated internal buffers of size
-// bytes.
-func New(count int, size int) *SRing {
+// New creates a new SRing of size count. It pre-allocates internal entries by
+// calling newf for each entry.
+func New(count int, newf NewEntryF) *SRing {
 	r := &SRing{}
-	r.freeRefs = newRB(count, size)
-	r.dataRefs = newRB(count, 0)
+	r.freeRefs = newRB(count, newf)
+	r.dataRefs = newRB(count, nil)
 	return r
 }
 
-// Reserve copies slice references from the free ring buffer to buffers.
-// The caller is assumed to have exclusive access over the returned slices. If
-// no slice is available to reserve, the function blocks.
-func (r *SRing) Reserve(buffers [][]byte) int {
-	return r.freeRefs.Read(buffers)
+// Reserve fills entries with pre-allocated entries from the free ring buffer.
+// The caller is assumed to have exclusive access over the returned entries. If
+// no entries are available to reserve, the function blocks.
+func (r *SRing) Reserve(entries EntryList) int {
+	return r.freeRefs.Read(entries)
 }
 
-// Write copies the slice references in buffers to the data ring buffer.
-// Attempting to write back more references than can fit into the ring buffer
-// returns an error, and no operation is performed. On no error, all references
-// are guaranteed to be copied. After writing back a reference, callers should
-// no longer read or write to it. Write never blocks.
-func (r *SRing) Write(buffers [][]byte) (int, error) {
-	n, max, ok := r.dataRefs.Write(buffers)
+// Write copies entries to the data ring buffer and returns the number of
+// entries copied. Attempting to write back more entries than can fit into the
+// data ring buffer returns an error, and no operation is performed. On
+// success, all references are guaranteed to be copied. After writing back an
+// entry, callers should no longer read or write to it. Write never blocks.
+func (r *SRing) Write(entries EntryList) (int, error) {
+	n, max, ok := r.dataRefs.Write(entries)
 	if !ok {
-		return 0, common.NewError("Attempted to write more buffers than reserved",
-			"expect", max, "actual", len(buffers))
+		return 0, common.NewError("Attempted to write more entries than reserved",
+			"expect", max, "actual", len(entries))
 	}
 	return n, nil
 }
 
-// Read copies slice references from the data ring buffer to buffers.  The
-// number of copied references is returned; this can be anywhere from 1 to
-// len(buffers), depending on available data. If no element is available in the
-// ring buffer, the function blocks.
-func (r *SRing) Read(buffers [][]byte) int {
-	return r.dataRefs.Read(buffers)
+// Read copies up to len(entries) from the data ring buffer to entries, and
+// returns the number of copied entries. If no entries are available in the
+// data ring buffer, the function blocks.
+func (r *SRing) Read(entries EntryList) int {
+	return r.dataRefs.Read(entries)
 }
 
-// Release copies the slice references in buffers to the free ring buffer.
-// Attempting to Release more buffers than can fit into the ring buffer returns
-// an error, and no operation is performed. On no error, all buffer references
-// are guaranteed to be released. After releasing a buffer reference, callers
-// should no longer read or write to it. Release never blocks.
-func (r *SRing) Release(buffers [][]byte) (int, error) {
-	n, max, ok := r.freeRefs.Write(buffers)
+// Release returns entries to the free ring buffer and returns the number of
+// entries returned. Attempting to Release more entries than can fit into the
+// free ring buffer returns an error, and no operation is performed. On
+// success, all entries are guaranteed to be released. After releasing an
+// entry, callers should no longer read or write to it. Release never blocks.
+func (r *SRing) Release(entries EntryList) (int, error) {
+	n, max, ok := r.freeRefs.Write(entries)
 	if !ok {
-		return 0, common.NewError("Attempted to release more buffers than acquired",
-			"expect", max, "actual", len(buffers))
+		return 0, common.NewError("Attempted to release more entries than acquired",
+			"expect", max, "actual", len(entries))
 	}
 	return n, nil
 }
