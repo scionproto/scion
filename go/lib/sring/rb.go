@@ -32,6 +32,11 @@ func newRB(count int, size int) *rb {
 	return r
 }
 
+// Write copies the slices in buffers to the internal ring buffer. Attempting
+// to write more than the available space causes Write to fail.  Return
+// arguments contain the number of written slices (all on success, 0 on
+// failure), the number of available space (0 on success, actual space on
+// failure) and whether the operation succeeded.
 func (r *rb) Write(buffers [][]byte) (int, int, bool) {
 	r.mutex.Lock()
 	// Attempting to free up more resources than we acquired points to a
