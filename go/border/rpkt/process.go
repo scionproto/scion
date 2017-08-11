@@ -22,6 +22,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/ifstate"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -55,7 +56,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	extPub := intf.IFAddr
 	locPub := rp.Ctx.Conf.Net.IntfLocalAddr(*rp.ifCurr)
-	if rp.DirFrom == DirExternal {
+	if rp.DirFrom == rcmn.DirExternal {
 		port, equal, err := extPub.PubL4PortFromAddr(dstHost)
 		if err != nil {
 			return err
@@ -63,7 +64,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 		if equal {
 			return rp.isDestSelf(port)
 		}
-	} else if rp.DirFrom == DirLocal {
+	} else if rp.DirFrom == rcmn.DirLocal {
 		port, equal, err := locPub.PubL4PortFromAddr(dstHost)
 		if err != nil {
 			return err
@@ -94,11 +95,11 @@ func (rp *RtrPkt) isDestSelf(ownPort int) *common.Error {
 		// determine the real destination.
 		goto Self
 	}
-	rp.DirTo = DirLocal
+	rp.DirTo = rcmn.DirLocal
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	return nil
 Self:
-	rp.DirTo = DirSelf
+	rp.DirTo = rcmn.DirSelf
 	rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
 	rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 	return nil
@@ -169,7 +170,7 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 		DstIA: rp.Ctx.Conf.IA, SrcIA: rp.Ctx.Conf.IA,
 		DstHost: addr.SvcBS.Multicast(), SrcHost: addr.HostFromIP(srcAddr.IP),
 		L4: &l4.UDP{SrcPort: uint16(srcAddr.L4Port), DstPort: 0},
-	}, DirLocal, rp.Ctx)
+	}, rcmn.DirLocal, rp.Ctx)
 	if err != nil {
 		return HookError, err
 	}
@@ -207,7 +208,8 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
-	case rp.DirFrom == DirExternal && hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+	case rp.DirFrom == rcmn.DirExternal && hdr.Class == scmp.C_Path &&
+		hdr.Type == scmp.T_P_RevokedIF:
 		rp.processSCMPRevocation()
 	default:
 		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class,

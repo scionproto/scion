@@ -25,6 +25,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -66,9 +67,9 @@ type RtrPkt struct {
 	// epoch, and can't be used to refer to a particular clock time. (RECV)
 	TimeIn time.Duration
 	// DirFrom is the direction from which the packet was received. (RECV)
-	DirFrom Dir
+	DirFrom rcmn.Dir
 	// DirTo is the direction to which the packet is travelling. (PARSE)
-	DirTo Dir
+	DirTo rcmn.Dir
 	// Ingress contains the incoming overlay metadata the packet arrived with, and the (list of)
 	// interface(s) it arrived on. (RECV)
 	Ingress addrIFPair
@@ -134,36 +135,6 @@ func NewRtrPkt() *RtrPkt {
 	return r
 }
 
-// Dir represents a packet direction. It is used to designate where a packet
-// came from, and where it is going to.
-type Dir int
-
-const (
-	// DirUnset is the zero-value for Dir, and means the direction hasn't been initialized.
-	DirUnset Dir = iota
-	// DirSelf means the packet is going to/coming from this router.
-	DirSelf
-	// DirLocal means the packet is going to/coming from the local ISD-AS.
-	DirLocal
-	// DirExternal means the packet is going to/coming from another ISD-AS.
-	DirExternal
-)
-
-func (d Dir) String() string {
-	switch d {
-	case DirUnset:
-		return "Unset"
-	case DirSelf:
-		return "Self"
-	case DirLocal:
-		return "Local"
-	case DirExternal:
-		return "External"
-	default:
-		return "UNKNOWN"
-	}
-}
-
 // addrIFPair contains the overlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
@@ -218,8 +189,8 @@ type extnIdx struct {
 func (rp *RtrPkt) Reset() {
 	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
-	rp.DirFrom = DirUnset
-	rp.DirTo = DirUnset
+	rp.DirFrom = rcmn.DirUnset
+	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil
 	rp.Ingress.Src = nil
 	rp.Ingress.IfIDs = nil

@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -37,7 +38,7 @@ type PosixInputFuncArgs struct {
 	// Conn is the connection the input function is listening on.
 	Conn conn.Conn
 	// DirFrom is the direction of the incoming packets.
-	DirFrom rpkt.Dir
+	DirFrom rcmn.Dir
 	// Ifids is a slice of interface IDs that are served by this input function.
 	Ifids []common.IFIDType
 	// Labels holds the exported prometheus labels.

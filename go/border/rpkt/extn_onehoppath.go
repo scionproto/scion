@@ -22,6 +22,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -51,7 +52,7 @@ func (o *rOneHopPath) RegisterHooks(h *hooks) *common.Error {
 
 // HopF generates and returns a new hop field on ingress to an AS.
 func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
-	if o.rp.DirFrom == DirLocal {
+	if o.rp.DirFrom == rcmn.DirLocal {
 		// The existing HopF is still in use, so use HookContinue to read that
 		// instead.
 		return HookContinue, nil, nil

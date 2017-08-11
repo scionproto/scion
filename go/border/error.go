@@ -20,6 +20,7 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -38,7 +39,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	// XXX(kormat): uncomment for debugging:
 	// perr.Ctx = append(perr.Ctx, "raw", rp.Raw)
 	rp.Error(desc, perr.Ctx...)
-	if !ok || perr.Data == nil || rp.DirFrom == rpkt.DirSelf || rp.SCMPError {
+	if !ok || perr.Data == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
@@ -150,7 +151,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 					return nil, err
 				}
 			}
-		} else if rp.DirFrom == rpkt.DirExternal {
+		} else if rp.DirFrom == rcmn.DirExternal {
 			reply.InfoF()
 			reply.UpFlag()
 			// Increase path if the current HOF is not xover and
@@ -187,7 +188,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
-	if rp.DirFrom == rpkt.DirLocal {
+	if rp.DirFrom == rcmn.DirLocal {
 		return rpkt.EgressPair{F: rp.Ctx.LocOutFs[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
 	}
 	ifid, err := rp.IFCurr()
