@@ -1,6 +1,7 @@
 package sring
 
 import (
+	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -41,8 +42,8 @@ func (c Command) String() string {
 
 func runOps(script []Command) *SRing {
 	var err error
-	r := New(8, 128)
-	buffers := make([][]byte, 16)
+	r := New(8, NewEntryBytes(128))
+	buffers := make(EntryList, 16)
 	for _, cmd := range script {
 		switch cmd.op {
 		case RES:
@@ -103,20 +104,55 @@ func TestOperations(t *testing.T) {
 }
 
 func TestContents(t *testing.T) {
-	r := New(8, 128)
+	r := New(8, NewEntryBytes(128))
 	data := []byte{1, 2, 3, 4, 5}
-	buffersWriter := make([][]byte, 1)
-	buffersReader := make([][]byte, 1)
+	buffersWriter := make(EntryList, 1)
+	buffersReader := make(EntryList, 1)
 
 	Convey("Test data transfer", t, func() {
 		r.Reserve(buffersWriter)
-		copy(buffersWriter[0], data)
-		buffersWriter[0] = buffersWriter[0][:len(data)]
+		bufw := make([]byte, 8)
+		copy(bufw, data)
+		bufw = bufw[:len(data)]
+		buffersWriter[0] = bufw
 		r.Write(buffersWriter)
 
 		r.Read(buffersReader)
-		buffersReader[0] = buffersReader[0][:cap(data)]
-		SoMsg("Buffer contents", buffersReader[0], ShouldResemble, data)
+		bufr := buffersReader[0].([]byte)[:cap(data)]
+		SoMsg("Buffer contents", bufr, ShouldResemble, data)
 		r.Release(buffersReader)
 	})
+}
+
+// BenchmarkSRing1M sends 1Mil (1<<20) messages through an SRing.
+func BenchmarkSRing1M(b *testing.B) {
+	sr := New(1024, NewEntryBytes(1024))
+	wbuf := make(EntryList, 16)
+	rbuf := make(EntryList, 16)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		go func() {
+			for total := 0; total != 1<<20; {
+				want := min(1<<20-total, cap(wbuf))
+				n := sr.Reserve(wbuf[:want])
+				for k, buf := range wbuf[:n] {
+					binary.LittleEndian.PutUint64(buf.([]byte), uint64(total+k))
+				}
+				sr.Write(wbuf[:n])
+				total += n
+			}
+		}()
+		for total := 0; total != 1<<20; {
+			n := sr.Read(rbuf)
+			for k, buf := range rbuf[:n] {
+				val := int(binary.LittleEndian.Uint64(buf.([]byte)))
+				if val != total+k {
+					b.Logf("Expected %d Got %d", total+k, val)
+					b.Fail()
+				}
+			}
+			sr.Release(rbuf[:n])
+			total += n
+		}
+	}
 }
