@@ -22,6 +22,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -46,9 +47,9 @@ const (
 func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int,
 	srcAddr *topology.AddrInfo, pld *spkt.CtrlPld) *common.Error {
 	ctx := rctx.Get()
-	dirTo := rpkt.DirExternal
+	dirTo := rcmn.DirExternal
 	if dstIA.Eq(ctx.Conf.IA) {
-		dirTo = rpkt.DirLocal
+		dirTo = rcmn.DirLocal
 	}
 	// Create base packet
 	sp := &spkt.ScnPkt{

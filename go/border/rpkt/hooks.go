@@ -18,6 +18,7 @@
 package rpkt
 
 import (
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -29,7 +30,7 @@ type hookHost func() (HookResult, addr.HostAddr, *common.Error)
 type hookInfoF func() (HookResult, *spath.InfoField, *common.Error)
 type hookHopF func() (HookResult, *spath.HopField, *common.Error)
 type hookBool func() (HookResult, bool, *common.Error)
-type hookIntf func(up bool, dirFrom, dirTo Dir) (HookResult, common.IFIDType, *common.Error)
+type hookIntf func(up bool, dirFrom, dirTo rcmn.Dir) (HookResult, common.IFIDType, *common.Error)
 type hookValidate func() (HookResult, *common.Error)
 type hookL4 func() (HookResult, l4.L4Header, *common.Error)
 type hookPayload func() (HookResult, common.Payload, *common.Error)

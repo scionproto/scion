@@ -27,6 +27,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -109,7 +110,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	defer liblog.PanicLog()
 	if assert.On {
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
-		assert.Must(rp.DirFrom != rpkt.DirUnset, "DirFrom must be set")
+		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
 		assert.Must(rp.TimeIn != 0, "TimeIn must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
@@ -153,7 +154,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	}
 	// If the packet's destination is this router, there's no need to forward
 	// it.
-	if rp.DirTo != rpkt.DirSelf {
+	if rp.DirTo != rcmn.DirSelf {
 		if err := rp.Route(); err != nil {
 			r.handlePktError(rp, err, "Error routing packet")
 		}

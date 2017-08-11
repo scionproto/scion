@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/border/ifstate"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/crypto"
@@ -30,7 +31,7 @@ import (
 )
 
 // validatePath validates the path header.
-func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
+func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) *common.Error {
 	if assert.On {
 		assert.Mustf(rp.ifCurr != nil, rp.ErrStrf("rp.ifCurr must not be nil"))
 	}
@@ -40,7 +41,7 @@ func (rp *RtrPkt) validatePath(dirFrom Dir) *common.Error {
 	}
 	if rp.infoF == nil || rp.hopF == nil {
 		// If there's no path, then there's nothing to check.
-		if rp.DirTo == DirSelf {
+		if rp.DirTo == rcmn.DirSelf {
 			// An empty path is legitimate when the packet's destination is
 			// this router.
 			return nil
@@ -90,7 +91,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) *common.Error {
 	ifstate.S.RLock()
 	info, ok := ifstate.S.M[*ifid]
 	ifstate.S.RUnlock()
-	if !ok || info.P.Active() || rp.DirTo == DirSelf {
+	if !ok || info.P.Active() || rp.DirTo == rcmn.DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
 		// router, in which case revocations are ignored to allow communication
 		// with the router.
@@ -112,7 +113,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) *common.Error {
 	}
 	sinfo := scmp.NewInfoRevocation(
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
-		rp.DirFrom == DirExternal, info.RawRev)
+		rp.DirFrom == rcmn.DirExternal, info.RawRev)
 	sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
 	return common.NewErrorData(errIntfRevoked, sdata, "ifid", ifid)
 }
@@ -122,7 +123,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) *common.Error {
 func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
 	return &scmp.InfoPathOffsets{
 		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
-		IfID: uint16(*rp.ifCurr), Ingress: rp.DirFrom == DirExternal,
+		IfID: uint16(*rp.ifCurr), Ingress: rp.DirFrom == rcmn.DirExternal,
 	}
 }
 
@@ -209,8 +210,8 @@ func (rp *RtrPkt) HopF() (*spath.HopField, *common.Error) {
 
 // getHopFVer retrieves the Hop Field (if any) required for verifying the MAC
 // of the current Hop Field.
-func (rp *RtrPkt) getHopFVer(dirFrom Dir) common.RawBytes {
-	ingress := dirFrom == DirExternal
+func (rp *RtrPkt) getHopFVer(dirFrom rcmn.Dir) common.RawBytes {
+	ingress := dirFrom == rcmn.DirExternal
 	var offset int
 	if !rp.hopF.Xover || (rp.infoF.Shortcut && !rp.infoF.Peer) {
 		offset = rp.getHopFVerNormalOffset()
@@ -396,9 +397,9 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, *common.Error) {
 		if rp.hopF != nil {
 			var ingress bool
 			switch rp.DirFrom {
-			case DirSelf, DirLocal:
+			case rcmn.DirSelf, rcmn.DirLocal:
 				ingress = *rp.upFlag
-			case DirExternal:
+			case rcmn.DirExternal:
 				ingress = !*rp.upFlag
 			default:
 				return nil, common.NewError("DirFrom value unsupported", "val", rp.DirFrom)

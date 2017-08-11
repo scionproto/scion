@@ -18,6 +18,7 @@
 package rpkt
 
 import (
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -151,32 +152,32 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 // field accordingly.
 func (rp *RtrPkt) setDirTo() {
 	if assert.On {
-		assert.Mustf(rp.DirFrom != DirSelf, rp.ErrStrf("DirFrom must not be DirSelf."))
-		assert.Mustf(rp.DirFrom != DirUnset, rp.ErrStrf("DirFrom must not be DirUnset."))
+		assert.Mustf(rp.DirFrom != rcmn.DirSelf, rp.ErrStrf("DirFrom must not be DirSelf."))
+		assert.Mustf(rp.DirFrom != rcmn.DirUnset, rp.ErrStrf("DirFrom must not be DirUnset."))
 		assert.Mustf(rp.ifCurr != nil, rp.ErrStrf("rp.ifCurr must not be nil."))
 	}
 	if *rp.dstIA != *rp.Ctx.Conf.IA {
 		// Packet is not destined to the local AS, so it can't be DirSelf.
-		if rp.DirFrom == DirLocal {
-			rp.DirTo = DirExternal
-		} else if rp.DirFrom == DirExternal {
+		if rp.DirFrom == rcmn.DirLocal {
+			rp.DirTo = rcmn.DirExternal
+		} else if rp.DirFrom == rcmn.DirExternal {
 			// XXX(kormat): this logic might be too simple once a router can
 			// have multiple interfaces.
-			rp.DirTo = DirLocal
+			rp.DirTo = rcmn.DirLocal
 		}
 		return
 	}
 	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
 	var taddr *topology.TopoAddr
-	if rp.DirFrom == DirExternal {
+	if rp.DirFrom == rcmn.DirExternal {
 		taddr = rp.Ctx.Conf.Net.IFs[*rp.ifCurr].IFAddr
 	} else {
 		taddr = rp.Ctx.Conf.Net.LocAddr[rp.Ingress.LocIdx]
 	}
 	locIP := taddr.PublicAddrInfo(rp.Ingress.Dst.Overlay).IP
 	if locIP.Equal(rp.dstHost.IP()) {
-		rp.DirTo = DirSelf
+		rp.DirTo = rcmn.DirSelf
 	} else {
-		rp.DirTo = DirLocal
+		rp.DirTo = rcmn.DirLocal
 	}
 }

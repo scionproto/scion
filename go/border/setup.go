@@ -29,6 +29,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/netconf"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -251,7 +252,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 	args := &PosixInputFuncArgs{
 		ProcessPacket: r.processPacket,
 		Conn:          over,
-		DirFrom:       rpkt.DirLocal,
+		DirFrom:       rcmn.DirLocal,
 		Ifids:         ifids,
 		Labels:        labels,
 		StopChan:      make(chan struct{}),
@@ -328,7 +329,7 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	args := &PosixInputFuncArgs{
 		ProcessPacket: r.processPacket,
 		Conn:          c,
-		DirFrom:       rpkt.DirExternal,
+		DirFrom:       rcmn.DirExternal,
 		Ifids:         []common.IFIDType{intf.Id},
 		Labels:        labels,
 		StopChan:      make(chan struct{}),

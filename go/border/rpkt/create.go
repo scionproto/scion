@@ -21,6 +21,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -29,7 +30,7 @@ import (
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
-func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *common.Error) {
+func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, *common.Error) {
 	rp := NewRtrPkt()
 	rp.Ctx = ctx
 	totalLen := sp.TotalLen()
@@ -37,7 +38,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo Dir, ctx *rctx.Ctx) (*RtrPkt, *comm
 	rp.TimeIn = monotime.Now()
 	rp.Id = logext.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
-	rp.DirFrom = DirSelf
+	rp.DirFrom = rcmn.DirSelf
 	rp.DirTo = dirTo
 	// Fill in common header.
 	rp.CmnHdr.DstType = sp.DstHost.Type()

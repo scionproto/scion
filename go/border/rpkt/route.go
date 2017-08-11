@@ -22,6 +22,7 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/assert"
@@ -127,9 +128,9 @@ func (rp *RtrPkt) RouteResolveSVCMulti(
 
 func (rp *RtrPkt) forward() (HookResult, *common.Error) {
 	switch rp.DirFrom {
-	case DirExternal:
+	case rcmn.DirExternal:
 		return rp.forwardFromExternal()
-	case DirLocal:
+	case rcmn.DirLocal:
 		return rp.forwardFromLocal()
 	default:
 		return HookError, common.NewError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
@@ -204,7 +205,7 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 	if segChgd, err = rp.IncPath(); err != nil {
 		return err
 	}
-	if err = rp.validatePath(DirLocal); err != nil {
+	if err = rp.validatePath(rcmn.DirLocal); err != nil {
 		return err
 	}
 	if err = rp.validateLocalIF(rp.ifNext); err != nil {
