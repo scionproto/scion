@@ -104,8 +104,8 @@ func (i *IngressWorker) ProcessFrame(frame *FrameBuf) {
 	epoch := int(common.Order.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
-	log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
-		"len", frame.frameLen)
+	//log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
+	//	"len", frame.frameLen)
 	// If index == 1 then we can be sure that there is no fragment at the beginning
 	// of the frame.
 	frame.fragNProcessed = index == 1

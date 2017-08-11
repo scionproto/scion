@@ -43,7 +43,6 @@ type BufferPool struct {
 
 func NewBufferPool() *BufferPool {
 	new := func() interface{} {
-		//log.Debug("Alloc'ing")
 		return make(common.RawBytes, 64*1024)
 	}
 	bp := &BufferPool{
@@ -112,20 +111,15 @@ TopLoop:
 		// FIXME(kormat): calculate the max payload size based on path's MTU
 		frame = frame[:1280]
 
-		log.Debug("Top of loop", "frameOff", e.frameOff, "seqNumber", e.seq, "index", e.index)
 		if e.frameOff == SIGHdrSize {
 			// Don't have a partial frame, so block indefiniely for the next packet.
 			pkt = <-e.c
-			log.Debug("No partial frame, got new packet")
 		} else {
 			// Have partial frame
 			select {
 			case pkt = <-e.c:
 				// Another packet was available, process it
-				log.Debug("Have partial frame, got new packet")
 			default:
-				log.Debug("Have partial frame, no new packet, send partial frame",
-					"frameOff", e.frameOff, "seqNumber", e.seq, "index", e.index)
 				// No packets available, send existing frame.
 				err := e.Write(conn, frame[:e.frameOff])
 				if err != nil {
@@ -152,14 +146,11 @@ func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error 
 	common.Order.PutUint16(frame[e.frameOff:], uint16(len(pkt)))
 	e.frameOff += PktLenSize
 	pktOff := 0
-	log.Debug("Starting to copy packet")
 	// Write chunks of the packet to frames, sending off frames as they fill up.
 	for {
-		log.Debug("Copy packet top", "frameOff", e.frameOff, "pktOff", pktOff)
 		copied := copy(frame[e.frameOff:], pkt[pktOff:])
 		pktOff += copied
 		e.frameOff += copied
-		log.Debug("Copy packet middle", "frameOff", e.frameOff, "pktOff", pktOff, "copied", copied)
 		if len(frame)-e.frameOff < MinSpace {
 			// There's no point in trying to fit another packet into this frame.
 			if err := e.Write(conn, frame[:e.frameOff]); err != nil {
@@ -193,8 +184,8 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	if e.seq == 0 {
 		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
-	log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
-		"seq", e.seq, "index", e.index)
+	//log.Debug("EgressWorker.Write", "len", len(frame), "epoch", e.epoch,
+	//	"seq", e.seq, "index", e.index)
 
 	// Write SIG header
 	common.Order.PutUint32(frame[:4], e.seq)

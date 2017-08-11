@@ -72,8 +72,8 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 			break
 		}
 		// We got everything for the packet. Write it out to the wire.
-		log.Debug("ProcessCompletePkts: directly write pkt", "seqNr", fb.seqNr,
-			"offset", offset, "len", pktLen)
+		//log.Debug("ProcessCompletePkts: directly write pkt", "seqNr", fb.seqNr,
+		//	"offset", offset, "len", pktLen)
 		if err := send(rawPkt[:pktLen]); err != nil {
 			log.Error("Unable to send packet", "err", err)
 		}
@@ -83,8 +83,6 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 	}
 	if offset < fb.frameLen {
 		// There is an incomplete packet at the end of the frame.
-		log.Debug("Found packet fragment at the end of frame", "seqNr", fb.seqNr,
-			"start", offset, "pktLen", pktLen)
 		fb.frag0Start = offset
 		fb.pktLen = pktLen
 	}
