@@ -88,7 +88,7 @@ func (ifConfigs *IfConfigs) toEgressContainer() map[common.IFIDType]IFEContainer
 		ifid := config.Ifid
 		egressConfig := config.Egress
 		if len(egressConfig) != 0 {
-			containerMap[ifid] = mapToContainer(egressConfig, ifid)
+			containerMap[ifid] = mapToContainer(egressConfig, ifid, "egress")
 		}
 	}
 	return containerMap
@@ -100,13 +100,13 @@ func (ifConfigs *IfConfigs) toIngressContainer() map[common.IFIDType]IFEContaine
 		ifid := config.Ifid
 		ingressConfig := config.Ingress
 		if len(ingressConfig) != 0 {
-			containerMap[ifid] = mapToContainer(ingressConfig, ifid)
+			containerMap[ifid] = mapToContainer(ingressConfig, ifid, "ingress")
 		}
 	}
 	return containerMap
 }
 
-func mapToContainer(config map[string]int64, ifid common.IFIDType) IFEContainer {
+func mapToContainer(config map[string]int64, ifid common.IFIDType, typ string) IFEContainer {
 	maxUnknownBW := int64(-1)
 	avgs := make(map[uint32]*ASEInformation)
 
@@ -118,7 +118,7 @@ func mapToContainer(config map[string]int64, ifid common.IFIDType) IFEContainer 
 	unknown := ASEInformation{
 		maxBw:  maxUnknownBW,
 		movAvg: NewMovingAverage(5, 1000*time.Millisecond),
-		Labels: prometheus.Labels{"id": fmt.Sprintf("intf:%d, as:%s", ifid, "unknown")},
+		Labels: prometheus.Labels{"id": fmt.Sprintf("intf:%d, as:%s", ifid, "unknown"), "type": typ},
 	}
 
 	for isd, elem := range config {
@@ -129,10 +129,12 @@ func mapToContainer(config map[string]int64, ifid common.IFIDType) IFEContainer 
 		}
 
 		info := &ASEInformation{
-			maxBw:  elem,
-			movAvg: NewMovingAverage(5, 1000*time.Millisecond),
-			Labels: prometheus.Labels{"id": fmt.Sprintf("intf:%d, as:%s", ifid, isd)},
+			maxBw:   elem,
+			alertBW: (elem * 95) / 100,
+			movAvg:  NewMovingAverage(5, 1000*time.Millisecond),
+			Labels:  prometheus.Labels{"id": fmt.Sprintf("intf:%d, as:%s", ifid, isd), "type": typ},
 		}
+
 		key := isdas.Uint32()
 		avgs[key] = info
 	}

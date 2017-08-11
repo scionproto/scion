@@ -20,6 +20,7 @@ package enforcement
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -47,42 +48,54 @@ type IFEContainer struct {
 type ASEInformation struct {
 	// maxBw indicates the max bandwidth that the AS is allowed to use.
 	maxBw int64
+	// alertBW indicates the bandwidth that is used for alerting. currently it is set to 95%
+	alertBW int64
 	// movAvg holds the current bandwidth average of the AS.
 	movAvg *MovingAverage
+	// Labels holds the prometheus labels of the AS
 	Labels prometheus.Labels
 }
 
 // Check() indicates whether a packet should be forwarded to the next stage
 // of the router or not.
-func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) (bool, prometheus.Labels) {
+func (bwe *BWEnforcer) Check(rp *rpkt.RtrPkt) bool {
 	ifid, _ := rp.IFCurr()
 	if ifInfo, ex := bwe.Interfaces[*ifid]; ex {
 		srcIA, _ := rp.SrcIA()
 		length := len(rp.Raw)
-		if flag, labels := ifInfo.canForward(srcIA, length); flag {
-			return true, labels
-		} else {
-			return false, labels
-		}
+		return ifInfo.canForward(srcIA, length)
 	}
-	return true, nil
+	return true
 }
 
 // canForward() indicates whether a packet is allowed to pass the router. It is not if
 // the AS exceeds its bandwidth limit.
-func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) (bool, prometheus.Labels) {
+func (ifec *IFEContainer) canForward(isdas *addr.ISD_AS, length int) bool {
 	info := ifec.getBWInfo(*isdas)
 	labels := info.Labels
-	if info.canAdd() {
-		info.addPktToAvg(length)
-		return true, labels
+
+	//If there is unlimited BW for an AS just forward th packet.
+	if info.maxBw == -1 {
+		return true
 	}
-	return false, labels
+
+	avg := info.getAvg()
+	if avg < info.maxBw {
+		info.addPktToAvg(length)
+		if avg > info.alertBW {
+			metrics.AvgBytesPerAs.With(labels).Set(float64(avg))
+		}
+		return true
+	}
+
+	metrics.AvgBytesPerAs.With(labels).Set(float64(avg))
+	metrics.PktsDropPerAs.With(labels).Inc()
+	return false
 }
 
 // getBWInfo() checks if there is a moving average for addr and returns it. If not it
 // returns the moving average for unknown ASes.
-func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) (ASEInformation) {
+func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) ASEInformation {
 	info, exists := c.avgs[addr.Uint32()]
 	if exists {
 		return *info
@@ -90,17 +103,12 @@ func (c *IFEContainer) getBWInfo(addr addr.ISD_AS) (ASEInformation) {
 	return c.unknown
 }
 
-// canAdd() checks whether the the AS is exceeding its bandwidth limit or not.
-func (info *ASEInformation) canAdd() bool {
-	if info.maxBw == -1 {
-		return true
-	}
-	return info.movAvg.getAverage()*8 < info.maxBw
+// getAvg() returns the current moving average in bits.
+func (info *ASEInformation) getAvg() int64 {
+	return info.movAvg.getAverage() * 8
 }
 
 // addPktToAvg() adds the length of the packet in bytes to the moving average
 func (info *ASEInformation) addPktToAvg(length int) {
-	if info.maxBw != -1 {
-		info.movAvg.add(length)
-	}
+	info.movAvg.add(length)
 }

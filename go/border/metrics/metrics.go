@@ -59,22 +59,13 @@ var (
 		[]string{"id"},
 	)
 
-	PktsRecvDropPerAs = prometheus.NewCounterVec(
+	PktsDropPerAs = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "border",
-			Name:      "pkts_rcv_drop_per_as",
-			Help:      "Number of received packets dropped.",
+			Name:      "pkts_drop_per_as",
+			Help:      "Number of ingress packets dropped.",
 		},
-		[]string{"id"},
-	)
-
-	PktsSndDropPerAs = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "pkts_snd_drop_per_as",
-			Help:      "Number of sent packets dropped.",
-		},
-		[]string{"id"},
+		[]string{"id", "type"},
 	)
 
 	BytesRecv = prometheus.NewCounterVec(
@@ -86,13 +77,13 @@ var (
 		[]string{"id"},
 	)
 
-	BytesRecvPerAs = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
+	AvgBytesPerAs = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Namespace: "border",
-			Name:      "bytes_recv_per_as",
-			Help:      "Number of bytes received per AS.",
+			Name:      "bytes_per_as",
+			Help:      "Number of bytes received per AS if the AS is overshooting.",
 		},
-		[]string{"id"},
+		[]string{"id", "type"},
 	)
 
 	BytesSent = prometheus.NewCounterVec(
@@ -100,15 +91,6 @@ var (
 			Namespace: "border",
 			Name:      "bytes_sent_total",
 			Help:      "Number of bytes sent.",
-		},
-		[]string{"id"},
-	)
-
-	BytesSndPerAs = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "bytes_snd_per_as",
-			Help:      "Number of bytes sent per AS.",
 		},
 		[]string{"id"},
 	)
@@ -172,12 +154,10 @@ func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
 	prometheus.MustRegister(PktsRecvOvfl)
-	prometheus.MustRegister(PktsRecvDropPerAs)
-	prometheus.MustRegister(PktsSndDropPerAs)
+	prometheus.MustRegister(PktsDropPerAs)
+	prometheus.MustRegister(AvgBytesPerAs)
 	prometheus.MustRegister(BytesRecv)
-	prometheus.MustRegister(BytesRecvPerAs)
 	prometheus.MustRegister(BytesSent)
-	prometheus.MustRegister(BytesSndPerAs)
 	prometheus.MustRegister(PktBufNew)
 	prometheus.MustRegister(PktBufReuse)
 	prometheus.MustRegister(PktBufDiscard)
