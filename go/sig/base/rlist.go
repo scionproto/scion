@@ -54,8 +54,6 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	firstFrame := first.Value.(*FrameBuf)
 	// Check whether frame is too old.
 	if frame.seqNr < firstFrame.seqNr {
-		log.Debug("Discarding frame: too old", "epoch", l.epoch, "seqNr", frame.seqNr,
-			"currentOldest", firstFrame.seqNr)
 		metrics.FramesTooOld.Inc()
 		l.releaseFrame(frame)
 		return
@@ -89,8 +87,6 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 		return
 	}
 	l.entries.PushBack(frame)
-	log.Debug("Adding frame to reassembly list", "frame", frame.String(),
-		"listLen", l.entries.Len())
 	l.tryReassemble()
 }
 
@@ -99,8 +95,6 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 func (l *ReassemblyList) insertFirst(frame *FrameBuf) {
 	frame.ProcessCompletePkts()
 	if frame.frag0Start != 0 {
-		log.Debug("Adding frame to reassembly list", "frame", frame.String(),
-			"listLen", l.entries.Len())
 		l.entries.PushBack(frame)
 	} else {
 		l.releaseFrame(frame)
@@ -112,7 +106,6 @@ func (l *ReassemblyList) tryReassemble() {
 	if l.entries.Len() < 2 {
 		return
 	}
-	log.Debug("Trying to reassemble packet.")
 	start := l.entries.Front()
 	startFrame := start.Value.(*FrameBuf)
 	if startFrame.frag0Start == 0 {
@@ -156,14 +149,10 @@ func (l *ReassemblyList) tryReassemble() {
 func (l *ReassemblyList) collectAndWrite() {
 	start := l.entries.Front()
 	startFrame := start.Value.(*FrameBuf)
-	log.Debug("Can reassemble.", "startSeqNr", startFrame.seqNr, "pktLen", startFrame.pktLen,
-		"listLen", l.entries.Len())
 	// Reset reassembly buffer.
 	l.buf.Reset()
 	// Collect the start of the packet.
 	pktLen := startFrame.pktLen
-	log.Debug(fmt.Sprintf("Collecting [%d, %d] from frame %d", startFrame.frag0Start,
-		startFrame.frameLen, startFrame.seqNr))
 	l.buf.Write(startFrame.raw[startFrame.frag0Start:startFrame.frameLen])
 	// We cannot process the startframe any further.
 	startFrame.SetProcessed()
@@ -172,8 +161,6 @@ func (l *ReassemblyList) collectAndWrite() {
 	for e := start.Next(); l.buf.Len() < pktLen && e != nil; e = e.Next() {
 		frame = e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		log.Debug(fmt.Sprintf("Collecting [%d, %d] from frame %d", SIGHdrSize,
-			min(missingBytes+SIGHdrSize, frame.frameLen), frame.seqNr))
 		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes+SIGHdrSize, frame.frameLen)])
 		frame.fragNProcessed = true
 	}
@@ -195,7 +182,6 @@ func (l *ReassemblyList) collectAndWrite() {
 
 func (l *ReassemblyList) removeEntry(e *list.Element) {
 	frame := e.Value.(*FrameBuf)
-	log.Debug("Removing frame from reassembly list", "epoch", l.epoch, "frame", frame.String())
 	l.releaseFrame(frame)
 	l.entries.Remove(e)
 }
