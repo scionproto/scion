@@ -102,8 +102,6 @@ func ClientRegister(x chan ExitData, tc TestCase, sockName string) {
 }
 
 func TestWriteTo(t *testing.T) {
-	// Create dir for test sockets if it does not exist
-
 	nilAddr := addr.HostNone{}
 	testCases := []TestCase{
 		{msg: "", dst: AppAddr{Addr: nilAddr, Port: 0},
