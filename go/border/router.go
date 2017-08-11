@@ -141,11 +141,11 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// BW limitations.
 	if r.fBwEnf {
 		if r.ingressBWE.DoEnforcement &&
-			(rp.DirFrom == rpkt.DirExternal && (rp.DirTo == rpkt.DirLocal || rp.DirTo == rpkt.DirSelf)) {
+			(rp.DirFrom == rcmn.DirExternal && (rp.DirTo == rcmn.DirLocal || rp.DirTo == rcmn.DirSelf)) {
 			if !r.ingressBWE.Check(rp) {
 				return
 			}
-		} else if r.egresseBWE.DoEnforcement && (rp.DirFrom == rpkt.DirLocal && rp.DirTo == rpkt.DirExternal) {
+		} else if r.egresseBWE.DoEnforcement && (rp.DirFrom == rcmn.DirLocal && rp.DirTo == rcmn.DirExternal) {
 			if !r.egresseBWE.Check(rp) {
 				return
 			}
