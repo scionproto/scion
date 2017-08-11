@@ -103,10 +103,7 @@ func ClientRegister(x chan ExitData, tc TestCase, sockName string) {
 
 func TestWriteTo(t *testing.T) {
 	// Create dir for test sockets if it does not exist
-	testDir := "/tmp/reliable"
-	if _, err := os.Stat(testDir); os.IsNotExist(err) {
-		os.Mkdir(testDir, 0700)
-	}
+
 	nilAddr := addr.HostNone{}
 	testCases := []TestCase{
 		{msg: "", dst: AppAddr{Addr: nilAddr, Port: 0},
@@ -125,7 +122,7 @@ func TestWriteTo(t *testing.T) {
 		Convey("Server should receive correct raw messages", func() {
 			for i, tc := range testCases {
 				Convey(fmt.Sprintf("Client sent message \"%v\"", tc.msg), func() {
-					sockName := fmt.Sprintf(testDir+"/reliable%v.sock", rand.Uint32())
+					sockName := getRandFile()
 
 					sc := make(chan ExitData, 1)
 					cc := make(chan ExitData, 1)
@@ -176,7 +173,7 @@ func TestRegister(t *testing.T) {
 		Convey("SCIOND should receive correct raw messages", func() {
 			for i, tc := range testCases {
 				Convey(fmt.Sprintf("Client registered to %v, %v", tc.ia, tc.dst), func() {
-					sockName := fmt.Sprintf("/tmp/reliable%v.sock", rand.Uint32())
+					sockName := getRandFile()
 
 					sc := make(chan ExitData, 1)
 					cc := make(chan ExitData, 1)
@@ -207,12 +204,6 @@ func TestRegister(t *testing.T) {
 			}
 		})
 	})
-}
-
-func getRandFile() string {
-	r := uint32(time.Now().UnixNano() + int64(os.Getpid()))
-	suffix := strconv.Itoa(int(1e9 + r%1e9))[1:]
-	return "/tmp/unix." + suffix
 }
 
 type SetupFunc func() interface{}
@@ -394,4 +385,15 @@ func TestReadNWriteN(t *testing.T) {
 	// Wait for server to finish reading before comparing results
 	<-readFinished
 	testNFunc(t, clientData, serverData)
+}
+
+func getRandFile() string {
+	testDir := "/tmp/reliable"
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		os.Mkdir(testDir, 0700)
+	}
+
+	r := uint32(time.Now().UnixNano() + int64(os.Getpid()))
+	suffix := strconv.Itoa(int(1e9 + r%1e9))[1:]
+	return testDir + "/unix." + suffix
 }
