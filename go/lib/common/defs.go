@@ -16,6 +16,7 @@ package common
 
 import (
 	"encoding/binary"
+	"unsafe"
 )
 
 const (
@@ -26,6 +27,19 @@ const (
 )
 
 var Order = binary.BigEndian
+var NativeOrder binary.ByteOrder
+var IsBigEndian bool
+
+func init() {
+	var v uint16 = 0x11FF
+	if (*[2]uint8)(unsafe.Pointer(&v))[0] == 0x11 {
+		IsBigEndian = true
+		NativeOrder = binary.BigEndian
+	} else {
+		IsBigEndian = false
+		NativeOrder = binary.LittleEndian
+	}
+}
 
 const (
 	BR = "br"
