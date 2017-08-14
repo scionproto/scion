@@ -189,12 +189,12 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 // address to use when replying to a packet.
 func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
 	if rp.DirFrom == rcmn.DirLocal {
-		return rpkt.EgressPair{F: rp.Ctx.LocOutFs[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
+		return rpkt.EgressPair{S: rp.Ctx.LocSockOut[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
 	}
 	ifid, err := rp.IFCurr()
 	if err != nil {
 		return rpkt.EgressPair{}, err
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*ifid]
-	return rpkt.EgressPair{F: rp.Ctx.IntfOutFs[*ifid], Dst: intf.RemoteAddr}, nil
+	return rpkt.EgressPair{S: rp.Ctx.ExtSockOut[*ifid], Dst: intf.RemoteAddr}, nil
 }

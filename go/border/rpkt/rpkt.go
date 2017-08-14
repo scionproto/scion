@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
@@ -124,15 +125,29 @@ type RtrPkt struct {
 	log.Logger
 	// The current router context to process this packet.
 	Ctx *rctx.Ctx
+	// Reference count
+	refCnt int
+	// Called by Release when the reference count hits 0
+	Free func(*RtrPkt)
 }
-
-// Check that RtrPkt implements rctx.OutputObj
-var _ rctx.OutputObj = (*RtrPkt)(nil)
 
 func NewRtrPkt() *RtrPkt {
 	r := &RtrPkt{}
 	r.Raw = make(common.RawBytes, pktBufSize)
+	r.refCnt = 1
 	return r
+}
+
+func (rp *RtrPkt) Release() {
+	if assert.On {
+		assert.Mustf(rp.refCnt > 0, rp.ErrStrf("RtrPkt.refCnt be positive."))
+	}
+	rp.refCnt -= 1
+	if rp.refCnt == 0 && rp.Free != nil {
+		free := rp.Free
+		rp.Reset()
+		free(rp)
+	}
 }
 
 // addrIFPair contains the overlay destination/source addresses, as well as the
@@ -147,7 +162,12 @@ type addrIFPair struct {
 // EgressPair contains the output function to send a packet with, along with an
 // overlay destination address.
 type EgressPair struct {
-	F   rctx.OutputFunc
+	S   *rctx.Sock
+	Dst *topology.AddrInfo
+}
+
+type EgressRtrPkt struct {
+	Rp  *RtrPkt
 	Dst *topology.AddrInfo
 }
 
@@ -215,6 +235,8 @@ func (rp *RtrPkt) Reset() {
 	rp.hooks = hooks{}
 	rp.SCMPError = false
 	rp.Ctx = nil
+	rp.refCnt = 1
+	rp.Free = nil
 }
 
 // ToScnPkt converts this RtrPkt into an spkt.ScnPkt. The verify argument

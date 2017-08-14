@@ -28,10 +28,12 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rcmn"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/sring"
 )
 
 var sighup chan os.Signal
@@ -51,7 +53,8 @@ type Router struct {
 	confDir string
 	// freePkts is a buffered channel for recycled packets. See
 	// Router.recyclePkt
-	freePkts chan *rpkt.RtrPkt
+	freePkts    chan *rpkt.RtrPkt
+	freePktRing *sring.SRing
 	// revInfoQ is a channel for handling RevInfo payloads.
 	revInfoQ chan rpkt.RevTokenCallbackArgs
 }
@@ -101,6 +104,26 @@ func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
 		r.processPacket(rp)
 		metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 		r.recyclePkt(rp)
+	}
+}
+
+func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
+	defer liblog.PanicLog()
+	defer close(stopped)
+	pkts := make(sring.EntryList, 256)
+	for {
+		select {
+		case <-stop:
+			break
+		default:
+		}
+		n := s.Sring.Read(pkts)
+		for i := 0; i < n; i++ {
+			rp := pkts[i].(*rpkt.RtrPkt)
+			r.processPacket(rp)
+			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
+			rp.Release()
+		}
 	}
 }
 
