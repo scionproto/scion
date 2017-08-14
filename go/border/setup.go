@@ -56,7 +56,9 @@ var setupNetFinishHooks []setupNetHook
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() *common.Error {
-	r.freePkts = newRpktRing(1024, "free", prometheus.Labels{"id": "freePkts"})
+	r.freePkts = ringbuf.New(1024, func() interface{} {
+		return rpkt.NewRtrPkt()
+	}, "free", prometheus.Labels{"id": "freePkts"})
 	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
 
 	// Configure the rpkt package with the callbacks it needs.
@@ -258,10 +260,10 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 		}
 	}
 	// Setup input goroutine.
-	ctx.LocSockIn[idx] = rctx.NewSock(newRpktRing(1024, "locIn", labels), over, rcmn.DirLocal,
-		ifids, idx, labels, r.posixInput, r.handleSock)
-	ctx.LocSockOut[idx] = rctx.NewSock(newRpktRing(1024, "locOut", labels), over, rcmn.DirLocal,
-		ifids, idx, labels, nil, r.posixOutput)
+	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locIn", labels),
+		over, rcmn.DirLocal, ifids, idx, labels, r.posixInput, r.handleSock)
+	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locOut", labels),
+		over, rcmn.DirLocal, ifids, idx, labels, nil, r.posixOutput)
 	log.Debug("Set up new local socket.", "conn", over.LocalAddr())
 	return nil
 }
@@ -319,22 +321,10 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	}
 	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(newRpktRing(1024, "extIn", labels),
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extIn", labels),
 		c, rcmn.DirExternal, ifids, -1, labels, r.posixInput, r.handleSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(newRpktRing(1024, "extOut", labels),
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extOut", labels),
 		c, rcmn.DirExternal, ifids, -1, labels, nil, r.posixOutput)
 	log.Debug("Set up new external socket.", "intf", intf)
 	return nil
-}
-
-func newRpktRing(size int, desc string, labels prometheus.Labels) *ringbuf.Ring {
-	return ringbuf.New(size, func() interface{} {
-		return rpkt.NewRtrPkt()
-	}, desc, labels)
-}
-
-func newEgressRpktRing(size int, desc string, labels prometheus.Labels) *ringbuf.Ring {
-	return ringbuf.New(size, func() interface{} {
-		return &rpkt.EgressRtrPkt{}
-	}, desc, labels)
 }
