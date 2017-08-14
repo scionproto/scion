@@ -28,10 +28,12 @@ import (
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rcmn"
+	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
 var sighup chan os.Signal
@@ -49,9 +51,8 @@ type Router struct {
 	Id string
 	// confDir is the directory containing the configuration file.
 	confDir string
-	// freePkts is a buffered channel for recycled packets. See
-	// Router.recyclePkt
-	freePkts chan *rpkt.RtrPkt
+	// freePkts is a ring-buffer of unused packets.
+	freePkts *ringbuf.Ring
 	// revInfoQ is a channel for handling RevInfo payloads.
 	revInfoQ chan rpkt.RevTokenCallbackArgs
 }
@@ -95,12 +96,23 @@ func (r *Router) confSig() {
 	}
 }
 
-func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
+func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.PanicLog()
-	for rp := range q {
-		r.processPacket(rp)
-		metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
-		r.recyclePkt(rp)
+	defer close(stopped)
+	pkts := make(ringbuf.EntryList, 256)
+	for {
+		select {
+		case <-stop:
+			break
+		default:
+		}
+		n := s.Ring.Read(pkts, true)
+		for i := 0; i < n; i++ {
+			rp := pkts[i].(*rpkt.RtrPkt)
+			r.processPacket(rp)
+			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
+			rp.Release()
+		}
 	}
 }
 
@@ -158,32 +170,5 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		if err := rp.Route(); err != nil {
 			r.handlePktError(rp, err, "Error routing packet")
 		}
-	}
-}
-
-// getPktBuf implements a leaky buffer list, as described
-// here: https://golang.org/doc/effective_go.html#leaky_buffer
-func (r *Router) getPktBuf() *rpkt.RtrPkt {
-	select {
-	case rp := <-r.freePkts:
-		// Got one
-		metrics.PktBufReuse.Inc()
-		return rp
-	default:
-		// None available, allocate a new one
-		metrics.PktBufNew.Inc()
-		return rpkt.NewRtrPkt()
-	}
-}
-
-// recyclePkt readies a packet for the leaky buffer list (see getPktBuf).
-func (r *Router) recyclePkt(rp *rpkt.RtrPkt) {
-	rp.Reset()
-	select {
-	case r.freePkts <- rp:
-		// Packet added to free list
-	default:
-		// Free list full, carry on
-		metrics.PktBufDiscard.Inc()
 	}
 }

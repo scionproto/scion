@@ -17,6 +17,7 @@ package topology
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	//log "github.com/inconshreveable/log15"
 
@@ -209,6 +210,19 @@ func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
 		return false
 	}
 	return true
+}
+
+func (t *TopoAddr) String() string {
+	var s []string
+	s = append(s, "TopoAddr{")
+	if t.IPv4 != nil {
+		s = append(s, fmt.Sprintf("IPv4:{%s},", t.IPv4))
+	}
+	if t.IPv6 != nil {
+		s = append(s, fmt.Sprintf("IPv6:{%s},", t.IPv6))
+	}
+	s = append(s, fmt.Sprintf("Overlay: %s}", t.Overlay))
+	return strings.Join(s, "")
 }
 
 type AddrInfo struct {

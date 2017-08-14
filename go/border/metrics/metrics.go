@@ -57,6 +57,15 @@ var (
 		},
 		[]string{"id"},
 	)
+	PktsRecvSize = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "border",
+			Name:      "pkts_recv_size",
+			Help:      "Size of received packets",
+			Buckets:   []float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000},
+		},
+		[]string{"id"},
+	)
 	BytesRecv = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "border",
@@ -132,6 +141,7 @@ func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
 	prometheus.MustRegister(PktsRecvOvfl)
+	prometheus.MustRegister(PktsRecvSize)
 	prometheus.MustRegister(BytesRecv)
 	prometheus.MustRegister(BytesSent)
 	prometheus.MustRegister(PktBufNew)

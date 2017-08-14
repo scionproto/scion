@@ -76,13 +76,11 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int
 			if srcAddr.Overlay.IsUDP() {
 				ai.OverlayPort = overlay.EndhostPort
 			}
-			rp.Egress = append(rp.Egress, rpkt.EgressPair{
-				F: ctx.LocOutFs[0], Dst: ai})
+			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut[0], Dst: ai})
 		}
 	} else {
 		ifid := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
-		intf := ctx.Conf.Net.IFs[ifid]
-		rp.Egress = append(rp.Egress, rpkt.EgressPair{F: ctx.IntfOutFs[ifid], Dst: intf.RemoteAddr})
+		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
 	return rp.Route()
 }
