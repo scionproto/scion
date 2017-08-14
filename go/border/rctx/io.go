@@ -71,7 +71,8 @@ func NewSock(sring *sring.SRing, conn conn.Conn, dir rcmn.Dir,
 	return s
 }
 
-// Start starts the input goroutine. Does nothing if it is already running.
+// Start starts the reader/writer goroutines (if any). Does nothing if they
+// have been started already.
 func (s *Sock) Start() {
 	if !s.running {
 		if s.Reader != nil {
@@ -85,8 +86,8 @@ func (s *Sock) Start() {
 	}
 }
 
-// Stop stops a running input goroutine and waits until the routine stopped
-// before returing to the caller.
+// Stop stops the running reader/writer goroutines (if any) and waits until the
+// routines are stopped before returing to the caller.
 func (s *Sock) Stop() {
 	if s.running {
 		close(s.stop)

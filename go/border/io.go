@@ -42,7 +42,7 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	bytesRecv := metrics.BytesRecv.With(s.Labels)
 	pktRecvSizes := metrics.PktsRecvSize.With(s.Labels)
 	free := func(rp *rpkt.RtrPkt) {
-		r.freePktRing.Release(sring.EntryList{rp})
+		r.freePkts.Release(sring.EntryList{rp})
 	}
 
 Top:
@@ -52,7 +52,7 @@ Top:
 			break
 		default:
 		}
-		n := r.freePktRing.Reserve(pkts)
+		n := r.freePkts.Reserve(pkts)
 		for i := 0; i < n; i++ {
 			inputLoops.Inc()
 			rp := pkts[i].(*rpkt.RtrPkt)

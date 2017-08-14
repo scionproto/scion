@@ -51,10 +51,8 @@ type Router struct {
 	Id string
 	// confDir is the directory containing the configuration file.
 	confDir string
-	// freePkts is a buffered channel for recycled packets. See
-	// Router.recyclePkt
-	freePkts    chan *rpkt.RtrPkt
-	freePktRing *sring.SRing
+	// freePkts is a ring-buffer of unused packets.
+	freePkts *sring.SRing
 	// revInfoQ is a channel for handling RevInfo payloads.
 	revInfoQ chan rpkt.RevTokenCallbackArgs
 }
@@ -95,15 +93,6 @@ func (r *Router) confSig() {
 			continue
 		}
 		log.Info("Config reloaded")
-	}
-}
-
-func (r *Router) handleQueue(q chan *rpkt.RtrPkt) {
-	defer liblog.PanicLog()
-	for rp := range q {
-		r.processPacket(rp)
-		metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
-		r.recyclePkt(rp)
 	}
 }
 
@@ -181,32 +170,5 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		if err := rp.Route(); err != nil {
 			r.handlePktError(rp, err, "Error routing packet")
 		}
-	}
-}
-
-// getPktBuf implements a leaky buffer list, as described
-// here: https://golang.org/doc/effective_go.html#leaky_buffer
-func (r *Router) getPktBuf() *rpkt.RtrPkt {
-	select {
-	case rp := <-r.freePkts:
-		// Got one
-		metrics.PktBufReuse.Inc()
-		return rp
-	default:
-		// None available, allocate a new one
-		metrics.PktBufNew.Inc()
-		return rpkt.NewRtrPkt()
-	}
-}
-
-// recyclePkt readies a packet for the leaky buffer list (see getPktBuf).
-func (r *Router) recyclePkt(rp *rpkt.RtrPkt) {
-	rp.Reset()
-	select {
-	case r.freePkts <- rp:
-		// Packet added to free list
-	default:
-		// Free list full, carry on
-		metrics.PktBufDiscard.Inc()
 	}
 }

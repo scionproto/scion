@@ -56,8 +56,7 @@ var setupNetFinishHooks []setupNetHook
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() *common.Error {
-	r.freePkts = make(chan *rpkt.RtrPkt, 1024)
-	r.freePktRing = newRpktSRing(1024, "free", prometheus.Labels{"id": "freePkts"})
+	r.freePkts = newRpktSRing(1024, "free", prometheus.Labels{"id": "freePkts"})
 	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
 
 	// Configure the rpkt package with the callbacks it needs.
