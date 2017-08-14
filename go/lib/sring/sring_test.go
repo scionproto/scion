@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -16,6 +17,12 @@ const (
 	RD
 	REL
 )
+
+var testLabels = prometheus.Labels{"id": "test"}
+
+func init() {
+	InitMetrics("test")
+}
 
 func (o Op) String() string {
 	switch o {
@@ -42,7 +49,7 @@ func (c Command) String() string {
 
 func runOps(script []Command) *SRing {
 	var err error
-	r := New(8, NewEntryBytes(128))
+	r := New(8, NewEntryBytes(128), "", testLabels)
 	buffers := make(EntryList, 16)
 	for _, cmd := range script {
 		switch cmd.op {
@@ -104,7 +111,7 @@ func TestOperations(t *testing.T) {
 }
 
 func TestContents(t *testing.T) {
-	r := New(8, NewEntryBytes(128))
+	r := New(8, NewEntryBytes(128), "", testLabels)
 	data := []byte{1, 2, 3, 4, 5}
 	buffersWriter := make(EntryList, 1)
 	buffersReader := make(EntryList, 1)
@@ -126,7 +133,7 @@ func TestContents(t *testing.T) {
 
 // BenchmarkSRing1M sends 1Mil (1<<20) messages through an SRing.
 func BenchmarkSRing1M(b *testing.B) {
-	sr := New(1024, NewEntryBytes(1024))
+	sr := New(1024, NewEntryBytes(1024), "", testLabels)
 	wbuf := make(EntryList, 16)
 	rbuf := make(EntryList, 16)
 	b.ResetTimer()
