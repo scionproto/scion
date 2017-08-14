@@ -18,6 +18,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+// CalcPadding returns the number of padding bytes needed to round length bytes
+// to a multiple of blkSize
 func CalcPadding(length, blkSize int) int {
 	spare := length % blkSize
 	if spare != 0 {
