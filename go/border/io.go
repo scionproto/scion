@@ -29,7 +29,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
-func (r *Router) posixInput(s *rctx.Sock, _, stopped chan struct{}) {
+func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.PanicLog()
 	defer close(stopped)
 	dst := s.Conn.LocalAddr()
@@ -47,11 +47,13 @@ func (r *Router) posixInput(s *rctx.Sock, _, stopped chan struct{}) {
 
 Top:
 	for {
-		n := r.freePkts.Read(pkts, true)
-		if n < 0 {
+		select {
+		case <-stop:
 			log.Debug("posixInput stopping", "addr", dst)
 			return
+		default:
 		}
+		n := r.freePkts.Read(pkts, true)
 		for i := 0; i < n; i++ {
 			inputLoops.Inc()
 			rp := pkts[i].(*rpkt.RtrPkt)
@@ -63,7 +65,11 @@ Top:
 			length, src, err := s.Conn.Read(rp.Raw)
 			if err != nil {
 				log.Error("Error reading from socket", "socket", dst, "err", err)
-				free(rp)
+				rp.Reset()
+				for j := i; j < n; j++ {
+					rp := pkts[j].(*rpkt.RtrPkt)
+					free(rp)
+				}
 				continue Top
 			}
 			t := monotime.Since(start).Seconds()

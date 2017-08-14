@@ -93,6 +93,9 @@ func (s *Sock) Stop() {
 		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr())
 		close(s.stop)
 		s.Ring.Close()
+		if err := s.Conn.Close(); err != nil {
+			log.Error("Error stopping socket", "err", err)
+		}
 		if s.Writer != nil {
 			<-s.writerStopped
 		}
