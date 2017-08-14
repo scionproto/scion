@@ -35,7 +35,7 @@ func Checksum(srcs ...common.RawBytes) uint16 {
 		// XXX(kormat): this creates a uint16 slice pointing to the underlying
 		// data in src. This provides a 2x speed-up, at least on
 		// linux/{amd64,arm64}. How it works:
-		// 1. Get the get the address of the backing array in src.
+		// 1. Get the address of the backing array in src.
 		// 2. Cast the address to a uint16 _array_ (with a size guaranteed to
 		//    be large enough).
 		// 3. Convert the array to a []uint16 of the appropriate number of
