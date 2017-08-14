@@ -28,15 +28,15 @@ const (
 
 var Order = binary.BigEndian
 var NativeOrder binary.ByteOrder
-var BigEndian bool
+var IsBigEndian bool
 
 func init() {
 	var v uint16 = 0x11FF
 	if (*[2]uint8)(unsafe.Pointer(&v))[0] == 0x11 {
-		BigEndian = true
+		IsBigEndian = true
 		NativeOrder = binary.BigEndian
 	} else {
-		BigEndian = false
+		IsBigEndian = false
 		NativeOrder = binary.LittleEndian
 	}
 }
