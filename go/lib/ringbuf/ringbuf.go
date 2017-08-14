@@ -24,7 +24,7 @@ type Entry interface{}
 type EntryList []Entry
 type NewEntryF func() interface{}
 
-// Ring is a classic generic ring buffer on top of a fixed-sized slice.
+// Ring is a classic generic ring buffer on top of a fixed-sized slice. It is thread-safe.
 type Ring struct {
 	mutex      sync.Mutex
 	writableC  *sync.Cond
@@ -38,6 +38,10 @@ type Ring struct {
 	metrics    *metrics
 }
 
+// New allocates a new Ring instance, with capacity for count entries. If newf
+// is non-nil, it is called count times to pre-allocate the entries. labels
+// are attached to the prometheus metrics, and desc is added as an extra label.
+// N.B. InitMetrics must be called before the first New call.
 func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring {
 	r := &Ring{}
 	r.readableC = sync.NewCond(&r.mutex)
@@ -58,7 +62,10 @@ func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring
 	return r
 }
 
-// Write copies entries to the internal ring buffer.
+// Write copies entries to the internal ring buffer. If block is true, then
+// Write will block until it is able to write at least one entry (or the Ring
+// is closed). Otherwise it will return immediately if there's on space left
+// for writing.
 // Returns the number of entries written, or -1 if the RingBuf is closed.
 func (r *Ring) Write(entries EntryList, block bool) int {
 	r.mutex.Lock()
@@ -82,7 +89,10 @@ func (r *Ring) Write(entries EntryList, block bool) int {
 	return n
 }
 
-// Read copies entries from the internal ring buffer.
+// Read copies entries from the internal ring buffer. If block is true, then
+// Read will block until it is able to read at least one entry (or the Ring
+// is closed). Otherwise it will return immediately if there's no entries
+// available for reading.
 // Returns the number of entries read, or -1 if the RingBuf is closed.
 func (r *Ring) Read(entries EntryList, block bool) int {
 	r.mutex.Lock()
@@ -112,8 +122,8 @@ func (r *Ring) Close() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.closed = true
-	r.writableC.Signal()
-	r.readableC.Signal()
+	r.writableC.Broadcast()
+	r.readableC.Broadcast()
 }
 
 func (r *Ring) write(entries EntryList) {
