@@ -38,3 +38,14 @@ func TestChecksum(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkChecksum(b *testing.B) {
+	data := make(common.RawBytes, 1500)
+	for i := 0; i < len(data); i++ {
+		data[i] = byte(i)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Checksum(data)
+	}
+}
