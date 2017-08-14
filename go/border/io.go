@@ -29,11 +29,11 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
-func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
+func (r *Router) posixInput(s *rctx.Sock, _, stopped chan struct{}) {
 	defer liblog.PanicLog()
 	defer close(stopped)
 	dst := s.Conn.LocalAddr()
-	log.Info("posixInput", "addr", dst)
+	log.Debug("posixInput starting", "addr", dst)
 	pkts := make(ringbuf.EntryList, 256)
 	// Pre-calculate metrics
 	inputLoops := metrics.InputLoops.With(s.Labels)
@@ -47,13 +47,11 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 
 Top:
 	for {
-		select {
-		case <-stop:
-			log.Info("posixInput Stopping", "addr", dst)
-			return
-		default:
-		}
 		n := r.freePkts.Read(pkts, true)
+		if n < 0 {
+			log.Debug("posixInput stopping", "addr", dst)
+			return
+		}
 		for i := 0; i < n; i++ {
 			inputLoops.Inc()
 			rp := pkts[i].(*rpkt.RtrPkt)
@@ -84,11 +82,11 @@ Top:
 	}
 }
 
-func (r *Router) posixOutput(s *rctx.Sock, stop, stopped chan struct{}) {
+func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	defer liblog.PanicLog()
 	defer close(stopped)
 	src := s.Conn.LocalAddr()
-	log.Info("posixOutput", "addr", src)
+	log.Info("posixOutput starting", "addr", src)
 	epkts := make(ringbuf.EntryList, 256)
 	// Pre-calculate metrics
 	outputProcessTime := metrics.OutputProcessTime.With(s.Labels)
@@ -99,13 +97,11 @@ func (r *Router) posixOutput(s *rctx.Sock, stop, stopped chan struct{}) {
 	var start time.Duration
 	var t float64
 	for {
-		select {
-		case <-stop:
-			log.Info("posixOutput Stopping", "addr", src)
-			return
-		default:
-		}
 		n := s.Ring.Read(epkts, true)
+		if n < 0 {
+			log.Debug("posixOutput stopping", "addr", src)
+			return
+		}
 		for i := 0; i < n; i++ {
 			erp := epkts[i].(*rpkt.EgressRtrPkt)
 			rp := erp.Rp

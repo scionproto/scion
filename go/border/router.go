@@ -100,13 +100,13 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.PanicLog()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, 256)
+	log.Debug("handleSock starting", "sock", *s)
 	for {
-		select {
-		case <-stop:
-			break
-		default:
-		}
 		n := s.Ring.Read(pkts, true)
+		if n < 0 {
+			log.Debug("handleSock stopping", "sock", *s)
+			return
+		}
 		for i := 0; i < n; i++ {
 			rp := pkts[i].(*rpkt.RtrPkt)
 			r.processPacket(rp)
