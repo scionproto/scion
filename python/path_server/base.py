@@ -111,6 +111,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.htroot_if2seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
+                PMT.IFSTATE_INFOS: self.handle_ifstate_infos,
                 PMT.REQUEST: self.path_resolution,
                 PMT.REPLY: self.handle_path_segment_record,
                 PMT.REG: self.handle_path_segment_record,
@@ -215,6 +216,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_id())
         return False
+
+    def handle_ifstate_infos(self, infos, meta):
+        """
+        Handles IFStateInfos.
+
+        :param IFStatePayload infos: The state info objects.
+        """
+
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
