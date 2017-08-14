@@ -53,7 +53,7 @@ func Checksum(srcs ...common.RawBytes) uint16 {
 	for sum > 0xffff {
 		sum = (sum >> 16) + (sum & 0xffff)
 	}
-	if !common.BigEndian {
+	if !common.IsBigEndian {
 		// Native order is little-endian, so swap the bytes.
 		sum = (sum&0xFF)<<8 + (sum >> 8)
 	}
