@@ -61,6 +61,11 @@ func IAFromString(s string) (*ISD_AS, *common.Error) {
 	return &ISD_AS{I: isd, A: as}, nil
 }
 
+func (ia *ISD_AS) Parse(b common.RawBytes) {
+	isdas := common.Order.Uint32(b)
+	ia.I, ia.A = int(isdas>>20), int(isdas&0x000FFFFF)
+}
+
 func (ia *ISD_AS) Write(b common.RawBytes) {
 	common.Order.PutUint32(b, ia.Uint32())
 }

@@ -23,3 +23,19 @@ type RawBytes []byte
 func (r RawBytes) String() string {
 	return fmt.Sprintf("%x", []byte(r))
 }
+
+func (r RawBytes) Len() int {
+	return len(r)
+}
+
+func (r RawBytes) Copy() (Payload, *Error) {
+	return RawBytes(append([]byte{}, r...)), nil
+}
+
+func (r RawBytes) Write(b RawBytes) (int, *Error) {
+	if len(b) < len(r) {
+		return 0, NewError("Insufficient space", "expected",
+			len(r), "actual", len(b))
+	}
+	return copy(b, r), nil
+}
