@@ -78,6 +78,7 @@ func (r *SRing) Write(entries EntryList) (int, error) {
 		return 0, common.NewError("Attempted to write more entries than reserved",
 			"expect", max, "actual", len(entries))
 	}
+	r.metrics.writeEntries.Add(float64(n))
 	return n, nil
 }
 
@@ -85,7 +86,10 @@ func (r *SRing) Write(entries EntryList) (int, error) {
 // returns the number of copied entries. If no entries are available in the
 // data ring buffer, the function blocks.
 func (r *SRing) Read(entries EntryList) int {
-	return r.dataRefs.Read(entries)
+	r.metrics.readCalls.Inc()
+	n := r.dataRefs.Read(entries)
+	r.metrics.readEntries.Add(float64(n))
+	return n
 }
 
 // Release returns entries to the free ring buffer and returns the number of
