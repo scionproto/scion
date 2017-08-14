@@ -36,8 +36,9 @@
 package sring
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 type SRing struct {

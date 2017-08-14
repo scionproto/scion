@@ -45,7 +45,7 @@ func newSRingMetrics(desc string, labels prometheus.Labels) *sringMetrics {
 }
 
 func copyLabels(labels prometheus.Labels) prometheus.Labels {
-	var l prometheus.Labels
+	l := make(prometheus.Labels)
 	for k, v := range labels {
 		l[k] = v
 	}
@@ -64,7 +64,7 @@ var ReadEntries *prometheus.CounterVec
 
 func InitMetrics(namespace string) {
 	ReserveCalls = newCounterVec(namespace, "reserve_calls_total", "Number of calls to Reserve.")
-	ReserveCalls = newCounterVec(namespace, "release_calls_total", "Number of calls to Release.")
+	ReleaseCalls = newCounterVec(namespace, "release_calls_total", "Number of calls to Release.")
 	WriteCalls = newCounterVec(namespace, "write_calls_total", "Number of calls to Write.")
 	ReadCalls = newCounterVec(namespace, "read_calls_total", "Number of calls to Read.")
 
