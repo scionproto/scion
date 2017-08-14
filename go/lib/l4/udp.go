@@ -17,8 +17,6 @@ package l4
 import (
 	"fmt"
 
-	"gopkg.in/restruct.v1"
-
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
@@ -36,8 +34,8 @@ type UDP struct {
 }
 
 func UDPFromRaw(b common.RawBytes) (*UDP, *common.Error) {
-	u := &UDP{}
-	if err := restruct.Unpack(b, common.Order, u); err != nil {
+	u := &UDP{Checksum: make(common.RawBytes, 2)}
+	if err := u.Parse(b); err != nil {
 		return nil, common.NewError("Error unpacking UDP header", "err", err)
 	}
 	return u, nil
@@ -51,25 +49,40 @@ func (u *UDP) Validate(plen int) *common.Error {
 	return nil
 }
 
+func (u *UDP) Parse(b common.RawBytes) *common.Error {
+	offset := 0
+	u.SrcPort = common.Order.Uint16(b[offset:])
+	offset += 2
+	u.DstPort = common.Order.Uint16(b[offset:])
+	offset += 2
+	u.TotalLen = common.Order.Uint16(b[offset:])
+	offset += 2
+	copy(u.Checksum, b[offset:])
+	return nil
+}
+
 func (u *UDP) Pack(csum bool) (common.RawBytes, *common.Error) {
-	out, err := restruct.Pack(common.Order, u)
-	if err != nil {
+	b := make(common.RawBytes, UDPLen)
+	if err := u.Write(b); err != nil {
 		return nil, common.NewError("Error packing UDP header", "err", err)
 	}
 	if csum {
 		// Zero out the checksum field if this is being used for checksum calculation.
-		out[6] = 0
-		out[7] = 0
+		b[6] = 0
+		b[7] = 0
 	}
-	return out, nil
+	return b, nil
 }
 
 func (u *UDP) Write(b common.RawBytes) *common.Error {
-	raw, err := u.Pack(false)
-	if err != nil {
-		return err
-	}
-	copy(b, raw)
+	offset := 0
+	common.Order.PutUint16(b[offset:], u.SrcPort)
+	offset += 2
+	common.Order.PutUint16(b[offset:], u.DstPort)
+	offset += 2
+	common.Order.PutUint16(b[offset:], u.TotalLen)
+	offset += 2
+	copy(b[offset:], u.Checksum)
 	return nil
 }
 
