@@ -123,7 +123,7 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 			"remote", remote, "err", err)
 	}
 	if after/2 != recvBufSize {
-		msg := "Recieve buffer size smaller than requested"
+		msg := "Receive buffer size smaller than requested"
 		ctx := []interface{}{"expected", recvBufSize, "actual", after / 2, "before", before / 2}
 		if !*sizeIgnore {
 			return nil, common.NewError(msg, ctx...)
