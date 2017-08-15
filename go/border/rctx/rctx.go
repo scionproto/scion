@@ -22,54 +22,34 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/conf"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/topology"
 )
-
-// OutputObj defines a minimal interface needed to send an object over a socket.
-type OutputObj interface {
-	// Bytes returns the byte-string representation of the output object.
-	Bytes() common.RawBytes
-	// Error can be used log errors during output.
-	Error(msg string, ctx ...interface{})
-}
-
-// OutputFunc is the type of callback required for sending a packet.
-type OutputFunc func(OutputObj, *topology.AddrInfo)
-
-// IOCtrl defines an interface for starting and stopping I/O goroutines.
-type IOCtrl interface {
-	Start()
-	Stop()
-}
 
 // Ctx is the main router context structure.
 type Ctx struct {
 	// Conf contains the router state for this context.
 	Conf *conf.Conf
-	// LocOutFs is a slice of functions for sending packets to local
-	// destinations (i.e. within the local ISD-AS), indexed by the local
-	// address id.
-	// TODO(shitz): Change this to be a slice.
-	LocOutFs map[int]OutputFunc
-	// IntfOutFs is a slice of functions for sending packets to neighbouring
-	// ISD-ASes, indexed by the interface ID of the relevant link.
-	IntfOutFs map[common.IFIDType]OutputFunc
-	// IntInputFs is a slice of IOCtrl objects to stop the corresponding local
-	// input goroutines.
-	// TODO(shitz): Changes this to be a slice.
-	LocInputFs map[int]IOCtrl
-	// ExtInputFs is a slice of IOCtrl objects to stop the corresponding external
-	// input goroutines.
-	ExtInputFs map[common.IFIDType]IOCtrl
+	// LockSockIn is a slice of Sock's for receiving packets from the local AS,
+	// indexed by the local address index.
+	LocSockIn []*Sock
+	// LocSockOut is a slice of Sock's for sending packets to the local AS,
+	// indexed by the local address index.
+	LocSockOut []*Sock
+	// ExtSockIn is a map of Sock's for receiving packets from neighbouring
+	// ASes, keyed by the interface ID of the relevant link.
+	ExtSockIn map[common.IFIDType]*Sock
+	// ExtSockOut is a map of Sock's for sending packets to neighbouring ASes,
+	// keyed by the interface ID of the relevant link.
+	ExtSockOut map[common.IFIDType]*Sock
 }
 
-func New(conf *conf.Conf) *Ctx {
+// New returns a new Ctx instance.
+func New(conf *conf.Conf, intAddrCnt int) *Ctx {
 	ctx := &Ctx{
 		Conf:       conf,
-		LocOutFs:   make(map[int]OutputFunc),
-		IntfOutFs:  make(map[common.IFIDType]OutputFunc),
-		LocInputFs: make(map[int]IOCtrl),
-		ExtInputFs: make(map[common.IFIDType]IOCtrl),
+		LocSockOut: make([]*Sock, intAddrCnt),
+		ExtSockOut: make(map[common.IFIDType]*Sock),
+		LocSockIn:  make([]*Sock, intAddrCnt),
+		ExtSockIn:  make(map[common.IFIDType]*Sock),
 	}
 	return ctx
 }

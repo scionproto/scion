@@ -30,6 +30,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/profile"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
 var (
@@ -82,4 +83,8 @@ func setupSignals() {
 		liblog.Flush()
 		os.Exit(1)
 	}()
+}
+
+func init() {
+	ringbuf.InitMetrics("border")
 }

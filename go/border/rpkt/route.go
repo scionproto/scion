@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
@@ -57,9 +58,10 @@ func (rp *RtrPkt) Route() *common.Error {
 		return common.NewError("No routing information found", "egress", rp.Egress,
 			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
+	rp.refCnt += len(rp.Egress)
 	// Call all egress functions.
 	for _, epair := range rp.Egress {
-		epair.F(rp, epair.Dst)
+		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
 	}
 	return nil
 }
@@ -72,22 +74,22 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 		return HookError, common.NewError("Destination host is NOT an SVC address",
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	// Use any local output function in case the packet has no path (e.g., ifstate requests)
-	f := rp.Ctx.LocOutFs[0]
+	// Use any local output sock in case the packet has no path (e.g., ifstate requests)
+	s := rp.Ctx.LocSockOut[0]
 	if rp.ifCurr != nil {
 		intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-		f = rp.Ctx.LocOutFs[intf.LocAddrIdx]
+		s = rp.Ctx.LocSockOut[intf.LocAddrIdx]
 	}
 	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(svc, f)
+		return rp.RouteResolveSVCMulti(svc, s)
 	}
-	return rp.RouteResolveSVCAny(svc, f)
+	return rp.RouteResolveSVCAny(svc, s)
 }
 
 // RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
 // a single instance of a local infrastructure service).
 func (rp *RtrPkt) RouteResolveSVCAny(
-	svc addr.HostSVC, f rctx.OutputFunc) (HookResult, *common.Error) {
+	svc addr.HostSVC, s *rctx.Sock) (HookResult, *common.Error) {
 	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -97,7 +99,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-	rp.Egress = append(rp.Egress, EgressPair{f, dst})
+	rp.Egress = append(rp.Egress, EgressPair{s, dst})
 	return HookContinue, nil
 }
 
@@ -105,7 +107,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(
 // (i.e. one packet per machine hosting instances for a local infrastructure
 // service).
 func (rp *RtrPkt) RouteResolveSVCMulti(
-	svc addr.HostSVC, f rctx.OutputFunc) (HookResult, *common.Error) {
+	svc addr.HostSVC, s *rctx.Sock) (HookResult, *common.Error) {
 	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -121,7 +123,7 @@ func (rp *RtrPkt) RouteResolveSVCMulti(
 			continue
 		}
 		seen[strIP] = struct{}{}
-		rp.Egress = append(rp.Egress, EgressPair{f, ai})
+		rp.Egress = append(rp.Egress, EgressPair{s, ai})
 	}
 	return HookContinue, nil
 }
@@ -163,7 +165,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 			IP:          rp.dstHost.IP(),
 			OverlayPort: overlay.EndhostPort,
 		}
-		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocOutFs[intf.LocAddrIdx], dst})
+		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut[intf.LocAddrIdx], dst})
 		return HookContinue, nil
 	}
 	// If this is a cross-over Hop Field, increment the path.
@@ -190,7 +192,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 		L4Port:      nextAI.L4Port,
 		OverlayPort: nextAI.L4Port,
 	}
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocOutFs[intf.LocAddrIdx], dst})
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut[intf.LocAddrIdx], dst})
 	return HookContinue, nil
 }
 
@@ -272,7 +274,6 @@ func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
 			return HookError, err
 		}
 	}
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.IntfOutFs[*rp.ifCurr], intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)})
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.ExtSockOut[*rp.ifCurr], nil})
 	return HookContinue, nil
 }

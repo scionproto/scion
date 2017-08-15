@@ -86,6 +86,7 @@ type connUDPIPv4 struct {
 	Remote       *topology.AddrInfo
 	oob          common.RawBytes
 	pktsRecvOvfl prometheus.Counter
+	closed       bool
 }
 
 func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
@@ -105,6 +106,7 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 		Remote:       remote,
 		oob:          make(common.RawBytes, syscall.CmsgSpace(syscallIntSize)),
 		pktsRecvOvfl: metrics.PktsRecvOvfl.With(labels),
+		closed:       false,
 	}, nil
 }
 
@@ -143,6 +145,9 @@ func (c *connUDPIPv4) Write(b common.RawBytes) (int, error) {
 }
 
 func (c *connUDPIPv4) WriteTo(b common.RawBytes, dst *topology.AddrInfo) (int, error) {
+	if c.Remote != nil {
+		return c.conn.Write(b)
+	}
 	if assert.On {
 		assert.Must(dst.OverlayPort != 0, "OverlayPort must not be 0")
 	}
@@ -159,5 +164,9 @@ func (c *connUDPIPv4) RemoteAddr() *topology.AddrInfo {
 }
 
 func (c *connUDPIPv4) Close() error {
-	return c.Close()
+	if c.closed {
+		return nil
+	}
+	c.closed = true
+	return c.conn.Close()
 }

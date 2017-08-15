@@ -44,6 +44,7 @@ type Ring struct {
 // N.B. InitMetrics must be called before the first New call.
 func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring {
 	r := &Ring{}
+	r.writableC = sync.NewCond(&r.mutex)
 	r.readableC = sync.NewCond(&r.mutex)
 	r.entries = make(EntryList, count)
 	// Only allocate memory if caller requested it

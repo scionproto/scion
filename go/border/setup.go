@@ -34,6 +34,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
@@ -55,7 +56,9 @@ var setupNetFinishHooks []setupNetHook
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() *common.Error {
-	r.freePkts = make(chan *rpkt.RtrPkt, 1024)
+	r.freePkts = ringbuf.New(1024, func() interface{} {
+		return rpkt.NewRtrPkt()
+	}, "free", prometheus.Labels{"id": "freePkts"})
 	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
 
 	// Configure the rpkt package with the callbacks it needs.
@@ -116,18 +119,26 @@ func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
 // setupNewContext sets up a new router context.
 func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
 	oldCtx := rctx.Get()
-	ctx := rctx.New(config)
+	ctx := rctx.New(config, len(config.Net.LocAddr))
 	if err := r.setupNet(ctx, oldCtx); err != nil {
 		return err
 	}
 	rctx.Set(ctx)
 	// Start local input functions.
-	for _, f := range ctx.LocInputFs {
-		f.Start()
+	for _, s := range ctx.LocSockIn {
+		s.Start()
+	}
+	// Start local output functions.
+	for _, s := range ctx.LocSockOut {
+		s.Start()
 	}
 	// Start external input functions.
-	for _, f := range ctx.ExtInputFs {
-		f.Start()
+	for _, s := range ctx.ExtSockIn {
+		s.Start()
+	}
+	// Start external output functions.
+	for _, s := range ctx.ExtSockOut {
+		s.Start()
 	}
 	return nil
 }
@@ -194,14 +205,12 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 	}
 	// Stop input functions that are no longer needed.
 	if oldCtx != nil {
-		for k, f := range oldCtx.LocInputFs {
-			if _, ok := ctx.LocInputFs[k]; !ok {
-				f.Stop()
-			}
+		for i := len(ctx.LocSockIn); i < len(oldCtx.LocSockIn); i++ {
+			oldCtx.LocSockIn[i].Stop()
 		}
-		for k, f := range oldCtx.ExtInputFs {
-			if _, ok := ctx.ExtInputFs[k]; !ok {
-				f.Stop()
+		for ifid, sock := range oldCtx.ExtSockIn {
+			if _, ok := ctx.ExtSockIn[ifid]; !ok {
+				sock.Stop()
 			}
 		}
 	}
@@ -227,8 +236,8 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr
 	} else {
 		log.Debug("No change detected for local socket.", "bindaddr", ba)
 		// Nothing changed. Copy I/O functions from old context.
-		ctx.LocInputFs[idx] = oldCtx.LocInputFs[oldIdx]
-		ctx.LocOutFs[idx] = oldCtx.LocOutFs[oldIdx]
+		ctx.LocSockIn[idx] = oldCtx.LocSockIn[oldIdx]
+		ctx.LocSockOut[idx] = oldCtx.LocSockOut[oldIdx]
 	}
 	return rpkt.HookFinish, nil
 }
@@ -249,27 +258,10 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 		}
 	}
 	// Setup input goroutine.
-	args := &PosixInputFuncArgs{
-		ProcessPacket: r.processPacket,
-		Conn:          over,
-		DirFrom:       rcmn.DirLocal,
-		Ifids:         ifids,
-		Labels:        labels,
-		StopChan:      make(chan struct{}),
-		StoppedChan:   make(chan struct{}),
-		LocIdx:        idx,
-	}
-	ctx.LocInputFs[idx] = &PosixInput{
-		Args: args,
-		Func: readPosixInput,
-	}
-	// Add an output callback for the socket.
-	f := func(b common.RawBytes, dst *topology.AddrInfo) (int, error) {
-		return over.WriteTo(b, dst)
-	}
-	ctx.LocOutFs[idx] = func(oo rctx.OutputObj, dst *topology.AddrInfo) {
-		writePosixOutput(labels, oo, dst, f)
-	}
+	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locIn", labels),
+		over, rcmn.DirLocal, ifids, idx, labels, r.posixInput, r.handleSock)
+	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locOut", labels),
+		over, rcmn.DirLocal, ifids, idx, labels, nil, r.posixOutput)
 	log.Debug("Set up new local socket.", "conn", over.LocalAddr())
 	return nil
 }
@@ -293,8 +285,8 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		log.Debug("Existing interface changed.", "old", oldIntf, "new", intf)
 		// An existing interface has changed.
 		// Stop old input goroutine.
-		pif := oldCtx.ExtInputFs[intf.Id]
-		pif.Stop()
+		oldCtx.ExtSockIn[intf.Id].Stop()
+		oldCtx.ExtSockOut[intf.Id].Stop()
 		// Configure new Posix I/O.
 		if err := addPosixIntf(r, ctx, intf, labels); err != nil {
 			return rpkt.HookError, err
@@ -303,8 +295,8 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		log.Debug("No change detected for external socket.", "conn",
 			intf.IFAddr.BindAddrInfo(ctx.Conf.Topo.Overlay))
 		// Nothing changed. Copy I/O functions from old context.
-		ctx.ExtInputFs[intf.Id] = oldCtx.ExtInputFs[intf.Id]
-		ctx.IntfOutFs[intf.Id] = oldCtx.IntfOutFs[intf.Id]
+		ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
+		ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
 	}
 	return rpkt.HookFinish, nil
 }
@@ -325,30 +317,12 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	if err != nil {
 		return common.NewError("Unable to listen on external socket", "err", err)
 	}
+	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.
-	args := &PosixInputFuncArgs{
-		ProcessPacket: r.processPacket,
-		Conn:          c,
-		DirFrom:       rcmn.DirExternal,
-		Ifids:         []common.IFIDType{intf.Id},
-		Labels:        labels,
-		StopChan:      make(chan struct{}),
-		StoppedChan:   make(chan struct{}),
-		LocIdx:        -1,
-	}
-	pif := &PosixInput{
-		Args: args,
-		Func: readPosixInput,
-	}
-	ctx.ExtInputFs[intf.Id] = pif
-	// Add an output callback for the socket.
-	f := func(b common.RawBytes, _ *topology.AddrInfo) (int, error) {
-		return c.Write(b)
-	}
-	ctx.IntfOutFs[intf.Id] = func(oo rctx.OutputObj, _ *topology.AddrInfo) {
-		// An interface can only send packets to a fixed remote address, so ignore the UDPAddr arg.
-		writePosixOutput(labels, oo, c.RemoteAddr(), f)
-	}
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extIn", labels),
+		c, rcmn.DirExternal, ifids, -1, labels, r.posixInput, r.handleSock)
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extOut", labels),
+		c, rcmn.DirExternal, ifids, -1, labels, nil, r.posixOutput)
 	log.Debug("Set up new external socket.", "intf", intf)
 	return nil
 }
