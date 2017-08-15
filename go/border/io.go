@@ -65,8 +65,9 @@ Top:
 			start := monotime.Now()
 			length, src, err := s.Conn.Read(rp.Raw)
 			if err != nil {
+				// FIXME(kormat): don't treat "connection refused" errors as a problem.
 				log.Error("Error reading from socket", "socket", dst, "err", err)
-				rp.Reset()
+				// Release all unwritten buffers, including the current one:
 				for j := i; j < n; j++ {
 					rp := pkts[j].(*rpkt.RtrPkt)
 					free(rp)
