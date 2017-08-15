@@ -223,7 +223,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         :param IFStatePayload infos: The state info objects.
         """
-
+        for info in infos.iter_infos():
+            if not info.p.active and info.p.revInfo:
+                self._handle_revocation(info.rev_info(), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
