@@ -725,14 +725,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _send_ifstate_update(self, border_metas, server_metas=None):
         server_metas = server_metas or []
-        logging.debug("send_ifstate_update")
         with self.ifid_state_lock:
             infos = []
             for (ifid, state) in self.ifid_state.items():
                 # Don't include inactive interfaces in response.
                 if state.is_inactive():
                     continue
-                rev_info = self._get_ht_proof(ifid) if not state.is_active() else None
+                rev_info = self._get_ht_proof(ifid) if state.is_revoked() else None
                 info = IFStateInfo.from_values(ifid, state.is_active(), rev_info)
                 infos.append(info)
             if not infos and not self._quiet_startup():

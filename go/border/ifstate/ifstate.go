@@ -54,7 +54,7 @@ type State struct {
 var S *States
 
 // Process processes Interface State updates from the beacon service.
-// NOTE: Process currently assume that ifStates contains infos for each interface
+// NOTE: Process currently assumes that ifStates contains infos for each interface
 // in the AS.
 func Process(ifStates proto.IFStateInfos) {
 	infos, serr := ifStates.Infos()
@@ -81,7 +81,6 @@ func Process(ifStates proto.IFStateInfos) {
 				return
 			}
 		}
-
 		m[ifid] = State{P: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
 		oldState, ok := S.M[ifid]
