@@ -22,21 +22,9 @@ int sizeof_struct_timeval = sizeof(struct timeval);
 */
 import "C"
 
-import (
-	"time"
-	"unsafe"
-
-	"github.com/netsec-ethz/scion/go/lib/common"
-)
-
 const (
-	SizeOfInt     = C.sizeof_int
-	SizeOfTimeVal = C.sizeof_struct_timeval
+	SizeOfInt      = C.sizeof_int
+	SizeOfTimespec = C.sizeof_struct_timespec
 )
 
-type Timeval C.struct_timeval
-
-func ParseTimeVal(b common.RawBytes) time.Time {
-	tv := *(*Timeval)(unsafe.Pointer(&b[0]))
-	return time.Unix(int64(tv.tv_sec), int64(tv.tv_usec)*1000)
-}
+type Timespec C.struct_timespec

@@ -95,11 +95,11 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 		return nil, common.NewError("Error setting SO_RXQ_OVFL socket option", "listen", listen,
 			"remote", remote, "err", err)
 	}
-	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TIMESTAMP, 1); err != nil {
-		return nil, common.NewError("Error setting SO_TIMESTAMP socket option", "listen", listen,
+	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
+		return nil, common.NewError("Error setting SO_TIMESTAMPNS socket option", "listen", listen,
 			"remote", remote, "err", err)
 	}
-	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimeVal))
+	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimespec))
 	return &connUDPIPv4{
 		conn:    c,
 		Listen:  listen,
@@ -139,8 +139,9 @@ func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
 			val := *(*int)(unsafe.Pointer(&cmsg.Data[0]))
 			c.metrics.recvOvfl.Set(float64(val))
-		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMP:
-			since := time.Since(ParseTimeVal(cmsg.Data))
+		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
+			tv := *(*Timespec)(unsafe.Pointer(&cmsg.Data[0]))
+			since := time.Since(time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec)))
 			// Guard against leap-seconds.
 			if since > 0 {
 				c.metrics.recvDelay.Add(since.Seconds())
