@@ -24,7 +24,7 @@ var RecvDelay *prometheus.CounterVec
 func InitMetrics(namespace string) {
 	RecvOverflow = newCounterVec(namespace, "recv_ovfl_count",
 		"Number of packets dropped due to kernel receive buffer overflow.")
-	RecvDelay = newCounterVec(namespace, "recv_delay_secounds",
+	RecvDelay = newCounterVec(namespace, "recv_delay_seconds",
 		"How long packets spend in the kernel receive buffer.")
 }
 
