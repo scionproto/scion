@@ -15,6 +15,7 @@
 package conn
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"syscall"
@@ -30,6 +31,11 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
+
+const recvBufSize = 1 << 20
+
+var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
+	"Ignore failing to set the receive buffer size on a socket.")
 
 type Conn interface {
 	Read(common.RawBytes) (int, *topology.AddrInfo, error)
@@ -86,11 +92,14 @@ type connUDPIPv4 struct {
 
 func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 	labels prometheus.Labels) (*connUDPIPv4, *common.Error) {
-	fd, err := nethack.SocketOf(c)
-	if err != nil {
+	var err error
+	var fd int
+	// Get the underlying socket fd.
+	if fd, err = nethack.SocketOf(c); err != nil {
 		return nil, common.NewError("Unable to get fd of net.UDPConn", "listen", listen,
 			"remote", remote, "err", err)
 	}
+	// Set reporting socket options
 	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
 		return nil, common.NewError("Error setting SO_RXQ_OVFL socket option", "listen", listen,
 			"remote", remote, "err", err)
@@ -98,6 +107,28 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
 		return nil, common.NewError("Error setting SO_TIMESTAMPNS socket option", "listen", listen,
 			"remote", remote, "err", err)
+	}
+	// Set and confirm receive buffer size
+	var before, after int
+	if before, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF); err != nil {
+		return nil, common.NewError("Error getting SO_RCVBUF socket option", "listen", listen,
+			"remote", remote, "err", err)
+	}
+	if err = c.SetReadBuffer(recvBufSize); err != nil {
+		return nil, common.NewError("Error setting recv buffer size", "listen", listen,
+			"remote", remote, "err", err)
+	}
+	if after, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF); err != nil {
+		return nil, common.NewError("Error getting SO_RCVBUF socket option", "listen", listen,
+			"remote", remote, "err", err)
+	}
+	if after/2 != recvBufSize {
+		msg := "Recieve buffer size smaller than requested"
+		ctx := []interface{}{"expected", recvBufSize, "actual", after / 2, "before", before / 2}
+		if !*sizeIgnore {
+			return nil, common.NewError(msg, ctx...)
+		}
+		log.Warn(msg, ctx...)
 	}
 	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimespec))
 	return &connUDPIPv4{
