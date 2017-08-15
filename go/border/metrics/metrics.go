@@ -27,6 +27,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
 var promAddr = flag.String("prom", "127.0.0.1:1280", "Address to export prometheus metrics on")
@@ -46,14 +48,6 @@ var (
 			Namespace: "border",
 			Name:      "pkts_sent_total",
 			Help:      "Number of packets sent.",
-		},
-		[]string{"id"},
-	)
-	PktsRecvOvfl = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "pkts_recv_ovfl_total",
-			Help:      "Number of packets dropped due to receive buffer overflow.",
 		},
 		[]string{"id"},
 	)
@@ -140,7 +134,6 @@ var (
 func init() {
 	prometheus.MustRegister(PktsRecv)
 	prometheus.MustRegister(PktsSent)
-	prometheus.MustRegister(PktsRecvOvfl)
 	prometheus.MustRegister(PktsRecvSize)
 	prometheus.MustRegister(BytesRecv)
 	prometheus.MustRegister(BytesSent)
@@ -152,6 +145,16 @@ func init() {
 	prometheus.MustRegister(InputLoops)
 	prometheus.MustRegister(InputProcessTime)
 	prometheus.MustRegister(OutputProcessTime)
+
+	ringbuf.InitMetrics("border")
+	prometheus.MustRegister(ringbuf.WriteCalls)
+	prometheus.MustRegister(ringbuf.ReadCalls)
+	prometheus.MustRegister(ringbuf.WriteEntries)
+	prometheus.MustRegister(ringbuf.ReadEntries)
+
+	conn.InitMetrics("border")
+	prometheus.MustRegister(conn.RecvOverflow)
+	prometheus.MustRegister(conn.RecvDelay)
 }
 
 var servers map[string]io.Closer

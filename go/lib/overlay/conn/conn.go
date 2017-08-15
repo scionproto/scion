@@ -18,23 +18,18 @@ import (
 	"fmt"
 	"net"
 	"syscall"
+	"time"
 	"unsafe"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/nethack"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
-
-// There isn't a way to calculate the size of a syscall integer, so use the
-// value that the stdlib hard-codes instead.
-// E.g. https://golang.org/pkg/syscall/#SetsockoptInt
-const syscallIntSize = 4
 
 type Conn interface {
 	Read(common.RawBytes) (int, *topology.AddrInfo, error)
@@ -81,12 +76,12 @@ func New(listen, remote *topology.AddrInfo, labels prometheus.Labels) (Conn, *co
 }
 
 type connUDPIPv4 struct {
-	conn         *net.UDPConn
-	Listen       *topology.AddrInfo
-	Remote       *topology.AddrInfo
-	oob          common.RawBytes
-	pktsRecvOvfl prometheus.Counter
-	closed       bool
+	conn    *net.UDPConn
+	Listen  *topology.AddrInfo
+	Remote  *topology.AddrInfo
+	oob     common.RawBytes
+	metrics *metrics
+	closed  bool
 }
 
 func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
@@ -100,13 +95,18 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 		return nil, common.NewError("Error setting SO_RXQ_OVFL socket option", "listen", listen,
 			"remote", remote, "err", err)
 	}
+	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
+		return nil, common.NewError("Error setting SO_TIMESTAMPNS socket option", "listen", listen,
+			"remote", remote, "err", err)
+	}
+	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimespec))
 	return &connUDPIPv4{
-		conn:         c,
-		Listen:       listen,
-		Remote:       remote,
-		oob:          make(common.RawBytes, syscall.CmsgSpace(syscallIntSize)),
-		pktsRecvOvfl: metrics.PktsRecvOvfl.With(labels),
-		closed:       false,
+		conn:    c,
+		Listen:  listen,
+		Remote:  remote,
+		oob:     oob,
+		metrics: newMetrics(labels),
+		closed:  false,
 	}, nil
 }
 
@@ -124,6 +124,9 @@ func (c *connUDPIPv4) Read(b common.RawBytes) (int, *topology.AddrInfo, error) {
 }
 
 func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
+	// TODO(kormat): instead of updating metrics here, stop conforming to
+	// net.Conn and pass metadata directly back to the caller of Read(). E.g.,
+	// this allows the caller to use the received timestamp.
 	cmsgs, err := syscall.ParseSocketControlMessage(oob)
 	if err != nil {
 		log.Debug("Error decoding cmsg data from ReadMsgUdp", "listen", c.Listen,
@@ -135,7 +138,14 @@ func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
 		switch {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
 			val := *(*int)(unsafe.Pointer(&cmsg.Data[0]))
-			c.pktsRecvOvfl.Set(float64(val))
+			c.metrics.recvOvfl.Set(float64(val))
+		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
+			tv := *(*Timespec)(unsafe.Pointer(&cmsg.Data[0]))
+			since := time.Since(time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec)))
+			// Guard against leap-seconds.
+			if since > 0 {
+				c.metrics.recvDelay.Add(since.Seconds())
+			}
 		}
 	}
 }

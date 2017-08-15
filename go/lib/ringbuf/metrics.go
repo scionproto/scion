@@ -62,6 +62,7 @@ func newCounterVec(namespace, name, help string) *prometheus.CounterVec {
 	return prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: namespace,
+			Subsystem: "ringbuf",
 			Name:      name,
 			Help:      help,
 		},
