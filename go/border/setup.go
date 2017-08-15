@@ -205,13 +205,11 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 	}
 	// Stop input functions that are no longer needed.
 	if oldCtx != nil {
-		for i, sock := range oldCtx.LocSockIn {
-			if i > len(ctx.LocSockIn) {
-				sock.Stop()
-			}
+		for i := len(ctx.LocSockIn); i < len(oldCtx.LocSockIn); i++ {
+			oldCtx.LocSockIn[i].Stop()
 		}
-		for k, sock := range oldCtx.ExtSockIn {
-			if _, ok := ctx.ExtSockIn[k]; !ok {
+		for ifid, sock := range oldCtx.ExtSockIn {
+			if _, ok := ctx.ExtSockIn[ifid]; !ok {
 				sock.Stop()
 			}
 		}

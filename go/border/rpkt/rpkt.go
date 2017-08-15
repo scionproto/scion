@@ -144,9 +144,7 @@ func (rp *RtrPkt) Release() {
 	}
 	rp.refCnt -= 1
 	if rp.refCnt == 0 && rp.Free != nil {
-		free := rp.Free
-		rp.Reset()
-		free(rp)
+		rp.Free(rp)
 	}
 }
 

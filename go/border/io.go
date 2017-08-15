@@ -42,6 +42,7 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	bytesRecv := metrics.BytesRecv.With(s.Labels)
 	pktRecvSizes := metrics.PktsRecvSize.With(s.Labels)
 	free := func(rp *rpkt.RtrPkt) {
+		rp.Reset()
 		r.freePkts.Write(ringbuf.EntryList{rp}, true)
 	}
 

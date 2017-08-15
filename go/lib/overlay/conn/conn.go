@@ -145,7 +145,7 @@ func (c *connUDPIPv4) Write(b common.RawBytes) (int, error) {
 }
 
 func (c *connUDPIPv4) WriteTo(b common.RawBytes, dst *topology.AddrInfo) (int, error) {
-	if dst == nil {
+	if c.Remote != nil {
 		return c.conn.Write(b)
 	}
 	if assert.On {

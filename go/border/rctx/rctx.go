@@ -28,16 +28,18 @@ import (
 type Ctx struct {
 	// Conf contains the router state for this context.
 	Conf *conf.Conf
-	// LocOutFs is a slice of functions for sending packets to local
-	// destinations (i.e. within the local ISD-AS), indexed by the local
-	// address id.
-	// TODO(shitz): Change this to be a slice.
+	// LockSockIn is a slice of Sock's for receiving packets from the local AS,
+	// indexed by the local address index.
+	LocSockIn []*Sock
+	// LocSockOut is a slice of Sock's for sending packets to the local AS,
+	// indexed by the local address index.
 	LocSockOut []*Sock
-	// IntfOutFs is a slice of functions for sending packets to neighbouring
-	// ISD-ASes, indexed by the interface ID of the relevant link.
+	// ExtSockIn is a map of Sock's for receiving packets from neighbouring
+	// ASes, keyed by the interface ID of the relevant link.
+	ExtSockIn map[common.IFIDType]*Sock
+	// ExtSockOut is a map of Sock's for sending packets to neighbouring ASes,
+	// keyed by the interface ID of the relevant link.
 	ExtSockOut map[common.IFIDType]*Sock
-	LocSockIn  []*Sock
-	ExtSockIn  map[common.IFIDType]*Sock
 }
 
 // New returns a new Ctx instance.
