@@ -47,6 +47,10 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
             return RevocationInfo(self.p.revInfo)
         return None
 
+    def short_desc(self):
+        return "IF: %d Active: %s RevInfo: %s" % (
+            self.p.ifID, self.p.active, self.p.revInfo or "None")
+
 
 class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
     """
@@ -68,7 +72,8 @@ class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
         return cls(p)
 
     def iter_infos(self):
-        for info in
+        for i in range(len(self.p.infos)):
+            yield IFStateInfo(self.p.infos[i])
 
 
 class IFStateRequest(PathMgmtPayloadBase):  # pragma: no cover
