@@ -18,7 +18,6 @@ package metrics
 
 import (
 	"flag"
-	"io"
 	"net"
 	"net/http"
 
@@ -28,6 +27,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
+	"github.com/netsec-ethz/scion/go/lib/prom"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
@@ -35,136 +35,70 @@ var promAddr = flag.String("prom", "127.0.0.1:1280", "Address to export promethe
 
 // Declare prometheus metrics to export.
 var (
-	PktsRecv = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "pkts_recv_total",
-			Help:      "Number of packets received.",
-		},
-		[]string{"id"},
-	)
-	PktsSent = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "pkts_sent_total",
-			Help:      "Number of packets sent.",
-		},
-		[]string{"id"},
-	)
-	PktsRecvSize = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "border",
-			Name:      "pkts_recv_size",
-			Help:      "Size of received packets",
-			Buckets:   []float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000},
-		},
-		[]string{"id"},
-	)
-	BytesRecv = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "bytes_recv_total",
-			Help:      "Number of bytes received.",
-		},
-		[]string{"id"},
-	)
-	BytesSent = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "bytes_sent_total",
-			Help:      "Number of bytes sent.",
-		},
-		[]string{"id"},
-	)
-	PktBufNew = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "pbuf_created_total",
-		Help:      "Number of packet buffers created.",
-	})
-	PktBufReuse = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "pbuf_reused_total",
-		Help:      "Number of packet buffers reused.",
-	})
-	PktBufDiscard = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "pbuf_discarded_total",
-		Help:      "Number of packet buffers discarded.",
-	})
-	PktProcessTime = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "border",
-		Name:      "pkt_process_seconds",
-		Help:      "Packet processing time.",
-	})
-	IFState = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "border",
-			Name:      "interface_active",
-			Help:      "Interface is active.",
-		},
-		[]string{"id"},
-	)
-	InputLoops = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "input_loops",
-			Help:      "Number of input loop runs.",
-		},
-		[]string{"id"},
-	)
-	InputProcessTime = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "input_process_seconds",
-			Help:      "Input processing time.",
-		},
-		[]string{"id"},
-	)
-	OutputProcessTime = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "border",
-			Name:      "output_process_seconds",
-			Help:      "Output processing time.",
-		},
-		[]string{"id"},
-	)
+	PktsRecv          *prometheus.CounterVec
+	PktsSent          *prometheus.CounterVec
+	PktsRecvSize      *prometheus.HistogramVec
+	BytesRecv         *prometheus.CounterVec
+	BytesSent         *prometheus.CounterVec
+	PktProcessTime    prometheus.Counter
+	IFState           *prometheus.GaugeVec
+	InputLoops        *prometheus.CounterVec
+	OutputLoops       *prometheus.CounterVec
+	InputProcessTime  *prometheus.CounterVec
+	OutputProcessTime *prometheus.CounterVec
 )
 
 // Ensure all metrics are registered.
-func init() {
-	prometheus.MustRegister(PktsRecv)
-	prometheus.MustRegister(PktsSent)
-	prometheus.MustRegister(PktsRecvSize)
-	prometheus.MustRegister(BytesRecv)
-	prometheus.MustRegister(BytesSent)
-	prometheus.MustRegister(PktBufNew)
-	prometheus.MustRegister(PktBufReuse)
-	prometheus.MustRegister(PktBufDiscard)
-	prometheus.MustRegister(PktProcessTime)
-	prometheus.MustRegister(IFState)
-	prometheus.MustRegister(InputLoops)
-	prometheus.MustRegister(InputProcessTime)
-	prometheus.MustRegister(OutputProcessTime)
+func Init(elem string) {
+	namespace := "border"
+	constLabels := prometheus.Labels{"elem": elem}
+	sockLabels := []string{"sock"}
 
-	ringbuf.InitMetrics("border")
-	prometheus.MustRegister(ringbuf.WriteCalls)
-	prometheus.MustRegister(ringbuf.ReadCalls)
-	prometheus.MustRegister(ringbuf.WriteEntries)
-	prometheus.MustRegister(ringbuf.ReadEntries)
+	// Some closures to reduce boiler-plate.
+	newC := func(name, help string) prometheus.Counter {
+		v := prom.NewCounter(namespace, "", name, help, constLabels)
+		prometheus.MustRegister(v)
+		return v
+	}
+	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
+		v := prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
+		prometheus.MustRegister(v)
+		return v
+	}
+	newGVec := func(name, help string, lNames []string) *prometheus.GaugeVec {
+		v := prom.NewGaugeVec(namespace, "", name, help, constLabels, lNames)
+		prometheus.MustRegister(v)
+		return v
+	}
+	newHVec := func(name, help string, lNames []string, buckets []float64) *prometheus.HistogramVec {
+		v := prom.NewHistogramVec(namespace, "", name, help, constLabels, lNames, buckets)
+		prometheus.MustRegister(v)
+		return v
+	}
 
-	conn.InitMetrics("border")
-	prometheus.MustRegister(conn.RecvOverflow)
-	prometheus.MustRegister(conn.RecvDelay)
-}
+	// Initialize br metrics.
+	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", sockLabels)
+	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", sockLabels)
+	PktsRecvSize = newHVec("pkts_recv_size", "Size of received packets", sockLabels,
+		[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000})
+	BytesRecv = newCVec("bytes_recv_total", "Number of bytes received.", sockLabels)
+	BytesSent = newCVec("bytes_sent_total", "Number of bytes sent.", sockLabels)
+	PktProcessTime = newC("pkt_process_seconds", "Packet processing time.")
+	IFState = newGVec("interface_active", "Interface is active.", sockLabels)
+	InputLoops = newCVec("input_loops", "Number of input loop runs.", sockLabels)
+	OutputLoops = newCVec("output_loops", "Number of output loop runs.", sockLabels)
+	InputProcessTime = newCVec("input_process_seconds", "Input processing time.", sockLabels)
+	OutputProcessTime = newCVec("output_process_seconds", "Output processing time.", sockLabels)
 
-var servers map[string]io.Closer
+	// Initialize ringbuf metrics.
+	ringbuf.InitMetrics("border", constLabels, []string{"ringId"})
+	// Initialize overlay.conn metrics.
+	conn.InitMetrics("border", constLabels, sockLabels)
 
-func init() {
-	servers = make(map[string]io.Closer)
 	http.Handle("/metrics", promhttp.Handler())
 }
 
-// Export handles exposing prometheus metrics.
+// Start handles exposing prometheus metrics.
 func Start() *common.Error {
 	ln, err := net.Listen("tcp", *promAddr)
 	if err != nil {

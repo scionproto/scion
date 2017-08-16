@@ -34,6 +34,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
+	"github.com/netsec-ethz/scion/go/lib/prom"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
@@ -58,7 +59,7 @@ var setupNetFinishHooks []setupNetHook
 func (r *Router) setup() *common.Error {
 	r.freePkts = ringbuf.New(1024, func() interface{} {
 		return rpkt.NewRtrPkt()
-	}, "free", prometheus.Labels{"id": "freePkts"})
+	}, "free", prometheus.Labels{"ringId": "freePkts"})
 	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
 
 	// Configure the rpkt package with the callbacks it needs.
@@ -161,7 +162,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 	}
 	// Iterate over local addresses, configuring them via provided hooks.
 	for i, a := range ctx.Conf.Net.LocAddr {
-		labels := prometheus.Labels{"id": fmt.Sprintf("loc:%d", i)}
+		labels := prometheus.Labels{"sock": fmt.Sprintf("loc:%d", i)}
 		for _, f := range setupAddLocalHooks {
 			ret, err := f(r, ctx, i, a, labels, oldCtx)
 			switch {
@@ -176,7 +177,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 	}
 	// Iterate over interfaces, configuring them via provided hooks.
 	for _, intf := range ctx.Conf.Net.IFs {
-		labels := prometheus.Labels{"id": fmt.Sprintf("intf:%d", intf.Id)}
+		labels := prometheus.Labels{"sock": fmt.Sprintf("intf:%d", intf.Id)}
 	InnerLoop:
 		for _, f := range setupAddExtHooks {
 			ret, err := f(r, ctx, intf, labels, oldCtx)
@@ -258,9 +259,9 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 		}
 	}
 	// Setup input goroutine.
-	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locIn", labels),
+	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locIn", mkRingLabels(labels)),
 		over, rcmn.DirLocal, ifids, idx, labels, r.posixInput, r.handleSock)
-	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locOut", labels),
+	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locOut", mkRingLabels(labels)),
 		over, rcmn.DirLocal, ifids, idx, labels, nil, r.posixOutput)
 	log.Debug("Set up new local socket.", "conn", over.LocalAddr())
 	return nil
@@ -319,10 +320,18 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	}
 	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extIn", labels),
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extIn", mkRingLabels(labels)),
 		c, rcmn.DirExternal, ifids, -1, labels, r.posixInput, r.handleSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extOut", labels),
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extOut", mkRingLabels(labels)),
 		c, rcmn.DirExternal, ifids, -1, labels, nil, r.posixOutput)
 	log.Debug("Set up new external socket.", "intf", intf)
 	return nil
+}
+
+// Create a set of labels for ringbuf with `sock` renamed to `ringId`.
+func mkRingLabels(labels prometheus.Labels) prometheus.Labels {
+	ringLabels := prom.CopyLabels(labels)
+	ringLabels["ringId"] = labels["sock"]
+	delete(ringLabels, "sock")
+	return ringLabels
 }

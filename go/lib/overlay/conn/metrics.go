@@ -16,28 +16,20 @@ package conn
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/netsec-ethz/scion/go/lib/prom"
 )
 
 var RecvOverflow *prometheus.CounterVec
 var RecvDelay *prometheus.CounterVec
 
-func InitMetrics(namespace string) {
-	RecvOverflow = newCounterVec(namespace, "recv_ovfl_count",
-		"Number of packets dropped due to kernel receive buffer overflow.")
-	RecvDelay = newCounterVec(namespace, "recv_delay_seconds",
-		"How long packets spend in the kernel receive buffer.")
-}
-
-func newCounterVec(namespace, name, help string) *prometheus.CounterVec {
-	return prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "over_conn",
-			Name:      name,
-			Help:      help,
-		},
-		[]string{"id"},
-	)
+func InitMetrics(namespace string, constLabels prometheus.Labels, labelNames []string) {
+	subsys := "over_conn"
+	RecvOverflow = prom.NewCounterVec(namespace, subsys, "recv_ovfl_count",
+		"Number of packets dropped due to kernel receive buffer overflow.", constLabels, labelNames)
+	RecvDelay = prom.NewCounterVec(namespace, subsys, "recv_delay_seconds",
+		"How long packets spend in the kernel receive buffer.", constLabels, labelNames)
+	prometheus.MustRegister(RecvOverflow, RecvDelay)
 }
 
 type metrics struct {
