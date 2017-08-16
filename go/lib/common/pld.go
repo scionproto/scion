@@ -22,5 +22,6 @@ type Payload interface {
 	fmt.Stringer
 	Len() int
 	Copy() (Payload, *Error)
+	// Copies data from payload to b
 	Write(b RawBytes) (int, *Error)
 }
