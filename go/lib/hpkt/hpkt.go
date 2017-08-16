@@ -1,8 +1,22 @@
+// Copyright 2017 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package hpkt (Host Packet) contains low level primitives for parsing and
+// creating end-host SCION messages
 package hpkt
 
 import (
-	"fmt"
-
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -11,7 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-func NewScnPkt() *spkt.ScnPkt {
+func AllocScnPkt() *spkt.ScnPkt {
 	return &spkt.ScnPkt{
 		CmnHdr: &spkt.CmnHdr{},
 		DstIA:  &addr.ISD_AS{},
@@ -75,7 +89,6 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	// TODO(scrye): Add extension support
 
 	// Parse L4 header
-	udpHdrStart := offset
 	if s.CmnHdr.NextHdr != common.L4UDP {
 		return common.NewError("Unsupported NextHdr value", "expected",
 			common.L4UDP, "actual", s.CmnHdr.NextHdr)
@@ -84,7 +97,6 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 		return common.NewError("Unable to parse UDP header", "err", cerr)
 	}
 	offset += s.L4.L4Len()
-	udpHdrEnd := offset
 
 	// Parse payload
 	pldLen := int(s.CmnHdr.TotalLen) - s.CmnHdr.HdrLenBytes() - s.L4.L4Len()
@@ -95,14 +107,10 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	s.Pld = common.RawBytes(b[offset : offset+pldLen])
 
 	// Verify checksum
-	actual := util.Checksum(b[addrHdrStart:addrHdrEnd],
-		[]byte{0, byte(s.CmnHdr.NextHdr)},
-		b[udpHdrStart:udpHdrEnd-2],
+	err := l4.CheckCSum(s.L4, b[addrHdrStart:addrHdrEnd],
 		b[offset:offset+pldLen])
-	expected := common.Order.Uint16(s.L4.GetCSum())
-	if actual != expected {
-		return common.NewError("Bad checksum", "expected", fmt.Sprintf("%x", expected),
-			"actual", fmt.Sprintf("%x", actual))
+	if err != nil {
+		return common.NewError("Bad checksum", "err", err)
 	}
 	return nil
 }
