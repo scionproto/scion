@@ -110,7 +110,7 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	err := l4.CheckCSum(s.L4, b[addrHdrStart:addrHdrEnd],
 		b[offset:offset+pldLen])
 	if err != nil {
-		return common.NewError("Bad checksum", "err", err)
+		return err
 	}
 	return nil
 }
