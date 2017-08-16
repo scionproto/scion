@@ -115,6 +115,90 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	return nil
 }
 
+func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
+	var cerr *common.Error
+	offset := 0
+
+	if s.L4.L4Type() != common.L4UDP {
+		return 0, common.NewError("Unsupported protocol", "expected",
+			common.L4UDP, "actual", s.L4.L4Type())
+	}
+	if s.E2EExt != nil {
+		return 0, common.NewError("E2E extensions not supported", "ext", s.E2EExt)
+	}
+	if s.HBHExt != nil {
+		return 0, common.NewError("HBH extensions not supported", "ext", s.HBHExt)
+	}
+
+	// Compute header lengths
+	addrHdrLen := s.DstHost.Size() + s.SrcHost.Size() + 2*addr.IABytes
+	addrPad := util.CalcPadding(addrHdrLen, common.LineLen)
+	addrHdrLen += addrPad
+	scionHdrLen := spkt.CmnHdrLen + addrHdrLen + len(s.Path.Raw)
+	pktLen := scionHdrLen + s.L4.L4Len() + s.Pld.Len()
+	if len(b) < pktLen {
+		return 0, common.NewError("Buffer too small", "expected", pktLen,
+			"actual", len(b))
+	}
+
+	// Create the packet using initial IF/HF pointers
+	hopIdx, err := resetHopIdx(s.Path)
+	if err != nil {
+		return 0, common.NewError("Unable to initialize path", "err", err)
+	}
+
+	// Common Header
+	s.CmnHdr.Ver = 0
+	s.CmnHdr.DstType = s.DstHost.Type()
+	s.CmnHdr.SrcType = s.SrcHost.Type()
+	s.CmnHdr.TotalLen = uint16(pktLen)
+	s.CmnHdr.HdrLen = uint8(scionHdrLen / common.LineLen)
+	s.CmnHdr.CurrInfoF = uint8((spkt.CmnHdrLen + addrHdrLen) / common.LineLen)
+	s.CmnHdr.CurrHopF = s.CmnHdr.CurrInfoF + hopIdx
+	s.CmnHdr.NextHdr = common.L4UDP
+	s.CmnHdr.Write(b[offset:])
+	offset += spkt.CmnHdrLen
+
+	// Address header
+	addrSlice := b[offset : offset+addrHdrLen]
+	s.DstIA.Write(b[offset:])
+	offset += addr.IABytes
+	s.SrcIA.Write(b[offset:])
+	offset += addr.IABytes
+	// addr.HostAddr.Pack() is zero-copy, use it directly
+	offset += copy(b[offset:], s.DstHost.Pack())
+	offset += copy(b[offset:], s.SrcHost.Pack())
+	// Zero memory padding
+	zeroMemory(b[offset : offset+addrPad])
+	offset += addrPad
+
+	// Forwarding Path
+	offset += copy(b[offset:], s.Path.Raw)
+
+	// SCION/UDP Header
+	l4Slice := b[offset : offset+s.L4.L4Len()]
+	if s.L4.L4Type() != common.L4UDP {
+		return 0, common.NewError("Unsupported L4 protocol", "expected",
+			"UDP", "actual", s.L4.L4Type())
+	}
+	s.L4.Write(b[offset:])
+	offset += s.L4.L4Len()
+
+	// Payload
+	pldSlice := b[offset : offset+s.Pld.Len()]
+	s.Pld.Write(b[offset:])
+	offset += s.Pld.Len()
+
+	// L4 checksum
+	checksum, cerr := l4.CalcCSum(s.L4, addrSlice, pldSlice)
+	if cerr != nil {
+		return 0, common.NewError("Unable to compute checksum", "err", err)
+	}
+	copy(l4Slice[6:8], checksum)
+
+	return offset, nil
+}
+
 func isZeroMemory(b common.RawBytes) (int, bool) {
 	for i := range b {
 		if b[i] != 0 {
@@ -122,4 +206,50 @@ func isZeroMemory(b common.RawBytes) (int, bool) {
 		}
 	}
 	return 0, true
+}
+
+func zeroMemory(b common.RawBytes) {
+	for i := range b {
+		b[i] = 0
+	}
+}
+
+func resetHopIdx(path *spath.Path) (uint8, error) {
+	var cerr *common.Error
+	var infoF *spath.InfoField
+	var hopF *spath.HopField
+	fwdPath := path.Raw
+	hopIdx := 1
+
+	if infoF, cerr = spath.InfoFFromRaw(fwdPath); cerr != nil {
+		return 0, cerr
+	}
+	maxHopIdx := int(infoF.Hops)
+	if hopF, cerr = spath.HopFFromRaw(fwdPath[hopIdx*common.LineLen:]); cerr != nil {
+		return 0, cerr
+	}
+
+	if infoF.Up && hopF.Xover {
+		hopIdx += 1
+		if hopIdx > maxHopIdx {
+			return 0, common.NewError("Skipped entire path segment",
+				"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
+		}
+	}
+
+	for {
+		if hopF, cerr = spath.HopFFromRaw(fwdPath[hopIdx*common.LineLen:]); cerr != nil {
+			return 0, cerr
+		}
+		if hopF.VerifyOnly {
+			hopIdx += 1
+			if hopIdx > maxHopIdx {
+				return 0, common.NewError("Skipped entire path segment",
+					"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
+			}
+			continue
+		}
+		break
+	}
+	return uint8(hopIdx), nil
 }
