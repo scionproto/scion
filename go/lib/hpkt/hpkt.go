@@ -25,12 +25,12 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
+// FIXME(scrye): when SCION Conn is merged in master, move this there
 func AllocScnPkt() *spkt.ScnPkt {
 	return &spkt.ScnPkt{
-		CmnHdr: &spkt.CmnHdr{},
-		DstIA:  &addr.ISD_AS{},
-		SrcIA:  &addr.ISD_AS{},
-		Path:   &spath.Path{},
+		DstIA: &addr.ISD_AS{},
+		SrcIA: &addr.ISD_AS{},
+		Path:  &spath.Path{},
 		// Rest of fields passed by reference
 	}
 }
@@ -40,8 +40,8 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	var cerr *common.Error
 	offset := 0
 
-	// Parse common header
-	if cerr = s.CmnHdr.Parse(b[:spkt.CmnHdrLen]); cerr != nil {
+	cmnHdr := spkt.CmnHdr{}
+	if cerr = cmnHdr.Parse(b[:spkt.CmnHdrLen]); cerr != nil {
 		return cerr
 	}
 	offset += spkt.CmnHdrLen
@@ -49,9 +49,9 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	// If we find an extension, we cannot reliably parse past this point.
 	// For now, only parse simple packets
 	// TODO(scrye): add extension support
-	if s.CmnHdr.NextHdr != common.L4UDP {
+	if cmnHdr.NextHdr != common.L4UDP {
 		return common.NewError("Unexpected protocol number", "expected",
-			common.L4UDP, "actual", s.CmnHdr.NextHdr)
+			common.L4UDP, "actual", cmnHdr.NextHdr)
 	}
 
 	// Parse address header
@@ -60,12 +60,12 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	offset += addr.IABytes
 	s.SrcIA.Parse(b[offset:])
 	offset += addr.IABytes
-	if s.DstHost, cerr = addr.HostFromRaw(b[offset:], s.CmnHdr.DstType); cerr != nil {
+	if s.DstHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.DstType); cerr != nil {
 		return common.NewError("Unable to parse destination host address",
 			"err", cerr)
 	}
 	offset += s.DstHost.Size()
-	if s.SrcHost, cerr = addr.HostFromRaw(b[offset:], s.CmnHdr.SrcType); cerr != nil {
+	if s.SrcHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.SrcType); cerr != nil {
 		return common.NewError("Unable to parse source host address",
 			"err", cerr)
 	}
@@ -80,18 +80,18 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	addrHdrEnd := offset
 
 	// Parse path header
-	pathLen := s.CmnHdr.HdrLenBytes() - offset
+	pathLen := cmnHdr.HdrLenBytes() - offset
 	s.Path.Raw = b[offset : offset+pathLen]
-	s.Path.InfOff = s.CmnHdr.InfoFOffBytes()
-	s.Path.HopOff = s.CmnHdr.HopFOffBytes()
+	s.Path.InfOff = cmnHdr.InfoFOffBytes()
+	s.Path.HopOff = cmnHdr.HopFOffBytes()
 	offset += pathLen
 
 	// TODO(scrye): Add extension support
 
 	// Parse L4 header
-	if s.CmnHdr.NextHdr != common.L4UDP {
+	if cmnHdr.NextHdr != common.L4UDP {
 		return common.NewError("Unsupported NextHdr value", "expected",
-			common.L4UDP, "actual", s.CmnHdr.NextHdr)
+			common.L4UDP, "actual", cmnHdr.NextHdr)
 	}
 	if s.L4, cerr = l4.UDPFromRaw(b[offset : offset+l4.UDPLen]); cerr != nil {
 		return common.NewError("Unable to parse UDP header", "err", cerr)
@@ -99,7 +99,7 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	offset += s.L4.L4Len()
 
 	// Parse payload
-	pldLen := int(s.CmnHdr.TotalLen) - s.CmnHdr.HdrLenBytes() - s.L4.L4Len()
+	pldLen := int(cmnHdr.TotalLen) - cmnHdr.HdrLenBytes() - s.L4.L4Len()
 	if offset+pldLen < len(b) {
 		return common.NewError("Incomplete packet, bad payload length",
 			"expected", pldLen, "actual", len(b)-offset)
@@ -115,6 +115,86 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	return nil
 }
 
+func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
+	var cerr *common.Error
+	offset := 0
+
+	if s.L4.L4Type() != common.L4UDP {
+		return 0, common.NewError("Unsupported protocol", "expected",
+			common.L4UDP, "actual", s.L4.L4Type())
+	}
+	if s.E2EExt != nil {
+		return 0, common.NewError("E2E extensions not supported", "ext", s.E2EExt)
+	}
+	if s.HBHExt != nil {
+		return 0, common.NewError("HBH extensions not supported", "ext", s.HBHExt)
+	}
+
+	// Compute header lengths
+	addrHdrLen := s.DstHost.Size() + s.SrcHost.Size() + 2*addr.IABytes
+	addrPad := util.CalcPadding(addrHdrLen, common.LineLen)
+	addrHdrLen += addrPad
+	scionHdrLen := spkt.CmnHdrLen + addrHdrLen + len(s.Path.Raw)
+	pktLen := scionHdrLen + s.L4.L4Len() + s.Pld.Len()
+	if len(b) < pktLen {
+		return 0, common.NewError("Buffer too small", "expected", pktLen,
+			"actual", len(b))
+	}
+
+	// Compute preliminary common header, but do not write it to the packet yet
+	cmnHdr := spkt.CmnHdr{}
+	cmnHdr.Ver = spkt.SCIONVersion
+	cmnHdr.DstType = s.DstHost.Type()
+	cmnHdr.SrcType = s.SrcHost.Type()
+	cmnHdr.TotalLen = uint16(pktLen)
+	cmnHdr.HdrLen = uint8(scionHdrLen / common.LineLen)
+	cmnHdr.CurrInfoF = 0 // Updated later if necessary
+	cmnHdr.CurrHopF = 0  // Updated later if necessary
+	cmnHdr.NextHdr = s.L4.L4Type()
+	offset += spkt.CmnHdrLen
+
+	// Address header
+	addrSlice := b[offset : offset+addrHdrLen]
+	s.DstIA.Write(b[offset:])
+	offset += addr.IABytes
+	s.SrcIA.Write(b[offset:])
+	offset += addr.IABytes
+	// addr.HostAddr.Pack() is zero-copy, use it directly
+	offset += copy(b[offset:], s.DstHost.Pack())
+	offset += copy(b[offset:], s.SrcHost.Pack())
+	// Zero memory padding
+	zeroMemory(b[offset : offset+addrPad])
+	offset += addrPad
+
+	// Forwarding Path
+	if s.Path != nil {
+		cmnHdr.CurrInfoF = uint8((offset + s.Path.InfOff) / common.LineLen)
+		cmnHdr.CurrHopF = uint8((offset + s.Path.HopOff) / common.LineLen)
+		offset += copy(b[offset:], s.Path.Raw)
+	}
+
+	// Write the common header at the start of the buffer
+	cmnHdr.Write(b)
+
+	// Don't write L4 yet
+	l4Slice := b[offset : offset+s.L4.L4Len()]
+	offset += s.L4.L4Len()
+
+	// Payload
+	pldSlice := b[offset : offset+s.Pld.Len()]
+	s.Pld.Write(b[offset:])
+	offset += s.Pld.Len()
+
+	// SCION/UDP Header
+	cerr = l4.SetCSum(s.L4, addrSlice, pldSlice)
+	if cerr != nil {
+		return 0, common.NewError("Unable to compute checksum", "err", cerr)
+	}
+	s.L4.Write(l4Slice)
+
+	return offset, nil
+}
+
 func isZeroMemory(b common.RawBytes) (int, bool) {
 	for i := range b {
 		if b[i] != 0 {
@@ -122,4 +202,10 @@ func isZeroMemory(b common.RawBytes) (int, bool) {
 		}
 	}
 	return 0, true
+}
+
+func zeroMemory(b common.RawBytes) {
+	for i := range b {
+		b[i] = 0
+	}
 }
