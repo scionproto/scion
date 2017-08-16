@@ -1,4 +1,4 @@
-package spkt
+package hpkt
 
 import (
 	"net"
@@ -12,13 +12,13 @@ import (
 )
 
 var testPacket = "\x00\x41\x00\x2f\x03\x00\x00\x11\x06\x40\x00\x02\x06\x40\x00\x01" +
-	"\xa9\xfe\x01\x02\xa9\xfe\x02\x02\xc3\x50\xc3\x50\x00\x17\xb0\x73" +
+	"\xa9\xfe\x01\x02\xa9\xfe\x02\x02\xc3\x50\xc3\x50\x00\x17\x94\x8f" +
 	"\x00\x00\x00\x0b\x10\x04\x50\x01\x01\x01\x02\x10\x01\x01\x1d"
 
-func Test_ScnPkt_Parse(t *testing.T) {
+func Test_ParseScnPkt(t *testing.T) {
 	Convey("ScnPkt.Parse should load values correctly", t, func() {
 		s := NewScnPkt()
-		err := s.Parse(common.RawBytes(testPacket))
+		err := ParseScnPkt(s, common.RawBytes(testPacket))
 
 		SoMsg("error", err, ShouldBeNil)
 
@@ -52,7 +52,7 @@ func Test_ScnPkt_Parse(t *testing.T) {
 		SoMsg("UDP.SrcPort", udpHdr.SrcPort, ShouldEqual, 50000)
 		SoMsg("UDP.DstPort", udpHdr.DstPort, ShouldEqual, 50000)
 		SoMsg("UDP.Len", udpHdr.TotalLen, ShouldEqual, 23)
-		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0xb0, 0x73})
+		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0x94, 0x8f})
 
 		buf := make(common.RawBytes, 1<<16)
 		n, _ := s.Pld.Write(buf)

@@ -22,7 +22,6 @@ type Payload interface {
 	fmt.Stringer
 	Len() int
 	Copy() (Payload, *Error)
-	// If there is insufficient space in b to fit the Payload, return an
-	// error
+	// Copies data from payload to b
 	Write(b RawBytes) (int, *Error)
 }
