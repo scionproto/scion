@@ -603,8 +603,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             try:
                 addr, port = self.dns_query_topo(PATH_SERVICE)[0]
             except SCIONServiceLookupError:
-                # If there are no local path servers, stop here.
                 addr, port = None, None
+            # Only there are no local path servers, do not create a meta.
             if addr:
                 ps_meta.append(UDPMetadata.from_values(host=addr, port=port))
         self._send_ifstate_update(border_metas, ps_meta)
@@ -728,7 +728,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         with self.ifid_state_lock:
             infos = []
             for (ifid, state) in self.ifid_state.items():
-                # Don't include inactive interfaces in response.
+                # Don't include inactive interfaces in update.
                 if state.is_inactive():
                     continue
                 rev_info = self._get_ht_proof(ifid) if state.is_revoked() else None
