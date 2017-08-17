@@ -816,7 +816,8 @@ class SupervisorGenerator(object):
         entries = []
         for k, v in topo.get("BorderRouters", {}).items():
             conf_dir = os.path.join(base, k)
-            entries.append((k, [cmd, "-id", k, "-confd", conf_dir, "-prom", _prom_addr_br(v)]))
+            entries.append((k, [cmd, "-id=%s" % k, "-confd=%s" % conf_dir,
+                                "-prom=%s" % _prom_addr_br(v)]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):

@@ -48,6 +48,7 @@ var (
 )
 
 var (
+	id             = flag.String("id", "", "Element ID (Required. E.g. 'sig4-21-9')")
 	config         = flag.String("config", "", "optional config file")
 	cli            = flag.Bool("cli", false, "enable interactive console")
 	port           = flag.Int("encapport", ExternalIngressPort, "encapsulation data port")
@@ -61,10 +62,15 @@ var (
 
 func main() {
 	flag.Parse()
-	liblog.Setup("sig")
+	if *id == "" {
+		log.Crit("No element ID specified")
+		os.Exit(1)
+	}
+	liblog.Setup(*id)
 	defer liblog.PanicLog()
 	setupSignals()
 
+	metrics.Init(*id)
 	// Export prometheus metrics.
 	if err := metrics.Start(); err != nil {
 		log.Error("Unable to export prometheus metrics", "err", err)

@@ -16,7 +16,26 @@ package ringbuf
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/netsec-ethz/scion/go/lib/prom"
 )
+
+var WriteCalls *prometheus.CounterVec
+var ReadCalls *prometheus.CounterVec
+var WriteEntries *prometheus.CounterVec
+var ReadEntries *prometheus.CounterVec
+
+func InitMetrics(namespace string, constLabels prometheus.Labels, labelNames []string) {
+	lNames := append(labelNames, "desc")
+	newCVec := func(name, help string) *prometheus.CounterVec {
+		return prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
+	}
+	WriteCalls = newCVec("write_calls_total", "Number of calls to Write.")
+	ReadCalls = newCVec("read_calls_total", "Number of calls to Read.")
+	WriteEntries = newCVec("write_entries_total", "Number of written entries.")
+	ReadEntries = newCVec("read_entries_total", "Number of read entries.")
+	prometheus.MustRegister(WriteCalls, ReadCalls, WriteEntries, ReadEntries)
+}
 
 type metrics struct {
 	writeCalls   prometheus.Counter
@@ -26,7 +45,7 @@ type metrics struct {
 }
 
 func newMetrics(desc string, labels prometheus.Labels) *metrics {
-	l := copyLabels(labels)
+	l := prom.CopyLabels(labels)
 	l["desc"] = desc
 	return &metrics{
 		writeCalls:   WriteCalls.With(l),
@@ -34,38 +53,4 @@ func newMetrics(desc string, labels prometheus.Labels) *metrics {
 		writeEntries: WriteEntries.With(l),
 		readEntries:  ReadEntries.With(l),
 	}
-}
-
-func copyLabels(labels prometheus.Labels) prometheus.Labels {
-	l := make(prometheus.Labels)
-	for k, v := range labels {
-		l[k] = v
-	}
-	return l
-}
-
-var WriteCalls *prometheus.CounterVec
-var ReadCalls *prometheus.CounterVec
-var WriteEntries *prometheus.CounterVec
-var ReadEntries *prometheus.CounterVec
-
-func InitMetrics(namespace string) {
-	WriteCalls = newCounterVec(namespace, "write_calls_total", "Number of calls to Write.")
-	ReadCalls = newCounterVec(namespace, "read_calls_total", "Number of calls to Read.")
-	WriteEntries = newCounterVec(namespace, "write_entries_total",
-		"Number of written entries.")
-	ReadEntries = newCounterVec(namespace, "read_entries_total",
-		"Number of read entries.")
-}
-
-func newCounterVec(namespace, name, help string) *prometheus.CounterVec {
-	return prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "ringbuf",
-			Name:      name,
-			Help:      help,
-		},
-		[]string{"id", "desc"},
-	)
 }

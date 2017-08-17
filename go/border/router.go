@@ -58,6 +58,7 @@ type Router struct {
 }
 
 func NewRouter(id, confDir string) (*Router, *common.Error) {
+	metrics.Init(id)
 	r := &Router{Id: id, confDir: confDir}
 	if err := r.setup(); err != nil {
 		return nil, err
