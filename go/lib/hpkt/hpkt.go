@@ -27,10 +27,9 @@ import (
 
 func AllocScnPkt() *spkt.ScnPkt {
 	return &spkt.ScnPkt{
-		CmnHdr: &spkt.CmnHdr{},
-		DstIA:  &addr.ISD_AS{},
-		SrcIA:  &addr.ISD_AS{},
-		Path:   &spath.Path{},
+		DstIA: &addr.ISD_AS{},
+		SrcIA: &addr.ISD_AS{},
+		Path:  &spath.Path{},
 		// Rest of fields passed by reference
 	}
 }
@@ -40,8 +39,8 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	var cerr *common.Error
 	offset := 0
 
-	// Parse common header
-	if cerr = s.CmnHdr.Parse(b[:spkt.CmnHdrLen]); cerr != nil {
+	cmnHdr := spkt.CmnHdr{}
+	if cerr = cmnHdr.Parse(b[:spkt.CmnHdrLen]); cerr != nil {
 		return cerr
 	}
 	offset += spkt.CmnHdrLen
@@ -49,9 +48,9 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	// If we find an extension, we cannot reliably parse past this point.
 	// For now, only parse simple packets
 	// TODO(scrye): add extension support
-	if s.CmnHdr.NextHdr != common.L4UDP {
+	if cmnHdr.NextHdr != common.L4UDP {
 		return common.NewError("Unexpected protocol number", "expected",
-			common.L4UDP, "actual", s.CmnHdr.NextHdr)
+			common.L4UDP, "actual", cmnHdr.NextHdr)
 	}
 
 	// Parse address header
@@ -60,12 +59,12 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	offset += addr.IABytes
 	s.SrcIA.Parse(b[offset:])
 	offset += addr.IABytes
-	if s.DstHost, cerr = addr.HostFromRaw(b[offset:], s.CmnHdr.DstType); cerr != nil {
+	if s.DstHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.DstType); cerr != nil {
 		return common.NewError("Unable to parse destination host address",
 			"err", cerr)
 	}
 	offset += s.DstHost.Size()
-	if s.SrcHost, cerr = addr.HostFromRaw(b[offset:], s.CmnHdr.SrcType); cerr != nil {
+	if s.SrcHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.SrcType); cerr != nil {
 		return common.NewError("Unable to parse source host address",
 			"err", cerr)
 	}
@@ -80,18 +79,18 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	addrHdrEnd := offset
 
 	// Parse path header
-	pathLen := s.CmnHdr.HdrLenBytes() - offset
+	pathLen := cmnHdr.HdrLenBytes() - offset
 	s.Path.Raw = b[offset : offset+pathLen]
-	s.Path.InfOff = s.CmnHdr.InfoFOffBytes()
-	s.Path.HopOff = s.CmnHdr.HopFOffBytes()
+	s.Path.InfOff = cmnHdr.InfoFOffBytes()
+	s.Path.HopOff = cmnHdr.HopFOffBytes()
 	offset += pathLen
 
 	// TODO(scrye): Add extension support
 
 	// Parse L4 header
-	if s.CmnHdr.NextHdr != common.L4UDP {
+	if cmnHdr.NextHdr != common.L4UDP {
 		return common.NewError("Unsupported NextHdr value", "expected",
-			common.L4UDP, "actual", s.CmnHdr.NextHdr)
+			common.L4UDP, "actual", cmnHdr.NextHdr)
 	}
 	if s.L4, cerr = l4.UDPFromRaw(b[offset : offset+l4.UDPLen]); cerr != nil {
 		return common.NewError("Unable to parse UDP header", "err", cerr)
@@ -99,7 +98,7 @@ func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
 	offset += s.L4.L4Len()
 
 	// Parse payload
-	pldLen := int(s.CmnHdr.TotalLen) - s.CmnHdr.HdrLenBytes() - s.L4.L4Len()
+	pldLen := int(cmnHdr.TotalLen) - cmnHdr.HdrLenBytes() - s.L4.L4Len()
 	if offset+pldLen < len(b) {
 		return common.NewError("Incomplete packet, bad payload length",
 			"expected", pldLen, "actual", len(b)-offset)
@@ -141,22 +140,17 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 			"actual", len(b))
 	}
 
-	// Create the packet using initial IF/HF pointers
-	hopIdx, err := resetHopIdx(s.Path)
-	if err != nil {
-		return 0, common.NewError("Unable to initialize path", "err", err)
-	}
-
-	// Common Header
-	s.CmnHdr.Ver = 0
-	s.CmnHdr.DstType = s.DstHost.Type()
-	s.CmnHdr.SrcType = s.SrcHost.Type()
-	s.CmnHdr.TotalLen = uint16(pktLen)
-	s.CmnHdr.HdrLen = uint8(scionHdrLen / common.LineLen)
-	s.CmnHdr.CurrInfoF = uint8((spkt.CmnHdrLen + addrHdrLen) / common.LineLen)
-	s.CmnHdr.CurrHopF = s.CmnHdr.CurrInfoF + hopIdx
-	s.CmnHdr.NextHdr = common.L4UDP
-	s.CmnHdr.Write(b[offset:])
+	cmnHdr := spkt.CmnHdr{}
+	cmnHdr.Ver = spkt.SCIONVersion
+	cmnHdr.DstType = s.DstHost.Type()
+	cmnHdr.SrcType = s.SrcHost.Type()
+	cmnHdr.TotalLen = uint16(pktLen)
+	cmnHdr.HdrLen = uint8(scionHdrLen / common.LineLen)
+	baseIdx := (spkt.CmnHdrLen + addrHdrLen) / common.LineLen
+	cmnHdr.CurrInfoF = uint8(baseIdx + s.Path.InfOff)
+	cmnHdr.CurrHopF = uint8(baseIdx + s.Path.HopOff)
+	cmnHdr.NextHdr = common.L4UDP
+	cmnHdr.Write(b[offset:])
 	offset += spkt.CmnHdrLen
 
 	// Address header
@@ -173,15 +167,12 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	offset += addrPad
 
 	// Forwarding Path
-	offset += copy(b[offset:], s.Path.Raw)
-
-	// SCION/UDP Header
-	l4Slice := b[offset : offset+s.L4.L4Len()]
-	if s.L4.L4Type() != common.L4UDP {
-		return 0, common.NewError("Unsupported L4 protocol", "expected",
-			"UDP", "actual", s.L4.L4Type())
+	if s.Path.Raw != nil {
+		offset += copy(b[offset:], s.Path.Raw)
 	}
-	s.L4.Write(b[offset:])
+
+	// Don't write L4 yet
+	l4Slice := b[offset : offset+s.L4.L4Len()]
 	offset += s.L4.L4Len()
 
 	// Payload
@@ -189,12 +180,12 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	s.Pld.Write(b[offset:])
 	offset += s.Pld.Len()
 
-	// L4 checksum
-	checksum, cerr := l4.CalcCSum(s.L4, addrSlice, pldSlice)
+	// SCION/UDP Header
+	cerr = l4.SetCSum(s.L4, addrSlice, pldSlice)
 	if cerr != nil {
-		return 0, common.NewError("Unable to compute checksum", "err", err)
+		return 0, common.NewError("Unable to compute checksum", "err", cerr)
 	}
-	copy(l4Slice[6:8], checksum)
+	s.L4.Write(l4Slice)
 
 	return offset, nil
 }
@@ -212,44 +203,4 @@ func zeroMemory(b common.RawBytes) {
 	for i := range b {
 		b[i] = 0
 	}
-}
-
-func resetHopIdx(path *spath.Path) (uint8, error) {
-	var cerr *common.Error
-	var infoF *spath.InfoField
-	var hopF *spath.HopField
-	fwdPath := path.Raw
-	hopIdx := 1
-
-	if infoF, cerr = spath.InfoFFromRaw(fwdPath); cerr != nil {
-		return 0, cerr
-	}
-	maxHopIdx := int(infoF.Hops)
-	if hopF, cerr = spath.HopFFromRaw(fwdPath[hopIdx*common.LineLen:]); cerr != nil {
-		return 0, cerr
-	}
-
-	if infoF.Up && hopF.Xover {
-		hopIdx += 1
-		if hopIdx > maxHopIdx {
-			return 0, common.NewError("Skipped entire path segment",
-				"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
-		}
-	}
-
-	for {
-		if hopF, cerr = spath.HopFFromRaw(fwdPath[hopIdx*common.LineLen:]); cerr != nil {
-			return 0, cerr
-		}
-		if hopF.VerifyOnly {
-			hopIdx += 1
-			if hopIdx > maxHopIdx {
-				return 0, common.NewError("Skipped entire path segment",
-					"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
-			}
-			continue
-		}
-		break
-	}
-	return uint8(hopIdx), nil
 }

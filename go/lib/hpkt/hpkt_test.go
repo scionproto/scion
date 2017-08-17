@@ -42,15 +42,6 @@ func Test_ParseScnPkt(t *testing.T) {
 
 		SoMsg("error", err, ShouldBeNil)
 
-		SoMsg("CmnHdr.Version", s.CmnHdr.Ver, ShouldEqual, 0)
-		SoMsg("CmnHdr.DstType", s.CmnHdr.DstType, ShouldEqual, addr.HostTypeIPv4)
-		SoMsg("CmnHdr.SrcType", s.CmnHdr.SrcType, ShouldEqual, addr.HostTypeIPv4)
-		SoMsg("CmnHdr.TotalLen", s.CmnHdr.TotalLen, ShouldEqual, 47)
-		SoMsg("CmnHdr.HdrLen", s.CmnHdr.HdrLen, ShouldEqual, 3)
-		SoMsg("CmnHdr.CurrInfoF", s.CmnHdr.CurrInfoF, ShouldEqual, 0)
-		SoMsg("CmnHdr.CurrHopF", s.CmnHdr.CurrHopF, ShouldEqual, 0)
-		SoMsg("CmnHdr.NextHdr", s.CmnHdr.NextHdr, ShouldEqual, 17)
-
 		SoMsg("AddrHdr.DstIA.I", s.DstIA.I, ShouldEqual, 100)
 		SoMsg("AddrHdr.DstIA.A", s.DstIA.A, ShouldEqual, 2)
 		SoMsg("AddrHdr.SrcIA.I", s.SrcIA.I, ShouldEqual, 100)
@@ -90,6 +81,8 @@ func Test_ScnPkt_Write(t *testing.T) {
 		s.Path.Raw = common.RawBytes("\x01\x59\x78\xad\x54\x00\x64\x02" +
 			"\x00\x3f\x02\x00\x00\x2e\x84\x50" +
 			"\x00\x3f\x00\x00\x1d\x8a\xad\x6c")
+		s.Path.InfOff = 0
+		s.Path.HopOff = 1
 		s.L4 = &l4.UDP{SrcPort: 1280, DstPort: 80, TotalLen: 8}
 		s.Pld = common.RawBytes("scion123")
 
