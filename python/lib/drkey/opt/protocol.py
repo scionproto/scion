@@ -31,7 +31,7 @@ from lib.drkey.types import (
     SecondOrderDRKey,
 )
 from lib.drkey.util import drkey_time, get_drkey_exp_time
-from lib.errors import SCIONVerificationError
+from lib.errors import SCIONVerificationError, SCIONBaseError
 from lib.msg_meta import UDPMetadata
 from lib.packet.opt.defines import OPTMode
 from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
@@ -134,6 +134,10 @@ class OPTProtocol(DRKeyProtocolBase):
             ))
 
 
+class SCIONOPTKeyExchangeError(SCIONBaseError):
+    """OPT key exchange error."""
+
+
 def find_opt_extn(spkt):
     for e in spkt.ext_hdrs:
         if isinstance(e, SCIONOriginValidationPathTraceExtn):
@@ -159,7 +163,7 @@ def generate_sessionID(spkt):
     hashed_dst = sha256(str(spkt.addrs.dst.isd_as).encode('utf-8') +
                         spkt.addrs.dst.host.addr.packed)[:16]
     assert (len(hashed_dst) == 16)
-    return bytes(16)
+    return hashed_dst
 
 
 def set_pvf(spkt, drkey):
@@ -251,7 +255,7 @@ def verify_ov(spkt, drkey):
     return
 
 
-def get_sciond_params(spkt, mode=1, path=None):
+def get_sciond_params(spkt, mode, path=None):
     extn = None
     if mode == OPTMode.OPT:
         extn = find_opt_extn(spkt)
@@ -280,7 +284,7 @@ def get_sciond_params(spkt, mode=1, path=None):
     return params
 
 
-def get_sciond_params_src(spkt):
+def get_sciond_params_src(spkt, sessionID):
     params = DRKeyProtocolRequest.Params()
     params.timestamp = drkey_time()
     params.protocol = DRKeyProtocols.OPT
@@ -293,6 +297,6 @@ def get_sciond_params_src(spkt):
     params.src_host = spkt.addrs.src.host
     params.dst_host = spkt.addrs.dst.host
 
-    params.misc = OPTMiscRequest.from_values(bytes(16), [])
+    params.misc = OPTMiscRequest.from_values(sessionID, [])
 
     return params

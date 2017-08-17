@@ -24,13 +24,16 @@ import time
 
 import lib.app.sciond as lib_sciond
 from lib.crypto.symcrypto import sha256
-from lib.drkey.opt.protocol import get_sciond_params, find_opt_extn, generate_intermediate_pvfs
+from lib.drkey.opt.protocol import (get_sciond_params,
+                                    generate_intermediate_pvfs,
+                                    generate_sessionID, generate_pvf)
 from lib.drkey.util import drkey_time
 from lib.main import main_wrapper
 from lib.packet.opt.opt_ext import SCIONOriginValidationPathTraceExtn
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scion import build_base_hdrs, SCIONL4Packet
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.opt.defines import OPTLengths, OPTMode
 from lib.thread import kill_self
@@ -51,26 +54,28 @@ class E2EClient(TestClientBase):
 
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
-        l4_hdr = self._create_l4_hdr()
+        if path is None:
+            path = self.path_meta.fwd_path()
         path_meta = [i.isd_as() for i in self.path_meta.iter_ifs()]
-
-        extn = SCIONOriginValidationPathTraceExtn.\
+        path_index = 0
+        extn = SCIONOriginValidationPathTraceExtn. \
             from_values(OPTMode.OPT,
-                        0,
+                        path_index,
                         bytes(OPTLengths.TIMESTAMP),
                         bytes(OPTLengths.DATAHASH),
                         bytes(OPTLengths.SESSIONID),
                         bytes(OPTLengths.PVF),
-                        [bytes(OPTLengths.OVs)]*(len(path_meta)+1)
+                        [bytes(OPTLengths.OVs)] * (len(path_meta) + 1)
                         )
+        l4_hdr = self._create_l4_hdr()
 
-        if path is None:
-            path = self.path_meta.fwd_path()
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, [extn], l4_hdr)
+        spkt.update()
+
+        extn.sessionID = generate_sessionID(spkt)
         payload = self._create_payload(spkt)
         spkt.set_payload(payload)
-        spkt.update()
 
         drkey, misc = _try_sciond_api(spkt, self._connector, path_meta)
         extn.timestamp = drkey_time().to_bytes(4, 'big')
@@ -90,8 +95,11 @@ class E2EClient(TestClientBase):
         drkey, misc = _try_sciond_api(
             spkt, self._connector, path)
         data = drkey.drkey + b" " + self.data
+        extns_len = 0
+        for extn in spkt.ext_hdrs:
+            extns_len += len(extn)
         pld_len = self.path_meta.p.mtu - spkt.cmn_hdr.hdr_len_bytes() - \
-            len(spkt.l4_hdr) - len(spkt.ext_hdrs[0])
+            len(spkt.l4_hdr) - extns_len
         return self._gen_max_pld(data, pld_len)
 
     def _gen_max_pld(self, data, pld_len):
@@ -103,9 +111,8 @@ class E2EClient(TestClientBase):
             return self._handle_scmp(spkt)
         logging.debug("Received:\n%s", spkt)
         if len(spkt) != self.path_meta.p.mtu:
-            logging.error("Packet length (%sB) != MTU (%sB)",
-                          len(spkt), self.path_meta.p.mtu)
-            return ResponseRV.FAILURE
+            logging.info("Packet length (%sB) != MTU (%sB)", len(spkt), self.path_meta.p.mtu)
+            # return ResponseRV.FAILURE
         payload = spkt.get_payload()
         drkey, misc = _try_sciond_api(spkt, self._connector, path=None)
         logging.debug(drkey)
@@ -123,8 +130,7 @@ class E2EClient(TestClientBase):
     def _handle_scmp(self, spkt):
         scmp_hdr = spkt.l4_hdr
         spkt.parse_payload()
-        if (scmp_hdr.class_ == SCMPClass.PATH and
-                scmp_hdr.type == SCMPPathClass.REVOKED_IF):
+        if (scmp_hdr.class_ == SCMPClass.PATH and scmp_hdr.type == SCMPPathClass.REVOKED_IF):
             scmp_pld = spkt.get_payload()
             rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
             logging.info("Received revocation for IF %d." % rev_info.p.ifID)
@@ -155,6 +161,7 @@ class E2EClient(TestClientBase):
         if not self._test_as_request_reply():
             self._shutdown()
             kill_self()
+        # sciond works as expected
         super().run()
 
 
@@ -165,12 +172,10 @@ class E2EServer(TestServerBase):
 
     def _handle_request(self, spkt):
         drkey, misc = _try_sciond_api(spkt, self._connector, None)
-        logging.debug(drkey)
-        expected = drkey.drkey + b" " + self.data
-        raw_pld = spkt.get_payload().pack()
-        if not raw_pld.startswith(expected):
-            return False
-        # Reverse the packet and send "pong".
+        src_addr = spkt.addrs.src
+        src_port = spkt.l4_hdr.src_port
+
+        # Build reverse packet and send "pong".
 
         src_ia = spkt.l4_hdr._src.isd_as
         d_path_entries = _try_sciond_path_api(src_ia, self._connector)
@@ -180,33 +185,60 @@ class E2EServer(TestServerBase):
 
         logging.debug('%s:%d: ping received, sending pong.',
                       self.addr.host, self.sock.port)
-        spkt.reverse()
-        spkt.update()
 
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=computed_path)
-        extn = find_opt_extn(spkt)
-        extn.path_index = 0
-        extn.init_pvf(drkey.drkey)
+        # Init response
+        path_index = 0  # reset OPT path index
+        new_extn = SCIONOriginValidationPathTraceExtn. \
+            from_values(OPTMode.OPT,
+                        path_index,
+                        bytes(OPTLengths.TIMESTAMP),
+                        bytes(OPTLengths.DATAHASH),
+                        bytes(OPTLengths.SESSIONID),
+                        bytes(OPTLengths.PVF),
+                        [bytes(OPTLengths.OVs)] * (len((computed_path)) + 1)
+                        )
+        cmn_hdr, addr_hdr = build_base_hdrs(src_addr, self.addr)
+        l4_hdr = SCIONUDPHeader.from_values(self.addr, self.sock.port, src_addr, src_port)
+        spkt = SCIONL4Packet.from_values(
+            cmn_hdr, addr_hdr, d_path_meta.fwd_path(), [new_extn], l4_hdr)
         spkt.update()
-        spkt.set_payload(self._create_payload(spkt))
+        sessionID = generate_sessionID(spkt)
+        new_extn.sessionID = sessionID
+        drkey, misc = _try_sciond_api(spkt, self._connector, computed_path)
+        payload = self._create_payload(spkt, d_path_meta.p.mtu)
+        spkt.set_payload(payload)
+
+        timestamp = drkey_time().to_bytes(4, 'big')
+        new_extn.timestamp = timestamp
+        datahash = sha256(payload.pack())[:16]
+        new_extn.datahash = datahash
+
+        PVF = generate_pvf(drkey, datahash)
+        new_extn.PVF = PVF
 
         if misc.drkeys:
             ias_keylist = [(sndkey.src_ia.int(), sndkey.drkey) for sndkey in misc.drkeys]
             pvfs = generate_intermediate_pvfs(spkt, (drkey.src_ia.int(), drkey.drkey),
                                               ias_keylist)
-            opvs = extn.create_opvs_from_path(misc.drkeys, drkey, pvfs)
-            extn.OVs = opvs
+            opvs = new_extn.create_opvs_from_path(misc.drkeys, drkey, pvfs)
+            new_extn.OVs = opvs
         self._send_pkt(spkt)
         self.success = True
         self.finished.set()
         return True
 
-    def _create_payload(self, spkt):
-        old_pld = spkt.get_payload()
-        drkey, misc = _try_sciond_api(spkt, connector=self._connector, path=None)
+    def _create_payload(self, spkt, mtu):
+        drkey, misc = _try_sciond_api(spkt, self._connector, None)
         logging.debug(drkey)
         data = drkey.drkey + b" " + self.data
-        padding = len(old_pld) - len(data)
+        extns_len = 0
+        for extn in spkt.ext_hdrs:
+            extns_len += len(extn)
+        pld_len = mtu - spkt.cmn_hdr.hdr_len_bytes() - len(spkt.l4_hdr) - extns_len
+        return self._gen_max_pld(data, pld_len)
+
+    def _gen_max_pld(self, data, pld_len):
+        padding = pld_len - len(data)
         return PayloadRaw(data + bytes(padding))
 
 
@@ -214,8 +246,9 @@ def _try_sciond_api(spkt, connector, path):
     start = time.time()
     while time.time() - start < API_TOUT:
         try:
+            request_parameters = get_sciond_params(spkt, mode=OPTMode.OPT, path=path)
             drkey, misc = lib_sciond.get_protocol_drkey(
-                get_sciond_params(spkt, mode=OPTMode.OPT, path=path),
+                request_parameters,
                 connector=connector)
         except lib_sciond.SCIONDConnectionError as e:
             logging.error("Connection to SCIOND failed: %s " % e)
@@ -262,7 +295,7 @@ class TestRequests(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("OPT_request")
-    TestRequests(args.client, args.server, srcs, dsts, max_runs=args.runs,
+    TestRequests(args.client, args.server, srcs, dsts, local=False, max_runs=args.runs,
                  retries=args.retries).run()
 
 
