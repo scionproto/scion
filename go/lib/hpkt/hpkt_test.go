@@ -25,25 +25,22 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/l4"
 )
 
-var testPacket = "\x00\x41\x00\x2f\x03\x00\x00\x11\x06\x40\x00\x02\x06\x40\x00\x01" +
-	"\xa9\xfe\x01\x02\xa9\xfe\x02\x02\xc3\x50\xc3\x50\x00\x17\x94\x8f" +
-	"\x00\x00\x00\x0b\x10\x04\x50\x01\x01\x01\x02\x10\x01\x01\x1d"
+var (
+	testParsePkt = "\x00\x41\x00\x2f\x03\x00\x00\x11\x06\x40\x00\x02\x06\x40\x00\x01" +
+		"\xa9\xfe\x01\x02\xa9\xfe\x02\x02\xc3\x50\xc3\x50\x00\x17\x94\x8f" +
+		"\x00\x00\x00\x0b\x10\x04\x50\x01\x01\x01\x02\x10\x01\x01\x1d"
+	testWritePkt = "\x00\x41\x00\x40\x06\x03\x04\x11\x02\xa0\x00\x01\x04\x90\x04\x01" +
+		"\x01\x02\x03\x04\x0a\x00\x00\x01\x01\x59\x78\xad\x54\x00\x64\x02" +
+		"\x00\x3f\x02\x00\x00\x2e\x84\x50\x00\x3f\x00\x00\x1d\x8a\xad\x6c" +
+		"\x05\x00\x00\x50\x00\x08\x64\x26\x73\x63\x69\x6f\x6e\x31\x32\x33"
+)
 
 func Test_ParseScnPkt(t *testing.T) {
 	Convey("ScnPkt.Parse should load values correctly", t, func() {
 		s := AllocScnPkt()
-		err := ParseScnPkt(s, common.RawBytes(testPacket))
+		err := ParseScnPkt(s, common.RawBytes(testParsePkt))
 
 		SoMsg("error", err, ShouldBeNil)
-
-		SoMsg("CmnHdr.Version", s.CmnHdr.Ver, ShouldEqual, 0)
-		SoMsg("CmnHdr.DstType", s.CmnHdr.DstType, ShouldEqual, addr.HostTypeIPv4)
-		SoMsg("CmnHdr.SrcType", s.CmnHdr.SrcType, ShouldEqual, addr.HostTypeIPv4)
-		SoMsg("CmnHdr.TotalLen", s.CmnHdr.TotalLen, ShouldEqual, 47)
-		SoMsg("CmnHdr.HdrLen", s.CmnHdr.HdrLen, ShouldEqual, 3)
-		SoMsg("CmnHdr.CurrInfoF", s.CmnHdr.CurrInfoF, ShouldEqual, 0)
-		SoMsg("CmnHdr.CurrHopF", s.CmnHdr.CurrHopF, ShouldEqual, 0)
-		SoMsg("CmnHdr.NextHdr", s.CmnHdr.NextHdr, ShouldEqual, 17)
 
 		SoMsg("AddrHdr.DstIA.I", s.DstIA.I, ShouldEqual, 100)
 		SoMsg("AddrHdr.DstIA.A", s.DstIA.A, ShouldEqual, 2)
@@ -70,6 +67,30 @@ func Test_ParseScnPkt(t *testing.T) {
 
 		buf := make(common.RawBytes, 1<<16)
 		n, _ := s.Pld.Write(buf)
-		SoMsg("Payload", buf[:n], ShouldResemble, common.RawBytes(testPacket[32:]))
+		SoMsg("Payload", buf[:n], ShouldResemble, common.RawBytes(testParsePkt[32:]))
+	})
+}
+
+func Test_ScnPkt_Write(t *testing.T) {
+	Convey("ScnPkt.Write should write values correctly", t, func() {
+		s := AllocScnPkt()
+		s.DstIA, _ = addr.IAFromString("42-1")
+		s.SrcIA, _ = addr.IAFromString("73-1025")
+		s.DstHost = addr.HostFromIP(net.IPv4(1, 2, 3, 4))
+		s.SrcHost = addr.HostFromIP(net.IPv4(10, 0, 0, 1))
+		s.Path.Raw = common.RawBytes("\x01\x59\x78\xad\x54\x00\x64\x02" +
+			"\x00\x3f\x02\x00\x00\x2e\x84\x50" +
+			"\x00\x3f\x00\x00\x1d\x8a\xad\x6c")
+		s.Path.InfOff = 0
+		s.Path.HopOff = 8
+		s.L4 = &l4.UDP{SrcPort: 1280, DstPort: 80, TotalLen: 8}
+		s.Pld = common.RawBytes("scion123")
+
+		b := make(common.RawBytes, 1024)
+		Convey("Normal write", func() {
+			n, err := WriteScnPkt(s, b)
+			SoMsg("Write error", err, ShouldBeNil)
+			SoMsg("Buffer contents", b[:n], ShouldResemble, common.RawBytes(testWritePkt))
+		})
 	})
 }
