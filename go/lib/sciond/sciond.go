@@ -31,6 +31,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -54,6 +55,7 @@ const (
 // cache for interface, service and AS information. All Connector methods block until either
 // an error occurs, or the method successfully returns.
 type Connector struct {
+	sync.Mutex
 	conn      net.Conn
 	requestID uint64
 
@@ -130,6 +132,9 @@ func (c *Connector) receive() (*SCIONDMsg, error) {
 // Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
 // maximum number of paths returned.
 func (c *Connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error) {
+	c.Lock()
+	defer c.Unlock()
+
 	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_pathReq}
 	request.PathReq.Dst = dst.Uint32()
 	request.PathReq.Src = src.Uint32()
@@ -150,6 +155,9 @@ func (c *Connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*P
 
 // ASInfo requests from SCIOND information about AS ia.
 func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
+	c.Lock()
+	defer c.Unlock()
+
 	// Check if information for this ISD-AS is cached
 	key := ia.String()
 	if value, found := c.asInfos.Get(key); found {
@@ -177,6 +185,9 @@ func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 // Slice ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached) answer containing
 // all interfaces is returned.
 func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
+	c.Lock()
+	defer c.Unlock()
+
 	// Store uncached interface IDs
 	uncachedIfs := make([]uint64, 0, len(ifs))
 	cachedEntries := make([]IFInfoReplyEntry, 0, len(ifs))
@@ -222,6 +233,9 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 // Slice svcTypes contains a list of desired service types. If unset, a fresh (i.e., uncached)
 // answer containing all service types is returned.
 func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
+	c.Lock()
+	defer c.Unlock()
+
 	// Store uncached SVC Types
 	uncachedSVCs := make([]ServiceType, 0, len(svcTypes))
 	cachedEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
