@@ -17,6 +17,8 @@ package ringbuf
 import (
 	"sync"
 
+	//log "github.com/inconshreveable/log15"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -140,10 +142,18 @@ func (r *Ring) write(entries EntryList) {
 
 func (r *Ring) read(entries EntryList) {
 	n := copy(entries, r.entries[r.readIndex:])
+	// Remove references that were just read.
+	for i := r.readIndex; i < r.readIndex+n; i++ {
+		r.entries[i] = nil
+	}
 	r.readIndex += n
 	// Wraparound if we need to read more slice references
 	if n < len(entries) {
 		n = copy(entries[n:], r.entries)
+		// Remove references that were just read.
+		for i := 0; i < n; i++ {
+			r.entries[i] = nil
+		}
 		// Reset read index
 		r.readIndex = n
 	}

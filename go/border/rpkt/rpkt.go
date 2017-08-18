@@ -39,7 +39,7 @@ import (
 
 // pktBufSize is the maxiumum size of a packet buffer.
 // FIXME(kormat): this should be reduced as soon as we respect the actual link MTU.
-const pktBufSize = 1 << 16
+const pktBufSize = 9 * 1024
 
 // callbacks is an anonymous struct used for functions supplied by the router
 // for various processing tasks.
@@ -205,8 +205,10 @@ type extnIdx struct {
 // Fields that are assumed to be overwritten (and hence aren't reset):
 // Id, TimeIn, CmnHdr, Logger
 func (rp *RtrPkt) Reset() {
+	rp.Id = ""
 	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
+	rp.TimeIn = 0
 	rp.DirFrom = rcmn.DirUnset
 	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil
@@ -214,6 +216,7 @@ func (rp *RtrPkt) Reset() {
 	rp.Ingress.IfIDs = nil
 	rp.Ingress.LocIdx = -1
 	rp.Egress = rp.Egress[:0]
+	// CmnHdr doesn't contain any references.
 	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}
 	rp.dstIA = nil
@@ -232,6 +235,7 @@ func (rp *RtrPkt) Reset() {
 	rp.pld = nil
 	rp.hooks = hooks{}
 	rp.SCMPError = false
+	rp.Logger = nil
 	rp.Ctx = nil
 	rp.refCnt = 1
 	rp.Free = nil
