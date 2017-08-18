@@ -55,7 +55,6 @@ from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.ifstate import (
     IFStateInfo,
     IFStatePayload,
-    IFStateRequest,
 )
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
@@ -418,14 +417,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not prev_state == InterfaceState.ACTIVE:
                 if self.zk.have_lock():
                     # Inform BRs about the interface coming up.
-                    state_info = IFStateInfo.from_values(
-                        ifid, True, self._get_ht_proof(ifid))
-                    pld = IFStatePayload.from_values([state_info])
+                    metas = []
                     for br in self.topology.border_routers:
                         br_addr, br_port = br.int_addrs[0].public[0]
-                        meta = UDPMetadata.from_values(
-                            host=br_addr, port=br_port)
-                        self.send_meta(pld.copy(), meta, (br_addr, br_port))
+                        metas.append(UDPMetadata.from_values(host=br_addr, port=br_port))
+                    self._send_ifstate_update(metas)
 
     def run(self):
         """
@@ -580,44 +576,38 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     continue
                 self.local_rev_cache[rev_info] = rev_info.copy()
 
-    def _issue_revocation(self, if_id):
+    def _issue_revocations(self, revoked_ifs):
         """
         Store a RevocationInfo in ZK and send a revocation to all BRs.
 
-        :param if_id: The interface that needs to be revoked.
-        :type if_id: int
+        :param list revoked_ifs: A list of interfaces that needs to be revoked.
         """
         # Only the master BS issues revocations.
         if not self.zk.have_lock():
             return
-        rev_info = self._get_ht_proof(if_id)
-        logging.info("Issuing revocation: %s", rev_info.short_desc())
-        if self._labels:
-            REVOCATIONS_ISSUED.labels(**self._labels).inc()
-        # Issue revocation to all BRs.
-        info = IFStateInfo.from_values(if_id, False, rev_info)
-        pld = IFStatePayload.from_values([info])
+        # Process revoked interfaces.
+        for if_id in revoked_ifs:
+            rev_info = self._get_ht_proof(if_id)
+            logging.info("Issuing revocation: %s", rev_info.short_desc())
+            if self._labels:
+                REVOCATIONS_ISSUED.labels(**self._labels).inc()
+            self._process_revocation(rev_info)
+        border_metas = []
+        # Add all BRs.
         for br in self.topology.border_routers:
             br_addr, br_port = br.int_addrs[0].public[0]
-            meta = UDPMetadata.from_values(host=br_addr, port=br_port)
-            self.send_meta(pld.copy(), meta, (br_addr, br_port))
-        self._process_revocation(rev_info)
-        self._send_rev_to_local_ps(rev_info)
-
-    def _send_rev_to_local_ps(self, rev_info):
-        """
-        Sends the given revocation to its local path server.
-        :param rev_info: The RevocationInfo object
-        :type rev_info: RevocationInfo
-        """
-        if self.zk.have_lock() and self.topology.path_servers:
+            border_metas.append(UDPMetadata.from_values(host=br_addr, port=br_port))
+        # Add local path server.
+        ps_meta = []
+        if self.topology.path_servers:
             try:
                 addr, port = self.dns_query_topo(PATH_SERVICE)[0]
             except SCIONServiceLookupError:
-                # If there are no local path servers, stop here.
-                return
-            meta = UDPMetadata.from_values(host=addr, port=port)
-            self.send_meta(rev_info.copy(), meta)
+                addr, port = None, None
+            # Create a meta if there is a local path service
+            if addr:
+                ps_meta.append(UDPMetadata.from_values(host=addr, port=port))
+        self._send_ifstate_update(border_metas, ps_meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -710,6 +700,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         while self.run_flag.is_set():
             start_time = time.time()
             with self.ifid_state_lock:
+                to_revoke = []
                 for (if_id, if_state) in self.ifid_state.items():
                     cur_epoch = ConnectedHashTree.get_current_epoch()
                     if not if_state.is_expired() or (
@@ -720,8 +711,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     if_id_last_revoked[if_id] = cur_epoch
                     if not if_state.is_revoked():
                         logging.info("IF %d went down.", if_id)
-                    self._issue_revocation(if_id)
+                    to_revoke.append(if_id)
                     if_state.revoke_if_expired()
+                self._issue_revocations(to_revoke)
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
@@ -729,30 +721,28 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Only master replies to ifstate requests.
         if not self.zk.have_lock():
             return
-        assert isinstance(req, IFStateRequest)
-        infos = []
-        with self.ifid_state_lock:
-            if req.p.ifID == IFStateRequest.ALL_INTERFACES:
-                ifid_states = self.ifid_state.items()
-            elif req.p.ifID in self.ifid_state:
-                ifid_states = [(req.p.ifID, self.ifid_state[req.p.ifID])]
-            else:
-                logging.error("Received ifstate request from %s for unknown "
-                              "interface %s.", meta, req.p.ifID)
-                return
+        self._send_ifstate_update([meta])
 
-            for (ifid, state) in ifid_states:
-                # Don't include inactive interfaces in response.
+    def _send_ifstate_update(self, border_metas, server_metas=None):
+        server_metas = server_metas or []
+        with self.ifid_state_lock:
+            infos = []
+            for (ifid, state) in self.ifid_state.items():
+                # Don't include inactive interfaces in update.
                 if state.is_inactive():
                     continue
-                info = IFStateInfo.from_values(ifid, state.is_active(),
-                                               self._get_ht_proof(ifid))
+                rev_info = self._get_ht_proof(ifid) if state.is_revoked() else None
+                info = IFStateInfo.from_values(ifid, state.is_active(), rev_info)
                 infos.append(info)
-        if not infos and not self._quiet_startup():
-            logging.warning("No IF state info to put in response. Req: %s" % req.short_desc())
-            return
-        payload = IFStatePayload.from_values(infos)
-        self.send_meta(payload, meta, (meta.host, meta.port))
+            if not infos and not self._quiet_startup():
+                logging.warning("No IF state info to put in IFState update for %s.",
+                                ", ".join([str(m) for m in border_metas + server_metas]))
+                return
+            payload = IFStatePayload.from_values(infos)
+        for meta in border_metas:
+            self.send_meta(payload.copy(), meta, (meta.host, meta.port))
+        for meta in server_metas:
+            self.send_meta(payload.copy(), meta)
 
     def _init_metrics(self):
         super()._init_metrics()

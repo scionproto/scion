@@ -54,6 +54,8 @@ type State struct {
 var S *States
 
 // Process processes Interface State updates from the beacon service.
+// NOTE: Process currently assumes that ifStates contains infos for each interface
+// in the AS.
 func Process(ifStates proto.IFStateInfos) {
 	infos, serr := ifStates.Infos()
 	if serr != nil {
@@ -63,17 +65,21 @@ func Process(ifStates proto.IFStateInfos) {
 	// Convert IFState infos to map
 	m := make(map[common.IFIDType]State, infos.Len())
 	for i := 0; i < infos.Len(); i++ {
+		var rawRev common.RawBytes
 		info := infos.At(i)
 		ifid := common.IFIDType(info.IfID())
-		revInfo, serr := info.RevInfo()
-		if serr != nil {
-			log.Error("Unable to extract RevInfo from IFStateInfo", "err", serr, "info", info)
-			return
-		}
-		rawRev, err := proto.StructPack(revInfo.Struct)
-		if err != nil {
-			log.Error("Unable to pack RevInfo", err.Ctx...)
-			return
+		if info.HasRevInfo() {
+			revInfo, serr := info.RevInfo()
+			if serr != nil {
+				log.Error("Unable to extract RevInfo from IFStateInfo", "err", serr, "info", info)
+				return
+			}
+			var err *common.Error
+			rawRev, err = proto.StructPack(revInfo.Struct)
+			if err != nil {
+				log.Error("Unable to pack RevInfo", err.Ctx...)
+				return
+			}
 		}
 		m[ifid] = State{P: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))

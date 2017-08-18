@@ -35,14 +35,21 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
     NAME = "IFStateInfo"
     P_CLS = P.IFStateInfo
 
-    def __init__(self, p):
-        super().__init__(p)
-        self.rev_info = RevocationInfo(p.revInfo)
-
     @classmethod
-    def from_values(cls, if_id, active, rev_info):
-        return cls(cls.P_CLS.new_message(ifID=if_id, active=active,
-                                         revInfo=rev_info.p))
+    def from_values(cls, if_id, active, rev_info=None):
+        p = cls.P_CLS.new_message(ifID=if_id, active=active)
+        if rev_info:
+            p.revInfo = rev_info.p
+        return cls(p)
+
+    def rev_info(self):
+        if self.p.revInfo:
+            return RevocationInfo(self.p.revInfo)
+        return None
+
+    def short_desc(self):
+        return "IF: %d Active: %s RevInfo: %s" % (
+            self.p.ifID, self.p.active, self.p.revInfo or "None")
 
 
 class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
@@ -63,6 +70,10 @@ class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
         for i, info in enumerate(infos):
             p.infos[i] = info.p
         return cls(p)
+
+    def iter_infos(self):
+        for i in range(len(self.p.infos)):
+            yield IFStateInfo(self.p.infos[i])
 
 
 class IFStateRequest(PathMgmtPayloadBase):  # pragma: no cover
