@@ -120,7 +120,7 @@ def main():
                         help='Number of packets to send. 0 means unlimited.')
     parser.add_argument('-s', '--size', default=0, type=int,
                         help='Size of packets to send. 0 means use the MTU of the path.')
-    parser.add_argument('-w', '--wait', default=0, type=int,
+    parser.add_argument('-w', '--wait', default=0, type=float,
                         help='Wait time in milliseconds after a packet has been sent.')
     parser.add_argument('-r', '--random', action='store_true',
                         help='Run with randomized wait time and packet size')
