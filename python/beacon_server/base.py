@@ -604,7 +604,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 addr, port = self.dns_query_topo(PATH_SERVICE)[0]
             except SCIONServiceLookupError:
                 addr, port = None, None
-            # Only there are no local path servers, do not create a meta.
+            # Create a meta if there is a local path service
             if addr:
                 ps_meta.append(UDPMetadata.from_values(host=addr, port=port))
         self._send_ifstate_update(border_metas, ps_meta)
