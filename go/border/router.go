@@ -113,6 +113,7 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 			r.processPacket(rp)
 			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 			rp.Release()
+			pkts[i] = nil
 		}
 	}
 }

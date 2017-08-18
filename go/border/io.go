@@ -86,6 +86,8 @@ Top:
 			bytesRecv.Add(float64(length))
 			pktRecvSizes.Observe(float64(length))
 			s.Ring.Write(ringbuf.EntryList{pkts[i]}, true)
+			// Clear RtrPkt reference
+			pkts[i] = nil
 		}
 	}
 }
@@ -128,6 +130,8 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		End:
 			// Release inner RtrPkt entry
 			rp.Release()
+			// Clear EgressRtrPkt reference
+			epkts[i] = nil
 		}
 	}
 }
