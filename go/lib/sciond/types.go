@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/path_mgmt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -131,22 +132,7 @@ func (entry ASInfoReplyEntry) String() string {
 }
 
 type RevNotification struct {
-	RevInfo RevInfo
-}
-
-type RevInfo struct {
-	IfID     uint64
-	Epoch    uint16
-	Nonce    []byte
-	Sibling  []SiblingHash
-	PrevRoot []byte
-	NextRoot []byte
-	Isdas    uint32
-}
-
-type SiblingHash struct {
-	IsLeft bool
-	Hash   []byte
+	RevInfo path_mgmt.RevInfo
 }
 
 type IFInfoRequest struct {
