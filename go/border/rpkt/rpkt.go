@@ -207,7 +207,7 @@ type extnIdx struct {
 func (rp *RtrPkt) Reset() {
 	rp.Id = ""
 	// Reset the length of the buffer to the max size.
-	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
+	rp.Raw = rp.Raw[:cap(rp.Raw)]
 	rp.TimeIn = 0
 	rp.DirFrom = rcmn.DirUnset
 	rp.DirTo = rcmn.DirUnset

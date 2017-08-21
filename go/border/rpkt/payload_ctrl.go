@@ -37,7 +37,7 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error)
 // updates the layer 4 and common headers accordingly.
 func (rp *RtrPkt) updateCtrlPld() *common.Error {
 	// Reset buffer to full size
-	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
+	rp.Raw = rp.Raw[:cap(rp.Raw)]
 	// Write payload to buffer
 	plen, err := rp.pld.Write(rp.Raw[rp.idxs.pld:])
 	if err != nil {
