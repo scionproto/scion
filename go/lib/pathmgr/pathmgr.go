@@ -108,7 +108,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 
 	// Reserve memory location for pointer to path
 	sp := &SyncPaths{}
-	sp.Store([]*sciond.FwdPathMeta{})
+	sp.Store([]*sciond.PathReplyEntry{})
 
 	// Save registration memory location in map
 	r.regMap[key] = sp
@@ -168,9 +168,9 @@ func (r *PR) lookup(q query) {
 	}
 
 	// Prepare new path slice
-	paths := make([]*sciond.FwdPathMeta, len(reply.Entries))
+	paths := make([]*sciond.PathReplyEntry, len(reply.Entries))
 	for i := range reply.Entries {
-		paths[i] = &reply.Entries[i].Path
+		paths[i] = &reply.Entries[i]
 	}
 
 	// Store path slice atomically

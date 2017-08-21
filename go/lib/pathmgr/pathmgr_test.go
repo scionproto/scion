@@ -48,5 +48,4 @@ func ExamplePR() {
 		fmt.Printf("%#v\n", paths)
 		time.Sleep(2 * time.Second)
 	}
-	// Output: foo
 }

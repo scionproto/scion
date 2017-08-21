@@ -37,7 +37,7 @@ type query struct {
 	sp       *SyncPaths
 }
 
-// SyncPaths contains a concurrency-safe reference to a slice `[]*FwdPathMeta`.
+// SyncPaths contains a concurrency-safe reference to a slice `[]*PathReplyEntry`.
 // Callers can safely `Load` the reference and use the paths within. At any
 // moment, the path resolver can change the value of the reference within a
 // SyncPaths to a different slice containing new paths. Calling code should
@@ -47,8 +47,8 @@ type SyncPaths struct {
 }
 
 // Overwrite Load to avoid external type assertions
-func (sp *SyncPaths) Load() []*sciond.FwdPathMeta {
-	return sp.Value.Load().([]*sciond.FwdPathMeta)
+func (sp *SyncPaths) Load() []*sciond.PathReplyEntry {
+	return sp.Value.Load().([]*sciond.PathReplyEntry)
 }
 
 // sciondState is used to track the health of the connection to SCIOND
