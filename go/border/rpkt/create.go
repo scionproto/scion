@@ -107,7 +107,7 @@ func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 	rp.L4Type = l4h.L4Type()
 	rp.l4 = l4h
 	// Reset buffer to full size
-	rp.Raw = rp.Raw[:cap(rp.Raw)-1]
+	rp.Raw = rp.Raw[:cap(rp.Raw)]
 	// Write L4 header into buffer
 	if err := rp.l4.Write(rp.Raw[rp.idxs.l4:]); err != nil {
 		return err
@@ -142,7 +142,7 @@ func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 	var plen int
 	if rp.pld != nil {
 		// Reset buffer to full size
-		rp.Raw = rp.Raw[:cap(rp.Raw)-1]
+		rp.Raw = rp.Raw[:cap(rp.Raw)]
 		// Write payload into buffer
 		var err *common.Error
 		plen, err = rp.pld.Write(rp.Raw[rp.idxs.pld:])
