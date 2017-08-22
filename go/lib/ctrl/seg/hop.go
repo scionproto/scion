@@ -14,7 +14,7 @@
 
 // This file contains the Go representation of a hop entry in a AS entry
 
-package pcb
+package seg
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -41,8 +41,4 @@ func (e *HopEntry) OutIA() *addr.ISD_AS {
 
 func (e *HopEntry) HopField() (*spath.HopField, *common.Error) {
 	return spath.HopFFromRaw(e.RawHopField)
-}
-
-func (e *HopEntry) SigPack5() {
-
 }
