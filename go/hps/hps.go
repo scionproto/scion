@@ -77,7 +77,28 @@ func receive() {
 			continue
 		}
 		// Parse payload.
-		cpld, err := spkt.NewCtrlPldFromRaw(sPkt.Pld)
-
+		cpld, err := spkt.NewCtrlPldFromPld(sPkt.Pld)
+		if err != nil {
+			log.Error("Couldn't parse control payload.", "err", err)
+		}
+		pld := cpld.SCION
+		// Determine the type of SCION control payload.
+		switch pld.Which() {
+		case proto.SCION_Which_pcb:
+			pcb, err := pld.Pcb()
+			if err != nil {
+				return HookError, common.NewError(errPldGet, "err", err)
+			}
+			return rp.processIFID(ifid)
+		case proto.SCION_Which_pathMgmt:
+			pathMgmt, err := pld.PathMgmt()
+			if err != nil {
+				return HookError, common.NewError(errPldGet, "err", err)
+			}
+			return rp.processPathMgmtSelf(pathMgmt)
+		default:
+			rp.Error("Unsupported destination payload", "type", pld.Which())
+			return HookError, nil
+		}
 	}
 }

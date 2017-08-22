@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of a Path Construction Beacon
+// This file contains the Go representation of an AS entry in a path segment
 
-package pcb
+package seg
 
-type Meta struct {
-	Type    uint8
-	Segment PathSegment `capnp:"pcb"`
+import "github.com/netsec-ethz/scion/go/lib/addr"
+
+type ASEntry struct {
+	RawIA        uint32 `capnp:"isdas"`
+	TrcVer       uint32
+	CertVer      uint32
+	IfIDSize     uint8
+	HopEntries   []HopEntry
+	HashTreeRoot []byte
+	Sig          []byte
+	MTU          uint16 `capnp:"mtu"`
+	Exts         struct {
+		RoutingPolicy []byte `capnp:"-"` // Omit routing policy extension for now.
+	}
 }
 
-type PathSegment struct {
-	Info      []byte
-	IfID      uint64
-	ASEntries []ASEntry `capnp:"asms"`
-	Exts      struct {
-		Sibra []byte `capnp:"-"` // Omit SIBRA extension for now.
-	}
+func (e *ASEntry) IA() *addr.ISD_AS {
+	return addr.IAFromInt(int(e.RawIA))
 }

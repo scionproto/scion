@@ -15,9 +15,12 @@
 package path_mgmt
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/pcb"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/proto"
 )
+
+var _ common.Payload = (*PathMgmt)(nil)
 
 type PathMgmt struct {
 	Which        proto.PathMgmt
@@ -39,23 +42,8 @@ type SegReq struct {
 }
 
 type SegRecs struct {
-	Recs     []pcb.Meta
+	Recs     []seg.Meta
 	RevInfos []RevInfo
-}
-
-type RevInfo struct {
-	IfID     uint64
-	Epoch    uint16
-	Nonce    []byte
-	Sibling  []SiblingHash
-	PrevRoot []byte
-	NextRoot []byte
-	Isdas    uint32
-}
-
-type SiblingHash struct {
-	IsLeft bool
-	Hash   []byte
 }
 
 type IFStateReq struct {
