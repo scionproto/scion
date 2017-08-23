@@ -19,14 +19,14 @@ package rpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
 )
 
 func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error) {
 	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
-	cpld, err := spkt.NewCtrlPldFromRaw(rp.Raw[rp.idxs.pld:])
+	cpld, err := ctrl.NewCtrlPldFromRaw(rp.Raw[rp.idxs.pld:])
 	if err != nil {
 		return HookError, nil, err
 	}

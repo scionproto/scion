@@ -38,9 +38,9 @@ type SiblingHash struct {
 
 type RevInfo struct {
 	IfID     uint64
-	Epoch    uint16
+	Epoch    uint64
 	Nonce    common.RawBytes
-	Sibling  []SiblingHash
+	Siblings []SiblingHash
 	PrevRoot common.RawBytes
 	NextRoot common.RawBytes
 	RawIsdas uint32 `capnp:"isdas"`
@@ -103,7 +103,7 @@ func (r *RevInfo) Pack() (common.RawBytes, *common.Error) {
 func (r *RevInfo) Write(b common.RawBytes) (int, *common.Error) {
 	packed, err := r.Pack()
 	if err != nil {
-		return 0, nil
+		return 0, common.NewError("Failed to write RevInfo", "err", err)
 	}
 	if len(b) < len(packed) {
 		return 0, common.NewError("Provided buffer is not large enough",

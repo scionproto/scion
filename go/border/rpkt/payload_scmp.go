@@ -19,11 +19,12 @@ package rpkt
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 )
 
 type RevTokenCallbackArgs struct {
-	RevInfo common.RawBytes
+	RevInfo *path_mgmt.RevInfo
 	Addrs   []addr.HostSVC
 }
 
