@@ -67,6 +67,14 @@ func Init(ia *addr.ISD_AS, sPath string, dPath string) error {
 	return nil
 }
 
+// IA returns the default ISD-AS
+func IA() *addr.ISD_AS {
+	if pkgNetwork == nil {
+		return nil
+	}
+	return pkgNetwork.localIA.Copy()
+}
+
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type Network struct {
@@ -109,7 +117,8 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 }
 
 // ListenSCION sservers the same function as its package-level counterpart,
-// except it uses the SCION networking context in n.
+// except it uses the SCION networking context in n. If laddr.IA is nil,
+// the assigned ISD-AS of n is used instead.
 func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if pkgNetwork == nil {
 		return nil, common.NewError("SCION network not initialized")
@@ -138,6 +147,10 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 		regAddr.Addr = conn.laddr.Host
 	}
 
+	if conn.laddr.IA == nil {
+		conn.laddr.IA = n.IA()
+	}
+
 	if !conn.laddr.IA.Eq(conn.scionNet.localIA) {
 		return nil, common.NewError("Unable to listen on non-local IA",
 			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA)
@@ -154,4 +167,9 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	conn.laddr.Port = port
 	conn.conn = rconn
 	return conn, nil
+}
+
+// IA returns a copy of the ISD-AS assigned to n
+func (n *Network) IA() *addr.ISD_AS {
+	return n.localIA.Copy()
 }
