@@ -79,10 +79,11 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 }
 
 // ListenSCION registers laddr with the dispatcher. If laddr is nil, then a
-// random port is selected by the dispatcher. The LocalAddr method of the
-// returned Conn can be used to discover the port. The returned connection's
-// ReadFrom and WriteTo methods can be used to receive and send SCION packets
-// with per-packet addressing. Parameter network must be "udp4".
+// random port is selected by the dispatcher. If laddr.IA is nil, the default
+// IA is used. The LocalAddr method of the returned Conn can be used to
+// discover the port. The returned connection's ReadFrom and WriteTo methods
+// can be used to receive and send SCION packets with per-packet addressing.
+// Parameter network must be "udp4".
 func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if pkgNetwork == nil {
 		return nil, common.NewError("SCION network not initialized")
