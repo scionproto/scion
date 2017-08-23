@@ -18,13 +18,15 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/netsec-ethz/scion/go/lib/log"
+
+	log "github.com/inconshreveable/log15"
+	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-
-	//log "github.com/inconshreveable/log15"
-	"zombiezen.com/go/capnproto2"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
@@ -43,7 +45,36 @@ type CtrlPld struct {
 	Sig         []byte `capnp:"-"` // Omit for now
 }
 
+func NewCtrlPld(val interface{}, which proto.SCION_Which) (*CtrlPld, *common.Error) {
+	pld := &CtrlPld{Which: which}
+	var ok bool
+	switch which {
+	case proto.SCION_Which_pcb:
+		pld.PathSegment, ok = val.(*seg.PathSegment)
+	case proto.SCION_Which_ifid:
+		pld.IfID, ok = val.(*ifid.IFID)
+	case proto.SCION_Which_pathMgmt:
+		pld.PathMgmt, ok = val.(*path_mgmt.PathMgmt)
+	case proto.SCION_Which_certMgmt:
+		fallthrough
+	case proto.SCION_Which_sibra:
+		fallthrough
+	case proto.SCION_Which_drkeyMgmt:
+		fallthrough
+	case proto.SCION_Which_sig:
+		fallthrough
+	default:
+		return nil, common.NewError("Unsupported payload type: %v", which)
+	}
+	if !ok {
+		return nil, common.NewError("Provided value does not match the type",
+			"provided", fmt.Sprintf("%T", val), "expected", which)
+	}
+	return pld, nil
+}
+
 func NewCtrlPldFromRaw(b common.RawBytes) (*CtrlPld, *common.Error) {
+	log.Debug("NewCtrlPldFromRaw", "b", b)
 	rawPld := b
 	pldLen := common.Order.Uint32(rawPld)
 	rawPld = rawPld[4:]
@@ -74,34 +105,6 @@ func NewCtrlPldFromRaw(b common.RawBytes) (*CtrlPld, *common.Error) {
 	return pld, nil
 }
 
-func NewCtrlPld(val interface{}, which proto.SCION_Which) (*CtrlPld, *common.Error) {
-	pld := &CtrlPld{Which: which}
-	var ok bool
-	switch which {
-	case proto.SCION_Which_pcb:
-		pld.PathSegment, ok = val.(*seg.PathMgmt)
-	case proto.SCION_Which_ifid:
-		pld.IfID, ok = val.(*ifid.IFID)
-	case proto.SCION_Which_pathMgmt:
-		pld.PathMgmt, ok = val.(*path_mgmt.PathMgmt)
-	case proto.SCION_Which_certMgmt:
-		fallthrough
-	case proto.SCION_Which_sibra:
-		fallthrough
-	case proto.SCION_Which_drkeyMgmt:
-		fallthrough
-	case proto.SCION_Which_sig:
-		fallthrough
-	default:
-		return nil, common.NewError("Unsupported payload type: %v", which)
-	}
-	if !ok {
-		return nil, common.NewError("Provided value does not match the type",
-			"provided", fmt.Sprintf("%T", val), "expected", which)
-	}
-	return pld, nil
-}
-
 func (c *CtrlPld) Len() int {
 	// The length can't be calculated until the payload is packed.
 	return -1
@@ -116,9 +119,11 @@ func (c *CtrlPld) Copy() (common.Payload, *common.Error) {
 }
 
 func (c *CtrlPld) Write(b common.RawBytes) (int, *common.Error) {
+	log.Debug("CtrlPld:Write")
+	liblog.Flush()
 	packed, err := c.Pack()
 	if err != nil {
-		return 0, nil
+		return 0, common.NewError("Failed to write CtrlPld", "err", err)
 	}
 	if len(b) < len(packed) {
 		return 0, common.NewError("Provided buffer is not large enough",
@@ -129,26 +134,29 @@ func (c *CtrlPld) Write(b common.RawBytes) (int, *common.Error) {
 }
 
 func (c *CtrlPld) Pack() (common.RawBytes, *common.Error) {
-	buf := bytes.NewBuffer(make(common.RawBytes, 4))
+	log.Debug("CtrlPld:Pack")
+	liblog.Flush()
 	message, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, err
+		return nil, common.NewError("Failed to pack CtrlPld", "err", err)
 	}
 	root, err := proto.NewRootIFID(arena)
 	if err != nil {
-		return nil, err
+		return nil, common.NewError("Failed to pack CtrlPld", "err", err)
 	}
-	if err := pogs.Insert(proto.SCION_TypeID, root.Struct, s); err != nil {
-		return nil, err
+	if err := pogs.Insert(proto.SCION_TypeID, root.Struct, c); err != nil {
+		return nil, common.NewError("Failed to pack CtrlPld", "err", err)
 	}
 	packed, err := message.MarshalPacked()
 	if err != nil {
-		return nil, err
+		return nil, common.NewError("Failed to pack CtrlPld", "err", err)
 	}
 	// Copy packed message into buffer and prepend length of data.
-	pld = make(common.RawBytes, len(packed)+4)
-	common.Order.PutUint32(rawPld, uint32(len(packed)))
+	pld := make(common.RawBytes, len(packed)+4)
+	common.Order.PutUint32(pld, uint32(len(packed)))
 	copy(pld[4:], packed)
+	log.Debug("Packed Ctrl pld", "len", len(pld), "pld", pld)
+	liblog.Flush()
 
 	return pld, nil
 }
@@ -158,13 +166,13 @@ func (c *CtrlPld) String() string {
 	case proto.SCION_Which_unset:
 		return "unset"
 	case proto.SCION_Which_pcb:
-		return fmt.Sprintf("PathSegment: %s", c.PathSegment.String())
+		return fmt.Sprintf("PathSegment: %v", c.PathSegment)
 	case proto.SCION_Which_ifid:
-		return fmt.Sprintf("IFID: %s", c.IfID.String())
+		return fmt.Sprintf("IFID: %v", c.IfID)
 	case proto.SCION_Which_certMgmt:
 		return "CertMgmt"
 	case proto.SCION_Which_pathMgmt:
-		return fmt.Sprintf("PathMgmt: %s", c.PathMgmt.String())
+		return fmt.Sprintf("PathMgmt: %v", c.PathMgmt)
 	case proto.SCION_Which_sibra:
 		return "Sibra"
 	case proto.SCION_Which_sig:

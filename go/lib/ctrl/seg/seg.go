@@ -18,6 +18,12 @@ package seg
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"strings"
+
+	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/util"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
@@ -28,13 +34,8 @@ import (
 
 var _ common.Payload = (*PathSegment)(nil)
 
-type Meta struct {
-	Type    uint8
-	Segment PathSegment `capnp:"pcb"`
-}
-
 type PathSegment struct {
-	Info      []byte
+	RawInfo   []byte `capnp:"info"`
 	IfID      uint64
 	ASEntries []ASEntry `capnp:"asms"`
 	Exts      struct {
@@ -57,6 +58,22 @@ func NewPathSegmentFromRaw(b common.RawBytes) (*PathSegment, *common.Error) {
 		return nil, common.NewError("Failed to parse PathSegment", "err", err)
 	}
 	return seg, nil
+}
+
+func (ps *PathSegment) ID() common.RawBytes {
+	h := sha256.New()
+	for _, as := range ps.ASEntries {
+		data := make([]byte, 20)
+		common.Order.PutUint32(data, as.RawIA)
+		common.Order.PutUint64(data, as.HopEntries[0].InIF)
+		common.Order.PutUint64(data, as.HopEntries[0].OutIF)
+		h.Write(data)
+	}
+	return h.Sum(nil)
+}
+
+func (ps *PathSegment) Info() (*spath.InfoField, *common.Error) {
+	return spath.InfoFFromRaw(ps.RawInfo)
 }
 
 func (ps *PathSegment) Len() int {
@@ -94,7 +111,7 @@ func (ps *PathSegment) Pack() (common.RawBytes, *common.Error) {
 func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
 	packed, err := ps.Pack()
 	if err != nil {
-		return 0, nil
+		return 0, common.NewError("Failed to write PathSegment", "err", err)
 	}
 	if len(b) < len(packed) {
 		return 0, common.NewError("Provided buffer is not large enough",
@@ -105,6 +122,44 @@ func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
 }
 
 func (ps *PathSegment) String() string {
-	// TODO(shitz): Implement
-	return "PathSegment"
+	info, _ := ps.Info()
+	desc := []string{ps.ID()[:10].String(), util.ISOTimestamp(info.Timestamp())}
+	hops_desc := []string{}
+	for _, as := range ps.ASEntries {
+		hop := as.HopEntries[0]
+		hop_desc := []string{}
+		if hop.InIF > 0 {
+			hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.InIF))
+		}
+		hop_desc = append(hop_desc, as.IA().String())
+		if hop.OutIF > 0 {
+			hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.OutIF))
+		}
+		hops_desc = append(hops_desc, strings.Join(hop_desc, ""))
+	}
+	// TODO(shitz): Add extensions.
+	desc = append(desc, strings.Join(hops_desc, ">"))
+	return strings.Join(desc, "")
+}
+
+type Meta struct {
+	Type    uint8
+	Segment PathSegment `capnp:"pcb"`
+}
+
+func (m *Meta) String() string {
+	return fmt.Sprintf("Type: %v, Segment: %v", typeToString(m.Type), m.Segment)
+}
+
+func typeToString(t uint8) string {
+	switch t {
+	case 0:
+		return "UP"
+	case 1:
+		return "DOWN"
+	case 2:
+		return "CORE"
+	default:
+		return "UNKNOWN"
+	}
 }

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of an IFID packet
+// This file contains the Go representation of IFState requests.
 
-package ifid
+package path_mgmt
 
 import (
 	"bytes"
@@ -27,66 +27,65 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*IFID)(nil)
+var _ common.Payload = (*IFStateReq)(nil)
 
-type IFID struct {
-	OrigIfID  uint64 `capnp:"origIF"`
-	RelayIfID uint64 `capnp:"relayIF"`
+type IFStateReq struct {
+	IfID uint64
 }
 
-func NewIFIDFromRaw(b common.RawBytes) (*IFID, *common.Error) {
+func NewIFStateReqFromRaw(b common.RawBytes) (*IFStateReq, *common.Error) {
 	msg, err := capnp.NewPackedDecoder(bytes.NewBuffer(b)).Decode()
 	if err != nil {
-		return nil, common.NewError("Failed to parse IFID packet", "err", err)
+		return nil, common.NewError("Failed to parse IFStateReq", "err", err)
 	}
 	rootPtr, err := msg.RootPtr()
 	if err != nil {
-		return nil, common.NewError("Failed to parse IFID packet", "err", err)
+		return nil, common.NewError("Failed to parse IFStateReq", "err", err)
 	}
-	pkt := &IFID{}
-	err = pogs.Extract(pkt, proto.IFID_TypeID, rootPtr.Struct())
+	req := &IFStateReq{}
+	err = pogs.Extract(req, proto.IFStateReq_TypeID, rootPtr.Struct())
 	if err != nil {
-		return nil, common.NewError("Failed to parse IFID packet", "err", err)
+		return nil, common.NewError("Failed to parse IFStateReq", "err", err)
 	}
-	return pkt, nil
+	return req, nil
 }
 
-func (i *IFID) Len() int {
+func (i *IFStateReq) Len() int {
 	// The length can't be calculated until the payload is packed.
 	return -1
 }
 
-func (i *IFID) Copy() (common.Payload, *common.Error) {
+func (i *IFStateReq) Copy() (common.Payload, *common.Error) {
 	rawPld, err := i.Pack()
 	if err != nil {
 		return nil, err
 	}
-	return NewIFIDFromRaw(rawPld)
+	return NewIFStateReqFromRaw(rawPld)
 }
 
-func (i *IFID) Pack() (common.RawBytes, *common.Error) {
+func (i *IFStateReq) Pack() (common.RawBytes, *common.Error) {
 	message, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, common.NewError("Failed to pack IFID packet", "err", err)
+		return nil, common.NewError("Failed to pack IFStateReq", "err", err)
 	}
 	root, err := proto.NewRootIFID(arena)
 	if err != nil {
-		return nil, common.NewError("Failed to pack IFID packet", "err", err)
+		return nil, common.NewError("Failed to pack IFStateReq", "err", err)
 	}
-	if err := pogs.Insert(proto.IFID_TypeID, root.Struct, i); err != nil {
-		return nil, common.NewError("Failed to pack IFID packet", "err", err)
+	if err := pogs.Insert(proto.IFStateReq_TypeID, root.Struct, i); err != nil {
+		return nil, common.NewError("Failed to pack IFStateReq", "err", err)
 	}
 	packed, err := message.MarshalPacked()
 	if err != nil {
-		return nil, common.NewError("Failed to pack IFID packet", "err", err)
+		return nil, common.NewError("Failed to pack IFStateReq", "err", err)
 	}
 	return packed, nil
 }
 
-func (i *IFID) Write(b common.RawBytes) (int, *common.Error) {
+func (i *IFStateReq) Write(b common.RawBytes) (int, *common.Error) {
 	packed, err := i.Pack()
 	if err != nil {
-		return 0, common.NewError("Failed to write IFID packet", "err", err)
+		return 0, common.NewError("Failed to write IFStateReq", "err", err)
 	}
 	if len(b) < len(packed) {
 		return 0, common.NewError("Provided buffer is not large enough",
@@ -96,6 +95,6 @@ func (i *IFID) Write(b common.RawBytes) (int, *common.Error) {
 	return len(packed), nil
 }
 
-func (i *IFID) String() string {
-	return fmt.Sprintf("OrigIfID: %d, RelayIfID: %d", i.OrigIfID, i.RelayIfID)
+func (i *IFStateReq) String() string {
+	return fmt.Sprintf("IfID: %v", i.IfID)
 }
