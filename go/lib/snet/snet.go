@@ -12,7 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package snet contains socket operations for SCION traffic
+// Package snet implements interfaces net.Conn and net.PacketConn for SCION
+// connections.
+//
+// The default (package-wide) SCION network must first be initialized by
+// calling Init. All future package scoped DialSCION and ListenSCION calls will
+// use this initial context to get the local ISD-AS, dispatcher or sciond.
+//
+// A connection can be created by calling DialSCION or ListenSCION; both
+// functions register an address-port pair with the local dispatcher. For Dial,
+// the remote address is fixed, meaning only Read and Write can be used.
+// Attempting to ReadFrom or WriteTo a connection created by Dial is an invalid
+// operation. For Listen, the remote address cannot be fixed. ReadFrom,
+// ReadFromSCION can be used to read from the connection and find out the
+// sender's address; WriteTo and WriteToSCION can be used to send a message to
+// a chosen destination.
+//
+// For applications that need to run in multiple ASes, new networking contexts
+// can be created using NewNetwork. Calling the DialSCION or ListenSCION
+// methods on the networking context yields connections that run in that context.
+//
+// Multiple networking contexts can share the same SCIOND and/or dispatcher.
 package snet
 
 import (
@@ -27,25 +47,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 )
-
-// Global state
-type State uint64
-
-const (
-	StateInit State = iota
-	StateUp
-)
-
-func (s State) String() string {
-	switch s {
-	case StateInit:
-		return "Init"
-	case StateUp:
-		return "Up"
-	default:
-		return "Unknown"
-	}
-}
 
 var (
 	// Default SCION networking context for package-level Dial and Listen
