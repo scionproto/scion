@@ -141,7 +141,6 @@ func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 	rp.pld = pld
 	var plen int
 	if rp.pld != nil {
-		rp.Debug("SetPld", "pld", rp.pld)
 		// Reset buffer to full size
 		rp.Raw = rp.Raw[:cap(rp.Raw)]
 		// Write payload into buffer
