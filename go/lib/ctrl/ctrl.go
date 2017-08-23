@@ -18,9 +18,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/log"
-
-	log "github.com/inconshreveable/log15"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
@@ -74,7 +71,6 @@ func NewCtrlPld(val interface{}, which proto.SCION_Which) (*CtrlPld, *common.Err
 }
 
 func NewCtrlPldFromRaw(b common.RawBytes) (*CtrlPld, *common.Error) {
-	log.Debug("NewCtrlPldFromRaw", "b", b)
 	rawPld := b
 	pldLen := common.Order.Uint32(rawPld)
 	rawPld = rawPld[4:]
@@ -119,8 +115,6 @@ func (c *CtrlPld) Copy() (common.Payload, *common.Error) {
 }
 
 func (c *CtrlPld) Write(b common.RawBytes) (int, *common.Error) {
-	log.Debug("CtrlPld:Write")
-	liblog.Flush()
 	packed, err := c.Pack()
 	if err != nil {
 		return 0, common.NewError("Failed to write CtrlPld", "err", err)
@@ -134,13 +128,11 @@ func (c *CtrlPld) Write(b common.RawBytes) (int, *common.Error) {
 }
 
 func (c *CtrlPld) Pack() (common.RawBytes, *common.Error) {
-	log.Debug("CtrlPld:Pack")
-	liblog.Flush()
 	message, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		return nil, common.NewError("Failed to pack CtrlPld", "err", err)
 	}
-	root, err := proto.NewRootIFID(arena)
+	root, err := proto.NewRootSCION(arena)
 	if err != nil {
 		return nil, common.NewError("Failed to pack CtrlPld", "err", err)
 	}
@@ -155,8 +147,6 @@ func (c *CtrlPld) Pack() (common.RawBytes, *common.Error) {
 	pld := make(common.RawBytes, len(packed)+4)
 	common.Order.PutUint32(pld, uint32(len(packed)))
 	copy(pld[4:], packed)
-	log.Debug("Packed Ctrl pld", "len", len(pld), "pld", pld)
-	liblog.Flush()
 
 	return pld, nil
 }

@@ -110,7 +110,7 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	ifidMsg := &ifid.IFID{OrigIfID: uint64(ifID)}
 	cpld, err := ctrl.NewCtrlPld(ifidMsg, proto.SCION_Which_ifid)
 	if err != nil {
-		logger.Error("Error generating IFID packet", "err", err)
+		logger.Error("Error creating IFID packet", "err", err)
 		return
 	}
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
