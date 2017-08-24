@@ -43,8 +43,8 @@ var (
 	pathTTL = 30 * time.Minute
 )
 
-var _ net.Conn = &Conn{}
-var _ net.PacketConn = &Conn{}
+var _ net.Conn = (*Conn)(nil)
+var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
 	dispMutex sync.Mutex
@@ -60,17 +60,14 @@ type Conn struct {
 	scionNet *Network
 	// Cache of pointers to fresh path data
 	// (map[string]*pathmgr.SyncPaths).  Because connections created by
-	// Listen do not have a persistent remote address, we need to grab
-	// paths for all encountered destinations. If a destination hasn't been
-	// recently used, we delete the reference to its paths.
+	// Listen do not have a persistent remote address, each time we send
+	// traffic to a new destination we need to grab the relevant paths.  If
+	// a destination hasn't been recently used, we delete the reference to
+	// its paths.
 	pathMap *cache.Cache
 }
 
-// DialSCION returns a SCION connection to raddr. If laddr is not nil, it is
-// registered with the local dispatcher for returning traffic. If laddr is nil,
-// a random port is registered with the dispatcher. Parameter network must be
-// "udp4". The returned connection's Read and Write methods can be used to
-// receive and send SCION packets.
+// DialSCION calls DialSCION on the default networking context.
 func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if pkgNetwork == nil {
 		return nil, common.NewError("SCION network not initialized")
@@ -78,12 +75,7 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	return pkgNetwork.DialSCION(network, laddr, raddr)
 }
 
-// ListenSCION registers laddr with the dispatcher. If laddr is nil, then a
-// random port is selected by the dispatcher. If laddr.IA is nil, the default
-// IA is used. The LocalAddr method of the returned Conn can be used to
-// discover the port. The returned connection's ReadFrom and WriteTo methods
-// can be used to receive and send SCION packets with per-packet addressing.
-// Parameter network must be "udp4".
+// ListenSCION calls ListenSCION on the default networking context.
 func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if pkgNetwork == nil {
 		return nil, common.NewError("SCION network not initialized")
@@ -148,7 +140,7 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 		udpHdr, ok := pkt.L4.(*l4.UDP)
 		if !ok {
 			return 0, nil, common.NewError("Invalid L4 protocol",
-				"expected", c.net, "actual", pkt.L4)
+				"expected", c.net, "actual", pkt.L4.L4Type())
 		}
 		// Extract remote address
 		remote = &Addr{

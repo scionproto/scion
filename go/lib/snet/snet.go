@@ -100,52 +100,52 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 	return network, nil
 }
 
-// DialSCION serves the same function as its package-level counterpart, except
-// it uses the SCION networking context in n.
+// DialSCION returns a SCION connection to raddr. If laddr is not nil, it is
+// registered with the local dispatcher for returning traffic. If laddr is nil,
+// a random port is registered with the dispatcher. Parameter network must be
+// "udp4". The returned connection's Read and Write methods can be used to
+// receive and send SCION packets.
 func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
+	if raddr == nil {
+		return nil, common.NewError("Unable to dial to nil remote")
+	}
 	conn, err := n.ListenSCION(network, laddr)
 	if err != nil {
 		return nil, err
 	}
-
-	if raddr == nil {
-		return nil, common.NewError("Unable to dial to nil remote")
-	}
-
 	conn.raddr = raddr.Copy()
 	return conn, nil
 }
 
-// ListenSCION sservers the same function as its package-level counterpart,
-// except it uses the SCION networking context in n. If laddr.IA is nil,
-// the assigned ISD-AS of n is used instead.
+// ListenSCION registers laddr with the dispatcher. If laddr is nil, then a
+// random port is selected by the dispatcher. If laddr.IA is nil, the default
+// IA is used. The LocalAddr method of the returned Conn can be used to
+// discover the port. The returned connection's ReadFrom and WriteTo methods
+// can be used to receive and send SCION packets with per-packet addressing.
+// Parameter network must be "udp4".
 func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
-	if pkgNetwork == nil {
-		return nil, common.NewError("SCION network not initialized")
-	}
 	if network != "udp4" {
 		return nil, common.NewError("Network not implemented", "net", network)
 	}
 
-	conn := &Conn{}
-	conn.net = network
-	conn.scionNet = n
-	conn.pathMap = cache.New(pathTTL, pathCleanupInterval)
-	conn.recvBuffer = make(common.RawBytes, BufSize)
-	conn.sendBuffer = make(common.RawBytes, BufSize)
+	conn := &Conn{
+		net:        network,
+		scionNet:   n,
+		pathMap:    cache.New(pathTTL, pathCleanupInterval),
+		recvBuffer: make(common.RawBytes, BufSize),
+		sendBuffer: make(common.RawBytes, BufSize)}
 
 	// Initialize local bind address
 	var regAddr reliable.AppAddr
 	if laddr != nil {
 		conn.laddr = laddr.Copy()
-		regAddr.Addr = conn.laddr.Host
 		regAddr.Port = conn.laddr.Port
 	} else {
 		conn.laddr = &Addr{}
 		conn.laddr.Host = addr.HostFromIP(net.IPv4zero)
 		conn.laddr.IA = conn.scionNet.localIA
-		regAddr.Addr = conn.laddr.Host
 	}
+	regAddr.Addr = conn.laddr.Host
 
 	if conn.laddr.IA == nil {
 		conn.laddr.IA = n.IA()
@@ -157,7 +157,7 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	}
 
 	rconn, port, err := reliable.Register(conn.scionNet.dispatcherPath,
-		conn.scionNet.localIA, regAddr)
+		conn.laddr.IA, regAddr)
 	if err != nil {
 		return nil, common.NewError("Unable to register with dispatcher",
 			"err", err)
