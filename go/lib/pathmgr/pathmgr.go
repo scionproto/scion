@@ -66,16 +66,17 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 		return nil, common.NewError("Unable to connect to SCIOND", "err", err)
 	}
 
-	pr := &PR{sciondPath: sciondPath,
+	pr := &PR{
+		sciondPath:     sciondPath,
 		sciond:         sciondSock,
+		state:          sciondUp,
 		regMap:         make(map[string]*SyncPaths),
 		queries:        make(chan query, queryChanCap),
-		state:          sciondUp,
 		refireInterval: refireInterval,
 		Logger:         logger.New("pathmgr")}
 
-	// Start resolver, which periodically spawns SCIOND query goroutines
-	// for tracked ia's
+	// Start resolver, which periodically refreshes paths for registered
+	// destinations
 	go pr.resolver()
 	return pr, nil
 }
@@ -99,7 +100,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 		return dupSP, nil
 	}
 
-	if atomic.CompareAndSwapUint64(&r.regCount, queryChanCap, queryChanCap) {
+	if r.regCount == queryChanCap {
 		// Reached limit, return error
 		return nil, common.NewError("Unable to register, limit reached",
 			"max", queryChanCap)
@@ -152,7 +153,7 @@ func (r *PR) lookup(q query) {
 		log.Error("SCIOND network error", "err", err)
 		// Network error, cannot connect to SCIOND
 		// Spawn asynchronous reconnector if we're the first to notice this
-		if r.stateTransition(sciondUp, sciondDown) {
+		if r.stateTransition(sciondDown) {
 			go r.reconnect()
 		}
 		return
@@ -179,7 +180,7 @@ func (r *PR) lookup(q query) {
 
 // reconnect repeatedly tries to reconnect to SCIOND
 func (r *PR) reconnect() {
-	// close existing SCIOND connection, making any goroutines blocked in
+	// close existing SCIOND connection, making any goroutine blocked in
 	// I/O exit eventually so we can acquire the lock
 	r.sciond.Close()
 
@@ -196,14 +197,12 @@ func (r *PR) reconnect() {
 		r.sciond = sciondSock
 		break
 	}
-	r.stateTransition(sciondDown, sciondUp)
+	r.stateTransition(sciondUp)
 }
 
-// stateTransition transitions from current internal state old to internal
-// state new; if current state does not match old, it returns false and no
-// changes are made
-func (r *PR) stateTransition(old, new sciondState) bool {
-	if r.state == old {
+// stateTransition changes the internal state to new. If the internal state was already equal to new prior to calling this, stateTransition returns false.
+func (r *PR) stateTransition(new sciondState) bool {
+	if r.state != new {
 		r.state = new
 		log.Info(fmt.Sprintf("Path resolver changed state to %v", new))
 		return true

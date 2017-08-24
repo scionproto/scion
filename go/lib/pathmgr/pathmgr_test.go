@@ -12,21 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build infrarunning
+
 package pathmgr
 
 import (
+	"flag"
 	"fmt"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-// SCION test infrastructure needs to be running for this example
+var (
+	srcStr = flag.String("srcIA", "1-14", "Source ISD-AS")
+	dstStr = flag.String("dstIA", "2-21", "Destination ISD-AS")
+)
+
+// SCION test infrastructure needs to be running for this example.
 func ExamplePR() {
-	src, _ := addr.IAFromString("1-14")
-	dst, _ := addr.IAFromString("2-21")
+	// Run with "go test -tags=infrarunning -args -srcIA 1-11 -dstIA 1-13".
+	var cerr *common.Error
+	src, cerr := addr.IAFromString(*srcStr)
+	if cerr != nil {
+		fmt.Println("Unable to parse srcIA", *srcStr, "err", cerr)
+	}
+
+	dst, cerr := addr.IAFromString(*dstStr)
+	if cerr != nil {
+		fmt.Println("Unable to parse dstIA", *dstStr, "err", cerr)
+	}
 
 	// Initialize path resolver
 	pr, err := New("/run/shm/sciond/sd1-14.sock", time.Second, log.Root())
@@ -43,9 +61,14 @@ func ExamplePR() {
 
 	// sp will always point to an up to date slice of paths, or nil if none
 	// available
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 5; i++ {
 		paths := sp.Load()
-		fmt.Printf("%#v\n", paths)
+		if len(paths) > 0 {
+			fmt.Printf("!")
+		} else {
+			fmt.Printf(".")
+		}
 		time.Sleep(2 * time.Second)
 	}
+	// Output: !!!!!
 }
