@@ -108,7 +108,8 @@ Top:
 			rp.Raw = rp.Raw[:length] // Set the length of the slice
 			rp.Ingress.Dst = dst
 			// Make a copy, as cmeta.Src will be overwritten by the next packet.
-			*rp.Ingress.Src = *cmeta.Src
+			src := *cmeta.Src
+			rp.Ingress.Src = &src
 			rp.Ingress.IfIDs = s.Ifids
 			rp.Ingress.LocIdx = s.LocIdx
 			rp.Ingress.Sock = sock
