@@ -32,7 +32,6 @@ package pathmgr
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -105,7 +104,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 		return nil, common.NewError("Unable to register, limit reached",
 			"max", queryChanCap)
 	}
-	atomic.AddUint64(&r.regCount, 1)
+	r.regCount += 1
 
 	// Reserve memory location for pointer to path
 	sp := &SyncPaths{}

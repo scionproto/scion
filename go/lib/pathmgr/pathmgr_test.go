@@ -47,7 +47,8 @@ func ExamplePR() {
 	}
 
 	// Initialize path resolver
-	pr, err := New("/run/shm/sciond/sd1-14.sock", time.Second, log.Root())
+	sciondPath := fmt.Sprintf("/run/shm/sciond/sd%s.sock", src.String())
+	pr, err := New(sciondPath, time.Second, log.Root())
 	if err != nil {
 		fmt.Println("Failed to connect to SCIOND", "err", err)
 		return
