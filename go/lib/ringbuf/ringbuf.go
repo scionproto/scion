@@ -62,6 +62,8 @@ func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring
 	}
 	r.closed = false
 	r.metrics = newMetrics(desc, labels)
+	r.metrics.maxEntries.Set(float64(count))
+	r.metrics.usedEntries.Set(float64(r.readable))
 	return r
 }
 
@@ -69,54 +71,68 @@ func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring
 // Write will block until it is able to write at least one entry (or the Ring
 // is closed). Otherwise it will return immediately if there's on space left
 // for writing.
-// Returns the number of entries written, or -1 if the RingBuf is closed.
-func (r *Ring) Write(entries EntryList, block bool) int {
+// Returns the number of entries written, or -1 if the RingBuf is closed, and a
+// bool indicating if the write blocked.
+func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+	var blocked bool
 	r.metrics.writeCalls.Inc()
-	for r.writable == 0 && !r.closed {
+	if r.writable == 0 && !r.closed {
 		if !block {
-			return 0
+			return 0, blocked
 		}
-		r.writableC.Wait()
+		r.metrics.writesBlocked.Inc()
+		for r.writable == 0 && !r.closed {
+			blocked = true
+			r.writableC.Wait()
+		}
 	}
 	if r.closed {
-		return -1
+		return -1, blocked
 	}
 	n := min(r.writable, len(entries))
 	r.write(entries[:n])
 	r.writable -= n
 	r.readable += n
-	r.readableC.Signal()
-	r.metrics.writeEntries.Add(float64(n))
-	return n
+	r.readableC.Broadcast()
+	r.metrics.writeEntries.Observe(float64(n))
+	r.metrics.usedEntries.Set(float64(r.readable))
+	return n, blocked
 }
 
 // Read copies entries from the internal ring buffer. If block is true, then
 // Read will block until it is able to read at least one entry (or the Ring
 // is closed). Otherwise it will return immediately if there's no entries
 // available for reading.
-// Returns the number of entries read, or -1 if the RingBuf is closed.
-func (r *Ring) Read(entries EntryList, block bool) int {
+// Returns the number of entries read, or -1 if the RingBuf is closed, and a
+// bool indicating if the read blocked.
+func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+	var blocked bool
 	r.metrics.readCalls.Inc()
-	for r.readable == 0 && !r.closed {
+	if r.readable == 0 && !r.closed {
 		if !block {
-			return 0
+			return 0, blocked
 		}
-		r.readableC.Wait()
+		r.metrics.readsBlocked.Inc()
+		for r.readable == 0 && !r.closed {
+			blocked = true
+			r.readableC.Wait()
+		}
 	}
 	if r.closed {
-		return -1
+		return -1, blocked
 	}
 	n := min(r.readable, len(entries))
 	r.read(entries[:n])
 	r.readable -= n
 	r.writable += n
-	r.writableC.Signal()
-	r.metrics.readEntries.Add(float64(n))
-	return n
+	r.writableC.Broadcast()
+	r.metrics.readEntries.Observe(float64(n))
+	r.metrics.usedEntries.Set(float64(r.readable))
+	return n, blocked
 }
 
 // Close closes the ring buffer, and causes all blocked readers/writers to be

@@ -26,7 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
 	"github.com/netsec-ethz/scion/go/lib/prom"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
@@ -35,17 +34,33 @@ var promAddr = flag.String("prom", "127.0.0.1:1280", "Address to export promethe
 
 // Declare prometheus metrics to export.
 var (
-	PktsRecv          *prometheus.CounterVec
-	PktsSent          *prometheus.CounterVec
-	PktsRecvSize      *prometheus.HistogramVec
-	BytesRecv         *prometheus.CounterVec
-	BytesSent         *prometheus.CounterVec
-	PktProcessTime    prometheus.Counter
-	IFState           *prometheus.GaugeVec
-	InputLoops        *prometheus.CounterVec
-	OutputLoops       *prometheus.CounterVec
-	InputProcessTime  *prometheus.CounterVec
-	OutputProcessTime *prometheus.CounterVec
+	// High-level input stats
+	InputPkts    *prometheus.CounterVec
+	InputBytes   *prometheus.CounterVec
+	InputPktSize *prometheus.HistogramVec
+
+	// High-level output stats
+	OutputPkts    *prometheus.CounterVec
+	OutputBytes   *prometheus.CounterVec
+	OutputPktSize *prometheus.HistogramVec
+
+	// Low-level input stats
+	InputReads      *prometheus.CounterVec
+	InputReadErrors *prometheus.CounterVec
+	InputRcvOvfl    *prometheus.GaugeVec
+	InputLatency    *prometheus.CounterVec
+
+	// Low-level output stats
+	OutputWrites       *prometheus.CounterVec
+	OutputWriteErrors  *prometheus.CounterVec
+	OutputWriteLatency *prometheus.CounterVec
+
+	// Processing metrics
+	ProcessPktTime    *prometheus.CounterVec
+	ProcessSockSrcDst *prometheus.CounterVec
+
+	// Misc
+	IFState *prometheus.GaugeVec
 )
 
 // Ensure all metrics are registered.
@@ -55,13 +70,13 @@ func Init(elem string) {
 	sockLabels := []string{"sock"}
 
 	// Some closures to reduce boiler-plate.
-	newC := func(name, help string) prometheus.Counter {
-		v := prom.NewCounter(namespace, "", name, help, constLabels)
+	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
+		v := prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
 		prometheus.MustRegister(v)
 		return v
 	}
-	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		v := prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
+	newG := func(name, help string) prometheus.Gauge {
+		v := prom.NewGauge(namespace, "", name, help, constLabels)
 		prometheus.MustRegister(v)
 		return v
 	}
@@ -76,24 +91,46 @@ func Init(elem string) {
 		return v
 	}
 
-	// Initialize br metrics.
-	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", sockLabels)
-	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", sockLabels)
-	PktsRecvSize = newHVec("pkts_recv_size", "Size of received packets", sockLabels,
+	InputPkts = newCVec("input_pkts_total", "Total number of input packets received.", sockLabels)
+	InputBytes = newCVec("input_bytes_total", "Total number of input bytes received.", sockLabels)
+	InputPktSize = newHVec("input_pkt_size_bytes", "Size of input packets in bytes", sockLabels,
 		[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000})
-	BytesRecv = newCVec("bytes_recv_total", "Number of bytes received.", sockLabels)
-	BytesSent = newCVec("bytes_sent_total", "Number of bytes sent.", sockLabels)
-	PktProcessTime = newC("pkt_process_seconds", "Packet processing time.")
+
+	OutputPkts = newCVec("output_pkts_total", "Total number of output packets sent.", sockLabels)
+	OutputBytes = newCVec("output_bytes_total", "Total number of output bytes sent.", sockLabels)
+	OutputPktSize = newHVec("output_pkt_size_bytes", "Size of output packets in bytes", sockLabels,
+		[]float64{64, 256, 512, 1024, 1280, 1500, 3000, 6000, 9000})
+
+	InputReads = newCVec("input_reads_total", "Total number of input socket reads.", sockLabels)
+	InputReadErrors = newCVec(
+		"input_read_errors_total", "Total number of input socket read errors.", sockLabels)
+	InputLatency = newCVec(
+		"input_latency_seconds_total",
+		"Total time packets wait in the kernel to be read, in seconds", sockLabels)
+	InputRcvOvfl = newGVec(
+		"input_overflow_packets_total",
+		"Total number of packets dropped by kernel due to receive buffer overflow.", sockLabels)
+
+	OutputWrites = newCVec("output_writes_total", "Number of output socket writes.", sockLabels)
+	OutputWriteErrors = newCVec(
+		"output_write_errors_total", "Number of output socket write errors.", sockLabels)
+	OutputWriteLatency = newCVec(
+		"output_write_seconds_total",
+		"Total time spent writing output packets, in seconds.", sockLabels)
+
+	ProcessPktTime = newCVec("process_pkt_seconds_total",
+		"Total processing time for input packets, in seconds.", sockLabels)
+	ProcessSockSrcDst = newCVec("process_pkts_src_dst_total",
+		"Total number of packets from one sock to another.", []string{"inSock", "outSock"})
+
+	// border_base_labels is a special metric that always has the value `1`,
+	// that is used to add labels to non-br metrics.
+	BRLabels := newG("base_labels", "Border base labels.")
+	BRLabels.Set(1)
 	IFState = newGVec("interface_active", "Interface is active.", sockLabels)
-	InputLoops = newCVec("input_loops", "Number of input loop runs.", sockLabels)
-	OutputLoops = newCVec("output_loops", "Number of output loop runs.", sockLabels)
-	InputProcessTime = newCVec("input_process_seconds", "Input processing time.", sockLabels)
-	OutputProcessTime = newCVec("output_process_seconds", "Output processing time.", sockLabels)
 
 	// Initialize ringbuf metrics.
 	ringbuf.InitMetrics("border", constLabels, []string{"ringId"})
-	// Initialize overlay.conn metrics.
-	conn.InitMetrics("border", constLabels, sockLabels)
 
 	http.Handle("/metrics", promhttp.Handler())
 }

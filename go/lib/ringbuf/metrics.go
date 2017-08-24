@@ -22,35 +22,64 @@ import (
 
 var WriteCalls *prometheus.CounterVec
 var ReadCalls *prometheus.CounterVec
-var WriteEntries *prometheus.CounterVec
-var ReadEntries *prometheus.CounterVec
+var WritesBlocked *prometheus.CounterVec
+var ReadsBlocked *prometheus.CounterVec
+var WriteEntries *prometheus.HistogramVec
+var ReadEntries *prometheus.HistogramVec
+var MaxEntries *prometheus.GaugeVec
+var UsedEntries *prometheus.GaugeVec
 
 func InitMetrics(namespace string, constLabels prometheus.Labels, labelNames []string) {
 	lNames := append(labelNames, "desc")
 	newCVec := func(name, help string) *prometheus.CounterVec {
-		return prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
+		v := prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
+		prometheus.MustRegister(v)
+		return v
+	}
+	newGVec := func(name, help string) *prometheus.GaugeVec {
+		v := prom.NewGaugeVec(namespace, "ringbuf", name, help, constLabels, lNames)
+		prometheus.MustRegister(v)
+		return v
+	}
+	newHVec := func(name, help string, buckets []float64) *prometheus.HistogramVec {
+		v := prom.NewHistogramVec(namespace, "ringbuf", name, help, constLabels, lNames, buckets)
+		prometheus.MustRegister(v)
+		return v
 	}
 	WriteCalls = newCVec("write_calls_total", "Number of calls to Write.")
 	ReadCalls = newCVec("read_calls_total", "Number of calls to Read.")
-	WriteEntries = newCVec("write_entries_total", "Number of written entries.")
-	ReadEntries = newCVec("read_entries_total", "Number of read entries.")
-	prometheus.MustRegister(WriteCalls, ReadCalls, WriteEntries, ReadEntries)
+	WritesBlocked = newCVec("writes_blocked_total", "Number of blocked Writes.")
+	ReadsBlocked = newCVec("reads_blocked_total", "Number of blocked Reads.")
+	WriteEntries = newHVec("write_entries", "Number of written entries.",
+		prometheus.ExponentialBuckets(1, 2, 8))
+	ReadEntries = newHVec("read_entries", "Number of read entries.",
+		prometheus.ExponentialBuckets(1, 2, 8))
+	MaxEntries = newGVec("max_entries", "Maximum number of entries.")
+	UsedEntries = newGVec("used_entries", "Number of used entries.")
 }
 
 type metrics struct {
-	writeCalls   prometheus.Counter
-	readCalls    prometheus.Counter
-	writeEntries prometheus.Counter
-	readEntries  prometheus.Counter
+	writeCalls    prometheus.Counter
+	readCalls     prometheus.Counter
+	writesBlocked prometheus.Counter
+	readsBlocked  prometheus.Counter
+	writeEntries  prometheus.Histogram
+	readEntries   prometheus.Histogram
+	maxEntries    prometheus.Gauge
+	usedEntries   prometheus.Gauge
 }
 
 func newMetrics(desc string, labels prometheus.Labels) *metrics {
 	l := prom.CopyLabels(labels)
 	l["desc"] = desc
 	return &metrics{
-		writeCalls:   WriteCalls.With(l),
-		readCalls:    ReadCalls.With(l),
-		writeEntries: WriteEntries.With(l),
-		readEntries:  ReadEntries.With(l),
+		writeCalls:    WriteCalls.With(l),
+		readCalls:     ReadCalls.With(l),
+		writesBlocked: WritesBlocked.With(l),
+		readsBlocked:  ReadsBlocked.With(l),
+		writeEntries:  WriteEntries.With(l),
+		readEntries:   ReadEntries.With(l),
+		maxEntries:    MaxEntries.With(l),
+		usedEntries:   UsedEntries.With(l),
 	}
 }

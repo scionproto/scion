@@ -22,6 +22,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -38,7 +39,7 @@ var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
 
 type Conn interface {
-	Read(common.RawBytes) (int, *topology.AddrInfo, error)
+	Read(common.RawBytes) (int, *ReadMeta, error)
 	Write(common.RawBytes) (int, error)
 	WriteTo(common.RawBytes, *topology.AddrInfo) (int, error)
 	LocalAddr() *topology.AddrInfo
@@ -82,12 +83,13 @@ func New(listen, remote *topology.AddrInfo, labels prometheus.Labels) (Conn, *co
 }
 
 type connUDPIPv4 struct {
-	conn    *net.UDPConn
-	Listen  *topology.AddrInfo
-	Remote  *topology.AddrInfo
-	oob     common.RawBytes
-	metrics *metrics
-	closed  bool
+	conn      *net.UDPConn
+	Listen    *topology.AddrInfo
+	Remote    *topology.AddrInfo
+	oob       common.RawBytes
+	closed    bool
+	readMeta  ReadMeta
+	tmpRemote topology.AddrInfo
 }
 
 func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
@@ -132,52 +134,65 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 	}
 	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimespec))
 	return &connUDPIPv4{
-		conn:    c,
-		Listen:  listen,
-		Remote:  remote,
-		oob:     oob,
-		metrics: newMetrics(labels),
-		closed:  false,
+		conn:      c,
+		Listen:    listen,
+		Remote:    remote,
+		oob:       oob,
+		closed:    false,
+		tmpRemote: topology.AddrInfo{Overlay: overlay.UDPIPv4, OverlayPort: overlay.EndhostPort},
 	}, nil
 }
 
-func (c *connUDPIPv4) Read(b common.RawBytes) (int, *topology.AddrInfo, error) {
+func (c *connUDPIPv4) Read(b common.RawBytes) (int, *ReadMeta, error) {
+	c.readMeta.Src = nil
+	c.readMeta.RcvOvfl = 0
+	c.readMeta.Recvd = 0
+	c.readMeta.Read = 0
 	n, oobn, _, src, err := c.conn.ReadMsgUDP(b, c.oob)
+	c.readMeta.Read = monotime.Now()
 	if oobn > 0 {
 		c.handleCmsg(c.oob[:oobn])
 	}
-	remote := c.Remote
-	if remote == nil {
-		remote = &topology.AddrInfo{Overlay: overlay.UDPIPv4, IP: src.IP, L4Port: src.Port,
-			OverlayPort: overlay.EndhostPort}
+	if c.readMeta.Recvd == 0 {
+		c.readMeta.Recvd = c.readMeta.Read
 	}
-	return n, remote, err
+	c.tmpRemote.IP = src.IP
+	c.tmpRemote.L4Port = src.Port
+	c.readMeta.Src = &c.tmpRemote
+	return n, &c.readMeta, err
 }
 
 func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
-	// TODO(kormat): instead of updating metrics here, stop conforming to
-	// net.Conn and pass metadata directly back to the caller of Read(). E.g.,
-	// this allows the caller to use the received timestamp.
-	cmsgs, err := syscall.ParseSocketControlMessage(oob)
-	if err != nil {
-		log.Debug("Error decoding cmsg data from ReadMsgUdp", "listen", c.Listen,
-			"remote", c.Remote, "err", err)
-		return
-	}
-	for _, cmsg := range cmsgs {
-		hdr := cmsg.Header
+	// Based on https://github.com/golang/go/blob/release-branch.go1.8/src/syscall/sockcmsg_unix.go#L49
+	// and modified to remove most allocations.
+	now := time.Now()
+	sizeofCmsgHdr := syscall.CmsgLen(0)
+	for sizeofCmsgHdr <= len(oob) {
+		hdr := (*syscall.Cmsghdr)(unsafe.Pointer(&oob[0]))
+		if hdr.Len < syscall.SizeofCmsghdr {
+			log.Error("Cmsg from ReadMsgUDP has corrupted header length", "listen", c.Listen,
+				"remote", c.Remote, "min", syscall.SizeofCmsghdr, "actual", hdr.Len)
+			return
+		}
+		if uint64(hdr.Len) > uint64(len(oob)) {
+			log.Error("Cmsg from ReadMsgUDP longer than remaining buffer",
+				"listen", c.Listen, "remote", c.Remote, "max", len(oob), "actual", hdr.Len)
+			return
+		}
 		switch {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
-			val := *(*int)(unsafe.Pointer(&cmsg.Data[0]))
-			c.metrics.recvOvfl.Set(float64(val))
+			c.readMeta.RcvOvfl = *(*int)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
-			tv := *(*Timespec)(unsafe.Pointer(&cmsg.Data[0]))
-			since := time.Since(time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec)))
+			tv := *(*Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
+			since := now.Sub(time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec)))
 			// Guard against leap-seconds.
 			if since > 0 {
-				c.metrics.recvDelay.Add(since.Seconds())
+				c.readMeta.Recvd = c.readMeta.Read - since
 			}
 		}
+		// What we actually want is the padded length of the cmsg, but CmsgLen
+		// adds a CmsgHdr length to the result, so we subtract that.
+		oob = oob[syscall.CmsgLen(int(hdr.Len))-sizeofCmsgHdr:]
 	}
 }
 
@@ -210,4 +225,11 @@ func (c *connUDPIPv4) Close() error {
 	}
 	c.closed = true
 	return c.conn.Close()
+}
+
+type ReadMeta struct {
+	Src     *topology.AddrInfo
+	RcvOvfl int
+	Recvd   time.Duration
+	Read    time.Duration
 }

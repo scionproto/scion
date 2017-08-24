@@ -17,6 +17,9 @@
 package main
 
 import (
+	"net"
+	"os"
+	"syscall"
 	"time"
 
 	"github.com/gavv/monotime"
@@ -26,6 +29,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
@@ -34,14 +38,25 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer close(stopped)
 	dst := s.Conn.LocalAddr()
 	log.Debug("posixInput starting", "addr", dst)
-	pkts := make(ringbuf.EntryList, 256)
+	pkts := make(ringbuf.EntryList, 32)
+	var length int
+	var cmeta *conn.ReadMeta
+	var err error
+	var sock = s.Labels["sock"]
+
 	// Pre-calculate metrics
-	inputLoops := metrics.InputLoops.With(s.Labels)
-	inputProcessTime := metrics.InputProcessTime.With(s.Labels)
-	pktsRecv := metrics.PktsRecv.With(s.Labels)
-	bytesRecv := metrics.BytesRecv.With(s.Labels)
-	pktRecvSizes := metrics.PktsRecvSize.With(s.Labels)
+	inputPkts := metrics.InputPkts.With(s.Labels)
+	inputBytes := metrics.InputBytes.With(s.Labels)
+	inputPktSize := metrics.InputPktSize.With(s.Labels)
+	inputReads := metrics.InputReads.With(s.Labels)
+	inputReadErrs := metrics.InputReadErrors.With(s.Labels)
+	inputRcvOvfl := metrics.InputRcvOvfl.With(s.Labels)
+	inputLatency := metrics.InputLatency.With(s.Labels)
+	procPktTime := metrics.ProcessPktTime.With(s.Labels)
+
+	// Called when the packet's reference count hits 0.
 	free := func(rp *rpkt.RtrPkt) {
+		procPktTime.Add(monotime.Since(rp.TimeIn).Seconds())
 		rp.Reset()
 		r.freePkts.Write(ringbuf.EntryList{rp}, true)
 	}
@@ -54,37 +69,52 @@ Top:
 			return
 		default:
 		}
-		n := r.freePkts.Read(pkts, true)
+		n, _ := r.freePkts.Read(pkts, true)
 		for i := 0; i < n; i++ {
-			inputLoops.Inc()
 			rp := pkts[i].(*rpkt.RtrPkt)
-			// Get current router context for this packet.
-			rp.Ctx = rctx.Get()
+			rp.Ctx = rctx.Get() // Get current router context for this packet.
 			rp.DirFrom = s.Dir
-			rp.Free = free
-			start := monotime.Now()
-			length, src, err := s.Conn.Read(rp.Raw)
-			if err != nil {
-				// FIXME(kormat): don't treat "connection refused" errors as a problem.
+			rp.Free = free // Set free callback.
+			inputReads.Inc()
+			for {
+				length, cmeta, err = s.Conn.Read(rp.Raw)
+				if err == nil {
+					break // No error, process packet.
+				}
+				if isConnRefused(err) {
+					// As we are using a connected UDP socket for interface
+					// sockets, any ECONNREFUSED errors that happen while
+					// sending to the neighbouring BR show up as read errors on
+					// the socket. As these do not indicate a problem with this BR,
+					// these errors should not be counted, and should not
+					// increment the read counter.
+					continue
+				}
+				inputReadErrs.Inc()
 				log.Error("Error reading from socket", "socket", dst, "err", err)
 				// Release all unwritten buffers, including the current one:
 				for j := i; j < n; j++ {
 					rp := pkts[j].(*rpkt.RtrPkt)
 					free(rp)
 				}
+				// The most likely reason for errors is that the socket has
+				// been closed, so jump back to the top to see if the stop
+				// signal has been sent.
 				continue Top
 			}
-			t := monotime.Since(start).Seconds()
-			inputProcessTime.Add(t)
-			rp.TimeIn = monotime.Now()
+			inputRcvOvfl.Set(float64(cmeta.RcvOvfl))
+			inputLatency.Add((cmeta.Read - cmeta.Recvd).Seconds())
+			rp.TimeIn = cmeta.Recvd
 			rp.Raw = rp.Raw[:length] // Set the length of the slice
 			rp.Ingress.Dst = dst
-			rp.Ingress.Src = src
+			// Make a copy, as cmeta.Src will be overwritten by the next packet.
+			*rp.Ingress.Src = *cmeta.Src
 			rp.Ingress.IfIDs = s.Ifids
 			rp.Ingress.LocIdx = s.LocIdx
-			pktsRecv.Inc()
-			bytesRecv.Add(float64(length))
-			pktRecvSizes.Observe(float64(length))
+			rp.Ingress.Sock = sock
+			inputPkts.Inc()
+			inputBytes.Add(float64(length))
+			inputPktSize.Observe(float64(length))
 			s.Ring.Write(ringbuf.EntryList{pkts[i]}, true)
 			// Clear RtrPkt reference
 			pkts[i] = nil
@@ -97,17 +127,22 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	defer close(stopped)
 	src := s.Conn.LocalAddr()
 	log.Info("posixOutput starting", "addr", src)
-	epkts := make(ringbuf.EntryList, 256)
+	epkts := make(ringbuf.EntryList, 32)
+
 	// Pre-calculate metrics
-	outputProcessTime := metrics.OutputProcessTime.With(s.Labels)
-	bytesSent := metrics.BytesSent.With(s.Labels)
-	pktsSent := metrics.PktsSent.With(s.Labels)
+	outputPkts := metrics.OutputPkts.With(s.Labels)
+	outputBytes := metrics.OutputBytes.With(s.Labels)
+	outputPktSize := metrics.OutputPktSize.With(s.Labels)
+	outputWrites := metrics.OutputWrites.With(s.Labels)
+	outputWriteErrs := metrics.OutputWriteErrors.With(s.Labels)
+	outputWriteLatency := metrics.OutputWriteLatency.With(s.Labels)
+
 	var count int
 	var err error
 	var start time.Duration
 	var t float64
 	for {
-		n := s.Ring.Read(epkts, true)
+		n, _ := s.Ring.Read(epkts, true)
 		if n < 0 {
 			log.Debug("posixOutput stopping", "addr", src)
 			return
@@ -115,8 +150,11 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		for i := 0; i < n; i++ {
 			erp := epkts[i].(*rpkt.EgressRtrPkt)
 			rp := erp.Rp
+			// This becomes meaningful when we can write multiple packets at once:
+			outputWrites.Add(1)
 			start = monotime.Now()
 			if count, err = s.Conn.WriteTo(rp.Raw, erp.Dst); err != nil {
+				outputWriteErrs.Inc()
 				rp.Error("Error sending packet", "err", err, "dst", erp.Dst)
 				goto End
 			}
@@ -124,14 +162,25 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 				rp.Error("Unable to write full packet", "len", len(rp.Raw), "written", count)
 			}
 			t = monotime.Since(start).Seconds()
-			outputProcessTime.Add(t)
-			bytesSent.Add(float64(count))
-			pktsSent.Inc()
+			outputWriteLatency.Add(t)
+			outputPkts.Inc()
+			outputBytes.Add(float64(count))
+			outputPktSize.Observe(float64(count))
 		End:
-			// Release inner RtrPkt entry
-			rp.Release()
-			// Clear EgressRtrPkt reference
-			epkts[i] = nil
+			rp.Release()   // Release inner RtrPkt entry
+			epkts[i] = nil // Clear EgressRtrPkt reference
 		}
 	}
+}
+
+func isConnRefused(err error) bool {
+	netErr, ok := err.(*net.OpError)
+	if !ok {
+		return false
+	}
+	osErr, ok := netErr.Err.(*os.SyscallError)
+	if !ok {
+		return false
+	}
+	return osErr.Err == syscall.ECONNREFUSED
 }

@@ -21,7 +21,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
@@ -100,10 +99,10 @@ func (r *Router) confSig() {
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.PanicLog()
 	defer close(stopped)
-	pkts := make(ringbuf.EntryList, 256)
+	pkts := make(ringbuf.EntryList, 32)
 	log.Debug("handleSock starting", "sock", *s)
 	for {
-		n := s.Ring.Read(pkts, true)
+		n, _ := s.Ring.Read(pkts, true)
 		if n < 0 {
 			log.Debug("handleSock stopping", "sock", *s)
 			return
@@ -111,7 +110,6 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 		for i := 0; i < n; i++ {
 			rp := pkts[i].(*rpkt.RtrPkt)
 			r.processPacket(rp)
-			metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 			rp.Release()
 			pkts[i] = nil
 		}
