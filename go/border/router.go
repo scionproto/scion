@@ -81,6 +81,7 @@ func (r *Router) Run() *common.Error {
 
 // confSig handles reloading the configuration when SIGHUP is received.
 func (r *Router) confSig() {
+	defer liblog.LogPanicAndExit()
 	for range sighup {
 		var err *common.Error
 		var config *conf.Conf
@@ -97,7 +98,7 @@ func (r *Router) confSig() {
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, 32)
 	log.Debug("handleSock starting", "sock", *s)
@@ -119,7 +120,6 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 // processPacket is the heart of the router's packet handling. It delegates
 // everything from parsing the incoming packet, to routing the outgoing packet.
 func (r *Router) processPacket(rp *rpkt.RtrPkt) {
-	defer liblog.PanicLog()
 	if assert.On {
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")

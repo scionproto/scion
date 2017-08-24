@@ -79,9 +79,10 @@ func mkLogfile(name string) io.Writer {
 	}
 }
 
-func PanicLog() {
+func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
 		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
+		os.Exit(255)
 	}
 }
 

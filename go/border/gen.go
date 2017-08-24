@@ -89,7 +89,7 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int
 // sent to the Beacon Service in the neighbouring AS. These function as both
 // keep-alives, and to inform the neighbour of the local interface ID.
 func (r *Router) SyncInterface() {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	for range time.Tick(ifIDFreq) {
 		ctx := rctx.Get()
 		for ifid := range ctx.Conf.Net.IFs {
@@ -123,7 +123,7 @@ func (r *Router) genIFIDPkt(ifid common.IFIDType, ctx *rctx.Ctx) {
 // interface state changes, so this is only needed as a fail-safe after
 // startup.
 func (r *Router) IFStateUpdate() {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	r.genIFStateReq()
 	for range time.Tick(ifStateFreq) {
 		r.genIFStateReq()
