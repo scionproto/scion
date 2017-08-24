@@ -17,6 +17,7 @@ package snet
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,7 +25,9 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-var _ net.Addr = &Addr{}
+var _ net.Addr = (*Addr)(nil)
+
+var addrRegexp = regexp.MustCompile("^(?P<ia>\\d+-\\d+),\\[(?P<host>[^\\]]+)\\]:(?P<port>\\d+)$")
 
 type Addr struct {
 	IA   *addr.ISD_AS
@@ -68,12 +71,9 @@ func AddrFromString(s string) (*Addr, error) {
 	if ip == nil {
 		return nil, common.NewError("Invalid IP address string", "ip", parts[1])
 	}
-	port, err := strconv.Atoi(parts[2])
+	port, err := strconv.ParseUint(parts[2], 10, 16)
 	if err != nil {
 		return nil, common.NewError("Invalid port string", "port", parts[2], "err", err)
-	}
-	if port == 0 || port >= 1<<16 {
-		return nil, common.NewError("Invalid port number", "port", port)
 	}
 	return &Addr{IA: ia, Host: addr.HostFromIP(ip), Port: uint16(port)}, nil
 }
