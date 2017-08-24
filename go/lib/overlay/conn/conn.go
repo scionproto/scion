@@ -156,9 +156,12 @@ func (c *connUDPIPv4) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	if c.readMeta.Recvd == 0 {
 		c.readMeta.Recvd = c.readMeta.Read
 	}
-	c.tmpRemote.IP = src.IP
-	c.tmpRemote.L4Port = src.Port
-	c.readMeta.Src = &c.tmpRemote
+	c.readMeta.Src = c.Remote
+	if c.Remote == nil {
+		c.tmpRemote.IP = src.IP
+		c.tmpRemote.L4Port = src.Port
+		c.readMeta.Src = &c.tmpRemote
+	}
 	return n, &c.readMeta, err
 }
 
