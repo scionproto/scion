@@ -88,6 +88,8 @@ Top:
 					// the socket. As these do not indicate a problem with this BR,
 					// these errors should not be counted, and should not
 					// increment the read counter.
+					// TODO(kormat): consider having a conn refused error count
+					// for external interfaces.
 					continue
 				}
 				inputReadErrs.Inc()
