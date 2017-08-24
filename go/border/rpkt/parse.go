@@ -152,9 +152,9 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 // field accordingly.
 func (rp *RtrPkt) setDirTo() {
 	if assert.On {
-		assert.Mustf(rp.DirFrom != rcmn.DirSelf, rp.ErrStrf("DirFrom must not be DirSelf."))
-		assert.Mustf(rp.DirFrom != rcmn.DirUnset, rp.ErrStrf("DirFrom must not be DirUnset."))
-		assert.Mustf(rp.ifCurr != nil, rp.ErrStrf("rp.ifCurr must not be nil."))
+		assert.Mustf(rp.DirFrom != rcmn.DirSelf, rp.ErrStr, "DirFrom must not be DirSelf.")
+		assert.Mustf(rp.DirFrom != rcmn.DirUnset, rp.ErrStr, "DirFrom must not be DirUnset.")
+		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil.")
 	}
 	if *rp.dstIA != *rp.Ctx.Conf.IA {
 		// Packet is not destined to the local AS, so it can't be DirSelf.

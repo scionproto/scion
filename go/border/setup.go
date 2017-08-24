@@ -259,9 +259,9 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 		}
 	}
 	// Setup input goroutine.
-	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locIn", mkRingLabels(labels)),
+	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(64, nil, "locIn", mkRingLabels(labels)),
 		over, rcmn.DirLocal, ifids, idx, labels, r.posixInput, r.handleSock)
-	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(1024, nil, "locOut", mkRingLabels(labels)),
+	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(64, nil, "locOut", mkRingLabels(labels)),
 		over, rcmn.DirLocal, ifids, idx, labels, nil, r.posixOutput)
 	log.Debug("Set up new local socket.", "conn", over.LocalAddr())
 	return nil
@@ -320,9 +320,9 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	}
 	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.
-	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extIn", mkRingLabels(labels)),
+	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extIn", mkRingLabels(labels)),
 		c, rcmn.DirExternal, ifids, -1, labels, r.posixInput, r.handleSock)
-	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(1024, nil, "extOut", mkRingLabels(labels)),
+	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extOut", mkRingLabels(labels)),
 		c, rcmn.DirExternal, ifids, -1, labels, nil, r.posixOutput)
 	log.Debug("Set up new external socket.", "intf", intf)
 	return nil

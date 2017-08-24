@@ -21,7 +21,9 @@ import (
 	"math/rand"
 
 	//log "github.com/inconshreveable/log15"
+	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -62,6 +64,12 @@ func (rp *RtrPkt) Route() *common.Error {
 	// Call all egress functions.
 	for _, epair := range rp.Egress {
 		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
+		inSock := rp.Ingress.Sock
+		if inSock == "" {
+			inSock = "self"
+		}
+		metrics.ProcessSockSrcDst.With(
+			prometheus.Labels{"inSock": inSock, "outSock": epair.S.Labels["sock"]}).Inc()
 	}
 	return nil
 }
@@ -143,7 +151,7 @@ func (rp *RtrPkt) forward() (HookResult, *common.Error) {
 // neighbouring ISD-AS.
 func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	if assert.On {
-		assert.Mustf(rp.hopF != nil, rp.ErrStrf("rp.hopF must not be nil"))
+		assert.Mustf(rp.hopF != nil, rp.ErrStr, "rp.hopF must not be nil")
 	}
 	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
 		return HookError, common.NewError(

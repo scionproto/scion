@@ -140,7 +140,7 @@ func NewRtrPkt() *RtrPkt {
 
 func (rp *RtrPkt) Release() {
 	if assert.On {
-		assert.Mustf(rp.refCnt > 0, rp.ErrStrf("RtrPkt.refCnt be positive."))
+		assert.Mustf(rp.refCnt > 0, rp.ErrStr, "RtrPkt.refCnt be positive.")
 	}
 	rp.refCnt -= 1
 	if rp.refCnt == 0 && rp.Free != nil {
@@ -155,6 +155,7 @@ type addrIFPair struct {
 	Src    *topology.AddrInfo
 	IfIDs  []common.IFIDType
 	LocIdx int // only set for packets from the local AS.
+	Sock   string
 }
 
 // EgressPair contains the output function to send a packet with, along with an

@@ -23,6 +23,7 @@ import time
 import random as rand
 
 # SCION
+from lib.defines import LINE_LEN
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import haddr_parse_interface
@@ -90,7 +91,7 @@ class PktGen(TestClientBase):
 
     def _create_payload(self, spkt, randlen=False):
         data = b"ping " + self.data
-        hdr_len = spkt.cmn_hdr.hdr_len + len(spkt.l4_hdr)
+        hdr_len = (spkt.cmn_hdr.hdr_len * LINE_LEN) + len(spkt.l4_hdr)
         min_size = hdr_len + len(data)
         if randlen:
             mean = (self.path_meta.p.mtu - min_size) / 2

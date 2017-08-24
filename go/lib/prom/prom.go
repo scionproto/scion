@@ -55,6 +55,18 @@ func NewCounterVec(namespace, subsystem, name, help string,
 	)
 }
 
+func NewGauge(namespace, subsystem, name, help string,
+	constLabels prometheus.Labels) prometheus.Gauge {
+	return prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			Name:        name,
+			Help:        help,
+			ConstLabels: constLabels,
+		},
+	)
+}
 func NewGaugeVec(namespace, subsystem, name, help string,
 	constLabels prometheus.Labels, labelNames []string) *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(

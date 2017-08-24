@@ -24,8 +24,8 @@ func Must(condition bool, s string, args ...interface{}) {
 	}
 }
 
-func Mustf(condition bool, f func() string) {
+func Mustf(condition bool, f func(string) string, s string) {
 	if !condition {
-		panic(f())
+		panic(f(s))
 	}
 }
