@@ -33,7 +33,8 @@ const (
 	ErrorConvert = "Unable to convert RawTopo to Topo"
 )
 
-var RawCurr *RawTopo
+// The contents of the topo file (unprocessed) when we last loaded it
+var DiskTopo []byte
 
 // Structures directly filled from JSON
 
@@ -71,10 +72,10 @@ func (b RawBRInfo) String() string {
 
 type RawBRIntf struct {
 	InternalAddrIdx int
-	Overlay         string
-	Bind            *RawAddrPort
-	Public          RawAddrPort
-	Remote          RawAddrPort
+	Overlay         string       `json:",omitempty"`
+	Bind            *RawAddrPort `json:",omitempty"`
+	Public          *RawAddrPort `json:",omitempty"`
+	Remote          *RawAddrPort `json:",omitempty"`
 	Bandwidth       int
 	ISD_AS          string
 	LinkType        string
@@ -150,22 +151,26 @@ func (a RawAddrPortOverlay) String() string {
 
 // Load returns a new TopoMeta object loaded from 'path'.
 func Load(path string) (*Topo, *common.Error) {
-	b, err := ioutil.ReadFile(path)
+	rt, err := LoadRaw(path)
 	if err != nil {
-		return nil, common.NewError(ErrorOpen, "err", err)
+		return nil, err
 	}
-	return parse(b, path)
-}
-
-func parse(data []byte, path string) (*Topo, *common.Error) {
-	rt := &RawTopo{}
-	if err := json.Unmarshal(data, rt); err != nil {
-		return nil, common.NewError(ErrorParse, "err", err, "path", path)
-	}
-	RawCurr = rt
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
 		return nil, common.NewError(ErrorConvert, "err", err, "path", path)
 	}
 	return ct, nil
+}
+
+func LoadRaw(path string) (*RawTopo, *common.Error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, common.NewError(ErrorOpen, "err", err)
+	}
+	DiskTopo = b
+	rt := &RawTopo{}
+	if err := json.Unmarshal(b, rt); err != nil {
+		return nil, common.NewError(ErrorParse, "err", err, "path", path)
+	}
+	return rt, nil
 }
