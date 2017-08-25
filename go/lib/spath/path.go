@@ -99,3 +99,71 @@ func (p *Path) Reverse() *common.Error {
 	p.Raw = revRaw
 	return nil
 }
+
+// InitHopIdx computes the initial hopIdx for a newly created packet
+func (path *Path) InitHopIdx() (uint8, error) {
+	var err error
+	var infoF *InfoField
+	var hopF *HopField
+	infoIdx, hopIdx := 0, 0
+
+	// Cannot initialize an empty path
+	if path == nil {
+		return 0, common.NewError("Unable to initialize empty path")
+	}
+
+	// Skip Peer with Xover HF
+	if infoF, err = path.getInfoField(infoIdx); err != nil {
+		return 0, err
+	}
+	if infoF.Peer {
+		if hopF, err = path.getHopField(1); err != nil {
+			return 0, err
+		}
+		if hopF.Xover {
+			hopIdx += 1
+		}
+	}
+
+	// The first HF for end-host paths is always in the first segment
+	maxHopIdx := int(infoF.Hops)
+
+	for {
+		// Skip verification HFs
+		hopIdx += 1
+		if hopIdx > maxHopIdx {
+			return 0, common.NewError("Skipped entire path segment",
+				"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
+		}
+
+		if hopF, err = path.getHopField(hopIdx); err != nil {
+			return 0, err
+		}
+		if !hopF.VerifyOnly {
+			break
+		}
+	}
+	return uint8(hopIdx), nil
+}
+
+func (path *Path) getInfoField(index int) (*InfoField, error) {
+	if index < 0 {
+		return nil, common.NewError("Negative index", "index", index)
+	}
+	infoF, cerr := InfoFFromRaw(path.Raw[index*common.LineLen:])
+	if cerr != nil {
+		return nil, common.NewError("Unable to parse Info Field", "err", cerr)
+	}
+	return infoF, nil
+}
+
+func (path *Path) getHopField(index int) (*HopField, error) {
+	if index < 0 {
+		return nil, common.NewError("Negative index", "index", index)
+	}
+	hopF, cerr := HopFFromRaw(path.Raw[index*common.LineLen:])
+	if cerr != nil {
+		return nil, common.NewError("Unable to parse Hop Field", "err", cerr)
+	}
+	return hopF, nil
+}

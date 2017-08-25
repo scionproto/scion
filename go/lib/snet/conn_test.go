@@ -16,14 +16,19 @@ package snet
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"testing"
+
+	log "github.com/inconshreveable/log15"
 
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 )
+
+var _ = log.Root
 
 func TestListen(t *testing.T) {
 	a, _ := AddrFromString("1-19,[127.0.0.1]:80")
@@ -139,5 +144,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println("Test setup error", err)
 	}
+	// Comment out below for logging during tests
+	log.Root().SetHandler(log.StreamHandler(ioutil.Discard, log.LogfmtFormat()))
 	os.Exit(m.Run())
 }
