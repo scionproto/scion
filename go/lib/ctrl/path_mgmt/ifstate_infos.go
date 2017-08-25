@@ -25,10 +25,11 @@ import (
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*IFStateInfos)(nil)
+var _ PathMgmtPld = (*IFStateInfos)(nil)
 
 type IFStateInfos struct {
 	Infos []*IFStateInfo
@@ -51,6 +52,22 @@ func NewIFStateInfosFromRaw(b common.RawBytes) (*IFStateInfos, *common.Error) {
 	return req, nil
 }
 
+func NewIFStateInfosFromProto(msg proto.IFStateInfos) (*IFStateInfos, *common.Error) {
+	i := &IFStateInfos{}
+	if err := pogs.Extract(i, proto.IFStateInfos_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("Failed to extract IFStateInfos struct", "err", err)
+	}
+	return i, nil
+}
+
+func (i *IFStateInfos) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_pathMgmt
+}
+
+func (i *IFStateInfos) PldType() proto.PathMgmt_Which {
+	return proto.PathMgmt_Which_ifStateInfos
+}
+
 func (i *IFStateInfos) Len() int {
 	// The length can't be calculated until the payload is packed.
 	return -1
@@ -62,6 +79,32 @@ func (i *IFStateInfos) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewIFStateInfosFromRaw(rawPld)
+}
+
+func (i *IFStateInfos) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, i.CtrlWrite)
+}
+
+func (i *IFStateInfos) CtrlWrite(scion *proto.SCION) *common.Error {
+	mgmt, err := scion.NewPathMgmt()
+	if err != nil {
+		return common.NewError("Failed to allocate PathMgmt payload", "err", err)
+	}
+	if err := i.PathMgmtWrite(&mgmt); err != nil {
+		return common.NewError("Failed to write IFStateInfos payload", "err", err)
+	}
+	return nil
+}
+
+func (i *IFStateInfos) PathMgmtWrite(mgmt *proto.PathMgmt) *common.Error {
+	req, err := mgmt.NewIfStateInfos()
+	if err != nil {
+		return common.NewError("Failed to allocate IFStateInfos struct", "err", err)
+	}
+	if err := pogs.Insert(proto.IFStateInfos_TypeID, req.Struct, i); err != nil {
+		return common.NewError("Failed to insert IFStateInfos struct", "err", err)
+	}
+	return nil
 }
 
 func (i *IFStateInfos) Pack() (common.RawBytes, *common.Error) {

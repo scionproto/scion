@@ -145,7 +145,7 @@ func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
 		rp.Raw = rp.Raw[:cap(rp.Raw)]
 		// Write payload into buffer
 		var err *common.Error
-		plen, err = rp.pld.Write(rp.Raw[rp.idxs.pld:])
+		plen, err = rp.pld.WritePld(rp.Raw[rp.idxs.pld:])
 		if err != nil {
 			return err
 		}

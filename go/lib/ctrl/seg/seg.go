@@ -22,17 +22,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/util"
-
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
+	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*PathSegment)(nil)
+var _ ctrl_cmn.CtrlPld = (*PathSegment)(nil)
 
 type PathSegment struct {
 	RawInfo   []byte `capnp:"info"`
@@ -60,6 +60,14 @@ func NewPathSegmentFromRaw(b common.RawBytes) (*PathSegment, *common.Error) {
 	return seg, nil
 }
 
+func NewPathSegmentFromProto(msg proto.PathSegment) (*PathSegment, *common.Error) {
+	ps := &PathSegment{}
+	if err := pogs.Extract(ps, proto.PathSegment_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("Ctrl payload parsing failed", "err", err)
+	}
+	return ps, nil
+}
+
 func (ps *PathSegment) ID() common.RawBytes {
 	h := sha256.New()
 	for _, as := range ps.ASEntries {
@@ -76,6 +84,10 @@ func (ps *PathSegment) Info() (*spath.InfoField, *common.Error) {
 	return spath.InfoFFromRaw(ps.RawInfo)
 }
 
+func (ps *PathSegment) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_pcb
+}
+
 func (ps *PathSegment) Len() int {
 	// The length can't be calculated until the payload is packed.
 	return -1
@@ -87,6 +99,21 @@ func (ps *PathSegment) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewPathSegmentFromRaw(rawPld)
+}
+
+func (ps *PathSegment) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, ps.CtrlWrite)
+}
+
+func (ps *PathSegment) CtrlWrite(scion *proto.SCION) *common.Error {
+	pseg, err := scion.NewPcb()
+	if err != nil {
+		return common.NewError("Failed to allocate IFID payload", "err", err)
+	}
+	if err := pogs.Insert(proto.PathSegment_TypeID, pseg.Struct, ps); err != nil {
+		return common.NewError("Failed to insert IFID packet", "err", err)
+	}
+	return nil
 }
 
 func (ps *PathSegment) Pack() (common.RawBytes, *common.Error) {

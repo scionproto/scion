@@ -24,18 +24,24 @@ import (
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*SegRecs)(nil)
+var _ PathMgmtPld = (*SegRecs)(nil)
 
 type SegRecs struct {
 	Recs     []*seg.Meta
 	RevInfos []*RevInfo
+	pldType  proto.PathMgmt_Which
 }
 
-func NewSegRecsFromRaw(b common.RawBytes) (*SegRecs, *common.Error) {
+func NewSegRecsFromRaw(b common.RawBytes, pldType proto.PathMgmt_Which) (*SegRecs, *common.Error) {
+	recs := &SegRecs{pldType: pldType}
+	if !recs.validatePldType() {
+		return nil, common.NewError("Invalid payload type", "type", pldType)
+	}
 	msg, err := capnp.NewPackedDecoder(bytes.NewBuffer(b)).Decode()
 	if err != nil {
 		return nil, common.NewError("Failed to parse SegRecs", "err", err)
@@ -44,12 +50,30 @@ func NewSegRecsFromRaw(b common.RawBytes) (*SegRecs, *common.Error) {
 	if err != nil {
 		return nil, common.NewError("Failed to parse SegRecs", "err", err)
 	}
-	recs := &SegRecs{}
 	err = pogs.Extract(recs, proto.SegRecs_TypeID, rootPtr.Struct())
 	if err != nil {
 		return nil, common.NewError("Failed to parse SegRecs", "err", err)
 	}
 	return recs, nil
+}
+
+func NewSegRecsFromProto(msg proto.SegRecs, pldType proto.PathMgmt_Which) (*SegRecs, *common.Error) {
+	recs := &SegRecs{pldType: pldType}
+	if !recs.validatePldType() {
+		return nil, common.NewError("Invalid payload type", "type", pldType)
+	}
+	if err := pogs.Extract(recs, proto.SegRecs_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("PathMgmt payload parsing failed", "err", err)
+	}
+	return recs, nil
+}
+
+func (s *SegRecs) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_pathMgmt
+}
+
+func (s *SegRecs) PldType() proto.PathMgmt_Which {
+	return s.pldType
 }
 
 func (s *SegRecs) Len() int {
@@ -63,6 +87,41 @@ func (s *SegRecs) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewSegReqFromRaw(rawPld)
+}
+
+func (s *SegRecs) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, s.CtrlWrite)
+}
+
+func (s *SegRecs) CtrlWrite(scion *proto.SCION) *common.Error {
+	mgmt, err := scion.NewPathMgmt()
+	if err != nil {
+		return common.NewError("Failed to allocate PathMgmt payload", "err", err)
+	}
+	if err := s.PathMgmtWrite(&mgmt); err != nil {
+		return common.NewError("Failed to write SegRecs payload", "err", err)
+	}
+	return nil
+}
+
+func (s *SegRecs) PathMgmtWrite(mgmt *proto.PathMgmt) *common.Error {
+	var err error
+	var recs proto.SegRecs
+	switch s.pldType {
+	case proto.PathMgmt_Which_segReply:
+		recs, err = mgmt.NewSegReply()
+	case proto.PathMgmt_Which_segReg:
+		recs, err = mgmt.NewSegReg()
+	case proto.PathMgmt_Which_segSync:
+		recs, err = mgmt.NewSegSync()
+	}
+	if err != nil {
+		return common.NewError("Failed to allocate SegRecs struct", "err", err)
+	}
+	if err := pogs.Insert(proto.SegRecs_TypeID, recs.Struct, s); err != nil {
+		return common.NewError("Failed to insert SegRecs struct", "err", err)
+	}
+	return nil
 }
 
 func (s *SegRecs) Pack() (common.RawBytes, *common.Error) {
@@ -109,4 +168,12 @@ func (s *SegRecs) String() string {
 		}
 	}
 	return strings.Join(desc, "\n")
+}
+
+func (s *SegRecs) validatePldType() bool {
+	switch s.pldType {
+	case proto.PathMgmt_Which_segReply, proto.PathMgmt_Which_segReg, proto.PathMgmt_Which_segSync:
+		return true
+	}
+	return false
 }

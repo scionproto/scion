@@ -24,10 +24,11 @@ import (
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*IFID)(nil)
+var _ ctrl_cmn.CtrlPld = (*IFID)(nil)
 
 type IFID struct {
 	OrigIfID  uint64 `capnp:"origIF"`
@@ -43,12 +44,24 @@ func NewIFIDFromRaw(b common.RawBytes) (*IFID, *common.Error) {
 	if err != nil {
 		return nil, common.NewError("Failed to parse IFID packet", "err", err)
 	}
-	pkt := &IFID{}
-	err = pogs.Extract(pkt, proto.IFID_TypeID, rootPtr.Struct())
+	i := &IFID{}
+	err = pogs.Extract(i, proto.IFID_TypeID, rootPtr.Struct())
 	if err != nil {
-		return nil, common.NewError("Failed to parse IFID packet", "err", err)
+		return nil, common.NewError("Failed to parse SegRecs", "err", err)
 	}
-	return pkt, nil
+	return i, nil
+}
+
+func NewIFIDFromProto(msg proto.IFID) (*IFID, *common.Error) {
+	i := &IFID{}
+	if err := pogs.Extract(i, proto.IFID_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("Ctrl payload parsing failed", "err", err)
+	}
+	return i, nil
+}
+
+func (i *IFID) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_ifid
 }
 
 func (i *IFID) Len() int {
@@ -62,6 +75,21 @@ func (i *IFID) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewIFIDFromRaw(rawPld)
+}
+
+func (i *IFID) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, i.CtrlWrite)
+}
+
+func (i *IFID) CtrlWrite(scion *proto.SCION) *common.Error {
+	ifid, err := scion.NewIfid()
+	if err != nil {
+		return common.NewError("Failed to allocate IFID payload", "err", err)
+	}
+	if err := pogs.Insert(proto.IFID_TypeID, ifid.Struct, i); err != nil {
+		return common.NewError("Failed to insert IFID packet", "err", err)
+	}
+	return nil
 }
 
 func (i *IFID) Pack() (common.RawBytes, *common.Error) {

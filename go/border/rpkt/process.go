@@ -26,7 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -132,20 +132,20 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
-	cpld, ok := rp.pld.(*ctrl.CtrlPld)
+	cpld, ok := rp.pld.(ctrl_cmn.CtrlPld)
 	if !ok {
 		// FIXME(kormat): handle SCMP packets sent to this router.
 		return HookError, common.NewError("Unable to process unsupported payload type",
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	// Determine the type of SCION control payload.
-	switch cpld.Which {
+	switch cpld.PldClass() {
 	case proto.SCION_Which_ifid:
-		return rp.processIFID(cpld.IfID)
+		return rp.processIFID(cpld.(*ifid.IFID))
 	case proto.SCION_Which_pathMgmt:
-		return rp.processPathMgmtSelf(cpld.PathMgmt)
+		return rp.processPathMgmtSelf(cpld.(path_mgmt.PathMgmtPld))
 	default:
-		rp.Error("Unsupported destination payload", "type", cpld.Which)
+		rp.Error("Unsupported destination payload", "type", cpld.PldClass())
 		return HookError, nil
 	}
 }
@@ -154,11 +154,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
 	// Set the RelayIF field in the payload to the current interface ID.
 	ifid.RelayIfID = uint64(*rp.ifCurr)
-	cpld, err := ctrl.NewCtrlPld(ifid, proto.SCION_Which_ifid)
-	if err != nil {
-		return HookError, err
-	}
-	if err := rp.SetPld(cpld); err != nil {
+	if err := rp.SetPld(ifid); err != nil {
 		return HookError, err
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
@@ -186,12 +182,12 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
 }
 
 // processPathMgmtSelf handles Path Management SCION control messages.
-func (rp *RtrPkt) processPathMgmtSelf(pathMgmt *path_mgmt.PathMgmt) (HookResult, *common.Error) {
-	switch pathMgmt.Which {
+func (rp *RtrPkt) processPathMgmtSelf(pld path_mgmt.PathMgmtPld) (HookResult, *common.Error) {
+	switch pld.PldType() {
 	case proto.PathMgmt_Which_ifStateInfos:
-		ifstate.Process(pathMgmt.IFStateInfos)
+		ifstate.Process(pld.(*path_mgmt.IFStateInfos))
 	default:
-		rp.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which)
+		rp.Error("Unsupported destination PathMgmt payload", "type", pld.PldType())
 		return HookError, nil
 	}
 	return HookFinish, nil

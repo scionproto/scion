@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
@@ -29,7 +30,7 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*RevInfo)(nil)
+var _ PathMgmtPld = (*RevInfo)(nil)
 
 type SiblingHash struct {
 	IsLeft bool
@@ -64,8 +65,24 @@ func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, *common.Error) {
 	return info, nil
 }
 
+func NewRevInfoFromProto(msg proto.RevInfo) (*RevInfo, *common.Error) {
+	info := &RevInfo{}
+	if err := pogs.Extract(info, proto.RevInfo_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("Failed to extract RevInfo struct", "err", err)
+	}
+	return info, nil
+}
+
 func (r *RevInfo) IA() *addr.ISD_AS {
 	return addr.IAFromInt(int(r.RawIsdas))
+}
+
+func (r *RevInfo) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_pathMgmt
+}
+
+func (r *RevInfo) PldType() proto.PathMgmt_Which {
+	return proto.PathMgmt_Which_revInfo
 }
 
 func (r *RevInfo) Len() int {
@@ -79,6 +96,32 @@ func (r *RevInfo) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewRevInfoFromRaw(rawPld)
+}
+
+func (r *RevInfo) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, r.CtrlWrite)
+}
+
+func (r *RevInfo) CtrlWrite(scion *proto.SCION) *common.Error {
+	mgmt, err := scion.NewPathMgmt()
+	if err != nil {
+		return common.NewError("Failed to allocate PathMgmt payload", "err", err)
+	}
+	if err := r.PathMgmtWrite(&mgmt); err != nil {
+		return common.NewError("Failed to write RevInfo payload", "err", err)
+	}
+	return nil
+}
+
+func (r *RevInfo) PathMgmtWrite(mgmt *proto.PathMgmt) *common.Error {
+	info, err := mgmt.RevInfo()
+	if err != nil {
+		return common.NewError("Failed to allocate RevInfo struct", "err", err)
+	}
+	if err := pogs.Insert(proto.RevInfo_TypeID, info.Struct, info); err != nil {
+		return common.NewError("Failed to insert RevInfo struct", "err", err)
+	}
+	return nil
 }
 
 func (r *RevInfo) Pack() (common.RawBytes, *common.Error) {

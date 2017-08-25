@@ -25,10 +25,11 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*SegReq)(nil)
+var _ PathMgmtPld = (*SegReq)(nil)
 
 type SegReq struct {
 	RawSrcIA uint32 `capnp:"srcIA"`
@@ -56,12 +57,28 @@ func NewSegReqFromRaw(b common.RawBytes) (*SegReq, *common.Error) {
 	return req, nil
 }
 
+func NewSegReqFromProto(msg proto.SegReq) (*SegReq, *common.Error) {
+	s := &SegReq{}
+	if err := pogs.Extract(s, proto.SegReq_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("Failed to extract SegReq struct", "err", err)
+	}
+	return s, nil
+}
+
 func (s *SegReq) SrcIA() *addr.ISD_AS {
 	return addr.IAFromInt(int(s.RawSrcIA))
 }
 
 func (s *SegReq) DstIA() *addr.ISD_AS {
 	return addr.IAFromInt(int(s.RawDstIA))
+}
+
+func (s *SegReq) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_pathMgmt
+}
+
+func (s *SegReq) PldType() proto.PathMgmt_Which {
+	return proto.PathMgmt_Which_segReg
 }
 
 func (s *SegReq) Len() int {
@@ -75,6 +92,32 @@ func (s *SegReq) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewSegReqFromRaw(rawPld)
+}
+
+func (s *SegReq) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, s.CtrlWrite)
+}
+
+func (s *SegReq) CtrlWrite(scion *proto.SCION) *common.Error {
+	mgmt, err := scion.NewPathMgmt()
+	if err != nil {
+		return common.NewError("Failed to allocate PathMgmt payload", "err", err)
+	}
+	if err := s.PathMgmtWrite(&mgmt); err != nil {
+		return common.NewError("Failed to write SegReq payload", "err", err)
+	}
+	return nil
+}
+
+func (s *SegReq) PathMgmtWrite(mgmt *proto.PathMgmt) *common.Error {
+	req, err := mgmt.NewSegReq()
+	if err != nil {
+		return common.NewError("Failed to allocate SegReq struct", "err", err)
+	}
+	if err := pogs.Insert(proto.SegReq_TypeID, req.Struct, s); err != nil {
+		return common.NewError("Failed to insert SegReq struct", "err", err)
+	}
+	return nil
 }
 
 func (s *SegReq) Pack() (common.RawBytes, *common.Error) {

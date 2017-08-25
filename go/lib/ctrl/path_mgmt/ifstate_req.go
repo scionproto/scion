@@ -24,10 +24,11 @@ import (
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ common.Payload = (*IFStateReq)(nil)
+var _ PathMgmtPld = (*IFStateReq)(nil)
 
 type IFStateReq struct {
 	IfID uint64
@@ -50,6 +51,22 @@ func NewIFStateReqFromRaw(b common.RawBytes) (*IFStateReq, *common.Error) {
 	return req, nil
 }
 
+func NewIFStateReqFromProto(msg proto.IFStateReq) (*IFStateReq, *common.Error) {
+	i := &IFStateReq{}
+	if err := pogs.Extract(i, proto.IFStateReq_TypeID, msg.Struct); err != nil {
+		return nil, common.NewError("Failed to extract IFStateReq struct", "err", err)
+	}
+	return i, nil
+}
+
+func (i *IFStateReq) PldClass() proto.SCION_Which {
+	return proto.SCION_Which_pathMgmt
+}
+
+func (i *IFStateReq) PldType() proto.PathMgmt_Which {
+	return proto.PathMgmt_Which_ifStateReq
+}
+
 func (i *IFStateReq) Len() int {
 	// The length can't be calculated until the payload is packed.
 	return -1
@@ -61,6 +78,32 @@ func (i *IFStateReq) Copy() (common.Payload, *common.Error) {
 		return nil, err
 	}
 	return NewIFStateReqFromRaw(rawPld)
+}
+
+func (i *IFStateReq) WritePld(b common.RawBytes) (int, *common.Error) {
+	return ctrl_cmn.WritePld(b, i.CtrlWrite)
+}
+
+func (i *IFStateReq) CtrlWrite(scion *proto.SCION) *common.Error {
+	mgmt, err := scion.NewPathMgmt()
+	if err != nil {
+		return common.NewError("Failed to allocate PathMgmt payload", "err", err)
+	}
+	if err := i.PathMgmtWrite(&mgmt); err != nil {
+		return common.NewError("Failed to write IFStateReq payload", "err", err)
+	}
+	return nil
+}
+
+func (i *IFStateReq) PathMgmtWrite(mgmt *proto.PathMgmt) *common.Error {
+	req, err := mgmt.NewIfStateReq()
+	if err != nil {
+		return common.NewError("Failed to allocate IFStateReq struct", "err", err)
+	}
+	if err := pogs.Insert(proto.IFStateReq_TypeID, req.Struct, i); err != nil {
+		return common.NewError("Failed to insert IFStateReq struct", "err", err)
+	}
+	return nil
 }
 
 func (i *IFStateReq) Pack() (common.RawBytes, *common.Error) {
