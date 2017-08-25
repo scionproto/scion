@@ -65,6 +65,7 @@ bin/discovery
 bin/dispatcher
 bin/logdog
 bin/sig
+bin/topopruner
 c/dispatcher/dispatcher
 c/lib/scion/checksum_bench
 c/ssp/test/*client
