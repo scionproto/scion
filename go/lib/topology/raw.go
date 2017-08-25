@@ -33,8 +33,6 @@ const (
 	ErrorConvert = "Unable to convert RawTopo to Topo"
 )
 
-var RawCurr *RawTopo
-
 // Structures directly filled from JSON
 
 // RawTopo is used to un/marshal from/to JSON and should usually not be used by
@@ -71,10 +69,10 @@ func (b RawBRInfo) String() string {
 
 type RawBRIntf struct {
 	InternalAddrIdx int
-	Overlay         string
-	Bind            *RawAddrPort
-	Public          RawAddrPort
-	Remote          RawAddrPort
+	Overlay         string       `json:",omitempty"`
+	Bind            *RawAddrPort `json:",omitempty"`
+	Public          *RawAddrPort `json:",omitempty"`
+	Remote          *RawAddrPort `json:",omitempty"`
 	Bandwidth       int
 	ISD_AS          string
 	LinkType        string
@@ -148,24 +146,38 @@ func (a RawAddrPortOverlay) String() string {
 	return fmt.Sprintf("%s:%d/%d", a.Addr, a.L4Port, a.OverlayPort)
 }
 
-// Load returns a new TopoMeta object loaded from 'path'.
-func Load(path string) (*Topo, *common.Error) {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, common.NewError(ErrorOpen, "err", err)
-	}
-	return parse(b, path)
-}
-
-func parse(data []byte, path string) (*Topo, *common.Error) {
+func Load(b common.RawBytes) (*Topo, *common.Error) {
 	rt := &RawTopo{}
-	if err := json.Unmarshal(data, rt); err != nil {
-		return nil, common.NewError(ErrorParse, "err", err, "path", path)
+	if err := json.Unmarshal(b, rt); err != nil {
+		return nil, common.NewError(ErrorParse, "err", err)
 	}
-	RawCurr = rt
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
-		return nil, common.NewError(ErrorConvert, "err", err, "path", path)
+		return nil, common.NewError(ErrorConvert, "err", err)
 	}
 	return ct, nil
+}
+
+func LoadFromFile(path string) (*Topo, *common.Error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
+	}
+	return Load(b)
+}
+
+func LoadRaw(b common.RawBytes) (*RawTopo, *common.Error) {
+	rt := &RawTopo{}
+	if err := json.Unmarshal(b, rt); err != nil {
+		return nil, common.NewError(ErrorParse, "err", err)
+	}
+	return rt, nil
+}
+
+func LoadRawFromFile(path string) (*RawTopo, *common.Error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
+	}
+	return LoadRaw(b)
 }

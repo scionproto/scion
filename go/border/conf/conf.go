@@ -58,7 +58,7 @@ func Load(id, confDir string) (*Conf, *common.Error) {
 	conf := &Conf{}
 	conf.Dir = confDir
 	topoPath := filepath.Join(conf.Dir, topology.CfgName)
-	if conf.Topo, err = topology.Load(topoPath); err != nil {
+	if conf.Topo, err = topology.LoadFromFile(topoPath); err != nil {
 		return nil, err
 	}
 	conf.IA = conf.Topo.ISD_AS
