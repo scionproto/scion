@@ -51,7 +51,7 @@ func removeBRBind(brs map[string]RawBRInfo) {
 		newifs := make(map[common.IFIDType]RawBRIntf, 0)
 		for id, brintf := range bri.Interfaces {
 			// The nil elements are of no interest to the public
-			newifds[id] := RawBRIntf{
+			newifs[id] = RawBRIntf{
 				InternalAddrIdx: brintf.InternalAddrIdx,
 				Overlay:         "",
 				Bind:            nil,
