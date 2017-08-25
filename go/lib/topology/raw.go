@@ -166,11 +166,7 @@ func LoadFromFile(path string) (*Topo, *common.Error) {
 	if err != nil {
 		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
 	}
-	t, cerr := Load(b)
-	if cerr != nil {
-		return nil, cerr
-	}
-	return t, nil
+	return Load(b)
 }
 
 func LoadRaw(b common.RawBytes) (*RawTopo, *common.Error) {
@@ -186,9 +182,5 @@ func LoadRawFromFile(path string) (*RawTopo, *common.Error) {
 	if err != nil {
 		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
 	}
-	rt, cerr := LoadRaw(b)
-	if cerr != nil {
-		return nil, cerr
-	}
-	return rt, nil
+	return LoadRaw(b)
 }

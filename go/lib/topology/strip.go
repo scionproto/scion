@@ -37,22 +37,22 @@ func StripBind(rt *RawTopo) {
 	removeBRBind(rt.BorderRouters)
 }
 
-func removeSVCBind(svc map[string]RawAddrInfo) {
-	for name, s := range svc {
-		svc[name] = RawAddrInfo{Public: s.Public}
+func removeSVCBind(srv map[string]RawAddrInfo) {
+	for name, s := range srv {
+		srv[name] = RawAddrInfo{Public: s.Public}
 	}
 }
 
 func removeBRBind(brs map[string]RawBRInfo) {
 	for name, bri := range brs {
-		newias := make([]RawAddrInfo, 0)
+		newIntAddrs := make([]RawAddrInfo, 0)
 		for _, ia := range bri.InternalAddrs {
-			newias = append(newias, RawAddrInfo{Public: ia.Public})
+			newIntAddrs = append(newIntAddrs, RawAddrInfo{Public: ia.Public})
 		}
 		newifs := make(map[common.IFIDType]RawBRIntf, 0)
 		for id, brintf := range bri.Interfaces {
 			// The nil elements are of no interest to the public
-			nbrintf := RawBRIntf{
+			newifds[id] := RawBRIntf{
 				InternalAddrIdx: brintf.InternalAddrIdx,
 				Overlay:         "",
 				Bind:            nil,
@@ -63,8 +63,7 @@ func removeBRBind(brs map[string]RawBRInfo) {
 				LinkType:        brintf.LinkType,
 				MTU:             brintf.MTU,
 			}
-			newifs[id] = nbrintf
 		}
-		brs[name] = RawBRInfo{InternalAddrs: newias, Interfaces: newifs}
+		brs[name] = RawBRInfo{InternalAddrs: newIntAddrs, Interfaces: newifs}
 	}
 }
