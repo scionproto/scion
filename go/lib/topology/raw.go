@@ -149,28 +149,46 @@ func (a RawAddrPortOverlay) String() string {
 	return fmt.Sprintf("%s:%d/%d", a.Addr, a.L4Port, a.OverlayPort)
 }
 
-// Load returns a new TopoMeta object loaded from 'path'.
-func Load(path string) (*Topo, *common.Error) {
-	rt, err := LoadRaw(path)
-	if err != nil {
-		return nil, err
+func Load(b common.RawBytes) (*Topo, *common.Error) {
+	rt := &RawTopo{}
+	if err := json.Unmarshal(b, rt); err != nil {
+		return nil, common.NewError(ErrorParse, "err", err)
 	}
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
-		return nil, common.NewError(ErrorConvert, "err", err, "path", path)
+		return nil, common.NewError(ErrorConvert, "err", err)
 	}
 	return ct, nil
 }
 
-func LoadRaw(path string) (*RawTopo, *common.Error) {
+func LoadFromFile(path string) (*Topo, *common.Error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewError(ErrorOpen, "err", err)
+		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
 	}
-	DiskTopo = b
+	t, cerr := Load(b)
+	if cerr != nil {
+		return nil, cerr
+	}
+	return t, nil
+}
+
+func LoadRaw(b common.RawBytes) (*RawTopo, *common.Error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewError(ErrorParse, "err", err, "path", path)
+		return nil, common.NewError(ErrorParse, "err", err)
+	}
+	return rt, nil
+}
+
+func LoadRawFromFile(path string) (*RawTopo, *common.Error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
+	}
+	rt, cerr := LoadRaw(b)
+	if cerr != nil {
+		return nil, cerr
 	}
 	return rt, nil
 }

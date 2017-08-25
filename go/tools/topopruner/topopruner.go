@@ -38,7 +38,7 @@ func main() {
 			"You must specify an input file and an output file for the full topo.\n")
 		os.Exit(-1)
 	}
-	rt, cerr := topology.LoadRaw(*infn)
+	rt, cerr := topology.LoadRawFromFile(*infn)
 	if cerr != nil {
 		fmt.Fprintf(os.Stderr, "Error reading input file: %s\n", cerr)
 		os.Exit(-1)
