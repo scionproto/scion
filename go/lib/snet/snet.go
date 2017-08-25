@@ -33,6 +33,12 @@
 // methods on the networking context yields connections that run in that context.
 //
 // Multiple networking contexts can share the same SCIOND and/or dispatcher.
+//
+// Known issues:
+//   - Apps do not have access to overlay ports. This means they cannot
+// communicate with SCION hosts behind legacy NAT or with border routers
+// directly
+//   - Each path lookup registers a persistent entry with the path resolver
 package snet
 
 import (
@@ -114,6 +120,10 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 		return nil, err
 	}
 	conn.raddr = raddr.Copy()
+	_, err = conn.getPaths(raddr)
+	if err != nil {
+		return nil, common.NewError("Path error", "err", err)
+	}
 	return conn, nil
 }
 
@@ -142,6 +152,15 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 		regAddr.Port = conn.laddr.Port
 	} else {
 		conn.laddr = &Addr{}
+		// FIXME(scrye): If no local address is specified, we want to
+		// bind to the address of the outbound interface on a random
+		// free port. However, the current dispatcher version cannot
+		// expose that address. Instead, we bind to 0.0.0.0 on a random
+		// port. This 0.0.0.0 does not mean that the application
+		// receives traffic on all interfaces; instead, it will only
+		// receive information with destination address 0.0.0.0. Since
+		// routers do not forward this address, it means that traffic
+		// will never be received on this port.
 		conn.laddr.Host = addr.HostFromIP(net.IPv4zero)
 		conn.laddr.IA = conn.scionNet.localIA
 	}

@@ -154,11 +154,8 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 // WriteToSCION sends b to raddr. If the remote address for the connection is
 // already known, WriteToSCION returns an error.
 func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
-	if c.scionNet == nil {
-		return 0, common.NewError("SCION network not initialized")
-	}
-	if c.laddr == nil {
-		return 0, common.NewError("Local address not set")
+	if c == nil {
+		return 0, common.NewError("Connection not initialized")
 	}
 
 	n, err := c.write(b, raddr)
@@ -191,40 +188,39 @@ func (c *Conn) Write(b []byte) (int, error) {
 }
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
-	var sp *pathmgr.SyncPaths
 	var err error
-	// Check if srcIA-dstIA registered with path resolver
-	iaKey := c.laddr.IA.String() + "." + raddr.IA.String()
-	spGeneric, ok := c.pathMap.Get(iaKey)
-	if !ok {
-		sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, raddr.IA)
-		if err != nil {
-			return 0, common.NewError("Unable to register src-dst IAs",
-				"src", c.laddr.IA, "dst", raddr.IA, "err", err)
-		}
-		c.pathMap.Set(iaKey, sp, cache.DefaultExpiration)
-	} else {
-		sp = spGeneric.(*pathmgr.SyncPaths)
-	}
+	var path *spath.Path
 
+	// Get paths to destination
+	sp, err := c.getPaths(raddr)
+	if err != nil {
+		return 0, err
+	}
 	paths := sp.Load()
 	if len(paths) == 0 {
 		return 0, common.NewError("No path available",
 			"src", c.laddr.IA, "dst", raddr.IA)
 	}
 
-	path := &spath.Path{
-		Raw:    paths[0].Path.FwdPath,
-		InfOff: 0,
-		HopOff: 0}
-
-	// Create the packet using initial IF/HF pointers
-	hopIdx, err := resetHopIdx(path)
-	if err != nil {
-		return 0, common.NewError("Unable to initialize path", "err", err)
+	// Initialize path
+	if len(paths[0].Path.FwdPath) == 0 {
+		// If src and dst are in the same AS, the path will be empty
+		path = nil
+	} else {
+		// If src and dst are in different ASes, prepare path fields
+		path = &spath.Path{
+			Raw:    paths[0].Path.FwdPath,
+			InfOff: 0,
+			HopOff: 0}
+		// Create the pact using initial IF/HF pointers
+		hopIdx, err := path.InitHopIdx()
+		if err != nil {
+			return 0, common.NewError("Unable to initialize path", "err", err)
+		}
+		path.HopOff = common.LineLen * int(hopIdx)
 	}
-	path.HopOff = common.LineLen * int(hopIdx)
 
+	// Prepare packet fields
 	udpHdr := &l4.UDP{SrcPort: c.laddr.Port,
 		DstPort:  raddr.Port,
 		TotalLen: uint16(l4.UDPLen + len(b))}
@@ -237,16 +233,27 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 		L4:      udpHdr,
 		Pld:     common.RawBytes(b)}
 
-	// Write packet to internal buffer
+	// Serialize packet to internal buffer
 	n, err := hpkt.WriteScnPkt(pkt, c.sendBuffer)
 	if err != nil {
 		return 0, common.NewError("Unable to serialize SCION packet", "err", err)
 	}
 
-	// Write to dispatcher using the first path
-	appAddr := reliable.AppAddr{
-		Addr: addr.HostFromIP(paths[0].HostInfo.Addrs.Ipv4),
-		Port: paths[0].HostInfo.Port}
+	// Construct overlay next-hop
+	var appAddr reliable.AppAddr
+	if path == nil {
+		// Overlay next-hop is destination
+		appAddr = reliable.AppAddr{
+			Addr: pkt.DstHost,
+			Port: 30041}
+	} else {
+		// Overlay next-hop is contained in path
+		appAddr = reliable.AppAddr{
+			Addr: addr.HostFromIP(paths[0].HostInfo.Addrs.Ipv4),
+			Port: paths[0].HostInfo.Port}
+	}
+
+	// Send message
 	c.dispMutex.Lock()
 	n, err = c.conn.WriteTo(c.sendBuffer[:n], appAddr)
 	c.dispMutex.Unlock()
@@ -255,6 +262,25 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 
 	return pkt.Pld.Len(), nil
+}
+
+func (c *Conn) getPaths(raddr *Addr) (*pathmgr.SyncPaths, error) {
+	var sp *pathmgr.SyncPaths
+	var err error
+	// Check if srcIA-dstIA registered with path resolver
+	iaKey := c.laddr.IA.String() + "." + raddr.IA.String()
+	spGeneric, ok := c.pathMap.Get(iaKey)
+	if !ok {
+		sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, raddr.IA)
+		if err != nil {
+			return nil, common.NewError("Unable to register src-dst IAs",
+				"src", c.laddr.IA, "dst", raddr.IA, "err", err)
+		}
+		c.pathMap.Set(iaKey, sp, cache.DefaultExpiration)
+	} else {
+		sp = spGeneric.(*pathmgr.SyncPaths)
+	}
+	return sp, nil
 }
 
 func (c *Conn) LocalAddr() net.Addr {
@@ -279,45 +305,4 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 
 func (c *Conn) Close() error {
 	return c.conn.Close()
-}
-
-// Compute initial hopIdx for a newly created packet
-func resetHopIdx(path *spath.Path) (uint8, error) {
-	var cerr *common.Error
-	var infoF *spath.InfoField
-	var hopF *spath.HopField
-	fwdPath := path.Raw
-	hopIdx := 1
-
-	if infoF, cerr = spath.InfoFFromRaw(fwdPath); cerr != nil {
-		return 0, cerr
-	}
-	maxHopIdx := int(infoF.Hops)
-	if hopF, cerr = spath.HopFFromRaw(fwdPath[hopIdx*common.LineLen:]); cerr != nil {
-		return 0, cerr
-	}
-
-	if infoF.Up && hopF.Xover {
-		hopIdx += 1
-		if hopIdx > maxHopIdx {
-			return 0, common.NewError("Skipped entire path segment",
-				"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
-		}
-	}
-
-	for {
-		if hopF, cerr = spath.HopFFromRaw(fwdPath[hopIdx*common.LineLen:]); cerr != nil {
-			return 0, cerr
-		}
-		if hopF.VerifyOnly {
-			hopIdx += 1
-			if hopIdx > maxHopIdx {
-				return 0, common.NewError("Skipped entire path segment",
-					"hopIdx", hopIdx, "maxHopIdx", maxHopIdx)
-			}
-			continue
-		}
-		break
-	}
-	return uint8(hopIdx), nil
 }

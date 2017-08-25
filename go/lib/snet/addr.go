@@ -19,7 +19,6 @@ import (
 	"net"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -59,33 +58,42 @@ func (a *Addr) Copy() *Addr {
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
 // (e.g., 1-10,[192.168.1.1]:80) to a SCION address.
 func AddrFromString(s string) (*Addr, error) {
-	parts := split(s)
-	if len(parts) != 3 {
-		return nil, common.NewError("Invalid address format")
+	parts, err := parseAddr(s)
+	if err != nil {
+		return nil, common.NewError("Unable to parse address", "err", err)
 	}
-	ia, cerr := addr.IAFromString(parts[0])
+
+	ia, cerr := addr.IAFromString(parts["ia"])
 	if cerr != nil {
 		return nil, common.NewError("Invalid IA string", "ia", ia, "err", cerr)
 	}
-	ip := net.ParseIP(parts[1])
+
+	ip := net.ParseIP(parts["host"])
 	if ip == nil {
-		return nil, common.NewError("Invalid IP address string", "ip", parts[1])
+		return nil, common.NewError("Invalid IP address string", "ip", parts["host"])
 	}
-	port, err := strconv.ParseUint(parts[2], 10, 16)
+
+	port, err := strconv.ParseUint(parts["port"], 10, 16)
 	if err != nil {
-		return nil, common.NewError("Invalid port string", "port", parts[2], "err", err)
+		return nil, common.NewError("Invalid port string", "port", parts["port"], "err", err)
+	}
+	if port == 0 {
+		return nil, common.NewError("Invalid port number", "port", parts["port"])
 	}
 	return &Addr{IA: ia, Host: addr.HostFromIP(ip), Port: uint16(port)}, nil
 }
 
-func split(s string) []string {
-	x := strings.Split(s, ",[")
-	if len(x) != 2 {
-		return nil
+func parseAddr(s string) (map[string]string, error) {
+	result := make(map[string]string)
+	match := addrRegexp.FindStringSubmatch(s)
+	// If we do not have all submatches (ia, host, port), return an error
+	if len(match) != 4 {
+		return nil, common.NewError("Invalid address", "addr", s)
 	}
-	y := strings.Split(x[1], "]:")
-	if len(y) != 2 {
-		return nil
+	for i, name := range addrRegexp.SubexpNames() {
+		if i != 0 {
+			result[name] = match[i]
+		}
 	}
-	return append([]string{x[0]}, y...)
+	return result, nil
 }

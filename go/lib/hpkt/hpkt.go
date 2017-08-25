@@ -134,7 +134,11 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	addrHdrLen := s.DstHost.Size() + s.SrcHost.Size() + 2*addr.IABytes
 	addrPad := util.CalcPadding(addrHdrLen, common.LineLen)
 	addrHdrLen += addrPad
-	scionHdrLen := spkt.CmnHdrLen + addrHdrLen + len(s.Path.Raw)
+	pathHdrLen := 0
+	if s.Path != nil {
+		pathHdrLen = len(s.Path.Raw)
+	}
+	scionHdrLen := spkt.CmnHdrLen + addrHdrLen + pathHdrLen
 	pktLen := scionHdrLen + s.L4.L4Len() + s.Pld.Len()
 	if len(b) < pktLen {
 		return 0, common.NewError("Buffer too small", "expected", pktLen,

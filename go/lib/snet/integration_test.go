@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build infrarunning
+
 package snet
 
 import (
@@ -52,13 +54,9 @@ func generateTests(asList []*addr.ISD_AS, count int) []TestCase {
 	tests := make([]TestCase, 0, 0)
 	var cIndex, sIndex int32
 	for i := 0; i < count; i++ {
-		for {
-			cIndex = rand.Int31n(int32(len(asList)))
-			sIndex = rand.Int31n(int32(len(asList)))
-			if cIndex != sIndex {
-				break
-			}
-		}
+		cIndex = rand.Int31n(int32(len(asList)))
+		sIndex = rand.Int31n(int32(len(asList)))
+		sIndex = cIndex
 		tc := TestCase{srcIA: asList[cIndex], dstIA: asList[sIndex],
 			srcPort: uint16(40000 + 2*i), dstPort: uint16(40001 + 2*i),
 			srcLocal: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
