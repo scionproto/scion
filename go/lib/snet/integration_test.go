@@ -21,14 +21,19 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"testing"
 	"time"
+
+	log "github.com/inconshreveable/log15"
 
 	. "github.com/smartystreets/goconvey/convey"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 )
+
+var _ = log.Root
 
 const (
 	SCIONDPath = "/run/shm/sciond/sd%v.sock"
@@ -170,4 +175,50 @@ func ClientServer(idx int, tc TestCase) {
 		err = sconn.Close()
 		SoMsg("Server close error", err, ShouldBeNil)
 	})
+}
+
+func TestListen(t *testing.T) {
+	a, _ := AddrFromString("1-19,[127.0.0.1]:80")
+	tests := []struct {
+		desc        string
+		isError     bool
+		proto       string
+		laddr       *Addr
+		laddrResult string
+		raddrResult string
+	}{
+		{"connect to tcp", true, "tcp", nil, "", ""},
+		{fmt.Sprintf("bind to %v", a), false, "udp4", a,
+			"1-19,[127.0.0.1]:80",
+			"<nil>"},
+	}
+	Convey("Method Listen", t, func() {
+		for _, test := range tests {
+			Convey(test.desc, func() {
+				conn, err := ListenSCION(test.proto, test.laddr)
+				if test.isError {
+					SoMsg("Error", err, ShouldNotBeNil)
+				} else {
+					SoMsg("Error", err, ShouldBeNil)
+					laddr := conn.LocalAddr()
+					raddr := conn.RemoteAddr()
+					SoMsg("Local address", laddr.String(),
+						ShouldResemble, test.laddrResult)
+					SoMsg("Remote address", raddr.String(),
+						ShouldResemble, test.raddrResult)
+				}
+			})
+		}
+	})
+}
+
+func TestMain(m *testing.M) {
+	ia, _ := addr.IAFromString("1-19")
+	err := Init(ia, "/run/shm/sciond/sd1-19.sock", "/run/shm/dispatcher/default.sock")
+	if err != nil {
+		fmt.Println("Test setup error", err)
+	}
+	// Comment out below for logging during tests
+	log.Root().SetHandler(log.StreamHandler(ioutil.Discard, log.LogfmtFormat()))
+	os.Exit(m.Run())
 }
