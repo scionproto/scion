@@ -18,6 +18,17 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+func StripBind(rt *RawTopo) {
+	// These services may have Bind sections that we need to remove
+	removeSrvBind(rt.CertificateService)
+	removeSrvBind(rt.PathService)
+	removeSrvBind(rt.RainsService)
+	removeSrvBind(rt.DiscoveryService)
+
+	// Border Routers have Bind sections plus other link-specific information that we want to trim
+	removeBRBind(rt.BorderRouters)
+}
+
 func StripServices(rt *RawTopo) {
 	// Clear services that don't need to be publicly visible
 	rt.BeaconService = make(map[string]RawAddrInfo)
@@ -25,20 +36,9 @@ func StripServices(rt *RawTopo) {
 	rt.ZookeeperService = make(map[int]RawAddrPort)
 }
 
-func StripBind(rt *RawTopo) {
-	// These services may have Bind sections that we need to remove
-	removeSVCBind(rt.CertificateService)
-	removeSVCBind(rt.PathService)
-	removeSVCBind(rt.RainsService)
-	removeSVCBind(rt.DiscoveryService)
-
-	// Border Routers have Bind sections plus other link-specific information that we want to trim
-	removeBRBind(rt.BorderRouters)
-}
-
-func removeSVCBind(srv map[string]RawAddrInfo) {
-	for name, s := range srv {
-		srv[name] = RawAddrInfo{Public: s.Public}
+func removeSrvBind(svc map[string]RawAddrInfo) {
+	for name, s := range svc {
+		svc[name] = RawAddrInfo{Public: s.Public}
 	}
 }
 
