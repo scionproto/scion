@@ -33,9 +33,6 @@ const (
 	ErrorConvert = "Unable to convert RawTopo to Topo"
 )
 
-// The contents of the topo file (unprocessed) when we last loaded it
-var DiskTopo []byte
-
 // Structures directly filled from JSON
 
 // RawTopo is used to un/marshal from/to JSON and should usually not be used by
