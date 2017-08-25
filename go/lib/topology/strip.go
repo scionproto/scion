@@ -21,7 +21,6 @@ import (
 func StripServices(rt *RawTopo) {
 	// Clear services that don't need to be publicly visible
 	rt.BeaconService = make(map[string]RawAddrInfo)
-	// TODO(klausman): Does the public *really* not care about SIBRA?
 	rt.SibraService = make(map[string]RawAddrInfo)
 	rt.ZookeeperService = make(map[int]RawAddrPort)
 }
