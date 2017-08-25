@@ -18,19 +18,6 @@ var (
 	verbose = flag.Bool("verbose", false, "Be more verbose about what is going on")
 )
 
-func marshalAndWriteOrDie(rt *topology.RawTopo, filename, ttype string, mode os.FileMode) {
-	b, err := json.MarshalIndent(rt, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not marshal %s topo to JSON: %s\n", ttype, err)
-		os.Exit(-1)
-	}
-	err = ioutil.WriteFile(filename, b, mode)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not write out %s topo: %s\n", ttype, err)
-		os.Exit(-1)
-	}
-}
-
 func main() {
 	flag.Parse()
 	if *infn == "" || *outfnf == "" {
@@ -60,5 +47,18 @@ func main() {
 		if *verbose {
 			fmt.Printf("Wrote pruned reduced topo to '%s'.\n", *outfnr)
 		}
+	}
+}
+
+func marshalAndWriteOrDie(rt *topology.RawTopo, filename, ttype string, mode os.FileMode) {
+	b, err := json.MarshalIndent(rt, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not marshal %s topo to JSON: %s\n", ttype, err)
+		os.Exit(-1)
+	}
+	err = ioutil.WriteFile(filename, b, mode)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not write out %s topo: %s\n", ttype, err)
+		os.Exit(-1)
 	}
 }
