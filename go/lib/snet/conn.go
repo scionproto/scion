@@ -25,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/hpkt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/lib/spath"
@@ -144,17 +145,16 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 		}
 		// Extract remote address
 		remote = &Addr{
-			IA:   pkt.SrcIA,
-			Host: pkt.SrcHost,
-			Port: udpHdr.SrcPort}
+			IA:     pkt.SrcIA,
+			Host:   pkt.SrcHost,
+			L4Port: udpHdr.SrcPort}
 	}
 	return n, remote, nil
 }
 
-// WriteToSCION sends b to raddr. If the remote address for the connection is
-// already known, WriteToSCION returns an error.
+// WriteToSCION sends b to raddr.
 func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
-	if c == nil {
+	if c.conn == nil {
 		return 0, common.NewError("Connection not initialized")
 	}
 
@@ -208,21 +208,18 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 		path = nil
 	} else {
 		// If src and dst are in different ASes, prepare path fields
-		path = &spath.Path{
-			Raw:    paths[0].Path.FwdPath,
-			InfOff: 0,
-			HopOff: 0}
-		// Create the pact using initial IF/HF pointers
-		hopIdx, err := path.InitHopIdx()
+		path = spath.New(paths[0].Path.FwdPath)
+		// Create the path using initial IF/HF pointers
+		hopOffset, err := path.InitHopOffset()
 		if err != nil {
 			return 0, common.NewError("Unable to initialize path", "err", err)
 		}
-		path.HopOff = common.LineLen * int(hopIdx)
+		path.HopOff = hopOffset
 	}
 
 	// Prepare packet fields
-	udpHdr := &l4.UDP{SrcPort: c.laddr.Port,
-		DstPort:  raddr.Port,
+	udpHdr := &l4.UDP{SrcPort: c.laddr.L4Port,
+		DstPort:  raddr.L4Port,
 		TotalLen: uint16(l4.UDPLen + len(b))}
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
@@ -245,7 +242,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 		// Overlay next-hop is destination
 		appAddr = reliable.AppAddr{
 			Addr: pkt.DstHost,
-			Port: 30041}
+			Port: overlay.EndhostPort}
 	} else {
 		// Overlay next-hop is contained in path
 		appAddr = reliable.AppAddr{

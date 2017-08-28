@@ -42,6 +42,7 @@
 package snet
 
 import (
+	"bytes"
 	"net"
 	"time"
 
@@ -106,11 +107,9 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 	return network, nil
 }
 
-// DialSCION returns a SCION connection to raddr. If laddr is not nil, it is
-// registered with the local dispatcher for returning traffic. If laddr is nil,
-// a random port is registered with the dispatcher. Parameter network must be
-// "udp4". The returned connection's Read and Write methods can be used to
-// receive and send SCION packets.
+// DialSCION returns a SCION connection to raddr. Nil values for laddr are not
+// supported yet.  Parameter network must be "udp4". The returned connection's
+// Read and Write methods can be used to receive and send SCION packets.
 func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if raddr == nil {
 		return nil, common.NewError("Unable to dial to nil remote")
@@ -127,17 +126,31 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	return conn, nil
 }
 
-// ListenSCION registers laddr with the dispatcher. If laddr is nil, then a
-// random port is selected by the dispatcher. If laddr.IA is nil, the default
-// IA is used. The LocalAddr method of the returned Conn can be used to
-// discover the port. The returned connection's ReadFrom and WriteTo methods
+// ListenSCION registers laddr with the dispatcher. Nil values for laddr are
+// not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
 func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if network != "udp4" {
 		return nil, common.NewError("Network not implemented", "net", network)
 	}
-
+	// FIXME(scrye): If no local address is specified, we want to
+	// bind to the address of the outbound interface on a random
+	// free port. However, the current dispatcher version cannot
+	// expose that address. Additionally, the dispatcher does not follow
+	// normal operating system semantics for binding on 0.0.0.0 (it
+	// considers it to be a fixed address instead of a wildcard). To avoid
+	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
+	if laddr == nil {
+		return nil, common.NewError("Nil laddr not supported")
+	}
+	if laddr.Host.Type() != addr.HostTypeIPv4 {
+		return nil, common.NewError("Supplied local address does not match network",
+			"expected", addr.HostTypeIPv4, "actual", laddr.Host.Type())
+	}
+	if bytes.Compare(laddr.Host.IP(), net.IPv4zero) == 0 {
+		return nil, common.NewError("Binding to 0.0.0.0 not supported")
+	}
 	conn := &Conn{
 		net:        network,
 		scionNet:   n,
@@ -147,20 +160,13 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 
 	// Initialize local bind address
 	var regAddr reliable.AppAddr
+	// NOTE: keep nil address logic for now, even though we do not support
+	// it yet
 	if laddr != nil {
 		conn.laddr = laddr.Copy()
-		regAddr.Port = conn.laddr.Port
+		regAddr.Port = conn.laddr.L4Port
 	} else {
 		conn.laddr = &Addr{}
-		// FIXME(scrye): If no local address is specified, we want to
-		// bind to the address of the outbound interface on a random
-		// free port. However, the current dispatcher version cannot
-		// expose that address. Instead, we bind to 0.0.0.0 on a random
-		// port. This 0.0.0.0 does not mean that the application
-		// receives traffic on all interfaces; instead, it will only
-		// receive information with destination address 0.0.0.0. Since
-		// routers do not forward this address, it means that traffic
-		// will never be received on this port.
 		conn.laddr.Host = addr.HostFromIP(net.IPv4zero)
 		conn.laddr.IA = conn.scionNet.localIA
 	}
@@ -183,7 +189,7 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	}
 	log.Info("Registered with dispatcher", "ia", conn.scionNet.localIA, "host", regAddr.Addr,
 		"port", port)
-	conn.laddr.Port = port
+	conn.laddr.L4Port = port
 	conn.conn = rconn
 	return conn, nil
 }

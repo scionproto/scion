@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build infrarunning
+// +abuild infrarunning
 
 package snet
 
@@ -61,7 +61,6 @@ func generateTests(asList []*addr.ISD_AS, count int) []TestCase {
 	for i := 0; i < count; i++ {
 		cIndex = rand.Int31n(int32(len(asList)))
 		sIndex = rand.Int31n(int32(len(asList)))
-		sIndex = cIndex
 		tc := TestCase{srcIA: asList[cIndex], dstIA: asList[sIndex],
 			srcPort: uint16(40000 + 2*i), dstPort: uint16(40001 + 2*i),
 			srcLocal: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
@@ -179,6 +178,7 @@ func ClientServer(idx int, tc TestCase) {
 
 func TestListen(t *testing.T) {
 	a, _ := AddrFromString("1-19,[127.0.0.1]:80")
+	z, _ := AddrFromString("1-19,[0.0.0.0]:80")
 	tests := []struct {
 		desc        string
 		isError     bool
@@ -188,6 +188,8 @@ func TestListen(t *testing.T) {
 		raddrResult string
 	}{
 		{"connect to tcp", true, "tcp", nil, "", ""},
+		{"bind to nil laddr", true, "udp4", nil, "", ""},
+		{"bind to 0.0.0.0 laddr", true, "udp4", z, "", ""},
 		{fmt.Sprintf("bind to %v", a), false, "udp4", a,
 			"1-19,[127.0.0.1]:80",
 			"<nil>"},

@@ -32,9 +32,9 @@ func Test_Addr_String(t *testing.T) {
 		address *Addr
 		result  string
 	}{
-		{address: &Addr{IA: ia, Host: host4, Port: 10000},
+		{address: &Addr{IA: ia, Host: host4, L4Port: 10000},
 			result: "1-20,[1.2.3.4]:10000"},
-		{address: &Addr{IA: ia, Host: host6, Port: 20000},
+		{address: &Addr{IA: ia, Host: host6, L4Port: 20000},
 			result: "1-20,[2001::1]:20000"},
 	}
 	Convey("Method String", t, func() {
@@ -90,7 +90,7 @@ func Test_AddrFromString(t *testing.T) {
 					SoMsg("error", err, ShouldBeNil)
 					SoMsg("ia", a.IA.String(), ShouldResemble, test.ia)
 					SoMsg("host", a.Host.String(), ShouldResemble, test.host)
-					SoMsg("port", a.Port, ShouldEqual, test.port)
+					SoMsg("port", a.L4Port, ShouldEqual, test.port)
 				}
 			})
 		}

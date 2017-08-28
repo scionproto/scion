@@ -35,6 +35,7 @@ type HopField struct {
 	Ingress     common.IFIDType
 	Egress      common.IFIDType
 	Mac         common.RawBytes
+	length      int
 }
 
 const (
@@ -75,7 +76,13 @@ func HopFFromRaw(b []byte) (*HopField, *common.Error) {
 	h.Egress = common.IFIDType((int(h.data[offset+1])&0xF)<<8 | int(h.data[offset+2]))
 	offset += 3
 	h.Mac = h.data[offset:]
+	h.length = common.LineLen
 	return h, nil
+}
+
+// Len returns the length (in bytes)
+func (h *HopField) Len() int {
+	return h.length
 }
 
 func (h *HopField) Write() {

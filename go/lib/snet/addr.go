@@ -26,12 +26,12 @@ import (
 
 var _ net.Addr = (*Addr)(nil)
 
-var addrRegexp = regexp.MustCompile("^(?P<ia>\\d+-\\d+),\\[(?P<host>[^\\]]+)\\]:(?P<port>\\d+)$")
+var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\]:(?P<port>\d+)$`)
 
 type Addr struct {
-	IA   *addr.ISD_AS
-	Host addr.HostAddr
-	Port uint16
+	IA     *addr.ISD_AS
+	Host   addr.HostAddr
+	L4Port uint16
 }
 
 func (a *Addr) Network() string {
@@ -42,7 +42,7 @@ func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.Port)
+	return fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.L4Port)
 }
 
 func (a *Addr) Copy() *Addr {
@@ -50,9 +50,9 @@ func (a *Addr) Copy() *Addr {
 		return nil
 	}
 	return &Addr{
-		IA:   a.IA.Copy(),
-		Host: a.Host.Copy(),
-		Port: a.Port}
+		IA:     a.IA.Copy(),
+		Host:   a.Host.Copy(),
+		L4Port: a.L4Port}
 }
 
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
@@ -60,7 +60,7 @@ func (a *Addr) Copy() *Addr {
 func AddrFromString(s string) (*Addr, error) {
 	parts, err := parseAddr(s)
 	if err != nil {
-		return nil, common.NewError("Unable to parse address", "err", err)
+		return nil, err
 	}
 
 	ia, cerr := addr.IAFromString(parts["ia"])
@@ -80,7 +80,7 @@ func AddrFromString(s string) (*Addr, error) {
 	if port == 0 {
 		return nil, common.NewError("Invalid port number", "port", parts["port"])
 	}
-	return &Addr{IA: ia, Host: addr.HostFromIP(ip), Port: uint16(port)}, nil
+	return &Addr{IA: ia, Host: addr.HostFromIP(ip), L4Port: uint16(port)}, nil
 }
 
 func parseAddr(s string) (map[string]string, error) {
