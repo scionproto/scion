@@ -27,6 +27,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -189,32 +190,32 @@ func (c *Conn) Write(b []byte) (int, error) {
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	var err error
+	var paths []*sciond.PathReplyEntry
 	var path *spath.Path
 
-	// Get paths to destination
-	sp, err := c.getPaths(raddr)
-	if err != nil {
-		return 0, err
-	}
-	paths := sp.Load()
-	if len(paths) == 0 {
-		return 0, common.NewError("No path available",
-			"src", c.laddr.IA, "dst", raddr.IA)
-	}
-
-	// Initialize path
-	if len(paths[0].Path.FwdPath) == 0 {
+	if c.laddr.IA.Eq(raddr.IA) {
 		// If src and dst are in the same AS, the path will be empty
 		path = nil
 	} else {
-		// If src and dst are in different ASes, prepare path fields
+		// If src and dst are in different ASes, ask SCIOND for the path
+		sp, err := c.getPaths(raddr)
+		if err != nil {
+			return 0, err
+		}
+
+		paths = sp.Load()
+		if len(paths) == 0 {
+			return 0, common.NewError("No path available",
+				"src", c.laddr.IA, "dst", raddr.IA)
+		}
+
 		path = spath.New(paths[0].Path.FwdPath)
+
 		// Create the path using initial IF/HF pointers
-		hopOffset, err := path.InitHopOffset()
+		err = path.InitOffsets()
 		if err != nil {
 			return 0, common.NewError("Unable to initialize path", "err", err)
 		}
-		path.HopOff = hopOffset
 	}
 
 	// Prepare packet fields

@@ -42,7 +42,6 @@
 package snet
 
 import (
-	"bytes"
 	"net"
 	"time"
 
@@ -148,7 +147,7 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 		return nil, common.NewError("Supplied local address does not match network",
 			"expected", addr.HostTypeIPv4, "actual", laddr.Host.Type())
 	}
-	if bytes.Compare(laddr.Host.IP(), net.IPv4zero) == 0 {
+	if laddr.Host.IP().Equal(net.IPv4zero) {
 		return nil, common.NewError("Binding to 0.0.0.0 not supported")
 	}
 	conn := &Conn{
