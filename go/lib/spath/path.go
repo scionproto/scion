@@ -14,10 +14,11 @@
 
 package spath
 
-import
-//log "github.com/inconshreveable/log15"
+import (
+	//log "github.com/inconshreveable/log15"
 
-"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/common"
+)
 
 const (
 	MaxTTL      = 24 * 60 * 60 // One day in seconds
