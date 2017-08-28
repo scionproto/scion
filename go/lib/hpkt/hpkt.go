@@ -182,7 +182,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 
 	// Payload
 	pldSlice := b[offset : offset+s.Pld.Len()]
-	s.Pld.Write(b[offset:])
+	s.Pld.WritePld(b[offset:])
 	offset += s.Pld.Len()
 
 	// SCION/UDP Header
