@@ -23,7 +23,7 @@ type ASEntry struct {
 	TrcVer       uint32
 	CertVer      uint32
 	IfIDSize     uint8
-	HopEntries   []HopEntry
+	HopEntries   []*HopEntry
 	HashTreeRoot []byte
 	Sig          []byte
 	MTU          uint16 `capnp:"mtu"`

@@ -37,7 +37,7 @@ var _ ctrl_cmn.CtrlPld = (*PathSegment)(nil)
 type PathSegment struct {
 	RawInfo   []byte `capnp:"info"`
 	IfID      uint64
-	ASEntries []ASEntry `capnp:"asms"`
+	ASEntries []*ASEntry `capnp:"asms"`
 	Exts      struct {
 		Sibra []byte `capnp:"-"` // Omit SIBRA extension for now.
 	}
