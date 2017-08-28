@@ -114,11 +114,11 @@ func (r *RevInfo) CtrlWrite(scion *proto.SCION) *common.Error {
 }
 
 func (r *RevInfo) PathMgmtWrite(mgmt *proto.PathMgmt) *common.Error {
-	info, err := mgmt.RevInfo()
+	info, err := mgmt.NewRevInfo()
 	if err != nil {
 		return common.NewError("Failed to allocate RevInfo struct", "err", err)
 	}
-	if err := pogs.Insert(proto.RevInfo_TypeID, info.Struct, info); err != nil {
+	if err := pogs.Insert(proto.RevInfo_TypeID, info.Struct, r); err != nil {
 		return common.NewError("Failed to insert RevInfo struct", "err", err)
 	}
 	return nil
