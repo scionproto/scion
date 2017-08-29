@@ -1,0 +1,15 @@
+To run an echo connectivity test on the default topology from AS1-19 to AS2-25,
+first make sure the infrastructure is running.
+
+Then, start the server using:
+```
+go run echo.go -mode server -local 2-25,[127.0.0.1]:40002 -sciond /run/shm/sciond/sd2-25.sock \
+	-dispatcher /run/shm/dispatcher/default.sock -count 10
+```
+
+Finally, start the client using:
+```
+go run echo.go -mode client -remote 2-25,[127.0.0.1]:40002 -local 1-19,[127.0.0.1]:40001 \
+	-sciond /run/shm/sciond/sd1-19.sock -dispatcher /run/shm/dispatcher/default.sock \
+	-count 10
+```
