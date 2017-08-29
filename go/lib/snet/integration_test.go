@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build infrarunning
+// +abuild infrarunning
 
 package snet
 
@@ -34,6 +34,11 @@ import (
 )
 
 var _ = log.Root
+
+var (
+	asList  []*addr.ISD_AS
+	localIA *addr.ISD_AS
+)
 
 const (
 	SCIONDPath = "/run/shm/sciond/sd%v.sock"
@@ -76,42 +81,36 @@ type ASData struct {
 	NonCore []string `yaml:"Non-core"`
 }
 
-func loadASList(t *testing.T) []*addr.ISD_AS {
+func loadASList() ([]*addr.ISD_AS, error) {
 	list := make([]*addr.ISD_AS, 0)
-	Convey("Load AS list", t, func() {
-		// Don't exit the context without checking for errors
-		var err error
-		defer So(err, ShouldEqual, nil)
 
-		buffer, err := ioutil.ReadFile("../../../gen/as_list.yml")
+	buffer, err := ioutil.ReadFile("../../../gen/as_list.yml")
+	if err != nil {
+		return nil, err
+	}
+
+	var locations ASData
+	yaml.Unmarshal(buffer, &locations)
+
+	for _, isdas := range locations.Core {
+		as, err := addr.IAFromString(isdas)
 		if err != nil {
-			return
+			return nil, err
 		}
+		list = append(list, as)
+	}
 
-		var locations ASData
-		yaml.Unmarshal(buffer, &locations)
-
-		for _, isdas := range locations.Core {
-			as, err := addr.IAFromString(isdas)
-			if err != nil {
-				return
-			}
-			list = append(list, as)
+	for _, isdas := range locations.NonCore {
+		as, err := addr.IAFromString(isdas)
+		if err != nil {
+			return nil, err
 		}
-
-		for _, isdas := range locations.NonCore {
-			as, err := addr.IAFromString(isdas)
-			if err != nil {
-				return
-			}
-			list = append(list, as)
-		}
-	})
-	return list
+		list = append(list, as)
+	}
+	return list, nil
 }
 
 func TestIntegration(t *testing.T) {
-	asList := loadASList(t)
 	tests := generateTests(asList, 100)
 	Convey("E2E test", t, func() {
 		for idx, test := range tests {
@@ -177,8 +176,10 @@ func ClientServer(idx int, tc TestCase) {
 }
 
 func TestListen(t *testing.T) {
-	a, _ := AddrFromString("1-19,[127.0.0.1]:80")
-	z, _ := AddrFromString("1-19,[0.0.0.0]:80")
+	aStr := fmt.Sprintf("%v,[127.0.0.1]:80", localIA)
+	zStr := fmt.Sprintf("%v,[0.0.0.0]:80", localIA)
+	a, _ := AddrFromString(aStr)
+	z, _ := AddrFromString(zStr)
 	tests := []struct {
 		desc        string
 		isError     bool
@@ -190,9 +191,7 @@ func TestListen(t *testing.T) {
 		{"connect to tcp", true, "tcp", nil, "", ""},
 		{"bind to nil laddr", true, "udp4", nil, "", ""},
 		{"bind to 0.0.0.0 laddr", true, "udp4", z, "", ""},
-		{fmt.Sprintf("bind to %v", a), false, "udp4", a,
-			"1-19,[127.0.0.1]:80",
-			"<nil>"},
+		{fmt.Sprintf("bind to %v", a), false, "udp4", a, aStr, "<nil>"},
 	}
 	Convey("Method Listen", t, func() {
 		for _, test := range tests {
@@ -215,10 +214,21 @@ func TestListen(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	ia, _ := addr.IAFromString("1-19")
-	err := Init(ia, "/run/shm/sciond/sd1-19.sock", "/run/shm/dispatcher/default.sock")
+	var err error
+
+	// Load topology information
+	asList, err = loadASList()
+	if err != nil {
+		fmt.Println("ASList load error", err)
+		return
+	}
+
+	localIA = asList[rand.Intn(len(asList))]
+	err = Init(localIA, fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA),
+		"/run/shm/dispatcher/default.sock")
 	if err != nil {
 		fmt.Println("Test setup error", err)
+		return
 	}
 	// Comment out below for logging during tests
 	log.Root().SetHandler(log.StreamHandler(ioutil.Discard, log.LogfmtFormat()))

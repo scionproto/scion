@@ -75,10 +75,9 @@ func Test_AddrFromString(t *testing.T) {
 			host: "1.1.1.1",
 			port: 5},
 		{address: "1-2,[::1]:60000",
-			isError: false,
-			ia:      "1-2",
-			host:    "::1",
-			port:    60000},
+			ia:   "1-2",
+			host: "::1",
+			port: 60000},
 	}
 	Convey("Function AddrFromString", t, func() {
 		for _, test := range tests {
