@@ -120,6 +120,7 @@ class PathMgmtType(object):
     REPLY = "segReply"
     # Path registration (sent by Beacon Server).
     REG = "segReg"
+    REGSET = "setInfo"
     # For records synchronization purposes (used by Path Servers).
     SYNC = "segSync"
     REVOCATION = "revInfo"

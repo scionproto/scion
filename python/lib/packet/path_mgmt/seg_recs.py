@@ -23,6 +23,7 @@ import proto.path_mgmt_capnp as P
 from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.set_info import PCBSetInfo
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 
 
@@ -34,13 +35,15 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
     P_CLS = P.SegRecs
 
     @classmethod
-    def from_values(cls, pcb_dict, rev_infos=None):
+    def from_values(cls, pcb_dict, rev_infos=None, set_infos=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
         :param rev_infos: list of RevocationInfo objects
         """
         if not rev_infos:
             rev_infos = []
+        if not set_infos:
+            set_infos = []
         p = cls.P_CLS.new_message()
         flat = []
         for type_, pcbs in pcb_dict.items():
@@ -53,6 +56,9 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         p.init("revInfos", len(rev_infos))
         for i, rev_info in enumerate(rev_infos):
             p.revInfos[i] = rev_info.p
+        p.init("setInfos", len(set_infos))
+        for i, set_info in enumerate(set_infos):
+            p.setInfos[i] = set_info.p
         return cls(p)
 
     def iter_pcbs(self):
@@ -94,6 +100,13 @@ class PathRecordsReply(PathSegmentRecords):
 class PathRecordsReg(PathSegmentRecords):
     NAME = "PathRecordsReg"
     PAYLOAD_TYPE = PMT.REG
+
+    def set_info(self, idx):
+        return PCBSetInfo(self.p.setInfos[idx])
+
+    def iter_set_infos(self, start=0):
+        for i in range(start, len(self.p.setInfos)):
+            yield self.set_info(i)
 
 
 class PathRecordsSync(PathSegmentRecords):

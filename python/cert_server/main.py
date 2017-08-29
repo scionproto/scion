@@ -35,7 +35,7 @@ from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
-from lib.defines import CERTIFICATE_SERVICE
+from lib.defines import API_TOUT, CERTIFICATE_SERVICE
 from lib.drkey.drkey_mgmt import (
     DRKeyReply,
     DRKeyRequest,
@@ -83,8 +83,6 @@ REQS_TOTAL = Counter("cs_requests_total", "# of total requests", ["server_id", "
 IS_MASTER = Gauge("cs_is_master", "true if this process is the replication master",
                   ["server_id", "isd_as"])
 
-# Timeout for API path requests
-API_TOUT = 1
 # Max amount of DRKey secret values. 1 current, 1 prefetch, 1 buffer.
 DRKEY_MAX_SV = 3
 # Max TTL of first order DRKey. 1 Day prefetch, 1 Day current.

@@ -39,6 +39,7 @@ from lib.defines import (
     HASHTREE_EPOCH_TOLERANCE,
     HASHTREE_TTL,
     HASHTREE_UPDATE_WINDOW,
+    HIDDEN_PATH_CONF_FILE,
     PATH_POLICY_FILE,
     PATH_SERVICE,
 )
@@ -48,6 +49,7 @@ from lib.errors import (
     SCIONPathPolicyViolated,
     SCIONServiceLookupError,
 )
+from lib.hps_config import HPSProvider
 from lib.msg_meta import UDPMetadata
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
@@ -130,6 +132,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.hashtree_gen_key = kdf(
                             self.config.master_as_key, b"Derive hashtree Key")
         logging.info(self.config.__dict__)
+        self.hpservice = HPSProvider.from_values(
+            self.addr.isd_as,
+            os.path.join(os.path.dirname(conf_dir), HIDDEN_PATH_CONF_FILE))
         self._hash_tree = None
         self._hash_tree_lock = Lock()
         self._next_tree = None
@@ -157,7 +162,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 SCMPPathClass.REVOKED_IF: self._handle_scmp_revocation,
             },
         }
-
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()
         self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, zkid,

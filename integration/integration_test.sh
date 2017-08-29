@@ -31,12 +31,17 @@ shutdown() {
 
 run() {
     log "${1:?}: starting"
-    time ${2:?}
+    if [ "${1:?}" == "Revocation" ]; then
+        time ${2:?}
+    fi
     local result=$?
     if [ $result -eq 0 ]; then
         log "$1: success"
     else
         log "$1: failure"
+    fi
+    if [ "${1:?}" != "Revocation" ]; then
+        time ${2:?}
     fi
     return $result
 }
@@ -62,6 +67,9 @@ Cert/TRC request
 python/integration/cert_req_test.py -l ERROR
 EOF
 result=$?
+
+run HiddenPath "integration/hidden_path_test.sh"
+result=$((result+$?))
 
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-as1-11:br1-11-3 as2-26:br2-26-2 as1-14:br1-14-3 as1-16:br1-16-2}"

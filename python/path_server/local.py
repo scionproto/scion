@@ -17,13 +17,21 @@
 """
 # Stdlib
 import logging
+import os
 import random
+import time
 
 # SCION
+import lib.app.sciond as lib_sciond
+from lib.crypto.hash_tree import ConnectedHashTree
+from lib.defines import API_TOUT, HIDDEN_PATH_CONF_FILE, HIDDEN_PATH_SERVICE
+from lib.hps_config import HPSClient
+from lib.errors import SCIONServiceLookupError
 from lib.packet.svc import SVCType
-from lib.path_db import PathSegmentDB
+from lib.path_db import DBResult, PathSegmentDB
 from lib.types import PathSegmentType as PST
 from path_server.base import PathServer, REQS_TOTAL
+from sciond.sciond import SCIOND_API_SOCKDIR
 
 
 class LocalPathServer(PathServer):
@@ -43,6 +51,10 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         up_labels = {**self._labels, "type": "up"} if self._labels else None
         self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=up_labels)
+        self.hpservice = HPSClient.from_values(
+            self.addr.isd_as,
+            os.path.join(os.path.dirname(conf_dir), HIDDEN_PATH_CONF_FILE))
+        lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as))
 
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
@@ -91,9 +103,14 @@ class LocalPathServer(PathServer):
             self._send_path_segments(req, meta, logger, up_segs, core_segs, down_segs)
             return True
         if new_request:
-            self._request_paths_from_core(req, logger)
+            if self.hpservice and self.hpservice.get_set_infos(req.dst_ia()):
+                self._request_paths_from_hps(req, logger)
+            else:
+                self._request_paths_from_core(req, logger)
             self.pending_req[(dst_ia, req.p.flags.sibra)][req_id] = (req, meta, logger)
-
+        elif self.down_segments(last_ia=req.dst_ia(), sibra=req.p.flags.sibra):
+            # Try path requests for the core ASes that linked with the hidden segments
+            self._request_missing_paths_from_core(req, logger)
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):
@@ -140,6 +157,40 @@ class LocalPathServer(PathServer):
                     core_segs.add(cseg)
                     down_segs.add(dseg)
 
+    def _request_paths_from_hps(self, req, logger):
+        """
+        Try to request HPS for given target.
+        """
+        set_infos = self.hpservice.get_set_infos(req.dst_ia())
+        if not set_infos:
+            logger.warning("Hidden path server (for %s) not found" % req.short_desc())
+            return
+        hps_ia = set_infos[0].hps_ia()
+        set_id = set_infos[0].set_id()
+        if hps_ia == self.addr.isd_as:
+            try:
+                addr, port = self.dns_query_topo(HIDDEN_PATH_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logger.warning("Lookup for hidden path service failed: %s", e)
+                return
+            new_req = req.copy()
+            new_req.p.setID = set_id
+            meta = self._build_meta(host=addr, port=port)
+            self.send_meta(new_req, meta)
+            logger.info("Hidden path request sent to %s: %s", meta, req.short_desc())
+        else:
+            path_meta = self._get_path_via_api(hps_ia)
+            if path_meta:
+                new_req = req.copy()
+                new_req.p.setID = set_id
+                meta = self._build_meta(ia=hps_ia, host=SVCType.HPS_A, path=path_meta.fwd_path())
+                self.send_meta(new_req, meta)
+                logger.info("Hidden path request sent to %s via [%s]: %s",
+                            meta, path_meta.short_desc(), req.short_desc())
+            else:
+                logger.warning("Hidden path request (for %s) not sent: "
+                               "no path found", req.short_desc())
+
     def _request_paths_from_core(self, req, logger):
         """
         Try to request core PS for given target.
@@ -158,6 +209,52 @@ class LocalPathServer(PathServer):
         meta = self._build_meta(ia=pcb.first_ia(), path=path,
                                 host=SVCType.PS_A, reuse=True)
         self.send_meta(req.copy(), meta)
+
+    def _request_missing_paths_from_core(self, req, logger):
+        """
+        """
+        sibra = req.p.flags.sibra
+        # Check if there exists down-seg to DST.
+        dst_ias = []
+        for dseg in self.down_segments(last_ia=req.dst_ia(), sibra=sibra):
+            dst_ia = dseg.first_ia()
+            if dst_ia not in dst_ias:
+                dst_ias.append(dst_ia)
+        for dst_ia in dst_ias:
+            new_req = req.copy()
+            new_req.p.dstIA = int(dst_ia)
+            self._request_paths_from_core(new_req, logger)
+
+    def _remove_revoked_segments(self, rev_info):
+        """
+        Try the previous and next hashes as possible astokens,
+        and delete any segment that matches
+
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
+        """
+        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            return
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
+        if_id = rev_info.p.ifID
+
+        with self.htroot_if2seglock:
+            down_segs_removed = 0
+            core_segs_removed = 0
+            up_segs_removed = 0
+            for h in (hash01, hash12):
+                for sid in self.htroot_if2seg.pop((h, if_id), []):
+                    if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        down_segs_removed += 1
+                    if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        core_segs_removed += 1
+                    if not self.topology.is_core_as:
+                        if (self.up_segments.delete(sid) ==
+                                DBResult.ENTRY_DELETED):
+                            up_segs_removed += 1
+            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
+                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
+                           core_segs_removed))
 
     def _forward_revocation(self, rev_info, meta):
         # Inform core ASes if the revoked interface belongs to this AS or
@@ -186,3 +283,17 @@ class LocalPathServer(PathServer):
                      (core_ia, seg.short_desc()))
         meta = self._build_meta(ia=core_ia, path=path, host=SVCType.PS_A)
         self.send_meta(rev_info.copy(), meta)
+
+    def _get_path_via_api(self, isd_as, flush=False):
+        flags = lib_sciond.PathRequestFlags(flush=flush)
+        start = time.time()
+        while time.time() - start < API_TOUT:
+            try:
+                path_entries = lib_sciond.get_paths(isd_as, flags=flags)
+            except lib_sciond.SCIONDLibError as e:
+                logging.error("Error during path lookup: %s" % e)
+                continue
+            if path_entries:
+                return path_entries[0].path()
+        logging.warning("Unable to get path to %s from local api.", isd_as)
+        return None

@@ -6,19 +6,22 @@ $Go.import("github.com/netsec-ethz/scion/go/proto");
 using PCB = import "pcb.capnp";
 using IFState = import "if_state.capnp";
 using RevInfo = import "rev_info.capnp";
+using SetInfo = import "set_info.capnp";
 
 struct SegReq {
     srcIA @0 :UInt32;
     dstIA @1 :UInt32;
+    setID @2 :Data;
     flags :group {
-        sibra @2 :Bool;
-        cacheOnly @3 :Bool;
+        sibra @3 :Bool;
+        cacheOnly @4 :Bool;
     }
 }
 
 struct SegRecs {
     recs @0 :List(PCB.PathSegMeta);
     revInfos @1 :List(RevInfo.RevInfo);
+    setInfos @2 :List(SetInfo.SetInfo);
 }
 
 struct PathMgmt {
