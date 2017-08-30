@@ -37,12 +37,12 @@ type QueryOptions struct {
 }
 
 type Conn interface {
-	// Open opens the pathdb storage at the given path.
-	Open(string) *common.Error
-	// Close closes the pathdb storage.
-	Close() *common.Error
-	// Setup sets up a pathdb storage.
-	Setup() *common.Error
+	// // Open opens the pathdb storage at the given path.
+	// Open(string) *common.Error
+	// // Close closes the pathdb storage.
+	// Close() *common.Error
+	// // Setup sets up a pathdb storage.
+	// Setup() *common.Error
 
 	// Insert or update a path segment.
 	Insert(*seg.PathSegment, []uint8) (int, *common.Error)
@@ -50,10 +50,10 @@ type Conn interface {
 	InsertWithLabel(*seg.PathSegment, []uint8, uint64) (int, *common.Error)
 	// Deletes a path segment with a given ID. Returns the number of deleted
 	// path segments (0 or 1).
-	Delete(common.RawBytes)) (int, *common.Error)
+	Delete(common.RawBytes) (int, *common.Error)
 	// Deletes all path segments that contain a given interface. Returns the number
 	// of path segments deleted.
-	DeleteWithIntf(*addr.ISD_AS, uint64) (int, *common.Error)
+	DeleteWithIntf(IntfSpec) (int, *common.Error)
 
 	// Get returns all path segment(s) matching the QueryOptions specified.
 	Get(*QueryOptions) ([]*seg.PathSegment, *common.Error)
