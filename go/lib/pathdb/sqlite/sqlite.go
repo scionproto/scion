@@ -82,7 +82,18 @@ type Backend struct {
 	db *sql.DB
 }
 
-func (b *Backend) Open(path string) *common.Error {
+func New(path string) (*Backend, *common.Error) {
+	b := &Backend{}
+	if err := b.open(path); err != nil {
+		return nil, err
+	}
+	if err := b.setup(); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (b *Backend) open(path string) *common.Error {
 	b.Lock()
 	defer b.Unlock()
 	var err error
@@ -93,7 +104,21 @@ func (b *Backend) Open(path string) *common.Error {
 	return nil
 }
 
-func (b *Backend) Close() *common.Error {
+func (b *Backend) setup() *common.Error {
+	b.Lock()
+	defer b.Unlock()
+	if b.db == nil {
+		return common.NewError("No database open")
+	}
+	// TODO(shitz): Add check whether DB is already setup.
+	_, err := b.db.Exec(setupStmt)
+	if err != nil {
+		return common.NewError("Failed to set up SQLite database", "err", err)
+	}
+	return nil
+}
+
+func (b *Backend) close() *common.Error {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
@@ -101,19 +126,6 @@ func (b *Backend) Close() *common.Error {
 	}
 	if err := b.db.Close(); err != nil {
 		return common.NewError("Failed to close SQLite database", "err", err)
-	}
-	return nil
-}
-
-func (b *Backend) Setup() *common.Error {
-	b.Lock()
-	defer b.Unlock()
-	if b.db == nil {
-		return common.NewError("No database open")
-	}
-	_, err := b.db.Exec(setupStmt)
-	if err != nil {
-		return common.NewError("Failed to set up SQLite database", "err", err)
 	}
 	return nil
 }
@@ -369,7 +381,7 @@ func (b *Backend) InsertWithLabel(pseg *seg.PathSegment,
 }
 
 func (b *Backend) get(segID common.RawBytes) (*segMeta, *common.Error) {
-	rows, err := b.db.Query("SELECT * from Segments WHERE SegID=?;", segID)
+	rows, err := b.db.Query("SELECT * FROM Segments WHERE SegID=?;", segID)
 	if err != nil {
 		return nil, common.NewError("Failed to lookup segment", "err", err)
 	}
@@ -391,6 +403,30 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, *common.Error) {
 		return &meta, nil
 	}
 	return nil, nil
+}
+
+func (b *Backend) Delete(segID common.RawBytes) (int, *common.Error) {
+    b.Lock()
+    defer b.Unlock()
+    if b.db == nil {
+        return nil, common.NewError("No database open")
+    }
+    res, err := b.db.Query("DELETE FROM Segments WHERE SegID=?;", segID)
+    if err != nil {
+        return 0, common.NewError("Failed to delete segment", "err", err)
+    }
+    deleted, _ := res.RowsAffected()
+    return deleted, nil
+}
+
+func (b* Backend) DeleteWithIntf(ia *addr.ISD_AS, ifID uint64) (int, *common.Error) {
+    b.Lock()
+    defer b.Unlock()
+    if b.db == nil {
+        return nil, common.NewError("No database open")
+    }
+    // TODO(shitz): Implement
+    return 0, nil
 }
 
 func (b *Backend) Get(opt *conn.QueryOptions) ([]*seg.PathSegment, *common.Error) {
