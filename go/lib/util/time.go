@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2017 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proto
+// This file contains utility functions for time and timestamps.
+
+package util
 
 import (
-	"fmt"
+	"time"
 )
 
-type ProtoIdType uint64
-
-func (p ProtoIdType) String() string {
-	return fmt.Sprintf("0x%x", uint64(p))
+// ISOTimestamp returns a ISO 8601 formatted UTC timestamp.
+func ISOTimestamp(t time.Time) string {
+	return t.UTC().Format("2017-01-01 15:04:05+00:00")
 }

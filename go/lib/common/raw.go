@@ -34,7 +34,7 @@ func (r RawBytes) Copy() (Payload, *Error) {
 	return append(RawBytes{}, r...), nil
 }
 
-func (r RawBytes) Write(b RawBytes) (int, *Error) {
+func (r RawBytes) WritePld(b RawBytes) (int, *Error) {
 	if len(b) < len(r) {
 		return 0, NewError("Insufficient space", "expected",
 			len(r), "actual", len(b))
