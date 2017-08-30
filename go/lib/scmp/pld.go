@@ -100,7 +100,7 @@ func (p *Payload) Copy() (common.Payload, *common.Error) {
 	return c, nil
 }
 
-func (p *Payload) Write(b common.RawBytes) (int, *common.Error) {
+func (p *Payload) WritePld(b common.RawBytes) (int, *common.Error) {
 	offset := 0
 	if err := p.Meta.Write(b[offset:]); err != nil {
 		return 0, err

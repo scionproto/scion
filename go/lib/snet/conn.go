@@ -132,7 +132,7 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	}
 
 	// Copy data, extract address
-	n, cerr = pkt.Pld.Write(b)
+	n, cerr = pkt.Pld.WritePld(b)
 	if cerr != nil {
 		return 0, nil, common.NewError("Unable to copy payload", "err", cerr)
 	}

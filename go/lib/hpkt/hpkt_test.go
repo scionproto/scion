@@ -66,7 +66,7 @@ func Test_ParseScnPkt(t *testing.T) {
 		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0x94, 0x8f})
 
 		buf := make(common.RawBytes, 1<<16)
-		n, _ := s.Pld.Write(buf)
+		n, _ := s.Pld.WritePld(buf)
 		SoMsg("Payload", buf[:n], ShouldResemble, common.RawBytes(testParsePkt[32:]))
 	})
 }

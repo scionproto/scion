@@ -4,6 +4,6 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct IFID {
-   origIF @0 :UInt16;
-   relayIF @1 :UInt16;
+   origIF @0 :UInt64;
+   relayIF @1 :UInt64;
 }
