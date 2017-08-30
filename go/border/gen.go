@@ -105,9 +105,9 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	logger := log.New("ifid", ifID)
 	intf := ctx.Conf.Net.IFs[ifID]
 	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
-	ifidMsg := &ifid.IFID{OrigIfID: uint64(ifID)}
+	pld := ctrl.NewPld(&ifid.IFID{OrigIfID: uint64(ifID)})
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
-		intf.RemoteAddr.L4Port, srcAddr, ctrl.NewPld(ifidMsg)); err != nil {
+		intf.RemoteAddr.L4Port, srcAddr, pld); err != nil {
 		logger.Error("Error generating IFID packet", err.Ctx...)
 	}
 }
@@ -133,8 +133,8 @@ func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
-	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(),
-		0, srcAddr, ctrl.NewPld(path_mgmt.NewPld(&path_mgmt.IFStateReq{}))); err != nil {
+	pld := ctrl.NewPld(path_mgmt.NewPld(&path_mgmt.IFStateReq{}))
+	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, pld); err != nil {
 		log.Error("Error generating IFStateReq packet", err.Ctx...)
 	}
 }

@@ -60,8 +60,8 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC),
-		0, srcAddr, ctrl.NewPld(revInfo)); err != nil {
+	pld := ctrl.NewPld(revInfo)
+	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, pld); err != nil {
 		log.Error("Error generating RevInfo packet", err.Ctx...)
 	}
 }

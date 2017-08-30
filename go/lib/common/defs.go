@@ -15,6 +15,8 @@
 package common
 
 import (
+	"reflect"
+
 	"encoding/binary"
 	"unsafe"
 )
@@ -53,3 +55,7 @@ const (
 
 // Interface ID
 type IFIDType uint64
+
+func TypeOf(v interface{}) string {
+	return reflect.TypeOf(v).String()
+}

@@ -17,54 +17,28 @@
 package path_mgmt
 
 import (
-	"fmt"
 	"strings"
 
-	"zombiezen.com/go/capnproto2"
-
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*segRecsBase)(nil)
+var _ proto.Cerealizable = (*SegRecs)(nil)
 
-type segRecsBase struct {
-	Recs       []*seg.Meta
-	RevInfos   []*RevInfo
-	protoWhich proto.PathMgmt_Which
+type SegRecs struct {
+	Recs     []*seg.Meta
+	RevInfos []*RevInfo
 }
 
-func newSegRecBase(which proto.PathMgmt_Which) *segRecsBase {
-	return &segRecsBase{protoWhich: which}
+func (s *SegRecs) ProtoId() proto.ProtoIdType {
+	return proto.SegRecs_TypeID
 }
 
-func (s *segRecsBase) ProtoId() proto.ProtoIdType {
-	return proto.SegReq_TypeID
+func (s *SegRecs) ProtoType() string {
+	return "segRecs"
 }
 
-func (s *segRecsBase) ProtoType() fmt.Stringer {
-	return s.protoWhich
-}
-
-func (s *segRecsBase) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewSegRecs() (proto.SegRecs, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", s.ProtoId(), "type", s.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewSegRecs()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", s.ProtoId(), "type", s.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
-}
-
-func (s *segRecsBase) String() string {
+func (s *SegRecs) String() string {
 	desc := []string{"Recs:"}
 	for _, m := range s.Recs {
 		desc = append(desc, m.String())
@@ -78,26 +52,32 @@ func (s *segRecsBase) String() string {
 	return strings.Join(desc, "\n")
 }
 
+var _ proto.Cerealizable = (*SegReply)(nil)
+
 type SegReply struct {
-	*segRecsBase
+	*SegRecs
 }
 
-func NewSegReply() *SegReply {
-	return &SegReply{newSegRecBase(proto.PathMgmt_Which_segReply)}
+func (s *SegReply) ProtoType() string {
+	return proto.PathMgmt_Which_segReply.String()
 }
+
+var _ proto.Cerealizable = (*SegReg)(nil)
 
 type SegReg struct {
-	*segRecsBase
+	*SegRecs
 }
 
-func NewSegReg() *SegReg {
-	return &SegReg{newSegRecBase(proto.PathMgmt_Which_segReg)}
+func (s *SegReg) ProtoType() string {
+	return proto.PathMgmt_Which_segReg.String()
 }
+
+var _ proto.Cerealizable = (*SegSync)(nil)
 
 type SegSync struct {
-	*segRecsBase
+	*SegRecs
 }
 
-func NewSegSync() *SegSync {
-	return &SegSync{newSegRecBase(proto.PathMgmt_Which_segSync)}
+func (s *SegSync) ProtoType() string {
+	return proto.PathMgmt_Which_segSync.String()
 }

@@ -19,8 +19,6 @@ package path_mgmt
 import (
 	"fmt"
 
-	"zombiezen.com/go/capnproto2"
-
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
@@ -37,6 +35,11 @@ type SegReq struct {
 	}
 }
 
+func NewSegReqFromRaw(b common.RawBytes) (*SegReq, *common.Error) {
+	s := &SegReq{}
+	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
+}
+
 func (s *SegReq) SrcIA() *addr.ISD_AS {
 	return addr.IAFromInt(int(s.RawSrcIA))
 }
@@ -49,25 +52,11 @@ func (s *SegReq) ProtoId() proto.ProtoIdType {
 	return proto.SegReq_TypeID
 }
 
-func (s *SegReq) ProtoType() fmt.Stringer {
-	return proto.SCION_Which_ifid
+func (s *SegReq) ProtoType() string {
+	return proto.SCION_Which_ifid.String()
 }
-
-func (s *SegReq) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewSegReq() (proto.SegReq, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", s.ProtoId(), "type", s.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewSegReq()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", s.ProtoId(), "type", s.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
+func (s *SegReq) Write(b common.RawBytes) (int, *common.Error) {
+	return proto.WriteRoot(s, b)
 }
 
 func (s *SegReq) String() string {

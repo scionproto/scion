@@ -36,8 +36,6 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	"zombiezen.com/go/capnproto2"
-	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
@@ -88,45 +86,18 @@ func (c *Connector) nextID() uint64 {
 	return atomic.AddUint64(&c.requestID, 1)
 }
 
-func (c *Connector) send(request *SCIONDMsg) error {
-	message, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return err
+func (c *Connector) send(p *Pld) error {
+	raw, cerr := proto.PackRoot(p)
+	if cerr != nil {
+		return cerr
 	}
-	root, err := proto.NewRootSCIONDMsg(arena)
-	if err != nil {
-		return err
-	}
-	err = pogs.Insert(proto.SCIONDMsg_TypeID, root.Struct, request)
-	if err != nil {
-		return err
-	}
-	packedMsg, err := message.MarshalPacked()
-	if err != nil {
-		return err
-	}
-	_, err = c.conn.Write(packedMsg)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := c.conn.Write(raw)
+	return err
 }
 
-func (c *Connector) receive() (*SCIONDMsg, error) {
-	reply, err := capnp.NewPackedDecoder(c.conn).Decode()
-	if err != nil {
-		return nil, err
-	}
-	rootPtr, err := reply.RootPtr()
-	if err != nil {
-		return nil, err
-	}
-	message := &SCIONDMsg{}
-	err = pogs.Extract(message, proto.SCIONDMsg_TypeID, rootPtr.Struct())
-	if err != nil {
-		return nil, err
-	}
-	return message, nil
+func (c *Connector) receive() (*Pld, error) {
+	p := &Pld{}
+	return p, proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
 }
 
 // Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
@@ -135,7 +106,7 @@ func (c *Connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*P
 	c.Lock()
 	defer c.Unlock()
 
-	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_pathReq}
+	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_pathReq}
 	request.PathReq.Dst = dst.Uint32()
 	request.PathReq.Src = src.Uint32()
 	request.PathReq.MaxPaths = max
@@ -165,7 +136,7 @@ func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 	}
 
 	// Value not in cache, so we ask SCIOND
-	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_asInfoReq}
+	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_asInfoReq}
 	request.AsInfoReq.Isdas = ia.Uint32()
 	err := c.send(request)
 	if err != nil {
@@ -205,7 +176,7 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	}
 
 	// Some values were not in the cache, so we ask SCIOND for them
-	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_ifInfoRequest}
+	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_ifInfoRequest}
 	request.IfInfoRequest.IfIDs = uncachedIfs
 	err := c.send(request)
 	if err != nil {
@@ -253,7 +224,7 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	}
 
 	// Some values were not in the cache, so we ask SCIOND for them
-	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_serviceInfoRequest}
+	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_serviceInfoRequest}
 	request.ServiceInfoRequest.ServiceTypes = uncachedSVCs
 	err := c.send(request)
 	if err != nil {

@@ -20,9 +20,6 @@ import (
 	"fmt"
 	"strings"
 
-	"zombiezen.com/go/capnproto2"
-
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -36,25 +33,8 @@ func (i *IFStateInfos) ProtoId() proto.ProtoIdType {
 	return proto.IFStateInfos_TypeID
 }
 
-func (i *IFStateInfos) ProtoType() fmt.Stringer {
-	return proto.PathMgmt_Which_ifStateInfos
-}
-
-func (i *IFStateInfos) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewIfStateInfos() (proto.IFStateInfos, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", i.ProtoId(), "type", i.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewIfStateInfos()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", i.ProtoId(), "type", i.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
+func (i *IFStateInfos) ProtoType() string {
+	return proto.PathMgmt_Which_ifStateInfos.String()
 }
 
 func (i *IFStateInfos) String() string {

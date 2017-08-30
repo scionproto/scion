@@ -65,8 +65,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		ifid := common.IFIDType(info.IfID)
 		if info.RevInfo != nil {
 			var cerr *common.Error
-			cb := proto.NewCerealBase(info.RevInfo)
-			rawRev, cerr = cb.PackRaw()
+			rawRev, cerr = proto.PackRoot(info.RevInfo)
 			if cerr != nil {
 				log.Error("Unable to pack RevInfo", cerr.Ctx...)
 				return

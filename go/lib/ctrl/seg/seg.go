@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	"zombiezen.com/go/capnproto2"
-
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -38,6 +36,11 @@ type PathSegment struct {
 	Exts      struct {
 		Sibra []byte `capnp:"-"` // Omit SIBRA extension for now.
 	}
+}
+
+func NewFromRaw(b common.RawBytes) (*PathSegment, *common.Error) {
+	ps := &PathSegment{}
+	return ps, proto.ParseFromRaw(ps, ps.ProtoId(), b)
 }
 
 func (ps *PathSegment) ID() common.RawBytes {
@@ -60,25 +63,12 @@ func (ps *PathSegment) ProtoId() proto.ProtoIdType {
 	return proto.PathSegment_TypeID
 }
 
-func (ps *PathSegment) ProtoType() fmt.Stringer {
-	return proto.SCION_Which_ifid
+func (ps *PathSegment) ProtoType() string {
+	return proto.SCION_Which_ifid.String()
 }
 
-func (ps *PathSegment) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewPathSegment() (proto.PathSegment, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", ps.ProtoId(), "type", ps.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewPathSegment()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", ps.ProtoId(), "type", ps.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
+func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
+	return proto.WriteRoot(ps, b)
 }
 
 func (ps *PathSegment) String() string {

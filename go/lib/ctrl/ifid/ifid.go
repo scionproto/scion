@@ -19,8 +19,6 @@ package ifid
 import (
 	"fmt"
 
-	"zombiezen.com/go/capnproto2"
-
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -32,29 +30,21 @@ type IFID struct {
 	RelayIfID uint64 `capnp:"relayIF"`
 }
 
+func NewFromRaw(b common.RawBytes) (*IFID, *common.Error) {
+	i := &IFID{}
+	return i, proto.ParseFromRaw(i, i.ProtoId(), b)
+}
+
 func (i *IFID) ProtoId() proto.ProtoIdType {
 	return proto.IFID_TypeID
 }
 
-func (i *IFID) ProtoType() fmt.Stringer {
-	return proto.SCION_Which_ifid
+func (i *IFID) ProtoType() string {
+	return proto.SCION_Which_ifid.String()
 }
 
-func (i *IFID) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewIfid() (proto.IFID, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", i.ProtoId(), "type", i.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewIfid()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", i.ProtoId(), "type", i.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
+func (i *IFID) Write(b common.RawBytes) (int, *common.Error) {
+	return proto.WriteRoot(i, b)
 }
 
 func (i *IFID) String() string {

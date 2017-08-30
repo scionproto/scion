@@ -408,13 +408,11 @@
 			"revisionTime": "2016-09-28T15:37:09Z"
 		},
 		{
-			"checksumSHA1": "GJNHvjE2X0/nAriHtebd/8f1xHE=",
-			"comment": "FIXME(kormat): Use repo directly until https://github.com/zombiezen/go-capnproto2/issues/58 is fixed",
+			"checksumSHA1": "Vu7yTzds3lfhARaEKI/8vmhIvLg=",
 			"license": "MIT",
-			"origin": "github.com/zombiezen/go-capnproto2",
 			"path": "zombiezen.com/go/capnproto2",
-			"revision": "e255c9f719103c5329bc65aac0adcf12137b7424",
-			"revisionTime": "2016-09-19T00:12:20Z",
+			"revision": "ece6d3058bf14340051f059bfdf08885d8748639",
+			"revisionTime": "2017-08-15T16:40:15Z",
 			"tree": true
 		}
 	],

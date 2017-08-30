@@ -17,7 +17,9 @@ package proto
 import (
 	"bytes"
 	"fmt"
+	"io"
 
+	//log "github.com/inconshreveable/log15"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
@@ -25,103 +27,108 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
+type Struct interface {
+	// Added by gen.go
+	GetStruct() capnp.Struct
+}
+
+type CtxWrite func(Cerealizable, common.RawBytes) (int, *common.Error)
+
 type Cerealizable interface {
 	fmt.Stringer
 	ProtoId() ProtoIdType
-	ProtoType() fmt.Stringer
-	NewStruct(interface{}) (capnp.Struct, *common.Error)
+	ProtoType() string
 }
 
-type CerealBase struct {
-	Cerealizable
-}
-
-func NewCerealBase(c Cerealizable) CerealBase {
-	return CerealBase{c}
-}
-
-func (cb *CerealBase) Len() int {
-	// Len is not supported on capnp object
-	return -1
-}
-
-func (cb *CerealBase) Copy() (common.Payload, *common.Error) {
-	return nil, common.NewError("Copy isn't supported on capnp payloads, yet")
-}
-
-func (cb *CerealBase) ParseRaw(b common.RawBytes) *common.Error {
-	msg, err := capnp.NewPackedDecoder(bytes.NewBuffer(b)).Decode()
-	if err != nil {
-		return common.NewError("Failed to decode base capnp message",
-			"type", cb.ProtoType(), "err", err)
-	}
-	rootPtr, err := msg.RootPtr()
-	if err != nil {
-		return common.NewError("Failed to get root pointer from base capnp message",
-			"type", cb.ProtoType(), "err", err)
-	}
-	return cb.ParseProto(rootPtr.Struct())
-}
-
-func (cb *CerealBase) ParseProto(s capnp.Struct) *common.Error {
-	if err := pogs.Extract(cb.Cerealizable, uint64(cb.ProtoId()), s); err != nil {
-		return common.NewError("Failed to extract struct from capnp message",
-			"type", cb.ProtoType(), "err", err)
-	}
-	return nil
-}
-
-func (cb *CerealBase) Write(b common.RawBytes) (int, *common.Error) {
-	msg, cerr := cb.packMsg()
+func WriteRoot(c Cerealizable, b common.RawBytes) (int, *common.Error) {
+	msg, cerr := cerealInsert(c)
 	if cerr != nil {
 		return 0, cerr
 	}
 	raw := &util.Raw{B: b}
 	enc := capnp.NewPackedEncoder(raw)
 	if err := enc.Encode(msg); err != nil {
-		return 0, common.NewError("Failed to encode base capnp struct",
-			"type", cb.ProtoType(), "err", err)
+		return 0, common.NewError("Failed to encode capnp struct",
+			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
 	}
 	return raw.Offset, nil
 }
 
-func (cb *CerealBase) PackRaw() (common.RawBytes, *common.Error) {
-	msg, cerr := cb.packMsg()
+func PackRoot(c Cerealizable) (common.RawBytes, *common.Error) {
+	msg, cerr := cerealInsert(c)
 	if cerr != nil {
 		return nil, cerr
 	}
-	packed, err := msg.MarshalPacked()
+	raw, err := msg.MarshalPacked()
 	if err != nil {
-		return nil, common.NewError("Failed to marshal base capnp struct",
-			"type", cb.ProtoType(), "err", err)
+		return nil, common.NewError("Failed to marshal capnp struct",
+			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
 	}
-	return packed, nil
+	return raw, nil
 }
 
-func (cb *CerealBase) packMsg() (*capnp.Message, *common.Error) {
+func cerealInsert(c Cerealizable) (*capnp.Message, *common.Error) {
 	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, common.NewError("Failed to create new base capnp message",
-			"type", cb.ProtoType(), "err", err)
+		return nil, common.NewError("Failed to create new capnp message",
+			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
 	}
-	if cerr := cb.PackProto(arena); err != nil {
+	s, cerr := NewRootStruct(c.ProtoId(), arena)
+	if cerr != nil {
 		return nil, cerr
+	}
+	if err := pogs.Insert(uint64(c.ProtoId()), s, c); err != nil {
+		return nil, common.NewError("Failed to insert struct into capnp message",
+			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
 	}
 	return msg, nil
 }
 
-func (cb *CerealBase) PackProto(arena *capnp.Segment) *common.Error {
-	s, cerr := cb.NewStruct(arena)
+func ReadRootFromRaw(b common.RawBytes) (capnp.Struct, *common.Error) {
+	var blank capnp.Struct
+	msg, err := capnp.NewPackedDecoder(bytes.NewBuffer(b)).Decode()
+	if err != nil {
+		return blank, common.NewError("Failed to decode capnp message", "err", err)
+	}
+	rootPtr, err := msg.RootPtr()
+	if err != nil {
+		return blank, common.NewError("Failed to get root pointer from capnp message", "err", err)
+	}
+	return rootPtr.Struct(), nil
+}
+
+func ReadRootFromReader(r io.Reader) (capnp.Struct, *common.Error) {
+	var blank capnp.Struct
+	msg, err := capnp.NewPackedDecoder(r).Decode()
+	if err != nil {
+		return blank, common.NewError("Failed to decode capnp message", "err", err)
+	}
+	rootPtr, err := msg.RootPtr()
+	if err != nil {
+		return blank, common.NewError("Failed to get root pointer from capnp message", "err", err)
+	}
+	return rootPtr.Struct(), nil
+}
+
+func ParseStruct(v interface{}, pType ProtoIdType, s capnp.Struct) *common.Error {
+	if err := pogs.Extract(v, uint64(pType), s); err != nil {
+		return common.NewError("Failed to extract struct from capnp message", "err", err)
+	}
+	return nil
+}
+
+func ParseFromRaw(v interface{}, pType ProtoIdType, b common.RawBytes) *common.Error {
+	s, cerr := ReadRootFromRaw(b)
 	if cerr != nil {
 		return cerr
 	}
-	return cb.Insert(s)
+	return ParseStruct(v, pType, s)
 }
 
-func (cb *CerealBase) Insert(s capnp.Struct) *common.Error {
-	if err := pogs.Insert(uint64(cb.ProtoId()), s, cb.Cerealizable); err != nil {
-		return common.NewError("Failed to insert struct into capnp message",
-			"type", cb.ProtoType(), "err", err)
+func ParseFromReader(v interface{}, pType ProtoIdType, r io.Reader) *common.Error {
+	s, cerr := ReadRootFromReader(r)
+	if cerr != nil {
+		return cerr
 	}
-	return nil
+	return ParseStruct(v, pType, s)
 }

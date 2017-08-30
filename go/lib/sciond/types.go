@@ -16,8 +16,10 @@ package sciond
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -46,7 +48,9 @@ func (c PathErrorCode) String() string {
 	}
 }
 
-type SCIONDMsg struct {
+var _ proto.Cerealizable = (*Pld)(nil)
+
+type Pld struct {
 	Id                 uint64
 	Which              proto.SCIONDMsg_Which
 	PathReq            PathReq
@@ -58,6 +62,54 @@ type SCIONDMsg struct {
 	IfInfoReply        IFInfoReply
 	ServiceInfoRequest ServiceInfoRequest
 	ServiceInfoReply   ServiceInfoReply
+}
+
+func NewPldFromRaw(b common.RawBytes) (*Pld, *common.Error) {
+	p := &Pld{}
+	return p, proto.ParseFromRaw(p, p.ProtoId(), b)
+}
+
+func (p *Pld) ProtoId() proto.ProtoIdType {
+	return proto.SCIONDMsg_TypeID
+}
+
+func (p *Pld) ProtoType() string {
+	return "sciond"
+}
+
+func (p *Pld) String() string {
+	desc := []string{fmt.Sprintf("Sciond: Id: %d Union0: ", p.Id)}
+	union0, cerr := p.union0()
+	if cerr != nil {
+		desc = append(desc, cerr.String())
+	} else {
+		desc = append(desc, fmt.Sprintf("%+v", union0))
+	}
+	return strings.Join(desc, "")
+}
+
+func (p *Pld) union0() (interface{}, *common.Error) {
+	switch p.Which {
+	case proto.SCIONDMsg_Which_pathReq:
+		return p.PathReq, nil
+	case proto.SCIONDMsg_Which_pathReply:
+		return p.PathReply, nil
+	case proto.SCIONDMsg_Which_asInfoReq:
+		return p.AsInfoReq, nil
+	case proto.SCIONDMsg_Which_asInfoReply:
+		return p.AsInfoReply, nil
+	case proto.SCIONDMsg_Which_revNotification:
+		return p.RevNotification, nil
+	case proto.SCIONDMsg_Which_ifInfoRequest:
+		return p.IfInfoRequest, nil
+	case proto.SCIONDMsg_Which_ifInfoReply:
+		return p.IfInfoReply, nil
+	case proto.SCIONDMsg_Which_serviceInfoRequest:
+		return p.ServiceInfoRequest, nil
+	case proto.SCIONDMsg_Which_serviceInfoReply:
+		return p.ServiceInfoReply, nil
+	}
+	return nil, common.NewError("Unsupported SCIOND union0 type", "type", p.Which)
 }
 
 type PathReq struct {
@@ -132,7 +184,7 @@ func (entry ASInfoReplyEntry) String() string {
 }
 
 type RevNotification struct {
-	RevInfo path_mgmt.RevInfo
+	RevInfo *path_mgmt.RevInfo
 }
 
 type IFInfoRequest struct {

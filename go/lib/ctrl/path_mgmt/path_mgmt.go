@@ -16,90 +16,103 @@ package path_mgmt
 
 import (
 	"fmt"
+	"strings"
 
 	//log "github.com/inconshreveable/log15"
-	"zombiezen.com/go/capnproto2"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+type union0 struct {
+	Which        proto.PathMgmt_Which
+	SegReq       *SegReq
+	SegReply     *SegReply
+	SegReg       *SegReg
+	SegSync      *SegSync
+	RevInfo      *RevInfo
+	IFStateReq   *IFStateReq   `capnp:"ifStateReq"`
+	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
+}
+
+func (u0 *union0) set(c proto.Cerealizable) *common.Error {
+	switch u := c.(type) {
+	case *SegReq:
+		u0.Which = proto.PathMgmt_Which_segReq
+		u0.SegReq = u
+	case *SegReply:
+		u0.Which = proto.PathMgmt_Which_segReply
+		u0.SegReply = u
+	case *SegReg:
+		u0.Which = proto.PathMgmt_Which_segReg
+		u0.SegReg = u
+	case *SegSync:
+		u0.Which = proto.PathMgmt_Which_segSync
+		u0.SegSync = u
+	case *RevInfo:
+		u0.Which = proto.PathMgmt_Which_revInfo
+		u0.RevInfo = u
+	case *IFStateReq:
+		u0.Which = proto.PathMgmt_Which_ifStateReq
+		u0.IFStateReq = u
+	case *IFStateInfos:
+		u0.Which = proto.PathMgmt_Which_ifStateInfos
+		u0.IFStateInfos = u
+	}
+	return common.NewError("Unsupported path mgmt union0 type (set)", "type", common.TypeOf(c))
+}
+
+func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
+	switch u0.Which {
+	case proto.PathMgmt_Which_segReq:
+		return u0.SegReq, nil
+	case proto.PathMgmt_Which_segReply:
+		return u0.SegReply, nil
+	case proto.PathMgmt_Which_segReg:
+		return u0.SegReg, nil
+	case proto.PathMgmt_Which_segSync:
+		return u0.SegSync, nil
+	case proto.PathMgmt_Which_revInfo:
+		return u0.RevInfo, nil
+	case proto.PathMgmt_Which_ifStateReq:
+		return u0.IFStateReq, nil
+	case proto.PathMgmt_Which_ifStateInfos:
+		return u0.IFStateInfos, nil
+	}
+	return nil, common.NewError("Unsupported path mgmt union0 type (get)", "type", u0.Which)
+}
+
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
-	proto.CerealBase
+	*union0
 }
 
-func NewPld(c proto.Cerealizable) *Pld {
-	return &Pld{CerealBase: proto.NewCerealBase(c)}
+func NewPld(u0 proto.Cerealizable) *Pld {
+	p := &Pld{&union0{}}
+	p.union0.set(u0)
+	return p
 }
 
-func NewPathMgmtPldFromProto(msg proto.PathMgmt) (*Pld, *common.Error) {
-	var s capnp.Struct
-	p := &Pld{}
-	switch msg.Which() {
-	case proto.PathMgmt_Which_segReq:
-		m, _ := msg.SegReq()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(&SegReq{})
-	case proto.PathMgmt_Which_segReply:
-		m, _ := msg.SegReply()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(NewSegReply())
-	case proto.PathMgmt_Which_segReg:
-		m, _ := msg.SegReg()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(NewSegReg())
-	case proto.PathMgmt_Which_segSync:
-		m, _ := msg.SegSync()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(NewSegSync())
-	case proto.PathMgmt_Which_revInfo:
-		m, _ := msg.RevInfo()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(&RevInfo{})
-	case proto.PathMgmt_Which_ifStateReq:
-		m, _ := msg.IfStateReq()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(&IFStateReq{})
-	case proto.PathMgmt_Which_ifStateInfos:
-		m, _ := msg.IfStateInfos()
-		s = m.Struct
-		p.CerealBase = proto.NewCerealBase(&IFStateInfos{})
-	default:
-		return nil, common.NewError("Unsupported PathMgmt type", "type", msg.Which())
-	}
-	if cerr := p.ParseProto(s); cerr != nil {
-		return nil, cerr
-	}
-	return p, nil
+func (p *Pld) Union0() (proto.Cerealizable, *common.Error) {
+	return p.union0.get()
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {
 	return proto.PathMgmt_TypeID
 }
 
-func (p *Pld) ProtoType() fmt.Stringer {
-	return proto.SCION_Which_pathMgmt
+func (p *Pld) ProtoType() string {
+	return proto.SCION_Which_pathMgmt.String()
 }
 
-func (p *Pld) NewStruct(pa interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewPathMgmt() (proto.PathMgmt, error)
+func (p *Pld) String() string {
+	desc := []string{"PathMgmt: Union0:"}
+	u0, cerr := p.Union0()
+	if cerr != nil {
+		desc = append(desc, cerr.String())
+	} else {
+		desc = append(desc, fmt.Sprintf("%+v", u0))
 	}
-	parent, ok := pa.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", p.ProtoId(), "type", p.ProtoType(), "parent", fmt.Sprintf("%T", pa))
-	}
-	pmgmt, err := parent.NewPathMgmt()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", p.ProtoId(), "type", p.ProtoType(), "parent", p, "err", err)
-	}
-	return p.Contents().NewStruct(pmgmt)
-}
-
-func (p *Pld) Contents() proto.Cerealizable {
-	return p.CerealBase.Cerealizable
+	return strings.Join(desc, " ")
 }

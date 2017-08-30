@@ -19,9 +19,6 @@ package path_mgmt
 import (
 	"fmt"
 
-	"zombiezen.com/go/capnproto2"
-
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -35,25 +32,8 @@ func (i *IFStateReq) ProtoId() proto.ProtoIdType {
 	return proto.IFStateReq_TypeID
 }
 
-func (i *IFStateReq) ProtoType() fmt.Stringer {
-	return proto.PathMgmt_Which_ifStateReq
-}
-
-func (i *IFStateReq) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewIfStateReq() (proto.IFStateReq, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", i.ProtoId(), "type", i.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewIfStateReq()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", i.ProtoId(), "type", i.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
+func (i *IFStateReq) ProtoType() string {
+	return proto.PathMgmt_Which_ifStateReq.String()
 }
 
 func (i *IFStateReq) String() string {

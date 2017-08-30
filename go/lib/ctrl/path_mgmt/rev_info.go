@@ -19,7 +19,7 @@ package path_mgmt
 import (
 	"fmt"
 
-	"zombiezen.com/go/capnproto2"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -39,6 +39,11 @@ type RevInfo struct {
 	HashType uint16
 }
 
+func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, *common.Error) {
+	r := &RevInfo{}
+	return r, proto.ParseFromRaw(r, r.ProtoId(), b)
+}
+
 func (r *RevInfo) IA() *addr.ISD_AS {
 	return addr.IAFromInt(int(r.RawIsdas))
 }
@@ -46,25 +51,8 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 	return proto.RevInfo_TypeID
 }
 
-func (r *RevInfo) ProtoType() fmt.Stringer {
-	return proto.PathMgmt_Which_revInfo
-}
-
-func (r *RevInfo) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
-	type valid interface {
-		NewRevInfo() (proto.RevInfo, error)
-	}
-	parent, ok := p.(valid)
-	if !ok {
-		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
-			"id", r.ProtoId(), "type", r.ProtoType(), "parent", fmt.Sprintf("%T", p))
-	}
-	n, err := parent.NewRevInfo()
-	if err != nil {
-		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
-			"id", r.ProtoId(), "type", r.ProtoType(), "parent", p, "err", err)
-	}
-	return n.Struct, nil
+func (r *RevInfo) ProtoType() string {
+	return proto.PathMgmt_Which_revInfo.String()
 }
 
 func (r *RevInfo) String() string {
