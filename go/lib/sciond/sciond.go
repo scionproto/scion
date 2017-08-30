@@ -89,23 +89,12 @@ func (c *Connector) nextID() uint64 {
 }
 
 func (c *Connector) send(request *SCIONDMsg) error {
-	message, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
-	if err != nil {
-		return err
+	cb := proto.NewCerealBase(request)
+	raw, cerr := cb.PackRaw()
+	if cerr != nil {
+		return cerr
 	}
-	root, err := proto.NewRootSCIONDMsg(arena)
-	if err != nil {
-		return err
-	}
-	err = pogs.Insert(proto.SCIONDMsg_TypeID, root.Struct, request)
-	if err != nil {
-		return err
-	}
-	packedMsg, err := message.MarshalPacked()
-	if err != nil {
-		return err
-	}
-	_, err = c.conn.Write(packedMsg)
+	_, err := c.conn.Write(raw)
 	if err != nil {
 		return err
 	}

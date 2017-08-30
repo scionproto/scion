@@ -17,7 +17,10 @@ package sciond
 import (
 	"fmt"
 
+	"zombiezen.com/go/capnproto2"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -46,6 +49,8 @@ func (c PathErrorCode) String() string {
 	}
 }
 
+var _ proto.Cerealizable = (*SCIONDMsg)(nil)
+
 type SCIONDMsg struct {
 	Id                 uint64
 	Which              proto.SCIONDMsg_Which
@@ -58,6 +63,35 @@ type SCIONDMsg struct {
 	IfInfoReply        IFInfoReply
 	ServiceInfoRequest ServiceInfoRequest
 	ServiceInfoReply   ServiceInfoReply
+}
+
+func (sm *SCIONDMsg) ProtoId() proto.ProtoIdType {
+	return proto.SCIONDMsg_TypeID
+}
+
+func (sm *SCIONDMsg) ProtoType() fmt.Stringer {
+	return sm.Which
+}
+
+func (sm *SCIONDMsg) NewStruct(p interface{}) (capnp.Struct, *common.Error) {
+	type valid interface {
+		NewSCIONDMsg() (proto.IFID, error)
+	}
+	parent, ok := p.(valid)
+	if !ok {
+		return capnp.Struct{}, common.NewError("Unsupported parent capnp type",
+			"id", sm.ProtoId(), "type", sm.ProtoType(), "parent", fmt.Sprintf("%T", p))
+	}
+	n, err := parent.NewSCIONDMsg()
+	if err != nil {
+		return capnp.Struct{}, common.NewError("Error creating struct in parent capnp",
+			"id", sm.ProtoId(), "type", sm.ProtoType(), "parent", p, "err", err)
+	}
+	return n.Struct, nil
+}
+
+func (sm *SCIONDMsg) String() string {
+	return fmt.Sprintf("SCIONDMsg: Id: %d Type: %s", sm.Id, sm.ProtoType())
 }
 
 type PathReq struct {
