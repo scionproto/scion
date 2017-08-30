@@ -13,105 +13,276 @@
 // limitations under the License.
 
 // Package hpkt (Host Packet) contains low level primitives for parsing and
-// creating end-host SCION messages
+// creating end-host SCION messages.
+//
+// Currently supports SCION/UDP and SCION/SCMP packets.
 package hpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
-// FIXME(scrye): when SCION Conn is merged in master, move this there
-func AllocScnPkt() *spkt.ScnPkt {
-	return &spkt.ScnPkt{
-		DstIA: &addr.ISD_AS{},
-		SrcIA: &addr.ISD_AS{},
-		Path:  &spath.Path{},
-		// Rest of fields passed by reference
-	}
+// Processing/parsing callback type
+type PktParser func() error
+
+// Offsets holds start and end offsets for packet sections
+type Offsets struct {
+	start, end int
+}
+
+// parseCtx holds the state for the packet parser
+type parseCtx struct {
+	// SCION packet structure we need to fill in
+	s *spkt.ScnPkt
+	// Buffer to parse
+	b common.RawBytes
+	// Current parse offset
+	offset int
+	// Helper container for common header fields; also tracks the next
+	// protocol we need to parse
+	cmnHdr *spkt.CmnHdr
+
+	// Memorize section start and end offsets for when we need to jump
+	cmnHdrOffsets  Offsets
+	extHdrOffsets  Offsets
+	addrHdrOffsets Offsets
+	fwdPathOffsets Offsets
+	l4HdrOffsets   Offsets
+	pldOffsets     Offsets
+
+	// Methods for parsing various packet elements; can be overwritten by extensions
+	// FIXME(scrye): when the need arises, these should probably be changed to queues
+	// (e.g., when multiple handlers need to be chained)
+	CmnHdrParser  PktParser
+	HBHExtParser  PktParser
+	E2EExtParser  PktParser
+	AddrHdrParser PktParser
+	FwdPathParser PktParser
+	L4HdrParser   PktParser
+	PldParser     PktParser
+	ChecksumF     PktParser
+}
+
+func newParseCtx(s *spkt.ScnPkt, b common.RawBytes) *parseCtx {
+	pCtx := &parseCtx{
+		s:      s,
+		b:      b,
+		cmnHdr: &spkt.CmnHdr{}}
+	pCtx.CmnHdrParser = pCtx.DefaultCmnHdrParser
+	pCtx.E2EExtParser = pCtx.DefaultE2EExtParser
+	pCtx.HBHExtParser = pCtx.DefaultHBHExtParser
+	pCtx.AddrHdrParser = pCtx.DefaultAddrHdrParser
+	pCtx.FwdPathParser = pCtx.DefaultFwdPathParser
+	pCtx.L4HdrParser = pCtx.DefaultL4HdrParser
+	pCtx.PldParser = pCtx.DefaultPldParser
+	pCtx.ChecksumF = pCtx.DefaultChecksumF
+	return pCtx
 }
 
 // ParseScnPkt populates the SCION fields in s with information from b
 func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
-	var cerr *common.Error
-	offset := 0
+	pCtx := newParseCtx(s, b)
+	return pCtx.parse()
+}
 
-	cmnHdr := spkt.CmnHdr{}
-	if cerr = cmnHdr.Parse(b[:spkt.CmnHdrLen]); cerr != nil {
+// parse contains the processing flow
+func (p *parseCtx) parse() error {
+	// A SCION header is parsed in the following order:
+	//  1. Common header
+	//  2. Extension headers, in the order they are placed in the packet.
+	//  Note that extension headers can also overwrite default behavior for
+	//  steps 2-6
+	//  3. Address headers
+	//  4. Forwarding path
+	//  5. L4 header
+	//  6. Payload
+
+	if err := p.CmnHdrParser(); err != nil {
+		return common.NewError("Unable to parse common header", "err", err)
+	}
+
+	// We'll advance the end offset for extensions as we parse them
+	p.extHdrOffsets.start = int(p.cmnHdr.HdrLen * common.LineLen)
+	p.extHdrOffsets.end = p.extHdrOffsets.start
+	// Skip after SCION header
+	p.offset = p.extHdrOffsets.start
+ProtoLoop:
+	for {
+		switch p.cmnHdr.NextHdr {
+		case common.HopByHopClass:
+			if err := p.HBHExtParser(); err != nil {
+				return common.NewError("Unable to parse extension", "err", err)
+			}
+		case common.End2EndClass:
+			if err := p.E2EExtParser(); err != nil {
+				return common.NewError("Unable to parse E2E extension", "err", err)
+			}
+		case common.L4SCMP:
+			break ProtoLoop
+		case common.L4UDP:
+			break ProtoLoop
+		default:
+			return common.NewError("Unsupported protocol", "proto", p.cmnHdr.NextHdr)
+		}
+	}
+	// Return to the start of the address header
+	p.offset = p.cmnHdrOffsets.end
+	if err := p.AddrHdrParser(); err != nil {
+		return common.NewError("Unable to parse address header", "err", err)
+	}
+	if err := p.FwdPathParser(); err != nil {
+		return common.NewError("Unable to parse path header", "err", err)
+	}
+
+	// Jump after extensions
+	p.offset = p.extHdrOffsets.end
+	if err := p.L4HdrParser(); err != nil {
+		return common.NewError("Unable to parse L4 header", "err", err)
+	}
+	if err := p.PldParser(); err != nil {
+		return common.NewError("Unable to parse payload header", "err", err)
+	}
+	if err := p.ChecksumF(); err != nil {
+		return common.NewError("Checksum error", "err", err)
+	}
+	return nil
+}
+
+func (p *parseCtx) DefaultCmnHdrParser() error {
+	p.cmnHdrOffsets.start = p.offset
+	if cerr := p.cmnHdr.Parse(p.b[:spkt.CmnHdrLen]); cerr != nil {
 		return cerr
 	}
-	offset += spkt.CmnHdrLen
+	p.offset += spkt.CmnHdrLen
+	p.cmnHdrOffsets.end = p.offset
+	return nil
+}
 
-	// If we find an extension, we cannot reliably parse past this point.
-	// For now, only parse simple packets
-	// TODO(scrye): add extension support
-	if cmnHdr.NextHdr != common.L4UDP {
-		return common.NewError("Unexpected protocol number", "expected",
-			common.L4UDP, "actual", cmnHdr.NextHdr)
+func (p *parseCtx) DefaultHBHExtParser() error {
+	if len(p.b[p.offset:]) < common.LineLen {
+		return common.NewError("Truncated extension")
 	}
 
-	// Parse address header
-	addrHdrStart := offset
-	s.DstIA.Parse(b[offset:])
-	offset += addr.IABytes
-	s.SrcIA.Parse(b[offset:])
-	offset += addr.IABytes
-	if s.DstHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.DstType); cerr != nil {
+	// Parse 3-byte extension header first
+	// We know the type of the next header, so we save it for the protocol loop
+	p.cmnHdr.NextHdr = common.L4ProtocolType(p.b[p.offset])
+	hdrLen := p.b[p.offset+1]
+	extnType := p.b[p.offset+2]
+
+	// Parse the rest of the extension header, depending on extension type
+	switch extnType {
+	case common.ExtnSCMPType.Type:
+		extn, cerr := scmp.ExtnFromRaw(p.b[p.offset+3:])
+		if cerr != nil {
+			return common.NewError("Unable to parse extension header", "err", cerr)
+		}
+		p.s.HBHExt = append(p.s.HBHExt, extn)
+	default:
+		return common.NewError("Unsupported HBH extension type", "type", extnType)
+	}
+
+	// Finished parsing another extension, advance the end offset
+	p.extHdrOffsets.end += int(hdrLen * common.LineLen)
+	p.offset += int(hdrLen * common.LineLen)
+	return nil
+}
+
+func (p *parseCtx) DefaultE2EExtParser() error {
+	return common.NewError("Not implemented")
+}
+
+func (p *parseCtx) DefaultAddrHdrParser() error {
+	var cerr *common.Error
+	p.addrHdrOffsets.start = p.offset
+	p.s.DstIA.Parse(p.b[p.offset:])
+	p.offset += addr.IABytes
+	p.s.SrcIA.Parse(p.b[p.offset:])
+	p.offset += addr.IABytes
+	if p.s.DstHost, cerr = addr.HostFromRaw(p.b[p.offset:], p.cmnHdr.DstType); cerr != nil {
 		return common.NewError("Unable to parse destination host address",
 			"err", cerr)
 	}
-	offset += s.DstHost.Size()
-	if s.SrcHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.SrcType); cerr != nil {
+	p.offset += p.s.DstHost.Size()
+	if p.s.SrcHost, cerr = addr.HostFromRaw(p.b[p.offset:], p.cmnHdr.SrcType); cerr != nil {
 		return common.NewError("Unable to parse source host address",
 			"err", cerr)
 	}
-	offset += s.SrcHost.Size()
+	p.offset += p.s.SrcHost.Size()
 	// Validate address padding bytes
-	padBytes := util.CalcPadding(offset, common.LineLen)
-	if pos, ok := isZeroMemory(b[offset : offset+padBytes]); !ok {
+	padBytes := util.CalcPadding(p.offset, common.LineLen)
+	if pos, ok := isZeroMemory(p.b[p.offset : p.offset+padBytes]); !ok {
 		return common.NewError("Invalid padding", "position", pos,
-			"expected", 0, "actual", b[offset+pos])
+			"expected", 0, "actual", p.b[p.offset+pos])
 	}
-	offset += padBytes
-	addrHdrEnd := offset
+	p.offset += padBytes
+	p.addrHdrOffsets.end = p.offset
+	return nil
+}
 
-	// Parse path header
-	pathLen := cmnHdr.HdrLenBytes() - offset
-	s.Path.Raw = b[offset : offset+pathLen]
-	s.Path.InfOff = cmnHdr.InfoFOffBytes()
-	s.Path.HopOff = cmnHdr.HopFOffBytes()
-	offset += pathLen
+func (p *parseCtx) DefaultFwdPathParser() error {
+	p.fwdPathOffsets.start = p.offset
+	pathLen := p.cmnHdr.HdrLenBytes() - p.offset
+	p.s.Path.Raw = p.b[p.offset : p.offset+pathLen]
+	p.s.Path.InfOff = p.cmnHdr.InfoFOffBytes()
+	p.s.Path.HopOff = p.cmnHdr.HopFOffBytes()
+	p.offset += pathLen
+	p.fwdPathOffsets.end = p.offset
+	return nil
+}
 
-	// TODO(scrye): Add extension support
+func (p *parseCtx) DefaultL4HdrParser() error {
+	var cerr *common.Error
+	p.l4HdrOffsets.start = p.offset
 
-	// Parse L4 header
-	if cmnHdr.NextHdr != common.L4UDP {
+	switch p.cmnHdr.NextHdr {
+	case common.L4UDP:
+		if p.s.L4, cerr = l4.UDPFromRaw(p.b[p.offset : p.offset+l4.UDPLen]); cerr != nil {
+			return common.NewError("Unable to parse UDP header", "err", cerr)
+		}
+	case common.L4SCMP:
+		if p.s.L4, cerr = scmp.HdrFromRaw(p.b[p.offset : p.offset+scmp.HdrLen]); cerr != nil {
+			return common.NewError("Unable to parse SCMP header", "err", cerr)
+		}
+	default:
 		return common.NewError("Unsupported NextHdr value", "expected",
-			common.L4UDP, "actual", cmnHdr.NextHdr)
+			common.L4UDP, "actual", p.cmnHdr.NextHdr)
 	}
-	if s.L4, cerr = l4.UDPFromRaw(b[offset : offset+l4.UDPLen]); cerr != nil {
-		return common.NewError("Unable to parse UDP header", "err", cerr)
-	}
-	offset += s.L4.L4Len()
 
-	// Parse payload
-	pldLen := int(cmnHdr.TotalLen) - cmnHdr.HdrLenBytes() - s.L4.L4Len()
-	if offset+pldLen < len(b) {
+	// Enable checksum function
+	p.ChecksumF = func() error {
+		cerr := l4.CheckCSum(p.s.L4, p.b[p.addrHdrOffsets.start:p.addrHdrOffsets.end],
+			p.b[p.pldOffsets.start:p.pldOffsets.end])
+		if cerr != nil {
+			return cerr
+		}
+		return nil
+	}
+
+	p.offset += p.s.L4.L4Len()
+	p.l4HdrOffsets.end = p.offset
+	return nil
+}
+
+func (p *parseCtx) DefaultPldParser() error {
+	p.pldOffsets.start = p.offset
+	pldLen := int(p.cmnHdr.TotalLen) - p.cmnHdr.HdrLenBytes() - p.s.L4.L4Len() -
+		(p.extHdrOffsets.end - p.extHdrOffsets.start)
+	if p.offset+pldLen < len(p.b) {
 		return common.NewError("Incomplete packet, bad payload length",
-			"expected", pldLen, "actual", len(b)-offset)
+			"expected", pldLen, "actual", len(p.b)-p.offset)
 	}
-	s.Pld = common.RawBytes(b[offset : offset+pldLen])
+	p.s.Pld = common.RawBytes(p.b[p.offset : p.offset+pldLen])
+	p.offset += pldLen
+	p.pldOffsets.end = p.offset
+	return nil
+}
 
-	// Verify checksum
-	err := l4.CheckCSum(s.L4, b[addrHdrStart:addrHdrEnd],
-		b[offset:offset+pldLen])
-	if err != nil {
-		return err
-	}
+func (p *parseCtx) DefaultChecksumF() error {
 	return nil
 }
 
