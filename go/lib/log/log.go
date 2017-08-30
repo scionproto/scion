@@ -26,6 +26,8 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 var logDir = flag.String("log.dir", "logs", "Log directory")
@@ -38,7 +40,7 @@ var logBuf *bufio.Writer
 
 func init() {
 	os.Setenv("TZ", "UTC")
-	fmt15.TimeFmt = "2006-01-02 15:04:05.000000-0700"
+	fmt15.TimeFmt = common.TimeFmt
 }
 
 func Setup(name string) {

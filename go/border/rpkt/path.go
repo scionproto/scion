@@ -27,7 +27,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/crypto"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // validatePath validates the path header.
@@ -91,21 +90,20 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) *common.Error {
 	ifstate.S.RLock()
 	info, ok := ifstate.S.M[*ifid]
 	ifstate.S.RUnlock()
-	if !ok || info.P.Active() || rp.DirTo == rcmn.DirSelf {
+	if !ok || info.Info.Active || rp.DirTo == rcmn.DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
 		// router, in which case revocations are ignored to allow communication
 		// with the router.
 		return nil
 	}
 	// Interface is revoked.
-	var revInfo proto.RevInfo
-	var err error
-	if revInfo, err = info.P.RevInfo(); err != nil {
-		rp.Warn("Couldn't load RevInfo for revoked interface", "err", err, "ifid", *ifid)
+	revInfo := info.Info.RevInfo
+	if revInfo == nil {
+		rp.Warn("No RevInfo for revoked interface", "ifid", *ifid)
 		return nil
 	}
 	// Check that we have a revocation for the current epoch.
-	if !crypto.VerifyHashTreeEpoch(revInfo.Epoch()) {
+	if !crypto.VerifyHashTreeEpoch(revInfo.Epoch) {
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
 		ifstate.Activate(*ifid)

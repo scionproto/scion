@@ -15,6 +15,8 @@
 package common
 
 import (
+	"reflect"
+
 	"encoding/binary"
 	"unsafe"
 )
@@ -24,6 +26,7 @@ const (
 	LineLen = 8
 	MinMTU  = 1280
 	MaxMTU  = (1 << 16) - 1
+	TimeFmt = "2006-01-02 15:04:05.000000-0700"
 )
 
 var Order = binary.BigEndian
@@ -53,3 +56,7 @@ const (
 
 // Interface ID
 type IFIDType uint64
+
+func TypeOf(v interface{}) string {
+	return reflect.TypeOf(v).String()
+}
