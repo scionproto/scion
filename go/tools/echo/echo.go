@@ -18,29 +18,36 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"os"
 	"time"
 
-	log15 "github.com/inconshreveable/log15"
+	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
 const (
-	DefaultInterval = 2 * time.Second
-	DefaultTimeout  = 2 * time.Second
-	MaxEchoes       = 1 << 16
-	ReqMsg          = "ping!"
-	ReplyMsg        = "pong!"
+	DefaultDispatcherPath = "/run/shm/dispatcher/default.sock"
+	DefaultInterval       = 2 * time.Second
+	DefaultTimeout        = 2 * time.Second
+	MaxEchoes             = 1 << 16
+	ReqMsg                = "ping!"
+	ReplyMsg              = "pong!"
 )
+
+func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
+	return fmt.Sprintf("/run/shm/sd%v.sock", ia)
+}
 
 var (
 	local      snet.Addr
 	remote     snet.Addr
+	id         = flag.String("id", "echo", "Element ID")
 	mode       = flag.String("mode", "client", "Run in client or server mode")
-	sciond     = flag.String("sciond", "", "(Mandatory) path to sciond socket")
-	dispatcher = flag.String("dispatcher", "", "(Mandatory) path to dispatcher socket")
+	sciond     = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher = flag.String("dispatcher", "", "Path to dispatcher socket")
 	count      = flag.Int("count", 0,
 		fmt.Sprintf("Number of echoes, between 0 and %d; "+
 			"a count of 0 means infinity", MaxEchoes))
@@ -54,10 +61,8 @@ func init() {
 
 func main() {
 	validateFlags()
-
-	// Disable logging
-	log15.Root().SetHandler(log15.StreamHandler(ioutil.Discard, log15.LogfmtFormat()))
-
+	liblog.Setup(*id)
+	defer liblog.PanicLog()
 	switch *mode {
 	case "client":
 		Client()
@@ -68,29 +73,20 @@ func main() {
 
 func validateFlags() {
 	flag.Parse()
-
 	if *mode != "client" && *mode != "server" {
-		log.Fatal("Unknown mode, must be either 'client' or 'server'")
+		LogFatal("Unknown mode, must be either 'client' or 'server'")
 	}
-
 	if *mode == "client" && remote.Host == nil {
-		log.Fatal("Error: missing remote address")
+		LogFatal("Missing remote address")
 	}
-
-	if *mode == "server" && local.Host == nil {
-		log.Fatal("Error: missing local address")
+	if local.Host == nil {
+		LogFatal("Missing local address")
 	}
-
 	if *sciond == "" {
-		log.Fatal("Error: missing path to sciond")
+		*sciond = GetDefaultSCIONDPath(local.IA)
 	}
-
-	if *dispatcher == "" {
-		log.Fatal("Error: missing path to dispatcher")
-	}
-
 	if *count < 0 || *count > MaxEchoes {
-		log.Fatal(fmt.Sprintf("Error: invalid count, must be between 0 and %d", MaxEchoes))
+		LogFatal("Invalid count", "min", 0, "max", MaxEchoes, "actual", *count)
 	}
 }
 
@@ -99,33 +95,29 @@ func validateFlags() {
 // message with the round trip time is printed. On errors (including timeouts),
 // the Client exits.
 func Client() {
-	// Initialize default SCION networking context
-	err := snet.Init(local.IA, *sciond, *dispatcher)
-	if err != nil {
-		log.Fatal("Error: unable to initialize SCION network")
-	}
-	fmt.Println("SCION network successfully initialized.")
+	initNetwork()
 
 	// Connect to remote address. Note that currently the SCION library
-	// does not support automatic binding to local addresses, so the
-	// local IP address and port need to be supplied explicitly
+	// does not support automatic binding to local addresses, so the local
+	// IP address needs to be supplied explicitly. When supplied a local
+	// port of 0, DialSCION will assign a random free local port.
 	conn, err := snet.DialSCION("udp4", &local, &remote)
 	if err != nil {
-		log.Fatal("Error: unable to dial", err)
+		LogFatal("Unable to dial", "err", err)
 	}
-	fmt.Printf("Connected to %v.\n", &remote)
+	log.Debug("Connected", "local", &local, "remote", &remote)
 
 	b := make([]byte, 1<<12)
 	for i := 0; i < *count || *count == 0; i++ {
-		before := time.Now()
-
 		// Send echo request to destination
+		before := time.Now()
 		written, err := conn.Write([]byte(ReqMsg))
 		if err != nil {
-			log.Fatal("Error: unable to write", err)
+			LogFatal("Unable to write", "err", err)
 		}
 		if written != len(ReqMsg) {
-			log.Fatal("Error: wrote incomplete message")
+			LogFatal("Wrote incomplete message", "expected", len(ReqMsg),
+				"actual", written)
 		}
 
 		// Receive echo reply with timeout
@@ -133,17 +125,15 @@ func Client() {
 		read, err := conn.Read(b)
 		conn.SetDeadline(time.Time{})
 		if err != nil {
-			log.Fatal("Error: unable to read", err)
+			log.Error("Unable to read", "err", err)
 		}
 		if string(b[:read]) != ReplyMsg {
 			fmt.Println("Received bad message", "expected", ReplyMsg,
 				"actual", string(b[:read]))
 		}
 		after := time.Now()
-
 		elapsed := after.Sub(before)
 		fmt.Printf("%d bytes from %v: seq=%d time=%s\n", read, &remote, i, elapsed)
-
 		time.Sleep((*interval) - elapsed)
 	}
 }
@@ -151,26 +141,21 @@ func Client() {
 // Server listens on a SCION address and replies to any echo request messages.
 // On any error, the server exits.
 func Server() {
-	// Initialize default SCION networking context
-	err := snet.Init(local.IA, *sciond, *dispatcher)
-	if err != nil {
-		log.Fatal("Error: unable to initialize SCION network")
-	}
-	fmt.Println("SCION network successfully initialized.")
+	initNetwork()
 
 	// Listen on SCION address
 	conn, err := snet.ListenSCION("udp4", &local)
 	if err != nil {
-		log.Fatal("Error: unable to listen", err)
+		LogFatal("Unable to listen", "err", err)
 	}
-	fmt.Printf("Listening to %v.\n", &local)
+	log.Debug("Listening", "local", &local)
 
 	b := make([]byte, 1<<12)
 	for i := 0; i < *count || *count == 0; i++ {
 		// Receive echo request
 		read, senderAddr, err := conn.ReadFrom(b)
 		if err != nil {
-			log.Fatal("Error: unable to read", err)
+			LogFatal("Unable to read", "err", err)
 		}
 		if string(b[:read]) != ReqMsg {
 			fmt.Println("Received bad message", "expected", ReqMsg,
@@ -180,12 +165,22 @@ func Server() {
 		// Send echo reply
 		written, err := conn.WriteTo([]byte(ReplyMsg), senderAddr)
 		if err != nil {
-			log.Fatal("Error: unable to write", err)
+			LogFatal("Unable to write", "err", err)
 		}
 		if written != len(ReplyMsg) {
-			log.Fatal("Error: wrote incomplete message")
+			LogFatal("Wrote incomplete message", "err", err, "expected", len(ReplyMsg),
+				"actual", written)
 		}
 	}
+}
+
+func initNetwork() {
+	// Initialize default SCION networking context
+	err := snet.Init(local.IA, *sciond, *dispatcher)
+	if err != nil {
+		LogFatal("Unable to initialize SCION network", "err", err)
+	}
+	log.Debug("SCION network successfully initialized")
 }
 
 type Address snet.Addr
@@ -201,4 +196,9 @@ func (a *Address) Set(s string) error {
 	}
 	a.IA, a.Host, a.L4Port = other.IA, other.Host, other.L4Port
 	return nil
+}
+
+func LogFatal(msg string, a ...interface{}) {
+	log.Crit(msg, a...)
+	os.Exit(1)
 }
