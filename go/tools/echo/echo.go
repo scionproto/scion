@@ -29,12 +29,11 @@ import (
 )
 
 const (
-	DefaultDispatcherPath = "/run/shm/dispatcher/default.sock"
-	DefaultInterval       = 2 * time.Second
-	DefaultTimeout        = 2 * time.Second
-	MaxEchoes             = 1 << 16
-	ReqMsg                = "ping!"
-	ReplyMsg              = "pong!"
+	DefaultInterval = 2 * time.Second
+	DefaultTimeout  = 2 * time.Second
+	MaxEchoes       = 1 << 16
+	ReqMsg          = "ping!"
+	ReplyMsg        = "pong!"
 )
 
 func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
@@ -47,10 +46,10 @@ var (
 	id         = flag.String("id", "echo", "Element ID")
 	mode       = flag.String("mode", "client", "Run in client or server mode")
 	sciond     = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher = flag.String("dispatcher", "", "Path to dispatcher socket")
-	count      = flag.Int("count", 0,
-		fmt.Sprintf("Number of echoes, between 0 and %d; "+
-			"a count of 0 means infinity", MaxEchoes))
+	dispatcher = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+		"Path to dispatcher socket")
+	count = flag.Int("count", 0,
+		fmt.Sprintf("Number of echoes, between 0 and %d; a count of 0 means infinity", MaxEchoes))
 	interval = flag.Duration("interval", DefaultInterval, "time between echoes")
 )
 
