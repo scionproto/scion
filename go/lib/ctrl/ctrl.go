@@ -72,10 +72,17 @@ type Pld struct {
 	union0
 }
 
-func NewPld(u0 proto.Cerealizable) *Pld {
+func NewPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
 	p := &Pld{}
-	p.union0.set(u0)
-	return p
+	return p, p.union0.set(u0)
+}
+
+func NewPathMgmtPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
+	ppld, cerr := path_mgmt.NewPld(u0)
+	if cerr != nil {
+		return nil, cerr
+	}
+	return NewPld(ppld)
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, *common.Error) {

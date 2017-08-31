@@ -88,10 +88,9 @@ type Pld struct {
 	*union0
 }
 
-func NewPld(u0 proto.Cerealizable) *Pld {
-	p := &Pld{&union0{}}
-	p.union0.set(u0)
-	return p
+func NewPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
+	p := &Pld{}
+	return p, p.union0.set(u0)
 }
 
 func (p *Pld) Union0() (proto.Cerealizable, *common.Error) {
