@@ -37,7 +37,7 @@ const (
 )
 
 func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
-	return fmt.Sprintf("/run/shm/sd%v.sock", ia)
+	return fmt.Sprintf("/run/shm/sciond/sd%v.sock", ia)
 }
 
 var (
@@ -112,11 +112,13 @@ func Client() {
 		before := time.Now()
 		written, err := conn.Write([]byte(ReqMsg))
 		if err != nil {
-			LogFatal("Unable to write", "err", err)
+			log.Error("Unable to write", "err", err)
+			continue
 		}
 		if written != len(ReqMsg) {
-			LogFatal("Wrote incomplete message", "expected", len(ReqMsg),
+			log.Error("Wrote incomplete message", "expected", len(ReqMsg),
 				"actual", written)
+			continue
 		}
 
 		// Receive echo reply with timeout
@@ -125,6 +127,7 @@ func Client() {
 		conn.SetDeadline(time.Time{})
 		if err != nil {
 			log.Error("Unable to read", "err", err)
+			continue
 		}
 		if string(b[:read]) != ReplyMsg {
 			fmt.Println("Received bad message", "expected", ReplyMsg,
@@ -133,7 +136,7 @@ func Client() {
 		after := time.Now()
 		elapsed := after.Sub(before)
 		fmt.Printf("%d bytes from %v: seq=%d time=%s\n", read, &remote, i, elapsed)
-		time.Sleep((*interval) - elapsed)
+		time.Sleep(*interval)
 	}
 }
 

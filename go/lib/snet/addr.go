@@ -77,9 +77,6 @@ func AddrFromString(s string) (*Addr, error) {
 	if err != nil {
 		return nil, common.NewError("Invalid port string", "port", parts["port"], "err", err)
 	}
-	if port == 0 {
-		return nil, common.NewError("Invalid port number", "port", parts["port"])
-	}
 	return &Addr{IA: ia, Host: addr.HostFromIP(ip), L4Port: uint16(port)}, nil
 }
 
