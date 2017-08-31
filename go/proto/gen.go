@@ -52,7 +52,7 @@ import (
 
 func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, *common.Error) {
 	var blank capnp.Struct
-	switch(id) {
+	switch id {
 	{{- range .RootTypes }}
 	case {{.}}_TypeID:
 		v, err := NewRoot{{.}}(seg)
@@ -69,5 +69,5 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, *common.Er
 func (s {{.}}) GetStruct() capnp.Struct {
 	return s.Struct
 }
-{{ end }}
+{{- end }}
 `))
