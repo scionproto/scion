@@ -108,6 +108,10 @@ func Client() {
 
 	b := make([]byte, 1<<12)
 	for i := 0; i < *count || *count == 0; i++ {
+		if i != 0 {
+			time.Sleep(*interval)
+		}
+
 		// Send echo request to destination
 		before := time.Now()
 		written, err := conn.Write([]byte(ReqMsg))
@@ -136,7 +140,6 @@ func Client() {
 		after := time.Now()
 		elapsed := after.Sub(before)
 		fmt.Printf("%d bytes from %v: seq=%d time=%s\n", read, &remote, i, elapsed)
-		time.Sleep(*interval)
 	}
 }
 
