@@ -67,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 	liblog.Setup(*id)
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	setupSignals()
 
 	metrics.Init(*id)

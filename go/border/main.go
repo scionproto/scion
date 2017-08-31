@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 	liblog.Setup(*id)
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	if *profFlag {
 		// Start profiling if requested.
 		profile.Start(*id)

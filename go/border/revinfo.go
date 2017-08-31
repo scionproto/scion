@@ -44,7 +44,7 @@ func (r *Router) RevTokenCallback(args rpkt.RevTokenCallbackArgs) {
 // RevInfoFwd takes RevInfos, and forwards them to the local Beacon Service
 // (BS) and Path Service (PS).
 func (r *Router) RevInfoFwd() {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	// Run forever.
 	for args := range r.revInfoQ {
 		revInfo := r.decodeRevToken(args.RevInfo)

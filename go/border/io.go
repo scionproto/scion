@@ -34,7 +34,7 @@ import (
 )
 
 func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	defer close(stopped)
 	dst := s.Conn.LocalAddr()
 	log.Debug("posixInput starting", "addr", dst)
@@ -126,7 +126,7 @@ Top:
 }
 
 func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	defer close(stopped)
 	src := s.Conn.LocalAddr()
 	log.Info("posixOutput starting", "addr", src)
