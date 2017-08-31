@@ -19,8 +19,6 @@ import (
 	"sync"
 	"time"
 
-	cache "github.com/patrickmn/go-cache"
-
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/hpkt"
@@ -38,13 +36,6 @@ const (
 	BufSize = 1<<16 - 1
 )
 
-var (
-	// Time between checks for stale path references
-	pathCleanupInterval = time.Minute
-	// TTL for pointers to Path Resolver managed paths
-	pathTTL = 30 * time.Minute
-)
-
 var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 
@@ -58,15 +49,11 @@ type Conn struct {
 	net        string
 	recvBuffer common.RawBytes
 	sendBuffer common.RawBytes
+	// Pointer to slice of paths updated by continous lookups; these are
+	// used by default when creating a connection via Dial
+	sp *pathmgr.SyncPaths
 	// Reference to SCION networking context
 	scionNet *Network
-	// Cache of pointers to fresh path data
-	// (map[string]*pathmgr.SyncPaths).  Because connections created by
-	// Listen do not have a persistent remote address, each time we send
-	// traffic to a new destination we need to grab the relevant paths.  If
-	// a destination hasn't been recently used, we delete the reference to
-	// its paths.
-	pathMap *cache.Cache
 }
 
 // DialSCION calls DialSCION on the default networking context.
@@ -189,28 +176,18 @@ func (c *Conn) Write(b []byte) (int, error) {
 }
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
-	var err error
-	var paths []*sciond.PathReplyEntry
 	var path *spath.Path
+	var err error
 
-	if c.laddr.IA.Eq(raddr.IA) {
-		// If src and dst are in the same AS, the path will be empty
+	pathEntry, err := c.selectPathEntry(raddr)
+	if err != nil {
+		return 0, common.NewError("Path error", "err", err)
+	}
+	if pathEntry == nil {
+		// No path information should be added to the packet
 		path = nil
 	} else {
-		// If src and dst are in different ASes, ask SCIOND for the path
-		sp, err := c.getPaths(raddr)
-		if err != nil {
-			return 0, err
-		}
-
-		paths = sp.Load()
-		if len(paths) == 0 {
-			return 0, common.NewError("No path available",
-				"src", c.laddr.IA, "dst", raddr.IA)
-		}
-
-		path = spath.New(paths[0].Path.FwdPath)
-
+		path = spath.New(pathEntry.Path.FwdPath)
 		// Create the path using initial IF/HF pointers
 		err = path.InitOffsets()
 		if err != nil {
@@ -247,8 +224,8 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	} else {
 		// Overlay next-hop is contained in path
 		appAddr = reliable.AppAddr{
-			Addr: addr.HostFromIP(paths[0].HostInfo.Addrs.Ipv4),
-			Port: paths[0].HostInfo.Port}
+			Addr: addr.HostFromIP(pathEntry.HostInfo.Addrs.Ipv4),
+			Port: pathEntry.HostInfo.Port}
 	}
 
 	// Send message
@@ -262,23 +239,35 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	return pkt.Pld.Len(), nil
 }
 
-func (c *Conn) getPaths(raddr *Addr) (*pathmgr.SyncPaths, error) {
-	var sp *pathmgr.SyncPaths
+func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var err error
-	// Check if srcIA-dstIA registered with path resolver
-	iaKey := c.laddr.IA.String() + "." + raddr.IA.String()
-	spGeneric, ok := c.pathMap.Get(iaKey)
-	if !ok {
-		sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, raddr.IA)
-		if err != nil {
-			return nil, common.NewError("Unable to register src-dst IAs",
-				"src", c.laddr.IA, "dst", raddr.IA, "err", err)
-		}
-		c.pathMap.Set(iaKey, sp, cache.DefaultExpiration)
-	} else {
-		sp = spGeneric.(*pathmgr.SyncPaths)
+	var pathList pathmgr.PathList
+
+	if c.laddr.IA.Eq(raddr.IA) {
+		// If src and dst are in the same AS, the path will be empty
+		return nil, nil
 	}
-	return sp, nil
+
+	// If the remote address is fixed, register source and destination for
+	// continous path updates
+	if c.raddr == nil {
+		pathList = c.scionNet.pathResolver.Query(c.laddr.IA, raddr.IA)
+	} else {
+		// Sanity check, as Dial already initializes this
+		if c.sp == nil {
+			c.sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, c.raddr.IA)
+			if err != nil {
+				return nil, common.NewError("Unable to register src-dst IAs",
+					"src", c.laddr.IA, "dst", raddr.IA, "err", err)
+			}
+		}
+		pathList = c.sp.Load()
+	}
+
+	if len(pathList) == 0 {
+		return nil, common.NewError("Path not found")
+	}
+	return pathList[0], nil
 }
 
 func (c *Conn) LocalAddr() net.Addr {

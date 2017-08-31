@@ -46,7 +46,6 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	cache "github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -118,9 +117,9 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 		return nil, err
 	}
 	conn.raddr = raddr.Copy()
-	_, err = conn.getPaths(raddr)
+	conn.sp, err = n.pathResolver.Register(conn.laddr.IA, conn.raddr.IA)
 	if err != nil {
-		return nil, common.NewError("Path error", "err", err)
+		return nil, common.NewError("Unable to establish path", "err", err)
 	}
 	return conn, nil
 }
@@ -153,7 +152,6 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	conn := &Conn{
 		net:        network,
 		scionNet:   n,
-		pathMap:    cache.New(pathTTL, pathCleanupInterval),
 		recvBuffer: make(common.RawBytes, BufSize),
 		sendBuffer: make(common.RawBytes, BufSize)}
 
