@@ -17,14 +17,13 @@
 package main
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
@@ -60,7 +59,7 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	pld := ctrl.NewPld(revInfo)
+	pld := ctrl.NewPld(path_mgmt.NewPld(revInfo))
 	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, pld); err != nil {
 		log.Error("Error generating RevInfo packet", err.Ctx...)
 	}
