@@ -31,6 +31,8 @@ const (
 	reconnectInterval = 3 * time.Second
 )
 
+type PathList []*sciond.PathReplyEntry
+
 // query contains the context needed to issue and update a query
 type query struct {
 	src, dst *addr.ISD_AS
@@ -47,8 +49,8 @@ type SyncPaths struct {
 }
 
 // Overwrite Load to avoid external type assertions
-func (sp *SyncPaths) Load() []*sciond.PathReplyEntry {
-	return sp.Value.Load().([]*sciond.PathReplyEntry)
+func (sp *SyncPaths) Load() PathList {
+	return sp.Value.Load().(PathList)
 }
 
 // sciondState is used to track the health of the connection to SCIOND
@@ -70,4 +72,8 @@ func (state sciondState) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func IAKey(src, dst *addr.ISD_AS) string {
+	return src.String() + "." + dst.String()
 }
