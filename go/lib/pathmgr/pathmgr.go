@@ -14,12 +14,18 @@
 
 // Package pathmgr implement an asynchronous Path Resolver for SCION Paths.
 //
-// A new resolver can be instantiated by calling `New`. Path queries can be
-// added with `Register`, which returns a thread-safe pointer to a slice of
-// paths; if no valid paths exist the slice is empty. Access to the underlying
-// slice is obtained by calling `Load` on the pointer.  When refreshing paths,
-// the resolver will atomically change the value of the pointer to point to a
-// new slice of paths. Fresh paths can be obtained by calling Load again.
+// A new resolver can be instantiated by calling `New`. There are two types of
+// supported path queries, simple and via continuous updates.
+//
+// Simple path queries are issued via 'Query'; they return a slice of valid
+// paths.
+//
+// Continuous update path queries are added via 'Register', which returns a
+// thread-safe pointer to a slice of paths; if no valid paths exist the slice
+// is empty. Access to the underlying slice is obtained by calling `Load` on
+// the pointer.  When updating paths, the resolver will atomically change the
+// value of the pointer to point to a new slice of paths. Fresh paths can be
+// obtained by calling Load again.
 //
 // An example of how this package can be used can be found in the associated
 // test file.
@@ -35,17 +41,26 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	cache "github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
+var (
+	// Time between checks for stale path references
+	pathCleanupInterval = time.Minute
+	// TTL for pointers to Path Resolver managed paths
+	pathTTL = 30 * time.Minute
+)
+
 type PR struct {
 	sync.Mutex     // lookup, reconnect and Register acquire this lock as separate goroutines
 	sciondPath     string
 	sciond         *sciond.Connector
-	regMap         map[string]*SyncPaths // map containing tracked srcIA-dstIA pairs
+	regMap         map[string]*SyncPaths // Path map for continuously updated queries
+	pathMap        *cache.Cache          // Path cache for simple queries
 	regCount       uint64                // number of IAs registered for priority tracking
 	queries        chan query            // used for keeping track of which queries need to be sent
 	state          sciondState           // state of SCIOND connection
@@ -53,10 +68,8 @@ type PR struct {
 	log.Logger
 }
 
-// New connects to SCIOND and spawns the asynchronous path resolver. The
-// resolver refreshes each path periodically, waiting refireInterval between
-// queries. New returns with an error if a connection to SCIOND could not be
-// established.
+// New connects to SCIOND and spawns the asynchronous path resolver. New
+// returns with an error if a connection to SCIOND could not be established.
 func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*PR, error) {
 	// Connect to sciond
 	sciondSock, err := sciond.Connect(sciondPath)
@@ -72,12 +85,40 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 		regMap:         make(map[string]*SyncPaths),
 		queries:        make(chan query, queryChanCap),
 		refireInterval: refireInterval,
+		pathMap:        cache.New(pathTTL, pathCleanupInterval),
 		Logger:         logger.New("pathmgr")}
 
 	// Start resolver, which periodically refreshes paths for registered
 	// destinations
 	go pr.resolver()
 	return pr, nil
+}
+
+// Query returns a slice of paths between src and dst. If the paths are not
+// found in the path resolver's cache, a query to SCIOND is issued and the
+// function blocks until the reply is received.
+func (r *PR) Query(src, dst *addr.ISD_AS) PathList {
+	r.Lock()
+	defer r.Unlock()
+
+	// Check if srcIA-dstIA registered with path resolver
+	iaKey := IAKey(src, dst)
+	pathListI, ok := r.pathMap.Get(iaKey)
+	if ok {
+		pathList := pathListI.(PathList)
+		return pathList
+	}
+
+	// We don't have a cached path list, so we ask SCIOND
+	q := query{src: src, dst: dst}
+	pathList := r.lookup(q)
+	if pathList == nil {
+		// We didn't find any paths due to an error
+		return nil
+	}
+	// We found paths, so we cache them
+	r.pathMap.Set(iaKey, pathList, cache.DefaultExpiration)
+	return pathList
 }
 
 // Register adds pair src-dst to the list of tracked paths.
@@ -108,7 +149,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 
 	// Reserve memory location for pointer to path
 	sp := &SyncPaths{}
-	sp.Store([]*sciond.PathReplyEntry{})
+	sp.Store(PathList{})
 
 	// Save registration memory location in map
 	r.regMap[key] = sp
@@ -116,7 +157,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	// Run initial blocking lookup, this populates sp. If the lookup
 	// fails, sp will point to an empty slice.
 	q := query{src: src, dst: dst, sp: sp}
-	r.lookup(q)
+	sp.Store(r.lookup(q))
 
 	// Add ia to periodic lookup table
 	time.AfterFunc(r.refireInterval, func() {
@@ -130,7 +171,11 @@ func (r *PR) resolver() {
 	for query := range r.queries {
 		// Spawn blocking sub-goroutine
 		r.Lock()
-		r.lookup(query)
+		paths := r.lookup(query)
+		if paths != nil {
+			// Store path slice atomically
+			query.sp.Store(paths)
+		}
 		r.Unlock()
 
 		// Readd query to queue after duration
@@ -141,10 +186,10 @@ func (r *PR) resolver() {
 }
 
 // lookup queries SCIOND, blocking while waiting for the response
-func (r *PR) lookup(q query) {
+func (r *PR) lookup(q query) PathList {
 	if r.state == sciondDown {
 		// Cannot do lookups if SCIOND connection state is down
-		return
+		return nil
 	}
 
 	reply, err := r.sciond.Paths(q.dst, q.src, numReqPaths, sciond.PathReqFlags{})
@@ -155,7 +200,7 @@ func (r *PR) lookup(q query) {
 		if r.stateTransition(sciondDown) {
 			go r.reconnect()
 		}
-		return
+		return nil
 	}
 
 	if reply.ErrorCode != sciond.ErrorOk {
@@ -164,17 +209,15 @@ func (r *PR) lookup(q query) {
 			"code", reply.ErrorCode)
 
 		// NB: keep the old path if lookup failed
-		return
+		return nil
 	}
 
 	// Prepare new path slice
-	paths := make([]*sciond.PathReplyEntry, len(reply.Entries))
+	paths := make(PathList, len(reply.Entries))
 	for i := range reply.Entries {
 		paths[i] = &reply.Entries[i]
 	}
-
-	// Store path slice atomically
-	q.sp.Store(paths)
+	return paths
 }
 
 // reconnect repeatedly tries to reconnect to SCIOND
