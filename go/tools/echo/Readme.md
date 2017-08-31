@@ -9,7 +9,7 @@ go run echo.go -mode server -local 2-25,[127.0.0.1]:40002 -sciond /run/shm/scion
 
 Finally, start the client using:
 ```
-go run echo.go -mode client -remote 2-25,[127.0.0.1]:40002 -local 1-19,[127.0.0.1]:40001 \
+go run echo.go -mode client -remote 2-25,[127.0.0.1]:40002 -local 1-19,[127.0.0.1]:0 \
 	-sciond /run/shm/sciond/sd1-19.sock -dispatcher /run/shm/dispatcher/default.sock \
 	-count 10
 ```
