@@ -29,6 +29,7 @@ from external.expiring_dict import ExpiringDict
 from prometheus_client import Counter, Gauge, start_http_server
 
 # SCION
+import lib.app.sciond as lib_sciond
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_sig_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
@@ -41,6 +42,7 @@ from lib.defines import (
     GEN_CACHE_PATH,
     PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
+    SCIOND_API_SOCKDIR,
     SERVICE_TYPES,
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
@@ -125,6 +127,8 @@ CONNECTED_TO_DISPATCHER = Gauge(
     ["server_id", "isd_as"])
 
 MAX_QUEUE = 50
+# Timeout for API path requests
+API_TOUT = 1
 
 
 class SCIONElement(object):
@@ -209,6 +213,7 @@ class SCIONElement(object):
             self._export_metrics(prom_export)
             self._init_metrics()
         self._setup_sockets(True)
+        lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as))
 
     def _setup_sockets(self, init):
         """
@@ -1222,3 +1227,17 @@ class SCIONElement(object):
         PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(0)
         PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(0)
         CONNECTED_TO_DISPATCHER.labels(**self._labels).set(0)
+
+    def _get_path_via_sciond(self, isd_as, flush=False):
+        flags = lib_sciond.PathRequestFlags(flush=flush)
+        start = time.time()
+        while time.time() - start < API_TOUT:
+            try:
+                path_entries = lib_sciond.get_paths(isd_as, flags=flags)
+            except lib_sciond.SCIONDLibError as e:
+                logging.error("Error during path lookup: %s" % e)
+                continue
+            if path_entries:
+                return path_entries[0].path()
+        logging.warning("Unable to get path to %s from SCIOND.", isd_as)
+        return None
