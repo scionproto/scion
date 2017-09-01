@@ -317,10 +317,9 @@ func (b *Backend) insertFull(pseg *seg.PathSegment,
 	}
 	segID := pseg.ID()
 	packedSeg, cerr := pseg.Pack()
-	if err != nil {
+	if cerr != nil {
 		return cerr
 	}
-	log.Debug("PackedSeg", "raw", packedSeg)
 	// Insert path segment.
 	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment) VALUES (?, ?, ?)`
 	res, cerr := prepareAndExec(tx, inst, segID, time.Now().Unix(), packedSeg)
@@ -431,7 +430,7 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, *common.Error) {
 		}
 		meta.LastUpdated = time.Unix(int64(lastUpdated), 0)
 		var cerr *common.Error
-		meta.Seg, cerr = seg.NewPathSegmentFromRaw(common.RawBytes(rawSeg))
+		meta.Seg, cerr = seg.NewFromRaw(common.RawBytes(rawSeg))
 		if cerr != nil {
 			return nil, cerr
 		}
@@ -450,10 +449,10 @@ func (b *Backend) Delete(segID common.RawBytes) (int, *common.Error) {
 	if err != nil {
 		return 0, common.NewError("Failed to create transaction", "err", err)
 	}
-	res, err := prepareAndExec(tx, "DELETE FROM Segments WHERE SegID=?;", segID)
+	res, cerr := prepareAndExec(tx, "DELETE FROM Segments WHERE SegID=?;", segID)
 	if err != nil {
 		tx.Rollback()
-		return 0, common.NewError("Failed to delete segment", "err", err)
+		return 0, common.NewError("Failed to delete segment", "err", cerr)
 	}
 	// Commit transaction
 	err = tx.Commit()
@@ -475,12 +474,12 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, *common.Error) {
 		return 0, common.NewError("Failed to create transaction", "err", err)
 	}
 	delStmt := `DELETE FROM Segments WHERE EXISTS (
-		SELECT * FROM IntfToSegs WHERE IsdID=? AND AsID=? AND IntfID=?
+		SELECT * FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=?
 	);`
-	res, err := prepareAndExec(tx, delStmt, intf.IA.I, intf.IA.A, intf.IfID)
+	res, cerr := prepareAndExec(tx, delStmt, intf.IA.I, intf.IA.A, intf.IfID)
 	if err != nil {
 		tx.Rollback()
-		return 0, common.NewError("Failed to delete segments", "err", err)
+		return 0, common.NewError("Failed to delete segments", "err", cerr)
 	}
 	// Commit transaction
 	err = tx.Commit()
@@ -498,7 +497,7 @@ func (b *Backend) Get(opt *query.Params) ([]*query.Result, *common.Error) {
 		return nil, common.NewError("No database open")
 	}
 	stmt := buildQuery(opt)
-	log.Debug("Query: %s", stmt)
+	log.Debug("Query", "str", stmt)
 	rows, err := b.db.Query(stmt)
 	if err != nil {
 		return nil, common.NewError("Error looking up path segment", "q", stmt, "err", err)
@@ -522,13 +521,14 @@ func (b *Backend) Get(opt *query.Params) ([]*query.Result, *common.Error) {
 			}
 			curRes = &query.Result{}
 			var cerr *common.Error
-			curRes.Seg, cerr = seg.NewPathSegmentFromRaw(common.RawBytes(rawSeg))
+			curRes.Seg, cerr = seg.NewFromRaw(common.RawBytes(rawSeg))
 			if cerr != nil {
 				return nil, common.NewError("Error unmarshalling segment", "err", cerr)
 			}
 		}
 		// Append label to result
 		curRes.Labels = append(curRes.Labels, query.SegLabel(rawLabel))
+		prevID = rowID
 	}
 	if curRes != nil {
 		res = append(res, curRes)
@@ -538,29 +538,29 @@ func (b *Backend) Get(opt *query.Params) ([]*query.Result, *common.Error) {
 
 func buildQuery(opt *query.Params) string {
 	query := []string{
-		"SELECT s.ID, s.Segment, l.Label FROM Segments s",
+		"SELECT DISTINCT s.ID, s.Segment, l.Label FROM Segments s",
 		"JOIN SegLabels l ON l.SegID=s.ID",
 	}
 	if opt == nil {
-		return strings.Join(query, "\n") + ";"
+		return strings.Join(query, "\n")
 	}
 	joins := []string{}
 	where := []string{}
 	if len(opt.SegID) > 0 {
-		where = append(where, fmt.Sprintf("s.SegID=%v", opt.SegID))
+		where = append(where, fmt.Sprintf("s.SegID=x'%v'", opt.SegID))
 	}
 	if len(opt.SegTypes) > 0 {
 		joins = append(joins, "JOIN SegTypes t ON t.SegID=s.ID")
 		subQ := []string{}
 		for _, segType := range opt.SegTypes {
-			subQ = append(subQ, fmt.Sprintf("t.Type=%v", segType))
+			subQ = append(subQ, fmt.Sprintf("t.Type='%v'", segType))
 		}
 		where = append(where, strings.Join(subQ, " OR "))
 	}
 	if len(opt.Labels) > 0 {
 		subQ := []string{}
 		for _, label := range opt.Labels {
-			subQ = append(subQ, fmt.Sprintf("l.Label=%v", label))
+			subQ = append(subQ, fmt.Sprintf("l.Label=x'%v'", label))
 		}
 		where = append(where, strings.Join(subQ, " OR "))
 	}
@@ -568,7 +568,7 @@ func buildQuery(opt *query.Params) string {
 		joins = append(joins, "JOIN IntfToSeg i ON i.SegID=s.ID")
 		subQ := []string{}
 		for _, spec := range opt.Intfs {
-			subQ = append(subQ, fmt.Sprintf("(i.IsdID=%v AND i.AsID=%v AND i.IntfID=%v)",
+			subQ = append(subQ, fmt.Sprintf("(i.IsdID='%v' AND i.AsID='%v' AND i.IntfID='%v')",
 				spec.IA.I, spec.IA.A, spec.IfID))
 		}
 		where = append(where, strings.Join(subQ, " OR "))
@@ -577,7 +577,7 @@ func buildQuery(opt *query.Params) string {
 		joins = append(joins, "JOIN StartsAt st ON st.SegID=s.ID")
 		subQ := []string{}
 		for _, as := range opt.StartsAt {
-			subQ = append(subQ, fmt.Sprintf("(st.IsdID=%v AND st.AsID=%v)", as.I, as.A))
+			subQ = append(subQ, fmt.Sprintf("(st.IsdID='%v' AND st.AsID='%v')", as.I, as.A))
 		}
 		where = append(where, strings.Join(subQ, " OR "))
 	}
@@ -585,7 +585,7 @@ func buildQuery(opt *query.Params) string {
 		joins = append(joins, "JOIN EndsAt e ON e.SegID=s.ID")
 		subQ := []string{}
 		for _, as := range opt.EndsAt {
-			subQ = append(subQ, fmt.Sprintf("(e.IsdID=%v AND e.AsID=%v)", as.I, as.A))
+			subQ = append(subQ, fmt.Sprintf("(e.IsdID='%v' AND e.AsID='%v')", as.I, as.A))
 		}
 		where = append(where, strings.Join(subQ, " OR "))
 	}
@@ -594,7 +594,7 @@ func buildQuery(opt *query.Params) string {
 		query = append(query, strings.Join(joins, "\n"))
 	}
 	if len(where) > 0 {
-		query = append(query, fmt.Sprintf("WHERE %s", strings.Join(where, "AND\n")))
+		query = append(query, fmt.Sprintf("WHERE %s", strings.Join(where, " AND\n")))
 	}
-	return strings.Join(query, "\n") + ";"
+	return strings.Join(query, "\n")
 }
