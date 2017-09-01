@@ -576,7 +576,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 			}
 		}
 		// Append cfgID to result
-		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{cfgIsd, cfgAs}, ID: cfgID}
+		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{I: cfgIsd, A: cfgAs}, ID: cfgID}
 		curRes.CfgIDs = append(curRes.CfgIDs, hpCfgID)
 		prevID = rowID
 	}
