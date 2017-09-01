@@ -190,6 +190,7 @@ class SCIONDMsgType(TypeBase):
     AS_REQUEST = "asInfoReq"
     AS_REPLY = "asInfoReply"
     REVOCATION = "revNotification"
+    REVOCATIONREPLY = "revReply"
     IF_REQUEST = "ifInfoRequest"
     IF_REPLY = "ifInfoReply"
     SERVICE_REQUEST = "serviceInfoRequest"

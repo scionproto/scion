@@ -53,6 +53,7 @@ type SCIONDMsg struct {
 	AsInfoReq          ASInfoReq
 	AsInfoReply        ASInfoReply
 	RevNotification    RevNotification
+	RevReply           RevReply
 	IfInfoRequest      IFInfoRequest
 	IfInfoReply        IFInfoReply
 	ServiceInfoRequest ServiceInfoRequest
@@ -136,13 +137,26 @@ type RevNotification struct {
 
 type RevInfo struct {
 	IfID     uint64
-	Epoch    uint16
+	Epoch    uint64
 	Nonce    []byte
-	Sibling  []SiblingHash
+	Siblings []SiblingHash
 	PrevRoot []byte
 	NextRoot []byte
 	Isdas    uint32
 }
+
+type RevReply struct {
+	Status StatusCode
+}
+
+type StatusCode uint16
+
+const (
+	RemovedSegments StatusCode = iota
+	EpochOk
+	EpochFail
+	IFIDFail
+)
 
 type SiblingHash struct {
 	IsLeft bool
