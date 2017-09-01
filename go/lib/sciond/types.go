@@ -97,6 +97,8 @@ func (p *Pld) union0() (interface{}, *common.Error) {
 		return p.AsInfoReply, nil
 	case proto.SCIONDMsg_Which_revNotification:
 		return p.RevNotification, nil
+	case proto.SCIONDMsg_Which_revReply:
+		return p.RevReply, nil
 	case proto.SCIONDMsg_Which_ifInfoRequest:
 		return p.IfInfoRequest, nil
 	case proto.SCIONDMsg_Which_ifInfoReply:

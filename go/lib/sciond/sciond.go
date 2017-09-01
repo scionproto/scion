@@ -36,7 +36,7 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -96,7 +96,11 @@ func (c *Connector) send(p *Pld) error {
 
 func (c *Connector) receive() (*Pld, error) {
 	p := &Pld{}
-	return p, proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
+	err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
@@ -250,29 +254,16 @@ func (c *Connector) RevNotification(info []byte) (*RevReply, error) {
 	defer c.Unlock()
 
 	// Extract information from notification
-	ri := new(RevInfo)
-
-	message, err := capnp.UnmarshalPacked([]byte(info))
-	if err != nil {
-		return nil, common.NewError("Unable to unmarshal packed RevocationInfo",
-			"err", err)
-	}
-
-	root, err := message.RootPtr()
-	if err != nil {
-		return nil, common.NewError("Unable to get root pointer", "err", err)
-	}
-
-	err = pogs.Extract(ri, proto.RevInfo_TypeID, root.Struct())
-	if err != nil {
-		return nil, common.NewError("Unable to parse capnp RevInfo object", "err", err)
+	ri, cerr := path_mgmt.NewRevInfoFromRaw(info)
+	if cerr != nil {
+		return nil, cerr
 	}
 
 	// Encapsulate RevInfo item in RevNotification object
-	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_revNotification}
-	request.RevNotification.RevInfo = *ri
+	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_revNotification}
+	request.RevNotification.RevInfo = ri
 
-	err = c.send(request)
+	err := c.send(request)
 	if err != nil {
 		return nil, err
 	}
