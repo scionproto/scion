@@ -58,6 +58,7 @@ type Pld struct {
 	AsInfoReq          ASInfoReq
 	AsInfoReply        ASInfoReply
 	RevNotification    RevNotification
+	RevReply           RevReply
 	IfInfoRequest      IFInfoRequest
 	IfInfoReply        IFInfoReply
 	ServiceInfoRequest ServiceInfoRequest
@@ -182,6 +183,19 @@ func (entry ASInfoReplyEntry) String() string {
 type RevNotification struct {
 	RevInfo *path_mgmt.RevInfo
 }
+
+type RevReply struct {
+	Status StatusCode
+}
+
+type StatusCode uint16
+
+const (
+	RemovedSegments StatusCode = iota
+	EpochOk
+	EpochFail
+	IFIDFail
+)
 
 type IFInfoRequest struct {
 	IfIDs []uint64

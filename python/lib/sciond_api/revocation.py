@@ -47,3 +47,35 @@ class SCIONDRevNotification(SCIONDMsgBase):
 
     def short_desc(self):
         return self.rev_info().short_desc()
+
+class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
+    """Revocation reply."""
+    NAME = "RevReply"
+    MSG_TYPE = SMT.REVOCATIONREPLY
+    P_CLS = P.RevReply
+
+    @classmethod
+    def from_values(cls, id_, status):
+        p = cls.P_CLS.new_message(status = status)
+        return cls(p, id_)
+
+    def short_desc(self):
+        return "status=%d" % SCIONDRevReplyStatus.describe(self.status)
+
+class SCIONDRevReplyStatus:  # pragma: no cover
+    REMOVED_SEGMENTS = 0
+    EPOCH_OK = 1
+    EPOCH_FAIL = 2
+    IFID_FAIL = 3
+
+    @classmethod
+    def describe(cls, code):
+        if code == cls.REMOVED_SEGMENTS:
+            return "Removed segments."
+        if code == cls.EPOCH_OK:
+            return "Epoch ok, but did not remove any segments."
+        if code == cls.EPOCH_FAIL:
+            return "Epoch check failed."
+        if code == cls.IFID_FAIL:
+            return "IFID check failed."
+        return "Unknown status"
