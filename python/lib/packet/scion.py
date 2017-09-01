@@ -30,6 +30,7 @@ from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.cert_mgmt import parse_certmgmt_payload
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import parse_extensions
+from lib.packet.hp_mgmt.parse import parse_hp_mgmt_payload
 from lib.packet.host_addr import HostAddrInvalidType, haddr_get_type
 from lib.packet.ifid import parse_ifid_payload
 from lib.packet.opaque_field import OpaqueField
@@ -718,6 +719,7 @@ def msg_from_raw(raw):
         PayloadClass.PATH: parse_pathmgmt_payload,
         PayloadClass.SIBRA: parse_sibra_payload,
         PayloadClass.DRKEY: parse_drkeymgmt_payload,
+        PayloadClass.HPATH: parse_hp_mgmt_payload,
     }
     handler = class_map.get(pld_class)
     if not handler:

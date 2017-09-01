@@ -22,6 +22,7 @@ import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
+from lib.errors import SCIONSigVerError
 from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.packet.scion_addr import ISD_AS
 from lib.types import PathMgmtType as PMT
@@ -34,6 +35,7 @@ class RevocationInfo(PathMgmtPayloadBase):
     NAME = "RevocationInfo"
     PAYLOAD_TYPE = PMT.REVOCATION
     P_CLS = P.RevInfo
+    VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
     def from_values(cls, isd_as, if_id, epoch, nonce, siblings, prev_root,
@@ -65,12 +67,36 @@ class RevocationInfo(PathMgmtPayloadBase):
     def isd_as(self):
         return ISD_AS(self.p.isdas)
 
+    def sibling(self, idx):
+        return self.p.siblings[idx]
+
+    def iter_siblings(self, start=0):
+        for i, sib in range(start, len(self.p.siblings)):
+            yield self.sibling(i)
+
     def cmp_str(self):
         b = []
         b.append(self.p.isdas.to_bytes(4, 'big'))
         b.append(self.p.ifID.to_bytes(8, 'big'))
         b.append(self.p.epoch.to_bytes(8, 'big'))
         b.append(self.p.nonce)
+        return b"".join(b)
+
+    def sig_pack7(self):
+        if self.VER != 7:
+            raise SCIONSigVerError("RevocationInfo.sig_pack7 cannot support version %s",
+                                   self.Ver)
+        b = []
+        b.append(self.p.ifID.to_bytes(8, 'big'))
+        b.append(self.p.epoch.to_bytes(8, 'big'))
+        b.append(self.p.nonce)
+        for sib in self.iter_siblings():
+            b.append(sib.isLeft.to_bytes(1, 'big'))
+            b.append(sib.hash)
+        b.append(self.p.prevRoot)
+        b.append(self.p.nextRoot)
+        b.append(self.p.isdas.to_byptes(4, 'big'))
+        b.append(self.p.hashType.to_byptes(2, 'big'))
         return b"".join(b)
 
     def __eq__(self, other):
