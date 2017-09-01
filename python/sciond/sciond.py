@@ -338,12 +338,12 @@ class SCIONDaemon(SCIONElement):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         self.handle_revocation(rev_info, meta)
 
-    def handle_revocation(self, rev_info, meta, id_ = -1):
+    def handle_revocation(self, rev_info, meta, id_=-1):
         assert isinstance(rev_info, RevocationInfo)
         if not self._validate_revocation(rev_info):
             if id_ != -1:
-                rev_reply = SCIONDRevReply.from_values(id_,
-                        SCIONDRevReplyStatus.IFID_FAIL)
+                rev_reply = SCIONDRevReply.from_values(
+                    id_, SCIONDRevReplyStatus.IFID_FAIL)
                 self.send_meta(rev_reply.pack_full(), meta)
             return
         logging.debug("Revocation info received: %s", rev_info)
@@ -354,8 +354,8 @@ class SCIONDaemon(SCIONElement):
                 "Failed to verify epoch: rev_info epoch %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             if id_ != -1:
-                rev_reply = SCIONDRevReply.from_values(id_,
-                        SCIONDRevReplyStatus.EPOCH_FAIL)
+                rev_reply = SCIONDRevReply.from_values(
+                    id_, SCIONDRevReplyStatus.EPOCH_FAIL)
                 self.send_meta(rev_reply.pack_full(), meta)
             return
 
@@ -366,11 +366,11 @@ class SCIONDaemon(SCIONElement):
         total = removed_up + removed_core + removed_down
         if id_ != -1:
             if total > 0:
-                rev_reply = SCIONDRevReply.from_values(id_,
-                        SCIONDRevReplyStatus.REMOVED_SEGMENTS)
+                rev_reply = SCIONDRevReply.from_values(
+                     id_, SCIONDRevReplyStatus.REMOVED_SEGMENTS)
             else:
-                rev_reply = SCIONDRevReply.from_values(id_,
-                        SCIONDRevReplyStatus.EPOCH_OK)
+                rev_reply = SCIONDRevReply.from_values(
+                        id_, SCIONDRevReplyStatus.EPOCH_OK)
             self.send_meta(rev_reply.pack_full(), meta)
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))
