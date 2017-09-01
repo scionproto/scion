@@ -49,8 +49,10 @@ func (u0 *union0) set(c proto.Cerealizable) *common.Error {
 	case *path_mgmt.Pld:
 		u0.Which = proto.SCION_Which_pathMgmt
 		u0.PathMgmt = u
+	default:
+		return common.NewError("Unsupported ctrl union0 type (set)", "type", common.TypeOf(c))
 	}
-	return common.NewError("Unsupported ctrl union0 type (set)", "type", common.TypeOf(c))
+	return nil
 }
 
 func (u0 *union0) get() (proto.Cerealizable, *common.Error) {

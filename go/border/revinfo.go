@@ -62,6 +62,7 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	cpld, cerr := ctrl.NewPathMgmtPld(revInfo)
 	if cerr != nil {
 		log.Error("Error generating RevInfo payload", cerr.Ctx...)
+		return
 	}
 	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, cpld); err != nil {
 		log.Error("Error generating RevInfo packet", err.Ctx...)

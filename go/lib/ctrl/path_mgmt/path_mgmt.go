@@ -58,8 +58,10 @@ func (u0 *union0) set(c proto.Cerealizable) *common.Error {
 	case *IFStateInfos:
 		u0.Which = proto.PathMgmt_Which_ifStateInfos
 		u0.IFStateInfos = u
+	default:
+		return common.NewError("Unsupported path mgmt union0 type (set)", "type", common.TypeOf(c))
 	}
-	return common.NewError("Unsupported path mgmt union0 type (set)", "type", common.TypeOf(c))
+	return nil
 }
 
 func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
@@ -85,7 +87,7 @@ func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
-	*union0
+	union0
 }
 
 func NewPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
