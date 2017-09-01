@@ -28,7 +28,7 @@ type HPCfgID struct {
 
 func NewHPCfgID(isd int, as int, ID uint64) *HPCfgID {
 	return &HPCfgID{
-		IA: &addr.ISD_AS{isd, as},
+		IA: &addr.ISD_AS{I: isd, A: as},
 		ID: ID,
 	}
 }
