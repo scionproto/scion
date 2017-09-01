@@ -28,9 +28,9 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	. "github.com/smartystreets/goconvey/convey"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 var _ = log.Root
@@ -74,40 +74,6 @@ func generateTests(asList []*addr.ISD_AS, count int) []TestCase {
 		tests = append(tests, tc)
 	}
 	return tests
-}
-
-type ASData struct {
-	Core    []string `yaml:"Core"`
-	NonCore []string `yaml:"Non-core"`
-}
-
-func loadASList() ([]*addr.ISD_AS, error) {
-	list := make([]*addr.ISD_AS, 0)
-
-	buffer, err := ioutil.ReadFile("../../../gen/as_list.yml")
-	if err != nil {
-		return nil, err
-	}
-
-	var locations ASData
-	yaml.Unmarshal(buffer, &locations)
-
-	for _, isdas := range locations.Core {
-		as, err := addr.IAFromString(isdas)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, as)
-	}
-
-	for _, isdas := range locations.NonCore {
-		as, err := addr.IAFromString(isdas)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, as)
-	}
-	return list, nil
 }
 
 func TestIntegration(t *testing.T) {
@@ -217,7 +183,7 @@ func TestMain(m *testing.M) {
 	var err error
 
 	// Load topology information
-	asList, err = loadASList()
+	asList, err = util.LoadASList("../../../gen/as_list.yml")
 	if err != nil {
 		fmt.Println("ASList load error", err)
 		return
