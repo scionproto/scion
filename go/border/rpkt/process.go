@@ -26,6 +26,9 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	ctrl_cmn "github.com/netsec-ethz/scion/go/lib/ctrl/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -129,38 +132,29 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
-	cpld, ok := rp.pld.(*spkt.CtrlPld)
+	cpld, ok := rp.pld.(ctrl_cmn.CtrlPld)
 	if !ok {
 		// FIXME(kormat): handle SCMP packets sent to this router.
 		return HookError, common.NewError("Unable to process unsupported payload type",
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
-	pld := cpld.SCION
 	// Determine the type of SCION control payload.
-	switch pld.Which() {
+	switch cpld.PldClass() {
 	case proto.SCION_Which_ifid:
-		ifid, err := pld.Ifid()
-		if err != nil {
-			return HookError, common.NewError(errPldGet, "err", err)
-		}
-		return rp.processIFID(ifid)
+		return rp.processIFID(cpld.(*ifid.IFID))
 	case proto.SCION_Which_pathMgmt:
-		pathMgmt, err := pld.PathMgmt()
-		if err != nil {
-			return HookError, common.NewError(errPldGet, "err", err)
-		}
-		return rp.processPathMgmtSelf(pathMgmt)
+		return rp.processPathMgmtSelf(cpld.(path_mgmt.PathMgmtPld))
 	default:
-		rp.Error("Unsupported destination payload", "type", pld.Which())
+		rp.Error("Unsupported destination payload", "type", cpld.PldClass())
 		return HookError, nil
 	}
 }
 
 // processIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
-func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
+func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
 	// Set the RelayIF field in the payload to the current interface ID.
-	pld.SetRelayIF(uint16(*rp.ifCurr))
-	if err := rp.SetPld(rp.pld); err != nil {
+	ifid.RelayIfID = uint64(*rp.ifCurr)
+	if err := rp.SetPld(ifid); err != nil {
 		return HookError, err
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
@@ -188,16 +182,12 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 }
 
 // processPathMgmtSelf handles Path Management SCION control messages.
-func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *common.Error) {
-	switch pathMgmt.Which() {
+func (rp *RtrPkt) processPathMgmtSelf(pld path_mgmt.PathMgmtPld) (HookResult, *common.Error) {
+	switch pld.PldType() {
 	case proto.PathMgmt_Which_ifStateInfos:
-		ifStates, err := pathMgmt.IfStateInfos()
-		if err != nil {
-			return HookError, common.NewError(errPldGet, "err", err)
-		}
-		ifstate.Process(ifStates)
+		ifstate.Process(pld.(*path_mgmt.IFStateInfos))
 	default:
-		rp.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
+		rp.Error("Unsupported destination PathMgmt payload", "type", pld.PldType())
 		return HookError, nil
 	}
 	return HookFinish, nil
@@ -232,7 +222,12 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 func (rp *RtrPkt) processSCMPRevocation() {
 	var args RevTokenCallbackArgs
 	pld := rp.pld.(*scmp.Payload)
-	args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
+	revInfo, err := path_mgmt.NewRevInfoFromRaw(pld.Info.(*scmp.InfoRevocation).RevToken)
+	if err != nil {
+		rp.Error("Unable to decode revToken", "err", err)
+		return
+	}
+	args.RevInfo = revInfo
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
 	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.CoreLink) ||

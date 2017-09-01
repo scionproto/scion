@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2017 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,32 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+// This file contains utility functions for time and timestamps.
+
+package util
 
 import (
-	"fmt"
+	"time"
 )
 
-var _ Payload = (*RawBytes)(nil)
-
-type RawBytes []byte
-
-func (r RawBytes) String() string {
-	return fmt.Sprintf("%x", []byte(r))
-}
-
-func (r RawBytes) Len() int {
-	return len(r)
-}
-
-func (r RawBytes) Copy() (Payload, *Error) {
-	return append(RawBytes{}, r...), nil
-}
-
-func (r RawBytes) WritePld(b RawBytes) (int, *Error) {
-	if len(b) < len(r) {
-		return 0, NewError("Insufficient space", "expected",
-			len(r), "actual", len(b))
-	}
-	return copy(b, r), nil
+// ISOTimestamp returns a ISO 8601 formatted UTC timestamp.
+func ISOTimestamp(t time.Time) string {
+	return t.UTC().Format("2017-01-01 15:04:05+00:00")
 }

@@ -17,18 +17,14 @@
 package main
 
 import (
-	"bytes"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 
 	log "github.com/inconshreveable/log15"
-	"zombiezen.com/go/capnproto2"
 
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // RevTokenCallback is called to enqueue RevInfos for handling by the
@@ -47,53 +43,23 @@ func (r *Router) RevInfoFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
 	for args := range r.revInfoQ {
-		revInfo := r.decodeRevToken(args.RevInfo)
-		if revInfo == nil {
+		if args.RevInfo == nil {
 			continue
 		}
-		log.Debug("Forwarding revocation", "revInfo", revInfo.Pretty(), "targets", args.Addrs)
+		log.Debug("Forwarding revocation", "revInfo", args.RevInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
-			r.fwdRevInfo(revInfo, &svcAddr)
+			r.fwdRevInfo(args.RevInfo, &svcAddr)
 		}
 	}
 
-}
-
-// decodeRevToken decodes RevInfo payloads.
-func (r *Router) decodeRevToken(b common.RawBytes) *proto.RevInfo {
-	buf := bytes.NewBuffer(b)
-	msg, err := capnp.NewPackedDecoder(buf).Decode()
-	if err != nil {
-		log.Error("Decoding revocation token failed", "err", err)
-		return nil
-	}
-	// Handle any panics while parsing
-	defer func() {
-		if err := recover(); err != nil {
-			log.Error("Parsing revocation token failed", "err", err)
-		}
-	}()
-	revInfo, err := proto.ReadRootRevInfo(msg)
-	if err != nil {
-		log.Error("Reading RevInfo from revocation token failed", "err", err)
-		return nil
-	}
-	return &revInfo
 }
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) fwdRevInfo(revInfo *proto.RevInfo, dstHost addr.HostAddr) {
+func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	scion, pathMgmt, err := proto.NewPathMgmtMsg()
-	if err != nil {
-		log.Error("Error creating PathMgmt payload", err.Ctx...)
-		return
-	}
-	pathMgmt.SetRevInfo(*revInfo)
-	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr,
-		&spkt.CtrlPld{SCION: scion}); err != nil {
+	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, revInfo); err != nil {
 		log.Error("Error generating RevInfo packet", err.Ctx...)
 	}
 }
