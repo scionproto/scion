@@ -83,7 +83,7 @@ func NewPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
 	return p, p.union0.set(u0)
 }
 
-// NewPld creates a new control payload, containing a new path_mgmt payload,
+// NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
 func NewPathMgmtPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
 	ppld, cerr := path_mgmt.NewPld(u0)

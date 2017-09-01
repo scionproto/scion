@@ -57,7 +57,7 @@ func WriteRoot(c Cerealizable, b common.RawBytes) (int, *common.Error) {
 	return raw.Offset, nil
 }
 
-// WriteRoot creates a complete capnp message for c, and returns it encoded as bytes.
+// PackRoot creates a complete capnp message for c, and returns it encoded as bytes.
 func PackRoot(c Cerealizable) (common.RawBytes, *common.Error) {
 	msg, cerr := cerealInsert(c)
 	if cerr != nil {
@@ -121,7 +121,7 @@ func ParseFromRaw(c Cerealizable, pType ProtoIdType, b common.RawBytes) *common.
 	return ParseFromReader(c, pType, bytes.NewBuffer(b))
 }
 
-// ParseFromRaw is a utility function, which reads a capnp message from r and parses it into c.
+// ParseFromReader is a utility function, which reads a capnp message from r and parses it into c.
 // It is effectively a composition of ReadRootFromReader and ParseStruct.
 func ParseFromReader(c Cerealizable, pType ProtoIdType, r io.Reader) *common.Error {
 	s, cerr := ReadRootFromReader(r)
