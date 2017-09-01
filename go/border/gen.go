@@ -27,12 +27,14 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/topology"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 const (
@@ -45,7 +47,7 @@ const (
 
 // genPkt is a generic function to generate packets that originate at the router.
 func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int,
-	srcAddr *topology.AddrInfo, pld *spkt.CtrlPld) *common.Error {
+	srcAddr *topology.AddrInfo, pld common.Payload) *common.Error {
 	ctx := rctx.Get()
 	dirTo := rcmn.DirExternal
 	if dstIA.Eq(ctx.Conf.IA) {
@@ -99,18 +101,17 @@ func (r *Router) SyncInterface() {
 }
 
 // genIFIDPkt generates an IFID-packet for the specified interface.
-func (r *Router) genIFIDPkt(ifid common.IFIDType, ctx *rctx.Ctx) {
-	logger := log.New("ifid", ifid)
-	intf := ctx.Conf.Net.IFs[ifid]
+func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
+	logger := log.New("ifid", ifID)
+	intf := ctx.Conf.Net.IFs[ifID]
 	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
-	scion, ifidMsg, err := proto.NewIFIDMsg()
-	if err != nil {
-		logger.Error("Error creating IFID payload", err.Ctx...)
+	cpld, cerr := ctrl.NewPld(&ifid.IFID{OrigIfID: uint64(ifID)})
+	if cerr != nil {
+		logger.Error("Error generating IFID payload", cerr.Ctx...)
 		return
 	}
-	ifidMsg.SetOrigIF(uint16(ifid))
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
-		intf.RemoteAddr.L4Port, srcAddr, &spkt.CtrlPld{SCION: scion}); err != nil {
+		intf.RemoteAddr.L4Port, srcAddr, cpld); err != nil {
 		logger.Error("Error generating IFID packet", err.Ctx...)
 	}
 }
@@ -136,18 +137,12 @@ func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
-	scion, pathMgmt, err := proto.NewPathMgmtMsg()
-	if err != nil {
-		log.Error("Error creating PathMgmt payload", err.Ctx...)
-		return
-	}
-	_, cerr := pathMgmt.NewIfStateReq()
+	cpld, cerr := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{})
 	if cerr != nil {
-		log.Error("Unable to create IFStateReq struct", "err", cerr)
+		log.Error("Error generating IFStateReq payload", cerr.Ctx...)
 		return
 	}
-	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr,
-		&spkt.CtrlPld{SCION: scion}); err != nil {
-		log.Error("Error generating IFID packet", err.Ctx...)
+	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, cpld); err != nil {
+		log.Error("Error generating IFStateReq packet", err.Ctx...)
 	}
 }

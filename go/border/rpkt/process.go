@@ -26,11 +26,13 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/topology"
-	"github.com/netsec-ethz/scion/go/proto"
 )
 
 const (
@@ -129,38 +131,37 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
-	cpld, ok := rp.pld.(*spkt.CtrlPld)
+	cpld, ok := rp.pld.(*ctrl.Pld)
 	if !ok {
 		// FIXME(kormat): handle SCMP packets sent to this router.
 		return HookError, common.NewError("Unable to process unsupported payload type",
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
-	pld := cpld.SCION
 	// Determine the type of SCION control payload.
-	switch pld.Which() {
-	case proto.SCION_Which_ifid:
-		ifid, err := pld.Ifid()
-		if err != nil {
-			return HookError, common.NewError(errPldGet, "err", err)
-		}
-		return rp.processIFID(ifid)
-	case proto.SCION_Which_pathMgmt:
-		pathMgmt, err := pld.PathMgmt()
-		if err != nil {
-			return HookError, common.NewError(errPldGet, "err", err)
-		}
-		return rp.processPathMgmtSelf(pathMgmt)
+	u0, cerr := cpld.Union0()
+	if cerr != nil {
+		return HookError, cerr
+	}
+	switch u0 := u0.(type) {
+	case *ifid.IFID:
+		return rp.processIFID(u0)
+	case *path_mgmt.Pld:
+		return rp.processPathMgmtSelf(u0)
 	default:
-		rp.Error("Unsupported destination payload", "type", pld.Which())
+		rp.Error("Unsupported destination payload", "type", common.TypeOf(u0))
 		return HookError, nil
 	}
 }
 
 // processIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
-func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
+func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
 	// Set the RelayIF field in the payload to the current interface ID.
-	pld.SetRelayIF(uint16(*rp.ifCurr))
-	if err := rp.SetPld(rp.pld); err != nil {
+	ifid.RelayIfID = uint64(*rp.ifCurr)
+	cpld, cerr := ctrl.NewPld(ifid)
+	if cerr != nil {
+		return HookError, cerr
+	}
+	if err := rp.SetPld(cpld); err != nil {
 		return HookError, err
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
@@ -188,17 +189,17 @@ func (rp *RtrPkt) processIFID(pld proto.IFID) (HookResult, *common.Error) {
 }
 
 // processPathMgmtSelf handles Path Management SCION control messages.
-func (rp *RtrPkt) processPathMgmtSelf(pathMgmt proto.PathMgmt) (HookResult, *common.Error) {
-	switch pathMgmt.Which() {
-	case proto.PathMgmt_Which_ifStateInfos:
-		ifStates, err := pathMgmt.IfStateInfos()
-		if err != nil {
-			return HookError, common.NewError(errPldGet, "err", err)
-		}
-		ifstate.Process(ifStates)
+func (rp *RtrPkt) processPathMgmtSelf(p *path_mgmt.Pld) (HookResult, *common.Error) {
+	u0, cerr := p.Union0()
+	if cerr != nil {
+		return HookError, cerr
+	}
+	switch u0 := u0.(type) {
+	case *path_mgmt.IFStateInfos:
+		ifstate.Process(u0)
 	default:
-		rp.Error("Unsupported destination PathMgmt payload", "type", pathMgmt.Which())
-		return HookError, nil
+		return HookError, common.NewError("Unsupported destination PathMgmt payload",
+			"type", common.TypeOf(u0))
 	}
 	return HookFinish, nil
 }
@@ -208,12 +209,16 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
-	case rp.DirFrom == rcmn.DirExternal && hdr.Class == scmp.C_Path &&
-		hdr.Type == scmp.T_P_RevokedIF:
-		rp.processSCMPRevocation()
+	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+		// Ignore any revocations received locally.
+		if rp.DirFrom == rcmn.DirExternal {
+			if cerr := rp.processSCMPRevocation(); cerr != nil {
+				return HookError, cerr
+			}
+		}
 	default:
-		rp.Error("Unsupported destination SCMP payload", "class", hdr.Class,
-			"type", hdr.Type)
+		return HookError, common.NewError("Unsupported destination SCMP payload",
+			"class", hdr.Class, "type", hdr.Type.Name(hdr.Class))
 	}
 	return HookFinish, nil
 }
@@ -229,10 +234,22 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 //    ASes downstream of a revoked interface get informed quickly.
 // 3. The revocation's destination is the local AS. The revocation notification is forked to the
 //    local PS, to ensure that it stops providing segments with revoked interfaces to clients.
-func (rp *RtrPkt) processSCMPRevocation() {
+func (rp *RtrPkt) processSCMPRevocation() *common.Error {
 	var args RevTokenCallbackArgs
-	pld := rp.pld.(*scmp.Payload)
-	args.RevInfo = pld.Info.(*scmp.InfoRevocation).RevToken
+	var cerr *common.Error
+	pld, ok := rp.pld.(*scmp.Payload)
+	if !ok {
+		return common.NewError("Invalid payload type in SCMP packet",
+			"expected", "*scmp.Payload", "actual", common.TypeOf(rp.pld))
+	}
+	infoRev, ok := pld.Info.(*scmp.InfoRevocation)
+	if !ok {
+		return common.NewError("Invalid SCMP Info type in SCMP packet",
+			"expected", "*scmp.InfoRevocation", "actual", common.TypeOf(pld.Info))
+	}
+	if args.RevInfo, cerr = path_mgmt.NewRevInfoFromRaw(infoRev.RevToken); cerr != nil {
+		return common.NewError("Unable to decode revToken", "err", cerr)
+	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
 	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.CoreLink) ||
@@ -249,6 +266,7 @@ func (rp *RtrPkt) processSCMPRevocation() {
 	if len(args.Addrs) > 0 {
 		callbacks.revTokenF(args)
 	}
+	return nil
 }
 
 // getSVCNamesMap returns the slice of instance names and addresses for a given

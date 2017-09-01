@@ -30,6 +30,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
@@ -46,7 +47,7 @@ type States struct {
 // State stores the IFStateInfo capnp message, as well as the raw revocation
 // info for a given interface.
 type State struct {
-	P      proto.IFStateInfo
+	Info   *path_mgmt.IFStateInfo
 	RawRev common.RawBytes
 }
 
@@ -56,44 +57,33 @@ var S *States
 // Process processes Interface State updates from the beacon service.
 // NOTE: Process currently assumes that ifStates contains infos for each interface
 // in the AS.
-func Process(ifStates proto.IFStateInfos) {
-	infos, serr := ifStates.Infos()
-	if serr != nil {
-		log.Error("Unable to extract IFStateInfos from message", "err", serr)
-		return
-	}
+func Process(ifStates *path_mgmt.IFStateInfos) {
 	// Convert IFState infos to map
-	m := make(map[common.IFIDType]State, infos.Len())
-	for i := 0; i < infos.Len(); i++ {
+	m := make(map[common.IFIDType]State, len(ifStates.Infos))
+	for _, info := range ifStates.Infos {
 		var rawRev common.RawBytes
-		info := infos.At(i)
-		ifid := common.IFIDType(info.IfID())
-		if info.HasRevInfo() {
-			revInfo, serr := info.RevInfo()
-			if serr != nil {
-				log.Error("Unable to extract RevInfo from IFStateInfo", "err", serr, "info", info)
-				return
-			}
-			var err *common.Error
-			rawRev, err = proto.StructPack(revInfo.Struct)
-			if err != nil {
-				log.Error("Unable to pack RevInfo", err.Ctx...)
+		ifid := common.IFIDType(info.IfID)
+		if info.RevInfo != nil {
+			var cerr *common.Error
+			rawRev, cerr = proto.PackRoot(info.RevInfo)
+			if cerr != nil {
+				log.Error("Unable to pack RevInfo", cerr.Ctx...)
 				return
 			}
 		}
-		m[ifid] = State{P: info, RawRev: rawRev}
+		m[ifid] = State{Info: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
 		oldState, ok := S.M[ifid]
 		if !ok {
-			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active())
+			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
 		}
-		if info.Active() {
-			if ok && !oldState.P.Active() {
+		if info.Active {
+			if ok && !oldState.Info.Active {
 				log.Info("IFState: intf activated", "ifid", ifid)
 			}
 			gauge.Set(1)
 		} else {
-			if ok && oldState.P.Active() {
+			if ok && oldState.Info.Active {
 				log.Info("IFState: intf deactivated", "ifid", ifid)
 			}
 			gauge.Set(0)
@@ -113,6 +103,6 @@ func Activate(ifID common.IFIDType) *common.Error {
 	if !ok {
 		return common.NewError("Trying to activate non-existing interface", "intf", ifID)
 	}
-	ifState.P.SetActive(true)
+	ifState.Info.Active = true
 	return nil
 }

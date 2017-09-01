@@ -18,15 +18,17 @@
 package rpkt
 
 import (
+	//log "github.com/inconshreveable/log15"
+
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
 )
 
 func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error) {
 	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
-	cpld, err := spkt.NewCtrlPldFromRaw(rp.Raw[rp.idxs.pld:])
+	cpld, err := ctrl.NewPldFromRaw(rp.Raw[rp.idxs.pld:])
 	if err != nil {
 		return HookError, nil, err
 	}
@@ -39,7 +41,7 @@ func (rp *RtrPkt) updateCtrlPld() *common.Error {
 	// Reset buffer to full size
 	rp.Raw = rp.Raw[:cap(rp.Raw)]
 	// Write payload to buffer
-	plen, err := rp.pld.Write(rp.Raw[rp.idxs.pld:])
+	plen, err := rp.pld.WritePld(rp.Raw[rp.idxs.pld:])
 	if err != nil {
 		return err
 	}

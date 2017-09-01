@@ -12,15 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proto
+// This file contains the Go representation of IFState requests.
+
+package path_mgmt
 
 import (
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/proto"
 )
 
-func (s RevInfo) Pretty() string {
-	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d",
-		addr.IAFromInt(int(s.Isdas())), s.IfID(), s.Epoch())
+var _ proto.Cerealizable = (*IFStateReq)(nil)
+
+type IFStateReq struct {
+	IfID uint64
+}
+
+func (i *IFStateReq) ProtoId() proto.ProtoIdType {
+	return proto.IFStateReq_TypeID
+}
+
+func (i *IFStateReq) String() string {
+	return fmt.Sprintf("IfID: %v", i.IfID)
 }

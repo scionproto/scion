@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2017 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file handles SCMP payload retrieval.
+// This file contains the Go representation of a hop entry in a AS entry
 
-package rpkt
+package seg
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
-type RevTokenCallbackArgs struct {
-	RevInfo *path_mgmt.RevInfo
-	Addrs   []addr.HostSVC
+type HopEntry struct {
+	RawInIA     uint32 `capnp:"inIA"`
+	InIF        uint64
+	InMTU       uint16 `capnp:"inMTU"`
+	RawOutIA    uint32 `capnp:"outIA"`
+	OutIF       uint64
+	RawHopField []byte `capnp:"hof"`
 }
 
-// parseSCMPPayload is a hook that can be used for hookPayload, to retrieve the
-// SCMP payload.
-func (rp *RtrPkt) parseSCMPPayload() (HookResult, common.Payload, *common.Error) {
-	hdr := rp.l4.(*scmp.Hdr)
-	pld, err := scmp.PldFromRaw(rp.Raw[rp.idxs.pld:],
-		scmp.ClassType{Class: hdr.Class, Type: hdr.Type})
-	if err != nil {
-		return HookError, nil, err
-	}
-	return HookFinish, pld, nil
+func (e *HopEntry) InIA() *addr.ISD_AS {
+	return addr.IAFromInt(int(e.RawInIA))
+}
+
+func (e *HopEntry) OutIA() *addr.ISD_AS {
+	return addr.IAFromInt(int(e.RawOutIA))
+}
+
+func (e *HopEntry) HopField() (*spath.HopField, *common.Error) {
+	return spath.HopFFromRaw(e.RawHopField)
 }

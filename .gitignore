@@ -25,6 +25,7 @@ topology/mininet/*.pyc
 #########################
 /proto/go.capnp
 /go/proto/*.capnp.go
+/go/proto/*.gen.go
 /go/vendor/*/
 /go/vendor/.deps.stamp
 
