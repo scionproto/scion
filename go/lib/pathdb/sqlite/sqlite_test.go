@@ -39,8 +39,11 @@ var (
 	ifs1 = []uint64{0, 5, 2, 3, 2, 6, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 8, 2, 0}
 
-	labels = []query.SegLabel{query.NullLabel, query.SegLabel([]byte("\xde\xad\xbe\xef"))}
-	types  = []uint8{0, 1}
+	cfgIDs = []*query.HPCfgID{
+		&query.NullCfgID,
+		&query.HPCfgID{ia13, 0xdeadbeef},
+	}
+	types = []seg.Type{0, 1}
 
 	ifspecs = []query.IntfSpec{
 		query.IntfSpec{ia13, 5},
@@ -56,7 +59,7 @@ var (
 		"StartsAt",
 		"EndsAt",
 		"SegTypes",
-		"SegLabels",
+		"HPCfgIDs",
 	}
 )
 
@@ -71,7 +74,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia16.Uint32(),
 					OutIF:       ifs[1],
-					RawHopField: []byte("\xde\xad\xbe\xef"),
+					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
 				},
 			},
 		},
@@ -84,7 +87,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
 					OutIF:       ifs[3],
-					RawHopField: []byte("\xde\xad\xbe\xef"),
+					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
 				},
 				&seg.HopEntry{
 					RawInIA:     ia13.Uint32(),
@@ -92,7 +95,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia14.Uint32(),
 					OutIF:       ifs[5],
-					RawHopField: []byte("\xde\xad\xbe\xef"),
+					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
 				},
 			},
 		},
@@ -105,7 +108,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
 					OutIF:       ifs[7],
-					RawHopField: []byte("\xde\xad\xbe\xef"),
+					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
 				},
 			},
 		},
@@ -142,8 +145,8 @@ func tempFilename(t *testing.T) string {
 }
 
 func insertSeg(t *testing.T, b *Backend,
-	pseg *seg.PathSegment, types []uint8, labels []query.SegLabel) int {
-	inserted, cerr := b.InsertWithLabels(pseg, types, labels)
+	pseg *seg.PathSegment, types []seg.Type, cfgIDs []*query.HPCfgID) int {
+	inserted, cerr := b.InsertWithCfgIDs(pseg, types, cfgIDs)
 	if cerr != nil {
 		t.Fatal(cerr)
 	}
@@ -197,7 +200,7 @@ func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, rowID int, ia
 	SoMsg("StartsAt", segID, ShouldEqual, rowID)
 }
 
-func checkSegTypes(t *testing.T, b *Backend, rowID int, types []uint8) {
+func checkSegTypes(t *testing.T, b *Backend, rowID int, types []seg.Type) {
 	for _, segType := range types {
 		var count int
 		err := b.db.QueryRow("SELECT COUNT(*) FROM SegTypes WHERE SegID=? AND Type=?",
@@ -209,15 +212,16 @@ func checkSegTypes(t *testing.T, b *Backend, rowID int, types []uint8) {
 	}
 }
 
-func checkSegLabels(t *testing.T, b *Backend, rowID int, labels []query.SegLabel) {
-	for _, label := range labels {
+func checkHPCfgIDs(t *testing.T, b *Backend, rowID int, cfgIDs []*query.HPCfgID) {
+	for _, cfgID := range cfgIDs {
 		var count int
-		err := b.db.QueryRow("SELECT COUNT(*) FROM SegLabels WHERE SegID=? AND Label=?",
-			rowID, label).Scan(&count)
+		err := b.db.QueryRow(
+			"SELECT COUNT(*) FROM HPCfgIDs WHERE SegID=? AND IsdID=? AND AsID=? AND CfgID=?",
+			rowID, cfgID.IA.I, cfgID.IA.A, cfgID.ID).Scan(&count)
 		if err != nil {
-			t.Fatal("checkSegLabels", "err", err)
+			t.Fatal("checkHPCfgIDs", "err", err)
 		}
-		SoMsg(fmt.Sprintf("Has label %v", label), count, ShouldEqual, 1)
+		SoMsg(fmt.Sprintf("Has cfgID %v", cfgID), count, ShouldEqual, 1)
 	}
 }
 
@@ -233,7 +237,7 @@ func checkInsert(t *testing.T, b *Backend, e *ExpectedInsert) {
 	// Check that SegTypes contains {0, 1} => 1
 	checkSegTypes(t, b, e.RowID, e.Types)
 	// Check that SegLables contains correct mappings.
-	checkSegLabels(t, b, e.RowID, e.Labels)
+	checkHPCfgIDs(t, b, e.RowID, e.CfgIDs)
 }
 
 type ExpectedInsert struct {
@@ -243,63 +247,62 @@ type ExpectedInsert struct {
 	Intfs    []query.IntfSpec
 	StartsAt *addr.ISD_AS
 	EndsAt   *addr.ISD_AS
-	Types    []uint8
-	Labels   []query.SegLabel
+	Types    []seg.Type
+	CfgIDs   []*query.HPCfgID
 }
 
-func Test_InsertWithLabelsFull(t *testing.T) {
-	Convey("InsertWithLabel should correctly insert a new segment", t, func() {
+func Test_InsertWithCfgIDsFull(t *testing.T) {
+	Convey("InsertWithCfgID should correctly insert a new segment", t, func() {
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
 		pseg := allocPathSegment(ifs1, TS)
-		types := []uint8{0, 1}
 		// Call
-		inserted, err := b.InsertWithLabels(pseg, types, labels)
+		inserted, err := b.InsertWithCfgIDs(pseg, types, cfgIDs)
 		if err != nil {
 			t.Fatal(err)
 		}
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert.
-		checkInsert(t, b, &ExpectedInsert{1, pseg.ID(), TS, ifspecs, ia13, ia19, types, labels})
+		checkInsert(t, b, &ExpectedInsert{1, pseg.ID(), TS, ifspecs, ia13, ia19, types, cfgIDs})
 		os.Remove(tmpF)
 	})
 }
 
 func Test_UpdateExisting(t *testing.T) {
-	Convey("InsertWithLabel should correctly update a new segment", t, func() {
+	Convey("InsertWithCfgID should correctly update a new segment", t, func() {
 		b, tmpF := setupDB(t)
 		oldTS := uint32(10)
 		oldSeg := allocPathSegment(ifs1, oldTS)
 		newTS := uint32(20)
 		newSeg := allocPathSegment(ifs1, newTS)
-		insertSeg(t, b, oldSeg, types[:1], labels[:1])
+		insertSeg(t, b, oldSeg, types[:1], cfgIDs[:1])
 		// Call
-		inserted := insertSeg(t, b, newSeg, types, labels)
+		inserted := insertSeg(t, b, newSeg, types, cfgIDs)
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert
 		checkInsert(t, b,
-			&ExpectedInsert{1, newSeg.ID(), newTS, ifspecs, ia13, ia19, types, labels})
+			&ExpectedInsert{1, newSeg.ID(), newTS, ifspecs, ia13, ia19, types, cfgIDs})
 		os.Remove(tmpF)
 	})
 }
 
 func Test_OlderIgnored(t *testing.T) {
-	Convey("InsertWithLabel should correctly ignore an older segment", t, func() {
+	Convey("InsertWithCfgID should correctly ignore an older segment", t, func() {
 		b, tmpF := setupDB(t)
 		newTS := uint32(20)
 		newSeg := allocPathSegment(ifs1, newTS)
 		oldTS := uint32(10)
 		oldSeg := allocPathSegment(ifs1, oldTS)
-		insertSeg(t, b, newSeg, types, labels)
+		insertSeg(t, b, newSeg, types, cfgIDs)
 		// Call
-		inserted := insertSeg(t, b, oldSeg, types[:1], labels[:1])
+		inserted := insertSeg(t, b, oldSeg, types[:1], cfgIDs[:1])
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 0)
 		// Check Insert
 		checkInsert(t, b,
-			&ExpectedInsert{1, newSeg.ID(), newTS, ifspecs, ia13, ia19, types, labels})
+			&ExpectedInsert{1, newSeg.ID(), newTS, ifspecs, ia13, ia19, types, cfgIDs})
 		os.Remove(tmpF)
 	})
 }
@@ -320,7 +323,7 @@ func Test_Delete(t *testing.T) {
 		// Setup
 		TS := uint32(10)
 		pseg := allocPathSegment(ifs1, TS)
-		insertSeg(t, b, pseg, types, labels)
+		insertSeg(t, b, pseg, types, cfgIDs)
 		// Call
 		deleted, cerr := b.Delete(pseg.ID())
 		if cerr != nil {
@@ -344,8 +347,8 @@ func Test_DeleteWithIntf(t *testing.T) {
 		TS := uint32(10)
 		pseg1 := allocPathSegment(ifs1, TS)
 		pseg2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, labels)
-		insertSeg(t, b, pseg2, types, labels)
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		insertSeg(t, b, pseg2, types, cfgIDs)
 		// Call
 		deleted, cerr := b.DeleteWithIntf(query.IntfSpec{ia16, 2})
 		if cerr != nil {
@@ -365,11 +368,11 @@ func Test_GetMixed(t *testing.T) {
 		TS := uint32(10)
 		pseg1 := allocPathSegment(ifs1, TS)
 		pseg2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, labels)
-		insertSeg(t, b, pseg2, types[:1], labels[:1])
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		insertSeg(t, b, pseg2, types[:1], cfgIDs[:1])
 		params := &query.Params{
 			SegID:    pseg1.ID(),
-			SegTypes: []uint8{0},
+			SegTypes: []seg.Type{0},
 		}
 		// Call
 		res, cerr := b.Get(params)
@@ -378,7 +381,7 @@ func Test_GetMixed(t *testing.T) {
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 		SoMsg("SegIDs match", res[0].Seg.ID(), ShouldResemble, pseg1.ID())
-		SoMsg("Labels match", res[0].Labels, ShouldResemble, labels)
+		SoMsg("CfgIDs match", res[0].CfgIDs, ShouldResemble, cfgIDs)
 		b.close()
 		os.Remove(tmpF)
 	})
@@ -391,8 +394,8 @@ func Test_GetAll(t *testing.T) {
 		TS := uint32(10)
 		pseg1 := allocPathSegment(ifs1, TS)
 		pseg2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, labels)
-		insertSeg(t, b, pseg2, types[:1], labels[:1])
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		insertSeg(t, b, pseg2, types[:1], cfgIDs[:1])
 		// Call
 		res, cerr := b.Get(nil)
 		if cerr != nil {
@@ -401,9 +404,9 @@ func Test_GetAll(t *testing.T) {
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 		for _, r := range res {
 			if bytes.Compare(r.Seg.ID(), pseg1.ID()) == 0 {
-				SoMsg("Labels match", r.Labels, ShouldResemble, labels)
+				SoMsg("CfgIDs match", r.CfgIDs, ShouldResemble, cfgIDs)
 			} else if bytes.Compare(r.Seg.ID(), pseg2.ID()) == 0 {
-				SoMsg("Labels match", r.Labels, ShouldResemble, labels[:1])
+				SoMsg("CfgIDs match", r.CfgIDs, ShouldResemble, cfgIDs[:1])
 			} else {
 				t.Fatal("Unexpected result", "seg", r.Seg)
 			}
@@ -420,8 +423,8 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		TS := uint32(10)
 		pseg1 := allocPathSegment(ifs1, TS)
 		pseg2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, labels)
-		insertSeg(t, b, pseg2, types[:1], labels[:1])
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		insertSeg(t, b, pseg2, types[:1], cfgIDs[:1])
 		// Call
 		res, cerr := b.Get(&query.Params{StartsAt: []*addr.ISD_AS{ia13, ia19}})
 		if cerr != nil {
@@ -445,8 +448,8 @@ func Test_GetWithIntfs(t *testing.T) {
 		TS := uint32(10)
 		pseg1 := allocPathSegment(ifs1, TS)
 		pseg2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, labels)
-		insertSeg(t, b, pseg2, types[:1], labels[:1])
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		insertSeg(t, b, pseg2, types[:1], cfgIDs[:1])
 		params := &query.Params{
 			Intfs: []*query.IntfSpec{
 				&query.IntfSpec{ia13, 5},
@@ -464,17 +467,17 @@ func Test_GetWithIntfs(t *testing.T) {
 	})
 }
 
-func Test_GetWithLabels(t *testing.T) {
-	Convey("Get should return all path segment with given Labels", t, func() {
+func Test_GetWithCfgIDs(t *testing.T) {
+	Convey("Get should return all path segment with given CfgIDs", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
 		pseg1 := allocPathSegment(ifs1, TS)
 		pseg2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, labels)
-		insertSeg(t, b, pseg2, types[:1], labels[:1])
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		insertSeg(t, b, pseg2, types[:1], cfgIDs[:1])
 		params := &query.Params{
-			Labels: labels[1:],
+			CfgIDs: cfgIDs[1:],
 		}
 		// Call
 		res, cerr := b.Get(params)
@@ -483,6 +486,48 @@ func Test_GetWithLabels(t *testing.T) {
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 		b.close()
+		os.Remove(tmpF)
+	})
+}
+
+func Test_OpenExisting(t *testing.T) {
+	Convey("New should not overwrite an existing database if versions match", t, func() {
+		b, tmpF := setupDB(t)
+		TS := uint32(10)
+		pseg1 := allocPathSegment(ifs1, TS)
+		insertSeg(t, b, pseg1, types, cfgIDs)
+		b.close()
+		// Call
+		b, cerr := New(tmpF)
+		if cerr != nil {
+			t.Fatal(cerr)
+		}
+		// Test
+		// Check that path segment is still there.
+		res, cerr := b.Get(nil)
+		if cerr != nil {
+			t.Fatal(cerr)
+		}
+		SoMsg("Segment still exists", len(res), ShouldEqual, 1)
+		b.close()
+		os.Remove(tmpF)
+	})
+}
+
+func Test_OpenNewer(t *testing.T) {
+	Convey("New should not overwrite an existing database if it's of a newer version", t, func() {
+		b, tmpF := setupDB(t)
+		// Write a newer version
+		_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b.close()
+		// Call
+		b, cerr := New(tmpF)
+		// Test
+		SoMsg("Backend nil", b, ShouldBeNil)
+		SoMsg("Err returned", cerr, ShouldNotBeNil)
 		os.Remove(tmpF)
 	})
 }
