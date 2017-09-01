@@ -15,6 +15,7 @@ import (
 
 // Any proto which will be marshalled as a single capnp message needs to be listed here.
 var RootTypes = []string{
+	"PathSegment",
 	"RevInfo",
 	"SCION",
 	"SCIONDMsg",
