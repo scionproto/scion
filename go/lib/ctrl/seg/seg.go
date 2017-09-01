@@ -101,15 +101,17 @@ func (ps *PathSegment) String() string {
 }
 
 type Meta struct {
-	Type    uint8
+	Type    Type
 	Segment PathSegment `capnp:"pcb"`
 }
 
 func (m *Meta) String() string {
-	return fmt.Sprintf("Type: %v, Segment: %v", typeToString(m.Type), m.Segment)
+	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
 }
 
-func typeToString(t uint8) string {
+type Type uint8
+
+func (t Type) String() string {
 	switch t {
 	case 0:
 		return "UP"

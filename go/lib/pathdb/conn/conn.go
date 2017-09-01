@@ -24,16 +24,15 @@ import (
 
 type Conn interface {
 	// Insert or update a path segment.
-	Insert(*seg.PathSegment, []uint8) (int, *common.Error)
+	Insert(*seg.PathSegment, []seg.Type) (int, *common.Error)
 	// Insert or update a path segment with a given label.
-	InsertWithLabels(*seg.PathSegment, []uint8, []query.SegLabel) (int, *common.Error)
+	InsertWithCfgIDs(*seg.PathSegment, []seg.Type, []*query.HPCfgID) (int, *common.Error)
 	// Deletes a path segment with a given ID. Returns the number of deleted
 	// path segments (0 or 1).
 	Delete(common.RawBytes) (int, *common.Error)
 	// Deletes all path segments that contain a given interface. Returns the number
 	// of path segments deleted.
 	DeleteWithIntf(query.IntfSpec) (int, *common.Error)
-
 	// Get returns all path segment(s) matching the parameters specified.
 	Get(*query.Params) ([]*query.Result, *common.Error)
 }
