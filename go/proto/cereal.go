@@ -37,7 +37,6 @@ type CtxWrite func(Cerealizable, common.RawBytes) (int, *common.Error)
 type Cerealizable interface {
 	fmt.Stringer
 	ProtoId() ProtoIdType
-	ProtoType() string
 }
 
 func WriteRoot(c Cerealizable, b common.RawBytes) (int, *common.Error) {
@@ -49,7 +48,7 @@ func WriteRoot(c Cerealizable, b common.RawBytes) (int, *common.Error) {
 	enc := capnp.NewPackedEncoder(raw)
 	if err := enc.Encode(msg); err != nil {
 		return 0, common.NewError("Failed to encode capnp struct",
-			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
+			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	return raw.Offset, nil
 }
@@ -62,7 +61,7 @@ func PackRoot(c Cerealizable) (common.RawBytes, *common.Error) {
 	raw, err := msg.MarshalPacked()
 	if err != nil {
 		return nil, common.NewError("Failed to marshal capnp struct",
-			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
+			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	return raw, nil
 }
@@ -71,7 +70,7 @@ func cerealInsert(c Cerealizable) (*capnp.Message, *common.Error) {
 	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		return nil, common.NewError("Failed to create new capnp message",
-			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
+			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	s, cerr := NewRootStruct(c.ProtoId(), arena)
 	if cerr != nil {
@@ -79,22 +78,13 @@ func cerealInsert(c Cerealizable) (*capnp.Message, *common.Error) {
 	}
 	if err := pogs.Insert(uint64(c.ProtoId()), s, c); err != nil {
 		return nil, common.NewError("Failed to insert struct into capnp message",
-			"id", c.ProtoId(), "type", c.ProtoType(), "err", err)
+			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	return msg, nil
 }
 
 func ReadRootFromRaw(b common.RawBytes) (capnp.Struct, *common.Error) {
-	var blank capnp.Struct
-	msg, err := capnp.NewPackedDecoder(bytes.NewBuffer(b)).Decode()
-	if err != nil {
-		return blank, common.NewError("Failed to decode capnp message", "err", err)
-	}
-	rootPtr, err := msg.RootPtr()
-	if err != nil {
-		return blank, common.NewError("Failed to get root pointer from capnp message", "err", err)
-	}
-	return rootPtr.Struct(), nil
+	return ReadRootFromReader(bytes.NewBuffer(b))
 }
 
 func ReadRootFromReader(r io.Reader) (capnp.Struct, *common.Error) {
@@ -118,11 +108,7 @@ func ParseStruct(v interface{}, pType ProtoIdType, s capnp.Struct) *common.Error
 }
 
 func ParseFromRaw(v interface{}, pType ProtoIdType, b common.RawBytes) *common.Error {
-	s, cerr := ReadRootFromRaw(b)
-	if cerr != nil {
-		return cerr
-	}
-	return ParseStruct(v, pType, s)
+	return ParseFromReader(v, pType, bytes.NewBuffer(b))
 }
 
 func ParseFromReader(v interface{}, pType ProtoIdType, r io.Reader) *common.Error {

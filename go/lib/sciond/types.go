@@ -73,10 +73,6 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 	return proto.SCIONDMsg_TypeID
 }
 
-func (p *Pld) ProtoType() string {
-	return "sciond"
-}
-
 func (p *Pld) String() string {
 	desc := []string{fmt.Sprintf("Sciond: Id: %d Union0: ", p.Id)}
 	union0, cerr := p.union0()

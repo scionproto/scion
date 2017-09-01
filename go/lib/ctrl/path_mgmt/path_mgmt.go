@@ -103,10 +103,6 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 	return proto.PathMgmt_TypeID
 }
 
-func (p *Pld) ProtoType() string {
-	return proto.SCION_Which_pathMgmt.String()
-}
-
 func (p *Pld) String() string {
 	desc := []string{"PathMgmt: Union0:"}
 	u0, cerr := p.Union0()

@@ -39,10 +39,6 @@ func (i *IFID) ProtoId() proto.ProtoIdType {
 	return proto.IFID_TypeID
 }
 
-func (i *IFID) ProtoType() string {
-	return proto.SCION_Which_ifid.String()
-}
-
 func (i *IFID) Write(b common.RawBytes) (int, *common.Error) {
 	return proto.WriteRoot(i, b)
 }

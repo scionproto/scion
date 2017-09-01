@@ -63,10 +63,6 @@ func (ps *PathSegment) ProtoId() proto.ProtoIdType {
 	return proto.PathSegment_TypeID
 }
 
-func (ps *PathSegment) ProtoType() string {
-	return proto.SCION_Which_ifid.String()
-}
-
 func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
 	return proto.WriteRoot(ps, b)
 }

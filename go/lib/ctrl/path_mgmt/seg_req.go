@@ -52,9 +52,6 @@ func (s *SegReq) ProtoId() proto.ProtoIdType {
 	return proto.SegReq_TypeID
 }
 
-func (s *SegReq) ProtoType() string {
-	return proto.SCION_Which_ifid.String()
-}
 func (s *SegReq) Write(b common.RawBytes) (int, *common.Error) {
 	return proto.WriteRoot(s, b)
 }

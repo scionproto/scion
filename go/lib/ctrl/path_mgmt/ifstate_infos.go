@@ -33,10 +33,6 @@ func (i *IFStateInfos) ProtoId() proto.ProtoIdType {
 	return proto.IFStateInfos_TypeID
 }
 
-func (i *IFStateInfos) ProtoType() string {
-	return proto.PathMgmt_Which_ifStateInfos.String()
-}
-
 func (i *IFStateInfos) String() string {
 	desc := []string{"Infos"}
 	for _, info := range i.Infos {

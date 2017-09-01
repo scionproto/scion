@@ -34,10 +34,6 @@ func (s *SegRecs) ProtoId() proto.ProtoIdType {
 	return proto.SegRecs_TypeID
 }
 
-func (s *SegRecs) ProtoType() string {
-	return "segRecs"
-}
-
 func (s *SegRecs) String() string {
 	desc := []string{"Recs:"}
 	for _, m := range s.Recs {
@@ -58,26 +54,14 @@ type SegReply struct {
 	*SegRecs
 }
 
-func (s *SegReply) ProtoType() string {
-	return proto.PathMgmt_Which_segReply.String()
-}
-
 var _ proto.Cerealizable = (*SegReg)(nil)
 
 type SegReg struct {
 	*SegRecs
 }
 
-func (s *SegReg) ProtoType() string {
-	return proto.PathMgmt_Which_segReg.String()
-}
-
 var _ proto.Cerealizable = (*SegSync)(nil)
 
 type SegSync struct {
 	*SegRecs
-}
-
-func (s *SegSync) ProtoType() string {
-	return proto.PathMgmt_Which_segSync.String()
 }

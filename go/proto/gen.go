@@ -5,14 +5,12 @@
 package main
 
 import (
-	//"fmt"
 	"log"
 	"os"
 	"path"
 	"runtime"
 	"text/template"
 	"time"
-	//"github.com/netsec-ethz/scion/go/proto"
 )
 
 // Any proto which will be marshalled as a single capnp message needs to be listed here.

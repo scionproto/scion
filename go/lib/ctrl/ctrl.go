@@ -123,10 +123,6 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 	return proto.SCION_TypeID
 }
 
-func (p *Pld) ProtoType() string {
-	return "scion"
-}
-
 func (p *Pld) String() string {
 	desc := []string{"Ctrl: Union0:"}
 	u0, cerr := p.Union0()

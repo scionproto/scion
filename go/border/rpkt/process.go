@@ -148,7 +148,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 	case *path_mgmt.Pld:
 		return rp.processPathMgmtSelf(u0)
 	default:
-		rp.Error("Unsupported destination payload", "type", cpld.ProtoType())
+		rp.Error("Unsupported destination payload", "type", common.TypeOf(u0))
 		return HookError, nil
 	}
 }

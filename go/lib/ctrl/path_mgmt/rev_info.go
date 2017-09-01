@@ -51,10 +51,6 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 	return proto.RevInfo_TypeID
 }
 
-func (r *RevInfo) ProtoType() string {
-	return proto.PathMgmt_Which_revInfo.String()
-}
-
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %v IfID: %v Epoch: %v", r.IA(), r.IfID, r.Epoch)
 }

@@ -32,10 +32,6 @@ func (i *IFStateReq) ProtoId() proto.ProtoIdType {
 	return proto.IFStateReq_TypeID
 }
 
-func (i *IFStateReq) ProtoType() string {
-	return proto.PathMgmt_Which_ifStateReq.String()
-}
-
 func (i *IFStateReq) String() string {
 	return fmt.Sprintf("IfID: %v", i.IfID)
 }
