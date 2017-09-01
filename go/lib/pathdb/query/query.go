@@ -15,21 +15,29 @@
 package query
 
 import (
-	"fmt"
-
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 )
 
 // TODO(shitz): This should be moved when we have hidden path sets.
-type SegLabel []byte
-
-func (s SegLabel) String() string {
-	return fmt.Sprintf("%x", []byte(s))
+type HPCfgID struct {
+	IA *addr.ISD_AS
+	ID uint64
 }
 
-var NullLabel = []byte{0, 0, 0, 0, 0, 0, 0, 0}
+func NewHPCfgID(isd int, as int, ID uint64) *HPCfgID {
+	return &HPCfgID{
+		IA: &addr.ISD_AS{isd, as},
+		ID: ID,
+	}
+}
+
+func (h *HPCfgID) Eq(other *HPCfgID) bool {
+	return h.IA.Eq(other.IA) && h.ID == other.ID
+}
+
+var NullCfgID = HPCfgID{IA: addr.IAFromInt(0), ID: 0}
 
 type IntfSpec struct {
 	IA   *addr.ISD_AS
@@ -38,8 +46,8 @@ type IntfSpec struct {
 
 type Params struct {
 	SegID    common.RawBytes
-	SegTypes []uint8
-	Labels   []SegLabel
+	SegTypes []seg.Type
+	CfgIDs   []*HPCfgID
 	Intfs    []*IntfSpec
 	StartsAt []*addr.ISD_AS
 	EndsAt   []*addr.ISD_AS
@@ -47,5 +55,5 @@ type Params struct {
 
 type Result struct {
 	Seg    *seg.PathSegment
-	Labels []SegLabel
+	CfgIDs []*HPCfgID
 }
