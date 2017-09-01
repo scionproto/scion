@@ -43,9 +43,6 @@ func (r *Router) RevInfoFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
 	for args := range r.revInfoQ {
-		if args.RevInfo == nil {
-			continue
-		}
 		log.Debug("Forwarding revocation", "revInfo", args.RevInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
 			r.fwdRevInfo(args.RevInfo, &svcAddr)
@@ -64,7 +61,7 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 		log.Error("Error generating RevInfo payload", cerr.Ctx...)
 		return
 	}
-	if err := r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, cpld); err != nil {
-		log.Error("Error generating RevInfo packet", err.Ctx...)
+	if cerr = r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, cpld); cerr != nil {
+		log.Error("Error generating RevInfo packet", cerr.Ctx...)
 	}
 }

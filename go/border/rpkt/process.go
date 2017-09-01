@@ -209,14 +209,16 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
-	case rp.DirFrom == rcmn.DirExternal && hdr.Class == scmp.C_Path &&
-		hdr.Type == scmp.T_P_RevokedIF:
-		if cerr := rp.processSCMPRevocation(); cerr != nil {
-			return HookError, cerr
+	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
+		// Ignore any revocations received locally.
+		if rp.DirFrom == rcmn.DirExternal {
+			if cerr := rp.processSCMPRevocation(); cerr != nil {
+				return HookError, cerr
+			}
 		}
 	default:
 		return HookError, common.NewError("Unsupported destination SCMP payload",
-			"class", hdr.Class, "type", hdr.Type)
+			"class", hdr.Class, "type", hdr.Type.Name(hdr.Class))
 	}
 	return HookFinish, nil
 }

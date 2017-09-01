@@ -341,6 +341,7 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(rev_info, RevocationInfo)
         if not self._validate_revocation(rev_info):
             return
+        logging.debug("Revocation info received: %s", rev_info)
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
         removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)

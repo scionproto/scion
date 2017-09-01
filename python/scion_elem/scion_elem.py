@@ -1161,6 +1161,7 @@ class SCIONElement(object):
         if rev_info.isd_as() != as_marking.isd_as():
             return False
         if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
+            logging.error("Revocation verification failed. %s", rev_info)
             return False
         for pcbm in as_marking.iter_pcbms():
             if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
