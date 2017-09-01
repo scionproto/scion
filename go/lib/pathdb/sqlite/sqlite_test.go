@@ -31,26 +31,26 @@ import (
 )
 
 var (
-	ia13 = &addr.ISD_AS{1, 13}
-	ia14 = &addr.ISD_AS{1, 14}
-	ia16 = &addr.ISD_AS{1, 16}
-	ia19 = &addr.ISD_AS{1, 19}
+	ia13 = &addr.ISD_AS{I: 1, A: 13}
+	ia14 = &addr.ISD_AS{I: 1, A: 14}
+	ia16 = &addr.ISD_AS{I: 1, A: 16}
+	ia19 = &addr.ISD_AS{I: 1, A: 19}
 
 	ifs1 = []uint64{0, 5, 2, 3, 2, 6, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 8, 2, 0}
 
 	cfgIDs = []*query.HPCfgID{
 		&query.NullCfgID,
-		&query.HPCfgID{ia13, 0xdeadbeef},
+		{ia13, 0xdeadbeef},
 	}
 	types = []seg.Type{0, 1}
 
 	ifspecs = []query.IntfSpec{
-		query.IntfSpec{ia13, 5},
-		query.IntfSpec{ia16, 2},
-		query.IntfSpec{ia16, 3},
-		query.IntfSpec{ia16, 6},
-		query.IntfSpec{ia19, 1},
+		{IA: ia13, IfID: 5},
+		{IA: ia16, IfID: 2},
+		{IA: ia16, IfID: 3},
+		{IA: ia16, IfID: 6},
+		{IA: ia19, IfID: 1},
 	}
 
 	tables = []string{
@@ -65,10 +65,10 @@ var (
 
 func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 	ases := []*seg.ASEntry{
-		&seg.ASEntry{
+		{
 			RawIA: ia13.Uint32(),
 			HopEntries: []*seg.HopEntry{
-				&seg.HopEntry{
+				{
 					RawInIA:     ia13.Uint32(),
 					InIF:        ifs[0],
 					InMTU:       1500,
@@ -78,10 +78,10 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 				},
 			},
 		},
-		&seg.ASEntry{
+		{
 			RawIA: ia16.Uint32(),
 			HopEntries: []*seg.HopEntry{
-				&seg.HopEntry{
+				{
 					RawInIA:     ia13.Uint32(),
 					InIF:        ifs[2],
 					InMTU:       1500,
@@ -89,7 +89,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					OutIF:       ifs[3],
 					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
 				},
-				&seg.HopEntry{
+				{
 					RawInIA:     ia13.Uint32(),
 					InIF:        ifs[4],
 					InMTU:       1500,
@@ -99,10 +99,10 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 				},
 			},
 		},
-		&seg.ASEntry{
+		{
 			RawIA: ia19.Uint32(),
 			HopEntries: []*seg.HopEntry{
-				&seg.HopEntry{
+				{
 					RawInIA:     ia16.Uint32(),
 					InIF:        ifs[6],
 					InMTU:       1500,
@@ -350,7 +350,7 @@ func Test_DeleteWithIntf(t *testing.T) {
 		insertSeg(t, b, pseg1, types, cfgIDs)
 		insertSeg(t, b, pseg2, types, cfgIDs)
 		// Call
-		deleted, cerr := b.DeleteWithIntf(query.IntfSpec{ia16, 2})
+		deleted, cerr := b.DeleteWithIntf(query.IntfSpec{IA: ia16, IfID: 2})
 		if cerr != nil {
 			t.Fatal(cerr)
 		}
@@ -452,8 +452,8 @@ func Test_GetWithIntfs(t *testing.T) {
 		insertSeg(t, b, pseg2, types[:1], cfgIDs[:1])
 		params := &query.Params{
 			Intfs: []*query.IntfSpec{
-				&query.IntfSpec{ia13, 5},
-				&query.IntfSpec{ia19, 2},
+				{ia13, 5},
+				{ia19, 2},
 			},
 		}
 		// Call

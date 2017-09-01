@@ -17,40 +17,62 @@
 package pathdb
 
 import (
+	"fmt"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/lib/pathdb/conn"
+	"github.com/netsec-ethz/scion/go/lib/pathdb/query"
+	"github.com/netsec-ethz/scion/go/lib/pathdb/sqlite"
 )
 
 type DB struct {
-	conn *conn.Conn
+	conn conn.Conn
 }
 
+// New creates a new or open an existing PathDB at a given path using the
+// given backend.
 func New(path string, backend string) (*DB, *common.Error) {
 	db := &DB{}
+	var cerr *common.Error
 	switch backend {
 	case "sqlite":
-		db.conn := sqlite.New(path)
+		db.conn, cerr = sqlite.New(path)
 	default:
-		return nil, common.NewError(fmt.Sprintf("Unknown backend: '%s'", backend)
+		return nil, common.NewError(fmt.Sprintf("Unknown backend: '%s'", backend))
 	}
+	if cerr != nil {
+		return nil, cerr
+	}
+	return db, nil
 }
 
-func (db *DB) Insert(pseg *seg.PathSegment, segTypes []uint8) (int, *common.Error) {
+// Insert inserts or updates a path segment. It returns the number of path segments
+// that have been inserted/updated.
+func (db *DB) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, *common.Error) {
 	return db.conn.Insert(pseg, segTypes)
 }
 
-func (db *DB) InsertWithLabel(pseg *seg.PathSegment,
-	segTypes []uint8, label uint64) (int, *common.Error) {
-	return db.conn.InsertWithLabel(pseg, segTypes, label)
+// InsertWithCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
+// returns the number of path segments that have been inserted/updated.
+func (db *DB) InsertWithCfgIDs(pseg *seg.PathSegment,
+	segTypes []seg.Type, cfgIDs []*query.HPCfgID) (int, *common.Error) {
+	return db.conn.InsertWithCfgIDs(pseg, segTypes, cfgIDs)
 }
 
+// Delete deletes a path segment with a given ID. Returns the number of deleted
+// path segments (0 or 1).
 func (db *DB) Delete(segID common.RawBytes) (int, *common.Error) {
 	return db.conn.Delete(segID)
 }
 
-func (db *DB) DeleteWithIntf(intf conn.IntfSpec) (int, *common.Error) {
+// DeleteWithIntf deletes all path segments that contain a given interface. Returns
+// the number of path segments deleted.
+func (db *DB) DeleteWithIntf(intf query.IntfSpec) (int, *common.Error) {
 	return db.conn.DeleteWithIntf(intf)
 }
 
-func (db *DB) Get(opt *conn.QueryOptions) ([]*seg.PathSegment, *common.Error) {
-	return db.conn.Get(opt)
+// Get returns all path segment(s) matching the parameters specified.
+func (db *DB) Get(params *query.Params) ([]*query.Result, *common.Error) {
+	return db.conn.Get(params)
 }
