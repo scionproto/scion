@@ -38,6 +38,7 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -243,6 +244,46 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 
 	reply.ServiceInfoReply.Entries = append(reply.ServiceInfoReply.Entries, cachedEntries...)
 	return &reply.ServiceInfoReply, nil
+}
+
+// RevNotification sends a RevocationInfo message to SCIOND.
+func (c *Connector) RevNotification(info []byte) (*RevReply, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	// Extract information from notification
+	ri := new(RevInfo)
+
+	message, err := capnp.UnmarshalPacked([]byte(info))
+	if err != nil {
+		return nil, common.NewError("Unable to unmarshal packed RevocationInfo",
+			"err", err)
+	}
+
+	root, err := message.RootPtr()
+	if err != nil {
+		return nil, common.NewError("Unable to get root pointer", "err", err)
+	}
+
+	err = pogs.Extract(ri, proto.RevInfo_TypeID, root.Struct())
+	if err != nil {
+		return nil, common.NewError("Unable to parse capnp RevInfo object", "err", err)
+	}
+
+	// Encapsulate RevInfo item in RevNotification object
+	request := &SCIONDMsg{Id: c.nextID(), Which: proto.SCIONDMsg_Which_revNotification}
+	request.RevNotification.RevInfo = *ri
+
+	err = c.send(request)
+	if err != nil {
+		return nil, err
+	}
+	reply, err := c.receive()
+	if err != nil {
+		return nil, err
+	}
+
+	return &reply.RevReply, nil
 }
 
 // Close shuts down the connection to a SCIOND server.
