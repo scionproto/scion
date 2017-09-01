@@ -15,6 +15,8 @@
 package query
 
 import (
+	"fmt"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
@@ -22,6 +24,10 @@ import (
 
 // TODO(shitz): This should be moved when we have hidden path sets.
 type SegLabel []byte
+
+func (s SegLabel) String() string {
+	return fmt.Sprintf("%x", []byte(s))
+}
 
 var NullLabel = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
@@ -33,7 +39,7 @@ type IntfSpec struct {
 type Params struct {
 	SegID    common.RawBytes
 	SegTypes []uint8
-	Labels   []uint64
+	Labels   []SegLabel
 	Intfs    []*IntfSpec
 	StartsAt []*addr.ISD_AS
 	EndsAt   []*addr.ISD_AS

@@ -69,6 +69,10 @@ func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
 	return proto.WriteRoot(ps, b)
 }
 
+func (ps *PathSegment) Pack() (common.RawBytes, *common.Error) {
+	return proto.PackRoot(ps)
+}
+
 func (ps *PathSegment) String() string {
 	desc := []string{}
 	if id, cerr := ps.ID(); cerr != nil {
