@@ -23,7 +23,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
@@ -72,7 +71,6 @@ func TestRevNotification(t *testing.T) {
 		SoMsg("AS selection len", len(asList), ShouldBeGreaterThan, 0)
 		localIA := asList[rand.Intn(len(asList))]
 
-		localIA, _ = addr.IAFromString("1-19")
 		conn, err := Connect(fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA))
 		SoMsg("Connect error", err, ShouldBeNil)
 
