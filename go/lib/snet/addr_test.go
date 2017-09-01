@@ -64,7 +64,6 @@ func Test_AddrFromString(t *testing.T) {
 		{address: "1-20,[abc]:12", isError: true},
 		{address: "1-2]:14,[1.2.3.4]", isError: true},
 		{address: "1-1,[1.2.3.4]:70000", isError: true},
-		{address: "1-1,[1.2.3.4]:0", isError: true},
 		{address: "", isError: true},
 		{address: "1-1,[1.2.3.4]:80",
 			ia:   "1-1",
