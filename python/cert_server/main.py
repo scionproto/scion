@@ -19,16 +19,13 @@
 # Stdlib
 import datetime
 import logging
-import os
 import threading
-import time
 
 # External packages
 from nacl.exceptions import CryptoError
 from prometheus_client import Counter, Gauge
 
 # SCION
-import lib.app.sciond as lib_sciond
 from external.expiring_dict import ExpiringDict
 from lib.crypto.asymcrypto import get_enc_key, get_sig_key
 from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
@@ -74,7 +71,6 @@ from lib.zk.cache import ZkSharedCache
 from lib.zk.errors import ZkNoConnection
 from lib.zk.id import ZkID
 from lib.zk.zk import ZK_LOCK_SUCCESS, Zookeeper
-from sciond.sciond import SCIOND_API_SOCKDIR
 from scion_elem.scion_elem import SCIONElement
 
 
@@ -83,8 +79,6 @@ REQS_TOTAL = Counter("cs_requests_total", "# of total requests", ["server_id", "
 IS_MASTER = Gauge("cs_is_master", "true if this process is the replication master",
                   ["server_id", "isd_as"])
 
-# Timeout for API path requests
-API_TOUT = 1
 # Max amount of DRKey secret values. 1 current, 1 prefetch, 1 buffer.
 DRKEY_MAX_SV = 3
 # Max TTL of first order DRKey. 1 Day prefetch, 1 Day current.
@@ -155,8 +149,6 @@ class CertServer(SCIONElement):
                                       self._cached_certs_handler)
         self.drkey_cache = ZkSharedCache(self.zk, self.ZK_DRKEY_PATH,
                                          self._cached_drkeys_handler)
-
-        lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as))
         self.signing_key = get_sig_key(self.conf_dir)
         self.private_key = get_enc_key(self.conf_dir)
         self.public_key = self.private_key.public_key
@@ -550,20 +542,6 @@ class CertServer(SCIONElement):
             sv = DRKeySecretValue(kdf(self.config.master_as_key, b"Derive DRKey Key"), exp_time)
             self.drkey_secrets[sv.exp_time] = sv
         return sv
-
-    def _get_path_via_api(self, isd_as, flush=False):
-        flags = lib_sciond.PathRequestFlags(flush=flush)
-        start = time.time()
-        while time.time() - start < API_TOUT:
-            try:
-                path_entries = lib_sciond.get_paths(isd_as, flags=flags)
-            except lib_sciond.SCIONDLibError as e:
-                logging.error("Error during path lookup: %s" % e)
-                continue
-            if path_entries:
-                return path_entries[0].path()
-        logging.warning("Unable to get path to %s from local api.", isd_as)
-        return None
 
     def _init_metrics(self):
         super()._init_metrics()
