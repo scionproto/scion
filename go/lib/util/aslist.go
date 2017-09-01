@@ -20,6 +20,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 type asData struct {
@@ -27,33 +28,46 @@ type asData struct {
 	NonCore []string `yaml:"Non-core"`
 }
 
-// LoadASList parses the yaml file fileName and returns a slice containing the
-// ASes within
-func LoadASList(fileName string) ([]*addr.ISD_AS, error) {
-	list := make([]*addr.ISD_AS, 0)
+type ASList struct {
+	Core    []*addr.ISD_AS
+	NonCore []*addr.ISD_AS
+}
+
+// LoadASList parses the yaml file fileName and returns a structure with
+// non-core and core ASes.
+func LoadASList(fileName string) (*ASList, error) {
+	asList := &ASList{}
 
 	buffer, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return nil, err
+		return nil, common.NewError("Unable to read from file", "name", fileName, "err", err)
 	}
 
 	var locations asData
-	yaml.Unmarshal(buffer, &locations)
-
-	for _, isdas := range locations.Core {
-		as, err := addr.IAFromString(isdas)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, as)
+	err = yaml.Unmarshal(buffer, &locations)
+	if err != nil {
+		return nil, common.NewError("Unable to parse YAML data", "err", err)
 	}
 
-	for _, isdas := range locations.NonCore {
-		as, err := addr.IAFromString(isdas)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, as)
+	asList.Core, err = parse(locations.Core)
+	if err != nil {
+		return nil, err
 	}
-	return list, nil
+	asList.NonCore, err = parse(locations.NonCore)
+	if err != nil {
+		return nil, err
+	}
+	return asList, nil
+}
+
+func parse(names []string) ([]*addr.ISD_AS, error) {
+	var iaList []*addr.ISD_AS
+	for _, name := range names {
+		ia, err := addr.IAFromString(name)
+		if err != nil {
+			return nil, common.NewError("Unable to parse AS Name", "ISDAS", name, "err", err)
+		}
+		iaList = append(iaList, ia)
+	}
+	return iaList, nil
 }

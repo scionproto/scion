@@ -183,11 +183,12 @@ func TestMain(m *testing.M) {
 	var err error
 
 	// Load topology information
-	asList, err = util.LoadASList("../../../gen/as_list.yml")
+	asStruct, err := util.LoadASList("../../../gen/as_list.yml")
 	if err != nil {
 		fmt.Println("ASList load error", err)
 		return
 	}
+	asList = append(asStruct.Core, asStruct.NonCore...)
 
 	localIA = asList[rand.Intn(len(asList))]
 	err = Init(localIA, fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA),
