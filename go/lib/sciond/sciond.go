@@ -23,8 +23,6 @@
 // Fields prefixed with Raw (e.g., RawErrorCode) contain data in the format received from SCIOND.
 // These are used internally, and the accessors without the prefix (e.g., ErrorCode()) should be
 // used instead.
-//
-// TODO: Revocation notifications are not implemented yet.
 package sciond
 
 import (

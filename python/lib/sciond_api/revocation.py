@@ -48,6 +48,7 @@ class SCIONDRevNotification(SCIONDMsgBase):
     def short_desc(self):
         return self.rev_info().short_desc()
 
+
 class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
     """Revocation reply."""
     NAME = "RevReply"
@@ -56,11 +57,12 @@ class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
 
     @classmethod
     def from_values(cls, id_, status):
-        p = cls.P_CLS.new_message(status = status)
+        p = cls.P_CLS.new_message(status=status)
         return cls(p, id_)
 
     def short_desc(self):
         return "status=%d" % SCIONDRevReplyStatus.describe(self.status)
+
 
 class SCIONDRevReplyStatus:  # pragma: no cover
     REMOVED_SEGMENTS = 0
