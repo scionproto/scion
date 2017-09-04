@@ -50,6 +50,7 @@ AS_CONF_FILE = "as.yml"
 PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
+#: Private networks config
 PRV_NETWORKS_FILE = "private_networks.conf"
 #: IFIDs list
 IFIDS_FILE = "ifids.yml"
@@ -57,6 +58,9 @@ IFIDS_FILE = "ifids.yml"
 AS_LIST_FILE = "as_list.yml"
 #: Prometheus config
 PROM_FILE = "prometheus.yml"
+#: Hidden path config
+HIDDEN_PATH_CONF_FILE = "hidden_path.conf"
+
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535
@@ -86,14 +90,17 @@ SCIOND_API_DEFAULT_SOCK = "default.sock"
 BEACON_SERVICE = "bs"
 CERTIFICATE_SERVICE = "cs"
 DNS_SERVICE = "ds"
+HIDDEN_PATH_SERVICE = "hps"
 PATH_SERVICE = "ps"
 ROUTER_SERVICE = "br"
 SIBRA_SERVICE = "sb"
+
 #: All the service types
 SERVICE_TYPES = (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
+    HIDDEN_PATH_SERVICE,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SIBRA_SERVICE,
@@ -112,6 +119,8 @@ SCION_MIN_MTU = 1280
 OPAQUE_FIELD_LEN = 8
 #: How long certain warnings should be suppresed after startup
 STARTUP_QUIET_PERIOD = 30
+#: Timeout for sciond path request API
+API_TOUT = 1
 
 #: Number of seconds per sibra tick
 SIBRA_TICK = 4

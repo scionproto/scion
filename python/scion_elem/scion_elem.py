@@ -41,6 +41,7 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     GEN_CACHE_PATH,
     PATH_SERVICE,
+    HIDDEN_PATH_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SCIOND_API_SOCKDIR,
     SERVICE_TYPES,
@@ -1140,6 +1141,7 @@ class SCIONElement(object):
             CERTIFICATE_SERVICE: self.topology.certificate_servers,
             PATH_SERVICE: self.topology.path_servers,
             SIBRA_SERVICE: self.topology.sibra_servers,
+            HIDDEN_PATH_SERVICE: self.topology.hidden_path_servers,
         }
         # Generate fallback from local topology
         results = []

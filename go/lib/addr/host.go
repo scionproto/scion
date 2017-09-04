@@ -63,6 +63,7 @@ var (
 	SvcPS   = HostSVC(0x0001)
 	SvcCS   = HostSVC(0x0002)
 	SvcSB   = HostSVC(0x0003)
+	SvcHPS  = HostSVC(0x0004)
 	SvcNone = HostSVC(0xffff)
 )
 
@@ -216,6 +217,8 @@ func (h HostSVC) String() string {
 		name = "CS"
 	case SvcSB:
 		name = "SB"
+	case SvcHPS:
+		name = "HPS"
 	default:
 		name = "UNKNOWN"
 	}

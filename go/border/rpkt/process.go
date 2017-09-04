@@ -285,6 +285,8 @@ func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
 		names, elemMap = t.CSNames, t.CS
 	case addr.SvcSB:
 		names, elemMap = t.SBNames, t.SB
+	case addr.SvcHPS:
+		names, elemMap = t.HPSNames, t.HPS
 	default:
 		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
 		return nil, nil, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)

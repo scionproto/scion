@@ -26,10 +26,12 @@ from external.expiring_dict import ExpiringDict
 from prometheus_client import Gauge
 
 # SCION
+from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
+from lib.path_db import DBResult
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zk.errors import ZkNoConnection
 from path_server.base import PathServer, REQS_TOTAL
@@ -370,6 +372,37 @@ class CorePathServer(PathServer):
             self.waiting_targets[dst_ia[0]].append((seg_req, logger))
             # Ask for any segment to dst_isd
             self._query_master(dst_ia.any_as(), logger)
+
+    def _remove_revoked_segments(self, rev_info):
+        """
+        Try the previous and next hashes as possible astokens,
+        and delete any segment that matches
+
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
+        """
+        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            return
+        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
+        if_id = rev_info.p.ifID
+
+        with self.htroot_if2seglock:
+            down_segs_removed = 0
+            core_segs_removed = 0
+            up_segs_removed = 0
+            for h in (hash01, hash12):
+                for sid in self.htroot_if2seg.pop((h, if_id), []):
+                    if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        down_segs_removed += 1
+                    if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
+                        core_segs_removed += 1
+                    if not self.topology.is_core_as:
+                        if (self.up_segments.delete(sid) ==
+                                DBResult.ENTRY_DELETED):
+                            up_segs_removed += 1
+            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
+                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
+                           core_segs_removed))
 
     def _forward_revocation(self, rev_info, meta):
         # Propagate revocation to other core ASes if:

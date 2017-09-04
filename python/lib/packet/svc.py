@@ -19,6 +19,7 @@
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    HIDDEN_PATH_SERVICE,
     PATH_SERVICE,
     SIBRA_SERVICE,
 )
@@ -43,20 +44,24 @@ class SVCType(object):
     CS_A = HostAddrSVC(2, raw=False)
     # SIBRA service
     SB_A = HostAddrSVC(3, raw=False)
+    # Hidden path service
+    HPS_A = HostAddrSVC(4, raw=False)
     # No service, used e.g., in TCP socket.
     NONE = HostAddrSVC(0xffff, raw=False)
 
 SVC_TO_SERVICE = {
     SVCType.BS_A.addr: BEACON_SERVICE,
     SVCType.BS_M.addr: BEACON_SERVICE,
-    SVCType.PS_A.addr: PATH_SERVICE,
     SVCType.CS_A.addr: CERTIFICATE_SERVICE,
+    SVCType.HPS_A.addr: HIDDEN_PATH_SERVICE,
+    SVCType.PS_A.addr: PATH_SERVICE,
     SVCType.SB_A.addr: SIBRA_SERVICE,
 }
 
 SERVICE_TO_SVC_A = {
     BEACON_SERVICE: SVCType.BS_A,
     CERTIFICATE_SERVICE: SVCType.CS_A,
+    HIDDEN_PATH_SERVICE: SVCType.HPS_A,
     PATH_SERVICE: SVCType.PS_A,
     SIBRA_SERVICE: SVCType.SB_A,
 }

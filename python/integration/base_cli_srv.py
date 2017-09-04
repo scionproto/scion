@@ -331,17 +331,33 @@ class TestClientServerBase(object):
         return TestClientBase(data, finished, src, dst, port, retries=self.retries)
 
 
-def _load_as_list():
+def _load_as_list(hidden_path_test, flag):
     as_dict = load_yaml_file(os.path.join(GEN_PATH, AS_LIST_FILE))
+    hps_env = True if as_dict.get('HiddenPathServer', []) else False
     as_list = []
-    for as_str in as_dict.get("Non-core", []) + as_dict.get("Core", []):
-        as_list.append(ISD_AS(as_str))
+    if hidden_path_test:
+        if not hps_env:
+            return as_list
+        if flag:
+            for as_str in as_dict.get("Client-AS", []):
+                as_list.append(ISD_AS(as_str))
+        else:
+            as_str = as_dict.get("Hidden-AS")
+            as_list.append(ISD_AS(as_str))
+    else:
+        if not hps_env or flag:
+            for as_str in as_dict.get("Non-core", []) + as_dict.get("Core", []):
+                as_list.append(ISD_AS(as_str))
+        else:
+            for as_str in as_dict.get("Client-AS", []) + as_dict.get("Core", []):
+                as_list.append(ISD_AS(as_str))
     return as_list
 
 
-def _parse_locs(as_str, as_list):
+def _parse_locs(as_str, hidden_path_test, flag):
     if as_str:
         return [ISD_AS(as_str)]
+    as_list = _load_as_list(hidden_path_test, flag)
     copied = copy.copy(as_list)
     random.shuffle(copied)
     return copied
@@ -368,6 +384,8 @@ def setup_main(name, parser=None):
                         help="Number of retries before giving up.")
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
+    parser.add_argument('-H', '--hidden-path', default=False,
+                        help="Test end2end communication via hidden paths.")
     args = parser.parse_args()
     init_logging("logs/%s" % name, console_level=args.loglevel)
 
@@ -375,9 +393,8 @@ def setup_main(name, parser=None):
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
     if not args.server:
         args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
-    as_list = _load_as_list()
-    srcs = _parse_locs(args.src_ia, as_list)
-    dsts = _parse_locs(args.dst_ia, as_list)
+    srcs = _parse_locs(args.src_ia, args.hidden_path, flag=True)
+    dsts = _parse_locs(args.dst_ia, args.hidden_path, flag=False)
     return args, srcs, dsts
 
 

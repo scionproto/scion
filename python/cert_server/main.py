@@ -32,7 +32,7 @@ from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
-from lib.defines import CERTIFICATE_SERVICE
+from lib.defines import API_TOUT, CERTIFICATE_SERVICE
 from lib.drkey.drkey_mgmt import (
     DRKeyReply,
     DRKeyRequest,

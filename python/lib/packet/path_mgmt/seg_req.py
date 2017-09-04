@@ -34,10 +34,12 @@ class PathSegmentReq(PathMgmtPayloadBase):  # pragma: no cover
     P_CLS = P.SegReq
 
     @classmethod
-    def from_values(cls, src_ia, dst_ia, flags=None):
+    def from_values(cls, src_ia, dst_ia, set_id=None, flags=None):
         if not flags:
             flags = set()
         p = cls.P_CLS.new_message(srcIA=int(src_ia), dstIA=int(dst_ia))
+        if set_id:
+            p.setID = set_id
         if PATH_FLAG_SIBRA in flags:
             p.flags.sibra = True
         if PATH_FLAG_CACHEONLY in flags:
@@ -49,6 +51,9 @@ class PathSegmentReq(PathMgmtPayloadBase):  # pragma: no cover
 
     def dst_ia(self):
         return ISD_AS(self.p.dstIA)
+
+    def set_id(self):
+        return self.p.setID.decode("utf-8")
 
     def flags(self):
         flags = set()

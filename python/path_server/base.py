@@ -27,7 +27,6 @@ from external.expiring_dict import ExpiringDict
 from prometheus_client import Counter, Gauge
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
@@ -158,13 +157,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self.zk.wait_connected()
                 self.path_cache.process()
                 self.rev_cache.process()
-                # Try to become a master.
-                ret = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
-                if ret:  # Either got the lock, or already had it.
-                    if ret == ZK_LOCK_SUCCESS:
-                        logging.info("Became master")
-                    self.path_cache.expire(self.config.propagation_time * 10)
-                    self.rev_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
+                if self.SERVICE_TYPE == PATH_SERVICE:
+                    # Try to become a master.
+                    ret = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
+                    if ret:  # Either got the lock, or already had it.
+                        if ret == ZK_LOCK_SUCCESS:
+                            logging.info("Became master")
+                        self.path_cache.expire(self.config.propagation_time * 10)
+                        self.rev_cache.expire(self.ZK_REV_OBJ_MAX_AGE)
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
                 pass
@@ -255,6 +255,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Forward revocation to other path servers.
         self._forward_revocation(rev_info, meta)
 
+    @abstractmethod
     def _remove_revoked_segments(self, rev_info):
         """
         Try the previous and next hashes as possible astokens,
@@ -263,28 +264,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            return
-        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
-        if_id = rev_info.p.ifID
-
-        with self.htroot_if2seglock:
-            down_segs_removed = 0
-            core_segs_removed = 0
-            up_segs_removed = 0
-            for h in (hash01, hash12):
-                for sid in self.htroot_if2seg.pop((h, if_id), []):
-                    if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
-                        down_segs_removed += 1
-                    if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
-                        core_segs_removed += 1
-                    if not self.topology.is_core_as:
-                        if (self.up_segments.delete(sid) ==
-                                DBResult.ENTRY_DELETED):
-                            up_segs_removed += 1
-            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
-                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
-                           core_segs_removed))
+        raise NotImplementedError
 
     @abstractmethod
     def _forward_revocation(self, rev_info, meta):
@@ -437,7 +417,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         return True
 
     def _dispatch_params(self, pld, meta):
-        return {}
+        params = {}
+        if len(pld.p.setInfos) > 0:
+            params['setInfos'] = []
+            for set_info in pld.iter_set_infos():
+                params['setInfos'].append(set_info)
+        return params
 
     def _propagate_and_sync(self):
         self._share_via_zk()

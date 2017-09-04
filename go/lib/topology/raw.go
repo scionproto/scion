@@ -51,6 +51,7 @@ type RawTopo struct {
 	SibraService       map[string]RawAddrInfo `json:",omitempty"`
 	RainsService       map[string]RawAddrInfo `json:",omitempty"`
 	DiscoveryService   map[string]RawAddrInfo `json:",omitempty"`
+	HiddenPathService  map[string]RawAddrInfo `json:",omitempty"`
 }
 
 type RawBRInfo struct {
