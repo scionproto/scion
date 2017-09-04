@@ -353,13 +353,13 @@ class SCIONDaemon(SCIONElement):
         epoch_status = ConnectedHashTree.verify_epoch(rev_info.p.epoch)
         if epoch_status == ConnectedHashTree.EPOCH_PAST:
             logging.debug(
-                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
+                "Failed to verify epoch: epoch in the past %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             return SCIONDRevReplyStatus.TOO_OLD
 
         if epoch_status == ConnectedHashTree.EPOCH_FUTURE:
-            logging.debug(
-                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
+            logging.warning(
+                "Failed to verify epoch: epoch in the future %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             return SCIONDRevReplyStatus.INVALID
 
@@ -388,12 +388,6 @@ class SCIONDaemon(SCIONElement):
         :returns: The number of deletions.
         :rtype: int
         """
-
-        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
-            logging.debug(
-                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
-                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            return 0
 
         to_remove = []
         for segment in db(full=True):

@@ -80,7 +80,7 @@ struct RevNotification {
 }
 
 struct RevReply {
-    status @0 :UInt16;
+    result @0 :UInt16;
 }
 
 struct IFInfoRequest {

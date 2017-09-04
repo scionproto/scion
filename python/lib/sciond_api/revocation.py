@@ -59,12 +59,12 @@ class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
     P_CLS = P.RevReply
 
     @classmethod
-    def from_values(cls, id_, status):
-        p = cls.P_CLS.new_message(status=status)
+    def from_values(cls, id_, result):
+        p = cls.P_CLS.new_message(result=result)
         return cls(p, id_)
 
     def short_desc(self):
-        return "status=%d" % SCIONDRevReplyStatus.describe(self.status)
+        return "result=%d" % SCIONDRevReplyStatus.describe(self.result)
 
 
 class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
@@ -83,4 +83,4 @@ class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
             return "Revocation invalid."
         if code == cls.UNKNOWN:
             return "Revocation state unknown."
-        return "Unknown status code."
+        return "Unknown result code."

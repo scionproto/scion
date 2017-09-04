@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build infrarunning
+// +abuild infrarunning
 
 package sciond
 
@@ -78,6 +78,6 @@ func TestRevNotification(t *testing.T) {
 
 		reply, err := conn.RevNotificationFromRaw([]byte(token))
 		SoMsg("RevNotification error", err, ShouldBeNil)
-		SoMsg("Status", reply.Status, ShouldEqual, RevTooOld)
+		SoMsg("Result", reply.Result, ShouldEqual, RevTooOld)
 	})
 }

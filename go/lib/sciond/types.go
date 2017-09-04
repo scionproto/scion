@@ -187,12 +187,19 @@ type RevNotification struct {
 }
 
 type RevReply struct {
-	Status StatusCode
+	Result RevResult
 }
 
-type StatusCode uint16
+type RevResult uint16
 
-func (c StatusCode) String() string {
+const (
+	RevValid RevResult = iota
+	RevTooOld
+	RevInvalid
+	RevUnknown
+)
+
+func (c RevResult) String() string {
 	switch c {
 	case RevValid:
 		return "RevValid"
@@ -203,16 +210,9 @@ func (c StatusCode) String() string {
 	case RevUnknown:
 		return "RevUnknown"
 	default:
-		return fmt.Sprintf("Unknown status code (%d)", c)
+		return fmt.Sprintf("Unknown revocation result (%d)", c)
 	}
 }
-
-const (
-	RevValid StatusCode = iota
-	RevTooOld
-	RevInvalid
-	RevUnknown
-)
 
 type IFInfoRequest struct {
 	IfIDs []uint64
