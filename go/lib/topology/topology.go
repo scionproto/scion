@@ -43,18 +43,20 @@ type Topo struct {
 	// if they want to use a given interface.
 	IFInfoMap map[common.IFIDType]IFInfo
 
-	BS      map[string]TopoAddr
-	BSNames []string
-	CS      map[string]TopoAddr
-	CSNames []string
-	PS      map[string]TopoAddr
-	PSNames []string
-	SB      map[string]TopoAddr
-	SBNames []string
-	RS      map[string]TopoAddr
-	RSNames []string
-	DS      map[string]TopoAddr
-	DSNames []string
+	BS       map[string]TopoAddr
+	BSNames  []string
+	CS       map[string]TopoAddr
+	CSNames  []string
+	PS       map[string]TopoAddr
+	PSNames  []string
+	SB       map[string]TopoAddr
+	SBNames  []string
+	RS       map[string]TopoAddr
+	RSNames  []string
+	DS       map[string]TopoAddr
+	DSNames  []string
+	HPS      map[string]TopoAddr
+	HPSNames []string
 
 	ZK map[int]TopoAddr
 }
@@ -69,6 +71,7 @@ func NewTopo() *Topo {
 		SB:        make(map[string]TopoAddr),
 		RS:        make(map[string]TopoAddr),
 		DS:        make(map[string]TopoAddr),
+		HPS:       make(map[string]TopoAddr),
 		ZK:        make(map[int]TopoAddr),
 		IFInfoMap: make(map[common.IFIDType]IFInfo),
 	}
@@ -167,6 +170,9 @@ func (t *Topo) populateServices(raw *RawTopo) *common.Error {
 		return err
 	}
 	if t.DSNames, err = svcMapFromRaw(raw.DiscoveryService, "DS", t.DS, t.Overlay); err != nil {
+		return err
+	}
+	if t.HPSNames, err = svcMapFromRaw(raw.HiddenPathService, "HPS", t.HPS, t.Overlay); err != nil {
 		return err
 	}
 	return nil

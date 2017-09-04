@@ -124,6 +124,9 @@ const char * svc_to_str(uint16_t svc, char *buf) {
         case SVC_SIBRA:
             service = "SB";
             break;
+        case SVC_HIDDEN_PATH_MGMT:
+            service = "HPS";
+            break;
         default:
             snprintf(buf, MAX_HOST_ADDR_STR, "Unknown svc %d", svc);
             return buf;

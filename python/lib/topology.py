@@ -22,6 +22,7 @@ import logging
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    HIDDEN_PATH_SERVICE,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SIBRA_SERVICE,
@@ -156,6 +157,7 @@ class Topology(object):
         self.mtu = None
         self.beacon_servers = []
         self.certificate_servers = []
+        self.hidden_path_servers = []
         self.path_servers = []
         self.sibra_servers = []
         self.border_routers = []
@@ -205,6 +207,7 @@ class Topology(object):
         for type_, list_ in (
             ("BeaconService", self.beacon_servers),
             ("CertificateService", self.certificate_servers),
+            ("HiddenPathService", self.hidden_path_servers),
             ("PathService", self.path_servers),
             ("SibraService", self.sibra_servers),
         ):
@@ -248,6 +251,7 @@ class Topology(object):
         type_map = {
             BEACON_SERVICE: self.beacon_servers,
             CERTIFICATE_SERVICE: self.certificate_servers,
+            HIDDEN_PATH_SERVICE: self.hidden_path_servers,
             PATH_SERVICE: self.path_servers,
             ROUTER_SERVICE: self.border_routers,
             SIBRA_SERVICE: self.sibra_servers,

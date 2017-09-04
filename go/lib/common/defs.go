@@ -45,13 +45,14 @@ func init() {
 }
 
 const (
-	BR = "br"
-	BS = "bs"
-	PS = "ps"
-	CS = "cs"
-	SB = "sb"
-	RS = "rs"
-	DS = "ds"
+	BR  = "br"
+	BS  = "bs"
+	PS  = "ps"
+	CS  = "cs"
+	SB  = "sb"
+	RS  = "rs"
+	DS  = "ds"
+	HPS = "hps"
 )
 
 // Interface ID

@@ -264,7 +264,7 @@ class SCIONAddrHdr(Serializable):
 
     def validate(self):  # pragma: no cover
         if self.dst.host.TYPE == AddrType.SVC:
-            if self.dst.host.anycast() not in [SVCType.BS_A, SVCType.PS_A,
+            if self.dst.host.anycast() not in [SVCType.BS_A, SVCType.PS_A, SVCType.HPS_A,
                                                SVCType.CS_A, SVCType.SB_A]:
                 raise SCMPBadHost("Invalid dest SVC: %s" % self.dst.host.addr)
         if self.src.host.TYPE == AddrType.SVC:
