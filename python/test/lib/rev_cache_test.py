@@ -24,6 +24,7 @@ import nose.tools as ntools
 # SCION
 from lib.rev_cache import RevCache
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
+from lib.crypto.hash_tree import ConnectedHashTree
 
 
 class TestRevCacheGet:
@@ -72,7 +73,7 @@ class TestRevCacheAdd:
     def test(self, verify_epoch):
         key = ("1-1", 1)
         rev_info = self._create_rev_info(key[0], key[1], 2)
-        verify_epoch.return_value = True
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
         rev_cache = RevCache()
         rev_cache.get = create_mock()
         rev_cache.get.return_value = None
@@ -87,7 +88,7 @@ class TestRevCacheAdd:
            new_callable=create_mock)
     def test_invalid_entry(self, verify_epoch):
         rev_info = self._create_rev_info("1-1", 1, 2)
-        verify_epoch.return_value = False
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_PAST
         rev_cache = RevCache()
         # Call
         ntools.assert_false(rev_cache.add(rev_info))
@@ -99,7 +100,7 @@ class TestRevCacheAdd:
         key = ("1-1", 1)
         rev_info1 = self._create_rev_info(key[0], key[1], 1)
         rev_info2 = self._create_rev_info(key[0], key[1], 1)
-        verify_epoch.return_value = True
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
@@ -116,7 +117,7 @@ class TestRevCacheAdd:
         key = ("1-1", 1)
         rev_info1 = self._create_rev_info(key[0], key[1], 2)
         rev_info2 = self._create_rev_info(key[0], key[1], 1)
-        verify_epoch.return_value = True
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
@@ -133,7 +134,7 @@ class TestRevCacheAdd:
         key = ("1-1", 1)
         rev_info1 = self._create_rev_info(key[0], key[1], 1)
         rev_info2 = self._create_rev_info(key[0], key[1], 2)
-        verify_epoch.return_value = True
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
@@ -151,7 +152,7 @@ class TestRevCacheAdd:
         key2 = ("1-2", 1)
         rev_info1 = self._create_rev_info(key1[0], key1[1], 1)
         rev_info2 = self._create_rev_info(key2[0], key2[1], 2)
-        verify_epoch.return_value = True
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
 
         def validate_entry_side_effect(rev_info):
             del rev_cache._cache[(rev_info.isd_as(), rev_info.p.ifID)]
@@ -178,7 +179,7 @@ class TestRevCacheAdd:
         key2 = ("1-2", 1)
         rev_info1 = self._create_rev_info(key1[0], key1[1], 1)
         rev_info2 = self._create_rev_info(key2[0], key2[1], 2)
-        verify_epoch.return_value = True
+        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
         rev_cache = RevCache(capacity=1)
         rev_cache._cache[key1] = rev_info1
         rev_cache._validate_entry = create_mock_full(return_value=True)

@@ -346,15 +346,22 @@ class SCIONDaemon(SCIONElement):
     def handle_revocation(self, rev_info, meta):
         assert isinstance(rev_info, RevocationInfo)
         if not self._validate_revocation(rev_info):
-            return SCIONDRevReplyStatus.IFID_FAIL
+            return SCIONDRevReplyStatus.INVALID
         logging.debug("Revocation info received: %s", rev_info)
 
         # Verify epoch information and on failure return directly
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+        epoch_status = ConnectedHashTree.verify_epoch(rev_info.p.epoch)
+        if epoch_status == ConnectedHashTree.EPOCH_PAST:
             logging.debug(
                 "Failed to verify epoch: rev_info epoch %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            return SCIONDRevReplyStatus.EPOCH_FAIL
+            return SCIONDRevReplyStatus.TOO_OLD
+
+        if epoch_status == ConnectedHashTree.EPOCH_FUTURE:
+            logging.debug(
+                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+            return SCIONDRevReplyStatus.INVALID
 
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
@@ -364,9 +371,9 @@ class SCIONDaemon(SCIONElement):
                      (removed_up, removed_core, removed_down))
         total = removed_up + removed_core + removed_down
         if total > 0:
-            return SCIONDRevReplyStatus.REMOVED_SEGMENTS
+            return SCIONDRevReplyStatus.VALID
         else:
-            return SCIONDRevReplyStatus.EPOCH_OK
+            return SCIONDRevReplyStatus.UNKNOWN
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
@@ -382,7 +389,7 @@ class SCIONDaemon(SCIONElement):
         :rtype: int
         """
 
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
             logging.debug(
                 "Failed to verify epoch: rev_info epoch %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))

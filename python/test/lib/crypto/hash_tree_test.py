@@ -222,16 +222,16 @@ class TestConnectedHashTreeVerifyEpoch(object):
         # Setup
         time.return_value = HASHTREE_EPOCH_TIME + HASHTREE_EPOCH_TOLERANCE + 1
         # Call and tests
-        ntools.eq_(ConnectedHashTree.verify_epoch(1), True)
-        ntools.eq_(ConnectedHashTree.verify_epoch(2), False)
+        ntools.eq_(ConnectedHashTree.verify_epoch(1), ConnectedHashTree.EPOCH_OK)
+        ntools.eq_(ConnectedHashTree.verify_epoch(2), ConnectedHashTree.EPOCH_FUTURE)
 
     @patch("time.time", autospec=True)
     def test_different_epoch(self, time):
         # Setup
         time.return_value = HASHTREE_EPOCH_TIME + 1
         # Call and test
-        ntools.eq_(ConnectedHashTree.verify_epoch(0), True)
-        ntools.eq_(ConnectedHashTree.verify_epoch(1), True)
+        ntools.eq_(ConnectedHashTree.verify_epoch(0), ConnectedHashTree.EPOCH_OK)
+        ntools.eq_(ConnectedHashTree.verify_epoch(1), ConnectedHashTree.EPOCH_OK)
 
 
 if __name__ == "__main__":

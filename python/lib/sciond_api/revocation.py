@@ -68,19 +68,19 @@ class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
 
 
 class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
-    REMOVED_SEGMENTS = 0
-    EPOCH_OK = 1
-    EPOCH_FAIL = 2
-    IFID_FAIL = 3
+    VALID = 0
+    TOO_OLD = 1
+    INVALID = 2
+    UNKNOWN = 3
 
     @classmethod
     def describe(cls, code):
-        if code == cls.REMOVED_SEGMENTS:
-            return "Removed segments."
-        if code == cls.EPOCH_OK:
-            return "Epoch ok, but did not remove any segments."
-        if code == cls.EPOCH_FAIL:
-            return "Epoch check failed."
-        if code == cls.IFID_FAIL:
-            return "IFID check failed."
-        return "Unknown status"
+        if code == cls.VALID:
+            return "Revocation valid."
+        if code == cls.TOO_OLD:
+            return "Revocation too old."
+        if code == cls.INVALID:
+            return "Revocation invalid."
+        if code == cls.UNKNOWN:
+            return "Revocation state unknown."
+        return "Unknown status code."

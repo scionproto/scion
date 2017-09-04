@@ -192,11 +192,26 @@ type RevReply struct {
 
 type StatusCode uint16
 
+func (c StatusCode) String() string {
+	switch c {
+	case RevValid:
+		return "RevValid"
+	case RevTooOld:
+		return "RevTooOld"
+	case RevInvalid:
+		return "RevInvalid"
+	case RevUnknown:
+		return "RevUnknown"
+	default:
+		return fmt.Sprintf("Unknown status code (%d)", c)
+	}
+}
+
 const (
-	RemovedSegments StatusCode = iota
-	EpochOk
-	EpochFail
-	IFIDFail
+	RevValid StatusCode = iota
+	RevTooOld
+	RevInvalid
+	RevUnknown
 )
 
 type IFInfoRequest struct {

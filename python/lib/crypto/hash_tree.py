@@ -147,6 +147,9 @@ class ConnectedHashTree(object):
     The used hash function needs to implement the hashlib interface.
 
     """
+    EPOCH_OK = 0
+    EPOCH_PAST = 1
+    EPOCH_FUTURE = 2
 
     def __init__(self, isd_as, if_ids, seed, hash_type):  # pragma: no cover
         """
@@ -256,5 +259,9 @@ class ConnectedHashTree(object):
         if not cur_epoch:
             cur_epoch = cls.get_current_epoch()
         gap_time = cls.get_time_since_epoch()
-        return (epoch == cur_epoch or
-                cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE)
+        if (epoch == cur_epoch or
+                cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE):
+            return cls.EPOCH_OK
+        if epoch < cur_epoch:
+            return cls.EPOCH_PAST
+        return cls.EPOCH_FUTURE

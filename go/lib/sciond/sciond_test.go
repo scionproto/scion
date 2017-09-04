@@ -78,6 +78,6 @@ func TestRevNotification(t *testing.T) {
 
 		reply, err := conn.RevNotificationFromRaw([]byte(token))
 		SoMsg("RevNotification error", err, ShouldBeNil)
-		SoMsg("Status", reply.Status, ShouldEqual, EpochFail)
+		SoMsg("Status", reply.Status, ShouldEqual, RevTooOld)
 	})
 }
