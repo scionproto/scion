@@ -154,7 +154,7 @@ func Test_ParseSCMP(t *testing.T) {
 		SoMsg("SCMP.Timestamp", scmpHdr.Timestamp, ShouldEqual, 1504101431865041)
 
 		buf := make(common.RawBytes, 1<<16)
-		n, _ := s.Pld.Write(buf)
+		n, _ := s.Pld.WritePld(buf)
 		SoMsg("Payload", buf[:n], ShouldResemble, common.RawBytes(testParseSCMP[152:]))
 	})
 }

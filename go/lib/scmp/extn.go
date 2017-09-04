@@ -32,6 +32,10 @@ type Extn struct {
 	HopByHop bool
 }
 
+// ExtnFromRaw parses b and returns a common extension object. b must not
+// include the sub extension header. Because some extensions rely on the length
+// of b during parsing, b should contain the entire extension header and no
+// additional bytes.
 func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
 	e := &Extn{}
 	flags := b[0]

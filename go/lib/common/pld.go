@@ -23,5 +23,5 @@ type Payload interface {
 	Len() int
 	Copy() (Payload, *Error)
 	// Copies data from payload to b
-	WritePld(RawBytes) (int, *Error)
+	WritePld(b RawBytes) (int, *Error)
 }
