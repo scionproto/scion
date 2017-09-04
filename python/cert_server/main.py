@@ -279,7 +279,7 @@ class CertServer(SCIONElement):
 
     def _send_cc_request(self, isd_as, ver):
         req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
-        path_meta = self._get_path_via_api(isd_as)
+        path_meta = self._get_path_via_sciond(isd_as)
         if path_meta:
             meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
             self.send_meta(req, meta)
@@ -348,7 +348,7 @@ class CertServer(SCIONElement):
     def _send_trc_request(self, isd, ver, as_):
         isd_as = ISD_AS.from_values(isd, as_)
         trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
-        path_meta = self._get_path_via_api(isd_as)
+        path_meta = self._get_path_via_sciond(isd_as)
         if path_meta:
             meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
             self.send_meta(trc_req, meta)
@@ -518,7 +518,7 @@ class CertServer(SCIONElement):
             return
         req = get_drkey_request(drkey.src_ia, False, self.signing_key,
                                 cert.certs[0].version, trc.version)
-        path_meta = self._get_path_via_api(drkey.src_ia)
+        path_meta = self._get_path_via_sciond(drkey.src_ia)
         if path_meta:
             meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
             self.send_meta(req, meta)

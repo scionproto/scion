@@ -1228,7 +1228,7 @@ class SCIONElement(object):
         PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(0)
         CONNECTED_TO_DISPATCHER.labels(**self._labels).set(0)
 
-    def _get_path_via_api(self, isd_as, flush=False):
+    def _get_path_via_sciond(self, isd_as, flush=False):
         flags = lib_sciond.PathRequestFlags(flush=flush)
         start = time.time()
         while time.time() - start < API_TOUT:
@@ -1239,5 +1239,5 @@ class SCIONElement(object):
                 continue
             if path_entries:
                 return path_entries[0].path()
-        logging.warning("Unable to get path to %s from local api.", isd_as)
+        logging.warning("Unable to get path to %s from SCIOND.", isd_as)
         return None
