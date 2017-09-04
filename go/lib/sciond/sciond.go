@@ -248,20 +248,23 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	return &reply.ServiceInfoReply, nil
 }
 
-// RevNotification sends a RevocationInfo message to SCIOND.
-func (c *Connector) RevNotification(info []byte) (*RevReply, error) {
-	c.Lock()
-	defer c.Unlock()
-
+func (c *Connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 	// Extract information from notification
-	ri, cerr := path_mgmt.NewRevInfoFromRaw(info)
+	ri, cerr := path_mgmt.NewRevInfoFromRaw(revInfo)
 	if cerr != nil {
 		return nil, cerr
 	}
+	return c.RevNotification(ri)
+}
+
+// RevNotification sends a RevocationInfo message to SCIOND.
+func (c *Connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
+	c.Lock()
+	defer c.Unlock()
 
 	// Encapsulate RevInfo item in RevNotification object
 	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_revNotification}
-	request.RevNotification.RevInfo = ri
+	request.RevNotification.RevInfo = revInfo
 
 	err := c.send(request)
 	if err != nil {

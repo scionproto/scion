@@ -237,7 +237,7 @@ class SCIONDaemon(SCIONElement):
                 args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
         elif msg.MSG_TYPE == SMT.REVOCATION:
-            self.handle_revocation(msg.rev_info(), meta, id_=msg.id)
+            self._api_handle_rev_notification(msg, meta)
         elif msg.MSG_TYPE == SMT.AS_REQUEST:
             self._api_handle_as_request(msg, meta)
         elif msg.MSG_TYPE == SMT.IF_REQUEST:
@@ -334,18 +334,19 @@ class SCIONDaemon(SCIONElement):
         svc_reply = SCIONDServiceInfoReply.from_values(request.id, svc_entries)
         self.send_meta(svc_reply.pack_full(), meta)
 
+    def _api_handle_rev_notification(self, request, meta):
+        status = self.handle_revocation(request.rev_info(), meta)
+        rev_reply = SCIONDRevReply.from_values(request.id, status)
+        self.send_meta(rev_reply.pack_full(), meta)
+
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         self.handle_revocation(rev_info, meta)
 
-    def handle_revocation(self, rev_info, meta, id_=-1):
+    def handle_revocation(self, rev_info, meta):
         assert isinstance(rev_info, RevocationInfo)
         if not self._validate_revocation(rev_info):
-            if id_ != -1:
-                rev_reply = SCIONDRevReply.from_values(
-                    id_, SCIONDRevReplyStatus.IFID_FAIL)
-                self.send_meta(rev_reply.pack_full(), meta)
-            return
+            return SCIONDRevReplyStatus.IFID_FAIL
         logging.debug("Revocation info received: %s", rev_info)
 
         # Verify epoch information and on failure return directly
@@ -353,27 +354,19 @@ class SCIONDaemon(SCIONElement):
             logging.debug(
                 "Failed to verify epoch: rev_info epoch %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            if id_ != -1:
-                rev_reply = SCIONDRevReply.from_values(
-                    id_, SCIONDRevReplyStatus.EPOCH_FAIL)
-                self.send_meta(rev_reply.pack_full(), meta)
-            return
+            return SCIONDRevReplyStatus.EPOCH_FAIL
 
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
         removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
         removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
-        total = removed_up + removed_core + removed_down
-        if id_ != -1:
-            if total > 0:
-                rev_reply = SCIONDRevReply.from_values(
-                     id_, SCIONDRevReplyStatus.REMOVED_SEGMENTS)
-            else:
-                rev_reply = SCIONDRevReply.from_values(
-                        id_, SCIONDRevReplyStatus.EPOCH_OK)
-            self.send_meta(rev_reply.pack_full(), meta)
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))
+        total = removed_up + removed_core + removed_down
+        if total > 0:
+            return SCIONDRevReplyStatus.REMOVED_SEGMENTS
+        else:
+            return SCIONDRevReplyStatus.EPOCH_OK
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
