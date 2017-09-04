@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -63,6 +64,7 @@ var (
 )
 
 func TestRevNotification(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
 	Convey("Old revocations should return correct status code", t, func() {
 		asStruct, err := util.LoadASList("../../../gen/as_list.yml")
 		SoMsg("AS selection error", err, ShouldBeNil)
@@ -74,7 +76,7 @@ func TestRevNotification(t *testing.T) {
 		conn, err := Connect(fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA))
 		SoMsg("Connect error", err, ShouldBeNil)
 
-		reply, err := conn.RevNotification([]byte(token))
+		reply, err := conn.RevNotificationFromRaw([]byte(token))
 		SoMsg("RevNotification error", err, ShouldBeNil)
 		SoMsg("Status", reply.Status, ShouldEqual, EpochFail)
 	})

@@ -22,7 +22,10 @@ import capnp  # noqa
 import proto.sciond_capnp as P
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.sciond_api.base import SCIONDMsgBase
-from lib.types import SCIONDMsgType as SMT
+from lib.types import (
+    SCIONDMsgType as SMT,
+    TypeBase,
+)
 
 
 class SCIONDRevNotification(SCIONDMsgBase):
@@ -64,7 +67,7 @@ class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
         return "status=%d" % SCIONDRevReplyStatus.describe(self.status)
 
 
-class SCIONDRevReplyStatus:  # pragma: no cover
+class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
     REMOVED_SEGMENTS = 0
     EPOCH_OK = 1
     EPOCH_FAIL = 2
