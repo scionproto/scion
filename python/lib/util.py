@@ -266,8 +266,8 @@ def recv_all(sock, total_len, flags):
         # condition during revocations. Delete the handler below after the
         # cause has been identified and fixed.
         except ConnectionResetError:
-            logging.error("ConnectionResetError: sock = %s, total_len = %s"
-                          " read_len = %s, data = %s" % (sock, total_len, len(barr), barr))
+            logging.error("ConnectionResetError: sock = %s, total_len = %s read_len = %s, "
+                          "data = %s" % (sock, total_len, len(barr), hex_str(barr)))
             raise
         if not buf:
             if not barr:
