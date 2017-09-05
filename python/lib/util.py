@@ -267,7 +267,7 @@ def recv_all(sock, total_len, flags):
         # cause has been identified and fixed.
         except ConnectionResetError:
             logging.error("ConnectionResetError: sock = %s, total_len = %s"
-                        " read_len = %s, data = %s" % (sock, total_len, len(barr), barr))
+                          " read_len = %s, data = %s" % (sock, total_len, len(barr), barr))
             raise
         if not buf:
             if not barr:
