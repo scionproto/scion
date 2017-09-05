@@ -89,7 +89,7 @@ class RevCache:
         """
         Adds rev_info to the cache and returns True if the operation succeeds.
         """
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
             return False
         with self._lock:
             key = _mk_key(rev_info)
@@ -120,7 +120,8 @@ class RevCache:
 
     def _validate_entry(self, rev_info, cur_epoch=None):  # pragma: no cover
         """Removes an expired revocation from the cache."""
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch, cur_epoch):
+        if (ConnectedHashTree.verify_epoch(rev_info.p.epoch, cur_epoch) !=
+                ConnectedHashTree.EPOCH_OK):
             del self._cache[_mk_key(rev_info)]
             if self._labels:
                 REVS_REMOVED.labels(**self._labels).inc()

@@ -369,7 +369,8 @@ def _find_peer_hfs(up_asm, down_asm, peer_revs):
 def _skip_peer(peer_rev, ht_root):  # pragma: no cover
     if not peer_rev:
         return False
-    return (ConnectedHashTree.verify_epoch(peer_rev.p.epoch) and
+    rev_status = ConnectedHashTree.verify_epoch(peer_rev.p.epoch)
+    return (rev_status == ConnectedHashTree.EPOCH_OK and
             ConnectedHashTree.verify(peer_rev, ht_root))
 
 

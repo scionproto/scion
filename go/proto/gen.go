@@ -17,6 +17,7 @@ import (
 var RootTypes = []string{
 	"RevInfo",
 	"SCION",
+	"SCIONDMsg",
 }
 
 func main() {

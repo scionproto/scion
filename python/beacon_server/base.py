@@ -675,7 +675,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if cand.id in processed:
                 continue
             processed.add(cand.id)
-            if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+            if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
                 continue
 
             # If the interface on which we received the PCB is

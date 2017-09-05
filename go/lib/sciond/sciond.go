@@ -23,8 +23,6 @@
 // Fields prefixed with Raw (e.g., RawErrorCode) contain data in the format received from SCIOND.
 // These are used internally, and the accessors without the prefix (e.g., ErrorCode()) should be
 // used instead.
-//
-// TODO: Revocation notifications are not implemented yet.
 package sciond
 
 import (
@@ -38,6 +36,7 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/proto"
 )
@@ -97,7 +96,11 @@ func (c *Connector) send(p *Pld) error {
 
 func (c *Connector) receive() (*Pld, error) {
 	p := &Pld{}
-	return p, proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
+	err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
@@ -243,6 +246,36 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 
 	reply.ServiceInfoReply.Entries = append(reply.ServiceInfoReply.Entries, cachedEntries...)
 	return &reply.ServiceInfoReply, nil
+}
+
+func (c *Connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
+	// Extract information from notification
+	ri, cerr := path_mgmt.NewRevInfoFromRaw(revInfo)
+	if cerr != nil {
+		return nil, cerr
+	}
+	return c.RevNotification(ri)
+}
+
+// RevNotification sends a RevocationInfo message to SCIOND.
+func (c *Connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	// Encapsulate RevInfo item in RevNotification object
+	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_revNotification}
+	request.RevNotification.RevInfo = revInfo
+
+	err := c.send(request)
+	if err != nil {
+		return nil, err
+	}
+	reply, err := c.receive()
+	if err != nil {
+		return nil, err
+	}
+
+	return &reply.RevReply, nil
 }
 
 // Close shuts down the connection to a SCIOND server.

@@ -18,6 +18,7 @@ struct SCIONDMsg {
         ifInfoReply @8 :IFInfoReply;
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
+        revReply @11 :RevReply;
     }
 }
 
@@ -76,6 +77,10 @@ struct ASInfoReplyEntry {
 
 struct RevNotification {
     revInfo @0 :RevInfo.RevInfo;
+}
+
+struct RevReply {
+    result @0 :UInt16;
 }
 
 struct IFInfoRequest {

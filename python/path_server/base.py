@@ -263,7 +263,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
+        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
             return
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
         if_id = rev_info.p.ifID

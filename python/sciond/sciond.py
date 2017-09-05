@@ -45,6 +45,7 @@ from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
 from lib.rev_cache import RevCache
 from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
+from lib.sciond_api.revocation import SCIONDRevReply, SCIONDRevReplyStatus
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry
 from lib.sciond_api.parse import parse_sciond_msg
@@ -236,7 +237,7 @@ class SCIONDaemon(SCIONElement):
                 args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
         elif msg.MSG_TYPE == SMT.REVOCATION:
-            self.handle_revocation(msg.rev_info(), meta)
+            self._api_handle_rev_notification(msg, meta)
         elif msg.MSG_TYPE == SMT.AS_REQUEST:
             self._api_handle_as_request(msg, meta)
         elif msg.MSG_TYPE == SMT.IF_REQUEST:
@@ -333,6 +334,11 @@ class SCIONDaemon(SCIONElement):
         svc_reply = SCIONDServiceInfoReply.from_values(request.id, svc_entries)
         self.send_meta(svc_reply.pack_full(), meta)
 
+    def _api_handle_rev_notification(self, request, meta):
+        status = self.handle_revocation(request.rev_info(), meta)
+        rev_reply = SCIONDRevReply.from_values(request.id, status)
+        self.send_meta(rev_reply.pack_full(), meta)
+
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         self.handle_revocation(rev_info, meta)
@@ -340,14 +346,54 @@ class SCIONDaemon(SCIONElement):
     def handle_revocation(self, rev_info, meta):
         assert isinstance(rev_info, RevocationInfo)
         if not self._validate_revocation(rev_info):
-            return
+            return SCIONDRevReplyStatus.INVALID
         logging.debug("Revocation info received: %s", rev_info)
+
+        # Verify epoch information and on failure return directly
+        epoch_status = ConnectedHashTree.verify_epoch(rev_info.p.epoch)
+        if epoch_status == ConnectedHashTree.EPOCH_PAST:
+            logging.error(
+                "Failed to verify epoch: epoch in the past %d,current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+            return SCIONDRevReplyStatus.INVALID
+
+        if epoch_status == ConnectedHashTree.EPOCH_FUTURE:
+            logging.warning(
+                "Failed to verify epoch: epoch in the future %d,current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+            return SCIONDRevReplyStatus.INVALID
+
+        if epoch_status == ConnectedHashTree.EPOCH_NEAR_PAST:
+            logging.info(
+                "Failed to verify epoch: epoch in the near past %d, current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+            return SCIONDRevReplyStatus.STALE
+
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
         removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
         removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))
+        total = removed_up + removed_core + removed_down
+        if total > 0:
+            return SCIONDRevReplyStatus.VALID
+        else:
+            # FIXME(scrye): UNKNOWN is returned in the following situations:
+            #  - No matching segments exist
+            #  - Matching segments exist, but the revoked interface is part of
+            #  a peering link; new path queries sent to SCIOND won't use the
+            #  link, but nothing is immediately revoked
+            #  - A hash check failed and prevented the revocation from taking
+            #  place
+            #
+            # This should be fixed in the future to provide clearer meaning
+            # behind why the revocation could not be validated.
+            #
+            # For now, if applications receive an UNKOWN reply to a revocation,
+            # they should strongly consider flushing paths containing the
+            # interface.
+            return SCIONDRevReplyStatus.UNKNOWN
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
@@ -362,12 +408,6 @@ class SCIONDaemon(SCIONElement):
         :returns: The number of deletions.
         :rtype: int
         """
-
-        if not ConnectedHashTree.verify_epoch(rev_info.p.epoch):
-            logging.debug(
-                "Failed to verify epoch: rev_info epoch %d,current epoch %d."
-                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            return 0
 
         to_remove = []
         for segment in db(full=True):

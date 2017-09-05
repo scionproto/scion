@@ -58,6 +58,7 @@ type Pld struct {
 	AsInfoReq          ASInfoReq
 	AsInfoReply        ASInfoReply
 	RevNotification    RevNotification
+	RevReply           RevReply
 	IfInfoRequest      IFInfoRequest
 	IfInfoReply        IFInfoReply
 	ServiceInfoRequest ServiceInfoRequest
@@ -96,6 +97,8 @@ func (p *Pld) union0() (interface{}, *common.Error) {
 		return p.AsInfoReply, nil
 	case proto.SCIONDMsg_Which_revNotification:
 		return p.RevNotification, nil
+	case proto.SCIONDMsg_Which_revReply:
+		return p.RevReply, nil
 	case proto.SCIONDMsg_Which_ifInfoRequest:
 		return p.IfInfoRequest, nil
 	case proto.SCIONDMsg_Which_ifInfoReply:
@@ -181,6 +184,34 @@ func (entry ASInfoReplyEntry) String() string {
 
 type RevNotification struct {
 	RevInfo *path_mgmt.RevInfo
+}
+
+type RevReply struct {
+	Result RevResult
+}
+
+type RevResult uint16
+
+const (
+	RevValid RevResult = iota
+	RevStale
+	RevInvalid
+	RevUnknown
+)
+
+func (c RevResult) String() string {
+	switch c {
+	case RevValid:
+		return "RevValid"
+	case RevStale:
+		return "RevStale"
+	case RevInvalid:
+		return "RevInvalid"
+	case RevUnknown:
+		return "RevUnknown"
+	default:
+		return fmt.Sprintf("Unknown revocation result (%d)", c)
+	}
 }
 
 type IFInfoRequest struct {
