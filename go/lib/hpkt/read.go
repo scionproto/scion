@@ -48,8 +48,6 @@ type parseCtx struct {
 	// Helper container for common header fields; also tracks the next
 	// protocol we need to parse
 	cmnHdr *spkt.CmnHdr
-	// Set to true after first E2E extension to guard against misplaced HBH extensions
-	parsedFirstE2E bool
 	// Number of found HBH extensions
 	hbhCounter int
 	// Maximum number of allowed HBH extensions
@@ -80,7 +78,8 @@ func newParseCtx(s *spkt.ScnPkt, b common.RawBytes) *parseCtx {
 		s:        s,
 		b:        b,
 		cmnHdr:   &spkt.CmnHdr{},
-		hbhLimit: common.ExtnMaxHBH}
+		hbhLimit: common.ExtnMaxHBH,
+	}
 	pCtx.E2EExtParser = pCtx.DefaultE2EExtParser
 	pCtx.HBHExtParser = pCtx.DefaultHBHExtParser
 	pCtx.AddrHdrParser = pCtx.DefaultAddrHdrParser
@@ -113,40 +112,14 @@ func (p *parseCtx) parse() error {
 	// Skip after SCION header
 	p.offset = p.extHdrOffsets.start
 
-	// SCION packets can contain at most 3 HBH extensions, which must appear
-	// immediately after the path header. If an SCMP HBH extension is present,
-	// it must be the first extension and raises the allowed HBH limit to 4.
-	// E2E extensions appear after HBH extensions (if any), or after the path
-	// header.
-ProtoLoop:
-	for {
-		switch p.nextHdr {
-		case common.HopByHopClass:
-			p.hbhCounter += 1
-			if p.hbhCounter > p.hbhLimit {
-				return common.NewError("HBH extension limit exceeded", "limit", p.hbhLimit)
-			}
-			if p.parsedFirstE2E {
-				return common.NewError("Invalid placement of HBH extension, must appear before " +
-					"E2E extensions but found after")
-			}
-			if err := p.HBHExtParser(); err != nil {
-				return common.NewError("Unable to parse HBH extension", "err", err)
-			}
-		case common.End2EndClass:
-			// Once we parsed one E2E, we can no longer parse HBHs
-			p.parsedFirstE2E = true
-			if err := p.E2EExtParser(); err != nil {
-				return common.NewError("Unable to parse E2E extension", "err", err)
-			}
-		case common.L4SCMP:
-			break ProtoLoop
-		case common.L4UDP:
-			break ProtoLoop
-		default:
-			return common.NewError("Unsupported protocol", "proto", p.nextHdr)
-		}
+	if err := p.HBHAllExtsParser(); err != nil {
+		return common.NewError("Unable to parse HBH extensions", "err", err)
 	}
+
+	if err := p.E2EAllExtsParser(); err != nil {
+		return common.NewError("Unable to parse E2E extensions", "err", err)
+	}
+
 	// Return to the start of the address header
 	p.offset = p.cmnHdrOffsets.end
 	if err := p.AddrHdrParser(); err != nil {
@@ -179,6 +152,35 @@ func (p *parseCtx) CmnHdrParser() error {
 	return nil
 }
 
+func (p *parseCtx) HBHAllExtsParser() error {
+	// SCION packets can contain at most 3 HBH extensions, which must appear
+	// immediately after the path header. If an SCMP HBH extension is present,
+	// it must be the first extension and raises the allowed HBH limit to 4.
+	// E2E extensions appear after HBH extensions (if any), or after the path
+	// header.
+	for p.nextHdr == common.HopByHopClass {
+		p.hbhCounter += 1
+		if err := p.HBHExtParser(); err != nil {
+			return common.NewError("Unable to parse HBH extension", "err", err)
+		}
+		if p.hbhCounter > p.hbhLimit {
+			ext := p.s.HBHExt[len(p.s.HBHExt)-1]
+			return common.NewError("HBH extension limit exceeded", "type", ext.Class(),
+				"position", p.hbhCounter, "limit", p.hbhLimit)
+		}
+	}
+	return nil
+}
+
+func (p *parseCtx) E2EAllExtsParser() error {
+	for p.nextHdr == common.End2EndClass {
+		if err := p.E2EExtParser(); err != nil {
+			return common.NewError("Unable to parse E2E extension", "err", err)
+		}
+	}
+	return nil
+}
+
 func (p *parseCtx) DefaultHBHExtParser() error {
 	if len(p.b[p.offset:]) < common.LineLen {
 		return common.NewError("Truncated extension")
@@ -205,11 +207,13 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 
 		extn, cerr := scmp.ExtnFromRaw(p.b[p.offset+common.ExtnSubHdrLen : p.extHdrOffsets.end])
 		if cerr != nil {
-			return common.NewError("Unable to parse extension header", "err", cerr)
+			return common.NewError("Unable to parse extension header", "type", extn.Class(),
+				"position", p.hbhCounter, "err", cerr)
 		}
 		p.s.HBHExt = append(p.s.HBHExt, extn)
 	default:
-		return common.NewError("Unsupported HBH extension type", "type", extnType)
+		return common.NewError("Unsupported HBH extension type", "type", extnType,
+			"position", p.hbhCounter)
 	}
 
 	p.offset = p.extHdrOffsets.end
