@@ -69,18 +69,18 @@ class SCIONDRevReply(SCIONDMsgBase):  # pragma: no cover
 
 class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
     VALID = 0
-    TOO_OLD = 1
+    STALE = 1
     INVALID = 2
     UNKNOWN = 3
 
     @classmethod
     def describe(cls, code):
         if code == cls.VALID:
-            return "Revocation valid."
-        if code == cls.TOO_OLD:
-            return "Revocation too old."
+            return "Revocation is valid."
+        if code == cls.STALE:
+            return "Revocation is stale."
         if code == cls.INVALID:
-            return "Revocation invalid."
+            return "Revocation is invalid."
         if code == cls.UNKNOWN:
             return "Revocation state unknown."
         return "Unknown result code."

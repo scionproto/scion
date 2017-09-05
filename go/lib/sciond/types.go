@@ -194,7 +194,7 @@ type RevResult uint16
 
 const (
 	RevValid RevResult = iota
-	RevTooOld
+	RevStale
 	RevInvalid
 	RevUnknown
 )
@@ -203,8 +203,8 @@ func (c RevResult) String() string {
 	switch c {
 	case RevValid:
 		return "RevValid"
-	case RevTooOld:
-		return "RevTooOld"
+	case RevStale:
+		return "RevStale"
 	case RevInvalid:
 		return "RevInvalid"
 	case RevUnknown:
