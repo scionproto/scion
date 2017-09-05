@@ -166,7 +166,7 @@ func (p *parseCtx) HBHAllExtsParser() error {
 		if p.hbhCounter > p.hbhLimit {
 			ext := p.s.HBHExt[len(p.s.HBHExt)-1]
 			return common.NewError("HBH extension limit exceeded", "type", ext.Class(),
-				"position", p.hbhCounter, "limit", p.hbhLimit)
+				"position", p.hbhCounter-1, "limit", p.hbhLimit)
 		}
 	}
 	return nil
@@ -200,7 +200,7 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 		if p.hbhCounter != 1 {
 			// SCMP HBH extensions must come immediately after the path header
 			return common.NewError("Invalid placement of HBH SCMP extension (must be first)",
-				"position", p.hbhCounter, "offset", p.offset)
+				"position", p.hbhCounter-1, "offset", p.offset)
 		}
 		// SCMP HBH extensions increase the limit of HBH extensions by 1
 		p.hbhLimit += 1
@@ -208,12 +208,12 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 		extn, cerr := scmp.ExtnFromRaw(p.b[p.offset+common.ExtnSubHdrLen : p.extHdrOffsets.end])
 		if cerr != nil {
 			return common.NewError("Unable to parse extension header", "type", extn.Class(),
-				"position", p.hbhCounter, "err", cerr)
+				"position", p.hbhCounter-1, "err", cerr)
 		}
 		p.s.HBHExt = append(p.s.HBHExt, extn)
 	default:
 		return common.NewError("Unsupported HBH extension type", "type", extnType,
-			"position", p.hbhCounter)
+			"position", p.hbhCounter-1)
 	}
 
 	p.offset = p.extHdrOffsets.end
@@ -285,8 +285,7 @@ func (p *parseCtx) DefaultL4Parser() error {
 
 	// Parse L4 payload
 	p.pldOffsets.start = p.offset
-	pldLen := int(p.cmnHdr.TotalLen) - p.cmnHdr.HdrLenBytes() - p.s.L4.L4Len() -
-		(p.extHdrOffsets.end - p.extHdrOffsets.start)
+	pldLen := len(p.b) - p.pldOffsets.start
 	if cerr = p.s.L4.Validate(pldLen); cerr != nil {
 		return common.NewError("L4 validation failed", "err", cerr)
 	}
