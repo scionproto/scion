@@ -13,116 +13,23 @@
 // limitations under the License.
 
 // Package hpkt (Host Packet) contains low level primitives for parsing and
-// creating end-host SCION messages
+// creating end-host SCION messages.
+//
+// Currently supports SCION/UDP and SCION/SCMP packets.
 package hpkt
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
-
-// FIXME(scrye): when SCION Conn is merged in master, move this there
-func AllocScnPkt() *spkt.ScnPkt {
-	return &spkt.ScnPkt{
-		DstIA: &addr.ISD_AS{},
-		SrcIA: &addr.ISD_AS{},
-		Path:  &spath.Path{},
-		// Rest of fields passed by reference
-	}
-}
-
-// ParseScnPkt populates the SCION fields in s with information from b
-func ParseScnPkt(s *spkt.ScnPkt, b common.RawBytes) error {
-	var cerr *common.Error
-	offset := 0
-
-	cmnHdr := spkt.CmnHdr{}
-	if cerr = cmnHdr.Parse(b[:spkt.CmnHdrLen]); cerr != nil {
-		return cerr
-	}
-	offset += spkt.CmnHdrLen
-
-	// If we find an extension, we cannot reliably parse past this point.
-	// For now, only parse simple packets
-	// TODO(scrye): add extension support
-	if cmnHdr.NextHdr != common.L4UDP {
-		return common.NewError("Unexpected protocol number", "expected",
-			common.L4UDP, "actual", cmnHdr.NextHdr)
-	}
-
-	// Parse address header
-	addrHdrStart := offset
-	s.DstIA.Parse(b[offset:])
-	offset += addr.IABytes
-	s.SrcIA.Parse(b[offset:])
-	offset += addr.IABytes
-	if s.DstHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.DstType); cerr != nil {
-		return common.NewError("Unable to parse destination host address",
-			"err", cerr)
-	}
-	offset += s.DstHost.Size()
-	if s.SrcHost, cerr = addr.HostFromRaw(b[offset:], cmnHdr.SrcType); cerr != nil {
-		return common.NewError("Unable to parse source host address",
-			"err", cerr)
-	}
-	offset += s.SrcHost.Size()
-	// Validate address padding bytes
-	padBytes := util.CalcPadding(offset, common.LineLen)
-	if pos, ok := isZeroMemory(b[offset : offset+padBytes]); !ok {
-		return common.NewError("Invalid padding", "position", pos,
-			"expected", 0, "actual", b[offset+pos])
-	}
-	offset += padBytes
-	addrHdrEnd := offset
-
-	// Parse path header
-	pathLen := cmnHdr.HdrLenBytes() - offset
-	s.Path.Raw = b[offset : offset+pathLen]
-	s.Path.InfOff = cmnHdr.InfoFOffBytes()
-	s.Path.HopOff = cmnHdr.HopFOffBytes()
-	offset += pathLen
-
-	// TODO(scrye): Add extension support
-
-	// Parse L4 header
-	if cmnHdr.NextHdr != common.L4UDP {
-		return common.NewError("Unsupported NextHdr value", "expected",
-			common.L4UDP, "actual", cmnHdr.NextHdr)
-	}
-	if s.L4, cerr = l4.UDPFromRaw(b[offset : offset+l4.UDPLen]); cerr != nil {
-		return common.NewError("Unable to parse UDP header", "err", cerr)
-	}
-	offset += s.L4.L4Len()
-
-	// Parse payload
-	pldLen := int(cmnHdr.TotalLen) - cmnHdr.HdrLenBytes() - s.L4.L4Len()
-	if offset+pldLen < len(b) {
-		return common.NewError("Incomplete packet, bad payload length",
-			"expected", pldLen, "actual", len(b)-offset)
-	}
-	s.Pld = common.RawBytes(b[offset : offset+pldLen])
-
-	// Verify checksum
-	err := l4.CheckCSum(s.L4, b[addrHdrStart:addrHdrEnd],
-		b[offset:offset+pldLen])
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	var cerr *common.Error
 	offset := 0
 
-	if s.L4.L4Type() != common.L4UDP {
-		return 0, common.NewError("Unsupported protocol", "expected",
-			common.L4UDP, "actual", s.L4.L4Type())
-	}
 	if s.E2EExt != nil {
 		return 0, common.NewError("E2E extensions not supported", "ext", s.E2EExt)
 	}
