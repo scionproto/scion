@@ -39,7 +39,7 @@ type RevInfo struct {
 	HashType uint16
 }
 
-func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, *common.Error) {
+func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
 	r := &RevInfo{}
 	return r, proto.ParseFromRaw(r, r.ProtoId(), b)
 }

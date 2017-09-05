@@ -51,8 +51,8 @@ type Conf struct {
 }
 
 // Load sets up the configuration, loading it from the supplied config directory.
-func Load(id, confDir string) (*Conf, *common.Error) {
-	var err *common.Error
+func Load(id, confDir string) (*Conf, error) {
+	var err error
 
 	// Declare a new Conf instance, and load the topology config.
 	conf := &Conf{}
@@ -65,7 +65,8 @@ func Load(id, confDir string) (*Conf, *common.Error) {
 	// Find the config for this router.
 	topoBR, ok := conf.Topo.BR[id]
 	if !ok {
-		return nil, common.NewError("Unable to find element ID in topology", "id", id, "path", topoPath)
+		return nil, common.NewCError("Unable to find element ID in topology",
+			"id", id, "path", topoPath)
 	}
 	conf.BR = &topoBR
 	// Load AS configuration

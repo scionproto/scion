@@ -18,7 +18,6 @@ package seg
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
@@ -39,6 +38,6 @@ func (e *HopEntry) OutIA() *addr.ISD_AS {
 	return addr.IAFromInt(int(e.RawOutIA))
 }
 
-func (e *HopEntry) HopField() (*spath.HopField, *common.Error) {
+func (e *HopEntry) HopField() (*spath.HopField, error) {
 	return spath.HopFFromRaw(e.RawHopField)
 }

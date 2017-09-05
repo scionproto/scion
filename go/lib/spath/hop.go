@@ -57,9 +57,9 @@ func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *Ho
 	return h
 }
 
-func HopFFromRaw(b []byte) (*HopField, *common.Error) {
+func HopFFromRaw(b []byte) (*HopField, error) {
 	if len(b) < HopFieldLength {
-		return nil, common.NewError(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
+		return nil, common.NewCError(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
 	}
 	h := &HopField{}
 	h.data = b[:HopFieldLength]
@@ -114,18 +114,18 @@ func (h *HopField) String() string {
 		h.Ingress, h.Egress, h.ExpTime, h.Xover, h.VerifyOnly, h.ForwardOnly, h.Mac)
 }
 
-func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) *common.Error {
+func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) error {
 	if mac, err := h.CalcMac(mac, tsInt, prev); err != nil {
 		return err
 	} else if !bytes.Equal(h.Mac, mac) {
-		return common.NewError(ErrorHopFBadMac, "expected", h.Mac, "actual", mac)
+		return common.NewCError(ErrorHopFBadMac, "expected", h.Mac, "actual", mac)
 	}
 	return nil
 }
 
 // CalcMac calculates the MAC of a Hop Field and its preceeding Hop Field, if any.
 func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
-	prev common.RawBytes) (common.RawBytes, *common.Error) {
+	prev common.RawBytes) (common.RawBytes, error) {
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
 	all[4] = h.data[0] & HopFieldVerifyFlags

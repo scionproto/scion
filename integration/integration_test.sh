@@ -54,6 +54,8 @@ sleep 5
 cat << EOF | parallel --no-notice -n2 -j2 run
 End2End
 python/integration/end2end_test.py -l ERROR
+Go Infra running
+make -C go test_running
 C2S_extn
 python/integration/cli_srv_ext_test.py -l ERROR
 SCMP error

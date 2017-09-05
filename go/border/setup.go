@@ -40,11 +40,11 @@ import (
 )
 
 type setupNetHook func(r *Router, ctx *rctx.Ctx,
-	oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error)
+	oldCtx *rctx.Ctx) (rpkt.HookResult, error)
 type setupAddLocalHook func(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error)
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error)
 type setupAddExtHook func(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error)
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error)
 
 // Setup hooks enables the network stack to be modular. Any network stack that
 // wants to be included defines its own init function which adds hooks to these
@@ -56,7 +56,7 @@ var setupNetFinishHooks []setupNetHook
 
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
-func (r *Router) setup() *common.Error {
+func (r *Router) setup() error {
 	r.freePkts = ringbuf.New(1024, func() interface{} {
 		return rpkt.NewRtrPkt()
 	}, "free", prometheus.Labels{"ringId": "freePkts"})
@@ -71,7 +71,7 @@ func (r *Router) setup() *common.Error {
 	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
 
 	// Load config.
-	var err *common.Error
+	var err error
 	var config *conf.Conf
 	if config, err = r.loadNewConfig(); err != nil {
 		return err
@@ -93,10 +93,10 @@ func (r *Router) setup() *common.Error {
 }
 
 // clearCapabilities drops unnecessary capabilities after startup
-func (r *Router) clearCapabilities() *common.Error {
+func (r *Router) clearCapabilities() error {
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		return common.NewError("Error retrieving capabilities", "err", err)
+		return common.NewCError("Error retrieving capabilities", "err", err)
 	}
 	log.Debug("Startup capabilities", "caps", caps)
 	caps.Clear(capability.CAPS)
@@ -107,9 +107,9 @@ func (r *Router) clearCapabilities() *common.Error {
 }
 
 // loadNewConfig loads a new conf.Conf object from the configuration file.
-func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
+func (r *Router) loadNewConfig() (*conf.Conf, error) {
 	var config *conf.Conf
-	var err *common.Error
+	var err error
 	if config, err = conf.Load(r.Id, r.confDir); err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (r *Router) loadNewConfig() (*conf.Conf, *common.Error) {
 }
 
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
+func (r *Router) setupNewContext(config *conf.Conf) error {
 	oldCtx := rctx.Get()
 	ctx := rctx.New(config, len(config.Net.LocAddr))
 	if err := r.setupNet(ctx, oldCtx); err != nil {
@@ -147,7 +147,7 @@ func (r *Router) setupNewContext(config *conf.Conf) *common.Error {
 // setupNet configures networking for the router, using any setup hooks that
 // have been registered. If an old context is provided, setupNet reconfigures
 // networking, e.g., starting/stopping new/old input routines if necessary.
-func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
+func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 	// Run startup hooks, if any.
 	for _, f := range setupNetStartHooks {
 		ret, err := f(r, ctx, oldCtx)
@@ -220,7 +220,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) *common.Error {
 
 // setupPosixAddLocal configures a local POSIX(/BSD) socket.
 func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
 		if err := addPosixLocal(r, ctx, idx, ta.BindAddrInfo(ctx.Conf.Topo.Overlay), labels); err != nil {
@@ -244,12 +244,12 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr
 }
 
 func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
-	labels prometheus.Labels) *common.Error {
+	labels prometheus.Labels) error {
 	// FIXME(kormat): this does not support dual-stack local addresses (e.g. ipv4+6).
 	// Listen on the socket.
 	over, err := conn.New(ba, nil, labels)
 	if err != nil {
-		return common.NewError("Unable to listen on local socket", "err", err)
+		return common.NewCError("Unable to listen on local socket", "err", err)
 	}
 	// Find interfaces that use this local address.
 	var ifids []common.IFIDType
@@ -269,7 +269,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 
 // setupPosixAddExt configures a POSIX(/BSD) interface socket.
 func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	// No old context. This happens during startup of the router.
 	if oldCtx == nil {
 		if err := addPosixIntf(r, ctx, intf, labels); err != nil {
@@ -311,12 +311,12 @@ func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bo
 }
 
 func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
-	labels prometheus.Labels) *common.Error {
+	labels prometheus.Labels) error {
 	// Connect to remote address.
 	ba := intf.IFAddr.BindAddrInfo(intf.IFAddr.Overlay)
 	c, err := conn.New(ba, intf.RemoteAddr, labels)
 	if err != nil {
-		return common.NewError("Unable to listen on external socket", "err", err)
+		return common.NewCError("Unable to listen on external socket", "err", err)
 	}
 	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.

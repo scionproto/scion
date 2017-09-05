@@ -47,7 +47,7 @@ func NewSCIONNet(ia *addr.ISD_AS, sciondPath string, dispatcherPath string) (*SC
 	context.dispatcherPath = dispatcherPath
 	context.pm, err = NewPathManager(sciondPath)
 	if err != nil {
-		return nil, common.NewError("Unable to initialize PathManager", "err", err)
+		return nil, common.NewCError("Unable to initialize PathManager", "err", err)
 	}
 	return context, nil
 }
@@ -63,7 +63,7 @@ func (c *SCIONNet) DialSCION(IA *addr.ISD_AS, local, remote addr.HostAddr, port 
 	regAddr := reliable.AppAddr{Addr: local, Port: 0}
 	conn, _, err := reliable.Register(c.dispatcherPath, c.IA, regAddr)
 	if err != nil {
-		return nil, common.NewError("Unable to register with dispatcher", "err", err)
+		return nil, common.NewCError("Unable to register with dispatcher", "err", err)
 	}
 	log.Debug("Registered with dispatcher", "ia", c.IA, "addr", regAddr)
 
@@ -87,7 +87,7 @@ func (c *SCIONNet) ListenSCION(address addr.HostAddr, port uint16) (*SCIONConn, 
 	regAddr := reliable.AppAddr{Addr: address, Port: port}
 	conn, _, err := reliable.Register(c.dispatcherPath, c.IA, regAddr)
 	if err != nil {
-		return nil, common.NewError("Unable to register with dispatcher", "err", err)
+		return nil, common.NewCError("Unable to register with dispatcher", "err", err)
 	}
 	log.Debug("Registered with dispatcher", "ia", c.IA, "addr", regAddr)
 
@@ -113,22 +113,22 @@ type SCIONConn struct {
 
 func (c *SCIONConn) ReadFromSCION(b []byte) (int, *SCIONAppAddr, error) {
 	if c.laddr == nil {
-		return 0, nil, common.NewError("Unable to read from uninitialized SCION socket")
+		return 0, nil, common.NewCError("Unable to read from uninitialized SCION socket")
 	}
 
 	// FIXME(scrye): Cancellation signal to prevent goroutine leaks on block
 	_, _, err := c.Conn.ReadFrom(c.recvBuffer)
 	if err != nil {
-		return 0, nil, common.NewError("Unable to read from dispatcher", "err", err)
+		return 0, nil, common.NewCError("Unable to read from dispatcher", "err", err)
 	}
 
 	scnPkt, payload, err := parseSCIONPacket(c.recvBuffer)
 	if err != nil {
-		return 0, nil, common.NewError("Unable to parse SCION header", "err", err)
+		return 0, nil, common.NewCError("Unable to parse SCION header", "err", err)
 	}
 	udpHeader, ok := scnPkt.L4.(*l4.UDP)
 	if ok == false {
-		return 0, nil, common.NewError("Unable to parse L4 header", "header", scnPkt.L4)
+		return 0, nil, common.NewCError("Unable to parse L4 header", "header", scnPkt.L4)
 	}
 	// FIXME(scrye): Populate with an empty path for now, since SCION hosts do a path lookup anyway
 	sa := &SCIONAppAddr{
@@ -151,11 +151,11 @@ func (c *SCIONConn) Read(b []byte) (int, error) {
 
 func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAppAddr) (int, error) {
 	if c.laddr == nil {
-		return 0, common.NewError("Unable to write to unitialized SCION socket")
+		return 0, common.NewCError("Unable to write to unitialized SCION socket")
 	}
 	path, err := c.pm.FindPath(c.laddr.ia, address.ia)
 	if err != nil {
-		return 0, common.NewError("Unable to find valid path", "err", err)
+		return 0, common.NewCError("Unable to find valid path", "err", err)
 	}
 
 	packet, err := c.createUDPPacket(b, address, path)
@@ -173,21 +173,21 @@ func (c *SCIONConn) WriteToSCION(b []byte, address *SCIONAppAddr) (int, error) {
 func (c *SCIONConn) WriteTo(b []byte, address net.Addr) (int, error) {
 	saddr, ok := address.(*SCIONAppAddr)
 	if !ok {
-		return 0, common.NewError("Unable to write (non-SCION address)", "address", address)
+		return 0, common.NewCError("Unable to write (non-SCION address)", "address", address)
 	}
 	return c.WriteToSCION(b, saddr)
 }
 
 func (c *SCIONConn) Write(b []byte) (int, error) {
 	if c.raddr == nil {
-		return 0, common.NewError("Unable to write to socket without remote address")
+		return 0, common.NewCError("Unable to write to socket without remote address")
 	}
 	return c.WriteToSCION(b, c.raddr)
 }
 
 func (c *SCIONConn) WriteFoo(b []byte) (int, error) {
 	if c.raddr == nil {
-		return 0, common.NewError("Unable to write to socket without remote address")
+		return 0, common.NewCError("Unable to write to socket without remote address")
 	}
 	return c.WriteToSCION(b, c.raddr)
 }
@@ -203,7 +203,7 @@ func (c *SCIONConn) RemoteAddr() net.Addr {
 func (c *SCIONConn) Close() error {
 	err := c.Conn.Close()
 	if err != nil {
-		return common.NewError("Unable to close reliable socket", "err", err)
+		return common.NewCError("Unable to close reliable socket", "err", err)
 	}
 	return nil
 }
@@ -285,8 +285,7 @@ func zeroMemory(b common.RawBytes) {
 func parseSCIONPacket(buf common.RawBytes) (*spkt.ScnPkt, []byte, error) {
 	offset := uint16(0)
 	scnPkt := new(spkt.ScnPkt)
-	// TODO(scrye): err is defined here to avoid nil interface issues
-	var err *common.Error
+	var err error
 
 	scnPkt.CmnHdr, err = spkt.CmnHdrFromRaw(buf[:8])
 	if err != nil {
@@ -322,10 +321,10 @@ func parseSCIONPacket(buf common.RawBytes) (*spkt.ScnPkt, []byte, error) {
 
 	// Skip padding, NB: SCION states addr.HostLenIPv6 is largest accepted address size
 	if dstLen > addr.HostLenIPv6 {
-		return nil, nil, common.NewError("Address too large", "dstLen", dstLen)
+		return nil, nil, common.NewCError("Address too large", "dstLen", dstLen)
 	}
 	if srcLen > addr.HostLenIPv6 {
-		return nil, nil, common.NewError("Address too large", "srcLen", srcLen)
+		return nil, nil, common.NewCError("Address too large", "srcLen", srcLen)
 	}
 	addrPadLen := uint8((2*addr.HostLenIPv6 - dstLen - srcLen) % 8)
 	offset += uint16(addrPadLen)
@@ -348,7 +347,7 @@ func parseSCIONPacket(buf common.RawBytes) (*spkt.ScnPkt, []byte, error) {
 
 	// Only unpack UDP for now
 	if scnPkt.CmnHdr.NextHdr != common.L4UDP {
-		return nil, nil, common.NewError("Unsupported L4 protocol", "proto", scnPkt.CmnHdr.NextHdr)
+		return nil, nil, common.NewCError("Unsupported L4 protocol", "proto", scnPkt.CmnHdr.NextHdr)
 	}
 	scnPkt.L4, err = l4.UDPFromRaw(buf[offset : offset+l4.UDPLen])
 	if err != nil {
@@ -378,7 +377,7 @@ func initIndices(fwdPath common.RawBytes) (infoIdx, hopIdx uint8, err error) {
 	if info.Up && hop.Xover {
 		hopIdx += 1
 		if hopIdx > maxHopIdx {
-			return 0, 0, common.NewError("Skipped entire path segment", "hopIdx", hopIdx,
+			return 0, 0, common.NewCError("Skipped entire path segment", "hopIdx", hopIdx,
 				"maxHopIdx", maxHopIdx)
 		}
 	}
@@ -392,7 +391,7 @@ func initIndices(fwdPath common.RawBytes) (infoIdx, hopIdx uint8, err error) {
 		if hop.VerifyOnly {
 			hopIdx += 1
 			if hopIdx > maxHopIdx {
-				return 0, 0, common.NewError("Skipped entire path segment", "hopIdx", hopIdx,
+				return 0, 0, common.NewCError("Skipped entire path segment", "hopIdx", hopIdx,
 					"maxHopIdx", maxHopIdx)
 			}
 		} else {

@@ -24,7 +24,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 )
 
-func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error) {
+func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {
 	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
@@ -37,7 +37,7 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, *common.Error)
 
 // updateCtrlPld writes a new payload instance to the underlying buffer, and
 // updates the layer 4 and common headers accordingly.
-func (rp *RtrPkt) updateCtrlPld() *common.Error {
+func (rp *RtrPkt) updateCtrlPld() error {
 	// Reset buffer to full size
 	rp.Raw = rp.Raw[:cap(rp.Raw)]
 	// Write payload to buffer

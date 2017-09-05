@@ -43,90 +43,90 @@ type Cerealizable interface {
 
 // WriteRoot creates a complete capnp message for c, and writes it out to b.
 // The int return value is the number of bytes written.
-func WriteRoot(c Cerealizable, b common.RawBytes) (int, *common.Error) {
-	msg, cerr := cerealInsert(c)
-	if cerr != nil {
-		return 0, cerr
+func WriteRoot(c Cerealizable, b common.RawBytes) (int, error) {
+	msg, err := cerealInsert(c)
+	if err != nil {
+		return 0, err
 	}
 	raw := &util.Raw{B: b}
 	enc := capnp.NewPackedEncoder(raw)
 	if err := enc.Encode(msg); err != nil {
-		return 0, common.NewError("Failed to encode capnp struct",
+		return 0, common.NewCError("Failed to encode capnp struct",
 			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	return raw.Offset, nil
 }
 
 // PackRoot creates a complete capnp message for c, and returns it encoded as bytes.
-func PackRoot(c Cerealizable) (common.RawBytes, *common.Error) {
-	msg, cerr := cerealInsert(c)
-	if cerr != nil {
-		return nil, cerr
+func PackRoot(c Cerealizable) (common.RawBytes, error) {
+	msg, err := cerealInsert(c)
+	if err != nil {
+		return nil, err
 	}
 	raw, err := msg.MarshalPacked()
 	if err != nil {
-		return nil, common.NewError("Failed to marshal capnp struct",
+		return nil, common.NewCError("Failed to marshal capnp struct",
 			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	return raw, nil
 }
 
-func cerealInsert(c Cerealizable) (*capnp.Message, *common.Error) {
+func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, common.NewError("Failed to create new capnp message",
+		return nil, common.NewCError("Failed to create new capnp message",
 			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
-	s, cerr := NewRootStruct(c.ProtoId(), arena)
-	if cerr != nil {
-		return nil, cerr
+	s, err := NewRootStruct(c.ProtoId(), arena)
+	if err != nil {
+		return nil, err
 	}
 	if err := pogs.Insert(uint64(c.ProtoId()), s, c); err != nil {
-		return nil, common.NewError("Failed to insert struct into capnp message",
+		return nil, common.NewCError("Failed to insert struct into capnp message",
 			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
 	}
 	return msg, nil
 }
 
 // ReadRootFromRaw returns the root struct from a capnp message encoded in b.
-func ReadRootFromRaw(b common.RawBytes) (capnp.Struct, *common.Error) {
+func ReadRootFromRaw(b common.RawBytes) (capnp.Struct, error) {
 	return ReadRootFromReader(bytes.NewBuffer(b))
 }
 
 // ReadRootFromReader returns the root struct from a capnp message read from r.
-func ReadRootFromReader(r io.Reader) (capnp.Struct, *common.Error) {
+func ReadRootFromReader(r io.Reader) (capnp.Struct, error) {
 	var blank capnp.Struct
 	msg, err := capnp.NewPackedDecoder(r).Decode()
 	if err != nil {
-		return blank, common.NewError("Failed to decode capnp message", "err", err)
+		return blank, common.NewCError("Failed to decode capnp message", "err", err)
 	}
 	rootPtr, err := msg.RootPtr()
 	if err != nil {
-		return blank, common.NewError("Failed to get root pointer from capnp message", "err", err)
+		return blank, common.NewCError("Failed to get root pointer from capnp message", "err", err)
 	}
 	return rootPtr.Struct(), nil
 }
 
 // ParseStruct parses a capnp struct into a Cerealizable instance.
-func ParseStruct(c Cerealizable, pType ProtoIdType, s capnp.Struct) *common.Error {
+func ParseStruct(c Cerealizable, pType ProtoIdType, s capnp.Struct) error {
 	if err := pogs.Extract(c, uint64(pType), s); err != nil {
-		return common.NewError("Failed to extract struct from capnp message", "err", err)
+		return common.NewCError("Failed to extract struct from capnp message", "err", err)
 	}
 	return nil
 }
 
 // ParseFromRaw is a utility function, which reads a capnp message from b and parses it into c.
 // It is effectively a composition of ReadRootFromRaw and ParseStruct.
-func ParseFromRaw(c Cerealizable, pType ProtoIdType, b common.RawBytes) *common.Error {
+func ParseFromRaw(c Cerealizable, pType ProtoIdType, b common.RawBytes) error {
 	return ParseFromReader(c, pType, bytes.NewBuffer(b))
 }
 
 // ParseFromReader is a utility function, which reads a capnp message from r and parses it into c.
 // It is effectively a composition of ReadRootFromReader and ParseStruct.
-func ParseFromReader(c Cerealizable, pType ProtoIdType, r io.Reader) *common.Error {
-	s, cerr := ReadRootFromReader(r)
-	if cerr != nil {
-		return cerr
+func ParseFromReader(c Cerealizable, pType ProtoIdType, r io.Reader) error {
+	s, err := ReadRootFromReader(r)
+	if err != nil {
+		return err
 	}
 	return ParseStruct(c, pType, s)
 }

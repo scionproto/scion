@@ -37,16 +37,18 @@ import "C"
 
 import (
 	"flag"
-	"net"
 	"unsafe"
 
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rpkt"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
 var hsrInMin = flag.Int("hsr.in.min_pkts", 20, "Minimum packets to read per loop")
@@ -61,11 +63,11 @@ const MaxPkts = 32
 // processing. In particular, it contains the address in both Go and C formats.
 type AddrMeta struct {
 	// GoAddr is a Go version of the address.
-	GoAddr *net.UDPAddr
+	GoAddr *topology.AddrInfo
 	// CAddr is a C version of the address.
 	CAddr C.saddr_storage
 	// DirFrom is the direction a packet was received from.
-	DirFrom rpkt.Dir
+	DirFrom rcmn.Dir
 	// IfIDs is a list of matching interface IDs. Local (i.e. facing the local
 	// AS) addresses can have multiple interfaces associated with them.
 	IfIDs []common.IFIDType
@@ -77,8 +79,8 @@ type AddrMeta struct {
 var AddrMs []AddrMeta
 
 // Init initialises libhsr, and relevant metadata.
-func Init(zlog_cfg string, args []string, addrMs []AddrMeta) *common.Error {
-	defer liblog.PanicLog()
+func Init(zlog_cfg string, args []string, addrMs []AddrMeta) error {
+	defer liblog.LogPanicAndExit()
 	// Create a C-style argv to pass to router_init.
 	argv := make([]*C.char, 0, len(args))
 	for _, arg := range args {
@@ -87,22 +89,22 @@ func Init(zlog_cfg string, args []string, addrMs []AddrMeta) *common.Error {
 	// Initialise libhsr. Its logging is controlled by the zlog config and
 	// category, and DPDK's general options are configured by the argv.
 	if C.router_init(C.CString(zlog_cfg), C.CString("border"), C.int(len(argv)), &argv[0]) != 0 {
-		return common.NewError("Failure initialising libhsr (router_init)")
+		return common.NewCError("Failure initialising libhsr (router_init)")
 	}
 	AddrMs = addrMs
 	// Calculate the C address structure from the Go address structure.
 	cAddrs := make([]C.saddr_storage, len(AddrMs))
 	for i := range AddrMs {
-		udpAddrToSaddr(AddrMs[i].GoAddr, &AddrMs[i].CAddr)
+		taiToSaddr(AddrMs[i].GoAddr, &AddrMs[i].CAddr)
 		cAddrs[i] = AddrMs[i].CAddr
 	}
 	// Configure network ports
 	if C.setup_network(&cAddrs[0], C.int(len(cAddrs))) != 0 {
-		return common.NewError("Failure initialising libhsr (setup_network)")
+		return common.NewCError("Failure initialising libhsr (setup_network)")
 	}
 	// Create the libhsr worker threads.
 	if C.create_lib_threads() != 0 {
-		return common.NewError("Failure initialising libhsr (create_lib_threads)")
+		return common.NewCError("Failure initialising libhsr (create_lib_threads)")
 	}
 	return nil
 }
@@ -133,9 +135,9 @@ func NewHSR() *HSR {
 
 // GetPackets fills in a slice of Go RtrPkt's via libhsr. The usedPorts
 // arg is used to indicate which ports received packets in this call.
-func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Error) {
+func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, error) {
 	if len(rps) > MaxPkts {
-		return 0, common.NewError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
+		return 0, common.NewCError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
 	}
 	// Set the C buffer pointers to the Go buffer addresses.
 	// XXX(kormat): N.B. this breaks one of the CGO safety rules
@@ -149,7 +151,7 @@ func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Err
 	for i, rp := range rps {
 		h.InPkts[i].buf = (*C.uint8_t)(unsafe.Pointer(&rp.Raw[0]))
 	}
-	count := int(C.get_packets(unsafe.Pointer(&h.InPkts), C.int(*hsrInMin),
+	count := int(C.get_packets(&h.InPkts[0], C.int(*hsrInMin),
 		C.int(len(rps)), C.int(*hsrInTout)))
 	for i := 0; i < count; i++ {
 		rp := rps[i]      // Go packet.
@@ -157,8 +159,8 @@ func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Err
 		// Trim Go buffer to the length reported by libhsr.
 		rp.Raw = rp.Raw[:int(cp.buflen)]
 		// Convert the source address from C to Go.
-		rp.Ingress.Src = &net.UDPAddr{}
-		if err := saddrToUDPAddr(rp.Ingress.Src, cp.src); err != nil {
+		var err error
+		if rp.Ingress.Src, err = saddrToTAI(cp.src); err != nil {
 			return i, err
 		}
 		// Fill out packet metadata from AddrMs
@@ -169,14 +171,14 @@ func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, *common.Err
 		usedPorts[cp.port_id] = true
 		// Update global packet/byte counters
 		labels := AddrMs[cp.port_id].Labels
-		metrics.PktsRecv.With(labels).Inc()
-		metrics.BytesRecv.With(labels).Add(float64(len(rp.Raw)))
+		metrics.InputPkts.With(labels).Inc()
+		metrics.InputBytes.With(labels).Add(float64(len(rp.Raw)))
 	}
 	return count, nil
 }
 
 // SendPacket sends a single packet via libhsr.
-func SendPacket(dst *net.UDPAddr, portID int, buf common.RawBytes) *common.Error {
+func SendPacket(dst *topology.AddrInfo, portID int, buf common.RawBytes) error {
 	var cp C.RouterPacket
 	// Set C packet pointer to Go buffer.
 	cp.buf = (*C.uint8_t)(unsafe.Pointer(&buf[0]))
@@ -185,42 +187,47 @@ func SendPacket(dst *net.UDPAddr, portID int, buf common.RawBytes) *common.Error
 	cp.src = &AddrMs[portID].CAddr
 	// Convert destination address from Go to C.
 	cp.dst = &C.saddr_storage{}
-	udpAddrToSaddr(dst, cp.dst)
+	taiToSaddr(dst, cp.dst)
 	cp.port_id = C.uint8_t(portID)
 	if C.send_packet(&cp) != 0 {
-		return common.NewError("Error sending packet through HSR")
+		return common.NewCError("Error sending packet through HSR")
 	}
 	return nil
 }
 
-// saddrToUDPAddr converts C's sockaddr_storage type to Go's net.UDPAddr type.
-func saddrToUDPAddr(addr *net.UDPAddr, saddr *C.saddr_storage) *common.Error {
+// saddrToTAI converts C's sockaddr_storage type to Go's *topology.AddrInfo
+func saddrToTAI(saddr *C.saddr_storage) (*topology.AddrInfo, error) {
 	switch saddr.ss_family {
 	case C.AF_INET:
 		saddr := (*C.saddr_in)(unsafe.Pointer(saddr))
-		addr.IP = C.GoBytes(unsafe.Pointer(&saddr.sin_addr), 4)
+		return &topology.AddrInfo{
+			Overlay: overlay.UDPIPv4,
+			IP:      C.GoBytes(unsafe.Pointer(&saddr.sin_addr), 4),
+		}, nil
 	case C.AF_INET6:
 		saddr := (*C.saddr_in6)(unsafe.Pointer(saddr))
-		addr.IP = C.GoBytes(unsafe.Pointer(&saddr.sin6_addr), 16)
+		return &topology.AddrInfo{
+			Overlay: overlay.UDPIPv4,
+			IP:      C.GoBytes(unsafe.Pointer(&saddr.sin6_addr), 16),
+		}, nil
 	default:
-		return common.NewError("Unsupported sockaddr family type", "type", saddr.ss_family)
+		return nil, common.NewCError("Unsupported sockaddr family type", "type", saddr.ss_family)
 	}
-	return nil
 }
 
-// udpAddrToSaddr converts Go's net.UDPAddr type to C's sockaddr_storage type.
-func udpAddrToSaddr(addr *net.UDPAddr, saddr *C.saddr_storage) {
+// taiToSaddr converts Go's *topology.AddrInfo type to C's sockaddr_storage type.
+func taiToSaddr(tai *topology.AddrInfo, saddr *C.saddr_storage) {
 	// Convert Go int to network-byte-order C int
-	cport := C.in_port_t(C.htons(C.uint16_t(addr.Port)))
-	if addr.IP.To4() != nil {
+	cport := C.in_port_t(C.htons(C.uint16_t(tai.L4Port)))
+	if tai.IP.To4() != nil {
 		s4 := (*C.saddr_in)(unsafe.Pointer(saddr))
 		s4.sin_family = C.AF_INET
 		s4.sin_port = cport
-		copy((*[4]byte)(unsafe.Pointer(&s4.sin_addr))[:], addr.IP.To4())
+		copy((*[4]byte)(unsafe.Pointer(&s4.sin_addr))[:], tai.IP.To4())
 	} else {
 		s6 := (*C.saddr_in6)(unsafe.Pointer(saddr))
 		s6.sin6_family = C.AF_INET6
 		s6.sin6_port = cport
-		copy((*[16]byte)(unsafe.Pointer(&s6.sin6_addr))[:], addr.IP)
+		copy((*[16]byte)(unsafe.Pointer(&s6.sin6_addr))[:], tai.IP)
 	}
 }

@@ -33,23 +33,23 @@ type UDP struct {
 	Checksum common.RawBytes `struct:"[2]byte"`
 }
 
-func UDPFromRaw(b common.RawBytes) (*UDP, *common.Error) {
+func UDPFromRaw(b common.RawBytes) (*UDP, error) {
 	u := &UDP{Checksum: make(common.RawBytes, 2)}
 	if err := u.Parse(b); err != nil {
-		return nil, common.NewError("Error unpacking UDP header", "err", err)
+		return nil, common.NewCError("Error unpacking UDP header", "err", err)
 	}
 	return u, nil
 }
 
-func (u *UDP) Validate(plen int) *common.Error {
+func (u *UDP) Validate(plen int) error {
 	if plen+UDPLen != int(u.TotalLen) {
-		return common.NewError("UDP header total length doesn't match",
+		return common.NewCError("UDP header total length doesn't match",
 			"expected", u.TotalLen, "actual", plen)
 	}
 	return nil
 }
 
-func (u *UDP) Parse(b common.RawBytes) *common.Error {
+func (u *UDP) Parse(b common.RawBytes) error {
 	offset := 0
 	u.SrcPort = common.Order.Uint16(b[offset:])
 	offset += 2
@@ -61,10 +61,10 @@ func (u *UDP) Parse(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (u *UDP) Pack(csum bool) (common.RawBytes, *common.Error) {
+func (u *UDP) Pack(csum bool) (common.RawBytes, error) {
 	b := make(common.RawBytes, UDPLen)
 	if err := u.Write(b); err != nil {
-		return nil, common.NewError("Error packing UDP header", "err", err)
+		return nil, common.NewCError("Error packing UDP header", "err", err)
 	}
 	if csum {
 		// Zero out the checksum field if this is being used for checksum calculation.
@@ -74,7 +74,7 @@ func (u *UDP) Pack(csum bool) (common.RawBytes, *common.Error) {
 	return b, nil
 }
 
-func (u *UDP) Write(b common.RawBytes) *common.Error {
+func (u *UDP) Write(b common.RawBytes) error {
 	offset := 0
 	common.Order.PutUint16(b[offset:], u.SrcPort)
 	offset += 2

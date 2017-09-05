@@ -67,9 +67,9 @@ const (
 	HashesOffset    = SignatureOffset + SignatureLength
 )
 
-func NewHashTreeExtn(height uint8) (*HashTreeExtn, *common.Error) {
+func NewHashTreeExtn(height uint8) (*HashTreeExtn, error) {
 	if height > MaxHeight {
-		return nil, common.NewError("Invalid height", "height", height,
+		return nil, common.NewCError("Invalid height", "height", height,
 			"max height", MaxHeight)
 	}
 
@@ -82,9 +82,9 @@ func NewHashTreeExtn(height uint8) (*HashTreeExtn, *common.Error) {
 	return extn, nil
 }
 
-func (s HashTreeExtn) SetOrder(order common.RawBytes) *common.Error {
+func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
 	if len(order) != OrderLength {
-		return common.NewError("Invalid order length", "expected", OrderLength,
+		return common.NewCError("Invalid order length", "expected", OrderLength,
 			"actual", len(order))
 	}
 	copy(s.Order, order)
@@ -92,9 +92,9 @@ func (s HashTreeExtn) SetOrder(order common.RawBytes) *common.Error {
 
 }
 
-func (s HashTreeExtn) SetSignature(signature common.RawBytes) *common.Error {
+func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
 	if len(signature) != SignatureLength {
-		return common.NewError("Invalid signature length", "expected", SignatureLength,
+		return common.NewCError("Invalid signature length", "expected", SignatureLength,
 			"actual", len(signature))
 	}
 	copy(s.Signature, signature)
@@ -102,9 +102,9 @@ func (s HashTreeExtn) SetSignature(signature common.RawBytes) *common.Error {
 
 }
 
-func (s HashTreeExtn) SetHashes(hashes common.RawBytes) *common.Error {
+func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
 	if len(hashes) != len(s.Hashes) {
-		return common.NewError("Invalid hashes length", "expected", len(s.Hashes),
+		return common.NewCError("Invalid hashes length", "expected", len(s.Hashes),
 			"actual", len(hashes))
 	}
 	copy(s.Hashes, hashes)
@@ -112,9 +112,9 @@ func (s HashTreeExtn) SetHashes(hashes common.RawBytes) *common.Error {
 
 }
 
-func (s *HashTreeExtn) Write(b common.RawBytes) *common.Error {
+func (s *HashTreeExtn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SCMPAuthHashTreeExtn.Write",
+		return common.NewCError("Buffer too short", "method", "SCMPAuthHashTreeExtn.Write",
 			"expected min", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)
@@ -125,7 +125,7 @@ func (s *HashTreeExtn) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (s *HashTreeExtn) Pack() (common.RawBytes, *common.Error) {
+func (s *HashTreeExtn) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err

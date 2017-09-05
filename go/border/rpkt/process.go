@@ -41,7 +41,7 @@ const (
 
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
-func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
+func (rp *RtrPkt) NeedsLocalProcessing() error {
 	if *rp.dstIA != *rp.Ctx.Conf.IA {
 		// Packet isn't to this ISD-AS, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
@@ -83,9 +83,11 @@ func (rp *RtrPkt) NeedsLocalProcessing() *common.Error {
 // isDestSelf checks if the packet's destination port (if any) matches the
 // router's L4 port. If it does, hooks are registered to parse and process the
 // payload. Otherwise it is forwarded to the local dispatcher.
-func (rp *RtrPkt) isDestSelf(ownPort int) *common.Error {
-	if _, err := rp.L4Hdr(true); err != nil && err.Desc != UnsupportedL4 {
-		return err
+func (rp *RtrPkt) isDestSelf(ownPort int) error {
+	if _, err := rp.L4Hdr(true); err != nil {
+		if err.(*common.CError).Desc != UnsupportedL4 {
+			return err
+		}
 	}
 	switch h := rp.l4.(type) {
 	case *l4.UDP:
@@ -109,7 +111,7 @@ Self:
 
 // Process uses any registered hooks to process the packet. Note that there is
 // no generic fallback; if no hooks are registered, then no work is done.
-func (rp *RtrPkt) Process() *common.Error {
+func (rp *RtrPkt) Process() error {
 	for _, f := range rp.hooks.Process {
 		ret, err := f()
 		switch {
@@ -127,20 +129,20 @@ func (rp *RtrPkt) Process() *common.Error {
 // processDestSelf handles packets whose destination is this router. It
 // determines the payload type, and dispatches the processing to the
 // appropriate method.
-func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
+func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 	if _, err := rp.Payload(true); err != nil {
 		return HookError, err
 	}
 	cpld, ok := rp.pld.(*ctrl.Pld)
 	if !ok {
 		// FIXME(kormat): handle SCMP packets sent to this router.
-		return HookError, common.NewError("Unable to process unsupported payload type",
+		return HookError, common.NewCError("Unable to process unsupported payload type",
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	// Determine the type of SCION control payload.
-	u0, cerr := cpld.Union0()
-	if cerr != nil {
-		return HookError, cerr
+	u0, err := cpld.Union0()
+	if err != nil {
+		return HookError, err
 	}
 	switch u0 := u0.(type) {
 	case *ifid.IFID:
@@ -154,14 +156,14 @@ func (rp *RtrPkt) processDestSelf() (HookResult, *common.Error) {
 }
 
 // processIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
-func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
+func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Set the RelayIF field in the payload to the current interface ID.
 	ifid.RelayIfID = uint64(*rp.ifCurr)
-	cpld, cerr := ctrl.NewPld(ifid)
-	if cerr != nil {
-		return HookError, cerr
+	cpld, err := ctrl.NewPld(ifid)
+	if err != nil {
+		return HookError, err
 	}
-	if err := rp.SetPld(cpld); err != nil {
+	if err = rp.SetPld(cpld); err != nil {
 		return HookError, err
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
@@ -177,7 +179,7 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
 	}
 	// Use updated payload.
 	if err := fwdrp.SetPld(rp.pld); err != nil {
-		return HookError, common.NewError("Error setting IFID forwarding payload", err.Ctx...)
+		return HookError, common.NewCError("Error setting IFID forwarding payload", "err", err)
 	}
 	fwdrp.ifCurr = rp.ifCurr
 	// Resolve SVC address.
@@ -189,35 +191,35 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, *common.Error) {
 }
 
 // processPathMgmtSelf handles Path Management SCION control messages.
-func (rp *RtrPkt) processPathMgmtSelf(p *path_mgmt.Pld) (HookResult, *common.Error) {
-	u0, cerr := p.Union0()
-	if cerr != nil {
-		return HookError, cerr
+func (rp *RtrPkt) processPathMgmtSelf(p *path_mgmt.Pld) (HookResult, error) {
+	u0, err := p.Union0()
+	if err != nil {
+		return HookError, err
 	}
 	switch u0 := u0.(type) {
 	case *path_mgmt.IFStateInfos:
 		ifstate.Process(u0)
 	default:
-		return HookError, common.NewError("Unsupported destination PathMgmt payload",
+		return HookError, common.NewCError("Unsupported destination PathMgmt payload",
 			"type", common.TypeOf(u0))
 	}
 	return HookFinish, nil
 }
 
 // processSCMP is a processing hook used to handle SCMP payloads.
-func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
+func (rp *RtrPkt) processSCMP() (HookResult, error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
 	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
 		// Ignore any revocations received locally.
 		if rp.DirFrom == rcmn.DirExternal {
-			if cerr := rp.processSCMPRevocation(); cerr != nil {
-				return HookError, cerr
+			if err := rp.processSCMPRevocation(); err != nil {
+				return HookError, err
 			}
 		}
 	default:
-		return HookError, common.NewError("Unsupported destination SCMP payload",
+		return HookError, common.NewCError("Unsupported destination SCMP payload",
 			"class", hdr.Class, "type", hdr.Type.Name(hdr.Class))
 	}
 	return HookFinish, nil
@@ -234,21 +236,21 @@ func (rp *RtrPkt) processSCMP() (HookResult, *common.Error) {
 //    ASes downstream of a revoked interface get informed quickly.
 // 3. The revocation's destination is the local AS. The revocation notification is forked to the
 //    local PS, to ensure that it stops providing segments with revoked interfaces to clients.
-func (rp *RtrPkt) processSCMPRevocation() *common.Error {
+func (rp *RtrPkt) processSCMPRevocation() error {
 	var args RevTokenCallbackArgs
-	var cerr *common.Error
+	var err error
 	pld, ok := rp.pld.(*scmp.Payload)
 	if !ok {
-		return common.NewError("Invalid payload type in SCMP packet",
+		return common.NewCError("Invalid payload type in SCMP packet",
 			"expected", "*scmp.Payload", "actual", common.TypeOf(rp.pld))
 	}
 	infoRev, ok := pld.Info.(*scmp.InfoRevocation)
 	if !ok {
-		return common.NewError("Invalid SCMP Info type in SCMP packet",
+		return common.NewCError("Invalid SCMP Info type in SCMP packet",
 			"expected", "*scmp.InfoRevocation", "actual", common.TypeOf(pld.Info))
 	}
-	if args.RevInfo, cerr = path_mgmt.NewRevInfoFromRaw(infoRev.RevToken); cerr != nil {
-		return common.NewError("Unable to decode revToken", "err", cerr)
+	if args.RevInfo, err = path_mgmt.NewRevInfoFromRaw(infoRev.RevToken); err != nil {
+		return common.NewCError("Unable to decode revToken", "err", err)
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
@@ -272,7 +274,7 @@ func (rp *RtrPkt) processSCMPRevocation() *common.Error {
 // getSVCNamesMap returns the slice of instance names and addresses for a given
 // SVC address.
 func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
-	[]string, map[string]topology.TopoAddr, *common.Error) {
+	[]string, map[string]topology.TopoAddr, error) {
 	t := ctx.Conf.Topo
 	var names []string
 	var elemMap map[string]topology.TopoAddr
@@ -287,11 +289,11 @@ func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
 		names, elemMap = t.SBNames, t.SB
 	default:
 		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_BadHost, nil)
-		return nil, nil, common.NewErrorData("Unsupported SVC address", sdata, "svc", svc)
+		return nil, nil, common.NewCErrorData("Unsupported SVC address", sdata, "svc", svc)
 	}
 	if len(elemMap) == 0 {
 		sdata := scmp.NewErrData(scmp.C_Routing, scmp.T_R_UnreachHost, nil)
-		return nil, nil, common.NewErrorData(
+		return nil, nil, common.NewCErrorData(
 			"No instances found for SVC address", sdata, "SVC", svc)
 	}
 	return names, elemMap, nil

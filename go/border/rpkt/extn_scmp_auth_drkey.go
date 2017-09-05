@@ -34,7 +34,7 @@ type rSCMPAuthDRKeyExtn struct {
 
 // rSCMPAuthDRKeyExtnFromRaw creates an rSCMPAuthDRKeyExtn instance from raw bytes,
 // keeping a reference to the location in the packet's buffer.
-func rSCMPAuthDRKeyExtnFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthDRKeyExtn, *common.Error) {
+func rSCMPAuthDRKeyExtnFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthDRKeyExtn, error) {
 	raw := rp.Raw[start:end]
 	mode := spse.SecMode(raw[0])
 	s := &rSCMPAuthDRKeyExtn{&rSPSBaseExtn{rp: rp, raw: raw, SecMode: mode}}
@@ -46,19 +46,19 @@ func (s *rSCMPAuthDRKeyExtn) String() string {
 	// Delegate string representation to scmp_auth.AuthDRKeyExtn
 	extn, err := s.GetExtn()
 	if err != nil {
-		return fmt.Sprintf("SCMPAuthDRKey - %v: %v", err.Desc, err.String())
+		return fmt.Sprintf("SCMPAuthDRKey: %v", err)
 	}
 	return extn.String()
 }
 
-func (s *rSCMPAuthDRKeyExtn) RegisterHooks(h *hooks) *common.Error {
+func (s *rSCMPAuthDRKeyExtn) RegisterHooks(h *hooks) error {
 	h.Validate = append(h.Validate, s.Validate)
 	return nil
 }
 
-func (s *rSCMPAuthDRKeyExtn) Validate() (HookResult, *common.Error) {
+func (s *rSCMPAuthDRKeyExtn) Validate() (HookResult, error) {
 	if len(s.raw) != scmp_auth.DRKeyTotalLength {
-		return HookError, common.NewError("Invalid header length", "expected",
+		return HookError, common.NewCError("Invalid header length", "expected",
 			scmp_auth.DRKeyTotalLength, "actual", len(s.raw))
 	}
 	return HookContinue, nil
@@ -66,7 +66,7 @@ func (s *rSCMPAuthDRKeyExtn) Validate() (HookResult, *common.Error) {
 
 // GetExtn returns the scmp_auth.DRKeyExtn representation,
 // which does not have direct access to the underlying buffer.
-func (s *rSCMPAuthDRKeyExtn) GetExtn() (common.Extension, *common.Error) {
+func (s *rSCMPAuthDRKeyExtn) GetExtn() (common.Extension, error) {
 	extn := scmp_auth.NewDRKeyExtn()
 	if err := extn.SetDirection(s.Direction()); err != nil {
 		return nil, err
@@ -87,9 +87,9 @@ func (s *rSCMPAuthDRKeyExtn) MAC() common.RawBytes {
 	return s.raw[scmp_auth.MACOffset:scmp_auth.DRKeyTotalLength]
 }
 
-func (s *rSCMPAuthDRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
+func (s *rSCMPAuthDRKeyExtn) SetMAC(mac common.RawBytes) error {
 	if len(mac) != scmp_auth.MACLength {
-		return common.NewError("Invalid MAC length", "expected", len(s.MAC()),
+		return common.NewCError("Invalid MAC length", "expected", len(s.MAC()),
 			"actual", len(mac))
 	}
 	copy(s.MAC(), mac)

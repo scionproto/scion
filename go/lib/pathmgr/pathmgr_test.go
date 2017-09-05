@@ -24,7 +24,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 var (
@@ -35,15 +34,15 @@ var (
 // SCION test infrastructure needs to be running for this example.
 func ExamplePR() {
 	// Run with "go test -tags=infrarunning -args -srcIA 1-11 -dstIA 1-13".
-	var cerr *common.Error
-	src, cerr := addr.IAFromString(*srcStr)
-	if cerr != nil {
-		fmt.Println("Unable to parse srcIA", *srcStr, "err", cerr)
+	var err error
+	src, err := addr.IAFromString(*srcStr)
+	if err != nil {
+		fmt.Println("Unable to parse srcIA", *srcStr, "err", err)
 	}
 
-	dst, cerr := addr.IAFromString(*dstStr)
-	if cerr != nil {
-		fmt.Println("Unable to parse dstIA", *dstStr, "err", cerr)
+	dst, err := addr.IAFromString(*dstStr)
+	if err != nil {
+		fmt.Println("Unable to parse dstIA", *dstStr, "err", err)
 	}
 
 	// Initialize path resolver

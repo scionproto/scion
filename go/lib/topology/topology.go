@@ -75,7 +75,7 @@ func NewTopo() *Topo {
 }
 
 // Convert a JSON-filled RawTopo to a Topo usabled by Go code.
-func TopoFromRaw(raw *RawTopo) (*Topo, *common.Error) {
+func TopoFromRaw(raw *RawTopo) (*Topo, error) {
 	t := NewTopo()
 
 	if err := t.populateMeta(raw); err != nil {
@@ -94,9 +94,9 @@ func TopoFromRaw(raw *RawTopo) (*Topo, *common.Error) {
 	return t, nil
 }
 
-func (t *Topo) populateMeta(raw *RawTopo) *common.Error {
+func (t *Topo) populateMeta(raw *RawTopo) error {
 	// These fields can be simply copied
-	var err *common.Error
+	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
 	t.TimestampHuman = raw.TimestampHuman
 
@@ -110,8 +110,8 @@ func (t *Topo) populateMeta(raw *RawTopo) *common.Error {
 	return nil
 }
 
-func (t *Topo) populateBR(raw *RawTopo) *common.Error {
-	var err *common.Error
+func (t *Topo) populateBR(raw *RawTopo) error {
+	var err error
 	for name, rawBr := range raw.BorderRouters {
 		brInfo := BRInfo{}
 		for ifid, rawIntf := range rawBr.Interfaces {
@@ -148,9 +148,9 @@ func (t *Topo) populateBR(raw *RawTopo) *common.Error {
 	return nil
 }
 
-func (t *Topo) populateServices(raw *RawTopo) *common.Error {
+func (t *Topo) populateServices(raw *RawTopo) error {
 	// Populate BS, CS, PS, SB, RS and DS maps
-	var err *common.Error
+	var err error
 	if t.BSNames, err = svcMapFromRaw(raw.BeaconService, "BS", t.BS, t.Overlay); err != nil {
 		return err
 	}
@@ -175,12 +175,12 @@ func (t *Topo) populateServices(raw *RawTopo) *common.Error {
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
 func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]TopoAddr,
-	ot overlay.Type) ([]string, *common.Error) {
+	ot overlay.Type) ([]string, error) {
 	var snames []string
 	for name, svc := range rais {
 		svcTopoAddr, err := svc.ToTopoAddr(ot)
 		if err != nil {
-			return nil, common.NewError(
+			return nil, common.NewCError(
 				"Could not convert RawAddrInfo to TopoAddr", "servicetype", stype, "RawAddrInfo",
 				svc, "name", name, "err", err)
 		}
@@ -191,7 +191,7 @@ func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]To
 	return snames, nil
 }
 
-func (t *Topo) zkSvcFromRaw(zksvc map[int]RawAddrPort) *common.Error {
+func (t *Topo) zkSvcFromRaw(zksvc map[int]RawAddrPort) error {
 	for id, ap := range zksvc {
 		rai := RawAddrInfo{Public: []RawAddrPortOverlay{{ap, 0}}}
 		tai, err := rai.ToTopoAddr(t.Overlay)

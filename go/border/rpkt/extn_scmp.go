@@ -34,8 +34,8 @@ type rSCMPExt struct {
 	log.Logger
 }
 
-func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, *common.Error) {
-	var err *common.Error
+func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, error) {
+	var err error
 	s := &rSCMPExt{rp: rp, raw: rp.Raw[start:end]}
 	s.Extn, err = scmp.ExtnFromRaw(s.raw)
 	if err != nil {
@@ -49,7 +49,7 @@ func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, *common.Error) {
 	return s, nil
 }
 
-func (s *rSCMPExt) RegisterHooks(h *hooks) *common.Error {
+func (s *rSCMPExt) RegisterHooks(h *hooks) error {
 	if s.HopByHop {
 		// If the extension's hop-by-hop flag is set, then process the payload.
 		h.Payload = append(h.Payload, s.rp.parseSCMPPayload)
@@ -58,6 +58,6 @@ func (s *rSCMPExt) RegisterHooks(h *hooks) *common.Error {
 	return nil
 }
 
-func (s *rSCMPExt) GetExtn() (common.Extension, *common.Error) {
+func (s *rSCMPExt) GetExtn() (common.Extension, error) {
 	return s.Extn, nil
 }

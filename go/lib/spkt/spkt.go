@@ -66,7 +66,7 @@ func (s *ScnPkt) Copy() *ScnPkt {
 	return c
 }
 
-func (s *ScnPkt) Reverse() *common.Error {
+func (s *ScnPkt) Reverse() error {
 	s.DstIA, s.SrcIA = s.SrcIA, s.DstIA
 	s.DstHost, s.SrcHost = s.SrcHost, s.DstHost
 	if s.Path != nil {

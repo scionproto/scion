@@ -132,13 +132,13 @@ func TestWriteTo(t *testing.T) {
 					select {
 					case sData = <-sc:
 					case <-time.After(3 * time.Second):
-						sData = ExitData{nil, common.NewError("Server timed out")}
+						sData = ExitData{nil, common.NewCError("Server timed out")}
 					}
 					var cData ExitData
 					select {
 					case cData = <-cc:
 					case <-time.After(3 * time.Second):
-						cData = ExitData{nil, common.NewError("Client timed out")}
+						cData = ExitData{nil, common.NewCError("Client timed out")}
 					}
 
 					prefix := fmt.Sprintf("WriteTo %d", i)
@@ -184,14 +184,14 @@ func TestRegister(t *testing.T) {
 					case sData = <-sc:
 					case <-time.After(3 * time.Second):
 						if !tc.timeoutOK {
-							sData = ExitData{nil, common.NewError("Server timed out")}
+							sData = ExitData{nil, common.NewCError("Server timed out")}
 						}
 					}
 					var cData ExitData
 					select {
 					case cData = <-cc:
 					case <-time.After(3 * time.Second):
-						cData = ExitData{nil, common.NewError("Client timed out")}
+						cData = ExitData{nil, common.NewCError("Client timed out")}
 					}
 
 					prefix := fmt.Sprintf("Register %d", i)

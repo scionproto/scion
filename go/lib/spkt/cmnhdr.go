@@ -42,7 +42,7 @@ const (
 	ErrorUnsuppVersion = "Unsupported SCION version"
 )
 
-func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, *common.Error) {
+func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {
 	c := &CmnHdr{}
 	if err := c.Parse(b); err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, *common.Error) {
 	return c, nil
 }
 
-func (c *CmnHdr) Parse(b common.RawBytes) *common.Error {
+func (c *CmnHdr) Parse(b common.RawBytes) error {
 	offset := 0
 	verDstSrc := common.Order.Uint16(b[offset:])
 	c.Ver = uint8(verDstSrc >> 12)
@@ -70,7 +70,7 @@ func (c *CmnHdr) Parse(b common.RawBytes) *common.Error {
 		// This can only usefully be replied to if the version specified is one
 		// that the current router supports, but has deprecated.
 		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadVersion, nil)
-		return common.NewErrorData(ErrorUnsuppVersion, sdata,
+		return common.NewCErrorData(ErrorUnsuppVersion, sdata,
 			"expected", SCIONVersion, "actual", c.Ver)
 	}
 	return nil

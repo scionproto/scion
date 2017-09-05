@@ -36,7 +36,7 @@ type union0 struct {
 	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
 }
 
-func (u0 *union0) set(c proto.Cerealizable) *common.Error {
+func (u0 *union0) set(c proto.Cerealizable) error {
 	switch u := c.(type) {
 	case *SegReq:
 		u0.Which = proto.PathMgmt_Which_segReq
@@ -60,12 +60,12 @@ func (u0 *union0) set(c proto.Cerealizable) *common.Error {
 		u0.Which = proto.PathMgmt_Which_ifStateInfos
 		u0.IFStateInfos = u
 	default:
-		return common.NewError("Unsupported path mgmt union0 type (set)", "type", common.TypeOf(c))
+		return common.NewCError("Unsupported path mgmt union0 type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
+func (u0 *union0) get() (proto.Cerealizable, error) {
 	switch u0.Which {
 	case proto.PathMgmt_Which_segReq:
 		return u0.SegReq, nil
@@ -82,7 +82,7 @@ func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
 	case proto.PathMgmt_Which_ifStateInfos:
 		return u0.IFStateInfos, nil
 	}
-	return nil, common.NewError("Unsupported path mgmt union0 type (get)", "type", u0.Which)
+	return nil, common.NewCError("Unsupported path mgmt union0 type (get)", "type", u0.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)
@@ -92,12 +92,12 @@ type Pld struct {
 }
 
 // NewPld creates a new path mgmt payload, containing the supplied Cerealizable instance.
-func NewPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
+func NewPld(u0 proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
 	return p, p.union0.set(u0)
 }
 
-func (p *Pld) Union0() (proto.Cerealizable, *common.Error) {
+func (p *Pld) Union0() (proto.Cerealizable, error) {
 	return p.union0.get()
 }
 
@@ -107,9 +107,9 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 
 func (p *Pld) String() string {
 	desc := []string{"PathMgmt: Union0:"}
-	u0, cerr := p.Union0()
-	if cerr != nil {
-		desc = append(desc, cerr.String())
+	u0, err := p.Union0()
+	if err != nil {
+		desc = append(desc, err.Error())
 	} else {
 		desc = append(desc, fmt.Sprintf("%+v", u0))
 	}

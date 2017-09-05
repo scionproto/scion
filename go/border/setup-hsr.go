@@ -54,7 +54,7 @@ func init() {
 	setupNetFinishHooks = append(setupNetFinishHooks, setupHSRNetFinish)
 }
 
-func setupHSRNetStart(r *Router, _ *rctx.Ctx, _ *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+func setupHSRNetStart(r *Router, _ *rctx.Ctx, _ *rctx.Ctx) (rpkt.HookResult, error) {
 	for _, ip := range strings.Split(*hsrIPs, ",") {
 		hsrIPMap[ip] = true
 	}
@@ -62,7 +62,7 @@ func setupHSRNetStart(r *Router, _ *rctx.Ctx, _ *rctx.Ctx) (rpkt.HookResult, *co
 }
 
 func setupHSRAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	bind := over.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
@@ -90,7 +90,7 @@ func setupHSRAddLocal(r *Router, ctx *rctx.Ctx, idx int, over *overlay.UDP,
 }
 
 func setupHSRAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	bind := intf.IFAddr.BindAddr()
 	if _, hsr := hsrIPMap[bind.IP.String()]; !hsr {
 		return rpkt.HookContinue, nil
@@ -111,7 +111,7 @@ func setupHSRAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 }
 
 func setupHSRNetFinish(r *Router, ctx *rctx.Ctx,
-	oldCtx *rctx.Ctx) (rpkt.HookResult, *common.Error) {
+	oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	if len(hsrAddrMs) == 0 {
 		return rpkt.HookContinue, nil
 	}

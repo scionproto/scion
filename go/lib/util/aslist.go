@@ -37,18 +37,15 @@ type ASList struct {
 // non-core and core ASes.
 func LoadASList(fileName string) (*ASList, error) {
 	asList := &ASList{}
-
 	buffer, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return nil, common.NewError("Unable to read from file", "name", fileName, "err", err)
+		return nil, common.NewCError("Unable to read from file", "name", fileName, "err", err)
 	}
-
 	var locations asData
 	err = yaml.Unmarshal(buffer, &locations)
 	if err != nil {
-		return nil, common.NewError("Unable to parse YAML data", "err", err)
+		return nil, common.NewCError("Unable to parse YAML data", "err", err)
 	}
-
 	asList.Core, err = parse(locations.Core)
 	if err != nil {
 		return nil, err
@@ -65,7 +62,7 @@ func parse(names []string) ([]*addr.ISD_AS, error) {
 	for _, name := range names {
 		ia, err := addr.IAFromString(name)
 		if err != nil {
-			return nil, common.NewError("Unable to parse AS Name", "ISDAS", name, "err", err)
+			return nil, common.NewCError("Unable to parse AS Name", "ISDAS", name, "err", err)
 		}
 		iaList = append(iaList, ia)
 	}

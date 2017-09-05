@@ -41,7 +41,7 @@ type union0 struct {
 	Sig         []byte `capnp:"-"` // Omit for now
 }
 
-func (u0 *union0) set(c proto.Cerealizable) *common.Error {
+func (u0 *union0) set(c proto.Cerealizable) error {
 	switch u := c.(type) {
 	case *seg.PathSegment:
 		u0.Which = proto.SCION_Which_pcb
@@ -53,12 +53,12 @@ func (u0 *union0) set(c proto.Cerealizable) *common.Error {
 		u0.Which = proto.SCION_Which_pathMgmt
 		u0.PathMgmt = u
 	default:
-		return common.NewError("Unsupported ctrl union0 type (set)", "type", common.TypeOf(c))
+		return common.NewCError("Unsupported ctrl union0 type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
+func (u0 *union0) get() (proto.Cerealizable, error) {
 	switch u0.Which {
 	case proto.SCION_Which_pcb:
 		return u0.PathSegment, nil
@@ -67,7 +67,7 @@ func (u0 *union0) get() (proto.Cerealizable, *common.Error) {
 	case proto.SCION_Which_pathMgmt:
 		return u0.PathMgmt, nil
 	}
-	return nil, common.NewError("Unsupported ctrl union0 type (get)", "type", u0.Which)
+	return nil, common.NewCError("Unsupported ctrl union0 type (get)", "type", u0.Which)
 }
 
 var _ common.Payload = (*Pld)(nil)
@@ -78,32 +78,32 @@ type Pld struct {
 }
 
 // NewPld creates a new control payload, containing the supplied Cerealizable instance.
-func NewPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
+func NewPld(u0 proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
 	return p, p.union0.set(u0)
 }
 
 // NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
-func NewPathMgmtPld(u0 proto.Cerealizable) (*Pld, *common.Error) {
-	ppld, cerr := path_mgmt.NewPld(u0)
-	if cerr != nil {
-		return nil, cerr
+func NewPathMgmtPld(u0 proto.Cerealizable) (*Pld, error) {
+	ppld, err := path_mgmt.NewPld(u0)
+	if err != nil {
+		return nil, err
 	}
 	return NewPld(ppld)
 }
 
-func NewPldFromRaw(b common.RawBytes) (*Pld, *common.Error) {
+func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{}
 	n := common.Order.Uint32(b)
 	if int(n)+4 != len(b) {
-		return nil, common.NewError("Invalid ctrl payload length",
+		return nil, common.NewCError("Invalid ctrl payload length",
 			"expected", n+4, "actual", len(b))
 	}
 	return p, proto.ParseFromRaw(p, proto.SCION_TypeID, b[4:])
 }
 
-func (p *Pld) Union0() (proto.Cerealizable, *common.Error) {
+func (p *Pld) Union0() (proto.Cerealizable, error) {
 	return p.union0.get()
 }
 
@@ -111,18 +111,18 @@ func (p *Pld) Len() int {
 	return -1
 }
 
-func (p *Pld) Copy() (common.Payload, *common.Error) {
-	raw, cerr := proto.PackRoot(p)
-	if cerr != nil {
-		return nil, cerr
+func (p *Pld) Copy() (common.Payload, error) {
+	raw, err := proto.PackRoot(p)
+	if err != nil {
+		return nil, err
 	}
 	return NewPldFromRaw(raw)
 }
 
-func (p *Pld) WritePld(b common.RawBytes) (int, *common.Error) {
-	n, cerr := proto.WriteRoot(p, b[4:])
+func (p *Pld) WritePld(b common.RawBytes) (int, error) {
+	n, err := proto.WriteRoot(p, b[4:])
 	common.Order.PutUint32(b, uint32(n))
-	return n + 4, cerr
+	return n + 4, err
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {
@@ -131,9 +131,9 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 
 func (p *Pld) String() string {
 	desc := []string{"Ctrl: Union0:"}
-	u0, cerr := p.Union0()
-	if cerr != nil {
-		desc = append(desc, cerr.String())
+	u0, err := p.Union0()
+	if err != nil {
+		desc = append(desc, err.Error())
 	} else {
 		desc = append(desc, fmt.Sprintf("%+v", u0))
 	}

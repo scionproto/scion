@@ -226,7 +226,7 @@ func (h HostSVC) String() string {
 	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
 }
 
-func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, *common.Error) {
+func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 	switch htype {
 	case HostTypeNone:
 		return HostNone{}, nil
@@ -237,7 +237,7 @@ func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, *common.Error
 	case HostTypeSVC:
 		return HostSVC(binary.BigEndian.Uint16(b)), nil
 	default:
-		return nil, common.NewError(ErrorBadHostAddrType, "type", htype)
+		return nil, common.NewCError(ErrorBadHostAddrType, "type", htype)
 	}
 }
 
@@ -250,7 +250,7 @@ func HostFromIP(ip net.IP) HostAddr {
 	return &h
 }
 
-func HostLen(htype HostAddrType) (uint8, *common.Error) {
+func HostLen(htype HostAddrType) (uint8, error) {
 	var length uint8
 	switch htype {
 	case HostTypeNone:
@@ -262,7 +262,7 @@ func HostLen(htype HostAddrType) (uint8, *common.Error) {
 	case HostTypeSVC:
 		length = HostLenSVC
 	default:
-		return 0, common.NewError(ErrorBadHostAddrType, "type", htype)
+		return 0, common.NewCError(ErrorBadHostAddrType, "type", htype)
 	}
 	return length, nil
 }

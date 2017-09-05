@@ -40,7 +40,7 @@ import (
 // each entry's function is called with the entry's address as the argument.
 // The use of a slice allows for a packet to be sent multiple times (e.g.
 // sending IFID packets to all BS instances in the local AS).
-func (rp *RtrPkt) Route() *common.Error {
+func (rp *RtrPkt) Route() error {
 	// First allow any registered hooks to either route the packet themselves,
 	// or add entries to the Egress slice.
 	for _, f := range rp.hooks.Route {
@@ -57,7 +57,7 @@ func (rp *RtrPkt) Route() *common.Error {
 		}
 	}
 	if len(rp.Egress) == 0 {
-		return common.NewError("No routing information found", "egress", rp.Egress,
+		return common.NewCError("No routing information found", "egress", rp.Egress,
 			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
 	rp.refCnt += len(rp.Egress)
@@ -76,10 +76,10 @@ func (rp *RtrPkt) Route() *common.Error {
 
 // RouteResolveSVC is a hook to resolve SVC addresses for routing packets to
 // the local ISD-AS.
-func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
+func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 	svc, ok := rp.dstHost.(addr.HostSVC)
 	if !ok {
-		return HookError, common.NewError("Destination host is NOT an SVC address",
+		return HookError, common.NewCError("Destination host is NOT an SVC address",
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
 	// Use any local output sock in case the packet has no path (e.g., ifstate requests)
@@ -97,7 +97,7 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, *common.Error) {
 // RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
 // a single instance of a local infrastructure service).
 func (rp *RtrPkt) RouteResolveSVCAny(
-	svc addr.HostSVC, s *rctx.Sock) (HookResult, *common.Error) {
+	svc addr.HostSVC, s *rctx.Sock) (HookResult, error) {
 	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -115,7 +115,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(
 // (i.e. one packet per machine hosting instances for a local infrastructure
 // service).
 func (rp *RtrPkt) RouteResolveSVCMulti(
-	svc addr.HostSVC, s *rctx.Sock) (HookResult, *common.Error) {
+	svc addr.HostSVC, s *rctx.Sock) (HookResult, error) {
 	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -136,38 +136,35 @@ func (rp *RtrPkt) RouteResolveSVCMulti(
 	return HookContinue, nil
 }
 
-func (rp *RtrPkt) forward() (HookResult, *common.Error) {
+func (rp *RtrPkt) forward() (HookResult, error) {
 	switch rp.DirFrom {
 	case rcmn.DirExternal:
 		return rp.forwardFromExternal()
 	case rcmn.DirLocal:
 		return rp.forwardFromLocal()
 	default:
-		return HookError, common.NewError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
+		return HookError, common.NewCError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
 	}
 }
 
 // forwardFromExternal forwards packets that have been received from a
 // neighbouring ISD-AS.
-func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
+func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	if assert.On {
 		assert.Mustf(rp.hopF != nil, rp.ErrStr, "rp.hopF must not be nil")
 	}
 	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
-		return HookError, common.NewError(
+		return HookError, common.NewCError(
 			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
-			return HookError, common.NewError("BUG: Delivery forbidden for Forward-only HopF",
+			return HookError, common.NewCError("BUG: Delivery forbidden for Forward-only HopF",
 				"hopF", rp.hopF)
 		}
-		ot, err := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
-		if err != nil {
-			return HookError, err
-		}
+		ot := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
 		dst := &topology.AddrInfo{
 			Overlay:     ot,
 			IP:          rp.dstHost.IP(),
@@ -189,11 +186,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 	// router are supported.
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
 	nextAI := nextBR.InternalAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-	ot, err := overlay.OverlayFromIP(nextAI.IP, rp.Ctx.Conf.Topo.Overlay)
-	if err != nil {
-		return HookError, err
-	}
-
+	ot := overlay.OverlayFromIP(nextAI.IP, rp.Ctx.Conf.Topo.Overlay)
 	dst := &topology.AddrInfo{
 		Overlay:     ot,
 		IP:          nextAI.IP,
@@ -206,12 +199,12 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, *common.Error) {
 
 // xoverFromExternal handles XOVER hop fields at the ingress router, including
 // a lot of sanity/security checking.
-func (rp *RtrPkt) xoverFromExternal() *common.Error {
+func (rp *RtrPkt) xoverFromExternal() error {
 	infoF := rp.infoF
 	origIFCurr := *rp.ifCurr
 	origIFNext := *rp.ifNext
 	var segChgd bool
-	var err *common.Error
+	var err error
 	if segChgd, err = rp.IncPath(); err != nil {
 		return err
 	}
@@ -225,7 +218,7 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 	if infoF.Peer {
 		if segChgd {
 			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-			return common.NewError(
+			return common.NewCError(
 				"Path inc on ingress caused illegal peer segment change", sdata)
 		}
 		origIF := origIFNext
@@ -240,7 +233,7 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 		}
 		if origIF != newIF {
 			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets())
-			return common.NewError(
+			return common.NewCError(
 				"Downstream interfaces don't match on peer XOVER hop fields", sdata,
 				"orig", origIF, "new", newIF)
 		}
@@ -255,19 +248,19 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 	// Never allowed to switch between core segments.
 	if prevLink == topology.CoreLink && nextLink == topology.CoreLink {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewError("Segment change between CORE links.", sdata)
+		return common.NewCError("Segment change between CORE links.", sdata)
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
 	if infoF.Up && rp.infoF.Up && nextLink != topology.CoreLink {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewError(
+		return common.NewCError(
 			"Segment change from up segment to up segment with non-CORE next link", sdata,
 			"prevLink", prevLink, "nextLink", nextLink)
 	}
 	// Only allowed to switch from down- to down-segment if the previous link is CORE.
 	if !infoF.Up && !rp.infoF.Up && prevLink != topology.CoreLink {
 		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewError(
+		return common.NewCError(
 			"Segment change from down segment to down segment with non-CORE previous link",
 			sdata, "prevLink", prevLink, "nextLink", nextLink)
 	}
@@ -276,7 +269,7 @@ func (rp *RtrPkt) xoverFromExternal() *common.Error {
 
 // forwardFromLocal handles packet received from the local ISD-AS, to be
 // forwarded to neighbouring ISD-ASes.
-func (rp *RtrPkt) forwardFromLocal() (HookResult, *common.Error) {
+func (rp *RtrPkt) forwardFromLocal() (HookResult, error) {
 	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
 		if _, err := rp.IncPath(); err != nil {
 			return HookError, err

@@ -103,7 +103,7 @@ func (s SecMode) String() string {
 	}
 }
 
-func (s *BaseExtn) Reverse() (bool, *common.Error) {
+func (s *BaseExtn) Reverse() (bool, error) {
 	// Nothing to do.
 	return true, nil
 }
@@ -116,7 +116,7 @@ func (s *BaseExtn) Type() common.ExtnType {
 	return common.ExtnSCIONPacketSecurityType
 }
 
-func NewExtn(secMode SecMode) (*Extn, *common.Error) {
+func NewExtn(secMode SecMode) (*Extn, error) {
 	s := &Extn{BaseExtn: &BaseExtn{SecMode: secMode}}
 
 	var metaLen, authLen int
@@ -135,7 +135,7 @@ func NewExtn(secMode SecMode) (*Extn, *common.Error) {
 		metaLen = GcmAes128MetaLength
 		authLen = GcmAes128AuthLength
 	default:
-		return nil, common.NewError("Invalid SecMode code.", "SecMode", secMode)
+		return nil, common.NewCError("Invalid SecMode code.", "SecMode", secMode)
 	}
 
 	s.Metadata = make(common.RawBytes, metaLen)
@@ -145,9 +145,9 @@ func NewExtn(secMode SecMode) (*Extn, *common.Error) {
 }
 
 // Set the Metadata.
-func (s *Extn) SetMetadata(metadata common.RawBytes) *common.Error {
+func (s *Extn) SetMetadata(metadata common.RawBytes) error {
 	if len(s.Metadata) != len(metadata) {
-		return common.NewError("The length does not match",
+		return common.NewCError("The length does not match",
 			"expected", len(s.Metadata), "actual", len(metadata))
 	}
 	copy(s.Metadata, metadata)
@@ -155,18 +155,18 @@ func (s *Extn) SetMetadata(metadata common.RawBytes) *common.Error {
 }
 
 // Set the Authenticator.
-func (s *Extn) SetAuthenticator(authenticator common.RawBytes) *common.Error {
+func (s *Extn) SetAuthenticator(authenticator common.RawBytes) error {
 	if len(s.Authenticator) != len(authenticator) {
-		return common.NewError("The length does not match",
+		return common.NewCError("The length does not match",
 			"expected", len(s.Authenticator), "actual", len(authenticator))
 	}
 	copy(s.Authenticator, authenticator)
 	return nil
 }
 
-func (s *Extn) Write(b common.RawBytes) *common.Error {
+func (s *Extn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SCIONPacketSecurityExtn.Write",
+		return common.NewCError("Buffer too short", "method", "SCIONPacketSecurityExtn.Write",
 			"expected min", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)
@@ -179,7 +179,7 @@ func (s *Extn) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (s *Extn) Pack() (common.RawBytes, *common.Error) {
+func (s *Extn) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err

@@ -30,7 +30,7 @@ import (
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
-func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, *common.Error) {
+func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, error) {
 	rp := NewRtrPkt()
 	rp.Ctx = ctx
 	totalLen := sp.TotalLen()
@@ -103,7 +103,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, 
 }
 
 // addL4 adds a layer 4 header to an RtrPkt during creation.
-func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
+func (rp *RtrPkt) addL4(l4h l4.L4Header) error {
 	rp.L4Type = l4h.L4Type()
 	rp.l4 = l4h
 	// Reset buffer to full size
@@ -137,16 +137,15 @@ func (rp *RtrPkt) addL4(l4h l4.L4Header) *common.Error {
 }
 
 // SetPld updates/sets the payload of an RtrPkt.
-func (rp *RtrPkt) SetPld(pld common.Payload) *common.Error {
+func (rp *RtrPkt) SetPld(pld common.Payload) error {
 	rp.pld = pld
 	var plen int
 	if rp.pld != nil {
 		// Reset buffer to full size
 		rp.Raw = rp.Raw[:cap(rp.Raw)]
 		// Write payload into buffer
-		var err *common.Error
-		plen, err = rp.pld.WritePld(rp.Raw[rp.idxs.pld:])
-		if err != nil {
+		var err error
+		if plen, err = rp.pld.WritePld(rp.Raw[rp.idxs.pld:]); err != nil {
 			return err
 		}
 	}

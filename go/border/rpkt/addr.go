@@ -22,24 +22,24 @@ import (
 )
 
 // DstIA retrieves the destination ISD-AS if it isn't already known.
-func (rp *RtrPkt) DstIA() (*addr.ISD_AS, *common.Error) {
+func (rp *RtrPkt) DstIA() (*addr.ISD_AS, error) {
 	if rp.dstIA == nil {
-		var err *common.Error
+		var err error
 		rp.dstIA, err = rp.hookIA(rp.hooks.DstIA, rp.idxs.dstIA)
 		if err != nil {
-			return nil, common.NewError("Unable to retrieve destination ISD-AS", "err", err)
+			return nil, common.NewCError("Unable to retrieve destination ISD-AS", "err", err)
 		}
 	}
 	return rp.dstIA, nil
 }
 
 // SrcIA retrieves the source ISD-AS if it isn't already known.
-func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
+func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, error) {
 	if rp.srcIA == nil {
-		var err *common.Error
+		var err error
 		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
 		if err != nil {
-			return nil, common.NewError("Unable to retrieve source ISD-AS", "err", err)
+			return nil, common.NewCError("Unable to retrieve source ISD-AS", "err", err)
 		}
 	}
 	return rp.srcIA, nil
@@ -47,7 +47,7 @@ func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, *common.Error) {
 
 // hookIA is a helper method used by DstIA/SrcIA to run ISD-AS retrieval hooks,
 // falling back to parsing the address header directly otherwise.
-func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, *common.Error) {
+func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, error) {
 	for _, f := range hooks {
 		ret, ia, err := f()
 		switch {
@@ -63,24 +63,24 @@ func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, *common.Error) 
 }
 
 // DstHost retrieves the destination host address if it isn't already known.
-func (rp *RtrPkt) DstHost() (addr.HostAddr, *common.Error) {
+func (rp *RtrPkt) DstHost() (addr.HostAddr, error) {
 	if rp.dstHost == nil {
-		var err *common.Error
+		var err error
 		rp.dstHost, err = rp.hookHost(rp.hooks.DstHost, rp.idxs.dstHost, rp.CmnHdr.DstType)
 		if err != nil {
-			return nil, common.NewError("Unable to retrieve destination host", "err", err)
+			return nil, common.NewCError("Unable to retrieve destination host", "err", err)
 		}
 	}
 	return rp.dstHost, nil
 }
 
 // SrcHost retrieves the source host address if it isn't already known.
-func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
+func (rp *RtrPkt) SrcHost() (addr.HostAddr, error) {
 	if rp.srcHost == nil {
-		var err *common.Error
+		var err error
 		rp.srcHost, err = rp.hookHost(rp.hooks.SrcHost, rp.idxs.srcHost, rp.CmnHdr.SrcType)
 		if err != nil {
-			return nil, common.NewError("Unable to retrieve source host", "err", err)
+			return nil, common.NewCError("Unable to retrieve source host", "err", err)
 		}
 	}
 	return rp.srcHost, nil
@@ -90,7 +90,7 @@ func (rp *RtrPkt) SrcHost() (addr.HostAddr, *common.Error) {
 // retrieval hooks, falling back to parsing the address header directly
 // otherwise.
 func (rp *RtrPkt) hookHost(
-	hooks []hookHost, idx int, htype addr.HostAddrType) (addr.HostAddr, *common.Error) {
+	hooks []hookHost, idx int, htype addr.HostAddrType) (addr.HostAddr, error) {
 	for _, f := range hooks {
 		ret, host, err := f()
 		switch {

@@ -34,13 +34,13 @@ type L4Header interface {
 	GetCSum() common.RawBytes
 	SetCSum(common.RawBytes)
 	Copy() L4Header
-	Write(common.RawBytes) *common.Error
-	Pack(csum bool) (common.RawBytes, *common.Error)
-	Validate(plen int) *common.Error
+	Write(common.RawBytes) error
+	Pack(csum bool) (common.RawBytes, error)
+	Validate(plen int) error
 	Reverse()
 }
 
-func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, *common.Error) {
+func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, error) {
 	rawh, err := h.Pack(true)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, *common.E
 	return out, nil
 }
 
-func SetCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
+func SetCSum(h L4Header, addr, pld common.RawBytes) error {
 	out, err := CalcCSum(h, addr, pld)
 	if err != nil {
 		return err
@@ -60,14 +60,14 @@ func SetCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
 	return nil
 }
 
-func CheckCSum(h L4Header, addr, pld common.RawBytes) *common.Error {
+func CheckCSum(h L4Header, addr, pld common.RawBytes) error {
 	calc, err := CalcCSum(h, addr, pld)
 	if err != nil {
 		return err
 	}
 	exp := h.GetCSum()
 	if bytes.Compare(exp, calc) != 0 {
-		return common.NewError(ErrorInvalidChksum,
+		return common.NewCError(ErrorInvalidChksum,
 			"expected", exp, "actual", calc, "proto", h.L4Type())
 	}
 	return nil

@@ -42,7 +42,7 @@ func classTypeQuotes(ct ClassType) []RawBlock {
 	}
 }
 
-func ParseInfo(b common.RawBytes, ct ClassType) (Info, *common.Error) {
+func ParseInfo(b common.RawBytes, ct ClassType) (Info, error) {
 	switch {
 	case ct == ClassType{C_General, T_G_Unspecified}:
 		return InfoString(b), nil

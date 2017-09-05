@@ -24,12 +24,12 @@ type OneHopPath struct{}
 
 const OneHopPathLen = common.ExtnFirstLineLen
 
-func (o OneHopPath) Write(b common.RawBytes) *common.Error {
+func (o OneHopPath) Write(b common.RawBytes) error {
 	copy(b, make(common.RawBytes, OneHopPathLen))
 	return nil
 }
 
-func (o OneHopPath) Pack() (common.RawBytes, *common.Error) {
+func (o OneHopPath) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, o.Len())
 	if err := o.Write(b); err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (o OneHopPath) Copy() common.Extension {
 	return &OneHopPath{}
 }
 
-func (o OneHopPath) Reverse() (bool, *common.Error) {
+func (o OneHopPath) Reverse() (bool, error) {
 	// Reversing removes the extension.
 	return false, nil
 }

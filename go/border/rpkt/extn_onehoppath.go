@@ -37,21 +37,21 @@ type rOneHopPath struct {
 	spkt.OneHopPath
 }
 
-func rOneHopPathFromRaw(rp *RtrPkt) (*rOneHopPath, *common.Error) {
+func rOneHopPathFromRaw(rp *RtrPkt) (*rOneHopPath, error) {
 	o := &rOneHopPath{rp: rp}
 	o.Logger = rp.Logger.New("ext", "OneHopPath")
 	o.rp = rp
 	return o, nil
 }
 
-func (o *rOneHopPath) RegisterHooks(h *hooks) *common.Error {
+func (o *rOneHopPath) RegisterHooks(h *hooks) error {
 	// Override Hop Field parsing.
 	h.HopF = append(h.HopF, o.HopF)
 	return nil
 }
 
 // HopF generates and returns a new hop field on ingress to an AS.
-func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, *common.Error) {
+func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, error) {
 	if o.rp.DirFrom == rcmn.DirLocal {
 		// The existing HopF is still in use, so use HookContinue to read that
 		// instead.
@@ -100,6 +100,6 @@ func (o *rOneHopPath) String() string {
 	return "OneHopPath"
 }
 
-func (o *rOneHopPath) GetExtn() (common.Extension, *common.Error) {
+func (o *rOneHopPath) GetExtn() (common.Extension, error) {
 	return &o.OneHopPath, nil
 }

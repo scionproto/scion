@@ -28,7 +28,7 @@ type Info interface {
 	fmt.Stringer
 	Copy() Info
 	Len() int
-	Write(b common.RawBytes) (int, *common.Error)
+	Write(b common.RawBytes) (int, error)
 }
 
 var _ Info = (*InfoString)(nil)
@@ -45,7 +45,7 @@ func (s InfoString) Len() int {
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
-func (s InfoString) Write(b common.RawBytes) (int, *common.Error) {
+func (s InfoString) Write(b common.RawBytes) (int, error) {
 	common.Order.PutUint16(b, uint16(len(s)))
 	copy(b[:2], s)
 	return util.FillPadding(b, 2+len(s), common.LineLen), nil
@@ -62,10 +62,10 @@ type InfoEcho struct {
 	Seq uint16
 }
 
-func InfoEchoFromRaw(b common.RawBytes) (*InfoEcho, *common.Error) {
+func InfoEchoFromRaw(b common.RawBytes) (*InfoEcho, error) {
 	e := &InfoEcho{}
 	if err := restruct.Unpack(b, common.Order, e); err != nil {
-		return nil, common.NewError("Failed to unpack SCMP ECHO info", "err", err)
+		return nil, common.NewCError("Failed to unpack SCMP ECHO info", "err", err)
 	}
 	return e, nil
 }
@@ -79,7 +79,7 @@ func (e *InfoEcho) Len() int {
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
-func (e *InfoEcho) Write(b common.RawBytes) (int, *common.Error) {
+func (e *InfoEcho) Write(b common.RawBytes) (int, error) {
 	common.Order.PutUint16(b[0:], e.Id)
 	common.Order.PutUint16(b[2:], e.Seq)
 	return util.FillPadding(b, 4, common.LineLen), nil
@@ -96,10 +96,10 @@ type InfoPktSize struct {
 	MTU  uint16
 }
 
-func InfoPktSizeFromRaw(b common.RawBytes) (*InfoPktSize, *common.Error) {
+func InfoPktSizeFromRaw(b common.RawBytes) (*InfoPktSize, error) {
 	p := &InfoPktSize{}
 	if err := restruct.Unpack(b, common.Order, p); err != nil {
-		return nil, common.NewError("Failed to unpack SCMP Pkt Size info", "err", err)
+		return nil, common.NewCError("Failed to unpack SCMP Pkt Size info", "err", err)
 	}
 	return p, nil
 }
@@ -113,7 +113,7 @@ func (p *InfoPktSize) Len() int {
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
-func (p *InfoPktSize) Write(b common.RawBytes) (int, *common.Error) {
+func (p *InfoPktSize) Write(b common.RawBytes) (int, error) {
 	common.Order.PutUint16(b[0:], p.Size)
 	common.Order.PutUint16(b[2:], p.MTU)
 	return util.FillPadding(b, 4, common.LineLen), nil
@@ -132,10 +132,10 @@ type InfoPathOffsets struct {
 	Ingress bool
 }
 
-func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, *common.Error) {
+func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 	p := &InfoPathOffsets{}
 	if err := restruct.Unpack(b, common.Order, p); err != nil {
-		return nil, common.NewError("Failed to unpack SCMP Path Offsets info", "err", err)
+		return nil, common.NewCError("Failed to unpack SCMP Path Offsets info", "err", err)
 	}
 	return p, nil
 }
@@ -149,7 +149,7 @@ func (p *InfoPathOffsets) Len() int {
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
-func (p *InfoPathOffsets) Write(b common.RawBytes) (int, *common.Error) {
+func (p *InfoPathOffsets) Write(b common.RawBytes) (int, error) {
 	common.Order.PutUint16(b[0:], p.InfoF)
 	common.Order.PutUint16(b[2:], p.HopF)
 	common.Order.PutUint16(b[4:], p.IfID)
@@ -180,10 +180,10 @@ func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 	}
 }
 
-func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, *common.Error) {
+func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	p := &InfoRevocation{InfoPathOffsets: &InfoPathOffsets{}}
 	if err := restruct.Unpack(b, common.Order, &p.InfoPathOffsets); err != nil {
-		return nil, common.NewError("Failed to unpack SCMP Revocation info", "err", err)
+		return nil, common.NewCError("Failed to unpack SCMP Revocation info", "err", err)
 	}
 	p.RevToken = b[8:]
 	return p, nil
@@ -200,10 +200,10 @@ func (r *InfoRevocation) Len() int {
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
-func (r *InfoRevocation) Write(b common.RawBytes) (int, *common.Error) {
+func (r *InfoRevocation) Write(b common.RawBytes) (int, error) {
 	count, err := r.InfoPathOffsets.Write(b)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	count += copy(b[count:], r.RevToken)
 	return util.FillPadding(b, count, common.LineLen), nil
@@ -220,7 +220,7 @@ type InfoExtIdx struct {
 	Idx uint8
 }
 
-func InfoExtIdxFromRaw(b common.RawBytes) (*InfoExtIdx, *common.Error) {
+func InfoExtIdxFromRaw(b common.RawBytes) (*InfoExtIdx, error) {
 	return &InfoExtIdx{Idx: b[0]}, nil
 }
 
@@ -232,7 +232,7 @@ func (r *InfoExtIdx) Len() int {
 	return 1 + util.CalcPadding(1, common.LineLen)
 }
 
-func (e *InfoExtIdx) Write(b common.RawBytes) (int, *common.Error) {
+func (e *InfoExtIdx) Write(b common.RawBytes) (int, error) {
 	b[0] = e.Idx
 	return util.FillPadding(b, 1, common.LineLen), nil
 }

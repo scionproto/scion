@@ -27,7 +27,7 @@ const (
 
 // L4Hdr finds, parses and returns the layer 4 header, if any. The verify
 // argument determines whether to verify the L4 header or not.
-func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
+func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, error) {
 	if rp.l4 == nil {
 		// First, find if there is an L4 header.
 		if found, err := rp.findL4(); !found || err != nil {
@@ -56,7 +56,7 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 		*/
 		default:
 			// Can't return an SCMP error as we don't understand the L4 header
-			return nil, common.NewError(UnsupportedL4, "type", rp.L4Type)
+			return nil, common.NewCError(UnsupportedL4, "type", rp.L4Type)
 		}
 	}
 	if verify {
@@ -68,7 +68,7 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, *common.Error) {
 }
 
 // findL4 finds the layer 4 header, if any.
-func (rp *RtrPkt) findL4() (bool, *common.Error) {
+func (rp *RtrPkt) findL4() (bool, error) {
 	// Start from the next unparsed header, if any.
 	nextHdr := rp.idxs.nextHdrIdx.Type
 	offset := rp.idxs.nextHdrIdx.Index
@@ -88,13 +88,13 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 		offset += hdrLen
 		if hdrLen == 0 {
 			// FIXME(kormat): Can't return an SCMP error as we can't parse the headers
-			return false, common.NewError("0-length header", "nextHdr", nextHdr, "offset", offset)
+			return false, common.NewCError("0-length header", "nextHdr", nextHdr, "offset", offset)
 		}
 	}
 	if offset > len(rp.Raw) {
 		// FIXME(kormat): Can't generally return an SCMP error as parsing the
 		// headers has failed.
-		return false, common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		return false, common.NewCError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	rp.idxs.nextHdrIdx.Type = nextHdr
 	rp.idxs.nextHdrIdx.Index = offset
@@ -102,7 +102,7 @@ func (rp *RtrPkt) findL4() (bool, *common.Error) {
 }
 
 // verifyL4 verifies that the layer 4 header's contents and checksum are correct.
-func (rp *RtrPkt) verifyL4() *common.Error {
+func (rp *RtrPkt) verifyL4() error {
 	if err := rp.l4.Validate(len(rp.Raw[rp.idxs.pld:])); err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (rp *RtrPkt) verifyL4() *common.Error {
 
 // verifyL4Chksum calculates the appropriate checksum for the layer 4 header,
 // and verifies that it matches the one supplied in the l4 header.
-func (rp *RtrPkt) verifyL4Chksum() *common.Error {
+func (rp *RtrPkt) verifyL4Chksum() error {
 	switch h := rp.l4.(type) {
 	case *l4.UDP, *scmp.Hdr:
 		addr, pld := rp.getChksumInput()
@@ -141,7 +141,7 @@ func (rp *RtrPkt) getChksumInput() (ahdr, pld common.RawBytes) {
 
 // updateL4 handles updating the layer 4 header after the payload has been set
 // (or changed).
-func (rp *RtrPkt) updateL4() *common.Error {
+func (rp *RtrPkt) updateL4() error {
 	switch h := rp.l4.(type) {
 	case *l4.UDP, *scmp.Hdr:
 		addr, pld := rp.getChksumInput()
@@ -153,7 +153,7 @@ func (rp *RtrPkt) updateL4() *common.Error {
 			return err
 		}
 	default:
-		return common.NewError("Updating l4 payload not supported", "type", rp.L4Type)
+		return common.NewCError("Updating l4 payload not supported", "type", rp.L4Type)
 	}
 	return nil
 }

@@ -41,21 +41,18 @@ const (
 
 var CurrConf *ASConf
 
-func Load(path string) *common.Error {
+func Load(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return common.NewError(ErrorOpen, "err", err)
+		return common.NewCError(ErrorOpen, "err", err)
 	}
-	if err := Parse(b, path); err != nil {
-		return err
-	}
-	return nil
+	return Parse(b, path)
 }
 
-func Parse(data []byte, path string) *common.Error {
+func Parse(data []byte, path string) error {
 	c := &ASConf{}
 	if err := yaml.Unmarshal(data, c); err != nil {
-		return common.NewError(ErrorParse, "err", err, "path", path)
+		return common.NewCError(ErrorParse, "err", err, "path", path)
 	}
 	CurrConf = c
 	return nil

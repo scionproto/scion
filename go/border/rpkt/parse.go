@@ -29,7 +29,7 @@ import (
 )
 
 // Parse handles the basic parsing of a packet.
-func (rp *RtrPkt) Parse() *common.Error {
+func (rp *RtrPkt) Parse() error {
 	if err := rp.parseBasic(); err != nil {
 		return err
 	}
@@ -74,8 +74,8 @@ func (rp *RtrPkt) Parse() *common.Error {
 }
 
 // parseBasic handles the parsing of the common and address headers.
-func (rp *RtrPkt) parseBasic() *common.Error {
-	var err *common.Error
+func (rp *RtrPkt) parseBasic() error {
+	var err error
 	var dstLen, srcLen uint8
 	// Parse common header.
 	if err = rp.CmnHdr.Parse(rp.Raw); err != nil {
@@ -87,16 +87,18 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 	// Set index for destination host address and calculate its length.
 	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
 	if dstLen, err = addr.HostLen(rp.CmnHdr.DstType); err != nil {
-		if err.Desc == addr.ErrorBadHostAddrType {
-			err.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil)
+		cerr := err.(*common.CError)
+		if cerr.Desc == addr.ErrorBadHostAddrType {
+			cerr.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil)
 		}
 		return err
 	}
 	// Set index for source host address and calculate its length.
 	rp.idxs.srcHost = rp.idxs.dstHost + int(dstLen)
 	if srcLen, err = addr.HostLen(rp.CmnHdr.SrcType); err != nil {
-		if err.Desc == addr.ErrorBadHostAddrType {
-			err.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
+		cerr := err.(*common.CError)
+		if cerr.Desc == addr.ErrorBadHostAddrType {
+			cerr.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
 		}
 		return err
 	}
@@ -107,7 +109,7 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if rp.idxs.path > hdrLen {
 		// Can't generate SCMP error as we can't parse anything after the address header
-		return common.NewError("Header length indicated in common header is too small",
+		return common.NewCError("Header length indicated in common header is too small",
 			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen, "byteSize", hdrLen)
 	}
 	return nil
@@ -115,7 +117,7 @@ func (rp *RtrPkt) parseBasic() *common.Error {
 
 // parseHopExtns walks the header chain, parsing hop-by-hop extensions,
 // stopping at the first non-HBH extension/L4 protocol header.
-func (rp *RtrPkt) parseHopExtns() *common.Error {
+func (rp *RtrPkt) parseHopExtns() error {
 	// +1 to allow for a leading SCMP hop-by-hop extension.
 	rp.idxs.hbhExt = make([]extnIdx, 0, common.ExtnMaxHBH+1)
 	rp.idxs.nextHdrIdx.Type = rp.CmnHdr.NextHdr
@@ -143,7 +145,7 @@ func (rp *RtrPkt) parseHopExtns() *common.Error {
 	if *offset > len(rp.Raw) {
 		// FIXME(kormat): Can't generate SCMP error in general as we can't
 		// parse anything after the hbh extensions (e.g. a layer 4 header).
-		return common.NewError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		return common.NewCError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	return nil
 }

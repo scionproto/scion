@@ -108,7 +108,7 @@ func (pm *PathManager) run() {
 				func() { pm.requestQueue <- query.DisconnectedCopy() })
 			if query.reply != nil {
 				query.reply <- PathResponse{sciond.PathReplyEntry{},
-					common.NewError("Error from SCIOND",
+					common.NewCError("Error from SCIOND",
 						"code", reply.ErrorCode)}
 			}
 			continue
@@ -164,7 +164,7 @@ type PathSet []sciond.PathReplyEntry
 
 func (s PathSet) first() (*sciond.PathReplyEntry, error) {
 	if len(s) == 0 {
-		return nil, common.NewError("Unable to select first of empty pathSet")
+		return nil, common.NewCError("Unable to select first of empty pathSet")
 	}
 	return &s[0], nil
 }

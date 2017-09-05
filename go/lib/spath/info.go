@@ -37,9 +37,9 @@ type InfoField struct {
 	Hops     uint8
 }
 
-func InfoFFromRaw(b []byte) (*InfoField, *common.Error) {
+func InfoFFromRaw(b []byte) (*InfoField, error) {
 	if len(b) < InfoFieldLength {
-		return nil, common.NewError(ErrorInfoFTooShort, "min", InfoFieldLength, "actual", len(b))
+		return nil, common.NewCError(ErrorInfoFTooShort, "min", InfoFieldLength, "actual", len(b))
 	}
 	inf := &InfoField{}
 	flags := b[0]
