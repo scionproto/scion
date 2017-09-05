@@ -263,7 +263,7 @@ def recv_all(sock, total_len, flags):
         except InterruptedError:
             continue
         except ConnectionResetError:
-            # Client closed the connection without reading
+            # Peer closed the connection without reading
             logging.error("socket closed by peer")
             return None
         if not buf:
