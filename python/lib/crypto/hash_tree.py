@@ -263,7 +263,7 @@ class ConnectedHashTree(object):
         if (epoch == cur_epoch or
                 cur_epoch == epoch + 1 and gap_time < HASHTREE_EPOCH_TOLERANCE):
             return cls.EPOCH_OK
-        if epoch < cur_epoch - 2:
+        if epoch < cur_epoch - 1:
             return cls.EPOCH_PAST
         if epoch < cur_epoch:
             return cls.EPOCH_NEAR_PAST

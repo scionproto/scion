@@ -352,7 +352,7 @@ class SCIONDaemon(SCIONElement):
         # Verify epoch information and on failure return directly
         epoch_status = ConnectedHashTree.verify_epoch(rev_info.p.epoch)
         if epoch_status == ConnectedHashTree.EPOCH_PAST:
-            logging.debug(
+            logging.warning(
                 "Failed to verify epoch: epoch in the past %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             return SCIONDRevReplyStatus.TOO_OLD
@@ -362,6 +362,13 @@ class SCIONDaemon(SCIONElement):
                 "Failed to verify epoch: epoch in the future %d,current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             return SCIONDRevReplyStatus.INVALID
+
+        if epoch_status == ConnectedHashTree.EPOCH_NEAR_PAST:
+            logging.info(
+                "Failed to verify epoch: epoch in the near past %d, current epoch %d."
+                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+            # For reasoning behind UNKNOWN return value, see FIXME below
+            return SCIONDRevReplyStatus.UNKNOWN
 
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
@@ -373,6 +380,23 @@ class SCIONDaemon(SCIONElement):
         if total > 0:
             return SCIONDRevReplyStatus.VALID
         else:
+            # FIXME(scrye): UNKNOWN is returned in the following situations:
+            #  - Epoch is not recent enough to be valid, but it's also not old
+            # enough to be an error
+            #  - Epoch is ok, but no segments were revoked because:
+            #    * No matching segments exist
+            #    * Matching segments exist, but the revoked interface is part
+            #    of a peering link; new path queries sent to SCIOND won't use
+            #    the link, but nothing is immediately revoked
+            #    * An internal crypto error prevented the revocation from
+            #    taking place
+            #
+            # This should be fixed in the future to provide clearer meaning
+            # behind why the revocation could not be validated.
+            #
+            # For now, if applications receive an UNKOWN reply to a revocation,
+            # they should strongly consider flushing paths containing the
+            # interface.
             return SCIONDRevReplyStatus.UNKNOWN
 
     def _remove_revoked_pcbs(self, db, rev_info):
