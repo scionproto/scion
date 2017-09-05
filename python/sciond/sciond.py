@@ -367,7 +367,6 @@ class SCIONDaemon(SCIONElement):
             logging.info(
                 "Failed to verify epoch: epoch in the near past %d, current epoch %d."
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            # For reasoning behind UNKNOWN return value, see FIXME below
             return SCIONDRevReplyStatus.STALE
 
         # Go through all segment databases and remove affected segments.

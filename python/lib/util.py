@@ -262,6 +262,13 @@ def recv_all(sock, total_len, flags):
             buf = sock.recv(total_len - len(barr), flags)
         except InterruptedError:
             continue
+        # FIXME(scrye): Revocation confirmation messages are causing a race
+        # condition during revocations. Delete the handler below after the
+        # cause has been identified and fixed.
+        except ConnectionResetError:
+            logging.error("ConnectionResetError: sock = %s, total_len = %s"
+                        " read_len = %s, data = %s" % (sock, total_len, len(barr), barr))
+            raise
         if not buf:
             if not barr:
                 logging.debug("recv returned nil, socket closed")
