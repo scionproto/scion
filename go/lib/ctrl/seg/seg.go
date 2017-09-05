@@ -47,6 +47,7 @@ func (ps *PathSegment) ID() common.RawBytes {
 	for _, as := range ps.ASEntries {
 		data := make([]byte, 20)
 		common.Order.PutUint32(data, as.RawIA)
+		// FIXME(shitz): This should actually use the hopfield directly (also in the Python lib.)
 		common.Order.PutUint64(data, as.HopEntries[0].InIF)
 		common.Order.PutUint64(data, as.HopEntries[0].OutIF)
 		h.Write(data)
@@ -101,6 +102,12 @@ func (m *Meta) String() string {
 }
 
 type Type uint8
+
+const (
+	UpSegment   Type = 0
+	DownSegment Type = 1
+	CoreSegment Type = 2
+)
 
 func (t Type) String() string {
 	switch t {
