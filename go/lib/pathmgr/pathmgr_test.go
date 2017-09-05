@@ -34,7 +34,7 @@ var (
 
 // SCION test infrastructure needs to be running for this example.
 func ExamplePR() {
-	// Run with "go test -tags=infrarunning -args -srcIA 1-11 -dstIA 1-13".
+	// Run with "go test -tags=infrarunning -args -srcIA 1-14 -dstIA 2-21".
 	var cerr *common.Error
 	src, cerr := addr.IAFromString(*srcStr)
 	if cerr != nil {

@@ -56,15 +56,22 @@ var (
 )
 
 type PR struct {
-	sync.Mutex     // lookup, reconnect and Register acquire this lock as separate goroutines
-	sciondPath     string
-	sciond         *sciond.Connector
-	regMap         map[string]*SyncPaths // Path map for continuously updated queries
-	pathMap        *cache.Cache          // Path cache for simple queries
-	regCount       uint64                // number of IAs registered for priority tracking
-	queries        chan query            // used for keeping track of which queries need to be sent
-	state          sciondState           // state of SCIOND connection
-	refireInterval time.Duration         // Duration between two path lookups for a registered path
+	// Lookup, reconnect and Register acquire this lock as separate goroutines
+	sync.Mutex
+	sciondPath string
+	sciond     *sciond.Connector
+	// Path map for continuously updated queries
+	regMap map[string]*SyncPaths
+	// Path cache for simple queries
+	pathMap *cache.Cache
+	// Number of IAs registered for priority tracking
+	regCount uint64
+	// Used for keeping track of which queries need to be sent
+	queries chan query
+	// State of SCIOND connection
+	state sciondState
+	// Duration between two path lookups for a registered path
+	refireInterval time.Duration
 	log.Logger
 }
 
@@ -117,7 +124,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) PathList {
 		return nil
 	}
 	// We found paths, so we cache them
-	r.pathMap.Set(iaKey, pathList, cache.DefaultExpiration)
+	r.pathMap.SetDefault(iaKey, pathList)
 	return pathList
 }
 
@@ -169,7 +176,6 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 
 func (r *PR) resolver() {
 	for query := range r.queries {
-		// Spawn blocking sub-goroutine
 		r.Lock()
 		paths := r.lookup(query)
 		if paths != nil {
@@ -242,7 +248,8 @@ func (r *PR) reconnect() {
 	r.stateTransition(sciondUp)
 }
 
-// stateTransition changes the internal state to new. If the internal state was already equal to new prior to calling this, stateTransition returns false.
+// stateTransition changes the internal state to new. If the internal state was
+// already equal to new prior to calling this, stateTransition returns false.
 func (r *PR) stateTransition(new sciondState) bool {
 	if r.state != new {
 		r.state = new
