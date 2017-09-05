@@ -30,10 +30,6 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	var cerr *common.Error
 	offset := 0
 
-	if s.L4.L4Type() != common.L4UDP {
-		return 0, common.NewError("Unsupported protocol", "expected",
-			common.L4UDP, "actual", s.L4.L4Type())
-	}
 	if s.E2EExt != nil {
 		return 0, common.NewError("E2E extensions not supported", "ext", s.E2EExt)
 	}
