@@ -24,7 +24,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 var (
@@ -35,17 +34,15 @@ var (
 // SCION test infrastructure needs to be running for this example.
 func ExamplePR() {
 	// Run with "go test -tags=infrarunning -args -srcIA 1-14 -dstIA 2-21".
-	var cerr *common.Error
-	src, cerr := addr.IAFromString(*srcStr)
-	if cerr != nil {
-		fmt.Println("Unable to parse srcIA", *srcStr, "err", cerr)
+	var err error
+	src, err := addr.IAFromString(*srcStr)
+	if err != nil {
+		fmt.Println("Unable to parse srcIA", *srcStr, "err", err)
 	}
-
-	dst, cerr := addr.IAFromString(*dstStr)
-	if cerr != nil {
-		fmt.Println("Unable to parse dstIA", *dstStr, "err", cerr)
+	dst, err := addr.IAFromString(*dstStr)
+	if err != nil {
+		fmt.Println("Unable to parse dstIA", *dstStr, "err", err)
 	}
-
 	// Initialize path resolver
 	sciondPath := fmt.Sprintf("/run/shm/sciond/sd%s.sock", src.String())
 	pr, err := New(sciondPath, time.Second, log.Root())
@@ -53,13 +50,11 @@ func ExamplePR() {
 		fmt.Println("Failed to connect to SCIOND", "err", err)
 		return
 	}
-
 	// Register source and destination
 	sp, err := pr.Register(src, dst)
 	if err != nil {
 		fmt.Println("Failed to register", "err", err)
 	}
-
 	// sp will always point to an up to date slice of paths, or nil if none
 	// available
 	for i := 0; i < 5; i++ {

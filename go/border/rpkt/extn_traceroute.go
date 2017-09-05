@@ -43,7 +43,7 @@ var errLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common
 
 // rTracerouteFromRaw creates an rTraceroute instance from raw bytes, keeping a
 // reference to the location in the packet's buffer.
-func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, *common.Error) {
+func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, error) {
 	t := &rTraceroute{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
 	// Ignore subheader line
@@ -53,9 +53,9 @@ func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, *common.Error
 }
 
 // Add creates a new traceroute entry directly to the underlying buffer.
-func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
+func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) error {
 	if t.NumHops == t.TotalHops {
-		return common.NewError("Header already full", "entries", t.NumHops)
+		return common.NewCError("Header already full", "entries", t.NumHops)
 	}
 	offset := common.ExtnFirstLineLen + common.LineLen*int(t.NumHops)
 	entry.IA.Write(t.raw[offset:])
@@ -68,9 +68,9 @@ func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) *common.Error {
 }
 
 // Entry parses a specified traceroute entry from the underlying buffer.
-func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
+func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, error) {
 	if idx > int(t.NumHops-1) {
-		return nil, common.NewError("Entry index out of range", "idx", idx, "max", t.NumHops-1)
+		return nil, common.NewCError("Entry index out of range", "idx", idx, "max", t.NumHops-1)
 	}
 	entry := spkt.TracerouteEntry{}
 	offset := common.ExtnFirstLineLen + common.LineLen*idx
@@ -82,33 +82,34 @@ func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, *common.Error) {
 	return &entry, nil
 }
 
-func (t *rTraceroute) RegisterHooks(h *hooks) *common.Error {
+func (t *rTraceroute) RegisterHooks(h *hooks) error {
 	h.Validate = append(h.Validate, t.Validate)
 	h.Process = append(h.Process, t.Process)
 	return nil
 }
 
-func (t *rTraceroute) Validate() (HookResult, *common.Error) {
+func (t *rTraceroute) Validate() (HookResult, error) {
 	if (len(t.raw)-common.ExtnFirstLineLen)%common.LineLen != 0 {
-		return HookError, common.NewError(errLenMultiple, "len", len(t.raw))
+		return HookError, common.NewCError(errLenMultiple, "len", len(t.raw))
 	}
 	if t.NumHops > t.TotalHops {
-		return HookError, common.NewError("Header claims too many entries",
+		return HookError, common.NewCError("Header claims too many entries",
 			"max", t.TotalHops, "actual", t.NumHops)
 	}
 	return HookContinue, nil
 }
 
 // Process creates a new entry, and adds it to the underlying buffer.
-func (t *rTraceroute) Process() (HookResult, *common.Error) {
+func (t *rTraceroute) Process() (HookResult, error) {
 	// Take the current time in milliseconds, and truncate it to 16bits.
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
 	entry := spkt.TracerouteEntry{
 		IA: *t.rp.Ctx.Conf.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
-		err.Ctx = append(err.Ctx, "raw", t.rp.Raw)
-		t.Error("Unable to add entry", err.Ctx...)
+		cerr := err.(*common.CError)
+		cerr.Ctx = append(cerr.Ctx, "raw", t.rp.Raw)
+		t.Error("Unable to add entry", "err", cerr)
 	}
 	// Update the raw buffer with the number of hops.
 	t.raw[0] = t.NumHops
@@ -118,7 +119,7 @@ func (t *rTraceroute) Process() (HookResult, *common.Error) {
 // GetExtn returns the spkt.Traceroute representation. The big difference
 // between the two representations is that the latter doesn't have an
 // underlying buffer, so instead it has a slice of TracerouteEntry's.
-func (t *rTraceroute) GetExtn() (common.Extension, *common.Error) {
+func (t *rTraceroute) GetExtn() (common.Extension, error) {
 	s := spkt.NewTraceroute(int(t.TotalHops))
 	for i := 0; i < int(t.NumHops); i++ {
 		entry, err := t.Entry(i)
@@ -146,7 +147,7 @@ func (t *rTraceroute) String() string {
 	// Delegate string representation to spkt.Traceroute
 	e, err := t.GetExtn()
 	if err != nil {
-		return fmt.Sprintf("Traceroute - %v: %v", err.Desc, err.String())
+		return fmt.Sprintf("Traceroute: %v", err)
 	}
 	return e.String()
 }

@@ -76,9 +76,9 @@ func main() {
 		log.Error("Unable to export prometheus metrics", "err", err)
 	}
 
-	ia, cerr := addr.IAFromString(*isdas)
-	if cerr != nil {
-		log.Error("Unable to parse local AS", "isdas", *isdas, "err", cerr)
+	ia, err := addr.IAFromString(*isdas)
+	if err != nil {
+		log.Error("Unable to parse local AS", "isdas", *isdas, "err", err)
 		os.Exit(1)
 	}
 
@@ -139,13 +139,13 @@ func setupSignals() {
 func parseEncapFlags() error {
 	netip := net.ParseIP(*ip)
 	if netip == nil {
-		return common.NewError("Unable to parse encapsulation IP address", "addr", *ip)
+		return common.NewCError("Unable to parse encapsulation IP address", "addr", *ip)
 	}
 	xnet.Setup(netip)
 	Addr = addr.HostFromIP(netip)
 	Port = uint16(*port)
 	if Port == 0 {
-		return common.NewError("Invalid port number", "port", Port)
+		return common.NewCError("Invalid port number", "port", Port)
 	}
 	return nil
 }
@@ -157,12 +157,12 @@ func parseCtrlFlags() error {
 	}
 	CtrlIP = net.ParseIP(*ctrlIP)
 	if CtrlIP == nil {
-		return common.NewError("Unable to parse bind IP address for control traffic",
+		return common.NewCError("Unable to parse bind IP address for control traffic",
 			"address", *ctrlIP)
 	}
 	CtrlPort = uint16(*ctrlPort)
 	if CtrlPort == 0 {
-		return common.NewError("Invalid port number", "port", Port)
+		return common.NewCError("Invalid port number", "port", Port)
 	}
 	return nil
 }

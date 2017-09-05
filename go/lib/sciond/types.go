@@ -65,7 +65,7 @@ type Pld struct {
 	ServiceInfoReply   ServiceInfoReply
 }
 
-func NewPldFromRaw(b common.RawBytes) (*Pld, *common.Error) {
+func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{}
 	return p, proto.ParseFromRaw(p, p.ProtoId(), b)
 }
@@ -76,16 +76,16 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 
 func (p *Pld) String() string {
 	desc := []string{fmt.Sprintf("Sciond: Id: %d Union0: ", p.Id)}
-	union0, cerr := p.union0()
-	if cerr != nil {
-		desc = append(desc, cerr.String())
+	union0, err := p.union0()
+	if err != nil {
+		desc = append(desc, err.Error())
 	} else {
 		desc = append(desc, fmt.Sprintf("%+v", union0))
 	}
 	return strings.Join(desc, "")
 }
 
-func (p *Pld) union0() (interface{}, *common.Error) {
+func (p *Pld) union0() (interface{}, error) {
 	switch p.Which {
 	case proto.SCIONDMsg_Which_pathReq:
 		return p.PathReq, nil
@@ -108,7 +108,7 @@ func (p *Pld) union0() (interface{}, *common.Error) {
 	case proto.SCIONDMsg_Which_serviceInfoReply:
 		return p.ServiceInfoReply, nil
 	}
-	return nil, common.NewError("Unsupported SCIOND union0 type", "type", p.Which)
+	return nil, common.NewCError("Unsupported SCIOND union0 type", "type", p.Which)
 }
 
 type PathReq struct {

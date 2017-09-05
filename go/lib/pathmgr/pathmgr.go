@@ -82,7 +82,7 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 	sciondSock, err := sciond.Connect(sciondPath)
 	if err != nil {
 		// Let external code handle initial failure
-		return nil, common.NewError("Unable to connect to SCIOND", "err", err)
+		return nil, common.NewCError("Unable to connect to SCIOND", "err", err)
 	}
 
 	pr := &PR{
@@ -149,7 +149,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 
 	if r.regCount == queryChanCap {
 		// Reached limit, return error
-		return nil, common.NewError("Unable to register, limit reached",
+		return nil, common.NewCError("Unable to register, limit reached",
 			"max", queryChanCap)
 	}
 	r.regCount += 1

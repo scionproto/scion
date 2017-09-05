@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"fmt"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
@@ -36,8 +36,8 @@ type Payload struct {
 	L4Hdr   common.RawBytes
 }
 
-func PldFromRaw(b common.RawBytes, ct ClassType) (*Payload, *common.Error) {
-	var err *common.Error
+func PldFromRaw(b common.RawBytes, ct ClassType) (*Payload, error) {
+	var err error
 	p := &Payload{ct: ct}
 	buf := bytes.NewBuffer(b)
 	if p.Meta, err = MetaFromRaw(buf.Next(MetaLen)); err != nil {
@@ -51,7 +51,6 @@ func PldFromRaw(b common.RawBytes, ct ClassType) (*Payload, *common.Error) {
 	p.PathHdr = buf.Next(int(p.Meta.PathHdrLen) * common.LineLen)
 	p.ExtHdrs = buf.Next(int(p.Meta.ExtHdrsLen) * common.LineLen)
 	p.L4Hdr = buf.Next(int(p.Meta.L4HdrLen) * common.LineLen)
-	log.Debug("PldFromRaw", "pld", p)
 	return p, nil
 }
 
@@ -88,7 +87,7 @@ func PldFromQuotes(ct ClassType, info Info, l4 common.L4ProtocolType, f QuoteFun
 	return p
 }
 
-func (p *Payload) Copy() (common.Payload, *common.Error) {
+func (p *Payload) Copy() (common.Payload, error) {
 	c := &Payload{ct: p.ct}
 	c.Meta = p.Meta.Copy()
 	c.Info = p.Info
@@ -100,7 +99,7 @@ func (p *Payload) Copy() (common.Payload, *common.Error) {
 	return c, nil
 }
 
-func (p *Payload) WritePld(b common.RawBytes) (int, *common.Error) {
+func (p *Payload) WritePld(b common.RawBytes) (int, error) {
 	offset := 0
 	if err := p.Meta.Write(b[offset:]); err != nil {
 		return 0, err

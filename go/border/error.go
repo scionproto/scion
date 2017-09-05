@@ -31,15 +31,16 @@ import (
 // handlePktError is called for protocol-level packet errors. If there's SCMP
 // metadata attached to the error object, then an SCMP error response is
 // generated and sent.
-func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string) {
-	sdata, ok := perr.Data.(*scmp.ErrData)
+func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
+	pcerr := perr.(*common.CError)
+	sdata, ok := pcerr.Data.(*scmp.ErrData)
 	if ok {
-		perr.Ctx = append(perr.Ctx, "SCMP", sdata.CT)
+		pcerr.Ctx = append(pcerr.Ctx, "SCMP", sdata.CT)
 	}
 	// XXX(kormat): uncomment for debugging:
-	// perr.Ctx = append(perr.Ctx, "raw", rp.Raw)
-	rp.Error(desc, perr.Ctx...)
-	if !ok || perr.Data == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
+	// pcerr.Ctx = append(pcerr.Ctx, "raw", rp.Raw)
+	rp.Error(desc, pcerr.Ctx...)
+	if !ok || pcerr.Data == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
@@ -76,7 +77,8 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 	}
 	reply, err := r.createSCMPErrorReply(rp, sdata.CT, sdata.Info)
 	if err != nil {
-		rp.Error("Error creating SCMP response", err.Ctx...)
+		cerr := err.(*common.CError)
+		rp.Error("Error creating SCMP response", cerr.Ctx...)
 		return
 	}
 	reply.Route()
@@ -84,7 +86,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr *common.Error, desc string
 
 // createSCMPErrorReply generates an SCMP error reply to the supplied packet.
 func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
-	info scmp.Info) (*rpkt.RtrPkt, *common.Error) {
+	info scmp.Info) (*rpkt.RtrPkt, error) {
 	// Create generic ScnPkt reply
 	sp, err := r.createReplyScnPkt(rp)
 	if err != nil {
@@ -171,7 +173,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 
 // createReplyScnPkt creates a generic ScnPkt reply, by converting the RtrPkt
 // to an ScnPkt, then reversing the ScnPkt, and setting the reply source address.
-func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error) {
+func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, error) {
 	sp, err := rp.ToScnPkt(false)
 	if err != nil {
 		return nil, err
@@ -187,7 +189,7 @@ func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, *common.Error
 
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
-func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, *common.Error) {
+func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, error) {
 	if rp.DirFrom == rcmn.DirLocal {
 		return rpkt.EgressPair{S: rp.Ctx.LocSockOut[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
 	}

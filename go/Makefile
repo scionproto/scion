@@ -18,6 +18,9 @@ clean:
 test: deps_proto
 	GOCONVEY_REPORTER=story govendor test +local
 
+test_running: deps_proto
+	GOCONVEY_REPORTER=story govendor test +local -tags infrarunning
+
 coverage: deps_proto
 	set -o pipefail; GOCONVEY_REPORTER=story gocov test ${LOCAL_PKGS} | gocov-html > gocover.html
 	@echo

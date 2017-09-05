@@ -53,7 +53,7 @@ func (sdb *Topology) AddRoute(prefix string, isdas string) error {
 
 	info, found := sdb.topo.get(isdas)
 	if !found {
-		return common.NewError("Unable to add prefix for unreachable AS", "AS", isdas, "prefix",
+		return common.NewCError("Unable to add prefix for unreachable AS", "AS", isdas, "prefix",
 			prefix)
 	}
 
@@ -83,7 +83,7 @@ func (sdb *Topology) DelRoute(prefix string, isdas string) error {
 	// TODO delete from routing table
 	info, found := sdb.topo.get(isdas)
 	if !found {
-		return common.NewError("Unable to delete prefix from unreachable AS", "prefix",
+		return common.NewCError("Unable to delete prefix from unreachable AS", "prefix",
 			prefix, "AS", isdas)
 	}
 	return info.delRoute(subnet)
@@ -118,7 +118,7 @@ func (sdb *Topology) DelSig(isdas string, address string, port string, source st
 	if e, found := sdb.topo.get(isdas); found {
 		return e.delSig(address, port, source)
 	}
-	return common.NewError("SIG entry not found", "address", address, "port", port)
+	return common.NewCError("SIG entry not found", "address", address, "port", port)
 }
 
 func (sdb *Topology) Print(source string) string {

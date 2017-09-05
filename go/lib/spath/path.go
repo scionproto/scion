@@ -40,7 +40,7 @@ func (p *Path) Copy() *Path {
 	return &Path{append(common.RawBytes(nil), p.Raw...), p.InfOff, p.HopOff}
 }
 
-func (p *Path) Reverse() *common.Error {
+func (p *Path) Reverse() error {
 	if len(p.Raw) == 0 {
 		// Empty path doesn't need reversal.
 		return nil
@@ -60,7 +60,7 @@ func (p *Path) Reverse() *common.Error {
 		if origOff == len(p.Raw) {
 			break
 		} else if origOff > len(p.Raw) {
-			return common.NewError("Unable to reverse corrupt path",
+			return common.NewCError("Unable to reverse corrupt path",
 				"currOff", origOff, "max", len(p.Raw))
 		}
 	}
@@ -95,10 +95,8 @@ func (p *Path) Reverse() *common.Error {
 		}
 		idx++
 	}
-
 	// Calculate Hop Field offset.
 	p.HopOff = len(p.Raw) - p.HopOff
-
 	// Update path with reversed copy.
 	p.Raw = revRaw
 	return nil
@@ -112,12 +110,10 @@ func (path *Path) InitOffsets() error {
 	var hopF *HopField
 	path.InfOff = 0
 	path.HopOff = common.LineLen
-
 	// Cannot initialize an empty path
 	if path == nil || len(path.Raw) == 0 {
-		return common.NewError("Unable to initialize empty path")
+		return common.NewCError("Unable to initialize empty path")
 	}
-
 	// Skip Peer with Xover HF
 	if infoF, err = path.getInfoField(path.InfOff); err != nil {
 		return err
@@ -135,7 +131,7 @@ func (path *Path) InitOffsets() error {
 		return err
 	}
 	if path.InfOff != 0 {
-		return common.NewError("Unable to find routing Hop Field in first path" +
+		return common.NewCError("Unable to find routing Hop Field in first path" +
 			"segment")
 	}
 	return nil
@@ -151,7 +147,7 @@ func (path *Path) IncOffsets() error {
 		return path.InitOffsets()
 	}
 	if hopF, err = path.getHopField(path.HopOff); err != nil {
-		return common.NewError("Hop Field parse error",
+		return common.NewCError("Hop Field parse error",
 			"offset", path.HopOff, "err", err)
 	}
 	return path.incOffsets(hopF.Len())
@@ -163,10 +159,9 @@ func (path *Path) incOffsets(skip int) error {
 	var hopF *HopField
 	infoF, err := path.getInfoField(path.InfOff)
 	if err != nil {
-		return common.NewError("Info Field parse error", "offset", path.InfOff,
+		return common.NewCError("Info Field parse error", "offset", path.InfOff,
 			"err", err)
 	}
-
 	path.HopOff += skip
 	for {
 		if path.HopOff-path.InfOff > int(infoF.Hops)*common.LineLen {
@@ -174,14 +169,13 @@ func (path *Path) incOffsets(skip int) error {
 			path.InfOff = path.HopOff
 			infoF, err = path.getInfoField(path.InfOff)
 			if err != nil {
-				return common.NewError("Info Field parse error",
+				return common.NewCError("Info Field parse error",
 					"offset", path.InfOff, "err", err)
 			}
 			path.HopOff += common.LineLen
 		}
-
 		if hopF, err = path.getHopField(path.HopOff); err != nil {
-			return common.NewError("Hop Field parse error",
+			return common.NewCError("Hop Field parse error",
 				"offset", path.HopOff, "err", err)
 		}
 		if !hopF.VerifyOnly {
@@ -194,22 +188,22 @@ func (path *Path) incOffsets(skip int) error {
 
 func (path *Path) getInfoField(offset int) (*InfoField, error) {
 	if offset < 0 {
-		return nil, common.NewError("Negative offset", "offset", offset)
+		return nil, common.NewCError("Negative offset", "offset", offset)
 	}
-	infoF, cerr := InfoFFromRaw(path.Raw[offset:])
-	if cerr != nil {
-		return nil, common.NewError("Unable to parse Info Field", "err", cerr)
+	infoF, err := InfoFFromRaw(path.Raw[offset:])
+	if err != nil {
+		return nil, common.NewCError("Unable to parse Info Field", "err", err)
 	}
 	return infoF, nil
 }
 
 func (path *Path) getHopField(offset int) (*HopField, error) {
 	if offset < 0 {
-		return nil, common.NewError("Negative offset", "offset", offset)
+		return nil, common.NewCError("Negative offset", "offset", offset)
 	}
-	hopF, cerr := HopFFromRaw(path.Raw[offset:])
-	if cerr != nil {
-		return nil, common.NewError("Unable to parse Hop Field", "err", cerr)
+	hopF, err := HopFFromRaw(path.Raw[offset:])
+	if err != nil {
+		return nil, common.NewCError("Unable to parse Hop Field", "err", err)
 	}
 	return hopF, nil
 }

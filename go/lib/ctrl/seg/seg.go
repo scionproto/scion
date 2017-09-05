@@ -38,18 +38,18 @@ type PathSegment struct {
 	}
 }
 
-func NewFromRaw(b common.RawBytes) (*PathSegment, *common.Error) {
+func NewFromRaw(b common.RawBytes) (*PathSegment, error) {
 	ps := &PathSegment{}
 	return ps, proto.ParseFromRaw(ps, ps.ProtoId(), b)
 }
 
-func (ps *PathSegment) ID() (common.RawBytes, *common.Error) {
+func (ps *PathSegment) ID() (common.RawBytes, error) {
 	h := sha256.New()
 	for _, as := range ps.ASEntries {
 		binary.Write(h, common.Order, as.RawIA)
-		hopf, cerr := as.HopEntries[0].HopField()
-		if cerr != nil {
-			return nil, cerr
+		hopf, err := as.HopEntries[0].HopField()
+		if err != nil {
+			return nil, err
 		}
 		binary.Write(h, common.Order, hopf.Ingress)
 		binary.Write(h, common.Order, hopf.Egress)
@@ -57,7 +57,7 @@ func (ps *PathSegment) ID() (common.RawBytes, *common.Error) {
 	return h.Sum(nil), nil
 }
 
-func (ps *PathSegment) Info() (*spath.InfoField, *common.Error) {
+func (ps *PathSegment) Info() (*spath.InfoField, error) {
 	return spath.InfoFFromRaw(ps.RawInfo)
 }
 
@@ -65,18 +65,18 @@ func (ps *PathSegment) ProtoId() proto.ProtoIdType {
 	return proto.PathSegment_TypeID
 }
 
-func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
+func (ps *PathSegment) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(ps, b)
 }
 
-func (ps *PathSegment) Pack() (common.RawBytes, *common.Error) {
+func (ps *PathSegment) Pack() (common.RawBytes, error) {
 	return proto.PackRoot(ps)
 }
 
 func (ps *PathSegment) String() string {
 	desc := []string{}
-	if id, cerr := ps.ID(); cerr != nil {
-		desc = append(desc, fmt.Sprintf("ID error: %s", cerr))
+	if id, err := ps.ID(); err != nil {
+		desc = append(desc, fmt.Sprintf("ID error: %s", err))
 	} else {
 		desc = append(desc, id.String())
 	}

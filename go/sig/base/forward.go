@@ -212,7 +212,7 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	// Send frame
 	bytesWritten, err := conn.Write(frame)
 	if err != nil {
-		return common.NewError("Egress write error", "err", err)
+		return common.NewCError("Egress write error", "err", err)
 	}
 	metrics.FramesSent.WithLabelValues(e.info.Name).Inc()
 	metrics.FrameBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))

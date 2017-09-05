@@ -30,7 +30,7 @@ type RevTokenCallbackArgs struct {
 
 // parseSCMPPayload is a hook that can be used for hookPayload, to retrieve the
 // SCMP payload.
-func (rp *RtrPkt) parseSCMPPayload() (HookResult, common.Payload, *common.Error) {
+func (rp *RtrPkt) parseSCMPPayload() (HookResult, common.Payload, error) {
 	hdr := rp.l4.(*scmp.Hdr)
 	pld, err := scmp.PldFromRaw(rp.Raw[rp.idxs.pld:],
 		scmp.ClassType{Class: hdr.Class, Type: hdr.Type})

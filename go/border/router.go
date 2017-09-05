@@ -56,7 +56,7 @@ type Router struct {
 	revInfoQ chan rpkt.RevTokenCallbackArgs
 }
 
-func NewRouter(id, confDir string) (*Router, *common.Error) {
+func NewRouter(id, confDir string) (*Router, error) {
 	metrics.Init(id)
 	r := &Router{Id: id, confDir: confDir}
 	if err := r.setup(); err != nil {
@@ -67,7 +67,7 @@ func NewRouter(id, confDir string) (*Router, *common.Error) {
 
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
-func (r *Router) Run() *common.Error {
+func (r *Router) Run() error {
 	go r.SyncInterface()
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
@@ -83,14 +83,16 @@ func (r *Router) Run() *common.Error {
 func (r *Router) confSig() {
 	defer liblog.LogPanicAndExit()
 	for range sighup {
-		var err *common.Error
+		var err error
 		var config *conf.Conf
 		if config, err = r.loadNewConfig(); err != nil {
-			log.Error("Error reloading config", err.Ctx...)
+			cerr := err.(*common.CError)
+			log.Error("Error reloading config", cerr.Ctx...)
 			continue
 		}
-		if err = r.setupNewContext(config); err != nil {
-			log.Error("Error setting up new context", err.Ctx...)
+		if err := r.setupNewContext(config); err != nil {
+			cerr := err.(*common.CError)
+			log.Error("Error setting up new context", cerr.Ctx...)
 			continue
 		}
 		log.Info("Config reloaded")
@@ -147,7 +149,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// Check if the packet needs to be processed locally, and if so register
 	// hooks for doing so.
 	if err := rp.NeedsLocalProcessing(); err != nil {
-		rp.Error("Error checking for local processing", err.Ctx...)
+		cerr := err.(*common.CError)
+		rp.Error("Error checking for local processing", cerr.Ctx...)
 		return
 	}
 	// Parse the packet payload, if a previous step has registered a relevant
@@ -155,7 +158,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if _, err := rp.Payload(true); err != nil {
 		// Any errors at this point are application-level, and hence not
 		// calling handlePktError, as no SCMP errors will be sent.
-		rp.Error("Error parsing payload", err.Ctx...)
+		cerr := err.(*common.CError)
+		rp.Error("Error parsing payload", cerr.Ctx...)
 		return
 	}
 	// Process the packet, if a previous step has registered a relevant hook

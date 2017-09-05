@@ -160,7 +160,7 @@ func (i *IngressWorker) CleanUp() {
 func send(packet common.RawBytes) error {
 	bytesWritten, err := InternalIngress.Write(packet)
 	if err != nil {
-		return common.NewError("Unable to write to Internal Ingress", "err", err,
+		return common.NewCError("Unable to write to Internal Ingress", "err", err,
 			"length", len(packet))
 	}
 	metrics.PktsSent.WithLabelValues(InternalIngressName).Inc()

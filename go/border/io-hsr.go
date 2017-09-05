@@ -67,7 +67,7 @@ func (hi *HSRInput) Stop() {
 // is only updated once), readHSRInput uses a map of port IDs to keep track of
 // which metrics need updating.
 func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) {
-	defer liblog.PanicLog()
+	defer liblog.LogPanicAndExit()
 	defer close(stoppedChan)
 	// Allocate slice of empty packets.
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)

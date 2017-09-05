@@ -75,7 +75,7 @@ func (r *SRing) Write(entries EntryList) (int, error) {
 	r.metrics.writeCalls.Inc()
 	n, max, ok := r.dataRefs.Write(entries)
 	if !ok {
-		return 0, common.NewError("Attempted to write more entries than reserved",
+		return 0, common.NewCError("Attempted to write more entries than reserved",
 			"expect", max, "actual", len(entries))
 	}
 	r.metrics.writeEntries.Add(float64(n))
@@ -101,7 +101,7 @@ func (r *SRing) Release(entries EntryList) (int, error) {
 	r.metrics.relCalls.Inc()
 	n, max, ok := r.freeRefs.Write(entries)
 	if !ok {
-		return 0, common.NewError("Attempted to release more entries than acquired",
+		return 0, common.NewCError("Attempted to release more entries than acquired",
 			"expect", max, "actual", len(entries))
 	}
 	r.metrics.relEntries.Add(float64(n))

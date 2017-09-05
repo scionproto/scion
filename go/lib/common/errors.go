@@ -16,38 +16,40 @@ package common
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kormat/fmt15"
 )
 
-type Error struct {
-	Desc string
-	Ctx  fmt15.FCtx
-	Data ErrorData
-}
+type ErrCtx fmt15.FCtx
 
 type ErrorData interface {
 	fmt.Stringer
 }
 
-func NewError(desc string, ctx ...interface{}) *Error {
-	e := &Error{Desc: desc}
-	e.Ctx = make(fmt15.FCtx, 0, len(ctx)+2)
-	e.Ctx = append(e.Ctx, fmt15.FCtx{"desc", desc}...)
-	e.Ctx = append(e.Ctx, ctx...)
-	return e
+var _ error = (*CError)(nil)
+
+type CError struct {
+	Desc string
+	Ctx  ErrCtx
+	Data ErrorData
+	Cerr *CError
 }
 
-func NewErrorData(desc string, data ErrorData, ctx ...interface{}) *Error {
-	e := NewError(desc, ctx...)
-	e.Data = data
-	return e
+func NewCError(desc string, ctx ...interface{}) error {
+	return &CError{Desc: desc, Ctx: ctx}
 }
 
-func (e Error) String() string {
-	return fmt.Sprintf("%+v", e.Ctx)
+func NewCErrorData(desc string, data ErrorData, ctx ...interface{}) error {
+	return &CError{Desc: desc, Ctx: ctx, Data: data}
 }
 
-func (e Error) Error() string {
-	return e.String()
+func (c CError) Error() string {
+	// FIXME(kormat): handle nesting.
+	s := []string{}
+	s = append(s, c.Desc)
+	for i := 0; i < len(c.Ctx); i += 2 {
+		s = append(s, fmt.Sprintf("%s=\"%s\"", c.Ctx[i], c.Ctx[i+1]))
+	}
+	return strings.Join(s, " ")
 }

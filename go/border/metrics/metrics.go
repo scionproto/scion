@@ -136,10 +136,10 @@ func Init(elem string) {
 }
 
 // Start handles exposing prometheus metrics.
-func Start() *common.Error {
+func Start() error {
 	ln, err := net.Listen("tcp", *promAddr)
 	if err != nil {
-		return common.NewError("Unable to bind prometheus metrics port", "err", err)
+		return common.NewCError("Unable to bind prometheus metrics port", "err", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
 	go http.Serve(ln, nil)

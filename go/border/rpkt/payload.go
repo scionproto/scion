@@ -24,7 +24,7 @@ import (
 // the layer 4 header has been parsed first, and then uses registered hooks to
 // retrieve the payload. Note there is no generic fallback; if no hooks are
 // registered, then no work is done.
-func (rp *RtrPkt) Payload(verify bool) (common.Payload, *common.Error) {
+func (rp *RtrPkt) Payload(verify bool) (common.Payload, error) {
 	if rp.pld == nil && len(rp.hooks.Payload) > 0 {
 		_, err := rp.L4Hdr(verify)
 		if err != nil {

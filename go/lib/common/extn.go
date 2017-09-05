@@ -71,10 +71,10 @@ type ExtnBase interface {
 type Extension interface {
 	ExtnBase
 	// Allocate buffer, write extn into it, and return it.
-	Pack() (RawBytes, *Error)
+	Pack() (RawBytes, error)
 	// Write extn into supplied buffer
-	Write(b RawBytes) *Error
+	Write(b RawBytes) error
 	Copy() Extension
 	// bool is true if extn is reversed, and false if it should be dropped.
-	Reverse() (bool, *Error)
+	Reverse() (bool, error)
 }

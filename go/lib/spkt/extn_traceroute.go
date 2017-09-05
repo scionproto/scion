@@ -46,9 +46,9 @@ func (t *Traceroute) TotalHops() int {
 	return int(cap(t.Hops))
 }
 
-func (t *Traceroute) Write(b common.RawBytes) *common.Error {
+func (t *Traceroute) Write(b common.RawBytes) error {
 	if len(b) < t.Len() {
-		return common.NewError("Buffer too short", "method", "Traceroute.Write")
+		return common.NewCError("Buffer too short", "method", "Traceroute.Write")
 	}
 	b[0] = uint8(t.NumHops())
 	offset := common.ExtnSubHdrLen
@@ -59,7 +59,7 @@ func (t *Traceroute) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (t *Traceroute) Pack() (common.RawBytes, *common.Error) {
+func (t *Traceroute) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, t.Len())
 	if err := t.Write(b); err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (t *Traceroute) Copy() common.Extension {
 	return c
 }
 
-func (t *Traceroute) Reverse() (bool, *common.Error) {
+func (t *Traceroute) Reverse() (bool, error) {
 	// Nothing to do.
 	return true, nil
 }

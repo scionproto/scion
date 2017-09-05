@@ -63,7 +63,7 @@ func (o Type) String() string {
 	}
 }
 
-func TypeFromString(s string) (Type, *common.Error) {
+func TypeFromString(s string) (Type, error) {
 	switch strings.ToLower(s) {
 	case strings.ToLower(IPv4Name):
 		return IPv4, nil
@@ -78,7 +78,7 @@ func TypeFromString(s string) (Type, *common.Error) {
 	case strings.ToLower(UDPIPv46Name):
 		return UDPIPv46, nil
 	default:
-		return Invalid, common.NewError("Unknown overlay type", "type", s)
+		return Invalid, common.NewCError("Unknown overlay type", "type", s)
 	}
 }
 
@@ -136,18 +136,17 @@ func (ot Type) To4() Type {
 	return IPv4
 }
 
-func OverlayFromIP(ip net.IP, ot Type) (Type, *common.Error) {
+func OverlayFromIP(ip net.IP, ot Type) Type {
 	if ip.To4() != nil {
 		// Address is IPv4
 		if ot.IsUDP() {
-			return UDPIPv4, nil
+			return UDPIPv4
 		}
-		return IPv4, nil
-	} else {
-		// Address is IPv6
-		if ot.IsUDP() {
-			return UDPIPv6, nil
-		}
-		return IPv6, nil
+		return IPv4
 	}
+	// Address is IPv6
+	if ot.IsUDP() {
+		return UDPIPv6
+	}
+	return IPv6
 }

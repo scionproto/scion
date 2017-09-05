@@ -32,7 +32,7 @@ type Extn struct {
 	HopByHop bool
 }
 
-func ExtnFromRaw(b common.RawBytes) (*Extn, *common.Error) {
+func ExtnFromRaw(b common.RawBytes) (*Extn, error) {
 	e := &Extn{}
 	flags := b[0]
 	e.Error = (flags & ExtnErrorFlag) != 0
@@ -44,7 +44,7 @@ func (e *Extn) Copy() common.Extension {
 	return &Extn{Error: e.Error, HopByHop: e.HopByHop}
 }
 
-func (e *Extn) Write(b common.RawBytes) *common.Error {
+func (e *Extn) Write(b common.RawBytes) error {
 	var flags uint8
 	if e.Error {
 		flags |= ExtnErrorFlag
@@ -58,7 +58,7 @@ func (e *Extn) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (e *Extn) Pack() (common.RawBytes, *common.Error) {
+func (e *Extn) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, e.Len())
 	if err := e.Write(b); err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (e *Extn) Pack() (common.RawBytes, *common.Error) {
 	return b, nil
 }
 
-func (e *Extn) Reverse() (bool, *common.Error) {
+func (e *Extn) Reverse() (bool, error) {
 	// Reversing removes the extension.
 	return false, nil
 }

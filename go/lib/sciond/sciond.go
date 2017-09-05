@@ -86,11 +86,11 @@ func (c *Connector) nextID() uint64 {
 }
 
 func (c *Connector) send(p *Pld) error {
-	raw, cerr := proto.PackRoot(p)
-	if cerr != nil {
-		return cerr
+	raw, err := proto.PackRoot(p)
+	if err != nil {
+		return err
 	}
-	_, err := c.conn.Write(raw)
+	_, err = c.conn.Write(raw)
 	return err
 }
 
@@ -250,9 +250,9 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 
 func (c *Connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 	// Extract information from notification
-	ri, cerr := path_mgmt.NewRevInfoFromRaw(revInfo)
-	if cerr != nil {
-		return nil, cerr
+	ri, err := path_mgmt.NewRevInfoFromRaw(revInfo)
+	if err != nil {
+		return nil, err
 	}
 	return c.RevNotification(ri)
 }

@@ -30,7 +30,7 @@ type IFID struct {
 	RelayIfID uint64 `capnp:"relayIF"`
 }
 
-func NewFromRaw(b common.RawBytes) (*IFID, *common.Error) {
+func NewFromRaw(b common.RawBytes) (*IFID, error) {
 	i := &IFID{}
 	return i, proto.ParseFromRaw(i, i.ProtoId(), b)
 }
@@ -39,7 +39,7 @@ func (i *IFID) ProtoId() proto.ProtoIdType {
 	return proto.IFID_TypeID
 }
 
-func (i *IFID) Write(b common.RawBytes) (int, *common.Error) {
+func (i *IFID) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(i, b)
 }
 
