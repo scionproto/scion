@@ -178,15 +178,11 @@ func (c *Conn) Write(b []byte) (int, error) {
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	var path *spath.Path
 	var err error
-
 	pathEntry, err := c.selectPathEntry(raddr)
 	if err != nil {
-		return 0, common.NewError("Path error", "err", err)
+		return 0, err
 	}
-	if pathEntry == nil {
-		// No path information should be added to the packet
-		path = nil
-	} else {
+	if pathEntry != nil {
 		path = spath.New(pathEntry.Path.FwdPath)
 		// Create the path using initial IF/HF pointers
 		err = path.InitOffsets()
@@ -242,7 +238,6 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var err error
 	var pathList pathmgr.PathList
-
 	if c.laddr.IA.Eq(raddr.IA) {
 		// If src and dst are in the same AS, the path will be empty
 		return nil, nil
@@ -265,7 +260,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	}
 
 	if len(pathList) == 0 {
-		return nil, common.NewError("Path not found")
+		return nil, common.NewError("Path not found", "srcIA", c.laddr.IA, "dstIA", raddr.IA)
 	}
 	return pathList[0], nil
 }

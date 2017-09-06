@@ -51,7 +51,7 @@ import (
 var (
 	// Time between checks for stale path references
 	pathCleanupInterval = time.Minute
-	// TTL for pointers to Path Resolver managed paths
+	// TTL for pointers to Path Resolver cached paths
 	pathTTL = 30 * time.Minute
 )
 
@@ -120,7 +120,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) PathList {
 	q := query{src: src, dst: dst}
 	pathList := r.lookup(q)
 	if pathList == nil {
-		// We didn't find any paths due to an error
+		// We didn't find any paths
 		return nil
 	}
 	// We found paths, so we cache them
@@ -214,7 +214,7 @@ func (r *PR) lookup(q query) PathList {
 		log.Error("Unable to find path", "src", q.src, "dst", q.dst,
 			"code", reply.ErrorCode)
 
-		// NB: keep the old path if lookup failed
+		// On error we return immediately, without changing any paths
 		return nil
 	}
 
