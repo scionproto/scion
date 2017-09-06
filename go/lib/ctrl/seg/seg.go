@@ -47,7 +47,8 @@ func (ps *PathSegment) ID() common.RawBytes {
 	for _, as := range ps.ASEntries {
 		data := make([]byte, 20)
 		common.Order.PutUint32(data, as.RawIA)
-		// FIXME(shitz): This should actually use the hopfield directly (also in the Python lib.)
+		// FIXME(shitz): This should actually use the hopfield directly (also in the Python lib.).
+		// See https://github.com/netsec-ethz/scion/issues/1244 for more info.
 		common.Order.PutUint64(data, as.HopEntries[0].InIF)
 		common.Order.PutUint64(data, as.HopEntries[0].OutIF)
 		h.Write(data)
@@ -111,13 +112,12 @@ const (
 
 func (t Type) String() string {
 	switch t {
-	case 0:
+	case UpSegment:
 		return "UP"
-	case 1:
+	case DownSegment:
 		return "DOWN"
-	case 2:
+	case CoreSegment:
 		return "CORE"
-	default:
-		return "UNKNOWN"
 	}
+	return fmt.Sprintf("UNKNOWN (%d)", t)
 }

@@ -37,7 +37,7 @@ func (h *HPCfgID) Eq(other *HPCfgID) bool {
 	return h.IA.Eq(other.IA) && h.ID == other.ID
 }
 
-var NullCfgID = HPCfgID{IA: addr.IAFromInt(0), ID: 0}
+var NullHpCfgID = HPCfgID{IA: addr.IAFromInt(0), ID: 0}
 
 type IntfSpec struct {
 	IA   *addr.ISD_AS
@@ -47,13 +47,13 @@ type IntfSpec struct {
 type Params struct {
 	SegID    common.RawBytes
 	SegTypes []seg.Type
-	CfgIDs   []*HPCfgID
+	HpCfgIDs []*HPCfgID
 	Intfs    []*IntfSpec
 	StartsAt []*addr.ISD_AS
 	EndsAt   []*addr.ISD_AS
 }
 
 type Result struct {
-	Seg    *seg.PathSegment
-	CfgIDs []*HPCfgID
+	Seg      *seg.PathSegment
+	HpCfgIDs []*HPCfgID
 }

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/inconshreveable/log15"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -44,6 +45,7 @@ var _ conn.Conn = (*Backend)(nil)
 type Backend struct {
 	sync.RWMutex
 	db *sql.DB
+	tx *sql.Tx
 }
 
 // New returns a new SQLite backend opening a database at the given path. If
@@ -125,12 +127,46 @@ func (b *Backend) close() *common.Error {
 	return nil
 }
 
+func (b *Backend) begin() *common.Error {
+	if b.tx != nil {
+		return common.NewError("A transaction already exists")
+	}
+	var err error
+	if b.tx, err = b.db.Begin(); err != nil {
+		return common.NewError("Failed to create transaction", "err", err)
+	}
+	return nil
+}
+
+func (b *Backend) prepareAndExec(inst string, args ...interface{}) (sql.Result, *common.Error) {
+	stmt, err := b.tx.Prepare(inst)
+	if err != nil {
+		return nil, common.NewError("Failed to prepare statement", "stmt", inst, "err", err)
+	}
+	res, err := stmt.Exec(args...)
+	if err != nil {
+		return nil, common.NewError("Failed to execute statement", "stmt", inst, "err", err)
+	}
+	return res, nil
+}
+
+func (b *Backend) commit() *common.Error {
+	if b.tx == nil {
+		return common.NewError("No transaction to commit")
+	}
+	if err := b.tx.Commit(); err != nil {
+		return common.NewError("Failed to commit transaction", "err", err)
+	}
+	b.tx = nil
+	return nil
+}
+
 func (b *Backend) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, *common.Error) {
-	return b.InsertWithHPCfgIDs(pseg, segTypes, []*query.HPCfgID{&query.NullCfgID})
+	return b.InsertWithHPCfgIDs(pseg, segTypes, []*query.HPCfgID{&query.NullHpCfgID})
 }
 
 func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
-	segTypes []seg.Type, cfgIDs []*query.HPCfgID) (int, *common.Error) {
+	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) (int, *common.Error) {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
@@ -150,7 +186,7 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
-			if err := b.updateExisting(meta, segTypes, cfgIDs); err != nil {
+			if err := b.updateExisting(meta, segTypes, hpCfgIDs); err != nil {
 				return 0, err
 			}
 			return 1, nil
@@ -158,7 +194,7 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 		return 0, nil
 	}
 	// Do full insert.
-	err = b.insertFull(pseg, segTypes, cfgIDs)
+	err = b.insertFull(pseg, segTypes, hpCfgIDs)
 	if err != nil {
 		return 0, err
 	}
@@ -191,87 +227,74 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, *common.Error) {
 }
 
 func (b *Backend) updateExisting(meta *segMeta,
-	segTypes []seg.Type, cfgIDs []*query.HPCfgID) *common.Error {
-	tx, err := b.db.Begin()
-	if err != nil {
-		return common.NewError("Failed to create transaction", "err", err)
+	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) *common.Error {
+	// Create new transaction
+	if cerr := b.begin(); cerr != nil {
+		return cerr
 	}
 	// Update segment.
-	if cerr := updateSeg(tx, meta); cerr != nil {
-		tx.Rollback()
+	if cerr := b.updateSeg(meta); cerr != nil {
+		b.tx.Rollback()
 		return cerr
 	}
 	// Check if the existing segment is registered as the given type(s).
 	for _, segType := range segTypes {
-		if cerr := insertType(tx, meta.RowID, segType); cerr != nil {
-			tx.Rollback()
+		if cerr := b.insertType(meta.RowID, segType); cerr != nil {
+			b.tx.Rollback()
 			return cerr
 		}
 	}
-	// Check if the existing segment is registered with the given cfgIDs.
-	for _, cfgID := range cfgIDs {
-		if cerr := insertHPCfgID(tx, meta.RowID, cfgID); cerr != nil {
-			tx.Rollback()
+	// Check if the existing segment is registered with the given hpCfgIDs.
+	for _, hpCfgID := range hpCfgIDs {
+		if cerr := b.insertHPCfgID(meta.RowID, hpCfgID); cerr != nil {
+			b.tx.Rollback()
 			return cerr
 		}
 	}
 	// Commit transaction
-	err = tx.Commit()
-	if err != nil {
-		return common.NewError("Failed to commit transaction", "err", err)
+	if cerr := b.commit(); cerr != nil {
+		return cerr
 	}
 	return nil
 }
 
-func updateSeg(tx *sql.Tx, meta *segMeta) *common.Error {
+func (b *Backend) updateSeg(meta *segMeta) *common.Error {
 	packedSeg, cerr := meta.Seg.Pack()
 	if cerr != nil {
 		return cerr
 	}
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=? WHERE RowID=?`
-	_, err := prepareAndExec(tx, stmtStr, meta.LastUpdated.Unix(), packedSeg, meta.RowID)
+	_, err := b.prepareAndExec(stmtStr, meta.LastUpdated.Unix(), packedSeg, meta.RowID)
 	if err != nil {
 		return common.NewError("Failed to update segment", "err", err)
 	}
 	return nil
 }
 
-func prepareAndExec(tx *sql.Tx, inst string, args ...interface{}) (sql.Result, *common.Error) {
-	stmt, err := tx.Prepare(inst)
-	if err != nil {
-		return nil, common.NewError("Failed to prepare statement", "stmt", inst, "err", err)
-	}
-	res, err := stmt.Exec(args...)
-	if err != nil {
-		return nil, common.NewError("Failed to execute statement", "stmt", inst, "err", err)
-	}
-	return res, nil
-}
-
-func insertType(tx *sql.Tx, segRowID int64, segType seg.Type) *common.Error {
-	_, err := prepareAndExec(tx, "INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
+func (b *Backend) insertType(segRowID int64, segType seg.Type) *common.Error {
+	_, err := b.prepareAndExec("INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
-		return common.NewError("Faild to insert type", "err", err)
+		return common.NewError("Failed to insert type", "err", err)
 	}
 	return nil
 }
 
-func insertHPCfgID(tx *sql.Tx, segRowID int64, cfgID *query.HPCfgID) *common.Error {
-	_, err := prepareAndExec(
-		tx, "INSERT INTO HPCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
-		segRowID, cfgID.IA.I, cfgID.IA.A, cfgID.ID)
+func (b *Backend) insertHPCfgID(segRowID int64, hpCfgID *query.HPCfgID) *common.Error {
+	_, err := b.prepareAndExec(
+		"INSERT INTO HpCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
+		segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
 	if err != nil {
-		return common.NewError("Faild to insert cfgID", "err", err)
+		return common.NewError("Failed to insert hpCfgID", "err", err)
 	}
 	return nil
 }
 
 func (b *Backend) insertFull(pseg *seg.PathSegment,
-	segTypes []seg.Type, cfgIDs []*query.HPCfgID) *common.Error {
-	tx, err := b.db.Begin()
-	if err != nil {
-		return common.NewError("Failed to create transaction", "err", err)
+	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) *common.Error {
+	// Create new transaction
+	if cerr := b.begin(); cerr != nil {
+		return cerr
 	}
 	segID := pseg.ID()
 	packedSeg, cerr := pseg.Pack()
@@ -280,63 +303,58 @@ func (b *Backend) insertFull(pseg *seg.PathSegment,
 	}
 	// Insert path segment.
 	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment) VALUES (?, ?, ?)`
-	res, cerr := prepareAndExec(tx, inst, segID, time.Now().Unix(), packedSeg)
+	res, cerr := b.prepareAndExec(inst, segID, time.Now().Unix(), packedSeg)
 	if cerr != nil {
-		tx.Rollback()
+		b.tx.Rollback()
 		return common.NewError("Failed to insert path segment", "err", cerr)
 	}
 	segRowID, err := res.LastInsertId()
 	if err != nil {
-		tx.Rollback()
+		b.tx.Rollback()
 		return common.NewError("Failed to retrieve segRowID of inserted segment", "err", err)
 	}
 	// Insert all interfaces.
-	cerr = insertInterfaces(tx, pseg.ASEntries, segRowID)
-	if cerr != nil {
-		tx.Rollback()
+	if cerr = b.insertInterfaces(pseg.ASEntries, segRowID); cerr != nil {
+		b.tx.Rollback()
 		return cerr
 	}
 	// Insert ISD-AS to StartsAt.
-	cerr = insertStartOrEnd(tx, pseg.ASEntries[0], segRowID, "StartsAt")
-	if cerr != nil {
-		tx.Rollback()
+	if cerr = b.insertStartOrEnd(pseg.ASEntries[0], segRowID, StartsAtTable); cerr != nil {
+		b.tx.Rollback()
 		return cerr
 	}
 	// Insert ISD-AS to EndsAt.
-	cerr = insertStartOrEnd(tx, pseg.ASEntries[len(pseg.ASEntries)-1], segRowID, "EndsAt")
-	if cerr != nil {
-		tx.Rollback()
+	if cerr = b.insertStartOrEnd(pseg.ASEntries[len(pseg.ASEntries)-1],
+		segRowID, EndsAtTable); cerr != nil {
+		b.tx.Rollback()
 		return cerr
 	}
 	// Insert segType information.
 	for _, segType := range segTypes {
-		cerr = insertType(tx, segRowID, segType)
-		if cerr != nil {
-			tx.Rollback()
+		if cerr = b.insertType(segRowID, segType); cerr != nil {
+			b.tx.Rollback()
 			return cerr
 		}
 	}
-	// Insert cfgID information.
-	for _, cfgID := range cfgIDs {
-		cerr = insertHPCfgID(tx, segRowID, cfgID)
-		if cerr != nil {
-			tx.Rollback()
+	// Insert hpCfgID information.
+	for _, hpCfgID := range hpCfgIDs {
+		if cerr = b.insertHPCfgID(segRowID, hpCfgID); cerr != nil {
+			b.tx.Rollback()
 			return cerr
 		}
 	}
 	// Commit transaction
-	err = tx.Commit()
-	if cerr != nil {
-		return common.NewError("Failed to commit transaction", "err", err)
+	if cerr = b.commit(); cerr != nil {
+		return cerr
 	}
 	return nil
 }
 
-func insertInterfaces(tx *sql.Tx, ases []*seg.ASEntry, segRowID int64) *common.Error {
+func (b *Backend) insertInterfaces(ases []*seg.ASEntry, segRowID int64) *common.Error {
 	for _, as := range ases {
 		ia := as.IA()
 		stmtStr := `INSERT INTO IntfToSeg (IsdID, ASID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
-		stmt, err := tx.Prepare(stmtStr)
+		stmt, err := b.tx.Prepare(stmtStr)
 		if err != nil {
 			return common.NewError("Failed to prepare insert into IntfToSeg", "err", err)
 		}
@@ -346,17 +364,17 @@ func insertInterfaces(tx *sql.Tx, ases []*seg.ASEntry, segRowID int64) *common.E
 			if cerr != nil {
 				return common.NewError("Failed to extract hop field", "err", cerr)
 			}
-			if hof.Egress != 0 {
-				_, err := stmt.Exec(ia.I, ia.A, hof.Egress, segRowID)
-				if err != nil {
-					return common.NewError("Failed to insert Egress into IntfToSeg", "err", err)
-				}
-			}
-			// Only insert the Ingress interface for the first hop entry in an AS entry.
-			if idx == 0 && hof.Ingress != 0 {
+			if hof.Ingress != 0 {
 				_, err = stmt.Exec(ia.I, ia.A, hof.Ingress, segRowID)
 				if err != nil {
 					return common.NewError("Failed to insert Ingress into IntfToSeg", "err", err)
+				}
+			}
+			// Only insert the Egress interface for the first hop entry in an AS entry.
+			if idx == 0 && hof.Egress != 0 {
+				_, err := stmt.Exec(ia.I, ia.A, hof.Egress, segRowID)
+				if err != nil {
+					return common.NewError("Failed to insert Egress into IntfToSeg", "err", err)
 				}
 			}
 		}
@@ -364,11 +382,11 @@ func insertInterfaces(tx *sql.Tx, ases []*seg.ASEntry, segRowID int64) *common.E
 	return nil
 }
 
-func insertStartOrEnd(tx *sql.Tx, as *seg.ASEntry,
-	segRowID int64, tableName string) *common.Error {
+func (b *Backend) insertStartOrEnd(as *seg.ASEntry, segRowID int64,
+	tableName string) *common.Error {
 	ia := as.IA()
 	stmtStr := fmt.Sprintf("INSERT INTO %s (IsdID, AsID, SegRowID) VALUES (?, ?, ?)", tableName)
-	_, err := prepareAndExec(tx, stmtStr, ia.I, ia.A, segRowID)
+	_, err := b.prepareAndExec(stmtStr, ia.I, ia.A, segRowID)
 	if err != nil {
 		return common.NewError(fmt.Sprintf("Failed to insert into %s", tableName), "err", err)
 	}
@@ -381,19 +399,18 @@ func (b *Backend) Delete(segID common.RawBytes) (int, *common.Error) {
 	if b.db == nil {
 		return 0, common.NewError("No database open")
 	}
-	tx, err := b.db.Begin()
-	if err != nil {
-		return 0, common.NewError("Failed to create transaction", "err", err)
+	// Create new transaction
+	if cerr := b.begin(); cerr != nil {
+		return 0, cerr
 	}
-	res, cerr := prepareAndExec(tx, "DELETE FROM Segments WHERE SegID=?", segID)
+	res, cerr := b.prepareAndExec("DELETE FROM Segments WHERE SegID=?", segID)
 	if cerr != nil {
-		tx.Rollback()
+		b.tx.Rollback()
 		return 0, common.NewError("Failed to delete segment", "err", cerr)
 	}
 	// Commit transaction
-	err = tx.Commit()
-	if err != nil {
-		return 0, common.NewError("Failed to commit transaction", "err", err)
+	if cerr := b.commit(); cerr != nil {
+		return 0, cerr
 	}
 	deleted, _ := res.RowsAffected()
 	return int(deleted), nil
@@ -405,21 +422,20 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, *common.Error) {
 	if b.db == nil {
 		return 0, common.NewError("No database open")
 	}
-	tx, err := b.db.Begin()
-	if err != nil {
-		return 0, common.NewError("Failed to create transaction", "err", err)
+	// Create new transaction
+	if cerr := b.begin(); cerr != nil {
+		return 0, cerr
 	}
 	delStmt := `DELETE FROM Segments WHERE EXISTS (
 		SELECT * FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=?)`
-	res, cerr := prepareAndExec(tx, delStmt, intf.IA.I, intf.IA.A, intf.IfID)
+	res, cerr := b.prepareAndExec(delStmt, intf.IA.I, intf.IA.A, intf.IfID)
 	if cerr != nil {
-		tx.Rollback()
+		b.tx.Rollback()
 		return 0, common.NewError("Failed to delete segments", "err", cerr)
 	}
 	// Commit transaction
-	err = tx.Commit()
-	if err != nil {
-		return 0, common.NewError("Failed to commit transaction", "err", err)
+	if cerr := b.commit(); cerr != nil {
+		return 0, cerr
 	}
 	deleted, _ := res.RowsAffected()
 	return int(deleted), nil
@@ -431,7 +447,8 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 	if b.db == nil {
 		return nil, common.NewError("No database open")
 	}
-	stmt := buildQuery(params)
+	stmt := b.buildQuery(params)
+	log.Debug("Query", "query", stmt)
 	rows, err := b.db.Query(stmt)
 	if err != nil {
 		return nil, common.NewError("Error looking up path segment", "q", stmt, "err", err)
@@ -462,9 +479,9 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 				return nil, common.NewError("Error unmarshalling segment", "err", cerr)
 			}
 		}
-		// Append cfgID to result
+		// Append hpCfgID to result
 		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{I: cfgIsd, A: cfgAs}, ID: cfgID}
-		curRes.CfgIDs = append(curRes.CfgIDs, hpCfgID)
+		curRes.HpCfgIDs = append(curRes.HpCfgIDs, hpCfgID)
 		prevID = segRowID
 	}
 	if curRes != nil {
@@ -473,10 +490,10 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 	return res, nil
 }
 
-func buildQuery(params *query.Params) string {
+func (b *Backend) buildQuery(params *query.Params) string {
 	query := []string{
 		"SELECT DISTINCT s.RowID, s.Segment, h.IsdID, h.AsID, h.CfgID FROM Segments s",
-		"JOIN HPCfgIds h ON h.SegRowID=s.RowID",
+		"JOIN HpCfgIds h ON h.SegRowID=s.RowID",
 	}
 	if params == nil {
 		return strings.Join(query, "\n")
@@ -492,15 +509,15 @@ func buildQuery(params *query.Params) string {
 		for _, segType := range params.SegTypes {
 			subQ = append(subQ, fmt.Sprintf("t.Type='%d'", segType))
 		}
-		where = append(where, strings.Join(subQ, " OR "))
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
-	if len(params.CfgIDs) > 0 {
+	if len(params.HpCfgIDs) > 0 {
 		subQ := []string{}
-		for _, cfgID := range params.CfgIDs {
+		for _, hpCfgID := range params.HpCfgIDs {
 			subQ = append(subQ, fmt.Sprintf("(h.IsdID='%d' AND h.AsID='%d' AND h.CfgID='%d')",
-				cfgID.IA.I, cfgID.IA.A, cfgID.ID))
+				hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID))
 		}
-		where = append(where, strings.Join(subQ, " OR "))
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.Intfs) > 0 {
 		joins = append(joins, "JOIN IntfToSeg i ON i.SegRowID=s.RowID")
@@ -509,7 +526,7 @@ func buildQuery(params *query.Params) string {
 			subQ = append(subQ, fmt.Sprintf("(i.IsdID='%d' AND i.AsID='%d' AND i.IntfID='%d')",
 				spec.IA.I, spec.IA.A, spec.IfID))
 		}
-		where = append(where, strings.Join(subQ, " OR "))
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.StartsAt) > 0 {
 		joins = append(joins, "JOIN StartsAt st ON st.SegRowID=s.RowID")
@@ -517,7 +534,7 @@ func buildQuery(params *query.Params) string {
 		for _, as := range params.StartsAt {
 			subQ = append(subQ, fmt.Sprintf("(st.IsdID='%d' AND st.AsID='%d')", as.I, as.A))
 		}
-		where = append(where, strings.Join(subQ, " OR "))
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.EndsAt) > 0 {
 		joins = append(joins, "JOIN EndsAt e ON e.SegRowID=s.RowID")
@@ -525,7 +542,7 @@ func buildQuery(params *query.Params) string {
 		for _, as := range params.EndsAt {
 			subQ = append(subQ, fmt.Sprintf("(e.IsdID='%d' AND e.AsID='%d')", as.I, as.A))
 		}
-		where = append(where, strings.Join(subQ, " OR "))
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	// Assemble the query.
 	if len(joins) > 0 {
