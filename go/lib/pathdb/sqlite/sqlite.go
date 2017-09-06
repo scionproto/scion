@@ -155,6 +155,7 @@ func (b *Backend) commit() *common.Error {
 		return common.NewError("No transaction to commit")
 	}
 	if err := b.tx.Commit(); err != nil {
+		b.tx = nil
 		return common.NewError("Failed to commit transaction", "err", err)
 	}
 	b.tx = nil
@@ -460,10 +461,8 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 	for rows.Next() {
 		var segRowID int
 		var rawSeg sql.RawBytes
-		var cfgIsd int
-		var cfgAs int
-		var cfgID uint64
-		err = rows.Scan(&segRowID, &rawSeg, &cfgIsd, &cfgAs, &cfgID)
+		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{}}
+		err = rows.Scan(&segRowID, &rawSeg, &hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
 		if err != nil {
 			return nil, common.NewError("Error reading DB response", "err", err)
 		}
@@ -480,7 +479,6 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 			}
 		}
 		// Append hpCfgID to result
-		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{I: cfgIsd, A: cfgAs}, ID: cfgID}
 		curRes.HpCfgIDs = append(curRes.HpCfgIDs, hpCfgID)
 		prevID = segRowID
 	}
