@@ -213,8 +213,6 @@ func (r *PR) lookup(q query) PathList {
 		// SCIOND internal error
 		log.Error("Unable to find path", "src", q.src, "dst", q.dst,
 			"code", reply.ErrorCode)
-
-		// On error we return immediately, without changing any paths
 		return nil
 	}
 
