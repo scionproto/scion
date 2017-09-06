@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -174,10 +173,13 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 		return 0, common.NewError("No database open")
 	}
 	// Check if we already have a path segment.
-	segID := pseg.ID()
-	meta, err := b.get(segID)
-	if err != nil {
-		return 0, err
+	segID, cerr := pseg.ID()
+	if cerr != nil {
+		return 0, cerr
+	}
+	meta, cerr := b.get(segID)
+	if cerr != nil {
+		return 0, cerr
 	}
 	if meta != nil {
 		// Check if the new segment is more recent.
@@ -195,9 +197,8 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 		return 0, nil
 	}
 	// Do full insert.
-	err = b.insertFull(pseg, segTypes, hpCfgIDs)
-	if err != nil {
-		return 0, err
+	if cerr = b.insertFull(pseg, segTypes, hpCfgIDs); cerr != nil {
+		return 0, cerr
 	}
 	return 1, nil
 }
@@ -297,7 +298,10 @@ func (b *Backend) insertFull(pseg *seg.PathSegment,
 	if cerr := b.begin(); cerr != nil {
 		return cerr
 	}
-	segID := pseg.ID()
+	segID, cerr := pseg.ID()
+	if cerr != nil {
+		return cerr
+	}
 	packedSeg, cerr := pseg.Pack()
 	if cerr != nil {
 		return cerr
@@ -449,7 +453,6 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, *common.Error) {
 		return nil, common.NewError("No database open")
 	}
 	stmt := b.buildQuery(params)
-	log.Debug("Query", "query", stmt)
 	rows, err := b.db.Query(stmt)
 	if err != nil {
 		return nil, common.NewError("Error looking up path segment", "q", stmt, "err", err)
