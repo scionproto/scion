@@ -54,8 +54,8 @@ func (db *DB) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, *common.E
 // InsertWithCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 // returns the number of path segments that have been inserted/updated.
 func (db *DB) InsertWithHPCfgIDs(pseg *seg.PathSegment,
-	segTypes []seg.Type, cfgIDs []*query.HPCfgID) (int, *common.Error) {
-	return db.conn.InsertWithHPCfgIDs(pseg, segTypes, cfgIDs)
+	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) (int, *common.Error) {
+	return db.conn.InsertWithHPCfgIDs(pseg, segTypes, hpCfgIDs)
 }
 
 // Delete deletes a path segment with a given ID. Returns the number of deleted

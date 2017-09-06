@@ -53,7 +53,7 @@ const (
 		PRIMARY KEY (SegRowID, Type) ON CONFLICT IGNORE,
 		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
 	);
-	CREATE TABLE HPCfgIds(
+	CREATE TABLE HpCfgIds(
 		SegRowID INTEGER NOT NULL,
 		IsdID INTEGER NOT NULL,
 		AsID INTEGER NOT NULL,
@@ -61,4 +61,10 @@ const (
 		PRIMARY KEY (SegRowID, IsdID, AsID, CfgID) ON CONFLICT IGNORE,
 		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
 	);`
+	SegmentsTable  = "Segments"
+	IntfToSegTable = "IntfToSeg"
+	StartsAtTable  = "StartsAt"
+	EndsAtTable    = "EndsAt"
+	SegTypesTable  = "SegTypes"
+	HpCfgIdsTable  = "HpCfgIds"
 )
