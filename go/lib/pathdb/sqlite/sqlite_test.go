@@ -64,9 +64,10 @@ var (
 )
 
 func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
-	hops := make([]*spath.HopField, len(ifs)/2)
+	rawHops := make([][]byte, len(ifs)/2)
 	for i := 0; i < len(ifs)/2; i++ {
-		hops[i] = spath.NewHopField(make([]byte, 8), common.IFIDType(ifs[2*i]),
+		rawHops[i] = make([]byte, 8)
+		_ = spath.NewHopField(rawHops[i], common.IFIDType(ifs[2*i]),
 			common.IFIDType(ifs[2*i+1]))
 	}
 	ases := []*seg.ASEntry{
@@ -79,7 +80,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia16.Uint32(),
 					OutIF:       ifs[1],
-					RawHopField: hops[0].Pack(),
+					RawHopField: rawHops[0],
 				},
 			},
 		},
@@ -92,7 +93,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
 					OutIF:       ifs[3],
-					RawHopField: hops[1].Pack(),
+					RawHopField: rawHops[1],
 				},
 				{
 					RawInIA:     ia13.Uint32(),
@@ -100,7 +101,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia14.Uint32(),
 					OutIF:       ifs[5],
-					RawHopField: hops[2].Pack(),
+					RawHopField: rawHops[2],
 				},
 			},
 		},
@@ -113,7 +114,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
 					OutIF:       ifs[7],
-					RawHopField: hops[3].Pack(),
+					RawHopField: rawHops[3],
 				},
 			},
 		},
