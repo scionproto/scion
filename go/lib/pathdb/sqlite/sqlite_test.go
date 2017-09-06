@@ -64,6 +64,11 @@ var (
 )
 
 func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
+	hops := make([]*spath.HopField, len(ifs)/2)
+	for i := 0; i < len(ifs)/2; i++ {
+		hops[i] = spath.NewHopField(make([]byte, 8), common.IFIDType(ifs[2*i]),
+			common.IFIDType(ifs[2*i+1]))
+	}
 	ases := []*seg.ASEntry{
 		{
 			RawIA: ia13.Uint32(),
@@ -74,7 +79,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia16.Uint32(),
 					OutIF:       ifs[1],
-					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
+					RawHopField: hops[0].Raw(),
 				},
 			},
 		},
@@ -87,7 +92,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
 					OutIF:       ifs[3],
-					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
+					RawHopField: hops[1].Raw(),
 				},
 				{
 					RawInIA:     ia13.Uint32(),
@@ -95,7 +100,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia14.Uint32(),
 					OutIF:       ifs[5],
-					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
+					RawHopField: hops[2].Raw(),
 				},
 			},
 		},
@@ -108,7 +113,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
 					OutIF:       ifs[7],
-					RawHopField: []byte("\xde\x00\xad\x01\xbe\x02\xef\x03"),
+					RawHopField: hops[3].Raw(),
 				},
 			},
 		},
@@ -146,17 +151,18 @@ func tempFilename(t *testing.T) string {
 
 func insertSeg(t *testing.T, b *Backend,
 	pseg *seg.PathSegment, types []seg.Type, cfgIDs []*query.HPCfgID) int {
-	inserted, cerr := b.InsertWithCfgIDs(pseg, types, cfgIDs)
+	inserted, cerr := b.InsertWithHPCfgIDs(pseg, types, cfgIDs)
 	if cerr != nil {
 		t.Fatal(cerr)
 	}
 	return inserted
 }
 
-func checkSegments(t *testing.T, b *Backend, rowID int, segID common.RawBytes, ts uint32) {
+func checkSegments(t *testing.T, b *Backend, segRowID int, segID common.RawBytes, ts uint32) {
 	var ID int
 	var rawSeg []byte
-	err := b.db.QueryRow("SELECT ID, Segment FROM Segments WHERE SegID=?", segID).Scan(&ID, &rawSeg)
+	err := b.db.QueryRow("SELECT RowID, Segment FROM Segments WHERE SegID=?",
+		segID).Scan(&ID, &rawSeg)
 	if err != nil {
 		t.Fatal("checkSegments: Call", "err", err)
 	}
@@ -165,16 +171,16 @@ func checkSegments(t *testing.T, b *Backend, rowID int, segID common.RawBytes, t
 		t.Fatal("checkSegments: Parse", "err", cerr)
 	}
 	info, _ := pseg.Info()
-	SoMsg("RowID match", ID, ShouldEqual, rowID)
+	SoMsg("RowID match", ID, ShouldEqual, segRowID)
 	SoMsg("Timestamps match", info.TsInt, ShouldEqual, ts)
 }
 
-func checkIntfToSeg(t *testing.T, b *Backend, rowID int, intfs []query.IntfSpec) {
+func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSpec) {
 	for _, spec := range intfs {
 		var count int
 		row := b.db.QueryRow(
-			"SELECT COUNT(*) FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=? AND SegID=?",
-			spec.IA.I, spec.IA.A, spec.IfID, rowID)
+			"SELECT COUNT(*) FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=? AND SegRowID=?",
+			spec.IA.I, spec.IA.A, spec.IfID, segRowID)
 		err := row.Scan(&count)
 		if err != nil {
 			t.Fatal("CheckIntfToSegTable", "err", err)
@@ -190,21 +196,21 @@ func checkIntfToSeg(t *testing.T, b *Backend, rowID int, intfs []query.IntfSpec)
 	SoMsg("No IF 0", count, ShouldEqual, 0)
 }
 
-func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, rowID int, ia *addr.ISD_AS) {
+func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int, ia *addr.ISD_AS) {
 	var segID int
-	queryStr := fmt.Sprintf("SELECT SegID FROM %s WHERE IsdID=%v AND AsID=%v", table, ia.I, ia.A)
+	queryStr := fmt.Sprintf("SELECT SegRowID FROM %s WHERE IsdID=%v AND AsID=%v", table, ia.I, ia.A)
 	err := b.db.QueryRow(queryStr).Scan(&segID)
 	if err != nil {
 		t.Fatal("CheckStartsAtOrEndsAt", "err", err)
 	}
-	SoMsg("StartsAt", segID, ShouldEqual, rowID)
+	SoMsg("StartsAt", segID, ShouldEqual, segRowID)
 }
 
-func checkSegTypes(t *testing.T, b *Backend, rowID int, types []seg.Type) {
+func checkSegTypes(t *testing.T, b *Backend, segRowID int, types []seg.Type) {
 	for _, segType := range types {
 		var count int
-		err := b.db.QueryRow("SELECT COUNT(*) FROM SegTypes WHERE SegID=? AND Type=?",
-			rowID, segType).Scan(&count)
+		err := b.db.QueryRow("SELECT COUNT(*) FROM SegTypes WHERE SegRowID=? AND Type=?",
+			segRowID, segType).Scan(&count)
 		if err != nil {
 			t.Fatal("checkSegTypes", "err", err)
 		}
@@ -212,12 +218,12 @@ func checkSegTypes(t *testing.T, b *Backend, rowID int, types []seg.Type) {
 	}
 }
 
-func checkHPCfgIDs(t *testing.T, b *Backend, rowID int, cfgIDs []*query.HPCfgID) {
+func checkHPCfgIDs(t *testing.T, b *Backend, segRowID int, cfgIDs []*query.HPCfgID) {
 	for _, cfgID := range cfgIDs {
 		var count int
 		err := b.db.QueryRow(
-			"SELECT COUNT(*) FROM HPCfgIDs WHERE SegID=? AND IsdID=? AND AsID=? AND CfgID=?",
-			rowID, cfgID.IA.I, cfgID.IA.A, cfgID.ID).Scan(&count)
+			"SELECT COUNT(*) FROM HPCfgIDs WHERE SegRowID=? AND IsdID=? AND AsID=? AND CfgID=?",
+			segRowID, cfgID.IA.I, cfgID.IA.A, cfgID.ID).Scan(&count)
 		if err != nil {
 			t.Fatal("checkHPCfgIDs", "err", err)
 		}
@@ -257,7 +263,7 @@ func Test_InsertWithCfgIDsFull(t *testing.T) {
 		TS := uint32(10)
 		pseg := allocPathSegment(ifs1, TS)
 		// Call
-		inserted, err := b.InsertWithCfgIDs(pseg, types, cfgIDs)
+		inserted, err := b.InsertWithHPCfgIDs(pseg, types, cfgIDs)
 		if err != nil {
 			t.Fatal(err)
 		}

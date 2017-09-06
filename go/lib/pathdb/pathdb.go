@@ -17,8 +17,6 @@
 package pathdb
 
 import (
-	"fmt"
-
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/lib/pathdb/conn"
@@ -39,7 +37,7 @@ func New(path string, backend string) (*DB, *common.Error) {
 	case "sqlite":
 		db.conn, cerr = sqlite.New(path)
 	default:
-		return nil, common.NewError(fmt.Sprintf("Unknown backend: '%s'", backend))
+		return nil, common.NewError("Unknown backend", "backend", backend)
 	}
 	if cerr != nil {
 		return nil, cerr
@@ -55,9 +53,9 @@ func (db *DB) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, *common.E
 
 // InsertWithCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 // returns the number of path segments that have been inserted/updated.
-func (db *DB) InsertWithCfgIDs(pseg *seg.PathSegment,
+func (db *DB) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 	segTypes []seg.Type, cfgIDs []*query.HPCfgID) (int, *common.Error) {
-	return db.conn.InsertWithCfgIDs(pseg, segTypes, cfgIDs)
+	return db.conn.InsertWithHPCfgIDs(pseg, segTypes, cfgIDs)
 }
 
 // Delete deletes a path segment with a given ID. Returns the number of deleted

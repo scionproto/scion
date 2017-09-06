@@ -108,6 +108,10 @@ func (h *HopField) Write() {
 	copy(h.data[5:], h.Mac)
 }
 
+func (h *HopField) Raw() common.RawBytes {
+	return h.data
+}
+
 func (h *HopField) String() string {
 	return fmt.Sprintf(
 		"Ingress: %v Egress: %v ExpTime: %v Xover: %v VerifyOnly: %v ForwardOnly: %v Mac: %v",

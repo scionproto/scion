@@ -26,7 +26,7 @@ type Conn interface {
 	// Insert or update a path segment.
 	Insert(*seg.PathSegment, []seg.Type) (int, *common.Error)
 	// Insert or update a path segment with a given label.
-	InsertWithCfgIDs(*seg.PathSegment, []seg.Type, []*query.HPCfgID) (int, *common.Error)
+	InsertWithHPCfgIDs(*seg.PathSegment, []seg.Type, []*query.HPCfgID) (int, *common.Error)
 	// Deletes a path segment with a given ID. Returns the number of deleted
 	// path segments (0 or 1).
 	Delete(common.RawBytes) (int, *common.Error)
