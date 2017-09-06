@@ -46,7 +46,6 @@ func NewFromRaw(b common.RawBytes) (*PathSegment, *common.Error) {
 func (ps *PathSegment) ID() (common.RawBytes, *common.Error) {
 	h := sha256.New()
 	for _, as := range ps.ASEntries {
-<<<<<<< HEAD
 		binary.Write(h, common.Order, as.RawIA)
 		hopf, cerr := as.HopEntries[0].HopField()
 		if cerr != nil {
@@ -54,15 +53,6 @@ func (ps *PathSegment) ID() (common.RawBytes, *common.Error) {
 		}
 		binary.Write(h, common.Order, hopf.Ingress)
 		binary.Write(h, common.Order, hopf.Egress)
-=======
-		data := make([]byte, 20)
-		common.Order.PutUint32(data, as.RawIA)
-		// FIXME(shitz): This should actually use the hopfield directly (also in the Python lib.).
-		// See https://github.com/netsec-ethz/scion/issues/1244 for more info.
-		common.Order.PutUint64(data, as.HopEntries[0].InIF)
-		common.Order.PutUint64(data, as.HopEntries[0].OutIF)
-		h.Write(data)
->>>>>>> c476e77... feedback round 2
 	}
 	return h.Sum(nil), nil
 }

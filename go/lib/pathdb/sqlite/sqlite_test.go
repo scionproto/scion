@@ -43,7 +43,7 @@ var (
 		&query.NullHpCfgID,
 		{ia13, 0xdeadbeef},
 	}
-	types = []seg.Type{0, 1}
+	types = []seg.Type{seg.UpSegment, seg.DownSegment}
 
 	ifspecs = []query.IntfSpec{
 		{IA: ia13, IfID: 5},
@@ -54,16 +54,16 @@ var (
 	}
 
 	tables = []string{
-		"Segments",
-		"IntfToSeg",
-		"StartsAt",
-		"EndsAt",
-		"SegTypes",
-		"HPCfgIDs",
+		SegmentsTable,
+		IntfToSegTable,
+		StartsAtTable,
+		EndsAtTable,
+		SegTypesTable,
+		HpCfgIdsTable,
 	}
 )
 
-func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
+func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common.RawBytes) {
 	rawHops := make([][]byte, len(ifs)/2)
 	for i := 0; i < len(ifs)/2; i++ {
 		rawHops[i] = make([]byte, 8)
@@ -76,10 +76,8 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 			HopEntries: []*seg.HopEntry{
 				{
 					RawInIA:     ia13.Uint32(),
-					InIF:        ifs[0],
 					InMTU:       1500,
 					RawOutIA:    ia16.Uint32(),
-					OutIF:       ifs[1],
 					RawHopField: rawHops[0],
 				},
 			},
@@ -89,18 +87,14 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 			HopEntries: []*seg.HopEntry{
 				{
 					RawInIA:     ia13.Uint32(),
-					InIF:        ifs[2],
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
-					OutIF:       ifs[3],
 					RawHopField: rawHops[1],
 				},
 				{
 					RawInIA:     ia13.Uint32(),
-					InIF:        ifs[4],
 					InMTU:       1500,
 					RawOutIA:    ia14.Uint32(),
-					OutIF:       ifs[5],
 					RawHopField: rawHops[2],
 				},
 			},
@@ -110,10 +104,8 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 			HopEntries: []*seg.HopEntry{
 				{
 					RawInIA:     ia16.Uint32(),
-					InIF:        ifs[6],
 					InMTU:       1500,
 					RawOutIA:    ia19.Uint32(),
-					OutIF:       ifs[7],
 					RawHopField: rawHops[3],
 				},
 			},
@@ -126,10 +118,12 @@ func allocPathSegment(ifs []uint64, expiration uint32) *seg.PathSegment {
 	}
 	rawInfo := make(common.RawBytes, 8)
 	info.Write(rawInfo)
-	return &seg.PathSegment{
+	pseg := &seg.PathSegment{
 		RawInfo:   rawInfo,
 		ASEntries: ases,
 	}
+	segID, _ := pseg.ID()
+	return pseg, segID
 }
 
 func setupDB(t *testing.T) (*Backend, string) {
@@ -262,7 +256,7 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly insert a new segment", t, func() {
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg := allocPathSegment(ifs1, TS)
+		pseg, segID := allocPathSegment(ifs1, TS)
 		// Call
 		inserted, err := b.InsertWithHPCfgIDs(pseg, types, hpCfgIDs)
 		if err != nil {
@@ -271,7 +265,7 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert.
-		checkInsert(t, b, &ExpectedInsert{1, pseg.ID(), TS, ifspecs, ia13, ia19, types, hpCfgIDs})
+		checkInsert(t, b, &ExpectedInsert{1, segID, TS, ifspecs, ia13, ia19, types, hpCfgIDs})
 		os.Remove(tmpF)
 	})
 }
@@ -280,9 +274,9 @@ func Test_UpdateExisting(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly update a new segment", t, func() {
 		b, tmpF := setupDB(t)
 		oldTS := uint32(10)
-		oldSeg := allocPathSegment(ifs1, oldTS)
+		oldSeg, _ := allocPathSegment(ifs1, oldTS)
 		newTS := uint32(20)
-		newSeg := allocPathSegment(ifs1, newTS)
+		newSeg, newSegID := allocPathSegment(ifs1, newTS)
 		insertSeg(t, b, oldSeg, types[:1], hpCfgIDs[:1])
 		// Call
 		inserted := insertSeg(t, b, newSeg, types, hpCfgIDs)
@@ -290,7 +284,7 @@ func Test_UpdateExisting(t *testing.T) {
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert
 		checkInsert(t, b,
-			&ExpectedInsert{1, newSeg.ID(), newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
+			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
 		os.Remove(tmpF)
 	})
 }
@@ -299,9 +293,9 @@ func Test_OlderIgnored(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly ignore an older segment", t, func() {
 		b, tmpF := setupDB(t)
 		newTS := uint32(20)
-		newSeg := allocPathSegment(ifs1, newTS)
+		newSeg, newSegID := allocPathSegment(ifs1, newTS)
 		oldTS := uint32(10)
-		oldSeg := allocPathSegment(ifs1, oldTS)
+		oldSeg, _ := allocPathSegment(ifs1, oldTS)
 		insertSeg(t, b, newSeg, types, hpCfgIDs)
 		// Call
 		inserted := insertSeg(t, b, oldSeg, types[:1], hpCfgIDs[:1])
@@ -309,7 +303,7 @@ func Test_OlderIgnored(t *testing.T) {
 		SoMsg("Inserted", inserted, ShouldEqual, 0)
 		// Check Insert
 		checkInsert(t, b,
-			&ExpectedInsert{1, newSeg.ID(), newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
+			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
 		os.Remove(tmpF)
 	})
 }
@@ -329,10 +323,10 @@ func Test_Delete(t *testing.T) {
 		b, tmpF := setupDB(t)
 		// Setup
 		TS := uint32(10)
-		pseg := allocPathSegment(ifs1, TS)
+		pseg, segID := allocPathSegment(ifs1, TS)
 		insertSeg(t, b, pseg, types, hpCfgIDs)
 		// Call
-		deleted, cerr := b.Delete(pseg.ID())
+		deleted, cerr := b.Delete(segID)
 		if cerr != nil {
 			t.Fatal(cerr)
 		}
@@ -352,8 +346,8 @@ func Test_DeleteWithIntf(t *testing.T) {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
-		pseg2 := allocPathSegment(ifs2, TS)
+		pseg1, _ := allocPathSegment(ifs1, TS)
+		pseg2, _ := allocPathSegment(ifs2, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types, hpCfgIDs)
 		// Call
@@ -373,12 +367,12 @@ func Test_GetMixed(t *testing.T) {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
-		pseg2 := allocPathSegment(ifs2, TS)
+		pseg1, segID1 := allocPathSegment(ifs1, TS)
+		pseg2, _ := allocPathSegment(ifs2, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
-			SegID:    pseg1.ID(),
+			SegID:    segID1,
 			SegTypes: []seg.Type{0},
 		}
 		// Call
@@ -386,8 +380,9 @@ func Test_GetMixed(t *testing.T) {
 		if cerr != nil {
 			t.Fatal(cerr)
 		}
+		resSegID, _ := res[0].Seg.ID()
 		SoMsg("Result count", len(res), ShouldEqual, 1)
-		SoMsg("SegIDs match", res[0].Seg.ID(), ShouldResemble, pseg1.ID())
+		SoMsg("SegIDs match", resSegID, ShouldResemble, segID1)
 		SoMsg("HpCfgIDs match", res[0].HpCfgIDs, ShouldResemble, hpCfgIDs)
 		b.close()
 		os.Remove(tmpF)
@@ -399,8 +394,8 @@ func Test_GetAll(t *testing.T) {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
-		pseg2 := allocPathSegment(ifs2, TS)
+		pseg1, segID1 := allocPathSegment(ifs1, TS)
+		pseg2, segID2 := allocPathSegment(ifs2, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
@@ -410,9 +405,10 @@ func Test_GetAll(t *testing.T) {
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 		for _, r := range res {
-			if bytes.Compare(r.Seg.ID(), pseg1.ID()) == 0 {
+			resSegID, _ := r.Seg.ID()
+			if bytes.Compare(resSegID, segID1) == 0 {
 				SoMsg("HpCfgIDs match", r.HpCfgIDs, ShouldResemble, hpCfgIDs)
-			} else if bytes.Compare(r.Seg.ID(), pseg2.ID()) == 0 {
+			} else if bytes.Compare(resSegID, segID2) == 0 {
 				SoMsg("HpCfgIDs match", r.HpCfgIDs, ShouldResemble, hpCfgIDs[:1])
 			} else {
 				t.Fatal("Unexpected result", "seg", r.Seg)
@@ -428,8 +424,8 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
-		pseg2 := allocPathSegment(ifs2, TS)
+		pseg1, _ := allocPathSegment(ifs1, TS)
+		pseg2, _ := allocPathSegment(ifs2, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
@@ -453,8 +449,8 @@ func Test_GetWithIntfs(t *testing.T) {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
-		pseg2 := allocPathSegment(ifs2, TS)
+		pseg1, _ := allocPathSegment(ifs1, TS)
+		pseg2, _ := allocPathSegment(ifs2, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
@@ -479,8 +475,8 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 		// Setup
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
-		pseg2 := allocPathSegment(ifs2, TS)
+		pseg1, _ := allocPathSegment(ifs1, TS)
+		pseg2, _ := allocPathSegment(ifs2, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
@@ -501,7 +497,7 @@ func Test_OpenExisting(t *testing.T) {
 	Convey("New should not overwrite an existing database if versions match", t, func() {
 		b, tmpF := setupDB(t)
 		TS := uint32(10)
-		pseg1 := allocPathSegment(ifs1, TS)
+		pseg1, _ := allocPathSegment(ifs1, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		b.close()
 		// Call
