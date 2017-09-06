@@ -289,7 +289,8 @@ class PathSegment(SCIONPayloadBaseProto):
         for asm in self.iter_asms():
             pcbm = asm.pcbm(0)
             data.append(asm.isd_as().pack())
-            data.append(struct.pack("!QQ", pcbm.p.inIF, pcbm.p.outIF))
+            hof = pcbm.hof()
+            data.append(struct.pack("!QQ", hof.ingress_if, hof.egress_if))
         data = b"".join(data)
         if hex:
             return crypto_hash(data).hex()
