@@ -111,6 +111,12 @@ func (m *Meta) String() string {
 
 type Type uint8
 
+const (
+	UpSegment   Type = 0
+	DownSegment Type = 1
+	CoreSegment Type = 2
+)
+
 func (t Type) String() string {
 	switch t {
 	case 0:
