@@ -237,7 +237,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var err error
-	var pathList pathmgr.PathList
+	var pathSet pathmgr.AppPathSet
 	if c.laddr.IA.Eq(raddr.IA) {
 		// If src and dst are in the same AS, the path will be empty
 		return nil, nil
@@ -246,7 +246,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {
-		pathList = c.scionNet.pathResolver.Query(c.laddr.IA, raddr.IA)
+		pathSet = c.scionNet.pathResolver.Query(c.laddr.IA, raddr.IA)
 	} else {
 		// Sanity check, as Dial already initializes this
 		if c.sp == nil {
@@ -256,13 +256,13 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 					"src", c.laddr.IA, "dst", raddr.IA, "err", err)
 			}
 		}
-		pathList = c.sp.Load()
+		pathSet = c.sp.Load()
 	}
 
-	if len(pathList) == 0 {
+	if len(pathSet) == 0 {
 		return nil, common.NewCError("Path not found", "srcIA", c.laddr.IA, "dstIA", raddr.IA)
 	}
-	return pathList[0], nil
+	return pathSet.GetAppPath().Entry, nil
 }
 
 func (c *Conn) LocalAddr() net.Addr {
