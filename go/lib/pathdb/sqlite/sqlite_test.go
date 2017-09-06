@@ -67,47 +67,26 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 	rawHops := make([][]byte, len(ifs)/2)
 	for i := 0; i < len(ifs)/2; i++ {
 		rawHops[i] = make([]byte, 8)
-		_ = spath.NewHopField(rawHops[i], common.IFIDType(ifs[2*i]),
-			common.IFIDType(ifs[2*i+1]))
+		spath.NewHopField(rawHops[i], common.IFIDType(ifs[2*i]), common.IFIDType(ifs[2*i+1]))
 	}
 	ases := []*seg.ASEntry{
 		{
 			RawIA: ia13.Uint32(),
 			HopEntries: []*seg.HopEntry{
-				{
-					RawInIA:     ia13.Uint32(),
-					InMTU:       1500,
-					RawOutIA:    ia16.Uint32(),
-					RawHopField: rawHops[0],
-				},
+				allocHopEntry(ia13, ia16, rawHops[0]),
 			},
 		},
 		{
 			RawIA: ia16.Uint32(),
 			HopEntries: []*seg.HopEntry{
-				{
-					RawInIA:     ia13.Uint32(),
-					InMTU:       1500,
-					RawOutIA:    ia19.Uint32(),
-					RawHopField: rawHops[1],
-				},
-				{
-					RawInIA:     ia13.Uint32(),
-					InMTU:       1500,
-					RawOutIA:    ia14.Uint32(),
-					RawHopField: rawHops[2],
-				},
+				allocHopEntry(ia13, ia19, rawHops[1]),
+				allocHopEntry(ia13, ia14, rawHops[2]),
 			},
 		},
 		{
 			RawIA: ia19.Uint32(),
 			HopEntries: []*seg.HopEntry{
-				{
-					RawInIA:     ia16.Uint32(),
-					InMTU:       1500,
-					RawOutIA:    ia19.Uint32(),
-					RawHopField: rawHops[3],
-				},
+				allocHopEntry(ia16, ia19, rawHops[3]),
 			},
 		},
 	}
@@ -124,6 +103,14 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 	}
 	segID, _ := pseg.ID()
 	return pseg, segID
+}
+
+func allocHopEntry(inIA, outIA *addr.ISD_AS, hopF common.RawBytes) *seg.HopEntry {
+	return &seg.HopEntry{
+		RawInIA:     inIA.Uint32(),
+		RawOutIA:    outIA.Uint32(),
+		RawHopField: hopF,
+	}
 }
 
 func setupDB(t *testing.T) (*Backend, string) {
@@ -255,6 +242,8 @@ type ExpectedInsert struct {
 func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly insert a new segment", t, func() {
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg, segID := allocPathSegment(ifs1, TS)
 		// Call
@@ -266,13 +255,14 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert.
 		checkInsert(t, b, &ExpectedInsert{1, segID, TS, ifspecs, ia13, ia19, types, hpCfgIDs})
-		os.Remove(tmpF)
 	})
 }
 
 func Test_UpdateExisting(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly update a new segment", t, func() {
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		oldTS := uint32(10)
 		oldSeg, _ := allocPathSegment(ifs1, oldTS)
 		newTS := uint32(20)
@@ -285,13 +275,14 @@ func Test_UpdateExisting(t *testing.T) {
 		// Check Insert
 		checkInsert(t, b,
 			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
-		os.Remove(tmpF)
 	})
 }
 
 func Test_OlderIgnored(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly ignore an older segment", t, func() {
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		newTS := uint32(20)
 		newSeg, newSegID := allocPathSegment(ifs1, newTS)
 		oldTS := uint32(10)
@@ -304,7 +295,6 @@ func Test_OlderIgnored(t *testing.T) {
 		// Check Insert
 		checkInsert(t, b,
 			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
-		os.Remove(tmpF)
 	})
 }
 
@@ -320,8 +310,10 @@ func checkEmpty(t *testing.T, b *Backend, table string) {
 
 func Test_Delete(t *testing.T) {
 	Convey("Delete should correctly remove a path segment", t, func() {
-		b, tmpF := setupDB(t)
 		// Setup
+		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg, segID := allocPathSegment(ifs1, TS)
 		insertSeg(t, b, pseg, types, hpCfgIDs)
@@ -336,8 +328,6 @@ func Test_Delete(t *testing.T) {
 		for _, table := range tables {
 			checkEmpty(t, b, table)
 		}
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
@@ -345,6 +335,8 @@ func Test_DeleteWithIntf(t *testing.T) {
 	Convey("DeleteWithIntf should correctly remove all affected path segments", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
@@ -357,8 +349,6 @@ func Test_DeleteWithIntf(t *testing.T) {
 		}
 		// Check return value
 		SoMsg("Deleted", deleted, ShouldEqual, 2)
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
@@ -366,6 +356,8 @@ func Test_GetMixed(t *testing.T) {
 	Convey("Get should return the correct path segments", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, segID1 := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
@@ -384,8 +376,6 @@ func Test_GetMixed(t *testing.T) {
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 		SoMsg("SegIDs match", resSegID, ShouldResemble, segID1)
 		SoMsg("HpCfgIDs match", res[0].HpCfgIDs, ShouldResemble, hpCfgIDs)
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
@@ -393,6 +383,8 @@ func Test_GetAll(t *testing.T) {
 	Convey("Get should return the all path segments", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, segID1 := allocPathSegment(ifs1, TS)
 		pseg2, segID2 := allocPathSegment(ifs2, TS)
@@ -414,8 +406,6 @@ func Test_GetAll(t *testing.T) {
 				t.Fatal("Unexpected result", "seg", r.Seg)
 			}
 		}
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
@@ -423,6 +413,8 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 	Convey("Get should return all path segments starting or ending at", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
@@ -439,8 +431,6 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 			t.Fatal(cerr)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
@@ -448,6 +438,8 @@ func Test_GetWithIntfs(t *testing.T) {
 	Convey("Get should return all path segment with given ifIDs", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
@@ -465,8 +457,6 @@ func Test_GetWithIntfs(t *testing.T) {
 			t.Fatal(cerr)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
@@ -474,6 +464,8 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 	Convey("Get should return all path segment with given HpCfgIDs", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
+		defer b.close()
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
@@ -488,14 +480,13 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 			t.Fatal(cerr)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 1)
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
 func Test_OpenExisting(t *testing.T) {
 	Convey("New should not overwrite an existing database if versions match", t, func() {
 		b, tmpF := setupDB(t)
+		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
@@ -512,14 +503,13 @@ func Test_OpenExisting(t *testing.T) {
 			t.Fatal(cerr)
 		}
 		SoMsg("Segment still exists", len(res), ShouldEqual, 1)
-		b.close()
-		os.Remove(tmpF)
 	})
 }
 
 func Test_OpenNewer(t *testing.T) {
 	Convey("New should not overwrite an existing database if it's of a newer version", t, func() {
 		b, tmpF := setupDB(t)
+		defer os.Remove(tmpF)
 		// Write a newer version
 		_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
 		if err != nil {
@@ -531,6 +521,5 @@ func Test_OpenNewer(t *testing.T) {
 		// Test
 		SoMsg("Backend nil", b, ShouldBeNil)
 		SoMsg("Err returned", cerr, ShouldNotBeNil)
-		os.Remove(tmpF)
 	})
 }
