@@ -108,7 +108,8 @@ func (h *HopField) Write() {
 	copy(h.data[5:], h.Mac)
 }
 
-func (h *HopField) Raw() common.RawBytes {
+func (h *HopField) Pack() common.RawBytes {
+	h.Write()
 	return h.data
 }
 
