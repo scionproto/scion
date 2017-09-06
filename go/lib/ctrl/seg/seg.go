@@ -69,6 +69,10 @@ func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
 	return proto.WriteRoot(ps, b)
 }
 
+func (ps *PathSegment) Pack() (common.RawBytes, *common.Error) {
+	return proto.PackRoot(ps)
+}
+
 func (ps *PathSegment) String() string {
 	desc := []string{}
 	if id, cerr := ps.ID(); cerr != nil {
@@ -97,23 +101,30 @@ func (ps *PathSegment) String() string {
 }
 
 type Meta struct {
-	Type    uint8
+	Type    Type
 	Segment PathSegment `capnp:"pcb"`
 }
 
 func (m *Meta) String() string {
-	return fmt.Sprintf("Type: %v, Segment: %v", typeToString(m.Type), m.Segment)
+	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
 }
 
-func typeToString(t uint8) string {
+type Type uint8
+
+const (
+	UpSegment   Type = 0
+	DownSegment Type = 1
+	CoreSegment Type = 2
+)
+
+func (t Type) String() string {
 	switch t {
-	case 0:
+	case UpSegment:
 		return "UP"
-	case 1:
+	case DownSegment:
 		return "DOWN"
-	case 2:
+	case CoreSegment:
 		return "CORE"
-	default:
-		return "UNKNOWN"
 	}
+	return fmt.Sprintf("UNKNOWN (%d)", t)
 }
