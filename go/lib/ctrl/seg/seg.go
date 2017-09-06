@@ -18,6 +18,7 @@ package seg
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"strings"
 
@@ -42,16 +43,18 @@ func NewFromRaw(b common.RawBytes) (*PathSegment, *common.Error) {
 	return ps, proto.ParseFromRaw(ps, ps.ProtoId(), b)
 }
 
-func (ps *PathSegment) ID() common.RawBytes {
+func (ps *PathSegment) ID() (common.RawBytes, *common.Error) {
 	h := sha256.New()
 	for _, as := range ps.ASEntries {
-		data := make([]byte, 20)
-		common.Order.PutUint32(data, as.RawIA)
-		common.Order.PutUint64(data, as.HopEntries[0].InIF)
-		common.Order.PutUint64(data, as.HopEntries[0].OutIF)
-		h.Write(data)
+		binary.Write(h, common.Order, as.RawIA)
+		hopf, cerr := as.HopEntries[0].HopField()
+		if cerr != nil {
+			return nil, cerr
+		}
+		binary.Write(h, common.Order, hopf.Ingress)
+		binary.Write(h, common.Order, hopf.Egress)
 	}
-	return h.Sum(nil)
+	return h.Sum(nil), nil
 }
 
 func (ps *PathSegment) Info() (*spath.InfoField, *common.Error) {
@@ -67,8 +70,14 @@ func (ps *PathSegment) Write(b common.RawBytes) (int, *common.Error) {
 }
 
 func (ps *PathSegment) String() string {
+	desc := []string{}
+	if id, cerr := ps.ID(); cerr != nil {
+		desc = append(desc, fmt.Sprintf("ID error: %s", cerr))
+	} else {
+		desc = append(desc, id.String())
+	}
 	info, _ := ps.Info()
-	desc := []string{ps.ID()[:10].String(), info.Timestamp().UTC().Format(common.TimeFmt)}
+	desc = append(desc, info.Timestamp().UTC().Format(common.TimeFmt))
 	hops_desc := []string{}
 	for _, as := range ps.ASEntries {
 		hop := as.HopEntries[0]
