@@ -61,7 +61,7 @@ var (
 // Init initializes the default SCION networking context.
 func Init(ia *addr.ISD_AS, sPath string, dPath string) error {
 	if pkgNetwork != nil {
-		return common.NewError("Cannot initialize global SCION network twice")
+		return common.NewCError("Cannot initialize global SCION network twice")
 	}
 
 	network, err := NewNetwork(ia, sPath, dPath)
@@ -99,7 +99,7 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 		localIA:        ia}
 	pathResolver, err := pathmgr.New(sPath, time.Minute, log.Root())
 	if err != nil {
-		return nil, common.NewError("Unable to initialize path resolver", "err", err)
+		return nil, common.NewCError("Unable to initialize path resolver", "err", err)
 	}
 	network.pathResolver = pathResolver
 	return network, nil
@@ -110,7 +110,7 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 // Read and Write methods can be used to receive and send SCION packets.
 func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if raddr == nil {
-		return nil, common.NewError("Unable to dial to nil remote")
+		return nil, common.NewCError("Unable to dial to nil remote")
 	}
 	conn, err := n.ListenSCION(network, laddr)
 	if err != nil {
@@ -119,7 +119,7 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	conn.raddr = raddr.Copy()
 	conn.sp, err = n.pathResolver.Register(conn.laddr.IA, conn.raddr.IA)
 	if err != nil {
-		return nil, common.NewError("Unable to establish path", "err", err)
+		return nil, common.NewCError("Unable to establish path", "err", err)
 	}
 	return conn, nil
 }
@@ -130,7 +130,7 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 // Parameter network must be "udp4".
 func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if network != "udp4" {
-		return nil, common.NewError("Network not implemented", "net", network)
+		return nil, common.NewCError("Network not implemented", "net", network)
 	}
 	// FIXME(scrye): If no local address is specified, we want to
 	// bind to the address of the outbound interface on a random
@@ -140,14 +140,14 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	// considers it to be a fixed address instead of a wildcard). To avoid
 	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
 	if laddr == nil {
-		return nil, common.NewError("Nil laddr not supported")
+		return nil, common.NewCError("Nil laddr not supported")
 	}
 	if laddr.Host.Type() != addr.HostTypeIPv4 {
-		return nil, common.NewError("Supplied local address does not match network",
+		return nil, common.NewCError("Supplied local address does not match network",
 			"expected", addr.HostTypeIPv4, "actual", laddr.Host.Type())
 	}
 	if laddr.Host.IP().Equal(net.IPv4zero) {
-		return nil, common.NewError("Binding to 0.0.0.0 not supported")
+		return nil, common.NewCError("Binding to 0.0.0.0 not supported")
 	}
 	conn := &Conn{
 		net:        network,
@@ -174,14 +174,14 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	}
 
 	if !conn.laddr.IA.Eq(conn.scionNet.localIA) {
-		return nil, common.NewError("Unable to listen on non-local IA",
+		return nil, common.NewCError("Unable to listen on non-local IA",
 			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA)
 	}
 
 	rconn, port, err := reliable.Register(conn.scionNet.dispatcherPath,
 		conn.laddr.IA, regAddr)
 	if err != nil {
-		return nil, common.NewError("Unable to register with dispatcher",
+		return nil, common.NewCError("Unable to register with dispatcher",
 			"err", err)
 	}
 	log.Info("Registered with dispatcher", "ia", conn.scionNet.localIA, "host", regAddr.Addr,

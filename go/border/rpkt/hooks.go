@@ -25,17 +25,17 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
-type hookIA func() (HookResult, *addr.ISD_AS, *common.Error)
-type hookHost func() (HookResult, addr.HostAddr, *common.Error)
-type hookInfoF func() (HookResult, *spath.InfoField, *common.Error)
-type hookHopF func() (HookResult, *spath.HopField, *common.Error)
-type hookBool func() (HookResult, bool, *common.Error)
-type hookIntf func(up bool, dirFrom, dirTo rcmn.Dir) (HookResult, common.IFIDType, *common.Error)
-type hookValidate func() (HookResult, *common.Error)
-type hookL4 func() (HookResult, l4.L4Header, *common.Error)
-type hookPayload func() (HookResult, common.Payload, *common.Error)
-type hookProcess func() (HookResult, *common.Error)
-type hookRoute func() (HookResult, *common.Error)
+type hookIA func() (HookResult, *addr.ISD_AS, error)
+type hookHost func() (HookResult, addr.HostAddr, error)
+type hookInfoF func() (HookResult, *spath.InfoField, error)
+type hookHopF func() (HookResult, *spath.HopField, error)
+type hookBool func() (HookResult, bool, error)
+type hookIntf func(up bool, dirFrom, dirTo rcmn.Dir) (HookResult, common.IFIDType, error)
+type hookValidate func() (HookResult, error)
+type hookL4 func() (HookResult, l4.L4Header, error)
+type hookPayload func() (HookResult, common.Payload, error)
+type hookProcess func() (HookResult, error)
+type hookRoute func() (HookResult, error)
 
 // Hooks is a group of hook slices. Each hook slice is responsible for fetching
 // the information named by the slice from a packet. Extensions and other parts

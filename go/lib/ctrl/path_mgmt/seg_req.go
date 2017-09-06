@@ -35,7 +35,7 @@ type SegReq struct {
 	}
 }
 
-func NewSegReqFromRaw(b common.RawBytes) (*SegReq, *common.Error) {
+func NewSegReqFromRaw(b common.RawBytes) (*SegReq, error) {
 	s := &SegReq{}
 	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
 }
@@ -52,7 +52,7 @@ func (s *SegReq) ProtoId() proto.ProtoIdType {
 	return proto.SegReq_TypeID
 }
 
-func (s *SegReq) Write(b common.RawBytes) (int, *common.Error) {
+func (s *SegReq) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(s, b)
 }
 

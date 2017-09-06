@@ -30,47 +30,47 @@ type DB struct {
 
 // New creates a new or open an existing PathDB at a given path using the
 // given backend.
-func New(path string, backend string) (*DB, *common.Error) {
+func New(path string, backend string) (*DB, error) {
 	db := &DB{}
-	var cerr *common.Error
+	var err error
 	switch backend {
 	case "sqlite":
-		db.conn, cerr = sqlite.New(path)
+		db.conn, err = sqlite.New(path)
 	default:
-		return nil, common.NewError("Unknown backend", "backend", backend)
+		return nil, common.NewCError("Unknown backend", "backend", backend)
 	}
-	if cerr != nil {
-		return nil, cerr
+	if err != nil {
+		return nil, err
 	}
 	return db, nil
 }
 
 // Insert inserts or updates a path segment. It returns the number of path segments
 // that have been inserted/updated.
-func (db *DB) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, *common.Error) {
+func (db *DB) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, error) {
 	return db.conn.Insert(pseg, segTypes)
 }
 
 // InsertWithCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 // returns the number of path segments that have been inserted/updated.
 func (db *DB) InsertWithHPCfgIDs(pseg *seg.PathSegment,
-	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) (int, *common.Error) {
+	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) (int, error) {
 	return db.conn.InsertWithHPCfgIDs(pseg, segTypes, hpCfgIDs)
 }
 
 // Delete deletes a path segment with a given ID. Returns the number of deleted
 // path segments (0 or 1).
-func (db *DB) Delete(segID common.RawBytes) (int, *common.Error) {
+func (db *DB) Delete(segID common.RawBytes) (int, error) {
 	return db.conn.Delete(segID)
 }
 
 // DeleteWithIntf deletes all path segments that contain a given interface. Returns
 // the number of path segments deleted.
-func (db *DB) DeleteWithIntf(intf query.IntfSpec) (int, *common.Error) {
+func (db *DB) DeleteWithIntf(intf query.IntfSpec) (int, error) {
 	return db.conn.DeleteWithIntf(intf)
 }
 
 // Get returns all path segment(s) matching the parameters specified.
-func (db *DB) Get(params *query.Params) ([]*query.Result, *common.Error) {
+func (db *DB) Get(params *query.Params) ([]*query.Result, error) {
 	return db.conn.Get(params)
 }

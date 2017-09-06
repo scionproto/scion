@@ -246,8 +246,8 @@ func (rp *RtrPkt) Reset() {
 // defines whether verification errors should cause this conversion to fail or
 // not. Setting this to false is useful when trying to convert a packet that is
 // already known to have errors, for the purpose of sending an error response.
-func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, *common.Error) {
-	var err *common.Error
+func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
+	var err error
 	sp := &spkt.ScnPkt{}
 	if sp.DstIA, err = rp.DstIA(); err != nil {
 		return nil, err

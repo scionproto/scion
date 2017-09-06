@@ -133,9 +133,9 @@ func tempFilename(t *testing.T) string {
 
 func insertSeg(t *testing.T, b *Backend,
 	pseg *seg.PathSegment, types []seg.Type, hpCfgIDs []*query.HPCfgID) int {
-	inserted, cerr := b.InsertWithHPCfgIDs(pseg, types, hpCfgIDs)
-	if cerr != nil {
-		t.Fatal(cerr)
+	inserted, err := b.InsertWithHPCfgIDs(pseg, types, hpCfgIDs)
+	if err != nil {
+		t.Fatal(err)
 	}
 	return inserted
 }
@@ -148,9 +148,9 @@ func checkSegments(t *testing.T, b *Backend, segRowID int, segID common.RawBytes
 	if err != nil {
 		t.Fatal("checkSegments: Call", "err", err)
 	}
-	pseg, cerr := seg.NewFromRaw(common.RawBytes(rawSeg))
-	if cerr != nil {
-		t.Fatal("checkSegments: Parse", "err", cerr)
+	pseg, err := seg.NewFromRaw(common.RawBytes(rawSeg))
+	if err != nil {
+		t.Fatal("checkSegments: Parse", "err", err)
 	}
 	info, _ := pseg.Info()
 	SoMsg("RowID match", ID, ShouldEqual, segRowID)
@@ -318,9 +318,9 @@ func Test_Delete(t *testing.T) {
 		pseg, segID := allocPathSegment(ifs1, TS)
 		insertSeg(t, b, pseg, types, hpCfgIDs)
 		// Call
-		deleted, cerr := b.Delete(segID)
-		if cerr != nil {
-			t.Fatal(cerr)
+		deleted, err := b.Delete(segID)
+		if err != nil {
+			t.Fatal(err)
 		}
 		// Check return value.
 		SoMsg("Deleted", deleted, ShouldEqual, 1)
@@ -343,9 +343,9 @@ func Test_DeleteWithIntf(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types, hpCfgIDs)
 		// Call
-		deleted, cerr := b.DeleteWithIntf(query.IntfSpec{IA: ia16, IfID: 2})
-		if cerr != nil {
-			t.Fatal(cerr)
+		deleted, err := b.DeleteWithIntf(query.IntfSpec{IA: ia16, IfID: 2})
+		if err != nil {
+			t.Fatal(err)
 		}
 		// Check return value
 		SoMsg("Deleted", deleted, ShouldEqual, 2)
@@ -368,9 +368,9 @@ func Test_GetMixed(t *testing.T) {
 			SegTypes: []seg.Type{0},
 		}
 		// Call
-		res, cerr := b.Get(params)
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err := b.Get(params)
+		if err != nil {
+			t.Fatal(err)
 		}
 		resSegID, _ := res[0].Seg.ID()
 		SoMsg("Result count", len(res), ShouldEqual, 1)
@@ -391,9 +391,9 @@ func Test_GetAll(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
-		res, cerr := b.Get(nil)
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err := b.Get(nil)
+		if err != nil {
+			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 		for _, r := range res {
@@ -421,14 +421,14 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
-		res, cerr := b.Get(&query.Params{StartsAt: []*addr.ISD_AS{ia13, ia19}})
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err := b.Get(&query.Params{StartsAt: []*addr.ISD_AS{ia13, ia19}})
+		if err != nil {
+			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
-		res, cerr = b.Get(&query.Params{EndsAt: []*addr.ISD_AS{ia13, ia19}})
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err = b.Get(&query.Params{EndsAt: []*addr.ISD_AS{ia13, ia19}})
+		if err != nil {
+			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 	})
@@ -452,9 +452,9 @@ func Test_GetWithIntfs(t *testing.T) {
 			},
 		}
 		// Call
-		res, cerr := b.Get(params)
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err := b.Get(params)
+		if err != nil {
+			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 	})
@@ -475,9 +475,9 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 			HpCfgIDs: hpCfgIDs[1:],
 		}
 		// Call
-		res, cerr := b.Get(params)
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err := b.Get(params)
+		if err != nil {
+			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 	})
@@ -492,15 +492,15 @@ func Test_OpenExisting(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		b.close()
 		// Call
-		b, cerr := New(tmpF)
-		if cerr != nil {
-			t.Fatal(cerr)
+		b, err := New(tmpF)
+		if err != nil {
+			t.Fatal(err)
 		}
 		// Test
 		// Check that path segment is still there.
-		res, cerr := b.Get(nil)
-		if cerr != nil {
-			t.Fatal(cerr)
+		res, err := b.Get(nil)
+		if err != nil {
+			t.Fatal(err)
 		}
 		SoMsg("Segment still exists", len(res), ShouldEqual, 1)
 	})
@@ -517,9 +517,9 @@ func Test_OpenNewer(t *testing.T) {
 		}
 		b.close()
 		// Call
-		b, cerr := New(tmpF)
+		b, err = New(tmpF)
 		// Test
 		SoMsg("Backend nil", b, ShouldBeNil)
-		SoMsg("Err returned", cerr, ShouldNotBeNil)
+		SoMsg("Err returned", err, ShouldNotBeNil)
 	})
 }

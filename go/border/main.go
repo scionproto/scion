@@ -28,6 +28,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/assert"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/profile"
 )
@@ -54,7 +55,8 @@ func main() {
 	setupSignals()
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
-		log.Crit("Startup failed", err.Ctx...)
+		cerr := err.(*common.CError)
+		log.Crit("Startup failed", cerr.Ctx...)
 		liblog.Flush()
 		os.Exit(1)
 	}
@@ -65,7 +67,8 @@ func main() {
 	}
 	log.Info("Starting up", "id", *id, "pid", os.Getpid())
 	if err := r.Run(); err != nil {
-		log.Crit("Run failed", err.Ctx...)
+		cerr := err.(*common.CError)
+		log.Crit("Run failed", cerr.Ctx...)
 		liblog.Flush()
 		os.Exit(1)
 	}

@@ -59,7 +59,7 @@ type Conn struct {
 // DialSCION calls DialSCION on the default networking context.
 func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if pkgNetwork == nil {
-		return nil, common.NewError("SCION network not initialized")
+		return nil, common.NewCError("SCION network not initialized")
 	}
 	return pkgNetwork.DialSCION(network, laddr, raddr)
 }
@@ -67,7 +67,7 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 // ListenSCION calls ListenSCION on the default networking context.
 func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if pkgNetwork == nil {
-		return nil, common.NewError("SCION network not initialized")
+		return nil, common.NewCError("SCION network not initialized")
 	}
 	return pkgNetwork.ListenSCION(network, laddr)
 }
@@ -77,11 +77,11 @@ func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 // known, ReadFromSCION returns an error.
 func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
 	if c.scionNet == nil {
-		return 0, nil, common.NewError("SCION network not initialized")
+		return 0, nil, common.NewCError("SCION network not initialized")
 	}
 	n, a, err := c.read(b)
 	if err != nil {
-		return 0, nil, common.NewError("Dispatcher error", "err", err)
+		return 0, nil, common.NewCError("Dispatcher error", "err", err)
 	}
 	return n, a, err
 }
@@ -98,14 +98,14 @@ func (c *Conn) Read(b []byte) (int, error) {
 }
 
 func (c *Conn) read(b []byte) (int, *Addr, error) {
-	var cerr *common.Error
+	var err error
 	var remote *Addr
 
 	c.dispMutex.Lock()
 	n, err := c.conn.Read(c.recvBuffer)
 	c.dispMutex.Unlock()
 	if err != nil {
-		return 0, nil, common.NewError("Dispatcher read error", "err", err)
+		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
 
 	pkt := &spkt.ScnPkt{
@@ -115,20 +115,20 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	}
 	err = hpkt.ParseScnPkt(pkt, c.recvBuffer[:n])
 	if err != nil {
-		return 0, nil, common.NewError("SCION packet parse error", "err", err)
+		return 0, nil, common.NewCError("SCION packet parse error", "err", err)
 	}
 
 	// Copy data, extract address
-	n, cerr = pkt.Pld.WritePld(b)
-	if cerr != nil {
-		return 0, nil, common.NewError("Unable to copy payload", "err", cerr)
+	n, err = pkt.Pld.WritePld(b)
+	if err != nil {
+		return 0, nil, common.NewCError("Unable to copy payload", "err", err)
 	}
 
 	// Assert L4 as UDP header if local net is udp4
 	if c.net == "udp4" {
 		udpHdr, ok := pkt.L4.(*l4.UDP)
 		if !ok {
-			return 0, nil, common.NewError("Invalid L4 protocol",
+			return 0, nil, common.NewCError("Invalid L4 protocol",
 				"expected", c.net, "actual", pkt.L4.L4Type())
 		}
 		// Extract remote address
@@ -143,12 +143,12 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 // WriteToSCION sends b to raddr.
 func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	if c.conn == nil {
-		return 0, common.NewError("Connection not initialized")
+		return 0, common.NewCError("Connection not initialized")
 	}
 
 	n, err := c.write(b, raddr)
 	if err != nil {
-		return 0, common.NewError("Dispatcher error", "err", err)
+		return 0, common.NewCError("Dispatcher error", "err", err)
 	}
 
 	return n, err
@@ -156,11 +156,11 @@ func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 
 func (c *Conn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if c.raddr != nil {
-		return 0, common.NewError("Unable to WriteTo, remote address already set")
+		return 0, common.NewCError("Unable to WriteTo, remote address already set")
 	}
 	sraddr, ok := raddr.(*Addr)
 	if !ok {
-		return 0, common.NewError("Unable to write to non-SCION address",
+		return 0, common.NewCError("Unable to write to non-SCION address",
 			"addr", raddr)
 	}
 	return c.WriteToSCION(b, sraddr)
@@ -170,7 +170,7 @@ func (c *Conn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 // address for the conenction is unknown, Write returns an error.
 func (c *Conn) Write(b []byte) (int, error) {
 	if c.raddr == nil {
-		return 0, common.NewError("Unable to Write, remote address not set")
+		return 0, common.NewCError("Unable to Write, remote address not set")
 	}
 	return c.WriteToSCION(b, c.raddr)
 }
@@ -187,7 +187,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 		// Create the path using initial IF/HF pointers
 		err = path.InitOffsets()
 		if err != nil {
-			return 0, common.NewError("Unable to initialize path", "err", err)
+			return 0, common.NewCError("Unable to initialize path", "err", err)
 		}
 	}
 
@@ -207,7 +207,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	// Serialize packet to internal buffer
 	n, err := hpkt.WriteScnPkt(pkt, c.sendBuffer)
 	if err != nil {
-		return 0, common.NewError("Unable to serialize SCION packet", "err", err)
+		return 0, common.NewCError("Unable to serialize SCION packet", "err", err)
 	}
 
 	// Construct overlay next-hop
@@ -229,7 +229,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	n, err = c.conn.WriteTo(c.sendBuffer[:n], appAddr)
 	c.dispMutex.Unlock()
 	if err != nil {
-		return 0, common.NewError("Dispatcher write error", "err", err)
+		return 0, common.NewCError("Dispatcher write error", "err", err)
 	}
 
 	return pkt.Pld.Len(), nil
@@ -252,7 +252,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 		if c.sp == nil {
 			c.sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, c.raddr.IA)
 			if err != nil {
-				return nil, common.NewError("Unable to register src-dst IAs",
+				return nil, common.NewCError("Unable to register src-dst IAs",
 					"src", c.laddr.IA, "dst", raddr.IA, "err", err)
 			}
 		}
@@ -260,7 +260,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	}
 
 	if len(pathList) == 0 {
-		return nil, common.NewError("Path not found", "srcIA", c.laddr.IA, "dstIA", raddr.IA)
+		return nil, common.NewCError("Path not found", "srcIA", c.laddr.IA, "dstIA", raddr.IA)
 	}
 	return pathList[0], nil
 }

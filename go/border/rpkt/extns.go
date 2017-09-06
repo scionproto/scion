@@ -30,8 +30,8 @@ import (
 type rExtension interface {
 	common.ExtnBase
 	// Get or generate a common.Extension from this rExtension.
-	GetExtn() (common.Extension, *common.Error)
-	RegisterHooks(*hooks) *common.Error
+	GetExtn() (common.Extension, error)
+	RegisterHooks(*hooks) error
 }
 
 const (
@@ -41,7 +41,7 @@ const (
 
 // extnParseHBH parses a specified hop-by-hop extension in a packet.
 func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
-	start, end, pos int) (rExtension, *common.Error) {
+	start, end, pos int) (rExtension, error) {
 	switch {
 	case extType == common.ExtnTracerouteType:
 		return rTracerouteFromRaw(rp, start, end)
@@ -53,20 +53,20 @@ func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 		// HBH not supported, so send an SCMP error in response.
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadHopByHop,
 			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewErrorData("Unsupported hop-by-hop extension", sdata, "type", extType)
+		return nil, common.NewCErrorData("Unsupported hop-by-hop extension", sdata, "type", extType)
 	}
 }
 
 // extnAddHBH adds a hop-by-hop extension to a packet the router is creating.
 // This method does not add SCMP data to errors as this is a packet that's been
 // constructed locally.
-func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
+func (rp *RtrPkt) extnAddHBH(e common.Extension) error {
 	max := rp.maxHBHExtns()
 	if len(rp.HBHExt) >= rp.maxHBHExtns() {
-		return common.NewError("Too many hop-by-hop extensions", "curr", len(rp.HBHExt), "max", max)
+		return common.NewCError("Too many hop-by-hop extensions", "curr", len(rp.HBHExt), "max", max)
 	}
 	if len(rp.HBHExt) > 1 && e.Type() == common.ExtnSCMPType {
-		return common.NewError("Bad extension order - SCMP must be first",
+		return common.NewCError("Bad extension order - SCMP must be first",
 			"idx", len(rp.HBHExt), "first", rp.HBHExt[0].Type())
 	}
 	// Find the last hop-by-hop extension, if any, and write the extension
@@ -91,7 +91,7 @@ func (rp *RtrPkt) extnAddHBH(e common.Extension) *common.Error {
 
 // extnParseE2E parses a specified end-to-end extension in a packet.
 func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
-	start, end, pos int) (rExtension, *common.Error) {
+	start, end, pos int) (rExtension, error) {
 	switch {
 	case extType == common.ExtnSCIONPacketSecurityType:
 		extn, err := parseSPSEfromRaw(rp, start, end, pos)
@@ -103,12 +103,12 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 		// E2E not supported, so send an SCMP error in response.
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
 			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewErrorData("Unsupported end-to-end extension", sdata, "type", extType)
+		return nil, common.NewCErrorData("Unsupported end-to-end extension", sdata, "type", extType)
 	}
 }
 
 // extnAddE2E adds a end-to-end extension to a packet the router is creating.
-func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
+func (rp *RtrPkt) extnAddE2E(e common.Extension) error {
 	// Find the extension, if any, and write the extension
 	offset, eLen, err := rp.extnWriteExtension(e, false)
 	if err != nil {
@@ -131,9 +131,9 @@ func (rp *RtrPkt) extnAddE2E(e common.Extension) *common.Error {
 
 // extnOffsetNew finds the last extension and returns the offset after
 // that extension, as well as a pointer to the nextHdr field of that extension.
-func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, *common.Error) {
+func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, error) {
 	if isHBH && len(rp.E2EExt) > 0 {
-		return 0, nil, common.NewError("HBH extension illegal to add after E2E extension")
+		return 0, nil, common.NewCError("HBH extension illegal to add after E2E extension")
 	}
 	offset := rp.CmnHdr.HdrLenBytes()
 	nextHdr := (*uint8)(&rp.CmnHdr.NextHdr)
@@ -151,14 +151,14 @@ func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, *common.Error) {
 
 // extnWriteExtension writes the extension after the last extension and returns
 // the offset of that extension, as well as the length of the written extension
-func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, *common.Error) {
+func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, error) {
 	offset, nextHdr, err := rp.extnOffsetNew(isHBH)
 	if err != nil {
 		return 0, 0, err
 	}
 	eLen := e.Len() + common.ExtnSubHdrLen
 	if eLen%common.LineLen != 0 {
-		return 0, 0, common.NewError("Ext length not multiple of line length",
+		return 0, 0, common.NewCError("Ext length not multiple of line length",
 			"Class", e.Class(), "Type", e.Type(), "lineLen", common.LineLen, "actual", eLen)
 	}
 	et := e.Type()
@@ -177,14 +177,14 @@ func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, 
 }
 
 // validateExtns validates the order and number of extensions.
-func (rp *RtrPkt) validateExtns() *common.Error {
+func (rp *RtrPkt) validateExtns() error {
 	max := rp.maxHBHExtns()
 	count := len(rp.idxs.hbhExt)
 	// Check if there are too many hop-by-hop extensions.
 	if count > max {
 		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
 			&scmp.InfoExtIdx{Idx: uint8(count)})
-		return common.NewErrorData("Too many hop-by-hop extensions",
+		return common.NewCErrorData("Too many hop-by-hop extensions",
 			sdata, "max", common.ExtnMaxHBH, "actual", count)
 	}
 	// Check if there an SCMP hop-by-hop extension that isn't at index 0.
@@ -192,7 +192,7 @@ func (rp *RtrPkt) validateExtns() *common.Error {
 		if e.Type == common.ExtnSCMPType && i > 0 {
 			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadExtOrder,
 				&scmp.InfoExtIdx{Idx: uint8(i)})
-			return common.NewErrorData("Extension order is illegal", sdata, "scmpIdx", count)
+			return common.NewCErrorData("Extension order is illegal", sdata, "scmpIdx", count)
 		}
 	}
 	return nil

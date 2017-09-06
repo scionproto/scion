@@ -39,7 +39,7 @@ const (
 	PeerLinkName   = "PEER"
 )
 
-func LinkTypeFromString(s string) (LinkType, *common.Error) {
+func LinkTypeFromString(s string) (LinkType, error) {
 	switch strings.ToUpper(s) {
 	case CoreLinkName:
 		return CoreLink, nil
@@ -50,7 +50,7 @@ func LinkTypeFromString(s string) (LinkType, *common.Error) {
 	case PeerLinkName:
 		return PeerLink, nil
 	default:
-		return InvalidLink, common.NewError("Unknown link type", "type", s)
+		return InvalidLink, common.NewCError("Unknown link type", "type", s)
 	}
 }
 

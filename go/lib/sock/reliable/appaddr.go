@@ -36,22 +36,19 @@ type AppAddr struct {
 
 func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, error) {
 	var a AppAddr
-	// NOTE: cerr is used to avoid nil stored in interface issue
-	var cerr *common.Error
-	addrLen, cerr := addr.HostLen(addrType)
-	if cerr != nil {
-		return nil, cerr
+	addrLen, err := addr.HostLen(addrType)
+	if err != nil {
+		return nil, err
 	}
 	// Add 2 for port
 	if len(buf) < int(addrLen)+2 {
-		return nil, common.NewError("Buffer too small for address type", "expected", addrLen+2,
+		return nil, common.NewCError("Buffer too small for address type", "expected", addrLen+2,
 			"actual", len(buf))
 	}
 
-	a.Addr, cerr = addr.HostFromRaw(buf, addrType)
-	if cerr != nil {
-		return nil, common.NewError("Unable to parse address", "address",
-			buf[:addrLen], "type", addrType)
+	a.Addr, err = addr.HostFromRaw(buf, addrType)
+	if err != nil {
+		return nil, err
 	}
 	a.Port = common.Order.Uint16(buf[addrLen:])
 	return &a, nil
@@ -59,7 +56,7 @@ func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, 
 
 func (a *AppAddr) Write(buf common.RawBytes) (int, error) {
 	if len(buf) < a.Len() {
-		return 0, common.NewError("Unable to write AppAddr, buffer too small",
+		return 0, common.NewCError("Unable to write AppAddr, buffer too small",
 			"expected", a.Len(), "actual", len(buf))
 	}
 	a.writeAddr(buf)

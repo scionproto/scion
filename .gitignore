@@ -62,7 +62,6 @@ topology/mininet/*.pyc
 # Executable binaries
 ##########################
 bin/border
-bin/discovery
 bin/dispatcher
 bin/logdog
 bin/sig

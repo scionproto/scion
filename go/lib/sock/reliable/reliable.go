@@ -98,7 +98,7 @@ type Conn struct {
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 	c, err := net.DialTimeout("unix", address, timeout)
 	if err != nil {
-		return nil, common.NewError("Unable to connect", "address", address,
+		return nil, common.NewCError("Unable to connect", "address", address,
 			"err", err)
 	}
 	return newConn(c), nil
@@ -108,7 +108,7 @@ func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 func Dial(address string) (*Conn, error) {
 	c, err := net.Dial("unix", address)
 	if err != nil {
-		return nil, common.NewError("Unable to connect", "address", address)
+		return nil, common.NewCError("Unable to connect", "address", address)
 	}
 	return newConn(c), nil
 }
@@ -117,7 +117,8 @@ func newConn(c net.Conn) *Conn {
 	return &Conn{
 		UnixConn: c.(*net.UnixConn),
 		sendBuf:  make([]byte, defBufSize),
-		recvBuf:  make([]byte, defBufSize)}
+		recvBuf:  make([]byte, defBufSize),
+	}
 }
 
 // Register connects to a SCION Dispatcher's UNIX socket.
@@ -125,14 +126,12 @@ func newConn(c net.Conn) *Conn {
 // calling Read on the returned Conn structure.
 func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, error) {
 	if a.Addr.Type() == addr.HostTypeNone {
-		return nil, 0, common.NewError("Cannot register with NoneType address")
+		return nil, 0, common.NewCError("Cannot register with NoneType address")
 	}
-
 	conn, err := Dial(dispatcher)
 	if err != nil {
-		return nil, 0, common.NewError("Failed to dial", "err", err)
+		return nil, 0, err
 	}
-
 	request := make([]byte, regBaseHeaderLen+a.Addr.Size())
 	offset := 0
 	// Enable SCMP
@@ -146,7 +145,7 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
 		conn.Close()
-		return nil, 0, common.NewError("Cannot register NoneType address")
+		return nil, 0, common.NewCError("Cannot register NoneType address")
 	}
 	request[offset] = byte(a.Addr.Type())
 	offset++
@@ -157,7 +156,6 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 		conn.Close()
 		return nil, 0, err
 	}
-
 	// Read the registration confirmation
 	reply := make([]byte, 2)
 	read, err := conn.Read(reply)
@@ -165,12 +163,11 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 		conn.Close()
 		return nil, 0, err
 	}
-
 	replyPort := common.Order.Uint16(reply[:read])
 	if a.Port != 0 && a.Port != replyPort {
 		conn.Close()
-		return nil, 0, common.NewError("Port mismatch when registering with dispatcher", "expected",
-			a.Port, "actual", replyPort)
+		return nil, 0, common.NewCError("Port mismatch when registering with dispatcher",
+			"expected", a.Port, "actual", replyPort)
 	}
 	return conn, replyPort, nil
 }
@@ -218,19 +215,16 @@ func (conn *Conn) ReadN(msgs []Msg) (int, error) {
 			fillIndex += 1
 			continue
 		}
-
 		// Not enough data to return another full packet.  Leftover
 		// fragment data might exist, move it to start of buffer
 		nCopied := copy(conn.recvBuf, conn.recvBuf[conn.recvReadHead:conn.recvWriteHead])
 		conn.recvReadHead = 0
 		conn.recvWriteHead = nCopied
-
 		// If we grabbed at least one packet, we can return the results
 		// immediately
 		if fillIndex > 0 {
 			return fillIndex, nil
 		}
-
 		// If we cannot return at least one packet, block to read more
 		// data and try again
 		nRead, err := conn.UnixConn.Read(conn.recvBuf[conn.recvWriteHead:])
@@ -239,7 +233,6 @@ func (conn *Conn) ReadN(msgs []Msg) (int, error) {
 		}
 		conn.recvWriteHead += nRead
 	}
-
 	// We read all the requested messages
 	return fillIndex, nil
 }
@@ -248,7 +241,6 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	var lastHop *AppAddr
 	var err error
 	var addrLen int
-
 	// Peek to see if packet complete
 	peekData := conn.recvBuf[conn.recvReadHead:conn.recvWriteHead]
 	peekOffset := 0
@@ -259,7 +251,7 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	header := peekData[:hdrLen]
 	if bytes.Compare(header[:len(cookie)], cookie) != 0 {
 		conn.Close()
-		return false, common.NewError("ReliableSock protocol desynchronized", "conn", conn)
+		return false, common.NewCError("ReliableSock protocol desynchronized", "conn", conn)
 	}
 	peekOffset += len(cookie)
 	rcvdAddrType := addr.HostAddrType(header[peekOffset])
@@ -282,12 +274,12 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 		lastHop, err = AppAddrFromRaw(addrBuf, rcvdAddrType)
 		if err != nil {
 			conn.Close()
-			return false, common.NewError("Unable to parse received address", "err", err)
+			return false, common.NewCError("Unable to parse received address", "err", err)
 		}
 		peekOffset += addrLen + 2
 	default:
 		conn.Close()
-		return false, common.NewError("Unknown address type", "type", rcvdAddrType)
+		return false, common.NewCError("Unsupported address type", "type", rcvdAddrType)
 	}
 
 	// Read the payload
@@ -356,13 +348,12 @@ func (conn *Conn) WriteN(bufs []Msg) (int, error) {
 		index = indexNew
 		copiedMsgs = copiedMsgsNew
 	}
-
 	// Flush everything, we'll rarely block on writes anyway
 	copied := 0
 	for copied < index {
 		n, err := conn.UnixConn.Write(conn.sendBuf[copied:index])
 		if err != nil {
-			return 0, common.NewError("Error writing to UNIX socket", "err", err)
+			return 0, common.NewCError("Error writing to UNIX socket", "err", err)
 		}
 		copied += n
 	}
@@ -388,27 +379,26 @@ func (conn *Conn) String() string {
 		conn.UnixConn.RemoteAddr())
 }
 
-func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (indexNew, copiedMsgsNew int, err error) {
+// copyMsg returns the new index and copied messsages count on success.
+func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	var dst *AppAddr
 	if msg.Addr == nil {
 		dst = &NilAppAddr
 	} else {
 		dst = msg.Addr
 	}
-
 	destLen := dst.Len()
 	// If we do not have enough space for another message, break
 	if len(conn.sendBuf[index:]) < hdrLen+destLen+len(msg.Buffer) {
 		if copiedMsgs == 0 {
 			// We are unable to fit the first message in the buffer
-			return 0, 0, common.NewError("Unable to copy first message",
+			return 0, 0, common.NewCError("Unable to copy first message",
 				"details", "message too large", "bufSize",
 				len(conn.sendBuf[index:]), "want",
 				hdrLen+destLen+len(msg.Buffer))
 		}
 		return index, copiedMsgs, nil
 	}
-
 	// Cookie
 	index += copy(conn.sendBuf[index:], cookie)
 	// Addr type
@@ -427,7 +417,6 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (indexNew, copiedMsgs
 	// Messages are always copied in their entirety. To avoid errors,
 	// we reset the unused Copied field to 0
 	msg.Copied = 0
-
 	return index, copiedMsgs, nil
 }
 
@@ -440,7 +429,7 @@ type Listener struct {
 func Listen(laddr string) (*Listener, error) {
 	l, err := net.Listen("unix", laddr)
 	if err != nil {
-		return nil, common.NewError("Unable to listen on address", "addr", laddr)
+		return nil, common.NewCError("Unable to listen on address", "addr", laddr)
 	}
 	return &Listener{l.(*net.UnixListener)}, nil
 }
@@ -450,7 +439,7 @@ func Listen(laddr string) (*Listener, error) {
 func (listener *Listener) Accept() (*Conn, error) {
 	c, err := listener.UnixListener.Accept()
 	if err != nil {
-		return nil, common.NewError("Unable to accept", "listener", listener)
+		return nil, common.NewCError("Unable to accept", "listener", listener)
 	}
 	return newConn(c), nil
 }

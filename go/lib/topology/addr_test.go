@@ -15,17 +15,13 @@
 package topology
 
 import (
-	// Stdlib
 	"fmt"
 	"net"
 	"testing"
 
-	// External
 	. "github.com/smartystreets/goconvey/convey"
 
-	// Local
-	//"github.com/netsec-ethz/scion/go/lib/addr"
-	//"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
@@ -242,7 +238,8 @@ func Test_ToTopoAddr_Errors(t *testing.T) {
 			Convey(desc, t, func() {
 				_, err := test.in.ToTopoAddr(ot)
 				SoMsg("Error returned", err, ShouldNotBeNil)
-				SoMsg("Error description", err.Desc, shouldBeInStrings, test.errDesc)
+				cerr := err.(*common.CError)
+				SoMsg("Error description", cerr.Desc, shouldBeInStrings, test.errDesc)
 			})
 		}
 	}

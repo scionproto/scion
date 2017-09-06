@@ -92,25 +92,25 @@ func NewDRKeyExtn() *DRKeyExtn {
 	return s
 }
 
-func (s DRKeyExtn) SetDirection(dir Dir) *common.Error {
+func (s DRKeyExtn) SetDirection(dir Dir) error {
 	if dir > HostToHostReversed {
-		return common.NewError("Invalid direction", "dir", dir)
+		return common.NewCError("Invalid direction", "dir", dir)
 	}
 	s.Direction = dir
 	return nil
 }
 
-func (s DRKeyExtn) SetMAC(mac common.RawBytes) *common.Error {
+func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
 	if len(mac) != MACLength {
-		return common.NewError("Invalid MAC size", "expexted", MACLength, "actual", len(mac))
+		return common.NewCError("Invalid MAC size", "expexted", MACLength, "actual", len(mac))
 	}
 	copy(s.MAC, mac)
 	return nil
 }
 
-func (s *DRKeyExtn) Write(b common.RawBytes) *common.Error {
+func (s *DRKeyExtn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write",
+		return common.NewCError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write",
 			"expected", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)
@@ -122,7 +122,7 @@ func (s *DRKeyExtn) Write(b common.RawBytes) *common.Error {
 	return nil
 }
 
-func (s *DRKeyExtn) Pack() (common.RawBytes, *common.Error) {
+func (s *DRKeyExtn) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err

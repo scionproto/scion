@@ -80,7 +80,7 @@ type RawBRIntf struct {
 }
 
 // Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
-func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, *common.Error) {
+func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
 	s := &RawAddrInfo{
 		Public: []RawAddrPortOverlay{
 			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
@@ -96,10 +96,10 @@ func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, *common.Error) {
 }
 
 // make an AddrInfo object from a BR interface Remote entry
-func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (*AddrInfo, *common.Error) {
+func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (*AddrInfo, error) {
 	ip := net.ParseIP(b.Remote.Addr)
 	if ip == nil {
-		return nil, common.NewError("Could not parse remote IP from string", "ip", b.Remote.Addr)
+		return nil, common.NewCError("Could not parse remote IP from string", "ip", b.Remote.Addr)
 	}
 	ai := &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}
 	if o.IsUDP() {
@@ -113,7 +113,7 @@ type RawAddrInfo struct {
 	Bind   []RawAddrPort `json:",omitempty"`
 }
 
-func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err *common.Error) {
+func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
 	return TopoAddrFromRAI(s, ot)
 }
 
@@ -146,38 +146,38 @@ func (a RawAddrPortOverlay) String() string {
 	return fmt.Sprintf("%s:%d/%d", a.Addr, a.L4Port, a.OverlayPort)
 }
 
-func Load(b common.RawBytes) (*Topo, *common.Error) {
+func Load(b common.RawBytes) (*Topo, error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewError(ErrorParse, "err", err)
+		return nil, common.NewCError(ErrorParse, "err", err)
 	}
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
-		return nil, common.NewError(ErrorConvert, "err", err)
+		return nil, common.NewCError(ErrorConvert, "err", err)
 	}
 	return ct, nil
 }
 
-func LoadFromFile(path string) (*Topo, *common.Error) {
+func LoadFromFile(path string) (*Topo, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
+		return nil, common.NewCError(ErrorOpen, "err", err, "path", path)
 	}
 	return Load(b)
 }
 
-func LoadRaw(b common.RawBytes) (*RawTopo, *common.Error) {
+func LoadRaw(b common.RawBytes) (*RawTopo, error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewError(ErrorParse, "err", err)
+		return nil, common.NewCError(ErrorParse, "err", err)
 	}
 	return rt, nil
 }
 
-func LoadRawFromFile(path string) (*RawTopo, *common.Error) {
+func LoadRawFromFile(path string) (*RawTopo, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewError(ErrorOpen, "err", err, "path", path)
+		return nil, common.NewCError(ErrorOpen, "err", err, "path", path)
 	}
 	return LoadRaw(b)
 }

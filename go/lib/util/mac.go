@@ -29,19 +29,19 @@ const (
 	ErrorMacFailure    = "Unable to initalize Mac"
 )
 
-func InitMac(key common.RawBytes) (hash.Hash, *common.Error) {
+func InitMac(key common.RawBytes) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, common.NewError(ErrorCipherFailure, log.Ctx{"err": err})
+		return nil, common.NewCError(ErrorCipherFailure, log.Ctx{"err": err})
 	}
 	mac, err := cmac.New(block)
 	if err != nil {
-		return nil, common.NewError(ErrorMacFailure, log.Ctx{"err": err})
+		return nil, common.NewCError(ErrorMacFailure, log.Ctx{"err": err})
 	}
 	return mac, nil
 }
 
-func Mac(mac hash.Hash, msg common.RawBytes) (common.RawBytes, *common.Error) {
+func Mac(mac hash.Hash, msg common.RawBytes) (common.RawBytes, error) {
 	mac.Write(msg)
 	tmp := make([]byte, 0, mac.Size())
 	tag := mac.Sum(tmp)

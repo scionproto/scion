@@ -51,17 +51,17 @@ func NewHdr(ct ClassType, len int) *Hdr {
 	}
 }
 
-func HdrFromRaw(b common.RawBytes) (*Hdr, *common.Error) {
+func HdrFromRaw(b common.RawBytes) (*Hdr, error) {
 	h := &Hdr{}
 	if err := restruct.Unpack(b, common.Order, h); err != nil {
-		return nil, common.NewError(ErrorSCMPHdrUnpack, "err", err)
+		return nil, common.NewCError(ErrorSCMPHdrUnpack, "err", err)
 	}
 	return h, nil
 }
 
-func (h *Hdr) Validate(plen int) *common.Error {
+func (h *Hdr) Validate(plen int) error {
 	if plen+HdrLen != int(h.TotalLen) {
-		return common.NewError("SCMP header total length doesn't match",
+		return common.NewCError("SCMP header total length doesn't match",
 			"expected", h.TotalLen, "actual", plen)
 	}
 	return nil
@@ -71,19 +71,19 @@ func (h *Hdr) SetPldLen(l int) {
 	h.TotalLen = uint16(HdrLen + l)
 }
 
-func (h *Hdr) Write(b common.RawBytes) *common.Error {
+func (h *Hdr) Write(b common.RawBytes) error {
 	out, err := restruct.Pack(common.Order, h)
 	if err != nil {
-		return common.NewError("Error packing SCMP header", "err", err)
+		return common.NewCError("Error packing SCMP header", "err", err)
 	}
 	if count := copy(b, out); count != HdrLen {
-		return common.NewError("Partial write of SCMP header",
+		return common.NewCError("Partial write of SCMP header",
 			"expected(B)", HdrLen, "actual(B)", count)
 	}
 	return nil
 }
 
-func (h *Hdr) Pack(csum bool) (common.RawBytes, *common.Error) {
+func (h *Hdr) Pack(csum bool) (common.RawBytes, error) {
 	b := make(common.RawBytes, HdrLen)
 	if err := h.Write(b); err != nil {
 		return nil, err
