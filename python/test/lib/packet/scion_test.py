@@ -54,7 +54,6 @@ from lib.types import (
     ExtHopByHopType,
     ExtensionClass,
     L4Proto,
-    PayloadClass,
 )
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
