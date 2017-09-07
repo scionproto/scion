@@ -24,10 +24,10 @@ import (
 
 var (
 	paths = map[string]*sciond.PathReply{
-		"1-19.2-25": &sciond.PathReply{
+		"1-19.2-25": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x1, 0x59, 0xae, 0xe3, 0xb4, 0x0, 0x1, 0x3, 0x0, 0x3f, 0x3,
 							0xc0, 0x0, 0xf6, 0x15, 0x5b, 0x0, 0x3f, 0x1, 0x60, 0x26, 0x68, 0xee, 0x87,
@@ -39,18 +39,12 @@ var (
 							0xa0, 0x0, 0x13, 0x35, 0xeb},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x100013, IfID: 0x3c},
-							sciond.PathInterface{RawIsdas: 0x100010, IfID: 0x26},
-							sciond.PathInterface{RawIsdas: 0x100010, IfID: 0x16},
-							sciond.PathInterface{RawIsdas: 0x10000d, IfID: 0x17},
-							sciond.PathInterface{RawIsdas: 0x10000d, IfID: 0x2e},
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x12},
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x57},
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x61},
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x45},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x39},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x42},
-							sciond.PathInterface{RawIsdas: 0x200019, IfID: 0x4a}}},
+							{RawIsdas: 0x100013, IfID: 0x3c}, {RawIsdas: 0x100010, IfID: 0x26},
+							{RawIsdas: 0x100010, IfID: 0x16}, {RawIsdas: 0x10000d, IfID: 0x17},
+							{RawIsdas: 0x10000d, IfID: 0x2e}, {RawIsdas: 0x10000b, IfID: 0x12},
+							{RawIsdas: 0x10000b, IfID: 0x57}, {RawIsdas: 0x200015, IfID: 0x61},
+							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39},
+							{RawIsdas: 0x200017, IfID: 0x42}, {RawIsdas: 0x200019, IfID: 0x4a}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x756f,
 						Addrs: struct {
@@ -59,10 +53,10 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xb1},
 							Ipv6: []uint8(nil)}}}}},
-		"1-10.1-18": &sciond.PathReply{
+		"1-10.1-18": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x7, 0x59, 0xaf, 0xe0, 0xe4, 0x0, 0x1, 0x5, 0x0, 0x3f, 0x3,
 							0x30, 0x0, 0x13, 0x22, 0x7f, 0x0, 0x3f, 0x3, 0xc0, 0x31, 0x7d, 0x5c, 0x44,
@@ -73,14 +67,10 @@ var (
 							0x54, 0x42, 0x92, 0x6f, 0x0, 0x3f, 0x2, 0x80, 0x0, 0xd, 0x4f, 0x20},
 						Mtu: 0x5c0,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x10000a, IfID: 0x33},
-							sciond.PathInterface{RawIsdas: 0x100013, IfID: 0x31},
-							sciond.PathInterface{RawIsdas: 0x100013, IfID: 0x3c},
-							sciond.PathInterface{RawIsdas: 0x100010, IfID: 0x26},
-							sciond.PathInterface{RawIsdas: 0x100010, IfID: 0x1e},
-							sciond.PathInterface{RawIsdas: 0x10000f, IfID: 0x23},
-							sciond.PathInterface{RawIsdas: 0x10000f, IfID: 0x54},
-							sciond.PathInterface{RawIsdas: 0x100012, IfID: 0x28}}},
+							{RawIsdas: 0x10000a, IfID: 0x33}, {RawIsdas: 0x100013, IfID: 0x31},
+							{RawIsdas: 0x100013, IfID: 0x3c}, {RawIsdas: 0x100010, IfID: 0x26},
+							{RawIsdas: 0x100010, IfID: 0x1e}, {RawIsdas: 0x10000f, IfID: 0x23},
+							{RawIsdas: 0x10000f, IfID: 0x54}, {RawIsdas: 0x100012, IfID: 0x28}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7579,
 						Addrs: struct {
@@ -89,10 +79,10 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0x31},
 							Ipv6: []uint8(nil)}}}}},
-		"2-24.1-17": &sciond.PathReply{
+		"2-24.1-17": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x1, 0x59, 0xaf, 0xac, 0xd7, 0x0, 0x2, 0x2, 0x0, 0x3f, 0x4,
 							0xb0, 0x0, 0x85, 0x25, 0xf2, 0x1, 0x3f, 0x0, 0x0, 0x4d, 0xed, 0xf, 0xf5,
@@ -103,16 +93,11 @@ var (
 							0xe, 0x15, 0xbe, 0x0, 0x3f, 0x0, 0xe0, 0x0, 0x8f, 0x4b, 0xf5},
 						Mtu: 0x578,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x200018, IfID: 0x4b},
-							sciond.PathInterface{RawIsdas: 0x200016, IfID: 0x4d},
-							sciond.PathInterface{RawIsdas: 0x200016, IfID: 0x31},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x17},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x5f},
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x36},
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x1b},
-							sciond.PathInterface{RawIsdas: 0x10000e, IfID: 0x3a},
-							sciond.PathInterface{RawIsdas: 0x10000e, IfID: 0x31},
-							sciond.PathInterface{RawIsdas: 0x100011, IfID: 0xe}}},
+							{RawIsdas: 0x200018, IfID: 0x4b}, {RawIsdas: 0x200016, IfID: 0x4d},
+							{RawIsdas: 0x200016, IfID: 0x31}, {RawIsdas: 0x10000c, IfID: 0x17},
+							{RawIsdas: 0x10000c, IfID: 0x5f}, {RawIsdas: 0x10000b, IfID: 0x36},
+							{RawIsdas: 0x10000b, IfID: 0x1b}, {RawIsdas: 0x10000e, IfID: 0x3a},
+							{RawIsdas: 0x10000e, IfID: 0x31}, {RawIsdas: 0x100011, IfID: 0xe}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7563,
 						Addrs: struct {
@@ -121,10 +106,10 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xf1},
 							Ipv6: []uint8(nil)}}}}},
-		"2-22.1-16": &sciond.PathReply{
+		"2-22.1-16": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x1, 0x59, 0xaf, 0xad, 0x40, 0x0, 0x1, 0x3, 0x0, 0x3f, 0x3,
 							0x10, 0x0, 0x35, 0xfd, 0x5f, 0x0, 0x3f, 0x4, 0x20, 0x17, 0xb6, 0x63, 0xc,
@@ -133,12 +118,9 @@ var (
 							0x60, 0x0, 0xb8, 0x5b, 0xd4},
 						Mtu: 0x578,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x200016, IfID: 0x31},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x17},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x42},
-							sciond.PathInterface{RawIsdas: 0x10000d, IfID: 0x55},
-							sciond.PathInterface{RawIsdas: 0x10000d, IfID: 0x17},
-							sciond.PathInterface{RawIsdas: 0x100010, IfID: 0x16}}},
+							{RawIsdas: 0x200016, IfID: 0x31}, {RawIsdas: 0x10000c, IfID: 0x17},
+							{RawIsdas: 0x10000c, IfID: 0x42}, {RawIsdas: 0x10000d, IfID: 0x55},
+							{RawIsdas: 0x10000d, IfID: 0x17}, {RawIsdas: 0x100010, IfID: 0x16}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7574,
 						Addrs: struct {
@@ -147,10 +129,10 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xd1},
 							Ipv6: []uint8(nil)}}}}},
-		"1-18.2-25": &sciond.PathReply{
+		"1-18.2-25": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x1, 0x59, 0xaf, 0xad, 0x6d, 0x0, 0x1, 0x3, 0x0, 0x3f, 0x2,
 							0x80, 0x0, 0x69, 0xb6, 0xf0, 0x0, 0x3f, 0x4, 0x0, 0x54, 0xdc, 0xe9, 0x63,
@@ -162,18 +144,12 @@ var (
 							0xa0, 0x0, 0xb4, 0x68, 0x31},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x100012, IfID: 0x28},
-							sciond.PathInterface{RawIsdas: 0x10000f, IfID: 0x54},
-							sciond.PathInterface{RawIsdas: 0x10000f, IfID: 0x40},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x23},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x17},
-							sciond.PathInterface{RawIsdas: 0x200016, IfID: 0x31},
-							sciond.PathInterface{RawIsdas: 0x200016, IfID: 0xa},
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x16},
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x45},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x39},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x42},
-							sciond.PathInterface{RawIsdas: 0x200019, IfID: 0x4a}}},
+							{RawIsdas: 0x100012, IfID: 0x28}, {RawIsdas: 0x10000f, IfID: 0x54},
+							{RawIsdas: 0x10000f, IfID: 0x40}, {RawIsdas: 0x10000c, IfID: 0x23},
+							{RawIsdas: 0x10000c, IfID: 0x17}, {RawIsdas: 0x200016, IfID: 0x31},
+							{RawIsdas: 0x200016, IfID: 0xa}, {RawIsdas: 0x200015, IfID: 0x16},
+							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39},
+							{RawIsdas: 0x200017, IfID: 0x42}, {RawIsdas: 0x200019, IfID: 0x4a}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7574,
 						Addrs: struct {
@@ -182,20 +158,18 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xa1},
 							Ipv6: []uint8(nil)}}}}},
-		"2-21.2-26": &sciond.PathReply{
+		"2-21.2-26": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x0, 0x59, 0xaf, 0xad, 0x90, 0x0, 0x2, 0x3, 0x0, 0x3f, 0x0,
 							0x0, 0x45, 0x97, 0x85, 0x64, 0x0, 0x3f, 0x3, 0x90, 0x11, 0x1, 0xc7, 0x2a,
 							0x0, 0x3f, 0x2, 0x20, 0x0, 0xbd, 0x8, 0xb1},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x45},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x39},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x11},
-							sciond.PathInterface{RawIsdas: 0x20001a, IfID: 0x22}}},
+							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39},
+							{RawIsdas: 0x200017, IfID: 0x11}, {RawIsdas: 0x20001a, IfID: 0x22}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7581,
 						Addrs: struct {
@@ -204,10 +178,10 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xc3},
 							Ipv6: []uint8(nil)}}}}},
-		"1-11.2-23": &sciond.PathReply{
+		"1-11.2-23": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x1, 0x59, 0xaf, 0xad, 0xc2, 0x0, 0x2, 0x2, 0x0, 0x3f, 0x5,
 							0x70, 0x0, 0x7e, 0xcf, 0xc5, 0x1, 0x3f, 0x0, 0x0, 0x61, 0x3d, 0xe5, 0xde,
@@ -215,10 +189,8 @@ var (
 							0xf7, 0xe0, 0x0, 0x3f, 0x3, 0x90, 0x0, 0x63, 0x7e, 0x27},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x57},
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x61},
-							sciond.PathInterface{RawIsdas: 0x200015, IfID: 0x45},
-							sciond.PathInterface{RawIsdas: 0x200017, IfID: 0x39}}},
+							{RawIsdas: 0x10000b, IfID: 0x57}, {RawIsdas: 0x200015, IfID: 0x61},
+							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7590,
 						Addrs: struct {
@@ -227,10 +199,10 @@ var (
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0x43},
 							Ipv6: []uint8(nil)}}}}},
-		"1-13.1-18": &sciond.PathReply{
+		"1-13.1-18": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
-				sciond.PathReplyEntry{
+				{
 					Path: sciond.FwdPathMeta{
 						FwdPath: []uint8{0x1, 0x59, 0xaf, 0xad, 0xd9, 0x0, 0x1, 0x3, 0x0, 0x3f, 0x2,
 							0xe0, 0x0, 0x94, 0x6, 0x85, 0x0, 0x3f, 0x3, 0x60, 0x12, 0xd8, 0x22, 0x8b,
@@ -239,14 +211,10 @@ var (
 							0x0, 0x54, 0x32, 0xb3, 0xac, 0x0, 0x3f, 0x2, 0x80, 0x0, 0xe8, 0xb0, 0x2e},
 						Mtu: 0x5c0,
 						Interfaces: []sciond.PathInterface{
-							sciond.PathInterface{RawIsdas: 0x10000d, IfID: 0x2e},
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x12},
-							sciond.PathInterface{RawIsdas: 0x10000b, IfID: 0x36},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x5f},
-							sciond.PathInterface{RawIsdas: 0x10000c, IfID: 0x23},
-							sciond.PathInterface{RawIsdas: 0x10000f, IfID: 0x40},
-							sciond.PathInterface{RawIsdas: 0x10000f, IfID: 0x54},
-							sciond.PathInterface{RawIsdas: 0x100012, IfID: 0x28}}},
+							{RawIsdas: 0x10000d, IfID: 0x2e}, {RawIsdas: 0x10000b, IfID: 0x12},
+							{RawIsdas: 0x10000b, IfID: 0x36}, {RawIsdas: 0x10000c, IfID: 0x5f},
+							{RawIsdas: 0x10000c, IfID: 0x23}, {RawIsdas: 0x10000f, IfID: 0x40},
+							{RawIsdas: 0x10000f, IfID: 0x54}, {RawIsdas: 0x100012, IfID: 0x28}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7562,
 						Addrs: struct {

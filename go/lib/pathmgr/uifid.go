@@ -18,16 +18,17 @@ import (
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 // UIFID (Unique IFID) is a IFID descriptor with global scope composed of ISDAS
 // and local IFID
 type UIFID struct {
 	isdas *addr.ISD_AS
-	ifid  uint64
+	ifid  common.IFIDType
 }
 
-func UIFIDFromValues(isdas *addr.ISD_AS, ifid uint64) *UIFID {
+func UIFIDFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) *UIFID {
 	return &UIFID{
 		isdas: isdas.Copy(),
 		ifid:  ifid,
@@ -72,7 +73,7 @@ func (u *revTable) updatePathSet(aps AppPathSet, disc int) {
 
 func (u *revTable) updatePath(ap *AppPath, disc int) {
 	for _, iface := range ap.Entry.Path.Interfaces {
-		uifid := UIFIDFromValues(iface.ISD_AS(), iface.IfID)
+		uifid := UIFIDFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
 		aps := u.m[uifid.key()]
 		if aps == nil {
 			// AppPathSet not initialized yet

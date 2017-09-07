@@ -203,19 +203,22 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 
 	parsedRev, cerr := path_mgmt.NewRevInfoFromRaw(revInfo)
 	if cerr != nil {
-		log.Error("Unable to parse revocation info", "err", cerr, "revInfo", revInfo)
+		log.Error("Revocation failed, unable to parse revocation info", "err", cerr,
+			"revInfo", revInfo)
+		return
 	}
 
 	reply, err := r.sciond.RevNotification(parsedRev)
 	if err != nil {
-		log.Error("Unable to inform SCIOND about revocation", "err", err)
+		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
+		return
 	}
 
 	switch reply.Result {
 	case sciond.RevUnknown:
 		fallthrough
 	case sciond.RevValid:
-		uifid := UIFIDFromValues(parsedRev.IA(), parsedRev.IfID)
+		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
 		r.revTable.revoke(uifid)
 	case sciond.RevStale:
 		log.Warn("Found stale revocation notification", "revInfo", parsedRev)
