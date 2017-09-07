@@ -130,7 +130,7 @@ class SCMPInfoEcho(SCMPInfoGeneric):
         inst = cls()
         if id_ is None:
             id_ = os.urandom(2)
-        assert isinstance(id_, bytes)
+        assert isinstance(id_, bytes), type(id_)
         inst._set_vals((id_, seq))
         return inst
 
@@ -215,7 +215,7 @@ class SCMPInfoRevocation(SCMPInfoPathOffsets):
         self.rev_info = data.pop()
 
     def pack(self):  # pragma: no cover
-        assert isinstance(self.rev_info, bytes)
+        assert isinstance(self.rev_info, bytes), type(self.rev_info)
         return super().pack() + self.rev_info
 
     def __len__(self):

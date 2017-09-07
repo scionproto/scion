@@ -177,7 +177,7 @@ class SCIONAddr(object):
         :param ISD_AS isd_as: ISD-AS identifier.
         :param HostAddrBase host: host address
         """
-        assert isinstance(host, HostAddrBase)
+        assert isinstance(host, HostAddrBase), type(host)
         addr = cls()
         addr.isd_as = isd_as
         addr.host = host

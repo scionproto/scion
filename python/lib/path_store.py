@@ -65,7 +65,7 @@ class PathPolicy(object):
         :raises:
             SCIONPathPolicyViolated if any unwanted AS is present or a range is not respected.
         """
-        assert isinstance(pcb, PathSegment)
+        assert isinstance(pcb, PathSegment), type(pcb)
         isd_as = self._check_unwanted_ases(pcb)
         if isd_as:
             raise SCIONPathPolicyViolated("Unwanted AS(%s): %s", isd_as, pcb.short_desc())
@@ -213,7 +213,7 @@ class PathStoreRecord(object):
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
         """
-        assert isinstance(pcb, PathSegment)
+        assert isinstance(pcb, PathSegment), type(pcb)
         self.id = pcb.get_hops_hash(hex=True)
         self.peer_links = pcb.get_n_peer_links()
         self.hops_length = pcb.get_n_hops()
@@ -321,7 +321,7 @@ class PathStore(object):
         :param pcb: The PCB representing the potential path.
         :type pcb: PathSegment
         """
-        assert isinstance(pcb, PathSegment)
+        assert isinstance(pcb, PathSegment), type(pcb)
         pcb_hash = pcb.get_hops_hash(hex=True)
         try:
             self.path_policy.check_filters(pcb)

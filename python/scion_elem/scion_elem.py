@@ -852,7 +852,7 @@ class SCIONElement(object):
         assert not isinstance(packet.addrs.src.host, HostAddrNone), type(packet.addrs.src.host)
         assert not isinstance(packet.addrs.dst.host, HostAddrNone), type(packet.addrs.dst.host)
         assert isinstance(packet, SCIONBasePacket), type(packet)
-        assert isinstance(dst_port, int), dst_port
+        assert isinstance(dst_port, int), type(dst_port)
         if not self._udp_sock:
             return False
         return self._udp_sock.send(packet.pack(), (dst, dst_port))

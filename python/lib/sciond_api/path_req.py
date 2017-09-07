@@ -129,7 +129,7 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         :param path: The FwdPathMeta object.
         :param first_hop: A HostInfo object for the first hop of the path.
         """
-        assert isinstance(path, FwdPathMeta)
+        assert isinstance(path, FwdPathMeta), type(path)
         p = cls.P_CLS.new_message(path=path.p, hostInfo=first_hop.p)
         return cls(p)
 

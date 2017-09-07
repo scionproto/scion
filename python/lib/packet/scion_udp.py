@@ -109,8 +109,8 @@ class SCIONUDPHeader(L4HeaderBase):
             - L4 protocol type (UDP)
             - UDP header, excluding checksum
         """
-        assert isinstance(self._src, SCIONAddr)
-        assert isinstance(self._dst, SCIONAddr)
+        assert isinstance(self._src, SCIONAddr), type(self._src)
+        assert isinstance(self._dst, SCIONAddr), type(self._dst)
         pseudo_header = b"".join([
             self._dst.isd_as.pack(), self._src.isd_as.pack(),
             self._dst.host.pack(), self._src.host.pack(),
