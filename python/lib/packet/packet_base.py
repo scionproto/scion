@@ -66,7 +66,7 @@ class Cerealizable(object, metaclass=ABCMeta):
     P_CLS = P.Foo
     """
     def __init__(self, p):
-        assert not isinstance(p, bytes)
+        assert not isinstance(p, bytes), type(p)
         self.p = p
         self._packed = False
 
@@ -241,7 +241,7 @@ class PayloadRaw(Serializable):  # pragma: no cover
         self._raw = raw or b""
 
     def from_values(cls, raw):
-        assert isinstance(raw, bytes)
+        assert isinstance(raw, bytes), type(raw)
         inst = cls()
         inst._raw = raw
         return inst

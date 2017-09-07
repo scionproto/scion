@@ -251,7 +251,7 @@ class ConnectedHashTree(object):
         :param RevInfo rev_info: proof for the revocation.
         :param bytes root: hash of the root, used for validating the proof.
         """
-        assert not isinstance(rev_info.p, bytes)
+        assert not isinstance(rev_info.p, bytes), type(rev_info.p)
         h01, h12 = cls.get_possible_hashes(rev_info)
         return h01 == root or h12 == root
 

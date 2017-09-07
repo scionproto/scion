@@ -361,11 +361,11 @@ class SCIONBasePacket(PacketBase):
         return inst
 
     def _inner_from_values(self, cmn_hdr, addr_hdr, path_hdr):
-        assert isinstance(cmn_hdr, SCIONCommonHdr)
+        assert isinstance(cmn_hdr, SCIONCommonHdr), type(cmn_hdr)
         self.cmn_hdr = cmn_hdr
-        assert isinstance(addr_hdr, SCIONAddrHdr)
+        assert isinstance(addr_hdr, SCIONAddrHdr), type(addr_hdr)
         self.addrs = addr_hdr
-        assert isinstance(path_hdr, SCIONPath)
+        assert isinstance(path_hdr, SCIONPath), type(path_hdr)
         self.path = path_hdr
 
     def get_fwd_ifid(self):
@@ -403,7 +403,7 @@ class SCIONBasePacket(PacketBase):
         self.addrs.validate()
         if path_len:
             self._validate_of_idxes()
-        assert isinstance(self._payload, PayloadRaw)
+        assert isinstance(self._payload, PayloadRaw), type(self._payload)
 
     def _validate_of_idxes(self):
         try:
@@ -517,7 +517,7 @@ class SCIONExtPacket(SCIONBasePacket):
     def _inner_from_values(self, cmn_hdr, addr_hdr, path_hdr, ext_hdrs):
         super()._inner_from_values(cmn_hdr, addr_hdr, path_hdr)
         for hdr in ext_hdrs:
-            assert isinstance(hdr, ExtensionHeader)
+            assert isinstance(hdr, ExtensionHeader), type(hdr)
             self.ext_hdrs.append(hdr)
 
     def get_fwd_ifid(self):
@@ -617,7 +617,7 @@ class SCIONL4Packet(SCIONExtPacket):
 
     def _inner_from_values(self, cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr):
         super()._inner_from_values(cmn_hdr, addr_hdr, path_hdr, ext_hdrs)
-        assert isinstance(l4_hdr, L4HeaderBase)
+        assert isinstance(l4_hdr, L4HeaderBase), type(l4_hdr)
         self.l4_hdr = l4_hdr
         self._l4_proto = l4_hdr.TYPE
 

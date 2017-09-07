@@ -54,8 +54,8 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc):
 
     :raises: SCIONVerificationError if the verification fails.
     """
-    assert isinstance(chain, CertificateChain)
-    assert isinstance(trc, TRC)
+    assert isinstance(chain, CertificateChain), type(chain)
+    assert isinstance(trc, TRC), type(trc)
     subject = str(subject)
     try:
         chain.verify(subject, trc)

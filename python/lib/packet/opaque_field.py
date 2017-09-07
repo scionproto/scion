@@ -247,7 +247,7 @@ class OpaqueFieldList(object):
         :raises:
             :any:`SCIONKeyError`: if the label is unknown.
         """
-        assert isinstance(ofs, list)
+        assert isinstance(ofs, list), type(ofs)
         if label not in self._labels:
             raise SCIONKeyError("Opaque field label (%s) unknown" % label)
         self._labels[label] = ofs
