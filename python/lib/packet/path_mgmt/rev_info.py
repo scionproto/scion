@@ -24,7 +24,6 @@ import capnp  # noqa
 import proto.rev_info_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.types import PathMgmtType as PMT
 
 
 class RevocationInfo(Cerealizable):
@@ -32,7 +31,6 @@ class RevocationInfo(Cerealizable):
     Class containing revocation information, i.e., the revocation token.
     """
     NAME = "RevocationInfo"
-    PAYLOAD_TYPE = PMT.REVOCATION
     P_CLS = P.RevInfo
 
     @classmethod

@@ -23,13 +23,11 @@ import proto.path_mgmt_capnp as P
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.types import PathMgmtType as PMT
 
 
 class PathSegmentReq(Cerealizable):  # pragma: no cover
     """Describes a request for path segment(s)"""
     NAME = "PathSegmentReq"
-    PAYLOAD_TYPE = PMT.REQUEST
     LEN = 1 + 2 * ISD_AS.LEN
     P_CLS = P.SegReq
 

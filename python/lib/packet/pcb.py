@@ -35,7 +35,7 @@ from lib.packet.packet_base import Cerealizable
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
-from lib.types import ASMExtType, PayloadClass
+from lib.types import ASMExtType
 from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
@@ -164,7 +164,6 @@ class ASMarking(Cerealizable):
 
 class PathSegment(Cerealizable):
     NAME = "PathSegment"
-    PAYLOAD_CLASS = PayloadClass.PCB
     P_CLS = P.PathSegment
     VER = len(P_CLS.schema.fields) - 1
 

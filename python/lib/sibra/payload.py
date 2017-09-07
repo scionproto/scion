@@ -21,7 +21,6 @@ import capnp  # noqa
 # SCION
 import proto.sibra_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.types import PayloadClass
 
 
 class SIBRAPayload(Cerealizable):  # pragma: no cover
@@ -30,7 +29,6 @@ class SIBRAPayload(Cerealizable):  # pragma: no cover
     """
     NAME = "SIBRAPayload"
     P_CLS = P.SibraPayload
-    PAYLOAD_CLASS = PayloadClass.SIBRA
 
     @classmethod
     def from_values(cls):
