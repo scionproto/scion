@@ -37,6 +37,9 @@ from lib.defines import (
 )
 from lib.log import add_formatter, Rfc3339Formatter
 from lib.path_seg_meta import PathSegMeta
+from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.path_mgmt.base import PathMgmt
+from lib.packet.path_mgmt.ifstate import IFStatePayload
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -217,27 +220,32 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logging.debug("%s-Segment updated: %s", name, pcb.short_id())
         return False
 
-    def handle_ifstate_infos(self, infos, meta):
+    def handle_ifstate_infos(self, cpld, meta):
         """
         Handles IFStateInfos.
 
         :param IFStatePayload infos: The state info objects.
         """
+        pmgt = cpld.contents
+        infos = pmgt.contents
+        assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
-                self._handle_revocation(info.rev_info(), meta)
+                self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        self._handle_revocation(rev_info, meta)
+        self._handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
 
-    def _handle_revocation(self, rev_info, meta):
+    def _handle_revocation(self, cpld, meta):
         """
         Handles a revocation of a segment, interface or hop.
 
         :param rev_info: The RevocationInfo object.
         """
-        assert isinstance(rev_info, RevocationInfo)
+        pmgt = cpld.contents
+        rev_info = pmgt.contents
+        assert isinstance(rev_info, RevocationInfo), type(rev_info)
         if not self._validate_revocation(rev_info):
             return
         if meta.ia[0] != self.addr.isd_as[0]:
@@ -313,7 +321,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
             revs_to_add
         )
-        self.send_meta(pld, meta)
+        self.send_meta(CtrlPayload(PathMgmt(pld)), meta)
         logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
 
     def _peer_revs_for_segs(self, segs):
@@ -339,8 +347,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         with self.pen_req_lock:
             for key in self.pending_req:
                 for req_id, (req, meta, logger) in self.pending_req[key].items():
-                    if self.path_resolution(
-                            req, meta, new_request=False, logger=logger, req_id=req_id):
+                    if self.path_resolution(CtrlPayload(PathMgmt(req)), meta,
+                                            new_request=False, logger=logger, req_id=req_id):
                         meta.close()
                         del self.pending_req[key][req_id]
                 if not self.pending_req[key]:
@@ -361,10 +369,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if raw_entries:
             logging.debug("Processed %s segments from ZK", len(raw_entries))
 
-    def handle_path_segment_record(self, seg_recs, meta):
+    def handle_path_segment_record(self, cpld, meta):
         """
         Handles paths received from the network.
         """
+        pmgt = cpld.contents
+        seg_recs = pmgt.contents
+        assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
         for rev_info in seg_recs.iter_rev_infos():
@@ -486,7 +497,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         while targets:
             (seg_req, logger) = targets.pop(0)
             meta = self._build_meta(ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
-            self.send_meta(seg_req, meta)
+            self.send_meta(CtrlPayload(PathMgmt(seg_req)), meta)
             logger.info("Waiting request (%s) sent to %s via %s",
                         seg_req.short_desc(), meta, pcb.short_desc())
 

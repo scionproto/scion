@@ -36,28 +36,34 @@ from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
 from lib.path_seg_meta import PathSegMeta
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path import SCIONPath
+from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
+from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
 from lib.path_db import DBResult, PathSegmentDB
 from lib.rev_cache import RevCache
-from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry
+from lib.sciond_api.as_req import SCIONDASInfoReply, SCIONDASInfoReplyEntry, SCIONDASInfoRequest
 from lib.sciond_api.revocation import SCIONDRevReply, SCIONDRevReplyStatus
 from lib.sciond_api.host_info import HostInfo
-from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry
-from lib.sciond_api.parse import parse_sciond_msg
+from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry, SCIONDIFInfoRequest
+from lib.sciond_api.base import SCIONDMsg
 from lib.sciond_api.path_meta import FwdPathMeta
 from lib.sciond_api.path_req import (
+    SCIONDPathRequest,
     SCIONDPathReplyError,
     SCIONDPathReply,
     SCIONDPathReplyEntry,
 )
+from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.sciond_api.service_req import (
     SCIONDServiceInfoReply,
     SCIONDServiceInfoReplyEntry,
+    SCIONDServiceInfoRequest,
 )
 from lib.sibra.ext.resv import ResvBlockSteady
 from lib.socket import ReliableSocket
@@ -160,7 +166,7 @@ class SCIONDaemon(SCIONElement):
         """
         if isinstance(meta, SockOnlyMetadata):  # From SCIOND API
             try:
-                sciond_msg = parse_sciond_msg(msg)
+                sciond_msg = SCIONDMsg.from_raw(msg)
             except SCIONParseError as err:
                 logging.error(str(err))
                 return
@@ -168,10 +174,13 @@ class SCIONDaemon(SCIONElement):
             return
         super().handle_msg_meta(msg, meta)
 
-    def handle_path_reply(self, path_reply, meta):
+    def handle_path_reply(self, cpld, meta):
         """
         Handle path reply from local path server.
         """
+        pmgt = cpld.contents
+        path_reply = pmgt.contents
+        assert isinstance(path_reply, PathSegmentRecords), type(path_reply)
         for rev_info in path_reply.iter_rev_infos():
             self.peer_revs.add(rev_info)
 
@@ -231,25 +240,28 @@ class SCIONDaemon(SCIONElement):
         """
         Handle local API's requests.
         """
-        if msg.MSG_TYPE == SMT.PATH_REQUEST:
+        mtype = msg.proto_type()
+        if mtype == SMT.PATH_REQUEST:
             threading.Thread(
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, msg, meta),
                 daemon=True).start()
-        elif msg.MSG_TYPE == SMT.REVOCATION:
+        elif mtype == SMT.REVOCATION:
             self._api_handle_rev_notification(msg, meta)
-        elif msg.MSG_TYPE == SMT.AS_REQUEST:
+        elif mtype == SMT.AS_REQUEST:
             self._api_handle_as_request(msg, meta)
-        elif msg.MSG_TYPE == SMT.IF_REQUEST:
+        elif mtype == SMT.IF_REQUEST:
             self._api_handle_if_request(msg, meta)
-        elif msg.MSG_TYPE == SMT.SERVICE_REQUEST:
+        elif mtype == SMT.SERVICE_REQUEST:
             self._api_handle_service_request(msg, meta)
         else:
             logging.warning(
-                "API: type %s not supported.", TypeBase.to_str(msg.MSG_TYPE))
+                "API: type %s not supported.", TypeBase.to_str(mtype))
 
-    def _api_handle_path_request(self, request, meta):
-        req_id = request.id
+    def _api_handle_path_request(self, pld, meta):
+        request = pld.contents
+        assert isinstance(request, SCIONDPathRequest), type(request)
+        req_id = pld.id
         if request.p.flags.sibra:
             logging.warning(
                 "Requesting SIBRA paths over SCIOND API not supported yet.")
@@ -286,10 +298,12 @@ class SCIONDaemon(SCIONElement):
         self._send_path_reply(req_id, reply_entries, error, meta)
 
     def _send_path_reply(self, req_id, reply_entries, error, meta):
-        path_reply = SCIONDPathReply.from_values(req_id, reply_entries, error)
-        self.send_meta(path_reply.pack_full(), meta)
+        path_reply = SCIONDMsg(SCIONDPathReply.from_values(reply_entries, error), req_id)
+        self.send_meta(path_reply.pack(), meta)
 
-    def _api_handle_as_request(self, request, meta):
+    def _api_handle_as_request(self, pld, meta):
+        request = pld.contents
+        assert isinstance(request, SCIONDASInfoRequest), type(request)
         remote_as = request.isd_as()
         if remote_as:
             reply_entry = SCIONDASInfoReplyEntry.from_values(
@@ -297,10 +311,12 @@ class SCIONDaemon(SCIONElement):
         else:
             reply_entry = SCIONDASInfoReplyEntry.from_values(
                 self.addr.isd_as, self.is_core_as(), self.topology.mtu)
-        as_reply = SCIONDASInfoReply.from_values(request.id, [reply_entry])
-        self.send_meta(as_reply.pack_full(), meta)
+        as_reply = SCIONDMsg(SCIONDASInfoReply.from_values([reply_entry]), pld.id)
+        self.send_meta(as_reply.pack(), meta)
 
-    def _api_handle_if_request(self, request, meta):
+    def _api_handle_if_request(self, pld, meta):
+        request = pld.contents
+        assert isinstance(request, SCIONDIFInfoRequest), type(request)
         all_brs = request.all_brs()
         if_list = []
         if not all_brs:
@@ -313,10 +329,12 @@ class SCIONDaemon(SCIONElement):
                 info = HostInfo.from_values([br_addr], br_port)
                 reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
                 if_entries.append(reply_entry)
-        if_reply = SCIONDIFInfoReply.from_values(request.id, if_entries)
-        self.send_meta(if_reply.pack_full(), meta)
+        if_reply = SCIONDMsg(SCIONDIFInfoReply.from_values(if_entries), pld.id)
+        self.send_meta(if_reply.pack(), meta)
 
-    def _api_handle_service_request(self, request, meta):
+    def _api_handle_service_request(self, pld, meta):
+        request = pld.contents
+        assert isinstance(request, SCIONDServiceInfoRequest), type(request)
         all_svcs = request.all_services()
         svc_list = []
         if not all_svcs:
@@ -331,20 +349,24 @@ class SCIONDaemon(SCIONElement):
                 reply_entry = SCIONDServiceInfoReplyEntry.from_values(
                     svc_type, host_infos)
                 svc_entries.append(reply_entry)
-        svc_reply = SCIONDServiceInfoReply.from_values(request.id, svc_entries)
-        self.send_meta(svc_reply.pack_full(), meta)
+        svc_reply = SCIONDMsg(SCIONDServiceInfoReply.from_values(svc_entries), pld.id)
+        self.send_meta(svc_reply.pack(), meta)
 
-    def _api_handle_rev_notification(self, request, meta):
-        status = self.handle_revocation(request.rev_info(), meta)
-        rev_reply = SCIONDRevReply.from_values(request.id, status)
-        self.send_meta(rev_reply.pack_full(), meta)
+    def _api_handle_rev_notification(self, pld, meta):
+        request = pld.contents
+        assert isinstance(request, SCIONDRevNotification), type(request)
+        status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
+        rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
+        self.send_meta(rev_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        self.handle_revocation(rev_info, meta)
+        self.handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
 
-    def handle_revocation(self, rev_info, meta):
-        assert isinstance(rev_info, RevocationInfo)
+    def handle_revocation(self, cpld, meta):
+        pmgt = cpld.contents
+        rev_info = pmgt.contents
+        assert isinstance(rev_info, RevocationInfo), type(rev_info)
         if not self._validate_revocation(rev_info):
             return SCIONDRevReplyStatus.INVALID
         logging.debug("Revocation info received: %s", rev_info)
@@ -623,7 +645,7 @@ class SCIONDaemon(SCIONElement):
         req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
         logging.debug("Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
         meta = self._build_meta(host=addr, port=port)
-        self.send_meta(req, meta)
+        self.send_meta(CtrlPayload(PathMgmt(req)), meta)
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
         """

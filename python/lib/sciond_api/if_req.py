@@ -21,18 +21,15 @@ import capnp  # noqa
 # SCION
 import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.sciond_api.base import SCIONDMsgBase
 from lib.sciond_api.host_info import HostInfo
-from lib.types import SCIONDMsgType as SMT
 
 
-class SCIONDIFInfoRequest(SCIONDMsgBase):
+class SCIONDIFInfoRequest(Cerealizable):
     NAME = "IFInfoRequest"
-    MSG_TYPE = SMT.IF_REQUEST
     P_CLS = P.IFInfoRequest
 
     @classmethod
-    def from_values(cls, id_, if_ids=None):
+    def from_values(cls, if_ids=None):
         """
         Creates an SCIONDIFInfoRequest.
 
@@ -44,7 +41,7 @@ class SCIONDIFInfoRequest(SCIONDMsgBase):
             id_entries = p.init("ifIDs", len(if_ids))
             for i, if_id in enumerate(if_ids):
                 id_entries[i] = if_id
-        return cls(p, id_)
+        return cls(p)
 
     def all_brs(self):
         return not self.p.ifIDs
@@ -58,18 +55,17 @@ class SCIONDIFInfoRequest(SCIONDMsgBase):
         return "IF IDs: %s" % if_str
 
 
-class SCIONDIFInfoReply(SCIONDMsgBase):
+class SCIONDIFInfoReply(Cerealizable):
     NAME = "IFInfoReply"
-    MSG_TYPE = SMT.IF_REPLY
     P_CLS = P.IFInfoReply
 
     @classmethod
-    def from_values(cls, id_, entries):
+    def from_values(cls, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p, id_)
+        return cls(p)
 
     def entry(self, idx):
         return SCIONDIFInfoReplyEntry(self.p.entries[idx])

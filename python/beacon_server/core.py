@@ -23,7 +23,9 @@ from collections import defaultdict
 from beacon_server.base import BeaconServer, BEACONS_PROPAGATED
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONServiceLookupError
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.opaque_field import InfoOpaqueField
+from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.path_store import PathStore
@@ -71,7 +73,7 @@ class CoreBeaconServer(BeaconServer):
                 pcb.copy(), intf.isd_as, intf.if_id)
             if not new_pcb:
                 continue
-            self.send_meta(new_pcb, meta)
+            self.send_meta(CtrlPayload(new_pcb), meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
             prop_cnt += 1
         if self._labels:
@@ -120,7 +122,7 @@ class CoreBeaconServer(BeaconServer):
         addr, port = self.dns_query_topo(svc_type)[0]
         records = PathRecordsReg.from_values({PST.CORE: [pcb]})
         meta = self._build_meta(host=addr, port=port, reuse=True)
-        self.send_meta(records.copy(), meta)
+        self.send_meta(CtrlPayload(PathMgmt(records.copy())), meta)
         return meta
 
     def _filter_pcb(self, pcb, dst_ia=None):

@@ -24,6 +24,7 @@ import logging
 import lib.app.sciond as lib_sciond
 from lib.defines import MAX_HOPBYHOP_EXT
 from lib.main import main_wrapper
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import HostAddrSVC
 from lib.packet.ifid import IFIDPayload
@@ -102,7 +103,7 @@ class ErrorGenBadHost(ErrorGenBase):
 
     def _build_pkt(self):
         pkt = super()._build_pkt()
-        pkt.set_payload(IFIDPayload.from_values(77))
+        pkt.set_payload(CtrlPayload(IFIDPayload.from_values(77)))
         pkt.addrs.dst.host = HostAddrSVC(99, raw=False)
         return pkt
 

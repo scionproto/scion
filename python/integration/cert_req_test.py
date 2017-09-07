@@ -24,7 +24,8 @@ import threading
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
-from lib.packet.cert_mgmt import CertChainRequest, TRCRequest
+from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.cert_mgmt import CertChainRequest, CertMgmt, TRCRequest
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
@@ -63,11 +64,13 @@ class TestCertClient(TestClientBase):
 
     def _create_payload(self, _):
         if not self.cert_done:
-            return CertChainRequest.from_values(self.dst_ia, 0)
-        return TRCRequest.from_values(self.dst_ia, 0)
+            return CtrlPayload(CertMgmt(CertChainRequest.from_values(self.dst_ia, 0)))
+        return CtrlPayload(CertMgmt(TRCRequest.from_values(self.dst_ia, 0)))
 
     def _handle_response(self, spkt):
-        pld = spkt.parse_payload()
+        cpld = spkt.parse_payload()
+        cmgt = cpld.contents
+        pld = cmgt.contents
         logging.debug("Got:\n%s", spkt)
         if not self.cert_done:
             if (self.dst_ia, 0 == pld.chain.get_leaf_isd_as_ver()):
