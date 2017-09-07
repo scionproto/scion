@@ -31,9 +31,6 @@ from lib.types import SCIONDMsgType
 
 
 class SCIONDMsg(CerealBox):  # pragma: no cover
-    """
-    Base class for SCIOND API messages.
-    """
     NAME = "SCIONDMsg"
     P_CLS = P.SCIONDMsg
 
@@ -46,8 +43,7 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         try:
             p = cls.P_CLS.from_bytes_packed(raw).as_builder()
         except capnp.lib.capnp.KjException as e:
-            raise SCIONParseError(
-                "Unable to parse SCIONDMsg capnp message: %s" % e) from None
+            raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls.NAME, e)) from None
         return cls.from_proto(p)
 
     @classmethod

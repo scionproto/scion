@@ -50,8 +50,7 @@ class CtrlPayload(CerealBox):
         try:
             p = cls.P_CLS.from_bytes_packed(data.pop()).as_builder()
         except capnp.lib.capnp.KjException as e:
-            raise SCIONParseError(
-                "Unable to parse SCION capnp message: %s" % e) from None
+            raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls.NAME, e)) from None
         return cls.from_proto(p)
 
     @classmethod
