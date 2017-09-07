@@ -662,9 +662,6 @@ class SCIONL4Packet(SCIONExtPacket):
         self.set_payload(pld)
         return pld
 
-    def _parse_pld_scmp(self, data):  # pragma: no cover
-        return SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, data.pop()))
-
     def _get_offset_len(self):
         l = super()._get_offset_len()
         if self.l4_hdr:
