@@ -44,7 +44,6 @@ class DRKeyMgmt(CerealBox):  # pragma: no cover
 class DRKeyRequest(Cerealizable):
     """ First order DRKey request. """
     NAME = "DRKeyRequest"
-    PAYLOAD_TYPE = DRKeyMgmtType.FIRST_ORDER_REQUEST
     P_CLS = P.DRKeyReq
 
     def __init__(self, p):
@@ -77,7 +76,6 @@ class DRKeyRequest(Cerealizable):
 
 class DRKeyReply(Cerealizable):
     NAME = "DRKeyReply"
-    PAYLOAD_TYPE = DRKeyMgmtType.FIRST_ORDER_REPLY
     P_CLS = P.DRKeyRep
 
     def __init__(self, p):

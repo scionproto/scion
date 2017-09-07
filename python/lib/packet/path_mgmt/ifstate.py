@@ -22,7 +22,6 @@ import capnp  # noqa
 import proto.if_state_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.types import PathMgmtType as PMT
 
 
 class IFStateInfo(Cerealizable):  # pragma: no cover
@@ -56,7 +55,6 @@ class IFStatePayload(Cerealizable):  # pragma: no cover
     Payload for state info messages. List of IFStateInfo objects.
     """
     NAME = "IFStatePayload"
-    PAYLOAD_TYPE = PMT.IFSTATE_INFOS
     P_CLS = P.IFStateInfos
 
     @classmethod
@@ -81,7 +79,6 @@ class IFStateRequest(Cerealizable):  # pragma: no cover
     the BS.
     """
     NAME = "IFStateRequest"
-    PAYLOAD_TYPE = PMT.IFSTATE_REQ
     P_CLS = P.IFStateReq
     ALL_INTERFACES = 0
 

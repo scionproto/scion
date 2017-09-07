@@ -54,7 +54,6 @@ class CertMgmtRequest(Cerealizable):  # pragma: no cover
 
 class CertChainRequest(CertMgmtRequest):
     NAME = "CertChainRequest"
-    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
     P_CLS = P.CertChainReq
 
     def short_desc(self):
@@ -64,7 +63,6 @@ class CertChainRequest(CertMgmtRequest):
 
 class CertChainReply(Cerealizable):  # pragma: no cover
     NAME = "CertChainReply"
-    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REPLY
     P_CLS = P.CertChainRep
 
     def __init__(self, p):
@@ -85,7 +83,6 @@ class CertChainReply(Cerealizable):  # pragma: no cover
 
 class TRCRequest(CertMgmtRequest):
     NAME = "TRCRequest"
-    PAYLOAD_TYPE = CertMgmtType.TRC_REQ
     P_CLS = P.TRCReq
 
     def short_desc(self):
@@ -95,7 +92,6 @@ class TRCRequest(CertMgmtRequest):
 
 class TRCReply(Cerealizable):  # pragma: no cover
     NAME = "TRCReply"
-    PAYLOAD_TYPE = CertMgmtType.TRC_REPLY
     P_CLS = P.TRCRep
 
     def __init__(self, p):

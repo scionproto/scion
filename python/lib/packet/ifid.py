@@ -21,7 +21,6 @@ import capnp  # noqa
 # SCION
 import proto.ifid_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.types import PayloadClass
 
 
 class IFIDPayload(Cerealizable):  # pragma: no cover
@@ -29,7 +28,6 @@ class IFIDPayload(Cerealizable):  # pragma: no cover
     IFID packet.
     """
     NAME = "IFIDPayload"
-    PAYLOAD_CLASS = PayloadClass.IFID
     P_CLS = P.IFID
 
     @classmethod

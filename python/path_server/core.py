@@ -32,7 +32,7 @@ from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
-from lib.types import PathMgmtType as PMT, PathSegmentType as PST
+from lib.types import PathSegmentType as PST
 from lib.zk.errors import ZkNoConnection
 from path_server.base import PathServer, REQS_TOTAL
 
@@ -161,7 +161,7 @@ class CorePathServer(PathServer):
 
     def _dispatch_params(self, pld, meta):
         params = {}
-        if (meta.ia == self.addr.isd_as and pld.PAYLOAD_TYPE == PMT.REPLY):
+        if meta.ia == self.addr.isd_as and isinstance(pld, PathRecordsReply):
             params["from_master"] = True
         return params
 
