@@ -1,7 +1,7 @@
 dnslib==0.9.6 --hash=sha256:6ba31ae2014644901a301727cc4e22844eb19295a959c362568f08aee9b3bfa8 # Direct dependency
 nose-descriptionfixer==0.0.4 --hash=sha256:4c74bd38f6fcf158b0681ea4ccb6b4f64c09867d039d5ef9a8c1856395dbac7c # Direct dependency
 pockets==0.3 --hash=sha256:dc870d57992cebaf4bb9dabdad55972ef915429521142af77f6a1efb9e3646de
-pycapnp==0.5.9 --hash=sha256:18dc9fb57928d2cb4d0387fc679d99e42ff08251539f2cadd86365f9768c874e # Direct dependency
+pycapnp==0.6.1 --hash=sha256:ea60837533307849e98bb3494555cea28a52ea0c301cfdf32bce661931940696 # Direct dependency
 PyDbLite==3.0.4 --hash=sha256:79ed97d17b5954c6fa8927d9f36033cb4486d1304005057d506ac1dee999bad6 # Direct dependency
 scapy-python3==0.18 --hash=sha256:23c19d0dbba07b7a7681d97784371f92fb570cdea3ae58e12bf19fe98c7bf7ad # Direct dependency
 six==1.10.0 --hash=sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1

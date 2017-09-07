@@ -50,11 +50,15 @@ from lib.errors import (
 )
 from lib.msg_meta import UDPMetadata
 from lib.path_seg_meta import PathSegMeta
+from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.ifid import IFIDPayload
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import SCIONPath
+from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.ifstate import (
     IFStateInfo,
     IFStatePayload,
+    IFStateRequest,
 )
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
@@ -200,7 +204,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 pcb.copy(), intf.isd_as, intf.if_id)
             if not new_pcb:
                 continue
-            self.send_meta(new_pcb, meta)
+            self.send_meta(CtrlPayload(new_pcb), meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
             prop_cnt += 1
         if self._labels:
@@ -262,14 +266,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONParseError as e:
                 logging.error("Unable to parse raw pcb: %s", e)
                 continue
-            self.handle_pcb(pcb)
+            self.handle_pcb(CtrlPayload(pcb))
         if pcbs:
             logging.debug("Processed %s PCBs from ZK", len(pcbs))
 
-    def handle_pcb(self, pcb, meta=None):
+    def handle_pcb(self, cpld, meta=None):
         """
         Handles pcbs received from the network.
         """
+        pcb = cpld.contents
+        assert isinstance(pcb, PathSegment), type(pcb)
         if meta:
             pcb.p.ifID = meta.path.get_hof().ingress_if
         try:
@@ -395,13 +401,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb.add_asm(asm)
         return pcb
 
-    def handle_ifid_packet(self, pld, meta):
+    def handle_ifid_packet(self, cpld, meta):
         """
         Update the interface state for the corresponding interface.
 
         :param pld: The IFIDPayload.
         :type pld: IFIDPayload
         """
+        pld = cpld.contents
+        assert isinstance(pld, IFIDPayload), type(pld)
         ifid = pld.p.relayIF
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
@@ -614,7 +622,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
         self._process_revocation(rev_info)
 
-    def _handle_revocation(self, rev_info, meta):
+    def _handle_revocation(self, cpld, meta):
+        pmgt = cpld.contents
+        rev_info = pmgt.contents
+        assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation via TCP/UDP: %s (from %s)", rev_info.short_desc(), meta)
         if not self._validate_revocation(rev_info):
             return
@@ -633,7 +644,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object
         :type rev_info: RevocationInfo
         """
-        assert isinstance(rev_info, RevocationInfo)
+        assert isinstance(rev_info, RevocationInfo), type(rev_info)
         if_id = rev_info.p.ifID
         if not if_id:
             logging.error("Trying to revoke IF with ID 0.")
@@ -717,8 +728,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
-    def _handle_ifstate_request(self, req, meta):
+    def _handle_ifstate_request(self, cpld, meta):
         # Only master replies to ifstate requests.
+        pmgt = cpld.contents
+        req = pmgt.contents
+        assert isinstance(req, IFStateRequest), type(req)
         if not self.zk.have_lock():
             return
         self._send_ifstate_update([meta])
@@ -738,7 +752,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 logging.warning("No IF state info to put in IFState update for %s.",
                                 ", ".join([str(m) for m in border_metas + server_metas]))
                 return
-            payload = IFStatePayload.from_values(infos)
+            payload = CtrlPayload(PathMgmt(IFStatePayload.from_values(infos)))
         for meta in border_metas:
             self.send_meta(payload.copy(), meta, (meta.host, meta.port))
         for meta in server_metas:

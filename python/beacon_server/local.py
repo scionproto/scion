@@ -23,6 +23,8 @@ from collections import defaultdict
 from beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONServiceLookupError
+from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.svc import SVCType
 from lib.path_store import PathStore
@@ -62,7 +64,7 @@ class LocalBeaconServer(BeaconServer):
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
         addr, port = self.dns_query_topo(svc_type)[0]
         meta = self._build_meta(host=addr, port=port)
-        self.send_meta(records, meta)
+        self.send_meta(CtrlPayload(PathMgmt(records)), meta)
         return meta
 
     def register_down_segment(self, pcb):
@@ -73,7 +75,7 @@ class LocalBeaconServer(BeaconServer):
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         dst_ia = pcb.asm(0).isd_as()
         meta = self._build_meta(ia=dst_ia, host=SVCType.PS_A, path=core_path, reuse=True)
-        self.send_meta(records, meta)
+        self.send_meta(CtrlPayload(PathMgmt(records)), meta)
         return meta
 
     def register_segments(self):

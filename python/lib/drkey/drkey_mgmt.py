@@ -21,22 +21,27 @@ import capnp  # noqa
 # SCION
 import proto.drkey_mgmt_capnp as P
 
-from lib.errors import SCIONParseError
-from lib.packet.packet_base import SCIONPayloadBaseProto
+from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.types import DRKeyMgmtType, PayloadClass
+from lib.types import DRKeyMgmtType
 
 
-class DRKeyMgmtBase(SCIONPayloadBaseProto):
-    """ Base class for DRKey management. """
-    PAYLOAD_CLASS = PayloadClass.DRKEY
+class DRKeyMgmt(CerealBox):  # pragma: no cover
+    NAME = "DRKeyMgmt"
+    P_CLS = P.DRKeyMgmt
 
-    def _pack_full(self, p):
-        wrapper = P.DRKeyMgmt.new_message(**{self.PAYLOAD_TYPE: p})
-        return super()._pack_full(wrapper)
+    @classmethod
+    def from_proto(cls, p):
+        return super()._from_proto(p, class_field_map)
+
+    def proto_class(self):
+        return self._class(class_field_map)
+
+    def proto_type(self):
+        return self.proto_class()
 
 
-class DRKeyRequest(DRKeyMgmtBase):
+class DRKeyRequest(Cerealizable):
     """ First order DRKey request. """
     NAME = "DRKeyRequest"
     PAYLOAD_TYPE = DRKeyMgmtType.FIRST_ORDER_REQUEST
@@ -70,7 +75,7 @@ class DRKeyRequest(DRKeyMgmtBase):
                 (self.isd_as, self.p.flags.prefetch, self.p.timestamp))
 
 
-class DRKeyReply(DRKeyMgmtBase):
+class DRKeyReply(Cerealizable):
     NAME = "DRKeyReply"
     PAYLOAD_TYPE = DRKeyMgmtType.FIRST_ORDER_REPLY
     P_CLS = P.DRKeyRep
@@ -106,10 +111,7 @@ class DRKeyReply(DRKeyMgmtBase):
                 % (self.isd_as, self.p.expTime, self.p.certVerSrc,
                    self.p.certVerDst, self.p.trcVer, self.p.timestamp))
 
-
-def parse_drkeymgmt_payload(wrapper):  # pragma: no cover
-    type_ = wrapper.which()
-    for c in (DRKeyRequest, DRKeyReply):
-        if c.PAYLOAD_TYPE == type_:
-            return c(getattr(wrapper, type_))
-    raise SCIONParseError("Unsupported DRKey management type: %s" % type_)
+class_field_map = {
+    DRKeyRequest: DRKeyMgmtType.FIRST_ORDER_REQUEST,
+    DRKeyReply: DRKeyMgmtType.FIRST_ORDER_REPLY,
+}

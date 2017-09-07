@@ -28,6 +28,7 @@ from lib.defines import (
     SIBRA_TICK,
 )
 from lib.errors import SCIONBaseError
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
@@ -225,7 +226,7 @@ class SteadyPath(object):
         """
         dest = SCIONAddr.from_values(self.remote, SVCType.SB_A)
         cmn_hdr, addr_hdr = build_base_hdrs(dest, self.addr)
-        payload = SIBRAPayload.from_values()
+        payload = CtrlPayload(SIBRAPayload.from_values())
         udp_hdr = SCIONUDPHeader.from_values(self.addr, self._port, dest, 0)
         return cmn_hdr, addr_hdr, udp_hdr, payload
 

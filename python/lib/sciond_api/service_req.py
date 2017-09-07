@@ -21,18 +21,15 @@ import capnp  # noqa
 # SCION
 import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.sciond_api.base import SCIONDMsgBase
 from lib.sciond_api.host_info import HostInfo
-from lib.types import SCIONDMsgType as SMT
 
 
-class SCIONDServiceInfoRequest(SCIONDMsgBase):
+class SCIONDServiceInfoRequest(Cerealizable):
     NAME = "ServiceInfoRequest"
-    MSG_TYPE = SMT.SERVICE_REQUEST
     P_CLS = P.ServiceInfoRequest
 
     @classmethod
-    def from_values(cls, id_, service_types=None):
+    def from_values(cls, service_types=None):
         """
         Creates an SCIONDServiceInfoRequest.
 
@@ -44,7 +41,7 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
             service_entries = p.init("serviceTypes", len(service_types))
             for i, type_ in enumerate(service_types):
                 service_entries[i] = type_
-        return cls(p, id_)
+        return cls(p)
 
     def all_services(self):
         return not self.p.serviceTypes
@@ -58,18 +55,17 @@ class SCIONDServiceInfoRequest(SCIONDMsgBase):
         return "Service types: %s" % type_str
 
 
-class SCIONDServiceInfoReply(SCIONDMsgBase):
+class SCIONDServiceInfoReply(Cerealizable):
     NAME = "ServiceInfoReply"
-    MSG_TYPE = SMT.SERVICE_REPLY
     P_CLS = P.ServiceInfoReply
 
     @classmethod
-    def from_values(cls, id_, entries):
+    def from_values(cls, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p, id_)
+        return cls(p)
 
     def entry(self, idx):
         return SCIONDServiceInfoReplyEntry(self.p.entries[idx])

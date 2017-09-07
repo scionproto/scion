@@ -20,13 +20,35 @@ import capnp  # noqa
 
 # SCION
 import proto.path_mgmt_capnp as P
-from lib.packet.packet_base import SCIONPayloadBaseProto
-from lib.types import PayloadClass
+from lib.packet.packet_base import CerealBox
+from lib.types import PathMgmtType
+from lib.packet.path_mgmt.ifstate import IFStatePayload, IFStateRequest
+from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.seg_recs import (
+    PathRecordsReg,
+    PathRecordsReply,
+    PathRecordsSync,
+)
+from lib.packet.path_mgmt.seg_req import PathSegmentReq
 
 
-class PathMgmtPayloadBase(SCIONPayloadBaseProto):  # pragma: no cover
-    PAYLOAD_CLASS = PayloadClass.PATH
+class PathMgmt(CerealBox):  # pragma: no cover
+    NAME = "PathMgmt"
+    P_CLS = P.PathMgmt
 
-    def _pack_full(self, p):
-        wrapper = P.PathMgmt.new_message(**{self.PAYLOAD_TYPE: p})
-        return super()._pack_full(wrapper)
+    @classmethod
+    def from_proto(cls, p):  # pragma: no cover
+        return cls._from_proto(p, class_field_map)
+
+    def proto_class(self):  # pragma: no cover
+        return self._class(class_field_map)
+
+class_field_map = {
+    PathSegmentReq: PathMgmtType.REQUEST,
+    PathRecordsReply: PathMgmtType.REPLY,
+    PathRecordsReg: PathMgmtType.REG,
+    PathRecordsSync: PathMgmtType.SYNC,
+    RevocationInfo: PathMgmtType.REVOCATION,
+    IFStateRequest: PathMgmtType.IFSTATE_REQ,
+    IFStatePayload: PathMgmtType.IFSTATE_INFOS,
+}

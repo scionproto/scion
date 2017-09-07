@@ -20,11 +20,11 @@ import capnp  # noqa
 
 # SCION
 import proto.sibra_capnp as P
-from lib.packet.packet_base import SCIONPayloadBaseProto
+from lib.packet.packet_base import Cerealizable
 from lib.types import PayloadClass
 
 
-class SIBRAPayload(SCIONPayloadBaseProto):  # pragma: no cover
+class SIBRAPayload(Cerealizable):  # pragma: no cover
     """
     An empty payload to allow for packet dispatching.
     """
@@ -35,7 +35,3 @@ class SIBRAPayload(SCIONPayloadBaseProto):  # pragma: no cover
     @classmethod
     def from_values(cls):
         return cls(cls.P_CLS.new_message())
-
-
-def parse_sibra_payload(p):  # pragma: no cover
-    return SIBRAPayload(p)
