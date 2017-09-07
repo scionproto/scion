@@ -98,7 +98,7 @@ func ReadRootFromReader(r io.Reader) (capnp.Struct, error) {
 	var blank capnp.Struct
 	msg, err := capnp.NewPackedDecoder(r).Decode()
 	if err != nil {
-		return blank, common.NewCError("Failed to decode capnp message", "err", err)
+		return blank, common.NewCErrorData("Failed to decode capnp message", err, "err", err)
 	}
 	rootPtr, err := msg.RootPtr()
 	if err != nil {

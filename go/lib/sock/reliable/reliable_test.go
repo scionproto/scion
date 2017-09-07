@@ -204,6 +204,34 @@ func TestRegister(t *testing.T) {
 	})
 }
 
+func TestRegisterTimeout(t *testing.T) {
+	name := getRandFile()
+	Convey("Start dummy server", t, func() {
+		sock, err := net.Listen("unix", name)
+		SoMsg("err", err, ShouldBeNil)
+		Reset(func() {
+			sock.Close()
+		})
+
+		Convey("Register to \"dispatcher\" returns timeout error", func() {
+			var expectedT *net.OpError
+			ia, _ := addr.IAFromString("1-10")
+			appAddr := AppAddr{Addr: addr.HostFromIP(net.IPv4(1, 2, 3, 4)), Port: 0}
+
+			before := time.Now()
+			conn, port, err := RegisterTimeout(name, ia, appAddr, 3*time.Second)
+			after := time.Now()
+			SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
+
+			SoMsg("conn", conn, ShouldBeNil)
+			SoMsg("port", port, ShouldEqual, 0)
+			SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
+			opErr := err.(*net.OpError)
+			SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
+		})
+	})
+}
+
 type SetupFunc func() interface{}
 type EndpointFunc func(*Conn, interface{})
 type TestFunc func(t *testing.T, expected interface{}, have interface{}) bool
