@@ -15,14 +15,14 @@
 package base
 
 import (
+	"io"
 	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
@@ -40,25 +40,26 @@ const (
 	IngressChanSize = 128
 	// CleanUpInterval is the interval between clean up of outdated reassembly lists.
 	CleanUpInterval = 1 * time.Second
+	//
+	InternalIngressName = "scion.local"
 )
 
-// IngressWorker handles decapsulation of SIG frames. There is one IngressWorker per
-// remote SIG.
+var (
+	ExternalIngress *snet.Conn
+	InternalIngress io.ReadWriteCloser
+)
+
+// IngressWorker handles decapsulation of SIG frames.
 type IngressWorker struct {
-	scionNet        *scion.SCIONNet
-	listenAddr      addr.HostAddr
-	listenPort      uint16
+	laddr           *snet.Addr
 	reassemblyLists map[int]*ReassemblyList
 	bufPool         *sync.Pool
 	c               chan *FrameBuf
 }
 
-func NewIngressWorker(scionNet *scion.SCIONNet,
-	listenAddr addr.HostAddr, listenPort uint16) *IngressWorker {
+func NewIngressWorker(laddr *snet.Addr) *IngressWorker {
 	worker := &IngressWorker{
-		scionNet:        scionNet,
-		listenAddr:      listenAddr,
-		listenPort:      listenPort,
+		laddr:           laddr,
 		bufPool:         &sync.Pool{New: func() interface{} { return NewFrameBuf() }},
 		reassemblyLists: make(map[int]*ReassemblyList),
 		c:               make(chan *FrameBuf, IngressChanSize),
@@ -68,7 +69,7 @@ func NewIngressWorker(scionNet *scion.SCIONNet,
 
 func (i *IngressWorker) Run() {
 	var err error
-	ExternalIngress, err = i.scionNet.ListenSCION(i.listenAddr, i.listenPort)
+	ExternalIngress, err = snet.ListenSCION("udp4", i.laddr)
 	if err != nil {
 		log.Error("Unable to initialize ExternalIngress", "err", err)
 		return
@@ -104,8 +105,8 @@ func (i *IngressWorker) Read() {
 		}
 		frame.frameLen = read
 		i.c <- frame
-		metrics.FramesRecv.WithLabelValues(i.scionNet.IA.String()).Inc()
-		metrics.FrameBytesRecv.WithLabelValues(i.scionNet.IA.String()).Add(float64(read))
+		metrics.FramesRecv.WithLabelValues(snet.IA().String()).Inc()
+		metrics.FrameBytesRecv.WithLabelValues(snet.IA().String()).Add(float64(read))
 	}
 }
 

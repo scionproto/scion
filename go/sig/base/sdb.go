@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package base contains the tables for remote SIGs, ASes and their prefixes
 package base
 
 import (
@@ -21,40 +22,36 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
-// Topology contains the aggregated information for remote SIGs, ASes and their prefixes
-type Topology struct {
-	// TODO(scrye) per AS lock granularity
-	lock     sync.RWMutex
-	topo     *asMap
-	scionNet *scion.SCIONNet
+var (
+	lock           sync.RWMutex
+	topology       *asMap
+	localCtrlAddr  *snet.Addr
+	localEncapAddr *snet.Addr
+)
+
+func Init(ctrlAddr, encapAddr *snet.Addr) error {
+	localCtrlAddr = ctrlAddr
+	localEncapAddr = encapAddr
+	topology = newASMap()
+	return nil
 }
 
-func NewTopology(scionNet *scion.SCIONNet) (*Topology, error) {
-	topology := new(Topology)
-	topology.topo = newASMap()
-	topology.scionNet = scionNet
-	// FIXME(scrye): reactivate keepalive module
-	//sdb.helloModule = hello.NewModule()
-	return topology, nil
-}
-
-func (sdb *Topology) AddRoute(prefix string, isdas string) error {
-	sdb.lock.RLock()
-	defer sdb.lock.RUnlock()
+func AddRoute(prefix string, isdas string) error {
+	lock.RLock()
+	defer lock.RUnlock()
 
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
 		return err
 	}
 
-	info, found := sdb.topo.get(isdas)
+	info, found := topology.get(isdas)
 	if !found {
-		return common.NewCError("Unable to add prefix for unreachable AS", "AS", isdas, "prefix",
-			prefix)
+		return common.NewCError("Unable to add prefix for unknown AS", "AS", isdas, "prefix", prefix)
 	}
 
 	err = info.addRoute(subnet)
@@ -71,9 +68,9 @@ func (sdb *Topology) AddRoute(prefix string, isdas string) error {
 	return nil
 }
 
-func (sdb *Topology) DelRoute(prefix string, isdas string) error {
-	sdb.lock.RLock()
-	defer sdb.lock.RUnlock()
+func DelRoute(prefix string, isdas string) error {
+	lock.RLock()
+	defer lock.RUnlock()
 
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
@@ -81,7 +78,7 @@ func (sdb *Topology) DelRoute(prefix string, isdas string) error {
 	}
 
 	// TODO delete from routing table
-	info, found := sdb.topo.get(isdas)
+	info, found := topology.get(isdas)
 	if !found {
 		return common.NewCError("Unable to delete prefix from unreachable AS", "prefix",
 			prefix, "AS", isdas)
@@ -89,21 +86,21 @@ func (sdb *Topology) DelRoute(prefix string, isdas string) error {
 	return info.delRoute(subnet)
 }
 
-func (sdb *Topology) AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
-	sdb.lock.Lock()
-	defer sdb.lock.Unlock()
+func AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
+	lock.Lock()
+	defer lock.Unlock()
 
 	var err error
-	if e, ok := sdb.topo.get(isdas); ok {
+	if e, ok := topology.get(isdas); ok {
 		return e.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 	}
 
 	// Create tunnel interface for remote AS
-	info, err := newASInfo(sdb.scionNet, isdas)
+	info, err := newASInfo(isdas)
 	if err != nil {
 		return err
 	}
-	sdb.topo.set(isdas, info)
+	topology.set(isdas, info)
 
 	// FIXME(scrye) channel for worker commands (to cancel goroutine when remote AS is removed)
 	ework := NewEgressWorker(info)
@@ -111,20 +108,20 @@ func (sdb *Topology) AddSig(isdas string, encapAddr string, encapPort string, ct
 	return info.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 }
 
-func (sdb *Topology) DelSig(isdas string, address string, port string, source string) error {
-	sdb.lock.Lock()
-	defer sdb.lock.Unlock()
+func DelSig(isdas string, address string, port string, source string) error {
+	lock.Lock()
+	defer lock.Unlock()
 
-	if e, found := sdb.topo.get(isdas); found {
+	if e, found := topology.get(isdas); found {
 		return e.delSig(address, port, source)
 	}
 	return common.NewCError("SIG entry not found", "address", address, "port", port)
 }
 
-func (sdb *Topology) Print(source string) string {
-	sdb.lock.RLock()
-	defer sdb.lock.RUnlock()
-	return sdb.topo.print()
+func Print(source string) string {
+	lock.RLock()
+	defer lock.RUnlock()
+	return topology.print()
 }
 
 // asMap keeps track of which ASes have been defined
@@ -134,9 +131,9 @@ type asMap struct {
 }
 
 func newASMap() *asMap {
-	topo := &asMap{}
-	topo.info = make(map[string]*asInfo)
-	return topo
+	topology := &asMap{}
+	topology.info = make(map[string]*asInfo)
+	return topology
 }
 
 func (t *asMap) get(key string) (*asInfo, bool) {
