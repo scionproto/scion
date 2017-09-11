@@ -467,7 +467,7 @@ func Listen(laddr string) (*Listener, error) {
 func (listener *Listener) Accept() (*Conn, error) {
 	c, err := listener.UnixListener.Accept()
 	if err != nil {
-		return nil, common.NewCError("Unable to accept", "listener", listener)
+		return nil, err
 	}
 	return newConn(c), nil
 }
