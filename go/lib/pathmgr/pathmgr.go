@@ -148,7 +148,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	defer r.Unlock()
 
 	// If src-dst pair already registered, return a pointer to the slice of paths
-	key := src.String() + "." + dst.String()
+	key := iaKey(src, dst)
 	dupSP := r.regMap[key]
 	if dupSP != nil {
 		return dupSP, nil
@@ -212,7 +212,18 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 	case sciond.RevUnknown, sciond.RevValid:
 		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
 		r.revTableCache.revoke(uifid)
-		r.revTableReg.revoke(uifid)
+		revokedPairs := r.revTableReg.revoke(uifid)
+		for _, pair := range revokedPairs {
+			sp, ok := r.regMap[iaKey(pair.src, pair.dst)]
+			if !ok {
+				// src-dst pair is no longer tracked
+				continue
+			}
+			q := query{src: pair.src, dst: pair.dst, sp: sp}
+			pathSet := r.lookup(q)
+			sp.Store(pathSet)
+			r.revTableReg.updatePathSet(pathSet)
+		}
 	case sciond.RevStale:
 		log.Warn("Found stale revocation notification", "revInfo", parsedRev)
 	case sciond.RevInvalid:
@@ -223,10 +234,11 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 func (r *PR) resolver() {
 	for query := range r.queries {
 		r.Lock()
-		paths := r.lookup(query)
-		if paths != nil {
+		pathSet := r.lookup(query)
+		if pathSet != nil {
 			// Store path slice atomically
-			query.sp.Store(paths)
+			query.sp.Store(pathSet)
+			r.revTableReg.updatePathSet(pathSet)
 		}
 		r.Unlock()
 
@@ -296,4 +308,8 @@ func (r *PR) stateTransition(new sciondState) bool {
 		return true
 	}
 	return false
+}
+
+func iaKey(src, dst *addr.ISD_AS) string {
+	return src.String() + "." + dst.String()
 }

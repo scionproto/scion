@@ -21,6 +21,11 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+type IAPair struct {
+	src *addr.ISD_AS
+	dst *addr.ISD_AS
+}
+
 // UIFID (Unique IFID) is a IFID descriptor with global scope composed of ISDAS
 // and local IFID
 type UIFID struct {
@@ -84,10 +89,20 @@ func (rt *revTable) updatePath(ap *AppPath) {
 }
 
 // RevokeUIFID deletes all the paths that include uifid
-func (rt *revTable) revoke(uifid *UIFID) {
+func (rt *revTable) revoke(uifid *UIFID) []*IAPair {
+	pairs := make([]*IAPair, 0)
 	aps := rt.m[uifid.key()]
 	for _, ap := range aps {
 		ap.revoke()
+
+		// If the revocation caused all paths between a source and
+		// destination to be deleted, return the source and destination
+		// to allow callers to requery SCIOND immediately
+		if len(ap.parent) == 0 {
+			src := getSrcIA(ap)
+			dst := getDstIA(ap)
+			pairs = append(pairs, &IAPair{src: src, dst: dst})
+		}
 
 		// Delete all references from other UIFIDs to the revoked path,
 		// thus allowing the path to be garbage collected
@@ -104,4 +119,16 @@ func (rt *revTable) revoke(uifid *UIFID) {
 		}
 	}
 	delete(rt.m, uifid.key())
+	return nil
+}
+
+func getSrcIA(ap *AppPath) *addr.ISD_AS {
+	iface := ap.Entry.Path.Interfaces[0]
+	return iface.ISD_AS()
+}
+
+func getDstIA(ap *AppPath) *addr.ISD_AS {
+	length := len(ap.Entry.Path.Interfaces)
+	iface := ap.Entry.Path.Interfaces[length-1]
+	return iface.ISD_AS()
 }

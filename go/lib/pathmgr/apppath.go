@@ -15,6 +15,10 @@
 package pathmgr
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
@@ -58,7 +62,12 @@ type AppPath struct {
 
 // key returns a unique key that can be used for map indexing.
 func (ap *AppPath) key() rawKey {
-	return rawKey(ap.Entry.Path.FwdPath)
+	h := sha256.New()
+	for _, iface := range ap.Entry.Path.Interfaces {
+		binary.Write(h, common.Order, iface.ISD_AS().Uint32())
+		binary.Write(h, common.Order, iface.IfID)
+	}
+	return rawKey(h.Sum(nil))
 }
 
 // revoke removes ap from its parent path set.
