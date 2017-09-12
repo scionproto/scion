@@ -14,7 +14,9 @@
 
 package pathmgr
 
-import "github.com/netsec-ethz/scion/go/lib/sciond"
+import (
+	"github.com/netsec-ethz/scion/go/lib/sciond"
+)
 
 // AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key()
 type AppPathSet map[rawKey]*AppPath

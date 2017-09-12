@@ -49,14 +49,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
-const (
-	// Each path instance can appear both in the resolver map and in the query
-	// path cache; we differentiate between the two in the revocation table by
-	// assigning a discriminator number
-	discSimpleQuery = 0
-	discResolver    = 1
-)
-
 var (
 	// Time between checks for stale path references
 	pathCleanupInterval = time.Minute
@@ -81,8 +73,10 @@ type PR struct {
 	state sciondState
 	// Duration between two path lookups for a registered path
 	refireInterval time.Duration
-	// Paths indexed by UIFID for revocation purposes
-	revTable *revTable
+	// Cached paths indexed by UIFID for revocations
+	revTableCache *revTable
+	// Continuously updated paths indexed by UIFID
+	revTableReg *revTable
 	log.Logger
 }
 
@@ -104,7 +98,8 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 		queries:        make(chan query, queryChanCap),
 		refireInterval: refireInterval,
 		pathMap:        cache.New(pathTTL, pathCleanupInterval),
-		revTable:       newRevTable(),
+		revTableCache:  newRevTable(),
+		revTableReg:    newRevTable(),
 		Logger:         logger.New("pathmgr")}
 
 	// Start resolver, which periodically refreshes paths for registered
@@ -124,8 +119,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	iaKey := IAKey(src, dst)
 	pathSetI, ok := r.pathMap.Get(iaKey)
 	if ok {
-		pathSet := pathSetI.(AppPathSet)
-		return pathSet
+		return pathSetI.(AppPathSet)
 	}
 
 	// We don't have a cached path list, so we ask SCIOND
@@ -136,7 +130,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 		return nil
 	}
 	// We found paths, so we cache them
-	r.revTable.updatePathSet(pathSet, discSimpleQuery)
+	r.revTableCache.updatePathSet(pathSet)
 	r.pathMap.SetDefault(iaKey, pathSet)
 	return pathSet
 }
@@ -179,7 +173,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	q := query{src: src, dst: dst, sp: sp}
 	pathSet := r.lookup(q)
 	sp.Store(pathSet)
-	r.revTable.updatePathSet(pathSet, discResolver)
+	r.revTableReg.updatePathSet(pathSet)
 
 	// Add ia to periodic lookup table
 	time.AfterFunc(r.refireInterval, func() {
@@ -215,11 +209,10 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 	}
 
 	switch reply.Result {
-	case sciond.RevUnknown:
-		fallthrough
-	case sciond.RevValid:
+	case sciond.RevUnknown, sciond.RevValid:
 		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
-		r.revTable.revoke(uifid)
+		r.revTableCache.revoke(uifid)
+		r.revTableReg.revoke(uifid)
 	case sciond.RevStale:
 		log.Warn("Found stale revocation notification", "revInfo", parsedRev)
 	case sciond.RevInvalid:
@@ -269,8 +262,7 @@ func (r *PR) lookup(q query) AppPathSet {
 		return nil
 	}
 
-	aps := NewAppPathSet(reply)
-	return aps
+	return NewAppPathSet(reply)
 }
 
 // reconnect repeatedly tries to reconnect to SCIOND

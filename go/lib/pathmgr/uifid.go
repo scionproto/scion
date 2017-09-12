@@ -37,7 +37,7 @@ func UIFIDFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) *UIFID {
 
 // key returns a unique key that can be used as a map index
 func (u *UIFID) key() string {
-	return fmt.Sprintf("%v.%d", u.isdas, u.ifid)
+	return fmt.Sprintf("%s#%d", u.isdas, u.ifid)
 }
 
 func (u *UIFID) String() string {
@@ -48,6 +48,7 @@ func (u *UIFID) String() string {
 // Revoking an interface consists of grabbing its UIFID, going through the set
 // and calling Revoke on each AppPath.
 type revTable struct {
+	// maps UIFID keys to sets of paths that contain that UIFID
 	m map[string]AppPathSet
 }
 
@@ -61,35 +62,46 @@ func newRevTable() *revTable {
 // example, because it has been received from SCIOND before), the RevTable
 // pointers are updated to track the new path object. This allows revocations
 // to always update the live, in-use paths and not old copies that will be soon
-// collected by the GC. Parameter disc can be used to differentiate between
-// paths that are identical in binary form, but are kept in different data
-// structures. This allows the RevTable to track multiple copies of the same
-// path if needed.
-func (u *revTable) updatePathSet(aps AppPathSet, disc int) {
+// collected by the GC.
+func (rt *revTable) updatePathSet(aps AppPathSet) {
 	for _, ap := range aps {
-		u.updatePath(ap, disc)
+		rt.updatePath(ap)
 	}
 }
 
-func (u *revTable) updatePath(ap *AppPath, disc int) {
+func (rt *revTable) updatePath(ap *AppPath) {
 	for _, iface := range ap.Entry.Path.Interfaces {
 		uifid := UIFIDFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
-		aps := u.m[uifid.key()]
-		if aps == nil {
+		aps, ok := rt.m[uifid.key()]
+		if !ok {
 			// AppPathSet not initialized yet
 			aps = make(AppPathSet)
 			// Store reference to new map
-			u.m[uifid.key()] = aps
+			rt.m[uifid.key()] = aps
 		}
-		aps[rawKey(fmt.Sprintf("%d.%v", disc, ap.key()))] = ap
+		aps[rawKey(ap.key())] = ap
 	}
 }
 
 // RevokeUIFID deletes all the paths that include uifid
-func (u *revTable) revoke(uifid *UIFID) {
-	aps := u.m[uifid.key()]
+func (rt *revTable) revoke(uifid *UIFID) {
+	aps := rt.m[uifid.key()]
 	for _, ap := range aps {
 		ap.revoke()
+
+		// Delete all references from other UIFIDs to the revoked path,
+		// thus allowing the path to be garbage collected
+		for _, iface := range ap.Entry.Path.Interfaces {
+			ifaceUIFID := UIFIDFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
+			pathSet := rt.m[ifaceUIFID.key()]
+			delete(pathSet, ap.key())
+
+			// If the last reference from a UIFID to a path was deleted, we can
+			// remove the UIFID from the revTable
+			if len(pathSet) == 0 {
+				delete(rt.m, ifaceUIFID.key())
+			}
+		}
 	}
-	delete(u.m, uifid.key())
+	delete(rt.m, uifid.key())
 }

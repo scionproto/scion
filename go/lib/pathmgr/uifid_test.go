@@ -30,7 +30,7 @@ func TestRevTable(t *testing.T) {
 
 		Convey("Add path set for 1-19.2-25", func() {
 			aps1 := NewAppPathSet(paths["1-19.2-25"])
-			rt.updatePathSet(aps1, 0)
+			rt.updatePathSet(aps1)
 			SoMsg("revocation table size", len(rt.m), ShouldEqual, 12)
 
 			Convey("Revoke non-existing UIFID 1-18.42", func() {
@@ -44,21 +44,21 @@ func TestRevTable(t *testing.T) {
 				ia, _ := addr.IAFromString("2-25")
 				uifid := UIFIDFromValues(ia, 74)
 				rt.revoke(uifid)
-				SoMsg("revocation table size", len(rt.m), ShouldEqual, 11)
+				SoMsg("revocation table size", len(rt.m), ShouldEqual, 0)
 				// Revoking from RevTable also deletes from aps
 				SoMsg("aps len", len(aps1), ShouldEqual, 0)
 			})
 
 			Convey("Add path set for 1-10.1-18", func() {
 				aps2 := NewAppPathSet(paths["1-10.1-18"])
-				rt.updatePathSet(aps2, 0)
+				rt.updatePathSet(aps2)
 				SoMsg("revocation table size", len(rt.m), ShouldEqual, 18)
 
 				Convey("Revoke UIFID that is member of 1 out of 2 path sets", func() {
 					ia, _ := addr.IAFromString("2-21")
 					uifid := UIFIDFromValues(ia, 97)
 					rt.revoke(uifid)
-					SoMsg("revocation table size", len(rt.m), ShouldEqual, 17)
+					SoMsg("revocation table size", len(rt.m), ShouldEqual, 8)
 					SoMsg("aps 1-19.2-25 size", len(aps1), ShouldEqual, 0)
 					SoMsg("aps 1-10.1-18 size", len(aps2), ShouldEqual, 1)
 				})
@@ -67,24 +67,9 @@ func TestRevTable(t *testing.T) {
 					ia, _ := addr.IAFromString("1-19")
 					uifid := UIFIDFromValues(ia, 60)
 					rt.revoke(uifid)
-					SoMsg("revocation table size", len(rt.m), ShouldEqual, 17)
+					SoMsg("revocation table size", len(rt.m), ShouldEqual, 0)
 					SoMsg("aps 1-19.2-25 size", len(aps1), ShouldEqual, 0)
 					SoMsg("aps 1-10.1-18 size", len(aps2), ShouldEqual, 0)
-				})
-			})
-
-			Convey("Add path set for 1-19.2-25 on a different discriminator", func() {
-				aps2 := NewAppPathSet(paths["1-19.2-25"])
-				rt.updatePathSet(aps2, 1)
-				SoMsg("revocation table size", len(rt.m), ShouldEqual, 12)
-
-				Convey("Revoke UIFID that is member of both path sets", func() {
-					ia, _ := addr.IAFromString("2-23")
-					uifid := UIFIDFromValues(ia, 66)
-					rt.revoke(uifid)
-					SoMsg("revocation table size", len(rt.m), ShouldEqual, 11)
-					SoMsg("aps 1-19.2-25, disc 0, size", len(aps1), ShouldEqual, 0)
-					SoMsg("aps 1-19.2-25, disc 1, size", len(aps2), ShouldEqual, 0)
 				})
 			})
 		})
@@ -93,7 +78,7 @@ func TestRevTable(t *testing.T) {
 			m := make(map[string]AppPathSet)
 			for id, path := range paths {
 				m[id] = NewAppPathSet(path)
-				rt.updatePathSet(m[id], 0)
+				rt.updatePathSet(m[id])
 			}
 
 			Convey("Revoking 1-14<->2-23", func() {

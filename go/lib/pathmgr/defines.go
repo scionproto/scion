@@ -35,7 +35,7 @@ const (
 type rawKey string
 
 func (r rawKey) String() string {
-	return (common.RawBytes)(r).String()
+	return common.RawBytes(r).String()
 }
 
 // query contains the context needed to issue and update a query
