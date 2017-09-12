@@ -19,10 +19,12 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
 var (
+	// First 3 paths are used in this test file, all 8 paths are used in revtable_test.go
 	paths = map[string]*sciond.PathReply{
 		"1-19.2-25": {
 			ErrorCode: 0x0,
@@ -39,12 +41,12 @@ var (
 							0xa0, 0x0, 0x13, 0x35, 0xeb},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x100013, IfID: 0x3c}, {RawIsdas: 0x100010, IfID: 0x26},
-							{RawIsdas: 0x100010, IfID: 0x16}, {RawIsdas: 0x10000d, IfID: 0x17},
-							{RawIsdas: 0x10000d, IfID: 0x2e}, {RawIsdas: 0x10000b, IfID: 0x12},
-							{RawIsdas: 0x10000b, IfID: 0x57}, {RawIsdas: 0x200015, IfID: 0x61},
-							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39},
-							{RawIsdas: 0x200017, IfID: 0x42}, {RawIsdas: 0x200019, IfID: 0x4a}}},
+							{RawIsdas: IA("1-19"), IfID: 60}, {RawIsdas: IA("1-16"), IfID: 38},
+							{RawIsdas: IA("1-16"), IfID: 22}, {RawIsdas: IA("1-13"), IfID: 23},
+							{RawIsdas: IA("1-13"), IfID: 46}, {RawIsdas: IA("1-11"), IfID: 18},
+							{RawIsdas: IA("1-11"), IfID: 87}, {RawIsdas: IA("2-21"), IfID: 97},
+							{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
+							{RawIsdas: IA("2-23"), IfID: 66}, {RawIsdas: IA("2-25"), IfID: 74}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x756f,
 						Addrs: struct {
@@ -52,7 +54,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xb1},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"1-10.1-18": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -67,10 +74,10 @@ var (
 							0x54, 0x42, 0x92, 0x6f, 0x0, 0x3f, 0x2, 0x80, 0x0, 0xd, 0x4f, 0x20},
 						Mtu: 0x5c0,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x10000a, IfID: 0x33}, {RawIsdas: 0x100013, IfID: 0x31},
-							{RawIsdas: 0x100013, IfID: 0x3c}, {RawIsdas: 0x100010, IfID: 0x26},
-							{RawIsdas: 0x100010, IfID: 0x1e}, {RawIsdas: 0x10000f, IfID: 0x23},
-							{RawIsdas: 0x10000f, IfID: 0x54}, {RawIsdas: 0x100012, IfID: 0x28}}},
+							{RawIsdas: IA("1-10"), IfID: 51}, {RawIsdas: IA("1-19"), IfID: 49},
+							{RawIsdas: IA("1-19"), IfID: 60}, {RawIsdas: IA("1-16"), IfID: 38},
+							{RawIsdas: IA("1-16"), IfID: 30}, {RawIsdas: IA("1-15"), IfID: 35},
+							{RawIsdas: IA("1-15"), IfID: 84}, {RawIsdas: IA("1-18"), IfID: 40}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7579,
 						Addrs: struct {
@@ -78,7 +85,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0x31},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"2-24.1-17": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -93,11 +105,11 @@ var (
 							0xe, 0x15, 0xbe, 0x0, 0x3f, 0x0, 0xe0, 0x0, 0x8f, 0x4b, 0xf5},
 						Mtu: 0x578,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x200018, IfID: 0x4b}, {RawIsdas: 0x200016, IfID: 0x4d},
-							{RawIsdas: 0x200016, IfID: 0x31}, {RawIsdas: 0x10000c, IfID: 0x17},
-							{RawIsdas: 0x10000c, IfID: 0x5f}, {RawIsdas: 0x10000b, IfID: 0x36},
-							{RawIsdas: 0x10000b, IfID: 0x1b}, {RawIsdas: 0x10000e, IfID: 0x3a},
-							{RawIsdas: 0x10000e, IfID: 0x31}, {RawIsdas: 0x100011, IfID: 0xe}}},
+							{RawIsdas: IA("2-26"), IfID: 75}, {RawIsdas: IA("2-22"), IfID: 77},
+							{RawIsdas: IA("2-22"), IfID: 49}, {RawIsdas: IA("1-12"), IfID: 23},
+							{RawIsdas: IA("1-12"), IfID: 95}, {RawIsdas: IA("1-11"), IfID: 54},
+							{RawIsdas: IA("1-11"), IfID: 28}, {RawIsdas: IA("1-14"), IfID: 48},
+							{RawIsdas: IA("1-14"), IfID: 49}, {RawIsdas: IA("1-17"), IfID: 14}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7563,
 						Addrs: struct {
@@ -105,7 +117,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xf1},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"2-22.1-16": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -118,9 +135,9 @@ var (
 							0x60, 0x0, 0xb8, 0x5b, 0xd4},
 						Mtu: 0x578,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x200016, IfID: 0x31}, {RawIsdas: 0x10000c, IfID: 0x17},
-							{RawIsdas: 0x10000c, IfID: 0x42}, {RawIsdas: 0x10000d, IfID: 0x55},
-							{RawIsdas: 0x10000d, IfID: 0x17}, {RawIsdas: 0x100010, IfID: 0x16}}},
+							{RawIsdas: IA("2-22"), IfID: 49}, {RawIsdas: IA("1-12"), IfID: 23},
+							{RawIsdas: IA("1-12"), IfID: 66}, {RawIsdas: IA("1-13"), IfID: 85},
+							{RawIsdas: IA("1-13"), IfID: 23}, {RawIsdas: IA("1-16"), IfID: 22}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7574,
 						Addrs: struct {
@@ -128,7 +145,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xd1},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"1-18.2-25": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -144,12 +166,12 @@ var (
 							0xa0, 0x0, 0xb4, 0x68, 0x31},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x100012, IfID: 0x28}, {RawIsdas: 0x10000f, IfID: 0x54},
-							{RawIsdas: 0x10000f, IfID: 0x40}, {RawIsdas: 0x10000c, IfID: 0x23},
-							{RawIsdas: 0x10000c, IfID: 0x17}, {RawIsdas: 0x200016, IfID: 0x31},
-							{RawIsdas: 0x200016, IfID: 0xa}, {RawIsdas: 0x200015, IfID: 0x16},
-							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39},
-							{RawIsdas: 0x200017, IfID: 0x42}, {RawIsdas: 0x200019, IfID: 0x4a}}},
+							{RawIsdas: IA("1-18"), IfID: 40}, {RawIsdas: IA("1-15"), IfID: 84},
+							{RawIsdas: IA("1-15"), IfID: 64}, {RawIsdas: IA("1-12"), IfID: 35},
+							{RawIsdas: IA("1-12"), IfID: 23}, {RawIsdas: IA("2-22"), IfID: 49},
+							{RawIsdas: IA("2-22"), IfID: 10}, {RawIsdas: IA("2-21"), IfID: 22},
+							{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
+							{RawIsdas: IA("2-23"), IfID: 66}, {RawIsdas: IA("2-25"), IfID: 74}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7574,
 						Addrs: struct {
@@ -157,7 +179,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xa1},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"2-21.2-26": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -168,8 +195,8 @@ var (
 							0x0, 0x3f, 0x2, 0x20, 0x0, 0xbd, 0x8, 0xb1},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39},
-							{RawIsdas: 0x200017, IfID: 0x11}, {RawIsdas: 0x20001a, IfID: 0x22}}},
+							{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
+							{RawIsdas: IA("2-23"), IfID: 17}, {RawIsdas: IA("2-26"), IfID: 34}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7581,
 						Addrs: struct {
@@ -177,7 +204,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0xc3},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"1-11.2-23": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -189,8 +221,8 @@ var (
 							0xf7, 0xe0, 0x0, 0x3f, 0x3, 0x90, 0x0, 0x63, 0x7e, 0x27},
 						Mtu: 0x500,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x10000b, IfID: 0x57}, {RawIsdas: 0x200015, IfID: 0x61},
-							{RawIsdas: 0x200015, IfID: 0x45}, {RawIsdas: 0x200017, IfID: 0x39}}},
+							{RawIsdas: IA("1-11"), IfID: 87}, {RawIsdas: IA("2-21"), IfID: 97},
+							{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7590,
 						Addrs: struct {
@@ -198,7 +230,12 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0x43},
-							Ipv6: []uint8(nil)}}}}},
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
 		"1-13.1-18": {
 			ErrorCode: 0x0,
 			Entries: []sciond.PathReplyEntry{
@@ -211,10 +248,10 @@ var (
 							0x0, 0x54, 0x32, 0xb3, 0xac, 0x0, 0x3f, 0x2, 0x80, 0x0, 0xe8, 0xb0, 0x2e},
 						Mtu: 0x5c0,
 						Interfaces: []sciond.PathInterface{
-							{RawIsdas: 0x10000d, IfID: 0x2e}, {RawIsdas: 0x10000b, IfID: 0x12},
-							{RawIsdas: 0x10000b, IfID: 0x36}, {RawIsdas: 0x10000c, IfID: 0x5f},
-							{RawIsdas: 0x10000c, IfID: 0x23}, {RawIsdas: 0x10000f, IfID: 0x40},
-							{RawIsdas: 0x10000f, IfID: 0x54}, {RawIsdas: 0x100012, IfID: 0x28}}},
+							{RawIsdas: IA("1-13"), IfID: 46}, {RawIsdas: IA("1-11"), IfID: 18},
+							{RawIsdas: IA("1-11"), IfID: 54}, {RawIsdas: IA("1-12"), IfID: 95},
+							{RawIsdas: IA("1-12"), IfID: 35}, {RawIsdas: IA("1-15"), IfID: 64},
+							{RawIsdas: IA("1-15"), IfID: 84}, {RawIsdas: IA("1-18"), IfID: 40}}},
 					HostInfo: sciond.HostInfo{
 						Port: 0x7562,
 						Addrs: struct {
@@ -222,7 +259,13 @@ var (
 							Ipv6 []uint8
 						}{
 							Ipv4: []uint8{0x7f, 0x0, 0x0, 0x61},
-							Ipv6: []uint8(nil)}}}}}}
+							Ipv6: []uint8(nil),
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func TestAppPathSets(t *testing.T) {
@@ -263,4 +306,9 @@ func TestAppPathSets(t *testing.T) {
 			})
 		})
 	})
+}
+
+func IA(iaStr string) uint32 {
+	ia, _ := addr.IAFromString(iaStr)
+	return ia.Uint32()
 }

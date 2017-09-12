@@ -28,19 +28,19 @@ func TestRevTable(t *testing.T) {
 		rt := newRevTable()
 		SoMsg("revocation table", rt, ShouldNotEqual, nil)
 
-		Convey("Add path set for 1-19.2-25", func() {
+		Convey("Add path set for 1-19 -> 2-25", func() {
 			aps1 := NewAppPathSet(paths["1-19.2-25"])
 			rt.updatePathSet(aps1)
 			SoMsg("revocation table size", len(rt.m), ShouldEqual, 12)
 
-			Convey("Revoke non-existing UIFID 1-18.42", func() {
+			Convey("Revoke non-existing UIFID 1-18#42", func() {
 				ia, _ := addr.IAFromString("1-18")
 				uifid := UIFIDFromValues(ia, 42)
 				rt.revoke(uifid)
 				SoMsg("revocation table size", len(rt.m), ShouldEqual, 12)
 			})
 
-			Convey("Revoke existing UIFID 2-25.74", func() {
+			Convey("Revoke existing UIFID 2-25#74", func() {
 				ia, _ := addr.IAFromString("2-25")
 				uifid := UIFIDFromValues(ia, 74)
 				rt.revoke(uifid)
@@ -49,7 +49,7 @@ func TestRevTable(t *testing.T) {
 				SoMsg("aps len", len(aps1), ShouldEqual, 0)
 			})
 
-			Convey("Add path set for 1-10.1-18", func() {
+			Convey("Add path set for 1-10 -> 1-18", func() {
 				aps2 := NewAppPathSet(paths["1-10.1-18"])
 				rt.updatePathSet(aps2)
 				SoMsg("revocation table size", len(rt.m), ShouldEqual, 18)
