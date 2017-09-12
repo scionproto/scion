@@ -67,12 +67,12 @@ type Connector struct {
 // guaranteed to be fresh, as the returned connector caches ASInfo replies for ASInfoTTL time,
 // IFInfo replies for IFInfoTTL time and SVCInfo for SVCInfoTTL time.
 func Connect(socketName string) (*Connector, error) {
-	return ConnectTimeout(socketName, time.Duration(0))
+	return ConnectTimeout(socketName, time.Duration(-1))
 }
 
 // ConnectTimeout acts like Connect but takes a timeout.
 //
-// A timeout of 0 means infinite timeout.
+// A negative timeout means infinite timeout.
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
