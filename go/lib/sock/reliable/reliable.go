@@ -97,17 +97,17 @@ type Conn struct {
 
 // DialTimeout acts like Dial but takes a timeout.
 //
-// A timeout of 0 means infinite timeout.
+// A negative timeout means infinite timeout.
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 	var err error
 	var c net.Conn
-	if timeout == 0 {
-		c, err = net.DialTimeout("unix", address, timeout)
-	} else {
+	if timeout < 0 {
 		c, err = net.Dial("unix", address)
+	} else {
+		c, err = net.DialTimeout("unix", address, timeout)
 	}
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 
 // Dial connects to the UNIX socket specified by address.
 func Dial(address string) (*Conn, error) {
-	return DialTimeout(address, time.Duration(0))
+	return DialTimeout(address, time.Duration(-1))
 }
 
 func newConn(c net.Conn) *Conn {
@@ -130,7 +130,7 @@ func newConn(c net.Conn) *Conn {
 
 // RegisterTimeout acts like Register but takes a timeout.
 //
-// A timeout of 0 means infinite timeout.
+// A negative timeout means infinite timeout.
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
