@@ -19,11 +19,8 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/snet"
-	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 var (
@@ -54,18 +51,7 @@ func AddRoute(prefix string, isdas string) error {
 		return common.NewCError("Unable to add prefix for unknown AS", "AS", isdas, "prefix", prefix)
 	}
 
-	err = info.addRoute(subnet)
-	if err != nil {
-		return err
-	}
-
-	// TODO define consistency model between this information and the Linux routing table
-	err = xnet.AddRouteIF(subnet, info.DeviceName)
-	if err != nil {
-		log.Error("Unable to add route", "subnet", subnet, "device", info.DeviceName)
-		return err
-	}
-	return nil
+	return info.addRoute(subnet)
 }
 
 func DelRoute(prefix string, isdas string) error {

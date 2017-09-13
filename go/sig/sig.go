@@ -129,7 +129,6 @@ func parseFlagAddr(ia *addr.ISD_AS, ipStr string, port int) (*snet.Addr, error) 
 	if ip == nil {
 		return nil, common.NewCError("unable to parse IP address", "addr", ipStr)
 	}
-	// TODO ? xnet.Setup(netip)
 	if port == 0 || port >= (1<<16) {
 		return nil, common.NewCError("invalid port number", "port", port)
 	}

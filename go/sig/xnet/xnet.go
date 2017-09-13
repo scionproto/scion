@@ -28,12 +28,6 @@ import (
 const SIGRTable = 11
 const SIGRPriority = 100
 
-var localIP net.IP
-
-func Setup(loc net.IP) {
-	localIP = loc
-}
-
 // ConnectTun creates (or opens) interface name, and then sets its state to up
 func ConnectTun(name string) (io.ReadWriteCloser, error) {
 	iface, err := water.New(water.Config{
@@ -60,7 +54,7 @@ func ConnectTun(name string) (io.ReadWriteCloser, error) {
 }
 
 // AddRouteIF adds a new route to destination through device ifname in the Linux Routing Table
-func AddRouteIF(destination *net.IPNet, ifname string) error {
+func AddRouteIF(destination *net.IPNet, bindIP net.IP, ifname string) error {
 	link, err := netlink.LinkByName(ifname)
 	if err != nil {
 		log.Error("Unable to get device", "name", ifname)
@@ -71,7 +65,7 @@ func AddRouteIF(destination *net.IPNet, ifname string) error {
 
 	// NOTE: SCION injected routes have a metric of 100
 	route := netlink.Route{
-		LinkIndex: index, Src: localIP, Dst: destination, Priority: SIGRPriority, Table: SIGRTable,
+		LinkIndex: index, Src: bindIP, Dst: destination, Priority: SIGRPriority, Table: SIGRTable,
 	}
 	err = netlink.RouteAdd(&route)
 	if err != nil {
