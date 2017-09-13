@@ -53,7 +53,6 @@ var (
 )
 
 func main() {
-	log.Info("App start")
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
