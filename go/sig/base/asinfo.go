@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/prometheus/common/log"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/snet"
@@ -66,6 +68,12 @@ func (as *asInfo) addRoute(subnet *net.IPNet) error {
 		return common.NewCError("Subnet already exists", "subnet", subnet)
 	}
 	as.Subnets[subnetKey] = subnet
+
+	if err := xnet.AddRouteIF(subnet, localEncapAddr.Host.IP(), as.DeviceName); err != nil {
+		log.Error("Unable to add route", "subnet", subnet, "device", as.DeviceName)
+		return err
+	}
+
 	return nil
 }
 
