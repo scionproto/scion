@@ -35,7 +35,6 @@ type asInfo struct {
 	Subnets    map[string]*net.IPNet
 	DeviceName string
 	Device     io.ReadWriteCloser
-	scionNet   *snet.Network
 }
 
 // newASInfo initializes the internal structures and creates the tunnel
