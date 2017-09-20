@@ -40,13 +40,14 @@ var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
-	dispMutex sync.Mutex
-	conn      *reliable.Conn
+	conn *reliable.Conn
 	// Local and remote SCION addresses (IA, L3, L4)
 	laddr *Addr
 	raddr *Addr
 	// Describes L3 and L4 protocol; currently only udp4 is implemented
 	net        string
+	readMutex  sync.Mutex
+	writeMutex sync.Mutex
 	recvBuffer common.RawBytes
 	sendBuffer common.RawBytes
 	// Pointer to slice of paths updated by continous lookups; these are
@@ -98,16 +99,14 @@ func (c *Conn) Read(b []byte) (int, error) {
 }
 
 func (c *Conn) read(b []byte) (int, *Addr, error) {
+	c.readMutex.Lock()
+	defer c.readMutex.Unlock()
 	var err error
 	var remote *Addr
-
-	c.dispMutex.Lock()
 	n, err := c.conn.Read(c.recvBuffer)
-	c.dispMutex.Unlock()
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
-
 	pkt := &spkt.ScnPkt{
 		DstIA: &addr.ISD_AS{},
 		SrcIA: &addr.ISD_AS{},
@@ -117,13 +116,11 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	if err != nil {
 		return 0, nil, common.NewCError("SCION packet parse error", "err", err)
 	}
-
 	// Copy data, extract address
 	n, err = pkt.Pld.WritePld(b)
 	if err != nil {
 		return 0, nil, common.NewCError("Unable to copy payload", "err", err)
 	}
-
 	// Assert L4 as UDP header if local net is udp4
 	if c.net == "udp4" {
 		udpHdr, ok := pkt.L4.(*l4.UDP)
@@ -145,12 +142,10 @@ func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	if c.conn == nil {
 		return 0, common.NewCError("Connection not initialized")
 	}
-
 	n, err := c.write(b, raddr)
 	if err != nil {
 		return 0, common.NewCError("Dispatcher error", "err", err)
 	}
-
 	return n, err
 }
 
@@ -176,6 +171,8 @@ func (c *Conn) Write(b []byte) (int, error) {
 }
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
+	c.writeMutex.Lock()
+	defer c.writeMutex.Unlock()
 	var err error
 	var path *spath.Path
 	pathEntry := raddr.PathEntry
@@ -228,9 +225,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 
 	// Send message
-	c.dispMutex.Lock()
 	n, err = c.conn.WriteTo(c.sendBuffer[:n], appAddr)
-	c.dispMutex.Unlock()
 	if err != nil {
 		return 0, common.NewCError("Dispatcher write error", "err", err)
 	}
