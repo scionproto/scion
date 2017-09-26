@@ -37,6 +37,7 @@ type RevInfo struct {
 	NextRoot common.RawBytes
 	RawIsdas uint32 `capnp:"isdas"`
 	HashType uint16
+	TreeTTL  uint32
 }
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
@@ -52,7 +53,8 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 }
 
 func (r *RevInfo) String() string {
-	return fmt.Sprintf("IA: %v IfID: %v Epoch: %v", r.IA(), r.IfID, r.Epoch)
+	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d TreeTTL: %d",
+		r.IA(), r.IfID, r.Epoch, r.TreeTTL)
 }
 
 type SiblingHash struct {

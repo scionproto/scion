@@ -101,6 +101,7 @@ ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
 DEFAULT_LINK_BW = 1000
+DEFAULT_PSEG_TTL = 6 * 30 * 30
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
@@ -135,7 +136,8 @@ class ConfigGenerator(object):
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False, router="py", bind_addr=GENERATE_BIND_ADDRESS):
+                 use_mininet=False, router="py", bind_addr=GENERATE_BIND_ADDRESS,
+                 pseg_ttl=DEFAULT_PSEG_TTL):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -146,6 +148,7 @@ class ConfigGenerator(object):
         :param string network:
             Network to create subnets in, of the form x.x.x.x/y
         :param bool use_mininet: Use Mininet
+        :param int pseg_ttl: The TTL for path segments (in seconds)
         """
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
@@ -156,6 +159,7 @@ class ConfigGenerator(object):
         self.default_mtu = None
         self.router = router
         self.gen_bind_addr = bind_addr
+        self.pseg_ttl = pseg_ttl
         self._read_defaults(network)
 
     def _read_defaults(self, network):
@@ -269,6 +273,8 @@ class ConfigGenerator(object):
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathService"] else False,
+            'PathSegmentTTL': self.pseg_ttl,
+            'RevocationTreeTTL': self.pseg_ttl,
         }
 
     def _write_networks_conf(self, networks, out_file):
@@ -1303,10 +1309,12 @@ def main():
                         help='Router implementation to use ("go" or "py")')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
+    parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_PSEG_TTL,
+                        help='Path segment TTL (in seconds)')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.router, args.bind_addr)
+        args.network, args.mininet, args.router, args.bind_addr, args.pseg_ttl)
     confgen.generate_all()
 
 
