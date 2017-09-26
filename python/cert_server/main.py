@@ -34,6 +34,7 @@ from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
 from lib.defines import CERTIFICATE_SERVICE
 from lib.drkey.drkey_mgmt import (
+    DRKeyMgmt,
     DRKeyReply,
     DRKeyRequest,
 )
@@ -49,11 +50,13 @@ from lib.drkey.util import drkey_time, get_drkey_exp_time
 from lib.errors import SCIONVerificationError
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
+    CertMgmt,
     CertChainReply,
     CertChainRequest,
     TRCReply,
     TRCRequest,
 )
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
@@ -191,7 +194,7 @@ class CertServer(SCIONElement):
         """
         for raw in raw_entries:
             trc = TRC.from_raw(raw.decode('utf-8'))
-            rep = TRCReply.from_values(trc)
+            rep = CtrlPayload(CertMgmt(TRCReply.from_values(trc)))
             self.process_trc_reply(rep, None, from_zk=True)
         if len(raw_entries) > 0:
             logging.debug("Processed %s trcs from ZK", len(raw_entries))
@@ -202,14 +205,14 @@ class CertServer(SCIONElement):
         """
         for raw in raw_entries:
             cert = CertificateChain.from_raw(raw.decode('utf-8'))
-            rep = CertChainReply.from_values(cert)
+            rep = CtrlPayload(CertMgmt(CertChainReply.from_values(cert)))
             self.process_cert_chain_reply(rep, None, from_zk=True)
         if len(raw_entries) > 0:
             logging.debug("Processed %s certs from ZK", len(raw_entries))
 
     def _cached_drkeys_handler(self, raw_entries):
         for raw in raw_entries:
-            msg = DRKeyReply.from_raw(raw)
+            msg = CtrlPayload(DRKeyMgmt(DRKeyReply.from_raw(raw)))
             self.process_drkey_reply(msg, None, from_zk=True)
 
     def _share_object(self, pld, is_trc):
@@ -232,9 +235,11 @@ class CertServer(SCIONElement):
         logging.debug("%s stored in ZK: %s" % ("TRC" if is_trc else "CC",
                                                pld_hash))
 
-    def process_cert_chain_request(self, req, meta):
+    def process_cert_chain_request(self, cpld, meta):
         """Process a certificate chain request."""
-        assert isinstance(req, CertChainRequest)
+        cmgt = cpld.contents
+        req = cmgt.contents
+        assert isinstance(req, CertChainRequest), type(req)
         key = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s from %s", *key, meta)
         REQS_TOTAL.labels(**self._labels, type="cc").inc()
@@ -250,9 +255,11 @@ class CertServer(SCIONElement):
             return
         self._reply_cc(key, (meta, req))
 
-    def process_cert_chain_reply(self, rep, meta, from_zk=False):
+    def process_cert_chain_reply(self, cpld, meta, from_zk=False):
         """Process a certificate chain reply."""
-        assert isinstance(rep, CertChainReply)
+        cmgt = cpld.contents
+        rep = cmgt.contents
+        assert isinstance(rep, CertChainReply), type(rep)
         ia_ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
                      (ia_ver[0], ia_ver[1], from_zk))
@@ -281,7 +288,7 @@ class CertServer(SCIONElement):
         path_meta = self._get_path_via_sciond(isd_as)
         if path_meta:
             meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
-            self.send_meta(req, meta)
+            self.send_meta(CtrlPayload(CertMgmt(req)), meta)
             logging.info("Cert chain request sent to %s via [%s]: %s",
                          meta, path_meta.short_desc(), req.short_desc())
         else:
@@ -292,12 +299,14 @@ class CertServer(SCIONElement):
         isd_as, ver = key
         meta = req_info[0]
         cert_chain = self.trust_store.get_cert(isd_as, ver)
-        self.send_meta(CertChainReply.from_values(cert_chain), meta)
+        self.send_meta(CtrlPayload(CertMgmt(CertChainReply.from_values(cert_chain))), meta)
         logging.info("Cert chain for %sv%s sent to %s", isd_as, ver, meta)
 
-    def process_trc_request(self, req, meta):
+    def process_trc_request(self, cpld, meta):
         """Process a TRC request."""
-        assert isinstance(req, TRCRequest)
+        cmgt = cpld.contents
+        req = cmgt.contents
+        assert isinstance(req, TRCRequest), type(req)
         key = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s from %s", *key, meta)
         REQS_TOTAL.labels(**self._labels, type="trc").inc()
@@ -313,14 +322,16 @@ class CertServer(SCIONElement):
             return
         self._reply_trc(key, (meta, req))
 
-    def process_trc_reply(self, trc_rep, meta, from_zk=False):
+    def process_trc_reply(self, cpld, meta, from_zk=False):
         """
         Process a TRC reply.
 
         :param trc_rep: TRC reply.
         :type trc_rep: TRCReply
         """
-        assert isinstance(trc_rep, TRCReply)
+        cmgt = cpld.contents
+        trc_rep = cmgt.contents
+        assert isinstance(trc_rep, TRCReply), type(trc_rep)
         isd, ver = trc_rep.trc.get_isd_ver()
         logging.info("TRCReply received for ISD %sv%s, ZK: %s",
                      isd, ver, from_zk)
@@ -350,7 +361,7 @@ class CertServer(SCIONElement):
         path_meta = self._get_path_via_sciond(isd_as)
         if path_meta:
             meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
-            self.send_meta(trc_req, meta)
+            self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
             logging.info("TRC request sent to %s via [%s]: %s",
                          meta, path_meta.short_desc(), trc_req.short_desc())
         else:
@@ -360,17 +371,19 @@ class CertServer(SCIONElement):
         isd, ver = key
         meta = req_info[0]
         trc = self.trust_store.get_trc(isd, ver)
-        self.send_meta(TRCReply.from_values(trc), meta)
+        self.send_meta(CtrlPayload(CertMgmt(TRCReply.from_values(trc))), meta)
         logging.info("TRC for %sv%s sent to %s", isd, ver, meta)
 
-    def process_drkey_request(self, req, meta):
+    def process_drkey_request(self, cpld, meta):
         """
         Process first order DRKey requests from other ASes.
 
         :param DRKeyRequest req: the DRKey request
         :param UDPMetadata meta: the metadata
         """
-        assert isinstance(req, DRKeyRequest)
+        dpld = cpld.contents
+        req = dpld.contents
+        assert isinstance(req, DRKeyRequest), type(req)
         logging.info("DRKeyRequest received from %s: %s", meta, req.short_desc())
         REQS_TOTAL.labels(**self._labels, type="drkey").inc()
         try:
@@ -384,7 +397,7 @@ class CertServer(SCIONElement):
         trc_version = self.trust_store.get_trc(self.addr.isd_as[0]).version
         rep = get_drkey_reply(sv, self.addr.isd_as, meta.ia, self.private_key,
                               self.signing_key, cert_version, cert, trc_version)
-        self.send_meta(rep, meta)
+        self.send_meta(CtrlPayload(DRKeyMgmt(rep)), meta)
         logging.info("DRKeyReply sent to %s: %s", meta, req.short_desc())
 
     def _verify_drkey_request(self, req, meta):
@@ -421,7 +434,7 @@ class CertServer(SCIONElement):
             raise SCIONVerificationError(str(e))
         return chain.certs[0]
 
-    def process_drkey_reply(self, rep, meta, from_zk=False):
+    def process_drkey_reply(self, cpld, meta, from_zk=False):
         """
         Process first order DRKey reply from other ASes.
 
@@ -429,7 +442,9 @@ class CertServer(SCIONElement):
         :param UDPMetadata meta: the metadata
         :param Bool from_zk: if the reply has been received from Zookeeper
         """
-        assert isinstance(rep, DRKeyReply)
+        dpld = cpld.contents
+        rep = dpld.contents
+        assert isinstance(rep, DRKeyReply), type(rep)
         logging.info("DRKeyReply received from %s: %s", meta, rep.short_desc())
         src = meta or "ZK"
 
@@ -520,7 +535,7 @@ class CertServer(SCIONElement):
         path_meta = self._get_path_via_sciond(drkey.src_ia)
         if path_meta:
             meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
-            self.send_meta(req, meta)
+            self.send_meta(CtrlPayload(DRKeyMgmt(req)), meta)
             logging.info("DRKeyRequest (%s) sent to %s via %s", req.short_desc(), meta, path_meta)
         else:
             logging.warning("DRKeyRequest (for %s) not sent", req.short_desc())

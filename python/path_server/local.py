@@ -21,6 +21,9 @@ import random
 
 # SCION
 from lib.packet.svc import SVCType
+from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.path_mgmt.base import PathMgmt
+from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
 from path_server.base import PathServer, REQS_TOTAL
@@ -64,10 +67,13 @@ class LocalPathServer(PathServer):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
-    def path_resolution(self, req, meta, new_request=True, logger=None, req_id=None):
+    def path_resolution(self, cpld, meta, new_request=True, logger=None, req_id=None):
         """
         Handle generic type of a path request.
         """
+        pmgt = cpld.contents
+        req = pmgt.contents
+        assert isinstance(req, PathSegmentReq), type(req)
         # Random ID for a request.
         req_id = req_id or random.randint(0, 2**32 - 1)
         if logger is None:
@@ -157,7 +163,7 @@ class LocalPathServer(PathServer):
         path = pcb.get_path(reverse_direction=True)
         meta = self._build_meta(ia=pcb.first_ia(), path=path,
                                 host=SVCType.PS_A, reuse=True)
-        self.send_meta(req.copy(), meta)
+        self.send_meta(CtrlPayload(PathMgmt(req.copy())), meta)
 
     def _forward_revocation(self, rev_info, meta):
         # Inform core ASes if the revoked interface belongs to this AS or
@@ -185,4 +191,4 @@ class LocalPathServer(PathServer):
         logging.info("Forwarding Revocation to %s using path:\n%s" %
                      (core_ia, seg.short_desc()))
         meta = self._build_meta(ia=core_ia, path=path, host=SVCType.PS_A)
-        self.send_meta(rev_info.copy(), meta)
+        self.send_meta(CtrlPayload(PathMgmt(rev_info.copy())), meta)

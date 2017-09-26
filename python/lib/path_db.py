@@ -57,7 +57,7 @@ class PathSegmentDBRecord(object):
             The expiration time for the record (in seconds), or None to just use
             the segment's expiration time.
         """
-        assert isinstance(pcb, PathSegment)
+        assert isinstance(pcb, PathSegment), type(pcb)
         self.pcb = pcb
         self.id = pcb.get_hops_hash()
         # Fidelity can be used to configure the desirability of a path. For

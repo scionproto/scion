@@ -25,6 +25,7 @@ from queue import Queue
 from lib.crypto.asymcrypto import get_sig_key
 from lib.defines import SIBRA_SERVICE
 from lib.packet.ext_util import find_ext_hdr
+from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.path_db import DBResult, PathSegmentDB
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.state.state import SibraState
@@ -85,7 +86,7 @@ class SibraServerBase(SCIONElement):
         self.lock = threading.Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {PMT.REG: self.handle_path_reg},
-            PayloadClass.SIBRA: {None: self.handle_sibra_pkt},
+            PayloadClass.SIBRA: {PayloadClass.SIBRA: self.handle_sibra_pkt},
         }
         self._find_links()
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
@@ -138,12 +139,15 @@ class SibraServerBase(SCIONElement):
             logging.debug("Dst: %s Port: %s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
 
-    def handle_path_reg(self, payload, meta):
+    def handle_path_reg(self, cpld, meta):
         """
         Handle path registration packets from the local beacon service. First
         determine which interface the segments use, then pass the segment to the
         appropriate Link.
         """
+        pmgt = cpld.contents
+        payload = pmgt.contents
+        assert isinstance(payload, PathRecordsReg), type(payload)
         meta.close()
         name = PST.to_str(self.PST_TYPE)
         with self.lock:

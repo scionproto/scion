@@ -22,22 +22,19 @@ import capnp  # noqa
 import proto.cert_mgmt_capnp as P
 from lib.crypto.certificate_chain import CertificateChain
 from lib.crypto.trc import TRC
-from lib.errors import SCIONParseError
-from lib.packet.packet_base import SCIONPayloadBaseProto
+from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.types import CertMgmtType, PayloadClass
+from lib.types import CertMgmtType
 
 
-class CertMgmtBase(SCIONPayloadBaseProto):  # pragma: no cover
-    PAYLOAD_CLASS = PayloadClass.CERT
+class CertMgmt(CerealBox):  # pragma: no cover
+    NAME = "CertMgmt"
+    P_CLS = P.CertMgmt
+    # Set at end of file, after classes have been defined.
+    CLASS_FIELD_MAP = None
 
-    def _pack_full(self, p):
-        wrapper = P.CertMgmt.new_message(**{self.PAYLOAD_TYPE: p})
-        return super()._pack_full(wrapper)
 
-
-class CertMgmtRequest(CertMgmtBase):  # pragma: no cover
-
+class CertMgmtRequest(Cerealizable):  # pragma: no cover
     def isd_as(self):
         return ISD_AS(self.p.isdas)
 
@@ -49,7 +46,6 @@ class CertMgmtRequest(CertMgmtBase):  # pragma: no cover
 
 class CertChainRequest(CertMgmtRequest):
     NAME = "CertChainRequest"
-    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
     P_CLS = P.CertChainReq
 
     def short_desc(self):
@@ -57,9 +53,8 @@ class CertChainRequest(CertMgmtRequest):
                                            self.p.cacheOnly)
 
 
-class CertChainReply(CertMgmtBase):  # pragma: no cover
+class CertChainReply(Cerealizable):  # pragma: no cover
     NAME = "CertChainReply"
-    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REPLY
     P_CLS = P.CertChainRep
 
     def __init__(self, p):
@@ -80,7 +75,6 @@ class CertChainReply(CertMgmtBase):  # pragma: no cover
 
 class TRCRequest(CertMgmtRequest):
     NAME = "TRCRequest"
-    PAYLOAD_TYPE = CertMgmtType.TRC_REQ
     P_CLS = P.TRCReq
 
     def short_desc(self):
@@ -88,9 +82,8 @@ class TRCRequest(CertMgmtRequest):
                                            self.p.cacheOnly)
 
 
-class TRCReply(CertMgmtBase):  # pragma: no cover
+class TRCReply(Cerealizable):  # pragma: no cover
     NAME = "TRCReply"
-    PAYLOAD_TYPE = CertMgmtType.TRC_REPLY
     P_CLS = P.TRCRep
 
     def __init__(self, p):
@@ -110,9 +103,9 @@ class TRCReply(CertMgmtBase):  # pragma: no cover
             self.NAME, isd, ver, self.trc)
 
 
-def parse_certmgmt_payload(wrapper):  # pragma: no cover
-    type_ = wrapper.which()
-    for cls_ in CertChainRequest, CertChainReply,  TRCRequest, TRCReply:
-        if cls_.PAYLOAD_TYPE == type_:
-            return cls_(getattr(wrapper, type_))
-    raise SCIONParseError("Unsupported cert management type: %s" % type_)
+CertMgmt.CLASS_FIELD_MAP = {
+    CertChainRequest: CertMgmtType.CERT_CHAIN_REQ,
+    CertChainReply: CertMgmtType.CERT_CHAIN_REPLY,
+    TRCRequest: CertMgmtType.TRC_REQ,
+    TRCReply: CertMgmtType.TRC_REPLY,
+}

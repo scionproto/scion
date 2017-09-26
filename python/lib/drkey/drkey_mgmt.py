@@ -21,25 +21,21 @@ import capnp  # noqa
 # SCION
 import proto.drkey_mgmt_capnp as P
 
-from lib.errors import SCIONParseError
-from lib.packet.packet_base import SCIONPayloadBaseProto
+from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.types import DRKeyMgmtType, PayloadClass
+from lib.types import DRKeyMgmtType
 
 
-class DRKeyMgmtBase(SCIONPayloadBaseProto):
-    """ Base class for DRKey management. """
-    PAYLOAD_CLASS = PayloadClass.DRKEY
-
-    def _pack_full(self, p):
-        wrapper = P.DRKeyMgmt.new_message(**{self.PAYLOAD_TYPE: p})
-        return super()._pack_full(wrapper)
+class DRKeyMgmt(CerealBox):  # pragma: no cover
+    NAME = "DRKeyMgmt"
+    P_CLS = P.DRKeyMgmt
+    # Set at end of file, after classes have been defined.
+    CLASS_FIELD_MAP = None
 
 
-class DRKeyRequest(DRKeyMgmtBase):
+class DRKeyRequest(Cerealizable):
     """ First order DRKey request. """
     NAME = "DRKeyRequest"
-    PAYLOAD_TYPE = DRKeyMgmtType.FIRST_ORDER_REQUEST
     P_CLS = P.DRKeyReq
 
     def __init__(self, p):
@@ -70,9 +66,8 @@ class DRKeyRequest(DRKeyMgmtBase):
                 (self.isd_as, self.p.flags.prefetch, self.p.timestamp))
 
 
-class DRKeyReply(DRKeyMgmtBase):
+class DRKeyReply(Cerealizable):
     NAME = "DRKeyReply"
-    PAYLOAD_TYPE = DRKeyMgmtType.FIRST_ORDER_REPLY
     P_CLS = P.DRKeyRep
 
     def __init__(self, p):
@@ -106,10 +101,7 @@ class DRKeyReply(DRKeyMgmtBase):
                 % (self.isd_as, self.p.expTime, self.p.certVerSrc,
                    self.p.certVerDst, self.p.trcVer, self.p.timestamp))
 
-
-def parse_drkeymgmt_payload(wrapper):  # pragma: no cover
-    type_ = wrapper.which()
-    for c in (DRKeyRequest, DRKeyReply):
-        if c.PAYLOAD_TYPE == type_:
-            return c(getattr(wrapper, type_))
-    raise SCIONParseError("Unsupported DRKey management type: %s" % type_)
+DRKeyMgmt.CLASS_FIELD_MAP = {
+    DRKeyRequest: DRKeyMgmtType.FIRST_ORDER_REQUEST,
+    DRKeyReply: DRKeyMgmtType.FIRST_ORDER_REPLY,
+}

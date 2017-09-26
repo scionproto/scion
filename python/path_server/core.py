@@ -27,10 +27,12 @@ from prometheus_client import Gauge
 
 # SCION
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
+from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReply
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.packet.svc import SVCType
-from lib.types import PathMgmtType as PMT, PathSegmentType as PST
+from lib.types import PathSegmentType as PST
 from lib.zk.errors import ZkNoConnection
 from path_server.base import PathServer, REQS_TOTAL
 
@@ -159,7 +161,7 @@ class CorePathServer(PathServer):
 
     def _dispatch_params(self, pld, meta):
         params = {}
-        if (meta.ia == self.addr.isd_as and pld.PAYLOAD_TYPE == PMT.REPLY):
+        if meta.ia == self.addr.isd_as and isinstance(pld, PathRecordsReply):
             params["from_master"] = True
         return params
 
@@ -210,7 +212,7 @@ class CorePathServer(PathServer):
             return
         addr, port = master.addr(0)
         meta = self._build_meta(host=addr, port=port, reuse=True)
-        self.send_meta(pld.copy(), meta)
+        self.send_meta(CtrlPayload(PathMgmt(pld.copy())), meta)
 
     def _query_master(self, dst_ia, logger, src_ia=None, flags=()):
         """
@@ -247,15 +249,18 @@ class CorePathServer(PathServer):
             cseg = csegs[0].get_path(reverse_direction=True)
             meta = self._build_meta(ia=isd_as, path=cseg,
                                     host=SVCType.PS_A, reuse=True)
-            self.send_meta(rep_recs.copy(), meta)
+            self.send_meta(CtrlPayload(PathMgmt(rep_recs.copy())), meta)
 
-    def path_resolution(self, req, meta, new_request=True, logger=None, req_id=None):
+    def path_resolution(self, cpld, meta, new_request=True, logger=None, req_id=None):
         """
         Handle generic type of a path request.
         new_request informs whether a pkt is a new request (True), or is a
         pending request (False).
         Return True when resolution succeeded, False otherwise.
         """
+        pmgt = cpld.contents
+        req = pmgt.contents
+        assert isinstance(req, PathSegmentReq), type(req)
         # Random ID for a request.
         req_id = req_id or random.randint(0, 2**32 - 1)
         if logger is None:
@@ -363,7 +368,7 @@ class CorePathServer(PathServer):
                         (dst_ia, cseg.short_desc()))
             meta = self._build_meta(ia=dst_ia, path=path,
                                     host=SVCType.PS_A, reuse=True)
-            self.send_meta(seg_req, meta)
+            self.send_meta(CtrlPayload(PathMgmt(seg_req)), meta)
         else:
             # If no core segment was available, add request to waiting targets.
             logger.info("Waiting for core segment to ISD %s", dst_ia[0])

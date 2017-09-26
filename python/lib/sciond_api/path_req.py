@@ -22,27 +22,24 @@ import capnp  # noqa
 import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.sciond_api.base import SCIONDMsgBase
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.path_meta import FwdPathMeta
-from lib.types import SCIONDMsgType as SMT
 
 
-class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
+class SCIONDPathRequest(Cerealizable):  # pragma: no cover
     """SCIOND path request message."""
     NAME = "SCIONDPathReq"
-    MSG_TYPE = SMT.PATH_REQUEST
     P_CLS = P.PathReq
 
     @classmethod
-    def from_values(cls, id_, dst_ia, src_ia=None, max_paths=5,
+    def from_values(cls, dst_ia, src_ia=None, max_paths=5,
                     flush=False, sibra=False):
         p = cls.P_CLS.new_message(dst=int(dst_ia), maxPaths=max_paths)
         if src_ia is not None:
             p.src = int(src_ia)
         p.flags.flush = flush
         p.flags.sibra = sibra
-        return cls(p, id_)
+        return cls(p)
 
     def dst_ia(self):
         return ISD_AS(self.p.dst)
@@ -53,7 +50,7 @@ class SCIONDPathRequest(SCIONDMsgBase):  # pragma: no cover
         return None
 
     def short_desc(self):
-        desc = ["id=%d, dst=%s" % (self.id, self.dst_ia())]
+        desc = ["dst=%s" % self.dst_ia()]
         if self.p.src:
             desc.append("src=%s" % self.src_ia())
         desc.append("max_paths=%d" % self.p.maxPaths)
@@ -83,14 +80,13 @@ class SCIONDPathReplyError:  # pragma: no cover
         return "Unknown error"
 
 
-class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
+class SCIONDPathReply(Cerealizable):  # pragma: no cover
     """SCIOND path reply message."""
     NAME = "SCIONDPathReply"
-    MSG_TYPE = SMT.PATH_REPLY
     P_CLS = P.PathReply
 
     @classmethod
-    def from_values(cls, id_, path_entries, error=SCIONDPathReplyError.OK):
+    def from_values(cls, path_entries, error=SCIONDPathReplyError.OK):
         """
         Returns a SCIONDPathReply object with the specified entries.
 
@@ -100,7 +96,7 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
         entries = p.init("entries", len(path_entries))
         for i, entry in enumerate(path_entries):
             entries[i] = entry.p
-        return cls(p, id_)
+        return cls(p)
 
     def iter_entries(self):
         for entry in self.p.entries:
@@ -110,7 +106,7 @@ class SCIONDPathReply(SCIONDMsgBase):  # pragma: no cover
         return SCIONDPathReplyEntry(self.p.entries[idx])
 
     def short_desc(self):
-        desc = ["id=%d error_code=%d" % (self.id, self.p.errorCode)]
+        desc = ["error_code=%d" % self.p.errorCode]
         for entry in self.iter_entries():
             for line in entry.short_desc().splitlines():
                 desc.append("  %s" % line)
@@ -133,7 +129,7 @@ class SCIONDPathReplyEntry(Cerealizable):  # pragma: no cover
         :param path: The FwdPathMeta object.
         :param first_hop: A HostInfo object for the first hop of the path.
         """
-        assert isinstance(path, FwdPathMeta)
+        assert isinstance(path, FwdPathMeta), type(path)
         p = cls.P_CLS.new_message(path=path.p, hostInfo=first_hop.p)
         return cls(p)
 

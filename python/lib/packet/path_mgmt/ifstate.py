@@ -21,9 +21,7 @@ import capnp  # noqa
 # SCION
 import proto.if_state_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.packet.path_mgmt.base import PathMgmtPayloadBase
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.types import PathMgmtType as PMT
 
 
 class IFStateInfo(Cerealizable):  # pragma: no cover
@@ -52,12 +50,11 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
             self.p.ifID, self.p.active, self.p.revInfo or "None")
 
 
-class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
+class IFStatePayload(Cerealizable):  # pragma: no cover
     """
     Payload for state info messages. List of IFStateInfo objects.
     """
     NAME = "IFStatePayload"
-    PAYLOAD_TYPE = PMT.IFSTATE_INFOS
     P_CLS = P.IFStateInfos
 
     @classmethod
@@ -76,13 +73,12 @@ class IFStatePayload(PathMgmtPayloadBase):  # pragma: no cover
             yield IFStateInfo(self.p.infos[i])
 
 
-class IFStateRequest(PathMgmtPayloadBase):  # pragma: no cover
+class IFStateRequest(Cerealizable):  # pragma: no cover
     """
     IFStateRequest encapsulates a request for interface states from an ER to
     the BS.
     """
     NAME = "IFStateRequest"
-    PAYLOAD_TYPE = PMT.IFSTATE_REQ
     P_CLS = P.IFStateReq
     ALL_INTERFACES = 0
 

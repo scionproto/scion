@@ -20,13 +20,13 @@ import capnp  # noqa
 
 # SCION
 import proto.path_mgmt_capnp as P
-from lib.packet.path_mgmt.base import PathMgmtPayloadBase
+from lib.packet.packet_base import Cerealizable
 from lib.packet.pcb import PathSegment
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.types import PathMgmtType as PMT, PathSegmentType as PST
+from lib.types import PathSegmentType as PST
 
 
-class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
+class PathSegmentRecords(Cerealizable):  # pragma: no cover
     """
     Path Record class used for sending list of down/up-paths. Paths are
     represented as objects of the PathSegment class.
@@ -88,14 +88,11 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
 
 class PathRecordsReply(PathSegmentRecords):
     NAME = "PathRecordsReply"
-    PAYLOAD_TYPE = PMT.REPLY
 
 
 class PathRecordsReg(PathSegmentRecords):
     NAME = "PathRecordsReg"
-    PAYLOAD_TYPE = PMT.REG
 
 
 class PathRecordsSync(PathSegmentRecords):
     NAME = "PathRecordsSync"
-    PAYLOAD_TYPE = PMT.SYNC

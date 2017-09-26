@@ -20,7 +20,7 @@ import struct
 
 # SCION
 from lib.defines import LINE_LEN
-from lib.packet.packet_base import PayloadBase
+from lib.packet.packet_base import Serializable
 from lib.packet.scmp.info import parse_scmp_info, build_scmp_info
 from lib.packet.scmp.types import SCMPIncParts
 from lib.packet.scmp.util import scmp_get_inc_parts
@@ -28,7 +28,7 @@ from lib.types import L4Proto
 from lib.util import Raw, calc_padding, hex_str
 
 
-class SCMPPayload(PayloadBase):
+class SCMPPayload(Serializable):
     """
     Payload structure:
         - meta data to allow parsing of the rest

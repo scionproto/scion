@@ -15,26 +15,56 @@
 :mod:`base` --- Base class for SCIOND messages
 ==============================================
 """
+# External
+import capnp  # noqa
+
 # SCION
 import proto.sciond_capnp as P
-from lib.packet.packet_base import Cerealizable
+from lib.errors import SCIONParseError
+from lib.packet.packet_base import CerealBox
+from lib.sciond_api.as_req import SCIONDASInfoRequest, SCIONDASInfoReply
+from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoRequest
+from lib.sciond_api.path_req import SCIONDPathRequest, SCIONDPathReply
+from lib.sciond_api.revocation import SCIONDRevNotification, SCIONDRevReply
+from lib.sciond_api.service_req import SCIONDServiceInfoReply, SCIONDServiceInfoRequest
+from lib.types import SCIONDMsgType
 
 
-class SCIONDMsgBase(Cerealizable):  # pragma: no cover
-    """
-    Base class for SCIOND API messages.
+class SCIONDMsg(CerealBox):  # pragma: no cover
+    NAME = "SCIONDMsg"
+    P_CLS = P.SCIONDMsg
+    CLASS_FIELD_MAP = {
+        SCIONDPathRequest: SCIONDMsgType.PATH_REQUEST,
+        SCIONDPathReply: SCIONDMsgType.PATH_REPLY,
+        SCIONDASInfoRequest: SCIONDMsgType.AS_REQUEST,
+        SCIONDASInfoReply: SCIONDMsgType.AS_REPLY,
+        SCIONDRevNotification: SCIONDMsgType.REVOCATION,
+        SCIONDRevReply: SCIONDMsgType.REVOCATIONREPLY,
+        SCIONDIFInfoRequest: SCIONDMsgType.IF_REQUEST,
+        SCIONDIFInfoReply: SCIONDMsgType.IF_REPLY,
+        SCIONDServiceInfoRequest: SCIONDMsgType.SERVICE_REQUEST,
+        SCIONDServiceInfoReply: SCIONDMsgType.SERVICE_REPLY,
+    }
 
-    Subclasses need to set cls.MSG_TYPE to an appropriate value.
-    """
-    def __init__(self, p, id):
-        super().__init__(p)
+    def __init__(self, contents, id):
+        super().__init__(contents)
         self.id = id
 
-    def pack_full(self):
-        assert not self._packed, "May only be packed once"
-        self._packed = True
-        return self._pack_full(self.p)
+    @classmethod
+    def from_raw(cls, raw):
+        try:
+            p = cls.P_CLS.from_bytes_packed(raw).as_builder()
+        except capnp.lib.capnp.KjException as e:
+            raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls.NAME, e)) from None
+        return cls.from_proto(p)
 
-    def _pack_full(self, p):
-        wrapper = P.SCIONDMsg.new_message(id=self.id, **{self.MSG_TYPE: p})
-        return wrapper.to_bytes_packed()
+    @classmethod
+    def _from_contents(cls, p, contents):  # pragma: no cover
+        return cls(contents, p.id)
+
+    def proto(self):
+        field = self.type()
+        return self.P_CLS.new_message(**{"id": self.id, field: self.contents.proto()})
+
+    def __str__(self):
+        return "%s(%dB): id=%s %s" % (self.NAME, len(self), self.id, self.contents)

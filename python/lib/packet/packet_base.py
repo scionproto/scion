@@ -16,15 +16,13 @@
 ========================================
 """
 # Stdlib
-import struct
 from abc import ABCMeta, abstractmethod
 
 # External
 import capnp
 
 # SCION
-import proto.scion_capnp as P
-from lib.errors import SCIONParseError
+from lib.errors import SCIONParseError, SCIONTypeError
 from lib.util import hex_str
 
 
@@ -68,7 +66,7 @@ class Cerealizable(object, metaclass=ABCMeta):
     P_CLS = P.Foo
     """
     def __init__(self, p):
-        assert not isinstance(p, bytes)
+        assert not isinstance(p, bytes), type(p)
         self.p = p
         self._packed = False
 
@@ -96,11 +94,18 @@ class Cerealizable(object, metaclass=ABCMeta):
         raise NotImplementedError
 
     @classmethod
+    def from_proto(cls, p):  # pragma: no cover
+        return cls(p)
+
+    def proto(self):
+        return self.p
+
+    @classmethod
     def from_dict(cls, d):
         return cls(cls.P_CLS.new_message(**d))
 
     def to_dict(self):
-        return self.p.to_dict()
+        return self.proto().to_dict()
 
     def pack(self, *args, **kwargs):
         assert not self._packed, "May only be packed once"
@@ -108,19 +113,19 @@ class Cerealizable(object, metaclass=ABCMeta):
         return self._pack(*args, **kwargs)
 
     def _pack(self):
-        return self.p.to_bytes_packed()
+        return self.proto().to_bytes_packed()
 
     def __bool__(self):
         return True
 
     def __len__(self):
-        return self.p.total_size.word_count * 8
+        return self.proto().total_size.word_count * 8
 
     def copy(self):
-        return type(self)(self.p.copy())
+        return type(self)(self.proto().copy())
 
     def __copy__(self):
-        return type(self)(self.p.copy())
+        return type(self)(self.proto().copy())
 
     def __deepcopy__(self, memo):
         # http://stackoverflow.com/a/15774013
@@ -132,7 +137,7 @@ class Cerealizable(object, metaclass=ABCMeta):
         raise NotImplementedError
 
     def short_desc(self):
-        return str(self.p)
+        return str(self.proto())
 
     def __str__(self):
         return "%s: %s" % (self.NAME, self.short_desc())
@@ -170,27 +175,84 @@ class PacketBase(Serializable):  # pragma: no cover
         return self._payload
 
     def set_payload(self, new_payload):
-        assert isinstance(new_payload, (PayloadBase, SCIONPayloadBaseProto))
+        assert isinstance(new_payload, (Serializable, CerealBox)), type(new_payload)
         self._payload = new_payload
 
 
-class PayloadBase(Serializable):  # pragma: no cover
+class CerealBox(object, metaclass=ABCMeta):
     """
-    Interface that payloads of packets must implement.
+    CerealBox represents capnp structs that have a unnamed union. In the simplest case, a CerealBox
+    object contains a Cerealizable object, but CerealBoxes can also be nested
+    (e.g. CtrlPayload(PathMgmt(RevInfo.from_values(...)))).
+
+    All child classes must define the NAME, P_CLS, and CLASS_FIELD_MAP attributes.
     """
-    METADATA_LEN = 0
+    def __init__(self, contents):
+        self.contents = contents
 
-    def pack_meta(self):
-        return b""
+    @classmethod
+    def from_proto(cls, p):  # pragma: no cover
+        """
+        Internal constructor, used by sub-classes to create the corresponding python object from a
+        capnp object. The appropriate python class is selected by looking up the union field name in
+        CLASS_FIELD_MAP.
+        """
+        type_ = p.which()
+        for cls_, field in cls.CLASS_FIELD_MAP.items():
+            if type_ == field:
+                return cls._from_contents(p, cls_.from_proto(getattr(p, type_)))
+        raise SCIONParseError("Unsupported %s proto type: %s" % (cls.NAME, type_))
 
-    def pack_full(self):
-        return self.pack_meta() + self.pack()
+    @classmethod
+    def _from_contents(cls, p, contents):  # pragma: no cover
+        """
+        Internal constructor, overridden by sub-classes which have more fields than just a single
+        unnamed union.
 
-    def total_len(self):
-        return self.METADATA_LEN + len(self)
+        p is passed in to be available to subclasses which override this.
+        """
+        return cls(contents)
+
+    def proto(self):
+        """
+        Return the corresponding capnp object.
+        """
+        return self.P_CLS.new_message(**{self.type(): self.contents.proto()})
+
+    def type(self):
+        """
+        Return the type of the contents, represented by the union field name.
+        """
+        c = self.CLASS_FIELD_MAP.get(self.contents.__class__)
+        if c is not None:
+            return c
+        raise SCIONTypeError("Unsupported %s proto class %s (%s)" %
+                             (self.NAME, self.contents.__class__, type(self.contents)))
+
+    def inner_type(self):
+        """
+        Return the type of the innermost Cerealizable object, represented by the union field name in
+        the innermost CerealBox object.
+        """
+        if isinstance(self.contents, CerealBox):
+            return self.contents.inner_type()
+        return self.type()
+
+    def pack(self):
+        return self.proto().to_bytes_packed()
+
+    def copy(self):
+        return self.__class__(self.contents.copy())
+
+    def __len__(self):
+        return self.proto().total_size.word_count * 8
+
+    def __str__(self):
+        return "%s(%dB): %s" % (self.NAME, len(self), self.contents)
 
 
-class PayloadRaw(PayloadBase):  # pragma: no cover
+class PayloadRaw(Serializable):  # pragma: no cover
+    NAME = "PayloadRaw"
     SNIPPET_LEN = 32
 
     def __init__(self, raw=None):
@@ -201,7 +263,7 @@ class PayloadRaw(PayloadBase):  # pragma: no cover
         self._raw = raw or b""
 
     def from_values(cls, raw):
-        assert isinstance(raw, bytes)
+        assert isinstance(raw, bytes), type(raw)
         inst = cls()
         inst._raw = raw
         return inst
@@ -216,29 +278,8 @@ class PayloadRaw(PayloadBase):  # pragma: no cover
         return len(self._raw)
 
     def __str__(self):
-        s = "PayloadRaw(%dB): %s" % (len(self._raw),
-                                     hex_str(self._raw[:self.SNIPPET_LEN]))
+        s = "%s(%dB): %s" % (
+            self.NAME, len(self._raw), hex_str(self._raw[:self.SNIPPET_LEN]))
         if len(self._raw) > self.SNIPPET_LEN:
             s += "[...]"
         return s
-
-
-class SCIONPayloadBaseProto(Cerealizable):  # pragma: no cover
-    """
-    All child classes must define the PAYLOAD_CLASS attributed, defined by
-    lib.types.PayloadClass
-    """
-    # 4B length prepended to the capnp block
-    METADATA_LEN = 4
-    PAYLOAD_TYPE = None
-
-    def pack_full(self):
-        assert not self._packed, "May only be packed once"
-        self._packed = True
-        return self._pack_full(self.p)
-
-    def _pack_full(self, p):
-        wrapper = P.SCION.new_message(**{self.PAYLOAD_CLASS: p})
-        raw = wrapper.to_bytes_packed()
-        meta = struct.pack("!I", len(raw))
-        return meta + raw

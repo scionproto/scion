@@ -22,21 +22,18 @@ import capnp  # noqa
 import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
-from lib.sciond_api.base import SCIONDMsgBase
-from lib.types import SCIONDMsgType as SMT
 
 
-class SCIONDASInfoRequest(SCIONDMsgBase):
-    NAME = "ASInfoRequest"
-    MSG_TYPE = SMT.AS_REQUEST
+class SCIONDASInfoRequest(Cerealizable):
+    NAME = "SCIONDASInfoRequest"
     P_CLS = P.ASInfoReq
 
     @classmethod
-    def from_values(cls, id_, isd_as=None):
+    def from_values(cls, isd_as=None):
         p = cls.P_CLS.new_message()
         if isd_as:
             p.isdas = isd_as.int()
-        return cls(p, id_)
+        return cls(p)
 
     def isd_as(self):
         if self.p.isdas:
@@ -47,18 +44,17 @@ class SCIONDASInfoRequest(SCIONDMsgBase):
         return "ISD_AS: %s" % (self.isd_as() or "local")
 
 
-class SCIONDASInfoReply(SCIONDMsgBase):
+class SCIONDASInfoReply(Cerealizable):
     NAME = "ASInfoReply"
-    MSG_TYPE = SMT.AS_REPLY
     P_CLS = P.ASInfoReply
 
     @classmethod
-    def from_values(cls, id_, entries):
+    def from_values(cls, entries):
         p = cls.P_CLS.new_message()
         entry_list = p.init("entries", len(entries))
         for i, entry in enumerate(entries):
             entry_list[i] = entry.p
-        return cls(p, id_)
+        return cls(p)
 
     def entry(self, idx):
         return SCIONDASInfoReplyEntry(self.p.entries[idx])

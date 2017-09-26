@@ -19,19 +19,13 @@
 import copy
 import struct
 
-# External
-import capnp
-
 # SCION
-import proto.scion_capnp as P
 from lib.defines import LINE_LEN, MAX_HOPBYHOP_EXT, SCION_PROTO_VERSION
-from lib.drkey.drkey_mgmt import parse_drkeymgmt_payload
 from lib.errors import SCIONIndexError, SCIONParseError
-from lib.packet.cert_mgmt import parse_certmgmt_payload
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import parse_extensions
 from lib.packet.host_addr import HostAddrInvalidType, haddr_get_type
-from lib.packet.ifid import parse_ifid_payload
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import (
     Serializable,
@@ -40,8 +34,6 @@ from lib.packet.packet_base import (
     PayloadRaw,
 )
 from lib.packet.path import SCIONPath, parse_path
-from lib.packet.path_mgmt.parse import parse_pathmgmt_payload
-from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
 from lib.packet.scmp.errors import (
@@ -59,13 +51,11 @@ from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.hdr import SCMPHeader
 from lib.packet.scmp.payload import SCMPPayload
 from lib.packet.svc import SVCType
-from lib.sibra.payload import parse_sibra_payload
 from lib.types import (
     AddrType,
     ExtHopByHopType,
     ExtensionClass,
     L4Proto,
-    PayloadClass,
 )
 from lib.util import Raw, calc_padding
 
@@ -371,11 +361,11 @@ class SCIONBasePacket(PacketBase):
         return inst
 
     def _inner_from_values(self, cmn_hdr, addr_hdr, path_hdr):
-        assert isinstance(cmn_hdr, SCIONCommonHdr)
+        assert isinstance(cmn_hdr, SCIONCommonHdr), type(cmn_hdr)
         self.cmn_hdr = cmn_hdr
-        assert isinstance(addr_hdr, SCIONAddrHdr)
+        assert isinstance(addr_hdr, SCIONAddrHdr), type(addr_hdr)
         self.addrs = addr_hdr
-        assert isinstance(path_hdr, SCIONPath)
+        assert isinstance(path_hdr, SCIONPath), type(path_hdr)
         self.path = path_hdr
 
     def get_fwd_ifid(self):
@@ -404,7 +394,7 @@ class SCIONBasePacket(PacketBase):
         return b""
 
     def _pack_payload(self):  # pragma: no cover
-        return self._payload.pack_full()
+        return self._payload.pack()
 
     def validate(self, pkt_len):
         """Called after parsing, to check for errors that don't break parsing"""
@@ -413,7 +403,7 @@ class SCIONBasePacket(PacketBase):
         self.addrs.validate()
         if path_len:
             self._validate_of_idxes()
-        assert isinstance(self._payload, PayloadRaw)
+        assert isinstance(self._payload, PayloadRaw), type(self._payload)
 
     def _validate_of_idxes(self):
         try:
@@ -527,7 +517,7 @@ class SCIONExtPacket(SCIONBasePacket):
     def _inner_from_values(self, cmn_hdr, addr_hdr, path_hdr, ext_hdrs):
         super()._inner_from_values(cmn_hdr, addr_hdr, path_hdr)
         for hdr in ext_hdrs:
-            assert isinstance(hdr, ExtensionHeader)
+            assert isinstance(hdr, ExtensionHeader), type(hdr)
             self.ext_hdrs.append(hdr)
 
     def get_fwd_ifid(self):
@@ -627,7 +617,7 @@ class SCIONL4Packet(SCIONExtPacket):
 
     def _inner_from_values(self, cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr):
         super()._inner_from_values(cmn_hdr, addr_hdr, path_hdr, ext_hdrs)
-        assert isinstance(l4_hdr, L4HeaderBase)
+        assert isinstance(l4_hdr, L4HeaderBase), type(l4_hdr)
         self.l4_hdr = l4_hdr
         self._l4_proto = l4_hdr.TYPE
 
@@ -661,27 +651,16 @@ class SCIONL4Packet(SCIONExtPacket):
         super().reverse()
 
     def parse_payload(self):
-        data = Raw(self._payload.pack(), "SCIONL4Packet.parse_payload")
         if not self.l4_hdr:
             raise SCIONParseError("Cannot parse payload of non-L4 packet")
+        praw = self._payload.pack()
         if self.l4_hdr.TYPE == L4Proto.UDP:
             # Treat as SCION control message
-            pld = self._parse_pld_ctrl(data)
+            pld = CtrlPayload.from_raw(praw)
         elif self.l4_hdr.TYPE == L4Proto.SCMP:
-            pld = self._parse_pld_scmp(data)
+            pld = SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, praw))
         self.set_payload(pld)
         return pld
-
-    def _parse_pld_ctrl(self, data):
-        plen = struct.unpack("!I", data.pop(4))[0]
-        if len(data) != plen:
-            raise SCIONParseError(
-                "Payload length mismatch. Reported: %s Actual: %s" %
-                (plen, len(data)))
-        return msg_from_raw(data.pop())
-
-    def _parse_pld_scmp(self, data):  # pragma: no cover
-        return SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, data.pop()))
 
     def _get_offset_len(self):
         l = super()._get_offset_len()
@@ -702,24 +681,3 @@ def build_base_hdrs(dst, src, l4=L4Proto.UDP):
     cmn_hdr = SCIONCommonHdr.from_values(dst.host.TYPE, src.host.TYPE, l4)
     addr_hdr = SCIONAddrHdr.from_values(dst, src)
     return cmn_hdr, addr_hdr
-
-
-def msg_from_raw(raw):
-    try:
-        wrapper = P.SCION.from_bytes_packed(raw).as_builder()
-    except capnp.lib.capnp.KjException as e:
-        raise SCIONParseError(
-            "Unable to parse SCION capnp message: %s" % e) from None
-    pld_class = wrapper.which()
-    class_map = {
-        PayloadClass.PCB: parse_pcb_payload,
-        PayloadClass.IFID: parse_ifid_payload,
-        PayloadClass.CERT: parse_certmgmt_payload,
-        PayloadClass.PATH: parse_pathmgmt_payload,
-        PayloadClass.SIBRA: parse_sibra_payload,
-        PayloadClass.DRKEY: parse_drkeymgmt_payload,
-    }
-    handler = class_map.get(pld_class)
-    if not handler:
-        raise SCIONParseError("Unsupported payload class: %s" % pld_class)
-    return handler(getattr(wrapper, pld_class))

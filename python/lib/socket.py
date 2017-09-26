@@ -51,7 +51,7 @@ from lib.errors import (
 from lib.log import log_exception
 from lib.msg_meta import TCPMetadata
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
-from lib.packet.scion import msg_from_raw
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
 from lib.thread import kill_self
@@ -416,7 +416,7 @@ class TCPSocketWrapper(object):
         msg = self._buf[4:4 + msg_len]
         self._buf = self._buf[4 + msg_len:]
         try:
-            return msg_from_raw(msg)
+            return CtrlPayload.from_raw(msg)
         except SCIONBaseError:
             log_exception("Error parsing message: %s" % hex_str(msg),
                           level=logging.ERROR)

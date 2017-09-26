@@ -65,11 +65,13 @@ from lib.msg_meta import (
     UDPMetadata,
 )
 from lib.packet.cert_mgmt import (
+    CertMgmt,
     CertChainReply,
     CertChainRequest,
     TRCReply,
     TRCRequest,
 )
+from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
@@ -308,8 +310,7 @@ class SCIONElement(object):
             return
         try:
             # SIBRA operates on parsed packets.
-            if (isinstance(meta, UDPMetadata) and
-                    msg.PAYLOAD_CLASS == PayloadClass.SIBRA):
+            if (isinstance(meta, UDPMetadata) and msg.type() == PayloadClass.SIBRA):
                 handler(meta.pkt)
             else:
                 handler(msg, meta)
@@ -336,7 +337,7 @@ class SCIONElement(object):
                                                      cache_only=True)
                     meta = meta or self._get_cs()
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
-                    self.send_meta(trc_req, meta)
+                    self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
                     self.requested_trcs[(isd, ver)] = (time.time(), meta)
                     if self._labels:
                         PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
@@ -352,7 +353,7 @@ class SCIONElement(object):
                     cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
                     meta = meta or self._get_cs()
                     logging.info("Re-Requesting CERTCHAIN from %s: %s", meta, cert_req.short_desc())
-                    self.send_meta(cert_req, meta)
+                    self.send_meta(CtrlPayload(CertMgmt(cert_req)), meta)
                     self.requested_certs[(isd_as, ver)] = (time.time(), meta)
                     if self._labels:
                         PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(
@@ -458,7 +459,7 @@ class SCIONElement(object):
                 self.requested_trcs[(isd, ver)] = (time.time(), seg_meta.meta)
                 if self._labels:
                     PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
-            self.send_meta(trc_req, meta)
+            self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
 
     def _request_missing_certs(self, seg_meta):
         """
@@ -498,7 +499,7 @@ class SCIONElement(object):
                 self.requested_certs[(isd_as, ver)] = (time.time(), seg_meta.meta)
                 if self._labels:
                     PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
-            self.send_meta(cert_req, meta)
+            self.send_meta(CtrlPayload(CertMgmt(cert_req)), meta)
 
     def _missing_trc_versions(self, trc_versions):
         """
@@ -540,13 +541,16 @@ class SCIONElement(object):
                     missing_certs.add((isd_as, ver))
         return missing_certs
 
-    def process_trc_reply(self, rep, meta):
+    def process_trc_reply(self, cpld, meta):
         """
         Process the TRC reply.
         :param rep: TRC reply.
         :type rep: TRCReply.
         """
         meta.close()
+        cmgt = cpld.contents
+        rep = cmgt.contents
+        assert isinstance(rep, TRCReply), type(rep)
         isd, ver = rep.trc.get_isd_ver()
         logging.info("TRC reply received for %sv%s from %s" % (isd, ver, meta))
         self.trust_store.add_trc(rep.trc, True)
@@ -561,7 +565,7 @@ class SCIONElement(object):
         # Send trc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
             cs_meta = self._get_cs()
-            self.send_meta(rep, cs_meta)
+            self.send_meta(CtrlPayload(CertMgmt(rep)), cs_meta)
             cs_meta.close()
         # Remove received TRC from map
         self._check_segs_with_rec_trc(isd, ver)
@@ -580,20 +584,24 @@ class SCIONElement(object):
                 if seg_meta.verifiable():
                     self._try_to_verify_seg(seg_meta)
 
-    def process_trc_request(self, req, meta):
+    def process_trc_request(self, cpld, meta):
         """Process a TRC request."""
-        assert isinstance(req, TRCRequest)
+        cmgt = cpld.contents
+        req = cmgt.contents
+        assert isinstance(req, TRCRequest), type(req)
         isd, ver = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s from %s" % (isd, ver, meta))
         trc = self.trust_store.get_trc(isd, ver)
         if trc:
-            self.send_meta(TRCReply.from_values(trc), meta)
+            self.send_meta(CtrlPayload(CertMgmt(TRCReply.from_values(trc))), meta)
         else:
             logging.warning("Could not find requested TRC %sv%s" % (isd, ver))
 
-    def process_cert_chain_reply(self, rep, meta):
+    def process_cert_chain_reply(self, cpld, meta):
         """Process a certificate chain reply."""
-        assert isinstance(rep, CertChainReply)
+        cmgt = cpld.contents
+        rep = cmgt.contents
+        assert isinstance(rep, CertChainReply), type(rep)
         meta.close()
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s from %s" % (isd_as, ver, meta))
@@ -605,7 +613,7 @@ class SCIONElement(object):
         # Send cc to CS
         if meta.get_addr().isd_as != self.addr.isd_as:
             cs_meta = self._get_cs()
-            self.send_meta(rep, cs_meta)
+            self.send_meta(CtrlPayload(CertMgmt(rep)), cs_meta)
             cs_meta.close()
         # Remove received cert chain from map
         self._check_segs_with_rec_cert(isd_as, ver)
@@ -624,14 +632,16 @@ class SCIONElement(object):
                 if seg_meta.verifiable():
                     self._try_to_verify_seg(seg_meta)
 
-    def process_cert_chain_request(self, req, meta):
+    def process_cert_chain_request(self, cpld, meta):
         """Process a certificate chain request."""
-        assert isinstance(req, CertChainRequest)
+        cmgt = cpld.contents
+        req = cmgt.contents
+        assert isinstance(req, CertChainRequest), type(req)
         isd_as, ver = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s from %s" % (isd_as, ver, meta))
         cert = self.trust_store.get_cert(isd_as, ver)
         if cert:
-            self.send_meta(CertChainReply.from_values(cert), meta)
+            self.send_meta(CtrlPayload(CertMgmt(CertChainReply.from_values(cert))), meta)
         else:
             logging.warning("Could not find requested certificate %sv%s" %
                             (isd_as, ver))
@@ -662,17 +672,17 @@ class SCIONElement(object):
         return None
 
     def _get_ctrl_handler(self, msg):
+        pclass = msg.type()
         try:
-            type_map = self.CTRL_PLD_CLASS_MAP[msg.PAYLOAD_CLASS]
+            type_map = self.CTRL_PLD_CLASS_MAP[pclass]
         except KeyError:
-            logging.error("Control payload class not supported: %s\n%s",
-                          msg.PAYLOAD_CLASS, msg)
+            logging.error("Control payload class not supported: %s\n%s", pclass, msg)
             return None
+        ptype = msg.inner_type()
         try:
-            return type_map[msg.PAYLOAD_TYPE]
+            return type_map[ptype]
         except KeyError:
-            logging.error("%s control payload type not supported: %s\n%s",
-                          msg.PAYLOAD_CLASS, msg.PAYLOAD_TYPE, msg)
+            logging.error("%s control payload type not supported: %s\n%s", pclass, ptype, msg)
         return None
 
     def _get_scmp_handler(self, pkt):
@@ -721,7 +731,7 @@ class SCIONElement(object):
         # the packet. In the future, the "x Not Supported" errors might be
         # handlable in the case of deprecating old versions.
         DROP = SCMPBadVersion, SCMPBadSrcType, SCMPBadDstType
-        assert isinstance(e, DROP)
+        assert isinstance(e, DROP), type(e)
         logging.warning("Dropping packet due to parse error: %s", e)
 
     def _scmp_validate_error(self, pkt, e):
@@ -839,16 +849,16 @@ class SCIONElement(object):
         :param str dst: the destination IP address.
         :param int dst_port: the destination port number.
         """
-        assert not isinstance(packet.addrs.src.host, HostAddrNone)
-        assert not isinstance(packet.addrs.dst.host, HostAddrNone)
-        assert isinstance(packet, SCIONBasePacket)
-        assert isinstance(dst_port, int), dst_port
+        assert not isinstance(packet.addrs.src.host, HostAddrNone), type(packet.addrs.src.host)
+        assert not isinstance(packet.addrs.dst.host, HostAddrNone), type(packet.addrs.dst.host)
+        assert isinstance(packet, SCIONBasePacket), type(packet)
+        assert isinstance(dst_port, int), type(dst_port)
         if not self._udp_sock:
             return False
         return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
-        assert isinstance(meta, MetadataBase)
+        assert isinstance(meta, MetadataBase), type(meta)
         if isinstance(meta, TCPMetadata):
             assert not next_hop_port, next_hop_port
             return self._send_meta_tcp(msg, meta)
@@ -875,7 +885,7 @@ class SCIONElement(object):
             tcp_sock = self._tcp_sock_from_meta(meta)
             meta.sock = tcp_sock
             self._tcp_conns_put(tcp_sock)
-        return meta.sock.send_msg(msg.pack_full())
+        return meta.sock.send_msg(msg.pack())
 
     def _tcp_sock_from_meta(self, meta):
         assert meta.host

@@ -54,7 +54,6 @@ from lib.types import (
     ExtHopByHopType,
     ExtensionClass,
     L4Proto,
-    PayloadClass,
 )
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
@@ -894,108 +893,38 @@ class TestSCIONL4PacketParsePayload(object):
         inst._parse_pld_scmp.return_value = "pld scmp"
         inst.set_payload = create_mock()
         inst._payload = create_mock(["pack"])
-        if l4_type is not None:
-            inst.l4_hdr = create_mock(["TYPE"])
-            inst.l4_hdr.TYPE = l4_type
+        if l4_type == L4Proto.UDP:
+            inst.l4_hdr = create_mock_full({"TYPE": l4_type})
+        elif l4_type == L4Proto.SCMP:
+            inst.l4_hdr = create_mock_full({"TYPE": l4_type,
+                                            "class_": "scmp_class", "type": "scmp_type"})
         return inst
 
-    @patch("lib.packet.scion.Raw", autospec=True)
-    def test_non_l4(self, raw):
+    def test_non_l4(self):
         inst = self._setup(None)
         # Call
         ntools.assert_raises(SCIONParseError, inst.parse_payload)
-        # Tests
-        raw.assert_called_once_with(inst._payload.pack.return_value,
-                                    "SCIONL4Packet.parse_payload")
 
-    @patch("lib.packet.scion.Raw", autospec=True)
-    def _check_l4(self, l4_type, expected, raw):
+    @patch("lib.packet.scion.SCMPPayload", autospec=True)
+    @patch("lib.packet.scion.CtrlPayload", autospec=True)
+    def _check_l4(self, l4_type, ctrlp, scmpp):
         inst = self._setup(l4_type)
+        inst._payload = create_mock_full({"pack()": b"praw"})
         # Call
-        ntools.eq_(inst.parse_payload(), expected)
+        ret = inst.parse_payload()
         # Tests
-        inst.set_payload.assert_called_once_with(expected)
         if l4_type == L4Proto.UDP:
-            inst._parse_pld_ctrl.assert_called_once_with(raw.return_value)
-            ntools.assert_false(inst._parse_pld_scmp.called)
+            expected = ctrlp.from_raw.return_value
+            ctrlp.from_raw.assert_called_once_with(b"praw")
         elif l4_type == L4Proto.SCMP:
-            inst._parse_pld_scmp.assert_called_once_with(raw.return_value)
-            ntools.assert_false(inst._parse_pld_ctrl.called)
+            expected = scmpp.return_value
+            scmpp.assert_called_once_with(("scmp_class", "scmp_type", b"praw"))
+        inst.set_payload.assert_called_once_with(expected)
+        ntools.assert_equal(ret, expected)
 
     def test_l4(self):
-        for l4_type, exp in (
-            (L4Proto.UDP, "pld ctrl"),
-            (L4Proto.SCMP, "pld scmp"),
-        ):
-            yield self._check_l4, l4_type, exp
-
-
-class TestSCIONL4PacketParsePldCtrl(object):
-    """
-    Unit tests for lib.packet.scion.SCIONL4Packet._parse_pld_ctrl
-    """
-    def _mk_data(self, len_=4):
-        return create_mock_full({
-            "pop()...": [bytes((0, 0, 0, 4)), "outer"], "__len__()": len_
-        })
-
-    def test_bad_len(self):
-        inst = SCIONL4Packet()
-        data = self._mk_data(3)
-        # Call
-        ntools.assert_raises(SCIONParseError, inst._parse_pld_ctrl, data)
-
-    def _raise_parse_error(self, _):
-        raise capnp.lib.capnp.KjException("error")
-
-    @patch("lib.packet.scion.P.SCION.from_bytes_packed", autospec=True)
-    def test_parse_error(self, from_bytes):
-        inst = SCIONL4Packet()
-        data = self._mk_data(4)
-        from_bytes.side_effect = self._raise_parse_error
-        # Call
-        ntools.assert_raises(SCIONParseError, inst._parse_pld_ctrl, data)
-
-    def _mk_proto_obj(self, class_):
-        builder = create_mock_full({"which()": class_, class_: "inner"})
-        return create_mock_full({"as_builder()": builder})
-
-    @patch("lib.packet.scion.parse_sibra_payload", autospec=True)
-    @patch("lib.packet.scion.parse_pathmgmt_payload", autospec=True)
-    @patch("lib.packet.scion.parse_certmgmt_payload", autospec=True)
-    @patch("lib.packet.scion.parse_ifid_payload", autospec=True)
-    @patch("lib.packet.scion.parse_pcb_payload", autospec=True)
-    @patch("lib.packet.scion.P.SCION.from_bytes_packed", autospec=True)
-    def _check_known(self, class_, from_bytes, parse_pcb, parse_ifid,
-                     parse_cert, parse_path, parse_sibra):
-        from_bytes.return_value = self._mk_proto_obj(class_)
-        class_map = {
-            PayloadClass.PCB: parse_pcb, PayloadClass.IFID: parse_ifid,
-            PayloadClass.CERT: parse_cert, PayloadClass.PATH: parse_path,
-            PayloadClass.SIBRA: parse_sibra,
-        }
-        handler = class_map[class_]
-        inst = SCIONL4Packet()
-        data = self._mk_data()
-        # Call
-        ntools.eq_(inst._parse_pld_ctrl(data), handler.return_value)
-        # Tests
-        handler.assert_called_once_with("inner")
-
-    def test_known(self):
-        for class_ in (
-            PayloadClass.PCB, PayloadClass.IFID, PayloadClass.CERT,
-            PayloadClass.PATH, PayloadClass.SIBRA,
-        ):
-            yield self._check_known, class_
-
-    @patch("lib.packet.scion.P.SCION.from_bytes_packed", autospec=True)
-    def test_unknown(self, from_bytes):
-        from_bytes.return_value = self._mk_proto_obj("unknown")
-        inst = SCIONL4Packet()
-        data = self._mk_data()
-        # Call
-        ntools.assert_raises(SCIONParseError, inst._parse_pld_ctrl, data)
+        for l4_type in L4Proto.UDP, L4Proto.SCMP:
+            yield self._check_l4, l4_type
 
 
 class TestSCIONL4PacketGetOffsetLen(object):

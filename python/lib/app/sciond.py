@@ -36,10 +36,10 @@ from lib.defines import (
 )
 from lib.errors import SCIONBaseError, SCIONIOError, SCIONParseError
 from lib.packet.svc import SVC_TO_SERVICE
+from lib.sciond_api.base import SCIONDMsg
 from lib.sciond_api.as_req import SCIONDASInfoRequest
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoRequest
-from lib.sciond_api.parse import parse_sciond_msg
 from lib.sciond_api.path_req import SCIONDPathReplyError, SCIONDPathRequest
 from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.sciond_api.service_req import SCIONDServiceInfoRequest
@@ -118,10 +118,10 @@ class SCIONDConnector:
         if not flags:
             flags = PathRequestFlags(flush=False, sibra=False)
         req_id = self._req_id.inc()
-        request = SCIONDPathRequest.from_values(
-            req_id, dst_ia, src_ia, max_paths, flags.flush, flags.sibra)
+        request = SCIONDMsg(SCIONDPathRequest.from_values(
+            dst_ia, src_ia, max_paths, flags.flush, flags.sibra), req_id)
         with closing(self._create_socket()) as socket:
-            if not socket.send(request.pack_full()):
+            if not socket.send(request.pack()):
                 raise SCIONDRequestError
             response = self._get_response(socket, req_id, SMT.PATH_REPLY)
             if response.p.errorCode != SCIONDPathReplyError.OK:
@@ -139,10 +139,9 @@ class SCIONDConnector:
             if as_info:
                 return as_info
             req_id = self._req_id.inc()
-            as_req = SCIONDASInfoRequest.from_values(
-                req_id, isd_as)
+            as_req = SCIONDMsg(SCIONDASInfoRequest.from_values(isd_as), req_id)
             with closing(self._create_socket()) as socket:
-                if not socket.send(as_req.pack_full()):
+                if not socket.send(as_req.pack()):
                     raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.AS_REPLY)
             self._as_infos[q_ia] = list(response.iter_entries())
@@ -160,9 +159,9 @@ class SCIONDConnector:
                 if_list = set()
             # Request missing IF infos.
             req_id = self._req_id.inc()
-            if_req = SCIONDIFInfoRequest.from_values(req_id, if_list)
+            if_req = SCIONDMsg(SCIONDIFInfoRequest.from_values(if_list), req_id)
             with closing(self._create_socket()) as socket:
-                if not socket.send(if_req.pack_full()):
+                if not socket.send(if_req.pack()):
                     raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.IF_REPLY)
             for entry in response.iter_entries():
@@ -182,9 +181,9 @@ class SCIONDConnector:
                 service_types = set()
             # Request missing service infos.
             req_id = self._req_id.inc()
-            svc_req = SCIONDServiceInfoRequest.from_values(req_id, service_types)
+            svc_req = SCIONDMsg(SCIONDServiceInfoRequest.from_values(service_types), req_id)
             with closing(self._create_socket()) as socket:
-                if not socket.send(svc_req.pack_full()):
+                if not socket.send(svc_req.pack()):
                     raise SCIONDRequestError
                 response = self._get_response(socket, req_id, SMT.SERVICE_REPLY)
             for entry in response.iter_entries():
@@ -218,10 +217,9 @@ class SCIONDConnector:
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
     def send_rev_notification(self, rev_info):  # pragma: no cover
-        rev_not = SCIONDRevNotification.from_values(
-            self._req_id.inc(), rev_info)
+        rev_not = SCIONDMsg(SCIONDRevNotification.from_values(rev_info), self._req_id.inc())
         with closing(self._create_socket()) as socket:
-            if not socket.send(rev_not.pack_full()):
+            if not socket.send(rev_not.pack()):
                 raise SCIONDRequestError
 
     def _create_socket(self):  # pragma: no cover
@@ -244,16 +242,16 @@ class SCIONDConnector:
         if not data:
             raise SCIONDResponseError("Received empty response from SCIOND.")
         try:
-            response = parse_sciond_msg(data)
+            response = SCIONDMsg.from_raw(data)
         except SCIONParseError as e:
             raise SCIONDResponseError(str(e))
-        if response.MSG_TYPE != expected_type:
+        if response.type() != expected_type:
             raise SCIONDResponseError(
                 "Unexpected SCIOND msg type received: %s" % response.NAME)
         if response.id != expected_id:
             raise SCIONDResponseError("Wrong response ID: %d (expected %d)" %
                                       (response.id, expected_id))
-        return response
+        return response.contents
 
     @staticmethod
     def _try_cache(cache, key_list):

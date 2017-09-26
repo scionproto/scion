@@ -135,7 +135,7 @@ class Router(SCIONElement):
             "%s#%s -> %s" % (self.addr.isd_as, self.interface.if_id,
                              self.interface.isd_as))
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.IFID: {None: self.process_ifid_request},
+            PayloadClass.IFID: {PayloadClass.IFID: self.process_ifid_request},
             PayloadClass.PATH: defaultdict(
                 lambda: self.process_path_mgmt_packet),
         }
