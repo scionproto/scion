@@ -12,31 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`seg_recs` --- Path Segment records
-============================================
+:mod:`seg_recs` --- Hidden Path Segment records
+===============================================
 """
 # External
 import capnp  # noqa
 
 # SCION
 import proto.path_mgmt_capnp as P
-from lib.packet.path_mgmt.base import PathMgmtPayloadBase
+from lib.errors import SCIONSigVerError
+from lib.packet.hp_mgmt.config import HiddenPathConfigId
+from lib.packet.hp_mgmt.base import HiddenPathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 
 
-class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
+class HiddenPathSegmentRecords(HiddenPathMgmtPayloadBase):  # pragma: no cover
     """
     Path Record class used for sending list of down/up-paths. Paths are
     represented as objects of the PathSegment class.
     """
     P_CLS = P.SegRecs
+    VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
-    def from_values(cls, pcb_dict, rev_infos=None):
+    def from_values(cls, pcb_dict, hp_cfg_ids, timestamp, rev_infos=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
+        :param hp_cfg_ids: list of hidden path configs
+        :param timestamp: creation timestamp
         :param rev_infos: list of RevocationInfo objects
         """
         if not rev_infos:
@@ -53,7 +58,10 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         p.meta.init("revInfos", len(rev_infos))
         for i, rev_info in enumerate(rev_infos):
             p.meta.revInfos[i] = rev_info.p
-        return cls(p)
+        p.meta.init("hpCfgIds", len(hp_cfg_ids))
+        for i, hp_cfg_id in enumerate(hp_cfg_ids):
+            p.meta.hpCfgIds[i] = hp_cfg_id.p
+        return cls(p, timestamp)
 
     def iter_pcbs(self):
         for rec in self.p.recs:
@@ -66,9 +74,33 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         for i in range(start, len(self.p.meta.revInfos)):
             yield self.rev_info(i)
 
+    def hp_cfg_id(self, idx):
+        return HiddenPathConfigId(self.p.meta.hpCfgIds[idx])
+
+    def iter_hp_cfg_ids(self, start=0):
+        for i in range(start, len(self.p.meta.hpCfgIds)):
+            yield self.hp_cfg_id(i)
+
     def num_segs(self):
         """Returns the total number of path segments."""
         return len(self.p.recs)
+
+    def sig_pack(self):
+        """
+        Pack for signing version 2 (defined by highest field number).
+        """
+        if self.VER != 2:
+            raise SCIONSigVerError("HiddenPathSegmentRecords.sig_pack cannot support version %s",
+                                   self.VER)
+        b = []
+        for type_, pcb in self.iter_pcbs():
+            b.append(type_.to_bytes(1, 'big'))
+            b.append(pcb.sig_pack3())
+        for rev_info in self.iter_rev_infos():
+            b.append(rev_info.sig_pack7())
+        for hp_cfg_id in self.iter_hp_cfg_ids():
+            b.append(hp_cfg_id.sig_pack1())
+        return b"".join(b)
 
     def __str__(self):
         s = []
@@ -86,16 +118,11 @@ class PathSegmentRecords(PathMgmtPayloadBase):  # pragma: no cover
         return "\n".join(s)
 
 
-class PathRecordsReply(PathSegmentRecords):
-    NAME = "PathRecordsReply"
+class HiddenPathRecordsReply(HiddenPathSegmentRecords):
+    NAME = "HiddenPathRecordsReply"
     PAYLOAD_TYPE = PMT.REPLY
 
 
-class PathRecordsReg(PathSegmentRecords):
-    NAME = "PathRecordsReg"
+class HiddenPathRecordsReg(HiddenPathSegmentRecords):
+    NAME = "HiddenPathRecordsReg"
     PAYLOAD_TYPE = PMT.REG
-
-
-class PathRecordsSync(PathSegmentRecords):
-    NAME = "PathRecordsSync"
-    PAYLOAD_TYPE = PMT.SYNC

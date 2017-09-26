@@ -10,6 +10,7 @@ using PathMgmt = import "path_mgmt.capnp";
 using SIBRA = import "sibra.capnp";
 using DRKeyMgmt = import "drkey_mgmt.capnp";
 using SIG = import "sig.capnp";
+using HPathMgmt = import "hp_mgmt.capnp";
 
 struct SCION {
     union {
@@ -21,5 +22,6 @@ struct SCION {
         sibra @5 :SIBRA.SibraPayload;
         drkeyMgmt @6 :DRKeyMgmt.DRKeyMgmt;
         sig @7 :SIG.SIGControl;
+        hPathMgmt @8 :HPathMgmt.HPMsg;
     }
 }

@@ -106,6 +106,7 @@ class PayloadClass(object):
     PATH = "pathMgmt"
     SIBRA = "sibra"
     DRKEY = "drkeyMgmt"
+    HPATH = "hPathMgmt"
 
 
 class CertMgmtType(object):
@@ -140,6 +141,12 @@ class PathSegmentType(TypeBase):
 class DRKeyMgmtType(object):
     FIRST_ORDER_REQUEST = "drkeyReq"
     FIRST_ORDER_REPLY = "drkeyRep"
+
+
+class HiddenPathConfigType(object):
+    REQUEST = "hpCfgReq"
+    REPLY = "hpCfgReply"
+    REG = "hpCfgReg"
 
 
 ############################
