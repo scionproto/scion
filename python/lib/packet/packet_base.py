@@ -228,7 +228,7 @@ class CerealBox(object, metaclass=ABCMeta):
                              (self.NAME, self.contents.__class__, type(self.contents)))
 
     def proto_type(self):
-        return self.proto().which()
+        return self.proto_class()
 
     def pack(self):
         return self.proto().to_bytes_packed()
