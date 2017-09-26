@@ -197,11 +197,11 @@ class CerealBox(object, metaclass=ABCMeta):
         capnp object. The appropriate python class is selected by looking up the union field name in
         CLASS_FIELD_MAP.
         """
-        field = p.which()
-        for cls_, fld in cls.CLASS_FIELD_MAP.items():
-            if field == fld:
-                return cls._from_contents(p, cls_.from_proto(getattr(p, field)))
-        raise SCIONParseError("Unsupported %s proto field: %s" % (cls.NAME, field))
+        type_ = p.which()
+        for cls_, field in cls.CLASS_FIELD_MAP.items():
+            if type_ == field:
+                return cls._from_contents(p, cls_.from_proto(getattr(p, type_)))
+        raise SCIONParseError("Unsupported %s proto type: %s" % (cls.NAME, type_))
 
     @classmethod
     def _from_contents(cls, p, contents):  # pragma: no cover
@@ -215,7 +215,7 @@ class CerealBox(object, metaclass=ABCMeta):
 
     def proto(self):
         """
-        Return the capnp object corresponding to the contents python object.
+        Return the corresponding capnp object.
         """
         field = self.proto_class()
         return self.P_CLS.new_message(**{field: self.contents.proto()})
