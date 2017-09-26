@@ -18,4 +18,4 @@ RUN cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/pri
 RUN sub/web/manage.py makemigrations
 
 # Build topology files
-RUN ./scion.sh topology
+RUN ./scion.sh topology --circleci
