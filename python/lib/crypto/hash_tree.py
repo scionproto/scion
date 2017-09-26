@@ -43,6 +43,8 @@ class HashTree(object):
         :param int ttl: The TTL window for which this hash tree is valid (in seconds).
         :param hash_type: Hash function type.
         """
+        assert ttl % HASHTREE_EPOCH_TIME == 0,\
+            "HashTree TTL must be a multiple of %ds" % HASHTREE_EPOCH_TIME
         self._isd_as = isd_as
         self._seed = seed
         self._ttl = ttl
