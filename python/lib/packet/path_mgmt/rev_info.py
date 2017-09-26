@@ -82,5 +82,5 @@ class RevocationInfo(Cerealizable):
         return hash(self.cmp_str())
 
     def short_desc(self):
-        return "RevInfo: %s IF: %d EPOCH: %d" % (self.isd_as(), self.p.ifID,
-                                                 self.p.epoch)
+        return "RevInfo: %s IF: %d EPOCH: %d TreeTTL: %d" % (
+            self.isd_as(), self.p.ifID, self.p.epoch, self.p.treeTTL)

@@ -65,7 +65,6 @@ class TestHashTreeCreateTree(object):
     """
     Unit test for lib.crypto.hash_tree.HashTree.create_tree
     """
-    @patch("lib.crypto.hash_tree.HASHTREE_N_EPOCHS", 1)
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     @patch("lib.crypto.hash_tree.hash_func_for_type", autospec=True)
     def test(self, hash_func_for_type, _):
@@ -76,7 +75,7 @@ class TestHashTreeCreateTree(object):
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300"]
         hash_func = create_mock_full(side_effect=hashes)
         hash_func_for_type.return_value = hash_func
-        inst = HashTree(isd_as, if_ids, b"s", 1, HashType.SHA256)
+        inst = HashTree(isd_as, if_ids, b"s", 10, HashType.SHA256)
         inst._depth = 2
         # Call
         inst.create_tree(if_ids)
@@ -90,7 +89,6 @@ class TestHashTreeGetProof(object):
     """
     Unit test for lib.crypto.hash_tree.HashTree.get_proof
     """
-    @patch("lib.crypto.hash_tree.HASHTREE_N_EPOCHS", 1)
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     @patch("lib.crypto.hash_tree.hash_func_for_type", autospec=True)
     def test(self, hash_func_for_type, _):
@@ -101,7 +99,7 @@ class TestHashTreeGetProof(object):
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300", b"s20"]
         hash_func = create_mock_full(side_effect=hashes)
         hash_func_for_type.return_value = hash_func
-        inst = HashTree(isd_as, if_ids, b"s", 1, HashType.SHA256)
+        inst = HashTree(isd_as, if_ids, b"s", 10, HashType.SHA256)
         inst._depth = 2
         inst.create_tree(if_ids)
         # Call
@@ -115,7 +113,6 @@ class TestHashTreeGetProof(object):
         ntools.eq_(proof.p.siblings[1].hash, b"30s300")
 
 
-@patch("lib.crypto.hash_tree.HASHTREE_N_EPOCHS", 1)
 class TestConnectedHashTreeUpdate(object):
     """
     Unit test for lib.crypto.hash_tree.ConnectedHashTree.update
@@ -125,11 +122,11 @@ class TestConnectedHashTreeUpdate(object):
         isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, HashType.SHA256)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
         root1_before_update = inst._ht1._nodes[0]
         root2_before_update = inst._ht2._nodes[0]
         # Call
-        new_tree = inst.get_next_tree(isd_as, if_ids, b"new!!seed", HashType.SHA256)
+        new_tree = inst.get_next_tree(isd_as, if_ids, b"new!!seed", 60, HashType.SHA256)
         inst.update(new_tree)
         # Tests
         root0_after_update = inst._ht0_root
@@ -150,7 +147,7 @@ class TestConnectedHashtreeGetPossibleHashes(object):
         siblings.append(create_mock_full({"isLeft": False, "hash": "30s300"}))
         p = create_mock_full(
             {"ifID": 2, "epoch": 0, "nonce": b"s20", "siblings": siblings,
-             "prevRoot": "p", "nextRoot": "n", "hashType": 0})
+             "prevRoot": "p", "nextRoot": "n", "hashType": 0, "treeTTL": 60})
         rev_info = create_mock_full({"p": p})
         hashes = ["20s20", "10s1020s20", "10s1020s2030s300",
                   "p10s1020s2030s300", "10s1020s2030s300n"]
@@ -173,7 +170,7 @@ class TestConnectedHashTreeUpdateAndVerify(object):
         isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, HashType.SHA256)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
         root = inst.get_root()
         # Call
         proof = inst.get_proof(120)
@@ -186,10 +183,10 @@ class TestConnectedHashTreeUpdateAndVerify(object):
         isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, HashType.SHA256)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
         root = inst.get_root()
         # Call
-        next_tree = inst.get_next_tree(isd_as, if_ids, b"new!!seed", HashType.SHA256)
+        next_tree = inst.get_next_tree(isd_as, if_ids, b"new!!seed", 60, HashType.SHA256)
         inst.update(next_tree)
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.
@@ -201,12 +198,12 @@ class TestConnectedHashTreeUpdateAndVerify(object):
         isd_as = ISD_AS("1-11")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
-        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, HashType.SHA256)
+        inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
         root = inst.get_root()
         # Call
-        new_tree = inst.get_next_tree(isd_as, if_ids, b"newseed.@1", HashType.SHA256)
+        new_tree = inst.get_next_tree(isd_as, if_ids, b"newseed.@1", 60, HashType.SHA256)
         inst.update(new_tree)
-        new_tree = inst.get_next_tree(isd_as, if_ids, b"newseed.@2", HashType.SHA256)
+        new_tree = inst.get_next_tree(isd_as, if_ids, b"newseed.@2", 60, HashType.SHA256)
         inst.update(new_tree)
         # Tests
         proof = inst.get_proof(35)  # if_id = 35.

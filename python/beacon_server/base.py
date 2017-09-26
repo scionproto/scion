@@ -38,8 +38,6 @@ from lib.defines import (
     EXP_TIME_UNIT,
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
-    HASHTREE_TTL,
-    HASHTREE_UPDATE_WINDOW,
     PATH_POLICY_FILE,
     PATH_SERVICE,
 )
@@ -178,8 +176,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _init_hash_tree(self):
         ifs = list(self.ifid2br.keys())
-        self._hash_tree = ConnectedHashTree(
-            self.addr.isd_as, ifs, self.hashtree_gen_key, HashType.SHA256)
+        self._hash_tree = ConnectedHashTree(self.addr.isd_as, ifs, self.hashtree_gen_key,
+                                            self.config.revocation_tree_ttl, HashType.SHA256)
 
     def _get_ht_proof(self, if_id):
         with self._hash_tree_lock:
@@ -454,26 +452,27 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _create_next_tree(self):
         last_ttl_window = 0
         ttl = self.config.revocation_tree_ttl
+        update_window = ttl // 3
         while self.run_flag.is_set():
             start = time.time()
             cur_ttl_window = ConnectedHashTree.get_ttl_window(ttl)
-            time_to_sleep = ConnectedHashTree.time_until_next_window(ttl) - HASHTREE_UPDATE_WINDOW
+            time_to_sleep = ConnectedHashTree.time_until_next_window(ttl) - update_window
             if cur_ttl_window == last_ttl_window:
                 time_to_sleep += ttl
             if time_to_sleep > 0:
                 sleep_interval(start, time_to_sleep, "BS._create_next_tree",
                                self._quiet_startup())
 
-            # at this point, there should be <= HASHTREE_UPDATE_WINDOW
+            # at this point, there should be <= update_window
             # seconds left in current ttl
             logging.info("Started computing hashtree for next TTL window (%d)",
                          cur_ttl_window + 2)
-            last_ttl_window = ConnectedHashTree.get_ttl_window()
+            last_ttl_window = ConnectedHashTree.get_ttl_window(ttl)
 
             ht_start = time.time()
             ifs = list(self.ifid2br.keys())
             tree = ConnectedHashTree.get_next_tree(
-                self.addr.isd_as, ifs, self.hashtree_gen_key, HashType.SHA256)
+                self.addr.isd_as, ifs, self.hashtree_gen_key, ttl, HashType.SHA256)
             ht_end = time.time()
             with self._hash_tree_lock:
                 self._next_tree = tree
@@ -492,7 +491,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 logging.critical("Did not create hashtree in time; dying")
                 kill_self()
         logging.info("New Hash Tree TTL window beginning: %s",
-                     ConnectedHashTree.get_ttl_window())
+                     ConnectedHashTree.get_ttl_window(self.config.revocation_tree_ttl))
 
     def worker(self):
         """
@@ -500,7 +499,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         propagating PCBS/registering paths when master.
         """
         last_propagation = last_registration = 0
-        last_ttl_window = ConnectedHashTree.get_ttl_window()
+        last_ttl_window = ConnectedHashTree.get_ttl_window(self.config.revocation_tree_ttl)
         worker_cycle = 1.0
         start = time.time()
         while self.run_flag.is_set():
@@ -516,7 +515,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.revobjs_cache.process()
                 self.handle_rev_objs()
 
-                cur_ttl_window = ConnectedHashTree.get_ttl_window()
+                cur_ttl_window = ConnectedHashTree.get_ttl_window(self.config.revocation_tree_ttl)
                 if cur_ttl_window != last_ttl_window:
                     self._maintain_hash_tree()
                     last_ttl_window = cur_ttl_window

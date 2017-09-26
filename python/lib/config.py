@@ -82,7 +82,7 @@ class Config(object):
         self.registers_paths = config['RegisterPath']
         self.cert_ver = config['CertChainVersion']
         self.segment_ttl = config['PathSegmentTTL']
-        self.revocation_tree_ttl = config['RevocationTreeTTL']
+        self.revocation_tree_ttl = config.get('RevocationTreeTTL', self.segment_ttl)
         if self.revocation_tree_ttl < self.segment_ttl:
             logging.warning("RevocationTreeTTL shorter than PathSegmentTTL (%ds vs %ds). "
                             "Setting RevocationTreeTTL to %ds",

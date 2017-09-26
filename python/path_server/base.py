@@ -31,7 +31,6 @@ from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     HASHTREE_EPOCH_TIME,
-    HASHTREE_TTL,
     PATH_REQ_TOUT,
     PATH_SERVICE,
 )
@@ -110,7 +109,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
         # A mapping from (hash tree root of AS, IFID) to segments
-        self.htroot_if2seg = ExpiringDict(1000, HASHTREE_TTL)
+        self.htroot_if2seg = ExpiringDict(1000, self.config.revocation_tree_ttl)
         self.htroot_if2seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
