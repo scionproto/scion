@@ -43,7 +43,7 @@ class TestHashTreeCalcTreeDepth(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test_for_non2power(self, _):
         # Setup
-        inst = HashTree(ISD_AS("1-11"), "if_ids", "seed", 1, HashType.SHA256)
+        inst = HashTree(ISD_AS("1-11"), "if_ids", "seed", 10, HashType.SHA256)
         # Call
         inst.calc_tree_depth(6)
         # Tests
@@ -54,7 +54,7 @@ class TestHashTreeCalcTreeDepth(object):
         # Setup
         if_ids = [1, 2, 3, 4]
         seed = b"abc"
-        inst = HashTree(ISD_AS("1-11"), if_ids, seed, 1, HashType.SHA256)
+        inst = HashTree(ISD_AS("1-11"), if_ids, seed, 10, HashType.SHA256)
         # Call
         inst.calc_tree_depth(8)
         # Tests
