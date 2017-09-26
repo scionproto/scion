@@ -86,7 +86,7 @@ class SibraServerBase(SCIONElement):
         self.lock = threading.Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {PMT.REG: self.handle_path_reg},
-            PayloadClass.SIBRA: {None: self.handle_sibra_pkt},
+            PayloadClass.SIBRA: {PayloadClass.SIBRA: self.handle_sibra_pkt},
         }
         self._find_links()
         zkid = ZkID.from_values(self.addr.isd_as, self.id,

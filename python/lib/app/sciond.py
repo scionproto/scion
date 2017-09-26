@@ -245,7 +245,7 @@ class SCIONDConnector:
             response = SCIONDMsg.from_raw(data)
         except SCIONParseError as e:
             raise SCIONDResponseError(str(e))
-        if response.proto_type() != expected_type:
+        if response.type() != expected_type:
             raise SCIONDResponseError(
                 "Unexpected SCIOND msg type received: %s" % response.NAME)
         if response.id != expected_id:

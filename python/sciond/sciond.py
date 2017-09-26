@@ -240,7 +240,7 @@ class SCIONDaemon(SCIONElement):
         """
         Handle local API's requests.
         """
-        mtype = msg.proto_type()
+        mtype = msg.type()
         if mtype == SMT.PATH_REQUEST:
             threading.Thread(
                 target=thread_safety_net,

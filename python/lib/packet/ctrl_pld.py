@@ -64,8 +64,3 @@ class CtrlPayload(CerealBox):
     def pack(self):  # pragma: no cover
         raw = self.proto().to_bytes_packed()
         return struct.pack("!I", len(raw)) + raw
-
-    def proto_type(self):
-        if isinstance(self.contents, CerealBox):
-            return self.contents.proto_type()
-        return None

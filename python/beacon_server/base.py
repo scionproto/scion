@@ -143,8 +143,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = RLock()
         self.CTRL_PLD_CLASS_MAP = {
-            PayloadClass.PCB: {None: self.handle_pcb},
-            PayloadClass.IFID: {None: self.handle_ifid_packet},
+            PayloadClass.PCB: {PayloadClass.PCB: self.handle_pcb},
+            PayloadClass.IFID: {PayloadClass.IFID: self.handle_ifid_packet},
             PayloadClass.CERT: {
                 CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
                 CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,

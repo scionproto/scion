@@ -33,9 +33,6 @@ class CertMgmt(CerealBox):  # pragma: no cover
     # Set at end of file, after classes have been defined.
     CLASS_FIELD_MAP = None
 
-    def proto_type(self):
-        return self.proto_class()
-
 
 class CertMgmtRequest(Cerealizable):  # pragma: no cover
     def isd_as(self):

@@ -63,7 +63,7 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         return cls(contents, p.id)
 
     def proto(self):
-        field = self.proto_class()
+        field = self.type()
         return self.P_CLS.new_message(**{"id": self.id, field: self.contents.proto()})
 
     def __str__(self):

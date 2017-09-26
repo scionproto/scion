@@ -217,18 +217,26 @@ class CerealBox(object, metaclass=ABCMeta):
         """
         Return the corresponding capnp object.
         """
-        field = self.proto_class()
-        return self.P_CLS.new_message(**{field: self.contents.proto()})
+        return self.P_CLS.new_message(**{self.type(): self.contents.proto()})
 
-    def proto_class(self):
+    def type(self):
+        """
+        Return the type of the contents, represented by the union field name.
+        """
         c = self.CLASS_FIELD_MAP.get(self.contents.__class__)
         if c is not None:
             return c
         raise SCIONTypeError("Unsupported %s proto class %s (%s)" %
                              (self.NAME, self.contents.__class__, type(self.contents)))
 
-    def proto_type(self):
-        return self.proto_class()
+    def inner_type(self):
+        """
+        Return the type of the innermost Cerealizable object, represented by the union field name in
+        the innermost CerealBox object.
+        """
+        if isinstance(self.contents, CerealBox):
+            return self.contents.inner_type()
+        return self.type()
 
     def pack(self):
         return self.proto().to_bytes_packed()

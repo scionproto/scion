@@ -310,7 +310,7 @@ class SCIONElement(object):
             return
         try:
             # SIBRA operates on parsed packets.
-            if (isinstance(meta, UDPMetadata) and msg.proto_class() == PayloadClass.SIBRA):
+            if (isinstance(meta, UDPMetadata) and msg.type() == PayloadClass.SIBRA):
                 handler(meta.pkt)
             else:
                 handler(msg, meta)
@@ -672,13 +672,13 @@ class SCIONElement(object):
         return None
 
     def _get_ctrl_handler(self, msg):
-        pclass = msg.proto_class()
+        pclass = msg.type()
         try:
             type_map = self.CTRL_PLD_CLASS_MAP[pclass]
         except KeyError:
             logging.error("Control payload class not supported: %s\n%s", pclass, msg)
             return None
-        ptype = msg.proto_type()
+        ptype = msg.inner_type()
         try:
             return type_map[ptype]
         except KeyError:
