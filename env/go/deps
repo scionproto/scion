@@ -35,16 +35,16 @@ go_install() {
     local src sum
     case "$(uname -m)" in
         x86_64)
-            src=https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
-            sum=1862f4c3d3907e59b04a757cfda0ea7aa9ef39274af99a784f5be843c80c6772
+            src=https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz
+            sum=d70eadefce8e160638a9a6db97f7192d8463069ab33138893ad3bf31b0650a79
             ;;
         i?86)
-            src=https://storage.googleapis.com/golang/go1.8.3.linux-386.tar.gz
-            sum=ff4895eb68fb1daaec41c540602e8bb4c1e8bb2f0e7017367171913fc9995ed2
+            src=https://storage.googleapis.com/golang/go1.9.linux-386.tar.gz
+            sum=7cccff99dacf59162cd67f5b11070d667691397fd421b0a9ad287da019debc4f
             ;;
         arm*|aarch*)
-            src=https://storage.googleapis.com/golang/go1.8.3.linux-armv6l.tar.gz
-            sum=3c30a3e24736ca776fc6314e5092fb8584bd3a4a2c2fa7307ae779ba2735e668
+            src=https://storage.googleapis.com/golang/go1.9.linux-armv6l.tar.gz
+            sum=f52ca5933f7a8de2daf7a3172b0406353622c6a39e67dd08bbbeb84c6496f487
             ;;
         *)
             echo "ERROR: unsupported architecture '$(uname -m)'"
