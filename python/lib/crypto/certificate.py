@@ -166,7 +166,7 @@ class Certificate(object):
         :param bool can_issue:
             states whether the subject is allowed to issue certificates for other ASes.
         :param int validity_period: the validity period after creation of this certificate.
-        :param SigningKey iss_priv_key:
+        :param bytes iss_priv_key:
             the issuer's signing key. It is used to sign the certificate.
         :param bytes subject_sig_key: the public key of the subject.
         :param bytes subject_enc_key: the public part of the encryption key.

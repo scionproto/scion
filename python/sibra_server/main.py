@@ -259,7 +259,7 @@ class SibraServerBase(SCIONElement):
         link_type = self.link_types[ifid]
         # FIXME(kormat): un-hardcode these bandwidths
         bwsnap = BWSnapshot(500 * 1024, 500 * 1024)
-        steady = SteadyPath(self.addr, self._port, self.sendq, self.signing_key.encode(),
+        steady = SteadyPath(self.addr, self._port, self.sendq, self.signing_key,
                             link_type, link_state, seg, bwsnap)
         self.dests[isd_as][steady.id] = steady
         logging.debug("Setting up steady path %s -> %s over %s",

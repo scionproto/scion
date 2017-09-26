@@ -151,7 +151,6 @@ class CertServer(SCIONElement):
                                          self._cached_drkeys_handler)
         self.signing_key = get_sig_key(self.conf_dir)
         self.private_key = get_enc_key(self.conf_dir)
-        self.public_key = self.private_key.public_key
         self.drkey_secrets = ExpiringDict(DRKEY_MAX_SV, DRKEY_MAX_TTL)
         self.first_order_drkeys = ExpiringDict(DRKEY_MAX_KEYS, DRKEY_MAX_TTL)
 

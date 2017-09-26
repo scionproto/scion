@@ -21,7 +21,7 @@ import os
 
 # External
 from nacl.exceptions import BadSignatureError
-from nacl.public import Box, PrivateKey
+from nacl.public import Box, PrivateKey, PublicKey
 from nacl.signing import SigningKey, VerifyKey
 from nacl.utils import random
 
@@ -40,11 +40,11 @@ def get_sig_key_file_path(conf_dir):
 
 def get_sig_key(conf_dir):
     """
-    Return the signing key.
+    Return the raw signing key.
 
-    :rtype: SigningKey
+    :rtype: bytes
     """
-    return SigningKey(base64.b64decode(read_file(get_sig_key_file_path(conf_dir))))
+    return base64.b64decode(read_file(get_sig_key_file_path(conf_dir)))
 
 
 def get_enc_key_file_path(conf_dir):
@@ -56,10 +56,10 @@ def get_enc_key_file_path(conf_dir):
 
 def get_enc_key(conf_dir):
     """
-    Return the private key.
-    :rtype: PrivateKey
+    Return the raw private key.
+    :rtype: bytes
     """
-    return PrivateKey(base64.b64decode(read_file(get_enc_key_file_path(conf_dir))))
+    return base64.b64decode(read_file(get_enc_key_file_path(conf_dir)))
 
 
 def generate_sign_keypair():
@@ -89,11 +89,11 @@ def sign(msg, signing_key):
     Sign a message with a given signing key and return the signature.
 
     :param bytes msg: message to be signed.
-    :param SigningKey signing_key: signing key from generate_signature_keypair().
+    :param bytes signing_key: signing key from generate_signature_keypair().
     :returns: ed25519 signature.
     :rtype: bytes
     """
-    return signing_key.sign(msg)[:64]
+    return SigningKey(signing_key).sign(msg)[:64]
 
 
 def verify(msg, sig, verifying_key):
@@ -117,12 +117,12 @@ def encrypt(msg, private_key, public_key):
     Encrypt message.
 
     :param bytes msg: message to be encrypted.
-    :param PrivateKey private_key: Private Key of encrypter.
-    :param PublicKey public_key: Public Key of decrypter.
+    :param bytes private_key: Private Key of encrypter.
+    :param bytes public_key: Public Key of decrypter.
     :returns: The encrypted message.
     :rtype: nacl.utils.EncryptedMessage
     """
-    return Box(private_key, public_key).encrypt(msg, random(Box.NONCE_SIZE))
+    return Box(PrivateKey(private_key), PublicKey(public_key)).encrypt(msg, random(Box.NONCE_SIZE))
 
 
 def decrypt(msg, private_key, public_key):
@@ -130,9 +130,9 @@ def decrypt(msg, private_key, public_key):
     Decrypt ciphertext.
 
     :param bytes msg: ciphertext to be decrypted.
-    :param PrivateKey private_key: Private Key of decrypter.
-    :param PublicKey public_key: Public Key of encrypter.
+    :param bytes private_key: Private Key of decrypter.
+    :param bytes public_key: Public Key of encrypter.
     :returns: The decrypted message.
     :rtype: bytes
     """
-    return Box(private_key, public_key).decrypt(msg)
+    return Box(PrivateKey(private_key), PublicKey(public_key)).decrypt(msg)
