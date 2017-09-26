@@ -53,7 +53,7 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 }
 
 func (r *RevInfo) String() string {
-	return fmt.Sprintf("IA: %v IfID: %v Epoch: %v TreeTTL: %v",
+	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d TreeTTL: %d",
 		r.IA(), r.IfID, r.Epoch, r.TreeTTL)
 }
 
