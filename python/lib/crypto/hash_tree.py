@@ -161,15 +161,15 @@ class ConnectedHashTree(object):
         """
         assert len(if_ids), "Must have at least 1 leaf"
         assert hashtree_ttl > 0, "HashTree TTL cannot be <= 0"
-        ttl_window = self.get_ttl_window()
+        ttl_window = self.get_ttl_window(hashtree_ttl)
         seed1 = seed + (ttl_window - 1).to_bytes(8, 'big')
         seed2 = seed + (ttl_window + 0).to_bytes(8, 'big')
         seed3 = seed + (ttl_window + 1).to_bytes(8, 'big')
 
         self._hash_func = hash_func_for_type(hash_type)
         self._ht0_root = self._hash_func(str(seed1).encode('utf-8'))
-        self._ht1 = HashTree(isd_as, if_ids, seed2, ttl_window, hash_type)
-        self._ht2 = HashTree(isd_as, if_ids, seed3, ttl_window + 1, hash_type)
+        self._ht1 = HashTree(isd_as, if_ids, seed2, hashtree_ttl, hash_type)
+        self._ht2 = HashTree(isd_as, if_ids, seed3, hashtree_ttl, hash_type)
 
     @classmethod
     def get_ttl_window(cls, ttl):
@@ -188,10 +188,10 @@ class ConnectedHashTree(object):
         return ttl - (time.time() % ttl)
 
     @classmethod
-    def get_next_tree(cls, isd_as, if_ids, seed, hash_type):
-        ttl_window = cls.get_ttl_window() + 2
+    def get_next_tree(cls, isd_as, if_ids, seed, ttl, hash_type):
+        ttl_window = cls.get_ttl_window(ttl) + 2
         seed += ttl_window.to_bytes(8, 'big')
-        return HashTree(isd_as, if_ids, seed, ttl_window, hash_type)
+        return HashTree(isd_as, if_ids, seed, ttl, hash_type)
 
     def update(self, next_tree):
         self._ht0_root = self._ht1._nodes[0]
