@@ -35,20 +35,12 @@ from lib.packet.path_mgmt.seg_req import PathSegmentReq
 class PathMgmt(CerealBox):  # pragma: no cover
     NAME = "PathMgmt"
     P_CLS = P.PathMgmt
-
-    @classmethod
-    def from_proto(cls, p):  # pragma: no cover
-        return cls._from_proto(p, class_field_map)
-
-    def proto_class(self):  # pragma: no cover
-        return self._class(class_field_map)
-
-class_field_map = {
-    PathSegmentReq: PathMgmtType.REQUEST,
-    PathRecordsReply: PathMgmtType.REPLY,
-    PathRecordsReg: PathMgmtType.REG,
-    PathRecordsSync: PathMgmtType.SYNC,
-    RevocationInfo: PathMgmtType.REVOCATION,
-    IFStateRequest: PathMgmtType.IFSTATE_REQ,
-    IFStatePayload: PathMgmtType.IFSTATE_INFOS,
-}
+    CLASS_FIELD_MAP = {
+        PathSegmentReq: PathMgmtType.REQUEST,
+        PathRecordsReply: PathMgmtType.REPLY,
+        PathRecordsReg: PathMgmtType.REG,
+        PathRecordsSync: PathMgmtType.SYNC,
+        RevocationInfo: PathMgmtType.REVOCATION,
+        IFStateRequest: PathMgmtType.IFSTATE_REQ,
+        IFStatePayload: PathMgmtType.IFSTATE_INFOS,
+    }

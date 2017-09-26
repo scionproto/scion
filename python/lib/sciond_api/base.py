@@ -33,6 +33,18 @@ from lib.types import SCIONDMsgType
 class SCIONDMsg(CerealBox):  # pragma: no cover
     NAME = "SCIONDMsg"
     P_CLS = P.SCIONDMsg
+    CLASS_FIELD_MAP = {
+        SCIONDPathRequest: SCIONDMsgType.PATH_REQUEST,
+        SCIONDPathReply: SCIONDMsgType.PATH_REPLY,
+        SCIONDASInfoRequest: SCIONDMsgType.AS_REQUEST,
+        SCIONDASInfoReply: SCIONDMsgType.AS_REPLY,
+        SCIONDRevNotification: SCIONDMsgType.REVOCATION,
+        SCIONDRevReply: SCIONDMsgType.REVOCATIONREPLY,
+        SCIONDIFInfoRequest: SCIONDMsgType.IF_REQUEST,
+        SCIONDIFInfoReply: SCIONDMsgType.IF_REPLY,
+        SCIONDServiceInfoRequest: SCIONDMsgType.SERVICE_REQUEST,
+        SCIONDServiceInfoReply: SCIONDMsgType.SERVICE_REPLY,
+    }
 
     def __init__(self, contents, id):
         super().__init__(contents)
@@ -47,10 +59,6 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         return cls.from_proto(p)
 
     @classmethod
-    def from_proto(cls, p):  # pragma: no cover
-        return cls._from_proto(p, class_field_map)
-
-    @classmethod
     def _from_contents(cls, p, contents):  # pragma: no cover
         return cls(contents, p.id)
 
@@ -58,21 +66,5 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         field = self.proto_class()
         return self.P_CLS.new_message(**{"id": self.id, field: self.contents.proto()})
 
-    def proto_class(self):  # pragma: no cover
-        return self._class(class_field_map)
-
     def __str__(self):
         return "%s(%dB): id=%s %s" % (self.NAME, len(self), self.id, self.contents)
-
-class_field_map = {
-    SCIONDPathRequest: SCIONDMsgType.PATH_REQUEST,
-    SCIONDPathReply: SCIONDMsgType.PATH_REPLY,
-    SCIONDASInfoRequest: SCIONDMsgType.AS_REQUEST,
-    SCIONDASInfoReply: SCIONDMsgType.AS_REPLY,
-    SCIONDRevNotification: SCIONDMsgType.REVOCATION,
-    SCIONDRevReply: SCIONDMsgType.REVOCATIONREPLY,
-    SCIONDIFInfoRequest: SCIONDMsgType.IF_REQUEST,
-    SCIONDIFInfoReply: SCIONDMsgType.IF_REPLY,
-    SCIONDServiceInfoRequest: SCIONDMsgType.SERVICE_REQUEST,
-    SCIONDServiceInfoReply: SCIONDMsgType.SERVICE_REPLY,
-}

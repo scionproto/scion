@@ -181,15 +181,15 @@ class PacketBase(Serializable):  # pragma: no cover
 
 class CerealBox(object, metaclass=ABCMeta):
     """
-    All child classes must define the NAME and P_CLS attributes.
+    All child classes must define the NAME, P_CLS, and CLASS_FIELD_MAP attributes.
     """
     def __init__(self, contents):
         self.contents = contents
 
     @classmethod
-    def _from_proto(cls, p, class_field_map):  # pragma: no cover
+    def from_proto(cls, p):  # pragma: no cover
         type_ = p.which()
-        for cls_, field in class_field_map.items():
+        for cls_, field in cls.CLASS_FIELD_MAP.items():
             if type_ == field:
                 return cls._from_contents(p, cls_.from_proto(getattr(p, type_)))
         raise SCIONParseError("Unsupported %s payload type: %s" % (cls.NAME, type_))
@@ -202,15 +202,11 @@ class CerealBox(object, metaclass=ABCMeta):
         field = self.proto_class()
         return self.P_CLS.new_message(**{field: self.contents.proto()})
 
-    @abstractmethod
-    def proto_class(self, raw):
-        raise NotImplementedError
-
-    def _class(self, class_field_map):
-        c = class_field_map.get(self.contents.__class__)
+    def proto_class(self):
+        c = self.CLASS_FIELD_MAP.get(self.contents.__class__)
         if c is not None:
             return c
-        raise SCIONTypeError("Unsupported %s payload class %s (%s)" %
+        raise SCIONTypeError("Unsupported %s proto class %s (%s)" %
                              (self.NAME, self.contents.__class__, type(self.contents)))
 
     def proto_type(self):

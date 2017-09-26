@@ -30,13 +30,8 @@ from lib.types import CertMgmtType
 class CertMgmt(CerealBox):  # pragma: no cover
     NAME = "CertMgmt"
     P_CLS = P.CertMgmt
-
-    @classmethod
-    def from_proto(cls, p):  # pragma: no cover
-        return super()._from_proto(p, class_field_map)
-
-    def proto_class(self):  # pragma: no cover
-        return self._class(class_field_map)
+    # Set at end of file, after classes have been defined.
+    CLASS_FIELD_MAP = None
 
     def proto_type(self):
         return self.proto_class()
@@ -111,7 +106,7 @@ class TRCReply(Cerealizable):  # pragma: no cover
             self.NAME, isd, ver, self.trc)
 
 
-class_field_map = {
+CertMgmt.CLASS_FIELD_MAP = {
     CertChainRequest: CertMgmtType.CERT_CHAIN_REQ,
     CertChainReply: CertMgmtType.CERT_CHAIN_REPLY,
     TRCRequest: CertMgmtType.TRC_REQ,

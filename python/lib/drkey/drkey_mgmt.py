@@ -29,13 +29,8 @@ from lib.types import DRKeyMgmtType
 class DRKeyMgmt(CerealBox):  # pragma: no cover
     NAME = "DRKeyMgmt"
     P_CLS = P.DRKeyMgmt
-
-    @classmethod
-    def from_proto(cls, p):
-        return super()._from_proto(p, class_field_map)
-
-    def proto_class(self):
-        return self._class(class_field_map)
+    # Set at end of file, after classes have been defined.
+    CLASS_FIELD_MAP = None
 
     def proto_type(self):
         return self.proto_class()
@@ -109,7 +104,7 @@ class DRKeyReply(Cerealizable):
                 % (self.isd_as, self.p.expTime, self.p.certVerSrc,
                    self.p.certVerDst, self.p.trcVer, self.p.timestamp))
 
-class_field_map = {
+DRKeyMgmt.CLASS_FIELD_MAP = {
     DRKeyRequest: DRKeyMgmtType.FIRST_ORDER_REQUEST,
     DRKeyReply: DRKeyMgmtType.FIRST_ORDER_REPLY,
 }

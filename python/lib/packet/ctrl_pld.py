@@ -38,6 +38,14 @@ from lib.util import Raw
 class CtrlPayload(CerealBox):
     NAME = "CtrlPayload"
     P_CLS = P.SCION
+    CLASS_FIELD_MAP = {
+        PathSegment: PayloadClass.PCB,
+        IFIDPayload: PayloadClass.IFID,
+        CertMgmt: PayloadClass.CERT,
+        PathMgmt: PayloadClass.PATH,
+        SIBRAPayload: PayloadClass.SIBRA,
+        DRKeyMgmt: PayloadClass.DRKEY,
+    }
 
     @classmethod
     def from_raw(cls, raw):
@@ -53,28 +61,11 @@ class CtrlPayload(CerealBox):
             raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls.NAME, e)) from None
         return cls.from_proto(p)
 
-    @classmethod
-    def from_proto(cls, p):  # pragma: no cover
-        return cls._from_proto(p, class_field_map)
-
     def pack(self):  # pragma: no cover
         raw = self.proto().to_bytes_packed()
         return struct.pack("!I", len(raw)) + raw
-
-    def proto_class(self):  # pragma: no cover
-        return self._class(class_field_map)
 
     def proto_type(self):
         if isinstance(self.contents, CerealBox):
             return self.contents.proto_type()
         return None
-
-
-class_field_map = {
-    PathSegment: PayloadClass.PCB,
-    IFIDPayload: PayloadClass.IFID,
-    CertMgmt: PayloadClass.CERT,
-    PathMgmt: PayloadClass.PATH,
-    SIBRAPayload: PayloadClass.SIBRA,
-    DRKeyMgmt: PayloadClass.DRKEY,
-}
