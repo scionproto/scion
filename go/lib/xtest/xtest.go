@@ -71,8 +71,7 @@ func Parallel(f, g func(sc *SC)) func(c C) {
 			g(sc)
 		}()
 		// If f panics, first recover from the panic. Afterwards (or if f
-		// finishes normally), announce that f finished and wait for g to
-		// finish.
+		// finishes normally), wait for g to finish.
 		defer sc.Wait()
 		defer sc.Recover()
 		f(sc)
