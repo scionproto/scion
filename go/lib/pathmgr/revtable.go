@@ -99,9 +99,7 @@ func (rt *revTable) revoke(uifid *UIFID) []*IAPair {
 		// destination to be deleted, return the source and destination
 		// to allow callers to requery SCIOND immediately
 		if len(ap.parent) == 0 {
-			src := getSrcIA(ap)
-			dst := getDstIA(ap)
-			pairs = append(pairs, &IAPair{src: src, dst: dst})
+			pairs = append(pairs, &IAPair{src: getSrcIA(ap), dst: getDstIA(ap)})
 		}
 
 		// Delete all references from other UIFIDs to the revoked path,
