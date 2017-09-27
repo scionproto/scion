@@ -17,7 +17,7 @@ package hello
 import (
 	"sync"
 
-	"github.com/prometheus/common/log"
+	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
