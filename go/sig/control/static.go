@@ -43,5 +43,5 @@ func (rp *StaticRP) DelSig(isdas string, address string, port string) error {
 }
 
 func (rp *StaticRP) Print() string {
-	return base.Print("static")
+	return base.Print()
 }

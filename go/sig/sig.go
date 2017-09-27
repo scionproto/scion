@@ -70,18 +70,18 @@ func main() {
 
 	ia, err := addr.IAFromString(*isdas)
 	if err != nil {
-		Fatal("Unable to parse local ISD-AS", "ia", isdas, "err", err)
+		fatal("Unable to parse local ISD-AS", "ia", isdas, "err", err)
 	}
 
 	// Initialize SCION local networking module
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
-		Fatal("Unable to create local SCION Network context", "err", err)
+		fatal("Unable to create local SCION Network context", "err", err)
 	}
 
 	localEncapAddr, err := parseFlagAddr(ia, *ip, *port)
 	if err != nil {
-		Fatal("Unable to parse local encap address", "err", err)
+		fatal("Unable to parse local encap address", "err", err)
 	}
 
 	if *ctrlIP == "" {
@@ -89,13 +89,13 @@ func main() {
 	}
 	localCtrlAddr, err := parseFlagAddr(ia, *ctrlIP, *ctrlPort)
 	if err != nil {
-		Fatal("Unable to parse local control address", "err", err)
+		fatal("Unable to parse local control address", "err", err)
 	}
 
 	// Initialize SIG information tables
 	err = base.Init(localCtrlAddr, localEncapAddr)
 	if err != nil {
-		Fatal("Unable to initialize tables", "err", err)
+		fatal("Unable to initialize tables", "err", err)
 	}
 
 	// Spawn data plane receiver
@@ -153,7 +153,8 @@ func setupManagement(static *control.StaticRP) {
 	}
 }
 
-func Fatal(msg string, args ...interface{}) {
+func fatal(msg string, args ...interface{}) {
 	log.Crit(msg, args...)
+	liblog.Flush()
 	os.Exit(1)
 }

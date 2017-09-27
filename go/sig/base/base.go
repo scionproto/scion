@@ -25,7 +25,7 @@ import (
 
 var (
 	lock           sync.RWMutex
-	topology       *asMap
+	remoteASes     *asMap
 	localCtrlAddr  *snet.Addr
 	localEncapAddr *snet.Addr
 )
@@ -33,7 +33,7 @@ var (
 func Init(ctrlAddr, encapAddr *snet.Addr) error {
 	localCtrlAddr = ctrlAddr
 	localEncapAddr = encapAddr
-	topology = newASMap()
+	remoteASes = newASMap()
 	return nil
 }
 
@@ -46,7 +46,7 @@ func AddRoute(prefix string, isdas string) error {
 		return err
 	}
 
-	info, found := topology.get(isdas)
+	info, found := remoteASes.get(isdas)
 	if !found {
 		return common.NewCError("Unable to add prefix for unknown AS", "AS", isdas, "prefix", prefix)
 	}
@@ -64,7 +64,7 @@ func DelRoute(prefix string, isdas string) error {
 	}
 
 	// TODO delete from routing table
-	info, found := topology.get(isdas)
+	info, found := remoteASes.get(isdas)
 	if !found {
 		return common.NewCError("Unable to delete prefix from unreachable AS", "prefix",
 			prefix, "AS", isdas)
@@ -77,7 +77,7 @@ func AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, c
 	defer lock.Unlock()
 
 	var err error
-	if e, ok := topology.get(isdas); ok {
+	if e, ok := remoteASes.get(isdas); ok {
 		return e.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
 	}
 
@@ -86,7 +86,7 @@ func AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, c
 	if err != nil {
 		return err
 	}
-	topology.set(isdas, info)
+	remoteASes.set(isdas, info)
 
 	// FIXME(scrye) channel for worker commands (to cancel goroutine when remote AS is removed)
 	ework := NewEgressWorker(info)
@@ -98,16 +98,16 @@ func DelSig(isdas string, address string, port string, source string) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	if e, found := topology.get(isdas); found {
+	if e, found := remoteASes.get(isdas); found {
 		return e.delSig(address, port, source)
 	}
 	return common.NewCError("SIG entry not found", "address", address, "port", port)
 }
 
-func Print(source string) string {
+func Print() string {
 	lock.RLock()
 	defer lock.RUnlock()
-	return topology.print()
+	return remoteASes.print()
 }
 
 // asMap keeps track of which ASes have been defined
