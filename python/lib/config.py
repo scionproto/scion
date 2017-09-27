@@ -20,6 +20,7 @@ import base64
 import logging
 
 # SCION
+from lib.defines import DEFAULT_SEGMENT_TTL
 from lib.util import load_yaml_file
 
 
@@ -81,7 +82,7 @@ class Config(object):
         self.registration_time = config['RegisterTime']
         self.registers_paths = config['RegisterPath']
         self.cert_ver = config['CertChainVersion']
-        self.segment_ttl = config['PathSegmentTTL']
+        self.segment_ttl = config.get('PathSegmentTTL', DEFAULT_SEGMENT_TTL)
         self.revocation_tree_ttl = config.get('RevocationTreeTTL', self.segment_ttl)
         if self.revocation_tree_ttl < self.segment_ttl:
             logging.warning("RevocationTreeTTL shorter than PathSegmentTTL (%ds vs %ds). "

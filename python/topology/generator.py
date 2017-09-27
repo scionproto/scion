@@ -65,6 +65,7 @@ from lib.defines import (
     AS_CONF_FILE,
     AS_LIST_FILE,
     DEFAULT_MTU,
+    DEFAULT_SEGMENT_TTL,
     GEN_PATH,
     IFIDS_FILE,
     NETWORKS_FILE,
@@ -101,7 +102,6 @@ ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
 DEFAULT_LINK_BW = 1000
-DEFAULT_PSEG_TTL = 6 * 30 * 30
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
@@ -137,7 +137,7 @@ class ConfigGenerator(object):
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False, router="py", bind_addr=GENERATE_BIND_ADDRESS,
-                 pseg_ttl=DEFAULT_PSEG_TTL):
+                 pseg_ttl=DEFAULT_SEGMENT_TTL):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -1309,7 +1309,7 @@ def main():
                         help='Router implementation to use ("go" or "py")')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
-    parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_PSEG_TTL,
+    parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
     args = parser.parse_args()
     confgen = ConfigGenerator(

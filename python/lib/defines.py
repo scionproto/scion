@@ -22,6 +22,8 @@ import os
 #: SCION protocol version
 SCION_PROTO_VERSION = 0
 
+#: Default TTL of a PathSegment in realtime seconds.
+DEFAULT_SEGMENT_TTL = 6 * 60 * 60
 #: Max TTL of a PathSegment in realtime seconds.
 MAX_SEGMENT_TTL = 12 * 60 * 60
 #: Time unit for HOF expiration.
