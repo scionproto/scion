@@ -45,6 +45,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
@@ -72,6 +73,10 @@ type PR struct {
 	state sciondState
 	// Duration between two path lookups for a registered path
 	refireInterval time.Duration
+	// Cached paths indexed by UIFID for revocations
+	revTableCache *revTable
+	// Continuously updated paths indexed by UIFID
+	revTableReg *revTable
 	log.Logger
 }
 
@@ -93,6 +98,8 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 		queries:        make(chan query, queryChanCap),
 		refireInterval: refireInterval,
 		pathMap:        cache.New(pathTTL, pathCleanupInterval),
+		revTableCache:  newRevTable(),
+		revTableReg:    newRevTable(),
 		Logger:         logger.New("pathmgr")}
 
 	// Start resolver, which periodically refreshes paths for registered
@@ -104,28 +111,28 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 // Query returns a slice of paths between src and dst. If the paths are not
 // found in the path resolver's cache, a query to SCIOND is issued and the
 // function blocks until the reply is received.
-func (r *PR) Query(src, dst *addr.ISD_AS) PathList {
+func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	r.Lock()
 	defer r.Unlock()
 
 	// Check if srcIA-dstIA registered with path resolver
 	iaKey := IAKey(src, dst)
-	pathListI, ok := r.pathMap.Get(iaKey)
+	pathSetI, ok := r.pathMap.Get(iaKey)
 	if ok {
-		pathList := pathListI.(PathList)
-		return pathList
+		return pathSetI.(AppPathSet)
 	}
 
 	// We don't have a cached path list, so we ask SCIOND
 	q := query{src: src, dst: dst}
-	pathList := r.lookup(q)
-	if pathList == nil {
+	pathSet := r.lookup(q)
+	if pathSet == nil {
 		// We didn't find any paths
 		return nil
 	}
 	// We found paths, so we cache them
-	r.pathMap.SetDefault(iaKey, pathList)
-	return pathList
+	r.revTableCache.updatePathSet(pathSet)
+	r.pathMap.SetDefault(iaKey, pathSet)
+	return pathSet
 }
 
 // Register adds pair src-dst to the list of tracked paths.
@@ -141,7 +148,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	defer r.Unlock()
 
 	// If src-dst pair already registered, return a pointer to the slice of paths
-	key := src.String() + "." + dst.String()
+	key := iaKey(src, dst)
 	dupSP := r.regMap[key]
 	if dupSP != nil {
 		return dupSP, nil
@@ -156,7 +163,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 
 	// Reserve memory location for pointer to path
 	sp := &SyncPaths{}
-	sp.Store(PathList{})
+	sp.Store(AppPathSet(nil))
 
 	// Save registration memory location in map
 	r.regMap[key] = sp
@@ -164,7 +171,9 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	// Run initial blocking lookup, this populates sp. If the lookup
 	// fails, sp will point to an empty slice.
 	q := query{src: src, dst: dst, sp: sp}
-	sp.Store(r.lookup(q))
+	pathSet := r.lookup(q)
+	sp.Store(pathSet)
+	r.revTableReg.updatePathSet(pathSet)
 
 	// Add ia to periodic lookup table
 	time.AfterFunc(r.refireInterval, func() {
@@ -174,13 +183,62 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	return sp, nil
 }
 
+// Revoke asynchronously informs SCIOND about a revocation and flushes any
+// paths containing the revoked IFID
+func (r *PR) Revoke(revInfo common.RawBytes) {
+	// Revoke asynchronously to prevent cases where waiting on SCIOND
+	// blocks the data plane receiver which got the SCMP packet.
+	go r.revoke(revInfo)
+}
+
+func (r *PR) revoke(revInfo common.RawBytes) {
+	r.Lock()
+	defer r.Unlock()
+
+	parsedRev, cerr := path_mgmt.NewRevInfoFromRaw(revInfo)
+	if cerr != nil {
+		log.Error("Revocation failed, unable to parse revocation info", "err", cerr,
+			"revInfo", revInfo)
+		return
+	}
+
+	reply, err := r.sciond.RevNotification(parsedRev)
+	if err != nil {
+		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
+		return
+	}
+
+	switch reply.Result {
+	case sciond.RevUnknown, sciond.RevValid:
+		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
+		r.revTableCache.revoke(uifid)
+		revokedPairs := r.revTableReg.revoke(uifid)
+		for _, pair := range revokedPairs {
+			sp, ok := r.regMap[iaKey(pair.src, pair.dst)]
+			if !ok {
+				// src-dst pair is no longer tracked
+				continue
+			}
+			q := query{src: pair.src, dst: pair.dst, sp: sp}
+			pathSet := r.lookup(q)
+			sp.Store(pathSet)
+			r.revTableReg.updatePathSet(pathSet)
+		}
+	case sciond.RevStale:
+		log.Warn("Found stale revocation notification", "revInfo", parsedRev)
+	case sciond.RevInvalid:
+		log.Warn("Found invalid revocation notification", "revInfo", parsedRev)
+	}
+}
+
 func (r *PR) resolver() {
 	for query := range r.queries {
 		r.Lock()
-		paths := r.lookup(query)
-		if paths != nil {
+		pathSet := r.lookup(query)
+		if pathSet != nil {
 			// Store path slice atomically
-			query.sp.Store(paths)
+			query.sp.Store(pathSet)
+			r.revTableReg.updatePathSet(pathSet)
 		}
 		r.Unlock()
 
@@ -192,7 +250,7 @@ func (r *PR) resolver() {
 }
 
 // lookup queries SCIOND, blocking while waiting for the response
-func (r *PR) lookup(q query) PathList {
+func (r *PR) lookup(q query) AppPathSet {
 	if r.state == sciondDown {
 		// Cannot do lookups if SCIOND connection state is down
 		return nil
@@ -216,12 +274,7 @@ func (r *PR) lookup(q query) PathList {
 		return nil
 	}
 
-	// Prepare new path slice
-	paths := make(PathList, len(reply.Entries))
-	for i := range reply.Entries {
-		paths[i] = &reply.Entries[i]
-	}
-	return paths
+	return NewAppPathSet(reply)
 }
 
 // reconnect repeatedly tries to reconnect to SCIOND
@@ -255,4 +308,8 @@ func (r *PR) stateTransition(new sciondState) bool {
 		return true
 	}
 	return false
+}
+
+func iaKey(src, dst *addr.ISD_AS) string {
+	return src.String() + "." + dst.String()
 }

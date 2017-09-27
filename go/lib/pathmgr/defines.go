@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -31,7 +31,12 @@ const (
 	reconnectInterval = 3 * time.Second
 )
 
-type PathList []*sciond.PathReplyEntry
+// Helper type for pretty printing of maps using paths as keys
+type rawKey string
+
+func (r rawKey) String() string {
+	return common.RawBytes(r).String()
+}
 
 // query contains the context needed to issue and update a query
 type query struct {
@@ -39,18 +44,18 @@ type query struct {
 	sp       *SyncPaths
 }
 
-// SyncPaths contains a concurrency-safe reference to a slice `[]*PathReplyEntry`.
-// Callers can safely `Load` the reference and use the paths within. At any
-// moment, the path resolver can change the value of the reference within a
-// SyncPaths to a different slice containing new paths. Calling code should
-// reload the reference often to make sure the paths are fresh.
+// SyncPaths contains a concurrency-safe reference to an AppPathSet.  Callers
+// can safely `Load` the reference and use the paths within. At any moment, the
+// path resolver can change the value of the reference within a SyncPaths to a
+// different slice containing new paths. Calling code should reload the
+// reference often to make sure the paths are fresh.
 type SyncPaths struct {
 	atomic.Value
 }
 
 // Overwrite Load to avoid external type assertions
-func (sp *SyncPaths) Load() PathList {
-	return sp.Value.Load().(PathList)
+func (sp *SyncPaths) Load() AppPathSet {
+	return sp.Value.Load().(AppPathSet)
 }
 
 // sciondState is used to track the health of the connection to SCIOND
