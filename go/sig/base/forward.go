@@ -23,7 +23,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/lib/scion"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 )
 
@@ -40,15 +39,9 @@ import (
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 const (
-	SIGHdrSize          = 8
-	PktLenSize          = 2
-	MinSpace            = 16
-	InternalIngressName = "scion.local"
-)
-
-var (
-	InternalIngress io.ReadWriteCloser
-	ExternalIngress *scion.SCIONConn
+	SIGHdrSize = 8
+	PktLenSize = 2
+	MinSpace   = 16
 )
 
 type BufferPool struct {

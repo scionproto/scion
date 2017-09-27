@@ -27,24 +27,16 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/control"
-	"github.com/netsec-ethz/scion/go/sig/lib/scion"
 	"github.com/netsec-ethz/scion/go/sig/management"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 const (
 	DefaultCtrlPort     = 10081
 	ExternalIngressPort = 10080
-)
-
-var (
-	Addr     addr.HostAddr
-	Port     uint16
-	CtrlIP   net.IP
-	CtrlPort uint16
 )
 
 var (
@@ -70,52 +62,47 @@ func main() {
 	defer liblog.LogPanicAndExit()
 	setupSignals()
 
-	metrics.Init(*id)
 	// Export prometheus metrics.
+	metrics.Init(*id)
 	if err := metrics.Start(); err != nil {
 		log.Error("Unable to export prometheus metrics", "err", err)
 	}
 
 	ia, err := addr.IAFromString(*isdas)
 	if err != nil {
-		log.Error("Unable to parse local AS", "isdas", *isdas, "err", err)
-		os.Exit(1)
+		fatal("Unable to parse local ISD-AS", "ia", isdas, "err", err)
 	}
 
 	// Initialize SCION local networking module
-	scionNet, err := scion.NewSCIONNet(ia, *sciondPath, *dispatcherPath)
+	err = snet.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
-		log.Error("Unable to create local SCION Network context", "err", err)
-		os.Exit(1)
+		fatal("Unable to create local SCION Network context", "err", err)
 	}
 
-	// Create tables for managing remote AS information and spawning data plane senders
-	topology, err := base.NewTopology(scionNet)
+	localEncapAddr, err := parseFlagAddr(ia, *ip, *port)
 	if err != nil {
-		log.Error("Unable to create topology", "err", err)
-		os.Exit(1)
+		fatal("Unable to parse local encap address", "err", err)
+	}
+
+	if *ctrlIP == "" {
+		*ctrlIP = *ip
+	}
+	localCtrlAddr, err := parseFlagAddr(ia, *ctrlIP, *ctrlPort)
+	if err != nil {
+		fatal("Unable to parse local control address", "err", err)
+	}
+
+	// Initialize SIG information tables
+	err = base.Init(localCtrlAddr, localEncapAddr)
+	if err != nil {
+		fatal("Unable to initialize tables", "err", err)
 	}
 
 	// Spawn data plane receiver
-	err = parseEncapFlags()
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
-	iw := base.NewIngressWorker(scionNet, Addr, Port)
-	go iw.Run()
-
-	// TODO(scrye): Launch keepalive module
-	/*
-		err = parseCtrlFlags()
-		if err != nil {
-			log.Error(err.Error())
-			os.Exit(1)
-		}
-	*/
+	go base.NewIngressWorker(localEncapAddr).Run()
 
 	// Enable static routing
-	static := control.NewStaticRP(topology)
+	static := control.NewStaticRP()
 	// Load configuration file and/or start interactive console
 	setupManagement(static)
 	// If no console is up, block forever
@@ -136,35 +123,20 @@ func setupSignals() {
 	}()
 }
 
-func parseEncapFlags() error {
-	netip := net.ParseIP(*ip)
-	if netip == nil {
-		return common.NewCError("Unable to parse encapsulation IP address", "addr", *ip)
+func parseFlagAddr(ia *addr.ISD_AS, ipStr string, port int) (*snet.Addr, error) {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return nil, common.NewCError("unable to parse IP address", "addr", ipStr)
 	}
-	xnet.Setup(netip)
-	Addr = addr.HostFromIP(netip)
-	Port = uint16(*port)
-	if Port == 0 {
-		return common.NewCError("Invalid port number", "port", Port)
+	if port == 0 || port >= (1<<16) {
+		return nil, common.NewCError("invalid port number", "port", port)
 	}
-	return nil
-}
-
-func parseCtrlFlags() error {
-	if *ctrlIP == "" {
-		// Default to encapip
-		*ctrlIP = *ip
+	address := &snet.Addr{
+		IA:     ia,
+		Host:   addr.HostFromIP(ip),
+		L4Port: uint16(port),
 	}
-	CtrlIP = net.ParseIP(*ctrlIP)
-	if CtrlIP == nil {
-		return common.NewCError("Unable to parse bind IP address for control traffic",
-			"address", *ctrlIP)
-	}
-	CtrlPort = uint16(*ctrlPort)
-	if CtrlPort == 0 {
-		return common.NewCError("Invalid port number", "port", Port)
-	}
-	return nil
+	return address, nil
 }
 
 func setupManagement(static *control.StaticRP) {
@@ -179,4 +151,10 @@ func setupManagement(static *control.StaticRP) {
 	if *cli {
 		management.Run(static)
 	}
+}
+
+func fatal(msg string, args ...interface{}) {
+	log.Crit(msg, args...)
+	liblog.Flush()
+	os.Exit(1)
 }

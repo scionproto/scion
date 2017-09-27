@@ -21,9 +21,11 @@ import (
 	"strconv"
 	"sync"
 
+	log "github.com/inconshreveable/log15"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/lib/scion"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
@@ -35,12 +37,11 @@ type asInfo struct {
 	Subnets    map[string]*net.IPNet
 	DeviceName string
 	Device     io.ReadWriteCloser
-	scionNet   *scion.SCIONNet
 }
 
 // newASInfo initializes the internal structures and creates the tunnel
 // interface for a new remote AS.
-func newASInfo(scionNet *scion.SCIONNet, isdas string) (*asInfo, error) {
+func newASInfo(isdas string) (*asInfo, error) {
 	var err error
 	ia, err := addr.IAFromString(isdas)
 	if err != nil {
@@ -52,7 +53,6 @@ func newASInfo(scionNet *scion.SCIONNet, isdas string) (*asInfo, error) {
 		sigs:       make(map[string]net.Conn),
 		Subnets:    make(map[string]*net.IPNet),
 		DeviceName: fmt.Sprintf("scion.%s", isdas),
-		scionNet:   scionNet,
 	}
 	if info.Device, err = xnet.ConnectTun(info.DeviceName); err != nil {
 		return nil, err
@@ -68,6 +68,12 @@ func (as *asInfo) addRoute(subnet *net.IPNet) error {
 		return common.NewCError("Subnet already exists", "subnet", subnet)
 	}
 	as.Subnets[subnetKey] = subnet
+
+	if err := xnet.AddRouteIF(subnet, localEncapAddr.Host.IP(), as.DeviceName); err != nil {
+		log.Error("Unable to add route", "subnet", subnet, "device", as.DeviceName)
+		return err
+	}
+
 	return nil
 }
 
@@ -101,27 +107,14 @@ func (as *asInfo) addSig(encapAddr string, encapPort string, ctrlAddr string,
 	}
 
 	var conn net.Conn
-	conn, err = as.scionNet.DialSCION(as.IA, addr.HostFromIP(net.IPv4zero),
-		addr.HostFromIP(ip), uint16(nport))
+	laddr := &snet.Addr{IA: localEncapAddr.IA, Host: localEncapAddr.Host, L4Port: 0}
+	raddr := &snet.Addr{IA: as.IA, Host: addr.HostFromIP(ip), L4Port: uint16(nport)}
+	conn, err = snet.DialSCION("udp4", laddr, raddr)
 	if err != nil {
 		return common.NewCError("Unable to establish flow", "err", err)
 	}
 
 	as.sigs[sig] = conn
-	// Register with keepalive module
-	/*
-		remote := hello.Remote{
-			IA:      as.IA,
-			Address: ctrlAddr,
-			Port:    ctrlPort,
-			OnDown:  func() { log.Debug("OnDown") },
-			OnUp:    func() { log.Debug("OnUp") },
-			OnError: func() { log.Debug("OnError") }}
-		err = as.SDB.helloModule.Register(&remote)
-		if err != nil {
-			return common.NewCError("Unable to Register", "err", err)
-		}
-	*/
 	return nil
 }
 
