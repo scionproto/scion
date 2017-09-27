@@ -62,7 +62,7 @@ func (c *SC) Recover() {
 func Parallel(f, g func(sc *SC)) func(c C) {
 	return func(c C) {
 		sc := &SC{C: c}
-		sc.Add(2)
+		sc.Add(1)
 		go func() {
 			// If g panics, first recover from the panic. Afterwards (or if g
 			// finishes normally), announce that g finished.
@@ -74,7 +74,6 @@ func Parallel(f, g func(sc *SC)) func(c C) {
 		// finishes normally), announce that f finished and wait for g to
 		// finish.
 		defer sc.Wait()
-		defer sc.Done()
 		defer sc.Recover()
 		f(sc)
 	}
