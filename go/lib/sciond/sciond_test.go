@@ -87,7 +87,8 @@ func TestAPITimeout(t *testing.T) {
 				before := time.Now()
 				reply, err := conn.Paths(dst, src, 5, PathReqFlags{})
 				after := time.Now()
-				SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
+				SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second),
+					before.Add(4*time.Second))
 
 				SoMsg("reply", reply, ShouldBeNil)
 				SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
@@ -102,7 +103,8 @@ func TestAPITimeout(t *testing.T) {
 				before := time.Now()
 				reply, err := conn.RevNotificationFromRaw([]byte(token))
 				after := time.Now()
-				SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
+				SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second),
+					before.Add(4*time.Second))
 
 				SoMsg("reply", reply, ShouldBeNil)
 				SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)

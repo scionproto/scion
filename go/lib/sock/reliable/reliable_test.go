@@ -29,14 +29,16 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/xtest"
 )
 
+type TestCase struct {
+	msg       string
+	ia        *addr.ISD_AS
+	dst       AppAddr
+	want      []byte
+	timeoutOK bool
+}
+
 func TestRegister(t *testing.T) {
-	testCases := []struct {
-		msg       string
-		ia        *addr.ISD_AS
-		dst       AppAddr
-		want      []byte
-		timeoutOK bool
-	}{
+	testCases := []TestCase{
 		{
 			ia: &addr.ISD_AS{I: 1, A: 10},
 			dst: AppAddr{
@@ -78,25 +80,7 @@ func TestRegister(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(fmt.Sprintf("Client registers %v, %v", tc.ia, tc.dst), xtest.Parallel(
 				func(sc *xtest.SC) {
-					err := listener.SetDeadline(time.Now().Add(time.Second))
-					sc.SoMsg("listener deadline err", err, ShouldBeNil)
-
-					sconn, err := listener.Accept()
-					if tc.timeoutOK {
-						sc.SoMsg("accept err", err, ShouldNotBeNil)
-						return
-					}
-					sc.SoMsg("accept err", err, ShouldBeNil)
-					sc.SoMsg("server conn", sconn, ShouldNotBeNil)
-
-					// Read raw protocol data from underlying UNIX conn
-					buf := make([]byte, len(tc.want))
-					_, err = io.ReadFull(sconn.UnixConn, buf)
-					sc.SoMsg("server read err", err, ShouldBeNil)
-					sc.SoMsg("server data", buf, ShouldResemble, tc.want)
-
-					err = sconn.Close()
-					sc.SoMsg("server close", err, ShouldBeNil)
+					server(sc, &tc, listener)
 				}, func(sc *xtest.SC) {
 					_, _, err := RegisterTimeout(sockName, tc.ia, tc.dst, time.Second)
 					if tc.timeoutOK {
@@ -111,14 +95,39 @@ func TestRegister(t *testing.T) {
 	})
 }
 
+func TestRegisterTimeout(t *testing.T) {
+	sockName := getRandFile()
+	Convey("Start dummy server", t, func() {
+		listener, err := Listen(sockName)
+		SoMsg("listen err", err, ShouldBeNil)
+		SoMsg("listener sock", listener, ShouldNotBeNil)
+		listener.SetUnlinkOnClose(true)
+
+		Reset(func() {
+			err := listener.Close()
+			SoMsg("listener close error", err, ShouldBeNil)
+		})
+		Convey("Register to \"dispatcher\" returns timeout error", func() {
+			var expectedT *net.OpError
+			ia := &addr.ISD_AS{I: 1, A: 10}
+			appAddr := AppAddr{Addr: addr.HostFromIP(net.IPv4(1, 2, 3, 4)), Port: 0}
+
+			before := time.Now()
+			conn, port, err := RegisterTimeout(sockName, ia, appAddr, 3*time.Second)
+			after := time.Now()
+			SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
+
+			SoMsg("conn", conn, ShouldBeNil)
+			SoMsg("port", port, ShouldEqual, 0)
+			SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
+			opErr := err.(*net.OpError)
+			SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
+		})
+	})
+}
+
 func TestWriteTo(t *testing.T) {
-	testCases := []struct {
-		msg       string
-		ia        addr.ISD_AS
-		dst       AppAddr
-		want      []byte
-		timeoutOK bool
-	}{
+	testCases := []TestCase{
 		{
 			msg: "",
 			dst: AppAddr{
@@ -167,23 +176,7 @@ func TestWriteTo(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(fmt.Sprintf("Clients sends message %v", tc.msg), xtest.Parallel(
 				func(sc *xtest.SC) {
-					err := listener.SetDeadline(time.Now().Add(time.Second))
-					sc.SoMsg("listener deadline err", err, ShouldBeNil)
-
-					sconn, err := listener.Accept()
-					if tc.timeoutOK {
-						sc.SoMsg("accept err", err, ShouldNotBeNil)
-						return
-					}
-					sc.SoMsg("accept err", err, ShouldBeNil)
-
-					b := make([]byte, len(tc.want))
-					_, err = io.ReadFull(sconn.UnixConn, b)
-					sc.SoMsg("server read err", err, ShouldBeNil)
-					sc.SoMsg("server read msg", b, ShouldResemble, tc.want)
-
-					err = sconn.Close()
-					sc.SoMsg("server close", err, ShouldBeNil)
+					server(sc, &tc, listener)
 				}, func(sc *xtest.SC) {
 					cconn, err := DialTimeout(sockName, time.Second)
 					sc.SoMsg("dial err", err, ShouldBeNil)
@@ -200,35 +193,25 @@ func TestWriteTo(t *testing.T) {
 	})
 }
 
-func TestRegisterTimeout(t *testing.T) {
-	sockName := getRandFile()
-	Convey("Start dummy server", t, func() {
-		listener, err := Listen(sockName)
-		SoMsg("listen err", err, ShouldBeNil)
-		SoMsg("listener sock", listener, ShouldNotBeNil)
-		listener.SetUnlinkOnClose(true)
+func server(sc *xtest.SC, tc *TestCase, listener *Listener) {
+	err := listener.SetDeadline(time.Now().Add(time.Second))
+	sc.SoMsg("listener deadline err", err, ShouldBeNil)
 
-		Reset(func() {
-			err := listener.Close()
-			SoMsg("listener close error", err, ShouldBeNil)
-		})
-		Convey("Register to \"dispatcher\" returns timeout error", func() {
-			var expectedT *net.OpError
-			ia := &addr.ISD_AS{I: 1, A: 10}
-			appAddr := AppAddr{Addr: addr.HostFromIP(net.IPv4(1, 2, 3, 4)), Port: 0}
+	sconn, err := listener.Accept()
+	if tc.timeoutOK {
+		sc.SoMsg("accept err", err, ShouldNotBeNil)
+		return
+	}
+	sc.SoMsg("accept err", err, ShouldBeNil)
+	sc.SoMsg("server conn", sconn, ShouldNotBeNil)
 
-			before := time.Now()
-			conn, port, err := RegisterTimeout(sockName, ia, appAddr, 3*time.Second)
-			after := time.Now()
-			SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
+	b := make([]byte, len(tc.want))
+	_, err = io.ReadFull(sconn.UnixConn, b)
+	sc.SoMsg("server read err", err, ShouldBeNil)
+	sc.SoMsg("server read msg", b, ShouldResemble, tc.want)
 
-			SoMsg("conn", conn, ShouldBeNil)
-			SoMsg("port", port, ShouldEqual, 0)
-			SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
-			opErr := err.(*net.OpError)
-			SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
-		})
-	})
+	err = sconn.Close()
+	sc.SoMsg("server close", err, ShouldBeNil)
 }
 
 func getRandFile() string {

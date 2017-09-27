@@ -35,21 +35,21 @@ func (c *SC) Convey(items ...interface{}) {
 	panic("Convey in SyncConvey Context not supported")
 }
 
-func (c *SC) So(actual interface{}, assert func(actual interface{}, expected ...interface{}) string, expected ...interface{}) {
+func (c *SC) So(actual interface{},
+	assert func(actual interface{}, expected ...interface{}) string, expected ...interface{}) {
 	c.Lock()
 	defer c.Unlock()
 	c.C.So(actual, assert, expected)
 }
 
-func (c *SC) SoMsg(msg string, actual interface{}, assert func(actual interface{}, expected ...interface{}) string, expected ...interface{}) {
+func (c *SC) SoMsg(msg string, actual interface{},
+	assert func(actual interface{}, expected ...interface{}) string, expected ...interface{}) {
 	c.Lock()
 	defer c.Unlock()
 	c.C.SoMsg(msg, actual, assert, expected...)
 }
 
-func (c *SC) RecoverAndWait() {
-	c.Done()
-	defer c.Wait()
+func (c *SC) Recover() {
 	if r := recover(); r != nil {
 		// Silently discard failure halts
 		if rString, ok := r.(string); ok && rString == "___FAILURE_HALT___" {
@@ -64,10 +64,18 @@ func Parallel(f, g func(sc *SC)) func(c C) {
 		sc := &SC{C: c}
 		sc.Add(2)
 		go func() {
-			defer sc.RecoverAndWait()
+			// If g panics, first recover from the panic. Afterwards (or if g
+			// finishes normally), announce that g finished.
+			defer sc.Done()
+			defer sc.Recover()
 			g(sc)
 		}()
-		defer sc.RecoverAndWait()
+		// If f panics, first recover from the panic. Afterwards (or if f
+		// finishes normally), announce that f finished and wait for g to
+		// finish.
+		defer sc.Wait()
+		defer sc.Done()
+		defer sc.Recover()
 		f(sc)
 	}
 }
