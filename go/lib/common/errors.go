@@ -23,9 +23,7 @@ import (
 
 type ErrCtx fmt15.FCtx
 
-type ErrorData interface {
-	fmt.Stringer
-}
+type ErrorData interface{}
 
 var _ error = (*CError)(nil)
 

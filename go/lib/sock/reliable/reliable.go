@@ -95,22 +95,29 @@ type Conn struct {
 	recvWriteHead int
 }
 
+// DialTimeout acts like Dial but takes a timeout.
+//
+// A negative timeout means infinite timeout.
+//
+// To check for timeout errors, type assert the returned error to *net.OpError and
+// call method Timeout().
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
-	c, err := net.DialTimeout("unix", address, timeout)
+	var err error
+	var c net.Conn
+	if timeout < 0 {
+		c, err = net.Dial("unix", address)
+	} else {
+		c, err = net.DialTimeout("unix", address, timeout)
+	}
 	if err != nil {
-		return nil, common.NewCError("Unable to connect", "address", address,
-			"err", err)
+		return nil, err
 	}
 	return newConn(c), nil
 }
 
 // Dial connects to the UNIX socket specified by address.
 func Dial(address string) (*Conn, error) {
-	c, err := net.Dial("unix", address)
-	if err != nil {
-		return nil, common.NewCError("Unable to connect", "address", address)
-	}
-	return newConn(c), nil
+	return DialTimeout(address, time.Duration(-1))
 }
 
 func newConn(c net.Conn) *Conn {
@@ -121,16 +128,27 @@ func newConn(c net.Conn) *Conn {
 	}
 }
 
-// Register connects to a SCION Dispatcher's UNIX socket.
-// Future messages for address a in AS ia which arrive at the dispatcher can be read by
-// calling Read on the returned Conn structure.
-func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, error) {
+// RegisterTimeout acts like Register but takes a timeout.
+//
+// A negative timeout means infinite timeout.
+//
+// To check for timeout errors, type assert the returned error to *net.OpError and
+// call method Timeout().
+func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
+	timeout time.Duration) (*Conn, uint16, error) {
 	if a.Addr.Type() == addr.HostTypeNone {
 		return nil, 0, common.NewCError("Cannot register with NoneType address")
 	}
-	conn, err := Dial(dispatcher)
+
+	deadline := time.Now().Add(timeout)
+	conn, err := DialTimeout(dispatcher, timeout)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	// If a timeout was specified, make reads and writes return if deadline exceeded
+	if timeout != 0 {
+		conn.SetDeadline(deadline)
 	}
 	request := make([]byte, regBaseHeaderLen+a.Addr.Size())
 	offset := 0
@@ -169,7 +187,17 @@ func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, err
 		return nil, 0, common.NewCError("Port mismatch when registering with dispatcher",
 			"expected", a.Port, "actual", replyPort)
 	}
+
+	// Disable deadline to not affect calling code
+	conn.SetDeadline(time.Time{})
 	return conn, replyPort, nil
+}
+
+// Register connects to a SCION Dispatcher's UNIX socket.
+// Future messages for address a in AS ia which arrive at the dispatcher can be read by
+// calling Read on the returned Conn structure.
+func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, error) {
+	return RegisterTimeout(dispatcher, ia, a, time.Duration(0))
 }
 
 // Read blocks until it reads the next framed message payload from conn and stores it in buf.
@@ -439,7 +467,7 @@ func Listen(laddr string) (*Listener, error) {
 func (listener *Listener) Accept() (*Conn, error) {
 	c, err := listener.UnixListener.Accept()
 	if err != nil {
-		return nil, common.NewCError("Unable to accept", "listener", listener)
+		return nil, err
 	}
 	return newConn(c), nil
 }

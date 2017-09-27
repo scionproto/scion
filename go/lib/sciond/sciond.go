@@ -36,6 +36,7 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/proto"
@@ -66,7 +67,17 @@ type Connector struct {
 // guaranteed to be fresh, as the returned connector caches ASInfo replies for ASInfoTTL time,
 // IFInfo replies for IFInfoTTL time and SVCInfo for SVCInfoTTL time.
 func Connect(socketName string) (*Connector, error) {
-	conn, err := reliable.Dial(socketName)
+	return ConnectTimeout(socketName, time.Duration(-1))
+}
+
+// ConnectTimeout acts like Connect but takes a timeout.
+//
+// A negative timeout means infinite timeout.
+//
+// To check for timeout errors, type assert the returned error to *net.OpError and
+// call method Timeout().
+func ConnectTimeout(socketName string, timeout time.Duration) (*Connector, error) {
+	conn, err := reliable.DialTimeout(socketName, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +99,7 @@ func (c *Connector) nextID() uint64 {
 func (c *Connector) send(p *Pld) error {
 	raw, err := proto.PackRoot(p)
 	if err != nil {
-		return err
+		return tryExtractNetError(err)
 	}
 	_, err = c.conn.Write(raw)
 	return err
@@ -98,7 +109,7 @@ func (c *Connector) receive() (*Pld, error) {
 	p := &Pld{}
 	err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
 	if err != nil {
-		return nil, err
+		return nil, tryExtractNetError(err)
 	}
 	return p, nil
 }
@@ -281,4 +292,31 @@ func (c *Connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, erro
 // Close shuts down the connection to a SCIOND server.
 func (c *Connector) Close() error {
 	return c.conn.Close()
+}
+
+// SetDeadline sets a deadline associated with any SCIOND query. If underlying
+// protocol operations exceed the deadline, the queries return immediately with
+// an error.
+//
+// A zero value for t means queries will not time out.
+//
+// To check for exceeded deadlines, type assert the returned error to *net.OpError and
+// call method Timeout().
+//
+// Following a timeout error the underlying protocol to SCIOND is probably
+// desynchronized. Establishing a fresh connection to SCIOND is recommended.
+func (c *Connector) SetDeadline(t time.Time) error {
+	return c.conn.SetDeadline(t)
+}
+
+// If err embeds a net.Error, return only the embedded error
+func tryExtractNetError(err error) error {
+	cErr, ok := err.(*common.CError)
+	if ok {
+		netErr, ok := cErr.Data.(net.Error)
+		if ok {
+			return netErr
+		}
+	}
+	return err
 }

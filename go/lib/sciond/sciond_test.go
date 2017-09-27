@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build infrarunning
-
 package sciond
 
 import (
-	"fmt"
-	"math/rand"
+	"net"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/addr"
 )
 
 var (
@@ -63,21 +62,66 @@ var (
 		"\x88\x70\x27\x3a\x27\xef\xf7\x28\x51\xb3\x24\x04\x00\x00\x00\x00"
 )
 
-func TestRevNotification(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
-	Convey("Old revocations should return correct status code", t, func() {
-		asStruct, err := util.LoadASList("../../../gen/as_list.yml")
-		SoMsg("AS selection error", err, ShouldBeNil)
+func TestAPITimeout(t *testing.T) {
+	name := getRandFile()
+	Convey("Start dummy server", t, func() {
+		sock, err := net.Listen("unix", name)
+		SoMsg("err", err, ShouldBeNil)
+		Reset(func() {
+			sock.Close()
+		})
 
-		asList := append(asStruct.NonCore, asStruct.Core...)
-		SoMsg("AS selection len", len(asList), ShouldBeGreaterThan, 0)
-		localIA := asList[rand.Intn(len(asList))]
+		Convey("Connect to server", func() {
+			conn, err := ConnectTimeout(name, 0)
+			SoMsg("err", err, ShouldBeNil)
+			Reset(func() {
+				conn.Close()
+			})
 
-		conn, err := Connect(fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA))
-		SoMsg("Connect error", err, ShouldBeNil)
+			Convey("Path request should timeout", func() {
+				var expectedT *net.OpError
+				src, _ := addr.IAFromString("1-1")
+				dst, _ := addr.IAFromString("2-2")
+				conn.SetDeadline(time.Now().Add(3 * time.Second))
 
-		reply, err := conn.RevNotificationFromRaw([]byte(token))
-		SoMsg("RevNotification error", err, ShouldBeNil)
-		SoMsg("Result", reply.Result, ShouldEqual, RevInvalid)
+				before := time.Now()
+				reply, err := conn.Paths(dst, src, 5, PathReqFlags{})
+				after := time.Now()
+				SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second),
+					before.Add(4*time.Second))
+
+				SoMsg("reply", reply, ShouldBeNil)
+				SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
+				opErr := err.(*net.OpError)
+				SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
+			})
+
+			Convey("Revocation notification should timeout", func() {
+				var expectedT *net.OpError
+				conn.SetDeadline(time.Now().Add(3 * time.Second))
+
+				before := time.Now()
+				reply, err := conn.RevNotificationFromRaw([]byte(token))
+				after := time.Now()
+				SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second),
+					before.Add(4*time.Second))
+
+				SoMsg("reply", reply, ShouldBeNil)
+				SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
+				opErr := err.(*net.OpError)
+				SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
+			})
+		})
 	})
+}
+
+func getRandFile() string {
+	testDir := "/tmp/reliable"
+	if _, err := os.Stat(testDir); os.IsNotExist(err) {
+		os.Mkdir(testDir, 0700)
+	}
+
+	r := uint32(time.Now().UnixNano() + int64(os.Getpid()))
+	suffix := strconv.Itoa(int(1e9 + r%1e9))[1:]
+	return testDir + "/unix." + suffix
 }
