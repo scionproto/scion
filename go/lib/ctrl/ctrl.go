@@ -41,33 +41,33 @@ type union struct {
 	Sig         []byte `capnp:"-"` // Omit for now
 }
 
-func (cts *union) set(c proto.Cerealizable) error {
+func (u *union) set(c proto.Cerealizable) error {
 	switch u := c.(type) {
 	case *seg.PathSegment:
-		cts.Which = proto.CtrlPld_Which_pcb
-		cts.PathSegment = u
+		u.Which = proto.CtrlPld_Which_pcb
+		u.PathSegment = u
 	case *ifid.IFID:
-		cts.Which = proto.CtrlPld_Which_ifid
-		cts.IfID = u
+		u.Which = proto.CtrlPld_Which_ifid
+		u.IfID = u
 	case *path_mgmt.Pld:
-		cts.Which = proto.CtrlPld_Which_pathMgmt
-		cts.PathMgmt = u
+		u.Which = proto.CtrlPld_Which_pathMgmt
+		u.PathMgmt = u
 	default:
 		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (cts *union) get() (proto.Cerealizable, error) {
-	switch cts.Which {
+func (u *union) get() (proto.Cerealizable, error) {
+	switch u.Which {
 	case proto.CtrlPld_Which_pcb:
-		return cts.PathSegment, nil
+		return u.PathSegment, nil
 	case proto.CtrlPld_Which_ifid:
-		return cts.IfID, nil
+		return u.IfID, nil
 	case proto.CtrlPld_Which_pathMgmt:
-		return cts.PathMgmt, nil
+		return u.PathMgmt, nil
 	}
-	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", cts.Which)
+	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
 }
 
 var _ common.Payload = (*Pld)(nil)
@@ -78,15 +78,15 @@ type Pld struct {
 }
 
 // NewPld creates a new control payload, containing the supplied Cerealizable instance.
-func NewPld(cts proto.Cerealizable) (*Pld, error) {
+func NewPld(u proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
-	return p, p.union.set(cts)
+	return p, p.union.set(u)
 }
 
 // NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
-func NewPathMgmtPld(cts proto.Cerealizable) (*Pld, error) {
-	ppld, err := path_mgmt.NewPld(cts)
+func NewPathMgmtPld(u proto.Cerealizable) (*Pld, error) {
+	ppld, err := path_mgmt.NewPld(u)
 	if err != nil {
 		return nil, err
 	}
@@ -131,11 +131,11 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 
 func (p *Pld) String() string {
 	desc := []string{"Ctrl: Union:"}
-	cts, err := p.Union()
+	u, err := p.Union()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {
-		desc = append(desc, fmt.Sprintf("%+v", cts))
+		desc = append(desc, fmt.Sprintf("%+v", u))
 	}
 	return strings.Join(desc, " ")
 }

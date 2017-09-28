@@ -36,53 +36,53 @@ type union struct {
 	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
 }
 
-func (cts *union) set(c proto.Cerealizable) error {
-	switch u := c.(type) {
+func (u *union) set(c proto.Cerealizable) error {
+	switch p := c.(type) {
 	case *SegReq:
-		cts.Which = proto.PathMgmt_Which_segReq
-		cts.SegReq = u
+		u.Which = proto.PathMgmt_Which_segReq
+		u.SegReq = p
 	case *SegReply:
-		cts.Which = proto.PathMgmt_Which_segReply
-		cts.SegReply = u
+		u.Which = proto.PathMgmt_Which_segReply
+		u.SegReply = p
 	case *SegReg:
-		cts.Which = proto.PathMgmt_Which_segReg
-		cts.SegReg = u
+		u.Which = proto.PathMgmt_Which_segReg
+		u.SegReg = p
 	case *SegSync:
-		cts.Which = proto.PathMgmt_Which_segSync
-		cts.SegSync = u
+		u.Which = proto.PathMgmt_Which_segSync
+		u.SegSync = p
 	case *RevInfo:
-		cts.Which = proto.PathMgmt_Which_revInfo
-		cts.RevInfo = u
+		u.Which = proto.PathMgmt_Which_revInfo
+		u.RevInfo = p
 	case *IFStateReq:
-		cts.Which = proto.PathMgmt_Which_ifStateReq
-		cts.IFStateReq = u
+		u.Which = proto.PathMgmt_Which_ifStateReq
+		u.IFStateReq = p
 	case *IFStateInfos:
-		cts.Which = proto.PathMgmt_Which_ifStateInfos
-		cts.IFStateInfos = u
+		u.Which = proto.PathMgmt_Which_ifStateInfos
+		u.IFStateInfos = p
 	default:
 		return common.NewCError("Unsupported path mgmt union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (cts *union) get() (proto.Cerealizable, error) {
-	switch cts.Which {
+func (u *union) get() (proto.Cerealizable, error) {
+	switch u.Which {
 	case proto.PathMgmt_Which_segReq:
-		return cts.SegReq, nil
+		return u.SegReq, nil
 	case proto.PathMgmt_Which_segReply:
-		return cts.SegReply, nil
+		return u.SegReply, nil
 	case proto.PathMgmt_Which_segReg:
-		return cts.SegReg, nil
+		return u.SegReg, nil
 	case proto.PathMgmt_Which_segSync:
-		return cts.SegSync, nil
+		return u.SegSync, nil
 	case proto.PathMgmt_Which_revInfo:
-		return cts.RevInfo, nil
+		return u.RevInfo, nil
 	case proto.PathMgmt_Which_ifStateReq:
-		return cts.IFStateReq, nil
+		return u.IFStateReq, nil
 	case proto.PathMgmt_Which_ifStateInfos:
-		return cts.IFStateInfos, nil
+		return u.IFStateInfos, nil
 	}
-	return nil, common.NewCError("Unsupported path mgmt union type (get)", "type", cts.Which)
+	return nil, common.NewCError("Unsupported path mgmt union type (get)", "type", u.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)
@@ -92,9 +92,9 @@ type Pld struct {
 }
 
 // NewPld creates a new path mgmt payload, containing the supplied Cerealizable instance.
-func NewPld(cts proto.Cerealizable) (*Pld, error) {
+func NewPld(u proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
-	return p, p.union.set(cts)
+	return p, p.union.set(u)
 }
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
@@ -107,11 +107,11 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 
 func (p *Pld) String() string {
 	desc := []string{"PathMgmt: Union:"}
-	cts, err := p.Union()
+	u, err := p.Union()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {
-		desc = append(desc, fmt.Sprintf("%+v", cts))
+		desc = append(desc, fmt.Sprintf("%+v", u))
 	}
 	return strings.Join(desc, " ")
 }
