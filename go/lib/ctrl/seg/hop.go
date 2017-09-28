@@ -23,10 +23,10 @@ import (
 
 type HopEntry struct {
 	RawInIA     uint32 `capnp:"inIA"`
-	InIF        uint64
+	RemoteInIF  uint64
 	InMTU       uint16 `capnp:"inMTU"`
 	RawOutIA    uint32 `capnp:"outIA"`
-	OutIF       uint64
+	RemoteOutIF uint64
 	RawHopField []byte `capnp:"hof"`
 }
 

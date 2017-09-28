@@ -48,11 +48,11 @@ class PCBMarking(Cerealizable):
     VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
-    def from_values(cls, in_ia, in_ifid, in_mtu, out_ia, out_ifid,
+    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid,
                     hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
-            inIA=int(in_ia), inIF=in_ifid, inMTU=in_mtu,
-            outIA=int(out_ia), outIF=out_ifid, hof=hof.pack()))
+            inIA=int(in_ia), remoteInIF=remote_in_ifid, inMTU=in_mtu,
+            outIA=int(out_ia), remoteOutIF=remote_out_ifid, hof=hof.pack()))
 
     def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
@@ -71,18 +71,18 @@ class PCBMarking(Cerealizable):
         if self.VER != 5:
             raise SCIONSigVerError("PCBMarking.sig_pack5 cannot support version %s", self.VER)
         b.append(self.p.inIA.to_bytes(4, 'big'))
-        b.append(self.p.inIF.to_bytes(8, 'big'))
+        b.append(self.p.remoteInIF.to_bytes(8, 'big'))
         b.append(self.p.inMTU.to_bytes(2, 'big'))
         b.append(self.p.outIA.to_bytes(4, 'big'))
-        b.append(self.p.outIF.to_bytes(8, 'big'))
+        b.append(self.p.remoteOutIF.to_bytes(8, 'big'))
         b.append(self.p.hof)
         return b"".join(b)
 
     def short_desc(self):
         s = []
         s.append("From: %s (IF: %s) To: %s (IF: %s) Ingress MTU:%s" %
-                 (self.inIA(), self.p.inIF, self.outIA(),
-                  self.p.outIF, self.p.inMTU))
+                 (self.inIA(), self.p.remoteInIF, self.outIA(),
+                  self.p.remoteOutIF, self.p.inMTU))
         s.append("  %s" % self.hof())
         return "\n".join(s)
 

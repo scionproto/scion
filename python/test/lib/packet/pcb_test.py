@@ -33,10 +33,10 @@ _ISD_AS1_BYTES = _ISD_AS1.to_bytes(4, 'big')
 _ISD_AS2_BYTES = _ISD_AS2.to_bytes(4, 'big')
 
 
-def mk_pcbm_p(inIF=22):
+def mk_pcbm_p(remoteInIF=22):
     return create_mock_full({
-        "inIA": _ISD_AS1, "inIF": inIF, "inMTU": 4000, "outIA": _ISD_AS2,
-        "outIF": 33, "hof": b"hof"},
+        "inIA": _ISD_AS1, "remoteInIF": remoteInIF, "inMTU": 4000, "outIA": _ISD_AS2,
+        "remoteOutIF": 33, "hof": b"hof"},
         class_=PCBMarking)
 
 

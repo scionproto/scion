@@ -84,14 +84,19 @@ func (ps *PathSegment) String() string {
 	desc = append(desc, info.Timestamp().UTC().Format(common.TimeFmt))
 	hops_desc := []string{}
 	for _, as := range ps.ASEntries {
-		hop := as.HopEntries[0]
+		hop_entry := as.HopEntries[0]
+		hop, err := hop_entry.HopField()
+		if err != nil {
+			hops_desc = append(hops_desc, err.Error())
+			continue
+		}
 		hop_desc := []string{}
-		if hop.InIF > 0 {
-			hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.InIF))
+		if hop.Ingress > 0 {
+			hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.Ingress))
 		}
 		hop_desc = append(hop_desc, as.IA().String())
-		if hop.OutIF > 0 {
-			hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.OutIF))
+		if hop.Egress > 0 {
+			hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.Egress))
 		}
 		hops_desc = append(hops_desc, strings.Join(hop_desc, ""))
 	}
