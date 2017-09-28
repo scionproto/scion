@@ -6,7 +6,7 @@ all: clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
-	if type -P go >/dev/null; then cd go && $(MAKE) clean; fi
+	cd go && $(MAKE) clean
 	rm -f tags
 
 go: libscion
