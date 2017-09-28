@@ -17,7 +17,7 @@ import (
 var RootTypes = []string{
 	"PathSegment",
 	"RevInfo",
-	"SCION",
+	"CtrlPld",
 	"SCIONDMsg",
 }
 

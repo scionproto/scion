@@ -24,8 +24,8 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-// union0 represents the contents of the capnp union that starts at field @0.
-type union0 struct {
+// contents represents the contents of the unnamed capnp union.
+type contents struct {
 	Which        proto.PathMgmt_Which
 	SegReq       *SegReq
 	SegReply     *SegReply
@@ -36,69 +36,69 @@ type union0 struct {
 	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
 }
 
-func (u0 *union0) set(c proto.Cerealizable) error {
+func (cts *contents) set(c proto.Cerealizable) error {
 	switch u := c.(type) {
 	case *SegReq:
-		u0.Which = proto.PathMgmt_Which_segReq
-		u0.SegReq = u
+		cts.Which = proto.PathMgmt_Which_segReq
+		cts.SegReq = u
 	case *SegReply:
-		u0.Which = proto.PathMgmt_Which_segReply
-		u0.SegReply = u
+		cts.Which = proto.PathMgmt_Which_segReply
+		cts.SegReply = u
 	case *SegReg:
-		u0.Which = proto.PathMgmt_Which_segReg
-		u0.SegReg = u
+		cts.Which = proto.PathMgmt_Which_segReg
+		cts.SegReg = u
 	case *SegSync:
-		u0.Which = proto.PathMgmt_Which_segSync
-		u0.SegSync = u
+		cts.Which = proto.PathMgmt_Which_segSync
+		cts.SegSync = u
 	case *RevInfo:
-		u0.Which = proto.PathMgmt_Which_revInfo
-		u0.RevInfo = u
+		cts.Which = proto.PathMgmt_Which_revInfo
+		cts.RevInfo = u
 	case *IFStateReq:
-		u0.Which = proto.PathMgmt_Which_ifStateReq
-		u0.IFStateReq = u
+		cts.Which = proto.PathMgmt_Which_ifStateReq
+		cts.IFStateReq = u
 	case *IFStateInfos:
-		u0.Which = proto.PathMgmt_Which_ifStateInfos
-		u0.IFStateInfos = u
+		cts.Which = proto.PathMgmt_Which_ifStateInfos
+		cts.IFStateInfos = u
 	default:
-		return common.NewCError("Unsupported path mgmt union0 type (set)", "type", common.TypeOf(c))
+		return common.NewCError("Unsupported path mgmt contents type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (u0 *union0) get() (proto.Cerealizable, error) {
-	switch u0.Which {
+func (cts *contents) get() (proto.Cerealizable, error) {
+	switch cts.Which {
 	case proto.PathMgmt_Which_segReq:
-		return u0.SegReq, nil
+		return cts.SegReq, nil
 	case proto.PathMgmt_Which_segReply:
-		return u0.SegReply, nil
+		return cts.SegReply, nil
 	case proto.PathMgmt_Which_segReg:
-		return u0.SegReg, nil
+		return cts.SegReg, nil
 	case proto.PathMgmt_Which_segSync:
-		return u0.SegSync, nil
+		return cts.SegSync, nil
 	case proto.PathMgmt_Which_revInfo:
-		return u0.RevInfo, nil
+		return cts.RevInfo, nil
 	case proto.PathMgmt_Which_ifStateReq:
-		return u0.IFStateReq, nil
+		return cts.IFStateReq, nil
 	case proto.PathMgmt_Which_ifStateInfos:
-		return u0.IFStateInfos, nil
+		return cts.IFStateInfos, nil
 	}
-	return nil, common.NewCError("Unsupported path mgmt union0 type (get)", "type", u0.Which)
+	return nil, common.NewCError("Unsupported path mgmt contents type (get)", "type", cts.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
-	union0
+	contents
 }
 
 // NewPld creates a new path mgmt payload, containing the supplied Cerealizable instance.
-func NewPld(u0 proto.Cerealizable) (*Pld, error) {
+func NewPld(cts proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
-	return p, p.union0.set(u0)
+	return p, p.contents.set(cts)
 }
 
-func (p *Pld) Union0() (proto.Cerealizable, error) {
-	return p.union0.get()
+func (p *Pld) Contents() (proto.Cerealizable, error) {
+	return p.contents.get()
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {
@@ -106,12 +106,12 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 }
 
 func (p *Pld) String() string {
-	desc := []string{"PathMgmt: Union0:"}
-	u0, err := p.Union0()
+	desc := []string{"PathMgmt: Contents:"}
+	cts, err := p.Contents()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {
-		desc = append(desc, fmt.Sprintf("%+v", u0))
+		desc = append(desc, fmt.Sprintf("%+v", cts))
 	}
 	return strings.Join(desc, " ")
 }
