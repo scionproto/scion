@@ -140,17 +140,17 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	// Determine the type of SCION control payload.
-	u0, err := cpld.Union0()
+	u, err := cpld.Union()
 	if err != nil {
 		return HookError, err
 	}
-	switch u0 := u0.(type) {
+	switch pld := u.(type) {
 	case *ifid.IFID:
-		return rp.processIFID(u0)
+		return rp.processIFID(pld)
 	case *path_mgmt.Pld:
-		return rp.processPathMgmtSelf(u0)
+		return rp.processPathMgmtSelf(pld)
 	default:
-		rp.Error("Unsupported destination payload", "type", common.TypeOf(u0))
+		rp.Error("Unsupported destination payload", "type", common.TypeOf(pld))
 		return HookError, nil
 	}
 }
@@ -192,16 +192,16 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 
 // processPathMgmtSelf handles Path Management SCION control messages.
 func (rp *RtrPkt) processPathMgmtSelf(p *path_mgmt.Pld) (HookResult, error) {
-	u0, err := p.Union0()
+	u, err := p.Union()
 	if err != nil {
 		return HookError, err
 	}
-	switch u0 := u0.(type) {
+	switch pld := u.(type) {
 	case *path_mgmt.IFStateInfos:
-		ifstate.Process(u0)
+		ifstate.Process(pld)
 	default:
 		return HookError, common.NewCError("Unsupported destination PathMgmt payload",
-			"type", common.TypeOf(u0))
+			"type", common.TypeOf(pld))
 	}
 	return HookFinish, nil
 }

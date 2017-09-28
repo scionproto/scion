@@ -548,8 +548,8 @@ class SCIONElement(object):
         :type rep: TRCReply.
         """
         meta.close()
-        cmgt = cpld.contents
-        rep = cmgt.contents
+        cmgt = cpld.union
+        rep = cmgt.union
         assert isinstance(rep, TRCReply), type(rep)
         isd, ver = rep.trc.get_isd_ver()
         logging.info("TRC reply received for %sv%s from %s" % (isd, ver, meta))
@@ -586,8 +586,8 @@ class SCIONElement(object):
 
     def process_trc_request(self, cpld, meta):
         """Process a TRC request."""
-        cmgt = cpld.contents
-        req = cmgt.contents
+        cmgt = cpld.union
+        req = cmgt.union
         assert isinstance(req, TRCRequest), type(req)
         isd, ver = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s from %s" % (isd, ver, meta))
@@ -599,8 +599,8 @@ class SCIONElement(object):
 
     def process_cert_chain_reply(self, cpld, meta):
         """Process a certificate chain reply."""
-        cmgt = cpld.contents
-        rep = cmgt.contents
+        cmgt = cpld.union
+        rep = cmgt.union
         assert isinstance(rep, CertChainReply), type(rep)
         meta.close()
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
@@ -634,8 +634,8 @@ class SCIONElement(object):
 
     def process_cert_chain_request(self, cpld, meta):
         """Process a certificate chain request."""
-        cmgt = cpld.contents
-        req = cmgt.contents
+        cmgt = cpld.union
+        req = cmgt.union
         assert isinstance(req, CertChainRequest), type(req)
         isd_as, ver = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s from %s" % (isd_as, ver, meta))

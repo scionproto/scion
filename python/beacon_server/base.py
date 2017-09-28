@@ -273,7 +273,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handles pcbs received from the network.
         """
-        pcb = cpld.contents
+        pcb = cpld.union
         assert isinstance(pcb, PathSegment), type(pcb)
         if meta:
             pcb.p.ifID = meta.path.get_hof().ingress_if
@@ -407,7 +407,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param pld: The IFIDPayload.
         :type pld: IFIDPayload
         """
-        pld = cpld.contents
+        pld = cpld.union
         assert isinstance(pld, IFIDPayload), type(pld)
         ifid = pld.p.relayIF
         with self.ifid_state_lock:
@@ -623,8 +623,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._process_revocation(rev_info)
 
     def _handle_revocation(self, cpld, meta):
-        pmgt = cpld.contents
-        rev_info = pmgt.contents
+        pmgt = cpld.union
+        rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation via TCP/UDP: %s (from %s)", rev_info.short_desc(), meta)
         if not self._validate_revocation(rev_info):
@@ -730,8 +730,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_ifstate_request(self, cpld, meta):
         # Only master replies to ifstate requests.
-        pmgt = cpld.contents
-        req = pmgt.contents
+        pmgt = cpld.union
+        req = pmgt.union
         assert isinstance(req, IFStateRequest), type(req)
         if not self.zk.have_lock():
             return

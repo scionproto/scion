@@ -46,8 +46,8 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         SCIONDServiceInfoReply: SCIONDMsgType.SERVICE_REPLY,
     }
 
-    def __init__(self, contents, id):
-        super().__init__(contents)
+    def __init__(self, union, id):
+        super().__init__(union)
         self.id = id
 
     @classmethod
@@ -59,12 +59,12 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         return cls.from_proto(p)
 
     @classmethod
-    def _from_contents(cls, p, contents):  # pragma: no cover
-        return cls(contents, p.id)
+    def _from_union(cls, p, union):  # pragma: no cover
+        return cls(union, p.id)
 
     def proto(self):
         field = self.type()
-        return self.P_CLS.new_message(**{"id": self.id, field: self.contents.proto()})
+        return self.P_CLS.new_message(**{"id": self.id, field: self.union.proto()})
 
     def __str__(self):
-        return "%s(%dB): id=%s %s" % (self.NAME, len(self), self.id, self.contents)
+        return "%s(%dB): id=%s %s" % (self.NAME, len(self), self.id, self.union)

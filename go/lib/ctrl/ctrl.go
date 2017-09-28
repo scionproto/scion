@@ -29,9 +29,9 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-// union0 represents the contents of the capnp union that starts at field @0.
-type union0 struct {
-	Which       proto.SCION_Which
+// union represents the contents of the unnamed capnp union.
+type union struct {
+	Which       proto.CtrlPld_Which
 	PathSegment *seg.PathSegment `capnp:"pcb"`
 	IfID        *ifid.IFID       `capnp:"ifid"`
 	CertMgmt    []byte           `capnp:"-"` // Omit for now
@@ -41,52 +41,52 @@ type union0 struct {
 	Sig         []byte `capnp:"-"` // Omit for now
 }
 
-func (u0 *union0) set(c proto.Cerealizable) error {
-	switch u := c.(type) {
+func (u *union) set(c proto.Cerealizable) error {
+	switch p := c.(type) {
 	case *seg.PathSegment:
-		u0.Which = proto.SCION_Which_pcb
-		u0.PathSegment = u
+		u.Which = proto.CtrlPld_Which_pcb
+		u.PathSegment = p
 	case *ifid.IFID:
-		u0.Which = proto.SCION_Which_ifid
-		u0.IfID = u
+		u.Which = proto.CtrlPld_Which_ifid
+		u.IfID = p
 	case *path_mgmt.Pld:
-		u0.Which = proto.SCION_Which_pathMgmt
-		u0.PathMgmt = u
+		u.Which = proto.CtrlPld_Which_pathMgmt
+		u.PathMgmt = p
 	default:
-		return common.NewCError("Unsupported ctrl union0 type (set)", "type", common.TypeOf(c))
+		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (u0 *union0) get() (proto.Cerealizable, error) {
-	switch u0.Which {
-	case proto.SCION_Which_pcb:
-		return u0.PathSegment, nil
-	case proto.SCION_Which_ifid:
-		return u0.IfID, nil
-	case proto.SCION_Which_pathMgmt:
-		return u0.PathMgmt, nil
+func (u *union) get() (proto.Cerealizable, error) {
+	switch u.Which {
+	case proto.CtrlPld_Which_pcb:
+		return u.PathSegment, nil
+	case proto.CtrlPld_Which_ifid:
+		return u.IfID, nil
+	case proto.CtrlPld_Which_pathMgmt:
+		return u.PathMgmt, nil
 	}
-	return nil, common.NewCError("Unsupported ctrl union0 type (get)", "type", u0.Which)
+	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
 }
 
 var _ common.Payload = (*Pld)(nil)
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
-	union0
+	union
 }
 
 // NewPld creates a new control payload, containing the supplied Cerealizable instance.
-func NewPld(u0 proto.Cerealizable) (*Pld, error) {
+func NewPld(u proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
-	return p, p.union0.set(u0)
+	return p, p.union.set(u)
 }
 
 // NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
-func NewPathMgmtPld(u0 proto.Cerealizable) (*Pld, error) {
-	ppld, err := path_mgmt.NewPld(u0)
+func NewPathMgmtPld(u proto.Cerealizable) (*Pld, error) {
+	ppld, err := path_mgmt.NewPld(u)
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +100,11 @@ func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 		return nil, common.NewCError("Invalid ctrl payload length",
 			"expected", n+4, "actual", len(b))
 	}
-	return p, proto.ParseFromRaw(p, proto.SCION_TypeID, b[4:])
+	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b[4:])
 }
 
-func (p *Pld) Union0() (proto.Cerealizable, error) {
-	return p.union0.get()
+func (p *Pld) Union() (proto.Cerealizable, error) {
+	return p.union.get()
 }
 
 func (p *Pld) Len() int {
@@ -126,16 +126,16 @@ func (p *Pld) WritePld(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {
-	return proto.SCION_TypeID
+	return proto.CtrlPld_TypeID
 }
 
 func (p *Pld) String() string {
-	desc := []string{"Ctrl: Union0:"}
-	u0, err := p.Union0()
+	desc := []string{"Ctrl: Union:"}
+	u, err := p.Union()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {
-		desc = append(desc, fmt.Sprintf("%+v", u0))
+		desc = append(desc, fmt.Sprintf("%+v", u))
 	}
 	return strings.Join(desc, " ")
 }

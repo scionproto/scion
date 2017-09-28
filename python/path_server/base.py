@@ -225,8 +225,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         :param IFStatePayload infos: The state info objects.
         """
-        pmgt = cpld.contents
-        infos = pmgt.contents
+        pmgt = cpld.union
+        infos = pmgt.union
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
@@ -242,8 +242,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         :param rev_info: The RevocationInfo object.
         """
-        pmgt = cpld.contents
-        rev_info = pmgt.contents
+        pmgt = cpld.union
+        rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         if not self._validate_revocation(rev_info):
             return
@@ -372,8 +372,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Handles paths received from the network.
         """
-        pmgt = cpld.contents
-        seg_recs = pmgt.contents
+        pmgt = cpld.union
+        seg_recs = pmgt.union
         assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.

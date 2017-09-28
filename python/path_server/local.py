@@ -71,8 +71,8 @@ class LocalPathServer(PathServer):
         """
         Handle generic type of a path request.
         """
-        pmgt = cpld.contents
-        req = pmgt.contents
+        pmgt = cpld.union
+        req = pmgt.union
         assert isinstance(req, PathSegmentReq), type(req)
         # Random ID for a request.
         req_id = req_id or random.randint(0, 2**32 - 1)

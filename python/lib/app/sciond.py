@@ -251,7 +251,7 @@ class SCIONDConnector:
         if response.id != expected_id:
             raise SCIONDResponseError("Wrong response ID: %d (expected %d)" %
                                       (response.id, expected_id))
-        return response.contents
+        return response.union
 
     @staticmethod
     def _try_cache(cache, key_list):
