@@ -21,8 +21,8 @@ that needs to be nested inside a SCION control message. For example:
 	// Parse new ctrl message from bytes.
 	cpld2, _ := ParseFromRaw(b)
 	// Access the first union.
-	u0, _ := cpld2.Union0()
+	cont, _ := cpld2.Contents()
 	// Interface-assertion to IFID type.
-	ifid2 := u0.(*ifid.IFID)
+	ifid2 := cont.(*ifid.IFID)
 */
 package proto

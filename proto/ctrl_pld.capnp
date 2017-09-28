@@ -11,7 +11,7 @@ using SIBRA = import "sibra.capnp";
 using DRKeyMgmt = import "drkey_mgmt.capnp";
 using SIG = import "sig.capnp";
 
-struct SCION {
+struct CtrlPld {
     union {
         unset @0 :Void;
         pcb @1 :PCB.PathSegment;

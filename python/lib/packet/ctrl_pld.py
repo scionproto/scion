@@ -22,7 +22,7 @@ import struct
 import capnp
 
 # SCION
-import proto.scion_capnp as P
+import proto.ctrl_pld_capnp as P
 from lib.drkey.drkey_mgmt import DRKeyMgmt
 from lib.errors import SCIONParseError
 from lib.packet.cert_mgmt import CertMgmt
@@ -37,7 +37,7 @@ from lib.util import Raw
 
 class CtrlPayload(CerealBox):
     NAME = "CtrlPayload"
-    P_CLS = P.SCION
+    P_CLS = P.CtrlPld
     CLASS_FIELD_MAP = {
         PathSegment: PayloadClass.PCB,
         IFIDPayload: PayloadClass.IFID,
