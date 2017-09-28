@@ -517,9 +517,9 @@ class TestPathCombinatorFindPeerHfs(object):
         ]
         return up_pcbms, down_pcbms
 
-    def _mk_pcbm(self, inIA, inIF, hof_ingress, mtu):
+    def _mk_pcbm(self, inIA, remoteInIF, hof_ingress, mtu):
         hof = create_mock_full({"ingress_if": hof_ingress})
-        p = create_mock_full({"inIF": inIF, "inMTU": mtu})
+        p = create_mock_full({"remoteInIF": remoteInIF, "inMTU": mtu})
         return create_mock_full({"inIA()": inIA, "p": p, "hof()": hof})
 
     def test(self):

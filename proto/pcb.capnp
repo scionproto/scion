@@ -8,10 +8,10 @@ using Exts = import "asm_exts.capnp";
 
 struct PCBMarking {
     inIA @0 :UInt32;  # Ingress (incl peer) ISD-AS
-    inIF @1 :UInt64; # Interface ID on far end of ingress link
+    remoteInIF @1 :UInt64; # Interface ID on far end of ingress link
     inMTU @2 :UInt16;  # Ingress Link MTU
     outIA @3 :UInt32;  # Downstream ISD-AS
-    outIF @4 :UInt64; # Interface ID on far end of egress link
+    remoteOutIF @4 :UInt64; # Interface ID on far end of egress link
     hof @5 :Data;
 }
 

@@ -349,8 +349,8 @@ def _find_peer_hfs(up_asm, down_asm, peer_revs):
         for down_peer in down_asm.iter_pcbms(1):
             down_hof = down_peer.hof()
             if (up_peer.inIA() == down_ia and down_peer.inIA() == up_ia and
-                    up_peer.p.inIF == down_hof.ingress_if and
-                    up_hof.ingress_if == down_peer.p.inIF):
+                    up_peer.p.remoteInIF == down_hof.ingress_if and
+                    up_hof.ingress_if == down_peer.p.remoteInIF):
                 # Check that there is no valid revocation for the peering
                 # interface.
                 up_rev = peer_revs.get((up_ia, up_hof.ingress_if))

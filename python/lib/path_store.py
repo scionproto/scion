@@ -124,9 +124,9 @@ class PathPolicy(object):
         """
         for asm in pcb.iter_asms():
             for pcbm in asm.iter_pcbms():
-                if pcbm.inIA().int() and not pcbm.p.inIF:
+                if pcbm.inIA().int() and not pcbm.p.remoteInIF:
                     return pcbm.inIA()
-                if pcbm.outIA().int() and not pcbm.p.outIF:
+                if pcbm.outIA().int() and not pcbm.p.remoteOutIF:
                     return pcbm.outIA()
         return None
 
