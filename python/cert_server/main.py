@@ -237,8 +237,8 @@ class CertServer(SCIONElement):
 
     def process_cert_chain_request(self, cpld, meta):
         """Process a certificate chain request."""
-        cmgt = cpld.contents
-        req = cmgt.contents
+        cmgt = cpld.union
+        req = cmgt.union
         assert isinstance(req, CertChainRequest), type(req)
         key = req.isd_as(), req.p.version
         logging.info("Cert chain request received for %sv%s from %s", *key, meta)
@@ -257,8 +257,8 @@ class CertServer(SCIONElement):
 
     def process_cert_chain_reply(self, cpld, meta, from_zk=False):
         """Process a certificate chain reply."""
-        cmgt = cpld.contents
-        rep = cmgt.contents
+        cmgt = cpld.union
+        rep = cmgt.union
         assert isinstance(rep, CertChainReply), type(rep)
         ia_ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s (ZK: %s)" %
@@ -304,8 +304,8 @@ class CertServer(SCIONElement):
 
     def process_trc_request(self, cpld, meta):
         """Process a TRC request."""
-        cmgt = cpld.contents
-        req = cmgt.contents
+        cmgt = cpld.union
+        req = cmgt.union
         assert isinstance(req, TRCRequest), type(req)
         key = req.isd_as()[0], req.p.version
         logging.info("TRC request received for %sv%s from %s", *key, meta)
@@ -329,8 +329,8 @@ class CertServer(SCIONElement):
         :param trc_rep: TRC reply.
         :type trc_rep: TRCReply
         """
-        cmgt = cpld.contents
-        trc_rep = cmgt.contents
+        cmgt = cpld.union
+        trc_rep = cmgt.union
         assert isinstance(trc_rep, TRCReply), type(trc_rep)
         isd, ver = trc_rep.trc.get_isd_ver()
         logging.info("TRCReply received for ISD %sv%s, ZK: %s",
@@ -381,8 +381,8 @@ class CertServer(SCIONElement):
         :param DRKeyRequest req: the DRKey request
         :param UDPMetadata meta: the metadata
         """
-        dpld = cpld.contents
-        req = dpld.contents
+        dpld = cpld.union
+        req = dpld.union
         assert isinstance(req, DRKeyRequest), type(req)
         logging.info("DRKeyRequest received from %s: %s", meta, req.short_desc())
         REQS_TOTAL.labels(**self._labels, type="drkey").inc()
@@ -442,8 +442,8 @@ class CertServer(SCIONElement):
         :param UDPMetadata meta: the metadata
         :param Bool from_zk: if the reply has been received from Zookeeper
         """
-        dpld = cpld.contents
-        rep = dpld.contents
+        dpld = cpld.union
+        rep = dpld.union
         assert isinstance(rep, DRKeyReply), type(rep)
         logging.info("DRKeyReply received from %s: %s", meta, rep.short_desc())
         src = meta or "ZK"

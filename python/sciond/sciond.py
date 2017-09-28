@@ -178,8 +178,8 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
-        pmgt = cpld.contents
-        path_reply = pmgt.contents
+        pmgt = cpld.union
+        path_reply = pmgt.union
         assert isinstance(path_reply, PathSegmentRecords), type(path_reply)
         for rev_info in path_reply.iter_rev_infos():
             self.peer_revs.add(rev_info)
@@ -259,7 +259,7 @@ class SCIONDaemon(SCIONElement):
                 "API: type %s not supported.", TypeBase.to_str(mtype))
 
     def _api_handle_path_request(self, pld, meta):
-        request = pld.contents
+        request = pld.union
         assert isinstance(request, SCIONDPathRequest), type(request)
         req_id = pld.id
         if request.p.flags.sibra:
@@ -302,7 +302,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(path_reply.pack(), meta)
 
     def _api_handle_as_request(self, pld, meta):
-        request = pld.contents
+        request = pld.union
         assert isinstance(request, SCIONDASInfoRequest), type(request)
         remote_as = request.isd_as()
         if remote_as:
@@ -315,7 +315,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(as_reply.pack(), meta)
 
     def _api_handle_if_request(self, pld, meta):
-        request = pld.contents
+        request = pld.union
         assert isinstance(request, SCIONDIFInfoRequest), type(request)
         all_brs = request.all_brs()
         if_list = []
@@ -333,7 +333,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(if_reply.pack(), meta)
 
     def _api_handle_service_request(self, pld, meta):
-        request = pld.contents
+        request = pld.union
         assert isinstance(request, SCIONDServiceInfoRequest), type(request)
         all_svcs = request.all_services()
         svc_list = []
@@ -353,7 +353,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(svc_reply.pack(), meta)
 
     def _api_handle_rev_notification(self, pld, meta):
-        request = pld.contents
+        request = pld.union
         assert isinstance(request, SCIONDRevNotification), type(request)
         status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
@@ -364,8 +364,8 @@ class SCIONDaemon(SCIONElement):
         self.handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
 
     def handle_revocation(self, cpld, meta):
-        pmgt = cpld.contents
-        rev_info = pmgt.contents
+        pmgt = cpld.union
+        rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         if not self._validate_revocation(rev_info):
             return SCIONDRevReplyStatus.INVALID

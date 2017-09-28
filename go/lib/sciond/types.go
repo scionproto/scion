@@ -75,8 +75,8 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 }
 
 func (p *Pld) String() string {
-	desc := []string{fmt.Sprintf("Sciond: Id: %d Contents: ", p.Id)}
-	u1, err := p.contents()
+	desc := []string{fmt.Sprintf("Sciond: Id: %d Union: ", p.Id)}
+	u1, err := p.union()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {
@@ -85,7 +85,7 @@ func (p *Pld) String() string {
 	return strings.Join(desc, "")
 }
 
-func (p *Pld) contents() (interface{}, error) {
+func (p *Pld) union() (interface{}, error) {
 	switch p.Which {
 	case proto.SCIONDMsg_Which_pathReq:
 		return p.PathReq, nil
@@ -108,7 +108,7 @@ func (p *Pld) contents() (interface{}, error) {
 	case proto.SCIONDMsg_Which_serviceInfoReply:
 		return p.ServiceInfoReply, nil
 	}
-	return nil, common.NewCError("Unsupported SCIOND contents type", "type", p.Which)
+	return nil, common.NewCError("Unsupported SCIOND union type", "type", p.Which)
 }
 
 type PathReq struct {

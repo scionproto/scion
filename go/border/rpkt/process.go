@@ -140,7 +140,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 			"pldType", fmt.Sprintf("%T", rp.pld), "pld", rp.pld)
 	}
 	// Determine the type of SCION control payload.
-	cts, err := cpld.Contents()
+	cts, err := cpld.Union()
 	if err != nil {
 		return HookError, err
 	}
@@ -192,7 +192,7 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 
 // processPathMgmtSelf handles Path Management SCION control messages.
 func (rp *RtrPkt) processPathMgmtSelf(p *path_mgmt.Pld) (HookResult, error) {
-	cts, err := p.Contents()
+	cts, err := p.Union()
 	if err != nil {
 		return HookError, err
 	}

@@ -69,8 +69,8 @@ class TestCertClient(TestClientBase):
 
     def _handle_response(self, spkt):
         cpld = spkt.parse_payload()
-        cmgt = cpld.contents
-        pld = cmgt.contents
+        cmgt = cpld.union
+        pld = cmgt.union
         logging.debug("Got:\n%s", spkt)
         if not self.cert_done:
             if (self.dst_ia, 0 == pld.chain.get_leaf_isd_as_ver()):

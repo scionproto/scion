@@ -24,8 +24,8 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-// contents represents the contents of the unnamed capnp union.
-type contents struct {
+// union represents the contents of the unnamed capnp union.
+type union struct {
 	Which        proto.PathMgmt_Which
 	SegReq       *SegReq
 	SegReply     *SegReply
@@ -36,7 +36,7 @@ type contents struct {
 	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
 }
 
-func (cts *contents) set(c proto.Cerealizable) error {
+func (cts *union) set(c proto.Cerealizable) error {
 	switch u := c.(type) {
 	case *SegReq:
 		cts.Which = proto.PathMgmt_Which_segReq
@@ -60,12 +60,12 @@ func (cts *contents) set(c proto.Cerealizable) error {
 		cts.Which = proto.PathMgmt_Which_ifStateInfos
 		cts.IFStateInfos = u
 	default:
-		return common.NewCError("Unsupported path mgmt contents type (set)", "type", common.TypeOf(c))
+		return common.NewCError("Unsupported path mgmt union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (cts *contents) get() (proto.Cerealizable, error) {
+func (cts *union) get() (proto.Cerealizable, error) {
 	switch cts.Which {
 	case proto.PathMgmt_Which_segReq:
 		return cts.SegReq, nil
@@ -82,23 +82,23 @@ func (cts *contents) get() (proto.Cerealizable, error) {
 	case proto.PathMgmt_Which_ifStateInfos:
 		return cts.IFStateInfos, nil
 	}
-	return nil, common.NewCError("Unsupported path mgmt contents type (get)", "type", cts.Which)
+	return nil, common.NewCError("Unsupported path mgmt union type (get)", "type", cts.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
-	contents
+	union
 }
 
 // NewPld creates a new path mgmt payload, containing the supplied Cerealizable instance.
 func NewPld(cts proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
-	return p, p.contents.set(cts)
+	return p, p.union.set(cts)
 }
 
-func (p *Pld) Contents() (proto.Cerealizable, error) {
-	return p.contents.get()
+func (p *Pld) Union() (proto.Cerealizable, error) {
+	return p.union.get()
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {
@@ -106,8 +106,8 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 }
 
 func (p *Pld) String() string {
-	desc := []string{"PathMgmt: Contents:"}
-	cts, err := p.Contents()
+	desc := []string{"PathMgmt: Union:"}
+	cts, err := p.Union()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {

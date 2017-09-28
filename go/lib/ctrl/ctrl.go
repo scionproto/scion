@@ -29,8 +29,8 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-// contents represents the contents of the unnamed capnp union.
-type contents struct {
+// union represents the contents of the unnamed capnp union.
+type union struct {
 	Which       proto.CtrlPld_Which
 	PathSegment *seg.PathSegment `capnp:"pcb"`
 	IfID        *ifid.IFID       `capnp:"ifid"`
@@ -41,7 +41,7 @@ type contents struct {
 	Sig         []byte `capnp:"-"` // Omit for now
 }
 
-func (cts *contents) set(c proto.Cerealizable) error {
+func (cts *union) set(c proto.Cerealizable) error {
 	switch u := c.(type) {
 	case *seg.PathSegment:
 		cts.Which = proto.CtrlPld_Which_pcb
@@ -53,12 +53,12 @@ func (cts *contents) set(c proto.Cerealizable) error {
 		cts.Which = proto.CtrlPld_Which_pathMgmt
 		cts.PathMgmt = u
 	default:
-		return common.NewCError("Unsupported ctrl contents type (set)", "type", common.TypeOf(c))
+		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
 
-func (cts *contents) get() (proto.Cerealizable, error) {
+func (cts *union) get() (proto.Cerealizable, error) {
 	switch cts.Which {
 	case proto.CtrlPld_Which_pcb:
 		return cts.PathSegment, nil
@@ -67,20 +67,20 @@ func (cts *contents) get() (proto.Cerealizable, error) {
 	case proto.CtrlPld_Which_pathMgmt:
 		return cts.PathMgmt, nil
 	}
-	return nil, common.NewCError("Unsupported ctrl contents type (get)", "type", cts.Which)
+	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", cts.Which)
 }
 
 var _ common.Payload = (*Pld)(nil)
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
-	contents
+	union
 }
 
 // NewPld creates a new control payload, containing the supplied Cerealizable instance.
 func NewPld(cts proto.Cerealizable) (*Pld, error) {
 	p := &Pld{}
-	return p, p.contents.set(cts)
+	return p, p.union.set(cts)
 }
 
 // NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
@@ -103,8 +103,8 @@ func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b[4:])
 }
 
-func (p *Pld) Contents() (proto.Cerealizable, error) {
-	return p.contents.get()
+func (p *Pld) Union() (proto.Cerealizable, error) {
+	return p.union.get()
 }
 
 func (p *Pld) Len() int {
@@ -130,8 +130,8 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 }
 
 func (p *Pld) String() string {
-	desc := []string{"Ctrl: Contents:"}
-	cts, err := p.Contents()
+	desc := []string{"Ctrl: Union:"}
+	cts, err := p.Union()
 	if err != nil {
 		desc = append(desc, err.Error())
 	} else {

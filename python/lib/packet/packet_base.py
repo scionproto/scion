@@ -187,8 +187,8 @@ class CerealBox(object, metaclass=ABCMeta):
 
     All child classes must define the NAME, P_CLS, and CLASS_FIELD_MAP attributes.
     """
-    def __init__(self, contents):
-        self.contents = contents
+    def __init__(self, union):
+        self.union = union
 
     @classmethod
     def from_proto(cls, p):  # pragma: no cover
@@ -200,55 +200,55 @@ class CerealBox(object, metaclass=ABCMeta):
         type_ = p.which()
         for cls_, field in cls.CLASS_FIELD_MAP.items():
             if type_ == field:
-                return cls._from_contents(p, cls_.from_proto(getattr(p, type_)))
+                return cls._from_union(p, cls_.from_proto(getattr(p, type_)))
         raise SCIONParseError("Unsupported %s proto type: %s" % (cls.NAME, type_))
 
     @classmethod
-    def _from_contents(cls, p, contents):  # pragma: no cover
+    def _from_union(cls, p, union):  # pragma: no cover
         """
         Internal constructor, overridden by sub-classes which have more fields than just a single
         unnamed union.
 
         p is passed in to be available to subclasses which override this.
         """
-        return cls(contents)
+        return cls(union)
 
     def proto(self):
         """
         Return the corresponding capnp object.
         """
-        return self.P_CLS.new_message(**{self.type(): self.contents.proto()})
+        return self.P_CLS.new_message(**{self.type(): self.union.proto()})
 
     def type(self):
         """
-        Return the type of the contents, represented by the union field name.
+        Return the type of the union, represented by the union field name.
         """
-        c = self.CLASS_FIELD_MAP.get(self.contents.__class__)
+        c = self.CLASS_FIELD_MAP.get(self.union.__class__)
         if c is not None:
             return c
         raise SCIONTypeError("Unsupported %s proto class %s (%s)" %
-                             (self.NAME, self.contents.__class__, type(self.contents)))
+                             (self.NAME, self.union.__class__, type(self.union)))
 
     def inner_type(self):
         """
         Return the type of the innermost Cerealizable object, represented by the union field name in
         the innermost CerealBox object.
         """
-        if isinstance(self.contents, CerealBox):
-            return self.contents.inner_type()
+        if isinstance(self.union, CerealBox):
+            return self.union.inner_type()
         return self.type()
 
     def pack(self):
         return self.proto().to_bytes_packed()
 
     def copy(self):
-        return self.__class__(self.contents.copy())
+        return self.__class__(self.union.copy())
 
     def __len__(self):
         return self.proto().total_size.word_count * 8
 
     def __str__(self):
-        return "%s(%dB): %s" % (self.NAME, len(self), self.contents)
+        return "%s(%dB): %s" % (self.NAME, len(self), self.union)
 
 
 class PayloadRaw(Serializable):  # pragma: no cover

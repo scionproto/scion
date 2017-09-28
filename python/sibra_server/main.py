@@ -145,8 +145,8 @@ class SibraServerBase(SCIONElement):
         determine which interface the segments use, then pass the segment to the
         appropriate Link.
         """
-        pmgt = cpld.contents
-        payload = pmgt.contents
+        pmgt = cpld.union
+        payload = pmgt.union
         assert isinstance(payload, PathRecordsReg), type(payload)
         meta.close()
         name = PST.to_str(self.PST_TYPE)
