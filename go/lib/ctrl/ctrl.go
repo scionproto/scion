@@ -42,16 +42,16 @@ type union struct {
 }
 
 func (u *union) set(c proto.Cerealizable) error {
-	switch u := c.(type) {
+	switch p := c.(type) {
 	case *seg.PathSegment:
 		u.Which = proto.CtrlPld_Which_pcb
-		u.PathSegment = u
+		u.PathSegment = p
 	case *ifid.IFID:
 		u.Which = proto.CtrlPld_Which_ifid
-		u.IfID = u
+		u.IfID = p
 	case *path_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_pathMgmt
-		u.PathMgmt = u
+		u.PathMgmt = p
 	default:
 		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
