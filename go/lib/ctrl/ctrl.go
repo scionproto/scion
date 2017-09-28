@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ctrl handles CtrlPld control-plane payloads, which are encoded as capnp proto messages.
+// Package ctrl handles SCION control-plane payloads, which are encoded as capnp proto messages.
 // Each ctrl payload has a 4B length field prefixed to the start of the capnp message.
 package ctrl
 
