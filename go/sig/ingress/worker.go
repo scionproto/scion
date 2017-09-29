@@ -142,12 +142,12 @@ func (w *Worker) cleanup() {
 }
 
 func send(packet common.RawBytes) error {
-	bytesWritten, err := internalIngress.Write(packet)
+	bytesWritten, err := tunIO.Write(packet)
 	if err != nil {
 		return common.NewCError("Unable to write to internal ingress", "err", err,
 			"length", len(packet))
 	}
-	metrics.PktsSent.WithLabelValues(internalIngressName).Inc()
-	metrics.PktBytesSent.WithLabelValues(internalIngressName).Add(float64(bytesWritten))
+	metrics.PktsSent.WithLabelValues(tunIOName).Inc()
+	metrics.PktBytesSent.WithLabelValues(tunIOName).Add(float64(bytesWritten))
 	return nil
 }

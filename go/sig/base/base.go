@@ -16,132 +16,57 @@
 package base
 
 import (
-	"net"
 	"sync"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/snet"
+	log "github.com/inconshreveable/log15"
+
+	"github.com/netsec-ethz/scion/go/lib/addr"
 )
 
-var (
-	lock           sync.RWMutex
-	remoteASes     *asMap
-	localCtrlAddr  *snet.Addr
-	localEncapAddr *snet.Addr
-)
+var Table = newASTable()
 
-func Init(ctrlAddr, encapAddr *snet.Addr) error {
-	localCtrlAddr = ctrlAddr
-	localEncapAddr = encapAddr
-	remoteASes = newASMap()
-	return nil
+type ASTable struct {
+	// FIXME(kormat): when we switch to go 1.9, consider replacing this with sync.Map.
+	sync.RWMutex
+	t map[addr.IAInt]*ASEntry
 }
 
-func AddRoute(prefix string, isdas string) error {
-	lock.RLock()
-	defer lock.RUnlock()
+func newASTable() *ASTable {
+	return &ASTable{t: make(map[addr.IAInt]*ASEntry)}
+}
 
-	_, subnet, err := net.ParseCIDR(prefix)
-	if err != nil {
-		return err
+// Add IA entry, true if added
+func (at *ASTable) AddIA(ia *addr.ISD_AS) (bool, error) {
+	at.Lock()
+	defer at.Unlock()
+	key := ia.IAInt()
+	_, ok := at.t[key]
+	if ok {
+		return false, nil
 	}
+	at.t[key] = newASEntry(ia)
+	log.Debug("Added IA", "ia", ia)
+	return true, nil
+}
 
-	info, found := remoteASes.get(isdas)
-	if !found {
-		return common.NewCError("Unable to add prefix for unknown AS", "AS", isdas, "prefix", prefix)
+// Remove IA entry, true if removed
+func (at *ASTable) DelIA(ia *addr.ISD_AS) (bool, error) {
+	at.Lock()
+	key := ia.IAInt()
+	entry, ok := at.t[key]
+	if !ok {
+		at.Unlock()
+		return false, nil
 	}
-
-	return info.addRoute(subnet)
+	delete(at.t, key)
+	// Unlock before cleanup to reduce time spent holding this mutex.
+	at.Unlock()
+	log.Debug("Removed IA", "ia", ia)
+	return true, entry.Cleanup()
 }
 
-func DelRoute(prefix string, isdas string) error {
-	lock.RLock()
-	defer lock.RUnlock()
-
-	_, subnet, err := net.ParseCIDR(prefix)
-	if err != nil {
-		return err
-	}
-
-	// TODO delete from routing table
-	info, found := remoteASes.get(isdas)
-	if !found {
-		return common.NewCError("Unable to delete prefix from unreachable AS", "prefix",
-			prefix, "AS", isdas)
-	}
-	return info.delRoute(subnet)
-}
-
-func AddSig(isdas string, encapAddr string, encapPort string, ctrlAddr string, ctrlPort string, source string) error {
-	lock.Lock()
-	defer lock.Unlock()
-
-	var err error
-	if e, ok := remoteASes.get(isdas); ok {
-		return e.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
-	}
-
-	// Create tunnel interface for remote AS
-	info, err := newASInfo(isdas)
-	if err != nil {
-		return err
-	}
-	remoteASes.set(isdas, info)
-
-	// FIXME(scrye) channel for worker commands (to cancel goroutine when remote AS is removed)
-	ework := NewEgressWorker(info)
-	go ework.Run()
-	return info.addSig(encapAddr, encapPort, ctrlAddr, ctrlPort, source)
-}
-
-func DelSig(isdas string, address string, port string, source string) error {
-	lock.Lock()
-	defer lock.Unlock()
-
-	if e, found := remoteASes.get(isdas); found {
-		return e.delSig(address, port, source)
-	}
-	return common.NewCError("SIG entry not found", "address", address, "port", port)
-}
-
-func Print() string {
-	lock.RLock()
-	defer lock.RUnlock()
-	return remoteASes.print()
-}
-
-// asMap keeps track of which ASes have been defined
-type asMap struct {
-	info map[string]*asInfo
-	lock sync.RWMutex
-}
-
-func newASMap() *asMap {
-	topology := &asMap{}
-	topology.info = make(map[string]*asInfo)
-	return topology
-}
-
-func (t *asMap) get(key string) (*asInfo, bool) {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-	v, ok := t.info[key]
-	return v, ok
-}
-
-func (t *asMap) set(key string, value *asInfo) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	t.info[key] = value
-}
-
-func (t *asMap) print() string {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-	output := ""
-	for _, v := range t.info {
-		output += v.String()
-	}
-	return output
+func (at *ASTable) ASEntry(ia *addr.ISD_AS) *ASEntry {
+	at.RLock()
+	defer at.RUnlock()
+	return at.t[ia.IAInt()]
 }
