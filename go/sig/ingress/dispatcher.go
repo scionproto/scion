@@ -26,12 +26,13 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 const (
-	// internalIngressName is the name of the internal ingress tunnel interface.
-	internalIngressName = "scion.local"
+	// tunDevName is the name of the internal ingress tunnel interface.
+	tunDevName = "scion-local"
 	// workerCleanupInterval is the interval between worker cleanup rounds.
 	workerCleanupInterval = 60 * time.Second
 	// freeFramesCap is the number of preallocated Framebuf objects.
@@ -39,9 +40,9 @@ const (
 )
 
 var (
-	externalIngress *snet.Conn
-	internalIngress io.ReadWriteCloser
-	freeFrames      *ringbuf.Ring
+	extConn    *snet.Conn
+	tunIO      io.ReadWriteCloser
+	freeFrames *ringbuf.Ring
 )
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
@@ -52,27 +53,28 @@ type Dispatcher struct {
 	workers map[string]*Worker
 }
 
-func NewDispatcher(laddr *snet.Addr) *Dispatcher {
+func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "free", prometheus.Labels{"ringId": "freeFrames"})
-	return &Dispatcher{
-		laddr:   laddr,
+	d := &Dispatcher{
+		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
 	}
+	return d.Run()
 }
 
 func (d *Dispatcher) Run() error {
 	var err error
-	externalIngress, err = snet.ListenSCION("udp4", d.laddr)
+	extConn, err = snet.ListenSCION("udp4", d.laddr)
 	if err != nil {
-		return common.NewCError("Unable to initialize externalIngress", "err", err)
+		return common.NewCError("Unable to initialize extConn", "err", err)
 	}
-	internalIngress, err = xnet.ConnectTun(internalIngressName)
+	_, tunIO, err = xnet.ConnectTun(tunDevName)
 	if err != nil {
-		return common.NewCError("Unable to connect to internalIngress", "err", err)
+		return common.NewCError("Unable to connect to tunIO", "err", err)
 	}
-	go d.read()
+	d.read()
 	return nil
 }
 
@@ -83,7 +85,7 @@ func (d *Dispatcher) read() {
 		n, _ := freeFrames.Read(frames, true)
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
-			read, src, err := externalIngress.ReadFromSCION(frame.raw)
+			read, src, err := extConn.ReadFromSCION(frame.raw)
 			if err != nil {
 				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
 				frame.Release()

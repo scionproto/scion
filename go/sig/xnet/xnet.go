@@ -18,59 +18,58 @@ package xnet
 import (
 	"io"
 	"net"
-	"os/exec"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
+
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
-const SIGRTable = 11
-const SIGRPriority = 100
+const (
+	SIGRTable    = 11
+	SIGRPriority = 100
+	SIGTxQlen    = 1000
+)
 
 // ConnectTun creates (or opens) interface name, and then sets its state to up
-func ConnectTun(name string) (io.ReadWriteCloser, error) {
-	iface, err := water.New(water.Config{
+func ConnectTun(name string) (netlink.Link, io.ReadWriteCloser, error) {
+	tun, err := water.New(water.Config{
 		DeviceType:             water.TUN,
 		PlatformSpecificParams: water.PlatformSpecificParams{Name: name}})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	log.Debug("Created tun interface", "name", iface.Name())
-
-	link, err := netlink.LinkByName(name)
+	link, err := netlink.LinkByName(tun.Name())
 	if err != nil {
-		return nil, err
+		tun.Close()
+		// Should clean up the tun device, but if we can't find it...
+		return nil, nil, common.NewCError("Unable to find new TUN device",
+			"name", name, "err", err)
 	}
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		return nil, err
+		err = common.NewCError("Unable to set new TUN device Up", "name", name, "err", err)
+		goto Cleanup
 	}
-	cmd := exec.Command("ip", "link", "set", name, "qlen", "1000")
-	if err = cmd.Run(); err != nil {
-		return nil, err
+	err = netlink.LinkSetTxQLen(link, SIGTxQlen)
+	if err != nil {
+		err = common.NewCError("Unable to set Tx queue lenght on new TUN device",
+			"name", name, "err", err)
+		goto Cleanup
 	}
-	return iface, nil
+	return link, tun, nil
+Cleanup:
+	// Don't check for errors, as we're already handling one.
+	tun.Close()
+	netlink.LinkDel(link)
+	return nil, nil, err
 }
 
-// AddRouteIF adds a new route to destination through device ifname in the Linux Routing Table
-func AddRouteIF(destination *net.IPNet, bindIP net.IP, ifname string) error {
-	link, err := netlink.LinkByName(ifname)
-	if err != nil {
-		log.Error("Unable to get device", "name", ifname)
-		return err
+func NewRoute(link netlink.Link, dest *net.IPNet) *netlink.Route {
+	return &netlink.Route{
+		LinkIndex: link.Attrs().Index, Src: sigcmn.Host.IP(), Dst: dest,
+		Priority: SIGRPriority, Table: SIGRTable,
 	}
-
-	index := link.Attrs().Index
-
-	// NOTE: SCION injected routes have a metric of 100
-	route := netlink.Route{
-		LinkIndex: index, Src: bindIP, Dst: destination, Priority: SIGRPriority, Table: SIGRTable,
-	}
-	err = netlink.RouteAdd(&route)
-	if err != nil {
-		log.Error("Unable to add route", "route", route)
-		return err
-	}
-	return nil
 }

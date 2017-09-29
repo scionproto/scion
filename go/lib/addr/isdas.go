@@ -28,6 +28,8 @@ const (
 	MaxAS   = (1 << 20) - 1
 )
 
+type IAInt uint32
+
 type ISD_AS struct {
 	I int
 	A int
@@ -80,6 +82,10 @@ func (ia *ISD_AS) Write(b common.RawBytes) {
 
 func (ia *ISD_AS) IAInt() IAInt {
 	return IAInt((ia.I << 20) | (ia.A & 0x000FFFFF))
+}
+
+func (ia *ISD_AS) IAInt() IAInt {
+	return IAInt(ia.Uint32())
 }
 
 func (ia *ISD_AS) SizeOf() int {

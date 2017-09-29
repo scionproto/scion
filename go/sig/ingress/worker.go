@@ -64,7 +64,7 @@ func (w *Worker) Start() {
 
 func (w *Worker) Stop() {
 	if w.running {
-		log.Debug("IngressWorker stopping", "remote", w.Remote.String(), "session", w.Session)
+		log.Info("IngressWorker stopping", "remote", w.Remote.String(), "session", w.Session)
 		w.Ring.Close()
 		w.running = false
 	}
@@ -142,12 +142,12 @@ func (w *Worker) cleanup() {
 }
 
 func send(packet common.RawBytes) error {
-	bytesWritten, err := internalIngress.Write(packet)
+	bytesWritten, err := tunIO.Write(packet)
 	if err != nil {
 		return common.NewCError("Unable to write to internal ingress", "err", err,
 			"length", len(packet))
 	}
-	metrics.PktsSent.WithLabelValues(internalIngressName).Inc()
-	metrics.PktBytesSent.WithLabelValues(internalIngressName).Add(float64(bytesWritten))
+	metrics.PktsSent.WithLabelValues(tunDevName).Inc()
+	metrics.PktBytesSent.WithLabelValues(tunDevName).Add(float64(bytesWritten))
 	return nil
 }
