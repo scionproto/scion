@@ -346,11 +346,11 @@
 			"revisionTime": "2016-10-24T22:38:16Z"
 		},
 		{
-			"checksumSHA1": "aVgPDgwY3/t4J/JOw9H3FVMHqh0=",
+			"checksumSHA1": "tY+5thYxjKDUQyQXYcBqogmMS5U=",
 			"license": "3-BSD",
 			"path": "golang.org/x/sys/unix",
-			"revision": "c200b10b5d5e122be351b67af224adc6128af5bf",
-			"revisionTime": "2016-10-22T18:22:21Z"
+			"revision": "314a259e304ff91bd6985da2a7149bbf91237993",
+			"revisionTime": "2017-07-19T03:44:26Z"
 		},
 		{
 			"checksumSHA1": "GUzvy5+6gTwjQ2PaXxjHfbqjOVw=",
