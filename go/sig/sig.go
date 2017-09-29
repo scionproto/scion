@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	_ "net/http/pprof"
 	"os"
@@ -29,34 +30,27 @@ import (
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/base"
-	"github.com/netsec-ethz/scion/go/sig/control"
+	"github.com/netsec-ethz/scion/go/sig/config"
 	"github.com/netsec-ethz/scion/go/sig/ingress"
-	"github.com/netsec-ethz/scion/go/sig/management"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
-)
-
-const (
-	DefaultCtrlPort     = 10081
-	ExternalIngressPort = 10080
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 var (
 	id             = flag.String("id", "", "Element ID (Required. E.g. 'sig4-21-9')")
-	config         = flag.String("config", "", "optional config file")
-	cli            = flag.Bool("cli", false, "enable interactive console")
-	port           = flag.Int("encapport", ExternalIngressPort, "encapsulation data port")
-	ip             = flag.String("encapip", "", "encapsulation data bind address")
-	ctrlIP         = flag.String("ctrlip", "", "control data bind address (if missing, defaults to -ip arg)")
-	ctrlPort       = flag.Int("ctrlport", DefaultCtrlPort, "control data port (e.g., keepalives)")
-	sciondPath     = flag.String("sciond", "/run/shm/sciond/sciond.sock", "SCIOND socket path")
-	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock", "SCION Dispatcher path")
-	isdas          = flag.String("isdas", "", "Local AS (in ISD-AS format, e.g., 1-10)")
+	cfgPath        = flag.String("config", "", "Config file (Required)")
+	isdas          = flag.String("ia", "", "Local AS (Required, e.g., 1-10)")
+	ipStr          = flag.String("ip", "", "address to bind to (Required)")
+	sciondPath     = flag.String("sciond", "", "SCIOND socket path")
+	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+		"SCION Dispatcher path")
 )
 
 func main() {
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
+		flag.Usage()
 		os.Exit(1)
 	}
 	liblog.Setup(*id)
@@ -66,51 +60,36 @@ func main() {
 	// Export prometheus metrics.
 	metrics.Init(*id)
 	if err := metrics.Start(); err != nil {
-		log.Error("Unable to export prometheus metrics", "err", err)
+		fatal("Unable to export prometheus metrics", "err", err)
 	}
-
+	// Parse basic flags
 	ia, err := addr.IAFromString(*isdas)
 	if err != nil {
-		fatal("Unable to parse local ISD-AS", "ia", isdas, "err", err)
+		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", err)
 	}
-
+	ip := net.ParseIP(*ipStr)
+	if ip == nil {
+		fatal("unable to parse IP address", "addr", *ipStr)
+	}
+	if *sciondPath == "" {
+		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia)
+	}
+	if err = sigcmn.Init(ia, ip); err != nil {
+		fatal("Error during initialization", "err", err)
+	}
 	// Initialize SCION local networking module
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
 		fatal("Unable to create local SCION Network context", "err", err)
 	}
-
-	localEncapAddr, err := parseFlagAddr(ia, *ip, *port)
-	if err != nil {
-		fatal("Unable to parse local encap address", "err", err)
-	}
-
-	if *ctrlIP == "" {
-		*ctrlIP = *ip
-	}
-	localCtrlAddr, err := parseFlagAddr(ia, *ctrlIP, *ctrlPort)
-	if err != nil {
-		fatal("Unable to parse local control address", "err", err)
-	}
-
-	// Initialize SIG information tables
-	err = base.Init(localCtrlAddr, localEncapAddr)
-	if err != nil {
-		fatal("Unable to initialize tables", "err", err)
+	// Parse config
+	if loadConfig(*cfgPath) != true {
+		fatal("Unable to load config on startup")
 	}
 
 	// Spawn ingress Dispatcher.
-	if err := ingress.NewDispatcher(localEncapAddr).Run(); err != nil {
+	if err := ingress.Init(); err != nil {
 		fatal("Unable to spawn ingress dispatcher", "err", err)
-	}
-
-	// Enable static routing
-	static := control.NewStaticRP()
-	// Load configuration file and/or start interactive console
-	setupManagement(static)
-	// If no console is up, block forever
-	if *cli == false {
-		select {}
 	}
 }
 
@@ -126,34 +105,52 @@ func setupSignals() {
 	}()
 }
 
-func parseFlagAddr(ia *addr.ISD_AS, ipStr string, port int) (*snet.Addr, error) {
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return nil, common.NewCError("unable to parse IP address", "addr", ipStr)
+func loadConfig(path string) bool {
+	cfg, err := config.LoadFromFile(path)
+	if err != nil {
+		cerr := err.(*common.CError)
+		log.Error(cerr.Desc, cerr.Ctx...)
+		return false
 	}
-	if port == 0 || port >= (1<<16) {
-		return nil, common.NewCError("invalid port number", "port", port)
+	success := true
+	for iaVal, cfgEntry := range cfg.ASes {
+		ia := &iaVal
+		ae, err := base.Map.AddIA(ia)
+		if err != nil {
+			cerr := err.(*common.CError)
+			log.Error(cerr.Desc, cerr.Ctx...)
+			success = false
+			continue
+		}
+		// Add sigs before networks, so there's somewhere for packets to go.
+		for id, sig := range cfgEntry.Sigs {
+			ctrlPort := int(sig.CtrlPort)
+			if ctrlPort == 0 {
+				ctrlPort = sigcmn.DefaultCtrlPort
+			}
+			encapPort := int(sig.EncapPort)
+			if encapPort == 0 {
+				encapPort = sigcmn.DefaultEncapPort
+			}
+			err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true)
+			if err != nil {
+				cerr := err.(*common.CError)
+				log.Error(cerr.Desc, cerr.Ctx...)
+				success = false
+				continue
+			}
+		}
+		// TODO(kormat): add classes here
+		for _, netw := range cfgEntry.Nets {
+			if err := ae.AddNet(netw.IPNet()); err != nil {
+				cerr := err.(*common.CError)
+				log.Error(cerr.Desc, cerr.Ctx...)
+				success = false
+				continue
+			}
+		}
 	}
-	address := &snet.Addr{
-		IA:     ia,
-		Host:   addr.HostFromIP(ip),
-		L4Port: uint16(port),
-	}
-	return address, nil
-}
-
-func setupManagement(static *control.StaticRP) {
-	if *config == "" && *cli == false {
-		log.Crit("Unable to start SIG without initial config and interactive console.")
-		os.Exit(1)
-	}
-	// Load config file (if specified) and start interactive console
-	if *config != "" {
-		management.RunConfig(static, *config)
-	}
-	if *cli {
-		management.Run(static)
-	}
+	return success
 }
 
 func fatal(msg string, args ...interface{}) {

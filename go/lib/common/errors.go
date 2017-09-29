@@ -51,3 +51,8 @@ func (c CError) Error() string {
 	}
 	return strings.Join(s, " ")
 }
+
+func (c *CError) AddCtx(ctx ...interface{}) error {
+	c.Ctx = append(c.Ctx, ctx...)
+	return c
+}
