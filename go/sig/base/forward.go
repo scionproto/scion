@@ -16,15 +16,16 @@ package base
 
 import (
 	"io"
-	"net"
 	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -40,7 +41,6 @@ import (
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 const (
-	SIGHdrSize = 8
 	PktLenSize = 2
 	MinSpace   = 16
 )
@@ -73,7 +73,7 @@ func (bp *BufferPool) Put(b common.RawBytes) {
 }
 
 type EgressWorker struct {
-	info *asInfo
+	info *ASEntry
 	src  io.ReadWriteCloser
 	c    chan common.RawBytes
 	bp   *BufferPool
@@ -86,10 +86,10 @@ type EgressWorker struct {
 
 const EgressChanSize = 128
 
-func NewEgressWorker(info *asInfo) *EgressWorker {
+func NewEgressWorker(info *ASEntry, src io.ReadWriteCloser) *EgressWorker {
 	return &EgressWorker{
 		info: info,
-		src:  info.Device,
+		src:  src,
 		c:    make(chan common.RawBytes, EgressChanSize),
 		bp:   NewBufferPool(),
 	}
@@ -101,15 +101,15 @@ func (e *EgressWorker) Run() error {
 
 	frame := make(common.RawBytes, 1<<16)
 	var pkt common.RawBytes
-	var conn net.Conn
+	var conn *snet.Conn
 	var err error
-	e.frameOff = SIGHdrSize
+	e.frameOff = sigcmn.SIGHdrSize
 
 TopLoop:
 	for {
 		// FIXME(kormat): there's no reason we need to run this for _every_ packet.
 		// also, this should be dropping old packets to keep the buffer queue clear.
-		conn, err = e.info.getConn()
+		conn, err = e.info.Conn()
 		if err != nil {
 			log.Error("Unable to get conn", "err", err)
 			// No connection is available, back off for 500ms and try again
@@ -119,7 +119,7 @@ TopLoop:
 		// FIXME(kormat): calculate the max payload size based on path's MTU
 		frame = frame[:1280]
 
-		if e.frameOff == SIGHdrSize {
+		if e.frameOff == sigcmn.SIGHdrSize {
 			// Don't have a partial frame, so block indefiniely for the next packet.
 			pkt = <-e.c
 		} else {
@@ -143,7 +143,7 @@ TopLoop:
 	}
 }
 
-func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error {
+func (e *EgressWorker) CopyPkt(conn *snet.Conn, frame, pkt common.RawBytes) error {
 	// New packets always starts at a 8 byte boundary.
 	e.frameOff += util.CalcPadding(e.frameOff, 8)
 	if e.index == 0 {
@@ -183,12 +183,12 @@ func (e *EgressWorker) Read() {
 			return
 		}
 		e.c <- pktBuffer[:bytesRead]
-		metrics.PktsRecv.WithLabelValues(e.info.DeviceName).Inc()
-		metrics.PktBytesRecv.WithLabelValues(e.info.DeviceName).Add(float64(bytesRead))
+		metrics.PktsRecv.WithLabelValues(e.info.DevName).Inc()
+		metrics.PktBytesRecv.WithLabelValues(e.info.DevName).Add(float64(bytesRead))
 	}
 }
 
-func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
+func (e *EgressWorker) Write(conn *snet.Conn, frame common.RawBytes) error {
 	if e.seq == 0 {
 		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
@@ -202,13 +202,13 @@ func (e *EgressWorker) Write(conn net.Conn, frame common.RawBytes) error {
 	// Update metadata
 	e.seq += 1
 	e.index = 0
-	e.frameOff = SIGHdrSize
+	e.frameOff = sigcmn.SIGHdrSize
 	// Send frame
-	bytesWritten, err := conn.Write(frame)
+	bytesWritten, err := conn.WriteToSCION(frame, e.info.CurrSig().EncapSnetAddr())
 	if err != nil {
 		return common.NewCError("Egress write error", "err", err)
 	}
-	metrics.FramesSent.WithLabelValues(e.info.Name).Inc()
-	metrics.FrameBytesSent.WithLabelValues(e.info.Name).Add(float64(bytesWritten))
+	metrics.FramesSent.WithLabelValues(e.info.IAString).Inc()
+	metrics.FrameBytesSent.WithLabelValues(e.info.IAString).Add(float64(bytesWritten))
 	return nil
 }
