@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package ingress
 
 import (
 	"bytes"
@@ -23,7 +23,9 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/util"
 )
 
 // ReassemblyList is used to keep a doubly linked list of SIG frames that are
@@ -175,7 +177,8 @@ func (l *ReassemblyList) collectAndWrite() {
 	for e := start.Next(); l.buf.Len() < pktLen && e != nil; e = e.Next() {
 		frame = e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		l.buf.Write(frame.raw[SIGHdrSize:min(missingBytes+SIGHdrSize, frame.frameLen)])
+		l.buf.Write(frame.raw[base.SIGHdrSize:
+			util.IntMin(missingBytes+base.SIGHdrSize, frame.frameLen)])
 		frame.fragNProcessed = true
 	}
 	// Check length of the reassembled packet.
@@ -230,11 +233,4 @@ func (l *ReassemblyList) removeBefore(ele *list.Element) {
 func (l *ReassemblyList) releaseFrame(frame *FrameBuf) {
 	frame.Reset()
 	l.bufPool.Put(frame)
-}
-
-func min(x, y int) int {
-	if x <= y {
-		return x
-	}
-	return y
 }
