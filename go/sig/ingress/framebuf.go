@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package ingress
 
 import (
 	"fmt"
@@ -20,6 +20,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/sig/util"
 )
 
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
@@ -93,7 +94,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 		}
 		offset += pktLen
 		// Packet always starts at 8-byte boundary.
-		offset = pad(offset)
+		offset = util.PadOffset(offset, 8)
 	}
 	if offset < fb.frameLen {
 		// There is an incomplete packet at the end of the frame.
@@ -121,8 +122,4 @@ func (fb *FrameBuf) String() string {
 	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d frag0Start: %d processed: (%t, %t, %t)",
 		fb.seqNr, fb.index, fb.frameLen, fb.frag0Start, fb.fragNProcessed, fb.frag0Processed,
 		fb.completePktsProcessed)
-}
-
-func pad(x int) int {
-	return x + (8-(x%8))%8
 }

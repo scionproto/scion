@@ -30,6 +30,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/control"
+	"github.com/netsec-ethz/scion/go/sig/ingress"
 	"github.com/netsec-ethz/scion/go/sig/management"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 )
@@ -99,7 +100,7 @@ func main() {
 	}
 
 	// Spawn data plane receiver
-	go base.NewIngressWorker(localEncapAddr).Run()
+	go ingress.NewIngressWorker(localEncapAddr).Run()
 
 	// Enable static routing
 	static := control.NewStaticRP()
