@@ -99,8 +99,10 @@ func main() {
 		fatal("Unable to initialize tables", "err", err)
 	}
 
-	// Spawn data plane receiver
-	go ingress.NewIngressWorker(localEncapAddr).Run()
+	// Spawn ingress Dispatcher.
+	if err := ingress.NewDispatcher(localEncapAddr).Run(); err != nil {
+		fatal("Unable to spawn ingress dispatcher", "err", err)
+	}
 
 	// Enable static routing
 	static := control.NewStaticRP()

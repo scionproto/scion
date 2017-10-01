@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"sync"
 
 	log "github.com/inconshreveable/log15"
 
@@ -35,7 +34,6 @@ import (
 type ReassemblyList struct {
 	epoch             int
 	capacity          int
-	bufPool           *sync.Pool
 	markedForDeletion bool
 	entries           *list.List
 	buf               *bytes.Buffer
@@ -43,11 +41,10 @@ type ReassemblyList struct {
 
 // NewReassemblyList returns a ReassemblyList object for the given epoch, with given
 // maximum capacity and using bufPool to release processed frame buffers into.
-func NewReassemblyList(epoch int, capacity int, bufPool *sync.Pool) *ReassemblyList {
+func NewReassemblyList(epoch int, capacity int) *ReassemblyList {
 	list := &ReassemblyList{
 		epoch:             epoch,
 		capacity:          capacity,
-		bufPool:           bufPool,
 		markedForDeletion: false,
 		entries:           list.New(),
 		buf:               bytes.NewBuffer(make(common.RawBytes, 0, FrameBufCap)),
@@ -71,7 +68,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	// Check whether frame is too old.
 	if frame.seqNr < firstFrame.seqNr {
 		metrics.FramesTooOld.Inc()
-		l.releaseFrame(frame)
+		frame.Release()
 		return
 	}
 	last := l.entries.Back()
@@ -81,7 +78,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 		log.Error("Received duplicate frame.", "epoch", l.epoch, "seqNr", frame.seqNr,
 			"currentOldest", firstFrame.seqNr, "currentNewest", lastFrame.seqNr)
 		metrics.FramesDuplicated.Inc()
-		l.releaseFrame(frame)
+		frame.Release()
 		return
 	}
 	// If there is a gap between this frame and the last in the reassembly list,
@@ -113,7 +110,7 @@ func (l *ReassemblyList) insertFirst(frame *FrameBuf) {
 	if frame.frag0Start != 0 {
 		l.entries.PushBack(frame)
 	} else {
-		l.releaseFrame(frame)
+		frame.Release()
 	}
 }
 
@@ -177,8 +174,7 @@ func (l *ReassemblyList) collectAndWrite() {
 	for e := start.Next(); l.buf.Len() < pktLen && e != nil; e = e.Next() {
 		frame = e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		l.buf.Write(frame.raw[base.SIGHdrSize:
-			util.IntMin(missingBytes+base.SIGHdrSize, frame.frameLen)])
+		l.buf.Write(frame.raw[base.SIGHdrSize:util.IntMin(missingBytes+base.SIGHdrSize, frame.frameLen)])
 		frame.fragNProcessed = true
 	}
 	// Check length of the reassembled packet.
@@ -199,7 +195,7 @@ func (l *ReassemblyList) collectAndWrite() {
 
 func (l *ReassemblyList) removeEntry(e *list.Element) {
 	frame := e.Value.(*FrameBuf)
-	l.releaseFrame(frame)
+	frame.Release()
 	l.entries.Remove(e)
 }
 
@@ -228,9 +224,4 @@ func (l *ReassemblyList) removeBefore(ele *list.Element) {
 		next = e.Next()
 		l.removeEntry(e)
 	}
-}
-
-func (l *ReassemblyList) releaseFrame(frame *FrameBuf) {
-	frame.Reset()
-	l.bufPool.Put(frame)
 }
