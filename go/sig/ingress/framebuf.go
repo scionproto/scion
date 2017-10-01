@@ -20,7 +20,13 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/sig/util"
+)
+
+const (
+	// FrameBufCap is the size of a preallocated frame buffer.
+	FrameBufCap = 65535
 )
 
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
@@ -50,6 +56,8 @@ type FrameBuf struct {
 	pktLen int
 	// The raw bytes buffer for the frame.
 	raw common.RawBytes
+	// Optional ringbuf to which the frame will written back on release.
+	ring *ringbuf.Ring
 }
 
 func NewFrameBuf() *FrameBuf {
@@ -58,7 +66,7 @@ func NewFrameBuf() *FrameBuf {
 	return buf
 }
 
-// Reset resets the metadata of a frame buffer.
+// Reset resets the metadata of a FrameBuf.
 func (fb *FrameBuf) Reset() {
 	fb.seqNr = -1
 	fb.index = -1
@@ -68,6 +76,14 @@ func (fb *FrameBuf) Reset() {
 	fb.fragNProcessed = false
 	fb.completePktsProcessed = false
 	fb.pktLen = 0
+}
+
+// Release reset the FrameBuf and releases it back to the ringbuf (if set).
+func (fb *FrameBuf) Release() {
+	fb.Reset()
+	if fb.ring != nil {
+		fb.ring.Write(ringbuf.EntryList{fb}, true)
+	}
 }
 
 // ProcessCompletePkts write all complete packets in the frame to the wire and

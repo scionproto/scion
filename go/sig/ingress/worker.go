@@ -15,105 +15,96 @@
 package ingress
 
 import (
-	"io"
-	"sync"
+	"fmt"
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
 const (
-	// FrameBufPoolCap is the number of preallocated frame buffers.
-	FrameBufPoolCap = 300
-	// FrameBufCap is the size of a preallocated frame buffer.
-	FrameBufCap = 65535
-	// MaxSeqNrDist is the maximum difference between arriving sequence numbers.
-	MaxSeqNrDist = 10
 	// ReassemblyListCap is the maximum capacity of a reassembly list.
 	ReassemblyListCap = 100
-	// IngressChanSize is the length of the buffered input channel.
-	IngressChanSize = 128
 	// CleanUpInterval is the interval between clean up of outdated reassembly lists.
-	CleanUpInterval = 1 * time.Second
-	//
-	InternalIngressName = "scion.local"
+	RlistCleanUpInterval = 1 * time.Second
 )
 
-var (
-	ExternalIngress *snet.Conn
-	InternalIngress io.ReadWriteCloser
-)
-
-// IngressWorker handles decapsulation of SIG frames.
-type IngressWorker struct {
-	laddr           *snet.Addr
-	reassemblyLists map[int]*ReassemblyList
-	bufPool         *sync.Pool
-	c               chan *FrameBuf
+// Worker handles decapsulation of SIG frames.
+type Worker struct {
+	Remote           *snet.Addr
+	Session          int
+	Ring             *ringbuf.Ring
+	reassemblyLists  map[int]*ReassemblyList
+	stop, stopped    chan struct{}
+	running          bool
+	markedForCleanup bool
 }
 
-func NewIngressWorker(laddr *snet.Addr) *IngressWorker {
-	worker := &IngressWorker{
-		laddr:           laddr,
-		bufPool:         &sync.Pool{New: func() interface{} { return NewFrameBuf() }},
+func NewWorker(remote *snet.Addr, session int) *Worker {
+	ringLabels := prometheus.Labels{"ringId": fmt.Sprintf("%s:%d", remote.String(), session)}
+	worker := &Worker{
+		Remote:          remote,
+		Session:         session,
+		Ring:            ringbuf.New(64, nil, "", ringLabels),
 		reassemblyLists: make(map[int]*ReassemblyList),
-		c:               make(chan *FrameBuf, IngressChanSize),
+		stop:            make(chan struct{}),
+		stopped:         make(chan struct{}),
 	}
 	return worker
 }
 
-func (i *IngressWorker) Run() {
-	var err error
-	ExternalIngress, err = snet.ListenSCION("udp4", i.laddr)
-	if err != nil {
-		log.Error("Unable to initialize ExternalIngress", "err", err)
-		return
-	}
-	InternalIngress, err = xnet.ConnectTun(InternalIngressName)
-	if err != nil {
-		log.Error("Unable to connect to InternalIngress", "err", err)
-		return
-	}
-	go i.Read()
-	cleanupTimer := time.Tick(CleanUpInterval)
-	for {
-		select {
-		case <-cleanupTimer:
-			i.CleanUp()
-		default:
-			frame := <-i.c
-			i.ProcessFrame(frame)
-		}
+func (w *Worker) Start() {
+	if !w.running {
+		go w.run()
+		w.running = true
 	}
 }
 
-func (i *IngressWorker) Read() {
+func (w *Worker) Stop() {
+	if w.running {
+		log.Debug("IngressWorker stopping", "remote", w.Remote.String(), "session", w.Session)
+		w.Ring.Close()
+		close(w.stop)
+		<-w.stopped
+		w.running = false
+	}
+}
+
+func (w *Worker) run() {
+	frames := make(ringbuf.EntryList, 32)
+	cleanupTimer := time.Tick(RlistCleanUpInterval)
+	defer close(w.stopped)
 	for {
-		frame := i.bufPool.Get().(*FrameBuf)
-		read, err := ExternalIngress.Read(frame.raw)
-		if err != nil {
-			log.Error("IngressWorker: Unable to read from External Ingress", "err", err)
-			// Release Frame
-			frame.Reset()
-			i.bufPool.Put(frame)
-			continue
+		select {
+		case <-w.stop:
+			return
+		case <-cleanupTimer:
+			w.cleanUp()
+		default:
 		}
-		frame.frameLen = read
-		i.c <- frame
-		metrics.FramesRecv.WithLabelValues(snet.IA().String()).Inc()
-		metrics.FrameBytesRecv.WithLabelValues(snet.IA().String()).Add(float64(read))
+		// This might block indefinitely, thus cleanup will be deferred. However,
+		// this is not an issue, since if there is nothing to read we also don't need
+		// to do any cleanup.
+		n, _ := w.Ring.Read(frames, true)
+		if n < 0 {
+			return
+		}
+		for i := 0; i < n; i++ {
+			frame := frames[i].(*FrameBuf)
+			w.processFrame(frame)
+		}
 	}
 }
 
 // processFrame processes a SIG frame by first writing all completely contained
 // packets to the wire and then adding the frame to the corresponding reassembly
 // list if needed.
-func (i *IngressWorker) ProcessFrame(frame *FrameBuf) {
+func (w *Worker) processFrame(frame *FrameBuf) {
 	seqNr := int(common.Order.Uint32(frame.raw[:4]))
 	index := int(common.Order.Uint16(frame.raw[4:6]))
 	epoch := int(common.Order.Uint16(frame.raw[6:8]))
@@ -128,27 +119,27 @@ func (i *IngressWorker) ProcessFrame(frame *FrameBuf) {
 	// frame.
 	frame.completePktsProcessed = index == 0
 	// Add to frame buf reassembly list.
-	rlist := i.GetReassemblyList(epoch)
+	rlist := w.getReassemblyList(epoch)
 	rlist.Insert(frame)
 }
 
-func (i *IngressWorker) GetReassemblyList(epoch int) *ReassemblyList {
-	rlist, ok := i.reassemblyLists[epoch]
+func (w *Worker) getReassemblyList(epoch int) *ReassemblyList {
+	rlist, ok := w.reassemblyLists[epoch]
 	if !ok {
-		rlist = NewReassemblyList(epoch, ReassemblyListCap, i.bufPool)
-		i.reassemblyLists[epoch] = rlist
+		rlist = NewReassemblyList(epoch, ReassemblyListCap)
+		w.reassemblyLists[epoch] = rlist
 	}
 	rlist.markedForDeletion = false
 	return rlist
 }
 
-func (i *IngressWorker) CleanUp() {
-	for epoch, rlist := range i.reassemblyLists {
+func (w *Worker) cleanUp() {
+	for epoch, rlist := range w.reassemblyLists {
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
 			// Remove the reassembly list from the map and then release all frames
 			// back to the bufpool.
-			delete(i.reassemblyLists, epoch)
+			delete(w.reassemblyLists, epoch)
 			go rlist.removeAll()
 		} else {
 			// Mark the reassembly list for deletion. If it is not accessed between now
