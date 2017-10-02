@@ -132,25 +132,35 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 
 // cleanup periodically stops and releases idle workers.
 func (d *Dispatcher) cleanup() {
+	start := time.Now()
+	loopDur := 0 * time.Second
 	for {
-		time.Sleep(WorkerCleanupInterval)
+		sleepInt := WorkerCleanupInterval - loopDur
+		if sleepInt < 0 {
+			log.Warn("IngressDispatcher: cleanup loop took too long",
+				"max", WorkerCleanupInterval, "actual", loopDur)
+		} else {
+			time.Sleep(sleepInt)
+		}
+		start = time.Now()
 		// Mark workers for cleanup or add to cleanup slice and remove from the map.
 		// Iterating over workers has to be done exclusive to prevent race conditions
 		// with the main dispatcher loop. For performance reasons the actual stopping
 		// is done outside the exclusive part.
 		var toCleanup []*Worker
-		d.workersMutex.Lock()
 		for key, worker := range d.workers {
+			d.workersMutex.Lock()
 			if worker.markedForCleanup {
 				delete(d.workers, key)
 				toCleanup = append(toCleanup, worker)
 			} else {
 				worker.markedForCleanup = true
 			}
+			d.workersMutex.Unlock()
 		}
-		d.workersMutex.Unlock()
 		for _, worker := range toCleanup {
 			worker.Stop()
 		}
+		loopDur = time.Since(start)
 	}
 }
