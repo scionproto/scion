@@ -75,7 +75,6 @@ func (d *Dispatcher) Run() error {
 	if err != nil {
 		return common.NewCError("Unable to connect to InternalIngress", "err", err)
 	}
-	go d.cleanup()
 	go d.Read()
 	return nil
 }
