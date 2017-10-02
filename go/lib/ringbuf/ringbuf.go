@@ -122,7 +122,9 @@ func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
 			r.readableC.Wait()
 		}
 	}
-	if r.closed {
+	if r.closed && r.readable == 0 {
+		// Don't return -1 so long as there are still readable entries
+		// available.
 		return -1, blocked
 	}
 	n := min(r.readable, len(entries))
