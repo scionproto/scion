@@ -21,7 +21,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
-	"github.com/netsec-ethz/scion/go/sig/util"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 const (
@@ -56,8 +56,6 @@ type FrameBuf struct {
 	pktLen int
 	// The raw bytes buffer for the frame.
 	raw common.RawBytes
-	// Optional ringbuf to which the frame will written back on release.
-	ring *ringbuf.Ring
 }
 
 func NewFrameBuf() *FrameBuf {
@@ -81,9 +79,7 @@ func (fb *FrameBuf) Reset() {
 // Release reset the FrameBuf and releases it back to the ringbuf (if set).
 func (fb *FrameBuf) Release() {
 	fb.Reset()
-	if fb.ring != nil {
-		fb.ring.Write(ringbuf.EntryList{fb}, true)
-	}
+	FreeFrames.Write(ringbuf.EntryList{fb}, true)
 }
 
 // ProcessCompletePkts write all complete packets in the frame to the wire and
@@ -110,7 +106,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 		}
 		offset += pktLen
 		// Packet always starts at 8-byte boundary.
-		offset = util.PadOffset(offset, 8)
+		offset += util.CalcPadding(offset, 8)
 	}
 	if offset < fb.frameLen {
 		// There is an incomplete packet at the end of the frame.

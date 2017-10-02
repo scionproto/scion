@@ -17,7 +17,6 @@ package ingress
 import (
 	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -34,7 +33,7 @@ const (
 	// InternalIngressName is the name of the internal ingress tunnel interface.
 	InternalIngressName = "scion.local"
 	// WorkerCleanupInterval is the interval between worker cleanup rounds.
-	WorkerCleanupInterval = 5 * time.Second
+	WorkerCleanupInterval = 60 * time.Second
 	// FreeFramesCap is the number of preallocated Framebuf objects.
 	FreeFramesCap = 1024
 )
@@ -42,34 +41,28 @@ const (
 var (
 	ExternalIngress *snet.Conn
 	InternalIngress io.ReadWriteCloser
+	FreeFrames      *ringbuf.Ring
 )
+
+func init() {
+	FreeFrames = ringbuf.New(FreeFramesCap, func() interface{} {
+		return NewFrameBuf()
+	}, "free", prometheus.Labels{"ringId": "freeFrames"})
+}
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
-	laddr        *snet.Addr
-	workers      map[string]*Worker
-	workersMutex sync.Mutex
-	freeFrames   *ringbuf.Ring
+	laddr   *snet.Addr
+	workers map[string]*Worker
 }
 
 func NewDispatcher(laddr *snet.Addr) *Dispatcher {
-	d := &Dispatcher{
+	return &Dispatcher{
 		laddr:   laddr,
 		workers: make(map[string]*Worker),
-		freeFrames: ringbuf.New(FreeFramesCap, nil, "free",
-			prometheus.Labels{"ringId": "freeFrames"}),
 	}
-	// Fill ringbuf
-	entries := make(ringbuf.EntryList, FreeFramesCap)
-	for i := 0; i < FreeFramesCap; i++ {
-		frame := NewFrameBuf()
-		frame.ring = d.freeFrames
-		entries[i] = frame
-	}
-	d.freeFrames.Write(entries, true)
-	return d
 }
 
 func (d *Dispatcher) Run() error {
@@ -88,9 +81,10 @@ func (d *Dispatcher) Run() error {
 }
 
 func (d *Dispatcher) Read() {
-	frames := make(ringbuf.EntryList, 32)
+	frames := make(ringbuf.EntryList, 64)
+	lastCleanup := time.Now()
 	for {
-		n, _ := d.freeFrames.Read(frames, true)
+		n, _ := FreeFrames.Read(frames, true)
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
 			read, src, err := ExternalIngress.ReadFromSCION(frame.raw)
@@ -106,6 +100,10 @@ func (d *Dispatcher) Read() {
 			// Clear FrameBuf reference
 			frames[i] = nil
 		}
+		if time.Since(lastCleanup) >= WorkerCleanupInterval {
+			d.cleanup()
+			lastCleanup = time.Now()
+		}
 	}
 }
 
@@ -117,8 +115,6 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 	session = 0
 	dispatchStr := fmt.Sprintf("%s/%s/%d", src.IA, src.Host, session)
 	// Check if we already have a worker running and start one if not.
-	d.workersMutex.Lock()
-	defer d.workersMutex.Unlock()
 	var worker *Worker
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
@@ -132,35 +128,21 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 
 // cleanup periodically stops and releases idle workers.
 func (d *Dispatcher) cleanup() {
-	start := time.Now()
-	loopDur := 0 * time.Second
-	for {
-		sleepInt := WorkerCleanupInterval - loopDur
-		if sleepInt < 0 {
-			log.Warn("IngressDispatcher: cleanup loop took too long",
-				"max", WorkerCleanupInterval, "actual", loopDur)
+	var toCleanup []*Worker
+	for key, worker := range d.workers {
+		if worker.markedForCleanup {
+			delete(d.workers, key)
+			toCleanup = append(toCleanup, worker)
 		} else {
-			time.Sleep(sleepInt)
+			worker.markedForCleanup = true
 		}
-		start = time.Now()
-		// Mark workers for cleanup or add to cleanup slice and remove from the map.
-		// Iterating over workers has to be done exclusive to prevent race conditions
-		// with the main dispatcher loop. For performance reasons the actual stopping
-		// is done outside the exclusive part.
-		var toCleanup []*Worker
-		for key, worker := range d.workers {
-			d.workersMutex.Lock()
-			if worker.markedForCleanup {
-				delete(d.workers, key)
-				toCleanup = append(toCleanup, worker)
-			} else {
-				worker.markedForCleanup = true
+	}
+	// Perform the stopping in separate go-routine, since worker.Stop can block,
+	if len(toCleanup) > 0 {
+		go func() {
+			for _, worker := range toCleanup {
+				worker.Stop()
 			}
-			d.workersMutex.Unlock()
-		}
-		for _, worker := range toCleanup {
-			worker.Stop()
-		}
-		loopDur = time.Since(start)
+		}()
 	}
 }

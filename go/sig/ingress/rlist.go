@@ -24,7 +24,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/util"
 )
 
 // ReassemblyList is used to keep a doubly linked list of SIG frames that are
@@ -39,8 +38,8 @@ type ReassemblyList struct {
 	buf               *bytes.Buffer
 }
 
-// NewReassemblyList returns a ReassemblyList object for the given epoch, with given
-// maximum capacity and using bufPool to release processed frame buffers into.
+// NewReassemblyList returns a ReassemblyList object for the given epoch and with
+// given maximum capacity.
 func NewReassemblyList(epoch int, capacity int) *ReassemblyList {
 	list := &ReassemblyList{
 		epoch:             epoch,
@@ -174,7 +173,7 @@ func (l *ReassemblyList) collectAndWrite() {
 	for e := start.Next(); l.buf.Len() < pktLen && e != nil; e = e.Next() {
 		frame = e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		l.buf.Write(frame.raw[base.SIGHdrSize:util.IntMin(missingBytes+base.SIGHdrSize, frame.frameLen)])
+		l.buf.Write(frame.raw[base.SIGHdrSize:intMin(missingBytes+base.SIGHdrSize, frame.frameLen)])
 		frame.fragNProcessed = true
 	}
 	// Check length of the reassembled packet.
@@ -224,4 +223,11 @@ func (l *ReassemblyList) removeBefore(ele *list.Element) {
 		next = e.Next()
 		l.removeEntry(e)
 	}
+}
+
+func intMin(x, y int) int {
+	if x <= y {
+		return x
+	}
+	return y
 }

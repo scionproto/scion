@@ -23,8 +23,8 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/util"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -145,7 +145,7 @@ TopLoop:
 
 func (e *EgressWorker) CopyPkt(conn net.Conn, frame, pkt common.RawBytes) error {
 	// New packets always starts at a 8 byte boundary.
-	e.frameOff = util.PadOffset(e.frameOff, 8)
+	e.frameOff += util.CalcPadding(e.frameOff, 8)
 	if e.index == 0 {
 		// This is the first start of a packet in this frame, so set the index
 		e.index = uint16(e.frameOff / 8)

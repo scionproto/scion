@@ -30,7 +30,7 @@ import (
 const (
 	// ReassemblyListCap is the maximum capacity of a reassembly list.
 	ReassemblyListCap = 100
-	// CleanUpInterval is the interval between clean up of outdated reassembly lists.
+	// RlistCleanUpInterval is the interval between clean up of outdated reassembly lists.
 	RlistCleanUpInterval = 1 * time.Second
 )
 
@@ -40,7 +40,7 @@ type Worker struct {
 	Session          int
 	Ring             *ringbuf.Ring
 	reassemblyLists  map[int]*ReassemblyList
-	stop, stopped    chan struct{}
+	stopped          chan struct{}
 	running          bool
 	markedForCleanup bool
 }
@@ -50,9 +50,8 @@ func NewWorker(remote *snet.Addr, session int) *Worker {
 	worker := &Worker{
 		Remote:          remote,
 		Session:         session,
-		Ring:            ringbuf.New(64, nil, "", ringLabels),
+		Ring:            ringbuf.New(64, nil, "ingress", ringLabels),
 		reassemblyLists: make(map[int]*ReassemblyList),
-		stop:            make(chan struct{}),
 		stopped:         make(chan struct{}),
 	}
 	return worker
@@ -69,7 +68,6 @@ func (w *Worker) Stop() {
 	if w.running {
 		log.Debug("IngressWorker stopping", "remote", w.Remote.String(), "session", w.Session)
 		w.Ring.Close()
-		close(w.stop)
 		<-w.stopped
 		w.running = false
 	}
@@ -81,8 +79,6 @@ func (w *Worker) run() {
 	defer close(w.stopped)
 	for {
 		select {
-		case <-w.stop:
-			return
 		case <-cleanupTimer:
 			w.cleanUp()
 		default:
@@ -97,6 +93,7 @@ func (w *Worker) run() {
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
 			w.processFrame(frame)
+			frames[i] = nil
 		}
 	}
 }
