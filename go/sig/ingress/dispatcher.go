@@ -44,12 +44,6 @@ var (
 	FreeFrames      *ringbuf.Ring
 )
 
-func init() {
-	FreeFrames = ringbuf.New(FreeFramesCap, func() interface{} {
-		return NewFrameBuf()
-	}, "free", prometheus.Labels{"ringId": "freeFrames"})
-}
-
 // Dispatcher reads new encapsulated packets, classifies the packet by
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
@@ -59,6 +53,9 @@ type Dispatcher struct {
 }
 
 func NewDispatcher(laddr *snet.Addr) *Dispatcher {
+	FreeFrames = ringbuf.New(FreeFramesCap, func() interface{} {
+		return NewFrameBuf()
+	}, "free", prometheus.Labels{"ringId": "freeFrames"})
 	return &Dispatcher{
 		laddr:   laddr,
 		workers: make(map[string]*Worker),
@@ -114,10 +111,9 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 	session = 0
 	dispatchStr := fmt.Sprintf("%s/%s/%d", src.IA, src.Host, session)
 	// Check if we already have a worker running and start one if not.
-	var worker *Worker
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
-		worker := NewWorker(src, session)
+		worker = NewWorker(src, session)
 		worker.Start()
 		d.workers[dispatchStr] = worker
 	}
