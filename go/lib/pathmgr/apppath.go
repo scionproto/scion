@@ -23,7 +23,7 @@ import (
 )
 
 // AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key()
-type AppPathSet map[rawKey]*AppPath
+type AppPathSet map[PathKey]*AppPath
 
 // NewAppPathSet creates a new set of paths from a SCIOND path reply.
 func NewAppPathSet(reply *sciond.PathReply) AppPathSet {
@@ -41,7 +41,7 @@ func (aps AppPathSet) addChildAppPath(entry *sciond.PathReplyEntry) *AppPath {
 		Entry:  entry,
 		parent: aps,
 	}
-	aps[ap.key()] = ap
+	aps[ap.Key()] = ap
 	return ap
 }
 
@@ -60,17 +60,17 @@ type AppPath struct {
 	parent AppPathSet
 }
 
-// key returns a unique key that can be used for map indexing.
-func (ap *AppPath) key() rawKey {
+// Key returns a unique PathKey that can be used for map indexing.
+func (ap *AppPath) Key() PathKey {
 	h := sha256.New()
 	for _, iface := range ap.Entry.Path.Interfaces {
 		binary.Write(h, common.Order, iface.ISD_AS().Uint32())
 		binary.Write(h, common.Order, iface.IfID)
 	}
-	return rawKey(h.Sum(nil))
+	return PathKey(h.Sum(nil))
 }
 
 // revoke removes ap from its parent path set.
 func (ap *AppPath) revoke() {
-	delete(ap.parent, ap.key())
+	delete(ap.parent, ap.Key())
 }
