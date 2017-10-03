@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	// ReassemblyListCap is the maximum capacity of a reassembly list.
-	ReassemblyListCap = 100
-	// RlistCleanUpInterval is the interval between clean up of outdated reassembly lists.
-	RlistCleanUpInterval = 1 * time.Second
+	// reassemblyListCap is the maximum capacity of a reassembly list.
+	reassemblyListCap = 100
+	// rlistCleanUpInterval is the interval between clean up of outdated reassembly lists.
+	rlistCleanUpInterval = 1 * time.Second
 )
 
 // Worker handles decapsulation of SIG frames.
@@ -40,7 +40,6 @@ type Worker struct {
 	Session          int
 	Ring             *ringbuf.Ring
 	reassemblyLists  map[int]*ReassemblyList
-	stopped          chan struct{}
 	running          bool
 	markedForCleanup bool
 }
@@ -52,7 +51,6 @@ func NewWorker(remote *snet.Addr, session int) *Worker {
 		Session:         session,
 		Ring:            ringbuf.New(64, nil, "ingress", ringLabels),
 		reassemblyLists: make(map[int]*ReassemblyList),
-		stopped:         make(chan struct{}),
 	}
 	return worker
 }
@@ -68,21 +66,14 @@ func (w *Worker) Stop() {
 	if w.running {
 		log.Debug("IngressWorker stopping", "remote", w.Remote.String(), "session", w.Session)
 		w.Ring.Close()
-		<-w.stopped
 		w.running = false
 	}
 }
 
 func (w *Worker) run() {
-	frames := make(ringbuf.EntryList, 32)
-	cleanupTimer := time.Tick(RlistCleanUpInterval)
-	defer close(w.stopped)
+	frames := make(ringbuf.EntryList, 64)
+	lastCleanup := time.Now()
 	for {
-		select {
-		case <-cleanupTimer:
-			w.cleanUp()
-		default:
-		}
 		// This might block indefinitely, thus cleanup will be deferred. However,
 		// this is not an issue, since if there is nothing to read we also don't need
 		// to do any cleanup.
@@ -94,6 +85,10 @@ func (w *Worker) run() {
 			frame := frames[i].(*FrameBuf)
 			w.processFrame(frame)
 			frames[i] = nil
+		}
+		if time.Since(lastCleanup) >= rlistCleanUpInterval {
+			w.cleanup()
+			lastCleanup = time.Now()
 		}
 	}
 }
@@ -123,14 +118,14 @@ func (w *Worker) processFrame(frame *FrameBuf) {
 func (w *Worker) getReassemblyList(epoch int) *ReassemblyList {
 	rlist, ok := w.reassemblyLists[epoch]
 	if !ok {
-		rlist = NewReassemblyList(epoch, ReassemblyListCap)
+		rlist = NewReassemblyList(epoch, reassemblyListCap)
 		w.reassemblyLists[epoch] = rlist
 	}
 	rlist.markedForDeletion = false
 	return rlist
 }
 
-func (w *Worker) cleanUp() {
+func (w *Worker) cleanup() {
 	for epoch, rlist := range w.reassemblyLists {
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
@@ -147,12 +142,12 @@ func (w *Worker) cleanUp() {
 }
 
 func send(packet common.RawBytes) error {
-	bytesWritten, err := InternalIngress.Write(packet)
+	bytesWritten, err := internalIngress.Write(packet)
 	if err != nil {
-		return common.NewCError("Unable to write to Internal Ingress", "err", err,
+		return common.NewCError("Unable to write to internal ingress", "err", err,
 			"length", len(packet))
 	}
-	metrics.PktsSent.WithLabelValues(InternalIngressName).Inc()
-	metrics.PktBytesSent.WithLabelValues(InternalIngressName).Add(float64(bytesWritten))
+	metrics.PktsSent.WithLabelValues(internalIngressName).Inc()
+	metrics.PktBytesSent.WithLabelValues(internalIngressName).Add(float64(bytesWritten))
 	return nil
 }

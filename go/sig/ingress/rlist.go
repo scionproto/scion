@@ -46,7 +46,7 @@ func NewReassemblyList(epoch int, capacity int) *ReassemblyList {
 		capacity:          capacity,
 		markedForDeletion: false,
 		entries:           list.New(),
-		buf:               bytes.NewBuffer(make(common.RawBytes, 0, FrameBufCap)),
+		buf:               bytes.NewBuffer(make(common.RawBytes, 0, frameBufCap)),
 	}
 	return list
 }

@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	// FrameBufCap is the size of a preallocated frame buffer.
-	FrameBufCap = 65535
+	// frameBufCap is the size of a preallocated frame buffer.
+	frameBufCap = 65535
 )
 
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
@@ -59,7 +59,7 @@ type FrameBuf struct {
 }
 
 func NewFrameBuf() *FrameBuf {
-	buf := &FrameBuf{raw: make(common.RawBytes, FrameBufCap)}
+	buf := &FrameBuf{raw: make(common.RawBytes, frameBufCap)}
 	buf.Reset()
 	return buf
 }
@@ -79,7 +79,7 @@ func (fb *FrameBuf) Reset() {
 // Release reset the FrameBuf and releases it back to the ringbuf (if set).
 func (fb *FrameBuf) Release() {
 	fb.Reset()
-	FreeFrames.Write(ringbuf.EntryList{fb}, true)
+	freeFrames.Write(ringbuf.EntryList{fb}, true)
 }
 
 // ProcessCompletePkts write all complete packets in the frame to the wire and

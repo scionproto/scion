@@ -30,18 +30,18 @@ import (
 )
 
 const (
-	// InternalIngressName is the name of the internal ingress tunnel interface.
-	InternalIngressName = "scion.local"
-	// WorkerCleanupInterval is the interval between worker cleanup rounds.
-	WorkerCleanupInterval = 60 * time.Second
-	// FreeFramesCap is the number of preallocated Framebuf objects.
-	FreeFramesCap = 1024
+	// internalIngressName is the name of the internal ingress tunnel interface.
+	internalIngressName = "scion.local"
+	// workerCleanupInterval is the interval between worker cleanup rounds.
+	workerCleanupInterval = 60 * time.Second
+	// freeFramesCap is the number of preallocated Framebuf objects.
+	freeFramesCap = 1024
 )
 
 var (
-	ExternalIngress *snet.Conn
-	InternalIngress io.ReadWriteCloser
-	FreeFrames      *ringbuf.Ring
+	externalIngress *snet.Conn
+	internalIngress io.ReadWriteCloser
+	freeFrames      *ringbuf.Ring
 )
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
@@ -53,7 +53,7 @@ type Dispatcher struct {
 }
 
 func NewDispatcher(laddr *snet.Addr) *Dispatcher {
-	FreeFrames = ringbuf.New(FreeFramesCap, func() interface{} {
+	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "free", prometheus.Labels{"ringId": "freeFrames"})
 	return &Dispatcher{
@@ -64,26 +64,26 @@ func NewDispatcher(laddr *snet.Addr) *Dispatcher {
 
 func (d *Dispatcher) Run() error {
 	var err error
-	ExternalIngress, err = snet.ListenSCION("udp4", d.laddr)
+	externalIngress, err = snet.ListenSCION("udp4", d.laddr)
 	if err != nil {
-		return common.NewCError("Unable to initialize ExternalIngress", "err", err)
+		return common.NewCError("Unable to initialize externalIngress", "err", err)
 	}
-	InternalIngress, err = xnet.ConnectTun(InternalIngressName)
+	internalIngress, err = xnet.ConnectTun(internalIngressName)
 	if err != nil {
-		return common.NewCError("Unable to connect to InternalIngress", "err", err)
+		return common.NewCError("Unable to connect to internalIngress", "err", err)
 	}
-	go d.Read()
+	go d.read()
 	return nil
 }
 
-func (d *Dispatcher) Read() {
+func (d *Dispatcher) read() {
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
-		n, _ := FreeFrames.Read(frames, true)
+		n, _ := freeFrames.Read(frames, true)
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
-			read, src, err := ExternalIngress.ReadFromSCION(frame.raw)
+			read, src, err := externalIngress.ReadFromSCION(frame.raw)
 			if err != nil {
 				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
 				frame.Release()
@@ -96,7 +96,7 @@ func (d *Dispatcher) Read() {
 			// Clear FrameBuf reference
 			frames[i] = nil
 		}
-		if time.Since(lastCleanup) >= WorkerCleanupInterval {
+		if time.Since(lastCleanup) >= workerCleanupInterval {
 			d.cleanup()
 			lastCleanup = time.Now()
 		}
