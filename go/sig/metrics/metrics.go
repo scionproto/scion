@@ -29,6 +29,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/prom"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 )
 
 var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
@@ -80,6 +81,9 @@ func Init(elem string) {
 	FramesDiscarded = newC("frames_discarded_total", "Number of frames discarded.")
 	FramesTooOld = newC("frames_too_old_total", "Number of frames that are too old.")
 	FramesDuplicated = newC("frames_duplicated_total", "Number of duplicate frames.")
+
+	// Initialize ringbuf metrics.
+	ringbuf.InitMetrics("sig", constLabels, []string{"ringId"})
 }
 
 var servers map[string]io.Closer

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package ingress
 
 import (
 	"fmt"
@@ -20,6 +20,13 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/netsec-ethz/scion/go/lib/util"
+)
+
+const (
+	// frameBufCap is the size of a preallocated frame buffer.
+	frameBufCap = 65535
 )
 
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
@@ -52,12 +59,12 @@ type FrameBuf struct {
 }
 
 func NewFrameBuf() *FrameBuf {
-	buf := &FrameBuf{raw: make(common.RawBytes, FrameBufCap)}
+	buf := &FrameBuf{raw: make(common.RawBytes, frameBufCap)}
 	buf.Reset()
 	return buf
 }
 
-// Reset resets the metadata of a frame buffer.
+// Reset resets the metadata of a FrameBuf.
 func (fb *FrameBuf) Reset() {
 	fb.seqNr = -1
 	fb.index = -1
@@ -67,6 +74,12 @@ func (fb *FrameBuf) Reset() {
 	fb.fragNProcessed = false
 	fb.completePktsProcessed = false
 	fb.pktLen = 0
+}
+
+// Release reset the FrameBuf and releases it back to the ringbuf (if set).
+func (fb *FrameBuf) Release() {
+	fb.Reset()
+	freeFrames.Write(ringbuf.EntryList{fb}, true)
 }
 
 // ProcessCompletePkts write all complete packets in the frame to the wire and
@@ -93,7 +106,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 		}
 		offset += pktLen
 		// Packet always starts at 8-byte boundary.
-		offset = pad(offset)
+		offset += util.CalcPadding(offset, 8)
 	}
 	if offset < fb.frameLen {
 		// There is an incomplete packet at the end of the frame.
@@ -121,8 +134,4 @@ func (fb *FrameBuf) String() string {
 	return fmt.Sprintf("SeqNr: %d Index: %d Len: %d frag0Start: %d processed: (%t, %t, %t)",
 		fb.seqNr, fb.index, fb.frameLen, fb.frag0Start, fb.fragNProcessed, fb.frag0Processed,
 		fb.completePktsProcessed)
-}
-
-func pad(x int) int {
-	return x + (8-(x%8))%8
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/control"
+	"github.com/netsec-ethz/scion/go/sig/ingress"
 	"github.com/netsec-ethz/scion/go/sig/management"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 )
@@ -98,8 +99,10 @@ func main() {
 		fatal("Unable to initialize tables", "err", err)
 	}
 
-	// Spawn data plane receiver
-	go base.NewIngressWorker(localEncapAddr).Run()
+	// Spawn ingress Dispatcher.
+	if err := ingress.NewDispatcher(localEncapAddr).Run(); err != nil {
+		fatal("Unable to spawn ingress dispatcher", "err", err)
+	}
 
 	// Enable static routing
 	static := control.NewStaticRP()
