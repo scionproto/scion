@@ -32,10 +32,10 @@ const (
 )
 
 // Helper type for pretty printing of maps using paths as keys
-type rawKey string
+type PathKey string
 
-func (r rawKey) String() string {
-	return common.RawBytes(r).String()
+func (pk PathKey) String() string {
+	return common.RawBytes(pk).String()
 }
 
 // query contains the context needed to issue and update a query

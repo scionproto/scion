@@ -84,7 +84,7 @@ func (rt *revTable) updatePath(ap *AppPath) {
 			// Store reference to new map
 			rt.m[uifid.key()] = aps
 		}
-		aps[rawKey(ap.key())] = ap
+		aps[PathKey(ap.Key())] = ap
 	}
 }
 
@@ -107,7 +107,7 @@ func (rt *revTable) revoke(uifid *UIFID) []*IAPair {
 		for _, iface := range ap.Entry.Path.Interfaces {
 			ifaceUIFID := UIFIDFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
 			pathSet := rt.m[ifaceUIFID.key()]
-			delete(pathSet, ap.key())
+			delete(pathSet, ap.Key())
 
 			// If the last reference from a UIFID to a path was deleted, we can
 			// remove the UIFID from the revTable
