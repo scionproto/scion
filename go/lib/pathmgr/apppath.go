@@ -70,6 +70,12 @@ func (ap *AppPath) Key() PathKey {
 	return PathKey(h.Sum(nil))
 }
 
+// Duplicate adds a shallow copy of ap to aps and sets the parent link to point to it.
+func (ap *AppPath) DuplicateIn(aps AppPathSet) {
+	aps[ap.Key()] = ap
+	ap.parent = aps
+}
+
 // revoke removes ap from its parent path set.
 func (ap *AppPath) revoke() {
 	delete(ap.parent, ap.Key())
