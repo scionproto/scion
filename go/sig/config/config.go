@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package config is responsible for parsing the SIG json config file into a
+// set of simple intermediate data-structures.
 package config
 
 import (
@@ -24,20 +26,25 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-type SIGCfg struct {
-	ASTable map[string]*ASEntry
+// Cfg is a direct Go representation of the JSON file format.
+type Cfg struct {
+	ASes map[string]*ASEntry
+	//PktClasses map[string]*PktClassifier
+	//PathPolicies map[string]*PathPolicy
 }
 
-func LoadFromFile(path string) (*SIGCfg, error) {
+// Load a JSON config file from path and parse it into a Cfg struct.
+func LoadFromFile(path string) (*Cfg, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, common.NewCError("Unable to open SIG config", "err", err)
 	}
-	return Load(b)
+	return Parse(b)
 }
 
-func Load(b common.RawBytes) (*SIGCfg, error) {
-	cfg := &SIGCfg{}
+// Parse a JSON config from b into a Cfg struct.
+func Parse(b common.RawBytes) (*Cfg, error) {
+	cfg := &Cfg{}
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, common.NewCError("Unable to parse SIG config", "err", err)
 	}
@@ -46,9 +53,10 @@ func Load(b common.RawBytes) (*SIGCfg, error) {
 
 type ASEntry struct {
 	Nets []*IPNet
-	Sigs map[string]*SIGEntry
+	Sigs map[string]*SIG
 }
 
+// IPNet is custom type of net.IPNet, to allow custom unmarshalling.
 type IPNet net.IPNet
 
 func (in *IPNet) UnmarshalJSON(b []byte) error {
@@ -68,7 +76,8 @@ func (in *IPNet) IPNet() *net.IPNet {
 	return (*net.IPNet)(in)
 }
 
-type SIGEntry struct {
+// SIG represents a SIG in a remote IA.
+type SIG struct {
 	Id        string
 	Addr      net.IP
 	CtrlPort  uint16

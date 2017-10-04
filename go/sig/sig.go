@@ -115,12 +115,12 @@ func loadConfig(path string) bool {
 		cerr := err.(*common.CError)
 		fatal(cerr.Desc, cerr.Ctx...)
 	}
-	if len(cfg.ASTable) == 0 {
+	if len(cfg.ASes) == 0 {
 		log.Error("Empty ASTable in config")
 		return false
 	}
 	success := true
-	for iaStr, cfgEntry := range cfg.ASTable {
+	for iaStr, cfgEntry := range cfg.ASes {
 		ia, err := addr.IAFromString(iaStr)
 		if err != nil {
 			log.Error("Unable to parse ISD-AS from config", "raw", iaStr, "err", err)
