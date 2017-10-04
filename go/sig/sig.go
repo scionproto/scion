@@ -123,12 +123,8 @@ func loadConfig(path string) bool {
 			success = false
 			continue
 		}
-		if _, err := base.Table.AddIA(ia); err != nil {
-			log.Error("Unable to add remote IA", "ia", ia, "err", err)
-			success = false
-			continue
-		}
-		ae := base.Table.ASEntry(ia)
+		base.Map.AddIA(ia)
+		ae := base.Map.ASEntry(ia)
 		// Add sigs before networks, so there's somewhere for packets to go.
 		for id, sig := range cfgEntry.Sigs {
 			if len(sig.Addr) == 0 {

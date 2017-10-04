@@ -23,50 +23,53 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 )
 
-var Table = newASTable()
+var Map = newASMap()
 
-type ASTable struct {
+// ASMap is a RWMutex-protected map of ASEntries.
+type ASMap struct {
 	// FIXME(kormat): when we switch to go 1.9, consider replacing this with sync.Map.
 	sync.RWMutex
 	t map[addr.IAInt]*ASEntry
 }
 
-func newASTable() *ASTable {
-	return &ASTable{t: make(map[addr.IAInt]*ASEntry)}
+func newASMap() *ASMap {
+	return &ASMap{t: make(map[addr.IAInt]*ASEntry)}
 }
 
-// Add IA entry, true if added
-func (at *ASTable) AddIA(ia *addr.ISD_AS) (bool, error) {
-	at.Lock()
-	defer at.Unlock()
+// AddIA idempotently adds an entry for a remote IA. A true return value
+// indicates an entry was added, false indicates an entry already exists.
+func (am *ASMap) AddIA(ia *addr.ISD_AS) bool {
+	am.Lock()
+	defer am.Unlock()
 	key := ia.IAInt()
-	_, ok := at.t[key]
+	_, ok := am.t[key]
 	if ok {
-		return false, nil
+		return false
 	}
-	at.t[key] = newASEntry(ia)
+	am.t[key] = newASEntry(ia)
 	log.Debug("Added IA", "ia", ia)
-	return true, nil
+	return true
 }
 
-// Remove IA entry, true if removed
-func (at *ASTable) DelIA(ia *addr.ISD_AS) (bool, error) {
-	at.Lock()
+// DelIA idempotently removes an entry for a remote IA.
+func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
+	am.Lock()
 	key := ia.IAInt()
-	entry, ok := at.t[key]
+	entry, ok := am.t[key]
 	if !ok {
-		at.Unlock()
-		return false, nil
+		am.Unlock()
+		return nil
 	}
-	delete(at.t, key)
+	delete(am.t, key)
 	// Unlock before cleanup to reduce time spent holding this mutex.
-	at.Unlock()
+	am.Unlock()
 	log.Debug("Removed IA", "ia", ia)
-	return true, entry.Cleanup()
+	return entry.Cleanup()
 }
 
-func (at *ASTable) ASEntry(ia *addr.ISD_AS) *ASEntry {
-	at.RLock()
-	defer at.RUnlock()
-	return at.t[ia.IAInt()]
+// ASEntry returns the entry for the specified remote IA, or nil if not present.
+func (am *ASMap) ASEntry(ia *addr.ISD_AS) *ASEntry {
+	am.RLock()
+	defer am.RUnlock()
+	return am.t[ia.IAInt()]
 }
