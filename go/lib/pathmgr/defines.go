@@ -49,13 +49,33 @@ type query struct {
 // path resolver can change the value of the reference within a SyncPaths to a
 // different slice containing new paths. Calling code should reload the
 // reference often to make sure the paths are fresh.
+//
+// A SyncPaths must never be copied.
 type SyncPaths struct {
-	atomic.Value
+	value     atomic.Value
+	timestamp atomic.Value
+}
+
+func NewSyncPaths() *SyncPaths {
+	sp := &SyncPaths{}
+	sp.timestamp.Store(time.Now())
+	sp.Store(AppPathSet(nil))
+	return sp
+}
+
+// Overwrite Store to update timestamp
+func (sp *SyncPaths) Store(aps AppPathSet) {
+	sp.value.Store(aps)
+	sp.timestamp.Store(time.Now())
 }
 
 // Overwrite Load to avoid external type assertions
 func (sp *SyncPaths) Load() AppPathSet {
-	return sp.Value.Load().(AppPathSet)
+	return sp.value.Load().(AppPathSet)
+}
+
+func (sp *SyncPaths) Timestamp() time.Time {
+	return sp.timestamp.Load().(time.Time)
 }
 
 // sciondState is used to track the health of the connection to SCIOND
