@@ -21,7 +21,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
-type SIGInfo struct {
+type SIGEntry struct {
 	IA          *addr.ISD_AS
 	Id          string
 	Host        addr.HostAddr
@@ -33,17 +33,17 @@ type SIGInfo struct {
 }
 
 func NewSIGInfo(ia *addr.ISD_AS, id string, host addr.HostAddr,
-	ctrlPort, encapPort int, static bool) *SIGInfo {
-	return &SIGInfo{
+	ctrlPort, encapPort int, static bool) *SIGEntry {
+	return &SIGEntry{
 		IA: ia, Id: id, Host: host, CtrlL4Port: ctrlPort,
 		EncapL4Port: encapPort, Active: true, Static: static,
 	}
 }
 
-func (si *SIGInfo) CtrlSnetAddr() *snet.Addr {
+func (si *SIGEntry) CtrlSnetAddr() *snet.Addr {
 	return &snet.Addr{IA: si.IA, Host: si.Host, L4Port: uint16(si.CtrlL4Port)}
 }
 
-func (si *SIGInfo) EncapSnetAddr() *snet.Addr {
+func (si *SIGEntry) EncapSnetAddr() *snet.Addr {
 	return &snet.Addr{IA: si.IA, Host: si.Host, L4Port: uint16(si.EncapL4Port)}
 }

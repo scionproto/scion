@@ -35,7 +35,7 @@ type ASEntry struct {
 	IA           *addr.ISD_AS
 	IAString     string
 	Nets         map[string]*NetEntry
-	Sigs         map[string]*SIGInfo
+	Sigs         map[string]*SIGEntry
 	PathPolicies []PathPolicy
 	DevName      string
 	tunLink      netlink.Link
@@ -50,158 +50,158 @@ func newASEntry(ia *addr.ISD_AS) *ASEntry {
 		IA:       ia,
 		IAString: ia.String(),
 		Nets:     make(map[string]*NetEntry),
-		Sigs:     make(map[string]*SIGInfo),
+		Sigs:     make(map[string]*SIGEntry),
 		DevName:  fmt.Sprintf("scion-%s", ia),
 	}
 }
 
-func (as *ASEntry) TunIO() (io.ReadWriteCloser, error) {
-	as.Lock()
-	defer as.Unlock()
-	if as.tunLink == nil {
-		if err := as.setupNet(); err != nil {
+func (ae *ASEntry) TunIO() (io.ReadWriteCloser, error) {
+	ae.Lock()
+	defer ae.Unlock()
+	if ae.tunLink == nil {
+		if err := ae.setupNet(); err != nil {
 			return nil, err
 		}
 	}
-	return as.tunIO, nil
+	return ae.tunIO, nil
 }
 
-func (as *ASEntry) Conn() (*snet.Conn, error) {
-	as.Lock()
-	defer as.Unlock()
-	if as.tunLink == nil {
-		if err := as.setupNet(); err != nil {
+func (ae *ASEntry) Conn() (*snet.Conn, error) {
+	ae.Lock()
+	defer ae.Unlock()
+	if ae.tunLink == nil {
+		if err := ae.setupNet(); err != nil {
 			return nil, err
 		}
 	}
-	return as.conn, nil
+	return ae.conn, nil
 }
 
-func (as *ASEntry) setupNet() error {
+func (ae *ASEntry) setupNet() error {
 	var err error
-	as.tunLink, as.tunIO, err = xnet.ConnectTun(as.DevName)
+	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
 	if err != nil {
 		return err
 	}
 	// Not using a fixed local port, as this is for outgoing data only.
-	as.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
+	ae.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
 	if err != nil {
 		return err
 	}
 	// FIXME(kormat): once policies are implmeneted, workers would be spawned by the policies,
 	// and the egress dispatcher would be spawned here (and if we move away from tun-per-IA,
 	// then it would be spawned by main())
-	go NewEgressWorker(as, as.tunIO).Run()
-	log.Debug("Network setup done", "ia", as.IA)
+	go NewEgressWorker(ae, ae.tunIO).Run()
+	log.Debug("Network setup done", "ia", ae.IA)
 	return nil
 }
 
-func (as *ASEntry) AddNet(ipnet *net.IPNet) error {
-	as.Lock()
-	defer as.Unlock()
-	if as.tunLink == nil {
+func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
+	ae.Lock()
+	defer ae.Unlock()
+	if ae.tunLink == nil {
 		// Ensure that the network setup is done, as otherwise route entries can't be added.
-		if err := as.setupNet(); err != nil {
+		if err := ae.setupNet(); err != nil {
 			return err
 		}
 	}
 	key := ipnet.String()
-	if _, ok := as.Nets[key]; ok {
+	if _, ok := ae.Nets[key]; ok {
 		return nil
 	}
-	ne, err := newNetEntry(as.tunLink, ipnet)
+	ne, err := newNetEntry(ae.tunLink, ipnet)
 	if err != nil {
 		return err
 	}
-	as.Nets[key] = ne
-	log.Debug("Added network", "ia", as.IA, "net", ipnet)
+	ae.Nets[key] = ne
+	log.Debug("Added network", "ia", ae.IA, "net", ipnet)
 	return nil
 }
 
-func (as *ASEntry) DelNet(ipnet *net.IPNet) error {
-	as.Lock()
+func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
+	ae.Lock()
 	key := ipnet.String()
-	ne, ok := as.Nets[key]
+	ne, ok := ae.Nets[key]
 	if !ok {
-		as.Unlock()
-		return common.NewCError("DelNet: Network not found", "ia", as.IA, "net", ipnet)
+		ae.Unlock()
+		return common.NewCError("DelNet: Network not found", "ia", ae.IA, "net", ipnet)
 	}
-	delete(as.Nets, key)
-	as.Unlock()
-	log.Debug("Removed network", "ia", as.IA, "net", ipnet)
+	delete(ae.Nets, key)
+	ae.Unlock()
+	log.Debug("Removed network", "ia", ae.IA, "net", ipnet)
 	return ne.Cleanup()
 }
 
-func (as *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static bool) bool {
-	as.Lock()
-	defer as.Unlock()
-	if _, ok := as.Sigs[id]; ok {
+func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static bool) bool {
+	ae.Lock()
+	defer ae.Unlock()
+	if _, ok := ae.Sigs[id]; ok {
 		return false
 	}
-	as.Sigs[id] = NewSIGInfo(as.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
-	log.Debug("Added SIG", "ia", as.IA, "sig", as.Sigs[id])
+	ae.Sigs[id] = NewSIGInfo(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
+	log.Debug("Added SIG", "ia", ae.IA, "sig", ae.Sigs[id])
 	return true
 }
 
-func (as *ASEntry) DelSig(id string) bool {
-	as.Lock()
-	defer as.Unlock()
-	entry, ok := as.Sigs[id]
+func (ae *ASEntry) DelSig(id string) bool {
+	ae.Lock()
+	defer ae.Unlock()
+	entry, ok := ae.Sigs[id]
 	if !ok {
 		return false
 	}
-	delete(as.Sigs, id)
-	log.Debug("Removed SIG", "ia", as.IA, "sig", entry)
+	delete(ae.Sigs, id)
+	log.Debug("Removed SIG", "ia", ae.IA, "sig", entry)
 	// TODO(kormat): notify keepalive thread to reevaluate SIGs.
 	return true
 }
 
-func (as *ASEntry) CurrSig() *SIGInfo {
+func (ae *ASEntry) CurrSig() *SIGEntry {
 	// FIXME(kormat): this is temporary, until we have policies managing this.
-	for _, sig := range as.Sigs {
+	for _, sig := range ae.Sigs {
 		return sig
 	}
 	return nil
 }
 
-func (as *ASEntry) Cleanup() error {
-	as.Lock()
-	defer as.Unlock()
+func (ae *ASEntry) Cleanup() error {
+	ae.Lock()
+	defer ae.Unlock()
 	// FIXME(kormat): cleanup path policies and their goroutines.
-	for _, ne := range as.Nets {
+	for _, ne := range ae.Nets {
 		if err := ne.Cleanup(); err != nil {
 			cerr := err.(*common.CError)
 			log.Error(cerr.Desc, cerr.Ctx...)
 		}
 	}
-	if err := as.tunIO.Close(); err != nil {
-		log.Error("Error closing TUN io", "ia", as.IA, "dev", as.DevName, "err", err)
+	if err := ae.tunIO.Close(); err != nil {
+		log.Error("Error closing TUN io", "ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
-	if err := netlink.LinkDel(as.tunLink); err != nil {
+	if err := netlink.LinkDel(ae.tunLink); err != nil {
 		// Only return this error, as it's the only critical one.
 		return common.NewCError("Error removing TUN link",
-			"ia", as.IA, "dev", as.DevName, "err", err)
+			"ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
-	return as.conn.Close()
+	return ae.conn.Close()
 }
 
-func (as *ASEntry) String() string {
-	as.RLock()
-	defer as.RUnlock()
+func (ae *ASEntry) String() string {
+	ae.RLock()
+	defer ae.RUnlock()
 
-	output := fmt.Sprintf("ISDAS %v:\n", as.IA)
+	output := fmt.Sprintf("ISDAS %v:\n", ae.IA)
 	output += "  SIGs:\n"
-	if len(as.Sigs) == 0 {
+	if len(ae.Sigs) == 0 {
 		output += fmt.Sprintf("    (no SIGs)\n")
 	}
-	for sig := range as.Sigs {
+	for sig := range ae.Sigs {
 		output += "    " + sig + "\n"
 	}
 	output += "Prefixes:\n"
-	if len(as.Nets) == 0 {
+	if len(ae.Nets) == 0 {
 		output += fmt.Sprintf("    (no prefixes)\n")
 	}
-	for key := range as.Nets {
+	for key := range ae.Nets {
 		output += "    " + key + "\n"
 	}
 	return output
