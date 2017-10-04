@@ -22,8 +22,8 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 // ReassemblyList is used to keep a doubly linked list of SIG frames that are
@@ -173,7 +173,9 @@ func (l *ReassemblyList) collectAndWrite() {
 	for e := start.Next(); l.buf.Len() < pktLen && e != nil; e = e.Next() {
 		frame = e.Value.(*FrameBuf)
 		missingBytes := pktLen - l.buf.Len()
-		l.buf.Write(frame.raw[base.SIGHdrSize:intMin(missingBytes+base.SIGHdrSize, frame.frameLen)])
+		l.buf.Write(
+			frame.raw[sigcmn.SIGHdrSize:intMin(missingBytes+sigcmn.SIGHdrSize, frame.frameLen)],
+		)
 		frame.fragNProcessed = true
 	}
 	// Check length of the reassembled packet.

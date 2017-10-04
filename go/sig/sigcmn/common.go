@@ -27,6 +27,7 @@ const (
 	DefaultCtrlPort  = 10081
 	DefaultEncapPort = 10080
 	maxPort          = 1 << 16
+	SIGHdrSize       = 8
 )
 
 var (

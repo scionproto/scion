@@ -25,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -40,7 +41,6 @@ import (
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 const (
-	SIGHdrSize = 8
 	PktLenSize = 2
 	MinSpace   = 16
 )
@@ -103,7 +103,7 @@ func (e *EgressWorker) Run() error {
 	var pkt common.RawBytes
 	var conn *snet.Conn
 	var err error
-	e.frameOff = SIGHdrSize
+	e.frameOff = sigcmn.SIGHdrSize
 
 TopLoop:
 	for {
@@ -119,7 +119,7 @@ TopLoop:
 		// FIXME(kormat): calculate the max payload size based on path's MTU
 		frame = frame[:1280]
 
-		if e.frameOff == SIGHdrSize {
+		if e.frameOff == sigcmn.SIGHdrSize {
 			// Don't have a partial frame, so block indefiniely for the next packet.
 			pkt = <-e.c
 		} else {
@@ -202,7 +202,7 @@ func (e *EgressWorker) Write(conn *snet.Conn, frame common.RawBytes) error {
 	// Update metadata
 	e.seq += 1
 	e.index = 0
-	e.frameOff = SIGHdrSize
+	e.frameOff = sigcmn.SIGHdrSize
 	// Send frame
 	bytesWritten, err := conn.WriteToSCION(frame, e.info.CurrSig().EncapSnetAddr())
 	if err != nil {
