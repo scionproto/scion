@@ -44,6 +44,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/class"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
@@ -61,8 +62,10 @@ type PR struct {
 	sync.Mutex
 	sciondPath string
 	sciond     *sciond.Connector
-	// Path map for continuously updated queries
+	// Path map for continuously updated queries, Key is IAKey(src,dst)
 	regMap map[string]*SyncPaths
+	// Path map for continuously updated sets of filters
+	filterMap FilterMap
 	// Path cache for simple queries
 	pathMap *cache.Cache
 	// Number of IAs registered for priority tracking
@@ -95,6 +98,7 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 		sciond:         sciondSock,
 		state:          sciondUp,
 		regMap:         make(map[string]*SyncPaths),
+		filterMap:      make(FilterMap),
 		queries:        make(chan query, queryChanCap),
 		refireInterval: refireInterval,
 		pathMap:        cache.New(pathTTL, pathCleanupInterval),
@@ -146,9 +150,35 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
+	return r.register(src, dst)
+}
 
+// RegisterFilter returns a pointer to a SyncPaths object that contains
+// paths from src to dst that adhere to the specified filter. On path
+// changes the list is refreshed automatically.
+//
+// RegisterFilter also adds pair src-dst to the list of tracke paths (if it
+// wasn't already tracked).
+func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) (*SyncPaths, error) {
+	r.Lock()
+	defer r.Unlock()
+
+	// Register source and destination for periodic lookups
+	sp, err := r.register(src, dst)
+	if err != nil {
+		return nil, err
+	}
+
+	// Register filter and populate initial paths
+	filterSP := r.filterMap.Set(src, dst, filter)
+	r.filterMap.Update(src, dst, sp.Load())
+
+	return filterSP, nil
+}
+
+func (r *PR) register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	// If src-dst pair already registered, return a pointer to the slice of paths
-	key := iaKey(src, dst)
+	key := IAKey(src, dst)
 	dupSP := r.regMap[key]
 	if dupSP != nil {
 		return dupSP, nil
@@ -162,8 +192,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	r.regCount += 1
 
 	// Reserve memory location for pointer to path
-	sp := &SyncPaths{}
-	sp.Store(AppPathSet(nil))
+	sp := NewSyncPaths()
 
 	// Save registration memory location in map
 	r.regMap[key] = sp
@@ -181,6 +210,12 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	})
 
 	return sp, nil
+}
+
+// UnregisterFilter deletes a previously registered filter.
+func (r *PR) UnregisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) error {
+	// TODO(scrye): implement this
+	return common.NewCError("Not implemented")
 }
 
 // Revoke asynchronously informs SCIOND about a revocation and flushes any
@@ -214,7 +249,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 		r.revTableCache.revoke(uifid)
 		revokedPairs := r.revTableReg.revoke(uifid)
 		for _, pair := range revokedPairs {
-			sp, ok := r.regMap[iaKey(pair.src, pair.dst)]
+			sp, ok := r.regMap[IAKey(pair.src, pair.dst)]
 			if !ok {
 				// src-dst pair is no longer tracked
 				continue
@@ -222,6 +257,8 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 			q := query{src: pair.src, dst: pair.dst, sp: sp}
 			pathSet := r.lookup(q)
 			sp.Store(pathSet)
+			r.filterMap.Update(pair.src, pair.dst, pathSet)
+			// Filter paths if something changed
 			r.revTableReg.updatePathSet(pathSet)
 		}
 	case sciond.RevStale:
@@ -239,6 +276,8 @@ func (r *PR) resolver() {
 			// Store path slice atomically
 			query.sp.Store(pathSet)
 			r.revTableReg.updatePathSet(pathSet)
+			// Filter paths if something changed
+			r.filterMap.Update(query.src, query.dst, pathSet)
 		}
 		r.Unlock()
 
@@ -308,8 +347,4 @@ func (r *PR) stateTransition(new sciondState) bool {
 		return true
 	}
 	return false
-}
-
-func iaKey(src, dst *addr.ISD_AS) string {
-	return src.String() + "." + dst.String()
 }
