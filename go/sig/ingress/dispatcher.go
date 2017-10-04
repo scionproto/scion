@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	// tunIOName is the name of the internal ingress tunnel interface.
-	tunIOName = "scion-local"
+	// tunDevName is the name of the internal ingress tunnel interface.
+	tunDevName = "scion-local"
 	// workerCleanupInterval is the interval between worker cleanup rounds.
 	workerCleanupInterval = 60 * time.Second
 	// freeFramesCap is the number of preallocated Framebuf objects.
@@ -70,11 +70,11 @@ func (d *Dispatcher) Run() error {
 	if err != nil {
 		return common.NewCError("Unable to initialize extConn", "err", err)
 	}
-	_, tunIO, err = xnet.ConnectTun(tunIOName)
+	_, tunIO, err = xnet.ConnectTun(tunDevName)
 	if err != nil {
 		return common.NewCError("Unable to connect to tunIO", "err", err)
 	}
-	go d.read()
+	d.read()
 	return nil
 }
 

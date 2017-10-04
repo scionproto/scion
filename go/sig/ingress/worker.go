@@ -147,7 +147,7 @@ func send(packet common.RawBytes) error {
 		return common.NewCError("Unable to write to internal ingress", "err", err,
 			"length", len(packet))
 	}
-	metrics.PktsSent.WithLabelValues(tunIOName).Inc()
-	metrics.PktBytesSent.WithLabelValues(tunIOName).Add(float64(bytesWritten))
+	metrics.PktsSent.WithLabelValues(tunDevName).Inc()
+	metrics.PktBytesSent.WithLabelValues(tunDevName).Add(float64(bytesWritten))
 	return nil
 }

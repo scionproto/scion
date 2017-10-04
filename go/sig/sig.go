@@ -87,14 +87,10 @@ func main() {
 		fatal("Unable to load config on startup")
 	}
 
-	// Spawn egress Dispatcher.
-	// TODO(kormat)
-
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(); err != nil {
 		fatal("Unable to spawn ingress dispatcher", "err", err)
 	}
-	select {}
 }
 
 func setupSignals() {
