@@ -37,19 +37,22 @@ func newASMap() *ASMap {
 	return &ASMap{t: make(map[addr.IAInt]*ASEntry)}
 }
 
-// AddIA idempotently adds an entry for a remote IA. A true return value
-// indicates an entry was added, false indicates an entry already exists.
-func (am *ASMap) AddIA(ia *addr.ISD_AS) bool {
+// AddIA idempotently adds an entry for a remote IA.
+func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
+	if ia.I == 0 || ia.A == 0 {
+		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
+		return nil, common.NewCError("AddIA: ISD and AS must not be 0", "ia", ia)
+	}
 	am.Lock()
 	defer am.Unlock()
 	key := ia.IAInt()
-	_, ok := am.t[key]
+	ae, ok := am.t[key]
 	if ok {
-		return false
+		return ae, nil
 	}
 	am.t[key] = newASEntry(ia)
 	log.Info("Added IA", "ia", ia)
-	return true
+	return ae, nil
 }
 
 // DelIA removes an entry for a remote IA.

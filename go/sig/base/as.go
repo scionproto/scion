@@ -101,28 +101,27 @@ func (ae *ASEntry) setupNet() error {
 	return nil
 }
 
-// AddNet idempotently adds a network for the remote IA. A true return value
-// indicates an entry was added, false indicates an entry already exists.
-func (ae *ASEntry) AddNet(ipnet *net.IPNet) (bool, error) {
+// AddNet idempotently adds a network for the remote IA.
+func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
 	ae.Lock()
 	defer ae.Unlock()
 	if ae.tunLink == nil {
 		// Ensure that the network setup is done, as otherwise route entries can't be added.
 		if err := ae.setupNet(); err != nil {
-			return false, err
+			return err
 		}
 	}
 	key := ipnet.String()
 	if _, ok := ae.Nets[key]; ok {
-		return false, nil
+		return nil
 	}
 	ne, err := newNetEntry(ae.tunLink, ipnet)
 	if err != nil {
-		return false, err
+		return err
 	}
 	ae.Nets[key] = ne
 	log.Info("Added network", "ia", ae.IA, "net", ipnet)
-	return true, nil
+	return nil
 }
 
 // DelIA removes a network for the remote IA.
@@ -140,18 +139,29 @@ func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 	return ne.Cleanup()
 }
 
-// AddNet idempotently adds a SIG for the remote IA. A true return value
-// indicates an entry was added, false indicates an entry already exists.
-func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static bool) bool {
+// AddNet idempotently adds a SIG for the remote IA.
+func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static bool) error {
 	ae.Lock()
 	defer ae.Unlock()
+	if len(id) == 0 {
+		return common.NewCError("AddSig: zero-length SIG id", "ia", ae.IA)
+	}
+	if ip == nil {
+		return common.NewCError("AddSig: zero-length SIG address", "ia", ae.IA)
+	}
+	if ctrlPort == 0 {
+		return common.NewCError("AddSig: Ctrl port must be non-zero", "ia", ae.IA, "id", id)
+	}
+	if encapPort == 0 {
+		return common.NewCError("AddSig: Encap port must be non-zero", "ia", ae.IA, "id", id)
+	}
 	if _, ok := ae.Sigs[id]; ok {
 		// FIXME(kormat): support updating SIG entry.
-		return false
+		return nil
 	}
 	ae.Sigs[id] = NewSIGInfo(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
 	log.Info("Added SIG", "ia", ae.IA, "sig", ae.Sigs[id])
-	return true
+	return nil
 }
 
 // DelSIG removes an SIG for the remote IA.

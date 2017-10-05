@@ -40,7 +40,15 @@ func LoadFromFile(path string) (*Cfg, error) {
 	if err != nil {
 		return nil, common.NewCError("Unable to open SIG config", "err", err)
 	}
-	return Parse(b)
+	cfg, err := Parse(b)
+	if err != nil {
+		return nil, err
+	}
+	if len(cfg.ASes) == 0 {
+		return nil, common.NewCError("Empty ASTable in config")
+	}
+	// TODO(kormat): Also ensure that class/action references are valid when those are added.
+	return cfg, nil
 }
 
 // Parse a JSON config from b into a Cfg struct.

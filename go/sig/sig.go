@@ -109,24 +109,21 @@ func loadConfig(path string) bool {
 	cfg, err := config.LoadFromFile(path)
 	if err != nil {
 		cerr := err.(*common.CError)
-		fatal(cerr.Desc, cerr.Ctx...)
-	}
-	if len(cfg.ASes) == 0 {
-		log.Error("Empty ASTable in config")
+		log.Error(cerr.Desc, cerr.Ctx...)
 		return false
 	}
 	success := true
 	for iaVal, cfgEntry := range cfg.ASes {
 		ia := &iaVal
-		base.Map.AddIA(ia)
-		ae := base.Map.ASEntry(ia)
+		ae, err := base.Map.AddIA(ia)
+		if err != nil {
+			cerr := err.(*common.CError)
+			log.Error(cerr.Desc, cerr.Ctx...)
+			success = false
+			continue
+		}
 		// Add sigs before networks, so there's somewhere for packets to go.
 		for id, sig := range cfgEntry.Sigs {
-			if len(sig.Addr) == 0 {
-				log.Error("Remote SIG has no address in config", "ia", ia, "sig", id)
-				success = false
-				continue
-			}
 			ctrlPort := int(sig.CtrlPort)
 			if ctrlPort == 0 {
 				ctrlPort = sigcmn.DefaultCtrlPort
@@ -135,16 +132,17 @@ func loadConfig(path string) bool {
 			if encapPort == 0 {
 				encapPort = sigcmn.DefaultEncapPort
 			}
-			ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true)
-		}
-		if len(cfgEntry.Nets) == 0 {
-			log.Warn("No networks configured for remote IA", "ia", ia)
-			success = false
-			continue
+			err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true)
+			if err != nil {
+				cerr := err.(*common.CError)
+				log.Error(cerr.Desc, cerr.Ctx...)
+				success = false
+				continue
+			}
 		}
 		// TODO(kormat): add classes here
 		for _, netw := range cfgEntry.Nets {
-			if _, err := ae.AddNet(netw.IPNet()); err != nil {
+			if err := ae.AddNet(netw.IPNet()); err != nil {
 				cerr := err.(*common.CError)
 				log.Error(cerr.Desc, cerr.Ctx...)
 				success = false
