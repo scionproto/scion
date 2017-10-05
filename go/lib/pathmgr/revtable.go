@@ -21,31 +21,31 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-type IAPair struct {
+type iaPair struct {
 	src *addr.ISD_AS
 	dst *addr.ISD_AS
 }
 
-// UIFID (Unique IFID) is a IFID descriptor with global scope composed of ISDAS
+// uifid (Unique IFID) is a IFID descriptor with global scope composed of ISDAS
 // and local IFID
-type UIFID struct {
+type uifid struct {
 	isdas *addr.ISD_AS
 	ifid  common.IFIDType
 }
 
-func UIFIDFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) *UIFID {
-	return &UIFID{
+func uifidFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) *uifid {
+	return &uifid{
 		isdas: isdas.Copy(),
 		ifid:  ifid,
 	}
 }
 
 // key returns a unique key that can be used as a map index
-func (u *UIFID) key() string {
+func (u *uifid) key() string {
 	return fmt.Sprintf("%s#%d", u.isdas, u.ifid)
 }
 
-func (u *UIFID) String() string {
+func (u *uifid) String() string {
 	return u.key()
 }
 
@@ -76,7 +76,7 @@ func (rt *revTable) updatePathSet(aps AppPathSet) {
 
 func (rt *revTable) updatePath(ap *AppPath) {
 	for _, iface := range ap.Entry.Path.Interfaces {
-		uifid := UIFIDFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
+		uifid := uifidFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
 		aps, ok := rt.m[uifid.key()]
 		if !ok {
 			// AppPathSet not initialized yet
@@ -89,9 +89,9 @@ func (rt *revTable) updatePath(ap *AppPath) {
 }
 
 // RevokeUIFID deletes all the paths that include uifid
-func (rt *revTable) revoke(uifid *UIFID) []*IAPair {
-	pairs := make([]*IAPair, 0)
-	aps := rt.m[uifid.key()]
+func (rt *revTable) revoke(u *uifid) []*iaPair {
+	pairs := make([]*iaPair, 0)
+	aps := rt.m[u.key()]
 	for _, ap := range aps {
 		ap.revoke()
 
@@ -99,13 +99,13 @@ func (rt *revTable) revoke(uifid *UIFID) []*IAPair {
 		// destination to be deleted, return the source and destination
 		// to allow callers to requery SCIOND immediately
 		if len(ap.parent) == 0 {
-			pairs = append(pairs, &IAPair{src: getSrcIA(ap), dst: getDstIA(ap)})
+			pairs = append(pairs, &iaPair{src: getSrcIA(ap), dst: getDstIA(ap)})
 		}
 
 		// Delete all references from other UIFIDs to the revoked path,
 		// thus allowing the path to be garbage collected
 		for _, iface := range ap.Entry.Path.Interfaces {
-			ifaceUIFID := UIFIDFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
+			ifaceUIFID := uifidFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
 			pathSet := rt.m[ifaceUIFID.key()]
 			delete(pathSet, ap.Key())
 
@@ -116,7 +116,7 @@ func (rt *revTable) revoke(uifid *UIFID) []*IAPair {
 			}
 		}
 	}
-	delete(rt.m, uifid.key())
+	delete(rt.m, u.key())
 	return nil
 }
 
