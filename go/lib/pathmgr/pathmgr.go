@@ -65,7 +65,7 @@ type PR struct {
 	// Path map for continuously updated queries, Key is IAKey(src,dst)
 	regMap map[string]*SyncPaths
 	// Path map for continuously updated sets of filters
-	filterMap FilterMap
+	filterMap filterMap
 	// Path cache for simple queries
 	pathMap *cache.Cache
 	// Number of IAs registered for priority tracking
@@ -98,7 +98,7 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 		sciond:         sciondSock,
 		state:          sciondUp,
 		regMap:         make(map[string]*SyncPaths),
-		filterMap:      make(FilterMap),
+		filterMap:      make(filterMap),
 		queries:        make(chan query, queryChanCap),
 		refireInterval: refireInterval,
 		pathMap:        cache.New(pathTTL, pathCleanupInterval),
@@ -120,8 +120,8 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	defer r.Unlock()
 
 	// Check if srcIA-dstIA registered with path resolver
-	iaKey := IAKey(src, dst)
-	pathSetI, ok := r.pathMap.Get(iaKey)
+	key := iaKey(src, dst)
+	pathSetI, ok := r.pathMap.Get(key)
 	if ok {
 		return pathSetI.(AppPathSet)
 	}
@@ -135,7 +135,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	}
 	// We found paths, so we cache them
 	r.revTableCache.updatePathSet(pathSet)
-	r.pathMap.SetDefault(iaKey, pathSet)
+	r.pathMap.SetDefault(key, pathSet)
 	return pathSet
 }
 
@@ -170,15 +170,15 @@ func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) 
 	}
 
 	// Register filter and populate initial paths
-	filterSP := r.filterMap.Set(src, dst, filter)
-	r.filterMap.Update(src, dst, sp.Load())
+	filterSP := r.filterMap.set(src, dst, filter)
+	r.filterMap.update(src, dst, sp.Load())
 
 	return filterSP, nil
 }
 
 func (r *PR) register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	// If src-dst pair already registered, return a pointer to the slice of paths
-	key := IAKey(src, dst)
+	key := iaKey(src, dst)
 	dupSP := r.regMap[key]
 	if dupSP != nil {
 		return dupSP, nil
@@ -245,11 +245,11 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 
 	switch reply.Result {
 	case sciond.RevUnknown, sciond.RevValid:
-		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
+		uifid := uifidFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
 		r.revTableCache.revoke(uifid)
 		revokedPairs := r.revTableReg.revoke(uifid)
 		for _, pair := range revokedPairs {
-			sp, ok := r.regMap[IAKey(pair.src, pair.dst)]
+			sp, ok := r.regMap[iaKey(pair.src, pair.dst)]
 			if !ok {
 				// src-dst pair is no longer tracked
 				continue
@@ -257,7 +257,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 			q := query{src: pair.src, dst: pair.dst, sp: sp}
 			pathSet := r.lookup(q)
 			sp.Store(pathSet)
-			r.filterMap.Update(pair.src, pair.dst, pathSet)
+			r.filterMap.update(pair.src, pair.dst, pathSet)
 			// Filter paths if something changed
 			r.revTableReg.updatePathSet(pathSet)
 		}
@@ -277,7 +277,7 @@ func (r *PR) resolver() {
 			query.sp.Store(pathSet)
 			r.revTableReg.updatePathSet(pathSet)
 			// Filter paths if something changed
-			r.filterMap.Update(query.src, query.dst, pathSet)
+			r.filterMap.update(query.src, query.dst, pathSet)
 		}
 		r.Unlock()
 
