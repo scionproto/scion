@@ -59,9 +59,7 @@ func (c *Class) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Class) UnmarshalJSON(b []byte) error {
-	s := struct {
-		condUnion
-	}{}
+	var s condUnion
 	err := json.Unmarshal(b, &s)
 	if err != nil {
 		return err
