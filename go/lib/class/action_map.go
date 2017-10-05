@@ -55,9 +55,9 @@ func (am *ActionMap) Remove(name string) error {
 }
 
 func (am *ActionMap) MarshalJSON() ([]byte, error) {
-	m := make(map[string]JSONContainer)
+	m := make(map[string]jsonContainer)
 	for k, v := range am.m {
-		jc := make(JSONContainer)
+		jc := make(jsonContainer)
 		jc.addTypedAction(v)
 		m[k] = jc
 	}
