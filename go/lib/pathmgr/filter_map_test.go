@@ -30,7 +30,7 @@ func TestFilterMap(t *testing.T) {
 		SoMsg("err A", err, ShouldBeNil)
 		ppB, err := class.NewPathPredicate("1-12#*,2-22#*")
 		SoMsg("err B", err, ShouldBeNil)
-		fm := make(FilterMap)
+		fm := make(filterMap)
 		src := &addr.ISD_AS{I: 1, A: 10}
 		dst := &addr.ISD_AS{I: 2, A: 20}
 
@@ -46,40 +46,40 @@ func TestFilterMap(t *testing.T) {
 		}
 
 		Convey("Get absent src-dst pair 1-10.2-20, predicateA", func() {
-			sp, ok := fm.Get(src, dst, ppA)
+			sp, ok := fm.get(src, dst, ppA)
 			SoMsg("ok", ok, ShouldBeFalse)
 			SoMsg("sp", sp, ShouldBeNil)
 		})
 
 		Convey("Set path predicate A for 1-10.2-20", func() {
 			before := time.Now()
-			sp := fm.Set(src, dst, ppA)
+			sp := fm.set(src, dst, ppA)
 			after := time.Now()
 			SoMsg("sp", sp, ShouldNotBeNil)
 			SoMsg("sp pathset", sp.Load(), ShouldResemble, NewSyncPaths().Load())
 			SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
 			Convey("Get filter object for 1-10.2-20, predicate A", func() {
-				sp, ok := fm.Get(src, dst, ppA)
+				sp, ok := fm.get(src, dst, ppA)
 				SoMsg("ok", ok, ShouldBeTrue)
 				SoMsg("sp", sp.Load(), ShouldResemble, NewSyncPaths().Load())
 			})
 
 			Convey("Get filter object for 1-10.2-20, missing predicate B", func() {
-				sp, ok := fm.Get(src, dst, ppB)
+				sp, ok := fm.get(src, dst, ppB)
 				SoMsg("ok", ok, ShouldBeFalse)
 				SoMsg("sp", sp, ShouldBeNil)
 			})
 
 			Convey("Set path predicate B for 1-20.2-20", func() {
 				before := time.Now()
-				sp := fm.Set(src, dst, ppB)
+				sp := fm.set(src, dst, ppB)
 				after := time.Now()
 				SoMsg("sp", sp, ShouldNotBeNil)
 				SoMsg("sp pathset", sp.Load(), ShouldResemble, NewSyncPaths().Load())
 				SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
 
 				Convey("Get filter object for 1-20.2-20, predicate B", func() {
-					sp, ok := fm.Get(src, dst, ppB)
+					sp, ok := fm.get(src, dst, ppB)
 					SoMsg("ok", ok, ShouldBeTrue)
 					SoMsg("sp", sp, ShouldNotBeNil)
 					SoMsg("sp pathset", sp.Load(), ShouldResemble, NewSyncPaths().Load())
@@ -88,10 +88,10 @@ func TestFilterMap(t *testing.T) {
 
 				Convey("Update paths", func() {
 					before := time.Now()
-					fm.Update(src, dst, aps)
+					fm.update(src, dst, aps)
 					after := time.Now()
 					Convey("Get filter object for 1-10.2-20, predicate A", func() {
-						sp, ok := fm.Get(src, dst, ppA)
+						sp, ok := fm.get(src, dst, ppA)
 						SoMsg("ok", ok, ShouldBeTrue)
 						SoMsg("sp", sp, ShouldNotBeNil)
 						SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
@@ -105,7 +105,7 @@ func TestFilterMap(t *testing.T) {
 					})
 
 					Convey("Get filter object for 1-10.2-20, predicate B", func() {
-						sp, ok := fm.Get(src, dst, ppB)
+						sp, ok := fm.get(src, dst, ppB)
 						SoMsg("ok", ok, ShouldBeTrue)
 						SoMsg("sp", sp, ShouldNotBeNil)
 						SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
@@ -122,10 +122,10 @@ func TestFilterMap(t *testing.T) {
 						delete(aps, pathsByID["1-11.2-23"].Key())
 						delete(aps, pathsByID["1-13.1-18"].Key())
 						before := time.Now()
-						fm.Update(src, dst, aps)
+						fm.update(src, dst, aps)
 						after := time.Now()
 						Convey("Get filter object for 1-10.2-20, predicate A", func() {
-							sp, ok := fm.Get(src, dst, ppA)
+							sp, ok := fm.get(src, dst, ppA)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
 							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
@@ -136,7 +136,7 @@ func TestFilterMap(t *testing.T) {
 						})
 
 						Convey("Get filter object for 1-10.2-20, predicate B", func() {
-							sp, ok := fm.Get(src, dst, ppB)
+							sp, ok := fm.get(src, dst, ppB)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
 							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
@@ -146,9 +146,9 @@ func TestFilterMap(t *testing.T) {
 
 					Convey("Update paths with the same set, thus leaving SyncPaths unchanged", func() {
 						before := time.Now()
-						fm.Update(src, dst, aps)
+						fm.update(src, dst, aps)
 						Convey("Get filter object for 1-10.2-20, predicate A", func() {
-							sp, ok := fm.Get(src, dst, ppA)
+							sp, ok := fm.get(src, dst, ppA)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
 							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBefore, before)
@@ -162,7 +162,7 @@ func TestFilterMap(t *testing.T) {
 						})
 
 						Convey("Get filter object for 1-10.2-20, predicate B", func() {
-							sp, ok := fm.Get(src, dst, ppB)
+							sp, ok := fm.get(src, dst, ppB)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
 							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBefore, before)
