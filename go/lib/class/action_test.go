@@ -25,7 +25,7 @@ import (
 )
 
 var paths = map[string]*sciond.PathReplyEntry{
-	"1-19->2-25": &sciond.PathReplyEntry{
+	"1-19->2-25": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("1-19"), IfID: 60}, {RawIsdas: IA("1-16"), IfID: 38},
@@ -37,7 +37,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"1-10->1-18": &sciond.PathReplyEntry{
+	"1-10->1-18": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("1-10"), IfID: 51}, {RawIsdas: IA("1-19"), IfID: 49},
@@ -47,7 +47,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"2-26->1-17": &sciond.PathReplyEntry{
+	"2-26->1-17": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("2-26"), IfID: 75}, {RawIsdas: IA("2-22"), IfID: 77},
@@ -58,7 +58,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"2-22->1-16": &sciond.PathReplyEntry{
+	"2-22->1-16": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("2-22"), IfID: 49}, {RawIsdas: IA("1-12"), IfID: 23},
@@ -67,7 +67,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"1-18->2-25": &sciond.PathReplyEntry{
+	"1-18->2-25": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("1-18"), IfID: 40}, {RawIsdas: IA("1-15"), IfID: 84},
@@ -79,7 +79,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"2-21->2-26": &sciond.PathReplyEntry{
+	"2-21->2-26": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
@@ -87,7 +87,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"1-11->2-23": &sciond.PathReplyEntry{
+	"1-11->2-23": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("1-11"), IfID: 87}, {RawIsdas: IA("2-21"), IfID: 97},
@@ -95,7 +95,7 @@ var paths = map[string]*sciond.PathReplyEntry{
 			},
 		},
 	},
-	"1-13->1-18": &sciond.PathReplyEntry{
+	"1-13->1-18": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
 				{RawIsdas: IA("1-13"), IfID: 46}, {RawIsdas: IA("1-11"), IfID: 18},
