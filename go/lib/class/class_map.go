@@ -20,7 +20,10 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-// Helper container for storing classes with unique names
+// ClassMap is a container for Classes, keyed by their unique name. Attempting
+// to add a Class with the same name twice returns an error. ClassMap can be
+// used to marshal Classes to JSON. Unmarshaling back to ClassMap is guaranteed
+// to yield an object that is identical to the initial one.
 type ClassMap struct {
 	m map[string]*Class
 }

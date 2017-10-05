@@ -26,8 +26,9 @@ var (
 )
 
 // Type Class is used to define classes of network traffic. All packets
-// matching Cond are said to be part of the class. Class can be exported to
-// JSON; importing yields the same object as the exported Class.
+// matching Cond are said to be part of the class. Class must not be marshaled
+// to JSON directly; instead, first create a ClassMap, add the desired classes
+// to it and then marshal the entire ClassMap.
 type Class struct {
 	name string
 	Cond Cond
