@@ -16,10 +16,12 @@
 
 package seg
 
-import "github.com/netsec-ethz/scion/go/lib/addr"
+import (
+	"github.com/netsec-ethz/scion/go/lib/addr"
+)
 
 type ASEntry struct {
-	RawIA        uint32 `capnp:"isdas"`
+	RawIA        addr.IAInt `capnp:"isdas"`
 	TrcVer       uint32
 	CertVer      uint32
 	IfIDSize     uint8
@@ -33,5 +35,5 @@ type ASEntry struct {
 }
 
 func (e *ASEntry) IA() *addr.ISD_AS {
-	return addr.IAFromInt(int(e.RawIA))
+	return e.RawIA.IA()
 }

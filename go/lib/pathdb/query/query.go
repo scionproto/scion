@@ -37,7 +37,7 @@ func (h *HPCfgID) Eq(other *HPCfgID) bool {
 	return h.IA.Eq(other.IA) && h.ID == other.ID
 }
 
-var NullHpCfgID = HPCfgID{IA: addr.IAFromInt(0), ID: 0}
+var NullHpCfgID = HPCfgID{IA: addr.IAInt(0).IA(), ID: 0}
 
 type IntfSpec struct {
 	IA   *addr.ISD_AS
