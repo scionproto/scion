@@ -17,6 +17,8 @@ package class
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/google/gopacket/layers"
 )
 
 // Cond is used to decide which packets match a class. Types implementing Cond
@@ -165,4 +167,44 @@ var (
 
 func (c CondBool) Eval(v *Packet) bool {
 	return bool(c)
+}
+
+// CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
+type CondIPv4 struct {
+	Predicate IPv4Predicate
+}
+
+func NewCondIPv4(p IPv4Predicate) *CondIPv4 {
+	cond := &CondIPv4{Predicate: p}
+	return cond
+}
+
+func (c *CondIPv4) Eval(v *Packet) bool {
+	if v == nil {
+		return false
+	}
+	pkt, ok := v.parsedPkt.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+	if !ok || pkt == nil {
+		return false
+	}
+	return c.Predicate.Eval(pkt)
+}
+
+func (c *CondIPv4) MarshalJSON() ([]byte, error) {
+	jc := make(jsonContainer)
+	err := jc.addTypedPredicate(c.Predicate)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(jc)
+}
+
+func (c *CondIPv4) UnmarshalJSON(b []byte) error {
+	var u predicateUnion
+	err := json.Unmarshal(b, &u)
+	if err != nil {
+		return err
+	}
+	c.Predicate = u.extractPredicate()
+	return nil
 }
