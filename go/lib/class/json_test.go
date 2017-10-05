@@ -28,7 +28,7 @@ func TestMarshalJSONActions(t *testing.T) {
 		ppA, err := NewPathPredicate("1-11#18,1-11#87")
 		SoMsg("ppA err", err, ShouldBeNil)
 		SoMsg("ppA", ppA, ShouldNotBeNil)
-		ppB, err := NewPathPredicate("2-*#*")
+		ppB, err := NewPathPredicate("2-0#0")
 		SoMsg("ppB err", err, ShouldBeNil)
 		SoMsg("ppB", ppB, ShouldNotBeNil)
 		Convey("Create action map", func() {
@@ -97,6 +97,7 @@ func TestMarshalJSONClass(t *testing.T) {
 			Convey("Unmarshal back", func() {
 				cmu := NewClassMap()
 				err = json.Unmarshal(enc, &cmu)
+				fmt.Println(string(enc))
 				SoMsg("Unmarshal err", err, ShouldBeNil)
 				Convey("Unmarshaled class-map should be the same as the initial one", func() {
 					So(cmu, ShouldResemble, cm)

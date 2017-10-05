@@ -25,8 +25,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
-var _ Action = (*ActionFilterPaths)(nil)
-
 // Interface Action defines how paths and packets may be processed in a way
 // that can be exported to JSON. Types implementing Action must not be
 // marshaled to JSON directly; instead, first create an ActionMap, add the
@@ -34,6 +32,8 @@ var _ Action = (*ActionFilterPaths)(nil)
 type Action interface {
 	GetName() string
 }
+
+var _ Action = (*ActionFilterPaths)(nil)
 
 // Filter only paths which match the embedded PathPredicate.
 type ActionFilterPaths struct {
@@ -73,20 +73,11 @@ func NewPathPredicate(expr string) (*PathPredicate, error) {
 
 func (pp *PathPredicate) Eval(path *sciond.PathReplyEntry) bool {
 	ifaces := path.Path.Interfaces
+	mIdx := 0
 	for i := range ifaces {
-		j := 0
-		for i+j < len(ifaces) {
-			if pp.Match[j].ISD_AS().I != 0 && pp.Match[j].ISD_AS().I != ifaces[i+j].ISD_AS().I {
-				break
-			}
-			if pp.Match[j].ISD_AS().A != 0 && pp.Match[j].ISD_AS().A != ifaces[i+j].ISD_AS().A {
-				break
-			}
-			if pp.Match[j].IfID != 0 && pp.Match[j].IfID != ifaces[i+j].IfID {
-				break
-			}
-			j += 1
-			if j == len(pp.Match) {
+		if wildcardEquals(&ifaces[i], &pp.Match[mIdx]) {
+			mIdx += 1
+			if mIdx == len(pp.Match) {
 				return true
 			}
 		}
@@ -94,36 +85,27 @@ func (pp *PathPredicate) Eval(path *sciond.PathReplyEntry) bool {
 	return false
 }
 
-func (pp *PathPredicate) String() string {
-	str := ""
-	for i, iface := range pp.Match {
-		var (
-			isdStr  string
-			asStr   string
-			ifidStr string
-		)
-		isdas := iface.ISD_AS()
-		if isdas.I == 0 {
-			isdStr = "*"
-		} else {
-			isdStr = fmt.Sprintf("%d", isdas.I)
-		}
-		if isdas.A == 0 {
-			asStr = "*"
-		} else {
-			asStr = fmt.Sprintf("%d", isdas.A)
-		}
-		if iface.IfID == 0 {
-			ifidStr = "*"
-		} else {
-			ifidStr = fmt.Sprintf("%d", iface.IfID)
-		}
-		str += fmt.Sprintf("%s-%s#%s", isdStr, asStr, ifidStr)
-		if i+1 < len(pp.Match) {
-			str += ","
-		}
+func wildcardEquals(x, y *sciond.PathInterface) bool {
+	xIA, yIA := x.ISD_AS(), y.ISD_AS()
+	if xIA.I != 0 && yIA.I != 0 && xIA.I != yIA.I {
+		return false
 	}
-	return str
+	if xIA.A != 0 && yIA.A != 0 && xIA.A != yIA.A {
+		return false
+	}
+	if x.IfID != 0 && y.IfID != 0 && x.IfID != y.IfID {
+		return false
+	}
+	return true
+}
+
+func (pp *PathPredicate) String() string {
+	var desc []string
+	for _, iface := range pp.Match {
+		isdas := iface.ISD_AS()
+		desc = append(desc, fmt.Sprintf("%d-%d#%d", isdas.I, isdas.A, iface.IfID))
+	}
+	return strings.Join(desc, ",")
 }
 
 func (pp *PathPredicate) MarshalJSON() ([]byte, error) {
@@ -149,15 +131,13 @@ func parseIface(str string) (sciond.PathInterface, error) {
 	if len(tokens) != 2 {
 		return sciond.PathInterface{}, common.NewCError("Failed to parse interface spec", "value", str)
 	}
-
 	var iface sciond.PathInterface
 	isdas, err := parseIsdas(tokens[0])
 	if err != nil {
 		return sciond.PathInterface{}, err
 	}
 	iface.RawIsdas = isdas.Uint32()
-
-	ifid, err := parseWildcardUint(tokens[1], 64)
+	ifid, err := strconv.ParseUint(tokens[1], 10, 64)
 	if err != nil {
 		return sciond.PathInterface{}, err
 	}
@@ -170,32 +150,17 @@ func parseIsdas(str string) (*addr.ISD_AS, error) {
 	if len(tokens) != 2 {
 		return nil, common.NewCError("Failed to parse ISDAS value", "value", str)
 	}
-
 	var isdas addr.ISD_AS
 	var err error
-	isd, err := parseWildcardUint(tokens[0], 12)
+	isd, err := strconv.ParseUint(tokens[0], 10, 12)
 	if err != nil {
 		return nil, err
 	}
 	isdas.I = int(isd)
-	as, err := parseWildcardUint(tokens[1], 24)
+	as, err := strconv.ParseUint(tokens[1], 10, 24)
 	if err != nil {
 		return nil, err
 	}
 	isdas.A = int(as)
 	return &isdas, nil
-}
-
-func parseWildcardUint(token string, size int) (uint64, error) {
-	if token == "*" {
-		return 0, nil
-	}
-	i, err := strconv.ParseUint(token, 10, size)
-	if err != nil {
-		return 0, common.NewCError("unable to parse value", "value", token, "err", err)
-	}
-	if i == 0 {
-		return 0, common.NewCError("Invalid value", "value", i)
-	}
-	return i, nil
 }
