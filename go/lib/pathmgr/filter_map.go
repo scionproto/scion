@@ -19,13 +19,17 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/class"
 )
 
-// Key is the string descriptor of the PathPredicate embedded
+// filterMap maps IAKey(src, dst) to a filterSet, which is itself a map from a
+// string description of a path predicate to a *SyncPaths object. This allows
+// us to keep multiple active filters for the same source and destination ASes.
+// External code needs to call update on path changes (e.g., new replies from
+// SCIOND and revocations).
 //
-// FilterMap is not safe for concurrent use.
-type FilterMap map[string]FilterSet
+// filterMap is not safe for concurrent use.
+type filterMap map[string]filterSet
 
-func (fm FilterMap) Get(src, dst *addr.ISD_AS, pp *class.PathPredicate) (*SyncPaths, bool) {
-	key := IAKey(src, dst)
+func (fm filterMap) get(src, dst *addr.ISD_AS, pp *class.PathPredicate) (*SyncPaths, bool) {
+	key := iaKey(src, dst)
 	filterSet, ok := fm[key]
 	if !ok {
 		return nil, false
@@ -38,32 +42,34 @@ func (fm FilterMap) Get(src, dst *addr.ISD_AS, pp *class.PathPredicate) (*SyncPa
 	return pathFilter.sp, true
 }
 
-func (fm FilterMap) Set(src, dst *addr.ISD_AS, pp *class.PathPredicate) *SyncPaths {
-	var filterSet FilterSet
-	key := IAKey(src, dst)
+func (fm filterMap) set(src, dst *addr.ISD_AS, pp *class.PathPredicate) *SyncPaths {
+	var fs filterSet
+	key := iaKey(src, dst)
 
 	// If set not already initialized for this src-dst pair, initialize it now
-	filterSet, ok := fm[key]
+	fs, ok := fm[key]
 	if !ok {
-		filterSet = make(FilterSet)
-		fm[key] = filterSet
+		fs = make(filterSet)
+		fm[key] = fs
 	}
 
 	// If path filter is not registered yet, initialize it. Otherwise return
 	// already existing SyncPaths.
-	pathFilter, ok := filterSet[pp.String()]
+	pf, ok := fs[pp.String()]
 	if !ok {
-		pathFilter = &PathFilter{
+		pf = &pathFilter{
 			sp: NewSyncPaths(),
 			pp: pp,
 		}
-		filterSet[pp.String()] = pathFilter
+		fs[pp.String()] = pf
 	}
-	return pathFilter.sp
+	return pf.sp
 }
 
-func (fm FilterMap) Update(src, dst *addr.ISD_AS, aps AppPathSet) {
-	key := IAKey(src, dst)
+// update goes through all filters registered between src and dst, detects
+// whether paths have changed and, if necessary, updates the *SyncPaths
+func (fm filterMap) update(src, dst *addr.ISD_AS, aps AppPathSet) {
+	key := iaKey(src, dst)
 	filterSet, ok := fm[key]
 	if !ok {
 		// Nothing to do, no src-dst pair registered yet
@@ -77,7 +83,7 @@ func (fm FilterMap) Update(src, dst *addr.ISD_AS, aps AppPathSet) {
 		for _, appPath := range aps {
 			match := pathFilter.pp.Eval(appPath.Entry)
 			if match {
-				appPath.DuplicateIn(newAPS)
+				appPath.duplicateIn(newAPS)
 			}
 		}
 
@@ -85,8 +91,8 @@ func (fm FilterMap) Update(src, dst *addr.ISD_AS, aps AppPathSet) {
 		// symmetric difference between the current path set and the new path
 		// set.
 		currentAPS := pathFilter.sp.Load()
-		toAdd := difference(newAPS, currentAPS)
-		toRemove := difference(currentAPS, newAPS)
+		toAdd := setSubtract(newAPS, currentAPS)
+		toRemove := setSubtract(currentAPS, newAPS)
 		if len(toAdd) > 0 || len(toRemove) > 0 {
 			// Some paths have changed, replace the old set with the new set
 			if len(newAPS) == 0 {
@@ -99,18 +105,18 @@ func (fm FilterMap) Update(src, dst *addr.ISD_AS, aps AppPathSet) {
 	}
 }
 
-type FilterSet map[string]*PathFilter
+type filterSet map[string]*pathFilter
 
-type PathFilter struct {
+type pathFilter struct {
 	sp *SyncPaths
 	pp *class.PathPredicate
 }
 
-func difference(x, y AppPathSet) AppPathSet {
+func setSubtract(x, y AppPathSet) AppPathSet {
 	result := make(AppPathSet)
 	for _, ap := range x {
 		if _, ok := y[ap.Key()]; !ok {
-			ap.DuplicateIn(result)
+			ap.duplicateIn(result)
 		}
 	}
 	return result
