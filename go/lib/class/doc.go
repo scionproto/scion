@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package class implements tools for classifying and acting on network
-// packets. All components can be exported to JSON and imported back.
+// packets.
 //
 // A class is a named condition that exposes an Eval method; when Eval yields
 // true for a ClsPkt, that packet is considered to be part of that class.
@@ -33,17 +33,20 @@
 // is just a container for a path predicate.  The predicate specifies which
 // consecutive sequence of ASes and interfaces the packet must travel through.
 // Wildcard ISDs, ASes and IFIDs are specified with *. For example, a path
-// pinning predicate that only pins paths which pass through ISD1 at some point
-// is created like:
+// filtering predicate that only selects paths which pass through ISD1 can be
+// created with:
 //     pp, err = NewActionFilterPaths("someName", "1-*#*")
 //
-// To pin paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
+// To select paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
 // interface 95:
 //     pp, err = NewActionFilterPaths("someOtherName", "1-11#27,1-12#95")
 //
 // Marshalable policies can be implemented by external code by mapping Cond
 // items to Action items.
 //
-// Package class supports JSON marshaling and unmarshaling of classes,
-// conditions and actions.
+// Package class supports JSON marshaling and unmarshaling of classes and
+// actions.  Due to the custom formatting of the JSON output, marshaling must
+// be done by first adding the classes and actions to a ClassMap or ActionMap,
+// respectively. Unmarshaling back to the Map is guaranteed to yield an object
+// that is identical to the initial one.
 package class
