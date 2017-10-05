@@ -22,20 +22,20 @@ import (
 )
 
 type HopEntry struct {
-	RawInIA     uint32 `capnp:"inIA"`
+	RawInIA     addr.IAInt `capnp:"inIA"`
 	RemoteInIF  uint64
-	InMTU       uint16 `capnp:"inMTU"`
-	RawOutIA    uint32 `capnp:"outIA"`
+	InMTU       uint16     `capnp:"inMTU"`
+	RawOutIA    addr.IAInt `capnp:"outIA"`
 	RemoteOutIF uint64
 	RawHopField []byte `capnp:"hof"`
 }
 
 func (e *HopEntry) InIA() *addr.ISD_AS {
-	return addr.IAFromInt(int(e.RawInIA))
+	return e.RawInIA.IA()
 }
 
 func (e *HopEntry) OutIA() *addr.ISD_AS {
-	return addr.IAFromInt(int(e.RawOutIA))
+	return e.RawOutIA.IA()
 }
 
 func (e *HopEntry) HopField() (*spath.HopField, error) {

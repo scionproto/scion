@@ -121,8 +121,8 @@ func (c *Connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*P
 	defer c.Unlock()
 
 	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_pathReq}
-	request.PathReq.Dst = dst.Uint32()
-	request.PathReq.Src = src.Uint32()
+	request.PathReq.Dst = dst.IAInt()
+	request.PathReq.Src = src.IAInt()
 	request.PathReq.MaxPaths = max
 	request.PathReq.Flags = f
 
@@ -151,7 +151,7 @@ func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 
 	// Value not in cache, so we ask SCIOND
 	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_asInfoReq}
-	request.AsInfoReq.Isdas = ia.Uint32()
+	request.AsInfoReq.Isdas = ia.IAInt()
 	err := c.send(request)
 	if err != nil {
 		return nil, err

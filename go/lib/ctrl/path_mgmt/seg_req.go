@@ -27,8 +27,8 @@ import (
 var _ proto.Cerealizable = (*SegReq)(nil)
 
 type SegReq struct {
-	RawSrcIA uint32 `capnp:"srcIA"`
-	RawDstIA uint32 `capnp:"dstIA"`
+	RawSrcIA addr.IAInt `capnp:"srcIA"`
+	RawDstIA addr.IAInt `capnp:"dstIA"`
 	Flags    struct {
 		Sibra     bool
 		CacheOnly bool
@@ -41,11 +41,11 @@ func NewSegReqFromRaw(b common.RawBytes) (*SegReq, error) {
 }
 
 func (s *SegReq) SrcIA() *addr.ISD_AS {
-	return addr.IAFromInt(int(s.RawSrcIA))
+	return s.RawSrcIA.IA()
 }
 
 func (s *SegReq) DstIA() *addr.ISD_AS {
-	return addr.IAFromInt(int(s.RawDstIA))
+	return s.RawDstIA.IA()
 }
 
 func (s *SegReq) ProtoId() proto.ProtoIdType {

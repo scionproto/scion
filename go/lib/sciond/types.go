@@ -112,8 +112,8 @@ func (p *Pld) union() (interface{}, error) {
 }
 
 type PathReq struct {
-	Dst      uint32
-	Src      uint32
+	Dst      addr.IAInt
+	Src      addr.IAInt
 	MaxPaths uint16
 	Flags    PathReqFlags
 }
@@ -148,12 +148,12 @@ type FwdPathMeta struct {
 }
 
 type PathInterface struct {
-	RawIsdas uint32 `capnp:"isdas"`
+	RawIsdas addr.IAInt `capnp:"isdas"`
 	IfID     uint64
 }
 
 func (iface *PathInterface) ISD_AS() *addr.ISD_AS {
-	return addr.IAFromInt(int(iface.RawIsdas))
+	return iface.RawIsdas.IA()
 }
 
 func (iface PathInterface) String() string {
@@ -161,7 +161,7 @@ func (iface PathInterface) String() string {
 }
 
 type ASInfoReq struct {
-	Isdas uint32
+	Isdas addr.IAInt
 }
 
 type ASInfoReply struct {
@@ -169,13 +169,13 @@ type ASInfoReply struct {
 }
 
 type ASInfoReplyEntry struct {
-	RawIsdas uint32 `capnp:"isdas"`
+	RawIsdas addr.IAInt `capnp:"isdas"`
 	Mtu      uint16
 	IsCore   bool
 }
 
 func (entry *ASInfoReplyEntry) ISD_AS() *addr.ISD_AS {
-	return addr.IAFromInt(int(entry.RawIsdas))
+	return entry.RawIsdas.IA()
 }
 
 func (entry ASInfoReplyEntry) String() string {

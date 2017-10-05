@@ -24,6 +24,8 @@ import (
 
 const (
 	IABytes = 4
+	MaxISD  = (1 << 12) - 1
+	MaxAS   = (1 << 20) - 1
 )
 
 type ISD_AS struct {
@@ -36,11 +38,9 @@ const (
 )
 
 func IAFromRaw(b common.RawBytes) *ISD_AS {
-	return IAFromInt(int(common.Order.Uint32(b)))
-}
-
-func IAFromInt(iaInt int) *ISD_AS {
-	return &ISD_AS{I: int(iaInt >> 20), A: int(iaInt & 0x000FFFFF)}
+	ia := &ISD_AS{}
+	ia.Parse(b)
+	return ia
 }
 
 func IAFromString(s string) (*ISD_AS, error) {
@@ -53,25 +53,33 @@ func IAFromString(s string) (*ISD_AS, error) {
 		e := err.(*strconv.NumError)
 		return nil, common.NewCError("Unable to parse ISD", "val", s, "err", e.Err)
 	}
+	if isd > MaxISD {
+		return nil, common.NewCError("Invalid ISD-AS: ISD too large",
+			"max", MaxISD, "actual", isd, "raw", s)
+	}
 	as, err := strconv.Atoi(parts[1])
 	if err != nil {
 		e := err.(*strconv.NumError)
 		return nil, common.NewCError("Unable to parse AS", "val", s, "err", e.Err)
 	}
+	if as > MaxAS {
+		return nil, common.NewCError("Invalid ISD-AS: AS too large",
+			"max", MaxAS, "actual", as, "raw", s)
+	}
 	return &ISD_AS{I: isd, A: as}, nil
 }
 
 func (ia *ISD_AS) Parse(b common.RawBytes) {
-	isdas := common.Order.Uint32(b)
-	ia.I, ia.A = int(isdas>>20), int(isdas&0x000FFFFF)
+	newIA := IAInt(common.Order.Uint32(b)).IA()
+	*ia = *newIA
 }
 
 func (ia *ISD_AS) Write(b common.RawBytes) {
-	common.Order.PutUint32(b, ia.Uint32())
+	common.Order.PutUint32(b, uint32(ia.IAInt()))
 }
 
-func (ia *ISD_AS) Uint32() uint32 {
-	return uint32((ia.I << 20) | (ia.A & 0x000FFFFF))
+func (ia *ISD_AS) IAInt() IAInt {
+	return IAInt((ia.I << 20) | (ia.A & 0x000FFFFF))
 }
 
 func (ia *ISD_AS) SizeOf() int {
@@ -88,4 +96,10 @@ func (ia *ISD_AS) Eq(other *ISD_AS) bool {
 
 func (ia ISD_AS) String() string {
 	return fmt.Sprintf("%d-%d", ia.I, ia.A)
+}
+
+type IAInt uint32
+
+func (iaI IAInt) IA() *ISD_AS {
+	return &ISD_AS{I: int(iaI >> 20), A: int(iaI & 0x000FFFFF)}
 }
