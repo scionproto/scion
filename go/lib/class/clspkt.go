@@ -21,15 +21,15 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-// ClsPkt is a wrapper around common.RawBytes which is used to store additional
+// Packet is a wrapper around common.RawBytes which is used to store additional
 // metadata relating to packet classification and processing.
-type ClsPkt struct {
+type Packet struct {
 	rawPkt    common.RawBytes
 	parsedPkt gopacket.Packet
 }
 
-func NewClsPkt(raw common.RawBytes) *ClsPkt {
-	hpkt := &ClsPkt{
+func NewPacket(raw common.RawBytes) *Packet {
+	hpkt := &Packet{
 		rawPkt:    raw,
 		parsedPkt: gopacket.NewPacket(raw, layers.LayerTypeIPv4, gopacket.NoCopy),
 	}

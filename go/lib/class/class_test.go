@@ -26,7 +26,7 @@ import (
 
 type TestCase struct {
 	hpktKey  string
-	hpkt     *ClsPkt
+	hpkt     *Packet
 	classKey string
 	class    *Class
 	expected bool
@@ -163,8 +163,8 @@ func InitTestCases() []*TestCase {
 	return tcs
 }
 
-func InitHPkts() map[string]*ClsPkt {
-	pkts := make(map[string]*ClsPkt)
+func InitHPkts() map[string]*Packet {
+	pkts := make(map[string]*Packet)
 	pkts["192.168.1.1->192.168.1.2"] = InitHPkt(
 		&layers.IPv4{
 			SrcIP: net.IP{192, 168, 1, 1},
@@ -182,7 +182,7 @@ func InitHPkts() map[string]*ClsPkt {
 	return pkts
 }
 
-func InitHPkt(ipv4 *layers.IPv4, pld []byte) *ClsPkt {
+func InitHPkt(ipv4 *layers.IPv4, pld []byte) *Packet {
 	buf := gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(
 		buf,
@@ -190,7 +190,7 @@ func InitHPkt(ipv4 *layers.IPv4, pld []byte) *ClsPkt {
 		ipv4,
 		gopacket.Payload(pld),
 	)
-	return NewClsPkt(buf.Bytes())
+	return NewPacket(buf.Bytes())
 }
 
 func InitClasses() map[string]*Class {

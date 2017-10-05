@@ -157,7 +157,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 // paths from src to dst that adhere to the specified filter. On path
 // changes the list is refreshed automatically.
 //
-// RegisterFilter also adds pair src-dst to the list of tracke paths (if it
+// RegisterFilter also adds pair src-dst to the list of tracked paths (if it
 // wasn't already tracked).
 func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) (*SyncPaths, error) {
 	r.Lock()
