@@ -45,7 +45,7 @@ func (c *Class) GetName() string {
 	return c.name
 }
 
-func (c *Class) Eval(hpkt *ClsPkt) bool {
+func (c *Class) Eval(hpkt *Packet) bool {
 	return c.Cond.Eval(hpkt)
 }
 

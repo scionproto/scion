@@ -23,7 +23,7 @@ import (
 // should not be marshaled directly to JSON. Instead, embed them into a Class
 // and add the Class to a ClassMap; finally, marshal the entire ClassMap.
 type Cond interface {
-	Eval(*ClsPkt) bool
+	Eval(*Packet) bool
 }
 
 var (
@@ -39,7 +39,7 @@ func NewCondAnyOf(children ...Cond) CondAnyOf {
 	return CondAnyOf(children)
 }
 
-func (c CondAnyOf) Eval(v *ClsPkt) bool {
+func (c CondAnyOf) Eval(v *Packet) bool {
 	if len(c) == 0 {
 		return true
 	}
@@ -100,7 +100,7 @@ func NewCondAllOf(children ...Cond) CondAllOf {
 	return CondAllOf(children)
 }
 
-func (c CondAllOf) Eval(v *ClsPkt) bool {
+func (c CondAllOf) Eval(v *Packet) bool {
 	if len(c) == 0 {
 		return true
 	}
@@ -162,6 +162,6 @@ var (
 	CondFalse CondBool = false
 )
 
-func (c CondBool) Eval(v *ClsPkt) bool {
+func (c CondBool) Eval(v *Packet) bool {
 	return bool(c)
 }
