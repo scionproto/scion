@@ -38,6 +38,10 @@ import (
 // least one of which is an interface. The Go JSON unmarshaler populates the
 // correct field of the embedded type, which we later use to construct the
 // actual object. For an example, see the unmarshalling code for Class.
+//
+// When *Union is unmarshaled (e.g., condUnion), only the field corresponding
+// to the correct type is populated. Then extract* (e.g., extratCond) is called
+// to retrieve the populated field.
 type jsonContainer map[string]interface{}
 
 func (jc jsonContainer) addTypedCond(c Cond) error {
@@ -56,6 +60,33 @@ func (jc jsonContainer) addTypedCond(c Cond) error {
 	return nil
 }
 
+type condUnion struct {
+	CondAllOf *CondAllOf
+	CondAnyOf *CondAnyOf
+	CondIPv4  *CondIPv4
+	CondBool  *CondBool
+}
+
+func (u *condUnion) extractCond() (Cond, error) {
+	if u.CondAllOf != nil {
+		// Dereference to retrieve reference
+		return *u.CondAllOf, nil
+	}
+	if u.CondAnyOf != nil {
+		// Dereference to retrieve reference
+		return *u.CondAnyOf, nil
+	}
+	if u.CondIPv4 != nil {
+		// Return pointer directly
+		return u.CondIPv4, nil
+	}
+	if u.CondBool != nil {
+		// Dereference to retrieve bool
+		return *u.CondBool, nil
+	}
+	return nil, common.NewCError("No valid condition found")
+}
+
 func (jc jsonContainer) addTypedAction(a Action) error {
 	switch v := a.(type) {
 	case *ActionFilterPaths:
@@ -64,6 +95,18 @@ func (jc jsonContainer) addTypedAction(a Action) error {
 		return common.NewCError("Unknown action type", "type", fmt.Sprintf("%T", a))
 	}
 	return nil
+}
+
+type actionUnion struct {
+	ActionFilterPaths *ActionFilterPaths
+}
+
+func (u *actionUnion) extractAction(name string) (Action, error) {
+	if u.ActionFilterPaths != nil {
+		u.ActionFilterPaths.Name = name
+		return u.ActionFilterPaths, nil
+	}
+	return nil, common.NewCError("No valid action found")
 }
 
 func (jc jsonContainer) addTypedPredicate(p IPv4Predicate) error {
@@ -76,6 +119,25 @@ func (jc jsonContainer) addTypedPredicate(p IPv4Predicate) error {
 		jc["MatchTOS"] = v
 	default:
 		return common.NewCError("Unknown predicate type", "type", fmt.Sprintf("%T", p))
+	}
+	return nil
+}
+
+type predicateUnion struct {
+	MatchTOS         *IPv4MatchToS
+	MatchDestination *IPv4MatchDestination
+	MatchSource      *IPv4MatchSource
+}
+
+func (u *predicateUnion) extractPredicate() IPv4Predicate {
+	if u.MatchTOS != nil {
+		return u.MatchTOS
+	}
+	if u.MatchDestination != nil {
+		return u.MatchDestination
+	}
+	if u.MatchSource != nil {
+		return u.MatchSource
 	}
 	return nil
 }
