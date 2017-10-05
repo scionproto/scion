@@ -61,8 +61,8 @@ func TestMarshalJSONClass(t *testing.T) {
 					NewCondIPv4(&IPv4MatchToS{0x80}),
 					NewCondIPv4(&IPv4MatchDestination{
 						&net.IPNet{
-							net.IP{192, 168, 1, 0},
-							net.IPv4Mask(255, 255, 255, 0),
+							IP:   net.IP{192, 168, 1, 0},
+							Mask: net.IPv4Mask(255, 255, 255, 0),
 						}},
 					),
 				),
@@ -74,8 +74,8 @@ func TestMarshalJSONClass(t *testing.T) {
 				NewCondIPv4(&IPv4MatchToS{0x0}),
 				NewCondIPv4(&IPv4MatchSource{
 					&net.IPNet{
-						net.IP{10, 0, 0, 0},
-						net.IPv4Mask(255, 0, 0, 0),
+						IP:   net.IP{10, 0, 0, 0},
+						Mask: net.IPv4Mask(255, 0, 0, 0),
 					}},
 				),
 			),

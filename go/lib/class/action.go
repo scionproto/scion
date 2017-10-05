@@ -73,7 +73,7 @@ func NewPathPredicate(expr string) (*PathPredicate, error) {
 
 func (pp *PathPredicate) Eval(path *sciond.PathReplyEntry) bool {
 	ifaces := path.Path.Interfaces
-	for i, _ := range ifaces {
+	for i := range ifaces {
 		j := 0
 		for i+j < len(ifaces) {
 			if pp.Match[j].ISD_AS().I != 0 && pp.Match[j].ISD_AS().I != ifaces[i+j].ISD_AS().I {

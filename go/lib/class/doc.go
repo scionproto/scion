@@ -33,13 +33,13 @@
 // is just a container for a path predicate.  The predicate specifies which
 // consecutive sequence of ASes and interfaces the packet must travel through.
 // Wildcard ISDs, ASes and IFIDs are specified with *. For example, a path
-// filtering predicate that only selects paths which pass through ISD1 can be
+// filtering predicate that only allows paths which pass through ISD1 can be
 // created with:
-//     pp, err = NewActionFilterPaths("someName", "1-*#*")
+//     pp, err = NewActionFilterPaths("PathsThroughISD1", "1-*#*")
 //
-// To select paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
+// To allow paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
 // interface 95:
-//     pp, err = NewActionFilterPaths("someOtherName", "1-11#27,1-12#95")
+//     pp, err = NewActionFilterPaths("PathsVia11-12", "1-11#27,1-12#95")
 //
 // Marshalable policies can be implemented by external code by mapping Cond
 // items to Action items.
