@@ -22,24 +22,23 @@ import (
 // Cond is used to decide which packets match a class.
 type Cond interface {
 	Eval(*ClsPkt) bool
-	IndentString(indent int) string
 }
 
 var (
-	_ Cond = CondAny(nil)
-	_ Cond = CondAll(nil)
+	_ Cond = CondAnyOf(nil)
+	_ Cond = CondAllOf(nil)
 	_ Cond = CondBool(true)
 	_ Cond = (*CondIPv4)(nil)
 )
 
-// CondAny conditions return true if all subconditions return true.
-type CondAny []Cond
+// CondAnyOf conditions return true if all subconditions return true.
+type CondAnyOf []Cond
 
-func NewCondAny(children ...Cond) CondAny {
-	return CondAny(children)
+func NewCondAnyOf(children ...Cond) CondAnyOf {
+	return CondAnyOf(children)
 }
 
-func (c CondAny) Eval(v *ClsPkt) bool {
+func (c CondAnyOf) Eval(v *ClsPkt) bool {
 	if len(c) == 0 {
 		return true
 	}
@@ -54,15 +53,7 @@ func (c CondAny) Eval(v *ClsPkt) bool {
 	return result
 }
 
-func (c CondAny) IndentString(indent int) string {
-	result := spaces(indent) + "Any\n"
-	for _, child := range c {
-		result += child.IndentString(indent + 4)
-	}
-	return result
-}
-
-func (c CondAny) String() string {
+func (c CondAnyOf) String() string {
 	s := "any("
 	for _, cond := range c {
 		s += fmt.Sprintf("%v,", cond)
@@ -71,21 +62,21 @@ func (c CondAny) String() string {
 	return s
 }
 
-func (c CondAny) MarshalJSON() ([]byte, error) {
+func (c CondAnyOf) MarshalJSON() ([]byte, error) {
 	// A 0 length slice serializes to an empty JSON list, as opposed to JSON
 	// null. When unmarshaling, this will yield an empty slice as opposed to
 	// nil. We will use this in union structs to distinguish between concrete
 	// types, as only one type will be different from nil.
-	childConds := make([]JSONContainer, 0)
+	childConds := make([]jsonContainer, 0)
 	for _, cond := range c {
-		jc := make(JSONContainer)
+		jc := make(jsonContainer)
 		jc.addTypedCond(cond)
 		childConds = append(childConds, jc)
 	}
 	return json.Marshal(childConds)
 }
 
-func (c *CondAny) UnmarshalJSON(b []byte) error {
+func (c *CondAnyOf) UnmarshalJSON(b []byte) error {
 	var s []condUnion
 	err := json.Unmarshal(b, &s)
 	if err != nil {
@@ -101,14 +92,14 @@ func (c *CondAny) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// CondAll conditions return true if at least one subcondition returns true.
-type CondAll []Cond
+// CondAllOf conditions return true if at least one subcondition returns true.
+type CondAllOf []Cond
 
-func NewCondAll(children ...Cond) CondAll {
-	return CondAll(children)
+func NewCondAllOf(children ...Cond) CondAllOf {
+	return CondAllOf(children)
 }
 
-func (c CondAll) Eval(v *ClsPkt) bool {
+func (c CondAllOf) Eval(v *ClsPkt) bool {
 	if len(c) == 0 {
 		return true
 	}
@@ -123,15 +114,7 @@ func (c CondAll) Eval(v *ClsPkt) bool {
 	return result
 }
 
-func (c CondAll) IndentString(indent int) string {
-	result := spaces(indent) + "All\n"
-	for _, child := range c {
-		result += child.IndentString(indent + 4)
-	}
-	return result
-}
-
-func (c CondAll) String() string {
+func (c CondAllOf) String() string {
 	s := "any("
 	for _, cond := range c {
 		s += fmt.Sprintf("%v,", cond)
@@ -140,21 +123,21 @@ func (c CondAll) String() string {
 	return s
 }
 
-func (c CondAll) MarshalJSON() ([]byte, error) {
+func (c CondAllOf) MarshalJSON() ([]byte, error) {
 	// A 0 length slice serializes to an empty JSON list, as opposed to JSON
 	// null. When unmarshaling, this will yield an empty slice as opposed to
 	// nil. We will use this in union structs to distinguish between concrete
 	// types, as only one type will be different from nil.
-	childConds := make([]JSONContainer, 0)
+	childConds := make([]jsonContainer, 0)
 	for _, cond := range c {
-		jc := make(JSONContainer)
+		jc := make(jsonContainer)
 		jc.addTypedCond(cond)
 		childConds = append(childConds, jc)
 	}
 	return json.Marshal(childConds)
 }
 
-func (c *CondAll) UnmarshalJSON(b []byte) error {
+func (c *CondAllOf) UnmarshalJSON(b []byte) error {
 	var s []condUnion
 	err := json.Unmarshal(b, &s)
 	if err != nil {
@@ -170,7 +153,7 @@ func (c *CondAll) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// CondBool contains a simple true or false value
+// CondBool contains a true or false value, useful for debugging and testing.
 type CondBool bool
 
 var (
@@ -180,17 +163,4 @@ var (
 
 func (c CondBool) Eval(v *ClsPkt) bool {
 	return bool(c)
-}
-
-func (c CondBool) IndentString(indent int) string {
-	return spaces(indent) + fmt.Sprintf("%t\n", bool(c))
-}
-
-// spaces returns a string containing n spaces
-func spaces(n int) string {
-	result := ""
-	for i := 0; i < n; i++ {
-		result += " "
-	}
-	return result
 }

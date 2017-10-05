@@ -25,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+// CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
 type CondIPv4 struct {
 	Predicate IPv4Predicate
 }
@@ -45,12 +46,8 @@ func (c *CondIPv4) Eval(v *ClsPkt) bool {
 	return c.Predicate.Eval(pkt)
 }
 
-func (c *CondIPv4) IndentString(indent int) string {
-	return spaces(indent) + fmt.Sprintf("%v", c.Predicate)
-}
-
 func (c *CondIPv4) MarshalJSON() ([]byte, error) {
-	jc := make(JSONContainer)
+	jc := make(jsonContainer)
 	err := jc.addTypedPredicate(c.Predicate)
 	if err != nil {
 		return nil, err
@@ -68,44 +65,44 @@ func (c *CondIPv4) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// IPv4Predicate describes a single test on various IPv4 packet fields.
 type IPv4Predicate interface {
+	// Eval returns true if the IPv4 packet matched the predicate
 	Eval(*layers.IPv4) bool
 }
 
-type MatchSource struct {
+// IPv4MatchSource checks whether the source IPv4 address is contained in Net.
+type IPv4MatchSource struct {
 	Net *net.IPNet
 }
 
-func (m *MatchSource) Eval(p *layers.IPv4) bool {
+func (m *IPv4MatchSource) Eval(p *layers.IPv4) bool {
 	return m.Net.Contains(p.SrcIP)
 }
 
-func (m *MatchSource) MarshalJSON() ([]byte, error) {
+func (m *IPv4MatchSource) MarshalJSON() ([]byte, error) {
 	// Pretty print subnets
 	return json.Marshal(
-		JSONContainer{
+		jsonContainer{
 			"Net": m.Net.String(),
 		},
 	)
 }
 
-func (m *MatchSource) UnmarshalJSON(b []byte) error {
-	var jc JSONContainer
+func (m *IPv4MatchSource) UnmarshalJSON(b []byte) error {
+	var jc jsonContainer
 	err := json.Unmarshal(b, &jc)
 	if err != nil {
 		return err
 	}
-
 	v, ok := jc["Net"]
 	if !ok {
 		return common.NewCError("MatchSource predicate lacks operand")
 	}
-
 	s, ok := v.(string)
 	if !ok {
 		return common.NewCError("Unable to parse MatchSource operand")
 	}
-
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
 		return common.NewCError("Unable to parse MatchSource operand", "err", err)
@@ -114,39 +111,38 @@ func (m *MatchSource) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type MatchDestination struct {
+// IPv4MatchDestination checks whether the destination IPv4 address is contained in
+// Net.
+type IPv4MatchDestination struct {
 	Net *net.IPNet
 }
 
-func (m *MatchDestination) Eval(p *layers.IPv4) bool {
+func (m *IPv4MatchDestination) Eval(p *layers.IPv4) bool {
 	return m.Net.Contains(p.DstIP)
 }
 
-func (m *MatchDestination) MarshalJSON() ([]byte, error) {
+func (m *IPv4MatchDestination) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
-		JSONContainer{
+		jsonContainer{
 			"Net": m.Net.String(),
 		},
 	)
 }
 
-func (m *MatchDestination) UnmarshalJSON(b []byte) error {
-	var jc JSONContainer
+func (m *IPv4MatchDestination) UnmarshalJSON(b []byte) error {
+	var jc jsonContainer
 	err := json.Unmarshal(b, &jc)
 	if err != nil {
 		return err
 	}
-
 	v, ok := jc["Net"]
 	if !ok {
 		return common.NewCError("MatchDestination predicate lacks operand")
 	}
-
 	s, ok := v.(string)
 	if !ok {
 		return common.NewCError("Unable to parse MatchDestination operand")
 	}
-
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
 		return common.NewCError("Unable to parse MatchDestination operand", "err", err)
@@ -155,25 +151,26 @@ func (m *MatchDestination) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type MatchTOS struct {
+// IPv4MatchToS checks whether the ToS field matches.
+type IPv4MatchToS struct {
 	TOS uint8
 }
 
-func (m *MatchTOS) Eval(p *layers.IPv4) bool {
+func (m *IPv4MatchToS) Eval(p *layers.IPv4) bool {
 	return m.TOS == p.TOS
 }
 
-func (m *MatchTOS) MarshalJSON() ([]byte, error) {
+func (m *IPv4MatchToS) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
-		JSONContainer{
+		jsonContainer{
 			"TOS": fmt.Sprintf("%#x", m.TOS),
 		},
 	)
 }
 
-func (m *MatchTOS) UnmarshalJSON(b []byte) error {
+func (m *IPv4MatchToS) UnmarshalJSON(b []byte) error {
 	// Format is 0x hex number in quoted string
-	var jc JSONContainer
+	var jc jsonContainer
 	err := json.Unmarshal(b, &jc)
 	if err != nil {
 		return err

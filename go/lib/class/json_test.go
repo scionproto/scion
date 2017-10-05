@@ -55,11 +55,11 @@ func TestMarshalJSONClass(t *testing.T) {
 	Convey("Initialize traffic classes (conditions and actions)", t, func() {
 		classA := NewClass(
 			"Traffic class core ISD1",
-			NewCondAll(
+			NewCondAllOf(
 				CondTrue,
-				NewCondAll(
-					NewCondIPv4(&MatchTOS{0x80}),
-					NewCondIPv4(&MatchDestination{
+				NewCondAllOf(
+					NewCondIPv4(&IPv4MatchToS{0x80}),
+					NewCondIPv4(&IPv4MatchDestination{
 						&net.IPNet{
 							net.IP{192, 168, 1, 0},
 							net.IPv4Mask(255, 255, 255, 0),
@@ -70,9 +70,9 @@ func TestMarshalJSONClass(t *testing.T) {
 		)
 		classB := NewClass(
 			"Traffic class transit ISD2",
-			NewCondAny(
-				NewCondIPv4(&MatchTOS{0x0}),
-				NewCondIPv4(&MatchSource{
+			NewCondAnyOf(
+				NewCondIPv4(&IPv4MatchToS{0x0}),
+				NewCondIPv4(&IPv4MatchSource{
 					&net.IPNet{
 						net.IP{10, 0, 0, 0},
 						net.IPv4Mask(255, 0, 0, 0),
@@ -82,7 +82,7 @@ func TestMarshalJSONClass(t *testing.T) {
 		)
 		classC := NewClass(
 			"Traffic default",
-			NewCondAll(),
+			NewCondAllOf(),
 		)
 
 		cm := NewClassMap()

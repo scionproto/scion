@@ -49,7 +49,7 @@ func (c *Class) Eval(hpkt *ClsPkt) bool {
 }
 
 func (c *Class) MarshalJSON() ([]byte, error) {
-	jc := make(JSONContainer)
+	jc := make(jsonContainer)
 	err := jc.addTypedCond(c.Cond)
 	if err != nil {
 		return nil, err
