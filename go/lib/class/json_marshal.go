@@ -23,9 +23,9 @@ import (
 // This package makes extensive use of serialized interfaces. This requires
 // special handling during marshaling and unmarshaling to take concrete types
 // into account. During marshaling, addTyped* methods are used to populate a
-// JSONContainer, which is a map with concrete type names pointing to
-// actual structs. For example, when we marshal CondAny which implements
-// interface Cond, we add to JSONContainer key "CondAny" with the value
+// jsonContainer, which is a map with concrete type names pointing to
+// actual structs. For example, when we marshal CondAnyOf which implements
+// interface Cond, we add to jsonContainer key "CondAnyOf" with the value
 // containing the actual struct.
 //
 // During unmarshaling, whenever we expect an interface type we unmarshal to a
@@ -38,13 +38,13 @@ import (
 // least one of which is an interface. The Go JSON unmarshaler populates the
 // correct field of the embedded type, which we later use to construct the
 // actual object. For an example, see the unmarshalling code for Class.
-type JSONContainer map[string]interface{}
+type jsonContainer map[string]interface{}
 
-func (jc JSONContainer) addTypedCond(c Cond) error {
+func (jc jsonContainer) addTypedCond(c Cond) error {
 	switch v := c.(type) {
-	case CondAll:
+	case CondAllOf:
 		jc["CondAllOf"] = v
-	case CondAny:
+	case CondAnyOf:
 		jc["CondAnyOf"] = v
 	case CondBool:
 		jc["CondBool"] = v
@@ -56,7 +56,7 @@ func (jc JSONContainer) addTypedCond(c Cond) error {
 	return nil
 }
 
-func (jc JSONContainer) addTypedAction(a Action) error {
+func (jc jsonContainer) addTypedAction(a Action) error {
 	switch v := a.(type) {
 	case *ActionFilterPaths:
 		jc["ActionFilterPaths"] = v
@@ -66,13 +66,13 @@ func (jc JSONContainer) addTypedAction(a Action) error {
 	return nil
 }
 
-func (jc JSONContainer) addTypedPredicate(p IPv4Predicate) error {
+func (jc jsonContainer) addTypedPredicate(p IPv4Predicate) error {
 	switch v := p.(type) {
-	case *MatchSource:
+	case *IPv4MatchSource:
 		jc["MatchSource"] = v
-	case *MatchDestination:
+	case *IPv4MatchDestination:
 		jc["MatchDestination"] = v
-	case *MatchTOS:
+	case *IPv4MatchToS:
 		jc["MatchTOS"] = v
 	default:
 		return common.NewCError("Unknown predicate type", "type", fmt.Sprintf("%T", p))
