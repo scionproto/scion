@@ -15,14 +15,10 @@
 // Package class implements tools for classifying and acting on network
 // packets. All components can be exported to JSON and imported back.
 //
-// A class specifies what actions to perform on which traffic. Method Process
-// receives SCION host packets (HPkt), and evaluates the internal condition
-// using that packet as input. If the evaluation returns true, then the actions
-// (if any) are performed on the packet, in order. If the evaluation yiels
-// false, the packet is unchanged. Method Eval acts similarly, except no action
-// is performed regardless of evaluation result.
+// A class is a named condition that exposes an Eval method; when Eval yields
+// true for a ClsPkt, that packet is considered to be part of that class.
 //
-// Each class must include a condition. The following conditions are supported:
+// The following conditions are supported:
 // AnyOf, AllOf, Boolean true, Boolean false and IPv4. AnyOf returns true if at
 // least one subcondition returns true. AllOf returns true if all subconditions
 // return true.  AllOf or AnyOf without subconditions return true. Boolean
@@ -32,25 +28,22 @@
 // and ToS field match. Multiple predicates can be checked by enumerating them
 // under AllOf or AnyOf.
 //
-// Actions dictate how the analyzed packet is changed. Currently, the only
-// supported action is Path Pinning. If a packet has a set of possible paths,
-// they are evaluated to see which (if any) match the path pinning predicate.
-// The predicate specifies which consecutive sequence of ASes and interfaces
-// the packet must travel through. Wildcard ISDs, ASes and IFIDs are specified
-// with *. For example, a path pinning predicate that only pins paths which pass
-// through ISD1 at some point is created like:
-//     pp, err = NewActionPinPath("1-*.*")
+// Actions are marshalable objects that describe some process. Currently, the
+// only supported action is Path Filtering (ActionFilterPaths). A path filter
+// is just a container for a path predicate.  The predicate specifies which
+// consecutive sequence of ASes and interfaces the packet must travel through.
+// Wildcard ISDs, ASes and IFIDs are specified with *. For example, a path
+// pinning predicate that only pins paths which pass through ISD1 at some point
+// is created like:
+//     pp, err = NewActionFilterPaths("someName", "1-*#*")
 //
-// To pin paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12 interface 95:
-//     pp, err = NewActionPinPath("1-11.27,1-12.95")
+// To pin paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
+// interface 95:
+//     pp, err = NewActionFilterPaths("someOtherName", "1-11#27,1-12#95")
 //
-// The first path that matches is pinned and stored in the HPkt. Calling code
-// can then use the path to forward the packet.
+// Marshalable policies can be implemented by external code by mapping Cond
+// items to Action items.
 //
-// This package only includes per packet analysis, with no state. Complex
-// policies like shapers, policers and applying policies and classes to
-// interfaces should be handled externally.
-//
-// Package class supports JSON marshaling and unmarshaling of classes, conditions and
-// actions.
+// Package class supports JSON marshaling and unmarshaling of classes,
+// conditions and actions.
 package class
