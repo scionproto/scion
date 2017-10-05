@@ -37,7 +37,7 @@ func NewCondIPv4(p IPv4Predicate) *CondIPv4 {
 	return cond
 }
 
-func (c *CondIPv4) Eval(v *ClsPkt) bool {
+func (c *CondIPv4) Eval(v *Packet) bool {
 	if v == nil {
 		return false
 	}
