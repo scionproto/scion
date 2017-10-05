@@ -31,11 +31,7 @@ type IPv4Predicate interface {
 	Eval(*layers.IPv4) bool
 }
 
-var (
-	_ IPv4Predicate = (*IPv4MatchSource)(nil)
-	_ IPv4Predicate = (*IPv4MatchDestination)(nil)
-	_ IPv4Predicate = (*IPv4MatchToS)(nil)
-)
+var _ IPv4Predicate = (*IPv4MatchSource)(nil)
 
 // IPv4MatchSource checks whether the source IPv4 address is contained in Net.
 type IPv4MatchSource struct {
@@ -77,6 +73,8 @@ func (m *IPv4MatchSource) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+var _ IPv4Predicate = (*IPv4MatchDestination)(nil)
+
 // IPv4MatchDestination checks whether the destination IPv4 address is contained in
 // Net.
 type IPv4MatchDestination struct {
@@ -116,6 +114,8 @@ func (m *IPv4MatchDestination) UnmarshalJSON(b []byte) error {
 	m.Net = network
 	return nil
 }
+
+var _ IPv4Predicate = (*IPv4MatchToS)(nil)
 
 // IPv4MatchToS checks whether the ToS field matches.
 type IPv4MatchToS struct {

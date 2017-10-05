@@ -29,9 +29,8 @@ type Packet struct {
 }
 
 func NewPacket(raw common.RawBytes) *Packet {
-	hpkt := &Packet{
+	return &Packet{
 		rawPkt:    raw,
 		parsedPkt: gopacket.NewPacket(raw, layers.LayerTypeIPv4, gopacket.NoCopy),
 	}
-	return hpkt
 }

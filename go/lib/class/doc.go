@@ -32,10 +32,10 @@
 // only supported action is Path Filtering (ActionFilterPaths). A path filter
 // is just a container for a path predicate.  The predicate specifies which
 // consecutive sequence of ASes and interfaces the packet must travel through.
-// Wildcard ISDs, ASes and IFIDs are specified with *. For example, a path
+// Wildcard ISDs, ASes and IFIDs are specified with 0. For example, a path
 // filtering predicate that only allows paths which pass through ISD1 can be
 // created with:
-//     pp, err = NewActionFilterPaths("PathsThroughISD1", "1-*#*")
+//     pp, err = NewActionFilterPaths("PathsThroughISD1", "1-0#0")
 //
 // To allow paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
 // interface 95:

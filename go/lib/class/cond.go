@@ -28,12 +28,7 @@ type Cond interface {
 	Eval(*Packet) bool
 }
 
-var (
-	_ Cond = CondAnyOf(nil)
-	_ Cond = CondAllOf(nil)
-	_ Cond = CondBool(true)
-	_ Cond = (*CondIPv4)(nil)
-)
+var _ Cond = CondAnyOf(nil)
 
 // CondAnyOf conditions return true if all subconditions return true.
 type CondAnyOf []Cond
@@ -46,15 +41,12 @@ func (c CondAnyOf) Eval(v *Packet) bool {
 	if len(c) == 0 {
 		return true
 	}
-	result := false
 	for _, child := range c {
-		result = result || child.Eval(v)
-		// Shortcircuit
-		if result {
-			return result
+		if child.Eval(v) {
+			return true
 		}
 	}
-	return result
+	return false
 }
 
 func (c CondAnyOf) String() string {
@@ -96,6 +88,8 @@ func (c *CondAnyOf) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+var _ Cond = CondAllOf(nil)
+
 // CondAllOf conditions return true if at least one subcondition returns true.
 type CondAllOf []Cond
 
@@ -104,18 +98,12 @@ func NewCondAllOf(children ...Cond) CondAllOf {
 }
 
 func (c CondAllOf) Eval(v *Packet) bool {
-	if len(c) == 0 {
-		return true
-	}
-	result := true
 	for _, child := range c {
-		result = result && child.Eval(v)
-		// Shortcircuit
-		if !result {
-			return result
+		if !child.Eval(v) {
+			return false
 		}
 	}
-	return result
+	return true
 }
 
 func (c CondAllOf) String() string {
@@ -157,6 +145,8 @@ func (c *CondAllOf) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+var _ Cond = CondBool(true)
+
 // CondBool contains a true or false value, useful for debugging and testing.
 type CondBool bool
 
@@ -164,6 +154,8 @@ var (
 	CondTrue  CondBool = true
 	CondFalse CondBool = false
 )
+
+var _ Cond = (*CondIPv4)(nil)
 
 func (c CondBool) Eval(v *Packet) bool {
 	return bool(c)
@@ -175,8 +167,7 @@ type CondIPv4 struct {
 }
 
 func NewCondIPv4(p IPv4Predicate) *CondIPv4 {
-	cond := &CondIPv4{Predicate: p}
-	return cond
+	return &CondIPv4{Predicate: p}
 }
 
 func (c *CondIPv4) Eval(v *Packet) bool {
