@@ -25,6 +25,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+var _ Cond = (*CondIPv4)(nil)
+
 // CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
 type CondIPv4 struct {
 	Predicate IPv4Predicate
@@ -70,6 +72,12 @@ type IPv4Predicate interface {
 	// Eval returns true if the IPv4 packet matched the predicate
 	Eval(*layers.IPv4) bool
 }
+
+var (
+	_ IPv4Predicate = (*IPv4MatchSource)(nil)
+	_ IPv4Predicate = (*IPv4MatchDestination)(nil)
+	_ IPv4Predicate = (*IPv4MatchToS)(nil)
+)
 
 // IPv4MatchSource checks whether the source IPv4 address is contained in Net.
 type IPv4MatchSource struct {

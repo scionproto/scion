@@ -19,7 +19,9 @@ import (
 	"fmt"
 )
 
-// Cond is used to decide which packets match a class.
+// Cond is used to decide which packets match a class. Types implementing Cond
+// should not be marshaled directly to JSON. Instead, embed them into a Class
+// and add the Class to a ClassMap; finally, marshal the entire ClassMap.
 type Cond interface {
 	Eval(*ClsPkt) bool
 }
@@ -28,7 +30,6 @@ var (
 	_ Cond = CondAnyOf(nil)
 	_ Cond = CondAllOf(nil)
 	_ Cond = CondBool(true)
-	_ Cond = (*CondIPv4)(nil)
 )
 
 // CondAnyOf conditions return true if all subconditions return true.

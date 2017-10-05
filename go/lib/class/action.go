@@ -27,15 +27,15 @@ import (
 
 var _ Action = (*ActionFilterPaths)(nil)
 
-// Interface Action defines how packets in a certain Class are acted upon.
-// Action can be exported to JSON; importing yields the same object as the
-// exported Action.
+// Interface Action defines how paths and packets may be processed in a way
+// that can be exported to JSON. Types implementing Action must not be
+// marshaled to JSON directly; instead, first create an ActionMap, add the
+// desired actions to it and then marshal the entire ActionMap.
 type Action interface {
 	GetName() string
 }
 
-// Pin all packets in a class to a specific path, if it is available. If no
-// path matching the predicate is available, nothing happens.
+// Filter only paths which match the embedded PathPredicate.
 type ActionFilterPaths struct {
 	Contains *PathPredicate
 	Name     string `json:"-"`
@@ -51,7 +51,8 @@ func (a *ActionFilterPaths) GetName() string {
 
 // A PathPredicate's Eval method returns true if the slice of interfaces in
 // Match is included in the AppPath parameter. Zero values in Match symbolize
-// wildcard matches. For more information, consult package level documentation.
+// wildcard matches. For more information and examples, consult the package
+// level documentation.
 type PathPredicate struct {
 	Match []sciond.PathInterface
 }
@@ -93,24 +94,6 @@ func (pp *PathPredicate) Eval(path *sciond.PathReplyEntry) bool {
 	return false
 }
 
-func (pp *PathPredicate) MarshalJSON() ([]byte, error) {
-	return json.Marshal(pp.String())
-}
-
-func (pp *PathPredicate) UnmarshalJSON(b []byte) error {
-	var s string
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-	other, err := NewPathPredicate(s)
-	if err != nil {
-		return common.NewCError("Unable to parse PathPredicate operand", "err", err)
-	}
-	pp.Match = other.Match
-	return nil
-}
-
 func (pp *PathPredicate) String() string {
 	str := ""
 	for i, iface := range pp.Match {
@@ -141,6 +124,24 @@ func (pp *PathPredicate) String() string {
 		}
 	}
 	return str
+}
+
+func (pp *PathPredicate) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pp.String())
+}
+
+func (pp *PathPredicate) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	other, err := NewPathPredicate(s)
+	if err != nil {
+		return common.NewCError("Unable to parse PathPredicate operand", "err", err)
+	}
+	pp.Match = other.Match
+	return nil
 }
 
 func parseIface(str string) (sciond.PathInterface, error) {
