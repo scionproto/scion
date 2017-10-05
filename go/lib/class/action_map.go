@@ -20,6 +20,10 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+// ActionMap is a container for Actions, keyed by their unique name. Attempting
+// to add an Action with the same name twice returns an error. ActionMap can be
+// used to marshal Actions to JSON. Unmarshaling back to ActionMap is
+// guaranteed to yield an object that is identical to the initial one.
 type ActionMap struct {
 	m map[string]Action
 }
