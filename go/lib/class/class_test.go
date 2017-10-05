@@ -72,47 +72,47 @@ func TestClassMap(t *testing.T) {
 func TestBasicConds(t *testing.T) {
 	Convey("Conditions", t, func() {
 		Convey("Any returns correct values on Eval", func() {
-			c := NewCondAny()
+			c := NewCondAnyOf()
 			SoMsg("empty any", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAny(CondTrue)
+			c = NewCondAnyOf(CondTrue)
 			SoMsg("true", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAny(CondFalse, CondFalse)
+			c = NewCondAnyOf(CondFalse, CondFalse)
 			SoMsg("false, false", c.Eval(nil), ShouldBeFalse)
-			c = NewCondAny(CondFalse, CondTrue, CondFalse)
+			c = NewCondAnyOf(CondFalse, CondTrue, CondFalse)
 			SoMsg("false, true, false", c.Eval(nil), ShouldBeTrue)
 		})
 
 		Convey("All returns correct values on Eval", func() {
-			c := NewCondAll()
+			c := NewCondAllOf()
 			SoMsg("empty all", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAll(CondTrue)
+			c = NewCondAllOf(CondTrue)
 			SoMsg("true", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAll(CondFalse, CondFalse)
+			c = NewCondAllOf(CondFalse, CondFalse)
 			SoMsg("false, false", c.Eval(nil), ShouldBeFalse)
-			c = NewCondAll(CondFalse, CondTrue, CondFalse)
+			c = NewCondAllOf(CondFalse, CondTrue, CondFalse)
 			SoMsg("false, true, false", c.Eval(nil), ShouldBeFalse)
 		})
 
 		Convey("Mixed conds return correct values on Eval", func() {
-			c := NewCondAll(
-				NewCondAny(),
-				NewCondAll(),
+			c := NewCondAllOf(
+				NewCondAnyOf(),
+				NewCondAllOf(),
 				CondTrue,
 			)
 			SoMsg("All(Any(), All(), true)", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAll(
-				NewCondAny(),
-				NewCondAll(),
+			c = NewCondAllOf(
+				NewCondAnyOf(),
+				NewCondAllOf(),
 				CondFalse,
 			)
 			SoMsg("All(Any(), All(), false)", c.Eval(nil), ShouldBeFalse)
-			c = NewCondAll(
+			c = NewCondAllOf(
 				CondTrue,
 				CondTrue,
-				NewCondAny(
+				NewCondAnyOf(
 					CondFalse,
 					CondFalse,
-					NewCondAll(),
+					NewCondAllOf(),
 				),
 			)
 			SoMsg("All(true, true, Any(false, false, All()))", c.Eval(nil), ShouldBeTrue)
@@ -197,9 +197,9 @@ func InitClasses() map[string]*Class {
 	return map[string]*Class{
 		"ClassA": NewClass(
 			"ClassA",
-			NewCondAll(
+			NewCondAllOf(
 				NewCondIPv4(
-					&MatchSource{
+					&IPv4MatchSource{
 						&net.IPNet{
 							net.IP{192, 168, 1, 0},
 							net.IPv4Mask(255, 255, 255, 240),
@@ -210,9 +210,9 @@ func InitClasses() map[string]*Class {
 		),
 		"ClassB": NewClass(
 			"ClassB",
-			NewCondAll(
+			NewCondAllOf(
 				NewCondIPv4(
-					&MatchDestination{
+					&IPv4MatchDestination{
 						&net.IPNet{
 							net.IP{10, 0, 0, 0},
 							net.IPv4Mask(255, 0, 0, 0),
@@ -223,14 +223,14 @@ func InitClasses() map[string]*Class {
 		),
 		"ClassC": NewClass(
 			"ClassC",
-			NewCondAll(
+			NewCondAllOf(
 				NewCondIPv4(
-					&MatchTOS{
+					&IPv4MatchToS{
 						TOS: 0x80,
 					},
 				),
 				NewCondIPv4(
-					&MatchSource{
+					&IPv4MatchSource{
 						&net.IPNet{
 							net.IP{192, 168, 1, 1},
 							net.IPv4Mask(255, 255, 255, 255),
