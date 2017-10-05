@@ -116,13 +116,8 @@ func loadConfig(path string) bool {
 		return false
 	}
 	success := true
-	for iaStr, cfgEntry := range cfg.ASes {
-		ia, err := addr.IAFromString(iaStr)
-		if err != nil {
-			log.Error("Unable to parse ISD-AS from config", "raw", iaStr, "err", err)
-			success = false
-			continue
-		}
+	for iaVal, cfgEntry := range cfg.ASes {
+		ia := &iaVal
 		base.Map.AddIA(ia)
 		ae := base.Map.ASEntry(ia)
 		// Add sigs before networks, so there's somewhere for packets to go.

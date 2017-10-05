@@ -23,12 +23,13 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 // Cfg is a direct Go representation of the JSON file format.
 type Cfg struct {
-	ASes map[string]*ASEntry
+	ASes map[addr.ISD_AS]*ASEntry
 	//PktClasses map[string]*PktClassifier
 	//PathPolicies map[string]*PathPolicy
 }

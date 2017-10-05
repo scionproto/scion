@@ -146,6 +146,7 @@ func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static 
 	ae.Lock()
 	defer ae.Unlock()
 	if _, ok := ae.Sigs[id]; ok {
+		// FIXME(kormat): support updating SIG entry.
 		return false
 	}
 	ae.Sigs[id] = NewSIGInfo(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
