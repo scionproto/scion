@@ -30,6 +30,7 @@ var (
 	_ Cond = CondAnyOf(nil)
 	_ Cond = CondAllOf(nil)
 	_ Cond = CondBool(true)
+	_ Cond = (*CondIPv4)(nil)
 )
 
 // CondAnyOf conditions return true if all subconditions return true.
