@@ -17,6 +17,8 @@ package pathmgr
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
+	"strings"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
@@ -51,6 +53,14 @@ func (aps AppPathSet) GetAppPath() *AppPath {
 		return v
 	}
 	return nil
+}
+
+func (aps AppPathSet) String() string {
+	var desc []string
+	for _, path := range aps {
+		desc = append(desc, fmt.Sprintf("%v", path.Entry.Path.Interfaces))
+	}
+	return "{" + strings.Join(desc, ";") + "}"
 }
 
 // AppPath contains a SCIOND path entry, together with metadata needed for
