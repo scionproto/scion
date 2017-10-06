@@ -99,6 +99,10 @@ func (e *EgressWorker) Run() error {
 	// Start reader goroutine
 	go e.Read()
 
+	// SCMP messages can only be parsed when reading from snet; we spawn
+	// a goroutine who's only purpose is to read these messsages
+	go e.SCMPReceiver()
+
 	frame := make(common.RawBytes, 1<<16)
 	var pkt common.RawBytes
 	var conn *snet.Conn
@@ -140,6 +144,22 @@ TopLoop:
 			log.Error("Error sending frame", "err", err)
 		}
 		e.bp.Put(pkt)
+	}
+}
+
+func (e *EgressWorker) SCMPReceiver() {
+	conn, err := e.info.getConn()
+	if err != nil {
+		log.Error("SCMP receiver unable to get conn")
+		return
+	}
+	buffer := make(common.RawBytes, common.MaxMTU)
+	for {
+		_, err := conn.Read(buffer)
+		if err != nil {
+			log.Error("SCMP receiver error while reading")
+			return
+		}
 	}
 }
 
