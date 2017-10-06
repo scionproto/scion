@@ -182,9 +182,10 @@ func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 
 func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	p := &InfoRevocation{InfoPathOffsets: &InfoPathOffsets{}}
-	if err := restruct.Unpack(b, common.Order, &p.InfoPathOffsets); err != nil {
-		return nil, common.NewCError("Failed to unpack SCMP Revocation info", "err", err)
-	}
+	p.InfoPathOffsets.InfoF = common.Order.Uint16(b[0:])
+	p.InfoPathOffsets.HopF = common.Order.Uint16(b[2:])
+	p.InfoPathOffsets.IfID = common.Order.Uint16(b[4:])
+	p.InfoPathOffsets.Ingress = (b[6] & 0x01) == 0x01
 	p.RevToken = b[8:]
 	return p, nil
 }
