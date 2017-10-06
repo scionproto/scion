@@ -22,6 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
 var _ net.Addr = (*Addr)(nil)
@@ -29,9 +30,10 @@ var _ net.Addr = (*Addr)(nil)
 var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\]:(?P<port>\d+)$`)
 
 type Addr struct {
-	IA     *addr.ISD_AS
-	Host   addr.HostAddr
-	L4Port uint16
+	IA        *addr.ISD_AS
+	Host      addr.HostAddr
+	L4Port    uint16
+	PathEntry *sciond.PathReplyEntry
 }
 
 func (a *Addr) Network() string {

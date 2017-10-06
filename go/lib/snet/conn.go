@@ -176,11 +176,14 @@ func (c *Conn) Write(b []byte) (int, error) {
 }
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
-	var path *spath.Path
 	var err error
-	pathEntry, err := c.selectPathEntry(raddr)
-	if err != nil {
-		return 0, err
+	var path *spath.Path
+	pathEntry := raddr.PathEntry
+	if pathEntry == nil {
+		pathEntry, err = c.selectPathEntry(raddr)
+		if err != nil {
+			return 0, err
+		}
 	}
 	if pathEntry != nil {
 		path = spath.New(pathEntry.Path.FwdPath)
