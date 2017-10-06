@@ -139,24 +139,19 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 			if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
 				log.Debug("SCMP message is revocation request")
 
-				rawPayload := make([]byte, common.MaxMTU)
-				n, err := pkt.Pld.WritePld(rawPayload)
-				if err != nil {
-					log.Error("Unable to copy SCMP Payload", "err", err)
+				scmpPayload, ok := pkt.Pld.(*scmp.Payload)
+				if !ok {
+					log.Error("Unable to type assert payload to SCMP payload")
 				}
-				log.Debug("Copied SCMP payload", "len", n)
 
-				// Hard code these for now, I couldn't find a better way of doing this atm
-				info, err := scmp.MetaFromRaw(rawPayload[:scmp.MetaLen])
-				if err != nil {
-					log.Error("Unable to parse SCMP metadata section", "err", err)
+				info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
+				if !ok {
+					log.Error("Unable to type assert SCMP Info to SCMP Revocation Info")
 				}
-				infoBlockEnd := info.InfoLen * common.LineLen
-				infoBlock := rawPayload[scmp.MetaLen:infoBlockEnd]
 
 				// Extract RevInfo buffer and send it to path manager
-				log.Info("snet.read() sending revocation", "info", infoBlock)
-				c.scionNet.pathResolver.Revoke(infoBlock)
+				log.Info("snet.read() sending revocation", "info", info.RevToken)
+				c.scionNet.pathResolver.Revoke(info.RevToken)
 			} else {
 				log.Warn("Received unsupported SCMP message", "class", hdr.Class,
 					"type", hdr.Type)
