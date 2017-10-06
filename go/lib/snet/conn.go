@@ -135,17 +135,17 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 				L4Port: hdr.SrcPort,
 			}
 		case *scmp.Hdr:
-			log.Debug("Received SCMP message")
+			log.Info("Received SCMP message")
 			// Only handle revocations for now
 			if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
-				log.Debug("SCMP message is revocation request")
-				log.Debug("SCMP dump", "header", hdr.String())
+				log.Info("SCMP message is revocation request")
+				log.Info("SCMP dump", "header", hdr.String())
 
 				scmpPayload, ok := pkt.Pld.(*scmp.Payload)
 				if !ok {
 					log.Error("Unable to type assert payload to SCMP payload")
 				}
-				log.Debug("SCMP payload dump", "payload", scmpPayload.String())
+				log.Info("SCMP payload dump", "payload", scmpPayload.String())
 
 				info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
 				if !ok {
