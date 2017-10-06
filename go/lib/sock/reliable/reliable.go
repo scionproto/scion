@@ -61,6 +61,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -93,6 +94,9 @@ type Conn struct {
 	recvBuf       []byte
 	recvReadHead  int
 	recvWriteHead int
+
+	readMutex  sync.Mutex
+	writeMutex sync.Mutex
 }
 
 // DialTimeout acts like Dial but takes a timeout.
@@ -231,6 +235,8 @@ func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
 // copied field of the Msg struct contains the number of bytes in the read
 // packet.
 func (conn *Conn) ReadN(msgs []Msg) (int, error) {
+	conn.readMutex.Lock()
+	defer conn.readMutex.Unlock()
 	fillIndex := 0
 	// If we do not have enough data for a full packet, try a blocking read
 	for fillIndex < len(msgs) {
@@ -362,6 +368,9 @@ func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
 // oriented protocols); the copied field of struct Msg is reset to 0 for
 // written packets.  WriteN returns the number of packets written.
 func (conn *Conn) WriteN(bufs []Msg) (int, error) {
+	conn.writeMutex.Lock()
+	defer conn.writeMutex.Unlock()
+
 	copiedMsgs := 0
 	index := 0
 	for i := range bufs {

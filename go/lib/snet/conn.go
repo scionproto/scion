@@ -16,8 +16,9 @@ package snet
 
 import (
 	"net"
-	"sync"
 	"time"
+
+	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -26,6 +27,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -40,8 +42,7 @@ var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
-	dispMutex sync.Mutex
-	conn      *reliable.Conn
+	conn *reliable.Conn
 	// Local and remote SCION addresses (IA, L3, L4)
 	laddr *Addr
 	raddr *Addr
@@ -101,9 +102,7 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	var err error
 	var remote *Addr
 
-	c.dispMutex.Lock()
 	n, err := c.conn.Read(c.recvBuffer)
-	c.dispMutex.Unlock()
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
@@ -124,18 +123,51 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 		return 0, nil, common.NewCError("Unable to copy payload", "err", err)
 	}
 
-	// Assert L4 as UDP header if local net is udp4
+	// On UDP4 network we can get either UDP traffic or SCMP messages
 	if c.net == "udp4" {
-		udpHdr, ok := pkt.L4.(*l4.UDP)
-		if !ok {
-			return 0, nil, common.NewCError("Invalid L4 protocol",
-				"expected", c.net, "actual", pkt.L4.L4Type())
+		switch hdr := pkt.L4.(type) {
+		case *l4.UDP:
+			// Extract remote address
+			remote = &Addr{
+				IA:     pkt.SrcIA,
+				Host:   pkt.SrcHost,
+				L4Port: hdr.SrcPort,
+			}
+		case *scmp.Hdr:
+			log.Debug("Received SCMP message")
+			// Only handle revocations for now
+			if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
+				log.Debug("SCMP message is revocation request")
+
+				rawPayload := make([]byte, common.MaxMTU)
+				n, err := pkt.Pld.WritePld(rawPayload)
+				if err != nil {
+					log.Error("Unable to copy SCMP Payload", "err", err)
+				}
+				log.Debug("Copied SCMP payload", "len", n)
+
+				// Hard code these for now, I couldn't find a better way of doing this atm
+				info, err := scmp.MetaFromRaw(rawPayload[:scmp.MetaLen])
+				if err != nil {
+					log.Error("Unable to parse SCMP metadata section", "err", err)
+				}
+				infoBlockEnd := info.InfoLen * common.LineLen
+				infoBlock := rawPayload[scmp.MetaLen:infoBlockEnd]
+
+				// Extract RevInfo buffer and send it to path manager
+				log.Info("snet.read() sending revocation", "info", infoBlock)
+				c.scionNet.pathResolver.Revoke(infoBlock)
+			} else {
+				log.Warn("Received unsupported SCMP message", "class", hdr.Class,
+					"type", hdr.Type)
+			}
+
+			// Recursively try to read again to give the application UDP data
+			return c.read(b)
+		default:
+			log.Error("Received unexpected SCION L4 protocol", "expected", "UDP or SCMP",
+				"actual", pkt.L4.L4Type())
 		}
-		// Extract remote address
-		remote = &Addr{
-			IA:     pkt.SrcIA,
-			Host:   pkt.SrcHost,
-			L4Port: udpHdr.SrcPort}
 	}
 	return n, remote, nil
 }
@@ -225,9 +257,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 
 	// Send message
-	c.dispMutex.Lock()
 	n, err = c.conn.WriteTo(c.sendBuffer[:n], appAddr)
-	c.dispMutex.Unlock()
 	if err != nil {
 		return 0, common.NewCError("Dispatcher write error", "err", err)
 	}
