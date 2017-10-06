@@ -21,6 +21,8 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
+
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/lib/util"
@@ -148,6 +150,7 @@ TopLoop:
 }
 
 func (e *EgressWorker) SCMPReceiver() {
+	defer liblog.LogPanicAndExit()
 	conn, err := e.info.getConn()
 	if err != nil {
 		log.Error("SCMP receiver unable to get conn")
