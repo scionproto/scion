@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
@@ -56,7 +57,7 @@ type Dispatcher struct {
 func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
-	}, "free", prometheus.Labels{"ringId": "freeFrames"})
+	}, "ingress", prometheus.Labels{"ringId": "freeFrames"})
 	d := &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
@@ -137,6 +138,7 @@ func (d *Dispatcher) cleanup() {
 	// Perform the stopping in separate go-routine, since worker.Stop can block,
 	if len(toCleanup) > 0 {
 		go func() {
+			defer liblog.LogPanicAndExit()
 			for _, worker := range toCleanup {
 				worker.Stop()
 			}
