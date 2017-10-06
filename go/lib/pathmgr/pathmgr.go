@@ -258,7 +258,7 @@ func (r *PR) lookup(q query) AppPathSet {
 	}
 
 	reply, err := r.sciond.Paths(q.dst, q.src, numReqPaths, sciond.PathReqFlags{})
-	log.Info("SCIOND response received", "count", len(reply.Entries))
+	log.Info("SCIOND response received", "count", len(reply.Entries), "data", reply)
 	if err != nil {
 		log.Error("SCIOND network error", "err", err)
 		// Network error, cannot connect to SCIOND
