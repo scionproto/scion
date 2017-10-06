@@ -15,6 +15,7 @@
 package snet
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -288,7 +289,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 			}
 		}
 		pathSet = c.sp.Load()
-		log.Info("Current path set is", "set", pathSet)
+		log.Info("Current path set is", "set", fmt.Sprintf("%v", pathSet))
 	}
 
 	if len(pathSet) == 0 {
