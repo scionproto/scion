@@ -72,6 +72,7 @@ func (e *EgressWorker) Run() {
 	defer liblog.LogPanicAndExit()
 	f := newFrame()
 
+	go SCMPReceiver()
 TopLoop:
 	for {
 		// If the frame is empty, block indefinitely for more packets.
@@ -104,6 +105,22 @@ TopLoop:
 		}
 	}
 	log.Info("EgressWorker: stopping", "ia", e.ae.IA)
+}
+
+func (e *EgressWorker) SCMPReceiver() {
+	conn, err := e.info.getConn()
+	if err != nil {
+		log.Error("SCMP receiver unable to get conn")
+		return
+	}
+	buffer := make(common.RawBytes, common.MaxMTU)
+	for {
+		_, err := conn.Read(buffer)
+		if err != nil {
+			log.Error("SCMP receiver error while reading")
+			return
+		}
+	}
 }
 
 func (e *EgressWorker) processPkt(f *frame, pkt common.RawBytes) error {
