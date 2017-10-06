@@ -15,6 +15,7 @@
 package addr
 
 import (
+	"encoding"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,6 +28,8 @@ const (
 	MaxISD  = (1 << 12) - 1
 	MaxAS   = (1 << 20) - 1
 )
+
+var _ encoding.TextUnmarshaler = (*ISD_AS)(nil)
 
 type ISD_AS struct {
 	I int
@@ -67,6 +70,16 @@ func IAFromString(s string) (*ISD_AS, error) {
 			"max", MaxAS, "actual", as, "raw", s)
 	}
 	return &ISD_AS{I: isd, A: as}, nil
+}
+
+// allows ISD_AS to be used as a map key in JSON.
+func (ia *ISD_AS) UnmarshalText(text []byte) error {
+	newIA, err := IAFromString(string(text))
+	if err != nil {
+		return err
+	}
+	*ia = *newIA
+	return nil
 }
 
 func (ia *ISD_AS) Parse(b common.RawBytes) {
