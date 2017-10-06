@@ -16,7 +16,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net"
 	_ "net/http/pprof"
 	"os"
@@ -28,7 +27,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/config"
 	"github.com/netsec-ethz/scion/go/sig/ingress"
@@ -37,13 +35,10 @@ import (
 )
 
 var (
-	id             = flag.String("id", "", "Element ID (Required. E.g. 'sig4-21-9')")
-	cfgPath        = flag.String("config", "", "Config file (Required)")
-	isdas          = flag.String("ia", "", "Local AS (Required, e.g., 1-10)")
-	ipStr          = flag.String("ip", "", "address to bind to (Required)")
-	sciondPath     = flag.String("sciond", "", "SCIOND socket path")
-	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
-		"SCION Dispatcher path")
+	id      = flag.String("id", "", "Element ID (Required. E.g. 'sig4-21-9')")
+	cfgPath = flag.String("config", "", "Config file (Required)")
+	isdas   = flag.String("ia", "", "Local AS (Required, e.g., 1-10)")
+	ipStr   = flag.String("ip", "", "address to bind to (Required)")
 )
 
 func main() {
@@ -71,17 +66,10 @@ func main() {
 	if ip == nil {
 		fatal("unable to parse IP address", "addr", *ipStr)
 	}
-	if *sciondPath == "" {
-		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia)
-	}
 	if err = sigcmn.Init(ia, ip); err != nil {
 		fatal("Error during initialization", "err", err)
 	}
-	// Initialize SCION local networking module
-	err = snet.Init(ia, *sciondPath, *dispatcherPath)
-	if err != nil {
-		fatal("Unable to create local SCION Network context", "err", err)
-	}
+	base.Init()
 	// Parse config
 	if loadConfig(*cfgPath) != true {
 		fatal("Unable to load config on startup")
@@ -149,6 +137,8 @@ func loadConfig(path string) bool {
 				continue
 			}
 		}
+		// TODO(kormat): add policies here FIXME(kormat): this is probably the wrong ordering.
+		ae.AddPolicy("placeholder", nil)
 	}
 	return success
 }
