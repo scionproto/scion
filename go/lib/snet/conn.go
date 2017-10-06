@@ -284,6 +284,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 			}
 		}
 		pathSet = c.sp.Load()
+		log.Info("Current path set is", "set", pathSet)
 	}
 
 	if len(pathSet) == 0 {
