@@ -295,7 +295,17 @@ func (p *parseCtx) DefaultL4Parser() error {
 	if err = p.s.L4.Validate(pldLen); err != nil {
 		return common.NewCError("L4 validation failed", "err", err)
 	}
-	p.s.Pld = common.RawBytes(p.b[p.offset : p.offset+pldLen])
+	switch p.nextHdr {
+	case common.L4UDP:
+		p.s.Pld = common.RawBytes(p.b[p.offset : p.offset+pldLen])
+	case common.L4SCMP:
+		hdr, _ := p.s.L4.(*scmp.Hdr)
+		p.s.Pld, err = scmp.PldFromRaw(p.b[p.offset:p.offset+pldLen],
+			scmp.ClassType{Class: hdr.Class, Type: hdr.Type})
+		if err != nil {
+			return common.NewCError("Unable to parse SCMP payload", "err", err)
+		}
+	}
 	p.offset += pldLen
 	p.pldOffsets.end = p.offset
 
