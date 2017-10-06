@@ -211,6 +211,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 	switch reply.Result {
 	case sciond.RevUnknown, sciond.RevValid:
 		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
+		log.Info("Revocation is valid", "uifid", uifid)
 		r.revTableCache.revoke(uifid)
 		revokedPairs := r.revTableReg.revoke(uifid)
 		for _, pair := range revokedPairs {
