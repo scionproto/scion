@@ -147,6 +147,14 @@ type FwdPathMeta struct {
 	Interfaces []PathInterface
 }
 
+func (fpm FwdPathMeta) String() string {
+	var hops []string
+	for _, intf := range fpm.Interfaces {
+		hops = append(hops, intf.String())
+	}
+	return fmt.Sprintf("Hops: %s Mtu: %d", strings.Join(hops, ">"), fpm.Mtu)
+}
+
 type PathInterface struct {
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	IfID     uint64
@@ -157,7 +165,7 @@ func (iface *PathInterface) ISD_AS() *addr.ISD_AS {
 }
 
 func (iface PathInterface) String() string {
-	return fmt.Sprintf("%v.%v", iface.ISD_AS(), iface.IfID)
+	return fmt.Sprintf("%v#%v", iface.ISD_AS(), iface.IfID)
 }
 
 type ASInfoReq struct {

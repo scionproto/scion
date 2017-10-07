@@ -44,7 +44,11 @@ func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.L4Port)
+	s := fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.L4Port)
+	if a.PathEntry != nil {
+		s += fmt.Sprintf(" Path: %s", a.PathEntry.Path)
+	}
+	return s
 }
 
 func (a *Addr) Copy() *Addr {
