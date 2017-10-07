@@ -141,6 +141,23 @@ type HostInfo struct {
 	}
 }
 
+func HostInfoFromHostAddr(host addr.HostAddr, port uint16) *HostInfo {
+	h := &HostInfo{Port: port}
+	if host.Type() == addr.HostTypeIPv4 {
+		h.Addrs.Ipv4 = host.IP()
+	} else {
+		h.Addrs.Ipv6 = host.IP()
+	}
+	return h
+}
+
+func (h *HostInfo) Host() addr.HostAddr {
+	if len(h.Addrs.Ipv4) > 0 {
+		return addr.HostIPv4(h.Addrs.Ipv4)
+	}
+	return addr.HostIPv6(h.Addrs.Ipv6)
+}
+
 type FwdPathMeta struct {
 	FwdPath    []byte
 	Mtu        uint16

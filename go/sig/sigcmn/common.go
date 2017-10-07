@@ -44,9 +44,10 @@ var (
 )
 
 var (
-	IA      *addr.ISD_AS
-	Host    addr.HostAddr
-	PathMgr *pathmgr.PR
+	IA       *addr.ISD_AS
+	Host     addr.HostAddr
+	PathMgr  *pathmgr.PR
+	CtrlConn *snet.Conn
 )
 
 func Init(ia *addr.ISD_AS, ip net.IP) error {
@@ -66,6 +67,11 @@ func Init(ia *addr.ISD_AS, ip net.IP) error {
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
 		return common.NewCError("Error creating local SCION Network context", "err", err)
+	}
+	CtrlConn, err = snet.ListenSCION(
+		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)})
+	if err != nil {
+		return common.NewCError("Error creating ctrl socket", "err", err)
 	}
 	if PathMgr, err = pathmgr.New(*sciondPath, time.Minute, log.Root()); err != nil {
 		return common.NewCError("Error creating path manager", "err", err)
@@ -91,4 +97,10 @@ func ValidatePort(desc string, port int) error {
 			"min", 1, "max", MaxPort, "actual", port)
 	}
 	return nil
+}
+
+type SessionType uint8
+
+func (st SessionType) String() string {
+	return fmt.Sprintf("0x%02x", uint8(st))
 }

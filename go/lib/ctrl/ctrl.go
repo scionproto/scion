@@ -27,7 +27,10 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/proto"
+	sigmgmt "github.com/netsec-ethz/scion/go/sig/mgmt"
 )
+
+const LenSize = 4
 
 // union represents the contents of the unnamed capnp union.
 type union struct {
@@ -38,7 +41,7 @@ type union struct {
 	PathMgmt    *path_mgmt.Pld
 	Sibra       []byte `capnp:"-"` // Omit for now
 	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
-	Sig         []byte `capnp:"-"` // Omit for now
+	Sig         *sigmgmt.Pld
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -52,6 +55,9 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *path_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_pathMgmt
 		u.PathMgmt = p
+	case *sigmgmt.Pld:
+		u.Which = proto.CtrlPld_Which_sig
+		u.Sig = p
 	default:
 		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
@@ -66,6 +72,8 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.IfID, nil
 	case proto.CtrlPld_Which_pathMgmt:
 		return u.PathMgmt, nil
+	case proto.CtrlPld_Which_sig:
+		return u.Sig, nil
 	}
 	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
 }
@@ -123,6 +131,20 @@ func (p *Pld) WritePld(b common.RawBytes) (int, error) {
 	n, err := proto.WriteRoot(p, b[4:])
 	common.Order.PutUint32(b, uint32(n))
 	return n + 4, err
+}
+
+func (p *Pld) PackPld() (common.RawBytes, error) {
+	b, err := proto.PackRoot(p)
+	if err != nil {
+		return nil, err
+	}
+	// Make a larger buffer, to allow pre-pending of the length field.
+	full := make(common.RawBytes, LenSize+len(b))
+	// Write length field
+	common.Order.PutUint32(full, uint32(len(b)))
+	// Copy the encoded proto into the full buffer
+	copy(full[LenSize:], b)
+	return full, err
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

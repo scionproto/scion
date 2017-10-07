@@ -26,7 +26,6 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
@@ -42,9 +41,6 @@ type ASEntry struct {
 	DevName      string
 	tunLink      netlink.Link
 	tunIO        io.ReadWriteCloser
-	// FIXME(kormat): Having the conn object here is temporary, it will live
-	// inside the policy objects when they are implemented.
-	conn *snet.Conn
 }
 
 func newASEntry(ia *addr.ISD_AS) *ASEntry {
@@ -71,27 +67,9 @@ func (ae *ASEntry) TunIO() (io.ReadWriteCloser, error) {
 	return ae.tunIO, nil
 }
 
-// Conn returns the snet.Conn for sending traffic to the remote AS,
-// doing the required setup first if necessary.
-func (ae *ASEntry) Conn() (*snet.Conn, error) {
-	ae.Lock()
-	defer ae.Unlock()
-	if ae.tunLink == nil {
-		if err := ae.setupNet(); err != nil {
-			return nil, err
-		}
-	}
-	return ae.conn, nil
-}
-
 func (ae *ASEntry) setupNet() error {
 	var err error
 	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
-	if err != nil {
-		return err
-	}
-	// Not using a fixed local port, as this is for outgoing data only.
-	ae.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
 	if err != nil {
 		return err
 	}
@@ -179,8 +157,10 @@ func (ae *ASEntry) DelSig(id string) error {
 	return se.Cleanup()
 }
 
-// Internal method to return an arbitrary SIG
-func (ae *ASEntry) getSig() *SIGEntry {
+// Internal method to return an arbitrary active SIG
+func (ae *ASEntry) GetSig() *SIGEntry {
+	ae.Lock()
+	defer ae.Unlock()
 	if len(ae.Sigs) == 0 {
 		return nil
 	}
@@ -193,21 +173,21 @@ func (ae *ASEntry) getSig() *SIGEntry {
 	return sigs[rand.Intn(len(sigs))]
 }
 
-func (ae *ASEntry) AddPolicy(name string, policy interface{}) error {
+func (ae *ASEntry) AddPolicy(name string, sessId sigcmn.SessionType, policy interface{}) error {
 	ae.Lock()
 	defer ae.Unlock()
-	pp, err := NewPathPolicy(ae.IA, ae.getSig(), policy)
+	pp, err := NewPathPolicy(ae.IA, name, sessId, policy)
 	if err != nil {
 		return err
 	}
 	pps := ae.PathPolicies.Load()
 	pps = append(pps, pp)
 	ae.PathPolicies.Store(pps)
-	go NewEgressWorker(ae, pp, ae.conn).Run()
 	if len(pps) == 1 {
 		log.Info("Starting egress dispatcher", "ia", ae.IA, "dev", ae.DevName)
 		go newEgressDispatcher(ae.DevName, ae.tunIO, ae.PathPolicies).Run()
 	}
+	pp.Start(ae.GetSig)
 	return nil
 }
 
@@ -238,5 +218,5 @@ func (ae *ASEntry) Cleanup() error {
 		return common.NewCError("Error removing TUN link",
 			"ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
-	return ae.conn.Close()
+	return nil
 }

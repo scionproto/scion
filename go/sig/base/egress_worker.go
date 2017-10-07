@@ -24,7 +24,6 @@ import (
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
@@ -53,9 +52,8 @@ const (
 )
 
 type EgressWorker struct {
-	ae       *ASEntry
-	pol      *PathPolicy
-	conn     *snet.Conn
+	iaString string
+	pp       *PathPolicy
 	currPath *sciond.PathReplyEntry
 
 	epoch uint16
@@ -63,8 +61,8 @@ type EgressWorker struct {
 	pkts  ringbuf.EntryList
 }
 
-func NewEgressWorker(ae *ASEntry, pol *PathPolicy, conn *snet.Conn) *EgressWorker {
-	return &EgressWorker{ae: ae, pol: pol, conn: conn, currPath: pol.CurrPath(),
+func NewEgressWorker(pol *PathPolicy) *EgressWorker {
+	return &EgressWorker{iaString: pol.IA.String(), pp: pol, currPath: pol.CurrPath(),
 		pkts: make(ringbuf.EntryList, 0, egressBufPkts)}
 }
 
@@ -103,7 +101,8 @@ TopLoop:
 			e.pkts[i] = nil
 		}
 	}
-	log.Info("EgressWorker: stopping", "ia", e.ae.IA)
+	log.Info("EgressWorker: stopping", "ia", e.iaString)
+	close(e.pp.workerStopped)
 }
 
 func (e *EgressWorker) processPkt(f *frame, pkt common.RawBytes) error {
@@ -130,7 +129,7 @@ func (e *EgressWorker) processPkt(f *frame, pkt common.RawBytes) error {
 // Return false if the ringbuf is closed.
 func (e *EgressWorker) Read(block bool) bool {
 	e.pkts = e.pkts[:cap(e.pkts)]
-	n, _ := e.pol.ring.Read(e.pkts, block)
+	n, _ := e.pp.ring.Read(e.pkts, block)
 	if n < 0 {
 		return false
 	}
@@ -147,33 +146,34 @@ func (e *EgressWorker) Write(f *frame) error {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
 	}
-	sig := e.pol.CurrSig()
-	if sig == nil {
+	ppinfo := e.pp.Info()
+	if ppinfo.Sig == nil {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
 	}
-	snetAddr := sig.EncapSnetAddr()
+	snetAddr := ppinfo.Sig.EncapSnetAddr()
 	snetAddr.PathEntry = e.currPath
 
 	if e.seq == 0 {
 		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
+	// FIXME(kormat): use ppinfo.Session here.
 	f.writeHdr(e.epoch, e.seq)
 	//log.Debug("EgressWorker.Write", "len", f.offset, "epoch", e.epoch,
 	// "seq", e.seq, "index", f.idx, "raw", f.raw())
 	// Update metadata
 	e.seq += 1
-	bytesWritten, err := e.conn.WriteToSCION(f.raw(), snetAddr)
+	bytesWritten, err := e.pp.conn.WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewCError("Egress write error", "err", err)
 	}
-	metrics.FramesSent.WithLabelValues(e.ae.IAString).Inc()
-	metrics.FrameBytesSent.WithLabelValues(e.ae.IAString).Add(float64(bytesWritten))
+	metrics.FramesSent.WithLabelValues(e.iaString).Inc()
+	metrics.FrameBytesSent.WithLabelValues(e.iaString).Add(float64(bytesWritten))
 	return nil
 }
 
 func (e *EgressWorker) resetFrame(f *frame) {
-	e.currPath = e.pol.CurrPath()
+	e.currPath = e.pp.CurrPath()
 	// FIXME(kormat): to do this properly, need to calculate the address header size,
 	// and account for any ext headers.
 	f.reset(e.currPath.Path.Mtu - spkt.CmnHdrLen - 40 - l4.UDPLen)
