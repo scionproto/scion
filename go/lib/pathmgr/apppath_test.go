@@ -339,7 +339,7 @@ func TestAppPathSets(t *testing.T) {
 		SoMsg("len", len(aps), ShouldEqual, 1)
 
 		Convey("API users can retrieve the path", func() {
-			path := aps.GetAppPath()
+			path := aps.GetAppPath("")
 			SoMsg("path", path, ShouldNotEqual, nil)
 		})
 
@@ -350,7 +350,7 @@ func TestAppPathSets(t *testing.T) {
 			SoMsg("len", len(aps), ShouldEqual, 0)
 
 			Convey("API users can no longer retrieve paths", func() {
-				path := aps.GetAppPath()
+				path := aps.GetAppPath("")
 				SoMsg("path", path, ShouldEqual, nil)
 			})
 		})
