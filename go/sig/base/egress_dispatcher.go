@@ -37,7 +37,7 @@ var (
 func Init() {
 	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
 		return make(common.RawBytes, 1<<16)
-	}, "egress", prometheus.Labels{"ringId": "freeFrames"})
+	}, "egress", prometheus.Labels{"ringId": "freePkts"})
 }
 
 type egressDispatcher struct {

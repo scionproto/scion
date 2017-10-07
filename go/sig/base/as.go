@@ -204,6 +204,8 @@ func (ae *ASEntry) AddPolicy(name string, policy interface{}) error {
 	return nil
 }
 
+// TODO: add DelPolicy, and close the tun device if there's no policies left.
+
 func (ae *ASEntry) Cleanup() error {
 	ae.Lock()
 	defer ae.Unlock()

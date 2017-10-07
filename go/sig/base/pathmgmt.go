@@ -45,7 +45,7 @@ func (spp *SyncPathPolicies) Load() []*PathPolicy {
 // as well as maintaining the currently favoured path and remote SIG to use.
 type PathPolicy struct {
 	IA     *addr.ISD_AS
-	policy interface{}
+	policy interface{} // FIXME(kormat): not implemented yet :P
 	//Policy  pathmgr.Policy // Describes what interfaces to route through
 	pool     *pathmgr.SyncPaths // pool of paths that meet the policy requirement, managed by pathmgr
 	currPath atomic.Value       // Currently favoured *sciond.PathReplyEntry

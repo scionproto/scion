@@ -65,10 +65,10 @@ func Init(ia *addr.ISD_AS, ip net.IP) error {
 	// Initialize SCION local networking module
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
-		return common.NewCError("Unable to create local SCION Network context", "err", err)
+		return common.NewCError("Error creating local SCION Network context", "err", err)
 	}
 	if PathMgr, err = pathmgr.New(*sciondPath, time.Minute, log.Root()); err != nil {
-
+		return common.NewCError("Error creating path manager", "err", err)
 	}
 	return nil
 }
