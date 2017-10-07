@@ -29,6 +29,7 @@ from lib.util import proto_len
 class HPCfgId(Cerealizable):
     NAME = "HPCfgId"
     P_CLS = P.HPCfgId
+    VER = proto_len(P.HPCfgId.schema) - 1
 
     @classmethod
     def from_values(cls, master_ia, cfg_id):
@@ -41,6 +42,15 @@ class HPCfgId(Cerealizable):
 
     def master_ia(self):
         return ISD_AS(self.p.masterIA)
+
+    def sig_pack(self):
+        if self.VER != 1:
+            raise SCIONSigVerError("HPCfgId.sig_pack cannot support version %s",
+                                   self.VER)
+        b = []
+        b.append(self.p.masterIA)
+        b.append(self.p.cfgId.to_bytes(8, 'big'))
+        return b"".join(b)
 
     def short_desc(self):
         return "%s | %d" % (self.master_ia(), self.p.cfgId)
