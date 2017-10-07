@@ -58,6 +58,8 @@ type Conn struct {
 	sp *pathmgr.SyncPaths
 	// Reference to SCION networking context
 	scionNet *Network
+	// Key of last used path, used to select the same path for the next packet
+	prefPathKey pathmgr.PathKey
 }
 
 // DialSCION calls DialSCION on the default networking context.
@@ -294,7 +296,14 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	if len(pathSet) == 0 {
 		return nil, common.NewCError("Path not found", "srcIA", c.laddr.IA, "dstIA", raddr.IA)
 	}
-	return pathSet.GetAppPath().Entry, nil
+
+	// FIXME(scrye): A preferred path should be stored for each contacted
+	// destination. Currently the code below only supports one, which means
+	// that alternating sends between two remotes offers no guarantees on
+	// the path ever being the same.
+	path := pathSet.GetAppPath(c.prefPathKey)
+	c.prefPathKey = path.Key()
+	return path.Entry, nil
 }
 
 func (c *Conn) LocalAddr() net.Addr {

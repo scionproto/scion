@@ -47,8 +47,14 @@ func (aps AppPathSet) addChildAppPath(entry *sciond.PathReplyEntry) *AppPath {
 	return ap
 }
 
-// GetAppPath returns an AppPath from the set.
-func (aps AppPathSet) GetAppPath() *AppPath {
+// GetAppPath returns an AppPath from the set. It first tries to find
+// a path with key pref; if one cannot be found, an arbitrary one
+// is returned.
+func (aps AppPathSet) GetAppPath(pref PathKey) *AppPath {
+	ap, ok := aps[pref]
+	if ok {
+		return ap
+	}
 	for _, v := range aps {
 		return v
 	}
