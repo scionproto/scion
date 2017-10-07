@@ -22,13 +22,14 @@ from lib.errors import SCIONSigVerError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.types import ASMExtType, RoutingPolType
+from lib.util import proto_len
 
 
 class RoutingPolicyExt(Cerealizable):
     NAME = "RoutingPolicyExt"
     EXT_TYPE = ASMExtType.ROUTING_POLICY
     P_CLS = P.RoutingPolicyExt
-    VER = len(P_CLS.schema.fields) - 1
+    VER = proto_len(P_CLS.schema) - 1
 
     @classmethod
     def from_values(cls, type_, if_, isd_ases):

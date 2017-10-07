@@ -36,7 +36,7 @@ from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.pcb_ext import SibraPCBExt
 from lib.types import ASMExtType
-from lib.util import iso_timestamp
+from lib.util import iso_timestamp, proto_len
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
@@ -45,7 +45,7 @@ REV_TOKEN_LEN = 32
 class PCBMarking(Cerealizable):
     NAME = "PCBMarking"
     P_CLS = P.PCBMarking
-    VER = len(P_CLS.schema.fields) - 1
+    VER = proto_len(P_CLS.schema) - 1
 
     @classmethod
     def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid,
@@ -91,7 +91,7 @@ class PCBMarking(Cerealizable):
 class ASMarking(Cerealizable):
     NAME = "ASMarking"
     P_CLS = P.ASMarking
-    VER = len(P_CLS.schema.fields) - 1
+    VER = proto_len(P_CLS.schema) - 1
 
     @classmethod
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
@@ -167,7 +167,7 @@ class ASMarking(Cerealizable):
 class PathSegment(Cerealizable):
     NAME = "PathSegment"
     P_CLS = P.PathSegment
-    VER = len(P_CLS.schema.fields) - 1
+    VER = proto_len(P_CLS.schema) - 1
 
     def __init__(self, p):  # pragma: no cover
         super().__init__(p)

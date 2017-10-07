@@ -25,7 +25,7 @@ from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.sof import SibraOpaqueField
-from lib.util import hex_str
+from lib.util import hex_str, proto_len
 
 
 class SibraPCBExt(Cerealizable):  # pragma: no cover
@@ -35,7 +35,7 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
     """
     NAME = "SibraPCBExt"
     P_CLS = P.SibraPCBExt
-    VER = len(P_CLS.schema.fields) - 1
+    VER = proto_len(P_CLS.schema) - 1
 
     def __init__(self, p):
         super().__init__(p)
