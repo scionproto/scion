@@ -282,7 +282,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	} else {
 		// Sanity check, as Dial already initializes this
 		if c.sp == nil {
-			c.sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, c.raddr.IA)
+			c.sp, err = c.scionNet.pathResolver.Register(c.laddr.IA, raddr.IA)
 			if err != nil {
 				return nil, common.NewCError("Unable to register src-dst IAs",
 					"src", c.laddr.IA, "dst", raddr.IA, "err", err)
