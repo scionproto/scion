@@ -16,7 +16,6 @@ package snet
 
 import (
 	"net"
-	"sync"
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -40,8 +39,7 @@ var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
-	dispMutex sync.Mutex
-	conn      *reliable.Conn
+	conn *reliable.Conn
 	// Local and remote SCION addresses (IA, L3, L4)
 	laddr *Addr
 	raddr *Addr
@@ -101,9 +99,7 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	var err error
 	var remote *Addr
 
-	c.dispMutex.Lock()
 	n, err := c.conn.Read(c.recvBuffer)
-	c.dispMutex.Unlock()
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
@@ -228,9 +224,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 
 	// Send message
-	c.dispMutex.Lock()
 	n, err = c.conn.WriteTo(c.sendBuffer[:n], appAddr)
-	c.dispMutex.Unlock()
 	if err != nil {
 		return 0, common.NewCError("Dispatcher write error", "err", err)
 	}
