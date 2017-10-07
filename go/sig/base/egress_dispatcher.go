@@ -69,6 +69,7 @@ func (ed *egressDispatcher) Run() {
 		for i := 0; i < n; i++ {
 			buf := bufs[i].(common.RawBytes)
 			bufs[i] = nil
+			buf = buf[:cap(buf)]
 			length, err := ed.devIO.Read(buf)
 			if err != nil {
 				log.Error("EgressDispatcher: error reading from devIO",
