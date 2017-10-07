@@ -151,7 +151,7 @@ TopLoop:
 
 func (e *EgressWorker) SCMPReceiver() {
 	defer liblog.LogPanicAndExit()
-	conn, err := e.info.getConn()
+	conn, err := e.info.Conn()
 	if err != nil {
 		log.Error("SCMP receiver unable to get conn")
 		return
