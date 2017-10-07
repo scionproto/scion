@@ -25,6 +25,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 // Cfg is a direct Go representation of the JSON file format.
@@ -62,7 +63,7 @@ func Parse(b common.RawBytes) (*Cfg, error) {
 
 type ASEntry struct {
 	Nets []*IPNet
-	Sigs map[string]*SIG
+	Sigs map[siginfo.SigIdType]*SIG
 }
 
 // IPNet is custom type of net.IPNet, to allow custom unmarshalling.
@@ -87,7 +88,7 @@ func (in *IPNet) IPNet() *net.IPNet {
 
 // SIG represents a SIG in a remote IA.
 type SIG struct {
-	Id        string
+	Id        siginfo.SigIdType
 	Addr      net.IP
 	CtrlPort  uint16
 	EncapPort uint16

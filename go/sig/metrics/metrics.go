@@ -83,7 +83,7 @@ func Init(elem string) {
 	FramesDuplicated = newC("frames_duplicated_total", "Number of duplicate frames.")
 
 	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics("sig", constLabels, []string{"ringId"})
+	ringbuf.InitMetrics("sig", constLabels, []string{"ringId", "sessId"})
 }
 
 var servers map[string]io.Closer

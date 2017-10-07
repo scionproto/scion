@@ -15,7 +15,6 @@
 package ingress
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -26,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 const (
@@ -38,18 +38,23 @@ const (
 // Worker handles decapsulation of SIG frames.
 type Worker struct {
 	Remote           *snet.Addr
-	Session          int
+	SessId           sigcmn.SessionType
 	Ring             *ringbuf.Ring
 	reassemblyLists  map[int]*ReassemblyList
 	running          bool
 	markedForCleanup bool
 }
 
-func NewWorker(remote *snet.Addr, session int) *Worker {
-	ringLabels := prometheus.Labels{"ringId": fmt.Sprintf("%s:%d", remote.String(), session)}
+func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
+	// FIXME(kormat): these labels don't allow us to identify traffic from a
+	// specific remote sig, but adding the remote sig addr would cause a label
+	// explosion :/
+	ringLabels := prometheus.Labels{
+		"ringId": remote.IA.String(), "sessId": sessId.String(),
+	}
 	worker := &Worker{
 		Remote:          remote,
-		Session:         session,
+		SessId:          sessId,
 		Ring:            ringbuf.New(64, nil, "ingress", ringLabels),
 		reassemblyLists: make(map[int]*ReassemblyList),
 	}
@@ -65,7 +70,7 @@ func (w *Worker) Start() {
 
 func (w *Worker) Stop() {
 	if w.running {
-		log.Info("IngressWorker stopping", "remote", w.Remote.String(), "session", w.Session)
+		log.Info("IngressWorker stopping", "remote", w.Remote.String(), "sessId", w.SessId)
 		w.Ring.Close()
 		w.running = false
 	}
