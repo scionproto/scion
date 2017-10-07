@@ -17,12 +17,13 @@ package base
 import (
 	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type SyncPathPolicies struct {
