@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
