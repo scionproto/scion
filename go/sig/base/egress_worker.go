@@ -43,6 +43,9 @@ import (
 //  |         Sequence number           |     Index       |      Epoch      |
 //  +--------+--------+--------+--------+--------+--------+--------+--------+
 //
+//   Inside the frame, all encapsulated packets are preceeded by a 2B length
+//   field, and then padded to an 8B boundary
+
 const (
 	PktLenSize = 2
 	MinSpace   = 16
