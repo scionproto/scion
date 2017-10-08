@@ -17,6 +17,7 @@ package base
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
 
@@ -180,10 +181,16 @@ func (ae *ASEntry) DelSig(id string) error {
 
 // Internal method to return an arbitrary SIG
 func (ae *ASEntry) getSig() *SIGEntry {
-	for _, se := range ae.Sigs {
-		return se
+	if len(ae.Sigs) == 0 {
+		return nil
 	}
-	return nil
+	sigs := make([]*SIGEntry, 0, len(ae.Sigs))
+	for _, se := range ae.Sigs {
+		if se.Active {
+			sigs = append(sigs, se)
+		}
+	}
+	return sigs[rand.Intn(len(sigs))]
 }
 
 func (ae *ASEntry) AddPolicy(name string, policy interface{}) error {
