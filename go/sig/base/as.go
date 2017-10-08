@@ -17,6 +17,7 @@ package base
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
 
@@ -37,7 +38,7 @@ type ASEntry struct {
 	IAString     string
 	Nets         map[string]*NetEntry
 	Sigs         map[string]*SIGEntry
-	PathPolicies []PathPolicy
+	PathPolicies *SyncPathPolicies
 	DevName      string
 	tunLink      netlink.Link
 	tunIO        io.ReadWriteCloser
@@ -48,11 +49,12 @@ type ASEntry struct {
 
 func newASEntry(ia *addr.ISD_AS) *ASEntry {
 	return &ASEntry{
-		IA:       ia,
-		IAString: ia.String(),
-		Nets:     make(map[string]*NetEntry),
-		Sigs:     make(map[string]*SIGEntry),
-		DevName:  fmt.Sprintf("scion-%s", ia),
+		IA:           ia,
+		IAString:     ia.String(),
+		Nets:         make(map[string]*NetEntry),
+		Sigs:         make(map[string]*SIGEntry),
+		PathPolicies: NewSyncPathPolicies(),
+		DevName:      fmt.Sprintf("scion-%s", ia),
 	}
 }
 
@@ -93,10 +95,6 @@ func (ae *ASEntry) setupNet() error {
 	if err != nil {
 		return err
 	}
-	// FIXME(kormat): once policies are implmeneted, workers would be spawned by the policies,
-	// and the egress dispatcher would be spawned here (and if we move away from tun-per-IA,
-	// then it would be spawned by main())
-	go NewEgressWorker(ae, ae.tunIO).Run()
 	log.Info("Network setup done", "ia", ae.IA)
 	return nil
 }
@@ -181,26 +179,59 @@ func (ae *ASEntry) DelSig(id string) error {
 	return se.Cleanup()
 }
 
-// FIXME(kormat): this is temporary, until we have policies managing this.
-func (ae *ASEntry) CurrSig() *SIGEntry {
-	for _, sig := range ae.Sigs {
-		return sig
+// Internal method to return an arbitrary SIG
+func (ae *ASEntry) getSig() *SIGEntry {
+	if len(ae.Sigs) == 0 {
+		return nil
+	}
+	sigs := make([]*SIGEntry, 0, len(ae.Sigs))
+	for _, se := range ae.Sigs {
+		if se.Active {
+			sigs = append(sigs, se)
+		}
+	}
+	return sigs[rand.Intn(len(sigs))]
+}
+
+func (ae *ASEntry) AddPolicy(name string, policy interface{}) error {
+	ae.Lock()
+	defer ae.Unlock()
+	pp, err := NewPathPolicy(ae.IA, ae.getSig(), policy)
+	if err != nil {
+		return err
+	}
+	pps := ae.PathPolicies.Load()
+	pps = append(pps, pp)
+	ae.PathPolicies.Store(pps)
+	go NewEgressWorker(ae, pp, ae.conn).Run()
+	if len(pps) == 1 {
+		log.Info("Starting egress dispatcher", "ia", ae.IA, "dev", ae.DevName)
+		go newEgressDispatcher(ae.DevName, ae.tunIO, ae.PathPolicies).Run()
 	}
 	return nil
 }
 
+// TODO: add DelPolicy, and close the tun device if there's no policies left.
+
 func (ae *ASEntry) Cleanup() error {
 	ae.Lock()
 	defer ae.Unlock()
-	// FIXME(kormat): cleanup path policies and their goroutines.
+	// Clean up the egress dispatcher.
+	if err := ae.tunIO.Close(); err != nil {
+		log.Error("Error closing TUN io", "ia", ae.IA, "dev", ae.DevName, "err", err)
+	}
+	// Clean up path policies, and their associated workers.
+	pps := ae.PathPolicies.Load()
+	for _, pp := range pps {
+		if err := pp.Cleanup(); err != nil {
+			log.Error("Error cleaning up path policy", "ia", ae.IA, "err", err)
+		}
+	}
 	for _, ne := range ae.Nets {
 		if err := ne.Cleanup(); err != nil {
 			cerr := err.(*common.CError)
 			log.Error(cerr.Desc, cerr.Ctx...)
 		}
-	}
-	if err := ae.tunIO.Close(); err != nil {
-		log.Error("Error closing TUN io", "ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
 	if err := netlink.LinkDel(ae.tunLink); err != nil {
 		// Only return this error, as it's the only critical one.

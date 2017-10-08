@@ -18,9 +18,13 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"time"
+
+	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
@@ -32,23 +36,39 @@ const (
 )
 
 var (
-	CtrlPort  = flag.Int("ctrlport", DefaultCtrlPort, "control data port (e.g., keepalives)")
-	EncapPort = flag.Int("encapport", DefaultEncapPort, "encapsulation data port")
+	CtrlPort       = flag.Int("ctrlport", DefaultCtrlPort, "control data port (e.g., keepalives)")
+	EncapPort      = flag.Int("encapport", DefaultEncapPort, "encapsulation data port")
+	sciondPath     = flag.String("sciond", "", "SCIOND socket path")
+	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+		"SCION Dispatcher path")
 )
 
 var (
-	IA   *addr.ISD_AS
-	Host addr.HostAddr
+	IA      *addr.ISD_AS
+	Host    addr.HostAddr
+	PathMgr *pathmgr.PR
 )
 
 func Init(ia *addr.ISD_AS, ip net.IP) error {
+	var err error
 	IA = ia
 	Host = addr.HostFromIP(ip)
-	if err := ValidatePort("local ctrl", *CtrlPort); err != nil {
+	if err = ValidatePort("local ctrl", *CtrlPort); err != nil {
 		return err
 	}
-	if err := ValidatePort("local encap", *EncapPort); err != nil {
+	if err = ValidatePort("local encap", *EncapPort); err != nil {
 		return err
+	}
+	if *sciondPath == "" {
+		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia)
+	}
+	// Initialize SCION local networking module
+	err = snet.Init(ia, *sciondPath, *dispatcherPath)
+	if err != nil {
+		return common.NewCError("Error creating local SCION Network context", "err", err)
+	}
+	if PathMgr, err = pathmgr.New(*sciondPath, time.Minute, log.Root()); err != nil {
+		return common.NewCError("Error creating path manager", "err", err)
 	}
 	return nil
 }
