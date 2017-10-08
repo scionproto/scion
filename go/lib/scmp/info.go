@@ -185,11 +185,7 @@ func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	p.InfoPathOffsets.InfoF = common.Order.Uint16(b[0:])
 	p.InfoPathOffsets.HopF = common.Order.Uint16(b[2:])
 	p.InfoPathOffsets.IfID = common.Order.Uint16(b[4:])
-	if (b[6] & 0x01) == 0 {
-		p.InfoPathOffsets.Ingress = false
-	} else {
-		p.InfoPathOffsets.Ingress = true
-	}
+	p.InfoPathOffsets.Ingress = (b[6] & 0x01) == 0x01
 	p.RevToken = b[8:]
 	return p, nil
 }

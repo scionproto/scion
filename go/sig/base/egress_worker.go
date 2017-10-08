@@ -74,7 +74,7 @@ func (e *EgressWorker) Run() {
 
 	// SCMP messages can only be parsed when reading from snet; we spawn
 	// a goroutine who's only purpose is to read these messsages
-	go SCMPReceiver()
+	go e.SCMPReceiver()
 
 TopLoop:
 	for {
@@ -112,14 +112,9 @@ TopLoop:
 
 func (e *EgressWorker) SCMPReceiver() {
 	defer liblog.LogPanicAndExit()
-	conn, err := e.info.Conn()
-	if err != nil {
-		log.Error("SCMP receiver unable to get conn")
-		return
-	}
 	buffer := make(common.RawBytes, common.MaxMTU)
 	for {
-		_, err := conn.Read(buffer)
+		_, err := e.conn.Read(buffer)
 		if err != nil {
 			log.Error("SCMP receiver error while reading")
 			return

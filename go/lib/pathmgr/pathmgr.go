@@ -211,7 +211,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 	switch reply.Result {
 	case sciond.RevUnknown, sciond.RevValid:
 		uifid := UIFIDFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
-		log.Info("Revocation is valid", "uifid", uifid)
+		log.Info("Revocation is valid", "rev", parsedRev)
 		r.revTableCache.revoke(uifid)
 		revokedPairs := r.revTableReg.revoke(uifid)
 		for _, pair := range revokedPairs {
@@ -258,7 +258,7 @@ func (r *PR) lookup(q query) AppPathSet {
 	}
 
 	reply, err := r.sciond.Paths(q.dst, q.src, numReqPaths, sciond.PathReqFlags{})
-	log.Info("SCIOND response received", "count", len(reply.Entries), "data", reply)
+	log.Debug("SCIOND response received", "count", len(reply.Entries), "data", reply)
 	if err != nil {
 		log.Error("SCIOND network error", "err", err)
 		// Network error, cannot connect to SCIOND

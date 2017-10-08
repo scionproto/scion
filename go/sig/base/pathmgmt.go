@@ -67,7 +67,7 @@ func NewPathPolicy(dstIA *addr.ISD_AS, currSig *SIGEntry, policy interface{}) (*
 	var pathEntry *sciond.PathReplyEntry
 	aps := pp.pool.Load()
 	if aps != nil {
-		ap := aps.GetAppPath()
+		ap := aps.GetAppPath("")
 		if ap != nil {
 			pathEntry = ap.Entry
 		}

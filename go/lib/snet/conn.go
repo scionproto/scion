@@ -137,31 +137,7 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 				L4Port: hdr.SrcPort,
 			}
 		case *scmp.Hdr:
-			log.Info("Received SCMP message")
-			// Only handle revocations for now
-			if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
-				log.Info("SCMP message is revocation request")
-				log.Info("SCMP dump", "header", hdr.String())
-
-				scmpPayload, ok := pkt.Pld.(*scmp.Payload)
-				if !ok {
-					log.Error("Unable to type assert payload to SCMP payload")
-				}
-				log.Info("SCMP payload dump", "payload", scmpPayload.String())
-
-				info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
-				if !ok {
-					log.Error("Unable to type assert SCMP Info to SCMP Revocation Info")
-				}
-
-				// Extract RevInfo buffer and send it to path manager
-				log.Info("snet.read() sending revocation", "info", info.RevToken)
-				c.scionNet.pathResolver.Revoke(info.RevToken)
-			} else {
-				log.Warn("Received unsupported SCMP message", "class", hdr.Class,
-					"type", hdr.Type)
-			}
-
+			c.handleSCMP(hdr, pkt)
 			// Recursively try to read again to give the application UDP data
 			return c.read(b)
 		default:
@@ -170,6 +146,31 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 		}
 	}
 	return n, remote, nil
+}
+
+func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
+	// Only handle revocations for now
+	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
+		c.handleSCMPRev(hdr, pkt)
+	} else {
+		log.Warn("Received unsupported SCMP message", "class", hdr.Class,
+			"type", hdr.Type)
+	}
+}
+
+func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
+	scmpPayload, ok := pkt.Pld.(*scmp.Payload)
+	if !ok {
+		log.Error("Unable to type assert payload to SCMP payload")
+	}
+	log.Info("SCMP payload dump", "payload", scmpPayload.String())
+	info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
+	if !ok {
+		log.Error("Unable to type assert SCMP Info to SCMP Revocation Info")
+	}
+	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
+	// Extract RevInfo buffer and send it to path manager
+	c.scionNet.pathResolver.Revoke(info.RevToken)
 }
 
 // WriteToSCION sends b to raddr.
@@ -293,7 +294,6 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 			}
 		}
 		pathSet = c.sp.Load()
-		//log.Info("Current path set is", "set", fmt.Sprintf("%v", pathSet))
 	}
 
 	if len(pathSet) == 0 {
