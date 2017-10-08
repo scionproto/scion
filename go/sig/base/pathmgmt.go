@@ -58,6 +58,7 @@ type PathPolicy struct {
 func NewPathPolicy(dstIA *addr.ISD_AS, currSig *SIGEntry, policy interface{}) (*PathPolicy, error) {
 	var err error
 	pp := &PathPolicy{IA: dstIA, policy: policy}
+	// FIXME(kormat): change to `RegisterFilter once pathmgr supports policies.
 	pp.pool, err = sigcmn.PathMgr.Register(sigcmn.IA, dstIA)
 	if err != nil {
 		return nil, err

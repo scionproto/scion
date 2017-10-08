@@ -62,7 +62,7 @@ type EgressWorker struct {
 
 func NewEgressWorker(ae *ASEntry, pol *PathPolicy, conn *snet.Conn) *EgressWorker {
 	return &EgressWorker{ae: ae, pol: pol, conn: conn, currPath: pol.CurrPath(),
-		pkts: make(ringbuf.EntryList, 0, 32)}
+		pkts: make(ringbuf.EntryList, 0, egressBufPkts)}
 }
 
 func (e *EgressWorker) Run() {
@@ -183,7 +183,7 @@ type frame struct {
 }
 
 func newFrame() *frame {
-	return &frame{b: make(common.RawBytes, common.MaxMTU)}
+	return &frame{b: make(common.RawBytes, common.MaxMTU), offset: sigcmn.SIGHdrSize}
 }
 
 func (f *frame) reset(mtu uint16) {

@@ -27,7 +27,9 @@ import (
 )
 
 const (
+	// FIXME(kormat): these relative sizes will fail if there are lots of egress dispatchers.
 	egressFreePktsCap = 1024
+	egressBufPkts     = 32
 )
 
 var (
@@ -36,7 +38,7 @@ var (
 
 func Init() {
 	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
-		return make(common.RawBytes, 1<<16)
+		return make(common.RawBytes, common.MaxMTU)
 	}, "egress", prometheus.Labels{"ringId": "freePkts"})
 }
 
@@ -53,7 +55,7 @@ func newEgressDispatcher(devName string, devIO io.ReadWriteCloser,
 
 func (ed *egressDispatcher) Run() {
 	defer liblog.LogPanicAndExit()
-	bufs := make(ringbuf.EntryList, 32)
+	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
 	pps := ed.spp.Load()
